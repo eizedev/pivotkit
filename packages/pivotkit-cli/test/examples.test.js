@@ -89,8 +89,40 @@ test("pivotkit example weather: the attribution next to the files, in the view f
     assert.match(JSON.parse(readFileSync(join(dir, "weather.pivotkit.json"), "utf8")).description, /CC BY 4\.0/);
 });
 
+test("pivotkit example templates: the print templates, and what to run with the sales example's data", async () => {
+    const dir = tempDir();
+    const r = await run(["example", "templates"], { cwd: dir });
+    assert.equal(r.code, 0, r.stderr);
+    assert.deepEqual(readdirSync(dir).sort(), ["corporate.template.html", "minimal.template.html"]);
+    assert.match(r.stderr, /^ {2}corporate\.template\.html +a print template: company header/m);
+    assert.match(r.stderr, /^Next:\n {2}pivotkit example sales +\(its data and views, if they are not here yet\)$/m);
+    assert.match(r.stderr, /^ {2}pivotkit render sales-chart\.pivotkit\.json --data sales\.csv --template corporate\.template\.html -o corporate-report\.html +\(an HTML report in that design/m);
+    assert.match(r.stderr, /--template minimal\.template\.html -o minimal-report\.html/);
+    const json = JSON.parse((await run(["example", "templates", "--json"], { cwd: tempDir() })).stdout);
+    assert.deepEqual(json.next, ["pivotkit example sales", "pivotkit render sales-chart.pivotkit.json --data sales.csv --template corporate.template.html -o corporate-report.html", "pivotkit render sales-chart.pivotkit.json --data sales.csv --template minimal.template.html -o minimal-report.html"]);
+});
+
 // every shipped view over its data, as a user runs it: no finding, a table with its totals
-for (const example of MANIFEST.examples) {
+for (const example of MANIFEST.examples.filter((e) => e.templates)) {
+    test(`shipped example ${example.name}: every template renders the ${example.uses} example's views, as its next lines say`, async () => {
+        const dir = tempDir();
+        assert.equal((await run(["example", example.name], { cwd: dir })).code, 0);
+        assert.equal((await run(["example", example.uses], { cwd: dir })).code, 0);
+        const uses = MANIFEST.examples.find((e) => e.name === example.uses);
+        for (const template of example.templates) {
+            for (const view of uses.files.filter((f) => f.endsWith(".pivotkit.json"))) {
+                const out = `${template}-${view}.html`;
+                const r = await run(["render", view, "--data", example.data, "--template", template, "-o", out, "--json"], { cwd: dir });
+                assert.equal(r.code, 0, `${template} ${view}: ${r.stdout}`);
+                const html = readFileSync(join(dir, out), "utf8");
+                assert.match(html, /<table class="pk-table">/);
+                assert.ok(!html.includes("{{"), `${template}: every placeholder filled`);
+            }
+        }
+    });
+}
+
+for (const example of MANIFEST.examples.filter((e) => !e.templates)) {
     test(`shipped example ${example.name}: every view validates strictly and renders over its data`, async () => {
         const dir = tempDir();
         assert.equal((await run(["example", example.name], { cwd: dir })).code, 0);

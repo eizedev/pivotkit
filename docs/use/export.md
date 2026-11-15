@@ -24,14 +24,15 @@ it, **Source data** downloads all the rows behind the report instead of the tabl
 | **Print or save as PDF…** | The HTML report in the browser's print dialog: print it, or pick "Save as PDF" there. | Paper, or a PDF. |
 | **Copy table** | The table as it is shown, tab-separated. | Pasting into Excel, Numbers or Google Sheets. |
 | **Copy data as JSON** | The table's data for a program. | A developer. |
-| **All rows as CSV (.csv)** | All the original rows behind the report, before grouping, filters and totals, with every field. | Your own analysis, or the [command line](../reference/cli.md) with the view. |
+| **All rows as CSV (.csv)** | All the original rows behind the report, before grouping, filters and totals, with every field. | Your own analysis, or a colleague who builds the report again with a script: give them this file and the view (**Views**, **Download view**), the two things the [command line](../reference/cli.md) needs. |
 | **All rows as JSON (.json)** | The same rows for a program: numbers as numbers, text as text, a blank as `null`. | A developer. |
 
 While no field is placed there is no table to export: its entries are greyed out with "Add a field
 first." under them, and nothing is downloaded or copied. The source data is there all the same.
 
 The menu has three titled groups, **Download**, **Print** and **Copy**, and a fourth, **Source data**,
-last, where the application turns it on (the playground does). The drill-down's Export menu
+last, where the application turns it on (the playground does); it may hold only some of the
+fields. The drill-down's Export menu
 has **Download** and **Copy** with the rows behind a number; it has no HTML report, SVG or print. An
 **i** next to Excel, Table as CSV, HTML report, Print, Copy table, Copy data as JSON and the two
 source data entries says what each holds; its text opens above
@@ -126,7 +127,8 @@ The files are named after the application's report name, "pivot" when it gives n
 `pivot.csv`, `pivot.html`, `pivot.png`, `pivot.svg`; the source data `pivot-data.csv` and
 `pivot-data.json`. A downloaded view is `<name>.pivotkit.json`, after the view's or the
 data's name ([views](views.md#share-a-view)). The rows behind a number are named after the cell
-([drill-down](drill-down.md#copy-or-download-the-rows)).
+([drill-down](drill-down.md#copy-or-download-the-rows)). The live demo names its files after its data set
+(`pivotkit-tickets.xlsx`), and after a file you load into it (`quarter-csv.xlsx`).
 
 ## Safe to open
 
@@ -147,8 +149,9 @@ note says so: "This page does not allow copying. Download a file instead."
     keep it or print it its own way ([React props](../reference/react.md#props)). Source data is off
     unless the host sets `exportData` ([React](../reference/react.md#prop-exportdata),
     [web component](../reference/element.md): `export-data`); it holds every row and column the report
-    has, also those it does not show ([security](../security.md#source-data)). Its files are
-    pivotkit-core's `dataToCsvBytes` and `dataToJson` ([pivotkit-core](../reference/core.md)). The HTML report and the SVG are
+    has (or the columns `exportData` names, which the drill-down's exports keep to as well), also
+    those it does not show ([security](../security.md#source-data)). Its files are
+    pivotkit-core's `dataToCsvParts` and `dataToJson` ([pivotkit-core](../reference/core.md)). The HTML report and the SVG are
     [pivotkit-report](../reference/report.md)'s, the same as the command line's
     ([pivotkit-cli](../reference/cli.md)). The shape of Copy data as JSON is
     [pivotkit-core's `toJson`](../reference/core.md); how formats reach Excel and CSV is in

@@ -64,9 +64,10 @@ export function neutralizeFormula(text) {
     return formula ? `'${text}` : text;
 }
 
+/** A date value as ISO text: the day, and the time unless it is midnight; a year before 0 or after 9999 with its sign and six digits. */
 function isoOf(wallMs) {
     const d = new Date(wallMs);
-    const date = `${pad(d.getUTCFullYear(), 4)}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    const date = d.toISOString().split("T")[0];
     return wallMs % MS_PER_DAY === 0 ? date : `${date} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 }
 
@@ -174,7 +175,7 @@ export function csvText(grid, options) {
                 }
                 if (isNumberCell(source)) {
                     const showAs = source.valueIndex !== undefined && Boolean(grid.showAs?.[source.valueIndex]);
-                    return source.valueType === "date" ? isoOf(source.value) : numberText(source.value, source.format, mark, showAs, locale);
+                    return source.valueType === "date" ? quote(isoOf(source.value)) : numberText(source.value, source.format, mark, showAs, locale);
                 }
                 return quote(source.text);
             })

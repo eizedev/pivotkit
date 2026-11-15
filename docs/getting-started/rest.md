@@ -11,22 +11,23 @@ for the container image, see [Container image](../reference/container.md).
 
 ## 1. Install and start it { #start }
 
-Make a folder with the example data of the [command line](../reference/cli.md) and an output folder:
+Make a folder with the example data of the [command line](../reference/cli.md):
 
 ```bash
 mkdir pivotkit-rest && cd pivotkit-rest
 npx -y pivotkit-cli example
-mkdir reports
 ```
 
-Start the service with one source, `sales`, on 127.0.0.1:3333 (no sign-in on loopback):
+Start the service with one source, `sales`, on 127.0.0.1:3333 (no sign-in on loopback); it makes
+the folder `reports` for what it writes:
 
 ```bash
 npx -y pivotkit-server serve --source sales=sales.csv --output reports
 ```
 
 The log says `started` with the address. Leave it running and open a second terminal in the same
-folder.
+folder. `npx -y` takes the newest release at each start; for a service others use, install a version
+you name and update it as in [Update an installation](upgrading.md#update).
 
 ## 2. Look at the data { #describe }
 
@@ -45,8 +46,16 @@ folder.
     (Invoke-RestMethod "$api/sources/sales").fields | Format-Table name, type, level, distinct
     ```
 
+=== "pivotkit"
+
+    ```bash
+    npx -y pivotkit-cli sources --url http://127.0.0.1:3333/api/v1
+    npx -y pivotkit-cli sources sales --url http://127.0.0.1:3333/api/v1
+    ```
+
 Each field has a `level`. By default every field is `summary`: you get its name, type and counts, not
-its values. The operator decides more per field ([step 5](#policy)).
+its values. At `values` you get every value as a complete list, at `show` values and results. The
+operator decides per field ([step 5](#policy)).
 
 ## 3. Check a view { #validate }
 
@@ -91,9 +100,13 @@ With the name fixed, render the report into the output folder:
     Get-ChildItem reports
     ```
 
-The answer's `message` says where the file is. Check `ok` in a script: a view with errors also
-answers 200, with `ok: false`, its `findings` and no file. The answer also says `withheld`: Region
-and Revenue are `summary` fields, so the numbers stay in the file and are not part of the answer.
+The answer names the file (`output.filename`, here `sales.xlsx`); it is in the `reports` folder as
+`sales.pivotkit-out.xlsx`. Its `message` says "The report is saved on the server; ask the operator
+how to open it.": a program does not get the server's path; it takes the file itself through the
+file route ([step 5](#policy)). Check
+`ok` in a script: a view with errors also answers 200, with `ok: false`, its `findings` and no file.
+The answer also says `withheld`: Region and Revenue are `summary` fields, so the numbers stay in the
+file and are not part of the answer.
 
 ## 5. Tokens, a profile and downloads { #policy }
 
@@ -153,6 +166,25 @@ set), a call without a token is now 401, and only the export token may download 
     Invoke-RestMethod "$api/views/render/file" -Method Post -ContentType "application/json" -Body $view -Headers $headers -OutFile revenue.xlsx
     ```
 
+=== "pivotkit"
+
+    ```bash
+    export PIVOTKIT_URL=http://127.0.0.1:3333/api/v1
+    PIVOTKIT_TOKEN=$SCRIPTS_TOKEN npx -y pivotkit-cli validate sales.pivotkit.json --source sales
+    PIVOTKIT_TOKEN=$SCRIPTS_TOKEN npx -y pivotkit-cli render sales.pivotkit.json --source sales -o revenue.xlsx   # exit 2, NOT_ALLOWED
+    PIVOTKIT_TOKEN=$EXPORT_TOKEN npx -y pivotkit-cli render sales.pivotkit.json --source sales -o revenue.xlsx
+    ```
+
+    The command line runs on the server's source instead of a file ([With a server](../reference/cli.md#with-a-server)).
+
+A program that has the data itself can send it with the request, as JSON or a file, when its profile
+has `data: true` ([Data in the request](../reference/rest.md#data)):
+
+```bash
+curl -s -o revenue.xlsx -H "Authorization: Bearer $ETL_TOKEN" -F data=@sales.csv \
+  -F 'input={"view":{"rows":["Region"],"values":[{"field":"Revenue","agg":"sum"}]}}' http://127.0.0.1:3333/api/v1/views/render/file
+```
+
 An error is a problem document with a stable `code` and a `detail` that says what to do; with
 PowerShell 7, `Invoke-RestMethod` throws and the document is in `$_.ErrorDetails.Message`.
 
@@ -177,5 +209,9 @@ try {
 
 - [pivotkit-server (REST)](../reference/rest.md): every route, profiles, sign-in with OAuth, CORS, limits, errors.
 - The OpenAPI document of your service: `GET /openapi.json` with a token.
-- [Container image](../reference/container.md): the same service in Docker or Kubernetes.
+- [Container image](../reference/container.md): the same service in Docker; [Kubernetes](kubernetes.md): with the MCP server, an Ingress and sign-in.
+- [Update an installation](upgrading.md#update): a new release of the service, the image or the CLI.
+- The command line against this service: [pivotkit-cli with a server](../reference/cli.md#with-a-server).
 - [Getting started: MCP server](mcp.md): the same sources for an AI client.
+- [What reaches an AI model](../model-data.md): what a program and a model see at each level, and
+  a profile per client.

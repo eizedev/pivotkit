@@ -8,7 +8,7 @@ import { PivotkitError, encode } from "pivotkit-core";
 import { IMPORT_NOTE_CODES, limitError, readFile } from "pivotkit-core/import";
 import { DATA_STEPS, NO_DATA_STEPS, hostHistory, pushData, redoData, undoData, withoutFuture } from "../src/data-history.js";
 import { IMPORT_TEXTS, de, en, errorText, importLabels, noteText } from "../src/import-labels.js";
-import { acceptOf, completeTable, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
+import { acceptOf, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
 import { backToOriginal, loadData, moveData, restoreData } from "../src/import-steps.js";
 import { KEPT_REPORTS, forgetData, hostIdentity, keepData, keptData } from "../src/data-keep.js";
 import { importLimitsOf } from "../src/import-limits.js";
@@ -184,6 +184,24 @@ test("a workbook over the archive limits of pivotkit-xlsx is said in the report'
     }
 });
 
+test("importCells: a workbook's shared strings and formats are said as such, by what the reader names, not by the file's name (issue #325)", () => {
+    const en_ = { lang: "en", locale: "en-US" };
+    const de_ = { lang: "de", locale: "de-DE" };
+    // as pivotkit-xlsx throws it for a workbook's shared strings and formats (#314)
+    const strings = limitError("importCells", 11_000_001, 11_000_000, "book.xlsx", "shared strings and formats");
+    assert.equal(strings.details.what, "shared strings and formats", "limitError keeps what the reader counted");
+    assert.equal(errorText(strings, "book.xlsx", en, en_), "it has more than 11,000,000 different texts and formats (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+    assert.equal(errorText(strings, "book.xlsx", de, de_), "sie hat mehr als 11.000.000 verschiedene Texte und Formate (limits.importCells): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+    // a workbook taken by its media type, without an extension: the same words
+    const unnamed = limitError("importCells", 11_000_001, 11_000_000, "export", "shared strings and formats");
+    assert.equal(errorText(unnamed, "export", en, en_), "it has more than 11,000,000 different texts and formats (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+    // a sheet whose values span too much is rows x columns, workbook or not
+    const extent = limitError("importCells", 11_000_001, 11_000_000, "book.xlsx", "values (rows x columns)");
+    assert.equal(errorText(extent, "book.xlsx", en, en_), "it has more than 11,000,000 values (rows x columns) (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+    const cells = limitError("importCells", 6, 5, "cells.csv", "values (rows x columns)");
+    assert.equal(errorText(cells, "cells.csv", de, de_), "sie hat mehr als 5 Werte (Zeilen x Spalten) (limits.importCells): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+});
+
 test("a host's texts for loading data (labels.dataImport) win over the defaults, of the right kind only", () => {
     const labels = resolveLabels("de-DE", { dataImport: { loadFile: "Datei öffnen…", rows: { one: "{count} Datensatz", other: "{count} Datensätze" }, cancel: 3 } });
     const t = importLabels(labels);
@@ -322,16 +340,13 @@ test("a worker that answers without a table, cannot take the options or never st
     assert.equal((await readImport(file, { worker: silent, readyMs: 50 })).rowCount, 3);
 });
 
-test("a plugin's minimal table (columns, types, data, notes) gets what the preview and retype need", async () => {
-    const minimal = { columns: ["a", "b"], types: ["string", "string"], data: [["1", "2"], ["x", "y"]], notes: [{ code: "SHEET" }, null, { nope: 1 }] };
-    const t = completeTable(minimal);
-    assert.equal(t.rowCount, 2);
-    assert.deepEqual(t.raw, minimal.data);
-    assert.deepEqual(t.detected, ["string", "string"]);
-    assert.deepEqual(t.notes, [{ code: "SHEET", params: {}, message: "SHEET" }]);
+test("a plugin's minimal table (columns, types, data, notes) gets what the preview and retype need (pivotkit-core completes it)", async () => {
+    // a note without a code is the plugin's error now (pivotkit-core refuses it), so this one has codes only
+    const minimal = { columns: ["a", "b"], types: ["string", "string"], data: [["1", "2"], ["x", "y"]], notes: [{ code: "SHEET" }] };
     const plugin = { apiVersion: 1, kind: "reader", name: "mini", label: "Mini", accept: [".mini"], load: async () => ({ read: async () => minimal }) };
     const read = await readImport(new File(["x"], "a.mini"), { plugins: [plugin] });
     assert.equal(read.rowCount, 2);
+    assert.deepEqual(read.notes, [{ code: "SHEET", params: {}, message: "SHEET" }]);
     // the preview's change of a type works on it (retype needs raw and hints)
     const { retype } = await import("pivotkit-core/import");
     assert.deepEqual(retype(read, ["number", "string"]).data[0], [1, 2]);

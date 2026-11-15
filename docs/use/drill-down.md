@@ -56,4 +56,5 @@ The panel's **Export** menu, in two groups, **Copy** and **Download**:
     `drillDown` turns the panel off, `drillDownLimit` sets how many rows it gets, `onCellClick` gives
     the host the clicked cell and its rows, and `fieldDefaults.drillFormat` a field's format in the
     panel; every copy and file passes `onExport` first (`drill-copy`, `drill-json`, `drill-csv`,
-    `drill-xlsx`). See the [pivotkit-react reference](../reference/react.md#props).
+    `drill-xlsx`). `exportData={{ columns }}` keeps its copies and files to those columns. See the
+    [pivotkit-react reference](../reference/react.md#props).

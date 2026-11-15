@@ -62,6 +62,7 @@ test("Protected Resource Metadata (RFC 9728) names the resource and the issuer; 
         const prm = await (await fetch(server.url.replace("/mcp", "/.well-known/oauth-protected-resource/mcp"))).json();
         assert.equal(prm.resource, RESOURCE);
         assert.deepEqual(prm.authorization_servers, [issuer]);
+        // the required scope; a source's scope only with auth.offerSourceScopes (off by default)
         assert.deepEqual(prm.scopes_supported, ["pivotkit"]);
         const res = await post(server.url);
         assert.equal(res.status, 401);
@@ -70,6 +71,8 @@ test("Protected Resource Metadata (RFC 9728) names the resource and the issuer; 
         assert.match(challenge, /resource_metadata="https:\/\/mcp\.example\.com\/\.well-known\/oauth-protected-resource\/mcp"/);
         // the spec's "SHOULD": the scopes to ask for, in the first challenge
         assert.match(challenge, /scope="pivotkit"/);
+        // a source's scope is offered in the metadata only, never asked for in the challenge
+        assert.doesNotMatch(challenge, /pivotkit:hr/);
     } finally {
         await server.close();
     }
@@ -153,5 +156,83 @@ test("an issuer that cannot be reached: /mcp answers 503 and the server keeps tr
         assert.ok(server.log.some((l) => l.event === "warning" && /could not be loaded/.test(l.message)));
     } finally {
         await server.close();
+    }
+});
+
+for (const era of ["legacy", "modern"]) {
+    test(`a code source with params over MCP (${era}): the tools offer params, load gets the values and the person's subject, never the token`, async () => {
+        const seen = [];
+        const server = await httpServer({
+            sources: {
+                tickets: {
+                    load: async (params, { caller }) => {
+                        seen.push({ params: { ...params }, caller });
+                        return [{ Team: params.team, Open: 2 }];
+                    },
+                    params: { team: { type: "string", required: true, enum: ["blue", "red"] } },
+                    policy: { default: "show" }
+                }
+            },
+            auth: { mode: "oauth", issuer, resource: RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }
+        });
+        const bearer = await token();
+        const { client, close } = await httpClient(server.url, { era, token: bearer });
+        try {
+            const tools = (await client.listTools()).tools;
+            assert.ok(tools.find((t) => t.name === "describe_source").inputSchema.properties.params, "offered where a source declares params");
+            assert.equal(tools.find((t) => t.name === "list_sources").inputSchema.properties?.params, undefined);
+            const listed = await call(client, "list_sources");
+            assert.deepEqual(listed.data.sources[0].params, [{ name: "team", type: "string", required: true, enum: ["blue", "red"] }]);
+            const described = await call(client, "describe_source", { source: "tickets", params: { team: "red" } });
+            assert.equal(described.isError, false, described.text);
+            assert.match(described.data.dataAsOf, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+            assert.deepEqual(seen[0].params, { team: "red" });
+            assert.equal(seen[0].caller.subject, "someone");
+            assert.equal(seen[0].caller.issuer, issuer);
+            assert.ok(Object.isFrozen(seen[0].caller));
+            assert.ok(!JSON.stringify(seen[0].caller).includes(bearer.slice(20, 60)));
+            const missing = await call(client, "describe_source", { source: "tickets" });
+            assert.equal(missing.isError, true);
+            assert.match(missing.text, /^INVALID_INPUT: the source tickets needs params\.team/);
+        } finally {
+            await close();
+            await server.close();
+        }
+    });
+}
+
+test("the issuer's keys are read through pivotkit-server's guarded requests: a key set over the cap is refused, so its key signs nothing in", async () => {
+    // an issuer whose key set holds the signing key and is padded far over 256 KiB with more keys
+    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
+    const big = JSON.stringify({ keys: [jwk, ...Array.from({ length: 1200 }, (_, i) => ({ ...jwk, kid: `pad${i}` }))] });
+    assert.ok(big.length > 262_144);
+    let own;
+    const padded = createServer((req, res) => {
+        if (req.url === "/.well-known/openid-configuration") {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify({ issuer: own, authorization_endpoint: `${own}/authorize`, token_endpoint: `${own}/token`, jwks_uri: `${own}/jwks`, response_types_supported: ["code"] }));
+        } else if (req.url === "/jwks") {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(big);
+        } else {
+            res.writeHead(404);
+            res.end();
+        }
+    });
+    await new Promise((resolve) => padded.listen(0, "127.0.0.1", resolve));
+    own = `http://127.0.0.1:${padded.address().port}`;
+    const server = await oauthServer({ issuer: own });
+    try {
+        const good = await token({ claims: { iss: own } });
+        let response = await post(server.url, good);
+        for (let i = 0; i < 100 && response.status === 503; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            response = await post(server.url, good);
+        }
+        assert.equal(response.status, 401);
+        assert.match(JSON.stringify(server.log), /the issuer's keys could not be read from .*\/jwks: TOO_LARGE/);
+    } finally {
+        await server.close();
+        await new Promise((resolve) => padded.close(resolve));
     }
 });

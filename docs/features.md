@@ -143,13 +143,15 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - `pivotkit-report`: a view over rows to an HTML report from a print template, CSV, JSON, XLSX or SVG,
   in Node and the browser, the same table and chart as on the screen
   ([reports in code](getting-started/report.md), [pivotkit-report](reference/report.md),
-  [print template](reference/print-template.md)).
+  [print template](reference/print-template.md); two templates to start from, Corporate and Minimal,
+  with `pivotkit example templates`: [your own corporate design](reference/corporate-design.md)).
 - `pivotkit-cli`: `pivotkit example`, `render`, `validate` and `describe`; a draft view from a file's
   fields (`describe --suggest`) and a report without a view file from layout flags (`render --rows
   ... --values ...`), `--map` for a renamed column, `--save-view`
   ([a view from the data's fields](reference/cli.md#a-view-from-the-datas-fields)); with exit codes, `--json`,
   messages that say what to fix, the sheet of a workbook a view names (`describe` lists a workbook's
-  sheets), shell completion and safe file handling; offline
+  sheets), shell completion and safe file handling; offline, or on a pivotkit-server's sources with
+  `--url` and `--source` and `pivotkit sources` ([with a server](reference/cli.md#with-a-server))
   ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)).
 - For programs and reviews: `validate` with "did you mean" hints, `describeSource` and `describeView`
   in plain words ([views](concepts/views.md)).
@@ -159,23 +161,52 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - `pivotkit-server`: the same operations for programs over HTTP under `/api/v1` (list and describe
   sources, validate, describe and render views, links, schedule drafts), an OpenAPI 3.1 document made
   from the same table, errors as problem documents; sign-in with tokens or OAuth 2.1; policy
-  profiles per token or OAuth client (more values, downloads); CORS off by default; limits per caller
+  profiles per token, OAuth client, group or scope, and a default profile (more values, downloads,
+  data sent with the request as JSON or a csv, tsv, json or xlsx file); the person in the log only
+  when the operator asks for it; CORS off by default; limits per caller; `check-config` says
+  whether the server starts and prints each field's level per source and profile
   ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
-  [security](security.md#rest), [privacy](privacy.md)).
+  [reading check-config](reference/rest.md#check-config), [security](security.md#rest),
+  [privacy](privacy.md)).
+- Sources for both: data files, an operator's API as an HTTP source (its address written once with
+  typed parameters a caller fills, paging, data kept per caller, a sign-in to the backend by a
+  secret header, OAuth client credentials or a token exchange for the signed-in person, parameters
+  bound to a claim of the sign-in, `pivotkit-server check-source` to test it,
+  `pivotkit-server source-from-openapi` to start from the API's OpenAPI document) and a library
+  host's code sources ([data sources](reference/sources.md)).
+- Download links: the server serves each report for a while under a link that expires; for sources
+  whose fields are not all shown only to the person who asked, after signing in with your identity
+  provider ([download links](reference/delivery.md)); or uploaded to a store you run, through a presign
+  service or an address template, with the store's link in the result ([upload](reference/delivery.md#upload)).
 - One container image for the REST service, the MCP server and the command line: distroless Node 22,
   non-root, read-only, health checks, signed with provenance and an SBOM
-  ([container image](reference/container.md)).
+  ([container image](reference/container.md), [Kubernetes](getting-started/kubernetes.md)).
+- A log for operations: JSON lines (text on a terminal) with level, severity, request and trace ids,
+  the client's address, outcome and a refused request's reason; `X-Request-Id` on every answer, and
+  examples for Docker's `gelf` and `syslog` drivers ([operations and logs](reference/operations.md)).
 
 ## AI clients (MCP) { #mcp }
 
 - `pivotkit-mcp`: tools to list and describe sources, suggest a draft view, write (or lay out by field names), validate and describe views, render
-  reports into files, make links and draft schedules; the model sees per field names and counts,
-  values or nothing (exposure policy) and never the data itself; stdio and Streamable HTTP with a
-  token or OAuth 2.1; a skill that teaches the workflow
+  reports into files, make links and draft schedules; the model never reads the data itself
   ([getting started](getting-started/mcp.md), [pivotkit-mcp](reference/mcp.md), [security](security.md#mcp)).
+- An exposure policy per field: `show` (values and results), `values` (a category's values as a
+  complete list, so the model filters on exact names, but no result), `summary` (name, type and
+  counts; the default) or `hide`; an automatic `values` rule for category fields, off by default,
+  that `check-config` previews; results over fields that are not shown stay in the file
+  ([what reaches an AI model](model-data.md), [exposure policy](reference/mcp.md#policy)).
+- One server, different rules per client: a profile per token, OAuth client, group or scope, and a
+  default profile, so a cloud assistant sees less than a model on your own hardware
+  ([per client](model-data.md#per-client)).
+- When the data is from (`dataAsOf`) in every result and in html and xlsx files; a small table of
+  the model's own (`inline:`, capped, switched off with `mcp.data: false`); stdio and Streamable HTTP
+  with a token or OAuth 2.1; a skill that teaches the workflow ([data in the request](reference/mcp.md#data)).
 
 ## Security { #security }
 
+- What an AI model and its provider receive is the exposure policy's decision, per field and per
+  client; what is processed where, for how long and for whom is listed for operators
+  ([what reaches an AI model](model-data.md), [privacy for operators](privacy.md)).
 - A view holds names only (and the values chosen in its filters), is checked against fixed lists and
   limits and cannot run code; a loaded file is checked before it is parsed; exports are safe to open;
   data is written as text, never markup; a strict CSP works. Not access control: send only the rows a

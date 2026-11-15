@@ -6,6 +6,90 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- Export → HTML report carries the host's dark colours too (pivotkit-report's `darkTokens`), read
+  from the report's dark theme whichever theme it shows: a reader on a dark screen sees the host's
+  dark design, not pivotkit's default dark colours. Paper and a print stay light. The report's
+  `--pk-scale-mid` on a dark screen is the one your dark theme resolves (pivotkit-report no longer
+  takes the light one there) ([#385](https://github.com/eizedev/pivotkit/issues/385)).
+- Print or save as PDF opens the print dialog in the click itself: the Export menu makes the print
+  frame ready when it opens, and the report's modules load when Print is pointed at or focused.
+  Safari asked "This webpage is trying to print" from the second print on while the dialog came an
+  animation frame after the click; a page hidden while it printed (it gets no animation frame) did
+  not print at all ([#210](https://github.com/eizedev/pivotkit/issues/210)).
+- A second click on a menu's button closes the menu in Safari and other WebKit browsers, as in the
+  others: the toolbar's menus (Export, Views, Data, Start over, More) and a field's chip menu. WebKit
+  does not focus a clicked button, so the press moved the focus out of the menu, which closed it,
+  and the click opened it again ([#393](https://github.com/eizedev/pivotkit/issues/393)).
+
+## [0.6.1] - 2026-11-14
+
+### Added
+
+- `exportData={{ columns: [...] }}`: Source data and the drill-down's copies and files hold only
+  those columns, in that order (matched case-insensitively, derived fields never). A name the data
+  lacks is left out and said once in the console; with no column left, or `columns` that is no list
+  (said once too), Source data and the drill-down's Export menu are off; an `exportData` of another
+  shape is off, as `false` ([#259](https://github.com/eizedev/pivotkit/issues/259)).
+
+### Changed
+
+- Source data as CSV is built in pieces of whole lines (pivotkit-core's `dataToCsvParts`), so the
+  browser holds about twice the file's size while it is made, not about five times
+  ([#260](https://github.com/eizedev/pivotkit/issues/260)).
+
+### Fixed
+
+- Filter level: Years combined (its year buttons, "The table shows … only" and the summary) writes a
+  year before 1 AD as the table does ("5 BC", not "-4"); the reference date's field shows and takes a
+  day after 9999 ("+010000-01-01" was cut off and could not be typed), and whether a quick choice
+  reaches the data compares days, not their text, for years with a sign
+  ([#351](https://github.com/eizedev/pivotkit/issues/351)).
+- An open menu no longer moves when its own content is scrolled: a click on a control reached by
+  scrolling (Rolling under More choices of a date's quick choices) could land beside it when the
+  menu was placed again between the press and the release. A menu whose content grew while it was
+  already as tall as its room is placed again in the next frame instead
+  ([#222](https://github.com/eizedev/pivotkit/issues/222)).
+- A workbook whose shared strings and formats reach `limits.importCells` is said as "more than …
+  different texts and formats" (`labels.dataImport.workbookCells`), chosen by the reader's
+  `details.what`, not as "values (rows x columns)", which stays for a table's own extent
+  ([#325](https://github.com/eizedev/pivotkit/issues/325)).
+- Filter level: a rule's × clicked while its value still waits to apply (a moment after typing)
+  takes the rule away; before, the field's blur applied the value and the click was lost. What waits
+  in a removed row applies nothing ([#320](https://github.com/eizedev/pivotkit/issues/320)).
+- Filter level: emptying the value of a rule on the item or on its total takes the rule off, as
+  emptying the text of a rule on the name does; its row stays, says "Applies once it is complete."
+  and applies again with the next value, in its place among the rules. Before, the field looked empty
+  while the previous rule kept filtering ([#244](https://github.com/eizedev/pivotkit/issues/244)).
+- Filter level: a rule added while the text or number of a new rule still waits to apply is a row of
+  its own; the comparison and the value chosen next no longer change the first rule. The add buttons
+  keep the focus in the field until the click, and a new row not yet complete stays in its place when
+  another one is added ([#245](https://github.com/eizedev/pivotkit/issues/245)).
+- Filter level: a click on a date's quick choice (All, This, Last, …) focuses it in Safari too, as
+  Top items' choices do; both use one radio button that takes the focus on a click
+  ([#203](https://github.com/eizedev/pivotkit/issues/203)).
+- A saved view that reads another sheet of the loaded workbook no longer loads that sheet unseen when
+  the reader has notes on it (a used range, values not read, columns renamed): the preview stays
+  open with the notes and a line naming the view that needs the sheet, and **Load data** loads the
+  sheet and opens the view. Another sheet picked in that preview does not load by itself, and loaded
+  it does not open the view; a note says so
+  ([#274](https://github.com/eizedev/pivotkit/issues/274)). Browser tests cover Cancel, a host's
+  refusal, another file dropped during the read and a sheet without rows
+  ([#277](https://github.com/eizedev/pivotkit/issues/277)).
+- A controlled report whose host does not pass its views back (it rejects or ignores
+  `onViewChange`) keeps at most 100 of the views it told the host waiting, the newest ones, instead
+  of one more with every change ([#204](https://github.com/eizedev/pivotkit/issues/204)).
+- The dashed rule between the parts of a menu's group (the chart's Display: Value labels, Legend,
+  Title) uses `--pk-rule`, 3:1 against the menu as the rule between groups, instead of `--pk-border`
+  (about 1.3:1) ([#205](https://github.com/eizedev/pivotkit/issues/205)).
+- The filter's texts and Years combined read and write years before 0 and after 9999 (signed ISO
+  days), compare such days in time order, and write years before 1 AD as the table does ("2 BC");
+  Years combined keeps the first and last year a `Date` holds as far as it holds
+  ([#349](https://github.com/eizedev/pivotkit/issues/349)).
+- The import UI takes a plugin's table as pivotkit-core's `readFile` completes it; its own
+  `completeTable` is gone ([#130](https://github.com/eizedev/pivotkit/issues/130)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5
@@ -982,7 +1066,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.1...HEAD
+[0.6.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.0...pivotkit-react@0.6.1
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.5.0...pivotkit-react@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.4.0...pivotkit-react@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.3.0...pivotkit-react@0.4.0

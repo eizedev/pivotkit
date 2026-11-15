@@ -233,3 +233,23 @@ test("render_view and validate_view take a layout instead of a view: the view it
     assert.equal(await code({ source: "sales", layout: { rows: Array.from({ length: 100 }, (_, i) => `F${i}`) } }), "INVALID_INPUT");
     assert.equal(await code({ source: "sales", layout: { map: { Region: "Area", Product: "area" } } }), "INVALID_INPUT");
 });
+
+test("env.unknownItems: an item of an in filter that is none of a text field's values is itemUnknown with the closest value; another case stays itemCase; off by default", async () => {
+    const view = { rows: ["Region"], filters: [{ field: "region", type: "in", items: ["North", "north", "Nort", "Zzzzzz"], blanks: "exclude" }, { field: "Units", type: "in", items: [999] }] };
+    const codes = (r) => r.result.findings.filter((f) => f.code === "itemCase" || f.code === "itemUnknown").map((f) => [f.code, f.field, f.path, f.suggestion]);
+    const on = await OPERATIONS.validate_view.run({ source: "sales", view }, { ...env, unknownItems: true });
+    assert.deepEqual(codes(on), [
+        ["itemCase", "Region", "filters[0].items", "North"],
+        ["itemUnknown", "Region", "filters[0].items", "North"],
+        ["itemUnknown", "Region", "filters[0].items", undefined]
+    ]);
+    assert.match(on.result.findings.find((f) => f.code === "itemUnknown").message, /item "Nort" is not one of the listed values of "Region"/);
+    const off = await OPERATIONS.validate_view.run({ source: "sales", view }, env);
+    assert.deepEqual(codes(off), [["itemCase", "Region", "filters[0].items", "North"]]);
+    const rendered = await OPERATIONS.render_view.run({ source: "sales", view, format: "csv" }, { ...env, unknownItems: true });
+    assert.equal(rendered.result.findings.filter((f) => f.code === "itemUnknown").length, 2);
+});
+
+test("checkInput: a text over its length says the limit, its own length and to shorten it", () => {
+    assert.throws(() => checkInput(OPERATIONS.render_view.input, { source: "s", view: "{}", format: "csv", name: "n".repeat(81) }), (e) => e.code === "INVALID_INPUT" && e.message === "input.name must have at most 80 characters, not 81; shorten it");
+});

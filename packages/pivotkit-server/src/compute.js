@@ -1,32 +1,44 @@
 /*
- * Where operations run. File sources run in a pool of worker threads: each with a memory limit
+ * Where operations run. File sources, and tables loaded in the main thread or files handed in (a
+ * table job: job.table or job.upload with job.tableKey), run in a pool of worker threads: each with a memory limit
  * (resourceLimits) and a wall-clock limit (a run over it terminates the worker, which is replaced),
  * so a large file or a heavy view cannot stall the server or take the other callers' time. At most
  * `workers` runs at once; a further call waits up to `queueMs` for a free worker, then is BUSY.
- * Code sources of a library host run in the main thread (the host's code stays in its process).
+ * A code source of a library host is loaded in the main thread (the host's code stays in its
+ * process) and computed in a worker as a table job, as an HTTP source is. A table job with a key
+ * goes to the worker that kept its data where that one is free, and then without its table; a
+ * worker that pushed the data out since answers `need` and gets the table once. An HTTP source's CSV
+ * answer is read in a worker too (`read`), which gives back a packed table to keep.
  */
 
 import { Worker } from "node:worker_threads";
-import { OPERATIONS, OperationError } from "pivotkit-report/operations";
+import { OperationError } from "pivotkit-report/operations";
 import { COMPUTE_DEFAULTS } from "./config.js";
-import { codeData } from "./data.js";
+import { CACHE_ENTRIES, READ_JOB, codeTable } from "./data.js";
+import { isOwnError, sourceFailure } from "./sources/run.js";
 
 /**
  * @param {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [options]
+ * @param {{ worker?: URL, cacheBytes?: number }} [internal]  worker: another worker script (tests that need a worker which misbehaves); cacheBytes: the workers' bound on kept data sets instead of a quarter of memoryMb (tests that need a bound below what a run needs, independent of the run's own memory)
  */
-export function createComputer(options = {}) {
+export function createComputer(options = {}, internal = {}) {
     const { workers: size, timeMs, memoryMb, queueMs } = { ...COMPUTE_DEFAULTS, ...options };
-    /** @type {Array<{ worker: Worker, busy: boolean, exited: boolean, ready: Promise<unknown> }>} */
+    /** @type {Array<{ worker: Worker, busy: boolean, exited: boolean, ready: Promise<unknown>, keys: string[], cacheBytes: number | null }>} */
     const pool = [];
+    /** How many table jobs went with their table, and how many without (the worker had kept it). */
+    const sent = { tables: 0, cached: 0 };
     /** @type {Array<() => void>} calls waiting for a free worker */
     const waiting = [];
     let closed = false;
     let next = 1;
 
     const spawn = () => {
-        const worker = new Worker(new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) } });
+        // the data sets a worker keeps take at most a quarter of its memory
+        const worker = new Worker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: internal.cacheBytes ?? Math.floor((memoryMb * 1_048_576) / 4) } });
         worker.unref();
-        const slot = { worker, busy: false, exited: false, ready: /** @type {Promise<unknown>} */ (Promise.resolve()) };
+        /** @type {string[]} the table keys it said it kept, oldest first (its cache may have pushed them out since) */
+        const keys = [];
+        const slot = { worker, busy: false, exited: false, ready: /** @type {Promise<unknown>} */ (Promise.resolve()), keys, cacheBytes: /** @type {number | null} */ (null) };
         // an error without a listener would end the process: a worker that dies between runs (or while
         // it starts) is only replaced; a run's own listener says what happened to that run
         worker.on("error", () => undefined);
@@ -40,6 +52,7 @@ export function createComputer(options = {}) {
         slot.ready = new Promise((resolve) => {
             const onReady = (msg) => {
                 if (msg?.ready) {
+                    slot.cacheBytes = typeof msg.cacheBytes === "number" ? msg.cacheBytes : null;
                     worker.off("message", onReady);
                     resolve(undefined);
                 }
@@ -53,11 +66,11 @@ export function createComputer(options = {}) {
         pool.push(spawn());
     }
 
-    /** A free worker, waiting at most queueMs; BUSY after. */
-    const acquire = () =>
+    /** A free worker, the one that kept `key`'s data if it is free, waiting at most queueMs; BUSY after. */
+    const acquire = (key = null) =>
         new Promise((resolve, reject) => {
             const take = () => {
-                const slot = pool.find((s) => !s.busy);
+                const slot = (key !== null ? pool.find((s) => !s.busy && s.keys.includes(key)) : undefined) ?? pool.find((s) => !s.busy);
                 if (slot) {
                     slot.busy = true;
                     resolve(slot);
@@ -95,15 +108,30 @@ export function createComputer(options = {}) {
         }
     }
 
+    /** Notes a key a worker kept (or that it no longer holds it). */
+    const note = (slot, key, kept) => {
+        const at = slot.keys.indexOf(key);
+        if (at >= 0) {
+            slot.keys.splice(at, 1);
+        }
+        if (kept) {
+            slot.keys.push(key);
+            if (slot.keys.length > CACHE_ENTRIES) {
+                slot.keys.shift();
+            }
+        }
+    };
+
     /**
      * Runs an operation in a worker.
-     * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number }>}
+     * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("./stats.js").SourceStats | null, asOf: string | null, stale: { since: string } | null }>}
      */
-    async function inWorker(op, input, job) {
+    async function inWorker(op, input, job, signal = undefined) {
         if (closed) {
             throw new OperationError("NOT_READY", "the server is shutting down");
         }
-        const slot = await acquire();
+        const key = typeof job.tableKey === "string" && (job.table || job.upload) ? job.tableKey : null;
+        const slot = await acquire(key);
         await slot.ready;
         if (slot.exited) {
             // it died while it started: replaced, and this call fails rather than waiting for its time
@@ -111,20 +139,63 @@ export function createComputer(options = {}) {
             replace(slot);
             throw new OperationError("INTERNAL", "internal error");
         }
+        if (signal?.aborted) {
+            // its callers went away while it waited for a worker
+            release(slot);
+            throw signal.reason;
+        }
         const id = next++;
         return new Promise((resolve, reject) => {
             const { worker } = slot;
             const done = () => {
                 clearTimeout(timer);
+                signal?.removeEventListener("abort", onAbort);
                 worker.off("message", onMessage);
                 worker.off("error", onError);
                 worker.off("exit", onExit);
             };
+            /** Posts the job, without its table when the worker kept it; false when it cannot be copied. */
+            const post = (full) => {
+                const message = { id, op, input, ...job };
+                if (!full) {
+                    delete message.table;
+                    delete message.upload;
+                    message.cached = true;
+                }
+                try {
+                    worker.postMessage(message);
+                } catch {
+                    // an input the structured clone cannot copy (nested thousands of levels deep): the
+                    // worker never got it, so it is free at once rather than after compute.timeMs
+                    done();
+                    release(slot);
+                    reject(new OperationError("INVALID_INPUT", "the input is nested too deeply"));
+                    return;
+                }
+                sent[full ? "tables" : "cached"] += key !== null ? 1 : 0;
+            };
+            let resent = false;
             const onMessage = (msg) => {
                 if (msg.id !== id) {
                     return;
                 }
+                if (msg.need) {
+                    // the worker pushed the data out: the table once, within the same time (its answer
+                    // then says whether it kept it, and note() records that)
+                    if (resent) {
+                        done();
+                        release(slot);
+                        reject(new OperationError("INTERNAL", "internal error"));
+                        return;
+                    }
+                    resent = true;
+                    post(true);
+                    return;
+                }
                 done();
+                if (key !== null) {
+                    note(slot, key, msg.kept === true);
+                }
                 release(slot);
                 if (msg.error) {
                     reject(new OperationError(msg.error.code, msg.error.message));
@@ -132,7 +203,7 @@ export function createComputer(options = {}) {
                     if (msg.outcome.file) {
                         msg.outcome.file.bytes = msg.outcome.file.bytes instanceof Uint8Array ? msg.outcome.file.bytes : new Uint8Array(msg.outcome.file.bytes);
                     }
-                    resolve({ outcome: msg.outcome, hidden: msg.hidden });
+                    resolve({ outcome: msg.outcome, hidden: msg.hidden, stats: msg.stats ?? null, asOf: msg.asOf ?? null, stale: msg.stale ?? null });
                 }
             };
             const onError = (e) => {
@@ -152,50 +223,64 @@ export function createComputer(options = {}) {
                 replace(slot);
                 reject(new OperationError("TIMEOUT", `the report took longer than ${timeMs / 1000} s (compute.timeMs); make the view smaller or filter more`));
             }, timeMs);
+            // the callers went away: the worker is stopped and replaced, as one over its time is
+            const onAbort = () => {
+                done();
+                worker.terminate().catch(() => undefined);
+                replace(slot);
+                reject(signal?.reason);
+            };
+            signal?.addEventListener("abort", onAbort, { once: true });
             worker.on("message", onMessage);
             worker.once("error", onError);
             worker.once("exit", onExit);
-            try {
-                worker.postMessage({ id, op, input, ...job });
-            } catch {
-                // an input the structured clone cannot copy (nested thousands of levels deep): the
-                // worker never got it, so it is free at once rather than after compute.timeMs
-                done();
-                release(slot);
-                reject(new OperationError("INVALID_INPUT", "the input is nested too deeply"));
-            }
+            post(key === null || !slot.keys.includes(key));
         });
     }
 
-    /** Runs an operation over a code source in this thread. */
-    async function inThread(op, input, job, source) {
-        let hidden = 0;
-        const env = {
-            data: async () => {
-                const data = await codeData(job.spec, source);
-                hidden = data.hidden;
-                return data;
-            },
-            link: async () => job.link ?? null,
-            template: async () => job.template,
-            limits: job.spec.limits,
-            ...(job.locale ? { locale: job.locale } : {}),
-            ...(job.timeZone ? { timeZone: job.timeZone } : {}),
-            ...(job.now !== undefined ? { now: job.now } : {}),
-            ...(op === "render_view" && (input.format === "svg" || input.format === "html") ? { echarts: await import("echarts") } : {})
-        };
-        const outcome = await OPERATIONS[op].run(input, env);
-        return { outcome, hidden };
+    /**
+     * A code source's own { load } (a host calling the pool itself), once: no time limit, nothing
+     * kept (sources/code.js does that), its errors answered as runLoad answers them; then a table job.
+     */
+    async function loadOnce(op, input, job, source) {
+        let read;
+        try {
+            read = codeTable(job.spec, await source.load());
+        } catch (e) {
+            throw isOwnError(e) ? e : sourceFailure(e);
+        }
+        return inWorker(op, input, { ...job, table: read.table, tableKey: null, asOf: read.asOf });
     }
 
     return {
         /**
          * @param {string} op
          * @param {any} input
-         * @param {{ spec: import("./data.js").SourceSpec, link?: any, template?: string, locale?: string, timeZone?: string, now?: any }} job
-         * @param {{ load: () => Promise<any>, version?: () => unknown }} [source]  a code source
+         * @param {{ spec: import("./data.js").SourceSpec, link?: any, template?: string, locale?: string, timeZone?: string, now?: any, notes?: import("pivotkit-report/operations").Finding[], table?: { columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] } | import("./packed.js").PackedTable, upload?: { bytes: Uint8Array, format: string, sheet?: string }, tableKey?: string | null, asOf?: string | null }} job
+         *   a table job (data loaded in this thread, computed in a worker): table (a code source's packed, packed.js) or upload, with tableKey (sources/keys.js; null: not kept) and asOf
+         * @param {{ load: () => unknown }} [source]  a code source's own load, called once in this thread
          */
-        run: (op, input, job, source) => (source ? inThread(op, input, job, source) : inWorker(op, input, job)),
+        run: (op, input, job, source) => (source ? loadOnce(op, input, job, source) : inWorker(op, input, job)),
+        /**
+         * An HTTP source's CSV answer read in a worker (within compute.timeMs and compute.memoryMb)
+         * into a packed table without the columns the levels hide, and the reader's notes (data.js
+         * packedUpload): what sources/http.js keeps. The worker keeps the data set by `tableKey`, so
+         * the operation's job that follows goes to it without the table.
+         * @param {import("./data.js").SourceSpec} spec
+         * @param {{ bytes: Uint8Array, format: "csv" }} upload
+         * @param {string | null} tableKey
+         * @param {string | null} asOf
+         * @param {AbortSignal} [signal]  fires when every caller of the load went away: the read stops
+         * @returns {Promise<{ table: import("./packed.js").PackedTable, notes: import("pivotkit-report/operations").Finding[] }>}
+         */
+        read: async (spec, upload, tableKey, asOf, signal = undefined) => /** @type {any} */ ((await inWorker(READ_JOB, null, { spec, upload, tableKey, asOf }, signal)).outcome),
+        /** The bound on kept data sets each worker reported when it was ready (tests, once the workers started). */
+        async bounds() {
+            await Promise.all(pool.map((s) => s.ready));
+            return pool.map((s) => s.cacheBytes);
+        },
+        /** How many table jobs with a key went with their table and how many without it (tests). */
+        sent: () => ({ ...sent }),
         /** The workers alive (0 once closed). */
         size: () => (closed ? 0 : pool.filter((s) => !s.exited).length),
         async close() {

@@ -141,3 +141,15 @@ test("column names that differ only in case are one column, and that is reported
     ]);
     assert.deepEqual(encode([{ a: 1 }]).issues, []);
 });
+
+test("a case collision has a code: one column, a value of a row left out, a columnar column left out", () => {
+    const rows = encode([{ A: 1, a: 2 }]);
+    assert.deepEqual([...rows.column("a").values], [2]);
+    assert.deepEqual(rows.issues.map((i) => [i.code, i.params]), [
+        ["columnCase", { column: "A", spelling: "a" }],
+        ["columnCaseValue", { column: "A", spelling: "a", row: 0 }]
+    ]);
+    const columnar = encode({ columns: ["A", "a"], data: [[1], [2]] });
+    assert.deepEqual([...columnar.column("a").values], [1]);
+    assert.deepEqual(columnar.issues.map((i) => [i.code, i.params]), [["columnCaseLeftOut", { column: "A", spelling: "a" }]]);
+});

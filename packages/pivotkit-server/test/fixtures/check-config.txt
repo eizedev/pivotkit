@@ -1,0 +1,89 @@
+pivotkit-server: the server starts, but not everything will work.
+1 problem, 1 warning.
+
+PROBLEM: sources.gone.file: data/missing.csv is not there -> the server
+    starts; gone answers FILE_NOT_AVAILABLE
+
+WARNING (Auth): the token bot's scope "typo:scope" is named by no source, tool
+    or required scope
+
+Sources (3):
+  values listed per shown field: 20 (policy.items)
+  results inline in the tool answer: up to 500 cells (policy.inline)
+  sales: a file
+    <dir>/data/sales.csv
+    policy: show by default; Customer hide
+    scopes: sales:read
+    field levels (automatic values: not applied, a default is written):
+      Region: show (the default)
+      Product: show (the default)
+      Customer: hide (a rule)
+      Sales: show (the default)
+  gone: a file
+    <dir>/data/missing.csv
+    policy: summary by default
+  code: a code source, described under Code sources
+    policy: summary by default
+    fields: known only after a load
+
+Files by path: off
+
+Code sources (1):
+  code: load up to 30000 ms
+    loaded on every call
+    data per caller
+    last good data: up to 3600 s after a transient failure
+
+Kept loads: at most 256 MiB (sourceCache.maxMb)
+  the data code and HTTP sources loaded, kept for their next calls
+  a table over 64 MiB (a quarter) is not kept and loads on every call
+  with several contexts in one process, the largest setting applies
+
+Data in the request (inline:):
+  MCP: on, up to 500 rows / 5000 cells / 256 KiB
+  REST: off (no policy or profile has data: true)
+
+Output: out
+  <dir>/out
+  at most 1000 files of pivotkit's (500 of them schedule drafts) and 1024 MB
+  when full, the oldest reports are deleted to make room; drafts are kept
+  reports and drafts older than 30 days are deleted
+
+Delivery:
+  download links: http://127.0.0.1:3333/downloads/<token>
+    expire after 60 minutes
+  closed (a field not shown for someone): sales (Customer hide), gone (fields
+      summary by default), code (fields summary by default)
+  per person (counted as closed): data sent in requests (inline:)
+  reports over closed sources (sales, gone, code): no links (the file is kept;
+      the person asks you for it)
+    set output.downloads.signIn for links only the person can open
+
+HTTP: 127.0.0.1:3333
+
+Auth: token
+  token bot from $BOT_TOKEN: scopes sales:read typo:scope, profile analyst
+
+Profile analyst:
+  policy: show by default
+  file downloads (REST): allowed
+  sales: Region show, Product show, Customer hide, Sales show
+  code: fields known only after a load; show by default
+
+REST: /api/v1
+  CORS: https://app.example.com
+  /openapi.json: needs auth
+
+Log:
+  level info, format auto (text on a terminal, JSON otherwise)
+  addresses on: the socket's peer
+
+New in this version: code sources with a time limit and data per caller, data
+    in the request (inline:; mcp.data: false switches it off), download links
+    under /downloads/, answered without a token (the link is the credential;
+    output.downloads.enabled: false switches them off), reports deleted after
+    30 days (output.maxAgeDays: 0 keeps them), the client's IP address on the
+    log's request lines (log.address: "off" leaves it out), a start error as a
+    JSON line where stderr is no terminal (log.format: "text" keeps the plain
+    line)
+    -> https://pivotkit.eize.dev/getting-started/upgrading/

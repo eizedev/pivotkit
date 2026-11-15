@@ -1,13 +1,16 @@
 ---
 title: pivotkit-cli
-description: The pivotkit command line - render a view over CSV, JSON or Excel data to an HTML report, CSV, JSON, XLSX or SVG, get a draft view from a file's fields or render from layout flags without a view file, validate and describe views in CI, with stable exit codes, --json, shell completion and safe file handling.
+description: The pivotkit command line - render a view over CSV, JSON or Excel data to an HTML report, CSV, JSON, XLSX or SVG, get a draft view from a file's fields or render from layout flags without a view file, validate and describe views in CI, run the same commands against a pivotkit-server's sources, with stable exit codes, --json, shell completion and safe file handling.
 ---
 
 # pivotkit-cli
 
 `pivotkit` runs [views](view-file.md) without a browser: it renders a view over a data file, checks
-views in a pipeline before they go live, and describes views and data. It needs no network, and with
-`--now` its output is the same on every run.
+views in a pipeline before they go live, and describes views and data. On local files it needs no
+network, and with `--now` its output is the same on every run. With `--url` and `--source` the same
+commands run on the sources of a [pivotkit-server](rest.md) ([With a server](#with-a-server)), for
+data that lives there. To update it, see
+[Update an installation](../getting-started/upgrading.md#update).
 
 ```bash
 npm install --global pivotkit-cli     # the command pivotkit
@@ -25,10 +28,10 @@ Node 22 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotki
 ## Try it { #try-it }
 
 `pivotkit example` writes the default example, `sales`, into the current directory, says what each
-file is and what to run next; `pivotkit example weather` writes the other one, `pivotkit example
---list` names them all and writes nothing. It never writes over a file: when one of its files is
-there, it writes nothing (exit 2, `EXISTS`); each file is linked into place, so one that appears
-while it writes is not replaced either.
+file is and what to run next; `pivotkit example weather` and `pivotkit example templates` write
+the others, `pivotkit example --list` names them all and writes nothing. It never writes over a
+file: when one of its files is there, it writes nothing (exit 2, `EXISTS`); each file is linked into
+place, so one that appears while it writes is not replaced either.
 
 ```text
 $ pivotkit example
@@ -40,7 +43,7 @@ Next:
   pivotkit render sales.pivotkit.json --data sales.csv -o sales.html    (an HTML report: open it in a browser)
   pivotkit validate sales-chart.pivotkit.json --data sales.csv --strict
   pivotkit describe sales.csv
-Other examples: pivotkit example weather
+Other examples: pivotkit example weather, pivotkit example templates
 ```
 
 
@@ -48,6 +51,7 @@ Other examples: pivotkit example weather
 | --- | --- | --- |
 | `sales` | `sales.csv`, `sales.pivotkit.json`, `sales-chart.pivotkit.json` | Generated sales, 2,000 rows: revenue by region and category, and a monthly chart. |
 | `weather` | `weather.csv`, `weather.pivotkit.json`, `weather-SOURCE.txt` | Daily weather of 14 cities, 2023-2025, 15,344 rows: the mean temperature per city and month, the live demo's start. Weather data by [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0: `weather-SOURCE.txt` holds the attribution and the changes made; keep it with the data. |
+| `templates` | `corporate.template.html`, `minimal.template.html` | Two print templates for the HTML report, to render with `--template` over the `sales` example: Corporate (your company's design, always light) and Minimal (follows the system's theme); [your own corporate design](corporate-design.md). |
 
 The same files are on this site: [sales.csv](../assets/examples/sales.csv),
 [sales.pivotkit.json](../assets/examples/sales.pivotkit.json),
@@ -56,7 +60,9 @@ The same files are on this site: [sales.csv](../assets/examples/sales.csv),
 [weather.pivotkit.json](../assets/examples/weather.pivotkit.json),
 [weather-SOURCE.txt](../assets/examples/weather-SOURCE.txt). They are the playground's data and
 its start views as the report downloads them, so the HTML report shows what the
-[playground](../demo.md) shows.
+[playground](../demo.md) shows. The print templates are there too:
+[corporate.template.html](../assets/examples/corporate.template.html),
+[minimal.template.html](../assets/examples/minimal.template.html).
 
 Your own report: in the report, **Views**, **Download view** gives the view file, and **Export**,
 **Source data**, **All rows as CSV** the data it was made on (where the application turns it on; the
@@ -71,9 +77,11 @@ view does not apply to it.
 | `pivotkit render <view> --data <file> [-o <file>]` | Runs the view over the data and writes an HTML report, CSV, JSON, XLSX or SVG. |
 | `pivotkit render <data> --rows <field> --values <agg:field> [-o <file>]` | The same without a view file: the view from [layout flags](#a-view-from-the-datas-fields), or `--suggest` for the draft. |
 | `pivotkit validate <view> [--data <file>]` | Checks the view against the data, or against the fields its view file lists (`source.fields`). |
-| `pivotkit describe <view \| data>` | What a view shows and filters, or a data file's fields. |
+| `pivotkit describe <view \| data>` | What a view shows and filters, or a data file's fields (the data may be given with `--data` instead: `describe --data - --data-format csv`). |
 | `pivotkit describe <data> --suggest [-o <file>]` | A [draft view](#a-view-from-the-datas-fields) of the data as a view file: on stdout, or into `-o`. |
-| `pivotkit example [name] [--list]` | Writes an example's data and views into the current directory (default `sales`), never over a file, and says what to run next; `--list` names the examples ([Try it](#try-it)). |
+| `pivotkit render <view> --url <address> --source <id> [-o <file>]` | The same on a server's source; `validate` and `describe` too ([With a server](#with-a-server)). |
+| `pivotkit sources [id] --url <address>` | A server's sources, or one source's fields, types and counts. |
+| `pivotkit example [name] [--list]` | Writes an example's data and views (or, `templates`, two print templates) into the current directory (default `sales`), never over a file, and says what to run next; `--list` names the examples ([Try it](#try-it)). |
 | `pivotkit completion bash \| zsh \| fish \| powershell` | The shell's completion script. |
 | `pivotkit help [command]`, `-h`, `--version` | Help; the versions of pivotkit-cli, pivotkit-report and pivotkit-core. |
 
@@ -88,10 +96,10 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | --- | --- | --- |
 | `--data <file>` | render, validate, describe | CSV, TSV, JSON or XLSX, or `-` for stdin ([what is read](import.md)). |
 | `--data-format csv\|json\|xlsx` | | The data's format; needed for stdin, else the file's extension. |
-| `--sheet <name>` | | The sheet of a workbook. Without it: the sheet the view names (`source.params.sheet`, written by the report for a view made on a workbook's sheet), else the first visible one. [More](#the-sheet-of-a-workbook) |
+| `--sheet <name>` | | The sheet of a workbook. Without it: the sheet the view names (`source.params.sheet`, written by the report for a view made on a workbook's sheet), else the first visible one; for data that is no workbook a warning `ignoredOption`. [More](#the-sheet-of-a-workbook) |
 | `-f, --format html\|csv\|json\|xlsx\|svg` | render | Default: the extension of `-o` (`.htm` is `html`); another extension, or none, is a usage error. On stdout `html`. |
-| `-o, --output <file>` | render | Write here instead of stdout. A regular file there is replaced whole; a link, a directory or a device is refused. Its directory must exist. |
-| `--template <file>` | render | `html`: a [print template](print-template.md). |
+| `-o, --output <file>` | render | Write here instead of stdout. A regular file there is replaced whole; a link, a directory or a device is refused. Its directory must exist. The data file, the view file (also by another name: a link to its directory, another case of its name) and `-` are a usage error (stdout is where the output goes without `-o`). |
+| `--template <file>` | render | `html`: a [print template](print-template.md); its `--pk-*` colours reach the chart ([details](print-template.md#template-design)); two to start from: `pivotkit example templates` ([your own corporate design](corporate-design.md)). |
 | `--title <text>` | render | `html`, `xlsx`: the report's title (default the view file's name). |
 | `--chart auto\|on\|off` | render | `html`: the chart above the table (`auto`: when the view shows the chart). |
 | `--width`, `--height <px>` | render | `svg`, `html`: the chart's size (800 x 480). |
@@ -103,11 +111,11 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--filter <json>` | | A filter as a view writes it, as JSON text or `@file.json`; repeatable. |
 | `--chart-type <type>` | | Show the chart: `auto`, `bar`, `line`, `area`, `pie`, `donut`, `heatmap`. |
 | `--map <old=new>` | render, describe `--suggest` | The view's field `old` is the data's `new`, for a column renamed since the view was made; with a view file too. |
-| `--save-view <file>` | render | Also write the view used as a view file (after `--map`; the view the layout flags or `--suggest` made). |
-| `-o, --output <file>` | describe `--suggest` | The draft view file; without it the view file goes to stdout. |
+| `--save-view <file>` | render | Also write the view used as a view file (after `--map`; the view the layout flags or `--suggest` made). The data file is a usage error. |
+| `-o, --output <file>` | describe `--suggest` | The draft view file; without it the view file goes to stdout. The data file and `-` are a usage error. |
 | `--lenient` | render, describe `--suggest` | Write the output also when the view has errors, as the report shows it; still exit 1. `describe --suggest`: the draft also when there is nothing to group by. |
 | `--strict` | render, validate, describe | Warnings are findings too. |
-| `--as view\|data` | describe | Read the input as a view or as data (default: a view when it is one). |
+| `--as view\|data` | describe | Read the input as a view or as data (default: a view when it is one; `--data` alone is data). |
 | `--items <n>` | describe | Data: list up to n values of each field (default none). |
 | `--json` | all | One JSON object on stdout (render: needs `-o`). |
 | `-q, --quiet` | all | No warnings and no line saying what was written on stderr; errors still. |
@@ -117,12 +125,19 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--now <date>` | render (taken and checked by all) | "Today" of relative filters and the generated time; environment `PIVOTKIT_NOW`. |
 | `--limit key=n` | all | One of pivotkit-core's [limits](../concepts/limits.md) (`--limit rows=200000`); repeatable. |
 | `--allow-dir <dir>` | all | Read and write only inside this directory; repeatable. |
+| `--url <address>` | render, validate, describe, sources | A pivotkit-server's REST address, `https://host/api/v1`; environment `PIVOTKIT_URL`. [With a server](#with-a-server) |
+| `--source <id>` | render, validate, describe | The server's source to run on (`pivotkit sources` lists them). |
+| `--param name=value` | render, validate, describe, sources `<id>` | A value of the source's parameter; repeatable. `pivotkit sources` says which a source needs. |
+| `--token-file <file>` | render, validate, describe, sources | Read the server's token from this file instead of `PIVOTKIT_TOKEN`. |
+| `--timeout <s>` | render, validate, describe, sources | Seconds to wait for the server's answer, 1 to 3600 (default 30). |
 
 An option on the command line wins over its environment variable. Every command checks `--locale`,
 `--time-zone` and `--now` (from the command line or the environment, and the message names the
 variable), so a wrong value in a pipeline's environment fails in every step, not only in `render`. An
-option given for a format it does nothing in (`--width` with `csv`) is a warning `ignoredOption`. The
-CLI writes no colours.
+option given for a format it does nothing in (`--width` with `csv`), or `--sheet` for data that is no
+workbook, is a warning `ignoredOption`. A command a line on stderr suggests can be pasted into a
+shell as it is: a value with spaces is in double quotes, one with `!` in single quotes (bash expands
+`!` in double quotes). The CLI writes no colours.
 
 ## What it says
 
@@ -139,14 +154,19 @@ and `pivotkit help <command>` lists the ones that act in it.
 | `render --lenient` wrote despite errors | the errors, then `wrote out.html despite 2 errors (--lenient)` |
 | the view has errors | the errors, then `nothing written: the view has errors.` |
 | `validate` found nothing | `valid: no errors, no warnings (with sales.csv)`, or without `--data`: `valid against the fields the view file lists (source.fields), not against data: give --data to check it with the data` |
-| a usage error | `pivotkit: ...; see "pivotkit help render"` |
+| a usage error | `pivotkit: ...; run "pivotkit render --help"`; an unknown option `pivotkit: unknown option "--bogus"; run "pivotkit render --help"`, an option before the command `"--json" comes after the command: pivotkit sources --json` (run as `pivotkit-server cli`, the pointers say `pivotkit-server cli`) |
 | `-o` into a directory that does not exist | below the working directory `the directory "out" does not exist: create it first (mkdir -p out)`, elsewhere `its directory does not exist` |
 | `-o report.html -f csv` | a usage error: the name says HTML, `-f` CSV (an extension that is no format of pivotkit's, `-o out.txt -f csv`, is written as asked) |
 | an HTML report to the terminal (no `-o`) | the report on stdout, and `an HTML report was written to the terminal: add -o report.html to save it` |
 | title lines above the header were skipped | `warning LINES_SKIPPED: ...` (they may be data; a finding with `--strict`) |
-| the filters keep no row | `warning noRowsKept: the filters keep none of the 2,000 rows of sales.csv (a date filter counts from --now or today)` (a table of zeros otherwise; with `--strict` a finding) |
+| the filters keep no row | `warning noRowsKept: the filters keep none of the 2,000 rows of sales.csv` (a table of zeros otherwise; with `--strict` a finding); a view with a date filter adds `(a date filter counts from --now or today)` |
 | data or a view from stdin on a terminal | `reading the data from stdin: type or paste it, then Ctrl-D (Ctrl-Z, Enter on Windows)` |
 | a view that is not JSON | `not a view: not valid JSON at line 2, column 30` |
+| a data file where the view belongs (`validate sales.csv`) | `error viewFile: not a view: not valid JSON`, then `sales.csv looks like data, not a view: give it with --data (pivotkit validate <view> --data sales.csv), or describe it: pivotkit describe sales.csv` |
+| a view that is no file | `pivotkit: x: not found: the view is a view file, - for stdin, JSON text or --link` |
+| a view file given as `--data` alone (`describe --data view.json`) | a usage error: `--data view.json is a view, not data: describe it with pivotkit describe view.json (and its data with --data <data>)` |
+| a view file where `--suggest` or a layout flag wants data | a usage error: `--suggest makes a view from a data file, and view.json is a view: give the data (pivotkit describe <data> --suggest), or describe the view with pivotkit describe view.json --data <data>` |
+| a grouping that cannot be made (`--group Region:yearMonth` on a text field) | `error groupingNeedsDate at derived[0]: date grouping needs a date field`, then `and 1 more error from it (--json lists it)`: the unknown field "Region by month" that follows is left out |
 
 ### When the data does not fit the view { #data-mismatch }
 
@@ -219,7 +239,8 @@ changes one part: every layout flag given with `--suggest` replaces that part of
 format 2: its name is `Draft: ` and what it shows, its description says where it came from, and it
 names the data as the report names a loaded file, with the sheet of a workbook (`source.params.sheet`),
 so **Views**, **Open view file** in the report opens it on that file and sheet. It is checked against
-the data as `validate --strict` would; same file, same draft on every machine (`--locale` changes the
+the data as `validate --strict` would (a field the data lacks, `--rows Nope`, is a
+[data mismatch](#data-mismatch) that lists the data's fields); same file, same draft on every machine (`--locale` changes the
 names of groupings and of the view).
 
 Without `-o`, the view file goes to stdout (`pivotkit describe x.csv --suggest > x.pivotkit.json`);
@@ -244,7 +265,9 @@ error noSuggestion: the sheet "Readme" of book.xlsx has nothing to group by (no 
 `render` with any of `--rows`, `--cols`, `--values`, `--group`, `--filter` or `--chart-type` (or
 `--suggest`) makes its view from the data's fields. The data is the argument or `--data` (both: a
 usage error); a view (the argument, `--link`) and layout flags together are a usage error too, so
-`pivotkit render sales.csv` alone still asks for a view. The view runs as a view file would: checked
+`pivotkit render sales.csv` alone still asks for a view. A view file given as the data (`pivotkit
+render view.json --rows Region`, `describe view.json --suggest`) is a usage error that says to give
+the data, or how to run the view. The view runs as a view file would: checked
 with "did you mean" hints, exit codes 0, 1 and 2 as for a view.
 
 - **One value names one thing**, and each flag may be repeated, outer first: `--rows Region --rows
@@ -292,7 +315,7 @@ pivotkit render revenue.pivotkit.json --data new-export.csv --map Revenue=Turnov
 | --- | --- |
 | 0 | Done. Warnings and the line that says what was written are on stderr (with `--verbose` also the reader's notes on how the data was read). |
 | 1 | Findings: an error in the view, or a warning with `--strict`. `render` writes nothing unless `--lenient`. |
-| 2 | A usage error, a file that cannot be read or written, a limit, or a refused template. Nothing is written. |
+| 2 | A usage error, a file that cannot be read or written, a limit, a refused template, or a server's refusal or a network error (`kind: "remote"`). Nothing is written. |
 
 ## --json
 
@@ -310,13 +333,23 @@ One object on stdout, for scripts and for the PowerShell Universal module:
   `dataMismatch`, `typeFromView`, `typeFromViewFailed`, and from a view made from the data's fields
   `noSuggestion`, `pivotResult`, `dateGrouped`, `unusedGroup`, `unusedMap`, `mapped`), `path`, `message` and, where there is one,
   `suggestion`. `dataMismatch` also has `missing`, `dataFields`, `pivotResult` and `details` (the lines
-  stderr shows); an error that follows from it has `followsFrom: "dataMismatch"`.
+  stderr shows); an error that follows from it has `followsFrom: "dataMismatch"`. An error that
+  names a grouping the view could not make (an unknown field "Region by month" after
+  `groupingNeedsDate`) has `followsFrom` with the grouping's code; stderr counts it on the grouping's
+  error instead of showing it.
 - `error` (exit 2): `{ kind, code, message }`, `kind` one of `usage`, `io`, `limit`, `template`,
-  `internal` (more may come).
+  `remote`, `internal` (more may come). A `remote` error also has `status` (the HTTP status, `null`
+  without an answer) and `retryAfter` (the seconds the server asks to wait, else `null`); its `code`
+  is the server's problem code ([REST errors](rest.md#errors)), `PROBLEM` for one this version does
+  not know, or the CLI's own: `REDIRECT`, `NOT_PIVOTKIT`, `ANSWER_TOO_LARGE`, `ANSWER_CUT`, `TIMEOUT`,
+  a network error's code (`ECONNREFUSED`, `ENOTFOUND` ...) or `NETWORK`.
 - `pivotkit --version --json`: `{ "pivotkit-cli", "pivotkit-report", "pivotkit-core", environment }`,
   `environment` with `node`, `locale`, `timeZone` (each `{ value, from, known }`: from the environment
   variable or the default, and whether Node's Intl knows it), `now` (`{ value, from }`) and pivotkit-core's
   default `limits`: for a bug report or a CI log.
+- `sources`: `kind: "sources"` and `sources` (each `{ id, title, kind, link, schedulable }` and, for a
+  source with parameters, `params`, as the server lists them); `sources <id>`: `kind: "source"`, `source` and `description` (`rows`, `fields`,
+  `text`, `hiddenFields`).
 - `render`: `summary` and `output` (`{ file, format, mediaType, bytes }`, or `null` when nothing was
   written); with `--save-view` also `savedView` (`{ file, bytes }`); with `--suggest`, `draft: true`
   and `picks`. `describe --suggest`: `draft: true`, `picks` (each `{ part, code, field, agg, by,
@@ -330,6 +363,104 @@ One object on stdout, for scripts and for the PowerShell Universal module:
 - `render`, `validate` and `describe`: `sheet`, the sheet of a workbook read (`null` for other data or
   without data). `describe` of a workbook also gives `sheets`: `[{ name, index, visible }]` in the
   workbook's order.
+
+## With a server { #with-a-server }
+
+A [pivotkit-server](rest.md) keeps the data and decides who sees what; `render`, `validate` and
+`describe` run on its sources instead of local files, through its REST service, and `pivotkit
+sources` lists what the token reaches. The view is a local file, JSON text or stdin, as without a
+server; the layout flags and `--suggest` work too, and `--map` with `render` and `describe --suggest`.
+
+```bash
+export PIVOTKIT_URL=https://reports.example.com/api/v1
+export PIVOTKIT_TOKEN=...                 # or --token-file token.txt
+pivotkit sources                          # the sources this token reaches
+pivotkit sources sales                    # their fields, types and counts
+pivotkit sources vms --param customer=acme   # a source with parameters: a value for each it needs
+pivotkit validate sales.pivotkit.json --source sales --strict
+pivotkit describe --source sales --suggest -o draft.pivotkit.json
+pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
+```
+
+- **Remote mode** starts with `--url` or `--source` on the command line. `PIVOTKIT_URL` alone is
+  only the default address: `render --data` stays local in a shell that has it set. `--source`
+  without an address is a usage error.
+- **Options that act on local data or files** are a usage error with a server, never silently
+  ignored: `--data`, `--data-format`, `--sheet`, `--limit`, `--template`, `--locale`, `--time-zone`,
+  `--now`, `--bom`, `--width`, `--height`, `--lenient`, `--link`, `--key`, `--save-view`, `--as` and
+  `--items`. `pivotkit help <command>` marks them "local only", and the server's own options "with a
+  server". `PIVOTKIT_LOCALE`, `PIVOTKIT_TIME_ZONE` and `PIVOTKIT_NOW` are not used with a server (a
+  note says so). A view file's own `formatting.locale` and `timeZone` still apply; relative dates
+  ("the last 30 days") count from the server's time.
+- **Routes**: `validate` is `POST /views/validate`, `describe <view>` `POST /views/describe`,
+  `describe --suggest` `POST /views/suggest`, `render` `POST /views/validate` and then `POST
+  /views/render/file` (`render --suggest`: `POST /views/suggest` first), `sources` `GET /sources` and
+  `GET /sources/{id}` (with `--param`: `POST /sources/describe`). `describe` with a server takes a
+  view; a source's fields are `pivotkit sources <id>`.
+- **Parameters**: a source with parameters (an HTTP source with `{customer}` in its address, a code
+  source that declares `params`) needs a value for each required one in every call. `pivotkit
+  sources` lists such a source with `(needs: customer)`; give the values with `--param
+  customer=acme`, once per parameter. They go with the source as `params`, as typed; the server reads
+  a number or `true`/`false` from the text where the parameter is one.
+- **Render** needs a token whose [policy profile](rest.md#profiles) has `results: true`;
+  without it the server answers 403 `NOT_ALLOWED` and the CLI says so (exit 2): validate, describe
+  and sources work with any token. The file goes only to `-o` or stdout, never to a name from the
+  answer; an XLSX file is not written to a terminal. It is written with mode `0600` (only you read
+  it) through a temporary file once the whole answer is in: a refused, failed or cut download never
+  replaces a file. A view with errors (422 `VIEW_HAS_ERRORS`) gives the server's findings and exit 1.
+  `--json` has `summary: null` (the file route gives none). A token the operator lets render but not
+  validate (`auth.toolScopes`) still gets the file, with a warning `notValidated`: the server's
+  errors stop the file, its warnings are not known (so `--strict` writes nothing).
+- **Findings and exit codes** are as without a server: errors (and warnings with `--strict`) exit 1.
+  The data's own notes (how a file was read, a data mismatch explained against local columns,
+  `noRowsKept`) come from the server's findings instead.
+
+### The token { #token }
+
+- From `--token-file` first, else `PIVOTKIT_TOKEN`, read again for every request; never from a
+  flag's value (it would be in the shell's history and the process list) and never printed, also not
+  in an error.
+- The token file is read like every file of the CLI (a regular file, no symbolic link at its end, at
+  most 4 KiB); a trailing newline is trimmed; on Linux and macOS a file the group or others can read
+  gives a warning, also with `-q`. `-o` naming the token file is a usage error. A token with characters a bearer token cannot carry is refused before any request.
+- `PIVOTKIT_TOKEN` is also the variable the server reads its own token from: on a machine that runs
+  both, the CLI sends the server's token.
+- A token whose profile has `results: true` lets whoever holds it export every field that is not
+  hidden. Hide identifier fields at the source, give render tokens a profile of their own, and keep a
+  token with `results: true` out of an environment an AI agent controls.
+
+### The connection { #connection }
+
+- `https://` everywhere; `http://` only for a literal loopback address (`localhost`, `127.0.0.1` to
+  `127.255.255.255`, `[::1]`), where nothing leaves the machine. A user name, password, query or
+  fragment in the address is a usage error. The CLI writes the server's origin and where the token
+  came from on stderr on every run (`server: https://reports.example.com (token: PIVOTKIT_TOKEN)`;
+  not with `-q`), so a wrong target or token shows.
+- Redirects are not followed: "the server redirected (a common cause: http instead of https)". An
+  unknown route says "the address should end in /api/v1".
+- Every request has a time limit (`--timeout`, default 30 s) and a size limit on the answer (5 MB of
+  JSON, 64 MiB for a rendered file). An answer that is neither the expected type nor a problem
+  document (a sign-in page of a proxy, say), a rendered file that is not sent as an attachment
+  (`Content-Disposition`), or JSON nested deeper than 64 levels is "not a pivotkit server answer"
+  with its status only. Stderr lists at most 200 findings and says how many more; `--json` has all.
+- With `NODE_TLS_REJECT_UNAUTHORIZED=0` (no check of the server's certificate) the CLI does not talk
+  to an https server at all, with or without a token; there is no `--insecure`. A certificate of your own CA: `NODE_EXTRA_CA_CERTS`.
+- **A proxy**: the CLI uses `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` only as Node does, when Node's
+  proxy support is on: `NODE_USE_ENV_PROXY=1` (Node 22.21.0 or later, 24.0.0 or later) or
+  `node --use-env-proxy` (Node 22.21.0 or later, 24.5.0 or later). Node marks both "Active
+  development" ([Node's CLI documentation](https://nodejs.org/api/cli.html#node_use_env_proxy1),
+  [built-in proxy support](https://nodejs.org/api/http.html#built-in-proxy-support)). When a proxy
+  variable is set and Node does not use it, a network error says so. A loopback address never goes
+  through a proxy.
+- Messages hold the problem's code and its cleaned `detail` (control characters out, cut at 200
+  characters), never headers, the answer's body, the full address or the text of a network error.
+  A 401 is one line: "the server needs a token: set PIVOTKIT_TOKEN or give --token-file <file>" when
+  none was sent, "the server refused the token from --token-file token.txt: ..." with the server's
+  reason when one was. A missing parameter ends with "re-run with --param customer=acme", a refused
+  value with "fix it with --param customer=<value>". A render the token may not make says to ask
+  the operator for a token whose profile has `results: true`, and that validate, describe and
+  sources still work with it. Other hints follow the server's words after a semicolon, never in a
+  second parenthesis: 429 and 503 "retry in N s" (a `Retry-After` over a day is left out).
 
 ## The sheet of a workbook
 
@@ -379,26 +510,28 @@ for a report that is the same on every run.
   it is read; a view file has at most 4 MB, a template 1 MB.
 - **Workbooks you did not make**: by default a workbook may unpack to 500 MiB (`unpackedBytes`).
   Whitespace padding costs little (a 54 KB file padded to 50 MiB reads in about 0.4 s with about
-  200 MB), but content that is kept costs a few times its size: 100 MiB of shared strings took about
-  2.4 s and 660 MB (Node 26, Apple M4; approximate), 500 MiB would take gigabytes. For untrusted files
-  lower the limit to what your workbooks need and give the run a time limit:
+  200 MB), but content that is kept costs a few times its size: the shared strings and formats kept
+  count against `importCells`, and 11 million of them, under the defaults, took about 1 to 1.3 GB
+  (Node 26, Apple M4; approximate). For untrusted files lower the limits to what your workbooks need
+  and give the run a time limit:
   `timeout 60 pivotkit describe upload.xlsx --limit unpackedBytes=104857600` (`timeout` is GNU
   coreutils; `gtimeout` on macOS with Homebrew's coreutils). See
   [Untrusted workbooks](../security.md#untrusted-workbooks).
 - **Output** goes to a new temporary file next to the target, then replaces it: no half-written
   file. A link, a directory or another non-regular file at the target is never replaced; for stdout
   leave out `-o` (`-o /dev/stdout` is a device). The directory is not created. A run killed between
-  the two steps leaves the temporary file (`.<name>.<pid>-<random>.tmp`).
+  the two steps leaves the temporary file (`.<name>.<pid>-<random>.tmp`); the CLI does not remove it
+  later, delete it by hand.
 - A file that has more bytes when it is read than its size said (it grew, or a `/proc` file that
   says 0) is refused, never cut.
 - **`--allow-dir`** is a hard limit: every file read or written must lie inside one of the
-  directories after its real path is resolved (symbolic links and `..` followed), checked on the
-  path and again on the opened file. Without it the CLI reads and writes with your own rights, as any
-  command-line tool does. It narrows what a mistake or a hostile view file name can reach; it is
-  **not a sandbox**: not against another process of the same user that changes the directories while
-  it runs, and a hard link inside an allowed directory to a file outside it reads that file (no path
-  check can tell a hard link apart). Run the CLI as a user that can only reach what it should, or in
-  a container, where that matters.
+  directories after its real path is resolved (symbolic links, Windows junctions and `..`
+  followed), checked on the path and again on the opened file. Without it the CLI reads and writes
+  with your own rights, as any command-line tool does. It narrows what a mistake or a hostile view
+  file name can reach; it is **not a sandbox**: not against another process of the same user that
+  changes the directories while it runs, and a hard link inside an allowed directory to a file
+  outside it reads that file (no path check can tell a hard link apart). Run the CLI as a user that
+  can only reach what it should, or in a container, where that matters.
 - **Messages** name a file by its base name and never print a file's content; names and messages
   from a view or the data are cleaned of control characters and cut at 200 characters.
 - **`pivotkit example`** writes its files the same way, in the current directory, after checking that

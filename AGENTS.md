@@ -48,7 +48,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe
-  focus, Tab and Escape helpers and `useFormName` (every form field's name, unique per report instance); `labels.js` the texts of the first load (en, de), `menu-labels.js` the English ones only the menus show (loaded with them; a host's labels for them are kept aside by `resolveLabels` and merged by `menuLabels`), `menu-labels-de.js` the German ones, an entry and chunk of its own (`dist/menu-texts-de.js`) that `lazy-menus.jsx` loads with the menus for a German report only (the loaders per language in `menu-texts.js`; English stands in when the chunk fails), `all-labels.js` all of them as `LABELS`, the subpath export `pivotkit-react/labels`. A new language takes: its first-load texts in `labels.js`, added to `LABELS` there (the locale's language picks it); its menu texts in `src/menu-labels-<lang>.js`; its loader in `MENU_TEXTS_OF` (`menu-texts.js`); the entry `"menu-texts-<lang>"` in pivotkit-react's `build.js`; the texts of a view's unused parts in `src/unused-texts-<lang>.js` with its loader in `UNUSED_TEXTS_OF` (`unused-load.js`); the texts of loading data in `IMPORT_TEXTS` (`import-labels.js`, the element's `import` budget); all of them in `all-labels.js`; a row in `docs/reference/localisation.md`; and the element's `texts` and `unused` budgets in its `build.js` (each group sums every language's file). `test/menu-texts.test.js` and `test/unused.test.js` check the loaders and the keys; `overflow.js` which toolbar buttons go into "More" (a fixed priority, `OVERFLOW_ORDER`, and only those the room left cannot hold, measured with the texts shown) and More's groups (`MORE_GROUPS`); `rove.js` the arrow keys of the field list (one Tab stop); `use-export.js` the Export menu's entry point, `export-run.js` its work (the source data, `exportData`, off by default and checked there too: every row as pivotkit-core's `dataToCsvBytes`/`dataToJson`; `light-tokens.js` the light theme's tokens a workbook and an HTML report take, from a dark report too) and `drill-export.js` the drill-down panel's exports (both load with the menus and start loading pivotkit-core/export when a menu that copies opens, so a copy happens in the click; every file and copy passes `onExport` first); `report-run.js` the HTML report, the chart as SVG and printing (pivotkit-report with ECharts' SVG renderer, a chunk loaded on first use; export-run.js gets chart.jsx's `loadECharts` through its context, since a menus module importing chart.jsx would move it out of the first load), `print-frame.js` prints the report from a frame sandboxed without scripts, filled as DOM (stylesheet adopted, chart inline), so a strict CSP allows it; `place.js` where a popover goes (next to its anchor; with `fill`, the filter and the chip menus, against the window's edge when it fits on neither side); `popover.jsx` puts popovers and sheets into the browser's top layer (`popover="manual"`, `--pk-layer-z` without the Popover API; `useTopLayer` for other layers) and holds `Group`, the one way every menu draws its groups (a bold title, a rule between groups; first load, as More draws its groups); `chart-types.js` also `chartPlan`, pivotkit-core's with the picker entry drawn; `styles.css` every `--pk-*` token. Loading data (`allowImport`): the report keeps only its state (the file's data shown, the data steps, the file being read, a drag over it), the drop handler and the Data button (`toolbar.jsx`, `OVERFLOW_ORDER`'s `data`) and hands it to the import UI as one object (`ImportApi`); the import UI is the entry `import-module.js` (`dist/import-ui.js`, with `pivotkit-core/import`), loaded on first use by `lazy-import.js`: `import-host.jsx` (what the report renders through it: the file input, the drop overlay, the preview, the Data menu's panel, the source line; `loadSheet` reads another sheet of the file shown for a view made on it), `import-ui.jsx` (those components), `import-steps.js` (load, Back to original data, Undo and Redo of a data step, `onDataLoad`), `data-history.js` (the data steps of the undo history, pure: each keeps a data set and its view history, `DATA_STEPS` of them; `use-view-history.js` takes a `dataKey` and an `initial` history (a report mounted again starts on its kept one) and gives `snapshot`/`replace`), `data-keep.js` (first load: the file shown, its data steps and view history kept per `storageKey` in a module-level map, memory only, at most `KEPT_REPORTS` keys, for a report the host mounts again over the same data; dropped when the host's data is shown again), `import-run.js` (reads in the host's `importWorker` for the built-in readers, else on the page; `acceptOf`, `sheetsOf`), `import-limits.js` (first load: a file's limits, `importLimits` over `limits` key by key; the report uses them for everything while a file's data is shown, the host's data keeps `limits`), pivotkit-core/import's `sourceIdOf` (a file's source id: name and SHA-256 of name and columns, with a SHA-256 of its own where `crypto.subtle` is missing), `import-labels.js` (its texts, en and de, `labels.dataImport`, and the readers' notes per code); `data-menu.jsx` the Data menu's panel frame (with the menus: it loads the import UI on open); `import-worker.js` the worker entry (`pivotkit-react/import-worker`). Logic that needs no DOM lives in `.js` modules; `test/` runs
+  focus, Tab and Escape helpers and `useFormName` (every form field's name, unique per report instance); `labels.js` the texts of the first load (en, de), `menu-labels.js` the English ones only the menus show (loaded with them; a host's labels for them are kept aside by `resolveLabels` and merged by `menuLabels`), `menu-labels-de.js` the German ones, an entry and chunk of its own (`dist/menu-texts-de.js`) that `lazy-menus.jsx` loads with the menus for a German report only (the loaders per language in `menu-texts.js`; English stands in when the chunk fails), `all-labels.js` all of them as `LABELS`, the subpath export `pivotkit-react/labels`. A new language takes: its first-load texts in `labels.js`, added to `LABELS` there (the locale's language picks it); its menu texts in `src/menu-labels-<lang>.js`; its loader in `MENU_TEXTS_OF` (`menu-texts.js`); the entry `"menu-texts-<lang>"` in pivotkit-react's `build.js`; the texts of a view's unused parts in `src/unused-texts-<lang>.js` with its loader in `UNUSED_TEXTS_OF` (`unused-load.js`); the texts of loading data in `IMPORT_TEXTS` (`import-labels.js`, the element's `import` budget); all of them in `all-labels.js`; a row in `docs/reference/localisation.md`; and the element's `texts` and `unused` budgets in its `build.js` (each group sums every language's file). `test/menu-texts.test.js` and `test/unused.test.js` check the loaders and the keys; `overflow.js` which toolbar buttons go into "More" (a fixed priority, `OVERFLOW_ORDER`, and only those the room left cannot hold, measured with the texts shown) and More's groups (`MORE_GROUPS`); `rove.js` the arrow keys of the field list (one Tab stop); `use-export.js` the Export menu's entry point, `export-run.js` its work (the source data, `exportData`, off by default and checked there too: every row as pivotkit-core's `dataToCsvParts`/`dataToJson`; `export-scope.js`, with the menus, what `exportData` lets out, `dataExportOf` (against the data's columns), `dataExportFor` (with the console's word on unknown names) and `pickColumns`: Source data, and the columns of Source data and the drill-down's exports; `theme-tokens.js` the tokens of one theme, read whichever theme the report shows: the light ones a workbook and an HTML report take, the dark ones an HTML report takes for a dark screen, `darkTokens`) and `drill-export.js` the drill-down panel's exports (both load with the menus and start loading pivotkit-core/export when a menu that copies opens, so a copy happens in the click; every file and copy passes `onExport` first); `report-run.js` the HTML report, the chart as SVG and printing (pivotkit-report with ECharts' SVG renderer, a chunk loaded on first use; export-run.js gets chart.jsx's `loadECharts` through its context, since a menus module importing chart.jsx would move it out of the first load), `print-frame.js` prints the report from a frame sandboxed without scripts, filled as DOM (stylesheet adopted, chart inline), so a strict CSP allows it; print() runs in the click (Safari asks before a print it does not take as the person's): the Export menu makes the frame ready when it opens, and pointing at, pressing or focusing Print starts downloading the report's modules (`export-run.js`'s `prepareExport`; ECharts with them, too large for every opening of the menu); a click before they have loaded prints after the click. With them loaded, everything up to print() runs in the microtasks right after the click's listener, still inside the click's dispatch (measured by the print specs' `inClick` in Chromium, Firefox and WebKit): the awaits left are of promises already resolved, pivotkit-report's `render()` among them (async though its work is not; a synchronous render would take a new export of pivotkit-report), and `export-run.js` keeps the loaded modules so it does not await them again; `place.js` where a popover goes (next to its anchor; with `fill`, the filter and the chip menus, against the window's edge when it fits on neither side); `popover.jsx` puts popovers and sheets into the browser's top layer (`popover="manual"`, `--pk-layer-z` without the Popover API; `useTopLayer` for other layers) and holds `Group`, the one way every menu draws its groups (a bold title, a rule between groups; first load, as More draws its groups); `chart-types.js` also `chartPlan`, pivotkit-core's with the picker entry drawn; `styles.css` every `--pk-*` token. Loading data (`allowImport`): the report keeps only its state (the file's data shown, the data steps, the file being read, a drag over it), the drop handler and the Data button (`toolbar.jsx`, `OVERFLOW_ORDER`'s `data`) and hands it to the import UI as one object (`ImportApi`); the import UI is the entry `import-module.js` (`dist/import-ui.js`, with `pivotkit-core/import`), loaded on first use by `lazy-import.js`: `import-host.jsx` (what the report renders through it: the file input, the drop overlay, the preview, the Data menu's panel, the source line; `loadSheet` reads another sheet of the file shown for a view made on it), `import-ui.jsx` (those components), `import-steps.js` (load, Back to original data, Undo and Redo of a data step, `onDataLoad`), `data-history.js` (the data steps of the undo history, pure: each keeps a data set and its view history, `DATA_STEPS` of them; `use-view-history.js` takes a `dataKey` and an `initial` history (a report mounted again starts on its kept one) and gives `snapshot`/`replace`), `data-keep.js` (first load: the file shown, its data steps and view history kept per `storageKey` in a module-level map, memory only, at most `KEPT_REPORTS` keys, for a report the host mounts again over the same data; dropped when the host's data is shown again), `import-run.js` (reads in the host's `importWorker` for the built-in readers, else on the page; `acceptOf`, `sheetsOf`), `import-limits.js` (first load: a file's limits, `importLimits` over `limits` key by key; the report uses them for everything while a file's data is shown, the host's data keeps `limits`), pivotkit-core/import's `sourceIdOf` (a file's source id: name and SHA-256 of name and columns, with a SHA-256 of its own where `crypto.subtle` is missing), `import-labels.js` (its texts, en and de, `labels.dataImport`, and the readers' notes per code); `data-menu.jsx` the Data menu's panel frame (with the menus: it loads the import UI on open); `import-worker.js` the worker entry (`pivotkit-react/import-worker`). Logic that needs no DOM lives in `.js` modules; `test/` runs
   them with `node --test` (plus a server render of the built package, the contrast of the tokens and `tokens.test.js`: no colour, font weight, radius, font family or ring width outside the token blocks of `styles.css`, and no colour, weight, radius, font size or font family in the sources);
   `test/types/` is a TypeScript consumer.
 - `packages/pivotkit-element/` - the web component `<pivot-report>`: pivotkit-react in an open shadow
@@ -70,7 +70,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   texts, the parts of its sections, the view changes only menus make in `menu-ops.js`, sharing in
   `share-actions.js`, the drill-down's table in `drill-table.js`) goes into pivotkit-react's
   `menus.js`, and what only a drawn chart needs (`chart-decorate.js` with pivotkit-core/chart) into
-  `echarts.js`; the plain words of a view's unused parts (`unused-texts*.js`) are the group "unused", loaded only when a view has such parts; loading data (pivotkit-react's `import-ui.js` with `pivotkit-core/import`) is the group "import", loaded on first use. The HTML report, the chart as SVG and printing (pivotkit-react's `report-run.js` with pivotkit-report and ECharts' SVG renderer) are the group "report", loaded on first use and counted as what they add to the chart group they load first. A module behind a barrel (pivotkit-core's `index.js`, ECharts' `echarts/renderers`) lands where any importer of the barrel loads it: pivotkit-report's use of `describeView` put `describe.js` into the first load, its `SVGRenderer` put zrender's SVG painter into the chart group. `dist/import-worker.js` is a build of its own (`workerOptions`: one file, so it does not split the first load), which the element starts from its chunk by `../import-worker.js` (`__PIVOTKIT_IMPORT_WORKER__`). esbuild splits by file: a module that both load lands in the first load whole, so a
+  `echarts.js`; the plain words of a view's unused parts (`unused-texts*.js`) are the group "unused", loaded only when a view has such parts; loading data (pivotkit-react's `import-ui.js` with `pivotkit-core/import`) is the group "import", loaded on first use. The HTML report, the chart as SVG and printing (pivotkit-react's `report-run.js` with pivotkit-report and ECharts' SVG renderer) are the group "report", loaded on first use and counted as what they add to the chart group they load first; pivotkit-report's reading of a host's print template CSS (`template-style.js`) is the group "template", which the element never loads. A module behind a barrel (pivotkit-core's `index.js`, ECharts' `echarts/renderers`) lands where any importer of the barrel loads it: pivotkit-report's use of `describeView` put `describe.js` into the first load, its `SVGRenderer` put zrender's SVG painter into the chart group. `dist/import-worker.js` is a build of its own (`workerOptions`: one file, so it does not split the first load), which the element starts from its chunk by `../import-worker.js` (`__PIVOTKIT_IMPORT_WORKER__`). esbuild splits by file: a module that both load lands in the first load whole, so a
   menu-only function goes into a module of the menus, not next to first-load code. A text a menu
   alone shows goes into `menu-labels.js`; a text the first render shows stays in `labels.js`, so no
   report shows English first.
@@ -82,7 +82,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   mapping from response to rows (used by `scripts/docs-data.js` and shown on the docs page
   `learn.md`), `data/SOURCES.md` the licences and attribution. The page never calls the sources.
   Loading data is on (`allowImport`, pivotkit-xlsx, its own `import-worker.js`, `onDataLoad` in the
-  footer); `?import=off` turns it off, so the toolbar has no Data button, as for a host without it.
+  footer; a loaded file's name stands under Data, without the data set's start view and shared views,
+  and names the exported files); `?import=off` turns it off, so the toolbar has no Data button, as for a host without it.
 - `examples/playground/validator.html` (`src/validator.js`) - the view file check the docs page
   `reference/view-file.md` embeds: pivotkit-core in the browser, nothing uploaded.
 - `examples/element/` - a plain HTML page with `<pivot-report>`, no build step; `npm run
@@ -91,7 +92,10 @@ root `package.json`: `npm run types` and the builds depend on it.
   (imports nothing), `src/reader.js` the reader (`read`, `sheets`): its own checks before parsing
   (`zip.js`: the ZIP directory against `archiveEntries` and `unpackedBytes`, parts unpacked as a
   stream, never beyond their stated size; `xml.js`: no `<!DOCTYPE`/`<!ENTITY`, the sheet's rows
-  without a value and what follows `</sheetData>` left out while it streams, and `createXmlGuard` on
+  without a value and what follows `</sheetData>` left out while it streams (a comment, CDATA section
+  or processing instruction in a row skipped as the parser skips it), `createEntryCount`: the shared
+  strings past the highest one the sheet names left out, strings and formats counted against
+  `importCells` (the parser keeps an entry for each), and `createXmlGuard` on
   every part read-excel-file gets: whitespace runs cut to `SPACE_RUN`, a tag over `MAX_TAG` or
   another token over `MAX_TOKEN` refused, since read-excel-file re-reads an unfinished token with every piece it parses (quadratic
   time, a stack frame per piece); `workbook.js`: the sheets and their parts), then read-excel-file's
@@ -108,11 +112,24 @@ root `package.json`: `npm run types` and the builds depend on it.
   `src/template.js` (`pivotkit-report/template`: the print template's tokenizer, `PLACEHOLDERS`,
   `ATTRIBUTES`; a placeholder only in text and allowed attributes, else `INVALID_TEMPLATE`),
   `src/default-template.js` (`DEFAULT_TEMPLATE`, `REPORT_CSP`), `src/report-css.js` (the report's
-  stylesheet and print rules), `src/tokens.js` (`LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`,
+  stylesheet and print rules; its dark-screen rules through `darkScreen`: the system's dark theme
+  unless the root pins `data-pk-theme="light"`, and `data-pk-theme="dark"` on any screen, never on
+  paper), `src/tokens.js` (`LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`,
   `SHAPE_TOKENS`: a kept copy of pivotkit-react's `styles.css` values, `test/tokens.test.js` compares
-  them, and `DEFAULT_THEME`'s with them; `SIZE_TOKENS`, the HTML report's own font sizes), `src/texts.js`
+  them, and `DEFAULT_THEME`'s with them; `SIZE_TOKENS`, the HTML report's own font sizes; `reportTokens`,
+  the light values the chart and the cells' colours are drawn with: defaults and the host's `tokens`,
+  a token that names another one followed), `src/template-style.js` (`templateTheme`: those values
+  with a print template's own CSS over them, computed as the browser computes them for `.pk-report`:
+  `:root`, `body`, `.pk-report` each inheriting, the cascade's order with the report's `{{style}}` in
+  it, `var()` with cycles; loaded by `render()` only for a template of the host's and importing
+  nothing, tokens.js's parts passed in; `tests/browser/report-template.spec.js` compares it with
+  `getComputedStyle` in three engines), `src/texts.js`
   (`REPORT_TEXTS`, en and de), `src/svg.js` (the chart through ECharts' server-side SVG renderer, the
-  ECharts module passed in as `options.echarts`; `cleanSvg` checks and cleans it). `test/golden/`
+  ECharts module passed in as `options.echarts`; `cleanSvg` checks and cleans it). `test/contrast.test.js`
+  holds the report's colours in both themes to WCAG AA (text on its surfaces, a theme's colour scale
+  and data bars as `report-css.js` mixes them, `SCALE_MIX`, `BAR_MIX`); the root's
+  `tests/browser/report-theme.spec.js` measures the default report in both colour schemes, on screen
+  and in print, in three engines. `test/golden/`
   holds CSV, JSON and HTML golden files (`-text` in `.gitattributes`; rebuild with
   `PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report` and review the diff); the SVG is checked by
   its structure, the XLSX by reading it back (#163). ECharts is an optional peer dependency.
@@ -127,11 +144,13 @@ root `package.json`: `npm run types` and the builds depend on it.
   operation is an entry there, its tests in `test/operations.test.js`, its tool in pivotkit-mcp's
   `tools.js` (`TOOLS`) and, if the CLI has it, its command in `commands.js`.
 - `packages/pivotkit-cli/` - the command line `pivotkit` (Node only): `bin/pivotkit.js`, `src/cli.js`
-  (`main(argv, io)`: render, validate, describe, example, completion, help; a view file's
+  (`main(argv, io)`: render, validate, describe, sources, example, completion, help; a view file's
   `source.fields` decide the type of a column the reader inferred otherwise, `withViewTypes`, never
   when a value does not fit; exit codes 0, 1 findings, 2 usage,
-  io, limit, template; `--json` on stdout), `src/commands.js` (the one table of commands and options
-  that the parser, the help and the completions are made from), `src/help.js` (help and bash, zsh,
+  io, limit, template, remote; `--json` on stdout), `src/commands.js` (the one table of commands and options
+  that the parser, the help and the completions are made from; each option's `where`, local, remote
+  or both, from which the help's marks and the usage error for an option given where it does not act
+  come), `src/help.js` (help and bash, zsh,
   fish and PowerShell completions), `src/safe-files.js` (read a regular file once with its size checked
   first, `hardLinks: false` refuses a second name; write through a temporary file, `exclusive` and
   `writeNew` never replace one; `--allow-dir` by real path), exported with `readTable` (a data file
@@ -141,37 +160,160 @@ root `package.json`: `npm run types` and the builds depend on it.
   `--chart-type`, `--map` as a layout: one value names one thing, so names may hold commas and
   colons), `src/layout-view.js` (`describe --suggest` and `render` from the data's fields through
   `viewOfLayout`; the view file it writes names the data with `sourceIdOf` and the sheet),
-  `src/errors.js` (`CliError` with a kind; no file content in a message beyond the data's
+  `src/remote.js` (remote mode's client of pivotkit-server's REST service: the address, https or
+  loopback http, the token from `--token-file` or `PIVOTKIT_TOKEN` read for every request, no
+  redirects, time limit, size caps, the answer's type checked, a loopback address through node:http
+  with its own agent so no proxy, other addresses through Node's fetch with Node's proxy support;
+  errors as `RemoteError`, never a fetch error's message), `src/remote-commands.js` (render,
+  validate, describe and sources against the server, with cli.js's helpers passed in),
+  `src/rest-contract.js` (`pivotkit-cli/rest`: `REST_BASE`, `SOURCE_ID`, `TOKEN_SYNTAX`,
+  `REST_ERRORS`, `PROBLEM_CODES`, `isLoopback`, the one copy pivotkit-server re-exports),
+  `src/errors.js` (`CliError` with a kind, `RemoteError`; no file content in a message beyond the data's
   field names and one cell value cut at 20 characters, `printable` cleans names), `src/examples.js` (`pivotkit example`: `examples/examples.json`, the files written, never
   over one). `examples/` holds the example files: the view files and `examples.json` committed, the
   data gzipped (`*.csv.gz`, build output of `npm run build -w pivotkit-cli`, also in prepack and the
   CLI's `npm test`). `test/` spawns the CLI as a user runs it; `test/examples.test.js` runs every
-  shipped example through validate and render.
+  shipped example through validate and render; `test/remote.test.js` runs remote mode against a
+  fake server and a fake proxy on loopback.
 - `packages/pivotkit-server/` - what the MCP server and the REST service share, and the REST service
   (Node only, no MCP SDK): `src/config.js` (`OPTION_KEYS`, the one table of options for both, `rest.*`
-  included; `validateOptions` with "did you mean"; `loadConfig`), `src/flags.js` (`optionsFrom`, the
+  included, composed from its own keys and the fragments of `src/options/`; `validateOptions` with "did
+  you mean", then each fragment's rules; `loadConfig`), `src/options/` (`shared.js`: `ConfigError`,
+  the slots a fragment adds keys to, `SECRET_REF`; `base.js`: the keys several features share, a
+  source's `params`, field descriptions, `ttl`, `maxStale`, `timeMs`, `auth.subjectClaim`; one file per
+  feature with its `KEYS` and `validate`; `index.js`: `FRAGMENTS` and `composeSlots`, which refuses a
+  key declared twice: a new option is a key in its feature's fragment, never in two places),
+  `src/secrets.js` (`readSecret`: a `{ env }` or `{ file }` reference read on every use, never
+  logged; `secretFileWarning` for check-config), `src/print-template.js` (a source's print template:
+  `readTemplateFile`, the one safe reader for a request, the start and check-config;
+  `checkTemplates`, each source's template read and parsed, the start refuses and check-config
+  reports what parseTemplate refuses; a missing file is a warning at start and a PROBLEM the server
+  starts with, as a missing source file), `src/flags.js` (`optionsFrom`, the
   runners' flags into options; `SERVER_FLAGS`), `src/context.js` (`createContext(options)`: registry,
-  workers, output, log, the sign-in both front ends share, `ready()`; `callerOf`), `src/policy.js`
-  (show, summary, hide; profiles laid over a source's policy, `results`; `exposeSource`,
-  `exposeFindings`, `touchesClosed`), `src/registry.js` (source ids and `file:` paths, scopes, "not
-  found" for a source the caller may not use; `files: false` for REST), `src/data.js`,
+  workers, output, log, the sign-in both front ends share, `ready()`, `offers`: the extra inputs each
+  surface offers, fixed at start; `callerOf` and `identityKey` from auth.js), `src/policy.js`
+  (show, values, summary, hide in `POLICY_LEVELS`, the order of strictness; profiles laid over a
+  source's policy, `results`; the automatic values rule `autoLevel` with `AUTO_VALUES` and the one
+  default `AUTO_VALUES_DEFAULT`; `withStats` binds the data's statistics, `levelInfo`/`levelOf` (own
+  rule, repeated hidden header, automatic rule, default); `exposeSource`, `exposeFindings` per field,
+  `touchesClosed`), `src/stats.js` (`sourceStats`: per field the counts the "values" level is decided
+  by, never a value; counted in data.js when the data is read, cached with it, returned by the worker
+  with every outcome), `src/registry.js` (source ids and `file:` paths, scopes, "not
+  found" for a source the caller may not use; `files: false` for REST; `resolve(ref, caller, how,
+  params)` dispatches by kind and checks params; `isClosedForDelivery(options, ref)`, the one rule
+  for which reports get only bound links: a field not shown for someone, or data per person;
+  `logName`, a source as a log line names it), `src/sources/` (the kinds of source:
+  `index.js` `kindOf`, `KINDS` and `runResolved`, the one way present() runs an operation over a
+  source; `file.js` configured files and `file:` paths, read in a worker; `code.js` a library host's
+  `load(params, { caller, signal })` in the main thread, its data kept per identity, values and levels (`cacheShared`:
+  one copy, caller null) as a packed table and computed in a worker as a table job (a key only for a load that is kept and reused); `run.js` how data loaded in the main thread is loaded (`runLoad`: time
+  limit with the signal aborted, coalescing, load limits per source and identity, kept data, last good
+  data after a transient failure only; an async `prepare` with the load's signal, whose value is not kept when every caller left, the key was refused or a later load was kept meanwhile (a load order counter); a warning once an hour per source whose data is over the owner's share; `SourceError` and `sourceFailure`, what a caller gets of a
+  source's error, its `reason` picking the fixed text, `serverTextOf`); `cache.js` the process cache of loaded data (64 entries, 256 MiB or `sourceCache.maxMb` (options/code.js `sourceCacheOf`; the largest of the open contexts, `loadRunner.claimCacheBytes` at create, released at close), a code source's packed table measured by `packedBytes`; per owner 8 entries and a quarter of the bytes, its own oldest out first);
+  `http.js` HTTP sources, an operator's backend (`loadHttp`: the requests with guardedFetch,
+  `intranet` for private addresses, paging on the same host and path, JSON nested at most `MAX_DEPTH`,
+  the rows at a JSON Pointer as a table the worker encodes; a CSV answer read in a worker
+  (`computer.read`) into a packed table without hidden columns, which is what is kept; `backendAnswer`, a backend's
+  status as a `SourceError`; `httpMeans`, the tests' fetch); `auth.js` a backend's sign-in
+  (`backendHeaders`: a header from a secret, client credentials, the token exchange through
+  auth.js `exchangeTokenFor`; the token cache per setting or per person, client and scopes;
+  `dropToken` after a backend's 401; `personBound` and `isPerson`, which sources only a signed-in
+  person sees, none schedulable); `template.js` an HTTP source's address
+  (`compileTemplate` at start, `expandUrl`: RFC 6570 simple expansion, the template's origin and
+  shape kept); `inline.js` data sent in the request (the reserved id `inline:`, the
+  kind "inline": `checkTable`, the MCP cap `MCP_DATA_CAP` and `mcp.data`, who may send it
+  `maySendData`, a table or upload job never kept, `NO_LINK`/`NOT_SCHEDULABLE`); `params.js` a source's parameters: `declaredProblems`,
+  `paramSchemaOf`, `normalizeParams`, `paramsList`; `input.js` the extra inputs (`params`, `data`) a surface
+  offers (`offersOf`, `extraInputs`, `withoutExtras`) and `listExtras` of list_sources; `as-of.js`
+  `dataAsOf`, every source's time parsed and written in one form (`asOfText`, `asOfMembers`); `keys.js`
+  canonical JSON cache keys (`tableKeyOf`: null without an identity; `privatePart`: a caller's values,
+  groups and claims only as a keyed digest); `fetch.js` `guardedFetch`, the
+  one way the server requests another server: https only, no redirects, the address checked on the
+  connection's own lookup, bodies counted after decompression, one time limit), `src/data.js`
+  (`fileData`, `codeTable` (a code source's rows read once into a packed table with a file's run limits, hidden fields left out; encoded in the worker), and `tableData`/`uploadData` for a table job: data loaded in the main
+  thread (an HTTP or code source's) or a file handed in, computed in a worker; `packedUpload`, the
+  read job (`READ_JOB`) of an HTTP source's CSV answer: packed without hidden columns, its data set kept by the job's key; the data sets a process keeps, `CACHE_ENTRIES` and a byte bound, `holds`),
+  `src/packed.js` (`packTable`, `unpackTable`, `packedBytes`: a code source's table (and an HTTP source's CSV answer) with text columns dictionary-coded (the dictionary one UTF-8 buffer with its ends, a string list only for a lone surrogate or a huge one; codes one, two or four bytes), whole numbers in the narrowest integer array, other numbers, dates and true/false values in typed arrays, all on SharedArrayBuffers, so posting it to a worker copies no value per cell and no text; its exact size),
   `src/compute.js` and `src/worker.js` (worker threads with memory and time limits; an input the
-  structured clone cannot copy is `INVALID_INPUT` and frees the worker), `src/present.js` (`present()`:
+  structured clone cannot copy is `INVALID_INPUT` and frees the worker; a table job with a key goes
+  to the worker that kept its data, without the table, and a worker that pushed it out answers
+  `need` and gets the table once; `sent()` counts both), `src/present.js` (`present()`:
   run an operation for a caller and apply the policy, output files, inline results and the one
   sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are
-  made from; `renderFile` for the download route), `src/auth.js` (`createAuthCore`: static tokens, the
-  OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`), `src/checks.js` (Host
+  made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
+  `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: which link a
+  report gets, decided before it is written (`linkFor`; `storeFor` for the upload target), the write, `output.filename`/`url`/`note`;
+  `resourceLinkOf`, the MCP `resource_link`), `src/upload.js` (the operator's store, `output.upload`:
+  `upload()` after the local write, presign or address template, guardedFetch, two slots, one time
+  budget, links checked against `linkOrigins`, `UploadFailure` codes that delivery.js answers as
+  `UPLOAD_FAILED`; `uploadMeans` lets tests use their own guardedFetch; `options/upload.js` and
+  `check/upload.js` are its options and check-config section), `src/downloads.js` (the server's own download links:
+  `createDownloadHandler`, the route `/downloads/` and its sign-in callback, one state per context;
+  the HMAC-signed token, one-time markers in the output directory's `.pivotkit-downloads/`, the OpenID
+  Connect sign-in; `linksOf` for delivery.js; `options/downloads.js` and `check/downloads.js` are its
+  options and check-config section), `src/scopes.js` (`offeredScopes`, the metadata's
+  `scopes_supported` of MCP and REST: the required scopes, and the sources' with
+  `auth.offerSourceScopes: true`, never a `scopeProfiles` scope, while the 401 challenge names the
+  required ones only; `listHint`, the hint of an empty list_sources), `src/request-id.js`
+  (a request's id and scope: `newRequestId`, `withRequestId` (each REST request and MCP tool call runs in one;
+  its log lines carry the id), `requestScopeFor` (made once per request at the HTTP edge, serveFetch
+  and each front end's handler: the id, a `traceId` from a strictly parsed `traceparent`, a checked
+  incoming `X-Request-Id`, the addresses), `withRequestScope`, `withRequestIdHeader` (every answer's
+  `X-Request-Id`), `requestId`, `errorDetails` for an `OperationError`'s `details`, which
+  `rest/problem.js problemOf` and MCP's error text show; `serverTextOf`, the fixed 5xx texts both
+  use; `inlineLogFields` of `sources/inline.js` too). pivotkit-mcp imports these from pivotkit-server, so pivotkit-server is released first and
+  pivotkit-mcp's range raised in the release PR), `src/auth.js` (`createAuthCore`: static tokens, the
+  OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`, the one order of a
+  caller's profile (token, client, first matching group, scope, `auth.defaultProfile`), `groupsOf` (a
+  token's groups or why they are unknown) and `groupRefusal` (the 403 both front ends give when they
+  are unknown and nothing else decides); `auditOf`, the audit key read at start; `callerOf`, a caller's
+  identity (`auth.subjectClaim`) and `identityKey`, the only identity a cache or binding uses, null
+  without a usable subject; `callerView`, the frozen caller a code source gets; `exchangeTokenFor`,
+  the one use of a caller's access token, which an ESLint rule lets only `src/sources/auth.js`
+  import), `src/issuer.js` (every request to the OAuth issuer: `discover`, the key set for jose
+  through its `customFetch`, the download sign-in's token endpoint, all through guardedFetch under
+  `issuerRulesOf` (`auth.intranet`, `allowInsecureIssuer` for plain http to loopback, IP addresses
+  only on an origin the operator wrote); `jwksUriOf`, the issuer's origin unless `auth.jwksUri`;
+  `issuerMeans` lets tests use their own guardedFetch; `options/issuer.js` and `check/issuer.js`
+  are its option and check-config section), `src/checks.js` (Host
   check, client address), `src/listen.js` (`serveFetch`: a fetch handler on node:http, headers checked
-  before the body, every value of a repeated header, a graceful stop), `src/check.js` (`--check-config`
-  of both runners), `src/log.js`, `src/serve.js` (`serve`, `createServerHandler`: REST and, with
-  pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/healthz`, `/readyz`),
-  `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck).
+  before the body, every value of a repeated header, connections bounded in all and per address
+  with slots kept for loopback (`connectionGate`), request targets read by their path, the body's
+  cap a number or `(request, info) => number` decided after the precheck signed the caller in
+  (`peekSignIn`, `bodyCapOf`: a function's cap is clamped to `BODY_BYTES` for a stranger and
+  `MAX_BODY_BYTES` for a signed-in caller), a graceful stop), `src/check.js` (`--check-config`
+  of both runners: `src/check/` has one section per concern (`sources`, `http`, `code`, `inline`,
+  `output`, `downloads`, `upload`, `access` with the operator's sign-in lines, `operator` for the
+  audit, `profiles`, `rest`; check/index.js `SECTIONS`, `runSections`), each returning items
+  (`check/format.js` `heading`, `plain`, `warning`, `problem` with `stops` or its `effect`) and the
+  short names of this version's changes; `format.js` `render` prints the verdict, the counts, every
+  PROBLEM, then every WARNING named by its heading, then the sections, one fact per line wrapped at `WIDTH` 78 (a path alone on its line); a PROBLEM
+  that stops the start must be one createContext or serve refuses (test/check-config.test.js runs
+  both); tests read wrapped text through test/helpers.js `factsOf`), `src/limits.js` (`createLimits`: rate and concurrency
+  limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`, `rest.data.maxBytes` for a signed-in REST caller that may send data), `src/log.js`
+  (`createLog`: one line per event as JSON or logfmt text (`log.format`, auto by the stream's TTY),
+  `level`, `severity`, `msg`, `service`, `version` and the request scope on every line, the level of
+  call/request/download/refused lines by status, `started`/`stopped` at every level; `refusalReason`,
+  `startFields`, `startErrorLine`, `flushed`; `callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
+  `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
+  auth.js; `options/log.js` and `check/log.js` are its options and check-config section), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
+  pivotkit-mcp installed (imported by name, no dependency; one of another release that imports what this pivotkit-server lacks is refused with both versions), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
+  `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source,
+  source-from-openapi, mcp, cli, healthcheck), `src/check-source.js` (`check-source`: one load of an
+  HTTP source, never a value printed), `src/openapi-source.js` (`source-from-openapi`: an HTTP source
+  block from one GET operation of an operator's OpenAPI document, read as hostile input; imported by
+  the runner's command only, never by the server; its `TODO` values are refused by
+  `options/base.js todoPaths`). What
+  the REST service and the CLI's remote mode agree on (base path, source ids, token syntax, problem
+  codes, loopback) is pivotkit-cli/rest's, re-exported here; `test/cli-remote.test.js` runs the CLI
+  against the service.
   `src/rest/` is `pivotkit-server/rest`: `handler.js` (`createRestHandler`: Host, CORS, routes,
-  sign-in with the REST resource's audience, limits, operation scopes, the JSON body, `present()` or
-  the file), `routes.js` (`REST_ROUTES`: a route per operation of pivotkit-report's table from its
+  sign-in with the REST resource's audience, limits, operation scopes, the JSON body (or a multipart
+  one, `multipart.js`: a `data` file and an `input` part for a caller that may send data),
+  `present()` or the file), `routes.js` (`REST_ROUTES`: a route per operation of pivotkit-report's table from its
   `http`, plus `GET /sources/{id}` and `POST /views/render/file`; neutral words and an example per
   operation), `openapi.js` (`openApiDocument`, pure, the view schema bundled), `problem.js` (RFC 9457
-  problems, `REST_ERRORS`), `limits.js` (rate and concurrency limits in one process). A new operation
+  problems, `REST_ERRORS`). A new operation
   gets its words and example in `routes.js`; `node scripts/openapi.js` writes `docs/openapi.json`
   again, which `test/openapi.test.js` compares. `test/` drives the service over HTTP: hostile inputs,
   tokens and a local OAuth issuer, profiles, CORS, the OpenAPI document against the OpenAPI 3.1
@@ -181,9 +323,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   `src/context.js` (`createMcpContext(options)`: pivotkit-server's context plus `context.server(ctx)`,
   a fresh McpServer per HTTP request or stdio connection, the instructions, the prompt, the skill),
   `src/tools.js` (one tool per operation of pivotkit-report's table, `TOOLS`: the words a model reads,
-  the annotations, the scope challenge; the work is pivotkit-server's `present()`), `src/runner.js`
+  the annotations, the scope challenge, the `resource_link` after the text; the work is pivotkit-server's `present()`), `src/runner.js`
   (`FLAGS`, the runner's flags; stdio or `--http`; `--check-config`), `src/http.js` (the fetch
-  handler: Host, Origin, `/healthz`, discovery documents, the quick-start page of `src/page.js`, auth,
+  handler: Host, `/downloads/` (pivotkit-server's), Origin, `/healthz`, discovery documents, the quick-start page of `src/page.js`, auth,
   the SDK's `createMcpHandler`; `listen()` on pivotkit-server's `serveFetch`), `src/auth.js` (the
   shared sign-in answered as MCP clients expect: the SDK's `requireBearerAuth` and
   `oauthMetadataResponse`), `src/policy.js` (`pivotkit-mcp/policy`, pivotkit-server's).
@@ -193,9 +335,11 @@ root `package.json`: `npm run types` and the builds depend on it.
   HTTP in both eras, a local OAuth issuer, hostile files and inputs.
 - `docker/` - the container image: `Dockerfile` (built from the repository root at a release tag:
   `npm ci --omit=dev --ignore-scripts` of pivotkit-server, pivotkit-mcp and pivotkit-cli from the root
-  lock file, the CLI's example files, onto a distroless Node 22 image by digest, user 10001,
+  lock file, the CLI's example files (built there from the playground's data and `examples/report-templates/`), onto a distroless Node 22 image by digest, user 10001,
   `HEALTHCHECK`), `pivotkit.example.json` and `compose.example.yml` (the docs' example, also the CI's
-  smoke test); `.github/workflows/image.yml` builds and runs it on pull requests and publishes it to
+  smoke test), `kubernetes.example.yaml` (the example manifest of `docs/getting-started/kubernetes.md`,
+  which shows its parts marked `--8<--` through the snippets extension; check it with kubeconform
+  `-strict` after a change); `.github/workflows/image.yml` builds and runs it on pull requests and publishes it to
   GHCR on `pivotkit-server@*` tags (multi-arch, provenance, SBOM, cosign).
 - `examples/angular/` - a minimal Angular app (standalone component, zoneless, `CUSTOM_ELEMENTS_SCHEMA`)
   with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled,
@@ -205,6 +349,12 @@ root `package.json`: `npm run types` and the builds depend on it.
   run types` first). The CI job `angular` builds it (a build warning fails) and runs
   `test/angular.spec.js` in three browsers (`playwright.config.js` there, served by the playground's
   `serve.js` from `dist/browser/`); `tests/ci.test.js` checks its pins and lock file.
+- `examples/report-templates/` - the print templates `pivotkit example templates` writes, Corporate
+  (always light, every colour token set) and Minimal (follows the system), as people read and copy
+  them (the docs page `reference/corporate-design.md`); `scripts/examples.js` copies them into the
+  CLI's examples, `tests/browser/report-templates.spec.js` checks them in both colour schemes, on
+  screen and in print, in three engines (with `report-contrast.js`, the measure it shares with
+  `report-theme.spec.js`).
 - `examples/reader-plugin/` - a complete reader plugin (JSON Lines) to copy, the example of the docs
   page `reference/write-a-plugin.md`; tested by `tests/reader-plugin.test.js`.
 - `tests/browser/` - Playwright tests in Chromium, Firefox and WebKit of the playground and of
@@ -225,12 +375,22 @@ root `package.json`: `npm run types` and the builds depend on it.
   (Chromium). Not a test (no pass or fail); its numbers are in `docs/concepts/limits.md` (Measured in
   the browser) with the machine they were taken on.
 - `scripts/check-pack.js` - checks what `npm pack` would publish (for pivotkit-cli also every example file).
+- `scripts/npm-pack.js` - `packEntries(stdout)`: the packages `npm pack --json` printed, in the
+  array of npm 10 and 11 and the object keyed by workspace of npm 12, after any lines prepack logs to
+  stdout; npm's error JSON, an entry without a file name and text after the JSON are refused; used by
+  `check-pack.js` and, run with the JSON on stdin, by the release workflow's Pack step for the
+  tarball's file name (`tarballName`: one package, a plain `.tgz` name; non-zero exit else)
+  (`tests/npm-pack.test.js`).
 - `scripts/examples.js` - the example files: the playground's sales (2,000 rows) and weather data as
   Export → Source data writes them (`dataToCsvBytes`) and views of its presets as Download view
-  writes them (`toViewFile`), into `packages/pivotkit-cli/examples/` (data gzipped) and, from
+  writes them (`toViewFile`), and the print templates of `examples/report-templates/` (`TEMPLATES`, the
+  example `templates`, which renders the sales example's data), into `packages/pivotkit-cli/examples/` (data gzipped) and, from
   `scripts/docs-demo.js`, `docs/assets/examples/` (build output, the site's stable addresses).
   `tests/examples.test.js` fails until the committed view files and `examples.json` are what it
   builds: run `node scripts/examples.js` after a change of the view file format or of a preset.
+- `scripts/is-main.js` - `isMain(import.meta.url)`: whether a script that can also be imported was
+  run (`node <script>`), comparing real paths so a checkout under a path with a space or behind a
+  symlink works; every such script of this repository uses it (`tests/is-main.test.js`).
 - `scripts/openapi.js` - writes `docs/openapi.json`, the REST service's OpenAPI document as
   pivotkit-server generates it (committed; served by the site; pivotkit-server's `test/openapi.test.js`
   fails until it is what the script writes).
@@ -240,10 +400,15 @@ root `package.json`: `npm run types` and the builds depend on it.
 - `docs/` - the documentation site (pivotkit.eize.dev): Zensical (`zensical.toml`) with the shared design
   of eizedev/brand (`docs-site/`), built and published by `.github/workflows/docs.yml`. Pages in
   Markdown, `docs/assets/icon.svg` from eizedev/brand, `docs/assets/screenshots/` taken by
-  `scripts/docs-screenshots.js` from the playground, except `xlsx-result-light.png` and
+  `scripts/docs-screenshots.js` from the playground (the print templates' shots, `REPORT_SHOTS`, from
+  HTML reports pivotkit-report renders; Corporate's are one image twice, as it is light on every
+  screen), except `xlsx-result-light.png` and
   `xlsx-result-dark.png` (one image twice: a workbook has no dark theme), the weather example's view
-  rendered to XLSX by the CLI and pictured by macOS Quick Look (`qlmanage -t -s 1600`, cropped to the
-  table), taken again by hand when the export's look changes. `docs/playground/` (the live demo),
+  rendered to XLSX by the CLI (`pivotkit render weather.pivotkit.json --data weather.csv -o
+  weather.xlsx`), opened in Microsoft Excel for Mac at 100 % on a Retina screen and captured as
+  Excel's window only (`screencapture -o -l <window id>`), cropped to cells A1:N16; the sheet stays
+  white in Excel's dark mode; Excel formats the numbers by the system's region, so the picture
+  is taken with a region that writes a decimal point. Taken again by hand when the export's look changes. `docs/playground/` (the live demo),
   `docs/schema/`, `docs/assets/social-preview.png` and `docs/robots.txt` (all written by
   `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. The theme's
   repository link in the header asks api.github.com for the repository's stars, forks and latest
@@ -272,7 +437,7 @@ root `package.json`: `npm run types` and the builds depend on it.
 npm ci                              # install all workspaces from the lock file
 npm run lint                        # ESLint recommended rules and React's hook rules (as CI)
 npm run types                       # tsc with checkJs, generated .d.ts, TypeScript consumer (as CI)
-npm test                            # node --test in every workspace (as CI)
+npm test                            # node --test in every workspace (as CI; pivotkit-cli's also on Windows)
 npm run coverage                    # the tests with a coverage report (as CI); pivotkit-react: its .js modules only
 npm run pack:check                  # npm pack --dry-run of every package, checked (as CI)
 npm run size -w pivotkit-element    # build the element and print what a page loads, gzip (with the group "report": HTML report, SVG, print)
@@ -377,8 +542,10 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   (`chart-decorate.js`, `chartStyle`, with the chart's module), and pivotkit-core's fallbacks are `DEFAULT_THEME` (`defaults.js`),
   kept in step with `styles.css` by pivotkit-report's `test/tokens.test.js`. pivotkit-report's
   stylesheet (`report-css.js`) uses the same tokens, its values in `tokens.js`, its font sizes too
-  (`SIZE_TOKENS`). An export (workbook, HTML report) reads the light theme's tokens in either theme
-  (`light-tokens.js`, with the menus), the HTML report's font sizes in px (`REPORT_LENGTHS`).
+  (`SIZE_TOKENS`); a host's dark colours go over the dark ones as `darkTokens` (a dark screen only).
+  An export (workbook, HTML report) reads the light theme's tokens in either theme, the HTML report
+  also the dark theme's colours (`REPORT_DARK_TOKENS`) (`theme-tokens.js`, with the menus), the HTML
+  report's font sizes in px (`REPORT_LENGTHS`).
   `test/tokens.test.js` fails on a colour, font weight, radius, font family or ring length outside
   the token blocks of `styles.css`, and on a colour, weight, radius or font size (an option's, a
   default parameter's, a code-built stylesheet's, a text width estimated at a fixed size) written in

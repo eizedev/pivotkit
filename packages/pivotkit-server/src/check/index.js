@@ -1,0 +1,78 @@
+/*
+ * check-config's sections, one per concern (check/<name>.js; a feature's section has the name of its
+ * options fragment in options/index.js). check.js runs them in SECTIONS' order and check/format.js
+ * puts what they say on the page:
+ *
+ * - `items`: what the section found (format.js heading, plain, warning, problem). A section starts
+ *   with its own heading (`Sources (2):`, `Auth: oauth`) and gives its facts one per item. A PROBLEM
+ *   says whether it stops the start (the same check as createContext) or what does not work while
+ *   the server runs; format.js prints every PROBLEM first, under the verdict.
+ * - `upgrade`: a short name per change of this version that applies to the loaded configuration;
+ *   check-config closes with them in one line and the upgrading page's address.
+ *
+ * `runtime` is check-config's own (`http`, `env`, `name`, `tokenEnv`, `rest`, `mcp`, `discover`) plus
+ * `columns` and `everyColumn`, which check/sources.js fills with the column names and statistics of
+ * each file source it read (by id), so no later section reads a file again.
+ */
+
+import * as sources from "./sources.js";
+import * as http from "./http.js";
+import * as code from "./code.js";
+import * as inline from "./inline.js";
+import * as output from "./output.js";
+import * as downloads from "./downloads.js";
+import * as upload from "./upload.js";
+import * as access from "./access.js";
+import * as issuer from "./issuer.js";
+import * as operator from "./operator.js";
+import * as profiles from "./profiles.js";
+import * as rest from "./rest.js";
+import * as log from "./log.js";
+
+/**
+ * @typedef {object} SectionRuntime
+ * @property {boolean} http
+ * @property {Record<string, string | undefined>} env
+ * @property {string} name
+ * @property {string} tokenEnv
+ * @property {boolean} rest
+ * @property {boolean} [mcp]  the MCP server is served (false: a REST-only server)
+ * @property {(issuer: string, rules: import("../issuer.js").IssuerRules, how: { signal: AbortSignal }) => Promise<unknown>} [discover]  loads an issuer's metadata (auth.js discover); without it no issuer is asked
+ * @property {Map<string, { names: string[], stats: any }>} columns  filled by check/sources.js
+ * @property {Map<string, string> | null} [everyColumn]  every column of every source by its policy key (null: not all known); set by check/sources.js
+ */
+
+/**
+ * @typedef {(options: import("../config.js").ServerOptions, registry: any, runtime: SectionRuntime) => Promise<{ items: import("./format.js").Item[], upgrade: string[] }>} Section
+ */
+
+/** The page that explains the changes of a version. */
+export const UPGRADING_URL = "https://pivotkit.eize.dev/getting-started/upgrading/";
+
+/**
+ * In the order check-config prints them: the data (sources, HTTP and code sources, data in the
+ * request), where reports go and who gets them (output, delivery, upload), who may call (address and
+ * auth, the requests to the issuer, audit, profiles, REST).
+ * @type {ReadonlyArray<{ name: string, section: Section }>}
+ */
+export const SECTIONS = Object.freeze(
+    Object.entries({ sources, http, code, inline, output, downloads, upload, access, issuer, operator, profiles, rest, log }).map(([name, module]) => Object.freeze({ name, section: module.section }))
+);
+
+/**
+ * Runs the sections in order: each one's items, and every upgrade name.
+ * @param {ReadonlyArray<{ name: string, section: Section }>} sections
+ * @param {import("../config.js").ServerOptions} options
+ * @param {any} registry
+ * @param {any} runtime
+ * @returns {Promise<{ sections: import("./format.js").Item[][], upgrade: string[] }>}
+ */
+export async function runSections(sections, options, registry, runtime) {
+    const out = { sections: /** @type {import("./format.js").Item[][]} */ ([]), upgrade: /** @type {string[]} */ ([]) };
+    for (const { section } of sections) {
+        const said = await section(options, registry, runtime);
+        out.sections.push(said.items);
+        out.upgrade.push(...said.upgrade);
+    }
+    return out;
+}

@@ -75,13 +75,22 @@ shown; the others keep the type found.
 - A view saved on a sheet of a workbook remembers the sheet. While a workbook of that name is shown,
   **Views** lists the views of its other sheets too, with the sheet next to each ("Sheet “Q3”").
   Opening one reads that sheet of the file again and shows the view on it, so after a reload you load
-  the workbook as it comes (the preview starts on the first sheet) and open the view. An application
-  that checks the files you load checks that sheet too and may refuse it: then the view is not
-  opened, and a note says so. **Undo** takes back the view, then reading the sheet. **Cancel** while
-  the sheet is read leaves the sheet and the view you had. A view whose sheet the workbook no longer
-  has says so ("“Q3 by region” was made for the sheet “Q3”, which quarters.xlsx does not have.") and
-  is shown on the sheet you have. A view file or link made on a sheet does the same under **Open view
-  file…**.
+  the workbook as it comes (the preview starts on the first sheet) and open the view. A view file or
+  link made on a sheet does the same under **Open view file…**. **Undo** takes back the view, then
+  reading the sheet.
+- The sheet loads by itself, unless the reader has notes on it (a used range, values it could not
+  read, columns it renamed) or it has no rows. Then the preview stays open with the notes and a line
+  that says which view needs the sheet ("Opening “Q3 by region” needs the sheet “Q3”."); **Load
+  data** loads the sheet and opens the view.
+- If you pick another sheet in that preview, it does not load by itself; **Load data** loads it, and
+  the view is not opened ("“Q3 by region” was not opened: it was made for the sheet “Q3”.").
+- **Cancel** while the sheet is read, or in its preview, keeps the sheet and the view you had, and the
+  view is dropped. A file you drop meanwhile takes the place of the read; the view is not opened on
+  it.
+- An application that checks the files you load checks that sheet too and may refuse it: then the
+  view is not opened, and a note says so. A view whose sheet the workbook no longer has says so
+  ("“Q3 by region” was made for the sheet “Q3”, which quarters.xlsx does not have.") and is shown on
+  the sheet you have.
 
 ## Back to the original data
 
@@ -103,7 +112,7 @@ reason in the words of the reader (English):
 | Note | What to do |
 | --- | --- |
 | "tickets.csv could not be loaded: the quote that opens a value in line 12 is never closed." | Fix the line in the file, or export it again. |
-| "big.csv could not be loaded: it has more than 1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit" | Load a smaller extract; the application can raise the limit. An application can allow fewer rows for a file than its own data has. The same note names columns, bytes or values (rows x columns), and for a workbook the parts in its ZIP directory or the bytes it unpacks to. |
+| "big.csv could not be loaded: it has more than 1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit" | Load a smaller extract; the application can raise the limit. An application can allow fewer rows for a file than its own data has. The same note names columns, bytes or values (rows x columns), and for a workbook too many different texts and formats, the parts in its ZIP directory or the bytes it unpacks to. |
 | "… the workbook holds macros …", "… an Excel 97-2003 workbook …", "… protected with a password …" | Save it as an Excel workbook (`.xlsx`) without macros, or as CSV. |
 | "… no reader for this kind of file." | The report does not read this format (a PDF, say); save the data as CSV. |
 | "Drop one file at a time." | More than one file was dropped. |

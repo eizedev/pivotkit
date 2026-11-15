@@ -65,6 +65,15 @@ test("suggestLayout: the date's grouping follows its span as suggestDateUnit doe
     assert.equal(dateUnitFor(Date.parse(`${timed.min}Z`), Date.parse(`${timed.max}Z`)), null);
 });
 
+test("suggestLayout and a layout: a date field's own `by` stands for the grouping its span would give", () => {
+    const fields = [{ name: "T", type: "string" }, { name: "D", type: "date", by: "yearQuarter" }, { name: "N", type: "number" }];
+    const layout = suggestLayout({ rows: null, fields });
+    assert.deepEqual(layout.layout.groups, [{ field: "D", by: "yearQuarter" }]);
+    assert.doesNotMatch(layout.picks.find((p) => p.field === "D")?.text ?? "", /span/, "no span was read");
+    const built = viewFromLayout({ rows: ["T"], cols: ["D"], values: [{ field: "N", agg: "sum" }] }, { rows: null, fields });
+    assert.ok(built.notes.some((note) => note.code === "dateGrouped" && /quarter/i.test(note.message) && !/span/.test(note.message)), JSON.stringify(built.notes));
+});
+
 test("suggestLayout: without a date the next category with up to 12 values goes to columns; without a category the date goes to rows", () => {
     const noDate = suggested(SALES.map(({ Date: _d, ...r }) => r));
     assert.deepEqual(noDate.layout.rows, ["Region"]);
@@ -241,10 +250,10 @@ test("renameFields: every reference to a data field is renamed at once, case-ins
 });
 
 test("isIdentifierName: the one rule pivotkit-react and the suggestions share", () => {
-    for (const name of ["ID", "OrderId", "CustomerID", "Order No", "asset_nr", "Serial #", "Serial#", "userID2", "ID (Asset)", "Key"]) {
+    for (const name of ["ID", "OrderId", "CustomerID", "Order No", "asset_nr", "Serial #", "Serial#", "userID2", "ID (Asset)", "Key", "HTTPId", "ABCId", "SKUNumber", "XMLKey"]) {
         assert.equal(isIdentifierName(name), true, name);
     }
-    for (const name of ["Paid", "PAID", "UUID", "Number of items", "Revenue", "Units"]) {
+    for (const name of ["Paid", "PAID", "UUID", "Number of items", "Revenue", "Units", "HTTPStatus", "ABCIdea"]) {
         assert.equal(isIdentifierName(name), false, name);
     }
 });

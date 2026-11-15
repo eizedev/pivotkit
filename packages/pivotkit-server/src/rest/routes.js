@@ -40,7 +40,7 @@ const WORDS = {
     },
     suggest_view: {
         summary: "Suggest a draft view",
-        description: "A draft view made from a source's fields by fixed rules (rows a text field with few values, columns a date by its span, values the first number that is no identifier, summed), with what each part took and why (picks). A layout replaces the parts it gives. Check the draft before you render it.",
+        description: "A draft view made from a source's fields by fixed rules (rows a text field with few values, columns a date by its span (by quarter where the date is not shown), values the first number that is no identifier, summed), with what each part took and why (picks). A layout replaces the parts it gives. Check the draft before you render it.",
         example: {
             input: { source: "sales", layout: { values: [{ field: "Sales", agg: "average" }] } },
             output: {
@@ -71,7 +71,7 @@ const WORDS = {
     render_view: {
         summary: "Render a view into the output directory",
         description: "Runs a view (or a layout: a view by field names) over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline).",
-        example: { input: { source: "sales", view: VIEW, format: "xlsx" }, output: { ok: true, findings: [], uses: ["Region", "Sales"], format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", withheld: ["rows", "columns", "bytes", "content"], output: { name: "Sum of Sales by Region.xlsx", format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }, message: "The report is saved as Sum of Sales by Region.xlsx in the output directory." } }
+        example: { input: { source: "sales", view: VIEW, format: "xlsx" }, output: { ok: true, findings: [], uses: ["Region", "Sales"], format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", withheld: ["rows", "columns", "bytes", "content"], output: { name: "Sum of Sales by Region.pivotkit-out.xlsx", format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }, message: "The report is saved as Sum of Sales by Region.pivotkit-out.xlsx in the output directory." } }
     },
     create_link: {
         summary: "Create a link to a view",
@@ -83,7 +83,7 @@ const WORDS = {
         description: "Writes a draft for a report that runs on a schedule. It runs nothing and sends nothing: a person approves the draft in the host. Recipients are names the host knows, never addresses.",
         example: {
             input: { source: "sales", view: VIEW, name: "Weekly sales", formats: ["xlsx"], every: { unit: "week", at: "07:00", weekday: "mon", timeZone: "Europe/Berlin" }, recipients: ["Sales team"] },
-            output: { ok: true, findings: [], uses: ["Region", "Sales"], draft: { format: "pivotkit-report-draft", status: "draft", name: "Weekly sales" }, output: { name: "Weekly sales.report.json", format: "json", mediaType: "application/json" }, message: 'The draft "Weekly sales" is ready for approval, saved as Weekly sales.report.json in the output directory. Nothing runs until a person approves it in the host.' }
+            output: { ok: true, findings: [], uses: ["Region", "Sales"], draft: { format: "pivotkit-report-draft", status: "draft", name: "Weekly sales" }, output: { name: "Weekly sales.pivotkit-out.report.json", format: "json", mediaType: "application/json" }, message: 'The draft "Weekly sales" is ready for approval, saved as Weekly sales.pivotkit-out.report.json in the output directory. Nothing runs until a person approves it in the host.' }
         }
     }
 };
@@ -97,6 +97,7 @@ const WORDS = {
  * @property {string} summary
  * @property {string} description
  * @property {"json" | "file"} answer
+ * @property {boolean} takesSource  the operation's input has a source: data may be sent with it (inline:)
  * @property {{ input: Record<string, unknown>, output: Record<string, unknown> }} example
  */
 
@@ -110,11 +111,11 @@ export const REST_ROUTES = Object.freeze([
         method: /** @type {const} */ ("POST"),
         path: "/views/render/file",
         summary: "Render a view and download the file",
-        description: "Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true; a view with errors answers 422 with its findings.",
+        description: 'Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true, or, over data the caller sends with source "inline:", data: true; a view with errors answers 422 with its findings.',
         answer: /** @type {const} */ ("file"),
         example: { input: { source: "sales", view: VIEW, format: "csv" }, output: {} }
     }
-].map((route) => Object.freeze(route)));
+].map((route) => Object.freeze({ ...route, takesSource: Boolean(/** @type {any} */ (OPERATIONS[route.operation].input)?.properties?.source) })));
 
 /** "describe_source" as "describeSource". */
 function camel(name) {

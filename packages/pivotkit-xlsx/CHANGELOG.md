@@ -6,6 +6,29 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-14
+
+### Fixed
+
+- Workbooks with namespace-prefixed elements are checked like unprefixed ones
+  ([GHSA-c6vh-q36c-92r3](https://github.com/eizedev/pivotkit/security/advisories/GHSA-c6vh-q36c-92r3)).
+- A workbook of a few hundred kilobytes with millions of shared strings or cell formats made
+  read-excel-file keep an entry for each, bounded only by `limits.unpackedBytes`: 100 MiB of
+  one-letter shared strings took 2.4 s and about 570 MB, 100 MiB of `<xf/>` about 2.2 GB. Only the
+  shared strings up to the highest one a cell of the sheet names are now handed to the parser, and
+  the strings and formats kept count together against `limits.importCells` (plus 1,000 rows for a
+  title block; with a namespace prefix too), refused with `LIMIT_EXCEEDED` while they are unpacked;
+  the first case now takes 0.3 s and about 120 MB
+  ([#237](https://github.com/eizedev/pivotkit/issues/237)).
+- A comment, CDATA section or processing instruction inside a row with `</row>` in it no longer ends
+  the row early: the filter skips it as the parser does. Such a CDATA section made a readable sheet
+  fail with `DAMAGED` ([#238](https://github.com/eizedev/pivotkit/issues/238)).
+- A quoted `>` or `/>` in an attribute of a row tag no longer ends the tag in the sheet filter, which
+  then left the row out as empty; the row is read and checked as any other
+  ([#324](https://github.com/eizedev/pivotkit/issues/324)).
+- A workbook whose relationships name the sheet itself as its shared strings or styles is refused as
+  `DAMAGED` ([#237](https://github.com/eizedev/pivotkit/issues/237)).
+
 ## [0.3.0] - 2026-11-14
 
 ### Changed
@@ -62,7 +85,8 @@ First release.
   worker is started and a strict Content-Security-Policy works. `dist/` holds a bundle for pages
   without a bundler, with `THIRD_PARTY_LICENSES.txt`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.1...HEAD
+[0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.0...pivotkit-xlsx@0.3.1
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.2.0...pivotkit-xlsx@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.1.0...pivotkit-xlsx@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-xlsx@0.1.0

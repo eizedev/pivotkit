@@ -32,7 +32,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). [More](#prop-fielddefaults) |
 | `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` |  | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. [More](#prop-oncellclick) |
 | `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
-| `exportData` | `boolean` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file, for the user's own analysis or the command line. [More](#prop-exportdata) |
+| `exportData` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row of the data as a CSV or JSON file, for the user's own analysis or the command line; `{ columns }` for some columns only, which the drill-down's exports keep to as well. [More](#prop-exportdata) |
 | `drillDownLimit` | `number` | `1000` | Rows passed to the panel and to `onCellClick`; the panel's exports (Copy, Copy as JSON, Download CSV and Excel) hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `locale` | `string` | `"en-US"` | Numbers, dates and sorting (a view's own `formatting.locale` wins), and the language of the labels: `de-*` picks German. |
 | `timeZone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
@@ -158,17 +158,26 @@ Every exported file (`"xlsx"`, `"csv"`, `"html"`, `"png"`, `"svg"`, `"data-csv"`
 
 ### `exportData` { #prop-exportdata }
 
-Type: `boolean`. Default `false`.
+Type: `boolean | { columns?: string[] }`. Default `false`.
 
 Adds the group **Source data** last in the Export menu: **All rows as CSV (.csv)** and **All rows as
 JSON (.json)**, every row of the data the report shows (yours, or a file the user loaded), every
 column except the derived fields a view adds, under the fields' own names, values not formatted
-(pivotkit-core's [`dataToCsvBytes` and `dataToJson`](core.md)), named `<fileName>-data.csv` and
+(pivotkit-core's [`dataToCsvParts` and `dataToJson`](core.md)), named `<fileName>-data.csv` and
 `<fileName>-data.json`. With the view file of "Download view" the [command line](cli.md) renders the
 report again: `pivotkit render <view> --data <fileName>-data.csv`. Each file passes
 [`onExport`](#prop-onexport) first (`kind` `"data-csv"`, `"data-json"`). It holds what the report
 holds, also columns no view places and rows its filters leave out, so it is off unless you turn it on:
 [Security](../security.md#source-data). The file counts against `limits.cells` (rows times fields).
+
+`exportData={{ columns: ["Region", "Revenue"] }}` keeps Source data to these columns, in this order
+(matched case-insensitively, each once; derived fields are never written), and the drill-down
+panel's copies and files too; the panel still shows every column, and `onCellClick` still gets whole
+rows. A name the data lacks is left out and said once in the console when the Export menu or a
+drill-down opens (`pivotkit: exportData.columns names no column of the data: …`); with no column
+left (an empty list, or none that matches) Source data and the drill-down's Export menu are off, and
+so they are for `columns` that is no list (`{ columns: "Region" }`, said once too). An `exportData`
+of another shape (a text, an array) is off, as `false`.
 
 ### `storageKey` { #prop-storagekey }
 

@@ -56,13 +56,18 @@ nav = [
     { "pivotkit-cli" = "reference/cli.md" },
     { "pivotkit-report" = "reference/report.md" },
     { "Print template" = "reference/print-template.md" },
+    { "Your own corporate design" = "reference/corporate-design.md" },
   ] },
   { "Services: REST and MCP" = [
     { "Getting started: REST service" = "getting-started/rest.md" },
     { "Getting started: MCP server" = "getting-started/mcp.md" },
     { "pivotkit-server (REST)" = "reference/rest.md" },
     { "pivotkit-mcp" = "reference/mcp.md" },
+    { "Data sources" = "reference/sources.md" },
+    { "Download links" = "reference/delivery.md" },
     { "Container image" = "reference/container.md" },
+    { "Operations and logs" = "reference/operations.md" },
+    { "Kubernetes" = "getting-started/kubernetes.md" },
   ] },
   { "Reference" = [
     { "pivotkit-core" = "reference/core.md" },
@@ -76,6 +81,7 @@ nav = [
     { "Localisation" = "reference/localisation.md" },
   ] },
   { "Security" = "security.md" },
+  { "What reaches an AI model" = "model-data.md" },
   { "Privacy for operators" = "privacy.md" },
   { "Browser support" = "browser-support.md" },
   { "FAQ" = "faq.md" },
@@ -125,8 +131,9 @@ pymdownx.inlinehilite = {}
 pymdownx.tabbed = { alternate_style = true }
 # collapsible blocks (???) for details below a page's steps and tables
 pymdownx.details = {}
-# the "Learn with real data" page shows the marked sections of the playground's data/sources.js
-pymdownx.snippets = { base_path = ["examples/playground/data"], check_paths = true }
+# the "Learn with real data" page shows the marked sections of the playground's data/sources.js, the
+# Kubernetes page those of docker/kubernetes.example.yaml
+pymdownx.snippets = { base_path = ["examples/playground/data", "docker"], check_paths = true }
 
 # Pages that moved keep their address: the old page (and each of its sections, by its anchor) sends
 # the reader to the new place.
@@ -174,7 +181,7 @@ listed here in one file.
 """
 
 [project.plugins.llmstxt.sections]
-"Start" = ["index.md", "compare.md", "features.md", "faq.md", "security.md", "privacy.md", "browser-support.md", "demo.md"]
+"Start" = ["index.md", "compare.md", "features.md", "faq.md", "security.md", "model-data.md", "privacy.md", "browser-support.md", "demo.md"]
 "Use a report (for the people who build reports)" = ["use/*.md", "learn.md"]
 "Embed pivotkit (for developers)" = ["embed/*.md", "getting-started/*.md"]
 "Concepts" = ["concepts/*.md"]

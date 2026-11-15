@@ -24,6 +24,7 @@ import { writeFile } from "node:fs/promises";
 import * as echarts from "echarts";
 import { render } from "pivotkit-report";
 
+const rows = [{ Region: "North", Units: 3 }, { Region: "South", Units: 7 }, { Region: "North", Units: 2 }];   // your rows
 const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], display: "chart" };
 const result = await render(view, rows, { format: "html", echarts, now: "2026-11-13", locale: "de-DE" });
 if (!result.ok) throw new Error(result.issues.map((i) => i.message).join("; "));   // a bad view never throws
@@ -61,14 +62,16 @@ The whole body is built in memory; the [limits](../concepts/limits.md) keep it b
 | `strict` | `false` | No body when the view has an error. Without it the normalized view is rendered, as the report on screen does. |
 | `labels`, `texts` | the locale's language | pivotkit-core's texts (totals, value names; by default [`reportLabels`](core.md) of the view's or `locale`'s language: "Gesamtergebnis", "Summe von Units" for `de-DE`, the words the report on a page shows) and the report's words around the table (`REPORT_TEXTS`, English and German). |
 | `title`, `description`, `source` | the view file's name and description | The report's heading, its line below, and the data's name in the details. |
-| `tokens` | the light theme | `--pk-*` colours, font weights, font sizes and corners over [`LIGHT_TOKENS`](theming.md), `WEIGHT_TOKENS` (`--pk-weight-normal` to `--pk-weight-bold`, the chart's title and group labels too), `SIZE_TOKENS` (the HTML report's font sizes: `--pk-font-size` 14 px, `--pk-small`, `--pk-report-title-size`, `--pk-print-size` and `--pk-print-small`, [theming](theming.md#report-font-sizes)) and `SHAPE_TOKENS` (`--pk-radius-card`, the chart card), and the chart's `--pk-chart-title-size`, `--pk-chart-text-size` and `--pk-radius-chart` in px (else 16 px, 14 px and 4 px): names and plain values only (a comment, a line break and `url(` anywhere, also in a quoted string, leave the token out), and no function but colours, `calc()`, `min()`, `max()`, `clamp()` and `var()`, so a token loads nothing (`url()` and `image-set()` are left out). A colour scale or data bars whose view names no colours take `--pk-scale-low`, `--pk-scale-mid` (when set) and `--pk-scale-high` (by default the heat tokens) and `--pk-chart-1` in the HTML report's table and in the workbook, when they are `#rgb` or `#rrggbb`. |
-| `template` | `DEFAULT_TEMPLATE` | `html`: a [print template](print-template.md). |
+| `tokens` | the light theme | `--pk-*` colours, font weights, font sizes and corners over [`LIGHT_TOKENS`](theming.md), `WEIGHT_TOKENS` (`--pk-weight-normal` to `--pk-weight-bold`, the chart's title and group labels too), `SIZE_TOKENS` (the HTML report's font sizes: `--pk-font-size` 14 px, `--pk-small`, `--pk-report-title-size`, `--pk-print-size` and `--pk-print-small`, [theming](theming.md#report-font-sizes)) and `SHAPE_TOKENS` (`--pk-radius-card`, the chart card), and the chart's `--pk-chart-title-size`, `--pk-chart-text-size` and `--pk-radius-chart` in px (else 16 px, 14 px and 4 px): names and plain values only (a comment, a line break and `url(` anywhere, also in a quoted string, leave the token out), and no function but colours, `calc()`, `min()`, `max()`, `clamp()` and `var()`, so a token loads nothing (`url()` and `image-set()` are left out). A colour scale or data bars whose view names no colours take `--pk-scale-low`, `--pk-scale-mid` (when set) and `--pk-scale-high` (by default the heat tokens) and `--pk-chart-1` in the HTML report's table and in the workbook, when they are `#rgb` or `#rrggbb`. `html`: the template's own `--pk-*` values win over these ([colours and font of your template](print-template.md#template-design)). |
+| `darkTokens` | the dark theme | `html`: `--pk-*` colours over [`DARK_TOKENS`](theming.md) for a reader whose screen is dark, as `tokens` are over the light ones and checked the same way. Paper, a root that pins light (`data-pk-theme="light"`) and the chart keep the light colours; a template's own dark rules win over these. The colour scale's middle colour of `tokens` stays out of a dark screen (a light colour): set `--pk-scale-mid` here for one. pivotkit-react's Export passes the dark colours its report resolves. The host's `tokens` and `darkTokens` are not checked for contrast: the WCAG AA promise below covers the default colours. |
+| `template` | `DEFAULT_TEMPLATE` | `html`: a [print template](print-template.md); the chart and the table's colours take the `--pk-*` values its own CSS sets ([details](print-template.md#template-design)). |
 | `chart` | `"auto"` | `html`: the chart above the table: `"auto"` when the view shows the chart, `true`, `false`. |
 | `chartEmbed` | `"image"` | `html`: the chart as a `data:` image, or `"inline"` SVG. |
 | `echarts` | | The ECharts module with its SVG renderer: `svg`, and `html` with a chart. |
 | `size` | `{ width: 800, height: 480 }` | The chart's size in px, 100 to 8,000. |
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
+| `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form, or a time that does not exist, is refused. `html`: "Data as of" in the details and the `{{dataAsOf}}` [placeholder](print-template.md), in the locale and time zone with the zone named; `xlsx`: the custom document property `DataAsOf` (a date). csv, json and svg leave it out. The REST service and the MCP server pass it. |
 
 Any other option name is refused (`INVALID_OPTION`, with the closest name), so a misspelt one is not
 ignored.
@@ -86,7 +89,7 @@ ignored.
 
 A bad view never throws: its issues come back. `PivotkitError` is thrown for a wrong argument
 (`INVALID_ARGUMENT`), a wrong option (`INVALID_OPTION` with `details.option`: an unknown `format`, a
-`size` out of range, an unknown option, a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take, an SVG or `chart: true` without `echarts`, a `now` that is no date), a limit (`LIMIT_EXCEEDED`) and
+`size` out of range, an unknown option, a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take, an SVG or `chart: true` without `echarts`, a `now` that is no date, a `dataAsOf` in another form), a limit (`LIMIT_EXCEEDED`) and
 a refused template (`INVALID_TEMPLATE`, see [print template](print-template.md)). The report's own
 issues are warnings: `chartUnavailable` (a view that shows the chart, rendered as HTML with `chart`
 `"auto"` and without `echarts`: the table is there, the chart is not; pass `strict` and check `ok`, or
@@ -115,7 +118,13 @@ first element of `<head>` (`default-src 'none'; style-src 'unsafe-inline'; img-s
 - **The chart** above the table when the view shows the chart (`chart: "auto"`), kept whole on a
   page.
 - **The details**: the source, the data's rows, the filters in words and the time it was generated.
-- **On screen** light or dark after the reader's system; **on paper** always light, with 12 mm
+- **On screen** light or dark after the reader's system (a template's root can pin light or ask for
+  dark, [dark mode](print-template.md#dark-mode)): in dark, the page, the table and its totals
+  take the dark theme's tokens with the host's `darkTokens` over them, a colour scale whose view
+  names no colours runs through the dark heat colours (halfway between them in the middle, unless
+  `darkTokens` sets `--pk-scale-mid`; a view's own colours are mixed fainter, so the light text stays readable), and the
+  chart keeps its light card, as it is drawn in the light colours. Every text meets WCAG AA in both with the default colours.
+  **On paper** always light, also from a dark screen and in a PDF, with 12 mm
   margins, the header row on every page, rows never split, landscape from 9 columns and a smaller
   font (7 pt) from 17. A table wider than a landscape page is cut by the browser: split the view, or
   export Excel.
@@ -150,7 +159,11 @@ it needs from its front end (`needs`), annotations, and `run(input, env)`:
 | `draft_schedule` | - | `POST /schedules/draft` | A draft report document (`pivotkit-report-draft`, version 0) for a person to approve |
 
 ```js
+import { encode } from "pivotkit-core";
 import { OPERATIONS } from "pivotkit-report/operations";
+
+const rows = [{ Region: "North", Units: 3 }, { Region: "South", Units: 7 }];   // your rows
+const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
 const env = { data: async (source) => ({ data: encode(rows), name: source }) };
 const { result, file } = await OPERATIONS.render_view.run({ source: "sales", view, format: "csv" }, env);
 ```
@@ -168,7 +181,10 @@ neither, is `INVALID_INPUT`.
 for validate and describe), `sources()`, `link(source)`, `template(source)`, `echarts`, `limits`,
 `locale`, `timeZone`, `now`, and `renderOptions` for a front end's own render options. A view with
 errors is no error (`ok` or `valid` false, with `findings`); what a front end must handle is
-`OperationError` with a `code` of `OPERATION_ERRORS` and its HTTP `status`. `findingOf` turns a
+`OperationError` with a `code` of `OPERATION_ERRORS` and its HTTP `status`, and for some codes
+`details` (`requestId` to quote to the operator, `retryable`, `retryAfter` in seconds). When
+`data(source)` gives `asOf` (when the data is from, in UTC to the second), `render_view` passes it to
+`render` as `dataAsOf`. `findingOf` turns a
 pivotkit-core issue into a finding (cleaned, cut at 200 characters); `exampleViews(fields)` builds
 views from a data set's fields.
 

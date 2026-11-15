@@ -7,9 +7,13 @@ description: The HTML print template of pivotkit-report and pivotkit render --te
 
 An HTML report is a template with placeholders, `{{name}}`, that pivotkit fills in. The default one
 ships with [pivotkit-report](report.md) (`DEFAULT_TEMPLATE`); a host passes its own as `template`, the
-command line as `--template <file>`. A template is trusted like code: its own markup is used as it is.
-What pivotkit fills in is not: every value is escaped, and the template is checked before anything is
-rendered, so a value can never become markup, a link or code.
+command line as `--template <file>`. Two templates to copy and adapt, Corporate and Minimal, come
+with `pivotkit example templates`: [your own corporate design](corporate-design.md). A template is
+trusted like code: its own markup is used as it is. What pivotkit fills in is not: every value is
+escaped, and the template is checked before anything is rendered, so a value can never become
+markup, a link or code. The REST service and the MCP server check a source's template
+(`sources.<id>.template`) at start and in `check-config` too, so a typo stops the start, not the
+first report.
 
 ## Placeholders
 
@@ -19,6 +23,7 @@ rendered, so a value can never become markup, a link or code.
 | `{{description}}` | text | The view file's description, or `description`. |
 | `{{source}}` | text | The data's name (the CLI: the data file's name). |
 | `{{generated}}` | text | When it was made, in the locale and time zone ("Nov 13, 2026, 10:00 AM"; fixed with `now`). |
+| `{{dataAsOf}}` | text | When the data is from, in the locale and time zone with the zone named ("Nov 15, 2026, 8:00 AM UTC"), from `dataAsOf`; empty without it. The REST service and the MCP server pass it. |
 | `{{rows}}` | text | The data's rows ("8 rows"). |
 | `{{filters}}` | text | The view's filters in words, or "None". |
 | `{{summary}}` | text | The view in one sentence ("sum of Units by Region"). |
@@ -26,7 +31,7 @@ rendered, so a value can never become markup, a link or code.
 | `{{style}}` | markup | The report's `<style>`: tokens, table, print rules. |
 | `{{chart}}` | markup | The chart in a `<figure>`, or nothing. |
 | `{{table}}` | markup | The table, and a note when it was cut. |
-| `{{details}}` | markup | A `<dl>` of source, rows, filters and generated, in the report's language. |
+| `{{details}}` | markup | A `<dl>` of source, data as of (when known), rows, filters and generated, in the report's language. |
 
 Spaces inside the braces are fine (`{{ title }}`); braces that are no placeholder stay text.
 
@@ -85,6 +90,91 @@ A template has at most 262,144 characters (`TEMPLATE_LIMIT`; more is `LIMIT_EXCE
 Keep the Content-Security-Policy first in `<head>` in your own template: it then covers everything
 after it. The classes of `{{style}}` (`pk-report`, `pk-table`, `pk-sub`, `pk-grand`, …) can be styled
 by a `<style>` of the template after `{{style}}`.
+
+## Colours and font of your template { #template-design }
+
+Set your design once, as `--pk-*` tokens in the template's own `<style>`: the page takes them, and
+pivotkit draws the chart, its card and the table's colour scales and data bars with them. The chart
+is an image drawn before any browser sees the page, so pivotkit computes these values from the
+template as the browser computes them for the report (`.pk-report`):
+
+```html
+{{style}}
+<style>
+:root {
+    --brand: #7a1f5c;
+    --pk-chart-1: var(--brand);
+    --pk-chart-2: #c0392b;
+}
+.pk-report { font-family: "Brand Sans", system-ui, sans-serif; }
+</style>
+```
+
+The example sets colours of the chart and a font. A page colour such as `--pk-surface` or
+`--pk-text` on `:root` is your light design: on a dark screen the report's dark tokens win over it,
+and your own dark colours go into a rule for the dark screen ([dark mode](#dark-mode)).
+
+| What is read | Details |
+| --- | --- |
+| Custom properties (`--pk-*`, and any `--name` they refer to with `var()`) | in rules on `:root` (or `html`), `body` or `.pk-report`, also in a selector list such as `h1, .pk-report`, and in `@layer` |
+| `font-family` | on `body` or `.pk-report`, also from the `font` shorthand |
+| Order | as the page applies them: `.pk-report` inherits from `body`, `body` from `:root`; on each, a later rule wins over an earlier one and `!important` over both. The report's `{{style}}` sets its tokens on `:root` where it stands, so a `:root` rule before `{{style}}` counts only for properties the report does not set (`--brand`); a rule in `@layer` or on `html` is below every other |
+| Left out | rules inside `@media`, `@supports` and other at-rules, a `<style>` with a `media` other than `all` or a `type` other than `text/css`, other selectors, and a `<style>` inside a comment, `<template>` or `<script>`: the chart is drawn in the light colours, and the page is light on paper |
+
+A value is resolved as the page computes it: `var(--name)` takes the value the element has (its own,
+else inherited), `var(--name, fallback)` the fallback where there is none, a property in a cycle has
+no value (its fallbacks too), `inherit` and `unset` inherit, `initial` has no value, and
+`light-dark(light, dark)` gives its light colour. A value that has none, is longer than 200
+characters, would load something (`url(`) or holds a quoted string (except in a font's names) keeps
+the default (or the host's `tokens`). The template's values win over the host's
+[`tokens`](report.md#options), as on the page. pivotkit does not check a selector list the browser
+would refuse as a whole, so write valid CSS.
+
+Colours in any form a browser reads reach the chart's marks as they are. The heatmap mixes its scale
+itself, so `--pk-heat-low` and `--pk-heat-high` need a form ECharts reads (`#rrggbb`, `rgb(r, g, b)`,
+`hsl(h, s%, l%)` with commas); another form, such as `oklch()`, keeps the default scale. A colour
+scale or data bars in the table take `--pk-scale-low`, `--pk-scale-mid`, `--pk-scale-high` and
+`--pk-chart-1` when they resolve to `#rgb` or `#rrggbb`.
+
+## Dark mode { #dark-mode }
+
+The report follows the reader's system: light, or dark on a dark screen, and always light on paper
+and in a PDF. The root element (`<html>`) of your template decides otherwise:
+
+| `<html>` | On a light screen | On a dark screen | On paper |
+| --- | --- | --- | --- |
+| no `data-pk-theme` | light | dark | light |
+| `data-pk-theme="light"` | light | light | light |
+| `data-pk-theme="dark"` | dark | dark | light |
+
+On a dark screen the report's dark tokens win over a plain `:root` rule of your template, so a page
+colour you set there (`--pk-surface`, `--pk-text`) is your light design and the dark one stays
+readable. For dark colours of your own, scope them to a dark screen, with the same selector the
+report uses, and keep print light by writing your other dark rules for `screen` too:
+
+```html
+{{style}}
+<style>
+:root { --pk-surface: #fffaf0; --pk-chart-1: #7a1f5c; }
+@media screen and (prefers-color-scheme: dark) {
+    :root:not([data-pk-theme="light"]) { --pk-surface: #1b1712; }
+    .pk-report h1 { color: #f3e3c3; }
+}
+</style>
+```
+
+For a root with `data-pk-theme="dark"`, write the same colours for `:root[data-pk-theme="dark"]`
+inside `@media screen` as well. A rule on `body` or `.pk-report` applies in both schemes: set colours there only when they read on
+both. A colour scale whose view names no colours runs through the theme's heat colours
+(`--pk-scale-low`, `--pk-scale-high`) on a dark screen too, so set its dark ends with your other dark
+colours; a middle colour (`--pk-scale-mid`) of your `:root` rule is a light one and stays out of a
+dark screen unless you set one there too. The chart is drawn in the light colours and keeps its light card on a dark screen.
+Your dark rules win over the colours a host passes for a dark screen (`darkTokens`), as your `:root`
+rule wins over its light ones.
+
+To see both before you share a template: open the report in a browser and switch the system's
+appearance, or use the developer tools' rendering settings (`prefers-color-scheme`, and the `print`
+media type for paper); the browser's print preview shows the printed page.
 
 ## A logo
 

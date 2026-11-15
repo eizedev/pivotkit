@@ -3,7 +3,7 @@
 // Collapse all only when they change something, the grip of a field, sort, top N and value conditions by a
 // chosen value. Every test fails without its feature.
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openLevel, openRules, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openLevel, openRules, openSaveAs, openZones, tableRows, test, toolbar } from "./fixtures.js";
 
 /** Filters a field of the Filters zone or an axis to one value through its popover. */
 async function onlyValue(page, value) {
@@ -644,5 +644,89 @@ test.describe("menus in levels", () => {
         // the image needs the chart: disabled, with the reason
         await expect(page.getByTestId("export-png")).toBeDisabled();
         await expect(page.getByTestId("export-png")).toContainText("Switch to Chart first.");
+    });
+});
+
+test.describe("a second click on a menu's button closes it", () => {
+    // WebKit does not focus a button a person clicks: the press moves the focus out of the open menu
+    // to the report around it, which closed the menu, and the click then opened it again (#393). Real
+    // mouse clicks, in every engine.
+    test("the toolbar's menus and a chip menu close on a second click on their button and open on a third", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await openZones(page);
+        // every menu button the toolbar shows at this width (Options is in "More" here), and the first
+        // field's chip menu
+        const ids = ["export", "views", "data", "start-over", "more", await page.locator('[data-testid^="chip-menu-"]').first().getAttribute("data-testid")];
+        for (const id of ids) {
+            const button = page.getByTestId(id);
+            const panel = page.locator(".pk-popover");
+            await button.click();
+            await expect(button, id).toHaveAttribute("aria-expanded", "true");
+            await expect(panel, id).toHaveCount(1);
+            // the menu has taken the focus, as a person sees it before the second click
+            await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover"))), id).toBe(true);
+            await button.click();
+            await expect(button, id).toHaveAttribute("aria-expanded", "false");
+            await expect(panel, id).toHaveCount(0);
+            await button.click();
+            await expect(button, id).toHaveAttribute("aria-expanded", "true");
+            await page.keyboard.press("Escape");
+            await expect(panel, id).toHaveCount(0);
+        }
+    });
+});
+
+test.describe("a press on a menu's button that never ends in a click", () => {
+    // the window loses the focus (Alt-Tab) or the release happens where no click is sent while the
+    // button is held: no click and no pointercancel reach the page. The menu must still close when the
+    // focus then leaves it by other means than a click or Tab (those are handled elsewhere).
+    test("the focus leaving an open menu closes it after a press on its button that got no click", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await openZones(page);
+        const button = page.getByTestId("export");
+        await button.click();
+        await expect(button).toHaveAttribute("aria-expanded", "true");
+        // the menu has taken the focus (a frame after it opens, later on a busy page): only a focus that
+        // leaves the menu closes it, and the menu's own move to its first control must not come after
+        // the move below
+        await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover")))).toBe(true);
+        // the press only (a pointerdown, as a held button leaves it), no click after it
+        await button.evaluate((el) => el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "mouse", button: 0 })));
+        // the focus leaves without a key or a press (assistive technology, a script): the blur closes it
+        await page.getByTestId("views").focus();
+        await expect(button).toHaveAttribute("aria-expanded", "false");
+    });
+
+    // a press keeps the menu open while the focus moves to the report around its button (WebKit's
+    // click), but only for PRESS_MS (1 s, popover.jsx): a press that never ends in a click does not
+    // keep it open for longer
+    test("the focus moving to the report around the button keeps the menu open right after a press, not a second later", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await openZones(page);
+        const button = page.getByTestId("export");
+        // the focus to an element around the button, as WebKit moves it at a press
+        const focusAround = () => button.evaluate((el) => {
+            const around = /** @type {HTMLElement} */ (el.parentElement);
+            around.tabIndex = -1;
+            around.focus();
+        });
+        const pressWithoutClick = () => button.evaluate((el) => el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "mouse", button: 0 })));
+        const menuHasFocus = () => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover")));
+        for (const [wait, open] of [[0, "true"], [1_500, "false"]]) {
+            await button.click();
+            await expect(button).toHaveAttribute("aria-expanded", "true");
+            await expect.poll(menuHasFocus).toBe(true);
+            await pressWithoutClick();
+            await page.waitForTimeout(wait);
+            await focusAround();
+            await expect(button, `${wait} ms after the press`).toHaveAttribute("aria-expanded", open);
+            if (open === "true") {
+                // still open a moment later: the blur was taken for the press
+                await page.waitForTimeout(200);
+                await expect(button).toHaveAttribute("aria-expanded", "true");
+                await page.keyboard.press("Escape");
+                await expect(button).toHaveAttribute("aria-expanded", "false");
+            }
+        }
     });
 });

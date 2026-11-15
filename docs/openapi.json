@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "pivotkit REST",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "summary": "Describe data sources, validate and render pivot views, make links and draft schedules.",
     "description": "The operations of pivotkit's MCP server over HTTP for programs. Errors are RFC 9457 problem details. The routes are RPC-style (POST /views/validate); /api/v1 changes only with a breaking change. Docs: https://pivotkit.eize.dev/reference/rest/",
     "license": {
@@ -222,7 +222,7 @@
       "post": {
         "operationId": "suggestView",
         "summary": "Suggest a draft view",
-        "description": "A draft view made from a source's fields by fixed rules (rows a text field with few values, columns a date by its span, values the first number that is no identifier, summed), with what each part took and why (picks). A layout replaces the parts it gives. Check the draft before you render it.",
+        "description": "A draft view made from a source's fields by fixed rules (rows a text field with few values, columns a date by its span (by quarter where the date is not shown), values the first number that is no identifier, summed), with what each part took and why (picks). A layout replaces the parts it gives. Check the draft before you render it.",
         "tags": [
           "views"
         ],
@@ -660,11 +660,11 @@
                     "content"
                   ],
                   "output": {
-                    "name": "Sum of Sales by Region.xlsx",
+                    "name": "Sum of Sales by Region.pivotkit-out.xlsx",
                     "format": "xlsx",
                     "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   },
-                  "message": "The report is saved as Sum of Sales by Region.xlsx in the output directory."
+                  "message": "The report is saved as Sum of Sales by Region.pivotkit-out.xlsx in the output directory."
                 }
               }
             }
@@ -870,11 +870,11 @@
                     "name": "Weekly sales"
                   },
                   "output": {
-                    "name": "Weekly sales.report.json",
+                    "name": "Weekly sales.pivotkit-out.report.json",
                     "format": "json",
                     "mediaType": "application/json"
                   },
-                  "message": "The draft \"Weekly sales\" is ready for approval, saved as Weekly sales.report.json in the output directory. Nothing runs until a person approves it in the host."
+                  "message": "The draft \"Weekly sales\" is ready for approval, saved as Weekly sales.pivotkit-out.report.json in the output directory. Nothing runs until a person approves it in the host."
                 }
               }
             }
@@ -1048,7 +1048,7 @@
       "post": {
         "operationId": "renderViewFile",
         "summary": "Render a view and download the file",
-        "description": "Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true; a view with errors answers 422 with its findings.",
+        "description": "Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true, or, over data the caller sends with source \"inline:\", data: true; a view with errors answers 422 with its findings.",
         "tags": [
           "views"
         ],
@@ -1163,7 +1163,7 @@
           },
           "code": {
             "type": "string",
-            "description": "A stable code; new ones may come. Today: INVALID_INPUT, FILES_NOT_ALLOWED, NOT_ALLOWED, SOURCE_NOT_FOUND, FILE_NOT_AVAILABLE, NO_OUTPUT, NO_LINK, NOT_SCHEDULABLE, LIMIT_EXCEEDED, UNSUPPORTED_FORMAT, INVALID_FILE, NOT_REGULAR_FILE, HARD_LINK, INVALID_TEMPLATE, BUSY, NOT_READY, TIMEOUT, INTERNAL, INVALID_TOKEN, INSUFFICIENT_SCOPE, FORBIDDEN_HOST, FORBIDDEN_ORIGIN, NOT_FOUND, METHOD_NOT_ALLOWED, BODY_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, VIEW_HAS_ERRORS, RATE_LIMITED, AUTH_NOT_READY."
+            "description": "A stable code; new ones may come. Today: INVALID_INPUT, FILES_NOT_ALLOWED, NOT_ALLOWED, SOURCE_NOT_FOUND, FILE_NOT_AVAILABLE, NO_OUTPUT, NO_LINK, NOT_SCHEDULABLE, LIMIT_EXCEEDED, UNSUPPORTED_FORMAT, INVALID_FILE, NOT_REGULAR_FILE, HARD_LINK, INVALID_TEMPLATE, DATA_MISMATCH, DATA_NOT_AVAILABLE, SOURCE_UNAVAILABLE, UPLOAD_FAILED, BUSY, NOT_READY, TIMEOUT, INTERNAL, INVALID_TOKEN, INSUFFICIENT_SCOPE, FORBIDDEN_HOST, FORBIDDEN_ORIGIN, NOT_FOUND, METHOD_NOT_ALLOWED, BODY_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, VIEW_HAS_ERRORS, RATE_LIMITED, AUTH_NOT_READY."
           },
           "detail": {
             "type": "string",
@@ -1175,6 +1175,14 @@
               "type": "object"
             },
             "description": "The view's findings (422 of the file route)."
+          },
+          "requestId": {
+            "type": "string",
+            "description": "The request's id: give it to the operator, who finds the request's log lines by it."
+          },
+          "retryable": {
+            "type": "boolean",
+            "description": "For an error of a source or a store that failed: whether the same request may work when tried again (Retry-After says when, where known)."
           }
         }
       },
@@ -2306,9 +2314,91 @@
                 },
                 "schedulable": {
                   "type": "boolean"
+                },
+                "params": {
+                  "type": "array",
+                  "description": "The values the source takes: pass them as params with its id.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "type",
+                      "required"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "required": {
+                        "type": "boolean"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "example": {
+                        "type": [
+                          "string",
+                          "number",
+                          "boolean"
+                        ]
+                      },
+                      "enum": {
+                        "type": "array",
+                        "items": {
+                          "type": [
+                            "string",
+                            "number"
+                          ]
+                        }
+                      },
+                      "pattern": {
+                        "type": "string"
+                      },
+                      "format": {
+                        "type": "string"
+                      },
+                      "minLength": {
+                        "type": "integer"
+                      },
+                      "maxLength": {
+                        "type": "integer"
+                      },
+                      "minimum": {
+                        "type": "number"
+                      },
+                      "maximum": {
+                        "type": "number"
+                      }
+                    }
+                  }
                 }
               }
             }
+          },
+          "hint": {
+            "type": "string",
+            "description": "Why no source is listed and what to do: the sign-in lacks the scopes of the sources there are (only when none is listed)."
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "rows": {
+                "type": "integer"
+              },
+              "cells": {
+                "type": "integer"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "maxBytes": {
+                "type": "integer"
+              }
+            },
+            "description": "You may send a table of your own with source \"inline:\": at most rows, cells and bytes (MCP), or a body of at most maxBytes (REST). Absent: you may not."
           }
         },
         "required": [
@@ -2356,6 +2446,10 @@
                 "type": {
                   "type": "string"
                 },
+                "description": {
+                  "type": "string",
+                  "description": "The operator's words about the field."
+                },
                 "distinct": {
                   "type": "integer"
                 },
@@ -2391,6 +2485,18 @@
                 },
                 "text": {
                   "type": "string"
+                },
+                "level": {
+                  "type": "string",
+                  "description": "What the operator shows of the field: show, values, summary (more may come: treat an unknown level as summary)."
+                },
+                "complete": {
+                  "type": "boolean",
+                  "description": "items holds every distinct value of the field."
+                },
+                "auto": {
+                  "type": "boolean",
+                  "description": "The level values was given by the server's automatic rule."
                 }
               }
             }
@@ -2443,12 +2549,47 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
           },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
+          },
           "hiddenFields": {
             "type": "integer"
+          },
+          "withheld": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What is not shown of this source: values (of the fields at summary), rows, counts."
+          },
+          "hint": {
+            "type": "string",
+            "description": "What to do about what is withheld."
           }
         },
         "required": [
@@ -2613,6 +2754,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -2673,6 +2818,26 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
           }
         },
         "required": [
@@ -2884,6 +3049,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -2898,6 +3067,26 @@
           "view": {
             "type": "object",
             "description": "With a layout: the view it makes (normalized)."
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
           }
         },
         "required": [
@@ -3045,6 +3234,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -3055,6 +3248,26 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
           }
         },
         "required": [
@@ -3264,6 +3477,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -3314,6 +3531,26 @@
               }
             }
           },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
+          },
           "output": {
             "type": [
               "object",
@@ -3321,7 +3558,12 @@
             ],
             "properties": {
               "name": {
-                "type": "string"
+                "type": "string",
+                "description": "The file's name on the server."
+              },
+              "filename": {
+                "type": "string",
+                "description": "The file's name for the person."
               },
               "path": {
                 "type": "string"
@@ -3329,11 +3571,23 @@
               "url": {
                 "type": "string"
               },
+              "expiresAt": {
+                "type": "string",
+                "description": "The server's own link: when it stops working (ISO 8601, UTC)."
+              },
+              "bound": {
+                "type": "string",
+                "description": "The server's own link: none (anyone with the link until it expires), once (one download), signIn (only the person who asked, after signing in)."
+              },
               "format": {
                 "type": "string"
               },
               "mediaType": {
                 "type": "string"
+              },
+              "note": {
+                "type": "string",
+                "description": "How to open the file, in one sentence."
               }
             }
           },
@@ -3353,7 +3607,7 @@
             "items": {
               "type": "string"
             },
-            "description": "What is not shown because the view uses a field whose values the operator does not show."
+            "description": "What is not shown because the view uses a field that is not fully shown (values or summary): results over it stay in the file."
           },
           "message": {
             "type": "string",
@@ -3445,6 +3699,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -3455,6 +3713,26 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
           }
         },
         "required": [
@@ -3617,6 +3895,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -3634,6 +3916,26 @@
               "null"
             ]
           },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
+          },
           "output": {
             "type": [
               "object",
@@ -3641,7 +3943,12 @@
             ],
             "properties": {
               "name": {
-                "type": "string"
+                "type": "string",
+                "description": "The file's name on the server."
+              },
+              "filename": {
+                "type": "string",
+                "description": "The file's name for the person."
               },
               "path": {
                 "type": "string"
@@ -3649,11 +3956,23 @@
               "url": {
                 "type": "string"
               },
+              "expiresAt": {
+                "type": "string",
+                "description": "The server's own link: when it stops working (ISO 8601, UTC)."
+              },
+              "bound": {
+                "type": "string",
+                "description": "The server's own link: none (anyone with the link until it expires), once (one download), signIn (only the person who asked, after signing in)."
+              },
               "format": {
                 "type": "string"
               },
               "mediaType": {
                 "type": "string"
+              },
+              "note": {
+                "type": "string",
+                "description": "How to open the file, in one sentence."
               }
             }
           },
@@ -3721,7 +4040,7 @@
         }
       },
       "Problem413": {
-        "description": "A limit: the body, the file or the result is too large.",
+        "description": "A limit: the body, the file, the data sent or the result is too large.",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -3731,7 +4050,7 @@
         }
       },
       "Problem415": {
-        "description": "The body is not JSON, or the file's format is not read.",
+        "description": "The body is not JSON (or multipart/form-data with data, where allowed), or the file's format is not read.",
         "content": {
           "application/problem+json": {
             "schema": {

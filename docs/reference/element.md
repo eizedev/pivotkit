@@ -55,7 +55,7 @@ supported.
 | `fileName` | `file-name` | `string` | `"pivot"` | Name of exported files, without the extension; made safe. |
 | `label` | `label` | `string` | `labels.report` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`). |
 | `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off. |
-| `exportData` | `export-data` | `boolean` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file (`pivot-data.csv`), for the user's own analysis or the command line; a boolean attribute (`<pivot-report export-data>`). It holds columns no view places and rows the filters leave out: [Security](../security.md#source-data). |
+| `exportData` | `export-data` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file (`pivot-data.csv`), for the user's own analysis or the command line; present as a boolean attribute (`<pivot-report export-data>`), or a JSON object for some columns only, which the drill-down's exports keep to as well (`export-data='{"columns":["Region","Revenue"]}'`, or the property); text it cannot read is off and said once in the console. As the React prop [`exportData`](react.md#prop-exportdata). It holds columns no view places and rows the filters leave out: [Security](../security.md#source-data). |
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`; the panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips). |
 | `storageKey` | `storage-key` | `string` |  | Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. [More](#prop-storagekey) |
@@ -76,6 +76,7 @@ supported.
 | `allowImport` | `allow-import` (boolean) | `boolean` | `false` | People may load a file into the report in the browser: a **Data** button, a file dropped onto the report, a preview first; nothing is uploaded. [More](#prop-allowimport) |
 | `importLimits` |  | `Partial<Limits>` | `limits` | The limits of a file loaded with `allow-import`, merged key by key over `limits`; the page's data keeps `limits`. As the [`importLimits`](react.md#prop-importlimits) prop. |
 | `plugins` |  | `ReaderPlugin[]` |  | Reader plugins for more formats with `allow-import`: [pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel. CSV, TSV, text and JSON are built in. |
+| `importWorkerUrl` |  | `string \| URL \| null` | `null`: next to the element's code | Where the import worker of `allow-import` (`dist/import-worker.js`) is served, relative to the page and of the page's origin: for an app that bundles the element and serves the file at a path of its own. A URL of another origin is refused (said once in the console), and files are read on the page. [More](#prop-allowimport) |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
@@ -163,7 +164,11 @@ file its code is in (`import.meta.url`): in `dist/` that file is a chunk in `dis
 worker is `dist/import-worker.js`. An app that bundles the element serves the worker where that URL
 points from the app's own file that holds the element's code; where that is depends on the bundler's
 output layout. For Angular's flat output it is the site's root, with `angular.json` copying the file
-as an asset: [Angular](../getting-started/web-component.md#angular). The import UI is the load group
+as an asset: [Angular](../getting-started/web-component.md#angular). An app that serves the worker
+at a path of its own (under a base href such as `/reports/`) sets the property `importWorkerUrl`
+to that URL, relative to the page (`report.importWorkerUrl = "assets/import-worker.js"`); a property
+only, read when a file is read. It must be of the page's origin, as every module worker: the element
+refuses another origin (said once in the console) and reads the file on the page. The import UI is the load group
 "import", loaded on first use ([Bundle size](#bundle-size)).
 
 ```html
@@ -394,23 +399,23 @@ above.
 
 ## Bundle size
 
-What a page loads, measured with `npm run size -w pivotkit-element` on one Mac on 2026-11-13
+What a page loads, measured with `npm run size -w pivotkit-element` on one Mac on 2026-11-14
 (esbuild 0.28.2, gzip level 9 per file, sizes add up per group; approximate, they change with every
 dependency update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in
-`build.js` (173 KiB for the first load, about 0.3 above what CI measures; 1 to 7 per cent
+`build.js` (175 KiB for the first load, about 0.5 above what CI measures; 1 to 7 per cent
 above what CI measures for the groups loaded later; CI reads up to about 0.7 KiB more than these
 numbers):
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 528 KiB | 172 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 533 KiB | 174 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, and the layout of the chart's labels) | 2 | 631 KiB | 216 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 27 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
 | Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 139 KiB | 45 KiB |
 | With the menus, for a German report only (the menus' German texts) | 1 | 20 KiB | 7 KiB |
 | When a view has unused parts (their plain words: English, and German for a German report) | 2 | 16 KiB | 5 KiB |
-| With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 5 | 50 KiB | 20 KiB |
+| With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 54 KiB | 21.5 KiB |
 | With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 25 KiB | 10 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no

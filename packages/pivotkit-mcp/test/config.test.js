@@ -3,11 +3,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
 import { ConfigError, SKILLS_DIR, loadConfig, validateOptions } from "pivotkit-mcp";
-import { BIN, workspace } from "./helpers.js";
+import { BIN, httpServer, workspace } from "./helpers.js";
+// check-config's wrapped lines joined back, as pivotkit-server's tests read them
+import { factsOf } from "../../pivotkit-server/test/helpers.js";
 
 const runner = (args, cwd, env = {}) => spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: "utf8", env: { PATH: process.env.PATH, ...env }, timeout: 30_000 });
 
@@ -16,7 +18,7 @@ test("validateOptions names the wrong key, says what was meant and checks the ru
         [{ sourcs: {} }, /unknown key "sourcs"; did you mean "sources"/],
         [{ sources: { "../x": { file: "a.csv" } } }, /an id is letters/],
         [{ sources: { a: { file: "a.csv", load: async () => [] } } }, /either file or load/],
-        [{ sources: { a: { file: "a.csv", policy: { fields: { X: "secret" } } } } }, /must be one of show, summary, hide/],
+        [{ sources: { a: { file: "a.csv", policy: { fields: { X: "secret" } } } } }, /must be one of show, values, summary, hide/],
         [{ policy: { default: "shwo" } }, /did you mean show/],
         [{ limits: { rowz: 5 } }, /limits.rowz: unknown limit; did you mean "rows"/],
         [{ auth: { mode: "oauth", issuer: "https://id.example.com" } }, /auth.resource: needed/],
@@ -40,24 +42,49 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     const other = workspace();
     const check = runner(["--config", join(dir, "pivotkit-mcp.json"), "--source", "more=data/none.csv", "--allow-dir", "data", "--check-config"], other);
     assert.equal(check.status, 1, "a missing file is a problem: exit 1");
-    assert.match(check.stdout, /1 problem: see NOT FOUND above/);
-    assert.match(check.stdout, /sales: .*data\/sales\.csv\n {4}fields: summary by default; region show, customer hide/);
-    assert.match(check.stdout, /more: .*none\.csv {2}\(NOT FOUND\)/);
-    assert.match(check.stdout, /Files by path: allowed in .*data/);
-    assert.match(check.stdout, /Output: out\n/);
+    const said = factsOf(check.stdout);
+    assert.match(said, /^pivotkit-mcp: the server starts, but not everything will work\.\n1 problem, 0 warnings\./);
+    assert.match(said, /\n {2}sales: a file\n {4}\S+data\/sales\.csv\n {4}policy: summary by default; Region show, Customer hide\n/);
+    assert.match(said, /PROBLEM: sources\.more\.file: data\/none\.csv is not there -> the server starts; more answers FILE_NOT_AVAILABLE/);
+    assert.match(said, /Files by path: allowed in .*data/);
+    assert.match(said, /\nOutput: out\n/);
     const ok = runner(["--config", join(dir, "pivotkit-mcp.json"), "--check-config"], other);
     assert.equal(ok.status, 0, ok.stdout);
     writeFileSync(join(dir, "bad-out.json"), JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "nope" } }));
+    // a missing output directory is made at start; with output.create off it is a problem
     const noOut = runner(["--config", join(dir, "bad-out.json"), "--check-config"], other);
-    assert.equal(noOut.status, 1);
-    assert.match(noOut.stdout, /Output: nope {2}\(NOT FOUND: create the directory first\)/);
+    assert.equal(noOut.status, 0, noOut.stdout);
+    assert.match(factsOf(noOut.stdout), /\nOutput: nope\n {2}\S+nope\n {2}will be created at start\n/);
+    writeFileSync(join(dir, "off-out.json"), JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "nope", create: false } }));
+    const off = runner(["--config", join(dir, "off-out.json"), "--check-config"], other);
+    assert.equal(off.status, 1);
+    assert.match(factsOf(off.stdout), /PROBLEM: output\.dir: not found \(create it first, or leave output\.create on\) -> the server does not start/);
 });
+
+/**
+ * A start error as the person reads it: serve writes it as a JSON line where stderr is no terminal
+ * (the log's auto rule), with the same words in msg; text as it is.
+ */
+const startError = (stderr, program = "pivotkit-mcp") => {
+    const first = stderr.split("\n")[0];
+    if (!first.startsWith("{")) {
+        return stderr;
+    }
+    const line = JSON.parse(first);
+    assert.deepEqual([line.level, line.event, line.service], ["error", "error", program]);
+    return `${program}: ${line.msg}\n${stderr.slice(first.length + 1)}`;
+};
 
 test("the runner's usage errors exit 2 with a hint; --help and --version exit 0", () => {
     const dir = workspace();
     const typo = runner(["--alow-dir", "x"], dir);
     assert.equal(typo.status, 2);
-    assert.match(typo.stderr, /did you mean --allow-dir\?/);
+    assert.equal(startError(typo.stderr), 'pivotkit-mcp: unknown option "--alow-dir"; did you mean --allow-dir? run "pivotkit-mcp --help"\n');
+    assert.equal(startError(runner(["--auth", "bogus"], dir).stderr), 'pivotkit-mcp: --auth must be none, token or oauth; run "pivotkit-mcp --help"\n');
+    // the same Usage lines and flag order as pivotkit-server's help
+    const usage = runner(["--help"], dir).stdout;
+    assert.match(usage, /\nUsage: pivotkit-mcp \[options\]\n {7}pivotkit-mcp --version\n\nOptions:\n/);
+    assert.match(usage, /\n {2}--version {2,}Print the version and exit\.\n {2}--help {2,}Print this help and exit\.\n/);
     const missing = runner(["--config", "nope.json"], dir);
     assert.equal(missing.status, 2);
     assert.match(missing.stderr, /nope\.json: not found/);
@@ -93,4 +120,15 @@ test("the Claude Code plugin is the package's folder: its version is the package
     assert.equal(plugin.name, pkg.name);
     assert.equal(plugin.version, pkg.version);
     assert.deepEqual(market.plugins.map((p) => [p.name, p.source]), [["pivotkit-mcp", "./packages/pivotkit-mcp"]]);
+});
+
+test("the MCP server makes a missing output directory at start, as pivotkit-server does", async () => {
+    const dir = workspace();
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "fresh/out" }, baseDir: dir });
+    try {
+        assert.ok(statSync(join(dir, "fresh", "out")).isDirectory());
+        assert.ok(server.log.some((l) => l.event === "warning" && /output directory did not exist and was created/.test(l.message)));
+    } finally {
+        await server.close();
+    }
 });

@@ -15,10 +15,12 @@ FROM ${BUILD_IMAGE} AS build
 WORKDIR /src
 COPY package.json package-lock.json LICENSE ./
 COPY packages/ packages/
-# the CLI's example files (pivotkit example) are build output: made from the playground's data
-COPY scripts/examples.js scripts/
+# the CLI's example files (pivotkit example) are build output: made from the playground's data and
+# the print templates
+COPY scripts/examples.js scripts/is-main.js scripts/
 COPY examples/playground/src/data.js examples/playground/src/
 COPY examples/playground/data/ examples/playground/data/
+COPY examples/report-templates/ examples/report-templates/
 # only the three commands and what they need at run time, at the lock file's versions
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund --include-workspace-root=false \
         --workspace pivotkit-server --workspace pivotkit-mcp --workspace pivotkit-cli \
@@ -38,9 +40,12 @@ COPY --from=build /app /app
 # the output directory, owned by the user that writes it (a volume created from it keeps that owner)
 COPY --from=build --chown=10001:10001 /out /out
 WORKDIR /app
+# the log as JSON lines: docker run -t gives the process a terminal, where "auto" would write text;
+# a configuration's log.format still wins
 ENV NODE_ENV=production \
     PIVOTKIT_CONFIG=/config/pivotkit.json \
-    PIVOTKIT_PORT=3333
+    PIVOTKIT_PORT=3333 \
+    PIVOTKIT_LOG_FORMAT=json
 # a fixed user and group, not the base image's: the operator owns /out by this id
 USER 10001:10001
 EXPOSE 3333

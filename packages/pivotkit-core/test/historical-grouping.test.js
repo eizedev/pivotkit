@@ -22,7 +22,9 @@ for (const by of ["yearMonth", "yearQuarter"]) {
                     });
                     const start = new Date(source);
                     start.setUTCDate(1);
-                    const expected = by === "yearQuarter" ? `Q${Math.floor(month / 3) + 1} ${year}` :
+                    // a year before 1 AD with its era in both, a quarter's in the Gregorian calendar (its key's)
+                    const quarterYear = year >= 1 ? String(year) : new Intl.DateTimeFormat(locale, { year: "numeric", era: "short", calendar: "gregory", timeZone: "UTC" }).format(start);
+                    const expected = by === "yearQuarter" ? `Q${Math.floor(month / 3) + 1} ${quarterYear}` :
                         new Intl.DateTimeFormat(locale, { month: "short", year: "numeric", timeZone: "UTC", era: year <= 0 ? "short" : undefined }).format(start);
                     assert.equal(r.label("rows", r.rowRoot.children[0]), expected, `${locale}/${year}/${month}`);
                     assert.deepEqual(toSeries(r).categories, [expected]);

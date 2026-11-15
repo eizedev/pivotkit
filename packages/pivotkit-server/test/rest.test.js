@@ -51,6 +51,23 @@ test("GET /sources lists the source; GET /sources/{id} and POST /sources/describ
     }
 });
 
+test("HEAD on a GET route, /healthz and /readyz answers as GET without a body; a HEAD on a POST route is 405", async () => {
+    const { server } = await salesServer();
+    try {
+        const head = await raw(`${server.api}/sources`, { method: "HEAD" });
+        assert.equal(head.status, 200);
+        assert.match(String(head.headers["content-type"]), /application\/json/);
+        assert.equal(head.data, "", "no body");
+        const post = await raw(`${server.api}/views/validate`, { method: "HEAD" });
+        assert.equal(post.status, 405);
+        // a health check may ask with HEAD
+        assert.equal((await raw(`${server.url}/healthz`, { method: "HEAD" })).status, 200);
+        assert.equal((await raw(`${server.url}/readyz`, { method: "HEAD" })).status, 200);
+    } finally {
+        await server.close();
+    }
+});
+
 test("validate and describe: a misspelt name is an error with the name meant; a hidden field reads as a missing one", async () => {
     const { server } = await salesServer();
     try {
@@ -84,7 +101,7 @@ test("render: the file is saved in the output directory; a summary field withhol
         assert.deepEqual(res.data.withheld, ["rows", "columns", "bytes", "content"]);
         assert.equal(res.data.summary, undefined);
         assert.equal(res.data.inline, undefined);
-        assert.match(res.data.message, /Its content is not part of this answer, since the operator does not show the values of Sales\./);
+        assert.match(res.data.message, /Its content is not part of this answer: results over fields that are not fully shown \(Sales\) stay in the file\./);
         assert.ok(!/assistant/.test(res.data.message), "words for a program, not a model");
         assert.deepEqual(readdirSync(join(dir, "out")), [res.data.output.name]);
         assert.equal(res.data.output.path, undefined, "no server path");
@@ -268,23 +285,37 @@ test("the Host check refuses a name the server does not answer to (DNS rebinding
     }
 });
 
-test("output.maxAgeDays: old reports and drafts go at start (and hourly); other files, newer ones and subdirectories stay", async () => {
+test("output.maxAgeDays: old reports and drafts, and temporary files of killed writes after an hour, go at start (and hourly); files pivotkit did not write, newer ones and subdirectories stay", async () => {
     const dir = workspace();
     const { utimesSync } = await import("node:fs");
     const old = new Date(Date.now() - 3 * 86_400_000);
-    for (const name of ["old.xlsx", "old.report.json", "notes.txt", "recent.xlsx"]) {
+    // a write's temporary file left by a server that was killed during the write: it goes after an
+    // hour, not after maxAgeDays; one of a write still running (recent) and one of a file pivotkit
+    // did not write stay
+    const hours = new Date(Date.now() - 2 * 3_600_000);
+    const ages = {
+        "old.pivotkit-out.xlsx": old,
+        "old.pivotkit-out.report.json": old,
+        "notes.txt": old,
+        "operator.csv": old,
+        ".a1b2-sales.pivotkit-out.xlsx.4242-k3j9x0qz.tmp": hours,
+        ".a1b2-sales.pivotkit-out.csv.4243-p0o9i8u7.tmp": null,
+        ".notes.txt.4244-a1b2c3d4.tmp": hours,
+        "recent.pivotkit-out.xlsx": null
+    };
+    for (const [name, time] of Object.entries(ages)) {
         writeFileSync(join(dir, "out", name), name);
-        if (name !== "recent.xlsx") {
-            utimesSync(join(dir, "out", name), old, old);
+        if (time) {
+            utimesSync(join(dir, "out", name), time, time);
         }
     }
     mkdirSync(join(dir, "out", "keep"));
-    writeFileSync(join(dir, "out", "keep", "old.csv"), "x");
-    utimesSync(join(dir, "out", "keep", "old.csv"), old, old);
+    writeFileSync(join(dir, "out", "keep", "old.pivotkit-out.csv"), "x");
+    utimesSync(join(dir, "out", "keep", "old.pivotkit-out.csv"), old, old);
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 2 }, baseDir: dir });
     try {
-        assert.deepEqual(readdirSync(join(dir, "out")).sort(), ["keep", "notes.txt", "recent.xlsx"]);
-        assert.deepEqual(readdirSync(join(dir, "out", "keep")), ["old.csv"]);
+        assert.deepEqual(readdirSync(join(dir, "out")).sort(), [".a1b2-sales.pivotkit-out.csv.4243-p0o9i8u7.tmp", ".notes.txt.4244-a1b2c3d4.tmp", "keep", "notes.txt", "operator.csv", "recent.pivotkit-out.xlsx"]);
+        assert.deepEqual(readdirSync(join(dir, "out", "keep")), ["old.pivotkit-out.csv"]);
         const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION } });
         assert.equal(res.status, 200);
         assert.ok(readdirSync(join(dir, "out")).includes(res.data.output.name));
@@ -301,7 +332,9 @@ test("the log names the route, the source and the status; never the view, a valu
         assert.equal(entry.source, "sales");
         assert.equal(entry.status, 200);
         assert.equal(entry.client, "local");
-        assert.equal(entry.address, undefined, "no client address without http.trustProxy");
+        // log.address is on by default: without http.trustProxy the socket's peer, and no peerAddress beside it
+        assert.equal(entry.address, "127.0.0.1");
+        assert.equal(entry.peerAddress, undefined, "no second address without http.trustProxy");
         const text = JSON.stringify(server.log);
         assert.ok(!text.includes("SecretRegion") && !text.includes(dir) && !text.includes("Alice"));
     } finally {
@@ -344,6 +377,8 @@ test("a file name cut at 80 characters never splits a character; the download st
         const res = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
         assert.equal(res.status, 200);
         assert.match(res.headers.get("content-disposition"), /filename\*=UTF-8''x{79}%F0%9F%98%80\.csv$/);
+        const sent = server.log.find((l) => l.event === "download");
+        assert.deepEqual([sent.status, sent.level, sent.outcome, sent.msg], [200, "info", "ok", "file sent"]);
         const quoted = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv", name: "it's (a) *test*" } });
         assert.match(quoted.headers.get("content-disposition"), /filename\*=UTF-8''it%27s%20%28a%29%20_test_\.csv$/);
     } finally {
@@ -365,7 +400,13 @@ test("limits: requests of one caller at once, the client's address behind a prox
         release();
         assert.deepEqual((await Promise.all(running)).map((r) => r.status), [200, 200]);
         await call(`${server.api}/sources`, { headers: { "x-forwarded-for": "198.51.100.7, 203.0.113.9" } });
-        assert.equal(server.log.filter((l) => l.event === "request").at(-1).address, "203.0.113.9");
+        // address is the forwarded client (the last entry, the one the proxy added), as before;
+        // peerAddress is the socket's peer, here the proxy on loopback
+        const proxied = server.log.filter((l) => l.event === "request").at(-1);
+        assert.equal(proxied.address, "203.0.113.9");
+        assert.equal(proxied.peerAddress, "127.0.0.1");
+        // the 429 of a caller over its concurrency is a refused line with its reason
+        assert.ok(server.log.some((l) => l.event === "refused" && l.status === 429 && l.reason === "rate_limited" && l.limit === "concurrency" && l.client === "local"));
     } finally {
         await server.close();
     }

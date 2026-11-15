@@ -6,6 +6,48 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Fixed
+
+- The element bundles pivotkit-react's Export → HTML report with the dark colours set on the element
+  (`pivot-report[data-pk-theme="dark"]`), for a reader on a dark screen
+  ([#385](https://github.com/eizedev/pivotkit/issues/385)).
+- The element bundles pivotkit-react's fix of Print or save as PDF: the print dialog opens in the
+  click itself (Safari asked "This webpage is trying to print" from the second print on while it
+  came an animation frame later) ([#210](https://github.com/eizedev/pivotkit/issues/210)).
+- The element bundles pivotkit-react's fix of a menu's button in Safari and other WebKit browsers: a
+  second click on it closes the menu ([#393](https://github.com/eizedev/pivotkit/issues/393)).
+
+## [0.6.1] - 2026-11-14
+
+### Added
+
+- `export-data` takes a JSON object for some columns only (`export-data='{"columns":["Region","Revenue"]}'`,
+  or the `exportData` property as an object), as pivotkit-react's `exportData`: Source data and the
+  drill-down's copies and files hold those columns. Text it cannot read is off and said once in the
+  console ([#259](https://github.com/eizedev/pivotkit/issues/259)).
+- `importWorkerUrl` (a property, no attribute): where an app serves the import worker of
+  `allow-import` (`dist/import-worker.js`), relative to the page, for an app that bundles the element
+  under a base href such as `/reports/`. Without it the worker is next to the element's own code
+  ([#194](https://github.com/eizedev/pivotkit/issues/194)).
+
+### Changed
+
+- The first load grows by about 0.3 KiB gzip with pivotkit-react's dates before year 1 and after
+  9999 in the filter's texts (173.9 KiB measured on a Mac with `importWorkerUrl`, CI about 0.6
+  more), within its budget of 175 ([#349](https://github.com/eizedev/pivotkit/issues/349)).
+- The import group grows by about 0.4 KiB gzip with pivotkit-core's check of a plugin's table
+  (21.5 KiB measured on a Mac with the other changes of this release, CI about 0.2 more); its budget
+  to 22 ([#130](https://github.com/eizedev/pivotkit/issues/130)).
+
+### Fixed
+
+- The element bundles pivotkit-react's fix of an open menu that moved when its own content was
+  scrolled, so a click could land beside the control aimed at
+  ([#222](https://github.com/eizedev/pivotkit/issues/222)).
+- The element bundles pivotkit-react's fix of a saved view that reads another sheet of the loaded
+  workbook: a sheet the reader has notes on shows them in the preview before it is loaded
+  ([#274](https://github.com/eizedev/pivotkit/issues/274)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5
@@ -348,7 +390,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.1...HEAD
+[0.6.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.0...pivotkit-element@0.6.1
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.5.0...pivotkit-element@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.4.0...pivotkit-element@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.3.0...pivotkit-element@0.4.0

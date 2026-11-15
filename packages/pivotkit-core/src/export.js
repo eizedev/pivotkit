@@ -5,10 +5,10 @@
  * fflate (the zip library behind the XLSX workbook).
  *
  *   import { toXlsx, toCsv, toCsvBytes, toTsv, toJson, rowsToCsv, rowsToCsvBytes, rowsToXlsx,
- *       dataToCsv, dataToCsvBytes, dataToJson } from "pivotkit-core/export";
+ *       dataToCsv, dataToCsvBytes, dataToCsvParts, dataToJson } from "pivotkit-core/export";
  */
 
-export { toXlsx } from "./xlsx.js";
+export { isDataAsOf, toXlsx } from "./xlsx.js";
 export { toCsv, toCsvBytes, toTsv, toJson } from "./csv.js";
-export { dataToCsv, dataToCsvBytes, dataToJson, rowsToCsv, rowsToCsvBytes, rowsToXlsx } from "./rows.js";
+export { dataToCsv, dataToCsvBytes, dataToCsvParts, dataToJson, rowsToCsv, rowsToCsvBytes, rowsToXlsx } from "./rows.js";
 export { scaleColor } from "./grid.js";

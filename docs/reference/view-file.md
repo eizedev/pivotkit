@@ -32,7 +32,7 @@ Files of format version 1 (pivotkit 0.4 and before) are read too; their schema s
   "name": "Revenue by region",
   "description": "For the monthly review",
   "createdAt": "2026-11-07T09:30:00.000Z",
-  "generator": { "name": "pivotkit-react", "version": "0.6.0" },
+  "generator": { "name": "pivotkit-react", "version": "0.6.1" },
   "source": {
     "id": "sales",
     "name": "Sales 2026",
@@ -59,7 +59,7 @@ The `view` is abbreviated here; a written file holds the whole normalized view.
 | `description` | no | More about it; plain text, at most 2,000 characters; left out when empty. |
 | `createdAt` | no | When the file was written, in UTC (ISO 8601). pivotkit-react writes it; `toViewFile` leaves it out unless it is given. |
 | `generator` | no | `{ name, version }` of the program that wrote it: `pivotkit-react` and its version from its `package.json`. |
-| `source` | no | The data the view was made for: `id` (the host's stable name, pivotkit-react's `source.id`), `name` (for people), `fields` (`[{ name, type }]`, the fields of the data the view uses - rows, columns, values, filters, sort, a grouping as its source field - with their type: `string`, `number`, `date`, `boolean` or `null`; derived fields are not listed), `params` (what the host needs besides the id to find the data, a report's parameters: text by name, at most 16 of at most 256 characters each, `LIMITS.srcParams` and `srcParamLength`; opaque, never an address or a query; written with an id only; `sheet` is the sheet of a workbook, [below](#the-sheet-of-a-workbook)). |
+| `source` | no | The data the view was made for: `id` (the host's stable name, pivotkit-react's `source.id`), `name` (for people), `fields` (`[{ name, type }]`, the fields of the data the view uses - rows, columns, values, filters, sort, a grouping as its source field - with their type: `string`, `number`, `date`, `boolean` or `null`; derived fields are not listed), `params` (what the host needs besides the id to find the data, a report's parameters: text by name, at most 16 of at most 256 characters each, `LIMITS.srcParams` and `srcParamLength`; opaque, never an address or a query; written with an id only; `sheet` is the sheet of a workbook, [below](#the-sheet-of-a-workbook)). Left out when it has no id, name or fields. |
 | `extensions` | no | Reserved for hosts (below); pivotkit ignores it and writes `{}`. |
 | `view` | yes | The view itself, with its own `version` ([Views](../concepts/views.md)). |
 

@@ -12,17 +12,22 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { thirdPartyLicenses } from "../../scripts/third-party-licenses.js";
+import { isMain } from "../../scripts/is-main.js";
 
-const here = new URL(".", import.meta.url).pathname;
+const here = fileURLToPath(new URL(".", import.meta.url));
 /** saxen as installed for read-excel-file: its license covers the copy read-excel-file carries. */
 const SAXEN = dirname(createRequire(fileURLToPath(import.meta.resolve("read-excel-file/package.json"))).resolve("saxen/package.json"));
 
 /**
- * The most each part may be, gzip, in KiB (measured 0.2 and 30.6 on a Mac, Node 26, when set), with a
- * little room: the descriptor, and the reader with read-excel-file, fflate's inflate, the XML guard
- * (xml.js) and the table of pivotkit-core/import.
+ * The most each part may be, gzip, in KiB, with a little room: the descriptor, and the reader with
+ * read-excel-file, fflate's inflate, the XML guard (xml.js) and the table of pivotkit-core/import.
+ * Measured 0.2 and 30.6 on a Mac, Node 26, when set; the reader 31.4 after the count of shared
+ * strings and formats and the markup inside rows (#237, #238), and CI's Node 24 measures about
+ * 0.2 KiB more than Node 26, so the reader's budget went from 31.5 to 32. The pre-parse filter
+ * that reads a sheet as the parser does (GHSA-c6vh-q36c-92r3) measures 32.0 on the Mac and 32.2 in
+ * CI, so the reader's budget is 33.
  */
-export const SIZE_BUDGET_KIB = { plugin: 0.5, reader: 31.5 };
+export const SIZE_BUDGET_KIB = { plugin: 0.5, reader: 33 };
 
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
@@ -76,7 +81,7 @@ export async function sizes(metafile) {
     return out;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
     const metafile = await build();
     if (process.argv.includes("--size")) {
         const kib = (n) => (n / 1024).toFixed(1);

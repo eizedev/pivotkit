@@ -131,7 +131,7 @@ const isoDay = (ms) => new Date(ms).toISOString().slice(0, -"T00:00:00.000Z".len
  * `anchor`: "today" (the default), "latest" or "first" with `options.latest` or `options.first`, the
  * data's latest or first date (read like `now`; wall-clock ms as a column holds them), or a date of
  * its own ("2025-06-30"). `count` is not read for "this". Null for anything a filter could not have,
- * "latest" or "first" without its date, or a range that leaves what a Date holds (±8.64e15 ms, the
+ * "latest" or "first" without its date, or a range that leaves what a Date holds (±MAX_DATE_MS, the
  * years -271821 to 275760); `now` or the anchor's date beyond that throws INVALID_OPTION, as
  * computePivot() does.
  * @param {string} unit  of RELATIVE_UNITS
@@ -202,7 +202,7 @@ function anchorText(anchor) {
  */
 export function todayOf(now, timeZone) {
     const toWall = wallClock(timeZone);
-    // epoch ms beyond what a Date holds (±8.64e15) are no time either: refused before the zone's
+    // epoch ms beyond what a Date holds (±MAX_DATE_MS) are no time either: refused before the zone's
     // formatter sees them, and again as wall-clock ms, which the zone's offset may push past the edge
     const ms = toWallMs(now === undefined ? Date.now() : now, (t) => (isDateMs(t) ? toWall(t) : NaN));
     if (!isDateMs(ms)) {
@@ -382,7 +382,7 @@ function normalizeCompare(flt, spec, f, path, ctx, view) {
             const n = value === undefined ? undefined : itemFor("number", value);
             return typeof n === "number" ? n : null;
         }
-        // wall-clock ms beyond what a Date holds (±8.64e15) have no calendar day; a grouping
+        // wall-clock ms beyond what a Date holds (±MAX_DATE_MS) have no calendar day; a grouping
         // compared by its source dates takes days as text only (a number would be its key)
         const ms = value === undefined || (f.type !== "date" && typeof value !== "string") ? undefined : itemFor("date", value);
         return typeof ms === "number" && isDateMs(ms) ? precisionText(ms, /** @type {string} */ (precision)) : null;

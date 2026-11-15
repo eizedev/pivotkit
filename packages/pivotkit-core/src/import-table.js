@@ -13,7 +13,7 @@
 
 import { PivotkitError } from "./errors.js";
 import { resolveLimits } from "./limits.js";
-import { parseIso } from "./time.js";
+import { isDateMs, parseIso } from "./time.js";
 
 /** The column types a loaded table can have (`encode`'s, without "null"). */
 export const IMPORT_TYPES = Object.freeze(["string", "number", "date", "boolean"]);
@@ -117,14 +117,15 @@ export function fileError(reason, file, message, params = {}) {
  * @param {number} value
  * @param {number} max
  * @param {string} file
- * @param {string} what  "rows", "columns", ...
+ * @param {string} what  what was counted, in English ("rows", "columns", "shared strings and
+ *   formats"): in the message and in `details.what`, so a UI can tell two counts of one limit apart
  */
 export function limitError(limit, value, max, file, what) {
     const n = (x) => x.toLocaleString("en-US");
     return new PivotkitError(
         "LIMIT_EXCEEDED",
         `"${file}" has more than ${n(max)} ${what} (limits.${limit}): load a smaller extract of it, or a host can raise this limit`,
-        { limit, value, max, file }
+        { limit, value, max, file, what }
     );
 }
 
@@ -354,7 +355,7 @@ const EXCEL_EPOCH = Date.UTC(1899, 11, 30);
 /** ISO wall-clock text of a Date whose UTC fields are the wall clock (as a spreadsheet's dates are read). */
 export function dateToIso(d) {
     let ms = d.getTime();
-    if (!Number.isFinite(ms) || Math.abs(ms) > 8.64e15) {
+    if (!isDateMs(ms)) {
         return null;
     }
     // a spreadsheet's serial date is a fraction of a day: 08:49:40 can come back as 08:49:39.999
@@ -587,6 +588,22 @@ function cleanString(s, max, counts) {
 }
 
 /**
+ * The hints a table reads its text with: the given ones where they are valid, else "." and the
+ * locale's order of day and month (month first for en-US and without a locale).
+ * @param {Partial<ImportHints> | undefined} given
+ * @param {string} [locale]
+ * @returns {ImportHints}
+ */
+export function tableHints(given, locale) {
+    return {
+        decimal: given?.decimal === "," || given?.decimal === "." ? given.decimal : ".",
+        dateOrder: given?.dateOrder === "dmy" || given?.dateOrder === "mdy" ? given.dateOrder : !locale || /^en-US$/i.test(locale) ? "mdy" : "dmy",
+        ...(given?.serialDates ? { serialDates: true } : {}),
+        ...(given?.textNumbers === false ? { textNumbers: false } : {})
+    };
+}
+
+/**
  * Builds a table row by row. A reader calls `header()` when its format names the columns (JSON),
  * else the header is found in the first rows: the first row with at least half as many values as the
  * fullest of the first 50 rows; the rows above it are a title block and are skipped.
@@ -599,13 +616,7 @@ function cleanString(s, max, counts) {
  */
 export function createTable(options) {
     const { file, limits } = options;
-    /** @type {ImportHints} */
-    const hints = {
-        decimal: options.hints?.decimal ?? ".",
-        dateOrder: options.hints?.dateOrder ?? (!options.locale || /^en-US$/i.test(options.locale) ? "mdy" : "dmy"),
-        ...(options.hints?.serialDates ? { serialDates: true } : {}),
-        ...(options.hints?.textNumbers === false ? { textNumbers: false } : {})
-    };
+    const hints = tableHints(options.hints, options.locale);
     /** @type {ImportNote[]} */
     const notes = [];
     const counts = { removed: 0, cut: 0, empty: 0, extraRows: 0 };

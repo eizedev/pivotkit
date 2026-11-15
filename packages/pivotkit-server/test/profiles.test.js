@@ -159,13 +159,14 @@ test("hide holds for a repeated header the reader renamed and for a name in anot
     }
 });
 
-test("rows: false keeps the source's row count out of a render's summary too", async () => {
+test("rows: false keeps the source's row count, and the kept rows, out of a render's summary too", async () => {
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", rows: false } } }, rest: { inline: true }, baseDir: dir });
     try {
         const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
         assert.equal(res.status, 200);
         assert.equal(res.data.summary.sourceRows, undefined);
+        assert.equal(res.data.summary.keptRows, undefined, "without a filter the kept rows are all of them");
         assert.equal((await call(`${server.api}/sources/sales`)).data.rows, null);
     } finally {
         await server.close();

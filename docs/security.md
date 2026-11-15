@@ -34,14 +34,16 @@ column of the data the report holds, as CSV or JSON: also the columns no view pl
 report's filters leave out, and a field the host only relabels or describes (`fieldDefaults` changes
 how a field is shown, not whether it is there). It makes one click of what the browser's developer
 tools already reach, so turn it on only where the viewer may take every row home, and keep rows
-the viewer must not have off the page (aggregate on your server). The drill-down hands out rows too:
+the viewer must not have off the page (aggregate on your server). `exportData={{ columns }}` keeps
+the files, and the drill-down's copies and files, to the columns you name. The drill-down hands out rows too:
 up to `drillDownLimit` rows behind a value (the grand total's are every row), with every column, in
 its panel, its exports and `onCellClick`; turn it off with `drillDown={false}` where rows must stay
 in. `onExport` (the element's `pivot-export`) sees the file first (`kind` `"data-csv"` or
 `"data-json"`) and can log it, upload it or refuse it (`false`); it is a hook for your own code, not a
 barrier against a person with developer tools. Nothing is stored or sent: the file is made in the
 browser. Its size counts against `limits.cells` (rows times fields, default 2,000,000), checked before
-the file is built; the browser holds a few times the file's size while it is made.
+the file is built; the browser holds about twice the CSV's size while it is made (the JSON a few times
+its size).
 
 ## Views are untrusted input
 
@@ -135,8 +137,8 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
   when it would grow beyond the size the directory states, so a ZIP bomb or a forged directory cannot
   unpack more than the limits allow. `unpackedBytes` bounds what is unpacked, not the memory a read
   takes: see [Untrusted workbooks](#untrusted-workbooks). A sheet's values are checked against
-  `rows`, `columns` and `importCells` by the row and column they stand in, while the sheet streams
-  in and before it is parsed: a file of a few hundred bytes with a value in row 300,000 and column
+  `rows`, `columns` and `importCells` by the row and column they stand in, read as the parser reads
+  them (with any namespace prefix), while the sheet streams in and before it is parsed: a file of a few hundred bytes with a value in row 300,000 and column
   XFD would otherwise become a dense array of billions of cells in the parser. Leaving out rows
   without a value (a used range of formatted empty cells) saves time and memory; the limits do not
   depend on it. A host can give loaded files lower limits than its own data
@@ -170,21 +172,37 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
 `unpackedBytes` (500 MiB) bounds how much of a workbook is unpacked; the memory a read takes depends
 on what of it is kept. Before read-excel-file parses a part, pivotkit-xlsx leaves out what it never
 reads (rows without a value, anything between rows that is no row, what follows `</sheetData>`), cuts
-runs of whitespace to 128 KiB and refuses a text of more than 1 MiB or a tag of more than 256 KiB as `DAMAGED`, so a small
+runs of whitespace to 128 KiB and refuses a text of more than 1 MiB, a tag of more than 256 KiB or a `<` inside a tag as `DAMAGED`, so a small
 file padded with whitespace costs time in proportion to its unpacked size, and memory mostly for the
 pieces being unpacked, which the garbage collector frees as it goes (up to about 2 to 3 times the
-unpacked size at its peak). What is kept costs a few times its size, as for any workbook that large. Measured with Node 26 on an
-Apple M4, peak memory of the whole process (approximate; machines differ):
+unpacked size at its peak). What is kept costs a few times its size, as for any workbook that large.
+
+read-excel-file keeps an entry for each shared string and each cell or number format, which costs
+about 100 bytes even for a string of one letter. Of the shared strings, pivotkit-xlsx keeps only
+those up to the highest one a cell of the sheet names (strings that only other sheets use are left
+out), and it counts the strings and formats it keeps, together and with a namespace prefix too,
+against `importCells` (plus 1,000 rows for a title block): more stop the read with `LIMIT_EXCEEDED`,
+so they cost no more than a table at that limit. Shared strings are numbered across the whole
+workbook, so a small sheet whose cell names a string past that limit (a workbook whose other sheets
+hold millions of strings) is refused too. When the sheet names its strings in a way the filter does
+not read (a prefix, a value that is no plain number), all strings are kept, up to the same limit. A
+comment, CDATA section or processing instruction in a row or in the shared strings is skipped as the
+parser skips it. Measured with Node 26 on an Apple M4, peak memory of the whole process (approximate; machines
+differ):
 
 | Workbook | Unpacked | Time | Memory |
 | --- | --- | --- | --- |
 | 54 KB, sheet XML padded with whitespace | 50 MiB | 0.4 s | about 200 MB |
 | 105 KB, whitespace before, in and after the rows, in a tag, in shared strings | 100 MiB | 0.4 to 0.8 s | about 190 to 310 MB |
-| 257 KB, 6 million one-letter shared strings | 100 MiB | 2.4 s | about 660 MB |
+| 257 KB, 6 million one-letter shared strings, a sheet of two cells | 100 MiB | 0.3 s | about 120 MB |
+| 1.3 MB, 30 million one-letter shared strings, a sheet of two cells | 495 MiB | 1.3 s | about 120 MB |
+| 455 KB, 11 million one-letter shared strings, a cell naming the last one | 178 MiB | 5 to 8 s | about 1 GB |
+| 81 KB, 11 million cell formats (`<xf/>`) | 52 MiB | 2 s | about 1.3 GB |
+| 1.3 MB, 30 million one-letter shared strings, a cell naming the last one | 495 MiB | refused after 2 to 3 s | about 300 MB |
 
-At the default 500 MiB, content of the last kind would take several gigabytes (extrapolated, not
-measured). For workbooks from people you do not trust, lower `unpackedBytes` to what your workbooks
-need (`importLimits` in the report, `--limit unpackedBytes=104857600` on the
+The last three are what the defaults still allow: lowering `importCells` lowers them in proportion.
+For workbooks from people you do not trust, lower `unpackedBytes` and `importCells` to what your
+workbooks need (`importLimits` in the report, `--limit unpackedBytes=104857600` on the
 [command line](reference/cli.md#files)) and run a server-side read with a time and memory limit of
 its own (a worker or a container).
 
@@ -197,20 +215,39 @@ sandbox: a hard link inside an allowed directory reaches the file it names, and 
 the same user can change the directories while the CLI runs. Its messages never hold a file's
 content, and `describe` shows a data file's values only when asked (`--items`).
 
+With a server (`--url`, `--source`), the token comes only from `--token-file` or `PIVOTKIT_TOKEN`
+and is never printed; the CLI speaks https (http only to loopback), follows no redirect, refuses to
+send the token with `NODE_TLS_REJECT_UNAUTHORIZED=0`, caps and checks every answer, and writes a
+downloaded report with mode 0600. A token whose profile has `results: true` exports every field that
+is not hidden: keep it out of an environment an AI agent controls
+([With a server](reference/cli.md#with-a-server)).
+
 ## The MCP server { #mcp }
 
 [pivotkit-mcp](reference/mcp.md) lets an AI model build reports over data the operator names. It
 treats the model as a caller that may have been steered by text it read, and the data as text that
-may try to steer it:
+may try to steer it ([what reaches an AI model](model-data.md) shows the answers a model gets at
+each level and how to set them per client):
 
 - **The model never gets the data.** It gets what the [exposure policy](reference/mcp.md#policy)
-  allows per field: by default names, types and counts; values only of fields marked `show`; nothing
-  of fields marked `hide`, which are dropped when the data is read. A view that touches a field whose
-  values are not shown has its result written to a file, and its row count, size and content are
-  withheld from the model. Findings that would tell whether an item exists are left out for such
-  fields.
+  allows per field: by default names, types and counts; a field's values as a complete list for
+  fields at `values`; values and results only of fields marked `show`; nothing of fields marked
+  `hide`, which are dropped when the data is read. A view that touches a field that is not `show`
+  (`values` included) has its result written to a file, and its row count, size and content are
+  withheld from the model. Findings are decided per field: a finding about a field's items only for
+  a field whose values are listed, a finding that would tell whether rows exist (a filter keeps
+  nothing, a table was cut) only for a view of `show` fields, so an empty combination of two listed
+  values says nothing.
+- **The automatic values rule is off by default.** With `policy.autoValues: true` a text field that
+  looks like a category (few values, each in many rows, short, nothing that looks like an e-mail
+  address, a phone number, an IBAN, an address on the web or an IP address, a name off a deny list)
+  lists its values without a rule of its own. It decides from counts taken when the data is read,
+  never from a person's judgement: run `check-config` and read what it lists before switching it on
+  for personal data, and set an explicit `default` or a field rule where it must not apply. It never
+  applies to a `file:` path, where a `default` is written, or to a caller bound to a profile. A draft (`suggest_view`, a layout) reads no counts or span of a field that is not shown, nor
+  counts where `counts` is false: a date field there is grouped by quarter, whatever its span.
 - **The policy is not confidentiality.** A model can still learn from what it may see (results over
-  `show` fields, counts), every number in a report is real (a small group can identify a person), and
+  `show` fields, the lists of `values` fields, counts), every number in a report is real (a small group can identify a person), and
   field names are data too. Leave out of the data, or `hide`, what the model must not learn about.
 - **Data values are text, never instructions**: names and values reach the model only inside the
   result's JSON, cleaned of control and direction characters and cut at 80 characters, never in the
@@ -225,10 +262,54 @@ may try to steer it:
   not lie inside an allowed directory. Every file in an allowed directory can be read: its first line
   becomes field names the model sees, so keep only data files there.
 - **Output** goes only to the operator's output directory, as new files that never replace one,
-  with names cleaned to letters, digits, spaces, dots and dashes. A directory a web server serves
-  gets names that start with 22 random characters; protect that server as you would the data.
+  with names cleaned to letters, digits, spaces, dots, underscores, dashes and parentheses. A directory a web server serves
+  gets names that start with 22 random characters; protect that server as you would the data, and
+  note that it gets an address only for reports over sources whose fields are all `show`. The
+  directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's (its
+  reports and drafts carry `.pivotkit-out.` in their names; other files are neither counted nor
+  deleted). When it is full, a new report deletes the oldest reports, so one caller cannot stop
+  rendering for everyone, but any token that may render can push other callers' reports out (a link
+  to one then answers 404, or 410 for the server's own links); drafts awaiting approval are never deleted this way and may take at most
+  half of `maxFiles`, a draft over that is refused. A file named with `.pivotkit-out.` by hand counts
+  as pivotkit's. Set `maxFiles` high, give `render_view` and `draft_schedule` scopes of their own,
+  keep `output.maxAgeDays` on (30 days by default) and keep the rate limits ([REST](reference/rest.md#auth)).
+- **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) is the model's,
+  not the operator's: no exposure policy applies to it, and a report over it is no proof that its
+  content came from the operator's data. It is capped (500 rows, 5,000 cells, 256 KiB; the operator
+  may lower it or switch it off with `mcp.data`, never raise it), `rowCount` must match the rows
+  sent; the report is computed in a worker like one over a file (the table is checked in the main
+  thread first), never cached, and cannot be linked or scheduled. Formulas in its cells are written
+  safe like any other text. A report over it lands in the output directory like any other and counts
+  against its quota: the oldest reports go first when it is full.
+- **Download links** ([details](reference/delivery.md)): over HTTP the server serves a report under
+  a link that expires (60 minutes by default). The link is an HMAC-signed token with 128 random
+  bits, checked in constant time (a forged and an unknown link get the same 404); it names no file.
+  A report over a source with a field that is not `show` for someone gets a link only where the
+  link is bound: to the person's sign-in (OpenID Connect code flow with PKCE, `state` and `nonce`;
+  the file only for the issuer and subject that asked, which the token holds as an HMAC), or, as the operator's
+  explicit choice, used once (a GET never uses it, so a link preview cannot). Otherwise no link: a
+  link anyone can open would let the client or the model fetch what was withheld from it. Over REST
+  such a link also needs `results: true`. Links carry no internal address (none off loopback without
+  `http.publicUrl`); the log never holds a token. The token is in the link's path, so proxy logs and
+  browser history hold it: keep proxy logs of `/downloads/` short.
+- **Upload to the operator's store** ([details](reference/delivery.md#upload)): the store is the
+  operator's configuration, never a caller's. Requests go through the guarded fetch (`https://` only,
+  no redirects, loopback and private addresses only with `intranet`, metadata addresses never). The
+  operator's credentials are secret references and go to the presign address only; the address to
+  upload to must be on `presign.allowOrigins`, and the presign service cannot ask for credential or
+  connection headers. A link is shown only when it is `https://`, on `linkOrigins`, without user
+  name or control characters. A report over a closed source goes to the store only where the
+  operator declares its links bound (`once`, `signIn` for a caller with a subject); a store whose
+  links anyone can open never gets one. The binding is the operator's declaration: a `signIn` link is
+  only as strong as the store's own access control, which pivotkit does not verify; the presign
+  service gets the person's HMAC binding, never the subject. Presigned addresses, links, store tokens and answer bodies are never logged or shown;
+  a failure is `UPLOAD_FAILED` with a fixed text and the request id.
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
+- **Connections**: at most 256 at once, 16 kept for loopback clients (the health check), 5 seconds
+  for the headers; `http.maxConnectionsPerAddress` bounds one address where clients reach the port
+  directly. Behind a proxy the proxy must guard the connections and the port be reachable from it
+  only.
 - **Resources**: reports are computed in worker threads with a memory and a time limit (a run over
   it is stopped), at most a few at once, with pivotkit-core's [limits](concepts/limits.md) and a
   default of 50 MiB per file.
@@ -238,11 +319,24 @@ may try to steer it:
   are capped at 2 MiB. Authentication is a static token (compared in constant time, never logged) or
   OAuth 2.1 as the [MCP authorization spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
   describes: JWT access tokens checked for signature, issuer, audience (the server itself), expiry and
-  algorithm, never passed on; scopes per tool and per source. The quick-start page at `/` is not
+  algorithm, never passed on; scopes per tool and per source. The issuer's metadata, its keys and the
+  download sign-in's token endpoint are requested under the rules of every other outbound request
+  (no redirects, sizes capped, link-local and metadata addresses never, loopback and private
+  addresses only with `auth.intranet`), so a hostile metadata document cannot point the server at
+  an internal address. The quick-start page at `/` is not
   behind authentication and shows no source ids unless the operator turns that on
   (`http.page.sources`); without sign-in (`auth` `none`) it lists them by default.
-- **The log** names tools, source ids, file base names and the client (a token's name or an OAuth
-  client id), never a view, a value, a token, a person's id or a full path.
+- **The log** names tools, source ids (`inline:`, `file:` for a file by path, `unknown` for anything
+  else a caller typed) and the client (a token's name or an OAuth
+  client id), never a view, a value, a token or a full path; a person's id only when the operator
+  sets `audit.subject` (`hash`: HMAC-SHA256 with `audit.key`, at least 16 characters, read at start
+  with OAuth only; a rotated key needs a restart and changes every value; `plain`: the claim's text),
+  their groups never.
+- **Groups to profiles** (`auth.groupProfiles`): a token whose group list is cut, missing or
+  replaced by an overage marker never gets a group's or a scope's profile. A person in none of
+  the groups, whom no client or scope profile names, is refused (403) unless `auth.defaultProfile`
+  gives them a narrow profile; never the sources' own policy.
+  A provider that cuts a list without a marker cannot be detected.
 
 ## The REST service { #rest }
 
@@ -251,15 +345,35 @@ MCP server: the exposure policy, the workers and their limits, the output direct
 and the sign-in above hold for it too. What differs:
 
 - **A caller gets what its policy allows, never more.** A program is not a model, but a field at
-  `summary` keeps its values out of every answer and `hide` drops it. A **profile** can give one
-  caller more (values, downloads): it is bound to a token or an OAuth client or scope in the
-  configuration, never chosen by the caller, and a field the source hides stays hidden in every
-  profile. A token without a profile gets the server's policy.
+  `summary` keeps its values out of every answer, one at `values` lists its values but no result
+  over them, and `hide` drops it. A **profile** can give one
+  caller more (values, downloads): it is bound to a token, an OAuth client, a group or a scope, or
+  given to every other signed-in caller (`auth.defaultProfile`), in the configuration, never chosen
+  by the caller, and a field the source hides stays hidden in every
+  profile. A caller without a profile gets `auth.defaultProfile` where it is set, otherwise the
+  server's and the source's policy.
 - **Downloads** (`POST /api/v1/views/render/file`) need a policy with `results: true`; whether one is
   allowed never depends on the view's fields. The file comes as an attachment with
   `X-Content-Type-Options: nosniff`, `Cache-Control: no-store` and
   `Content-Security-Policy: sandbox; default-src 'none'`, so an HTML or SVG report runs nothing when
   a browser opens it.
+- **Data in the request** ([details](reference/rest.md#data)) is off unless a profile has
+  `data: true`. Only such a caller, once its token is checked, may send a body of up to
+  `rest.data.maxBytes` (default 10 MiB, 2 to 64 MiB), and only to a route that takes a source;
+  everyone else keeps 2 MiB, and a body declared larger than any caller may send is refused before
+  the token is read. At most two such large bodies are read at once over all callers, one per
+  caller (a token by its name, or an OAuth client, however many use it); another gets 503 `BUSY`
+  with `Retry-After`. A file is parsed in a worker under the time, memory and import
+  limits; a `sha256` of its bytes catches a file altered on the way, `rowCount` a cut JSON table.
+  The data is never cached and no exposure policy applies to it.
+- **What runs in the main thread.** Reading a body, the check of its nesting (counted on the bytes,
+  so a body of millions of brackets is refused at 64 levels before it is parsed), `JSON.parse` of a
+  JSON body and the check of its table run in the server's main thread, outside `compute.timeMs` and
+  `compute.memoryMb`; only the report itself and the parsing of a file sent as multipart run in a
+  worker. Measured on a laptop: a 7 MiB JSON table about 0.4 s and 46 MiB about 1.7 s for the whole
+  request, the body held in memory a few times over while it is parsed. A token with `data: true` is
+  trusted with that much of the server's time and memory: give it to programs you run, keep
+  `rest.data.maxBytes` as small as they need, and keep the rate limits.
 - **No files by path**: `file:` sources are refused, whatever the MCP server's `files.allowDirs` says.
   Inline results are off unless the operator turns them on, since a program can enumerate through
   them.
@@ -270,7 +384,8 @@ and the sign-in above hold for it too. What differs:
 - **CORS** is off: a browser request is refused unless its origin is listed exactly
   (`rest.cors.origins`, never `*`).
 - **Limits** per caller (requests per minute, requests at once) and per address for refused tokens
-  slow down scripts and token guessing; they live in one process's memory.
+  slow down scripts and token guessing, on the REST service and the MCP endpoint alike (each with
+  its own counts); they live in one process's memory.
 - **Errors** are problem documents with a stable code; a message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.
 
@@ -283,6 +398,39 @@ without install scripts. Run it with a read-only root file system, no capabiliti
 `docker inspect`). It refuses to listen on every address without sign-in. Each release's image is
 signed with cosign (keyless) and has provenance and SBOM attestations; [check them](reference/container.md#verify)
 before you run it.
+
+## HTTP sources { #http-sources }
+
+An [HTTP source](reference/sources.md#http) makes the server request an operator's backend, so the
+address is the operator's, never a caller's:
+
+- The address is written in the configuration; a caller passes only values for its declared
+  parameters, checked against their type, pattern or list before anything is sent. A value is
+  percent-encoded into its own path segment or query value and cannot change the host, add a path
+  segment or another query parameter; a string without a pattern takes letters, digits and `. _ ~ -`
+  only, and no value holds `..`.
+- Requests are `https://` only and follow no redirect. The address is checked on the connection's
+  own name lookup: link-local and cloud metadata addresses are refused always, loopback and private
+  ones unless the backend is marked `intranet` (`check-config` lists each such backend). Further
+  pages must be on the same host and path. The bytes of all pages, the pages, the rows and the time
+  are bounded.
+- A backend's body, and the words of a failed request, never reach a caller or the log; its 401,
+  403 and 404 for a source with parameters give one answer, so a caller cannot probe which other
+  customers exist.
+- A backend's sign-in ([backend sign-in](reference/sources.md#http-auth)) is a header from a secret
+  reference, OAuth client credentials or a token exchange; a secret is never written in the
+  configuration, logged or printed by `check-config` and `check-source`. A person's own access token
+  goes only to the token endpoint as the token exchange's `subject_token`, never to a backend
+  (no token passthrough). An exchanged token is kept per person, client and scopes, and never longer
+  than the person's own token and `maxAgeSeconds`. The token endpoint's `error_description` is
+  dropped. Configure the provider so only pivotkit's client may exchange, only tokens for pivotkit's
+  resource, only to the named audience.
+- A parameter bound to a claim of the verified token gives a backend without per-person rights each
+  person's own rows; it needs a pattern or a list, takes only a verified email, and is never set by a
+  caller or said back.
+- The policy of an HTTP source must hide fields by default, so a field the backend adds later is not
+  shown without anyone deciding; its data is kept per caller and values, never shared between
+  callers.
 
 ## Content-Security-Policy
 

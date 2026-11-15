@@ -14,6 +14,9 @@ versions of one release, on a distroless Node 22 image (no shell, no package man
 | --- | --- |
 | `<version>`, e.g. the release `pivotkit-server@0.1.0` as `0.1.0` | That release, unchanged |
 | `<major>.<minor>` | The latest release of that minor version |
+| `latest` | The image of the pivotkit-server release published last: a new minor version too, or an older version when a patch of an older minor version comes out later; not for production |
+
+To update a running container, see [Update an installation](../getting-started/upgrading.md#update-image).
 
 Images are built for linux/amd64 and linux/arm64 from the release's commit, signed with cosign
 (keyless) and carry a provenance and an SBOM attestation ([below](#verify)).
@@ -48,7 +51,7 @@ docker run -d --name pivotkit \
 | --- | --- |
 | `/config/pivotkit.json` | The configuration (`$PIVOTKIT_CONFIG` names another) |
 | `/data` | The data files, mounted read-only |
-| `/out` | The output directory, writable by the user 10001 (a named volume is; a host folder needs `chown 10001:10001`) |
+| `/out` | The output directory, writable by the user 10001 (a named volume is; a host folder needs `chown 10001:10001`, and Docker makes a missing one as root, so make it yourself first; `check-config` and the start say so when it is not writable). A directory below it in `output.dir` is made at start, with mode 0700 (0755 narrowed by the umask when `output.baseUrl` is set): only the user 10001 reads it, so a second reader (a web server, a backup) needs `output.baseUrl` or a directory you make yourself. The server's own [download links](delivery.md) keep which one-time links were used in `.pivotkit-downloads/` there |
 | `/run/secrets/` | Token files, readable by the user 10001 |
 | `/tmp` | A tmpfs: the root file system stays read-only |
 
@@ -63,6 +66,11 @@ not. Set the port with `PIVOTKIT_PORT`, not `http.port` in the file: the health 
 and [docker/pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/main/docker/pivotkit.example.json)
 are an example for Docker Compose with these settings: two tokens as secrets, one with a profile that
 may download files.
+
+The image sets `PIVOTKIT_LOG_FORMAT=json`: the log is JSON lines on stderr, also under `docker run -t`
+(a configuration's `log.format` still wins). Each answer carries `X-Request-Id`, the id on its log
+lines. [Operations and logs](operations.md) lists the fields and shows the `gelf` and `syslog` log
+drivers; the Compose example keeps the log with the `local` driver, bounded in size.
 
 ## Commands { #commands }
 
@@ -94,7 +102,9 @@ Set `http.publicUrl` to the address clients use and keep the proxy's `Host` head
 to `http.allowHosts`); the server answers no other host name. With a proxy or a published port in
 front, every client comes from one address: set `http.trustProxy` with a proxy that writes
 `X-Forwarded-For` ([the nginx example](rest.md#running)), so the limit on refused tokens counts per
-client. With OAuth the MCP endpoint and the
+client; the proxy then guards the connections (timeouts, limits per client), and the container's
+port should be reachable from the proxy only. Leave `http.maxConnectionsPerAddress` off there: every
+client has the proxy's address. With OAuth the MCP endpoint and the
 REST service are two resources with their own audiences:
 
 ```json
@@ -117,33 +127,18 @@ Until it has loaded the issuer's keys, `/readyz` is 503. It tries again after 2,
 on, at most every minute, so after a long outage of the issuer it can take up to a minute to be
 ready again.
 
+The proxy also routes `/downloads/` to the container: reports come back as
+[download links](delivery.md) there. Give the link key as a secret file
+(`"output": { "downloads": { "key": { "file": "/run/secrets/download-key" } } }`), so links survive a
+restart; more than one container needs the same key and one shared `/out` (or one container). For
+sign-in links, add a browser client at the provider with the redirect URI
+`https://reports.example.com/downloads/callback` and `"signIn": { "clientId": "..." }` there.
+
 ## Kubernetes { #kubernetes }
 
-```yaml
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 10001
-  runAsGroup: 10001
-  fsGroup: 10001
-containers:
-  - name: pivotkit
-    image: ghcr.io/eizedev/pivotkit:<version>
-    ports: [{ containerPort: 3333 }]
-    securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
-    readinessProbe: { httpGet: { path: /readyz, port: 3333, httpHeaders: [{ name: Host, value: localhost }] } }
-    livenessProbe: { httpGet: { path: /healthz, port: 3333, httpHeaders: [{ name: Host, value: localhost }] } }
-    volumeMounts:
-      - { name: config, mountPath: /config, readOnly: true }
-      - { name: data, mountPath: /data, readOnly: true }
-      - { name: out, mountPath: /out }
-      - { name: tokens, mountPath: /run/secrets, readOnly: true }
-      - { name: tmp, mountPath: /tmp }
-terminationGracePeriodSeconds: 30
-```
-
-A probe sends the pod's IP as its `Host` by default, which the server refuses: send `localhost` as
-above. The limits of the REST service are counted per process: with more than one replica each counts
-on its own.
+[Kubernetes](../getting-started/kubernetes.md) has a complete example manifest and explains it: the
+pod's security settings, probes with `Host: localhost`, getting data files into `/data`, memory per
+worker, Service, Ingress, NetworkPolicy and sign-in with an identity provider.
 
 ## Check the image { #verify }
 

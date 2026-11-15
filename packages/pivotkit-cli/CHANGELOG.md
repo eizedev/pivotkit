@@ -6,6 +6,88 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- `pivotkit example templates` writes two print templates for the HTML report, Corporate (a company
+  header with a logo slot, your colours as `--pk-*` tokens, a footer with the details, always light)
+  and Minimal (title, chart, table and details, light or dark after the system), and says how to
+  render them over the `sales` example ([#368](https://github.com/eizedev/pivotkit/issues/368)).
+- `render`, `validate` and `describe` run on a pivotkit-server's source with `--url` (or
+  `PIVOTKIT_URL`) and `--source`; `pivotkit sources [id]` lists a server's sources or describes one.
+  The token comes from `--token-file` or `PIVOTKIT_TOKEN` and is never printed; https only (http for
+  loopback), no redirects, a time limit (`--timeout`) and size caps; a rendered file is written with
+  mode 0600. Options that act on local files are a usage error with a server, and `pivotkit help`
+  marks them "local only" ([#306](https://github.com/eizedev/pivotkit/issues/306)).
+- `--json`: a new error `kind`, `remote` (a server's problem, an answer that is none of a
+  pivotkit-server's, or a network error), with `status` and `retryAfter`.
+- `pivotkit-cli/rest`: what the REST service and its client agree on (`REST_BASE`, `SOURCE_ID`,
+  `TOKEN_SYNTAX`, `REST_ERRORS`, `PROBLEM_CODES`, `isLoopback`); `writeSafe` takes `mode`.
+- `pivotkit serve` says to use `pivotkit-server serve`.
+- `--param name=value` gives a server's source its parameters (render, validate, describe and
+  `pivotkit sources <id>`, which then asks `POST /sources/describe`); `pivotkit sources` marks a
+  source with required parameters `(needs: customer)`. A 401 is one line that says whether a token
+  was sent and from where; "render needs data" and the layout flags' message name `--source` too. A
+  missing parameter ends with "re-run with --param customer=acme", a refused value with "fix it with
+  --param customer=<value>"; a server's hints follow its words after a semicolon
+  ([#424](https://github.com/eizedev/pivotkit/issues/424)).
+
+### Changed
+
+- Usage errors end with `run "pivotkit <command> --help"` (was `see "pivotkit help <command>"`);
+  unknown options and commands read `unknown option "--bogus"`, quoted, as in pivotkit-server and
+  pivotkit-mcp. An option before the command says where it goes and `--json` names the command, not
+  the option. Run as `pivotkit-server cli`, the pointers name that. `--token-file` that is not there
+  says `--token-file missing.txt: not found`.
+- `writeNew`'s file names keep parentheses: a report pivotkit-server writes into `output.dir` under
+  the name "Orders (fake backend)" is `Orders (fake backend).pivotkit-out.xlsx`, not
+  `Orders -fake backend.pivotkit-out.xlsx`; `pivotkit render -o` writes the name it is given, as
+  before
+  ([#448](https://github.com/eizedev/pivotkit/issues/448)).
+
+## [0.2.1] - 2026-11-14
+
+### Upgrading from 0.2.0
+
+What a script that runs `pivotkit` checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#cli-0-6-1) has the details.
+
+- `--sheet` for data that is no workbook is a warning `ignoredOption` (exit 1 with `--strict`).
+- `-o` naming the data or the view file, `--save-view` naming the data file, `-o -` and, on Windows,
+  a device name as `-o` are usage errors (exit 2).
+- `--json`: an error that follows from a grouping the view cannot make has `followsFrom`.
+
+### Added
+
+- `pivotkit-cli/files` exports `TEMP_FILE_NAME`, the pattern of the temporary files `writeSafe`
+  writes, so a caller that owns a directory can remove those of a process killed during a write
+  ([#209](https://github.com/eizedev/pivotkit/issues/209)).
+
+### Changed
+
+- `describe --data <file>` without an argument describes the data, as the options table says
+  (`describe --data - --data-format csv` reads stdin); a view given that way is a usage error that
+  says how to describe it ([#301](https://github.com/eizedev/pivotkit/issues/301)).
+
+### Fixed
+
+- `--sheet` for data that is no workbook is a warning `ignoredOption`, as other options without
+  effect ([#275](https://github.com/eizedev/pivotkit/issues/275)).
+- `render -o` naming the data file or the view file, and `--save-view` naming the data file, are a
+  usage error instead of replacing the input, also under another name of the same file (a link to its
+  directory, another case of its name); `render -o -` is a usage error instead of a file named
+  `-` ([#280](https://github.com/eizedev/pivotkit/issues/280)).
+- `describe <view file> --suggest`, and `render <view file>` with layout flags, say that the data is
+  needed instead of reading the view as data ([#285](https://github.com/eizedev/pivotkit/issues/285)).
+- A hint line with `!` in a value quotes it with single quotes, so an interactive bash does not expand
+  it from its history ([#286](https://github.com/eizedev/pivotkit/issues/286)).
+- Messages that lead better ([#301](https://github.com/eizedev/pivotkit/issues/301)): a data file given where the view belongs says to give
+  it with `--data`; a view that is no file says what the argument is read as; the unknown field that
+  follows from a grouping the view cannot make (`--group Region:yearMonth` on a text field) is counted
+  on the grouping's error (`followsFrom` in `--json`); `describe --suggest` with a field the data lacks
+  is a `dataMismatch` that lists the data's fields, as in `render`.
+- On Windows, a device name as the output (`-o NUL`, `CON`, `COM1.csv`) is refused as a device, as
+  `/dev/null` is elsewhere; `writeNew` of `pivotkit-cli/files` takes such a name as taken and writes
+  `con-2.csv` ([#209](https://github.com/eizedev/pivotkit/issues/209)).
+
 ## [0.2.0] - 2026-11-14
 
 ### Upgrading from 0.1
@@ -120,6 +202,7 @@ First release.
   usage error instead of HTML in a `.pdf`.
 - An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.1...HEAD
+[0.2.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.0...pivotkit-cli@0.2.1
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.1.0...pivotkit-cli@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-cli@0.1.0

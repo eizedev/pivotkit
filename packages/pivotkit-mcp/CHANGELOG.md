@@ -6,6 +6,154 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Upgrading from 0.1.1
+
+- The log ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#log)): on a terminal it
+  is text unless `log.format` is `json`; JSON lines only gain fields; over HTTP the client's address
+  is logged by default (`log.address: "off"` keeps it out).
+
+- Behaviour change: pivotkit-server's `output.maxAgeDays` is 30 by default, so reports and schedule
+  drafts older than 30 days are deleted from `output.dir` at start and every hour, including drafts
+  still waiting for approval; set
+  `output.maxAgeDays: 0` for no age limit ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
+
+- Over HTTP with `output.dir` and without `output.baseUrl`, reports come with pivotkit-server's
+  [download links](https://pivotkit.eize.dev/reference/delivery/) under `/downloads/`: route that path
+  to the server, or set `output.downloads.enabled: false`. With `output.baseUrl`, reports over a
+  source with a field that is not `show` carry no `url` any more.
+- With OAuth, the issuer's metadata, its keys and the download sign-in's token endpoint are requested
+  through the server's guarded requests: an issuer on a loopback or private address needs
+  `auth.intranet: true`, the environment's proxy is not used, and a key set over 256 KiB is refused
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#issuer-requests)).
+- Behaviour change: a source's print template (`sources.<id>.template`) is checked at start and by
+  `--check-config`; one with an unknown placeholder, over 1 MiB or not a regular file keeps the
+  server from starting; a missing template file is a warning, as a missing source file ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-at-start)).
+
+### Added
+
+- The log settings of pivotkit-server ([operations](https://pivotkit.eize.dev/reference/operations/)):
+  `--log-format`, `--log-address` and `--log warn|error`, with their keys and variables. A `call`
+  line has `status` and `outcome` and its level follows the status; over HTTP a call's id is its
+  request's, so the answer's `X-Request-Id`, the `call` line and the error's "(request id ...)" name
+  one id, and the call line carries the request's `traceId`. `refused` lines give a `reason`, also
+  for the per-caller 429s and a body over the cap. The HTTP server ends with a `stopped` line; a
+  configuration error at start is a JSON line with `--log-format json` or `PIVOTKIT_LOG_FORMAT=json`.
+  Lines name `service` `pivotkit-mcp` when it runs on its own.
+
+- Reports can go to the operator's store (pivotkit-server's `output.upload`,
+  [#332](https://github.com/eizedev/pivotkit/issues/332)): render_view then carries the store's link
+  in its text and as a `resource_link`; a failed upload is the tool error `UPLOAD_FAILED` with a
+  fixed text and the request id. Needs the pivotkit-server release of the same round.
+
+- pivotkit-server's operator controls ([#331](https://github.com/eizedev/pivotkit/issues/331)):
+  groups to profiles (`auth.groupProfiles`), `auth.defaultProfile`, the person on `call` lines
+  (`audit.subject`), the sources' scopes in the Protected Resource Metadata with
+  `auth.offerSourceScopes: true` (off by default), the hint of an empty `list_sources`. A token whose groups are unknown, with
+  `auth.groupProfiles` and no default profile, gets 403 `access_denied` without a scope challenge.
+  Needs pivotkit-server's `groupRefusal`.
+
+- HTTP sources of pivotkit-server ([#328](https://github.com/eizedev/pivotkit/issues/328)) in
+  `sources.<id>.http`, with their parameters in `list_sources`. A `SOURCE_UNAVAILABLE` tool error says
+  the fixed text its reason picks (not available right now, the backend refused pivotkit's access,
+  the source is not set up correctly). A call over HTTP whose connection closed stops waiting for a source's load,
+  and the load is aborted when no other call waits for it. Needs the pivotkit-server release of the
+  same round (`serverTextOf` with a reason).
+
+- Data in the request ([#326](https://github.com/eizedev/pivotkit/issues/326)): the tools that take
+  a source offer `data`, a small table of the model's own with `source` `inline:` (at most 500 rows,
+  5,000 cells and 256 KiB; `mcp.data` lowers the cap or switches it off). Its description says that
+  the operator's exposure policy does not apply to it. The `call` log line counts its rows and
+  columns. The instructions and the skill explain it where it is offered. Needs the pivotkit-server
+  release of the same round (it imports `inlineLogFields`): release pivotkit-server first and raise
+  the range in the release PR.
+- render_view and draft_schedule results with a download link carry it in the text and, after it, as
+  a `resource_link` for clients of protocol 2025-06-18 or later (`size` only for a report the
+  assistant was shown in full); the message names the file, the address is `output.url`
+  ([#327](https://github.com/eizedev/pivotkit/issues/327)). The HTTP transport serves `/downloads/`
+  before its Origin check and body cap (a browser's form, not an MCP client). Release pivotkit-server
+  first: this version needs its new exports (`createDownloadHandler`, `DOWNLOAD_BODY_BYTES`).
+
+- The exposure policy's level `values` and the opt-in automatic rule (`policy.autoValues`) of
+  pivotkit-server ([#362](https://github.com/eizedev/pivotkit/issues/362)); `--check-config` prints
+  each field's level and why.
+- The instructions and the skill explain the levels once per conversation, `values` included, and
+  `itemUnknown`.
+- Every tool result over a source's data has `dataAsOf` (when the data is from); render_view's
+  message ends with it in words. The tools that take a source take `params` when a configured code
+  source declares parameters ([pivotkit-server](https://pivotkit.eize.dev/reference/mcp/#configuration)).
+- Each tool call has a request id on its log lines, and every tool error ends with
+  `(request id ...)`, in one parenthesis with the source and whether to try again (inside the
+  message's own closing parenthesis where it ends in one), for the person to give the operator.
+  Unknown options read `unknown option "--bogus"; run "pivotkit-mcp --help"`; the help's Usage
+  lines name `--version`. render_view's summary line leaves out the link's note, which its message says. An error of status 500 or more says pivotkit-server's fixed text
+  (`INTERNAL`: "internal error"), with the source and whether trying again may work; `BUSY`,
+  `NOT_READY` and `TIMEOUT` keep their own words. Release pivotkit-server first: this version needs
+  its new exports (`serverTextOf`, `withRequestId`, `callerFields`, `offeredScopes`).
+- Code sources of a library host have a time limit, share parallel loads, keep data per caller and
+  give last good data with `stale` after a transient failure; a failing load is `SOURCE_UNAVAILABLE`;
+  the report over their data is computed in a worker under `compute.timeMs` and `compute.memoryMb`
+  ([code sources](https://pivotkit.eize.dev/reference/sources/#code)).
+
+### Changed
+
+- `--check-config` prints pivotkit-server's new layout: whether the server starts, the counts and
+  every `PROBLEM` first, one fact per line; over stdio a `Transport:` section says there are no
+  download links and no signed-in person. With `--http` it also asks the OAuth issuer for its
+  metadata and warns when it cannot be loaded ([#424](https://github.com/eizedev/pivotkit/issues/424)).
+- The log names a tool call's source by a configured id, `inline:` or `file:` (no file name), else
+  `unknown`, never the model's text; a request the protocol layer refuses is logged at warn with its
+  error's class and the SDK's name for the refusal, its message (which can quote the body) only with
+  `--log debug` ([#422](https://github.com/eizedev/pivotkit/issues/422)).
+- The README links the page on what reaches an AI model at each level of the exposure policy, and
+  how to give each client its own profile ([#338](https://github.com/eizedev/pivotkit/issues/338)).
+
+## [0.1.1] - 2026-11-14
+
+### Upgrading from 0.1.0
+
+What an operator checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-0) has the details.
+
+- Over HTTP, each caller is limited (`mcp.rateLimit`: 120 per minute, burst 30; `mcp.concurrency`: 4);
+  over a limit the answer is 429 with `Retry-After`. A method other than `POST` on `/mcp` is 405.
+- Reports and drafts are named `<name>.pivotkit-out.<format>`; reports written by 0.1.0 are neither
+  counted nor deleted: remove them by hand once. `output.maxMb` (default 1024) is new. A missing
+  `--output` directory is made at start instead of failing it; `output.create: false` keeps the
+  error.
+- A static token with characters a bearer token cannot carry is refused at start.
+
+### Added
+
+- A missing `--output` directory is made at start with mode 0700 (0755 narrowed by the umask when
+  `output.baseUrl` is set), as pivotkit-server does; the former error is opt-in with
+  `output.create: false`.
+- Request limits over HTTP, as the REST service has them: `mcp.rateLimit.perMinute`, `.burst`,
+  `.failedAuthPerMinute` and `mcp.concurrency`; over a limit the answer is 429 with `Retry-After`
+  ([#270](https://github.com/eizedev/pivotkit/issues/270)). `/mcp` answers a method other than
+  `POST` with 405 before it takes a request slot.
+
+### Changed
+
+- A token is checked once per request; the Host list, the body cap, the default port and the common
+  flags come from pivotkit-server ([#291](https://github.com/eizedev/pivotkit/issues/291)).
+- The output directory and `--check-config` follow pivotkit-server's: reports and drafts are named
+  `<name>.pivotkit-out.<format>`, a full directory deletes its oldest reports (never drafts), `output.maxMb`, `NO_OUTPUT` with a hint for a directory the server
+  cannot write, and a warning for a policy rule that names no column
+  ([#269](https://github.com/eizedev/pivotkit/issues/269), [#288](https://github.com/eizedev/pivotkit/issues/288),
+  [#297](https://github.com/eizedev/pivotkit/issues/297), [#298](https://github.com/eizedev/pivotkit/issues/298)).
+
+### Fixed
+
+- `create_link` and `draft_schedule` given a `layout` answer with one short error that says to make
+  the view with `validate_view` first, instead of the input schema's list of what is missing;
+  `draft_schedule` with a `layout` that also lacks schedule fields still lists those fields first
+  ([#303](https://github.com/eizedev/pivotkit/issues/303)).
+- The HTTP server's connection limits, request targets, start-time token checks and issuer
+  metadata refresh follow pivotkit-server's ([#289](https://github.com/eizedev/pivotkit/issues/289),
+  [#299](https://github.com/eizedev/pivotkit/issues/299), [#271](https://github.com/eizedev/pivotkit/issues/271)).
+- `render_view` says `noRowsKept` when the filters of a view of shown fields keep no rows, and
+  `suggest_view` reads no span or counts the policy keeps back (pivotkit-server's,
+  [#302](https://github.com/eizedev/pivotkit/issues/302), [#296](https://github.com/eizedev/pivotkit/issues/296)).
+
 ## [0.1.0] - 2026-11-14
 
 First release.
@@ -40,5 +188,6 @@ First release.
   two `Authorization` headers are refused, also when node:http would keep only the first; an input
   nested deeper than 64 levels is `INVALID_INPUT` before it reaches a worker.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.1...HEAD
+[0.1.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.0...pivotkit-mcp@0.1.1
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-mcp@0.1.0

@@ -109,3 +109,17 @@ console.log(JSON.stringify([r.value(r.rowRoot, r.colRoot, 0), relativeDateRange(
         assert.equal(out, outputs[0]);
     }
 });
+
+test("an instant before 1 AD keeps its year in every zone (the era is read)", () => {
+    // 2 BC, 12:00 UTC: the zone's offset of its day, never a jump to 2 AD
+    const instant = new Date("-000001-06-15T12:00:00Z");
+    for (const timeZone of ["Europe/Berlin", "Asia/Tokyo", "America/New_York"]) {
+        const wall = encode([{ t: instant }], { timeZone }).column("t").values[0];
+        assert.equal(new Date(wall).getUTCFullYear(), -1, timeZone);
+        // the local mean time of the zone (its offset before standard time), within a day of UTC
+        assert.ok(Math.abs(wall - instant.getTime()) < 86_400_000, `${timeZone}: ${new Date(wall).toISOString()}`);
+    }
+    // the first instant a Date holds, west of UTC: the evening before is past it, so blank; east: the same day
+    assert.equal(new Date(encode([{ t: new Date(-8.64e15) }], { timeZone: "Asia/Tokyo" }).column("t").values[0]).getUTCFullYear(), -271821);
+    assert.ok(Number.isNaN(encode([{ t: new Date(-8.64e15) }], { timeZone: "America/New_York" }).column("t").values[0]));
+});

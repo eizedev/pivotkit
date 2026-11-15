@@ -22,8 +22,10 @@ import { options as reactOptions } from "../pivotkit-react/build.js";
 import { thirdPartyLicenses } from "../../scripts/third-party-licenses.js";
 export { bundledPackages } from "../../scripts/third-party-licenses.js";
 import { hostStyles } from "./src/host-css.js";
+import { isMain } from "../../scripts/is-main.js";
+import { fileURLToPath } from "node:url";
 
-const here = new URL(".", import.meta.url).pathname;
+const here = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(await readFile(join(here, "package.json"), "utf8"));
 
 /** pivotkit-react/styles.css as a JS string for the shadow root. */
@@ -212,9 +214,37 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * (pivotkit-core's mapFieldRefs, shared by viewFileFields of the first load and renameFields) and the
  * grouping names and identifier rule now in pivotkit-core: first load 172.9 on a Mac (172.5 before;
  * CI about 173.5), budget 174. The layout code itself stays out (its constants are marked pure).
+ * The Filter level's rules (#203, #244, #245: one radio that takes the focus on a click, an emptied
+ * value that takes its rule off, a second rule added while the first one waits): the menus 45.96 on a
+ * Mac (45.87 before; CI 46.0, over the budget of 46 that had about 0.1 left), budget 47 (2 % above
+ * CI, below the rule's 3 % to keep the menus in check).
+ * After the encode issue codes (#261) main's first load is 173.36 on a Mac, about 173.95 in CI (CI
+ * measured 174.0 for 173.4 on a Mac in run 43604441863): at the budget of 174 already. The element's
+ * importWorkerUrl with its origin check (#194) adds about 0.2. Budget 175, about 1 KiB above what CI
+ * measures, the first load's rule.
+ * Years before 1 and after 9999 in the Filter level (#351: Years combined and its summary written as the
+ * table writes years, the reference date's field for years after 9999, days compared by their ms; in
+ * menu-ops.js, so the first load stays as it is): the menus 46.9 on a Mac (CI about 47.0, at the budget
+ * of 47 after #339 and #355), budget 48 (2 % above CI, below the rule's 3 %).
+ * The HTML report on a dark screen (#370): the dark rules under the root's data-pk-theme guard, for the
+ * system's dark theme and for a root that asks for dark, and the colour scale's dark colour mixed by
+ * one rule per half from each cell's place: report 21.9 on a Mac (21.6 before; CI 22.0, at the budget),
+ * and with the template's colours for the chart (#369) about 22.1 to 22.3: budget 22.5.
+ * A print template's own colours for the chart (#369): pivotkit-report reads and resolves a
+ * template's CSS in a module of its own, template-style.js, loaded only for a template of the host's
+ * (it imports nothing, so no module of the report becomes a chunk of its own); the element's Export
+ * menu renders with the default template and never loads it: the group "template", 2.5 on a Mac,
+ * budget 3, counted as what it adds to the report group. What stays in the report group (a token
+ * that names another one followed, a heatmap colour ECharts cannot mix left out): report 21.9 on a
+ * Mac (21.6 before); with the dark-screen rules (#370): 22.1 on a Mac, within 22.5.
+ * When the data is from in the files (#331): the workbook's document property DataAsOf in
+ * pivotkit-core's XLSX writer (its part, content type and relationship) took the export group to 12.0
+ * on a Mac (11.7 before), budget 12.3; "Data as of" in the HTML report's details, its placeholder and
+ * the check that the time exists took the report group to 22.7 on a Mac (22.3 before), budget 23
+ * (both within the rule's 3 %).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 174, chart: 222.5, export: 12, link: 7.5, menus: 46, texts: 7, unused: 5.5, import: 21.5, report: 22 };
+export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -223,7 +253,8 @@ export const SIZE_BUDGET_KIB = { initial: 174, chart: 222.5, export: 12, link: 7
  * "texts": the menus' texts of a language besides English, "unused": the plain words of a view's
  * unused parts, English and every other language, "import": loading data with allow-import, the import
  * UI with its texts and pivotkit-core/import with its CSV and JSON readers, "report": the HTML report,
- * the chart as SVG and printing, pivotkit-report with ECharts' SVG renderer, beyond the chart group).
+ * the chart as SVG and printing, pivotkit-report with ECharts' SVG renderer, beyond the chart group;
+ * "template": pivotkit-report's reading of a print template's own CSS, which the element never loads).
  * @param {import("esbuild").Metafile} metafile
  * @returns {{ group: string, files: string[] }[]}
  */
@@ -258,9 +289,9 @@ export function loadGroups(metafile) {
     };
     scan(initial);
     const groupOf = (file) =>
-        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]report-run-[^\\/]+$/.test(file) ? "report" : /[\\/]import-(?:ui|csv|json)-[^\\/]+$/.test(file) ? "import" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : "export";
+        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]report-run-[^\\/]+$/.test(file) ? "report" : /[\\/]template-style-[^\\/]+$/.test(file) ? "template" : /[\\/]import-(?:ui|csv|json)-[^\\/]+$/.test(file) ? "import" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : "export";
     const groups = [{ group: "initial", files: [...initial] }];
-    for (const name of ["chart", "export", "link", "menus", "texts", "unused", "import", "report"]) {
+    for (const name of ["chart", "export", "link", "menus", "texts", "unused", "import", "report", "template"]) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
         groups.push({ group: name, files });
     }
@@ -269,6 +300,12 @@ export function loadGroups(metafile) {
     const report = groups.find((g) => g.group === "report");
     if (report) {
         report.files = report.files.filter((f) => !chart.has(f));
+    }
+    // a print template's CSS is read after the report has loaded: it counts what it adds to both
+    const template = groups.find((g) => g.group === "template");
+    if (template && report) {
+        const loaded = new Set([...chart, ...report.files]);
+        template.files = template.files.filter((f) => !loaded.has(f));
     }
     return groups;
 }
@@ -292,7 +329,7 @@ async function sizes(metafile) {
     return out;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
     await esbuild.build(reactOptions);
     await rm(join(here, "dist"), { recursive: true, force: true });
     const result = await esbuild.build(options);

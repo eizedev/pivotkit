@@ -2,35 +2,7 @@
 // export menu (Copy, Copy as JSON, Download CSV, Download Excel), the note on a cut list.
 import { readFile } from "node:fs/promises";
 import { strFromU8, unzipSync } from "fflate";
-import { chipMenu, expect, test, toolbar } from "./fixtures.js";
-
-/**
- * navigator.clipboard.writeText that keeps what it was given in window.__copied (every browser, no
- * permission), and in window.__inClick whether it was called while the click was being dispatched:
- * Safari refuses a write after an await, so the copy must happen in the click itself.
- */
-async function captureClipboard(page) {
-    await page.addInitScript(() => {
-        const w = /** @type {any} */ (window);
-        w.__clicking = false;
-        document.addEventListener("click", () => (w.__clicking = true), true);
-        // the last listener of the click's way back up: after the report's own
-        window.addEventListener("click", () => (w.__clicking = false));
-        Object.defineProperty(navigator, "clipboard", {
-            configurable: true,
-            value: {
-                writeText: async (text) => {
-                    w.__copied = text;
-                    w.__inClick = w.__clicking;
-                }
-            }
-        });
-    });
-}
-
-const inClick = (page) => page.evaluate(() => /** @type {any} */ (window).__inClick);
-
-const copied = (page) => page.evaluate(() => /** @type {any} */ (window).__copied ?? null);
+import { captureClipboard, chipMenu, copied, expect, inClick, test, toolbar } from "./fixtures.js";
 
 test.describe("Export menu: copies", () => {
     test("Copy table puts the table as shown on the clipboard, tab-separated, with headers and totals", async ({ page }) => {

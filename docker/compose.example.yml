@@ -17,6 +17,25 @@ services:
       - pivotkit-out:/out
     secrets: [pivotkit_token, pivotkit_export_token]
     stop_grace_period: 30s
+    # the log is JSON lines on stderr (the image sets PIVOTKIT_LOG_FORMAT=json): keep it bounded
+    # locally, or send it to a log server with one of the commented drivers instead
+    # (docs/reference/operations.md); map pivotkit's own "level" there, not the driver's
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # logging:
+    #   driver: gelf
+    #   options:
+    #     gelf-address: "udp://graylog.example.com:12201"
+    #     tag: "pivotkit"
+    # logging:
+    #   driver: syslog
+    #   options:
+    #     syslog-address: "tcp+tls://logs.example.com:6514"
+    #     syslog-format: "rfc5424"
+    #     tag: "pivotkit"
 
 volumes:
   pivotkit-out: {}

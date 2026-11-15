@@ -97,12 +97,18 @@ the source rows behind them.
 Everything except the browser download works in Node: build the workbook and send it.
 
 ```js
+import { createServer } from "node:http";
 import { encode, computePivot, toGrid } from "pivotkit-core";
 import { toXlsx } from "pivotkit-core/export";
 
-const bytes = toXlsx(toGrid(computePivot(encode(rows), savedView)), { sheetName: "Tickets" });
-response.setHeader("content-type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-response.end(bytes);
+const rows = [{ Team: "Support", Status: "open" }, { Team: "Sales", Status: "closed" }];   // your rows, e.g. from a database
+const savedView = { rows: ["Team"], cols: ["Status"], values: [{ agg: "count" }] };    // a view a user saved in the browser
+
+createServer((request, response) => {
+    const bytes = toXlsx(toGrid(computePivot(encode(rows), savedView)), { sheetName: "Tickets" });
+    response.setHeader("content-type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    response.end(bytes);
+}).listen(8080);
 ```
 
 A view from a browser is user input. It cannot run code, and the [limits](../concepts/limits.md)

@@ -119,15 +119,51 @@ function safeValue(value) {
     return SAFE_VALUE.test(plain) && [...plain.matchAll(/([\w-]*)\(/g)].every((m) => SAFE_FUNCTIONS.has(m[1].toLowerCase()));
 }
 
+/** The values every report starts from: the light theme, the weights, corners and sizes, the font. */
+export const BASE_TOKENS = Object.freeze({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, "font-family": REPORT_FONT });
+
+/** The characters of a token's value at most (a host's and a template's). */
+export const TOKEN_LENGTH = 200;
+
+/** A value that is another token alone: `var(--pk-name)`. */
+const TOKEN_REF = /^var\((--pk-[a-z0-9-]+)\)$/;
+
 /**
- * The tokens as a style the chart's code reads (getPropertyValue), the host's over the light ones.
- * @param {Record<string, string>} [tokens]
+ * The light values a report draws its chart and its cells' colours with: the defaults and the host's
+ * `tokens` over them (cleanTokens), a value that is another token alone followed to it, as the
+ * defaults' --pk-scale-low and --pk-scale-high are; a value with any other var() keeps the default.
+ * A print template's own values come over these through template-style.js, loaded only for one.
+ * @param {Record<string, string>} [tokens]  the host's
+ * @returns {Record<string, string>}
+ */
+export function reportTokens(tokens = {}) {
+    const all = { ...BASE_TOKENS, ...cleanTokens(tokens) };
+    /** @param {string} name  @param {number} depth  @returns {string | undefined} */
+    const follow = (name, depth = 0) => {
+        const value = Object.hasOwn(all, name) ? all[name] : undefined;
+        const ref = value === undefined ? null : TOKEN_REF.exec(value);
+        return ref ? (depth < 4 ? follow(ref[1], depth + 1) : undefined) : value;
+    };
+    /** @type {Record<string, string>} */
+    const out = {};
+    for (const name of Object.keys(all)) {
+        const value = follow(name);
+        const plain = value !== undefined && !/\bvar\(/i.test(value) ? value : BASE_TOKENS[name];
+        if (plain !== undefined) {
+            out[name] = plain;
+        }
+    }
+    return out;
+}
+
+/**
+ * Tokens as a style the chart's code reads (getPropertyValue).
+ * @param {Record<string, string>} tokens  reportTokens()
  * @returns {{ getPropertyValue(name: string): string }}
  */
-export function tokenStyle(tokens = {}) {
-    const all = { ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, "font-family": REPORT_FONT, ...cleanTokens(tokens) };
+export function tokenStyle(tokens) {
     // the chart's font without quotes (see REPORT_FONT)
-    all["font-family"] = all["font-family"].replace(/["']/g, "");
+    const all = { ...tokens, "font-family": (tokens["font-family"] ?? REPORT_FONT).replace(/["']/g, "") };
     return { getPropertyValue: (name) => (Object.hasOwn(all, name) ? all[name] : "") };
 }
 
@@ -140,7 +176,8 @@ export function cleanTokens(tokens) {
     /** @type {Record<string, string>} */
     const out = {};
     for (const [name, value] of Object.entries(tokens ?? {})) {
-        if ((/^--pk-[a-z0-9-]+$/.test(name) || name === "font-family") && typeof value === "string" && value.length <= 200 && safeValue(value)) {
+        // a quoted string only in a font's names: in any other token it could end an SVG attribute
+        if ((/^--pk-[a-z0-9-]+$/.test(name) || name === "font-family") && typeof value === "string" && value.length <= TOKEN_LENGTH && safeValue(value) && (name === "font-family" || !/["']/.test(value))) {
             out[name] = value.trim();
         }
     }
@@ -151,21 +188,16 @@ export function cleanTokens(tokens) {
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 /**
- * The colours of a colour scale and of data bars whose view names none, from the host's tokens over
- * the light ones, as the report on screen resolves them: the scale --pk-scale-low, the host's
- * --pk-scale-mid and --pk-scale-high (by default the heat tokens), the bars --pk-chart-1. A value
- * that is no plain hex colour (another token is followed) keeps pivotkit-core's default.
- * @param {Record<string, string>} [tokens]
+ * The colours of a colour scale and of data bars whose view names none, from the report's resolved
+ * light values (reportTokens, a template's over them): the scale --pk-scale-low, --pk-scale-mid where
+ * set and --pk-scale-high (by default the heat tokens), the bars --pk-chart-1. A value that is no
+ * plain hex colour keeps pivotkit-core's default.
+ * @param {Record<string, string>} theme
  * @returns {{ colorScale?: string[], dataBar?: string }}
  */
-export function conditionalColors(tokens = {}) {
-    const all = { ...LIGHT_TOKENS, ...cleanTokens(tokens) };
-    const resolve = (/** @type {string} */ name, depth = 0) => {
-        const value = Object.hasOwn(all, name) ? all[name] : "";
-        const ref = /^var\((--pk-[a-z0-9-]+)\)$/.exec(value);
-        return ref && depth < 4 ? resolve(ref[1], depth + 1) : HEX_COLOR.test(value) ? value : null;
-    };
-    const [low, mid, high, bar] = ["--pk-scale-low", "--pk-scale-mid", "--pk-scale-high", "--pk-chart-1"].map((name) => resolve(name));
+export function conditionalColors(theme) {
+    const hex = (/** @type {string} */ name) => (Object.hasOwn(theme, name) && HEX_COLOR.test(theme[name]) ? theme[name] : null);
+    const [low, mid, high, bar] = ["--pk-scale-low", "--pk-scale-mid", "--pk-scale-high", "--pk-chart-1"].map(hex);
     return {
         ...(low && high ? { colorScale: mid ? [low, mid, high] : [low, high] } : {}),
         ...(bar ? { dataBar: bar } : {})

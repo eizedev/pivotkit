@@ -171,6 +171,13 @@ is blank, with a note that counts them.
 | `notes` | `{ code, params, message }` for each thing worth saying (table below). |
 | `hints` | How text was read (`decimal`, `dateOrder`), so `retype` reads it the same way. |
 
+A reader plugin's table built by hand may leave out `raw`, `detected`, `rowCount` and `hints`:
+`readFile` fills them in (`raw` as `data`, `detected` as `types`, the row count, `hints` as
+`createTable` sets them for the locale). Without `raw`, a type changed in the preview is read from
+the typed values, not from the text as the file had it. A field that is given must be right
+(`hints` too: `decimal` `"."` or `","`, `dateOrder` `"dmy"` or `"mdy"`), and the table counts
+against the limits below; otherwise `readFile` throws ([Errors](#errors)).
+
 | Note `code` | When | `params` |
 | --- | --- | --- |
 | `ENCODING` | Always, for text | `encoding` |
@@ -206,19 +213,22 @@ step it guards, so a file that is too large costs no memory first:
 | `fileBytes` | 100 MiB | The file's size, before a byte is read. |
 | `rows` | 1,000,000 | Rows of the table, counted as they are read. |
 | `columns` | 1,000 | Columns, as they appear. |
-| `importCells` | 10,000,000 | Rows x columns, counted as they are read. |
+| `importCells` | 10,000,000 | Rows x columns, counted as they are read; a workbook's shared strings and formats too. |
 | `textLength` | 32,767 | Characters of one value (Excel's cell limit); longer text is cut, with a note. |
 | `archiveEntries` | 10,000 | Parts of an archive (an `.xlsx` is a ZIP), from its directory, before anything is unpacked. |
 | `unpackedBytes` | 500 MiB | What the parts unpack to, from the directory, before anything is unpacked (a ZIP bomb). |
 
 A file over a limit throws `PivotkitError` `LIMIT_EXCEEDED` with `details` `{ limit, value, max,
-file }` and a message that names the file, the limit and what to change: `"tickets.csv" has more than
-1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit`. The
-previous data stays. pivotkit-react says it in the report's language from `details` (the limits
-`rows`, `columns`, `fileBytes`, `importCells`, `archiveEntries` and `unpackedBytes`;
-`labels.dataImport.overLimit` and `limitWhat`), after the file's name: "big.csv could not be
-loaded: it has more than 1,000 rows (limits.rows): …"; the key is the one of `limits` also where the
-host set `importLimits`. Any other error is the reader's message without the file's name in front.
+file, what }` and a message that names the file, the limit and what to change: `"tickets.csv" has
+more than 1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this
+limit`. `what` is what was counted, in English, as the message says it. The previous data stays.
+pivotkit-react says it in the report's language from `details` (the limits `rows`, `columns`,
+`fileBytes`, `importCells`, `archiveEntries` and `unpackedBytes`; `labels.dataImport.overLimit` and
+`limitWhat`; `importCells` reached by a workbook's shared strings and formats, which `details.what`
+names, in the words of `workbookCells`, "different texts and formats"), after the file's name:
+"big.csv could not be loaded: it has more than 1,000 rows (limits.rows): …"; the key is the one of
+`limits` also where the host set `importLimits`. Any other error is the reader's message without the
+file's name in front.
 
 ## Errors
 
@@ -239,6 +249,10 @@ A file that cannot be read throws `PivotkitError` with the code `INVALID_FILE`, 
 | `MACROS` | A workbook with macros (`.xlsm`, `vbaProject.bin`). |
 | `XML_DECLARATION` | A part of a workbook declares a document type or entities, which a workbook never needs. |
 | `DAMAGED` | A workbook is damaged, cut off, a part unpacks to more than its directory states, or an XML part holds a text of more than 1 MiB or a tag of more than 256 KiB (an Excel cell holds at most 32,767 characters). |
+
+A reader plugin that returns a table of another shape, a field given wrong (`rowCount`, `raw`,
+`detected`, `hints`), a note without a `code`, or a table whose fields throw when read, is a bug of
+the plugin: `INVALID_ARGUMENT`, the message naming the plugin and the field.
 
 ## Progress, cancel and workers
 
@@ -271,5 +285,5 @@ origin).
 | `createTable`, `bytesOf`, `readOptions`, `fileName`, `fileError`, `limitError`, `checkFileLimit`, `dateToIso`, `noteMessage` | The shared part of every reader, for [plugins](write-a-plugin.md#the-helpers). |
 | `IMPORT_NOTE_CODES`, `IMPORT_TYPES` | The note codes and column types. |
 
-Types: `ImportTable`, `ImportNote`, `ImportType`, `ImportHints`, `ImportProgress`, `ReadOptions`,
-`ReaderPlugin`, `ReaderModule`, `SheetInfo`.
+Types: `ImportTable`, `PluginTable` (what a plugin's `read` returns), `ImportNote`, `ImportType`,
+`ImportHints`, `ImportProgress`, `ReadOptions`, `ReaderPlugin`, `ReaderModule`, `SheetInfo`.

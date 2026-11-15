@@ -295,6 +295,67 @@ test("plugins: the contract is checked, another API version is refused with both
     assert.equal(await viaDefault.read(), "ok");
 });
 
+/** A plugin whose read() returns `table` (a function gives a fresh one per read). */
+const pluginOf = (table, name = "mini") => ({ apiVersion: 1, kind: "reader", name, label: "Mini", accept: [".mini"], load: async () => ({ read: async () => (typeof table === "function" ? table() : structuredClone(table)) }) });
+const MINIMAL = { columns: ["a", "b"], types: ["string", "string"], data: [["1", "2"], ["x", "y"]], notes: [{ code: "SHEET" }] };
+const readMini = (table, options = {}) => readFile(text("x.mini", "x"), { plugins: [pluginOf(table)], ...options });
+const refused = (pattern) => (e) => e.code === "INVALID_ARGUMENT" && /plugin "mini"/.test(e.message) && pattern.test(e.message);
+
+test("a plugin's hand-built table (columns, types, data, notes) gets the rest from readFile, so retype works", async () => {
+    const read = await readMini(MINIMAL);
+    assert.equal(read.rowCount, 2);
+    assert.deepEqual(read.raw, MINIMAL.data);
+    assert.deepEqual(read.detected, ["string", "string"]);
+    // the hints createTable takes: "." and the locale's order of day and month (month first for en-US and without a locale)
+    assert.deepEqual(read.hints, { decimal: ".", dateOrder: "mdy" });
+    assert.deepEqual((await readMini(MINIMAL, { locale: "de-DE" })).hints, { decimal: ".", dateOrder: "dmy" });
+    // a hint left out is derived
+    assert.deepEqual((await readMini({ ...MINIMAL, hints: { decimal: "," } }, { locale: "de-DE" })).hints, { decimal: ",", dateOrder: "dmy" });
+    assert.deepEqual((await readMini({ ...MINIMAL, hints: { decimal: ",", dateOrder: "mdy", textNumbers: false } })).hints, { decimal: ",", dateOrder: "mdy", textNumbers: false });
+    assert.deepEqual(read.notes, [{ code: "SHEET", params: {}, message: "SHEET" }]);
+    assert.deepEqual(retype(read, ["number", "string"]).data[0], [1, 2]);
+    // what a plugin gives and is right stays as given
+    const full = { ...MINIMAL, raw: [["1", "2"], ["x", "y"]], detected: ["number", "string"], rowCount: 2 };
+    const kept = await readMini(full);
+    assert.deepEqual([kept.raw, kept.detected, kept.rowCount], [full.raw, full.detected, 2]);
+});
+
+test("a plugin's table with a field given but wrong is refused, naming the plugin and the field", async () => {
+    for (const [change, pattern] of [
+        [{ rowCount: 999 }, /rowCount/],
+        [{ rowCount: 2 ** 53 - 1 }, /rowCount/],
+        [{ rowCount: -1 }, /rowCount/],
+        [{ rowCount: 1.5 }, /rowCount/],
+        [{ detected: ["money", "string"] }, /detected/],
+        [{ detected: ["string"] }, /detected/],
+        [{ raw: "1,2" }, /raw/],
+        [{ raw: [["1", "2"]] }, /raw/],
+        [{ raw: [["1"], ["x", "y"]] }, /raw/],
+        [{ notes: [{ code: "SHEET" }, { nope: 1 }] }, /notes\[1\]/],
+        [{ notes: [null] }, /notes\[0\]/],
+        [{ hints: "dmy" }, /hints/],
+        [{ hints: ["dmy"] }, /hints must be an object/],
+        [{ hints: { decimal: "x" } }, /hints\.decimal/],
+        [{ hints: { dateOrder: "ymd" } }, /hints\.dateOrder/]
+    ]) {
+        await assert.rejects(readMini({ ...MINIMAL, ...change }), refused(pattern), JSON.stringify(change));
+    }
+    // a getter that throws is the plugin's error too
+    const throwing = () => ({ ...MINIMAL, get data() { throw new Error("boom"); } });
+    await assert.rejects(readMini(throwing), refused(/boom/));
+});
+
+test("a plugin's table counts against the limits a reader keeps", async () => {
+    const over = (limit) => (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === limit && e.details.file === "x.mini";
+    await assert.rejects(readMini(MINIMAL, { limits: { rows: 1 } }), over("rows"));
+    await assert.rejects(readMini(MINIMAL, { limits: { columns: 1 } }), over("columns"));
+    await assert.rejects(readMini(MINIMAL, { limits: { importCells: 3 } }), over("importCells"));
+    await assert.rejects(readMini({ ...MINIMAL, data: [["1", "2"], ["x", "long text"]] }, { limits: { textLength: 5 } }), over("textLength"));
+    await assert.rejects(readMini({ ...MINIMAL, raw: [["1", "2"], ["x", "long text"]] }, { limits: { textLength: 5 } }), over("textLength"));
+    // a table the size of the limits passes
+    assert.equal((await readMini(MINIMAL, { limits: { rows: 2, columns: 2, importCells: 4, textLength: 1 } })).rowCount, 2);
+});
+
 test("encode: columnar input gives the same pivot as row objects (real data)", async () => {
     const t = await readFile(fileOf("kerg2-btw25.csv"));
     const rows = Array.from({ length: t.rowCount }, (_, r) => Object.fromEntries(t.columns.map((c, k) => [c, t.data[k][r]])));

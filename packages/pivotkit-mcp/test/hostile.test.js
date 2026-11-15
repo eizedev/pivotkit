@@ -120,8 +120,8 @@ test("too large an input: a view over the size limit, too many elements, unknown
         assert.equal(proto.isError, false);
         assert.equal({}.polluted, undefined);
         const named = await call(client, "render_view", { source: "sales", view: BY_REGION, format: "csv", name: "../../../tmp/evil" });
-        assert.equal(named.data.output.name, "tmp-evil.csv");
-        assert.deepEqual(readdirSync(join(dir, "out")), ["tmp-evil.csv"]);
+        assert.equal(named.data.output.name, "tmp-evil.pivotkit-out.csv");
+        assert.deepEqual(readdirSync(join(dir, "out")), ["tmp-evil.pivotkit-out.csv"]);
         await close();
     } finally {
         await server.close();

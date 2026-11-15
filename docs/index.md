@@ -37,9 +37,9 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
 </figure>
 
 <figure markdown>
-![The same report as an Excel workbook: cities down, months across, Grand Total in bold, numbers as numbers](assets/screenshots/xlsx-result-light.png#only-light)
-![The same report as an Excel workbook: cities down, months across, Grand Total in bold, numbers as numbers](assets/screenshots/xlsx-result-dark.png#only-dark)
-<figcaption>The same report as a workbook (here in the macOS preview; Excel also shows its colour scale).</figcaption>
+![The same report as a workbook in Microsoft Excel: cities down, months across, a blue to red colour scale, Grand Total in bold, numbers as numbers](assets/screenshots/xlsx-result-light.png#only-light)
+![The same report as a workbook in Microsoft Excel: cities down, months across, a blue to red colour scale, Grand Total in bold, numbers as numbers](assets/screenshots/xlsx-result-dark.png#only-dark)
+<figcaption>The same report as a workbook in Excel, colour scale included.</figcaption>
 </figure>
 
 </div>
@@ -97,8 +97,8 @@ life), or [load your own](use/load-data.md). Every task has its page under
 | Pivots, grids and exports in your own code, browser or Node | [Engine](getting-started/engine.md): `pivotkit-core` |
 | Reports as files from a script or a server | [Reports in code](getting-started/report.md): `pivotkit-report` |
 | Reports and view checks in a terminal or CI | [Command line](getting-started/cli.md): `pivotkit example` |
-| Reports for programs over HTTP (scripts, PowerShell, schedulers), with an OpenAPI document | [REST service](getting-started/rest.md): `pivotkit-server serve`, or the [container image](reference/container.md) |
-| Reports from an AI client (Claude, VS Code), without the model reading the data | [MCP server](getting-started/mcp.md): `npx -y pivotkit-mcp` |
+| Reports for programs over HTTP (scripts, PowerShell, schedulers), with an OpenAPI document | [REST service](getting-started/rest.md): `pivotkit-server serve`, the [container image](reference/container.md) or [Kubernetes](getting-started/kubernetes.md) |
+| Reports from an AI client (Claude, VS Code), without the model reading the data | [MCP server](getting-started/mcp.md): `npx -y pivotkit-mcp`; [what reaches the model](model-data.md) |
 | A PowerShell Universal app | [PowerShell Universal](getting-started/react.md#powershell-universal): `New-UDPivotReport` |
 
 Which package fits, what a host switches on, and the recipes: [Embed pivotkit](embed/index.md).

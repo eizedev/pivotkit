@@ -15,7 +15,9 @@
  * Not a sandbox against another process of the same user that changes the directories while the CLI
  * runs: the checks narrow that window, they do not close it. A hard link inside an allowed directory
  * to a file outside it is that file's name inside: no path check can tell it apart. A temporary file
- * of a run that is killed between its creation and the rename stays behind (".<name>.<pid>-<random>.tmp").
+ * of a run that is killed between its creation and the rename stays behind (".<name>.<pid>-<random>.tmp",
+ * `TEMP_FILE_NAME`): this module installs no signal handler, which would change the host's signal
+ * handling; a caller that owns a directory removes them (pivotkit-server's output.maxAgeDays).
  * `hardLinks: false` refuses a file with more than one name (a hard link), for callers that read on
  * behalf of someone else (pivotkit-mcp). `writeNew` never replaces a file: the final name is created
  * by writeSafe's exclusive write (link(), which fails when the name exists). The module is exported
@@ -155,15 +157,48 @@ export async function readStdin(stdin, maxBytes, limit = "fileBytes") {
 }
 
 /**
+ * The name of writeSafe's temporary files: ".<up to 50 characters of the target's name>.<pid>-<random>.tmp".
+ * A write takes seconds; one older than an hour was left by a process that was killed during it.
+ */
+export const TEMP_FILE_NAME = /^\..+\.\d+-[0-9a-z]{1,8}\.tmp$/;
+
+/**
+ * A temporary file's name for the target `name` (TEMP_FILE_NAME). It stays within a file name's 255
+ * bytes, however long the target's name is: 50 characters of at most 4 bytes each, then about 25 for
+ * the process, a random part and ".tmp". A longer name keeps its first and its last 25 characters,
+ * so the temporary file still shows where it belongs and what it is (pivotkit-server's random
+ * prefix, its ".pivotkit-out.<format>" mark).
+ * @param {string} name  the target's base name
+ */
+export function tempFileName(name) {
+    const chars = Array.from(name);
+    const stem = chars.length <= 50 ? name : [...chars.slice(0, 25), ...chars.slice(-25)].join("");
+    return `.${stem}.${process.pid}-${Math.random().toString(36).slice(2, 10) || "0"}.tmp`;
+}
+
+/**
+ * Whether a file name is one of Windows' reserved device names (CON, PRN, AUX, NUL, COM1 to COM9,
+ * COM¹ to COM³, LPT1 to LPT9, LPT¹ to LPT³, in any case), also followed by an extension (NUL.txt and
+ * NUL.tar.gz are NUL): in every directory it names the device, not a file there (Microsoft's
+ * "Naming Files, Paths, and Namespaces"). Trailing dots and spaces are removed first, as Windows
+ * does with a name's end.
+ * @param {string} name  a base name
+ */
+export function isWindowsDevice(name) {
+    return /^(con|prn|aux|nul|com[1-9\u00b9\u00b2\u00b3]|lpt[1-9\u00b9\u00b2\u00b3])(\..*)?$/i.test(name.replace(/[. ]+$/, ""));
+}
+
+/**
  * Writes `bytes` to `path`: into a new temporary file in the target's directory, then renamed over it;
  * with `exclusive`, linked into place instead, which fails when a file is there (also one made
  * between the check and the write), so nothing is replaced: `EXISTS`.
  * @param {string} path
  * @param {Uint8Array} bytes
- * @param {{ cwd: string, allow: string[], exclusive?: boolean }} options
+ * @param {{ cwd: string, allow: string[], exclusive?: boolean, mode?: number }} options  `mode`: the new file's
+ *   permissions (0o600: only its owner reads it), also when it replaces one; default the replaced file's, else 0o644
  * @returns {Promise<string>}  the real path written
  */
-export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) {
+export async function writeSafe(path, bytes, { cwd, allow, exclusive = false, mode }) {
     const full = resolve(cwd, path);
     let dir;
     try {
@@ -176,6 +211,9 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) 
     }
     const target = join(dir, basename(full));
     checkAllowed(target, allow, path);
+    if (process.platform === "win32" && isWindowsDevice(basename(full))) {
+        throw new CliError("io", "SPECIAL_FILE", `${shortName(path)}: exists and is a device or another special file; not replaced`);
+    }
     const existing = await lstat(target).catch((e) => (e.code === "ENOENT" ? null : Promise.reject(e)));
     if (existing && exclusive) {
         throw new CliError("io", "EXISTS", `${shortName(path)}: is already there; not replaced`);
@@ -184,11 +222,8 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) 
         const what = existing.isSymbolicLink() ? "a symbolic link" : existing.isDirectory() ? "a directory" : "a device or another special file";
         throw new CliError("io", existing.isSymbolicLink() || existing.isDirectory() ? "NOT_REGULAR_FILE" : "SPECIAL_FILE", `${shortName(path)}: exists and is ${what}; not replaced`);
     }
-    // the temporary name stays within a file name's 255 bytes, however long the target's name is: 50
-    // characters of at most 4 bytes each, then about 25 for the process, a random part and ".tmp"
-    const stem = Array.from(basename(full)).slice(0, 50).join("");
-    const temp = join(dir, `.${stem}.${process.pid}-${Math.random().toString(36).slice(2, 10)}.tmp`);
-    const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), existing ? existing.mode & 0o777 : 0o644);
+    const temp = join(dir, tempFileName(basename(full)));
+    const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), mode ?? (existing ? existing.mode & 0o777 : 0o644));
     try {
         await handle.writeFile(bytes);
         await handle.sync();
@@ -213,11 +248,11 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) 
     return target;
 }
 
-/** The characters a name of writeNew keeps; the others become "-". */
-const NAME_CHARS = /[^A-Za-z0-9 ._-]/g;
+/** The characters a name of writeNew keeps (parentheses too: "Orders (fake backend)"); the others become "-". */
+const NAME_CHARS = /[^A-Za-z0-9 ._()-]/g;
 
 /**
- * A file name from a name given from outside: letters, digits, space, ".", "_" and "-" only, no
+ * A file name from a name given from outside: letters, digits, space, ".", "_", "-" and parentheses only, no
  * leading dot, at most `max` characters; "report" when nothing is left.
  * @param {unknown} name
  * @param {number} [max]
@@ -246,7 +281,8 @@ export async function writeNew(dir, name, extension, bytes, { prefix = "", tries
             await writeSafe(base, bytes, { cwd: dir, allow: [dir], exclusive: true });
             return base;
         } catch (e) {
-            if (e?.code !== "EXISTS") {
+            // a device's name (Windows' NUL, CON ...) is taken as well: the next name
+            if (e?.code !== "EXISTS" && e?.code !== "SPECIAL_FILE") {
                 throw e;
             }
         }

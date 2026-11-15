@@ -7,7 +7,7 @@
 
 import { use as register } from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
-import { LIGHT_TOKENS, SHAPE_TOKENS, SIZE_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
+import { DARK_TOKENS, LIGHT_TOKENS, SHAPE_TOKENS, SIZE_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
 
 register([SVGRenderer]);
 
@@ -19,6 +19,12 @@ export { render };
  * The chart's lengths in px come from the chart's module (LENGTH_TOKENS).
  */
 export const REPORT_TOKENS = Object.freeze([...Object.keys(WEIGHT_TOKENS), ...Object.keys(SHAPE_TOKENS), ...Object.keys(LIGHT_TOKENS), "--pk-scale-mid"]);
+
+/**
+ * The colours of an HTML report on a dark screen, as the report's dark theme resolves them
+ * (export-run.js): pivotkit-report's dark colours and a host's middle colour of a colour scale.
+ */
+export const REPORT_DARK_TOKENS = Object.freeze([...Object.keys(DARK_TOKENS), "--pk-scale-mid"]);
 
 /**
  * The HTML report's font sizes, in px as the report resolves them (export-run.js): its text and

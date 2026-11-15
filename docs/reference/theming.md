@@ -23,7 +23,9 @@ then the system's `prefers-color-scheme`, and changes with them. The theme the r
 Write your dark colours for `[data-pk-theme="dark"]`, as in the examples below, not for an attribute
 of the page such as `html[data-theme="dark"]`: the exports read the light theme
 ([below](#the-excel-export)) by showing it on the report for that moment, so rules on the page's
-attribute would put your dark colours into a workbook or an HTML report.
+attribute would put your dark colours into a workbook or an HTML report. The HTML report reads your
+dark colours the same way, from `[data-pk-theme="dark"]`, for a reader whose screen is dark
+([below](#the-html-report-on-a-dark-screen)).
 
 ## In React
 
@@ -75,7 +77,7 @@ through the element.
 | `--pk-input-border` | The edge of a text field, a search and a select in a menu (3:1 against the surfaces) | `#7d8592` | `#737b88` |
 | `--pk-accent`<br>`--pk-accent-text`<br>`--pk-accent-soft` | Primary buttons, selection, the text actions of the menus (Back, Reset filter, Clear, Select all, Swap rows and columns), text on the accent, soft highlight | `#2b5fd9`<br>`#ffffff`<br>`#e9effc` | `#84a3ff`<br>`#0d1426`<br>`#232d48` |
 | `--pk-drop`<br>`--pk-drop-border` | A zone while something is dragged over it; the dashed edge of a zone (3:1) | `#dfe8fd`<br>`#868e9a` | `#263a6b`<br>`#6f7785` |
-| `--pk-rule` | The rule between the groups of a menu (3:1 against the menu: More's groups have no titles) | `#868e9a` | `#6f7785` |
+| `--pk-rule` | The rule between the groups of a menu (3:1 against the menu: More's groups have no titles) and the dashed one between the parts of a group (the chart's Display) | `#868e9a` | `#6f7785` |
 | `--pk-note` | Notes and hints above the result | `#eef3fd` | `#1e2638` |
 | `--pk-scale-low`<br>`--pk-scale-mid`<br>`--pk-scale-high` | A colour scale whose view names no colours: low, an optional middle, high. Low and high are the heatmap's colours (`--pk-heat-low`, `--pk-heat-high`), so a theme that sets those colours both; without `--pk-scale-mid` the scale runs straight from low to high. The Excel export writes them as the light theme resolves them ([below](#the-excel-export)) | `var(--pk-heat-low)`<br>not set<br>`var(--pk-heat-high)` | as light (the dark heat colours) |
 | `--pk-small`<br>`--pk-target`<br>`--pk-target-touch` | Secondary text, never below 14 px; the smallest hit area of a control; that of a small control (×, "i", a field's menu and grip, a tip's x) on a touch screen (`pointer: coarse`) | `max(14px, 0.93em)`<br>`24px`<br>`44px` | as light |
@@ -147,7 +149,8 @@ follows, the chart's title and group labels too (the chart reads `--pk-weight-st
 
 The same declarations go on `pivot-report` for the web component. The HTML report and print
 (Export) take the report's weights along, in either theme, with the light theme's colours (also from a
-dark report, as the [Excel export](#the-excel-export) does), the chart card's corner, the chart's
+dark report, as the [Excel export](#the-excel-export) does; the HTML report also the [dark
+ones](#the-html-report-on-a-dark-screen)), the chart card's corner, the chart's
 sizes and the [font sizes](#report-font-sizes). A weight the font has no face for
 is drawn with another face: above 500 the browser takes the next heavier one, so with a font of only
 400 and 700 a weight of 550 is drawn at 700. Pick weights the font has, or use a variable font.
@@ -185,7 +188,8 @@ out of cells and rings too small for them (the tooltip has every one).
 
 With pivotkit-core alone, pass the colours and the sizes (`titleSize`, `textSize`, px) as `theme` to
 [`toEChartsOption`](core.md#output); pivotkit-report takes the tokens as `tokens`, the chart's sizes
-and the marks' corners in px.
+and the marks' corners in px, and an HTML report's chart also the tokens its
+[print template](print-template.md#template-design) sets.
 
 ## The HTML report's font sizes { #report-font-sizes }
 
@@ -224,3 +228,12 @@ cannot write as an sRGB colour (`oklch()` outside sRGB, say) keeps pivotkit-core
 scale lighter than the workbook (mixed with the background, so the numbers stay readable); the
 workbook has Excel's full colours. With pivotkit-core alone, pass the colours as `theme` to
 [`toXlsx`](core.md#output).
+
+## The HTML report on a dark screen { #the-html-report-on-a-dark-screen }
+
+Export → HTML report also carries your dark colours (the `--pk-*` colours of `DARK_TOKENS` and
+`--pk-scale-mid`, as your dark theme resolves them), so a reader whose screen is dark sees your dark
+design: the page, the table, its totals, the colour scale and the data bars. The report shows its dark
+theme for the moment it reads them, as it does the light one for the workbook, whichever theme it
+shows. Paper and a print are light, and the chart keeps the light colours on its light card. With
+pivotkit-report alone, pass them as [`darkTokens`](report.md#options).

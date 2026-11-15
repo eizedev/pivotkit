@@ -34,6 +34,17 @@ import { renameFields } from "./view-file.js";
  * @property {string} [chart]  a chart type (CHART_TYPES): the view shows the chart
  * @property {Record<string, string>} [map]  a field the layout names (key) is the data's field (value)
  *
+ * @typedef {object} LayoutView  viewFromLayout's view: raw, with the layout's names and filters as
+ *   given; normalize() it against the data for a View
+ * @property {2} version
+ * @property {string[]} rows
+ * @property {string[]} cols
+ * @property {Array<{ field?: string, agg: string }>} values
+ * @property {Array<{ name: string, field: string, by: string, size?: number }>} [derived]
+ * @property {object[]} [filters]
+ * @property {"chart"} [display]
+ * @property {{ type: string }} [chart]
+ *
  * @typedef {object} LayoutPick  why suggestLayout chose a part
  * @property {"rows" | "cols" | "values"} part
  * @property {"category" | "date" | "secondCategory" | "firstNumber" | "countRows" | "given"} code  "given": a part the layout gave (pivotkit-report's viewOfLayout)
@@ -45,7 +56,8 @@ import { renameFields } from "./view-file.js";
  *
  * @typedef {{ code: "noSuggestion" | "dateGrouped" | "unusedGroup" | "unusedMap", message: string, field?: string }} LayoutNote
  *
- * @typedef {{ name: string, type: string, distinct?: number, blanks?: number, min?: string | number, max?: string | number }} DescribedField
+ * @typedef {{ name: string, type: string, distinct?: number, blanks?: number, min?: string | number, max?: string | number, by?: string }} DescribedField
+ *   by: a date field's grouping when its span is not to be read (a front end that keeps the span back)
  * @typedef {{ rows?: number | null, fields: DescribedField[] } | DescribedField[] | null | undefined} LayoutDescription  describeSource's
  *   result (or its fields): counts and spans where it has them
  */
@@ -63,7 +75,8 @@ const IDENTIFIER_WORDS = Object.freeze(["id", "nr", "no", "number", "key", "#"])
 /**
  * Whether a field's name says it is an identifier: its last word is ID, Nr, No, Number, Key or "#",
  * in any case. Words are split at a space, "_", "-", ".", "/", ":", a change from a small letter to
- * a capital ("CustomerId", "CustomerID") and from a letter to a digit; a "#" is a word of its own
+ * a capital ("CustomerId", "CustomerID"), before the last capital of a run followed by a small letter
+ * ("HTTPId" as "HTTP Id") and from a letter to a digit; a "#" is a word of its own
  * ("Serial#" as "Serial #"). Before the last word is read, a part in parentheses at the end ("ID
  * (Asset)") and digits at the end ("userID2") are left out. "Paid", "PAID" and "UUID" are one word,
  * not one ending in "id"; "Number of items" ends in "items". A number field named so is counted, not
@@ -73,6 +86,7 @@ const IDENTIFIER_WORDS = Object.freeze(["id", "nr", "no", "number", "key", "#"])
 export function isIdentifierName(name) {
     const words = String(name)
         .replace(/(\s*\([^()]*\))+\s*$/, "")
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
         .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
         .replace(/([A-Za-z])(\d)/g, "$1 $2")
         .replace(/#/g, " # ")
@@ -141,7 +155,7 @@ export function suggestLayout(description, options) {
     };
     const categories = fields.filter((f) => isCategory(f, SUGGEST_LIMITS.rows));
     const numbers = fields.filter((f) => f.type === "number" && !isIdentifierName(f.name));
-    const dates = fields.map((f) => ({ f, by: f.type === "date" ? dateUnitFor(dateMs(f.min), dateMs(f.max)) : null })).filter((d) => d.by);
+    const dates = fields.map((f) => ({ f, by: f.type === "date" ? (f.by ?? dateUnitFor(dateMs(f.min), dateMs(f.max))) : null })).filter((d) => d.by);
     const names = (list, but) => list.filter((f) => f !== but).map((f) => f.name);
 
     /** @type {Layout & { rows: string[], cols: string[], groups: any[] }} */
@@ -158,7 +172,7 @@ export function suggestLayout(description, options) {
         const part = first ? "cols" : "rows";
         layout[part].push(date.f.name);
         layout.groups.push({ field: date.f.name, by: date.by });
-        picks.push({ part, code: "date", field: date.f.name, by: date.by, others: dates.slice(1).map((d) => d.f.name), text: `${groupingName(date.f.name, date.by, options)}: the first date, grouped by its span` });
+        picks.push({ part, code: "date", field: date.f.name, by: date.by, others: dates.slice(1).map((d) => d.f.name), text: `${groupingName(date.f.name, date.by, options)}: the first date${date.f.by ? "" : ", grouped by its span"}` });
     } else if (first) {
         const second = categories.find((f) => f !== first && isCategory(f, SUGGEST_LIMITS.cols));
         if (second) {
@@ -277,7 +291,7 @@ const copy = (value) => JSON.parse(JSON.stringify(value));
  * @param {Layout} layout
  * @param {LayoutDescription} description
  * @param {{ locale?: string }} [options]  the names' language: German for a "de" locale, English for any other
- * @returns {{ view: Record<string, any>, name: string, notes: LayoutNote[] }}
+ * @returns {{ view: LayoutView, name: string, notes: LayoutNote[] }}
  */
 export function viewFromLayout(layout, description, options) {
     options = optionsOf(options, "viewFromLayout");
@@ -337,11 +351,11 @@ export function viewFromLayout(layout, description, options) {
                 return groups;
             }
             const f = byName.get(name.toLowerCase());
-            const by = f && f.type === "date" ? dateUnitFor(dateMs(f.min), dateMs(f.max)) : null;
+            const by = f && f.type === "date" ? (f.by ?? dateUnitFor(dateMs(f.min), dateMs(f.max))) : null;
             if (by) {
                 const group = addGroup(name, by, undefined);
                 used.add(group);
-                notes.push({ code: "dateGrouped", field: name, message: `${name} is grouped by its span: ${group}` });
+                notes.push({ code: "dateGrouped", field: name, message: `${name} is grouped${f.by ? "" : " by its span"}: ${group}` });
                 return [group];
             }
             return [name];
@@ -372,7 +386,7 @@ export function viewFromLayout(layout, description, options) {
             notes.push({ code: "unusedGroup", field: d.field, message: `the grouping ${d.name} is on no axis and in no filter: put ${d.field} on rows or columns` });
         }
     }
-    /** @type {Record<string, any>} */
+    /** @type {LayoutView} */
     const view = { version: 2, rows, cols, values, ...(derived.length ? { derived } : {}), ...(filters.length ? { filters } : {}) };
     if (layout.chart !== undefined) {
         view.display = "chart";
