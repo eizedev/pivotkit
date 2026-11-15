@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { packEntries } from "../scripts/npm-pack.js";
+import { packEntries, tarballName } from "../scripts/npm-pack.js";
 
 const script = fileURLToPath(new URL("../scripts/npm-pack.js", import.meta.url));
 
@@ -61,5 +61,29 @@ test("node scripts/npm-pack.js prints the tarball's file name of what it reads o
         const result = spawnSync(process.execPath, [script], { input: out, encoding: "utf8" });
         assert.equal(result.status, 0, result.stderr);
         assert.equal(result.stdout, "pivotkit-xlsx-0.3.1.tgz\n");
+    }
+});
+
+test("npm's error JSON, a package without a file name and text after the JSON are refused", () => {
+    const failed = `${JSON.stringify({ error: { code: "E404", summary: "Not found", detail: "" } }, null, 2)}\n`;
+    assert.throws(() => packEntries(failed), /npm pack failed: .*E404/);
+    assert.throws(() => packEntries(JSON.stringify([{ ...entry, filename: undefined }], null, 2)), /not a package from npm pack/);
+    assert.throws(() => packEntries(`${NPM12}npm notice done\n`), SyntaxError);
+});
+
+test("tarballName takes a plain .tgz name of one package only", () => {
+    assert.equal(tarballName(NPM12), "pivotkit-xlsx-0.3.1.tgz");
+    for (const filename of ["../x.tgz", "dir/x.tgz", "x.tar", "..tgz"]) {
+        assert.throws(() => tarballName(JSON.stringify([{ ...entry, filename }], null, 2)), /not a tarball's file name/, filename);
+    }
+    assert.throws(() => tarballName(JSON.stringify([entry, entry], null, 2)), /expected one package/);
+});
+
+test("node scripts/npm-pack.js exits non-zero, printing nothing on stdout, for npm's error JSON and for text after the JSON", () => {
+    const failed = `${JSON.stringify({ error: { code: "E404", summary: "Not found", detail: "" } }, null, 2)}\n`;
+    for (const out of [failed, `${NPM10}npm notice done\n`]) {
+        const result = spawnSync(process.execPath, [script], { input: out, encoding: "utf8" });
+        assert.notEqual(result.status, 0);
+        assert.equal(result.stdout, "");
     }
 });

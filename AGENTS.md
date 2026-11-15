@@ -274,8 +274,10 @@ root `package.json`: `npm run types` and the builds depend on it.
 - `scripts/check-pack.js` - checks what `npm pack` would publish (for pivotkit-cli also every example file).
 - `scripts/npm-pack.js` - `packEntries(stdout)`: the packages `npm pack --json` printed, in the
   array of npm 10 and 11 and the object keyed by workspace of npm 12, after any lines prepack logs to
-  stdout; used by `check-pack.js` and, run with the JSON on stdin, by the release workflow's Pack step
-  for the tarball's file name (`tests/npm-pack.test.js`).
+  stdout; npm's error JSON, an entry without a file name and text after the JSON are refused; used by
+  `check-pack.js` and, run with the JSON on stdin, by the release workflow's Pack step for the
+  tarball's file name (`tarballName`: one package, a plain `.tgz` name; non-zero exit else)
+  (`tests/npm-pack.test.js`).
 - `scripts/examples.js` - the example files: the playground's sales (2,000 rows) and weather data as
   Export → Source data writes them (`dataToCsvBytes`) and views of its presets as Download view
   writes them (`toViewFile`), and the print templates of `examples/report-templates/` (`TEMPLATES`, the

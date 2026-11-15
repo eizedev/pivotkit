@@ -86,6 +86,8 @@ jobs:
         env:
           PACKAGE: ${{ steps.package.outputs.name }}
         run: |
+          # a failing npm pack or a refused file name fails the step, not only the pipe's last command
+          set -o pipefail
           mkdir -p "$RUNNER_TEMP/pack"
           # the JSON with the file name goes to stdout; scripts/npm-pack.js reads it in the shape of any npm version
           file="$(npm pack --workspace "$PACKAGE" --pack-destination "$RUNNER_TEMP/pack" --json | node scripts/npm-pack.js)"
