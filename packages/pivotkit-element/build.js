@@ -226,9 +226,14 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * table writes years, the reference date's field for years after 9999, days compared by their ms; in
  * menu-ops.js, so the first load stays as it is): the menus 46.9 on a Mac (CI about 47.0, at the budget
  * of 47 after #339 and #355), budget 48 (2 % above CI, below the rule's 3 %).
+ * A print template's own colours for the chart (#369): pivotkit-report reads a template's CSS in a
+ * module of its own, template-style.js, loaded only for a template of the host's; the element's Export
+ * menu renders with the default template and never loads it (the group "template", 1.1 on a Mac,
+ * budget 1.5). What stays in the report group, the tokens' var() resolved for the chart: report 22.3 on
+ * a Mac (21.6 before; CI about 22.4), budget 23.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 22 };
+export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 1.5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -237,7 +242,8 @@ export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7
  * "texts": the menus' texts of a language besides English, "unused": the plain words of a view's
  * unused parts, English and every other language, "import": loading data with allow-import, the import
  * UI with its texts and pivotkit-core/import with its CSV and JSON readers, "report": the HTML report,
- * the chart as SVG and printing, pivotkit-report with ECharts' SVG renderer, beyond the chart group).
+ * the chart as SVG and printing, pivotkit-report with ECharts' SVG renderer, beyond the chart group;
+ * "template": pivotkit-report's reading of a print template's own CSS, which the element never loads).
  * @param {import("esbuild").Metafile} metafile
  * @returns {{ group: string, files: string[] }[]}
  */
@@ -272,9 +278,9 @@ export function loadGroups(metafile) {
     };
     scan(initial);
     const groupOf = (file) =>
-        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]report-run-[^\\/]+$/.test(file) ? "report" : /[\\/]import-(?:ui|csv|json)-[^\\/]+$/.test(file) ? "import" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : "export";
+        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]report-run-[^\\/]+$/.test(file) ? "report" : /[\\/]template-style-[^\\/]+$/.test(file) ? "template" : /[\\/]import-(?:ui|csv|json)-[^\\/]+$/.test(file) ? "import" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : "export";
     const groups = [{ group: "initial", files: [...initial] }];
-    for (const name of ["chart", "export", "link", "menus", "texts", "unused", "import", "report"]) {
+    for (const name of ["chart", "export", "link", "menus", "texts", "unused", "import", "report", "template"]) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
         groups.push({ group: name, files });
     }

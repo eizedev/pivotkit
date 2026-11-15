@@ -185,7 +185,8 @@ out of cells and rings too small for them (the tooltip has every one).
 
 With pivotkit-core alone, pass the colours and the sizes (`titleSize`, `textSize`, px) as `theme` to
 [`toEChartsOption`](core.md#output); pivotkit-report takes the tokens as `tokens`, the chart's sizes
-and the marks' corners in px.
+and the marks' corners in px, and an HTML report's chart also the tokens its
+[print template](print-template.md#template-design) sets.
 
 ## The HTML report's font sizes { #report-font-sizes }
 

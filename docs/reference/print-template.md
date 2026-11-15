@@ -86,6 +86,45 @@ Keep the Content-Security-Policy first in `<head>` in your own template: it then
 after it. The classes of `{{style}}` (`pk-report`, `pk-table`, `pk-sub`, `pk-grand`, …) can be styled
 by a `<style>` of the template after `{{style}}`.
 
+## Colours and font of your template { #template-design }
+
+Set your design once, as `--pk-*` tokens in the template's own `<style>`: the page takes them, and
+pivotkit draws the chart, its card and the table's colour scales and data bars with them. The chart
+is an image drawn before any browser sees the page, so pivotkit reads these values from the
+template:
+
+```html
+{{style}}
+<style>
+:root {
+    --brand: #7a1f5c;
+    --pk-chart-1: var(--brand);
+    --pk-chart-2: #c0392b;
+    --pk-text: #20232a;
+}
+.pk-report { font-family: "Brand Sans", system-ui, sans-serif; }
+</style>
+```
+
+| What is read | Details |
+| --- | --- |
+| Custom properties (`--pk-*`, and any `--name` they refer to with `var()`) | in rules on `:root`, `body` or `.pk-report` (also in a selector list such as `h1, .pk-report`); `:root` only after `{{style}}`, where it overrides the report's tokens on the page too |
+| `font-family` | on `.pk-report`, or on `body` after `{{style}}` |
+| Order | `.pk-report` over `body` over `:root`, and a later rule over an earlier one, as the page applies them; `!important` is ignored |
+| Left out | rules inside `@media`, `@supports` and other at-rules, a `<style media="print">` (or any media but `all`), other selectors, and a `<style>` inside a comment, `<template>` or `<script>`: the chart is drawn in the light colours, and the page is light on paper |
+
+A value is used as the page would compute it: `var(--name)` and `var(--name, fallback)` are
+resolved, `light-dark(light, dark)` gives its light colour. A value that does not resolve, refers to
+itself, is longer than 200 characters or would load something (`url(`) is left out, and the
+default (or the host's `tokens`) stands in. The template's values win over the host's
+[`tokens`](report.md#options), as on the page.
+
+Colours in any form a browser reads reach the chart's marks as they are. The heatmap mixes its scale
+itself, so `--pk-heat-low` and `--pk-heat-high` need a form ECharts reads (`#rrggbb`, `rgb(r, g, b)`,
+`hsl(h, s%, l%)` with commas); another form, such as `oklch()`, keeps the default scale. A colour
+scale or data bars in the table take `--pk-scale-low`, `--pk-scale-mid`, `--pk-scale-high` and
+`--pk-chart-1` when they resolve to `#rgb` or `#rrggbb`.
+
 ## A logo
 
 The policy loads nothing from an address, so a logo goes into the template as a `data:` image:

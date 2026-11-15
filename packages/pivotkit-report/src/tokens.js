@@ -119,15 +119,140 @@ function safeValue(value) {
     return SAFE_VALUE.test(plain) && [...plain.matchAll(/([\w-]*)\(/g)].every((m) => SAFE_FUNCTIONS.has(m[1].toLowerCase()));
 }
 
+/** The values every report starts from: the light theme, the weights, corners and sizes, the font. */
+const BASE_TOKENS = Object.freeze({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, "font-family": REPORT_FONT });
+
+/** The characters of a token's value at most (a host's and a template's). */
+const TOKEN_LENGTH = 200;
+
+/** A resolved value longer than this is dropped (a chain of var()s could grow it without bound). */
+const RESOLVED_LENGTH = 1000;
+
 /**
- * The tokens as a style the chart's code reads (getPropertyValue), the host's over the light ones.
- * @param {Record<string, string>} [tokens]
+ * Custom properties with their var() replaced, as a browser computes them: a var() takes the named
+ * property's value, else its fallback (`var(--brand, #c00)`). A property whose var() names nothing
+ * known, or that refers to itself, is left out. Each property is resolved once (memoized), so the
+ * work is linear in the text.
+ * @param {Record<string, string>} props
+ * @returns {Record<string, string>}
+ */
+export function resolveVars(props) {
+    /** @type {Map<string, string | null>} */
+    const done = new Map();
+    const resolving = new Set();
+    /** @param {string} name  @returns {string | null} */
+    const valueOf = (name) => {
+        if (done.has(name)) {
+            return /** @type {string | null} */ (done.get(name));
+        }
+        if (!Object.hasOwn(props, name) || resolving.has(name)) {
+            return null;
+        }
+        resolving.add(name);
+        const value = substitute(props[name]);
+        resolving.delete(name);
+        done.set(name, value);
+        return value;
+    };
+    /** @param {string} value  @returns {string | null} */
+    const substitute = (value) => {
+        let out = "";
+        let i = 0;
+        for (;;) {
+            const at = value.slice(i).search(/\bvar\(/i);
+            if (at === -1) {
+                out += value.slice(i);
+                return out.length <= RESOLVED_LENGTH ? out : null;
+            }
+            out += value.slice(i, i + at);
+            const open = i + at + 4;
+            // the var()'s arguments up to its closing parenthesis
+            let depth = 1;
+            let j = open;
+            while (j < value.length && depth > 0) {
+                depth += value[j] === "(" ? 1 : value[j] === ")" ? -1 : 0;
+                j++;
+            }
+            if (depth > 0) {
+                return null;
+            }
+            const args = value.slice(open, j - 1);
+            const comma = args.indexOf(",");
+            const name = (comma === -1 ? args : args.slice(0, comma)).trim();
+            const found = /^--[\w-]+$/.test(name) ? valueOf(name) : null;
+            const fallback = comma === -1 ? null : substitute(args.slice(comma + 1).trim());
+            const replaced = found ?? fallback;
+            if (replaced === null || out.length + replaced.length > RESOLVED_LENGTH) {
+                return null;
+            }
+            out += replaced;
+            i = j;
+        }
+    };
+    /** @type {Record<string, string>} */
+    const out = {};
+    for (const name of Object.keys(props)) {
+        const value = name.startsWith("--") ? valueOf(name) : props[name];
+        if (value !== null) {
+            out[name] = value;
+        }
+    }
+    return out;
+}
+
+/**
+ * The light values a report draws its chart and its cells' colours with: the defaults, the host's
+ * `tokens` over them, a template's own (template-style.js) over those, var() resolved and every value
+ * checked (cleanTokens); a value that does not resolve or is not safe keeps the default.
+ * @param {Record<string, string>} [tokens]  the host's
+ * @param {Record<string, string>} [own]  the template's (templateTokens)
+ * @returns {Record<string, string>}
+ */
+export function reportTokens(tokens = {}, own = {}) {
+    // the template's values are held to the host's length before they are resolved
+    const owned = Object.fromEntries(Object.entries(own).filter(([, value]) => typeof value === "string" && value.length <= TOKEN_LENGTH));
+    const resolved = resolveVars({ ...BASE_TOKENS, ...cleanTokens(tokens), ...owned });
+    for (const name of Object.keys(resolved)) {
+        resolved[name] = lightOf(resolved[name]);
+    }
+    return { ...BASE_TOKENS, ...cleanTokens(resolved) };
+}
+
+/**
+ * A value with every light-dark(light, dark) replaced by its light colour: the chart and the cells'
+ * colours are drawn light, and ECharts reads no light-dark(). A call that is not closed is kept as it
+ * is (cleanTokens checks it).
+ * @param {string} value
+ */
+function lightOf(value) {
+    let out = value;
+    for (let at = out.search(/\blight-dark\(/i); at !== -1; at = out.search(/\blight-dark\(/i)) {
+        const open = at + "light-dark(".length;
+        let depth = 1;
+        let comma = -1;
+        let j = open;
+        for (; j < out.length && depth > 0; j++) {
+            depth += out[j] === "(" ? 1 : out[j] === ")" ? -1 : 0;
+            if (out[j] === "," && depth === 1 && comma === -1) {
+                comma = j;
+            }
+        }
+        if (depth > 0 || comma === -1) {
+            return value;
+        }
+        out = out.slice(0, at) + out.slice(open, comma).trim() + out.slice(j);
+    }
+    return out;
+}
+
+/**
+ * Tokens as a style the chart's code reads (getPropertyValue).
+ * @param {Record<string, string>} tokens  reportTokens()
  * @returns {{ getPropertyValue(name: string): string }}
  */
-export function tokenStyle(tokens = {}) {
-    const all = { ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, "font-family": REPORT_FONT, ...cleanTokens(tokens) };
+export function tokenStyle(tokens) {
     // the chart's font without quotes (see REPORT_FONT)
-    all["font-family"] = all["font-family"].replace(/["']/g, "");
+    const all = { ...tokens, "font-family": (tokens["font-family"] ?? REPORT_FONT).replace(/["']/g, "") };
     return { getPropertyValue: (name) => (Object.hasOwn(all, name) ? all[name] : "") };
 }
 
@@ -140,7 +265,7 @@ export function cleanTokens(tokens) {
     /** @type {Record<string, string>} */
     const out = {};
     for (const [name, value] of Object.entries(tokens ?? {})) {
-        if ((/^--pk-[a-z0-9-]+$/.test(name) || name === "font-family") && typeof value === "string" && value.length <= 200 && safeValue(value)) {
+        if ((/^--pk-[a-z0-9-]+$/.test(name) || name === "font-family") && typeof value === "string" && value.length <= TOKEN_LENGTH && safeValue(value)) {
             out[name] = value.trim();
         }
     }

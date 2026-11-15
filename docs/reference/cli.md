@@ -91,7 +91,7 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--sheet <name>` | | The sheet of a workbook. Without it: the sheet the view names (`source.params.sheet`, written by the report for a view made on a workbook's sheet), else the first visible one; for data that is no workbook a warning `ignoredOption`. [More](#the-sheet-of-a-workbook) |
 | `-f, --format html\|csv\|json\|xlsx\|svg` | render | Default: the extension of `-o` (`.htm` is `html`); another extension, or none, is a usage error. On stdout `html`. |
 | `-o, --output <file>` | render | Write here instead of stdout. A regular file there is replaced whole; a link, a directory or a device is refused. Its directory must exist. The data file, the view file (also by another name: a link to its directory, another case of its name) and `-` are a usage error (stdout is where the output goes without `-o`). |
-| `--template <file>` | render | `html`: a [print template](print-template.md). |
+| `--template <file>` | render | `html`: a [print template](print-template.md); its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). |
 | `--title <text>` | render | `html`, `xlsx`: the report's title (default the view file's name). |
 | `--chart auto\|on\|off` | render | `html`: the chart above the table (`auto`: when the view shows the chart). |
 | `--width`, `--height <px>` | render | `svg`, `html`: the chart's size (800 x 480). |

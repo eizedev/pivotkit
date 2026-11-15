@@ -186,6 +186,11 @@ test("the HTML report, the SVG and printing load on first use: pivotkit-report i
             assert.ok(!inputsOf(groups[other]).some((i) => i.includes(name)), `${name} is in ${other}`);
         }
     }
+    // reading a print template's own CSS (a host's template only) is a chunk of its own, never loaded with the report
+    assert.ok(inputsOf(groups.template).some((i) => i.includes("pivotkit-report/src/template-style.js")), "template-style.js is not a group of its own");
+    for (const other of ["initial", "menus", "report", "export"]) {
+        assert.ok(!inputsOf(groups[other]).some((i) => i.includes("pivotkit-report/src/template-style.js")), `template-style.js is in ${other}`);
+    }
 });
 
 test("loading data (allow-import) loads on first use: the import UI, its texts and the readers are no part of the first load or the menus", () => {

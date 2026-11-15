@@ -13,15 +13,16 @@ import { DARK_TOKENS, LIGHT_TOKENS, REPORT_FONT, SHAPE_TOKENS, SIZE_TOKENS, WEIG
 export const PRINT_WIDE = Object.freeze({ landscape: 8, small: 16 });
 
 /**
- * @param {{ columns: number, tokens?: Record<string, string>, extra?: string }} options
- *   columns: the table's; tokens: the host's (cleaned), over the light ones; extra: the cells' colour rules
+ * @param {{ columns: number, tokens?: Record<string, string>, chartSurface?: string, extra?: string }} options
+ *   columns: the table's; tokens: the host's (cleaned), over the light ones; chartSurface: the light
+ *   surface the chart's image is drawn on (tokens.js reportTokens, a template's own included); extra:
+ *   the cells' colour rules
  */
-export function reportCss({ columns, tokens = {}, extra = "" }) {
+export function reportCss({ columns, tokens = {}, chartSurface = { ...LIGHT_TOKENS, ...tokens }["--pk-surface"], extra = "" }) {
     const font = tokens["font-family"] ?? REPORT_FONT;
     const light = declarations({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, ...tokens });
-    // the chart is drawn in the light colours (the host's), on a screen in dark mode too: its card keeps
-    // the light surface the chart's image is drawn on
-    const chartSurface = { ...LIGHT_TOKENS, ...tokens }["--pk-surface"];
+    // the chart is drawn in the light colours, on a screen in dark mode too: its card keeps the light
+    // surface the chart's image is drawn on
     const page = columns > PRINT_WIDE.landscape ? "size:landscape;" : "";
     return `:root{${light};color-scheme:light dark}
 @media screen and (prefers-color-scheme:dark){:root{${declarations(DARK_TOKENS)}}}
