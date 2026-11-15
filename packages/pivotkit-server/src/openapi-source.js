@@ -57,7 +57,7 @@ const INVISIBLE = /(?![\u200c\u200d])\p{Cf}/gu;
 /**
  * Whether a document's value looks like a credential, whatever the parameter's name: a known token
  * prefix followed by at least 16 token characters (OpenAI and Stripe sk-/sk_/pk-/rk-, GitHub ghp_ and
- * github_pat_, Slack xox?-, AWS AKIA and ASIA, Google AIza and ya29., GitLab glpat-, SendGrid SG.,
+ * github_pat_, Hugging Face hf_, Slack xox?-, AWS AKIA and ASIA, Google AIza and ya29., GitLab glpat-, SendGrid SG.,
  * Shopify shpat_, DigitalOcean dop_v1_), a JWT, or a run of 32 or more token characters with both
  * letters and digits that is no UUID (a long kebab-case word is no key). Such an example or list of
  * values is not copied; dropping an example is harmless, copying a key is not.
@@ -72,7 +72,7 @@ export function looksSecret(value) {
     }
     return LONG_TOKEN.test(value) && /\d/.test(value) && /[A-Za-z]/.test(value) && !UUID.test(value);
 }
-const SECRET_PREFIX = /^(?:(?:sk|pk|rk)[-_]|gh[pousr]_|github_pat_|xox[abposr]-|AKIA|ASIA|AIza|glpat-|ya29\.|SG\.|shpat_|dop_v1_)[A-Za-z0-9+/=_.-]{16,}$/;
+const SECRET_PREFIX = /^(?:(?:sk|pk|rk)[-_]|gh[pousr]_|github_pat_|xox[abposr]-|AKIA|ASIA|AIza|glpat-|hf_|ya29\.|SG\.|shpat_|dop_v1_)[A-Za-z0-9+/=_.-]{16,}$/;
 const JWT = /^eyJ[\w-]+\.[\w-]+\./;
 const LONG_TOKEN = /^[A-Za-z0-9+/=_.-]{32,}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

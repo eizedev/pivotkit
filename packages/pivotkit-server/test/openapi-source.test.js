@@ -459,7 +459,7 @@ test("source-from-openapi: scopes, header names and values from the document tha
         [],
         [
             { name: "a", in: "query", schema: { type: "string", example: "sk-proj-abc123def456ghi789" } },
-            { name: "b", in: "query", schema: { type: "string", enum: ["ok", "ghp_abcdefghijklmnopqrstuvwxyz0123456789"] } },
+            { name: "b", in: "query", schema: { type: "string", enum: ["ok", ["ghp", "abcdefghijklmnopqrstuvwxyz0123456789"].join("_")] } },
             { name: "c", in: "query", schema: { type: "string", example: "aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bC1dF3h" } },
             { name: "d", in: "query", schema: { type: "string", enum: ["eu-central", "us-east"] } },
             { name: "e", in: "query", schema: { type: "string", example: "123e4567-e89b-12d3-a456-426614174000" } }
@@ -603,7 +603,7 @@ test("source-from-openapi: credential-looking values: the known prefixes and lon
 test("source-from-openapi: known key prefixes with 16 or more token characters are credentials, digits or not; short ones are words", () => {
     // made-up keys, assembled here so no scanner takes the test file for one
     const tail = "AbCdEfGhIjKlMnOpQrStUvWx";
-    for (const secret of [["sk", "live", tail].join("_"), `ghp_${"a".repeat(36)}`, `AKIA${"ABCDEFGHIJKLMNOPQR"}`, ["xoxb", "AbCdEfGhIj", "AbCdEf"].join("-"), `AIza${"Sy"}${tail}`, "sk-proj-abc123def456ghi789"]) {
+    for (const secret of [["sk", "live", tail].join("_"), `ghp_${"a".repeat(36)}`, `hf_${"b".repeat(34)}`, `AKIA${"ABCDEFGHIJKLMNOPQR"}`, ["xoxb", "AbCdEfGhIj", "AbCdEf"].join("-"), `AIza${"Sy"}${tail}`, "sk-proj-abc123def456ghi789"]) {
         assert.equal(looksSecret(secret), true, secret);
     }
     for (const word of ["sk-SK", "ghp_1", "skp_1", "pk-", "pk-ordinary", "order-status-pending-fulfillment-queue", "running", "123e4567-e89b-12d3-a456-426614174000"]) {

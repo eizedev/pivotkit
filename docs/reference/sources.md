@@ -791,7 +791,7 @@ text the model will read": an API's documentation can hold instructions meant fo
 
 A parameter whose name looks like a credential's (`key`, `token`, `secret`, `auth`, `pass`) keeps
 no example and no list of values, nor does a parameter whose example or values look like one (a
-known token prefix such as `sk-`, `ghp_`, `xoxb-`, `AKIA`, `AIza`, `ya29.` or `SG.` followed by at least 16 token characters,
+known token prefix such as `sk-`, `ghp_`, `hf_`, `xoxb-`, `AKIA`, `AIza`, `ya29.` or `SG.` followed by at least 16 token characters,
 a JWT, or 32 or more token characters with letters and digits that are no UUID); a note names each
 one. A query parameter in which the document's own security scheme sends an API key is
 left out: a credential never comes from a caller.
