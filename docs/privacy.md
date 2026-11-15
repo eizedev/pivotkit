@@ -170,9 +170,9 @@ The server keeps in its memory, never on disk:
 
 Data in memory goes with a restart.
 
-For code and HTTP sources (CSV and JSON), what the server keeps holds no hidden column: not the
-loads it keeps per person, not the data sets a compute worker keeps, not the notes of a read, for a
-signed-in person as for a caller whose data is not kept. To drop a column, though, the server reads
+For code sources, HTTP sources (CSV and JSON) and CSV files, what the server keeps holds no hidden
+column: not the loads it keeps per person, not the data sets a compute worker keeps, not the notes
+of a read, for a signed-in person as for a caller whose data is not kept. To drop a column, though, the server reads
 all of the data first: a code source's rows as `load` returns them, and an HTTP source's body and,
 for JSON, its parsed rows in the main thread; for CSV, the decoded text and every cell in the worker
 that reads it. These are freed once the data is read, and freed memory can hold their values until
@@ -189,8 +189,10 @@ kept loads, in the worker's data sets, or among the texts and boxed numbers the 
 worker still reach (a heap snapshot of each), while it finds every shown value and values kept on
 purpose. A heap snapshot does not show numbers held unboxed (in a double array, or as small
 integers), so hidden numbers are checked in the kept loads and the worker's data sets only: numbers
-held unboxed outside the kept data are not seen. File sources and data sent in a request are not
-part of the test.
+held unboxed outside the kept data are not seen. A second part reads a 16 MB CSV whose hidden
+column is most of it, through a file source and as an HTTP source's answer, and checks that the
+memory still in use afterwards is well below the file's size, so the kept data set holds no part of
+the text it was read from. Data sent in a request is not part of the test.
 
 ## check-config and check-source { #check-output }
 

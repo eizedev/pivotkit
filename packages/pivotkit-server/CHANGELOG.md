@@ -384,8 +384,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 - A compute worker's kept data set of a CSV (an HTTP source's answer or a file) no longer keeps the
   whole text it was read from in memory, the columns the policy hides included: its texts were
-  slices of that text, which V8 keeps alive whole. The data set's texts are copies of their own
-  ([#456](https://github.com/eizedev/pivotkit/issues/456)).
+  slices of that text, which V8 keeps alive whole. The data set's texts are copies of their own, and
+  a read ends by replacing the subject V8 keeps of the last regular expression run, which on Node 22
+  and 24 kept the whole text too ([#456](https://github.com/eizedev/pivotkit/issues/456)).
 - REST: `inline:` from a caller without `data: true` is 403 `NOT_ALLOWED` on every route that takes
   a source, on a server that offers data to no profile in MCP's words ("this server takes no data
   sent in the request ..."), instead of 400 `INVALID_INPUT` "input has no key \"data\""

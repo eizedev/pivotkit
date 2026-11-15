@@ -90,7 +90,10 @@ export function keptDataSets() {
             } else if (v instanceof ArrayBuffer || v instanceof SharedArrayBuffer) {
                 out.bytes.push(new Uint8Array(v).slice());
             } else {
-                stack.push(...(v instanceof Map ? [...v.entries()].flat() : v instanceof Set ? [...v] : Object.values(v)));
+                // one by one: a spread of a large dictionary would overflow the call's arguments
+                for (const item of v instanceof Map ? [...v.entries()].flat() : v instanceof Set ? [...v] : Object.values(v)) {
+                    stack.push(item);
+                }
             }
         }
     }
@@ -158,32 +161,39 @@ const SLICED_FROM = 13;
  * copies of their own, in place, before it is kept, so the data set holds nothing of the text it was
  * read from. Typed arrays and functions are left as they are.
  * @param {unknown} value
- * @param {Set<object>} [seen]
  */
-function ownTexts(value, seen = new Set()) {
-    if (value === null || typeof value !== "object" || seen.has(value) || ArrayBuffer.isView(value) || Object.isFrozen(value)) {
-        return;
-    }
-    seen.add(value);
+export function ownTexts(value) {
     const own = (v) => (typeof v === "string" && v.length >= SLICED_FROM ? ` ${v}`.slice(1) : v);
-    if (Array.isArray(value)) {
-        for (let i = 0; i < value.length; i++) {
-            value[i] = own(value[i]);
-            ownTexts(value[i], seen);
+    const seen = new Set();
+    // an explicit stack, not recursion: any depth
+    const stack = [value];
+    while (stack.length) {
+        const v = stack.pop();
+        if (v === null || typeof v !== "object" || seen.has(v) || ArrayBuffer.isView(v) || Object.isFrozen(v)) {
+            continue;
         }
-        return;
-    }
-    if (Object.getPrototypeOf(value) !== Object.prototype) {
-        return;
-    }
-    for (const [k, v] of Object.entries(value)) {
-        if (typeof v === "string") {
-            value[k] = own(v);
-        } else {
-            ownTexts(v, seen);
+        seen.add(v);
+        if (Array.isArray(v)) {
+            for (let i = 0; i < v.length; i++) {
+                v[i] = own(v[i]);
+                stack.push(v[i]);
+            }
+        } else if (Object.getPrototypeOf(v) === Object.prototype) {
+            for (const [k, item] of Object.entries(v)) {
+                v[k] = own(item);
+                stack.push(v[k]);
+            }
         }
     }
 }
+
+/**
+ * V8 keeps the subject of the last regular expression run (for RegExp.lastMatch and its kin). After
+ * a read that is a slice of the file's text (a cell, a column name), which keeps the whole text alive
+ * until another expression runs, the hidden columns included. A run on an empty text replaces it;
+ * every read here ends with it, also one that fails.
+ */
+const forgetLastSubject = () => void /$/.exec("");
 
 /** Keeps a data set, the oldest going first, at most CACHE_ENTRIES and cacheBytes; one larger than all of it is not kept. */
 function remember(key, value) {
@@ -262,6 +272,8 @@ export async function fileData(spec) {
         }
         // the operator's file name stays on the server: the message names the source
         throw error.code === "FILE_NOT_AVAILABLE" ? new OperationError("FILE_NOT_AVAILABLE", `the source ${spec.name} is not available now; tell the operator`) : new OperationError(/** @type {any} */ (error.code), error.message.split(basename(spec.path ?? "")).join(spec.name));
+    } finally {
+        forgetLastSubject();
     }
 }
 
@@ -518,8 +530,12 @@ export async function uploadData(spec, upload, key, asOf = null) {
     if (key !== null && cache.has(key)) {
         return { ...remember(key, cache.get(key)), name: spec.name, schedulable: spec.schedulable };
     }
-    const read = await readUpload(spec, upload);
-    return tableData(spec, read.table, key, asOf, read.notes);
+    try {
+        const read = await readUpload(spec, upload);
+        return tableData(spec, read.table, key, asOf, read.notes);
+    } finally {
+        forgetLastSubject();
+    }
 }
 
 /**
@@ -535,6 +551,15 @@ export async function uploadData(spec, upload, key, asOf = null) {
  * @returns {Promise<{ table: import("./packed.js").PackedTable, notes: import("pivotkit-report/operations").Finding[] }>}
  */
 export async function packedUpload(spec, upload, key, asOf) {
+    try {
+        return await packedRead(spec, upload, key, asOf);
+    } finally {
+        forgetLastSubject();
+    }
+}
+
+/** packedUpload's work. */
+async function packedRead(spec, upload, key, asOf) {
     const read = await readUpload(spec, upload);
     const { table } = read;
     const hide = hiddenOf(spec.levels, table.columns);

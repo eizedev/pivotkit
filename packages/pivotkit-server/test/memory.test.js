@@ -75,3 +75,31 @@ test("a context made the way the server makes it (no COMPUTE_HOOKS) has no look 
         await context.close();
     }
 });
+
+test("ownTexts and the worker's look take any depth and any size: a structure nested 200,000 levels, a dictionary of 150,000 texts", async () => {
+    const { ownTexts, keptDataSets, tableData } = await import("../src/data.js");
+    let deep = ["a text of more than thirteen characters"];
+    for (let i = 0; i < 200_000; i++) {
+        deep = [deep];
+    }
+    assert.doesNotThrow(() => ownTexts(deep));
+    // a kept data set whose dictionary holds 150,000 texts
+    const values = Array.from({ length: 150_000 }, (_, i) => `customer-number-${i}`);
+    const spec = { id: "big", kind: "inline", name: "big", schedulable: false, levels: { default: "show", fields: {} }, limits: {} };
+    tableData(/** @type {any} */ (spec), { columns: ["Customer"], rows: values.map((v) => [v]) }, "big-dictionary");
+    const kept = keptDataSets();
+    assert.ok(kept.texts.length >= 150_000, String(kept.texts.length));
+});
+
+test("a kept data set of a CSV holds only its own values, not the file's text: through a file source and an HTTP source's answer, a 16 MB CSV whose hidden column is most of it", () => {
+    const PROBE_READ = fileURLToPath(new URL("./memory/read-probe.mjs", import.meta.url));
+    for (const mode of ["file", "upload"]) {
+        const run = spawnSync(process.execPath, ["--expose-gc", PROBE_READ, mode], { encoding: "utf8", timeout: 120_000 });
+        assert.equal(run.status, 0, run.stderr);
+        const { fileBytes, retained, columns } = JSON.parse(run.stdout.trim().split("\n").at(-1) ?? "");
+        assert.deepEqual(columns, ["order_identifier", "sales_region_name", "customer_full_name"], mode);
+        assert.ok(fileBytes > 5_000_000, String(fileBytes));
+        // the shown values take about 5 MB; the text the data set was read from would add all of the file
+        assert.ok(retained < fileBytes / 2, `${mode}: ${(retained / 1e6).toFixed(1)} MB kept after reading ${(fileBytes / 1e6).toFixed(1)} MB`);
+    }
+});
