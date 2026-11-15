@@ -8,6 +8,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The rules in a field's Filter level show in WebKit 27.2 (Safari's engine, as Playwright 1.65 ships
+  it): the rule list stacked in a wrapping column got no size there, so a new rule's row and its
+  value field could not be seen or used. The rules form is a single column as wide as the menu, each
+  row with room for its value, in every browser ([#474](https://github.com/eizedev/pivotkit/issues/474)).
 - Export → HTML report carries the host's dark colours too (pivotkit-report's `darkTokens`), read
   from the report's dark theme whichever theme it shows: a reader on a dark screen sees the host's
   dark design, not pivotkit's default dark colours. Paper and a print stay light. The report's
