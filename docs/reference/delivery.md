@@ -263,7 +263,9 @@ With `bind: "signIn"` the presign request carries `subject`: the same binding a 
 the HMAC of the caller's issuer and subject under `output.downloads.key` (never the subject itself),
 so your presign service can scope the object to the person and check it when they open the link.
 Set `output.downloads.key` for a binding that stays the same across restarts and replicas; over
-stdio, or when the key cannot be read, no `subject` is sent. A `signIn` link is only as strong as the
+stdio, or when the key cannot be read, no `subject` is sent. Without `output.downloads.key` the server
+uses a random key per process, so the binding changes on every restart and differs between replicas
+(`check-config` warns of it). A `signIn` link is only as strong as the
 store's own access control: pivotkit declares the binding, it does not verify it.
 
 What is checked: every request goes through the same guarded fetch as [HTTP sources](sources.md#http)

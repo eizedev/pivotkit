@@ -608,6 +608,11 @@ test("check-config: where reports go and which go there", async () => {
     assert.match(once.text, /up to 50 MiB, 30 s/);
     assert.match(once.text, /reports over closed sources \(closed\): store links \(bind once: you declared that each link works once\).*; REST programs get them only with results: true/);
     assert.match(once.text, /warning: one-time store links/);
+    assert.doesNotMatch(once.text, /subject binding/);
+    const signIn = await checkConfig({ ...presignOptions({ bind: "signIn" }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x" } });
+    assert.match(signIn.text, /warning: output\.downloads\.key is not set: the subject binding the presign service receives changes on every restart and differs between replicas; set output\.downloads\.key/);
+    const keyed = await checkConfig({ ...presignOptions({ bind: "signIn" }, { downloads: { key: { env: "K" } } }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x", K: DL_KEY } });
+    assert.doesNotMatch(keyed.text, /subject binding/);
     assert.doesNotMatch(once.text, /PROBLEM/);
     assert.ok(existsSync(join(dir, "data", "sales.csv")));
     // an address's query is not printed: it may hold a signature

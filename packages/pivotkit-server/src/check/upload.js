@@ -36,6 +36,7 @@ async function hostLine(host, intranet, key) {
         return `PROBLEM: ${key}: ${bare} is an IP address, which uploads refuse; name the server`;
     }
     /** @type {Array<{ address: string }> | null} */
+    // the lookup itself cannot be cancelled and may outlive the 3 s wait: harmless in a command that ends
     const addresses = await Promise.race([lookup(bare, { all: true }), new Promise((resolve) => setTimeout(() => resolve(null), LOOKUP_MS).unref())]).catch(() => null);
     if (!addresses?.length) {
         return `warning: ${key}: ${bare} cannot be looked up from here; the upload checks its addresses when it runs`;
@@ -105,6 +106,9 @@ export async function section(options, registry, runtime) {
                 lines.push("  warning: one-time store links: anyone who sees the link can use it once, including an assistant with a browser or code tool");
             }
         }
+    }
+    if (settings.bind === "signIn" && !options.output?.downloads?.key) {
+        lines.push("  warning: output.downloads.key is not set: the subject binding the presign service receives changes on every restart and differs between replicas; set output.downloads.key");
     }
     lines.push(settings.keepLocal ? "  the report stays in output.dir too" : "  the report is removed from output.dir once the store has it (a failed upload keeps it until it is cleaned up)");
     lines.push("  schedule drafts are not uploaded (the host approves them in output.dir)");
