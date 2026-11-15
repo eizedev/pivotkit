@@ -41,6 +41,7 @@ npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token   # http://12
 | --- | --- |
 | Set it up in Claude Code, Claude Desktop, VS Code, for a team, in PowerShell Universal | [Getting started: MCP server](https://pivotkit.eize.dev/getting-started/mcp/) |
 | Tools, exposure policy, configuration, errors, logging, HTTP, authentication | [pivotkit-mcp reference](https://pivotkit.eize.dev/reference/mcp/) |
+| Run it with pivotkit-server on Kubernetes, sign-in with Authentik | [Kubernetes](https://pivotkit.eize.dev/getting-started/kubernetes/) |
 | Update it (with pivotkit-server), the plugin, and what changes between releases | [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#update) |
 | What it protects against and what not | [Security: the MCP server](https://pivotkit.eize.dev/security/#mcp) |
 | Changes | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-mcp/CHANGELOG.md) |

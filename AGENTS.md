@@ -202,7 +202,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   `npm ci --omit=dev --ignore-scripts` of pivotkit-server, pivotkit-mcp and pivotkit-cli from the root
   lock file, the CLI's example files, onto a distroless Node 22 image by digest, user 10001,
   `HEALTHCHECK`), `pivotkit.example.json` and `compose.example.yml` (the docs' example, also the CI's
-  smoke test); `.github/workflows/image.yml` builds and runs it on pull requests and publishes it to
+  smoke test), `kubernetes.example.yaml` (the example manifest of `docs/getting-started/kubernetes.md`,
+  which shows its parts marked `--8<--` through the snippets extension; check it with kubeconform
+  `-strict` after a change); `.github/workflows/image.yml` builds and runs it on pull requests and publishes it to
   GHCR on `pivotkit-server@*` tags (multi-arch, provenance, SBOM, cosign).
 - `examples/angular/` - a minimal Angular app (standalone component, zoneless, `CUSTOM_ELEMENTS_SCHEMA`)
   with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled,

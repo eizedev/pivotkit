@@ -127,7 +127,8 @@ source and may use which tool.
 
 To serve programs too, run `pivotkit-server serve --config pivotkit-mcp.json --auth token` (with
 `pivotkit-mcp` installed beside it) instead: the same `/mcp` endpoint and the
-[REST service](rest.md) at `/api/v1` on one port, also as a [container image](../reference/container.md).
+[REST service](rest.md) at `/api/v1` on one port, also as a [container image](../reference/container.md)
+and [on Kubernetes](kubernetes.md).
 Its one static token is `$PIVOTKIT_TOKEN`.
 
 ## PowerShell Universal { #psu }
