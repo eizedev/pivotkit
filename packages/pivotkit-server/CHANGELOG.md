@@ -282,6 +282,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Changed
 
+- check-config's "New in this version" also names, where they apply: the client's IP address on the
+  log's request lines (`log.address: "off"`), a start error as a JSON line over HTTP
+  (`log.format: "text"`), and the `/downloads/` route, answered without a token since the link is
+  the credential, wherever download links are on, also before a report gets one
+  (`output.downloads.enabled: false`) ([#452](https://github.com/eizedev/pivotkit/issues/452)).
 - `check-config` says first whether the server starts and how many problems and warnings it found,
   then every `PROBLEM` with what it does (`-> the server does not start`, or what fails while the
   server runs), then every `WARNING` named by its section, then the sections: one fact per line

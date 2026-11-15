@@ -168,6 +168,8 @@ async function links(options, registry, runtime) {
         items.push(plain(`download links: off (${options.output?.downloads?.enabled === false ? "output.downloads.enabled is false" : "no output.dir"})`));
         return { items, upgrade };
     }
+    // the route is served wherever links are on, also before any report gets one
+    upgrade.push(`download links under ${DOWNLOADS_PATH}/, answered without a token (the link is the credential; output.downloads.enabled: false switches them off)`);
     const host = options.http?.host ?? "127.0.0.1";
     const publicUrl = options.http?.publicUrl ? options.http.publicUrl.replace(/\/$/, "") : null;
     if (!publicUrl && !isLoopback(host)) {
@@ -246,7 +248,7 @@ async function links(options, registry, runtime) {
         }
     }
     if (linking) {
-        upgrade.push(`download links under ${DOWNLOADS_PATH}, their reports stored with a random prefix (output.name; output.downloads.enabled: false switches them off)`);
+        upgrade.push(`reports with a link stored with a random prefix (output.name)`);
     }
     return { items, upgrade };
 }

@@ -540,8 +540,13 @@ Sources (1):
 Auth: token
   token export from $PIVOTKIT_TOKEN: all scopes, profile export
 
-New in this version: data in the request (inline:; mcp.data: false switches
-    it off), reports deleted after 30 days (output.maxAgeDays: 0 keeps them)
+New in this version: data in the request (inline:; mcp.data: false switches it
+    off), download links under /downloads/, answered without a token (the link
+    is the credential; output.downloads.enabled: false switches them off),
+    reports deleted after 30 days (output.maxAgeDays: 0 keeps them), the
+    client's IP address on the log's request lines (log.address: "off" leaves
+    it out), a start error as a JSON line where stderr is no terminal
+    (log.format: "text" keeps the plain line)
     -> https://pivotkit.eize.dev/getting-started/upgrading/
 ```
 
