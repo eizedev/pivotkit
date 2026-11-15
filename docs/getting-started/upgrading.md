@@ -120,7 +120,9 @@ new image before you restart. Pulling a tag does not change a running container;
     Write the exact version or the digest into the manifest, never `latest` or `<major>.<minor>`:
     with `latest` Kubernetes pulls on every start (`imagePullPolicy` defaults to `Always`), and with
     another tag a node that pulled it once keeps that image (`IfNotPresent`). To update, change the
-    tag and apply the manifest again (or `kubectl set image`).
+    tag and apply the manifest again (or `kubectl set image`). The example of
+    [Kubernetes](kubernetes.md) replaces the pod (`strategy: Recreate`), as one output directory
+    takes one server process.
 
 Check the versions inside the image:
 

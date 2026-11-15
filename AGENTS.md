@@ -112,11 +112,17 @@ root `package.json`: `npm run types` and the builds depend on it.
   `src/template.js` (`pivotkit-report/template`: the print template's tokenizer, `PLACEHOLDERS`,
   `ATTRIBUTES`; a placeholder only in text and allowed attributes, else `INVALID_TEMPLATE`),
   `src/default-template.js` (`DEFAULT_TEMPLATE`, `REPORT_CSP`), `src/report-css.js` (the report's
-  stylesheet and print rules), `src/tokens.js` (`LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`,
+  stylesheet and print rules; its dark-screen rules through `darkScreen`: the system's dark theme
+  unless the root pins `data-pk-theme="light"`, and `data-pk-theme="dark"` on any screen, never on
+  paper), `src/tokens.js` (`LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`,
   `SHAPE_TOKENS`: a kept copy of pivotkit-react's `styles.css` values, `test/tokens.test.js` compares
   them, and `DEFAULT_THEME`'s with them; `SIZE_TOKENS`, the HTML report's own font sizes), `src/texts.js`
   (`REPORT_TEXTS`, en and de), `src/svg.js` (the chart through ECharts' server-side SVG renderer, the
-  ECharts module passed in as `options.echarts`; `cleanSvg` checks and cleans it). `test/golden/`
+  ECharts module passed in as `options.echarts`; `cleanSvg` checks and cleans it). `test/contrast.test.js`
+  holds the report's colours in both themes to WCAG AA (text on its surfaces, a theme's colour scale
+  and data bars as `report-css.js` mixes them, `SCALE_MIX`, `BAR_MIX`); the root's
+  `tests/browser/report-theme.spec.js` measures the default report in both colour schemes, on screen
+  and in print, in three engines. `test/golden/`
   holds CSV, JSON and HTML golden files (`-text` in `.gitattributes`; rebuild with
   `PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report` and review the diff); the SVG is checked by
   its structure, the XLSX by reading it back (#163). ECharts is an optional peer dependency.
@@ -221,7 +227,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   `npm ci --omit=dev --ignore-scripts` of pivotkit-server, pivotkit-mcp and pivotkit-cli from the root
   lock file, the CLI's example files, onto a distroless Node 22 image by digest, user 10001,
   `HEALTHCHECK`), `pivotkit.example.json` and `compose.example.yml` (the docs' example, also the CI's
-  smoke test); `.github/workflows/image.yml` builds and runs it on pull requests and publishes it to
+  smoke test), `kubernetes.example.yaml` (the example manifest of `docs/getting-started/kubernetes.md`,
+  which shows its parts marked `--8<--` through the snippets extension; check it with kubeconform
+  `-strict` after a change); `.github/workflows/image.yml` builds and runs it on pull requests and publishes it to
   GHCR on `pivotkit-server@*` tags (multi-arch, provenance, SBOM, cosign).
 - `examples/angular/` - a minimal Angular app (standalone component, zoneless, `CUSTOM_ELEMENTS_SCHEMA`)
   with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled,

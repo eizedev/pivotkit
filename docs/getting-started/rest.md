@@ -197,7 +197,7 @@ try {
 
 - [pivotkit-server (REST)](../reference/rest.md): every route, profiles, sign-in with OAuth, CORS, limits, errors.
 - The OpenAPI document of your service: `GET /openapi.json` with a token.
-- [Container image](../reference/container.md): the same service in Docker or Kubernetes.
+- [Container image](../reference/container.md): the same service in Docker; [Kubernetes](kubernetes.md): with the MCP server, an Ingress and sign-in.
 - [Update an installation](upgrading.md#update): a new release of the service, the image or the CLI.
 - The command line against this service: [pivotkit-cli with a server](../reference/cli.md#with-a-server).
 - [Getting started: MCP server](mcp.md): the same sources for an AI client.

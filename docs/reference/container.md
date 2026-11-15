@@ -124,31 +124,9 @@ ready again.
 
 ## Kubernetes { #kubernetes }
 
-```yaml
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 10001
-  runAsGroup: 10001
-  fsGroup: 10001
-containers:
-  - name: pivotkit
-    image: ghcr.io/eizedev/pivotkit:<version>
-    ports: [{ containerPort: 3333 }]
-    securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
-    readinessProbe: { httpGet: { path: /readyz, port: 3333, httpHeaders: [{ name: Host, value: localhost }] } }
-    livenessProbe: { httpGet: { path: /healthz, port: 3333, httpHeaders: [{ name: Host, value: localhost }] } }
-    volumeMounts:
-      - { name: config, mountPath: /config, readOnly: true }
-      - { name: data, mountPath: /data, readOnly: true }
-      - { name: out, mountPath: /out }
-      - { name: tokens, mountPath: /run/secrets, readOnly: true }
-      - { name: tmp, mountPath: /tmp }
-terminationGracePeriodSeconds: 30
-```
-
-A probe sends the pod's IP as its `Host` by default, which the server refuses: send `localhost` as
-above. The limits of the REST service are counted per process: with more than one replica each counts
-on its own.
+[Kubernetes](../getting-started/kubernetes.md) has a complete example manifest and explains it: the
+pod's security settings, probes with `Host: localhost`, getting data files into `/data`, memory per
+worker, Service, Ingress, NetworkPolicy and sign-in with an identity provider.
 
 ## Check the image { #verify }
 

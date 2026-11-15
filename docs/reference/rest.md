@@ -349,7 +349,7 @@ pivotkit-server's.
 ## Running it { #running }
 
 `pivotkit-server` is one command for the REST service, the MCP server and the command line, as the
-[container image](container.md) runs them:
+[container image](container.md) runs them ([on Kubernetes](../getting-started/kubernetes.md)):
 
 | Command | What it does |
 | --- | --- |

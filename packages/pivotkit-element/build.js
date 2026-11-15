@@ -226,9 +226,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * table writes years, the reference date's field for years after 9999, days compared by their ms; in
  * menu-ops.js, so the first load stays as it is): the menus 46.9 on a Mac (CI about 47.0, at the budget
  * of 47 after #339 and #355), budget 48 (2 % above CI, below the rule's 3 %).
+ * The HTML report on a dark screen (#370): the dark rules under the root's data-pk-theme guard, for the
+ * system's dark theme and for a root that asks for dark, and the colour scale's dark colour mixed by
+ * one rule per half from each cell's place: report 21.9 on a Mac (21.6 before; CI 22.0, at the budget),
+ * and with the template's colours for the chart (#369) about 22.1 to 22.3: budget 22.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 22 };
+export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 22.5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

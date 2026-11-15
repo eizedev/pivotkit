@@ -1,0 +1,397 @@
+# An example for Kubernetes (docs/getting-started/kubernetes.md, which explains every part): the REST
+# service and the MCP server of the container image in the namespace pivotkit, one replica, the data
+# on a ReadWriteMany volume that a CronJob fills, reports on a volume of their own, an Ingress, and
+# NetworkPolicies. Before applying it, replace:
+#   - <version> with a release of pivotkit-server (e.g. 0.1.1), or a digest;
+#   - reports.example.com with the host name clients use;
+#   - the CronJob's SOURCE_URL with where your data comes from, and the addresses of that host and
+#     of your cluster DNS in the NetworkPolicies;
+#   - the namespace of your ingress controller in the NetworkPolicy pivotkit;
+#   - where needed: the Ingress's ingressClassName, its TLS Secret pivotkit-tls, and the
+#     storageClassName of pivotkit-data (a class that offers ReadWriteMany).
+# The token is a Secret you create yourself (never in this file):
+#   kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
+# The CronJob sends the header in the optional Secret pivotkit-source (key "header", e.g.
+# "Authorization: Bearer ...") when the data's host needs one.
+# The --8<-- lines mark the parts the docs page shows.
+# --8<-- [start:namespace]
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pivotkit
+  labels:
+    # every pod here must meet the restricted Pod Security Standard
+    pod-security.kubernetes.io/enforce: restricted
+# --8<-- [end:namespace]
+---
+# --8<-- [start:config]
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pivotkit-config
+  namespace: pivotkit
+data:
+  pivotkit.json: |
+    {
+      "sources": {
+        "sales": { "file": "/data/sales.csv", "title": "Sales", "policy": { "fields": { "Region": "show", "Product": "show", "Customer": "hide" } } }
+      },
+      "output": { "dir": "/out", "maxAgeDays": 7 },
+      "auth": {
+        "mode": "token",
+        "tokens": [ { "name": "reports", "file": "/run/secrets/pivotkit/reports" } ]
+      },
+      "http": {
+        "publicUrl": "https://reports.example.com/",
+        "trustProxy": true
+      }
+    }
+# --8<-- [end:config]
+---
+# --8<-- [start:volumes]
+# The data: written by the CronJob, read by every pivotkit pod, so ReadWriteMany (NFS, CephFS, a cloud
+# provider's file storage). Set storageClassName to such a class where the default class is not one.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pivotkit-data
+  namespace: pivotkit
+spec:
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+# The reports render_view writes: one server process per output directory.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pivotkit-out
+  namespace: pivotkit
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+# --8<-- [end:volumes]
+---
+# --8<-- [start:deployment]
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pivotkit
+  namespace: pivotkit
+  labels:
+    app.kubernetes.io/name: pivotkit
+spec:
+  # one process per output directory: no second pod on pivotkit-out, not even during an update
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pivotkit
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pivotkit
+    spec:
+      # pivotkit calls no Kubernetes API
+      automountServiceAccountToken: false
+      # else Kubernetes sets PIVOTKIT_PORT=tcp://<address>:3333 for the Service named pivotkit
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      # the server lets running reports finish for up to 25 seconds (http.graceMs) after SIGTERM
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: pivotkit
+          image: ghcr.io/eizedev/pivotkit:<version>
+          ports:
+            - name: http
+              containerPort: 3333
+          env:
+            - name: PIVOTKIT_PORT
+              value: "3333"
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          # compute.workers (2) x (compute.memoryMb (1024) + 64 + the file read, up to 50 MB) + the
+          # main process; see the sizing section of the docs page
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2560Mi
+            limits:
+              memory: 2560Mi
+          # a probe sends the pod's address as Host, which the server refuses: send localhost
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            periodSeconds: 10
+            timeoutSeconds: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            periodSeconds: 30
+            timeoutSeconds: 6
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: data
+              mountPath: /data
+              readOnly: true
+            - name: out
+              mountPath: /out
+            - name: tokens
+              mountPath: /run/secrets/pivotkit
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: pivotkit-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: pivotkit-data
+            readOnly: true
+        - name: out
+          persistentVolumeClaim:
+            claimName: pivotkit-out
+        # mounted as a directory (no subPath), so a changed Secret reaches the pod and the server
+        # reads the new token on the next request; group 10001 (fsGroup) may read it
+        - name: tokens
+          secret:
+            secretName: pivotkit-tokens
+            defaultMode: 0440
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+# --8<-- [end:deployment]
+---
+# --8<-- [start:service]
+apiVersion: v1
+kind: Service
+metadata:
+  name: pivotkit
+  namespace: pivotkit
+spec:
+  selector:
+    app.kubernetes.io/name: pivotkit
+  ports:
+    - name: http
+      port: 3333
+      targetPort: http
+# --8<-- [end:service]
+---
+# --8<-- [start:ingress]
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pivotkit
+  namespace: pivotkit
+spec:
+  # ingressClassName: the class of your controller, where the cluster has no default class
+  tls:
+    - hosts: ["reports.example.com"]
+      secretName: pivotkit-tls
+  rules:
+    - host: reports.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pivotkit
+                port:
+                  name: http
+# --8<-- [end:ingress]
+---
+# --8<-- [start:networkpolicy]
+# Nothing in the namespace talks to anything unless a policy below allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: pivotkit
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pivotkit
+  namespace: pivotkit
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: pivotkit
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    # the ingress controller only: http.trustProxy believes its X-Forwarded-For
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-controller
+      ports:
+        - port: 3333
+          protocol: TCP
+  egress:
+    # name lookups
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# The CronJob's pods: name lookups and the data's host on 443, nothing coming in.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pivotkit-fetch-data
+  namespace: pivotkit
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: pivotkit-fetch-data
+  policyTypes: ["Ingress", "Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # the addresses data.example.com resolves to
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.20/32
+      ports:
+        - port: 443
+          protocol: TCP
+# --8<-- [end:networkpolicy]
+---
+# --8<-- [start:cronjob]
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pivotkit-fetch-data
+  namespace: pivotkit
+spec:
+  schedule: "15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: pivotkit-fetch-data
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: fetch
+              image: curlimages/curl:8.23.0
+              env:
+                - name: SOURCE_URL
+                  value: https://data.example.com/exports/sales.csv
+              # HTTPS only (no redirects, which would leave an empty file), at most limits.fileBytes,
+              # only a 200 with content replaces the data: a new name, then a rename, so the server
+              # never reads half a file; a credential comes from a file, never from the URL or env
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  tmp=/data/.sales.csv.tmp
+                  trap 'rm -f "$tmp"' EXIT
+                  set --
+                  if [ -f /run/secrets/source/header ]; then set -- -H @/run/secrets/source/header; fi
+                  code=$(curl --fail --silent --show-error --proto '=https' --max-time 300 \
+                    --max-filesize 52428800 --write-out '%{http_code}' -o "$tmp" "$@" "$SOURCE_URL")
+                  test "$code" = 200
+                  test -s "$tmp"
+                  chmod 0644 "$tmp"
+                  mv -f "$tmp" /data/sales.csv
+              securityContext:
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 128Mi
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: source-secret
+                  mountPath: /run/secrets/source
+                  readOnly: true
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: pivotkit-data
+            # optional: a header such as "Authorization: Bearer ..." for the data's host
+            - name: source-secret
+              secret:
+                secretName: pivotkit-source
+                optional: true
+                defaultMode: 0440
+# --8<-- [end:cronjob]

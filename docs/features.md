@@ -165,7 +165,7 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   [security](security.md#rest), [privacy](privacy.md)).
 - One container image for the REST service, the MCP server and the command line: distroless Node 22,
   non-root, read-only, health checks, signed with provenance and an SBOM
-  ([container image](reference/container.md)).
+  ([container image](reference/container.md), [Kubernetes](getting-started/kubernetes.md)).
 
 ## AI clients (MCP) { #mcp }
 
