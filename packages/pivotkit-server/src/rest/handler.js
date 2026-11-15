@@ -17,7 +17,7 @@
 import { OperationError, checkInput } from "pivotkit-report/operations";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { REST_BASE, restResourceOf } from "../config.js";
-import { AuthRefusal, bearerOf, resourceMetadataUrlOf } from "../auth.js";
+import { AuthRefusal, bearerOf, groupRefusal, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
 import { BODY_BYTES, SIGNED_IN, isLoopback, takeSignIn } from "../listen.js";
@@ -164,6 +164,11 @@ export async function createRestHandler(context, runtime = {}) {
                 authInfo = await core.verify(bearer.token, { audience, resource });
                 if (!requiredScopes.every((s) => authInfo.scopes.includes(s))) {
                     return { refused: problem("INSUFFICIENT_SCOPE", `this service needs the scopes ${requiredScopes.join(" ")}`, { headers: { "www-authenticate": challenge("insufficient_scope", "insufficient scope") } }) };
+                }
+                // a person whose groups the token does not carry (auth.groupProfiles): not a bad token
+                const refusedGroups = groupRefusal(authOptions, authInfo);
+                if (refusedGroups) {
+                    return { refused: problem("NOT_ALLOWED", refusedGroups) };
                 }
             }
             return { caller: callerOf(mode, authInfo, authOptions) };

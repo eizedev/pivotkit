@@ -26,6 +26,8 @@ import { readFile } from "node:fs/promises";
 import { OperationError } from "pivotkit-report/operations";
 import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
+import { auditText, noteAudit } from "./log.js";
+import { readSecret } from "./secrets.js";
 import { guardedFetch } from "./sources/fetch.js";
 
 /** The fewest characters of a static token. */
@@ -186,7 +188,7 @@ export function resourceMetadataUrlOf(resource) {
  * @property {string[]} scopes
  * @property {number} expiresAt
  * @property {URL} [resource]
- * @property {{ allScopes?: boolean, profile?: string | null, subject?: string | null, issuer?: string | null }} [extra]  subject: the token's auth.subjectClaim when usable, issuer: its iss (OAuth)
+ * @property {{ allScopes?: boolean, profile?: string | null, subject?: string | null, issuer?: string | null, groups?: string[], groupsUnknown?: boolean, audit?: string | null }} [extra]  subject: the token's auth.subjectClaim when usable, issuer: its iss, groups: the person's groups when the token carries a usable list, groupsUnknown: it does not (cut, too long, an overage marker, missing), audit: how the log names the person (OAuth)
  */
 
 /** The longest subject taken as an identity. */
@@ -194,6 +196,100 @@ export const SUBJECT_MAX = 256;
 
 /** A claim's value as a subject: a non-empty text of at most SUBJECT_MAX characters, else null. */
 export const subjectOf = (value) => (typeof value === "string" && value.length > 0 && value.length <= SUBJECT_MAX ? value : null);
+
+/** The most groups a token's list may hold; a longer one counts as cut (unknown). */
+export const GROUPS_MAX = 100;
+
+/** The longest group name taken; a longer one makes the list unknown. */
+export const GROUP_MAX = 256;
+
+/** Why a person's groups are unknown, for the debug line (never the groups themselves). */
+const UNKNOWN_GROUPS = Object.freeze({ missing: "the claim is missing", overage: "the token says the groups are elsewhere (an overage marker)", text: "a text, and auth.groupsSeparator is not set", shape: "not a list of texts", many: `more than ${GROUPS_MAX} groups`, long: `a group longer than ${GROUP_MAX} characters` });
+
+/**
+ * The groups a verified token carries in auth.groupsClaim (default "groups"): a list of texts, or a
+ * text split by auth.groupsSeparator when one is set. Anything else leaves them unknown, never
+ * empty: a missing claim, an overage marker instead of the list (`_claim_names` naming the claim, or
+ * `hasgroups`), a text without a separator, a list with something other than texts, more than
+ * GROUPS_MAX entries or one longer than GROUP_MAX characters. An empty list is known: no groups.
+ * @param {Record<string, unknown>} payload
+ * @param {import("./config.js").AuthOptions} auth
+ * @returns {{ groups: string[] } | { unknown: keyof typeof UNKNOWN_GROUPS }}
+ */
+export function groupsOf(payload, auth) {
+    const claim = auth.groupsClaim ?? "groups";
+    const names = payload._claim_names;
+    if ((names && typeof names === "object" && Object.hasOwn(names, claim)) || payload.hasgroups === true || payload.hasgroups === "true") {
+        return { unknown: "overage" };
+    }
+    const raw = Object.hasOwn(payload, claim) ? payload[claim] : undefined;
+    if (raw === undefined || raw === null) {
+        return { unknown: "missing" };
+    }
+    let list;
+    if (typeof raw === "string") {
+        if (!auth.groupsSeparator) {
+            return { unknown: "text" };
+        }
+        list = raw.split(auth.groupsSeparator).filter(Boolean);
+    } else if (Array.isArray(raw) && raw.every((g) => typeof g === "string")) {
+        list = raw;
+    } else {
+        return { unknown: "shape" };
+    }
+    if (list.length > GROUPS_MAX) {
+        return { unknown: "many" };
+    }
+    if (list.some((g) => g.length > GROUP_MAX)) {
+        return { unknown: "long" };
+    }
+    return { groups: [...list] };
+}
+
+/** What a caller is told when its groups are unknown and nothing else names its profile. */
+export const GROUPS_REFUSED = "your sign-in does not carry your groups; ask the operator";
+
+/**
+ * Why a verified caller is refused (403) for its groups, or null: auth.groupProfiles is set, its
+ * token's groups are unknown, and no token profile, client profile or auth.defaultProfile decides
+ * its profile instead. A cut or missing group list never falls through to a wider policy.
+ * @param {import("./config.js").AuthOptions | undefined} auth
+ * @param {{ token?: string, clientId?: string, extra?: Record<string, any> } | undefined} authInfo  a verified token's (AuthInfo, or the SDK's copy of it)
+ * @returns {string | null}
+ */
+export function groupRefusal(auth, authInfo) {
+    if (!authInfo || authInfo.token === "" || !authInfo.extra?.groupsUnknown || !auth?.groupProfiles?.length) {
+        return null;
+    }
+    if (authInfo.extra.profile || (auth.clientProfiles && Object.hasOwn(auth.clientProfiles, String(authInfo.clientId))) || auth.defaultProfile) {
+        return null;
+    }
+    return GROUPS_REFUSED;
+}
+
+/**
+ * The audit setting of the options with its key: the key read once at start (audit.key, a secret
+ * reference), or a random one per process for "hash" without it (logged as a warning: the hashes
+ * change on every restart). Throws ConfigError when the key cannot be read.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {{ env: Record<string, string | undefined>, log: any }} runtime
+ * @returns {Promise<{ subject: "off" | "hash" | "plain", key: Uint8Array | null }>}
+ */
+export async function auditOf(options, { env, log }) {
+    const subject = options.audit?.subject ?? "off";
+    if (subject !== "hash") {
+        return { subject, key: null };
+    }
+    if (!options.audit?.key) {
+        log.warn("audit.subject is hash without audit.key: a random key is used, so the same person gets another hash after every restart");
+        return { subject, key: randomBytes(32) };
+    }
+    try {
+        return { subject, key: Buffer.from(await readSecret(options.audit.key, options, env), "utf8") };
+    } catch (e) {
+        throw new ConfigError(`audit.key: ${String(e?.message ?? e)}`);
+    }
+}
 
 /**
  * Builds the authentication both front ends share (one per process: one issuer to fetch).
@@ -252,6 +348,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
         throw new ConfigError("auth.issuer: must be an https:// address (auth.allowInsecureIssuer is for tests only)");
     }
     const algorithms = auth.algorithms?.length ? auth.algorithms : [...DEFAULT_ALGORITHMS];
+    const audit = await auditOf(options, { env, log });
     const { createRemoteJWKSet, jwtVerify } = await import("jose");
     /** @type {any} */
     let state = { metadata: null, jwks: null, jwksUri: null };
@@ -349,16 +446,34 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             if (!state.jwks) {
                 throw new AuthRefusal(503, "temporarily_unavailable", "the server is waiting for its authorization server");
             }
+            let payload;
             try {
-                const { payload } = await verifyJwt(token, audience);
-                const subject = subjectOf(payload[auth.subjectClaim ?? "sub"]);
-                return { token, clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80), scopes: scopesOf(payload, auth.scopeClaim), expiresAt: /** @type {number} */ (payload.exp), resource, extra: { subject, issuer: typeof payload.iss === "string" ? payload.iss : null } };
+                ({ payload } = await verifyJwt(token, audience));
             } catch (e) {
                 // why a token failed stays here (a message would help someone who tries tokens); the
                 // operator sees it with --log debug: jose's code and the claim, never the token
                 log.debug("oauth: token refused", { reason: String(e?.code ?? e?.name ?? "invalid").slice(0, 60), ...(e?.claim ? { claim: String(e.claim).slice(0, 40) } : {}), expected: { issuer, audience } });
                 throw new AuthRefusal(401, "invalid_token", "the access token is not valid for this server");
             }
+            const subject = subjectOf(payload[auth.subjectClaim ?? "sub"]);
+            const iss = typeof payload.iss === "string" ? payload.iss : null;
+            const groups = groupsOf(payload, auth);
+            /** @type {AuthInfo} */
+            const info = {
+                token,
+                clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80),
+                scopes: scopesOf(payload, auth.scopeClaim),
+                expiresAt: /** @type {number} */ (payload.exp),
+                resource,
+                extra: { subject, issuer: iss, ...("groups" in groups ? { groups: groups.groups } : { groupsUnknown: true }), audit: auditText(audit, iss, subject) }
+            };
+            // what the operator needs to set groupProfiles up: how many groups (never which), and
+            // the profile they gave
+            if (log.level === "debug") {
+                const refused = groupRefusal(auth, info);
+                log.debug("oauth: signed in", { groups: "groups" in groups ? groups.groups.length : `unknown (${UNKNOWN_GROUPS[groups.unknown]})`, profile: refused ? "refused (403)" : (profileOf(auth, info) ?? "none (the sources' policy)") });
+            }
+            return info;
         },
         close() {
             closed = true;
@@ -371,9 +486,19 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
 }
 
 /**
- * The policy profile of a verified caller: a static token's own, else the OAuth client's
- * (auth.clientProfiles), else the one profile its scopes name (auth.scopeProfiles); scopes that name
- * two different profiles give none (the server's policy, never more).
+ * The policy profile of a verified caller, the first that names one:
+ *
+ * 1. a static token's own profile;
+ * 2. the OAuth client's (auth.clientProfiles): a client's profile wins over a person's groups, both
+ *    ways, so a restricted model client stays restricted;
+ * 3. the first entry of auth.groupProfiles whose group the person's token carries (exact,
+ *    case-sensitive); when its groups are unknown (cut, missing, an overage marker), the scope step
+ *    is skipped and only auth.defaultProfile follows (groupRefusal refuses the call without one);
+ * 4. the one profile its scopes name (auth.scopeProfiles); scopes that name two different profiles
+ *    name none;
+ * 5. auth.defaultProfile, for every signed-in caller (a static token without a profile too).
+ *
+ * Null: the sources' own policy.
  * @param {import("./config.js").AuthOptions | undefined} auth
  * @param {AuthInfo | undefined} authInfo
  * @returns {string | null}
@@ -385,15 +510,26 @@ export function profileOf(auth, authInfo) {
     if (authInfo.extra?.profile) {
         return authInfo.extra.profile;
     }
+    const fallback = auth?.defaultProfile ?? null;
     if (authInfo.token === "") {
         // a static token without a profile of its own
-        return null;
+        return fallback;
     }
     if (auth?.clientProfiles && Object.hasOwn(auth.clientProfiles, authInfo.clientId)) {
         return auth.clientProfiles[authInfo.clientId];
     }
+    if (auth?.groupProfiles?.length) {
+        if (authInfo.extra?.groupsUnknown) {
+            return fallback;
+        }
+        const groups = new Set(authInfo.extra?.groups ?? []);
+        const entry = auth.groupProfiles.find((e) => groups.has(e.group));
+        if (entry) {
+            return entry.profile;
+        }
+    }
     const named = new Set((authInfo.scopes ?? []).filter((s) => auth?.scopeProfiles && Object.hasOwn(auth.scopeProfiles, s)).map((s) => auth?.scopeProfiles?.[s]));
-    return named.size === 1 ? /** @type {string} */ ([...named][0]) : null;
+    return named.size === 1 ? /** @type {string} */ ([...named][0]) : fallback;
 }
 
 /**
@@ -405,10 +541,11 @@ const known = new WeakMap();
 
 /**
  * Who calls, from the request's verified token: its scopes, how the log names it, its policy
- * profile and, for an OAuth token, its subject and issuer.
+ * profile (profileOf) and, for an OAuth token, its subject, issuer and groups (only when it carries
+ * some). A caller groupRefusal refuses holds no scope and no profile.
  * @param {string} mode
  * @param {any} authInfo
- * @param {import("./config.js").AuthOptions} [authOptions]  for the OAuth client's and scopes' profiles
+ * @param {import("./config.js").AuthOptions} [authOptions]  for the profiles of clients, groups and scopes and the default one
  * @returns {import("./registry.js").Caller}
  */
 export function callerOf(mode, authInfo, authOptions = undefined) {
@@ -430,9 +567,15 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
         known.set(caller, { basis: ["token", String(authInfo.clientId ?? "token")], token: null });
         return caller;
     }
+    if (groupRefusal(authOptions, authInfo)) {
+        // the front ends refuse such a caller (403); one made anyway holds no scope and no profile
+        return { scopes: new Set(), client, profile: null };
+    }
     const subject = subjectOf(authInfo.extra?.subject);
     const issuer = typeof authInfo.extra?.issuer === "string" ? authInfo.extra.issuer : null;
-    const caller = { scopes, client, profile, subject, issuer };
+    const groups = Array.isArray(authInfo.extra?.groups) ? authInfo.extra.groups.filter((g) => typeof g === "string") : [];
+    const caller = { scopes, client, profile, subject, issuer, ...(groups.length ? { groups: [...groups] } : {}) };
+    noteAudit(caller, authInfo.extra?.audit);
     known.set(caller, { basis: subject && issuer ? [issuer, subject] : null, token: typeof authInfo.token === "string" && authInfo.token ? authInfo.token : null, expiresAt: Number.isSafeInteger(authInfo.expiresAt) ? authInfo.expiresAt : null });
     return caller;
 }

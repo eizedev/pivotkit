@@ -59,7 +59,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {string} [title]  the report's title; default the view file's name, the chart's title, "Report"
  * @property {string} [description]  default the view file's description
  * @property {string} [source]  where the data comes from, for the report's details (a file name)
- * @property {string} [dataAsOf]  when the data is from, ISO 8601 in UTC to the second ("2026-11-15T08:00:00Z"); checked, not printed by this version
+ * @property {string} [dataAsOf]  when the data is from, ISO 8601 in UTC to the second ("2026-11-15T08:00:00Z"): html prints it in the details ("Data as of") and as {{dataAsOf}}, xlsx keeps it as the document property DataAsOf
  * @property {string} [template]  html: a print template (parseTemplate), default DEFAULT_TEMPLATE
  * @property {boolean | "auto"} [chart]  html: with the chart; "auto" (default) when the view shows the chart
  * @property {"image" | "inline"} [chartEmbed]  html: the chart as a data: image (default) or as inline SVG
@@ -75,6 +75,9 @@ const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: 
 /** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
 /** The one form of dataAsOf: ISO 8601 in UTC to the second. */
 const DATA_AS_OF = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+
+/** Whether a dataAsOf names a time that exists (no 30 February, no hour 25). */
+const isDay = (text) => !Number.isNaN(Date.parse(text)) && new Date(text).toISOString().replace(".000Z", "Z") === text;
 
 const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf"]);
 
@@ -130,6 +133,11 @@ function generatedText(now, locale, timeZone) {
     return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone }).format(date);
 }
 
+/** "Nov 15, 2026, 8:00 AM UTC" of a dataAsOf in the locale and time zone, with the zone named: the data's age is read without the report's "generated" time. */
+function dataAsOfText(asOf, locale, timeZone) {
+    return new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone, timeZoneName: "short" }).format(new Date(asOf));
+}
+
 /**
  * Renders a view over data as a file.
  * @param {unknown} view  a view, a view file or a template { name, view }, as an object or JSON text
@@ -166,7 +174,7 @@ export async function render(view, data, options = {}) {
     if ((format === "svg" || (format === "html" && options.chart === true)) && typeof options.echarts?.init !== "function") {
         throw badOption("echarts", `${format === "svg" ? "an SVG" : "a report with chart: true"} needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts`);
     }
-    if (options.dataAsOf !== undefined && !(typeof options.dataAsOf === "string" && DATA_AS_OF.test(options.dataAsOf))) {
+    if (options.dataAsOf !== undefined && !(typeof options.dataAsOf === "string" && DATA_AS_OF.test(options.dataAsOf) && isDay(options.dataAsOf))) {
         throw badOption("dataAsOf", 'dataAsOf is a time in UTC to the second: "2026-11-15T08:00:00Z"');
     }
     if (options.now !== undefined) {
@@ -228,7 +236,7 @@ export async function render(view, data, options = {}) {
     } else if (format === "csv") {
         body = toCsvBytes(grid, { bom: options.bom !== false });
     } else if (format === "xlsx") {
-        body = toXlsx(grid, { sheetName: title, theme: conditionalColors(theme) });
+        body = toXlsx(grid, { sheetName: title, theme: conditionalColors(theme), ...(options.dataAsOf ? { dataAsOf: options.dataAsOf } : {}) });
     } else if (format === "svg") {
         const chart = chartOf();
         chartCut(chart);
@@ -260,6 +268,7 @@ export async function render(view, data, options = {}) {
             description: options.description ?? read.description ?? "",
             source: options.source ?? "",
             generated: generatedText(options.now, grid.locale, timeZone),
+            dataAsOf: options.dataAsOf ? dataAsOfText(options.dataAsOf, grid.locale, timeZone) : "",
             rows: fill(texts.rowsCount, { count: number.format(data2.length) }),
             filters: described.filters.length ? described.filters.map((f) => f.text).join("; ") : texts.noFilters,
             summary: described.text,
@@ -271,7 +280,7 @@ export async function render(view, data, options = {}) {
             style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), darkTokens: cleanTokens(options.darkTokens ?? {}), chartSurface: theme["--pk-surface"], extra: table.css })}</style>`,
             chart: chartHtml,
             table: table.html + tableNote,
-            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.rows, number.format(data2.length))}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
+            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.dataAsOf, values.dataAsOf)}${detail(texts.rows, number.format(data2.length))}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
         };
         body = new TextEncoder().encode(fillTemplate(/** @type {any} */ (template), { ...values, ...markup }));
     }

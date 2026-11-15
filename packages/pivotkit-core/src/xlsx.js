@@ -8,6 +8,9 @@
  * columns are frozen, and colour scales and data bars become native Excel conditional formats. Text
  * is written as inline strings, which Excel never evaluates as formulas.
  *
+ * `dataAsOf` (when the data is from) becomes the custom document property DataAsOf (a date; File >
+ * Properties in Excel), the only document property written.
+ *
  * Excel's limits: a sheet holds 1,048,576 rows and 16,384 columns (a larger grid throws a
  * PivotkitError), a cell 32,767 characters (longer text is cut). Dates before 1900-01-01 or after
  * 9999-12-31 have no serial in Excel and are written as text.
@@ -32,6 +35,8 @@ const FIRST_SERIAL_DAY = Date.UTC(1900, 0, 1);
 const LEAP_BUG_DAY = Date.UTC(1900, 2, 1);
 const LAST_SERIAL_DAY = Date.UTC(10000, 0, 1);
 const RESERVED_SHEET_NAMES = new Set(["history"]);
+/** The one form of a dataAsOf: ISO 8601 in UTC to the second. */
+const DATA_AS_OF = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 /** Characters XML 1.0 does not allow are removed; markup characters are escaped. */
 export function xmlEscape(text) {
@@ -124,14 +129,18 @@ function sqref(cells) {
 /**
  * The grid as an .xlsx workbook.
  * @param {import("./grid.js").Grid} grid  from toGrid()
- * @param {{ sheetName?: string, theme?: { colorScale?: string[], dataBar?: string } }} [options]
+ * @param {{ sheetName?: string, theme?: { colorScale?: string[], dataBar?: string }, dataAsOf?: string }} [options]
  *   theme: colours (#rgb or #rrggbb) for conditional formats whose view names none; colorScale two or
- *   three, low to high (pivotkit-react passes the report's resolved --pk-scale-* tokens)
+ *   three, low to high (pivotkit-react passes the report's resolved --pk-scale-* tokens); dataAsOf:
+ *   when the data is from, ISO 8601 in UTC to the second ("2026-11-15T08:00:00Z"), written as the
+ *   custom document property DataAsOf
  * @returns {Uint8Array}
  */
 export function toXlsx(grid, options) {
     options = optionsOf(options, "toXlsx");
     expect(isGrid(grid), "toXlsx(grid): grid must come from toGrid()");
+    const asOf = options.dataAsOf;
+    expect(asOf === undefined || (typeof asOf === "string" && DATA_AS_OF.test(asOf) && !Number.isNaN(Date.parse(asOf))), 'toXlsx: dataAsOf is a time in UTC to the second, "2026-11-15T08:00:00Z"');
     checkLimit("xlsxRows", grid.rows.length, EXCEL_MAX_ROWS, "rows (an Excel sheet)");
     checkLimit("xlsxColumns", grid.columnCount, EXCEL_MAX_COLUMNS, "columns (an Excel sheet)");
     const theme = { ...DEFAULT_THEME, ...(options.theme || {}) };
@@ -243,12 +252,14 @@ export function toXlsx(grid, options) {
 
     const name = xmlEscape(sheetName(options.sheetName));
     const files = {
-        "[Content_Types].xml": `${xml}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
-        "_rels/.rels": `${xml}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+        "[Content_Types].xml": `${xml}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${asOf ? `<Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>` : ""}</Types>`,
+        "_rels/.rels": `${xml}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>${asOf ? `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/>` : ""}</Relationships>`,
         "xl/workbook.xml": `${xml}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${name}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
         "xl/_rels/workbook.xml.rels": `${xml}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
         "xl/styles.xml": styles,
-        "xl/worksheets/sheet1.xml": sheet
+        "xl/worksheets/sheet1.xml": sheet,
+        // the property set Office uses for custom properties, pid 2 the first a document may use
+        ...(asOf ? { "docProps/custom.xml": `${xml}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="DataAsOf"><vt:filetime>${asOf}</vt:filetime></property></Properties>` } : {})
     };
     const zipped = {};
     for (const [path, content] of Object.entries(files)) {

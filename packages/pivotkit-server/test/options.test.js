@@ -16,10 +16,13 @@ import { tempDir, workspace } from "./helpers.js";
 const treeOf = (schema) =>
     schema === null || typeof schema !== "object" ? (typeof schema === "function" ? "fn" : schema) : Array.isArray(schema) ? schema.map(treeOf) : Object.fromEntries(Object.entries(schema).map(([k, v]) => [k, typeof v === "function" ? "fn" : treeOf(v)]));
 
-test("options: the composed table is today's, in today's order, plus the shared source keys", () => {
+test("options: the composed table is today's, in today's order, plus the shared source keys and the features' keys", () => {
     const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
     const expected = structuredClone(before);
     Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer" });
+    // the operator's controls (options/operator.js): after the base's keys, in the fragment's order
+    Object.assign(expected.auth.object, { groupsClaim: "string", groupsSeparator: "string", groupProfiles: { list: { object: { group: "string", profile: "string" } } }, defaultProfile: "string", offerSourceScopes: "boolean" });
+    expected.audit = { object: { subject: { enum: ["off", "hash", "plain"] }, key: { custom: "fn" } } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
