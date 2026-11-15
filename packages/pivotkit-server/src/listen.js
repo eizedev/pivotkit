@@ -174,17 +174,29 @@ export function pathOfTarget(target) {
  * @property {(status: 400 | 413, path: string, info?: Record<string | symbol, any>) => Response} [problem]  the answer for a body that cannot be read (path: the request's; info: the one the precheck had)
  */
 
+/**
+ * How much of a refused body is drained (read and dropped) before the connection is cut: four times
+ * its cap, at least DRAIN_FLOOR, so a small cap (a download's 1 KiB) still lets the client read its answer.
+ */
+const DRAIN_FLOOR = 65_536;
+const drainLimit = (cap) => Math.max(cap * 4, DRAIN_FLOOR);
+
 /** The longest a refused body is drained before the connection is closed. */
 const BODY_DRAIN_MS = 5000;
 
 /**
  * Resolves once a request's body has ended or its connection closed, or after `ms` (a ref'd timer,
- * cleared when the request ends first).
+ * cleared when the request ends first); at once for a request already ended or destroyed (its
+ * events are past).
  * @param {import("node:http").IncomingMessage} req
  * @param {number} ms
  */
-function untilSent(req, ms) {
+export function untilSent(req, ms) {
     return new Promise((resolve) => {
+        if (req.destroyed || req.complete) {
+            resolve(undefined);
+            return;
+        }
         const timer = setTimeout(done, ms);
         function done() {
             clearTimeout(timer);
@@ -199,7 +211,7 @@ function untilSent(req, ms) {
 
 /**
  * Reads a node:http request's body, at most `max` bytes, while it streams. Beyond that it rejects
- * with status 413 and drains what follows (up to 4 x max, then the connection is cut), so the client
+ * with status 413 and drains what follows (up to drainLimit(max), then the connection is cut), so the client
  * gets the answer instead of a reset connection.
  */
 function readBody(req, max) {
@@ -210,7 +222,7 @@ function readBody(req, max) {
         req.on("data", (chunk) => {
             size += chunk.length;
             if (over) {
-                if (size > max * 4) {
+                if (size > drainLimit(max)) {
                     req.destroy();
                 }
                 return;
@@ -282,6 +294,15 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
     let running = 0;
     /** @type {Array<() => void>} */
     let idle = [];
+    /** The connections whose request was answered (refused) while its body still came, until that body ends. */
+    const answeredMidBody = new WeakSet();
+    /** Marks a request answered before its body ended; a body that then ends leaves its connection as any other. */
+    const markMidBody = (req) => {
+        if (!req.complete) {
+            answeredMidBody.add(req.socket);
+            req.once("end", () => answeredMidBody.delete(req.socket));
+        }
+    };
     const server = createServer({ maxHeaderSize: 16_384, requestTimeout: limits.requestMs, headersTimeout: limits.headersMs, connectionsCheckingInterval: limits.checkMs }, async (req, res) => {
         const path = pathOfTarget(req.url);
         const info = { address: String(req.socket.remoteAddress ?? "") };
@@ -321,14 +342,17 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const cap = bodyCapOf(bodyBytes, head, info);
             if (early) {
                 // the body that follows is drained, not read, so the client gets the answer rather than a
-                // reset connection; one that keeps sending past 4 x the cap is cut off
+                // reset connection; one that keeps sending past drainLimit(cap) is cut off
                 let drained = 0;
                 req.on("data", (chunk) => {
                     drained += chunk.length;
-                    if (drained > cap * 4) {
+                    if (drained > drainLimit(cap)) {
                         req.destroy();
                     }
                 });
+                // a body still coming: what the parser says of its rest while it is drained (the client
+                // stopping halfway) is not another refusal
+                markMidBody(req);
                 res.writeHead(early.status, { ...Object.fromEntries(early.headers), "x-request-id": inScope.id });
                 res.end(Buffer.from(await early.arrayBuffer()));
                 return;
@@ -382,11 +406,12 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const failed = scope ?? requestScopeFor(null, info, { trustProxy });
             const answer = withRequestScope(failed, () => problem(e?.status === 413 ? 413 : 400, req.url ?? "/", info));
             const bytes = Buffer.from(await answer.arrayBuffer());
+            markMidBody(req);
             res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close", "content-length": String(bytes.length), "x-request-id": failed.id });
             if (e?.status === 413 && !req.complete) {
                 // a body found too large while it streams (no Content-Length, as a proxy forwards an
                 // HTTP/2 body): the answer goes out at once, complete by its length, so a client or proxy
-                // that reads while it sends gets the 413 and its id also when it sends past 4 x the cap
+                // that reads while it sends gets the 413 and its id also when it sends past drainLimit(cap)
                 // and the connection is cut; the connection stays open while the rest is drained
                 // (readBody), since closing while the client still sends resets it before it reads the answer
                 res.write(bytes);
@@ -408,6 +433,12 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
     // a request the HTTP parser refuses (a broken request line, headers too large, too slow) never
     // reaches the handler: it is answered as node:http would, with an id, and told to onClientError
     server.on("clientError", (error, socket) => {
+        if (answeredMidBody.has(socket)) {
+            // the rest of a body this server refused and answered, cut short by the client: the
+            // request has its refused line already
+            socket.destroy();
+            return;
+        }
         const code = String(/** @type {any} */ (error)?.code ?? "");
         // as node:http's own handler: an answer only on a socket that can take one and is not in the
         // middle of another answer, then the socket destroyed at once (never left half-closed), so its

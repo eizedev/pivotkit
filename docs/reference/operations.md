@@ -92,19 +92,24 @@ Lines of calls, requests, downloads and refusals add:
 | `outcome` | all four | `ok` or `error`; `ok` stays beside it on `call` lines |
 | `code` | failures | The [error code](#codes) |
 | `ms` | `call`, `request` | The time the work took, in milliseconds |
-| `reason` | `refused` | `no_token`, `bad_token`, `rate_limited`, `body_too_large`, `host`, `origin`, `insufficient_scope`, `not_allowed` (the person's groups), `not_ready` (the issuer is not loaded yet), `busy`, `bad_request` (a body or a request the HTTP parser cannot read, a body that is not JSON or an `mcp-protocol-version` the MCP endpoint does not support, any other 4xx without a line of its own), `token_in_address`, and at `debug` only `method_not_allowed` (a method a route does not take, such as a GET of the MCP endpoint, which clients send to open a stream) and `not_found` (a path nobody serves, also under `/api/v1`) |
+| `reason` | `refused` | `no_token`, `bad_token`, `rate_limited`, `body_too_large`, `host`, `origin`, `insufficient_scope`, `not_allowed` (the person's groups), `not_ready` (the issuer is not loaded yet), `busy`, `bad_request` (a body or a request the HTTP parser cannot read, a body that is not JSON or an `mcp-protocol-version` the MCP endpoint does not support), `unsupported_media_type` and `not_acceptable` (the MCP endpoint's `Content-Type` and `Accept` checks), `token_in_address`, `internal` (a 5xx without a line of its own), and at `debug` only `method_not_allowed` (a method a route does not take, such as a GET of the MCP endpoint, which clients send to open a stream) and `not_found` (a path nobody serves, also under `/api/v1`; under `/downloads` a link nobody has is at `info`, since a person asks you about it). Any other error answer without a line of its own gives its problem's code in lower case, or one of these by its status |
 | `limit`, `size` | `refused` | For `body_too_large`: the bytes allowed and the declared size; for `rate_limited` after sign-in, `limit` is `rate` or `concurrency` |
-| `path` | `refused` | The route family that refused it (`/api/v1`, `/openapi.json`, `/mcp`, `/downloads`) |
+| `path` | `refused` | The route family that refused it (`/api/v1`, `/openapi.json`, `/mcp`, `/downloads`), never the path the request asked for |
+| `error`, `refusal`, `detail` | `refused` | For a request the MCP protocol layer refused: its error's class, the SDK's fixed name for the refusal (such as `name-header-mismatch`) and, only at `debug`, its message, which can quote the request's body |
 | `host`, `origin` | `refused` | For `reason` `host` or `origin`: the Host or Origin the request sent (at most 100 characters) |
 | `parserError` | `refused` | For a request the HTTP parser refused (answered 400, 408 or 431 with an `X-Request-Id`): the parser's code, such as `HPE_INVALID_HEADER_TOKEN` |
 
 The level of a `call`, `request`, `download` or `refused` line follows its status: `info` below 400,
 `warn` for 4xx, `error` for 5xx. A refused request is `warn` or `error`, except the two routine ones
-above, which are `debug`. Every 4xx answer has a line under the `requestId` of its `X-Request-Id`: its
-own `call`, `request` or `download` line, the protocol layer's `warning`, or a `refused` line.
+above, which are `debug`. Every error answer (4xx and 5xx) has one line under the `requestId` of its
+`X-Request-Id`: its own `call`, `request` or `download` line, or a `refused` line; a 404 or 405 only
+at `log.level` `debug`. A log line never holds the path a request asked for, only the route family.
+
+`/healthz` and `/readyz` write no line per probe. `/readyz` writes one when the server stops being
+ready (`warn`, with what is missing) and one when it is ready again (`info`).
 
 A body larger than the cap is answered 413 at once. One that keeps coming after four times the cap
-has its connection cut: a client that sends with no `Content-Length` (a proxy forwarding an HTTP/2
+(at least 64 KiB) has its connection cut: a client that sends with no `Content-Length` (a proxy forwarding an HTTP/2
 body) still gets the 413 with its `X-Request-Id` first, but a proxy may report a stream error to its
 own client instead. The `refused` line with `body_too_large` and `size` (the declared size, when
 there is one) is written either way; look it up by time and `peerAddress`.

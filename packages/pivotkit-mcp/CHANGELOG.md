@@ -101,7 +101,7 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   download links and no signed-in person. With `--http` it also asks the OAuth issuer for its
   metadata and warns when it cannot be loaded ([#424](https://github.com/eizedev/pivotkit/issues/424)).
 - The log names a tool call's source by a configured id, `inline:` or `file:` (no file name), else
-  `unknown`, never the model's text; a request the protocol layer refuses is logged at warn with its
+  `unknown`, never the model's text; a request the protocol layer refuses is logged with its
   error's class and the SDK's name for the refusal, its message (which can quote the body) only with
   `--log debug` ([#422](https://github.com/eizedev/pivotkit/issues/422)).
 - The README links the page on what reaches an AI model at each level of the exposure policy, and
@@ -109,9 +109,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Fixed
 
-- A body that is not JSON and an `mcp-protocol-version` the endpoint does not support, which the SDK
-  answers with 400 without reporting it, get a `refused` line with `bad_request` under the answer's
-  `X-Request-Id` ([#456](https://github.com/eizedev/pivotkit/issues/456)).
+- Every refusal of the protocol layer is one `refused` line with its status, a reason, the path
+  `/mcp`, the error's class and the SDK's name for it (its message only at debug, on the same line):
+  a body that is not JSON, an unsupported `mcp-protocol-version`, a wrong `Content-Type` (415) or
+  `Accept`. What you will notice: these lines replace the `warning` "request refused by the
+  protocol layer" ([#456](https://github.com/eizedev/pivotkit/issues/456)).
 
 ## [0.1.1] - 2026-11-14
 

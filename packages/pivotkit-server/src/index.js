@@ -18,7 +18,7 @@ export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, g
 export { allowedHosts, hostRefusal, clientAddress, LOCAL_HOSTS } from "./checks.js";
 export { createLimits, REQUEST_LIMITS, bodyBytesOf } from "./limits.js";
 export { serveFetch, isLoopback, connectionLimitsOf, refusedText, GRACE_MS, CONNECTION_LIMITS, BODY_BYTES, MAX_BODY_BYTES, SIGNED_IN, takeSignIn, peekSignIn, bodyCapOf } from "./listen.js";
-export { callerFields, CALLER_LOG_FIELDS, flushed, LOG_DEFAULTS, LOG_LEVELS, LOG_FORMATS, REFUSED_REASONS, SEVERITY, SOURCE_LOG_TEXT, logSettingsOf, logUnanswered, noteAnswered, refusalReason, startErrorLine, startFields } from "./log.js";
+export { callerFields, CALLER_LOG_FIELDS, flushed, LOG_DEFAULTS, LOG_LEVELS, LOG_FORMATS, REFUSED_REASONS, SEVERITY, SOURCE_LOG_TEXT, logSettingsOf, logUnanswered, noteAnswered, noteProtocolRefusal, refusalReason, startErrorLine, startFields } from "./log.js";
 export { newRequestId, withRequestId, requestId, errorDetails, isRequestId, REQUEST_ID, requestScope, requestScopeFor, withRequestScope, withRequestIdHeader, traceIdOf, upstreamRequestIdOf } from "./request-id.js";
 export { serverTextOf } from "./rest/problem.js";
 export { offeredScopes } from "./scopes.js";

@@ -1210,3 +1210,35 @@ test("signIn: HEAD on a link answers its state without starting a sign-in: no re
         await server.close();
     }
 });
+
+test("the log: a refused download has exactly one line under its X-Request-Id; a link nobody has is at info; a streamed body over the cap gets its 413 and a line", async () => {
+    const { server, local, render } = await onceServer();
+    try {
+        const output = await render();
+        const url = local(output.url);
+        const payload = /** @type {any} */ (readToken(KEYS, url.split("/downloads/")[1]));
+        const expired = `${server.url}/downloads/${signToken(KEYS, { ...payload, e: Math.floor(Date.now() / 1000) - 1 })}`;
+        const unknown = `${server.url}/downloads/not-a-token`;
+        const answers = [
+            ["expired (410)", await raw(expired, { headers: { accept: "application/json" } }), 410],
+            ["another site's Origin (403)", await raw(url, { method: "POST", headers: { origin: "https://evil.example.com" } }), 403],
+            ["no such link (404)", await raw(unknown, { headers: { accept: "application/json" } }), 404]
+        ];
+        // no declared length: the body is cut while it is read, past 1 KiB; the client still reads its 413
+        const streamed = await raw(url, { method: "POST", headers: { "transfer-encoding": "chunked" }, body: "x".repeat(16_384) });
+        answers.push(["a streamed body over 1 KiB (413)", streamed, 413]);
+        for (const [name, answer, status] of answers) {
+            assert.equal(answer.status, status, name);
+            const id = answer.headers["x-request-id"];
+            assert.match(String(id), /^[A-Za-z0-9_-]{11}$/, name);
+            const mine = server.log.filter((l) => l.requestId === id);
+            assert.equal(mine.length, 1, `${name}: ${JSON.stringify(mine)}`);
+            assert.notEqual(mine[0].level, "debug", `${name}: on the log at info`);
+            if (status === 404) {
+                assert.deepEqual([mine[0].level, mine[0].reason ?? mine[0].code], ["info", mine[0].event === "refused" ? "not_found" : "NOT_FOUND"], JSON.stringify(mine[0]));
+            }
+        }
+    } finally {
+        await server.close();
+    }
+});

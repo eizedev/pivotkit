@@ -20,7 +20,7 @@ import { bodyBytesOf } from "./limits.js";
 import { DOWNLOADS_PATH, DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { problem } from "./rest/problem.js";
-import { logUnanswered, refusalReason, startFields } from "./log.js";
+import { logUnanswered, noteAnswered, refusalReason, startFields } from "./log.js";
 import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 
 /** The default port. */
@@ -123,7 +123,10 @@ export async function createServerHandler(options, runtime) {
         const trustProxy = options.http?.trustProxy ?? false;
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
 
-        /** /healthz and /readyz, after the Host check. */
+        /** Whether /readyz last found the server ready (it starts out so): a line is written only when that changes. */
+        let wasReady = true;
+
+        /** /healthz and /readyz, after the Host check: a probe writes no line; /readyz one when readiness changes. */
         async function health(request) {
             const path = new URL(request.url).pathname;
             if ((request.method !== "GET" && request.method !== "HEAD") || (path !== "/healthz" && path !== "/readyz")) {
@@ -134,15 +137,25 @@ export async function createServerHandler(options, runtime) {
                 context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
                 return problem("FORBIDDEN_HOST", refused);
             }
+            // a probe's answer is not a refusal: no line of its own, none from the HTTP edge's check
+            noteAnswered();
             if (path === "/healthz") {
                 return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
             }
             const ready = await context.ready();
+            if (ready.ok !== wasReady) {
+                wasReady = ready.ok;
+                if (ready.ok) {
+                    context.log.info("ready again: the server takes work");
+                } else {
+                    context.log.warn(`not ready: ${ready.reason}`);
+                }
+            }
             return Response.json(ready, { status: ready.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
         }
 
         /** The route family of a request, for a refused line written by logUnanswered (REST's and MCP's own handlers name theirs). */
-        const routeFamily = (request) => (isDownload(request) ? { path: DOWNLOADS_PATH } : {});
+        const routeFamily = (request) => (isDownload(request) ? { path: DOWNLOADS_PATH, notFound: /** @type {const} */ ("info") } : {});
 
         /** The routes, in order: health, download links, REST, MCP. */
         const routes = {
@@ -199,14 +212,14 @@ export async function createServerHandler(options, runtime) {
             async precheck(request, info = { address: "" }) {
                 // the request's scope: serveFetch's, or made here for a host that serves the handler itself
                 const scope = requestScopeFor(request, info, { trustProxy });
-                const answer = logUnanswered(context.log, scope, await withRequestScope(scope, () => routes.precheck(request, info)), routeFamily(request));
+                const answer = await logUnanswered(context.log, scope, await withRequestScope(scope, () => routes.precheck(request, info)), routeFamily(request));
                 return answer && withRequestIdHeader(answer, scope.id);
             },
             /** @type {import("./listen.js").FetchHandler["fetch"]} */
             async fetch(request, info = { address: "" }) {
                 const scope = requestScopeFor(request, info, { trustProxy });
                 // every 4xx answer has a line: the routes' own, or a refused line by its status
-                const response = logUnanswered(context.log, scope, await withRequestScope(scope, () => routes.fetch(request, info)), routeFamily(request));
+                const response = await logUnanswered(context.log, scope, await withRequestScope(scope, () => routes.fetch(request, info)), routeFamily(request));
                 return withRequestIdHeader(/** @type {Response} */ (response), scope.id);
             },
             problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than 2 MiB, the most this service takes" : "the request cannot be read")),

@@ -415,10 +415,10 @@ names), `call` (tool, the source: a configured id, `inline:`, `file:` for any fi
 `status` and `outcome`, error code, time in ms; for `inline:` data the number of rows and columns),
 `download` (a [download link](delivery.md) opened: `via: "link"`, its binding, whether it worked and
 the code, never the token), `refused` (an HTTP request refused by the Host, Origin or token check, a
-limit or a body over the cap, or any other 4xx that has no line of its own, such as a body that is
-not JSON, with its status and `reason`), `warning` (a request the protocol layer
-refuses is one: its error's class and the SDK's name for the refusal, the message itself, which can
-quote the request's body, only with `--log debug`) and, after an HTTP server stops, `stopped`. A
+limit or a body over the cap, a request the protocol layer refuses (its error's class and the SDK's
+name for the refusal; the message itself, which can quote the request's body, only with
+`--log debug`), or any other error answer that has no line of its own, such as a body that is not
+JSON, with its status and `reason`), `warning` and, after an HTTP server stops, `stopped`. A
 call line is `info` when it worked, `warn` for an error a REST caller would get as 4xx and `error`
 for 5xx. `requestId` is random (11 characters), the same on every line of one call, at the end of its
 error and, over HTTP, in the answer's `X-Request-Id` header. Over HTTP a request's lines name the

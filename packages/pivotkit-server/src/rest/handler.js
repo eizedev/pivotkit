@@ -432,7 +432,7 @@ export async function createRestHandler(context, runtime = {}) {
             // the request's scope (its id, trace and addresses), made here or by serveFetch and kept in
             // info for the route: its refusals name it too
             const scope = requestScopeFor(request, info, { trustProxy });
-            const answer = logUnanswered(context.log, scope, await withRequestScope(scope, () => check(request, info)), routeFamily(request));
+            const answer = await logUnanswered(context.log, scope, await withRequestScope(scope, () => check(request, info)), routeFamily(request));
             return answer && withRequestIdHeader(await withRequestIdMember(answer, scope.id), scope.id);
         },
         /**
@@ -444,7 +444,7 @@ export async function createRestHandler(context, runtime = {}) {
             // work (a source's code, an error's details) and in an error's answer
             const scope = requestScopeFor(request, info, { trustProxy });
             try {
-                const response = logUnanswered(context.log, scope, await withRequestScope(scope, () => answer(request, info)), routeFamily(request));
+                const response = await logUnanswered(context.log, scope, await withRequestScope(scope, () => answer(request, info)), routeFamily(request));
                 return withRequestIdHeader(await withRequestIdMember(/** @type {Response} */ (response), scope.id), scope.id);
             } finally {
                 // a place for a large body, held since the precheck: given back once the request ran

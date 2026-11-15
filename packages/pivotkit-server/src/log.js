@@ -198,45 +198,72 @@ function insertAfter(pairs, after, added) {
 }
 
 /**
- * The request scopes whose answer has a line of its own: an outcome line (also one the level leaves
- * out, such as a debug refusal at info), an error, or a refusal of the protocol layer (noteAnswered).
- * logUnanswered writes a `refused` line for a 4xx answer of any other scope.
- * @type {WeakSet<object>}
+ * Whether the request running now wrote a line of its own: an outcome line (also one the level
+ * leaves out, such as a debug refusal at info) or an error. The mark is the scope's `answer` box
+ * (request-id.js), which every copy of the scope with the same id shares, so a line written inside
+ * withRequestId reaches the HTTP edge's check. logUnanswered writes a `refused` line for an error
+ * answer of any other request.
  */
-const answered = new WeakSet();
-
-/** Notes that the request running now has its line (pivotkit-mcp: a refusal the SDK reported through onerror). */
 export function noteAnswered() {
-    const scope = requestScope();
-    if (scope) {
-        answered.add(scope);
+    const answer = requestScope()?.answer;
+    if (answer) {
+        answer.logged = true;
     }
 }
 
-/** The reason of a refused line written for an answer that had none, by its status; any other 4xx is bad_request. */
-const UNANSWERED_REASONS = Object.freeze({ 404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED", 413: "BODY_TOO_LARGE" });
+/**
+ * Notes, for the request running now, a refusal the MCP SDK reported (onerror) without its status:
+ * the HTTP edge's check writes it as the request's `refused` line, with the answer's status.
+ * @param {{ error: string, refusal?: string, detail: string }} protocol  error: the error's class; refusal: the SDK's fixed name for it; detail: its message (debug only: it can quote the body)
+ * @returns {boolean} false outside a request's scope (nothing noted)
+ */
+export function noteProtocolRefusal(protocol) {
+    const answer = requestScope()?.answer;
+    if (answer) {
+        answer.protocol = protocol;
+    }
+    return Boolean(answer);
+}
+
+/** The code whose reason a refused line written for an answer without a problem code gives, by its status; any other 4xx is INVALID_INPUT, a 5xx INTERNAL. */
+const STATUS_CODES = Object.freeze({ 400: "INVALID_INPUT", 404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED", 406: "NOT_ACCEPTABLE", 413: "BODY_TOO_LARGE", 415: "UNSUPPORTED_MEDIA_TYPE", 429: "RATE_LIMITED" });
 
 /** The statuses whose refused line is kept to the debug log: routine noise (a scan of paths, a GET of a stateless MCP endpoint). */
 const ROUTINE_STATUSES = new Set([404, 405]);
 
+/** An answer's problem code (RFC 9457 `code`), or null for an answer that is not a problem. */
+async function problemCodeOf(response) {
+    if (!String(response.headers.get("content-type") ?? "").includes("problem+json")) {
+        return null;
+    }
+    const body = await response.clone().json().catch(() => null);
+    return typeof body?.code === "string" && /^[A-Z_]{1,40}$/.test(body.code) ? body.code : null;
+}
+
 /**
- * The HTTP edge's last check: a 4xx answer (it carries an X-Request-Id) whose request wrote no line of
- * its own gets a `refused` line, with the reason of its status, at debug for 404 and 405 and at warn
- * otherwise. So every refusal can be found by its id: a route nobody serves, a method a route does not
- * take, a body or a protocol header the MCP SDK refused without reporting it.
- * @param {{ refused(entry: Record<string, any>, how?: { level?: "debug" }): void }} log
- * @param {object | null | undefined} scope  the request's (requestScopeFor's)
+ * The HTTP edge's last check: an error answer (4xx or 5xx; it carries an X-Request-Id) whose request
+ * wrote no line of its own gets a `refused` line: its reason the answer's problem code, else its
+ * status's; at debug for 404 and 405 (`notFound` raises a 404's), at warn for another 4xx, at error
+ * for a 5xx. A refusal the SDK reported (noteProtocolRefusal) is written here, with its class and
+ * name. So every refusal can be found by its id: a route nobody serves, a method a route does not
+ * take, a body or a header the MCP SDK refused.
+ * @param {{ level: string, refused(entry: Record<string, any>, how?: { level?: string }): void, warn(message: string, extra?: Record<string, unknown>): void }} log
+ * @param {import("./request-id.js").RequestScope | null | undefined} scope  the request's (requestScopeFor's)
  * @param {Response | null | undefined} response
- * @param {{ path?: string }} [fields]  path: the route family that answered
- * @returns {Response | null | undefined} the response
+ * @param {{ path?: string, notFound?: "info" }} [fields]  path: the route family that answered; notFound: the level of a 404 there (a download link: a person asks the operator about it)
+ * @returns {Promise<Response | null | undefined>} the response
  */
-export function logUnanswered(log, scope, response, fields = {}) {
+export async function logUnanswered(log, scope, response, fields = {}) {
     const status = Number(response?.status);
-    if (!scope || !(status >= 400 && status < 500) || answered.has(scope)) {
+    const answer = scope?.answer;
+    if (!scope || !answer || !response || answer.logged || !(status >= 400 && status < 600)) {
         return response;
     }
-    const reason = refusalReason(UNANSWERED_REASONS[/** @type {keyof typeof UNANSWERED_REASONS} */ (status)] ?? "INVALID_INPUT");
-    withRequestScope(/** @type {any} */ (scope), () => log.refused({ status, ...(fields.path ? { path: fields.path } : {}), reason }, ROUTINE_STATUSES.has(status) ? { level: "debug" } : {}));
+    const code = (await problemCodeOf(response)) ?? STATUS_CODES[/** @type {keyof typeof STATUS_CODES} */ (status)] ?? (status >= 500 ? "INTERNAL" : "INVALID_INPUT");
+    const protocol = answer.protocol;
+    const entry = { status, ...(fields.path ? { path: fields.path } : {}), reason: refusalReason(code), ...(protocol ? { error: protocol.error, ...(protocol.refusal ? { refusal: protocol.refusal } : {}), ...(log.level === "debug" ? { detail: protocol.detail } : {}) } : {}) };
+    const level = status === 404 && fields.notFound ? fields.notFound : ROUTINE_STATUSES.has(status) ? "debug" : undefined;
+    withRequestScope(/** @type {any} */ (scope), () => log.refused(entry, level ? { level } : {}));
     return response;
 }
 
@@ -306,9 +333,9 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
      * A line of an event whose level follows its status (or `ok`): call, request, download, refused.
      * @param {string} event
      * @param {(entry: Record<string, any>, ok: boolean) => string} msgOf
-     * @returns {(entry: Record<string, any>, how?: { level?: "debug" }) => void}  how.level: a refusal kept to the debug log
+     * @returns {(entry: Record<string, any>, how?: { level?: "debug" | "info" }) => void}  how.level: a refusal kept to the debug log, or one at info (a download link nobody has)
      */
-    const outcomeLine = (event, msgOf) => (/** @type {Record<string, any>} */ entry, /** @type {{ level?: "debug" }} */ how = {}) => {
+    const outcomeLine = (event, msgOf) => (/** @type {Record<string, any>} */ entry, /** @type {{ level?: "debug" | "info" }} */ how = {}) => {
         const status = Number(entry.status);
         const ok = event !== "refused" && entry.ok !== false && !(status >= 400);
         noteAnswered();
@@ -399,7 +426,10 @@ const REFUSAL_REASONS = Object.freeze({
     INVALID_INPUT: "bad_request",
     TOKEN_IN_ADDRESS: "token_in_address",
     METHOD_NOT_ALLOWED: "method_not_allowed",
-    NOT_FOUND: "not_found"
+    NOT_FOUND: "not_found",
+    NOT_ACCEPTABLE: "not_acceptable",
+    UNSUPPORTED_MEDIA_TYPE: "unsupported_media_type",
+    INTERNAL: "internal"
 });
 
 /** Every reason a `refused` line may give. */

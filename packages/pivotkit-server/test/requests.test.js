@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { OperationError } from "pivotkit-report/operations";
 import { SIGNED_IN, serveFetch } from "pivotkit-server";
-import { BODY_BYTES, MAX_BODY_BYTES, bodyCapOf, peekSignIn } from "../src/listen.js";
+import { BODY_BYTES, MAX_BODY_BYTES, bodyCapOf, peekSignIn, untilSent } from "../src/listen.js";
 import { bodyBytesOf } from "../src/limits.js";
 import { CALLER_LOG_FIELDS, callerFields } from "../src/log.js";
 import { REQUEST_ID, errorDetails, requestId, withRequestId } from "../src/request-id.js";
@@ -328,4 +328,48 @@ test("params: a pattern that ran out of time once is tried once more before it i
     assert.ok(calls > 1);
     // slow on both tries: refused
     assert.equal(slowOn(re, 8, () => null), true);
+});
+
+test("body size: a client that stops sending after its 413 leaves one refused line, not a second one of the HTTP parser", async () => {
+    const { connect } = await import("node:net");
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
+    try {
+        const port = Number(new URL(server.url).port);
+        // a declared 20 MiB, a part of it sent, then the client's side closed once the answer is in
+        const status = await new Promise((resolve) => {
+            const socket = connect(port, "127.0.0.1", () => {
+                socket.write(`POST /api/v1/views/render HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: ${20 << 20}\r\n\r\n`);
+                socket.write(Buffer.alloc(1 << 20, 32));
+            });
+            let got = "";
+            socket.on("data", (d) => {
+                got += d;
+                if (got.includes("\r\n\r\n")) {
+                    socket.end();
+                }
+            });
+            socket.on("error", () => undefined);
+            socket.on("close", () => resolve(got.split("\r\n")[0]));
+        });
+        assert.match(status, /^HTTP\/1\.1 413 /);
+        // the parser's line (if any) is written when the closed side reaches it
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const refused = server.log.filter((l) => l.event === "refused");
+        assert.deepEqual(refused.map((l) => [l.status, l.reason]), [[413, "body_too_large"]], JSON.stringify(refused));
+    } finally {
+        await server.close();
+    }
+});
+
+test("body size: the wait for a refused body's end is over at once for a request already destroyed or complete (its events are past)", async () => {
+    const { EventEmitter } = await import("node:events");
+    for (const state of [{ destroyed: true, complete: false }, { destroyed: false, complete: true }]) {
+        const req = Object.assign(new EventEmitter(), state);
+        const started = Date.now();
+        let timer;
+        const waited = await Promise.race([untilSent(/** @type {any} */ (req), 5000).then(() => "ended"), new Promise((resolve) => (timer = setTimeout(() => resolve("still waiting"), 500)))]);
+        clearTimeout(timer);
+        assert.equal(waited, "ended", `${JSON.stringify(state)} after ${Date.now() - started} ms`);
+    }
 });

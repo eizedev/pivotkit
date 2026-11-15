@@ -486,6 +486,7 @@ test("every 4xx answer has exactly one line under its X-Request-Id: what the MCP
     const cases = [
         ["MCP: a body that is not JSON", "/mcp", { method: "POST", headers: mcpHeaders, body: '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"render_view","arguments":{"data":{"rows":[["MKR-BODY-1"]' }, 400, "bad_request", "warn"],
         ["MCP: an unsupported mcp-protocol-version", "/mcp", { method: "POST", headers: { ...mcpHeaders, "mcp-protocol-version": "1999-01-01" }, body: listTools }, 400, "bad_request", "warn"],
+        ["MCP: a wrong content type", "/mcp", { method: "POST", headers: { ...mcpHeaders, "content-type": "text/plain" }, body: listTools }, 415, "unsupported_media_type", "warn"],
         ["MCP: a GET (a client opening a stream)", "/mcp", { method: "GET", headers: { accept: "text/event-stream" } }, 405, "method_not_allowed", "debug"],
         ["a path nobody serves", "/nothing-here", { method: "GET" }, 404, "not_found", "debug"],
         ["REST: a wrong method", "/api/v1/sources", { method: "DELETE" }, 405, "method_not_allowed", "debug"],
@@ -526,5 +527,55 @@ test("every 4xx answer has exactly one line under its X-Request-Id: what the MCP
         } finally {
             await server.close();
         }
+    }
+});
+
+test("an error answer with no line of its own: a 5xx gets an error-level refused line whose reason is the problem's code; /readyz says only when readiness changes", async () => {
+    const dir = workspace();
+    // an issuer nothing listens on: its metadata never loads, so the REST resource's metadata is 503 AUTH_NOT_READY
+    const { server, text } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer: "http://127.0.0.1:9/issuer", resource: "http://127.0.0.1:3333/api/v1", allowInsecureIssuer: true }, log: { format: "json", level: "info" }, baseDir: dir });
+    try {
+        const answer = await raw(`${server.url}/.well-known/oauth-protected-resource/api/v1`);
+        assert.equal(answer.status, 503);
+        const lines = () => text.join("").trim().split("\n").map((l) => JSON.parse(l));
+        const mine = lines().filter((l) => l.requestId === answer.headers["x-request-id"]);
+        assert.deepEqual(mine.map((l) => [l.event, l.level, l.status, l.reason]), [["refused", "error", 503, "not_ready"]], JSON.stringify(mine));
+        // three probes while not ready: one warning, and no line per probe
+        const probes = [];
+        for (let i = 0; i < 3; i++) {
+            probes.push(await raw(`${server.url}/readyz`));
+        }
+        assert.deepEqual(probes.map((p) => p.status), [503, 503, 503]);
+        const readiness = lines().filter((l) => /ready/.test(String(l.msg)) && l.event !== "refused" && l.msg !== "started");
+        assert.deepEqual(readiness.map((l) => l.level), ["warn"], JSON.stringify(readiness));
+        assert.match(readiness[0].msg, /not ready/);
+        // the change is on the probe that saw it; the probes after it have no line
+        assert.equal(readiness[0].requestId, probes[0].headers["x-request-id"]);
+        for (const probe of probes.slice(1)) {
+            assert.deepEqual(lines().filter((l) => l.requestId === probe.headers["x-request-id"]), [], "no line per probe");
+        }
+        assert.equal((await raw(`${server.url}/healthz`)).status, 200);
+        assert.equal(lines().filter((l) => /healthz/.test(JSON.stringify(l))).length, 0);
+    } finally {
+        await server.close();
+    }
+});
+
+test("/readyz: one line when the server is no longer ready (warn) and one when it is ready again (info)", { skip: (process.platform === "win32" || process.getuid?.() === 0) && "file modes" }, async () => {
+    const dir = workspace();
+    const { server, text } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, log: { format: "json", level: "info" }, baseDir: dir });
+    const { chmodSync } = await import("node:fs");
+    try {
+        const probe = async () => (await raw(`${server.url}/readyz`)).status;
+        assert.equal(await probe(), 200);
+        chmodSync(join(dir, "out"), 0o500);
+        assert.deepEqual([await probe(), await probe()], [503, 503]);
+        chmodSync(join(dir, "out"), 0o700);
+        assert.deepEqual([await probe(), await probe()], [200, 200]);
+        const readiness = text.join("").trim().split("\n").map((l) => JSON.parse(l)).filter((l) => /ready/.test(String(l.msg)) && l.msg !== "started");
+        assert.deepEqual(readiness.map((l) => [l.level, l.event]), [["warn", "warning"], ["info", "info"]], JSON.stringify(readiness));
+    } finally {
+        chmodSync(join(dir, "out"), 0o700);
+        await server.close();
     }
 });
