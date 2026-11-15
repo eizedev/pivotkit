@@ -430,7 +430,9 @@ answer is kept without the columns the caller's policy hides, so a caller whose 
 gets its own copy: a JSON answer's rows, a CSV answer read once in a worker (within
 `compute.timeMs` and `compute.memoryMb`, after the source's `timeMs`) into a compact table, as a
 [code source's](#code-thread) is kept. A kept answer goes to a worker once; later calls send its key
-only. The key holds the values and the caller only as a keyed digest.
+only. The kept table counts against `sourceCache.maxMb` (see [code sources](#code-cache)); one of
+many number columns takes up to four times the answer's bytes. The key holds the values and the
+caller only as a keyed digest.
 
 ### check-config and check-source { #check-source }
 

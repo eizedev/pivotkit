@@ -255,7 +255,13 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   - A sign-in link's subject digest holds the link's nonce: two links of one person cannot be tied
     together.
   - Cache keys hold a caller's values, groups and claims only as a keyed digest; an HTTP source's
-    JSON answer is kept without the columns the caller's policy hides.
+    answer is kept without the columns the caller's policy hides. A CSV answer is read once in a
+    worker into a packed table without them, as a code source's rows are, and that table is kept
+    ([#433](https://github.com/eizedev/pivotkit/issues/433)): reading it counts against
+    `compute.timeMs` and `compute.memoryMb`, not the source's `timeMs`, and a CSV answer whose every
+    column is hidden keeps its row count. A packed table of many number columns can take up to four
+    times the answer's bytes (8 bytes a number); one larger than a quarter of `sourceCache.maxMb` is
+    loaded on every call.
   - With `audit.subject` on, a sign-in link's `download` line names the person who signed in.
   - The markers of used one-time links are swept every ten minutes, not only on the next one-time
     download.
@@ -280,12 +286,6 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
-- An HTTP source's CSV answer is kept without the columns the caller's policy hides: it is read once
-  in a worker into a packed table, as a code source's rows are, and that table is kept, so hidden
-  values no longer stay in memory for the source's `ttl` and `maxStale`
-  ([#433](https://github.com/eizedev/pivotkit/issues/433)). Reading the answer counts against
-  `compute.timeMs` and `compute.memoryMb`, not the source's `timeMs`; the reader's errors and limits
-  reach the caller as before. A CSV answer whose every column is hidden keeps its row count.
 - `PIVOTKIT_PORT` set to `tcp://<address>:<port>`, as Kubernetes' service links do for a Service
   named pivotkit: `serve`, `check-config` and `healthcheck` say so and name `enableServiceLinks:
   false`, instead of "http.port: must be a whole number of 0 or more" (`healthcheck`: a failed
