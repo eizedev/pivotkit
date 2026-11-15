@@ -229,6 +229,8 @@ For each release:
    only that tarball with an npm provenance attestation (`npm stage publish`), with npm 11.21.1
    (staged publishing needs 11.15.0 or later, trusted publishing Node 22.14.0 or later).
    The step and the job summary say where to approve.
+   An environment reviewer approves the workflow as it is in the tagged commit, not the one on main:
+   check `.github/workflows/release.yml` at the tag before approving.
 4. Approve the staged version with two-factor authentication, after checking that the name, version
    and publisher are the ones the workflow run staged: sign in on npmjs.com, open the Staged Packages
    tab in the account settings and click Approve, or run `npm stage approve <stage-id>` (the job

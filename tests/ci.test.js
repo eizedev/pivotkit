@@ -374,9 +374,33 @@ test("the release workflow stages on npm and never publishes directly", () => {
         assert.match(line, /\s--ignore-scripts(\s|$)/, `npm stage publish without --ignore-scripts: ${line.trim()}`);
         assert.match(line, /\s--access public(\s|$)/, `npm stage publish without --access public: ${line.trim()}`);
     }
-    assert.doesNotMatch(commands.replaceAll("npm stage publish", ""), /npm publish/, "release.yml runs npm publish: stage it instead");
-    // the publishing job holds the OIDC token the provenance attestation needs
-    assert.match(release, /\n {2}publish:[\s\S]*?id-token: write/, "the publish job has no id-token: write");
+    assert.doesNotMatch(commands.replaceAll("npm stage publish", ""), /npm\s+publish/, "release.yml runs npm publish: stage it instead");
+    // no other registry command: a direct publish (any spacing), dist-tag, deprecate, unpublish,
+    // version, or npx, which can fetch and run a package while the OIDC token is available
+    const others = commands.split("\n").filter((line) => !/npm stage publish /.test(line))
+        .filter((line) => /npm\s+(publish|dist-tag|deprecate|unpublish|version)\b|\bnpx\b/.test(line));
+    assert.deepEqual(others.map((line) => line.trim()), [], "release.yml runs an npm registry command other than npm stage publish");
+});
+
+// The OIDC token exists only in the job that waits for the "npm" environment's reviewers, and only a
+// pushed release tag starts the workflow (CONTRIBUTING.md, "Releasing")
+test("the release workflow holds the OIDC token only behind the npm environment, on tags only", () => {
+    const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
+    const commands = release.split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
+    // a top-level key's block: from "<key>:" to the next line that starts at column 0
+    const topLevel = (key) => new RegExp(`^${key}:.*\\n((?:[ \\t].*\\n|\\n)*)`, "m").exec(commands + "\n")?.[1] ?? "";
+    const jobsBlock = topLevel("jobs");
+    const jobs = Object.fromEntries([...jobsBlock.matchAll(/^ {2}([\w-]+):\n((?:(?: {3,}.*)?\n)*)/gm)].map((m) => [m[1], m[2]]));
+    assert.deepEqual(Object.keys(jobs).sort(), ["build", "publish"], "release.yml has other jobs than build and publish");
+    assert.match(jobs.publish, /^ {4}environment: npm$/m, "the publish job does not wait for the npm environment");
+    assert.match(jobs.publish, /^ {6}id-token: write$/m, "the publish job has no id-token: write");
+    assert.doesNotMatch(jobs.build, /id-token/, "the build job runs the dependencies and must not get the OIDC token");
+    assert.equal(commands.match(/id-token/g)?.length, 1, "id-token is granted outside the publish job");
+    const on = topLevel("on");
+    assert.deepEqual([...on.matchAll(/^ {2}([\w-]+):/gm)].map((m) => m[1]), ["push"], "release.yml runs on other events than push");
+    assert.deepEqual([...on.matchAll(/^ {4}([\w-]+):/gm)].map((m) => m[1]), ["tags"], "release.yml runs on a push of something other than tags");
+    assert.doesNotMatch(on, /pull_request|workflow_dispatch|workflow_call|workflow_run|schedule|release\b/, "release.yml runs on other events than a pushed tag");
+    assert.match(commands, /^on:\s*$/m, "on: lists its events inline");
 });
 
 // Docs and READMEs name no version of pivotkit as a fact about the present, so a release cannot leave

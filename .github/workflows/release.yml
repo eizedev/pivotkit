@@ -165,7 +165,8 @@ jobs:
             echo "on it fails in its build job, and the GitHub release for $TAG waits. To drop it instead,"
             echo "click Reject on npmjs.com or run \`npm stage reject <stage-id>\`."
             echo
-            echo '```'
+            # a tilde fence: npm's output cannot close it with a line of backticks
+            echo '~~~~'
             cat stage.log
-            echo '```'
+            echo '~~~~'
           } >> "$GITHUB_STEP_SUMMARY"
