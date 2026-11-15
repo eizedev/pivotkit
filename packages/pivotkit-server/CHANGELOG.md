@@ -10,6 +10,14 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 Every field keeps its level and the automatic rule is off; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
 
+- With OAuth, the metadata (`scopes_supported`) lists the sources' scopes besides the required ones
+  (`auth.offerSourceScopes`, default true). A client that asks for every listed scope requests them
+  at its next sign-in, and a provider may refuse a scope it does not define: define them there first,
+  or set `auth.offerSourceScopes: false`. An explicit `auth.scopesSupported` is used as it is
+  ([#331](https://github.com/eizedev/pivotkit/issues/331)).
+- html reports print "Data as of" in their details; xlsx files carry the document property
+  `DataAsOf`.
+
 - A client reads the optional `field` of a finding, the code `itemUnknown`, `withheld`, `hint`,
   `complete` and `auto` in `describe_source`, and treats a `level` it does not know as `summary`.
 - A filter item that is none of a `show` field's values gets `itemUnknown` where its list is
@@ -22,6 +30,17 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - `check-config` warns of a static token's file that other users of the machine can read.
 
 ### Added
+
+- Operator controls ([#331](https://github.com/eizedev/pivotkit/issues/331)):
+  `auth.groupProfiles` maps an OAuth token's groups (`auth.groupsClaim`, a list; a text with
+  `auth.groupsSeparator`) to policy profiles, the first match winning after a client's profile; a
+  cut, missing or overage group list gets `auth.defaultProfile` or 403 `NOT_ALLOWED`, never a wider
+  profile. `auth.defaultProfile` is the profile of every signed-in caller nothing else names.
+  `audit.subject` (`hash` with `audit.key`, or `plain`) puts the person on `call`, `request` and
+  `download` log lines. An empty `list_sources` for a sign-in without the sources' scopes has a
+  `hint` naming the scopes the server offers. `check-config` prints how a person gets a profile, the
+  scopes offered, sources no scope reaches, `groupProfiles` entries that widen a later one, and the
+  audit setting. `groupsOf`, `groupRefusal` and `GROUPS_REFUSED` are exported.
 
 - A request id on every REST request and MCP tool call: on every log line written inside it, inside
   its work (a source's code, an error's details), in every REST problem document and at the end of

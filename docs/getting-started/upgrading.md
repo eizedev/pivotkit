@@ -146,7 +146,9 @@ Then restart Claude Code.
 
 ## From 0.6.1 to the next release { #from-0-6-1 }
 
-Operators of pivotkit-server and pivotkit-mcp need not act: every field keeps its level, and the
+Operators of pivotkit-server and pivotkit-mcp with OAuth and sources that need scopes check one
+thing first: the OAuth metadata offers those scopes ([Source scopes in the
+metadata](#source-scopes)). Otherwise nobody needs to act: every field keeps its level, and the
 automatic values rule is off. What callers notice:
 
 - a filter item that is none of a `show` field's values gets the warning `itemUnknown` where
@@ -158,9 +160,51 @@ automatic values rule is off. What callers notice:
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| [Source scopes in the metadata](#source-scopes) | `auth.mode` is `oauth`, a source has `scopes`, and `auth.scopesSupported` is not set | define the scopes at your provider, or set `auth.offerSourceScopes: false` |
+| [Data as of in files](#data-as-of-files) | people read html reports or open xlsx files | nothing; a print template of your own may add `{{dataAsOf}}` |
+| [Groups, a default profile, the person in the log](#operator-controls) | you want profiles by group, a profile for everyone else, or the person in the log | set `auth.groupProfiles`, `auth.defaultProfile`, `audit.subject` |
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
 | [Request ids](#request-ids) | you parse the log or MCP tool errors, or a program reads problem documents | accept the new members and the id at the end of a tool error |
+
+### Source scopes in the metadata { #source-scopes }
+
+With OAuth, the Protected Resource Metadata (`scopes_supported`) lists the required scopes and every
+scope a source needs (`sources.<id>.scopes`; on MCP `files.scopes` too), so a person and a client can
+see which scopes exist. A scope of `auth.scopeProfiles` is never listed by itself. The 401 challenge
+still asks for the required scopes only.
+
+A client that follows the MCP specification asks for the challenge's scopes; some clients, and every
+client of a server with an empty `auth.requiredScopes` (its challenge names none), ask for every
+scope the metadata lists at their next sign-in, and a provider may refuse a sign-in that asks for a
+scope it does not define. Before you update, define the sources' scopes at your provider, or set
+`"auth": { "offerSourceScopes": false }` to keep the metadata as it was. An explicit
+`auth.scopesSupported` is used as it is. `check-config` names the scopes it offers.
+
+An empty `list_sources` (REST `GET /sources`) for a sign-in that lacks the sources' scopes has a
+`hint` naming the scopes the server offers.
+
+### Data as of in files { #data-as-of-files }
+
+An html report's details (the default template's `{{details}}`) add "Data as of" with when the data
+is from, and a print template may place it with `{{dataAsOf}}`. An xlsx file carries it as the
+custom document property `DataAsOf`. A print template of your own shows it only where it uses
+`{{details}}` or `{{dataAsOf}}`: the Minimal example uses `{{details}}`, the Corporate example writes
+its own footer without it (add `{{dataAsOf}}` there where your reports always come from a service).
+csv, json and svg carry it in the result only.
+
+### Groups, a default profile, the person in the log { #operator-controls }
+
+All three are off until you set them ([profiles](../reference/rest.md#profiles),
+[logging](../reference/rest.md#logging)):
+
+- `auth.groupProfiles` maps an OAuth token's groups to policy profiles (first match wins, after a
+  client's profile); a token whose group list is cut or missing gets `auth.defaultProfile`, or 403
+  without one.
+- `auth.defaultProfile` is the profile of every signed-in caller that no token, client, group or
+  scope names, a static token without a profile included.
+- `audit.subject: "hash"` or `"plain"` adds the person (`auth.subjectClaim`) to the `call`,
+  `request` and `download` log lines, as a keyed hash or as it is.
 
 ### The values level { #values-level }
 

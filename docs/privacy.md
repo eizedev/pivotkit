@@ -55,17 +55,24 @@ request), and keep OAuth access tokens short-lived, since a token stays valid un
 
 With OAuth the server reads who the person is from the token (`auth.subjectClaim`, default `sub`)
 and its issuer. It keeps them in memory only, to keep a code source's data per person (as a keyed
-hash that means nothing outside the process), and does not log them. A library host's code source
+hash that means nothing outside the process), and does not log them unless you set `audit.subject`
+(below). With `auth.groupProfiles` it reads the person's groups to choose a profile and logs none of
+them. A library host's code source
 that declares `params` receives them as `caller.subject` and `caller.issuer`: what it does with them
 is the host's decision. The access token itself goes to no source.
 
 ## Logs and retention { #retention }
 
-The log holds the operation, the source id, the client (a token's name or an OAuth client id, never a
-person's id), a random request id (it names nothing; it lets the operator find the line a person
+The log holds the operation, the source id, the client (a token's name or an OAuth client id), a
+random request id (it names nothing; it lets the operator find the line a person
 quotes from an error), the status and the time (a source id only when it is a configured source); at the
 default level never a view, a value or a token, and no client address unless
-`http.trustProxy` is set. Reports and drafts stay in the output directory until you remove them, or,
+`http.trustProxy` is set. It names the person only with `audit.subject`
+([logging](reference/mcp.md#logging)): `hash`, a keyed hash of issuer and subject, is still personal
+data for as long as you keep `audit.key`, since you can match it to a person again; `plain` writes
+the subject as the token carries it (often an e-mail address or an employee id). Turn it on only for
+a purpose you can name (who used which source when), tell the people concerned, and keep that log
+no longer than the purpose needs. Reports and drafts stay in the output directory until you remove them, or,
 for reports, until the directory holds `output.maxFiles` files or `output.maxMb` megabytes of
 pivotkit's: then a new report deletes the oldest reports, whoever asked for them (drafts are not
 deleted this way; they may take at most half of `output.maxFiles`, and a draft over that is

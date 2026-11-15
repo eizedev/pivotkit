@@ -290,7 +290,9 @@ may try to steer it:
   behind authentication and shows no source ids unless the operator turns that on
   (`http.page.sources`); without sign-in (`auth` `none`) it lists them by default.
 - **The log** names tools, source ids, file base names and the client (a token's name or an OAuth
-  client id), never a view, a value, a token, a person's id or a full path.
+  client id), never a view, a value, a token or a full path; a person's id only when the operator
+  sets `audit.subject` (`hash`: a keyed hash; `plain`: the claim's text), their groups
+  never.
 
 ## The REST service { #rest }
 

@@ -155,9 +155,10 @@ fields it would list.
 
 A **profile** (`policy.profiles.<name>`, a policy of the same shape) gives one caller more or less
 than this: bound to a static token (`auth.tokens[].profile`), an OAuth client
-(`auth.clientProfiles`) or scope (`auth.scopeProfiles`), laid over each source's policy; a field a
+(`auth.clientProfiles`), a person's group (`auth.groupProfiles`) or scope (`auth.scopeProfiles`), or
+to every other signed-in caller (`auth.defaultProfile`), laid over each source's policy; a field a
 source hides stays hidden in every profile, and a caller without a profile gets the server's policy.
-See [profiles](rest.md#profiles).
+See [profiles](rest.md#profiles) for which one a caller gets.
 
 A view that uses a field that is not `show` (rows, columns, values, filters, sorting, a date
 grouping's source field; `values` included) has its result **withheld**: `render_view` writes the file and returns
@@ -226,6 +227,8 @@ error that names the key and the one probably meant.
 | `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once (an answer that streams holds its place until it ends) |
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log` | `--log level` | info | `info`, `debug` or `off` |
+| `audit.subject` | - | off | `hash` or `plain`: the person (`auth.subjectClaim` of an OAuth token) on the `call`, `request` and `download` [log lines](#logging) |
+| `audit.key` | - | a random key per start | `hash`: the key, `{ "env": "NAME" }` or `{ "file": "path" }`, read at start |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print what would be exposed (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output, auth) and exit; 1 when a file or directory it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0). Where a change of this version applies to the configuration, it closes with "New in this version" |
 
@@ -346,9 +349,23 @@ address, auth mode, the number of sources, whether files and an output directory
 `refused` (an HTTP request refused by the Host, Origin or token check, with its status) and
 `warning`. `requestId` is random (11 characters), the same on every line of one call and at the end of
 its error. The client
-is the static token's name or the OAuth token's client id, never the person's id: a line takes only
-these fields of the caller, never the person's subject, groups or other claims. No line holds a
-view, a value, a token or a full path. The log is the supervisor's to keep and rotate.
+is the static token's name or the OAuth token's client id. A line holds the person only where you
+ask for it with `audit.subject`, as `subject`, and never their groups or other claims. No line holds
+a view, a value, a token or a full path. The log is the supervisor's to keep and rotate.
+
+`audit.subject` names the person of an OAuth token (its `auth.subjectClaim`) on `call`, `request`
+and `download` lines; a refused request never names one, and a static token's caller is named by the
+token's `client` already.
+
+| `audit.subject` | `subject` on the line |
+| --- | --- |
+| `off` (default) | none |
+| `hash` | the first 16 hex characters of HMAC-SHA256 with `audit.key` over the issuer and the subject: the same person gets the same value, and without the key it cannot be turned back into a name. Without `audit.key` the key is random per start (a warning): the values change with every restart |
+| `plain` | the subject as the token carries it, without control characters, at most 128 characters |
+
+With `plain`, and with `hash` while you keep the key, the log holds personal data: say so where the
+log goes, and keep it no longer than you need it. Keep `audit.key` as a secret (a file only the
+server's user reads); a new key gives everyone new values. The key is read at start; a key that cannot be read stops the start.
 
 ## Streamable HTTP { #http }
 
@@ -465,7 +482,8 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `auth.requiredScopes` | none (a warning at start) | Scopes every request needs, e.g. `["pivotkit"]`; also the scopes the 401 asks for |
 | `auth.toolScopes` | none | Scopes per tool: `{ "render_view": ["pivotkit:render"], "draft_schedule": ["pivotkit:schedule"] }` |
 | `sources.<id>.scopes`, `files.scopes` | none | Scopes a caller needs to see a source (without them it is not listed and is `SOURCE_NOT_FOUND`) |
-| `auth.scopesSupported` | `requiredScopes` | What the metadata lists |
+| `auth.scopesSupported` | `requiredScopes` and the sources' scopes | What the metadata lists, taken as it is when set ([which scopes](#scopes)) |
+| `auth.offerSourceScopes` | true | `false`: the metadata lists the required scopes only |
 | `auth.scopeClaim` | `scope`, else `scp` | The claim the scopes are read from |
 | `auth.subjectClaim` | `sub` | The claim that names the person: the identity a code source's kept data is bound to. A token without it (or with an empty one, or one over 256 characters) has no identity, and nothing is kept for it. Some providers give a different `sub` per application; for those name another claim (for Microsoft Entra ID, for example, `oid`; check your provider's documentation) |
 | `auth.algorithms` | RS256, PS256, ES256, EdDSA | Accepted signature algorithms |
@@ -474,6 +492,48 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `auth.clockTolerance` | 30 | Seconds of clock difference |
 | `auth.allowInsecureIssuer` | false | Accept an `http://` issuer: for a test issuer on this machine only |
 | `auth.clientProfiles`, `auth.scopeProfiles` | none | The policy profile of an OAuth client id or scope ([profiles](rest.md#profiles)) |
+| `auth.groupProfiles` | none | A person's group to a profile, `[{ "group": "finance", "profile": "finance" }]`: the first entry whose group the token carries wins ([groups](#groups)) |
+| `auth.groupsClaim` | `groups` | The claim with the person's groups, a list of texts |
+| `auth.groupsSeparator` | none | Also take a text claim, split by this separator (`","`); without it a text claim counts as unknown |
+| `auth.defaultProfile` | none | The profile of a signed-in caller that no token, client, group or scope names |
+
+#### Which scopes the metadata offers { #scopes }
+
+The metadata (`scopes_supported`) lists `auth.requiredScopes` and every scope a source needs
+(`sources.<id>.scopes`, `files.scopes` when files are allowed), so a person and a client can see
+which scopes exist; a scope of `auth.scopeProfiles` is never listed by itself, since a client that
+asks for it would choose its own profile. The 401 challenge asks for `requiredScopes` only. A client
+that follows the MCP specification (revision 2026-07-28, "Scope Selection Strategy") asks for the
+challenge's scopes first and reads `scopes_supported` only when the challenge names none, so a
+source's scope reaches a person's token through the client's own scope setting, the provider's
+default scopes or `requiredScopes`. A call that needs more gets 403 `insufficient_scope`, and an
+empty `list_sources` says which scopes the server offers:
+
+```text
+No source is available with your current sign-in. This server offers the scopes: pivotkit:sales pivotkit:vms.
+```
+
+Define every offered scope at your provider: a provider may refuse a sign-in that asks for a scope it
+does not know. The metadata is public, so give scopes neutral names (`pivotkit:sales`, not the name
+of a confidential project). `auth.offerSourceScopes: false` lists the required scopes only;
+`auth.scopesSupported` replaces the list (check-config warns of a `scopeProfiles` scope in it).
+`check-config` prints the scopes offered and warns of a source whose scope is offered nowhere.
+
+#### Groups { #groups }
+
+`auth.groupProfiles` gives a person the profile of their group: the first entry, in the
+configuration's order, whose `group` the token's `auth.groupsClaim` lists (exact and
+case-sensitive). The groups count as unknown when the claim is missing, is a text without
+`auth.groupsSeparator`, holds something other than texts, holds more than 100 groups or one longer
+than 256 characters, or when the token says the groups are elsewhere (an overage marker:
+`_claim_names` naming the claim, or `hasgroups`; Microsoft Entra ID, for example, sends one for a
+person in many groups: check your provider's documentation). A person whose groups are unknown never
+gets a group's or a scope's profile: they get `auth.defaultProfile`, or, without one, 403
+`access_denied` ("your sign-in does not carry your groups; ask the operator"). A client profile
+(`auth.clientProfiles`) comes first, so a restricted model client stays restricted whatever the
+person's groups. Groups are read from the access token: a change takes effect with the person's next
+access token. With `--log debug` each sign-in logs how many groups it carried (never which) and the
+profile chosen; groups are never logged otherwise.
 
 A token stays valid until it expires: keep the provider's access token lifetime short (minutes), so
 taking a person's access away takes effect soon. Set `requiredScopes`, so not every token the provider

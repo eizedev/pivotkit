@@ -8,8 +8,8 @@
  * columns are frozen, and colour scales and data bars become native Excel conditional formats. Text
  * is written as inline strings, which Excel never evaluates as formulas.
  *
- * `dataAsOf` (when the data is from) becomes the custom document property DataAsOf (a date; File >
- * Properties in Excel), the only document property written.
+ * `dataAsOf` (when the data is from) becomes the custom document property DataAsOf (a date), the
+ * only document property written.
  *
  * Excel's limits: a sheet holds 1,048,576 rows and 16,384 columns (a larger grid throws a
  * PivotkitError), a cell 32,767 characters (longer text is cut). Dates before 1900-01-01 or after

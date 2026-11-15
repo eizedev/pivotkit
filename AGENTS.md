@@ -216,13 +216,18 @@ root `package.json`: `npm run types` and the builds depend on it.
   made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
   `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: how a written report
   reaches the caller, `output.note`), `src/scopes.js` (`offeredScopes`, the metadata's
-  `scopes_supported` of MCP and REST; `listHint` of list_sources), `src/request-id.js`
+  `scopes_supported` of MCP and REST: the required scopes and the sources', never a `scopeProfiles`
+  scope, while the 401 challenge names the required ones only; `listHint`, the hint of an empty
+  list_sources), `src/request-id.js`
   (a request's id: `newRequestId`, `withRequestId` (each REST request and MCP tool call runs in one;
   its log lines carry the id), `requestId`, `errorDetails` for an `OperationError`'s `details`, which
   `rest/problem.js problemOf` and MCP's error text show; `serverTextOf`, the fixed 5xx texts both
   use). pivotkit-mcp imports these from pivotkit-server, so pivotkit-server is released first and
   pivotkit-mcp's range raised in the release PR), `src/auth.js` (`createAuthCore`: static tokens, the
-  OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`; `callerOf`, a caller's
+  OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`, the one order of a
+  caller's profile (token, client, first matching group, scope, `auth.defaultProfile`), `groupsOf` (a
+  token's groups or why they are unknown) and `groupRefusal` (the 403 both front ends give when they
+  are unknown and nothing else decides); `auditOf`, the audit key read at start; `callerOf`, a caller's
   identity (`auth.subjectClaim`) and `identityKey`, the only identity a cache or binding uses, null
   without a usable subject; `callerView`, the frozen caller a code source gets; `exchangeTokenFor`,
   the one use of a caller's access token, which an ESLint rule lets only `src/sources/auth.js`
@@ -236,7 +241,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   of both runners, then `src/check/`: one section per feature with its lines, problems and the
   "New in this version" lines, `runSections`), `src/limits.js` (`createLimits`: rate and concurrency
   limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`), `src/log.js`
-  (`callerFields`: the allowlist of a caller's fields a log line holds), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
+  (`callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
+  `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
+  auth.js), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/healthz`, `/readyz`),
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck). What
   the REST service and the CLI's remote mode agree on (base path, source ids, token syntax, problem

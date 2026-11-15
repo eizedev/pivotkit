@@ -119,17 +119,28 @@ over them.
 | `hide` | not listed | none | dropped |
 
 A **profile** gives one caller more (or less) than the default: a named policy of the same shape in
-`policy.profiles`, bound to a static token (`auth.tokens[].profile`), an OAuth client
-(`auth.clientProfiles`) or an OAuth scope (`auth.scopeProfiles`). It is laid over each source's
-policy:
+`policy.profiles`. A caller gets one profile, the first of these that names one:
+
+1. a static token's own (`auth.tokens[].profile`);
+2. its OAuth client's (`auth.clientProfiles`): a client's profile wins over a person's groups both
+   ways, so a restricted model client stays restricted, and a trusted client's profile applies to
+   everyone using it;
+3. the first entry of `auth.groupProfiles` whose group the person's token carries
+   ([groups](mcp.md#groups)); when the token's groups are unknown, only step 5 follows (or 403
+   `NOT_ALLOWED` without it);
+4. the one profile its OAuth scopes name (`auth.scopeProfiles`); scopes that name two different
+   profiles name none;
+5. `auth.defaultProfile`, for every signed-in caller (a static token without a profile too).
+
+Without any, a caller gets the sources' own policy. Profiles are never merged. The profile is laid
+over each source's policy:
 
 - a field the source's policy hides stays hidden in every profile (it is dropped when the data is
   read);
 - any other field takes the profile's level for it, else the profile's `default`, else the source's
   level;
 - `items`, `rows`, `counts`, `inline` and `results` are the profile's where it sets them (a profile with `results: true` may download from a source whose own policy says `results: false`);
-- a caller without a profile gets the server's policy, never more. An OAuth token whose scopes name
-  two different profiles gets none.
+- a caller without a profile gets the server's policy, never more.
 
 A caller bound to a profile never gets the automatic values rule: what its profile and the source
 say is what it gets. With `policy.autoValues: true`, a profile that only adds `results: true` (the
@@ -182,6 +193,22 @@ field that is not hidden, in a file, whatever level the field has; give it only 
 | `auth.tokens[].profile` | none | A static token's profile |
 | `auth.clientProfiles` | none | OAuth client id (`azp` or `client_id`) to profile: `{ "report-bot": "export" }` |
 | `auth.scopeProfiles` | none | OAuth scope to profile: `{ "pivotkit:export": "export" }` |
+| `auth.groupProfiles` | none | A person's group to profile, the first match wins: `[{ "group": "finance", "profile": "finance" }, { "group": "staff", "profile": "staff" }]` |
+| `auth.defaultProfile` | none | The profile of a signed-in caller that nothing above names |
+
+Groups to profiles, with a narrow profile for everyone else:
+
+```json
+{
+  "policy": { "profiles": { "finance": { "default": "show" }, "staff": { "fields": { "Region": "show" } }, "restricted": { "default": "summary" } } },
+  "auth": { "mode": "oauth", "issuer": "https://login.example.com/realms/example", "resource": "https://reports.example.com/mcp",
+    "groupProfiles": [ { "group": "finance", "profile": "finance" }, { "group": "staff", "profile": "staff" } ],
+    "defaultProfile": "restricted" }
+}
+```
+
+A person in both groups gets `finance`, since it comes first; `check-config` warns when an earlier
+entry shows a field a later one holds back.
 
 ## Downloads { #downloads }
 
@@ -231,7 +258,11 @@ endpoints. With OAuth the REST service is a protected resource of its own: its r
 is at `/.well-known/oauth-protected-resource/api/v1`, and a token must carry its audience: a token
 issued for the MCP endpoint is refused by REST, and one for REST by the MCP endpoint. A token without
 the required scopes gets 403 `INSUFFICIENT_SCOPE` with `WWW-Authenticate: Bearer
-error="insufficient_scope", scope="..."` naming them.
+error="insufficient_scope", scope="..."` naming them. A person whose token does not carry their groups
+(with `auth.groupProfiles` and no `auth.defaultProfile`, [groups](mcp.md#groups)) gets 403
+`NOT_ALLOWED` without a challenge: signing in again with more scopes would not help. The metadata
+lists the required scopes and the sources' ([which scopes](mcp.md#scopes)); an empty `GET /sources`
+for a token without the sources' scopes has a `hint` naming them.
 
 Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068), so an ID
 token with the right audience is refused.
@@ -441,9 +472,9 @@ status, error code, time in ms), `download` (operation, client, `requestId`, sou
 `refused` (a request refused by the Host, Origin or token check, or a body over the cap, with its
 `requestId`) and `warning`. `requestId` is random (11 characters) and the same on every line of one
 request and in its error answer. The
-client is the static token's name or the OAuth client id, never the person's id: a line takes only
-these fields of the caller, never the person's subject, groups or other claims; no line holds a
-view, a value, a token, a path or, unless `http.trustProxy` is set, a client address.
+client is the static token's name or the OAuth client id; the person is on `request` and `download`
+lines only with `audit.subject` ([audit](mcp.md#logging)), and their groups and other claims never;
+no line holds a view, a value, a token, a path or, unless `http.trustProxy` is set, a client address.
 
 ## In your own server { #embed }
 
@@ -474,7 +505,8 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
 - Each request runs inside `withRequestId(id, fn)`: `requestId()` gives its id anywhere in its work,
   a code source's `load` included (for the host's own log lines), and every log line written inside
   it names it. `errorDetails({ retryable, retryAfter })` builds an `OperationError`'s details with
-  that id. `callerFields(caller)` is what a log line may hold of a caller: the client only.
+  that id. `callerFields(caller)` is what a log line may hold of a caller: the client, and `subject` where
+  `audit.subject` named the person when the token was verified.
 - A secret in your options is a reference, `{ "env": "NAME" }` or `{ "file": "path" }` (`SECRET_REF`);
   `readSecret(ref, options, env)` reads it on every use (a rotated file works without a restart),
   trims one trailing newline and refuses a value with another line break or a NUL; its error names

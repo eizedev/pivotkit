@@ -71,7 +71,7 @@ The whole body is built in memory; the [limits](../concepts/limits.md) keep it b
 | `size` | `{ width: 800, height: 480 }` | The chart's size in px, 100 to 8,000. |
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
-| `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form is refused. The REST service and the MCP server pass it; the report does not print it in this version. |
+| `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form, or a time that does not exist, is refused. `html`: "Data as of" in the details and the `{{dataAsOf}}` [placeholder](print-template.md), in the locale and time zone with the zone named; `xlsx`: the custom document property `DataAsOf` (a date). csv, json and svg leave it out. The REST service and the MCP server pass it. |
 
 Any other option name is refused (`INVALID_OPTION`, with the closest name), so a misspelt one is not
 ignored.
