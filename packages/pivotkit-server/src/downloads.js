@@ -77,8 +77,8 @@ const BASE_HEADERS = Object.freeze({ "cache-control": "no-store", "referrer-poli
  * browser's own zone and, after the click, says that the download started and how long it can be
  * repeated.
  */
-const PAGE_STYLE = ":root{color-scheme:light dark;--fg:#1f2328;--bg:#fff;--muted:#59636e;--accent:#0969da;--on-accent:#fff}@media (prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--muted:#9198a1;--accent:#4493f8;--on-accent:#0d1117}}body{font:16px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg);max-width:36rem;margin:3rem auto;padding:0 1rem;overflow-wrap:anywhere}.brand{color:var(--muted);font-size:.875rem;margin:0}h1{font-size:1.5rem;margin:.25rem 0 1rem}.file{font-weight:600;margin:0}button{font:inherit;min-height:2.75rem;padding:.5rem 1.25rem;border:0;border-radius:6px;background:var(--accent);color:var(--on-accent);cursor:pointer}button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}[role=status]{color:var(--muted);min-height:1.5em}.ref{color:var(--muted);font-size:.875rem}";
-const PAGE_SCRIPT = "for(const t of document.querySelectorAll('time[datetime]')){t.textContent=new Date(t.dateTime).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})}document.querySelector('form')?.addEventListener('submit',()=>{document.getElementById('status').textContent='The download has started: look in your browser\\'s downloads.';document.getElementById('again').hidden=false});";
+const PAGE_STYLE = ":root{color-scheme:light dark;--fg:#1f2328;--bg:#fff;--muted:#59636e;--accent:#0969da;--on-accent:#fff}@media (prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--muted:#9198a1;--accent:#4493f8;--on-accent:#0d1117}}body{font:16px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg);max-width:36rem;margin:3rem auto;padding:0 1rem;overflow-wrap:anywhere}.brand{color:var(--muted);font-size:.875rem;margin:0}h1{font-size:1.5rem;margin:.25rem 0 1rem}.file{font-weight:600;margin:0}button{font:inherit;min-height:2.75rem;padding:.5rem 1.25rem;border:0;border-radius:6px;background:var(--accent);color:var(--on-accent);cursor:pointer}button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}[role=status]{min-height:1.5em}.ref{color:var(--muted);font-size:.875rem}";
+const PAGE_SCRIPT = `for(const t of document.querySelectorAll('time[datetime]')){t.textContent=new Date(t.dateTime).toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})}document.querySelector('form')?.addEventListener('submit',()=>{document.getElementById('status').textContent='Downloaded once. You can repeat it for ${REPEAT_SECONDS / 60} minutes, in this browser.'});`;
 const hashOf = (text) => `'sha256-${createHash("sha256").update(text).digest("base64")}'`;
 const PAGE_CSP = `default-src 'none'; style-src ${hashOf(PAGE_STYLE)}; script-src ${hashOf(PAGE_SCRIPT)}; form-action 'self'; frame-ancestors 'none'`;
 const FILE_CSP = "sandbox; default-src 'none'";
@@ -101,10 +101,10 @@ const ANSWERS = Object.freeze({
     NOT_FOUND: { status: 404, heading: "Link not found", text: "There is no such link. Check that the whole link was copied." },
     LINK_EXPIRED: { status: 410, heading: "Link expired", text: "This link has expired. Ask whoever made the report to make it again." },
     REPORT_REMOVED: { status: 410, code: "LINK_EXPIRED", heading: "Report removed", text: "The report was removed from the server before the link expired. Ask whoever made the report to make it again." },
-    LINK_USED: { status: 409, heading: "Link already used", text: "This link was already used. Ask whoever made the report to make it again." },
+    LINK_USED: { status: 409, heading: "Link already used", text: "This link was already used. If you downloaded the report earlier, look in the downloads of the browser you used. Otherwise ask whoever made the report to make it again." },
     LINK_NOT_YOURS: { status: 403, heading: "Signed in as someone else", text: "You are signed in as a different account than the one that asked for this report. To get it, open the download link you were sent once more and sign in with that account." },
     SIGN_IN_FAILED: { status: 400, heading: "Sign-in failed", text: "The sign-in did not complete. Open the download link you were sent once more (not this page) to try again." },
-    SIGN_IN_DENIED: { status: 400, code: "SIGN_IN_FAILED", heading: "Sign-in cancelled", text: "The sign-in service did not sign you in: the sign-in was cancelled or refused. To get the report, open the download link you were sent once more and sign in." },
+    SIGN_IN_DENIED: { status: 400, code: "SIGN_IN_FAILED", heading: "Not signed in", text: "You were not signed in. The sign-in was cancelled or the sign-in service refused it. To get the report, open the download link you were sent once more and sign in." },
     SIGN_IN_STALE: { status: 400, code: "SIGN_IN_FAILED", heading: "Sign-in page out of date", text: `This sign-in was already used, is older than ${minutesText(SIGN_IN_SECONDS)}, or was started in another browser. Open the download link you were sent once more, in this browser.` },
     SIGN_IN_NOT_READY: { status: 503, heading: "Sign-in not ready", text: "The server is waiting for its sign-in service. Try again in a moment." },
     FORBIDDEN_ORIGIN: { status: 403, heading: "Download not started from its page", text: "This download must be started from its own page. Open the download link once more and press Download there." },
@@ -431,7 +431,9 @@ function cookieJar(keyOf, secure) {
             }
             const keys = await keyOf();
             const body = b64(JSON.stringify(Object.fromEntries(entries)));
-            return `${name}=${body}.${mac(keys.cookie, body)}; Max-Age=${SIGN_IN_SECONDS}; ${attributes}`;
+            // as long as its last entry: REPEAT_SECONDS for a repeat alone, SIGN_IN_SECONDS with a sign-in under way
+            const maxAge = Math.max(1, entries[entries.length - 1][1].x - Math.floor(Date.now() / 1000));
+            return `${name}=${body}.${mac(keys.cookie, body)}; Max-Age=${maxAge}; ${attributes}`;
         }
     };
 }
@@ -441,11 +443,11 @@ const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => `&#${c.char
 
 /**
  * A short page: a heading (also the title), its body as HTML (escaped by the caller) and, for a
- * one-time link, the button. An error page names the request's id, for the operator.
+ * one-time link, the button. A page of status 500 or more names the request's id, for the operator.
  */
 function page(heading, body, { status = 200, form = false, headers = {} } = {}) {
-    const again = `If the download did not arrive, press Download again within ${minutesText(REPEAT_SECONDS)}, in this browser; after that the link is used.`;
-    const tail = form ? `<form method="post"><button type="submit">Download</button></form><p id="status" role="status"></p><p id="again" hidden>${again}</p><script>${PAGE_SCRIPT}</script>` : status >= 400 ? `<p class="ref">Request id: ${escapeHtml(requestId() ?? newRequestId())}</p>` : "";
+    // the request id where the operator has something to look up: a failure of the server's own
+    const tail = form ? `<form method="post"><button type="submit">Download</button></form><p id="status" role="status"></p><script>${PAGE_SCRIPT}</script>` : status >= 500 ? `<p class="ref">Request id: ${escapeHtml(requestId() ?? newRequestId())}</p>` : "";
     const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(heading)} - pivotkit report</title><style>${PAGE_STYLE}</style></head><body><main><p class="brand">pivotkit report</p><h1>${escapeHtml(heading)}</h1>${body}${tail}</main></body></html>`;
     return new Response(html, { status, headers: { ...BASE_HEADERS, "content-security-policy": PAGE_CSP, "content-type": "text/html; charset=utf-8", ...headers } });
 }

@@ -47,8 +47,7 @@ test("a one-time link: the page's Download button saves the file once; the link 
         expect(answer.headers()["content-disposition"]).toBe(`attachment; filename="Sales once.csv"; filename*=UTF-8''Sales%20once.csv`);
         const download = await downloading;
         if (download) {
-            await expect(page.getByRole("status")).toHaveText("The download has started: look in your browser's downloads.");
-            await expect(page.getByText("If the download did not arrive, press Download again within 2 minutes, in this browser; after that the link is used.")).toBeVisible();
+            await expect(page.getByRole("status")).toHaveText("Downloaded once. You can repeat it for 2 minutes, in this browser.");
             expect(download.suggestedFilename()).toBe("Sales once.csv");
             expect(readFileSync(await download.path())).toEqual(stored);
         } else {
@@ -64,7 +63,7 @@ test("a one-time link: the page's Download button saves the file once; the link 
             expect(opened?.status()).toBe(409);
             await expect(second).toHaveTitle("Link already used - pivotkit report");
             await expect(second.getByRole("heading", { name: "Link already used" })).toBeVisible();
-            await expect(second.getByText("This link was already used. Ask whoever made the report to make it again.")).toBeVisible();
+            await expect(second.getByText("This link was already used. If you downloaded the report earlier, look in the downloads of the browser you used. Otherwise ask whoever made the report to make it again.")).toBeVisible();
             await expect(second.getByRole("button")).toHaveCount(0);
         } finally {
             await other.close();
@@ -114,7 +113,9 @@ test("the pages, light and dark, wide and at 390 px: details of the file, contra
                     await expect(page.getByText(`${LONG_NAME}.csv`)).toBeVisible();
                     await expect(page.getByText(/^CSV file, \d+ bytes\. It can be downloaded once, until .+\.$/)).toBeVisible();
                     const shown = await page.locator("time").evaluate((t) => ({ text: t.textContent, at: t.getAttribute("datetime") }));
-                    expect(shown.text).not.toContain("UTC");
+                    // the script wrote it (the page's own text is "2026-11-15 13:05 UTC"), with the zone's name
+                    expect(shown.text).not.toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d UTC$/);
+                    expect(shown.text).toMatch(/\d{4}.*\d{1,2}:\d\d.*[A-Z]{2,}|GMT/);
                     expect(Date.parse(String(shown.at))).toBe(Date.parse(String(output.expiresAt)));
                     // the button reached by the keyboard shows its ring: the accent, 3:1 or more on the page
                     // (in WebKit focused after a key, since Safari's Tab skips buttons unless the user turns that on)
