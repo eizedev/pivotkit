@@ -20,7 +20,7 @@ it. It makes no compliance claim.
 | [Cache keys](#memory) | the server's memory | as long as their data | nobody: values, groups and claims only as a keyed digest |
 | [Exchanged backend tokens](#memory) | the server's memory | at most until the person's own token expires | the backend they are for |
 | [The log](#logs) | stderr, then your container runtime or journal | as long as you keep it | whoever reads the log |
-| [The limiter](#memory) | the server's memory | about two minutes after an address's last refused token; a caller until its rate bucket is full again | nobody |
+| [The limiter](#memory) | the server's memory | about two minutes after an address's last refused token; a caller until its rate bucket is full again (checked every minute) | nobody |
 | [Backends of HTTP sources](#recipients) | the backend and its own logs | as the backend keeps them | the backend's operator |
 | [The sign-in provider](#recipients) | the provider's sign-in log | as the provider keeps it | the provider's administrators |
 | [The model's provider](#ai-client) | the provider of the AI client's model | as that provider keeps it | that provider |
