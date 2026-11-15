@@ -136,4 +136,4 @@ theme, on screen and in print, over a table with a colour scale, data bars and a
 | --- | --- |
 | Command line | `pivotkit render <view> --data <file> --template corporate.template.html -o report.html` ([pivotkit-cli](cli.md)) |
 | Code | `render(view, rows, { format: "html", template: await readFile("corporate.template.html", "utf8"), echarts })` ([pivotkit-report](report.md)) |
-| Server | `sources.<id>.template` in its configuration, a path relative to the configuration file: every HTML report of that source ([pivotkit-mcp options](mcp.md)) |
+| Server | `sources.<id>.template` in its configuration, a path relative to the configuration file: every HTML report of that source ([pivotkit-mcp options](mcp.md)); `check-config` and the start check it, so a typo in a placeholder stops the start with the line it is on |
