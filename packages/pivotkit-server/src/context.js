@@ -152,7 +152,7 @@ export async function createContext(options, runtime = {}) {
             throw new ConfigError("output.dir: is the configuration's directory or holds a source, template or token file, which output.maxAgeDays could delete with the old reports; give the reports a directory of their own");
         }
         if (shared) {
-            log.warn("output.dir is the configuration's directory or holds a source, template or token file: reports there are never deleted to make room, so a full directory refuses new ones; give the reports a directory of their own");
+            log.warn(SHARED_OUTPUT_TEXT);
         }
         if (!(await writable(dir))) {
             log.warn("output.dir is not writable by the server's user: every report will fail with NO_OUTPUT until its owner or mode is fixed");
@@ -360,6 +360,9 @@ export async function plannedPath(path) {
 
 /** Whether the server's user may create files in a directory. */
 export const writable = (dir) => access(dir, constants.W_OK).then(() => true, () => false);
+
+/** What the start and check-config say of an output directory that holds the operator's own files. */
+export const SHARED_OUTPUT_TEXT = "output.dir is the configuration's directory or holds a source, template or token file: reports there are never deleted to make room, so a full directory refuses new ones; give the reports a directory of their own";
 
 /**
  * The real directories that hold the operator's own files: each source file, print template and

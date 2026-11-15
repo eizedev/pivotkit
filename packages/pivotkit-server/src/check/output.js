@@ -16,9 +16,9 @@
 import { lstat, realpath } from "node:fs/promises";
 import { isInside } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf } from "../config.js";
-import { OUTPUT_INSIDE_ALLOWED, cannotCreate, entryOf, outputRefusal, ownFileDirs, plannedPath, writable } from "../context.js";
+import { OUTPUT_INSIDE_ALLOWED, SHARED_OUTPUT_TEXT, cannotCreate, entryOf, outputRefusal, ownFileDirs, plannedPath, writable } from "../context.js";
 import { draftCap } from "../present.js";
-import { heading, plain, problem } from "./format.js";
+import { heading, plain, problem, warning } from "./format.js";
 
 /** @type {import("./index.js").Section} */
 export async function section(options, registry) {
@@ -75,6 +75,9 @@ export async function section(options, registry) {
         items.push(plain("no age limit: the directory holds other files"));
         if (out.maxAgeDays) {
             items.push(problem("output.maxAgeDays in a directory that holds the configuration or a source, template or token file; give the reports a directory of their own", stop));
+        } else {
+            // the start warns of it too (createContext)
+            items.push(warning(SHARED_OUTPUT_TEXT));
         }
     } else {
         items.push(plain("when full, the oldest reports are deleted to make room; drafts are kept"));

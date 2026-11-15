@@ -195,3 +195,14 @@ test("auth token: a token file emptied or removed after the start refuses with 4
     assert.ok(!JSON.stringify(warnings).includes(TOKEN.slice(0, 12)), "never the token");
     assert.ok(!JSON.stringify(warnings).includes(dir), "never the file's path either");
 });
+
+// --- check-config warns of an output directory that holds the operator's own files, as serve does ----
+
+test("check-config: output.dir in the configuration's directory is a WARNING (Output), with the text serve warns with", async () => {
+    const dir = workspace();
+    const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "." }, baseDir: dir }, { http: false, env: {} });
+    assert.match(factsOf(result.text), /^WARNING \(Output\): output\.dir is the configuration's directory or holds a source, template or token file: reports there are never deleted to make room, so a full directory refuses new ones; give the reports a directory of their own$/m);
+    assert.ok(result.warnings >= 1);
+    // a directory of the reports' own: no such warning
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text, /never deleted to make room/);
+});
