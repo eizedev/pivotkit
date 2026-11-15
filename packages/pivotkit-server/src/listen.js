@@ -383,14 +383,17 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
     // reaches the handler: it is answered as node:http would, with an id, and told to onClientError
     server.on("clientError", (error, socket) => {
         const code = String(/** @type {any} */ (error)?.code ?? "");
-        if (code === "ECONNRESET" || !socket.writable) {
-            socket.destroy();
-            return;
+        // as node:http's own handler: an answer only on a socket that can take one and is not in the
+        // middle of another answer, then the socket destroyed at once (never left half-closed), so its
+        // connection slot is free by the time the client sees it close
+        const busy = /** @type {any} */ (socket)._httpMessage?.headersSent === true;
+        if (code !== "ECONNRESET" && socket.writable && !busy) {
+            const status = code === "HPE_HEADER_OVERFLOW" ? 431 : code === "ERR_HTTP_REQUEST_TIMEOUT" ? 408 : 400;
+            const id = newRequestId();
+            onClientError?.({ status, requestId: id, address: plainAddress(/** @type {import("node:net").Socket} */ (socket).remoteAddress), parserError: code.replace(/[^A-Z0-9_]/g, "").slice(0, 40) || "unknown" });
+            socket.write(`HTTP/1.1 ${status} ${status === 431 ? "Request Header Fields Too Large" : status === 408 ? "Request Timeout" : "Bad Request"}\r\nConnection: close\r\nContent-Length: 0\r\nX-Request-Id: ${id}\r\n\r\n`);
         }
-        const status = code === "HPE_HEADER_OVERFLOW" ? 431 : code === "ERR_HTTP_REQUEST_TIMEOUT" ? 408 : 400;
-        const id = newRequestId();
-        onClientError?.({ status, requestId: id, address: plainAddress(/** @type {import("node:net").Socket} */ (socket).remoteAddress), parserError: code.replace(/[^A-Z0-9_]/g, "").slice(0, 40) || "unknown" });
-        socket.end(`HTTP/1.1 ${status} ${status === 431 ? "Request Header Fields Too Large" : status === 408 ? "Request Timeout" : "Bad Request"}\r\nConnection: close\r\nContent-Length: 0\r\nX-Request-Id: ${id}\r\n\r\n`);
+        socket.destroy();
     });
     // a bound on open connections, in all and per address, with slots kept for loopback
     // refused connections are told at most once a minute, so a flood does not flood the log too: the
