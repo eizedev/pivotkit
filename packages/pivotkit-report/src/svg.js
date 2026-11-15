@@ -138,12 +138,32 @@ export function cleanSvg(svg) {
     return out.join("");
 }
 
+/** The colours ECharts mixes itself (a heatmap's scale): they must be colours its own parser reads. */
+const MIXED = Object.freeze(["--pk-heat-low", "--pk-heat-high"]);
+
+/**
+ * The style with the colours ECharts mixes kept to what it reads: a colour its parser does not know
+ * (oklch(), rgb() with spaces, some names) would turn the heatmap black, so the light default
+ * stands in for it. Every other colour is written into the SVG as it is, where the viewer reads it.
+ * @param {{ getPropertyValue(name: string): string }} style
+ * @param {{ color?: { parse?: (color: string) => unknown } }} echarts
+ */
+function readable(style, echarts) {
+    const parse = echarts.color?.parse;
+    return {
+        getPropertyValue(name) {
+            const value = style.getPropertyValue(name);
+            return MIXED.includes(name) && typeof parse === "function" && value.trim() && !parse(value.trim()) ? LIGHT_TOKENS[name] : value;
+        }
+    };
+}
+
 /**
  * The chart of a pivot as SVG, as pivotkit-react draws it: chartPlan's type (the view's, or what
  * "auto" picks; rows and columns swapped for the chart where it says so), the theme's colours from
  * `style`, the axis labels laid out for the size, at most `maxCategories` categories.
  * @param {import("pivotkit-core").PivotResult} result
- * @param {{ echarts: { init: Function }, style: { getPropertyValue(name: string): string }, width: number, height: number,
+ * @param {{ echarts: { init: Function, color?: { parse?: (color: string) => unknown } }, style: { getPropertyValue(name: string): string }, width: number, height: number,
  *   locale: string, labels?: object, limits?: object, now?: any, maxCategories: number }} options
  * @returns {{ svg: string, categories: number, of: number }}
  */
@@ -152,7 +172,7 @@ export function chartSvg(result, { echarts, style, width, height, locale, labels
     const plan = chartPlan(view, result.encoded);
     const drawn = plan.swap ? computePivot(result.encoded, swapAxes(view), { locale, limits, ...(now !== undefined ? { now } : {}) }) : result;
     const series = toSeries(drawn, { labels, limits, maxCategories });
-    const option = toEChartsOption(drawn, { theme: chartThemeFrom(style), locale, labels, limits, maxCategories, series, chart: plan.chart });
+    const option = toEChartsOption(drawn, { theme: chartThemeFrom(readable(style, echarts)), locale, labels, limits, maxCategories, series, chart: plan.chart });
     const decorated = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels });
     const surface = style.getPropertyValue("--pk-surface").trim() || LIGHT_TOKENS["--pk-surface"];
     const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width, height });

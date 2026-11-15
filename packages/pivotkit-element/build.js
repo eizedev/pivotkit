@@ -230,9 +230,16 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * system's dark theme and for a root that asks for dark, and the colour scale's dark colour mixed by
  * one rule per half from each cell's place: report 21.9 on a Mac (21.6 before; CI 22.0, at the budget),
  * and with the template's colours for the chart (#369) about 22.1 to 22.3: budget 22.5.
+ * A print template's own colours for the chart (#369): pivotkit-report reads and resolves a
+ * template's CSS in a module of its own, template-style.js, loaded only for a template of the host's
+ * (it imports nothing, so no module of the report becomes a chunk of its own); the element's Export
+ * menu renders with the default template and never loads it: the group "template", 2.5 on a Mac,
+ * budget 3, counted as what it adds to the report group. What stays in the report group (a token
+ * that names another one followed, a heatmap colour ECharts cannot mix left out): report 21.9 on a
+ * Mac (21.6 before); with the dark-screen rules (#370): 22.1 on a Mac, within 22.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 22.5 };
+export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 22.5, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -241,7 +248,8 @@ export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7
  * "texts": the menus' texts of a language besides English, "unused": the plain words of a view's
  * unused parts, English and every other language, "import": loading data with allow-import, the import
  * UI with its texts and pivotkit-core/import with its CSV and JSON readers, "report": the HTML report,
- * the chart as SVG and printing, pivotkit-report with ECharts' SVG renderer, beyond the chart group).
+ * the chart as SVG and printing, pivotkit-report with ECharts' SVG renderer, beyond the chart group;
+ * "template": pivotkit-report's reading of a print template's own CSS, which the element never loads).
  * @param {import("esbuild").Metafile} metafile
  * @returns {{ group: string, files: string[] }[]}
  */
@@ -276,9 +284,9 @@ export function loadGroups(metafile) {
     };
     scan(initial);
     const groupOf = (file) =>
-        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]report-run-[^\\/]+$/.test(file) ? "report" : /[\\/]import-(?:ui|csv|json)-[^\\/]+$/.test(file) ? "import" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : "export";
+        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]report-run-[^\\/]+$/.test(file) ? "report" : /[\\/]template-style-[^\\/]+$/.test(file) ? "template" : /[\\/]import-(?:ui|csv|json)-[^\\/]+$/.test(file) ? "import" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : "export";
     const groups = [{ group: "initial", files: [...initial] }];
-    for (const name of ["chart", "export", "link", "menus", "texts", "unused", "import", "report"]) {
+    for (const name of ["chart", "export", "link", "menus", "texts", "unused", "import", "report", "template"]) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
         groups.push({ group: name, files });
     }
@@ -287,6 +295,12 @@ export function loadGroups(metafile) {
     const report = groups.find((g) => g.group === "report");
     if (report) {
         report.files = report.files.filter((f) => !chart.has(f));
+    }
+    // a print template's CSS is read after the report has loaded: it counts what it adds to both
+    const template = groups.find((g) => g.group === "template");
+    if (template && report) {
+        const loaded = new Set([...chart, ...report.files]);
+        template.files = template.files.filter((f) => !loaded.has(f));
     }
     return groups;
 }

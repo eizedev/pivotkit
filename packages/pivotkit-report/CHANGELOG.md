@@ -12,10 +12,20 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 - `env.unknownItems`: the finding `itemUnknown` for an item of an `in` filter that is none of its
   text field's values, with the closest one as the `suggestion`
   ([#362](https://github.com/eizedev/pivotkit/issues/362)).
+- An HTML report's chart, its card and the table's colour scales and data bars take the `--pk-*`
+  colours and the font that the print template's own CSS gives the report, computed as the browser
+  computes them for `.pk-report` (light values, `var()` resolved), so a template's CSS is the one
+  place of its design ([#369](https://github.com/eizedev/pivotkit/issues/369)).
 - The HTML report's root (`<html>` of a print template) takes `data-pk-theme="light"` (light on
   every screen) and `data-pk-theme="dark"` (dark on every screen, light on paper). On a dark screen
   the report's dark tokens win over a template's plain `:root` colours
   ([#370](https://github.com/eizedev/pivotkit/issues/370)).
+
+### Changed
+
+- A token's value with a quoted string is left out (the default stands in), except in
+  `font-family`: in the host's `tokens` too. A quote in a colour could only make the chart's SVG
+  refused ([#369](https://github.com/eizedev/pivotkit/issues/369)).
 
 ### Fixed
 
@@ -24,6 +34,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
   under light text (3.3:1). A view's own colours are mixed fainter there (30 %, as on the page).
   Each cell carries only its place on the scale; the colour is mixed by one rule per half
   ([#370](https://github.com/eizedev/pivotkit/issues/370)).
+- A host's token that is another token alone (`var(--pk-chart-2)`) reaches the chart as that token's
+  value; one with any other `var()` keeps the default instead of reaching the chart as `var(...)`. A
+  heatmap colour ECharts cannot mix (such as `oklch()`) keeps the default scale instead of turning
+  the heatmap black ([#369](https://github.com/eizedev/pivotkit/issues/369)).
 
 ## [0.2.1] - 2026-11-14
 

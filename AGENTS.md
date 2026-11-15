@@ -70,7 +70,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   texts, the parts of its sections, the view changes only menus make in `menu-ops.js`, sharing in
   `share-actions.js`, the drill-down's table in `drill-table.js`) goes into pivotkit-react's
   `menus.js`, and what only a drawn chart needs (`chart-decorate.js` with pivotkit-core/chart) into
-  `echarts.js`; the plain words of a view's unused parts (`unused-texts*.js`) are the group "unused", loaded only when a view has such parts; loading data (pivotkit-react's `import-ui.js` with `pivotkit-core/import`) is the group "import", loaded on first use. The HTML report, the chart as SVG and printing (pivotkit-react's `report-run.js` with pivotkit-report and ECharts' SVG renderer) are the group "report", loaded on first use and counted as what they add to the chart group they load first. A module behind a barrel (pivotkit-core's `index.js`, ECharts' `echarts/renderers`) lands where any importer of the barrel loads it: pivotkit-report's use of `describeView` put `describe.js` into the first load, its `SVGRenderer` put zrender's SVG painter into the chart group. `dist/import-worker.js` is a build of its own (`workerOptions`: one file, so it does not split the first load), which the element starts from its chunk by `../import-worker.js` (`__PIVOTKIT_IMPORT_WORKER__`). esbuild splits by file: a module that both load lands in the first load whole, so a
+  `echarts.js`; the plain words of a view's unused parts (`unused-texts*.js`) are the group "unused", loaded only when a view has such parts; loading data (pivotkit-react's `import-ui.js` with `pivotkit-core/import`) is the group "import", loaded on first use. The HTML report, the chart as SVG and printing (pivotkit-react's `report-run.js` with pivotkit-report and ECharts' SVG renderer) are the group "report", loaded on first use and counted as what they add to the chart group they load first; pivotkit-report's reading of a host's print template CSS (`template-style.js`) is the group "template", which the element never loads. A module behind a barrel (pivotkit-core's `index.js`, ECharts' `echarts/renderers`) lands where any importer of the barrel loads it: pivotkit-report's use of `describeView` put `describe.js` into the first load, its `SVGRenderer` put zrender's SVG painter into the chart group. `dist/import-worker.js` is a build of its own (`workerOptions`: one file, so it does not split the first load), which the element starts from its chunk by `../import-worker.js` (`__PIVOTKIT_IMPORT_WORKER__`). esbuild splits by file: a module that both load lands in the first load whole, so a
   menu-only function goes into a module of the menus, not next to first-load code. A text a menu
   alone shows goes into `menu-labels.js`; a text the first render shows stays in `labels.js`, so no
   report shows English first.
@@ -116,7 +116,14 @@ root `package.json`: `npm run types` and the builds depend on it.
   unless the root pins `data-pk-theme="light"`, and `data-pk-theme="dark"` on any screen, never on
   paper), `src/tokens.js` (`LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`,
   `SHAPE_TOKENS`: a kept copy of pivotkit-react's `styles.css` values, `test/tokens.test.js` compares
-  them, and `DEFAULT_THEME`'s with them; `SIZE_TOKENS`, the HTML report's own font sizes), `src/texts.js`
+  them, and `DEFAULT_THEME`'s with them; `SIZE_TOKENS`, the HTML report's own font sizes; `reportTokens`,
+  the light values the chart and the cells' colours are drawn with: defaults and the host's `tokens`,
+  a token that names another one followed), `src/template-style.js` (`templateTheme`: those values
+  with a print template's own CSS over them, computed as the browser computes them for `.pk-report`:
+  `:root`, `body`, `.pk-report` each inheriting, the cascade's order with the report's `{{style}}` in
+  it, `var()` with cycles; loaded by `render()` only for a template of the host's and importing
+  nothing, tokens.js's parts passed in; `tests/browser/report-template.spec.js` compares it with
+  `getComputedStyle` in three engines), `src/texts.js`
   (`REPORT_TEXTS`, en and de), `src/svg.js` (the chart through ECharts' server-side SVG renderer, the
   ECharts module passed in as `options.echarts`; `cleanSvg` checks and cleans it). `test/contrast.test.js`
   holds the report's colours in both themes to WCAG AA (text on its surfaces, a theme's colour scale
