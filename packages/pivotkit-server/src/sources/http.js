@@ -1,12 +1,585 @@
 /*
- * HTTP sources: not configurable in this version (sources.<id>.http is no option yet), so no source
- * reaches this kind; the registry's dispatch has its place.
+ * HTTP sources (sources.<id>.http): pivotkit requests an operator's backend with a caller's checked
+ * values and reads the rows from its answer. The caller never gives an address: the operator's
+ * template (sources/template.js) fixes the host and the path's shape, a value only fills its segment
+ * or query value.
+ *
+ * Where it runs: the requests (guardedFetch, sources/fetch.js), parsing JSON (at most PARSES at once
+ * in the process, nested at most MAX_DEPTH deep) and finding the rows (a JSON Pointer, own properties
+ * only) in the main thread, where a backend's credentials would stay; the rows as plain values (a
+ * nested value as JSON text) go to a worker, which encodes them and runs the operation as a table
+ * job (a CSV answer goes as its bytes and is read there).
+ *
+ * Loading goes through sources/run.js like a code source's: the source's timeMs for all pages, one
+ * load in flight per key, the load limits, kept data for ttl seconds per caller (the identity is
+ * part of the key; a caller without one keeps and shares nothing), last good data after a transient
+ * failure only.
+ *
+ * A backend's answer never reaches a caller in words: a status becomes a SourceError (BACKEND_ANSWERS)
+ * whose text is pivotkit's, a GuardedFetchError's message goes to the log at debug only, and a body is
+ * read for its rows and nothing else.
  */
 
+import { randomBytes } from "node:crypto";
+import { cleanText } from "pivotkit-core/import";
+import { LIMITS } from "pivotkit-core";
 import { OperationError } from "pivotkit-report/operations";
+import { identityKey } from "../auth.js";
+import { overLimit } from "../data.js";
+import { httpSettingsOf } from "../options/http.js";
+import { fieldKey } from "../policy.js";
+import { requestId } from "../request-id.js";
+import { asOfText } from "./as-of.js";
+import { GuardedFetchError, guardedFetch } from "./fetch.js";
+import { canonicalJson, configHashOf } from "./keys.js";
+import { SourceError, loadRunner, ownError } from "./run.js";
+import { expandUrl, loggedPath } from "./template.js";
 
-const unavailable = () => {
-    throw new OperationError("INTERNAL", "HTTP sources are not available in this version");
+/** How many JSON answers are parsed at once in the process (the main thread's time is everyone's). */
+export const PARSES = 2;
+
+/** The deepest a JSON answer may be nested. */
+export const MAX_DEPTH = 64;
+
+/** The longest a column name of a backend's answer may be, in characters. */
+const NAME_TEXT = 200;
+
+/** The longest Retry-After pivotkit passes on, in seconds. */
+const RETRY_AFTER_MAX = 3600;
+
+/** The words of the answers a caller may read (pivotkit's own; a backend's text never reaches a caller). */
+export const BACKEND_TEXT = Object.freeze({
+    rejected: "the backend did not accept these parameters",
+    nothing: (values) => `nothing you may see for ${values}: check the value${values.includes(",") ? "s" : ""}`
+});
+
+/**
+ * What a guardedFetch is: the server's, or a test's own (createGuardedFetch with a certificate and a
+ * lookup of its own). Not part of the package's API; no option reaches it.
+ */
+export const httpMeans = { fetch: guardedFetch };
+
+/** The parses running and those waiting for a turn. */
+let parsing = 0;
+/** @type {Array<() => void>} */
+const waiting = [];
+
+/**
+ * Waits for a turn to parse; resolves with the function that gives it back.
+ * @param {AbortSignal} signal
+ * @returns {Promise<() => void>}
+ */
+async function parseTurn(signal) {
+    const done = () => {
+        const next = waiting.shift();
+        if (next) {
+            next();
+        } else {
+            parsing--;
+        }
+    };
+    if (parsing < PARSES) {
+        parsing++;
+        return done;
+    }
+    await new Promise((resolve, reject) => {
+        const go = () => {
+            signal.removeEventListener("abort", leave);
+            resolve(undefined);
+        };
+        const leave = () => {
+            const at = waiting.indexOf(go);
+            if (at >= 0) {
+                waiting.splice(at, 1);
+            }
+            reject(signal.reason);
+        };
+        waiting.push(go);
+        signal.addEventListener("abort", leave, { once: true });
+    });
+    return done;
+}
+
+/**
+ * How deeply a JSON text is nested, counted until it passes `max` (strings skipped).
+ * @param {string} text
+ * @param {number} max
+ */
+export function jsonDepth(text, max) {
+    let depth = 0;
+    let deepest = 0;
+    let inString = false;
+    for (let i = 0; i < text.length; i++) {
+        const c = text.charCodeAt(i);
+        if (inString) {
+            if (c === 92) {
+                i++;
+            } else if (c === 34) {
+                inString = false;
+            }
+        } else if (c === 34) {
+            inString = true;
+        } else if (c === 91 || c === 123) {
+            deepest = Math.max(deepest, ++depth);
+            if (deepest > max) {
+                return deepest;
+            }
+        } else if (c === 93 || c === 125) {
+            depth--;
+        }
+    }
+    return deepest;
+}
+
+/**
+ * The value at a JSON Pointer's keys, own properties only (a key of an object's prototype matches
+ * nothing); undefined when nothing is there.
+ * @param {unknown} value
+ * @param {string[]} keys
+ */
+export function pointerValue(value, keys) {
+    let at = value;
+    for (const key of keys) {
+        if (Array.isArray(at)) {
+            if (!/^(?:0|[1-9]\d{0,8})$/.test(key) || Number(key) >= at.length) {
+                return undefined;
+            }
+            at = at[Number(key)];
+        } else if (at !== null && typeof at === "object" && Object.hasOwn(at, key)) {
+            at = /** @type {Record<string, unknown>} */ (at)[key];
+        } else {
+            return undefined;
+        }
+    }
+    return at;
+}
+
+/** A Retry-After header in seconds (a number of seconds or an HTTP date), capped; undefined without one. */
+function retryAfterOf(value) {
+    if (typeof value !== "string" || !value.trim()) {
+        return undefined;
+    }
+    const seconds = /^\d{1,10}$/.test(value.trim()) ? Number(value.trim()) : Math.ceil((Date.parse(value) - Date.now()) / 1000);
+    return Number.isFinite(seconds) ? Math.min(Math.max(seconds, 0), RETRY_AFTER_MAX) : undefined;
+}
+
+/**
+ * A backend's status as the caller gets it (every kind of source answers alike):
+ *
+ *   400, 422                        INVALID_INPUT "the backend did not accept these parameters"
+ *   401, 403, 404 with params       DATA_NOT_AVAILABLE "nothing you may see for customer=xyz: check the value"
+ *                                   (one answer for the three, so other tenants' names cannot be probed)
+ *   401, 403 without params         SOURCE_UNAVAILABLE, reason "refused"
+ *   404 without params              SOURCE_UNAVAILABLE, reason "setup" (the address is wrong)
+ *   429, 502, 503, 504              SOURCE_UNAVAILABLE, transient, Retry-After passed on
+ *   anything else                   SOURCE_UNAVAILABLE
+ *
+ * @param {number} status
+ * @param {boolean} hasParams  the source declares params
+ * @param {Record<string, string | number | boolean> | null} values  the caller's checked values
+ * @param {Record<string, string>} headers
+ * @returns {SourceError}
+ */
+export function backendAnswer(status, hasParams, values, headers) {
+    if (status === 400 || status === 422) {
+        return new SourceError("INVALID_INPUT", { publicMessage: BACKEND_TEXT.rejected, status });
+    }
+    if ((status === 401 || status === 403 || status === 404) && hasParams) {
+        const given = Object.entries(values ?? {}).map(([k, v]) => `${k}=${v}`);
+        return new SourceError("DATA_NOT_AVAILABLE", { publicMessage: BACKEND_TEXT.nothing(given.length ? given.join(", ") : "these parameters"), status });
+    }
+    if (status === 401 || status === 403) {
+        return new SourceError("SOURCE_UNAVAILABLE", { status, transient: false, reason: "refused" });
+    }
+    if (status === 404) {
+        return new SourceError("SOURCE_UNAVAILABLE", { status, transient: false, reason: "setup" });
+    }
+    const retryAfter = retryAfterOf(headers["retry-after"]);
+    return new SourceError("SOURCE_UNAVAILABLE", { status, ...(retryAfter !== undefined ? { retryAfter } : {}) });
+}
+
+/** The guardedFetch codes that mean the source's settings are wrong (an address it may not reach, a redirect). */
+const SETUP_CODES = new Set(["BAD_URL", "NOT_HTTPS", "USERINFO", "BAD_HEADER", "BAD_METHOD", "BAD_BODY", "IP_LITERAL", "REFUSED_ADDRESS", "REDIRECT"]);
+
+/**
+ * A GuardedFetchError as the source's failure: never with its message (it can name a host or a
+ * system error code), which goes to the log at debug with the request's id.
+ * @param {GuardedFetchError} error
+ * @param {{ id: string, log: any, maxBytes: number }} how
+ */
+function fetchFailure(error, how) {
+    how.log.debug(`the source ${how.id}: the request failed (${error.code}): ${String(error.message).slice(0, 300)}`, { source: how.id, requestId: requestId() });
+    if (error.code === "TOO_LARGE") {
+        return ownError(new OperationError("LIMIT_EXCEEDED", `the source ${how.id} answered more than ${how.maxBytes.toLocaleString("en-US")} bytes (http.maxBytes)`));
+    }
+    if (error.code === "ABORTED") {
+        // the caller went away or the time limit fired: sources/run.js says which
+        return error;
+    }
+    if (SETUP_CODES.has(error.code)) {
+        return new SourceError("SOURCE_UNAVAILABLE", { transient: false, reason: "setup" });
+    }
+    return new SourceError("SOURCE_UNAVAILABLE", { transient: error.code === "TIMEOUT" || error.transient === true });
+}
+
+/** A failure of the answer's shape: the settings do not fit the backend's answer. */
+const shapeFailure = (id, log, what) => {
+    log.debug(`the source ${id}: ${what}`, { source: id, requestId: requestId() });
+    return new SourceError("SOURCE_UNAVAILABLE", { transient: false, reason: "setup" });
 };
 
-export const httpKind = Object.freeze({ specOf: unavailable, run: unavailable });
+/**
+ * A value of a backend's row as the table keeps it: text cut, a nested value as JSON text.
+ * @param {unknown} value
+ * @param {number} max
+ */
+function plainOf(value, max) {
+    if (value === null || value === undefined || typeof value === "number" || typeof value === "boolean") {
+        return value ?? null;
+    }
+    const text = typeof value === "string" ? value : JSON.stringify(value);
+    return text.length > max ? text.slice(0, max).replace(/[\uD800-\uDBFF]$/, "") : text;
+}
+
+/**
+ * A backend's column names, cleaned (no control or direction characters, trimmed, capped), one name
+ * per field (a name that repeats one without regard to case gets " (2)").
+ * @param {unknown[]} raw
+ */
+function columnNames(raw) {
+    const seen = new Set();
+    return raw.map((name, i) => {
+        let clean = cleanText(String(name ?? "")).trim().slice(0, NAME_TEXT) || `column ${i + 1}`;
+        for (let n = 2; seen.has(fieldKey(clean)); n++) {
+            clean = `${clean.replace(/ \(\d+\)$/, "")} (${n})`;
+        }
+        seen.add(fieldKey(clean));
+        return clean;
+    });
+}
+
+/**
+ * The rows of every page as a table: rows that are objects (their own keys, in the order first seen)
+ * or lists (the first one the header). Checked against limits.columns and limits.importCells.
+ * @param {unknown[]} rows
+ * @param {import("pivotkit-core").Limits} limits
+ * @param {{ id: string, log: any }} how
+ * @returns {{ columns: string[], rows: unknown[][] }}
+ */
+export function tableOf(rows, limits, how) {
+    if (!rows.length) {
+        return { columns: [], rows: [] };
+    }
+    const lists = Array.isArray(rows[0]);
+    if (rows.some((r) => (lists ? !Array.isArray(r) : r === null || typeof r !== "object" || Array.isArray(r)))) {
+        throw shapeFailure(how.id, how.log, "the rows are neither all objects nor all lists");
+    }
+    /** @type {unknown[]} */
+    let header;
+    /** @type {unknown[][]} */
+    let body;
+    if (lists) {
+        header = /** @type {unknown[]} */ (rows[0]);
+        if (header.length > limits.columns) {
+            throw overLimit("columns", header.length, limits.columns, "columns");
+        }
+        body = /** @type {unknown[][]} */ (rows.slice(1)).map((r) => header.map((_, i) => plainOf(r[i], limits.textLength)));
+    } else {
+        /** @type {Map<string, number>} */
+        const index = new Map();
+        for (const row of rows) {
+            for (const key of Object.keys(/** @type {object} */ (row))) {
+                if (!index.has(key)) {
+                    index.set(key, index.size);
+                    if (index.size > limits.columns) {
+                        throw overLimit("columns", index.size, limits.columns, "columns");
+                    }
+                }
+            }
+        }
+        header = [...index.keys()];
+        body = rows.map((row) => {
+            const out = new Array(index.size).fill(null);
+            for (const [key, i] of index) {
+                if (Object.hasOwn(/** @type {object} */ (row), key)) {
+                    out[i] = plainOf(/** @type {any} */ (row)[key], limits.textLength);
+                }
+            }
+            return out;
+        });
+    }
+    if (body.length * header.length > limits.importCells) {
+        throw overLimit("importCells", body.length * header.length, limits.importCells, "cells");
+    }
+    return { columns: columnNames(header), rows: body };
+}
+
+/** The next page's address of a Link header (rel="next"), or null. */
+function linkNext(value) {
+    for (const part of String(value ?? "").split(/,(?=\s*<)/)) {
+        const m = /^\s*<([^>]*)>\s*;(.*)$/s.exec(part);
+        if (m && /(?:^|;)\s*rel\s*=\s*"?(?:[^";]*\s)?next(?:\s[^";]*)?"?\s*(?:;|$)/i.test(m[2])) {
+            return m[1];
+        }
+    }
+    return null;
+}
+
+/**
+ * What a load saw, for check-source (never values): each page's status, content type and bytes, the
+ * body's top-level keys when the rows' pointer matched nothing.
+ * @typedef {{ pages: Array<{ status: number, type: string, bytes: number }>, keys?: string[], asOfRaw?: boolean }} LoadTrace
+ */
+
+/**
+ * Loads an HTTP source's data: every page, its rows as a table, when the data is from.
+ * @param {import("../options/http.js").HttpSettings} settings
+ * @param {Record<string, string | number | boolean> | null} values  the caller's checked values
+ * @param {{ signal: AbortSignal, limits: import("pivotkit-core").Limits, log: any, hasParams: boolean, fetch?: typeof guardedFetch, trace?: LoadTrace }} how
+ * @returns {Promise<{ table: { columns: string[], rows: unknown[][] } | null, upload: { bytes: Uint8Array, format: "csv" } | null, asOf: string, pages: number, bytes: number }>}
+ */
+export async function loadHttp(settings, values, how) {
+    const fetch = how.fetch ?? httpMeans.fetch;
+    const { id, template } = settings;
+    const started = Date.now();
+    const maxBytes = Math.min(settings.maxBytes, how.limits.fileBytes ?? settings.maxBytes);
+    const headers = { accept: settings.format === "csv" ? "text/csv" : "application/json", ...settings.headers, ...backendHeaders(settings) };
+    /** @type {unknown[]} */
+    const rows = [];
+    let bytes = 0;
+    let pages = 0;
+    /** @type {unknown} */
+    let asOfValue;
+    const seen = new Set();
+    /** @type {Record<string, string | number>} */
+    let extra = settings.paging && "page" in settings.paging ? { [settings.paging.page]: settings.paging.start } : settings.paging && "offset" in settings.paging ? { [settings.paging.offset]: 0, [settings.paging.limit]: settings.paging.size } : {};
+    /** @type {URL | null} */
+    let url = expandUrl(template, values, extra);
+    while (url) {
+        seen.add(url.href);
+        let answer;
+        try {
+            answer = await fetch(url, { headers, signal: how.signal, maxBytes: maxBytes - bytes, timeMs: Math.max(settings.timeMs - (Date.now() - started), 1), allowPrivate: settings.intranet, allowIpLiterals: settings.allowIpLiterals });
+        } catch (e) {
+            throw e instanceof GuardedFetchError ? fetchFailure(e, { id, log: how.log, maxBytes }) : e;
+        }
+        pages++;
+        bytes += answer.body.length;
+        how.trace?.pages.push({ status: answer.status, type: String(answer.headers["content-type"] ?? "").slice(0, 100), bytes: answer.body.length });
+        how.log.debug(`the source ${id}: GET ${loggedPath(template, extra)} answered ${answer.status}`, { source: id, status: answer.status, requestId: requestId() });
+        if (answer.status < 200 || answer.status > 299) {
+            how.log.warn(`the source ${id}: the backend answered ${answer.status}`, { source: id, status: answer.status, template: template.text });
+            throw backendAnswer(answer.status, how.hasParams, values, answer.headers);
+        }
+        if (settings.format === "csv") {
+            return { table: null, upload: { bytes: answer.body, format: "csv" }, asOf: asOfText(new Date()) ?? "", pages, bytes };
+        }
+        const body = await parsed(answer.body, { id, log: how.log, signal: how.signal });
+        if (pages === 1 && settings.asOf) {
+            asOfValue = pointerValue(body, settings.asOf);
+        }
+        const found = pointerValue(body, settings.rows);
+        if (!Array.isArray(found)) {
+            if (how.trace && body !== null && typeof body === "object") {
+                how.trace.keys = Object.keys(body).slice(0, 30).map((k) => cleanText(k).slice(0, 60));
+            }
+            throw shapeFailure(id, how.log, `the rows' pointer ${settings.rowsText || '""'} matched ${found === undefined ? "nothing" : "no list"}`);
+        }
+        if (rows.length + found.length > how.limits.rows) {
+            throw overLimit("rows", rows.length + found.length, how.limits.rows, "rows");
+        }
+        for (const row of found) {
+            rows.push(row);
+        }
+        url = nextPage(settings, body, answer.headers, url, found.length, seen, how.log);
+        if (url && settings.paging && "page" in settings.paging) {
+            extra = { [settings.paging.page]: Number(extra[settings.paging.page]) + 1 };
+            url = expandUrl(template, values, extra);
+        } else if (url && settings.paging && "offset" in settings.paging) {
+            extra = { [settings.paging.offset]: Number(extra[settings.paging.offset]) + settings.paging.size, [settings.paging.limit]: settings.paging.size };
+            url = expandUrl(template, values, extra);
+        }
+        if (url && seen.has(url.href)) {
+            // a backend that names the same page again: the pages so far are all there is
+            url = null;
+        }
+        if (url && pages >= settings.maxPages) {
+            throw ownError(new OperationError("LIMIT_EXCEEDED", `the source ${id} has more than ${settings.maxPages} pages (http.maxPages)`));
+        }
+    }
+    const asOf = (asOfValue !== undefined ? asOfText(typeof asOfValue === "string" || typeof asOfValue === "number" ? asOfValue : null, { epoch: "s" }) : null) ?? asOfText(new Date()) ?? "";
+    if (how.trace && settings.asOf) {
+        how.trace.asOfRaw = asOfValue !== undefined;
+    }
+    if (asOfValue !== undefined && asOfText(typeof asOfValue === "string" || typeof asOfValue === "number" ? asOfValue : null, { epoch: "s" }) === null) {
+        how.log.debug(`the source ${id}: its asOf did not parse; the time it arrived stands in`, { source: id });
+    }
+    return { table: tableOf(rows, how.limits, { id, log: how.log }), upload: null, asOf, pages, bytes };
+}
+
+/**
+ * A JSON answer parsed, in turn with the process's other parses; a body that is no JSON or nested
+ * too deeply is the source's failure (its words never reach a caller).
+ * @param {Uint8Array} bytes
+ * @param {{ id: string, log: any, signal: AbortSignal }} how
+ */
+async function parsed(bytes, how) {
+    let text;
+    try {
+        text = new TextDecoder("utf-8", { fatal: true }).decode(bytes).replace(/^\uFEFF/, "");
+    } catch {
+        throw shapeFailure(how.id, how.log, "the answer is no UTF-8 text");
+    }
+    if (jsonDepth(text, MAX_DEPTH) > MAX_DEPTH) {
+        throw shapeFailure(how.id, how.log, `the answer is nested deeper than ${MAX_DEPTH} levels`);
+    }
+    const done = await parseTurn(how.signal);
+    try {
+        return JSON.parse(text);
+    } catch {
+        throw shapeFailure(how.id, how.log, "the answer is no JSON");
+    } finally {
+        done();
+    }
+}
+
+/**
+ * The next page's address, or null: by the paging setting; a `next` or `link` address only on the
+ * same origin and path as the page just read (only its query may differ).
+ * @param {import("../options/http.js").HttpSettings} settings
+ * @param {unknown} body
+ * @param {Record<string, string>} headers
+ * @param {URL} current
+ * @param {number} count  the rows of this page
+ * @param {Set<string>} seen
+ * @param {any} log
+ * @returns {URL | null}
+ */
+function nextPage(settings, body, headers, current, count, seen, log) {
+    const paging = settings.paging;
+    if (!paging) {
+        return null;
+    }
+    if ("page" in paging) {
+        return count > 0 ? current : null;
+    }
+    if ("offset" in paging) {
+        return count >= paging.size ? current : null;
+    }
+    const given = "next" in paging ? pointerValue(body, paging.next) : linkNext(headers.link);
+    if (given === undefined || given === null || given === "" || given === false) {
+        return null;
+    }
+    if (typeof given !== "string" || given.length > 4096) {
+        throw shapeFailure(settings.id, log, "the next page's address is no text");
+    }
+    let next;
+    try {
+        next = new URL(given, current);
+    } catch {
+        throw shapeFailure(settings.id, log, "the next page's address does not parse");
+    }
+    if (next.origin !== current.origin || next.pathname !== current.pathname || next.username || next.password) {
+        throw shapeFailure(settings.id, log, "the next page's address is on another host or path; pages must differ only in their query");
+    }
+    next.hash = "";
+    return seen.has(next.href) ? null : next;
+}
+
+/**
+ * The headers of a backend's sign-in. A backend's sign-in is not configured in this version
+ * (http.auth is no option), so there are none; this is where it is added.
+ * @param {import("../options/http.js").HttpSettings} _settings
+ * @returns {Record<string, string>}
+ */
+function backendHeaders(_settings) {
+    return {};
+}
+
+/** A random name per configured source object, so two servers' sources of the same id never share data. */
+const names = new WeakMap();
+const nameOf = (source) => {
+    if (!names.has(source)) {
+        names.set(source, randomBytes(9).toString("base64url"));
+    }
+    return names.get(source);
+};
+
+/** About the bytes a table takes in the main thread's cache: texts by their length, other values as 8. */
+function tableBytes(loaded) {
+    if (loaded.upload) {
+        return loaded.upload.bytes.byteLength;
+    }
+    let bytes = 0;
+    for (const c of loaded.table.columns) {
+        bytes += 2 * c.length + 16;
+    }
+    for (const row of loaded.table.rows) {
+        for (const v of row) {
+            bytes += typeof v === "string" ? 2 * v.length + 16 : 8;
+        }
+    }
+    return bytes;
+}
+
+/**
+ * An HTTP source's data for a caller (or what is kept of it): sources/run.js with the source's
+ * settings. The key holds the source, its settings' hash, the caller's values and identity; without
+ * an identity nothing is kept or shared. `tableKey` names this load's table for the worker (a new load
+ * has a new one, so a worker never answers from an older table).
+ * @param {any} resolved  registry.resolve's
+ * @param {import("../registry.js").Caller} caller
+ * @param {any} log
+ * @param {AbortSignal} [signal]
+ */
+export async function loadFor(resolved, caller, log, signal = undefined) {
+    const source = resolved.source;
+    const settings = httpSettingsOf(source);
+    const spec = resolved.spec;
+    const values = resolved.params ?? null;
+    const identity = identityKey(caller);
+    const person = identity ?? `client:${caller.client}`;
+    const name = nameOf(source);
+    const key = identity === null ? null : canonicalJson(["http", name, configHashOf({ http: source.http, settings }), values ?? {}, identity]);
+    const limits = { ...LIMITS, ...spec.limits };
+    const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, hasParams: Boolean(source.params && Object.keys(source.params).length) }), {
+        prepare: (loaded) => ({ ...loaded, serial: randomBytes(9).toString("base64url") }),
+        source: name,
+        label: spec.id,
+        bucket: person,
+        owner: person,
+        timeMs: settings.timeMs,
+        ttl: settings.ttl,
+        maxStale: settings.maxStale,
+        version: null,
+        sizeOf: tableBytes,
+        log,
+        ...(signal ? { signal } : {})
+    });
+    const tableKey = key === null ? null : canonicalJson([key, ran.value.serial, spec.levels, spec.limits, spec.timeZone ?? null]);
+    return { value: ran.value, stale: ran.stale, tableKey };
+}
+
+export const httpKind = Object.freeze({
+    async specOf() {
+        return {};
+    },
+
+    /**
+     * Loads the backend's data in this thread and runs the operation over it in a worker.
+     * @param {any} computer
+     * @param {string} op
+     * @param {any} input
+     * @param {any} resolved
+     * @param {any} base
+     * @param {import("../registry.js").Caller} caller
+     * @param {any} log
+     * @param {{ signal?: AbortSignal }} [how]
+     */
+    async run(computer, op, input, resolved, base, caller, log, how = {}) {
+        const { value, stale, tableKey } = await loadFor(resolved, caller, log, how.signal);
+        const job = { ...base, spec: resolved.spec, tableKey, asOf: value.asOf, ...(value.upload ? { upload: value.upload } : { table: value.table }) };
+        const ran = await computer.run(op, input, job);
+        return { ...ran, asOf: ran.asOf ?? value.asOf, stale };
+    }
+});

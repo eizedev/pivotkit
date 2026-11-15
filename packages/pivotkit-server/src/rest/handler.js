@@ -284,7 +284,7 @@ export async function createRestHandler(context, runtime = {}) {
             checkInput(presentedInput(route.operation, { files: false, offers: context.offers?.rest }), input);
         }
         if (route.answer === "file") {
-            const { result, file } = await renderFile(context, input, caller, upload ? { upload } : {});
+            const { result, file } = await renderFile(context, input, caller, { signal: request.signal, ...(upload ? { upload } : {}) });
             if (!file) {
                 return problem("VIEW_HAS_ERRORS", "the view has errors; fix them (see findings) and render again", { extra: { findings: result.findings } });
             }
@@ -296,7 +296,7 @@ export async function createRestHandler(context, runtime = {}) {
                 headers: { ...SAFE_HEADERS, "content-type": format.mediaType, "content-disposition": disposition(name), "content-security-policy": "sandbox; default-src 'none'", "content-length": String(file.bytes.length) }
             });
         }
-        const { result } = await present(context, route.operation, input, caller, { surface: "rest", inline: rest.inline === true, files: false, ...(upload ? { upload } : {}) });
+        const { result } = await present(context, route.operation, input, caller, { surface: "rest", inline: rest.inline === true, files: false, signal: request.signal, ...(upload ? { upload } : {}) });
         return json(result);
     }
 

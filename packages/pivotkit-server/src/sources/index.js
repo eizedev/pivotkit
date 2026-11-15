@@ -33,9 +33,11 @@ export const kindOf = (source) => (source.http ? "http" : source.load ? "code" :
  * @param {Record<string, any>} input
  * @param {any} resolved
  * @param {import("../registry.js").Caller} caller
+ * @param {{ signal?: AbortSignal }} [how]  signal: the caller's request; a load stops waiting for it when it fires
  * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("../stats.js").SourceStats | null, asOf?: string | null, stale?: { since: string } | null, suppliedAsOf?: string | null }>}
  */
-export function runResolved(context, op, input, resolved, caller) {
+export function runResolved(context, op, input, resolved, caller, how = {}) {
     const base = { link: resolved.link, template: resolved.template, locale: context.options.locale, timeZone: context.options.timeZone };
-    return KINDS[/** @type {keyof typeof KINDS} */ (resolved.sourceKind)].run(context.computer, op, withoutExtras(input), resolved, base, caller, context.log);
+    // the signal stays in this thread: base and the spec are posted to a worker
+    return KINDS[/** @type {keyof typeof KINDS} */ (resolved.sourceKind)].run(context.computer, op, withoutExtras(input), resolved, base, caller, context.log, { signal: how.signal });
 }

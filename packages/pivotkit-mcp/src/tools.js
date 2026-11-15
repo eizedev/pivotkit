@@ -64,7 +64,7 @@ export function errorResult(error, { requestId, source }) {
     const retryable = error?.details?.retryable;
     const notes = server ? [...(source ? [`source ${source}`] : []), ...(retryable === true ? ["trying again later may work"] : retryable === false ? ["trying again will not help"] : [])] : [];
     const id = isRequestId(error?.details?.requestId) ? error?.details?.requestId : requestId;
-    const text = `${code}: ${server ? serverTextOf(code) : /** @type {OperationError} */ (error).message}${notes.length ? ` (${notes.join("; ")})` : ""} (id ${id})`;
+    const text = `${code}: ${server ? serverTextOf(code, /** @type {any} */ (error)?.reason) : /** @type {OperationError} */ (error).message}${notes.length ? ` (${notes.join("; ")})` : ""} (id ${id})`;
     return { isError: true, content: [{ type: "text", text }] };
 }
 
@@ -102,7 +102,7 @@ export function registerTools(server, context, caller) {
                       }
                     : {})
             },
-            async (/** @type {any} */ args) => {
+            async (/** @type {any} */ args, /** @type {any} */ ctx) => {
                 const started = Date.now();
                 // the call's id: on its log lines, and inside its work (a source's code, an error's details)
                 const id = newRequestId();
@@ -115,7 +115,7 @@ export function registerTools(server, context, caller) {
                     if (VIEW_ONLY.has(name) && args?.layout !== undefined) {
                         throw new OperationError("INVALID_INPUT", `${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here`);
                     }
-                    const { text, result } = await withRequestId(id, () => present(context, name, args ?? {}, caller));
+                    const { text, result } = await withRequestId(id, () => present(context, name, args ?? {}, caller, { signal: ctx?.mcpReq?.signal }));
                     context.log.call({ ...entry, ok: true, ms: Date.now() - started });
                     return /** @type {any} */ (okResult(text, result));
                 } catch (e) {

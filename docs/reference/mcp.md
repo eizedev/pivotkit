@@ -229,8 +229,11 @@ error that names the key and the one probably meant.
 | `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html, its path relative to the configuration file; its `--pk-*` colours reach the chart ([details](print-template.md#template-design)) |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
 | `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`; control and direction characters are removed |
-| `sources.<id>.params` | - | none | A code source's parameters: values a caller passes with the source (see below) |
-| `sources.<id>.timeMs`, `.ttl`, `.maxStale`, `.cacheShared` | - | 30000 ms, none, 3600 s, false | A code source's time limit, reuse, last good data and one copy for all callers ([code sources](sources.md#code-options)) |
+| `sources.<id>.http` | - | none | An [HTTP source](sources.md#http): an operator's backend, its address with `{name}` for a parameter, where the rows are, paging and limits |
+| `sources.<id>.params` | - | none | An HTTP or code source's parameters: values a caller passes with the source (see below) |
+| `sources.<id>.timeMs`, `.ttl`, `.maxStale` | - | code: 30000 ms, none, 3600 s; HTTP: 15000 ms, 60 s, 3600 s | An HTTP or code source's time limit, reuse and last good data ([HTTP](sources.md#http-options), [code](sources.md#code-options)) |
+| `sources.<id>.cacheShared` | - | false | A code source's one copy for all callers ([code sources](sources.md#code-options)) |
+| `httpSources.enabled`, `.allowIpLiterals`, `.backends` | - | true, false, none | HTTP sources on or off, an IP address as a host, backends many sources share (with `intranet` for loopback and private addresses) ([HTTP sources](sources.md#http-options)) |
 | `files.allowDirs` | `--allow-dir dir` | none | Directories the model may name files in (`file:`) |
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |
 | `files.hardLinks` | - | false | Read files that have a second name |
@@ -318,8 +321,12 @@ the last good data stands in for up to `maxStale` seconds (3600 by default), wit
 result. A `SourceError` (exported by pivotkit-server) says what went wrong in words a caller may read;
 anything else a load throws is `SOURCE_UNAVAILABLE` with a fixed text ([errors](sources.md#code-errors)).
 
-A code source may declare **parameters**: values a caller passes as `params` with the source's id,
-checked and written again by pivotkit before `load` sees them (a source without `params` gets `{}`).
+An operator configures an [HTTP source](sources.md#http) in the configuration file: pivotkit
+requests the operator's backend at an address with `{name}` for a parameter, never one a caller
+gives, and reads the rows from its answer.
+
+A code or HTTP source may declare **parameters**: values a caller passes as `params` with the source's id,
+checked and written again by pivotkit before `load` (or the backend's address) sees them (a code source without `params` gets `{}`).
 
 ```js
 sources: {
@@ -375,8 +382,8 @@ request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BU
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source or data sent in the request |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
-| `SOURCE_UNAVAILABLE` | A code source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors)); the text is fixed, with whether trying again may work |
-| `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`) |
+| `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)); one of pivotkit's fixed texts (not available right now; the backend refused pivotkit's access; not set up correctly), with the source's id and whether trying again may work |
+| `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`); an HTTP source's backend answered 401, 403 or 404 for the values given |
 | `UPLOAD_FAILED` | Reserved for delivery that stores reports elsewhere; this version does not answer it |
 | `INTERNAL` | Anything else: "internal error", the details only in the log with `--log debug` |
 

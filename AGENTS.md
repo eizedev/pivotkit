@@ -203,8 +203,13 @@ root `package.json`: `npm run types` and the builds depend on it.
   one copy, caller null); `run.js` how data loaded in the main thread is loaded (`runLoad`: time
   limit with the signal aborted, coalescing, load limits per source and identity, kept data, last good
   data after a transient failure only; `SourceError` and `sourceFailure`, what a caller gets of a
-  source's error); `cache.js` the process cache of loaded data (64 entries, 256 MiB; per owner 8 entries and a quarter of the bytes, its own oldest out first);
-  `http.js` not offered yet; `inline.js` data sent in the request (the reserved id `inline:`, the
+  source's error, its `reason` picking the fixed text, `serverTextOf`); `cache.js` the process cache of loaded data (64 entries, 256 MiB; per owner 8 entries and a quarter of the bytes, its own oldest out first);
+  `http.js` HTTP sources, an operator's backend (`loadHttp`: the requests with guardedFetch,
+  `intranet` for private addresses, paging on the same host and path, JSON parsed at most `PARSES`
+  at once, the rows at a JSON Pointer as a table the worker encodes; `backendAnswer`, a backend's
+  status as a `SourceError`; `httpMeans`, the tests' fetch); `template.js` an HTTP source's address
+  (`compileTemplate` at start, `expandUrl`: RFC 6570 simple expansion, the template's origin and
+  shape kept); `inline.js` data sent in the request (the reserved id `inline:`, the
   kind "inline": `checkTable`, the MCP cap `MCP_DATA_CAP` and `mcp.data`, who may send it
   `maySendData`, a table or upload job never kept, `NO_LINK`/`NOT_SCHEDULABLE`); `params.js` a source's parameters: `declaredProblems`,
   `paramSchemaOf`, `normalizeParams`, `paramsList`; `input.js` the extra inputs (`params`, `data`) a surface
@@ -244,7 +249,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`, `rest.data.maxBytes` for a signed-in REST caller that may send data), `src/log.js`
   (`callerFields`: the allowlist of a caller's fields a log line holds), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/healthz`, `/readyz`),
-  `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck). What
+  `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source, mcp, cli,
+  healthcheck), `src/check-source.js` (`check-source`: one load of an HTTP source, never a value
+  printed). What
   the REST service and the CLI's remote mode agree on (base path, source ids, token syntax, problem
   codes, loopback) is pivotkit-cli/rest's, re-exported here; `test/cli-remote.test.js` runs the CLI
   against the service.

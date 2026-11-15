@@ -74,9 +74,10 @@ function ownerOf(caller, shared) {
  * @param {any} resolved  registry.resolve's
  * @param {import("../registry.js").Caller} caller
  * @param {any} log
+ * @param {AbortSignal} [signal]  the caller's request: the call stops waiting when it fires
  * @returns {Promise<{ data: any, stale: { since: string } | null }>}
  */
-export async function loadCode(resolved, caller, log) {
+export async function loadCode(resolved, caller, log, signal = undefined) {
     const source = resolved.source;
     const spec = resolved.spec;
     const shared = source.cacheShared === true;
@@ -99,7 +100,8 @@ export async function loadCode(resolved, caller, log) {
         maxStale: source.maxStale ?? CODE_DEFAULTS.maxStale,
         version: source.version ? () => source.version(params, { caller: view }) : null,
         sizeOf: (read) => encodedBytes(read.data),
-        log
+        log,
+        ...(signal ? { signal } : {})
     });
     return { data: ran.value, stale: ran.stale };
 }
@@ -118,8 +120,9 @@ export const codeKind = Object.freeze({
      * @param {any} base
      * @param {import("../registry.js").Caller} caller
      * @param {any} log  the server's log
+     * @param {{ signal?: AbortSignal }} [how]  signal: the caller's request
      */
-    run(computer, op, input, resolved, base, caller, log) {
-        return computer.run(op, input, { ...base, spec: resolved.spec }, { read: () => loadCode(resolved, caller, log) });
+    run(computer, op, input, resolved, base, caller, log, how = {}) {
+        return computer.run(op, input, { ...base, spec: resolved.spec }, { read: () => loadCode(resolved, caller, log, how.signal) });
     }
 });

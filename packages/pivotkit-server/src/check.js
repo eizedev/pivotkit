@@ -55,7 +55,7 @@ export async function checkConfig(options, { http = false, env = {}, name = "piv
         if (!columns.names) {
             everyColumn = null;
         }
-        lines.push(`  ${s.id}: ${s.file ? `${s.file}${s.exists ? "" : "  (NOT FOUND)"}` : "a code source"}`);
+        lines.push(`  ${s.id}: ${s.file ? `${s.file}${s.exists ? "" : "  (NOT FOUND)"}` : options.sources?.[s.id]?.http ? "an HTTP source (see HTTP sources)" : "a code source"}`);
         lines.push(`    fields: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}; values listed per shown field: ${s.policy.items}; inline results: ${s.policy.inline ? `up to ${s.policy.inline.cells} cells` : "off"}`);
         if (s.scopes.length) lines.push(`    scopes: ${s.scopes.join(" ")}`);
         if (s.link) lines.push(`    link: ${s.link}`);
