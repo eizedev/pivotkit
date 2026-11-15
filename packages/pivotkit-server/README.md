@@ -3,7 +3,7 @@
 [pivotkit](https://pivotkit.eize.dev/)'s reports for programs over HTTP: a REST service under
 `/api/v1` that lists data sources, checks pivot views, renders reports into Excel, HTML, CSV, JSON or
 SVG files and makes links, with an OpenAPI 3.1 document made from the same operations. Per field the
-operator decides what a caller may see; profiles give one token or OAuth client more (values,
+operator decides what a caller may see; profiles give one token, OAuth client or group more (values,
 downloads). Sign-in with static tokens or OAuth 2.1. It is also the shared core of
 [pivotkit-mcp](https://www.npmjs.com/package/pivotkit-mcp): `pivotkit-server serve` runs the REST
 service and, with pivotkit-mcp installed, the MCP endpoint on one port, and a container image runs

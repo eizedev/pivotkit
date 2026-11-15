@@ -6,6 +6,7 @@
  * - "oauth": the endpoint is an OAuth 2.1 protected resource (MCP authorization, revision
  *   2026-07-28): Protected Resource Metadata (RFC 9728) with the issuer as authorization server, the
  *   SDK's requireBearerAuth for the 401 and 403 challenges (insufficient_scope for missing scopes),
+ *   403 access_denied for a person whose token does not carry their groups (auth.groupProfiles),
  *   503 until the issuer's metadata is loaded. Its audience is auth.resource (the REST service has
  *   its own).
  *
@@ -13,7 +14,18 @@
  */
 
 import { OAuthError, getOAuthProtectedResourceMetadataUrl, oauthMetadataResponse, requireBearerAuth } from "@modelcontextprotocol/server";
-import { AuthRefusal, offeredScopes } from "pivotkit-server";
+import { AuthRefusal, groupRefusal, offeredScopes } from "pivotkit-server";
+
+/** The client of each answer that refused a verified token for its person's groups, for the log line. */
+const refusedClients = new WeakMap();
+
+/**
+ * The client (app) whose verified token an answer refused for its person's groups, or undefined:
+ * the refused log line names it, so the operator finds the app to fix; never the person.
+ * @param {Response} response
+ * @returns {string | undefined}
+ */
+export const refusedClientOf = (response) => refusedClients.get(response);
 
 /** A JSON answer with a status and headers. */
 const json = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
@@ -83,7 +95,16 @@ export async function createAuth(context, runtime) {
             if (new URL(request.url).searchParams.has("access_token")) {
                 return json(400, { error: "invalid_request", error_description: "a token in the address is refused" });
             }
-            return gateOf(request);
+            const authInfo = await gateOf(request);
+            // a person whose groups the token does not carry (auth.groupProfiles): 403, no scope
+            // challenge (more scopes would not help), not counted as a refused token
+            const refused = authInfo instanceof Response ? null : groupRefusal(auth, authInfo);
+            if (!refused) {
+                return authInfo;
+            }
+            const answer = json(403, { error: "access_denied", error_description: refused });
+            refusedClients.set(answer, String(/** @type {any} */ (authInfo).clientId));
+            return answer;
         },
         /** The discovery documents (RFC 9728, and the issuer's metadata for older clients), or undefined. */
         metadata(request) {

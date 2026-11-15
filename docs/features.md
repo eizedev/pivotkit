@@ -161,8 +161,9 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - `pivotkit-server`: the same operations for programs over HTTP under `/api/v1` (list and describe
   sources, validate, describe and render views, links, schedule drafts), an OpenAPI 3.1 document made
   from the same table, errors as problem documents; sign-in with tokens or OAuth 2.1; policy
-  profiles per token or OAuth client (more values, downloads, data sent with the request as JSON or a
-  csv, tsv, json or xlsx file); CORS off by default; limits per caller
+  profiles per token, OAuth client, group or scope, and a default profile (more values, downloads,
+  data sent with the request as JSON or a csv, tsv, json or xlsx file); the person in the log only
+  when the operator asks for it; CORS off by default; limits per caller
   ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
   [security](security.md#rest), [privacy](privacy.md)).
 - Sources for both: data files, an operator's API as an HTTP source (its address written once with

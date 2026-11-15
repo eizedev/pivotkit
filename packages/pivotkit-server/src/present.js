@@ -60,6 +60,9 @@ export function presentedOutput(name) {
     if (OVER_DATA.has(name)) {
         Object.assign(extra, AS_OF_OUTPUT);
     }
+    if (name === "list_sources") {
+        extra.hint = { type: "string", description: "Why no source is listed and what to do: the sign-in lacks the scopes of the sources there are (only when none is listed)." };
+    }
     if (name === "render_view") {
         Object.assign(extra, {
             output: OUTPUT_FILE,
@@ -322,8 +325,10 @@ export function findingsText(valid, findings) {
 const STEPS = {
     async list_sources(_args, context, caller, how) {
         const sources = await context.registry.list(caller, how);
-        const hint = listHint(context, caller, sources);
-        return { text: `${sources.length} source${sources.length === 1 ? "" : "s"}. Call describe_source with one of the ids.${hint ? ` ${hint}` : ""}`, result: { sources, ...listExtras(context, caller, how), ...(hint ? { hint } : {}) } };
+        const hint = listHint(context, caller, sources, how);
+        // an empty list says what to do instead of naming a tool there is nothing to call with
+        const next = sources.length ? "Call describe_source with one of the ids." : (hint ?? "Ask the operator which sources this sign-in may use.");
+        return { text: `${sources.length} source${sources.length === 1 ? "" : "s"}. ${next}`, result: { sources, ...listExtras(context, caller, how), ...(hint ? { hint } : {}) } };
     },
 
     async describe_source(args, context, caller, how) {

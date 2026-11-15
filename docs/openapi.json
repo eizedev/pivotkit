@@ -2378,6 +2378,10 @@
               }
             }
           },
+          "hint": {
+            "type": "string",
+            "description": "Why no source is listed and what to do: the sign-in lacks the scopes of the sources there are (only when none is listed)."
+          },
           "data": {
             "type": "object",
             "properties": {

@@ -237,9 +237,14 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * budget 3, counted as what it adds to the report group. What stays in the report group (a token
  * that names another one followed, a heatmap colour ECharts cannot mix left out): report 21.9 on a
  * Mac (21.6 before); with the dark-screen rules (#370): 22.1 on a Mac, within 22.5.
+ * When the data is from in the files (#331): the workbook's document property DataAsOf in
+ * pivotkit-core's XLSX writer (its part, content type and relationship) took the export group to 12.0
+ * on a Mac (11.7 before), budget 12.3; "Data as of" in the HTML report's details, its placeholder and
+ * the check that the time exists took the report group to 22.7 on a Mac (22.3 before), budget 23
+ * (both within the rule's 3 %).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 22.5, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

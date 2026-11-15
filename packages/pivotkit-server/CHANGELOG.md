@@ -10,6 +10,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 Every field keeps its level and the automatic rule is off; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
 
+- html reports print "Data as of" in their details; xlsx files carry the document property
+  `DataAsOf`.
+
 - A client reads the optional `field` of a finding, the code `itemUnknown`, `withheld`, `hint`,
   `complete` and `auto` in `describe_source`, and treats a `level` it does not know as `summary`.
 - A filter item that is none of a `show` field's values gets `itemUnknown` where its list is
@@ -41,6 +44,19 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Added
 
+- Operator controls ([#331](https://github.com/eizedev/pivotkit/issues/331)):
+  `auth.groupProfiles` maps an OAuth token's groups (`auth.groupsClaim`, a list; a text with
+  `auth.groupsSeparator`) to policy profiles, the first match winning after a client's profile; a
+  cut, missing or overage group list gets `auth.defaultProfile` or 403 `NOT_ALLOWED`, never a wider
+  profile. `auth.defaultProfile` is the profile of every signed-in caller nothing else names.
+  `auth.offerSourceScopes: true` (off by default) lists the sources' scopes in the OAuth metadata;
+  the 401 challenge names the required scopes only. An empty `list_sources` says what to do instead
+  of naming describe_source, and the `refused` line of a 403 for groups names the client.
+  `audit.subject` (`hash` with `audit.key` of at least 16 characters, or `plain`) puts the person on `call`, `request` and
+  `download` log lines. An empty `list_sources` for a sign-in without the sources' scopes has a
+  `hint` naming the scopes the server offers. `check-config` prints how a person gets a profile, the
+  scopes offered, sources no scope reaches, a later `groupProfiles` entry wider than an earlier one, groupProfiles without a default profile, and the
+  audit setting. `groupsOf`, `groupRefusal` and `GROUPS_REFUSED` are exported.
 - HTTP sources ([#328](https://github.com/eizedev/pivotkit/issues/328)): `sources.<id>.http` asks an
   operator's backend at an address written once in the configuration (`backend` and `path` of
   `httpSources.backends`, or a whole `url`), with `{name}` for a declared parameter in the path and

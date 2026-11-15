@@ -36,6 +36,7 @@ export const PLACEHOLDERS = Object.freeze({
     description: "text",
     source: "text",
     generated: "text",
+    dataAsOf: "text",
     rows: "text",
     filters: "text",
     summary: "text",

@@ -19,7 +19,7 @@
 import { OperationError, checkInput } from "pivotkit-report/operations";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { REST_BASE, restResourceOf } from "../config.js";
-import { AuthRefusal, bearerOf, resourceMetadataUrlOf } from "../auth.js";
+import { AuthRefusal, bearerOf, groupRefusal, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
 import { BODY_BYTES, SIGNED_IN, isLoopback, peekSignIn, takeSignIn } from "../listen.js";
@@ -165,7 +165,7 @@ export async function createRestHandler(context, runtime = {}) {
 
     /**
      * The verified caller of a request, or the refusal to send.
-     * @returns {Promise<{ caller: import("../registry.js").Caller } | { refused: Response }>}
+     * @returns {Promise<{ caller: import("../registry.js").Caller } | { refused: Response, client?: string }>}  client: the app of a verified token refused for its person's groups, for the log
      */
     async function authenticate(request, address) {
         if (mode === "none") {
@@ -192,6 +192,11 @@ export async function createRestHandler(context, runtime = {}) {
                 authInfo = await core.verify(bearer.token, { audience, resource });
                 if (!requiredScopes.every((s) => authInfo.scopes.includes(s))) {
                     return { refused: problem("INSUFFICIENT_SCOPE", `this service needs the scopes ${requiredScopes.join(" ")}`, { headers: { "www-authenticate": challenge("insufficient_scope", "insufficient scope") } }) };
+                }
+                // a person whose groups the token does not carry (auth.groupProfiles): not a bad token
+                const refusedGroups = groupRefusal(authOptions, authInfo);
+                if (refusedGroups) {
+                    return { refused: problem("NOT_ALLOWED", refusedGroups), client: String(authInfo.clientId) };
                 }
             }
             return { caller: callerOf(mode, authInfo, authOptions) };
@@ -355,7 +360,7 @@ export async function createRestHandler(context, runtime = {}) {
         // the precheck of a POST signed it in already (serveFetch hands it the same info)
         const who = takeSignIn(info) ?? (await authenticate(request, address));
         if ("refused" in who) {
-            context.log.refused({ status: who.refused.status, path: REST_BASE });
+            context.log.refused({ status: who.refused.status, path: REST_BASE, ...("client" in who ? { client: who.client } : {}) });
             return who.refused;
         }
         const { caller } = who;
@@ -471,7 +476,7 @@ export async function createRestHandler(context, runtime = {}) {
         }
         const who = await authenticate(request, clientAddress(request, info.address ?? "", trustProxy));
         if ("refused" in who) {
-            context.log.refused({ status: who.refused.status, path: REST_BASE });
+            context.log.refused({ status: who.refused.status, path: REST_BASE, ...("client" in who ? { client: who.client } : {}) });
             return withCors(who.refused, origin);
         }
         info[SIGNED_IN] = who;

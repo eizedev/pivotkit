@@ -19,7 +19,7 @@
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
 import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, SIGNED_IN, allowedHosts, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, refusedText, serveFetch, takeSignIn } from "pivotkit-server";
 import { createMcpContext } from "./context.js";
-import { createAuth } from "./auth.js";
+import { createAuth, refusedClientOf } from "./auth.js";
 import { quickStartPage } from "./page.js";
 
 /** The MCP endpoint's path. */
@@ -122,7 +122,8 @@ export async function createHttpHandler(context, runtime = {}) {
                 context.log.refused({ status: 429, path: ENDPOINT });
                 return rpcError(429, -32000, "too many refused tokens from this address; wait before you try again", { "retry-after": String(wait) });
             }
-            context.log.refused({ status: authInfo.status, path: ENDPOINT });
+            const client = refusedClientOf(authInfo);
+            context.log.refused({ status: authInfo.status, path: ENDPOINT, ...(client ? { client } : {}) });
             if (authInfo.status === 401 && address) {
                 limits.failed(address);
             }

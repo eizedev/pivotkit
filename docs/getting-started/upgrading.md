@@ -147,8 +147,8 @@ Then restart Claude Code.
 ## From 0.6.1 to the next release { #from-0-6-1 }
 
 Operators of pivotkit-server and pivotkit-mcp need not act for the exposure policy: every field
-keeps its level, and the automatic values rule is off. Library hosts with code sources check
-[Code sources](#code-sources). Over HTTP with an output directory, check the
+keeps its level, and the automatic values rule and the new operator controls are off. Library hosts
+with code sources check [Code sources](#code-sources). Over HTTP with an output directory, check the
 [download links](#download-links): reports may get links of the server under `/downloads/`, and
 `output.baseUrl` no longer gives an address to reports over closed sources. What callers notice:
 
@@ -161,6 +161,8 @@ keeps its level, and the automatic values rule is off. Library hosts with code s
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| [Data as of in files](#data-as-of-files) | people read html reports or open xlsx files | nothing; a print template of your own may add `{{dataAsOf}}` |
+| [Groups, a default profile, source scopes, the person in the log](#operator-controls) | you want profiles by group, a profile for everyone else, the sources' scopes in the OAuth metadata, or the person in the log | set `auth.groupProfiles` with `auth.defaultProfile`, `auth.offerSourceScopes`, `audit.subject` |
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
 | [Request ids](#request-ids) | you parse the log or MCP tool errors, or a program reads problem documents | accept the new members and the id at the end of a tool error |
@@ -169,6 +171,35 @@ keeps its level, and the automatic values rule is off. Library hosts with code s
 | [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
+
+### Data as of in files { #data-as-of-files }
+
+An html report's details (the default template's `{{details}}`) add "Data as of" with when the data
+is from, and a print template may place it with `{{dataAsOf}}`. An xlsx file carries it as the
+custom document property `DataAsOf`. A print template of your own shows it only where it uses
+`{{details}}` or `{{dataAsOf}}`: the Minimal example uses `{{details}}`, the Corporate example writes
+its own footer without it (add `{{dataAsOf}}` there where your reports always come from a service).
+csv, json and svg carry it in the result only.
+
+### Groups, a default profile, source scopes, the person in the log { #operator-controls }
+
+All of them are off until you set them ([profiles](../reference/rest.md#profiles),
+[scopes](../reference/mcp.md#scopes), [logging](../reference/rest.md#logging)):
+
+- `auth.groupProfiles` maps an OAuth token's groups to policy profiles (first match wins, after a
+  client's profile); a token whose group list is cut or missing gets `auth.defaultProfile`, or 403
+  without one. Set `auth.defaultProfile` with it: a person in none of the groups otherwise gets the
+  sources' own policy.
+- `auth.defaultProfile` is the profile of every signed-in caller that no token, client, group or
+  scope names, a static token without a profile included.
+- `auth.offerSourceScopes: true` lists the sources' scopes in the OAuth metadata
+  (`scopes_supported`). Define them at your provider first: a client that asks for every listed
+  scope can be refused for one the provider does not know, and the metadata is public.
+- An empty `list_sources` (REST `GET /sources`) for a sign-in that lacks the sources' scopes has a
+  `hint`.
+- `audit.subject: "hash"` or `"plain"` adds the person (`auth.subjectClaim`) to the `call`,
+  `request` and `download` log lines, as a keyed hash or as it is (`audit.key`: at least 16
+  characters).
 
 ### The values level { #values-level }
 
