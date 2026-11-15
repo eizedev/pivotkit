@@ -8,7 +8,7 @@
 //
 // The view files and examples.json are committed (tests/examples.test.js compares them with what
 // this script builds, so a change of the view file format turns CI red until they are written again);
-// the CSV files are build output: `npm run build -w pivotkit-cli` and prepack write them. In the CLI's
+// the print templates are copied from examples/report-templates/; the CSV files are build output: `npm run build -w pivotkit-cli` and prepack write them. In the CLI's
 // package each CSV is gzipped (a quarter of its size on disk); `pivotkit example` writes it unpacked.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
@@ -21,6 +21,9 @@ import { isMain } from "./is-main.js";
 const root = new URL("../", import.meta.url);
 // the repository's web address, from the CLI's package.json ("git+https://github.com/<owner>/<repo>.git")
 const REPOSITORY = JSON.parse(await readFile(new URL("packages/pivotkit-cli/package.json", root), "utf8")).repository.url.replace(/^git\+/, "").replace(/\.git$/, "");
+
+/** The print templates of the example "templates" (examples/report-templates/), rendered over the sales example's chart. */
+export const TEMPLATES = Object.freeze(["corporate.template.html", "minimal.template.html"]);
 
 /** Rows of generated sales data: the playground's smallest size, the same rows on every machine. */
 export const SALES_ROWS = 2000;
@@ -113,6 +116,24 @@ export async function buildExamples() {
             "weather-SOURCE.txt": "where the data comes from and its licence (CC BY 4.0): keep it with the data"
         },
         credit: WEATHER_CREDIT
+    });
+
+    // print templates to copy and adapt, kept in examples/report-templates/ as people read them
+    for (const name of TEMPLATES) {
+        files.set(name, await readFile(new URL(`examples/report-templates/${name}`, root), "utf8"));
+    }
+    entries.push({
+        name: "templates",
+        text: "Two print templates for the HTML report: Corporate (your company's design, always light) and Minimal (follows the system's theme)",
+        files: [...TEMPLATES],
+        uses: "sales",
+        data: "sales.csv",
+        view: "sales-chart.pivotkit.json",
+        templates: [...TEMPLATES],
+        about: {
+            "corporate.template.html": "a print template: company header with a logo, your colours, a footer with the details; always light",
+            "minimal.template.html": "a print template: the title, the chart, the table and the details; light or dark after the system"
+        }
     });
 
     return { files, manifest: `${JSON.stringify({ examples: entries }, null, 2)}\n` };

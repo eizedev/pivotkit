@@ -241,6 +241,12 @@ root `package.json`: `npm run types` and the builds depend on it.
   run types` first). The CI job `angular` builds it (a build warning fails) and runs
   `test/angular.spec.js` in three browsers (`playwright.config.js` there, served by the playground's
   `serve.js` from `dist/browser/`); `tests/ci.test.js` checks its pins and lock file.
+- `examples/report-templates/` - the print templates `pivotkit example templates` writes, Corporate
+  (always light, every colour token set) and Minimal (follows the system), as people read and copy
+  them (the docs page `reference/corporate-design.md`); `scripts/examples.js` copies them into the
+  CLI's examples, `tests/browser/report-templates.spec.js` checks them in both colour schemes, on
+  screen and in print, in three engines (with `report-contrast.js`, the measure it shares with
+  `report-theme.spec.js`).
 - `examples/reader-plugin/` - a complete reader plugin (JSON Lines) to copy, the example of the docs
   page `reference/write-a-plugin.md`; tested by `tests/reader-plugin.test.js`.
 - `tests/browser/` - Playwright tests in Chromium, Firefox and WebKit of the playground and of
@@ -263,7 +269,8 @@ root `package.json`: `npm run types` and the builds depend on it.
 - `scripts/check-pack.js` - checks what `npm pack` would publish (for pivotkit-cli also every example file).
 - `scripts/examples.js` - the example files: the playground's sales (2,000 rows) and weather data as
   Export → Source data writes them (`dataToCsvBytes`) and views of its presets as Download view
-  writes them (`toViewFile`), into `packages/pivotkit-cli/examples/` (data gzipped) and, from
+  writes them (`toViewFile`), and the print templates of `examples/report-templates/` (`TEMPLATES`, the
+  example `templates`, which renders the sales example's data), into `packages/pivotkit-cli/examples/` (data gzipped) and, from
   `scripts/docs-demo.js`, `docs/assets/examples/` (build output, the site's stable addresses).
   `tests/examples.test.js` fails until the committed view files and `examples.json` are what it
   builds: run `node scripts/examples.js` after a change of the view file format or of a preset.
@@ -279,7 +286,8 @@ root `package.json`: `npm run types` and the builds depend on it.
 - `docs/` - the documentation site (pivotkit.eize.dev): Zensical (`zensical.toml`) with the shared design
   of eizedev/brand (`docs-site/`), built and published by `.github/workflows/docs.yml`. Pages in
   Markdown, `docs/assets/icon.svg` from eizedev/brand, `docs/assets/screenshots/` taken by
-  `scripts/docs-screenshots.js` from the playground, except `xlsx-result-light.png` and
+  `scripts/docs-screenshots.js` from the playground (the print templates' shots, `REPORT_SHOTS`, from
+  HTML reports pivotkit-report renders), except `xlsx-result-light.png` and
   `xlsx-result-dark.png` (one image twice: a workbook has no dark theme), the weather example's view
   rendered to XLSX by the CLI (`pivotkit render weather.pivotkit.json --data weather.csv -o
   weather.xlsx`), opened in Microsoft Excel for Mac at 100 % on a Retina screen and captured as

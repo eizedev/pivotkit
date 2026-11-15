@@ -24,6 +24,8 @@ const DIR = new URL("../examples/", import.meta.url);
  * @property {Record<string, string>} about  what each file is
  * @property {boolean} [default]  written by `pivotkit example` without a name
  * @property {string} [credit]  the attribution its data's licence asks for
+ * @property {string} [uses]  the example whose data and view it renders (`data`, `view` are that one's)
+ * @property {string[]} [templates]  its print templates, rendered with --template
  */
 
 /** @type {Example[] | null} */
@@ -38,8 +40,11 @@ export function examples() {
 /** The examples' names (for the completions). */
 export const exampleNames = () => examples().map((e) => e.name);
 
-/** What to run on an example's files. */
-export const tryLine = (e) => `pivotkit render ${e.view} --data ${e.data} -o ${e.view.replace(/\.pivotkit\.json$/, "")}.html`;
+/** What to run on an example's files: its first view as a report, or its first print template over its view. */
+export const tryLine = (e) => (e.templates?.length ? templateLine(e, e.templates[0]) : `pivotkit render ${e.view} --data ${e.data} -o ${e.view.replace(/\.pivotkit\.json$/, "")}.html`);
+
+/** A print template of an example rendered over its view: <name>.template.html writes <name>-report.html. */
+export const templateLine = (e, template) => `pivotkit render ${e.view} --data ${e.data} --template ${template} -o ${template.replace(/(\.template)?\.html$/, "")}-report.html`;
 
 /** A shipped file's bytes: <name>, or <name>.gz unpacked. */
 function shipped(name) {

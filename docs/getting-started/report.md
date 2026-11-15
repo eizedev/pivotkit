@@ -86,7 +86,8 @@ Excel workbooks are read with the plugin [pivotkit-xlsx](../reference/plugins.md
 ## Next
 
 - Every option of `render()`, the formats, limits and issues: [pivotkit-report reference](../reference/report.md).
-- Your own layout around the table: [print template](../reference/print-template.md).
+- Your own layout around the table: [print template](../reference/print-template.md); your company's
+  design from a template to copy: [your own corporate design](../reference/corporate-design.md).
 - The views themselves, written by hand or by a program: [views](../concepts/views.md),
   [view file format](../reference/view-file.md).
 - The same from a terminal or CI without writing code: [getting started with the command line](cli.md).

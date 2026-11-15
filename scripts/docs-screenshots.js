@@ -4,6 +4,7 @@
 //   npm run build:playground && node scripts/docs-screenshots.js
 //   SHOTS=quick-rows,chart node scripts/docs-screenshots.js   # only these shots
 //
+// The print templates' shots (REPORT_SHOTS) are HTML reports pivotkit-report renders, opened as pages.
 // Every shot is one entry in SHOTS: the playground's URL parameters, a view for the fragment, the
 // window size, whether to wait for the chart and what to open before the picture is taken. Each shot is taken in both themes,
 // `<name>-light.png` and `<name>-dark.png`, which the pages show with `#only-light` and `#only-dark`.
@@ -596,6 +597,38 @@ const SHOTS = [
     }
 ];
 
+/**
+ * The print templates of `pivotkit example templates` (examples/report-templates/) over the sales
+ * example's data, rendered by pivotkit-report as the command line renders them, in the system's light
+ * and dark theme (Corporate stays light in both): the shots of "Your own corporate design".
+ */
+const REPORT_SHOTS = [
+    { name: "template-corporate", template: "corporate.template.html", view: "sales.pivotkit.json", size: { width: 1000, height: 760 } },
+    { name: "template-corporate-chart", template: "corporate.template.html", view: "sales-chart.pivotkit.json", size: { width: 1000, height: 760 } },
+    { name: "template-minimal", template: "minimal.template.html", view: "sales-chart.pivotkit.json", size: { width: 1000, height: 760 } }
+];
+
+/** Takes the report shots: the HTML report opened as a page of its own, as a reader opens the file. */
+async function reportShots(browser, only) {
+    const shots = REPORT_SHOTS.filter((s) => !only || only.includes(s.name));
+    if (!shots.length) return;
+    const [{ render }, { readFile: readTable }, echarts, { buildExamples }] = await Promise.all([import("pivotkit-report"), import("pivotkit-core/import"), import("echarts"), import("./examples.js")]);
+    const built = await buildExamples();
+    const { encode } = await import("pivotkit-core");
+    const data = encode(await readTable(new File([built.files.get("sales.csv")], "sales.csv")));
+    for (const shot of shots) {
+        const report = await render(built.files.get(shot.view), data, { format: "html", echarts, template: built.files.get(shot.template), source: "sales.csv", now: "2026-11-13T10:00:00Z" });
+        for (const theme of THEMES) {
+            const page = await browser.newPage({ viewport: shot.size, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: theme });
+            await page.setContent(report.text);
+            const name = `${shot.name}-${theme}.png`;
+            await page.screenshot({ path: `${out}${name}` });
+            await page.close();
+            console.log(name);
+        }
+    }
+}
+
 const server = spawn(process.execPath, [fileURLToPath(new URL("examples/playground/serve.js", root)), String(port)], { stdio: "ignore" });
 try {
     await mkdir(out, { recursive: true });
@@ -633,6 +666,7 @@ try {
             console.log(name);
         }
     }
+    await reportShots(browser, only);
     await browser.close();
 } finally {
     server.kill();

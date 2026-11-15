@@ -33,6 +33,25 @@
         "weather-SOURCE.txt": "where the data comes from and its licence (CC BY 4.0): keep it with the data"
       },
       "credit": "Weather data by Open-Meteo.com (https://open-meteo.com/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data."
+    },
+    {
+      "name": "templates",
+      "text": "Two print templates for the HTML report: Corporate (your company's design, always light) and Minimal (follows the system's theme)",
+      "files": [
+        "corporate.template.html",
+        "minimal.template.html"
+      ],
+      "uses": "sales",
+      "data": "sales.csv",
+      "view": "sales-chart.pivotkit.json",
+      "templates": [
+        "corporate.template.html",
+        "minimal.template.html"
+      ],
+      "about": {
+        "corporate.template.html": "a print template: company header with a logo, your colours, a footer with the details; always light",
+        "minimal.template.html": "a print template: the title, the chart, the table and the details; light or dark after the system"
+      }
     }
   ]
 }

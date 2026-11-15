@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="{{lang}}" dir="{{dir}}" data-pk-theme="light">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pivotkit">
+<meta name="description" content="{{summary}}">
+<title>{{title}}</title>
+{{style}}
+<style>
+/*
+ * Corporate: a pivotkit print template to copy and adapt (https://pivotkit.eize.dev/reference/corporate-design/).
+ * A document, so it is always light: data-pk-theme="light" on <html> and color-scheme: light, on
+ * every screen and on paper. For a dark screen, set data-pk-theme="dark" on <html> (dark on every
+ * screen, light on paper), or drop data-pk-theme to follow the reader's system; the rule for
+ * :root[data-pk-theme="dark"] below holds the company colour for a dark screen.
+ * Colours only through --pk-* tokens: change them here, and the chart, the table and the page follow.
+ */
+:root {
+    color-scheme: light;
+    /* the company colour: the header's line, the "Internal" note, the first series, the colour scale */
+    --pk-accent: #1f4e79;
+    --pk-surface: #ffffff;
+    --pk-surface-2: #f4f6f9;
+    --pk-surface-raised: #ffffff;
+    --pk-text: #1b2430;
+    --pk-muted: #55606e;
+    --pk-border: #d9dee5;
+    --pk-border-strong: #b9c1cc;
+    --pk-grid: #e9edf2;
+    --pk-total: #edf1f6;
+    --pk-total-strong: #e3e9f1;
+    --pk-heat-low: #e8eef6;
+    --pk-heat-high: #1f4e79;
+    --pk-scale-low: var(--pk-heat-low);
+    --pk-scale-high: var(--pk-heat-high);
+    --pk-chart-1: #1f4e79;
+    --pk-chart-2: #d1793f;
+    --pk-chart-3: #2a8c6f;
+    --pk-chart-4: #b88a00;
+    --pk-chart-5: #9b5fa8;
+    --pk-chart-6: #4f8cc9;
+    --pk-chart-7: #6b7a8c;
+    --pk-chart-8: #c2474a;
+}
+@media screen {
+    :root[data-pk-theme="dark"] {
+        --pk-accent: #8fb4dc;
+    }
+}
+.pk-report {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.co-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    border-bottom: 4px solid var(--pk-accent);
+}
+.co-logo {
+    display: block;
+    width: 40px;
+    height: 40px;
+}
+.co-heading {
+    flex: 1;
+    min-width: 0;
+}
+.co-company {
+    margin: 0;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    font-weight: var(--pk-weight-strong);
+}
+.co-header h1 {
+    margin: 0;
+}
+.co-internal {
+    color: var(--pk-accent);
+    font-weight: var(--pk-weight-bold);
+    white-space: nowrap;
+}
+.co-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 24px;
+    margin-top: 24px;
+    padding-top: 8px;
+    border-top: 1px solid var(--pk-border);
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+}
+.co-footer b {
+    font-weight: var(--pk-weight-strong);
+}
+/* a part without its value (a report without a source) is left out */
+.co-pair:has(> span:empty) {
+    display: none;
+}
+</style>
+</head>
+<body>
+<main class="pk-report">
+<header class="co-header">
+<img class="co-logo" alt="Your company" width="40" height="40" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHJ4PSI4IiBmaWxsPSIjMWY0ZTc5Ii8+PHBhdGggZD0iTTEwIDI5VjExaDZsNCA5IDQtOWg2djE4aC01di05bC01IDEwLTUtMTB2OXoiIGZpbGw9IiNmZmZmZmYiLz48L3N2Zz4=">
+<div class="co-heading">
+<p class="co-company">Your company</p>
+<h1>{{title}}</h1>
+<p class="pk-report-description">{{description}}</p>
+</div>
+<span class="co-internal">Internal</span>
+</header>
+{{chart}}
+{{table}}
+<footer class="co-footer">
+<span class="co-pair"><b>Source</b> <span>{{source}}</span></span>
+<span class="co-pair"><b>Data</b> <span>{{rows}}</span></span>
+<span class="co-pair"><b>Filters</b> <span>{{filters}}</span></span>
+<span class="co-pair"><b>Generated</b> <span>{{generated}}</span></span>
+<span>Internal: for use within the company only.</span>
+</footer>
+</main>
+</body>
+</html>

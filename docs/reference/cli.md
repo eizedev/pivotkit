@@ -28,8 +28,8 @@ Node 22 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotki
 ## Try it { #try-it }
 
 `pivotkit example` writes the default example, `sales`, into the current directory, says what each
-file is and what to run next; `pivotkit example weather` writes the other one, `pivotkit example
---list` names them all and writes nothing. It never writes over a file: when one of its files is
+file is and what to run next; `pivotkit example weather` and `pivotkit example templates` write the
+others, `pivotkit example --list` names them all and writes nothing. It never writes over a file: when one of its files is
 there, it writes nothing (exit 2, `EXISTS`); each file is linked into place, so one that appears
 while it writes is not replaced either.
 
@@ -43,13 +43,14 @@ Next:
   pivotkit render sales.pivotkit.json --data sales.csv -o sales.html    (an HTML report: open it in a browser)
   pivotkit validate sales-chart.pivotkit.json --data sales.csv --strict
   pivotkit describe sales.csv
-Other examples: pivotkit example weather
+Other examples: pivotkit example weather, pivotkit example templates
 ```
 
 
 | Example | Files | What |
 | --- | --- | --- |
 | `sales` | `sales.csv`, `sales.pivotkit.json`, `sales-chart.pivotkit.json` | Generated sales, 2,000 rows: revenue by region and category, and a monthly chart. |
+| `templates` | `corporate.template.html`, `minimal.template.html` | Two print templates for the HTML report, to render with `--template` over the `sales` example: Corporate (your company's design, always light) and Minimal (follows the system's theme); [your own corporate design](corporate-design.md). |
 | `weather` | `weather.csv`, `weather.pivotkit.json`, `weather-SOURCE.txt` | Daily weather of 14 cities, 2023-2025, 15,344 rows: the mean temperature per city and month, the live demo's start. Weather data by [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0: `weather-SOURCE.txt` holds the attribution and the changes made; keep it with the data. |
 
 The same files are on this site: [sales.csv](../assets/examples/sales.csv),
@@ -57,7 +58,9 @@ The same files are on this site: [sales.csv](../assets/examples/sales.csv),
 [sales-chart.pivotkit.json](../assets/examples/sales-chart.pivotkit.json),
 [weather.csv](../assets/examples/weather.csv),
 [weather.pivotkit.json](../assets/examples/weather.pivotkit.json),
-[weather-SOURCE.txt](../assets/examples/weather-SOURCE.txt). They are the playground's data and
+[weather-SOURCE.txt](../assets/examples/weather-SOURCE.txt),
+[corporate.template.html](../assets/examples/corporate.template.html),
+[minimal.template.html](../assets/examples/minimal.template.html). They are the playground's data and
 its start views as the report downloads them, so the HTML report shows what the
 [playground](../demo.md) shows.
 
@@ -78,7 +81,7 @@ view does not apply to it.
 | `pivotkit describe <data> --suggest [-o <file>]` | A [draft view](#a-view-from-the-datas-fields) of the data as a view file: on stdout, or into `-o`. |
 | `pivotkit render <view> --url <address> --source <id> [-o <file>]` | The same on a server's source; `validate` and `describe` too ([With a server](#with-a-server)). |
 | `pivotkit sources [id] --url <address>` | A server's sources, or one source's fields, types and counts. |
-| `pivotkit example [name] [--list]` | Writes an example's data and views into the current directory (default `sales`), never over a file, and says what to run next; `--list` names the examples ([Try it](#try-it)). |
+| `pivotkit example [name] [--list]` | Writes an example's data and views (or, `templates`, two print templates) into the current directory (default `sales`), never over a file, and says what to run next; `--list` names the examples ([Try it](#try-it)). |
 | `pivotkit completion bash \| zsh \| fish \| powershell` | The shell's completion script. |
 | `pivotkit help [command]`, `-h`, `--version` | Help; the versions of pivotkit-cli, pivotkit-report and pivotkit-core. |
 
@@ -96,7 +99,7 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--sheet <name>` | | The sheet of a workbook. Without it: the sheet the view names (`source.params.sheet`, written by the report for a view made on a workbook's sheet), else the first visible one; for data that is no workbook a warning `ignoredOption`. [More](#the-sheet-of-a-workbook) |
 | `-f, --format html\|csv\|json\|xlsx\|svg` | render | Default: the extension of `-o` (`.htm` is `html`); another extension, or none, is a usage error. On stdout `html`. |
 | `-o, --output <file>` | render | Write here instead of stdout. A regular file there is replaced whole; a link, a directory or a device is refused. Its directory must exist. The data file, the view file (also by another name: a link to its directory, another case of its name) and `-` are a usage error (stdout is where the output goes without `-o`). |
-| `--template <file>` | render | `html`: a [print template](print-template.md); its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). |
+| `--template <file>` | render | `html`: a [print template](print-template.md); its `--pk-*` colours reach the chart ([details](print-template.md#template-design)); two to start from: `pivotkit example templates` ([your own corporate design](corporate-design.md)). |
 | `--title <text>` | render | `html`, `xlsx`: the report's title (default the view file's name). |
 | `--chart auto\|on\|off` | render | `html`: the chart above the table (`auto`: when the view shows the chart). |
 | `--width`, `--height <px>` | render | `svg`, `html`: the chart's size (800 x 480). |

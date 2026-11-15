@@ -58,7 +58,7 @@ Next:
   pivotkit render sales.pivotkit.json --data sales.csv -o sales.html    (an HTML report: open it in a browser)
   pivotkit validate sales-chart.pivotkit.json --data sales.csv --strict
   pivotkit describe sales.csv
-Other examples: pivotkit example weather
+Other examples: pivotkit example weather, pivotkit example templates
 ```
 
 Run what it prints, and open `sales.html` in a browser; the same view also gives a chart and a
@@ -71,7 +71,9 @@ pivotkit render sales.pivotkit.json --data sales.csv -o sales.xlsx            # 
 ```
 
 `pivotkit example weather` writes the live demo's start (daily weather of 14 cities, with its
-licence in `weather-SOURCE.txt`); `pivotkit example --list` names the examples. It never writes over a
+licence in `weather-SOURCE.txt`); `pivotkit example templates` writes two print templates for the
+HTML report ([your own corporate design](../reference/corporate-design.md)); `pivotkit example
+--list` names the examples. It never writes over a
 file: in a directory that has one of its files it writes nothing.
 
 Without the command, the same files are on this site:

@@ -161,7 +161,7 @@ export const COMMANDS = Object.freeze({
         text: "Write an example's data and views into the current directory (never over a file) and say what to run next.",
         args: [{ name: "name", text: "The example (default sales); --list names them all.", optional: true, complete: "example" }],
         options: { list: { type: "boolean", text: "List the examples and their files; write nothing." } },
-        examples: ["pivotkit example", "pivotkit example weather", "pivotkit example --list"]
+        examples: ["pivotkit example", "pivotkit example weather", "pivotkit example templates", "pivotkit example --list"]
     },
     completion: {
         usage: "pivotkit completion <bash | zsh | fish | powershell>",

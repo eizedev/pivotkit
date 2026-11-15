@@ -56,6 +56,7 @@ nav = [
     { "pivotkit-cli" = "reference/cli.md" },
     { "pivotkit-report" = "reference/report.md" },
     { "Print template" = "reference/print-template.md" },
+    { "Your own corporate design" = "reference/corporate-design.md" },
   ] },
   { "Services: REST and MCP" = [
     { "Getting started: REST service" = "getting-started/rest.md" },

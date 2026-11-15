@@ -143,7 +143,8 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - `pivotkit-report`: a view over rows to an HTML report from a print template, CSV, JSON, XLSX or SVG,
   in Node and the browser, the same table and chart as on the screen
   ([reports in code](getting-started/report.md), [pivotkit-report](reference/report.md),
-  [print template](reference/print-template.md)).
+  [print template](reference/print-template.md); two templates to start from, Corporate and Minimal,
+  with `pivotkit example templates`: [your own corporate design](reference/corporate-design.md)).
 - `pivotkit-cli`: `pivotkit example`, `render`, `validate` and `describe`; a draft view from a file's
   fields (`describe --suggest`) and a report without a view file from layout flags (`render --rows
   ... --values ...`), `--map` for a renamed column, `--save-view`
