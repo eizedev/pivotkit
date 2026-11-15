@@ -17,7 +17,7 @@ import { createServer } from "node:https";
 import { join } from "node:path";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { OperationError } from "pivotkit-report/operations";
-import { checkConfig, serverTextOf, validateOptions } from "pivotkit-server";
+import { callerOf, checkConfig, present, serverTextOf, validateOptions } from "pivotkit-server";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { checkedAddress, expiryOf, fillTemplate, nameSlug, uploadMeans } from "../src/upload.js";
 import { deliver, NO_LINK_NOTE, storeFor } from "../src/delivery.js";
@@ -317,7 +317,7 @@ test("bound store links (signIn): a report over a closed source goes there for a
         assert.match(String(out?.note), /^Open the link in your browser and sign in at the store; it works until /);
         assert.equal(asked.length, 2);
         const sent = JSON.parse(asked[0].body.toString("utf8"));
-        assert.equal(sent.subject, subjectDigest(subkeysOf(Buffer.from(DL_KEY, "utf8")), "https://auth.example.com/", "alice-1234"));
+        assert.equal(sent.subject, subjectDigest(subkeysOf(Buffer.from(DL_KEY, "utf8")), "upload", "https://auth.example.com/", "alice-1234"));
         assert.ok(!asked[0].body.toString("utf8").includes("alice-1234"));
         const rest = await deliver(context, FILE, { ...person, surface: "rest", policy: /** @type {any} */ ({ results: false }), sourceClosed: true });
         assert.equal(rest?.url, undefined);
@@ -599,14 +599,14 @@ test("check-config: where reports go and which go there", async () => {
     const result = await checkConfig({ ...presignOptions(), baseDir: dir }, { http: true, env: {} });
     assert.match(result.text, new RegExp(`Upload:\\n  target: presigned via ${origin("store")}/presign \\(uploads to ${origin("bucket")}\\), PUT, up to 1024 MiB, 30 s, may reach loopback and private addresses \\(intranet\\)`));
     assert.match(result.text, new RegExp(`  reports over open sources \\(open\\): store links \\(bind none, as you declared it; pivotkit does not check the store\\), from ${origin("files")}`));
-    assert.match(result.text, / {2}reports over closed sources \(closed\): not uploaded \(the store's links work for anyone who has them\); no link/);
+    assert.match(result.text, / {2}reports over closed sources \(closed\) and reports over data sent in requests \(inline:\): not uploaded \(the store's links work for anyone who has them\); no link/);
     assert.match(result.text, / {2}schedule drafts are not uploaded/);
     // the downloads section leaves open sources to the upload section
     assert.doesNotMatch(result.text, /reports over open sources \(open\): plain links/);
     assert.match(result.text, /PROBLEM: output\.upload\.presign\.headers\.authorization: \$PIVOTKIT_TEST_STORE_TOKEN is not set/);
     const once = await checkConfig({ ...presignOptions({ bind: "once", maxBytes: 52_428_800, timeMs: 30_000 }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x" }, rest: true });
     assert.match(once.text, /up to 50 MiB, 30 s/);
-    assert.match(once.text, /reports over closed sources \(closed\): store links \(bind once: you declared that each link works once\).*; REST programs get them only with results: true/);
+    assert.match(once.text, /reports over closed sources \(closed\) and reports over data sent in requests \(inline:\): store links \(bind once: you declared that each link works once\).*; REST programs get them only with results: true/);
     assert.match(once.text, /warning: one-time store links/);
     assert.doesNotMatch(once.text, /subject binding/);
     const signIn = await checkConfig({ ...presignOptions({ bind: "signIn" }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x" } });
@@ -742,4 +742,48 @@ test("check-config: a target on a loopback, private or IP address without intran
     assert.doesNotMatch(intranet.text, /PROBLEM/);
     // {id} is part of every template: refused at start, and so by check-config
     await assert.rejects(checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://store.example.com/r/{name}.{format}" } }, baseDir: dir }, { http: true, env: {} }), /output\.upload\.url: \{id\} is missing/);
+});
+
+/** Sources whose data belongs to one person though every field is shown: a claim-bound code source; and an open one. */
+const ROWS = [
+    { Region: "North", Team: "a", Sales: 10 },
+    { Region: "South", Team: "b", Sales: 20 }
+];
+const OAUTH = Object.freeze({ mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" });
+const PERSONAL = {
+    shown: { load: async () => ROWS, policy: { default: "show" } },
+    team: { load: async () => ROWS, policy: { default: "show" }, params: { team: { type: "string", required: true, claim: "team", pattern: "^[a-z0-9-]{1,40}$" } } }
+};
+
+test("bind none: one person's data never goes to the store: data sent in the request, a claim-bound source with every field shown; an open source does", async () => {
+    routes.set("PUT *", bucket(201));
+    const { context } = await contextOf({ sources: PERSONAL, auth: OAUTH, output: { dir: "out", upload: { url: `${origin("store")}/reports/{id}/{name}.{format}`, intranet: true } } });
+    const ana = callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: OAUTH.issuer, groups: [], claims: { team: "a" } } });
+    try {
+        const open = await present(context, "render_view", { source: "shown", view: BY_REGION, format: "csv" }, ana, { surface: "mcp" });
+        assert.match(String(open.result.output?.url), new RegExp(`^${origin("store")}/reports/`));
+        assert.equal(asked.length, 1);
+        const team = await present(context, "render_view", { source: "team", view: BY_REGION, format: "csv" }, ana, { surface: "mcp" });
+        assert.equal(team.result.output?.url, undefined);
+        assert.equal(team.result.output?.note, NO_LINK_NOTE);
+        const data = { columns: ["Region", "Sales"], rows: [["North", 10], ["South", 20]], rowCount: 2 };
+        const inline = await present(context, "render_view", { source: "inline:", data, view: BY_REGION, format: "csv", name: "Mine" }, ana, { surface: "mcp" });
+        assert.equal(inline.result.output?.url, undefined);
+        assert.equal(inline.result.output?.note, NO_LINK_NOTE);
+        assert.equal(asked.length, 1, "neither report reached the store");
+    } finally {
+        await context.close();
+    }
+});
+
+test("check-config's Upload section names per-person sources and data sent in requests as the Delivery section does", async () => {
+    const dir = workspace();
+    const options = { sources: { ...PERSONAL, sales: { file: "data/sales.csv" } }, auth: OAUTH, output: { dir: "out", upload: { url: "https://store.example.com/reports/{id}/{name}.{format}" } }, baseDir: dir };
+    const text = (await checkConfig(options, { http: true, env: {} })).text;
+    const upload = text.slice(text.indexOf("Upload:"));
+    assert.match(upload, /^ {2}per person \(counted as closed\): team \(a parameter bound to a claim\), data sent in requests \(inline:\)$/m);
+    assert.match(upload, /^ {2}reports over closed sources \(team, sales\) and reports over data sent in requests \(inline:\): not uploaded \(the store's links work for anyone who has them\)/m);
+    assert.match(upload, /^ {2}reports over open sources \(shown\): store links/m);
+    const bound = (await checkConfig({ ...options, output: { dir: "out", upload: { ...options.output.upload, bind: "once" } } }, { http: true, env: {} })).text;
+    assert.match(bound.slice(bound.indexOf("Upload:")), /^ {2}reports over closed sources \(team, sales\) and reports over data sent in requests \(inline:\): store links \(bind once/m);
 });

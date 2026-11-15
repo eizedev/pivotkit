@@ -101,7 +101,7 @@ What each setting is for:
 | Setting | Why |
 | --- | --- |
 | `replicas: 1`, `strategy: Recreate` | One server process per output directory (`/out`): the count of its files and their clean-up are kept within one process ([output directory](../reference/rest.md#auth)). A rolling update would run two pods on it for a while |
-| `enableServiceLinks: false` | With it on, Kubernetes sets `PIVOTKIT_PORT=tcp://<address>:3333` in every pod of the namespace for the Service named `pivotkit`, and the server stops with `http.port: must be a whole number`. `PIVOTKIT_PORT` is set to 3333 as well |
+| `enableServiceLinks: false` | With it on, Kubernetes sets `PIVOTKIT_PORT=tcp://<address>:3333` in every pod of the namespace for the Service named `pivotkit`, and the server stops with `PIVOTKIT_PORT is "tcp://...", which Kubernetes sets for a Service named pivotkit`. `PIVOTKIT_PORT` is set to 3333 as well |
 | `automountServiceAccountToken: false` | pivotkit calls no Kubernetes API |
 | User and group 10001, `fsGroup: 10001` | The image's user; `fsGroup` makes the volumes and the Secret's files (mode 0440) readable and `/out` writable for it. `fsGroupChangePolicy: OnRootMismatch` changes the owner of a volume's files only when its top directory does not match yet, so a start does not walk a large volume every time |
 | The namespace's label `pod-security.kubernetes.io/enforce: restricted` | Kubernetes refuses any pod in the namespace that does not meet the restricted Pod Security Standard (non-root, no privilege escalation, no capabilities, a seccomp profile); every pod of the example meets it |

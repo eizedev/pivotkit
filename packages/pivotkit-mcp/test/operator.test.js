@@ -44,17 +44,20 @@ async function oauthServer(auth = {}, more = {}, env = {}) {
     return server;
 }
 
-test("groups choose the profile; a token whose groups are elsewhere gets 403 access_denied, never a sign-in challenge", async () => {
+test("groups choose the profile; a person in none of the groups, and a token whose groups are elsewhere, get 403 access_denied, never a sign-in challenge", async () => {
     const server = await oauthServer({ groupProfiles: [{ group: "finance", profile: "finance" }] });
     try {
         const finance = await httpClient(server.url, { token: await token({ groups: ["finance"] }) });
         const described = await call(finance.client, "describe_source", { source: "sales" });
         assert.equal(described.data.fields.find((f) => f.name === "Customer")?.level, "show");
         await finance.close();
-        const none = await httpClient(server.url, { token: await token({ groups: [] }) });
-        assert.equal((await call(none.client, "describe_source", { source: "sales" })).data.fields.find((f) => f.name === "Customer")?.level, "summary");
-        await none.close();
-        const overage = await fetch(server.url, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${await token({ hasgroups: true })}` }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } }) });
+        const initialize = async (claims) => fetch(server.url, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${await token(claims)}` }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } }) });
+        // in none of the groups, and no default profile: refused, not given the sources' own policy
+        const none = await initialize({ groups: [] });
+        assert.equal(none.status, 403);
+        assert.equal(none.headers.get("www-authenticate"), null);
+        assert.deepEqual(await none.json(), { error: "access_denied", error_description: "your sign-in gives you no access to this server's data; ask the operator" });
+        const overage = await initialize({ hasgroups: true });
         assert.equal(overage.status, 403);
         assert.equal(overage.headers.get("www-authenticate"), null);
         assert.ok(server.log.some((l) => l.event === "refused" && l.status === 403 && l.client === "desktop-client"), JSON.stringify(server.log));

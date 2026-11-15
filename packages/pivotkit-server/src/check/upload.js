@@ -12,6 +12,7 @@
  */
 
 import { settingsOf as downloadSettingsOf } from "../options/downloads.js";
+import { inlineOffered, perPersonLine, perPersonOf } from "./downloads.js";
 import { OUTPUT_DEFAULTS } from "../config.js";
 import { addressText, uploadMaxBytes, uploadSettingsOf } from "../options/upload.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
@@ -97,11 +98,18 @@ export async function section(options, registry, runtime) {
     if (open.length) {
         lines.push(`  reports over open sources (${idsText(open)}): store links (bind ${settings.bind}, as you declared it; pivotkit does not check the store), ${from}`);
     }
-    if (closed.length) {
+    // closed also for being one person's data, as the Delivery section says: per-person sources and data sent in requests
+    const personal = perPersonOf(options);
+    const inline = inlineOffered(options, runtime);
+    if (personal.size || inline) {
+        lines.push(perPersonLine(personal, inline));
+    }
+    if (closed.length || inline) {
+        const which = [closed.length ? `reports over closed sources (${idsText(closed)})` : "", inline ? "reports over data sent in requests (inline:)" : ""].filter(Boolean).join(" and ");
         if (settings.bind === "none") {
-            lines.push(`  reports over closed sources (${idsText(closed)}): not uploaded (the store's links work for anyone who has them); ${ownDelivery(options, runtime)}`);
+            lines.push(`  ${which}: not uploaded (the store's links work for anyone who has them); ${ownDelivery(options, runtime)}`);
         } else {
-            lines.push(`  reports over closed sources (${idsText(closed)}): store links (bind ${settings.bind}: ${settings.bind === "signIn" ? "you declared that the store lets only the person open them; callers without a subject get the server's own delivery" : "you declared that each link works once"}), ${from}${runtime.rest ? "; REST programs get them only with results: true" : ""}`);
+            lines.push(`  ${which}: store links (bind ${settings.bind}: ${settings.bind === "signIn" ? "you declared that the store lets only the person open them; callers without a subject get the server's own delivery" : "you declared that each link works once"}), ${from}${runtime.rest ? "; REST programs get them only with results: true" : ""}`);
             if (settings.bind === "once") {
                 lines.push("  warning: one-time store links: anyone who sees the link can use it once, including an assistant with a browser or code tool");
             }

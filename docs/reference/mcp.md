@@ -234,6 +234,7 @@ error that names the key and the one probably meant.
 | `sources.<id>.params` | - | none | An HTTP or code source's parameters: values a caller passes with the source (see below) |
 | `sources.<id>.timeMs`, `.ttl`, `.maxStale` | - | code: 30000 ms, none, 3600 s; HTTP: 15000 ms, 60 s, 3600 s | An HTTP or code source's time limit, reuse and last good data ([HTTP](sources.md#http-options), [code](sources.md#code-options)) |
 | `sources.<id>.cacheShared` | - | false | A code source's one copy for all callers ([code sources](sources.md#code-options)) |
+| `sources.<id>.perPerson` | - | false | A code source whose data differs per caller: its reports get only links the person who asked can open ([code sources](sources.md#code-options)) |
 | `httpSources.enabled`, `.allowIpLiterals`, `.backends` | - | true, false, none | HTTP sources on or off, an IP address as a host, backends many sources share (with `intranet` for loopback and private addresses) ([HTTP sources](sources.md#http-options)) |
 | `files.allowDirs` | `--allow-dir dir` | none | Directories the model may name files in (`file:`) |
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |
@@ -246,7 +247,7 @@ error that names the key and the one probably meant.
 | `output.upload` | - | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method` (PUT), `timeMs` (30000), `maxBytes`, `keepLocal` (true), `bind` (`none`), `intranet` |
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold; a new report deletes the oldest reports, whoever made them; drafts are never deleted this way (see [REST](rest.md#running) for the trade-off) |
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |
-| `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
+| `output.maxAgeDays` | - | 30 | Delete reports and drafts older than this many days (`0`: no age limit; the default applies only to a directory of the reports' own) from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `policy.data`, `policy.profiles.<name>.data` | - | MCP: on | `false`: the caller may not send [its own data](#data) (`inline:`); REST needs `true` |
 | `mcp.data` | - | 500 rows, 5000 cells, 262144 bytes | `false` switches [data in the request](#data) off; `{ "rows", "cells", "bytes" }` lowers the cap (a value above the built-in one is an error) |
@@ -275,7 +276,7 @@ error that names the key and the one probably meant.
 
 A write the server is killed in leaves its temporary file
 (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). It is not a report: neither counted toward
-`output.maxFiles` and `output.maxMb` nor deleted to make room. Without `output.maxAgeDays` it stays
+`output.maxFiles` and `output.maxMb` nor deleted to make room. With `output.maxAgeDays: 0` it stays
 until you remove it.
 
 The same file configures [pivotkit-server](rest.md#running), which reads `rest.*` and `http.enable`
@@ -399,11 +400,14 @@ request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BU
 
 One JSON line per event on stderr (on stdio, stdout is the protocol): `started` (version, transport,
 address, auth mode, the number of sources, whether files and an output directory are on), `call`
-(tool, source id or the base name of a file, client, `requestId`, `ok`, error code, time in ms; for
+(tool, the source: a configured id, `inline:`, `file:` for any file by path or `unknown` for any
+other text, never the text the model sent; client, `requestId`, `ok`, error code, time in ms; for
 `inline:` data the number of rows and columns),
 `download` (a [download link](delivery.md) opened: `via: "link"`, its binding, whether it worked and
 the code, never the token), `refused` (an HTTP request refused by the Host, Origin or token check, with its status) and
-`warning`. `requestId` is random (11 characters), the same on every line of one call and at the end of
+`warning` (a request the protocol layer refuses is one: its error's class and the SDK's name for the
+refusal, the message itself, which can quote the request's body, only with `--log debug`).
+`requestId` is random (11 characters), the same on every line of one call and at the end of
 its error. The client
 is the static token's name or the OAuth token's client id. A line holds the person only where you
 ask for it with `audit.subject`, as `subject`, and never their groups or other claims. No line holds
@@ -564,7 +568,7 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `auth.groupProfiles` | none | A person's group to a profile, `[{ "group": "finance", "profile": "finance" }]`: the first entry whose group the token carries wins ([groups](#groups)) |
 | `auth.groupsClaim` | `groups` | The claim with the person's groups, a list of texts |
 | `auth.groupsSeparator` | none | Also take a text claim, split by this separator (`","`); without it a text claim counts as unknown. A group name that holds the separator is split in two |
-| `auth.defaultProfile` | none | The profile of a signed-in caller that no token, client, group or scope names; set it with `groupProfiles`, or a person in none of the groups gets the sources' own policy |
+| `auth.defaultProfile` | none | The profile of a signed-in caller that no token, client, group or scope names; without it, a signed-in person whom no client, group or scope gives a profile is refused while `groupProfiles` is set |
 
 #### Which scopes the metadata offers { #scopes }
 
@@ -605,9 +609,10 @@ gets a group's or a scope's profile: they get `auth.defaultProfile`, or, without
 (`auth.clientProfiles`) comes first, so a restricted model client stays restricted whatever the
 person's groups. Groups are read from the access token: a change takes effect with the person's next
 access token. A provider that cuts a long group list without a marker cannot be told from one that
-sends the whole list: check how your provider handles many groups. Set `auth.defaultProfile` to a
-narrow profile with `groupProfiles`: a person in none of the groups otherwise gets the sources' own
-policy (check-config warns). With `--log debug` each sign-in logs how many groups it carried (never
+sends the whole list: check how your provider handles many groups. A person in none of the groups, whom no
+client or scope profile names either, gets `auth.defaultProfile`, or, without one, 403
+`access_denied` ("your sign-in gives you no access to this server's data; ask the operator"), never
+the sources' own policy, which may show more than any profile (check-config says so). With `--log debug` each sign-in logs how many groups it carried (never
 which) and the profile chosen; groups are never logged otherwise. A refused sign-in's `refused` line
 names the client (the app), never the person.
 

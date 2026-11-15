@@ -5,8 +5,12 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { serve } from "pivotkit-server";
 import { BIN, BY_REGION, TOKEN, call, workspace } from "./helpers.js";
+
+const { version: VERSION } = createRequire(import.meta.url)("../package.json");
 
 const run = (args, { env = {}, cwd } = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", cwd, env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env }, timeout: 30_000 });
 
@@ -31,6 +35,29 @@ test("help, version, an unknown command; cli and mcp hand over to their packages
     const mcp = run(["mcp", "--version"]);
     assert.equal(mcp.status, 0, mcp.stderr);
     assert.match(mcp.stdout, /^pivotkit-mcp /);
+});
+
+test("a pivotkit-mcp of another release: serve and mcp say so with both versions, not a missing export", () => {
+    const hook = fileURLToPath(new URL("./fixtures/mcp-other-release/hook.js", import.meta.url));
+    const dir = workspace();
+    for (const args of [["serve", "--source", "sales=data/sales.csv", "--port", "0"], ["mcp", "--version"]]) {
+        const r = spawnSync(process.execPath, ["--import", hook, BIN, ...args], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+        assert.equal(r.status, 2, `${args[0]}: ${r.stderr}`);
+        // the first line: a Node release may warn of the resolution hook below it
+        assert.equal(
+            r.stderr.split("\n")[0],
+            `pivotkit-server: pivotkit-mcp 0.0.1 does not fit pivotkit-server ${VERSION} (it needs pivotkit-server ^0.0.1; The requested module 'pivotkit-server' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'). Install pivotkit-server and pivotkit-mcp of one release in one command: https://pivotkit.eize.dev/getting-started/upgrading/#update`,
+            args[0]
+        );
+    }
+    // the same for a name of a subpath (pivotkit-server/policy)
+    const subpath = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "subpath-export.js" }, timeout: 30_000 });
+    assert.equal(subpath.status, 2, subpath.stderr);
+    assert.match(subpath.stderr.split("\n")[0], /^pivotkit-server: pivotkit-mcp 0\.0\.1 does not fit pivotkit-server [^ ]+ \(it needs pivotkit-server \^0\.0\.1; The requested module 'pivotkit-server\/policy' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'\)\. Install/);
+    // a missing export of another package is no mismatch of the two: its own error stays
+    const other = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "core-export.js" }, timeout: 30_000 });
+    assert.equal(other.status, 2, other.stderr);
+    assert.equal(other.stderr.split("\n")[0], "pivotkit-server: could not start: The requested module 'pivotkit-core' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'");
 });
 
 test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST would expose; 1 when a file is missing", () => {
@@ -120,4 +147,27 @@ test("/readyz says 503 when the output directory is not writable", { skip: proce
         chmodSync(join(dir, "out"), 0o700);
         await server.close();
     }
+});
+
+test("PIVOTKIT_PORT as Kubernetes service links set it (tcp://...): serve, check-config and healthcheck name it", () => {
+    const dir = workspace();
+    const env = { PIVOTKIT_PORT: "tcp://10.0.0.1:3333" };
+    const said = 'pivotkit-server: PIVOTKIT_PORT is "tcp://10.0.0.1:3333", which Kubernetes sets for a Service named pivotkit; set enableServiceLinks: false in the pod, or PIVOTKIT_PORT to the port number\n';
+    // healthcheck fails with 1: a container's health check reserves 2
+    for (const [args, status] of [[["serve", "--source", "sales=data/sales.csv"], 2], [["check-config", "--source", "sales=data/sales.csv"], 2], [["healthcheck"], 1]]) {
+        const r = run(args, { env, cwd: dir });
+        assert.equal(r.status, status, `${args[0]}: ${r.stderr}`);
+        assert.equal(r.stderr, said, args[0]);
+    }
+    // http.port in the configuration file wins for serve and check-config, as before; healthcheck
+    // still asks $PIVOTKIT_PORT first and says so
+    const config = join(dir, "port.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, http: { port: 3333 } }));
+    const fromFile = run(["check-config"], { env: { ...env, PIVOTKIT_CONFIG: config }, cwd: dir });
+    assert.equal(fromFile.status, 0, fromFile.stderr);
+    assert.equal(run(["healthcheck"], { env: { ...env, PIVOTKIT_CONFIG: config }, cwd: dir }).stderr, said);
+    // a port given otherwise wins, as before: --port for serve, a URL for healthcheck
+    const check = run(["check-config", "--source", "sales=data/sales.csv", "--port", "3333"], { env, cwd: dir });
+    assert.equal(check.status, 0, check.stderr);
+    assert.equal(run(["healthcheck", "http://127.0.0.1:1/healthz"], { env }).status, 1);
 });
