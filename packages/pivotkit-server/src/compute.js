@@ -11,6 +11,7 @@ import { Worker } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { COMPUTE_DEFAULTS } from "./config.js";
 import { codeTable } from "./data.js";
+import { isOwnError, sourceFailure } from "./sources/run.js";
 import { draftingOf } from "./policy.js";
 
 /**
@@ -169,6 +170,15 @@ export function createComputer(options = {}) {
         });
     }
 
+    /** A code source's own load, once: no time limit, nothing kept (sources/code.js does that). */
+    async function loadOnce(spec, source) {
+        try {
+            return { data: codeTable(spec, await source.load()), stale: null };
+        } catch (e) {
+            throw isOwnError(e) ? e : sourceFailure(e);
+        }
+    }
+
     /** Runs an operation over a code source's data (sources/code.js: loaded in this thread) in this thread. */
     async function inThread(op, input, job, source) {
         let hidden = 0;
@@ -180,8 +190,9 @@ export function createComputer(options = {}) {
         let stale = null;
         const env = {
             data: async () => {
-                // a code source's own { load } (a host calling the pool itself): loaded as it is, once
-                const read = typeof source.read === "function" ? await source.read() : { data: codeTable(job.spec, await source.load()), stale: null };
+                // a code source's own { load } (a host calling the pool itself): loaded once, its own
+                // errors answered as runLoad answers them
+                const read = typeof source.read === "function" ? await source.read() : await loadOnce(job.spec, source);
                 hidden = read.data.hidden;
                 stats = read.data.stats;
                 asOf = read.data.asOf;

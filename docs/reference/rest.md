@@ -458,7 +458,7 @@ import { createContext, serveFetch } from "pivotkit-server";
 import { createRestHandler } from "pivotkit-server/rest";
 
 const context = await createContext({
-    sources: { sales: { load: async () => rows, version: () => rowsVersion, policy: { fields: { Region: "show" } } } },
+    sources: { sales: { load: async () => rows, version: () => rowsVersion, cacheShared: true, policy: { fields: { Region: "show" } } } },
     output: { dir: "/srv/reports" },
     auth: { mode: "token" }
 });

@@ -15,6 +15,7 @@ import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
 import { sourceStats } from "./stats.js";
 import { asOfText } from "./sources/as-of.js";
+import { isOwnError, ownError } from "./sources/run.js";
 
 /**
  * What a worker or the main thread needs to read a source.
@@ -128,7 +129,7 @@ export async function fileData(spec) {
 }
 
 /** A loaded table over a limit (limits.rows, limits.columns, limits.importCells), as pivotkit-core words it. */
-const overLimit = (limit, value, max, what) => new OperationError("LIMIT_EXCEEDED", `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (limits.${limit})`);
+const overLimit = (limit, value, max, what) => ownError(new OperationError("LIMIT_EXCEEDED", `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (limits.${limit})`));
 
 /** A value cut to the longest text a loaded table may hold. */
 const cut = (value, max) => (typeof value === "string" && value.length > max ? value.slice(0, max) : value);
@@ -167,7 +168,7 @@ function loadedTable(loaded, given) {
         return { rows: copy, columnar: null, asOf: Array.isArray(shape) ? undefined : shape.asOf };
     }
     if (!shape || typeof shape !== "object" || typeof shape.column === "function" || !Array.isArray(shape.columns) || !Array.isArray(shape.data)) {
-        throw new OperationError("INTERNAL", "a code source returns rows, { rows, asOf } or columnar data ({ columns, types, data, asOf }), not encoded data, so hidden fields can be dropped");
+        throw ownError(new OperationError("INTERNAL", "a code source returns rows, { rows, asOf } or columnar data ({ columns, types, data, asOf }), not encoded data, so hidden fields can be dropped"));
     }
     const count = shape.data.reduce((n, column) => Math.max(n, Array.isArray(column) ? column.length : 0), 0);
     if (count > limits.rows) {
@@ -186,15 +187,16 @@ function loadedTable(loaded, given) {
 /**
  * A code source's loaded data (what its load() gave), checked against the run limits, hidden fields
  * dropped and encoded; asOf the source's own (parsed, sources/as-of.js), else now. Keeping and
- * reusing it is sources/run.js's.
+ * reusing it is sources/run.js's. pivotkit's own errors are marked (ownError); anything else thrown
+ * here comes from the host's data (a getter of its rows) and is the source's failure.
  * @param {SourceSpec} spec
  * @param {unknown} loaded
  */
 export function codeTable(spec, loaded) {
-    const { rows, columnar, asOf } = loadedTable(loaded, spec.limits);
-    let data;
-    let hide;
     try {
+        const { rows, columnar, asOf } = loadedTable(loaded, spec.limits);
+        let data;
+        let hide;
         if (rows) {
             // rows: the hidden keys dropped from a copy of each row
             const keys = new Set();
@@ -211,11 +213,17 @@ export function codeTable(spec, loaded) {
             hide = hiddenOf(spec.levels, table.columns);
             data = encode(/** @type {any} */ (withoutHidden(table, hide)), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
         }
+        // when the host says the data is from, else when load() gave it
+        return { data, notes: [], hidden: hide.length, asOf: (asOf !== undefined ? asOfText(asOf) : null) ?? asOfText(new Date()), stats: sourceStats(data), name: spec.name, schedulable: spec.schedulable };
     } catch (e) {
-        throw asOperationError(e, spec.name);
+        if (isOwnError(e)) {
+            throw e;
+        }
+        if (e instanceof PivotkitError) {
+            throw ownError(asOperationError(e, spec.name));
+        }
+        throw e;
     }
-    // when the host says the data is from, else when load() gave it
-    return { data, notes: [], hidden: hide.length, asOf: (asOf !== undefined ? asOfText(asOf) : null) ?? asOfText(new Date()), stats: sourceStats(data), name: spec.name, schedulable: spec.schedulable };
 }
 
 /**

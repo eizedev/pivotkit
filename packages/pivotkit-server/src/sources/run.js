@@ -37,7 +37,7 @@ export const TRANSIENT_STATUSES = Object.freeze([429, 502, 503, 504]);
  * The error codes of a network failure that may pass (Node's and undici's), looked for on an error,
  * its causes and an AggregateError's errors.
  */
-export const NETWORK_CODES = Object.freeze(["ECONNRESET", "ETIMEDOUT", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EPIPE", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "UND_ERR_CLOSED"]);
+export const NETWORK_CODES = Object.freeze(["ECONNRESET", "ETIMEDOUT", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"]);
 
 /** The most characters of a SourceError's publicMessage a caller gets. */
 export const PUBLIC_MESSAGE_MAX = 300;
@@ -86,6 +86,30 @@ export class SourceError extends Error {
 
 /** Marks the error of this module's time limit. */
 const TIMED_OUT = Symbol("pivotkit.timedOut");
+
+/** Marks an error pivotkit made itself while it prepared loaded data (a run limit), which passes as it is. */
+const OWN = Symbol("pivotkit.ownError");
+
+/**
+ * Marks an OperationError as pivotkit's own (a `prepare` step's run limit), so runLoad passes it on
+ * as it is; any other error of `prepare` (a host's getter that throws while its rows are read) is the
+ * source's failure.
+ * @template {Error} E
+ * @param {E} error
+ * @returns {E}
+ */
+export const ownError = (error) => Object.defineProperty(error, OWN, { value: true });
+
+/** Whether an error is one ownError marked. */
+export const isOwnError = (error) => Boolean(read(error, OWN));
+
+/** A source's failure inside a shared load: each caller turns it into its own answer (sourceFailure, with its request id). */
+class LoadFailure {
+    /** @param {unknown} error */
+    constructor(error) {
+        this.error = error;
+    }
+}
 
 /** Reads a property of something a source threw; a getter that throws reads as nothing. */
 const read = (value, key) => {
@@ -220,10 +244,24 @@ export function createLoadRunner(parts = {}) {
      * @returns {Promise<{ value: V, stale: { since: string } | null }>}
      */
     async function runLoad(key, load, how) {
+        try {
+            return await attempt(key, load, how);
+        } catch (e) {
+            // made here, in the caller's own request, so its id is the caller's even for a shared load
+            throw e instanceof LoadFailure ? sourceFailure(e.error) : e;
+        }
+    }
+
+    /** runLoad's work; a source's failure comes out as a LoadFailure. */
+    async function attempt(key, load, how) {
         let version = null;
         if (how.version) {
             try {
-                const given = await how.version();
+                // called as it always was, at once: a promise is no version (it would never change)
+                const given = how.version();
+                if (given !== null && typeof given === "object" && typeof (/** @type {any} */ (given).then) === "function") {
+                    throw new TypeError("version() returns a value, not a promise");
+                }
                 version = given === null || given === undefined ? null : JSON.stringify(given);
             } catch (e) {
                 return failed(key, e, how);
@@ -275,10 +313,11 @@ export function createLoadRunner(parts = {}) {
         } catch (e) {
             if (read(e, TIMED_OUT)) {
                 how.log.warn(`the source ${how.label} took longer than ${how.timeMs} ms (timeMs); its load was aborted`, { source: how.label });
-                // a late result is kept for the next call, unless the key was refused meanwhile
+                // a late result is kept for the next call, unless the key was refused meanwhile or a
+                // later load is kept already
                 loading.then(
                     (late) => {
-                        if (key !== null && !((refusedAt.get(key) ?? 0) >= started)) {
+                        if (key !== null && !((refusedAt.get(key) ?? 0) >= started) && !((cache.get(key)?.loadedAt ?? -Infinity) >= started)) {
                             keep(key, late, how, version, started);
                         }
                     },
@@ -289,7 +328,16 @@ export function createLoadRunner(parts = {}) {
         } finally {
             clearTimeout(timer);
         }
-        const value = how.prepare(raw);
+        let value;
+        try {
+            value = how.prepare(raw);
+        } catch (e) {
+            if (isOwnError(e)) {
+                throw e;
+            }
+            // the host's code ran while its data was read (a getter): the source's failure
+            return failed(key, e, how);
+        }
         if (key !== null) {
             remember(key, value, how, version, started);
         }
@@ -318,7 +366,7 @@ export function createLoadRunner(parts = {}) {
      * the caller's error; a failure that is not transient drops what was kept for the key.
      */
     function failed(key, error, how) {
-        const answer = sourceFailure(error);
+        const answer = new LoadFailure(error);
         const transient = isTransient(error);
         if (!transient) {
             if (key !== null) {

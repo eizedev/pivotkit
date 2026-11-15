@@ -62,14 +62,16 @@ export async function loadCode(resolved, caller, log) {
     const view = shared ? null : callerView(caller);
     const owner = ownerOf(caller, shared);
     const name = nameOf(source);
+    // the load limits and the cache's bound count per person (any client), or per client for a
+    // caller without an identity
+    const person = identityKey(caller) ?? `client:${caller.client}`;
     const key = owner === null ? null : canonicalJson(["code", name, spec.id, params, owner, spec.levels, spec.timeZone ?? null, spec.limits]);
     const ran = await loadRunner.runLoad(key, (signal) => source.load(params, { caller: view, signal }), {
         prepare: (loaded) => codeTable(spec, loaded),
         source: name,
         label: spec.id,
-        // the load limits count per person (any client), or per client for a caller without an identity
-        bucket: identityKey(caller) ?? `client:${caller.client}`,
-        owner: `${name}:${owner}`,
+        bucket: person,
+        owner: shared ? `shared:${name}` : person,
         timeMs: source.timeMs ?? CODE_DEFAULTS.timeMs,
         ttl: source.ttl ?? CODE_DEFAULTS.ttl,
         maxStale: source.maxStale ?? CODE_DEFAULTS.maxStale,

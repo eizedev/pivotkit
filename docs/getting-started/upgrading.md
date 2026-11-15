@@ -202,7 +202,8 @@ For library hosts whose sources have `load` ([code sources](../reference/sources
 
 - `load` is called as `load(params, { caller, signal })` and `version` as `version(params,
   { caller })`, also without declared `params` (then `{}`). A `load()` that takes no arguments works
-  as it is; one whose first parameter has a default of its own now gets `{}` there.
+  as it is; one whose first parameter has a default of its own now gets `{}` there. A `version`
+  that returns a promise is refused (`SOURCE_UNAVAILABLE`): return the value itself.
 - A load is aborted after 30 s (`timeMs`, at most ten minutes); pass `signal` on to `fetch` or your
   database client.
 - Loaded data is kept per caller (and per values and policy levels), not per source: a `load` that

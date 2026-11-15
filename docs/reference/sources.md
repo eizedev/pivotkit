@@ -55,7 +55,7 @@ const context = await createContext({
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `sources.<id>.load` | - | `load(params, { caller, signal })`: the data (see below) |
-| `sources.<id>.version` | none | `version(params, { caller })`: a value that changes when the data changes; kept data is reused while it is the same |
+| `sources.<id>.version` | none | `version(params, { caller })`: a value (not a promise) that changes when the data changes; kept data is reused while it is the same |
 | `sources.<id>.params` | none | The values a caller passes with the source ([parameters](mcp.md#configuration)) |
 | `sources.<id>.timeMs` | 30000 ms | The longest `load` may take, at most 600000 (ten minutes); the signal is aborted then |
 | `sources.<id>.ttl` | none (only `version` decides) | Seconds a load is reused; `0` only shares loads that run at the same time |
@@ -105,8 +105,10 @@ otherwise. Without `publicMessage`, the code's own words are used.
 Anything else `load` throws, an `OperationError` of pivotkit's own codes too, answers
 `SOURCE_UNAVAILABLE` with `retryable: false` and the fixed text; its class is logged, its message
 only with `log: "debug"`. A network error that may pass (`ECONNRESET`, `ETIMEDOUT`, `ECONNREFUSED`,
-`ENOTFOUND`, `EAI_AGAIN`, `EPIPE`, undici's socket and timeout errors, also as the `cause` of
-`fetch`'s error) answers `SOURCE_UNAVAILABLE` with `retryable: true`.
+`ENOTFOUND`, `EAI_AGAIN`, undici's socket and timeout errors, also as the `cause` of `fetch`'s
+error) answers `SOURCE_UNAVAILABLE` with `retryable: true`. An error your code throws while pivotkit
+reads the returned rows (a getter), or a `version` that returns a promise, is `SOURCE_UNAVAILABLE`
+too.
 
 ### Kept data, coalescing and last good data { #code-cache }
 
@@ -132,8 +134,8 @@ only with `log: "debug"`. A network error that may pass (`ECONNRESET`, `ETIMEDOU
   source could not be refreshed.", and the log has a warning with the source's id. Any other failure
   answers at once and drops what was kept for that caller and values, so a withdrawn access is never
   covered by the cache.
-- **Bounds.** The process keeps at most 64 loads, 256 MiB of encoded data, and 8 loads per caller;
-  the least recently used go first.
+- **Bounds.** The process keeps at most 64 loads, 256 MiB of encoded data, and 8 loads per person
+  (a shared source's loads count as one person); the least recently used go first.
 
 ### Where it runs { #code-thread }
 

@@ -198,6 +198,21 @@ test("time limit end to end: a load over timeMs is aborted; a late result is kep
         assert.equal(loads, 1);
         assert.deepEqual(kept.result.fields.find((f) => f.name === "Region").items?.map((i) => i.value ?? i), ["late 1"]);
 
+        // a load that succeeds after the time limit and before the late result: the late result does
+        // not replace the newer data
+        const newer = await contextOf({ sources: { t: { ...context.options.sources.t } } });
+        try {
+            answers.push("slow", "fresh");
+            assert.equal((await failure(describe(newer))).code, "SOURCE_UNAVAILABLE");
+            const fresh = await describe(newer);
+            assert.deepEqual(fresh.result.fields.find((f) => f.name === "Region").items?.map((i) => i.value ?? i), ["fresh 3"]);
+            await wait(200);
+            const still = await describe(newer);
+            assert.deepEqual(still.result.fields.find((f) => f.name === "Region").items?.map((i) => i.value ?? i), ["fresh 3"]);
+        } finally {
+            await newer.close();
+        }
+
         // a refusal between the time limit and the late result: the late result is not kept
         const other = await contextOf({ sources: { t: { ...context.options.sources.t } } });
         try {
@@ -206,7 +221,7 @@ test("time limit end to end: a load over timeMs is aborted; a late result is kep
             assert.equal((await failure(describe(other))).code, "NOT_ALLOWED");
             await wait(200);
             const after = await describe(other);
-            assert.deepEqual(after.result.fields.find((f) => f.name === "Region").items?.map((i) => i.value ?? i), ["fresh 4"]);
+            assert.deepEqual(after.result.fields.find((f) => f.name === "Region").items?.map((i) => i.value ?? i), ["fresh 6"]);
         } finally {
             await other.close();
         }
@@ -340,7 +355,8 @@ test("last good data: after a transient failure the last good data stands in, wi
     }
 });
 
-test("last good data: a SourceError refusal drops it too; maxStale 0 turns it off; older than maxStale is not used", async () => {
+test("last good data: a SourceError refusal drops it too; maxStale 0 turns it off; older than maxStale is not used", async (t) => {
+    t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
     let outcome = "ok";
     const load = async () => {
         if (outcome === "transient") {
@@ -363,14 +379,15 @@ test("last good data: a SourceError refusal drops it too; maxStale 0 turns it of
         assert.equal((await failure(describe(context))).code, "SOURCE_UNAVAILABLE", "the refusal dropped the last good data");
         assert.equal((await failure(describe(context, LOCAL, undefined, "off"))).code, "SOURCE_UNAVAILABLE");
         assert.ok((await describe(context, LOCAL, undefined, "short")).result.stale);
-        await wait(1100);
+        t.mock.timers.tick(1100);
         assert.equal((await failure(describe(context, LOCAL, undefined, "short"))).code, "SOURCE_UNAVAILABLE", "older than maxStale");
     } finally {
         await context.close();
     }
 });
 
-test("kept data: version() decides as before, ttl reuses for its seconds, without both every call loads", async () => {
+test("kept data: version() decides as before, ttl reuses for its seconds, without both every call loads", async (t) => {
+    t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
     let loads = 0;
     let version = 1;
     const load = async () => (loads++, ROWS);
@@ -385,7 +402,7 @@ test("kept data: version() decides as before, ttl reuses for its seconds, withou
         await describe(context, LOCAL, undefined, "timed");
         await describe(context, LOCAL, undefined, "timed");
         assert.equal(loads, 3);
-        await wait(1100);
+        t.mock.timers.tick(1100);
         await describe(context, LOCAL, undefined, "timed");
         assert.equal(loads, 4);
         await describe(context, LOCAL, undefined, "plain");
@@ -527,5 +544,93 @@ test("last good data over REST and MCP: stale in the result, and the message and
     } finally {
         await client.close();
         await server.close();
+    }
+});
+
+test("request ids: a shared load that fails gives each caller its own request id", async () => {
+    const release = gate();
+    const dir = workspace();
+    const server = await restServer({
+        sources: {
+            t: {
+                load: async () => {
+                    await release.opened;
+                    throw new Error("the backend is down");
+                }
+            }
+        },
+        baseDir: dir
+    });
+    try {
+        const first = call(`${server.api}/sources/describe`, { body: { source: "t" } });
+        const second = call(`${server.api}/sources/describe`, { body: { source: "t" } });
+        await wait(50);
+        release.open();
+        const answers = await Promise.all([first, second]);
+        assert.deepEqual(answers.map((a) => a.status), [502, 502]);
+        const ids = answers.map((a) => a.data.requestId);
+        assert.notEqual(ids[0], ids[1]);
+        for (const id of ids) {
+            assert.ok(server.log.some((l) => l.event === "request" && l.requestId === id && l.status === 502), `${id}: ${JSON.stringify(server.log)}`);
+        }
+        assert.equal(server.log.filter((l) => l.event === "error" && l.source === "t").length, 1, "one load, one error line");
+    } finally {
+        await server.close();
+    }
+});
+
+test("hostile: kept data never reaches another caller: not as last good data, not under a shared source's other profile, not within ttl", async () => {
+    let down = false;
+    const load = async (params, how) => {
+        if (down) {
+            throw new SourceError("SOURCE_UNAVAILABLE", { transient: true });
+        }
+        return [{ Region: `rows of ${how.caller?.client ?? "everyone"}`, Sales: 1, Secret: "only for the wide profile" }];
+    };
+    const context = await contextOf({
+        sources: { t: { load, ttl: 60 }, shared: { load, cacheShared: true } },
+        policy: { default: "show", profiles: { narrow: { fields: { Secret: "hide" } } } }
+    });
+    const regions = (r) => JSON.stringify(r.result.fields.find((f) => f.name === "Region"));
+    try {
+        // within ttl, each caller gets its own rows
+        assert.match(regions(await describe(context, token("ana"))), /rows of ana/);
+        const ben = await describe(context, token("ben"));
+        assert.match(regions(ben), /rows of ben/);
+        assert.doesNotMatch(JSON.stringify(ben.result), /rows of ana/);
+        // a transient failure for a caller with nothing kept: an error, never another caller's rows
+        down = true;
+        const cleo = await failure(describe(context, token("cleo")));
+        assert.equal(cleo.code, "SOURCE_UNAVAILABLE");
+        // a shared source: the wide profile's data is no last good data for the narrow profile
+        down = false;
+        const wide = await describe(context, token("ana"), undefined, "shared");
+        assert.ok(wide.result.fields.some((f) => f.name === "Secret"));
+        down = true;
+        const narrow = await failure(describe(context, Object.assign(token("ben"), { profile: "narrow" }), undefined, "shared"));
+        assert.equal(narrow.code, "SOURCE_UNAVAILABLE");
+        assert.doesNotMatch(JSON.stringify(narrow), /only for the wide profile/);
+    } finally {
+        await context.close();
+    }
+});
+
+test("hostile: the host's code that throws while its rows are read, and a version() that returns a promise, answer SOURCE_UNAVAILABLE", async () => {
+    const trap = {
+        Region: "North",
+        get Sales() {
+            throw new OperationError("TIMEOUT", "db at 10.1.2.3 timed out");
+        }
+    };
+    const context = await contextOf({ sources: { getter: { load: async () => [trap] }, promised: { load: async () => ROWS, version: async () => 1 } } });
+    try {
+        for (const id of ["getter", "promised"]) {
+            const error = await failure(describe(context, LOCAL, undefined, id));
+            assert.equal(error.code, "SOURCE_UNAVAILABLE", id);
+            assert.equal(error.details.retryable, false);
+            assert.doesNotMatch(error.message, /10\.1\.2\.3/);
+        }
+    } finally {
+        await context.close();
     }
 });
