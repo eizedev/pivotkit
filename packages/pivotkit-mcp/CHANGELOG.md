@@ -21,6 +21,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   through the server's guarded requests: an issuer on a loopback or private address needs
   `auth.intranet: true`, the environment's proxy is not used, and a key set over 256 KiB is refused
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#issuer-requests)).
+- Behaviour change: a source's print template (`sources.<id>.template`) is checked at start and by
+  `--check-config`; one with an unknown placeholder, over 1 MiB or not a regular file keeps the
+  server from starting; a missing template file is a warning, as a missing source file ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-at-start)).
 
 ### Added
 

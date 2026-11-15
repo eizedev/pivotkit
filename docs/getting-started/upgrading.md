@@ -177,6 +177,7 @@ callers notice:
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
 | [Requests to the issuer](#issuer-requests) | `auth.mode` is `oauth` and the issuer resolves to a loopback or private address, is reached through a proxy, redirects, or serves a key set over 256 KiB | set `auth.intranet: true` for an issuer in your LAN or cluster; run `check-config` |
 | [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
+| [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM or NOT FOUND |
 
 ### Data as of in files { #data-as-of-files }
 
@@ -186,6 +187,17 @@ custom document property `DataAsOf`. A print template of your own shows it only 
 `{{details}}` or `{{dataAsOf}}`: the Minimal example uses `{{details}}`, the Corporate example writes
 its own footer without it (add `{{dataAsOf}}` there where your reports always come from a service).
 csv, json and svg carry it in the result only.
+
+### Print templates checked at start { #template-at-start }
+
+The server reads and checks each source's print template (`sources.<id>.template`) at start, as an
+html report reads it. A template the parser refuses (for example
+`sources.sales.template: unknown placeholder {{titel}} (line 7); did you mean {{title}}?`), one over
+1 MiB or one that is not a regular file keeps the server from starting; `check-config` reports the
+same message as a PROBLEM line. A template file that is not there or cannot be read is treated like
+a missing source file: the server starts with a warning, `check-config` marks it NOT FOUND, and that
+source's html reports fail until the file is there. A template changed after the start is checked
+again on every html report, as before.
 
 ### Groups, a default profile, source scopes, the person in the log { #operator-controls }
 
