@@ -44,7 +44,7 @@ export async function createRegistry(options) {
     const files = options.files ?? {};
     const allow = await allowedDirs((files.allowDirs ?? []).map((d) => pathOf(options, d)), options.baseDir ?? process.cwd());
     const sources = new Map(Object.entries(options.sources ?? {}));
-    const filePolicy = resolvePolicy(options.policy, files.policy);
+    const filePolicy = resolvePolicy(options.policy, files.policy, undefined, { file: true });
     /** The profile a caller's policy takes, if any. */
     const profileOf = (caller) => (caller.profile && Object.hasOwn(options.policy?.profiles ?? {}, caller.profile) ? options.policy?.profiles?.[caller.profile] : undefined);
     // the operator's sources by their files' real paths: a file: path to one of them is that source
@@ -118,7 +118,7 @@ export async function createRegistry(options) {
                     }
                     return this.resolve(id, caller, how);
                 }
-                const policy = profileOf(caller) ? resolvePolicy(options.policy, files.policy, profileOf(caller)) : filePolicy;
+                const policy = profileOf(caller) ? resolvePolicy(options.policy, files.policy, profileOf(caller), { file: true }) : filePolicy;
                 return {
                     policy,
                     source: null,
@@ -173,7 +173,7 @@ export async function createRegistry(options) {
                 const policy = resolvePolicy(options.policy, s.policy);
                 const file = s.file ? pathOf(options, s.file) : null;
                 const exists = file ? await stat(file).then((i) => i.isFile()).catch(() => false) : true;
-                out.push({ id, file, exists, policy: { default: policy.default, fields: Object.fromEntries(policy.fields), items: policy.items, inline: policy.inline }, scopes: s.scopes ?? [], link: s.link ?? null });
+                out.push({ id, file, exists, policy: { default: policy.default, fields: Object.fromEntries(policy.fields), items: policy.items, inline: policy.inline }, resolved: policy, scopes: s.scopes ?? [], link: s.link ?? null });
             }
             return out;
         }

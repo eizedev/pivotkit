@@ -1,6 +1,7 @@
 /*
  * The data of a source for an operation: read a file the safe way (pivotkit-cli/files), drop the
- * columns the policy hides, encode, and keep the last few data sets (by the file's identity, size and
+ * columns the policy hides, encode, count the statistics the policy's "values" level is decided by
+ * (stats.js), and keep the last few data sets (by the file's identity, size and
  * time, or a code source's version), so a model's run of describe, validate and render reads a file
  * once. Used inside a compute worker (file sources) and in the main thread (code sources of a
  * library host).
@@ -12,6 +13,7 @@ import { PivotkitError, encode } from "pivotkit-core";
 import { asCliError, readSafe, readTable } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
+import { sourceStats } from "./stats.js";
 
 /**
  * What a worker or the main thread needs to read a source.
@@ -113,7 +115,7 @@ export async function fileData(spec) {
         const { table, notes } = await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
         const hide = hiddenOf(spec.levels, table.columns);
         const data = encode(withoutHidden(table, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length }));
+        return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data) }));
     } catch (e) {
         const error = asOperationError(e, spec.path);
         if (spec.kind !== "source") {
@@ -164,6 +166,6 @@ export async function codeData(spec, source) {
         hide = hiddenOf(spec.levels, columnar.columns ?? []);
         data = encode(withoutHidden(columnar, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
     }
-    const out = { data, notes: [], hidden: hide.length };
+    const out = { data, notes: [], hidden: hide.length, stats: sourceStats(data) };
     return of(key ? remember(key, out) : out);
 }

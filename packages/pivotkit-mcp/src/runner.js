@@ -82,6 +82,7 @@ export async function run(argv, io) {
         }
         const { serveStdio } = await import("@modelcontextprotocol/server/stdio");
         context.log.info("started", { version: VERSION, transport: "stdio", sources: context.registry.ids().length, files: context.registry.allow.length > 0, output: Boolean(context.output) });
+        void context.countAutoValues();
         serveStdio((ctx) => context.server(ctx), { legacy: "serve", onerror: (e) => context.log.error(e, { where: "stdio" }) });
         return null;
     } catch (e) {

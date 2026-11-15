@@ -152,6 +152,7 @@ export async function serve(options, runtime) {
         handler.context.log.warn("auth.allowInsecureIssuer: an http:// issuer is accepted; for a test issuer on this machine only");
     }
     handler.context.log.info("started", { version: VERSION, transport: "http", url, serves: handler.enable, auth: options.auth?.mode ?? "none", sources: handler.context.registry.ids().length, output: Boolean(handler.context.output) });
+    void handler.context.countAutoValues();
     return {
         port: listening.port,
         url,

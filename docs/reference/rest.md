@@ -64,7 +64,7 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "withheld": ["rows", "columns", "bytes", "content"],
   "output": { "name": "sales.pivotkit-out.xlsx", "format": "xlsx", "mediaType": "..." },
-  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer, since the operator does not show the values of Sales." }
+  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer: the operator does not show results over Sales." }
 ```
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where

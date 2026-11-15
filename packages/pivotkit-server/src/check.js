@@ -1,12 +1,13 @@
 /*
  * --check-config: what the server would expose with these options, for the operator to read before a
  * client connects. Reads each source file once for its column names (a policy rule that names no
- * column is a typo), never to show a value.
+ * column is a typo) and its statistics (each field's level and why: the "values" level and the
+ * automatic rule are decided by them), never to show a value.
  */
 
 import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import { basename } from "node:path";
-import { closest } from "pivotkit-core";
+import { closest, encode } from "pivotkit-core";
 import { isInside, readSafe, readTable } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf } from "./config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
@@ -14,7 +15,8 @@ import { OUTPUT_INSIDE_ALLOWED, cannotCreate, ownFileDirs, plannedPath, whyNot, 
 import { draftCap } from "./present.js";
 import { isLoopback } from "./listen.js";
 import { createRegistry } from "./registry.js";
-import { fieldKey, resolvePolicy } from "./policy.js";
+import { POLICY_DEFAULTS, autoValuesOf, fieldKey, levelInfo, resolvePolicy, withStats } from "./policy.js";
+import { sourceStats } from "./stats.js";
 
 /**
  * @param {import("./config.js").ServerOptions} options
@@ -37,7 +39,7 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     for (const s of sources) {
         const fields = Object.entries(s.policy.fields);
         problems += s.exists ? 0 : 1;
-        const columns = s.file && s.exists ? await columnsOf(s.file, options.sources?.[s.id]?.sheet, options) : { names: null, why: null };
+        const columns = s.file && s.exists ? await columnsOf(s.file, options.sources?.[s.id]?.sheet, options) : { names: null, stats: null, why: null };
         const byKey = new Map((columns.names ?? []).map((c) => [fieldKey(c), c]));
         for (const [key, name] of byKey) {
             everyColumn?.set(key, name);
@@ -51,6 +53,9 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
         if (s.link) lines.push(`    link: ${s.link}`);
         if (columns.why) {
             lines.push(`    warning: its columns could not be read to check the policy (${columns.why})`);
+        }
+        if (columns.names && columns.stats) {
+            lines.push(...fieldLevelLines(s.resolved, columns.names, columns.stats, options.sources?.[s.id]?.policy, options.policy));
         }
         if (columns.names) {
             for (const name of Object.keys(options.sources?.[s.id]?.policy?.fields ?? {})) {
@@ -136,7 +141,7 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     }
     for (const [profile, p] of Object.entries(options.policy?.profiles ?? {})) {
         const fields = Object.entries(p.fields ?? {});
-        lines.push(`Profile ${profile}: fields ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${everyColumn?.get(fieldKey(n)) ?? n} ${l}`).join(", ")}` : ""}; a field a source hides stays hidden; file downloads (REST) ${p.results ? "allowed" : "off"}`);
+        lines.push(`Profile ${profile}: fields ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${everyColumn?.get(fieldKey(n)) ?? n} ${l}`).join(", ")}` : ""}; a field a source hides stays hidden; no automatic values; file downloads (REST) ${p.results ? "allowed" : "off"}`);
     }
     if (rest) {
         const r = options.rest ?? {};
@@ -177,16 +182,52 @@ async function tokenProblem(token, env, options) {
 }
 
 /**
- * The column names of a source file as the server reads them, or why they could not be read.
- * @returns {Promise<{ names: string[] | null, why: string | null }>}
+ * Each column's level and why, one line each; where the automatic rule is off but could apply (no
+ * default written), the text fields it would put at "values" and how to switch it on.
+ * @param {import("./policy.js").Policy} resolved  the source's policy (no profile)
+ * @param {string[]} names  the columns in the data's spelling
+ * @param {import("./stats.js").SourceStats} stats
+ * @param {any} sourcePolicy  options.sources[id].policy
+ * @param {any} serverPolicy  options.policy
+ */
+function fieldLevelLines(resolved, names, stats, sourcePolicy, serverPolicy) {
+    const policy = withStats(resolved, stats);
+    const lines = names.map((name) => {
+        const info = levelInfo(policy, name);
+        return `      ${name}: ${info.level} (${info.why})`;
+    });
+    if (policy.auto) {
+        const count = names.filter((n) => levelInfo(policy, n).auto).length;
+        return [`    field levels (automatic values on: ${count} field${count === 1 ? "" : "s"}; policy.autoValues false turns it off):`, ...lines];
+    }
+    if (!policy.implicitDefault) {
+        return ["    field levels (automatic values: not applied, a default is written):", ...lines];
+    }
+    // off by policy.autoValues: what it would give, to decide whether to switch it on
+    const option = sourcePolicy?.autoValues ?? serverPolicy?.autoValues ?? POLICY_DEFAULTS.autoValues;
+    const trial = withStats({ ...resolved, auto: autoValuesOf(option === false ? true : option) }, stats);
+    const would = names.filter((n) => levelInfo(trial, n).auto).map((n) => `${n} (${levelInfo(trial, n).why.replace(/^auto: /, "")})`);
+    return [
+        "    field levels (automatic values off):",
+        ...lines,
+        would.length ? `    automatic values would list: ${would.join(", ")}; switch it on with policy.autoValues: true, or give a field the level values` : "    automatic values would list no field of this source"
+    ];
+}
+
+/**
+ * The column names of a source file as the server reads them and its statistics, or why they could
+ * not be read.
+ * @returns {Promise<{ names: string[] | null, stats: import("./stats.js").SourceStats | null, why: string | null }>}
  */
 async function columnsOf(path, sheet, options) {
     const limits = { ...SERVER_LIMITS, ...(options.limits ?? {}) };
     try {
         const bytes = await readSafe(path, { cwd: "/", allow: [], maxBytes: limits.fileBytes, hardLinks: true });
         const { table } = await readTable(bytes, basename(path), { ...(sheet ? { sheet } : {}), ...(options.timeZone ? { timeZone: options.timeZone } : {}), limits });
-        return { names: table.columns, why: null };
+        // the statistics as the server counts them: encoded the same way (data.js)
+        const stats = sourceStats(encode({ columns: table.columns, types: table.types, data: table.data }, { timeZone: options.timeZone ?? "UTC", limits }));
+        return { names: table.columns, stats, why: null };
     } catch (e) {
-        return { names: null, why: String(e?.message ?? e).slice(0, 200) };
+        return { names: null, stats: null, why: String(e?.message ?? e).slice(0, 200) };
     }
 }

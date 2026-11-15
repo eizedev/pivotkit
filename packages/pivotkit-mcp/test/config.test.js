@@ -16,7 +16,7 @@ test("validateOptions names the wrong key, says what was meant and checks the ru
         [{ sourcs: {} }, /unknown key "sourcs"; did you mean "sources"/],
         [{ sources: { "../x": { file: "a.csv" } } }, /an id is letters/],
         [{ sources: { a: { file: "a.csv", load: async () => [] } } }, /either file or load/],
-        [{ sources: { a: { file: "a.csv", policy: { fields: { X: "secret" } } } } }, /must be one of show, summary, hide/],
+        [{ sources: { a: { file: "a.csv", policy: { fields: { X: "secret" } } } } }, /must be one of show, values, summary, hide/],
         [{ policy: { default: "shwo" } }, /did you mean show/],
         [{ limits: { rowz: 5 } }, /limits.rowz: unknown limit; did you mean "rows"/],
         [{ auth: { mode: "oauth", issuer: "https://id.example.com" } }, /auth.resource: needed/],

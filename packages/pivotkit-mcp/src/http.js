@@ -257,6 +257,7 @@ export async function listen(options, runtime) {
     }
     const url = `http://${host.includes(":") ? `[${host}]` : host}:${listening.port}${ENDPOINT}`;
     context.log.info("started", { version: context.version, transport: "http", url, auth: handler.auth.mode, sources: context.registry.ids().length, files: context.registry.allow.length > 0, output: Boolean(context.output) });
+    void context.countAutoValues();
     return {
         port: listening.port,
         url,

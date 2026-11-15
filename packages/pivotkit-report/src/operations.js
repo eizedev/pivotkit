@@ -13,7 +13,7 @@
  * with errors is no error: `ok: false` with its findings.
  */
 
-import { CATALOG, LAYOUT_LIMITS, OUTSIDE_LIMITS, PivotkitError, describeSource, describeView, fromViewFile, isIdentifierName, normalize, outsideLimits, suggestLayout, toViewFile, validate, viewFileFields, viewFromLayout, withLinkFragment } from "pivotkit-core";
+import { CATALOG, LAYOUT_LIMITS, OUTSIDE_LIMITS, PivotkitError, closest, describeSource, describeView, foldText, fromViewFile, isIdentifierName, normalize, outsideLimits, suggestLayout, toViewFile, validate, viewFileFields, viewFromLayout, withLinkFragment } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { encodeViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "./render.js";
@@ -61,6 +61,7 @@ export class OperationError extends Error {
  * @property {string} path
  * @property {string} message
  * @property {string} [suggestion]  the name or item meant ("did you mean")
+ * @property {string} [field]  the data field the finding is about, where it is about one (an item of a filter: itemCase, itemUnknown)
  */
 
 /** The most characters of a name, path or message from outside an operation puts into a finding. */
@@ -74,7 +75,7 @@ export function findingText(text) {
 
 /**
  * An issue of pivotkit-core (or a reader's note) as a finding.
- * @param {{ severity?: string, code?: string, path?: string, message?: string, params?: { suggestion?: string } }} issue
+ * @param {{ severity?: string, code?: string, path?: string, message?: string, params?: { suggestion?: string, field?: string } }} issue
  * @returns {Finding}
  */
 export function findingOf(issue) {
@@ -84,7 +85,8 @@ export function findingOf(issue) {
         code: issue.code ?? "issue",
         path: findingText(issue.path ?? ""),
         message: findingText(issue.message ?? ""),
-        ...(issue.params?.suggestion ? { suggestion: findingText(issue.params.suggestion) } : {})
+        ...(issue.params?.suggestion ? { suggestion: findingText(issue.params.suggestion) } : {}),
+        ...(issue.params?.field ? { field: findingText(issue.params.field) } : {})
     };
 }
 
@@ -102,6 +104,7 @@ export function findingOf(issue) {
  * @property {string} [timeZone]
  * @property {Date | number | string} [now]
  * @property {Record<string, unknown>} [renderOptions]  a front end's own render options (the CLI's template, bom, size)
+ * @property {boolean} [unknownItems]  add itemUnknown findings: an item of an "in" filter on a text field (up to UNKNOWN_ITEMS_DISTINCT distinct values) that is none of the field's values, with the closest one as the suggestion; a front end with an exposure policy passes them on only for fields whose values it lists completely
  * @property {(description: { rows: number | null, fields: any[] }) => { rows: number | null, fields: any[] }} [drafting]  what a draft (suggest_view, a layout) may read of the data's description: a front end with an exposure policy takes out the counts and spans it does not show
  */
 
@@ -176,7 +179,8 @@ const FINDING = {
         code: { type: "string" },
         path: { type: "string", description: "Where in the view, e.g. filters.0.items" },
         message: { type: "string" },
-        suggestion: { type: "string", description: "The name or item meant" }
+        suggestion: { type: "string", description: "The name or item meant" },
+        field: { type: "string", description: "The data field the finding is about, where it is about one" }
     }
 };
 const FINDINGS = { type: "array", items: FINDING };
@@ -237,6 +241,47 @@ const usesOf = (view, data, env) => viewFileFields(normalize(view, data, { limit
 
 /** Whether a source's data is encoded (rows) rather than a field list. */
 const isEncoded = (data) => Boolean(data && typeof data === "object" && !Array.isArray(data) && typeof (/** @type {any} */ (data).column) === "function");
+
+/** The most distinct values of a text field whose items an "in" filter's are checked against (itemUnknown). */
+const UNKNOWN_ITEMS_DISTINCT = 1000;
+
+/**
+ * With env.unknownItems: an itemUnknown warning for each text item of an "in" filter that is none of
+ * its field's values, not even in another case or spacing (that is itemCase), with the closest value
+ * as the suggestion. Fields with more than UNKNOWN_ITEMS_DISTINCT values are not checked.
+ * @param {any} view  a bare view as given (paths count its filters as written)
+ * @param {any} data
+ * @param {OperationEnv} env
+ * @returns {Finding[]}
+ */
+function unknownItems(view, data, env) {
+    if (!env.unknownItems || !isEncoded(data) || !view || !Array.isArray(view.filters)) {
+        return [];
+    }
+    /** @type {Finding[]} */
+    const out = [];
+    view.filters.forEach((filter, i) => {
+        if (!filter || filter.type !== "in" || typeof filter.field !== "string" || !Array.isArray(filter.items)) {
+            return;
+        }
+        const wanted = filter.field.trim().toLowerCase();
+        const field = data.schema.fields.find((f) => f.name.toLowerCase() === wanted);
+        const column = field ? data.column(field.name) : undefined;
+        if (!column || column.type !== "string" || column.dict.length > UNKNOWN_ITEMS_DISTINCT) {
+            return;
+        }
+        const exact = new Set(column.dict);
+        const folded = new Set(column.dict.map((v) => foldText(String(v))));
+        filter.items.forEach((item) => {
+            if (typeof item !== "string" || exact.has(item) || folded.has(foldText(item))) {
+                return;
+            }
+            const near = closest(item, column.dict);
+            out.push({ severity: "warning", code: "itemUnknown", path: `filters[${i}].items`, field: findingText(field.name), message: findingText(`item ${JSON.stringify(item)} is not one of the listed values of "${field.name}"`), ...(near !== null ? { suggestion: findingText(near) } : {}) });
+        });
+    });
+    return out;
+}
 
 /** How a note of viewFromLayout or suggestLayout counts as a finding. */
 export const LAYOUT_NOTE_SEVERITY = Object.freeze({ noSuggestion: "error", dateGrouped: "info", unusedGroup: "warning", unusedMap: "warning" });
@@ -543,7 +588,7 @@ export const OPERATIONS = Object.freeze({
             const built = viewOfLayout(describedFor(source, env), input.layout ?? {}, { suggest: true, ...(env.locale ? { locale: env.locale } : {}) });
             const limits = { limits: viewLimits(env) };
             const { errors, warnings } = validate(built.view, source.data, limits);
-            const findings = [...(source.notes ?? []), ...built.notes.map(noteFinding), ...errors.map(findingOf), ...warnings.map(findingOf)];
+            const findings = [...(source.notes ?? []), ...built.notes.map(noteFinding), ...errors.map(findingOf), ...warnings.map(findingOf), ...unknownItems(built.view, source.data, env)];
             const name = `Draft: ${built.name}`;
             const view = toViewFile(normalize(built.view, source.data, limits).view, {
                 name,
@@ -587,7 +632,7 @@ export const OPERATIONS = Object.freeze({
                 return { result: { valid: false, findings: [...(source.notes ?? []), unreadable(read)], uses: [] } };
             }
             const { errors, warnings } = validate(read.view, source.data, { limits: viewLimits(env) });
-            const findings = [...(source.notes ?? []), ...given.notes, ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf)];
+            const findings = [...(source.notes ?? []), ...given.notes, ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf), ...unknownItems(read.view, source.data, env)];
             const valid = !findings.some((f) => f.severity === "error");
             return { result: { valid, findings, uses: usesOf(read.view, source.data, env), ...(given.fromLayout ? { view: normalize(read.view, source.data, { limits: viewLimits(env) }).view } : {}) } };
         }
@@ -614,7 +659,7 @@ export const OPERATIONS = Object.freeze({
             const { errors, warnings, ...parts } = described;
             const valid = described.valid;
             return {
-                result: { valid, name: findingText(read.name), description: { ...parts, text: findingText(described.text) }, findings: [...(source.notes ?? []), ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf)], uses: usesOf(read.view, source.data, env) }
+                result: { valid, name: findingText(read.name), description: { ...parts, text: findingText(described.text) }, findings: [...(source.notes ?? []), ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf), ...unknownItems(read.view, source.data, env)], uses: usesOf(read.view, source.data, env) }
             };
         }
     },
@@ -679,7 +724,7 @@ export const OPERATIONS = Object.freeze({
                 ...(input.chart ? { chart: input.chart === "auto" ? "auto" : input.chart === "on" } : {}),
                 ...extra
             });
-            const findings = [...(source.notes ?? []), ...given.notes, ...result.issues.map(findingOf)];
+            const findings = [...(source.notes ?? []), ...given.notes, ...result.issues.map(findingOf), ...(read.failed ? [] : unknownItems(read.view, source.data, env))];
             const kind = RENDER_FORMATS[format];
             // the file's name: the one asked for, else the title, the view's name, the data's name
             const name = input.name ?? input.title ?? (read.name || String(source.name || "report").replace(/\.[a-z0-9]+$/i, ""));
@@ -711,7 +756,7 @@ export const OPERATIONS = Object.freeze({
                 return { result: { ok: false, findings: [unreadable(read)], uses: [] } };
             }
             const { errors, warnings } = validate(read.view, source.data, { limits: viewLimits(env) });
-            const findings = [...errors.map(findingOf), ...warnings.map(findingOf)];
+            const findings = [...errors.map(findingOf), ...warnings.map(findingOf), ...unknownItems(read.view, source.data, env)];
             if (errors.length) {
                 return { result: { ok: false, findings, uses: usesOf(read.view, source.data, env) } };
             }
@@ -779,7 +824,7 @@ export const OPERATIONS = Object.freeze({
                 throw new OperationError("INVALID_INPUT", "every: a week needs weekday, a month needs day, a day neither");
             }
             const { errors, warnings } = validate(read.view, source.data, { limits: viewLimits(env) });
-            const findings = [...errors.map(findingOf), ...warnings.map(findingOf)];
+            const findings = [...errors.map(findingOf), ...warnings.map(findingOf), ...unknownItems(read.view, source.data, env)];
             if (errors.length) {
                 return { result: { ok: false, findings, uses: usesOf(read.view, source.data, env), draft: null } };
             }

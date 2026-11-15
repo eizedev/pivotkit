@@ -98,7 +98,7 @@ export function createComputer(options = {}) {
 
     /**
      * Runs an operation in a worker.
-     * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number }>}
+     * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("./stats.js").SourceStats | null }>}
      */
     async function inWorker(op, input, job) {
         if (closed) {
@@ -133,7 +133,7 @@ export function createComputer(options = {}) {
                     if (msg.outcome.file) {
                         msg.outcome.file.bytes = msg.outcome.file.bytes instanceof Uint8Array ? msg.outcome.file.bytes : new Uint8Array(msg.outcome.file.bytes);
                     }
-                    resolve({ outcome: msg.outcome, hidden: msg.hidden });
+                    resolve({ outcome: msg.outcome, hidden: msg.hidden, stats: msg.stats ?? null });
                 }
             };
             const onError = (e) => {
@@ -171,23 +171,27 @@ export function createComputer(options = {}) {
     /** Runs an operation over a code source in this thread. */
     async function inThread(op, input, job, source) {
         let hidden = 0;
+        /** @type {import("./stats.js").SourceStats | null} */
+        let stats = null;
         const env = {
             data: async () => {
                 const data = await codeData(job.spec, source);
                 hidden = data.hidden;
+                stats = data.stats;
                 return data;
             },
             link: async () => job.link ?? null,
             template: async () => job.template,
             limits: job.spec.limits,
             drafting: draftingOf(job.spec.levels),
+            unknownItems: true,
             ...(job.locale ? { locale: job.locale } : {}),
             ...(job.timeZone ? { timeZone: job.timeZone } : {}),
             ...(job.now !== undefined ? { now: job.now } : {}),
             ...(op === "render_view" && (input.format === "svg" || input.format === "html") ? { echarts: await import("echarts") } : {})
         };
         const outcome = await OPERATIONS[op].run(input, env);
-        return { outcome, hidden };
+        return { outcome, hidden, stats };
     }
 
     return {

@@ -1,8 +1,9 @@
 /*
  * A compute worker: runs one operation of pivotkit-report's table over a file source at a time, with
  * its own cache of data sets (data.js). The main thread gives it the operation, its input and what it
- * needs (the source's spec, the link target, the template text) and gets back the outcome or an
- * error's code and message; the policy is applied in the main thread. A run over its time is ended by
+ * needs (the source's spec, the link target, the template text) and gets back the outcome with the
+ * data's statistics (stats.js: counts, never a value), or an error's code and message; the policy is
+ * applied in the main thread. A run over its time is ended by
  * terminating the worker (compute.js).
  */
 
@@ -25,10 +26,13 @@ parentPort?.on("message", async (job) => {
             echarts ??= await import("echarts");
         }
         let hidden = 0;
+        /** @type {import("./stats.js").SourceStats | null} */
+        let stats = null;
         const env = {
             data: async () => {
                 const data = await fileData(spec);
                 hidden = /** @type {any} */ (data).hidden ?? 0;
+                stats = /** @type {any} */ (data).stats ?? null;
                 return data;
             },
             link: async () => link ?? null,
@@ -36,6 +40,7 @@ parentPort?.on("message", async (job) => {
             ...(echarts ? { echarts } : {}),
             limits: spec.limits,
             drafting: draftingOf(spec.levels),
+            unknownItems: true,
             ...(locale ? { locale } : {}),
             ...(timeZone ? { timeZone } : {}),
             ...(now !== undefined ? { now } : {})
@@ -46,7 +51,7 @@ parentPort?.on("message", async (job) => {
             outcome.file.bytes = outcome.file.bytes.slice();
         }
         const transfer = /** @type {any[]} */ (outcome.file ? [outcome.file.bytes.buffer] : []);
-        parentPort.postMessage({ id, outcome, hidden }, transfer);
+        parentPort.postMessage({ id, outcome, hidden, stats }, transfer);
     } catch (e) {
         const error = asOperationError(e, spec?.path);
         parentPort.postMessage({ id, error: { code: error.code, message: error.message } });
