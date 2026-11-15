@@ -6,7 +6,8 @@
  *
  * - The token is `base64url(payload) "." base64url(HMAC-SHA256(tokenKey, base64url(payload)))`, the
  *   payload `{ v: 1, n, e, b, s? }`: n 16 random bytes (the stored file's name prefix), e the expiry
- *   in seconds, b the binding, s HMAC-SHA256(subjectKey, subject) for "signIn". The keys are HKDF
+ *   in seconds, b the binding, s HMAC-SHA256(subjectKey, [n, issuer, subject]) for "signIn" (the
+ *   nonce in it: two links of one person cannot be tied together). The keys are HKDF
  *   subkeys of output.downloads.key (a random key per process without one). The signature is checked
  *   first, in constant time: a forged token, an unknown one and one of another key get the same 404.
  * - "none": GET and HEAD send the file. "once": GET and HEAD answer a page with a button; its POST
@@ -162,14 +163,16 @@ export function readToken(keys, token) {
 }
 
 /**
- * A person as the token holds them: an HMAC of the issuer and the subject, so a token tells nothing
- * about who it is for, and the same subject of another issuer is another person.
+ * A person as the token holds them: an HMAC of the link's nonce, the issuer and the subject, so a
+ * token tells nothing about who it is for, two links of one person carry different digests (they
+ * cannot be tied to each other), and the same subject of another issuer is another person.
  * @param {{ subject: Buffer }} keys
+ * @param {string} n  the link's nonce
  * @param {string} issuer
  * @param {string} subject
  */
-// JSON of the pair, not a separator: no issuer and subject can be cut differently to the same text
-export const subjectDigest = (keys, issuer, subject) => mac(keys.subject, JSON.stringify([issuer, subject]));
+// JSON of the list, not a separator: no nonce, issuer and subject can be cut differently to the same text
+export const subjectDigest = (keys, n, issuer, subject) => mac(keys.subject, JSON.stringify([n, issuer, subject]));
 
 /** The name a person sees for a stored name: without the link's prefix and pivotkit's mark. */
 export function filenameOf(stored) {
@@ -190,6 +193,9 @@ export function dispositionOf(name) {
     const encoded = encodeURIComponent(clean).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
     return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
+
+/** How often the markers of expired one-time links are swept: ten minutes. */
+const MARKER_SWEEP_MS = 600_000;
 
 /** A marker of a used one-time link: its nonce. */
 const MARKER_NAME = /^[A-Za-z0-9_-]{22}\.used$/;
@@ -279,7 +285,7 @@ export function linksOf(context) {
                     return null;
                 }
                 const e = Math.floor(Date.now() / 1000) + state.settings.expiresMinutes * 60;
-                const token = signToken(keys, { n, e, b: bound, ...(bound === "signIn" ? { s: subjectDigest(keys, /** @type {string} */ (issuer), /** @type {string} */ (subject)) } : {}) });
+                const token = signToken(keys, { n, e, b: bound, ...(bound === "signIn" ? { s: subjectDigest(keys, n, /** @type {string} */ (issuer), /** @type {string} */ (subject)) } : {}) });
                 return { url: `${state.base}${DOWNLOADS_PATH}/${token}`, expiresAt: new Date(e * 1000).toISOString().replace(/\.\d{3}Z$/, "Z") };
             };
         }
@@ -437,7 +443,7 @@ function answer(request, code, headers = {}) {
  * Builds the route of a context's links (once per context: a second call returns the first handler,
  * so the REST service and the MCP endpoint on one port share it).
  * @param {any} context
- * @param {{ env?: Record<string, string | undefined>, loopback?: boolean }} [runtime]
+ * @param {{ env?: Record<string, string | undefined>, loopback?: boolean, sweepEveryMs?: number }} [runtime]  sweepEveryMs: how often expired one-time markers are swept (tests)
  * @returns {{ handles(path: string): boolean, precheck(request: Request): Promise<Response | null>, fetch(request: Request): Promise<Response>, problem(status: number): Response, listening(url: string): void, close(): void }}
  */
 export function createDownloadHandler(context, runtime = {}) {
@@ -484,14 +490,23 @@ export function createDownloadHandler(context, runtime = {}) {
 
     const markersDir = () => join(/** @type {string} */ (outputDir(context)), ".pivotkit-downloads");
 
-    /** Deletes the markers of expired one-time links (sweepMarkers), at most every ten minutes. */
+    /** Deletes the markers of expired one-time links (sweepMarkers), at most every MARKER_SWEEP_MS. */
     async function sweep() {
-        if (Date.now() - swept < 600_000) {
+        if (Date.now() - swept < MARKER_SWEEP_MS) {
             return;
         }
         swept = Date.now();
         await sweepMarkers(markersDir());
     }
+    // and on a timer, so markers go also when no one-time link is opened any more (not the throttled
+    // sweep(): a tick must not be skipped for a POST's sweep just before it)
+    const sweeping = active && outputDir(context)
+        ? setInterval(() => {
+              swept = Date.now();
+              void sweepMarkers(markersDir()).catch(() => undefined);
+          }, runtime.sweepEveryMs ?? MARKER_SWEEP_MS)
+        : null;
+    sweeping?.unref?.();
 
     /** The stored file of a nonce, opened without following a link, or null when it is gone. */
     async function openReport(n) {
@@ -810,14 +825,19 @@ export function createDownloadHandler(context, runtime = {}) {
             return fail("SIGN_IN_FAILED", { reason: "azp" });
         }
         const subject = subjectOf(claims[subjectClaim]);
-        if (!subject || typeof claims.iss !== "string" || !sameText(subjectDigest(k, claims.iss, subject), /** @type {string} */ (payload.s))) {
-            return fail("LINK_NOT_YOURS");
+        // the person who signed in, as the operator's audit setting names people on the log (the
+        // shared authentication's key, so a link's line and a call's line name a person alike)
+        const core = subject ? await context.auth?.({ env, loopback }).catch(() => null) : null;
+        const named = core?.auditName?.(claims.iss, subject);
+        const who = named ? { subject: named } : {};
+        if (!subject || typeof claims.iss !== "string" || !sameText(subjectDigest(k, payload.n, claims.iss, subject), /** @type {string} */ (payload.s))) {
+            return fail("LINK_NOT_YOURS", who);
         }
         const found = await reportOf(request, payload);
         if (found.response) {
             return new Response(found.response.body, { status: found.response.status, headers: { ...Object.fromEntries(found.response.headers), "set-cookie": cookie } });
         }
-        log({ bound: "signIn", ok: true });
+        log({ bound: "signIn", ok: true, ...who });
         return fileAnswer(found.report, "GET", { headers: { "set-cookie": cookie } });
     }
 
@@ -880,6 +900,9 @@ export function createDownloadHandler(context, runtime = {}) {
 
         close() {
             issuer?.close();
+            if (sweeping) {
+                clearInterval(sweeping);
+            }
         }
     };
     state.handler = handler;

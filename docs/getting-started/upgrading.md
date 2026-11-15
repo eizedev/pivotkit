@@ -189,8 +189,8 @@ All of them are off until you set them ([profiles](../reference/rest.md#profiles
 
 - `auth.groupProfiles` maps an OAuth token's groups to policy profiles (first match wins, after a
   client's profile); a token whose group list is cut or missing gets `auth.defaultProfile`, or 403
-  without one. Set `auth.defaultProfile` with it: a person in none of the groups otherwise gets the
-  sources' own policy.
+  without one. A person in none of the groups (and no client or scope profile) is refused
+  with 403 as well, unless `auth.defaultProfile` gives them a profile.
 - `auth.defaultProfile` is the profile of every signed-in caller that no token, client, group or
   scope names, a static token without a profile included.
 - `auth.offerSourceScopes: true` lists the sources' scopes in the OAuth metadata

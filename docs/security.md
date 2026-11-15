@@ -309,14 +309,16 @@ may try to steer it:
   algorithm, never passed on; scopes per tool and per source. The quick-start page at `/` is not
   behind authentication and shows no source ids unless the operator turns that on
   (`http.page.sources`); without sign-in (`auth` `none`) it lists them by default.
-- **The log** names tools, source ids, file base names and the client (a token's name or an OAuth
+- **The log** names tools, source ids (`inline:`, `file:` for a file by path, `unknown` for anything
+  else a caller typed) and the client (a token's name or an OAuth
   client id), never a view, a value, a token or a full path; a person's id only when the operator
   sets `audit.subject` (`hash`: HMAC-SHA256 with `audit.key`, at least 16 characters, read at start
   with OAuth only; a rotated key needs a restart and changes every value; `plain`: the claim's text),
   their groups never.
 - **Groups to profiles** (`auth.groupProfiles`): a token whose group list is cut, missing or
-  replaced by an overage marker never gets a group's or a scope's profile. Set `auth.defaultProfile`
-  to a narrow profile with it: a person in none of the groups otherwise gets the sources' own policy.
+  replaced by an overage marker never gets a group's or a scope's profile. A person in none of
+  the groups, whom no client or scope profile names, is refused (403) unless `auth.defaultProfile`
+  gives them a narrow profile; never the sources' own policy.
   A provider that cuts a list without a marker cannot be detected.
 
 ## The REST service { #rest }

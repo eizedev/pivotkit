@@ -57,8 +57,9 @@ export { ConfigError } from "./options/shared.js";
  * A source: a file, or a library host's code source (load instead of file; sources/code.js), whose
  * load gets the caller unless cacheShared is true (then null: one copy of the data for all callers).
  * version is called at once on every call (never awaited) and must be cheap; kept data is reused
- * while it gives the same value.
- * @typedef {SourceOptionsBase & ({ load?: import("./sources/code.js").SourceLoad, version?: import("./sources/code.js").SourceVersion, cacheShared?: false } | { load: import("./sources/code.js").SharedSourceLoad, version?: import("./sources/code.js").SharedSourceVersion, cacheShared: true })} SourceOptions
+ * while it gives the same value. perPerson: true says its data differs per caller, so its reports
+ * get only links the person who asked can open (delivery.js).
+ * @typedef {SourceOptionsBase & ({ load?: import("./sources/code.js").SourceLoad, version?: import("./sources/code.js").SourceVersion, cacheShared?: false, perPerson?: boolean } | { load: import("./sources/code.js").SharedSourceLoad, version?: import("./sources/code.js").SharedSourceVersion, cacheShared: true })} SourceOptions
  */
 
 /**

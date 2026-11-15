@@ -59,6 +59,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   give last good data with `stale` after a transient failure; a failing load is `SOURCE_UNAVAILABLE`
   ([code sources](https://pivotkit.eize.dev/reference/sources/#code)).
 
+### Changed
+
+- The log names a tool call's source by a configured id, `inline:` or `file:` (no file name), else
+  `unknown`, never the model's text; a request the protocol layer refuses is logged at warn with its
+  error's class and the SDK's name for the refusal, its message (which can quote the body) only with
+  `--log debug` ([#422](https://github.com/eizedev/pivotkit/issues/422)).
+
 ## [0.1.1] - 2026-11-14
 
 ### Upgrading from 0.1.0

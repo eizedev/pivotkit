@@ -397,9 +397,10 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     assert.match(quiet.text, /\n {2}warning: groupProfiles entry 2 \(finance\) shows fields that entry 1 \(staff\) holds back: people in both groups get entry 1, since the first match wins; if that is not intended, put the wider profile first\n/);
     assert.match(quiet.text, /warning: the source sales needs the scope pivotkit:sales, which the server does not offer \(auth\.offerSourceScopes is not on\)/);
     assert.match(quiet.text, /a person whose token does not carry the groups is refused/);
-    // groupProfiles without defaultProfile: what a person in no listed group gets, and a warning
-    assert.match(quiet.text, /Sign-in: .*; a person in none of these groups gets the sources' own policy;/);
-    assert.match(quiet.text, /warning: auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups gets the sources' own policy; set auth\.defaultProfile to a narrow profile/);
+    // groupProfiles without defaultProfile: a person in no listed group is refused (not given the
+    // sources' own policy, which may show more than any profile), and a warning
+    assert.match(quiet.text, /Sign-in: .*; a person in none of these groups( whose client or scopes name no profile)? is refused \("your sign-in gives you no access to this server's data; ask the operator"\);/);
+    assert.match(quiet.text, /warning: auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups is refused \(403\); set auth\.defaultProfile to a narrow profile to let them in/);
     assert.match(quiet.text, /PROBLEM: audit\.key: \$NOT_SET is not set; the server will not start/);
     assert.equal(quiet.problems, 1);
     assert.doesNotMatch(quiet.text, /New in this version[\s\S]*(scope|group|audit|profile)/i);

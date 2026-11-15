@@ -139,7 +139,9 @@ A **profile** gives one caller more (or less) than the default: a named policy o
    profiles name none;
 5. `auth.defaultProfile`, for every signed-in caller (a static token without a profile too).
 
-Without any, a caller gets the sources' own policy. Profiles are never merged. The profile is laid
+Without any, a caller gets the sources' own policy; with `auth.groupProfiles` set, a signed-in
+person whom none of these names is refused (403) instead ([groups](mcp.md#groups)). Profiles are
+never merged. The profile is laid
 over each source's policy:
 
 - a field the source's policy hides stays hidden in every profile (it is dropped when the data is
@@ -217,8 +219,8 @@ Groups to profiles, with a narrow profile for everyone else:
 
 A person in both groups gets `finance`, since it comes first; `check-config` warns when a later
 entry shows a field an earlier one holds back. Without `defaultProfile`, a person in none of the
-groups gets the sources' own policy: set it to a narrow profile whenever you use `groupProfiles`
-(`check-config` warns when it is missing).
+groups (and whose client or scopes name no profile) is refused with 403 `access_denied`; set it to a
+narrow profile to let such people in (`check-config` warns when it is missing).
 
 ## Data in the request { #data }
 

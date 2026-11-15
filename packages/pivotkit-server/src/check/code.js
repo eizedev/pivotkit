@@ -16,7 +16,7 @@ function keptOf(source) {
     const ttl = source.ttl ?? CODE_DEFAULTS.ttl;
     const shared = source.cacheShared ?? CODE_DEFAULTS.cacheShared;
     const how = ttl ? `reused for ${ttl} s${source.version ? " while version() is the same" : ""}` : source.version ? "reused while version() is the same" : "loaded on every call";
-    return `${how}; ${shared ? "shared by all callers (load gets caller null)" : "data per caller"}`;
+    return `${how}; ${shared ? "shared by all callers (load gets caller null)" : /** @type {any} */ (source).perPerson ? "data per caller, per person (perPerson: reports get only links the person can open)" : "data per caller"}`;
 }
 
 /** @type {import("./index.js").Section} */

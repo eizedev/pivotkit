@@ -49,6 +49,45 @@ export const DESCRIPTION_TEXT = 500;
 export const holds = (caller, scopes) => caller.scopes === null || (scopes ?? []).every((s) => caller.scopes?.has(s));
 
 /**
+ * Whether a field of a policy, under the server's, that policy's or any profile's, is not "show". A
+ * policy the automatic "values" rule may apply to (`auto`, decided by the data at run time) counts
+ * as closed, whatever its written levels say.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {import("./config.js").PolicyOptions | undefined} sourcePolicy
+ */
+function closedUnder(options, sourcePolicy) {
+    return [undefined, ...Object.values(options.policy?.profiles ?? {})].some((profile) => {
+        const p = resolvePolicy(options.policy, sourcePolicy, profile);
+        return p.default !== "show" || [...p.fields.values()].some((l) => l !== "show") || Boolean(p.auto);
+    });
+}
+
+/**
+ * Whether reports over a source count as closed for delivery (download links, output.baseUrl, an
+ * upload target): a field is not "show" for someone (closedUnder), or the data belongs to one person:
+ * data sent in the request ("inline:"), a source bound to a person (a claim parameter or a token
+ * exchange, sources/auth.js personBound), a code source the operator marked perPerson. Such a report
+ * gets only a link the person who asked can open, or none. A "file:" path counts by files.policy; an
+ * id the options do not name counts as closed.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {string} ref  a source id, "inline:" or "file:<path>"
+ * @returns {boolean}
+ */
+export function isClosedForDelivery(options, ref) {
+    if (ref === INLINE_ID) {
+        return true;
+    }
+    if (ref.startsWith(FILE_PREFIX)) {
+        return closedUnder(options, options.files?.policy);
+    }
+    const source = Object.hasOwn(options.sources ?? {}, ref) ? options.sources?.[ref] : undefined;
+    if (!source) {
+        return true;
+    }
+    return closedUnder(options, source.policy) || personBound(options, source) || /** @type {any} */ (source).perPerson === true;
+}
+
+/**
  * The registry of a server's sources.
  * @param {import("./config.js").ServerOptions} options
  */
@@ -100,16 +139,7 @@ export async function createRegistry(options, { log = null } = {}) {
         return source;
     }
 
-    /**
-     * Whether a field of a source, under the server's, the source's or any profile's policy, is not
-     * "show". A policy the automatic "values" rule may apply to (`auto`, decided by the data at run
-     * time) counts as closed, whatever its written levels say.
-     */
-    const closedUnder = (sourcePolicy) => [undefined, ...Object.values(options.policy?.profiles ?? {})].some((profile) => {
-        const p = resolvePolicy(options.policy, sourcePolicy, profile);
-        return p.default !== "show" || [...p.fields.values()].some((l) => l !== "show") || Boolean(p.auto);
-    });
-    const closedSources = new Map([...sources.entries()].map(([id, s]) => [id, closedUnder(s.policy)]));
+    const closedSources = new Map([...sources.keys()].map((id) => [id, isClosedForDelivery(options, id)]));
 
     /** A source's field descriptions by field key, cleaned (no control or direction characters) and capped. */
     const descriptionsOf = (source) => {
@@ -128,7 +158,7 @@ export async function createRegistry(options, { log = null } = {}) {
         holds,
         notFound,
         levelsOf,
-        fileClosed: closedUnder(files.policy),
+        fileClosed: closedUnder(options, files.policy),
         filePolicyOf: (caller) => (profileOf(caller) ? resolvePolicy(options.policy, files.policy, profileOf(caller), { file: true }) : filePolicy)
     };
 
@@ -200,10 +230,27 @@ export async function createRegistry(options, { log = null } = {}) {
 
         /** The ids of every source (the quick-start page, --check-config). */
         ids: () => [...sources.keys()],
+
+        /**
+         * A call's source as a log line names it: a configured id or "inline:" as it is, a file by its
+         * kind only ("file:"; its name can be a person's), anything else "unknown", so no text a caller
+         * or a model typed reaches the log.
+         * @param {unknown} ref  the call's `source`
+         * @returns {string | undefined}
+         */
+        logName(ref) {
+            if (typeof ref !== "string") {
+                return undefined;
+            }
+            if (ref === INLINE_ID || sources.has(ref)) {
+                return ref;
+            }
+            return ref.startsWith(FILE_PREFIX) ? FILE_PREFIX : "unknown";
+        },
         // the quick-start page has no caller: a source only a signed-in person can use is not there
         titles: () => [...sources.entries()].filter(([id]) => !bound.has(id)).map(([id, s]) => ({ id, title: s.title ?? id, scopes: s.scopes ?? [] })),
 
-        /** For --check-config: each source's file, whether it exists, its fields by level, and whether it is closed (a field not "show" for someone). */
+        /** For --check-config: each source's file, whether it exists, its fields by level, and whether it is closed for links (a field not "show" for someone, or data per person). */
         async check() {
             const out = [];
             for (const [id, s] of sources) {

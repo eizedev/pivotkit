@@ -14,7 +14,7 @@ export { createContext, callerOf, VERSION, TOKEN_ENV } from "./context.js";
 export { present, presentedInput, presentedOutput, renderFile, findingsText } from "./present.js";
 export { ConfigError, loadConfig, validateOptions, pathOf, restResourceOf, OPTION_KEYS, SERVER_LIMITS, COMPUTE_DEFAULTS, DEFAULT_ALGORITHMS, ENDPOINTS, REST_BASE, SOURCE_ID } from "./config.js";
 export { POLICY_LEVELS, POLICY_DEFAULTS } from "./policy.js";
-export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, groupRefusal, groupsOf, GROUPS_REFUSED, resourceMetadataUrlOf, TOKEN_MIN } from "./auth.js";
+export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, groupRefusal, groupsOf, GROUPS_REFUSED, NOT_IN_GROUP, resourceMetadataUrlOf, TOKEN_MIN } from "./auth.js";
 export { allowedHosts, hostRefusal, clientAddress, LOCAL_HOSTS } from "./checks.js";
 export { createLimits, REQUEST_LIMITS, bodyBytesOf } from "./limits.js";
 export { serveFetch, isLoopback, connectionLimitsOf, refusedText, GRACE_MS, CONNECTION_LIMITS, BODY_BYTES, MAX_BODY_BYTES, SIGNED_IN, takeSignIn, peekSignIn, bodyCapOf } from "./listen.js";

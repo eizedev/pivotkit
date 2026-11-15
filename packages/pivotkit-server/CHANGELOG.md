@@ -189,6 +189,26 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Changed
 
+- Privacy ([#422](https://github.com/eizedev/pivotkit/issues/422)):
+  - Data that belongs to one person counts as closed for download links and `output.baseUrl`: data
+    sent in the request (`inline:`), a source with a parameter bound to a claim or a token exchange,
+    and a code source with the new `sources.<id>.perPerson: true`. Their reports get a sign-in link
+    for a caller with a subject, or no link. `isClosedForDelivery(options, ref)` (`src/registry.js`)
+    is the one rule.
+  - With `auth.groupProfiles` and no `auth.defaultProfile`, a person in none of the groups whom no
+    client or scope profile names is refused with 403 ("your sign-in gives you no access to this
+    server's data; ask the operator", `NOT_IN_GROUP`) instead of getting the sources' own policy.
+  - A sign-in link's subject digest holds the link's nonce: two links of one person cannot be tied
+    together.
+  - Cache keys hold a caller's values, groups and claims only as a keyed digest; an HTTP source's
+    JSON answer is kept without the columns the caller's policy hides.
+  - With `audit.subject` on, a sign-in link's `download` line names the person who signed in.
+  - The markers of used one-time links are swept every ten minutes, not only on the next one-time
+    download.
+  - A REST and MCP log line names a source by a configured id, `inline:` or `file:`, else
+    `unknown`, never the caller's text.
+  - `check-config` warns under `Retention:` when `output.maxAgeDays` is off while closed sources or
+    data sent in requests are on, and lists the per-person sources under `Delivery:`.
 - `ConfigError` is defined in `src/options/shared.js`; `pivotkit-server` exports it as before.
 - A pattern of a source's parameter that runs out of time on a test value is tried once more before
   it is refused at start, so a busy host does not refuse a fast pattern.
