@@ -91,7 +91,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   server would make it, with each page's status, the rows, the fields and their types (no cell
   value; literal query values as `...`), what a caller would get when it fails, and the operator's
   hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`).
-- `pivotkit-server source-from-openapi <file or https URL> --operation <operationId>`: proposes an
+- `pivotkit-server source-from-openapi <file or https URL> --operation <operationId or "GET /path">`: proposes an
   HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (path and query
   parameters with their types, where the rows are, the fields' descriptions, a skeleton of the
   backend's sign-in). The document is read as untrusted input: local references only, size and

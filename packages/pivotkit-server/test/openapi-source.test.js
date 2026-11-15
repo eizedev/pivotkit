@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateOptions } from "../src/config.js";
 import { todoPaths } from "../src/options/base.js";
-import { CHECK_FIRST, OPENAPI_LIMITS, OpenApiError, loadDocumentText, operatorText, readDocument, sourceFromOpenApi, sourceFromOpenApiCommand } from "../src/openapi-source.js";
+import { CHECK_FIRST, CHECK_HOST, OPENAPI_LIMITS, OpenApiError, loadDocumentText, operatorText, readDocument, sourceFromOpenApi, sourceFromOpenApiCommand } from "../src/openapi-source.js";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { BIN, tempDir } from "./helpers.js";
 
@@ -154,7 +154,7 @@ test("source-from-openapi: operations that cannot be a source are refused with t
     refused(PLATFORM, "createVm", /HTTP sources read with GET; the operation "createVm" is a POST/);
     refused(PLATFORM, "deleteVm", /is a DELETE, so it cannot be a source/);
     refused(PLATFORM, "archiveMonth", /the path "\/archive\/\{year\}-\{month\}" cannot be an HTTP source's address: has more than one expression/);
-    refused(PLATFORM, "nope", /no operation with the id "nope"; the GET operations of the document: listVms, listRegions, usageCsv, searchVms, archiveMonth, listDisks/);
+    refused(PLATFORM, "nope", /no operation with the id "nope"; the GET operations of the document \(an operationId, else "GET \/path"\): listVms, listRegions, usageCsv, searchVms, archiveMonth, listDisks/);
     refused(PLATFORM, "listVms", /--id: a source id is/, { id: "../vms" });
     refused(PLATFORM, "listVms", /--backend:/, { backend: "a b" });
     const doc = (paths) => readDocument(JSON.stringify({ openapi: "3.0.3", info: { title: "T", version: "1" }, paths }));
@@ -191,7 +191,7 @@ test("source-from-openapi: the hostile document neither steers addresses or cred
     const err = operatorText(g);
     // no address as a value; what the document names has no user name, password, query or fragment
     const backend = Object.values(g.config.httpSources.backends)[0];
-    assert.equal(backend.url, "TODO: https://... (the document names https://{tenant}.attacker.example.net/api; check it)");
+    assert.equal(backend.url, "TODO: https://... (the document names https://{tenant}.attacker.example.net/api (tenant=victim); check it)");
     assert.equal(backend.auth.clientCredentials.tokenUrl, "TODO: https://... (the document names https://login.attacker.example/token; check it)");
     for (const leaked of ["leaked", "user:pass", "client_secret=leak", "s3cr3t-example-token", "../../etc/passwd", "bad scope"]) {
         assert.ok(!out.includes(leaked), leaked);
@@ -257,6 +257,8 @@ test("source-from-openapi: the command prints the block on stdout and the review
     const block = JSON.parse(ok.stdout);
     assert.deepEqual(Object.keys(block.sources), ["vms"]);
     assert.ok(ok.stderr.startsWith(`${CHECK_FIRST}\n\nStill to decide: 4 values say TODO`));
+    // each path with the placeholder that says what goes there
+    assert.ok(ok.stderr.includes("\n  httpSources.backends.platform.auth.clientCredentials.clientId: TODO: the client id\n"));
     assert.match(ok.stderr, /check-source vms/);
     for (const [args, pattern] of [
         [[fixturePath("platform.json")], /--operation names the operation/],
@@ -275,7 +277,13 @@ test("source-from-openapi: the command prints the block on stdout and the review
     }
     const help = run(["source-from-openapi", "--help"]);
     assert.equal(help.status, 0);
-    assert.match(help.stdout, /source-from-openapi <file\|url>/);
+    assert.match(help.stdout, /^Usage: pivotkit-server source-from-openapi /);
+    for (const flag of ["--operation <id>", "--id <source id>", "--backend <name>"]) {
+        assert.ok(help.stdout.includes(flag), flag);
+    }
+    // the command list of the main help keeps a space between each command and its text
+    const main = run(["--help"]);
+    assert.match(main.stdout, /\n {2}source-from-openapi <file\|url> +Propose/);
 });
 
 test("source-from-openapi: a file is read up to 5 MiB from the open file, and must be UTF-8", async () => {
@@ -318,8 +326,7 @@ test("source-from-openapi: a URL is fetched once through the guarded fetch, with
     status = 404;
     const missing = io();
     assert.equal(await sourceFromOpenApiCommand([url, "--operation", "listThings"], missing.io, { fetch: (u, r) => fetch(u, { ...r, allowIpLiterals: true }) }), 2);
-    assert.match(missing.out.stderr, /http:\/\/127\.0\.0\.1:\d+ answered 404/);
-    assert.ok(!missing.out.stderr.includes("/openapi.json"), "the path and query of the address are not repeated");
+    assert.match(missing.out.stderr, /http:\/\/127\.0\.0\.1:\d+\/openapi\.json answered 404/);
 
     status = 200;
     body = `{"openapi": "3.1.0", "x": "${"a".repeat(OPENAPI_LIMITS.bytes)}"}`;
@@ -372,3 +379,175 @@ test("options: a value under httpSources or a source's http that still says TODO
     config.sources.s.http.query = { status: "TODO", note: "TODO later" };
     assert.doesNotThrow(() => validateOptions(config));
 });
+
+/** A document with one GET operation at /a (operationId "op") whose answer is a list of `row`, and what else is given. */
+const minimal = (row, more = {}) => ({
+    openapi: "3.1.0",
+    info: { title: "T", version: "1" },
+    servers: [{ url: "https://api.example.com" }],
+    paths: { "/a": { get: { operationId: "op", responses: { 200: { description: "x", content: { "application/json": { schema: { type: "array", items: row } } } } } } } },
+    ...more
+});
+
+test("source-from-openapi: a wide allOf repeated many times stays within the node budget and is fast", () => {
+    // the reviewer's shape: Leaf with 20000 properties, S0 = allOf of 2000 references to it (about 300 KB)
+    const leaf = { type: "object", properties: Object.fromEntries(Array.from({ length: 20_000 }, (_, i) => [`f${i}`, {}])) };
+    const doc = minimal({ $ref: "#/components/schemas/S0" }, { components: { schemas: { Leaf: leaf, S0: { allOf: Array.from({ length: 2000 }, () => ({ $ref: "#/components/schemas/Leaf" })) } } } });
+    const started = performance.now();
+    let result;
+    try {
+        result = generate(readDocument(JSON.stringify(doc)), "op");
+    } catch (e) {
+        assert.ok(e instanceof OpenApiError, String(e));
+        assert.match(e.message, /more than 100000 nodes/);
+    }
+    assert.ok(performance.now() - started < 3000, `took ${Math.round(performance.now() - started)} ms`);
+    if (result) {
+        assert.ok(Object.keys(result.config.sources.op.policy.fields).length <= OPENAPI_LIMITS.fields);
+        assert.ok(result.notes.some((n) => n.includes(`allOf merges more than ${OPENAPI_LIMITS.merged} properties`)));
+    }
+});
+
+test("source-from-openapi: an unexpected failure prints a fixed text and exits 2", async () => {
+    const out = { stdout: "", stderr: "" };
+    const io = { stdout: { write: (t) => (out.stdout += t) }, stderr: { write: (t) => (out.stderr += t) } };
+    const failing = async () => {
+        throw new RangeError("Maximum call stack size exceeded at /home/someone/secret/path.js:1:1");
+    };
+    assert.equal(await sourceFromOpenApiCommand(["https://api.example.com/openapi.json", "--operation", "op"], io, { fetch: failing }), 2);
+    assert.equal(out.stderr, "pivotkit-server source-from-openapi: the document could not be read (RangeError); it may be too large or built to exhaust whoever reads it\n");
+});
+
+test("source-from-openapi: scopes, header names and values from the document that would leak or mislead are not copied", () => {
+    const schemes = {
+        cc: { type: "oauth2", flows: { clientCredentials: { tokenUrl: "https://auth.example.com/token", scopes: {} } } },
+        cookie: { type: "apiKey", in: "header", name: "Cookie" },
+        origin: { type: "apiKey", in: "header", name: "Origin" },
+        good: { type: "apiKey", in: "header", name: "X-Api-Key" }
+    };
+    const withSecurity = (security, parameters = []) => {
+        const doc = minimal({ type: "object" }, { components: { securitySchemes: schemes } });
+        doc.paths["/a"].get.security = security;
+        doc.paths["/a"].get.parameters = parameters;
+        return generate(readDocument(JSON.stringify(doc)), "op");
+    };
+    // S2: a scope that starts with TODO would read as a placeholder
+    const cc = withSecurity([{ cc: ["TODO:", "todo-x", "read"] }]);
+    assert.equal(Object.values(cc.config.httpSources.backends)[0].auth.clientCredentials.scope, "read");
+    assert.ok(cc.notes.some((n) => n.includes("scopes starting with TODO are left out")));
+    assertValidates(cc);
+    // S3: an API key in Cookie or Origin is no header name to copy; a fitting one is listed for review
+    for (const name of ["cookie", "origin"]) {
+        const g = withSecurity([{ [name]: [] }]);
+        assert.equal(Object.values(g.config.httpSources.backends)[0].auth.header.name, "TODO: the header's name", name);
+        assert.ok(g.todos.some((t) => t.endsWith(".auth.header.name")));
+        assertValidates(g);
+    }
+    const good = withSecurity([{ good: [] }]);
+    assert.ok(good.review.some((r) => r.path.endsWith(".auth.header.name") && r.text === "x-api-key"));
+    // S4: values that look like credentials, whatever the parameter's name
+    const secrets = withSecurity(
+        [],
+        [
+            { name: "a", in: "query", schema: { type: "string", example: "sk-proj-abcdefghijklmnop" } },
+            { name: "b", in: "query", schema: { type: "string", enum: ["ok", "ghp_abcdefghijklmnopqrstuvwxyz0123456789"] } },
+            { name: "c", in: "query", schema: { type: "string", example: "aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bC1dF3h" } },
+            { name: "d", in: "query", schema: { type: "string", enum: ["eu-central", "us-east"] } },
+            { name: "e", in: "query", schema: { type: "string", example: "123e4567-e89b-12d3-a456-426614174000" } }
+        ]
+    );
+    const params = secrets.config.sources.op.params;
+    assert.equal(params.a.example, undefined);
+    assert.equal(params.b.enum, undefined);
+    assert.equal(params.c.example, undefined);
+    assert.equal(secrets.notes.filter((n) => n.includes("looks like a credential, so neither is copied")).length, 3);
+    // a UUID and ordinary values stay
+    assert.equal(params.e.example, "123e4567-e89b-12d3-a456-426614174000");
+    assert.deepEqual(params.d.enum, ["eu-central", "us-east"]);
+    assert.ok(!JSON.stringify(secrets.config).includes("sk-proj") && !JSON.stringify(secrets.config).includes("ghp_"));
+});
+
+test("source-from-openapi: a path over 2000 characters or with an empty segment is refused", () => {
+    const at = (path) => {
+        const doc = minimal({ type: "object" });
+        doc.paths[path] = doc.paths["/a"];
+        delete doc.paths["/a"];
+        return () => generate(readDocument(JSON.stringify(doc)), "op");
+    };
+    assert.throws(at(`/${"a".repeat(2000)}`), /is no path an HTTP source can use .*at most 2000 characters/);
+    assert.throws(at("//evil.example/x"), /is no path an HTTP source can use/);
+    assert.doesNotThrow(at(`/${"a".repeat(1998)}`));
+});
+
+test("source-from-openapi: an operation without an operationId is named by method and path", () => {
+    const doc = minimal({ type: "object", properties: { n: { type: "string" } } });
+    delete doc.paths["/a"].get.operationId;
+    doc.paths["/pets/{petId}"] = { get: { parameters: [{ name: "petId", in: "path", required: true, schema: { type: "integer" } }], responses: doc.paths["/a"].get.responses } };
+    const parsed = readDocument(JSON.stringify(doc));
+    assert.throws(() => generate(parsed, "listPets"), /no operation with the id "listPets"; the GET operations of the document \(an operationId, else "GET \/path"\): "GET \/a", "GET \/pets\/\{petId\}"/);
+    const g = generate(parsed, "GET /pets/{petId}");
+    assert.equal(g.id, "pets-petId");
+    assert.equal(g.config.sources["pets-petId"].title, "GET /pets/{petId}");
+    assert.equal(g.config.sources["pets-petId"].http.path, "/pets/{petId}");
+    assert.equal(generate(parsed, "get /a").id, "a");
+    assert.throws(() => generate(parsed, "POST /a"), /no operation "POST \/a"/);
+    assertValidates(g);
+});
+
+test("source-from-openapi: server addresses with variables or relative to the document are named as written", () => {
+    const withServer = (servers, documentUrl) => generate(readDocument(JSON.stringify(minimal({ type: "object" }, { servers }))), "op", { documentUrl });
+    const vars = withServer([{ url: "https://{region}.api.example.com/{base}", variables: { region: { default: "eu" }, base: { default: "v2" } } }]);
+    assert.equal(Object.values(vars.config.httpSources.backends)[0].url, "TODO: https://... (the document names https://{region}.api.example.com/{base} (region=eu, base=v2); check it)");
+    const fromUrl = withServer([{ url: "/api/v3?key=x" }], "https://petstore.example.com/api/v3/openapi.json");
+    assert.equal(Object.values(fromUrl.config.httpSources.backends)[0].url, "TODO: https://... (the document names the relative address /api/v3, which is https://petstore.example.com/api/v3 from the document's address; check it)");
+    const fromFile = withServer([{ url: "/api/v3" }]);
+    assert.equal(Object.values(fromFile.config.httpSources.backends)[0].url, "TODO: https://... (the document names a relative address /api/v3; check it)");
+    // without a token URL, stderr does not speak of one
+    assert.ok(operatorText(fromFile).startsWith(`${CHECK_HOST}\n`));
+});
+
+test("source-from-openapi: \"openapi\" without a patch number is read", () => {
+    for (const version of ["3.0", "3.1", "3.1.1", "3.0.0-rc2"]) {
+        assert.doesNotThrow(() => readDocument(JSON.stringify({ openapi: version })), version);
+    }
+    for (const version of ["3", "3.2.0", "3.10", "30.1"]) {
+        assert.throws(() => readDocument(JSON.stringify({ openapi: version })), /not OpenAPI 3\.0 or 3\.1/, version);
+    }
+});
+
+test("source-from-openapi: the guards each have a case that fails without them", () => {
+    // a query API key of a security scheme is never a caller's parameter, also when the operation declares it
+    const keyed = minimal({ type: "object" }, { components: { securitySchemes: { k: { type: "apiKey", in: "query", name: "api_key" } } }, security: [{ k: [] }] });
+    keyed.paths["/a"].get.parameters = [{ name: "api_key", in: "query", schema: { type: "string" } }, { name: "q", in: "query", schema: { type: "string" } }];
+    const k = generate(readDocument(JSON.stringify(keyed)), "op");
+    assert.deepEqual(Object.keys(k.config.sources.op.params), ["q"]);
+    assert.ok(k.notes.some((n) => n.includes('Skipped the query parameter "api_key": the document sends a credential in it')));
+
+    // a chain of 40 references stops at the chain limit (refChain), not at the end
+    const schemas = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`R${i}`, { $ref: `#/components/schemas/R${i + 1}` }]));
+    schemas.R40 = { type: "object", properties: { deep: { type: "string", description: "the end of the chain" } } };
+    const chain = generate(readDocument(JSON.stringify(minimal({ $ref: "#/components/schemas/R0" }, { components: { schemas } }))), "op");
+    assert.ok(chain.notes.some((n) => n.includes(`the references chain more than ${OPENAPI_LIMITS.refChain} times`)));
+    assert.equal(chain.config.sources.op.fields, undefined);
+    schemas.R0 = { $ref: "#/components/schemas/R30" };
+    assert.equal(generate(readDocument(JSON.stringify(minimal({ $ref: "#/components/schemas/R0" }, { components: { schemas } }))), "op").config.sources.op.fields.deep.description, "the end of the chain");
+
+    // allOf nested deeper than allOfDepth stops there
+    const nested = (depth) => {
+        let schema = { type: "object", properties: { inner: { type: "string", description: "innermost" } } };
+        for (let i = 0; i < depth; i++) schema = { allOf: [schema] };
+        return generate(readDocument(JSON.stringify(minimal(schema))), "op");
+    };
+    assert.equal(nested(OPENAPI_LIMITS.allOfDepth).config.sources.op.fields.inner.description, "innermost");
+    const tooDeep = nested(OPENAPI_LIMITS.allOfDepth + 1);
+    assert.equal(tooDeep.config.sources.op.fields, undefined);
+    assert.ok(tooDeep.notes.some((n) => n.includes(`allOf is nested more than ${OPENAPI_LIMITS.allOfDepth} levels deep`)));
+
+    // only own properties: a reference to what every object inherits points at nothing
+    const inherited = generate(readDocument(JSON.stringify(minimal({ $ref: "#/components/schemas/constructor" }, { components: { schemas: {} } }))), "op");
+    assert.ok(inherited.notes.some((n) => n.includes('"#/components/schemas/constructor" points at nothing')));
+    const toString = minimal({ type: "object" });
+    toString.paths["/a"].get.responses = { 200: { $ref: "#/components/responses/toString" } };
+    assert.ok(generate(readDocument(JSON.stringify(toString)), "op").notes.some((n) => n.includes("points at nothing")));
+});
+

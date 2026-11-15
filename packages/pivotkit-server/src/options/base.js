@@ -41,17 +41,17 @@ export const TODO_MARK = "TODO";
 const STILL_TODO = new RegExp(`^${TODO_MARK}: `);
 
 /**
- * The paths of the values under httpSources and each source's http that still say TODO, in order.
- * Other keys (a source's title or description) may say TODO as ordinary text.
+ * The values under httpSources and each source's http that still say TODO, with their paths, in
+ * order. Other keys (a source's title or description) may say TODO as ordinary text.
  * @param {Record<string, any>} options
- * @returns {string[]}
+ * @returns {Array<[string, string]>}
  */
-export function todoPaths(options) {
-    /** @type {string[]} */
+export function todoEntries(options) {
+    /** @type {Array<[string, string]>} */
     const found = [];
     const walk = (value, path) => {
         if (typeof value === "string") {
-            if (STILL_TODO.test(value)) found.push(path);
+            if (STILL_TODO.test(value)) found.push([path, value]);
         } else if (value !== null && typeof value === "object") {
             for (const [key, inner] of Object.entries(value)) walk(inner, Array.isArray(value) ? `${path}[${key}]` : `${path}.${key}`);
         }
@@ -64,9 +64,18 @@ export function todoPaths(options) {
 }
 
 /**
+ * The paths of todoEntries.
+ * @param {Record<string, any>} options
+ */
+export const todoPaths = (options) => todoEntries(options).map(([path]) => path);
+
+/**
  * @param {import("../config.js").ServerOptions} options
  */
 export function validate(options) {
+    // The placeholder rule lives in base, not in options/http.js: base's rules run first, so the
+    // operator reads "still says TODO" instead of the http fragment's "not an https:// address" for
+    // the same value; and a fragment of its own would be a feature with no keys and no check section.
     // a generated block's placeholders, before any rule that would name them only as a wrong address
     const todos = todoPaths(options);
     if (todos.length) {

@@ -24,7 +24,7 @@ const COMMANDS = Object.freeze({
     serve: "Serve REST (and MCP, when pivotkit-mcp is installed) over HTTP.",
     "check-config": "Print what serve would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable).",
     "check-source <id>": "Load an HTTP source once (--param name=value for its parameters) and print the backend's status, pages, rows and fields, never a value (1 when it fails).",
-    "source-from-openapi <file|url>": "Propose an HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (--operation <operationId>, --id, --backend); TODO values for you to fill in.",
+    "source-from-openapi <file|url>": "Propose an HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (--operation <operationId or 'GET /path'>, --id, --backend); TODO values for you to fill in.",
     mcp: "Run pivotkit-mcp (stdio by default; its own flags, pivotkit-mcp --help).",
     cli: "Run the command line pivotkit (pivotkit-server cli --help).",
     healthcheck: `Exit 0 when the server answers GET /healthz (default http://127.0.0.1:${DEFAULT_PORT}/healthz).`
@@ -32,7 +32,7 @@ const COMMANDS = Object.freeze({
 
 /** The help text. */
 export function helpText() {
-    const commands = Object.entries(COMMANDS).map(([name, text]) => `  ${name.padEnd(30)}${text}`);
+    const commands = Object.entries(COMMANDS).map(([name, text]) => `  ${name.padEnd(34)}${text}`);
     return `pivotkit-server ${VERSION}: pivotkit's REST service, its MCP server and its command line in one.\n\nUsage: pivotkit-server <command> [options]\n\nCommands:\n${commands.join("\n")}\n\nOptions of serve, check-config and check-source:\n${flagLines(SERVER_FLAGS).join("\n")}\n\nThe static token, when the configuration names none: $${TOKEN_ENV}.\nDocs: https://pivotkit.eize.dev/reference/rest/\n`;
 }
 
@@ -127,12 +127,12 @@ export async function run(argv, io) {
             return await checkSourceCommand(rest, io);
         }
         if (command === "source-from-openapi") {
+            // the generator is loaded only for this command, never by the server
+            const { HELP, sourceFromOpenApiCommand } = await import("./openapi-source.js");
             if (rest.includes("--help") || rest.includes("-h")) {
-                io.stdout.write(helpText());
+                io.stdout.write(HELP);
                 return 0;
             }
-            // the generator is loaded only for this command, never by the server
-            const { sourceFromOpenApiCommand } = await import("./openapi-source.js");
             return await sourceFromOpenApiCommand(rest, io);
         }
         if (command !== "serve" && command !== "check-config") {

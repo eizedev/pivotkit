@@ -26,7 +26,7 @@
 
 import { open } from "node:fs/promises";
 import { SOURCE_ID } from "pivotkit-cli/rest";
-import { FIELD_DESCRIPTION_MAX, TODO_MARK, todoPaths } from "./options/base.js";
+import { FIELD_DESCRIPTION_MAX, TODO_MARK, todoEntries, todoPaths } from "./options/base.js";
 import { SECRET_NAME } from "./options/http.js";
 import { GuardedFetchError, guardedFetch } from "./sources/fetch.js";
 import { PARAM_LIMITS, PARAM_NAME, PARAM_TYPES, declaredProblems } from "./sources/params.js";
@@ -36,7 +36,7 @@ import { compileTemplate } from "./sources/template.js";
  * The bounds on a document: 5 MiB, 10 s for a URL, nesting of the JSON text, a chain of references,
  * allOf within allOf, the nodes the whole run may visit, the fields taken from a row, the length of a source's title.
  */
-export const OPENAPI_LIMITS = Object.freeze({ bytes: 5_242_880, timeMs: 10_000, nesting: 128, refChain: 32, allOfDepth: 8, nodes: 100_000, fields: 500, title: 200 });
+export const OPENAPI_LIMITS = Object.freeze({ bytes: 5_242_880, timeMs: 10_000, nesting: 128, refChain: 32, allOfDepth: 8, nodes: 100_000, fields: 500, merged: 1000, title: 200, path: 2000 });
 
 /** The methods of a path item (OpenAPI 3.0 and 3.1). */
 const METHODS = Object.freeze(["get", "put", "post", "delete", "options", "head", "patch", "trace"]);
@@ -54,17 +54,33 @@ const BREAKS = /[\p{Cc}\p{Zl}\p{Zp}]+/gu;
 /** And the invisible format characters (bidi controls, zero-width spaces, Unicode tags), but the joiners ZWNJ and ZWJ a word or an emoji may need. */
 const INVISIBLE = /(?![\u200c\u200d])\p{Cf}/gu;
 
+/**
+ * A value that looks like a credential, whatever the parameter's name: a known token prefix (OpenAI
+ * and Stripe sk-/pk-/rk-, GitHub ghp_ and github_pat_, Slack xox?-, AWS AKIA, GitLab glpat-), a JWT, or
+ * a long run of token characters (32 or more) that is not a UUID. Such an example or list of values is
+ * not copied; dropping an example is harmless, copying a key is not.
+ */
+const SECRET_VALUE = /^(?:(?:sk|pk|rk)[-_]|gh[pousr]_|github_pat_|xox[abposr]-|AKIA[0-9A-Z]{12,}|glpat-|eyJ[\w-]+\.[\w-]+\.)|^(?![0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$)[A-Za-z0-9+/=_-]{32,}$/i;
+
+/** Whether a document's value looks like a credential (SECRET_VALUE). */
+export const looksSecret = (value) => typeof value === "string" && SECRET_VALUE.test(value);
+
 /** An OAuth scope token (RFC 6749, 3.3). */
 const SCOPE_TOKEN = /^[\x21\x23-\x5b\x5d-\x7e]{1,128}$/;
 
 /** A header's name (RFC 9110 token), as options/http.js takes it. */
 const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/;
 
-/** The headers a backend's sign-in cannot use: the connection sets them. */
-const CONNECTION_HEADERS = /^(host|content-length|transfer-encoding|connection|te|trailer|upgrade|keep-alive|accept-encoding|proxy-.*|x-forwarded-.*|forwarded)$/i;
+/**
+ * The headers a document's API key may not name: the connection's own, and those that would carry
+ * the key somewhere else or make it something else (a cookie, the authorization, a browser's origin).
+ * Such a name is left as a TODO for the operator.
+ */
+const UNFIT_HEADERS = /^(host|content-length|transfer-encoding|connection|te|trailer|upgrade|keep-alive|accept-encoding|proxy-.*|x-forwarded-.*|forwarded|cookie|set-cookie|authorization|origin|referer)$/i;
 
-/** What the operator reads first on stderr. */
+/** What the operator reads first on stderr, when the block has a token URL, and when not. */
 export const CHECK_FIRST = "The API host and the token URL come from the document; check them before adding credentials.";
+export const CHECK_HOST = "The API host comes from the document; check it before adding credentials.";
 
 /** The documentation of the command. */
 const DOCS = "https://pivotkit.eize.dev/reference/sources/#openapi";
@@ -168,7 +184,7 @@ export function readDocument(text) {
         throw new OpenApiError("this is a Swagger 2.0 document; convert it to OpenAPI 3.0 or 3.1 first");
     }
     const version = Object.hasOwn(doc, "openapi") ? doc.openapi : undefined;
-    if (typeof version !== "string" || !/^3\.[01]\.\d+/.test(version)) {
+    if (typeof version !== "string" || !/^3\.[01](?:\.\d+)?(?:-[\w.]+)?$/.test(version)) {
         throw new OpenApiError(`the document is not OpenAPI 3.0 or 3.1 (its "openapi" is ${version === undefined ? "missing" : shown(String(version))})`);
     }
     return doc;
@@ -278,6 +294,30 @@ class Resolver {
         return value;
     }
 
+    /**
+     * An object's own entries, each counted against the budget; at most `max` (the rest are not read).
+     * @param {Record<string, any> | undefined} object
+     * @param {number} [max]
+     * @returns {Array<[string, any]>}
+     */
+    entriesOf(object, max = Infinity) {
+        if (!object) {
+            return [];
+        }
+        /** @type {Array<[string, any]>} */
+        const out = [];
+        for (const key in object) {
+            if (out.length >= max) {
+                break;
+            }
+            if (Object.hasOwn(object, key)) {
+                this.visit();
+                out.push([key, object[key]]);
+            }
+        }
+        return out;
+    }
+
     /** A note for a reference not followed; null. */
     refused(where, why) {
         const text = `${where.charAt(0).toUpperCase()}${where.slice(1)}: ${why}.`;
@@ -306,14 +346,20 @@ class Resolver {
             return this.refused(where, `allOf is nested more than ${OPENAPI_LIMITS.allOfDepth} levels deep`);
         }
         /** @type {Array<[string, any]>} */
-        const properties = Object.entries(ownObject(schema, "properties") ?? {});
+        const properties = this.entriesOf(ownObject(schema, "properties"));
         let type = own(schema, "type");
         for (const part of parts) {
+            // each part costs a node, and its properties one each: a wide or repeated allOf cannot multiply work for free
+            this.visit();
+            if (properties.length >= OPENAPI_LIMITS.merged) {
+                this.refused(where, `allOf merges more than ${OPENAPI_LIMITS.merged} properties; the rest are left out`);
+                break;
+            }
             const inner = this.schema(part, where, depth + 1);
             if (!inner) {
                 continue;
             }
-            properties.push(...Object.entries(ownObject(inner, "properties") ?? {}));
+            properties.push(...this.entriesOf(ownObject(inner, "properties"), OPENAPI_LIMITS.merged - properties.length));
             type ??= own(inner, "type");
             for (const key of ["items", "description"]) {
                 if (!Object.hasOwn(schema, key) && Object.hasOwn(inner, key)) {
@@ -418,7 +464,7 @@ function accepted(name, declaration) {
  * The HTTP source block for one GET operation of a parsed OpenAPI document. Throws OpenApiError when
  * the operation cannot be a source.
  * @param {Record<string, any>} doc  readDocument's result
- * @param {{ operation: string, id?: string, backend?: string }} how
+ * @param {{ operation: string, id?: string, backend?: string, documentUrl?: string }} how  operation: an operationId or "GET /path"; documentUrl: where the document was read from (a relative server address is resolved against it)
  * @returns {Generated}
  */
 export function sourceFromOpenApi(doc, how) {
@@ -434,9 +480,11 @@ export function sourceFromOpenApi(doc, how) {
     if (own(operation, "requestBody") !== undefined) {
         throw new OpenApiError("HTTP sources read with GET; this operation needs a request body, so it cannot be a source.");
     }
-    const id = how.id ?? cleanText(how.operation, 64).replace(/[^A-Za-z0-9_.-]+/g, "-").replace(/^[^A-Za-z0-9]+/, "").slice(0, 64);
+    // the source's id: --id, else the operation's id, else its path ("/customers/{id}/vms" gives customers-id-vms)
+    const opId = typeof own(operation, "operationId") === "string" ? operation.operationId : null;
+    const id = how.id ?? cleanText(opId ?? path, 64).replace(/[^A-Za-z0-9_.-]+/g, "-").replace(/^[^A-Za-z0-9]+/, "").replace(/-+$/, "").slice(0, 64);
     if (!SOURCE_ID.test(id)) {
-        throw new OpenApiError(`--id: a source id is letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit${how.id ? "" : `; the operation's id ${shown(how.operation)} gives none, so name one with --id`}`);
+        throw new OpenApiError(`--id: a source id is letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit${how.id ? "" : `; the operation ${shown(how.operation)} gives none, so name one with --id`}`);
     }
     const infoTitle = cleanText(own(ownObject(doc, "info"), "title") ?? "", 40)
         .toLowerCase()
@@ -450,11 +498,11 @@ export function sourceFromOpenApi(doc, how) {
     const security = securityOf(doc, operation, refs, note);
     const { params, query, httpPath } = parametersOf(path, pathItem, operation, refs, note, security.queryNames);
     const answer = answerOf(operation, refs, note, id);
-    const server = serverOf(doc, pathItem, operation, note);
+    const server = serverOf(doc, pathItem, operation, note, how.documentUrl);
 
     /** @type {Array<{ path: string, text: string }>} */
     const review = [];
-    const title = cleanText(own(operation, "summary") ?? how.operation, OPENAPI_LIMITS.title);
+    const title = cleanText(own(operation, "summary") ?? opId ?? `GET ${path}`, OPENAPI_LIMITS.title);
     const description = typeof own(operation, "description") === "string" ? cleanText(operation.description) : "";
     /** @type {Record<string, any>} */
     const source = { title: title || id };
@@ -504,6 +552,11 @@ export function sourceFromOpenApi(doc, how) {
     const backendBlock = { url: server.url };
     if (security.auth) {
         backendBlock.auth = security.auth;
+        const headerName = security.auth.header?.name;
+        if (headerName && !headerName.startsWith(TODO_MARK)) {
+            // the header the API key goes in is the document's choice
+            review.push({ path: `httpSources.backends.${backend}.auth.header.name`, text: headerName });
+        }
     }
     const config = { httpSources: { backends: Object.fromEntries([[backend, backendBlock]]) }, sources: Object.fromEntries([[id, source]]) };
     if (own(operation, "deprecated") === true) {
@@ -513,40 +566,42 @@ export function sourceFromOpenApi(doc, how) {
 }
 
 /**
- * The operation with this operationId; throws OpenApiError when none or more than one has it.
+ * The operation an operationId or "METHOD /path" names; throws OpenApiError when none or more than
+ * one has the id.
  * @param {Record<string, any>} doc
- * @param {string} operationId
+ * @param {string} wanted
  * @param {Resolver} refs
  */
-function findOperation(doc, operationId, refs) {
+function findOperation(doc, wanted, refs) {
+    const byPath = /^([A-Za-z]+)\s+(\/\S*)$/.exec(wanted.trim());
     const paths = ownObject(doc, "paths") ?? {};
     /** @type {Array<{ path: string, method: string, operation: Record<string, any>, pathItem: Record<string, any> }>} */
     const matches = [];
     /** @type {string[]} */
     const gets = [];
-    for (const path of Object.keys(paths)) {
-        const pathItem = refs.resolve(paths[path], `paths ${shown(path)}`);
+    for (const [path, value] of refs.entriesOf(paths)) {
+        const pathItem = refs.resolve(value, `paths ${shown(path)}`);
         for (const method of METHODS) {
             const operation = ownObject(pathItem, method);
-            const opId = own(operation, "operationId");
-            if (!operation || typeof opId !== "string") {
+            if (!operation) {
                 continue;
             }
             refs.visit();
+            const opId = own(operation, "operationId");
             if (method === "get") {
-                gets.push(opId);
+                gets.push(typeof opId === "string" ? cleanText(opId, 80) : `"GET ${cleanText(path, 80)}"`);
             }
-            if (opId === operationId) {
+            if (byPath ? byPath[1].toLowerCase() === method && byPath[2] === path : opId === wanted) {
                 matches.push({ path, method, operation, pathItem: /** @type {Record<string, any>} */ (pathItem) });
             }
         }
     }
     if (matches.length > 1) {
-        throw new OpenApiError(`the document has ${matches.length} operations with the id ${shown(operationId)}; an operationId is unique (OpenAPI), so the document needs fixing first`);
+        throw new OpenApiError(`the document has ${matches.length} operations with the id ${shown(wanted)}; an operationId is unique (OpenAPI), so the document needs fixing first, or name the operation as "GET /path"`);
     }
     if (!matches.length) {
-        const list = gets.slice(0, 30).map((g) => cleanText(g, 80));
-        throw new OpenApiError(`no operation with the id ${shown(operationId)}; ${list.length ? `the GET operations of the document: ${list.join(", ")}${gets.length > list.length ? `, and ${gets.length - list.length} more` : ""}` : "the document has no GET operation with an operationId"}`);
+        const list = gets.slice(0, 30);
+        throw new OpenApiError(`no operation ${byPath ? shown(wanted) : `with the id ${shown(wanted)}`}; ${list.length ? `the GET operations of the document (an operationId, else "GET /path"): ${list.join(", ")}${gets.length > list.length ? `, and ${gets.length - list.length} more` : ""}` : "the document has no GET operation"}`);
     }
     return matches[0];
 }
@@ -632,20 +687,25 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames) {
         if (type === "string" && own(schema, "format") === "date") {
             declaration.format = "date";
         }
-        if (!secretLooking) {
+        const values = own(schema, "enum");
+        const exampleOf = own(parameter, "example") ?? own(schema, "example") ?? (Array.isArray(own(schema, "examples")) ? schema.examples[0] : undefined);
+        const secretValues = (Array.isArray(values) && values.some(looksSecret)) || looksSecret(exampleOf);
+        if (secretValues && !secretLooking) {
+            note(`The ${label}'s example or list of values looks like a credential, so neither is copied.`);
+        }
+        if (!secretLooking && !secretValues) {
             // an enum is copied only as it stands: a value that cleaning would change is no value the API takes
-            const values = own(schema, "enum");
             const usable = Array.isArray(values) ? values.filter((v) => v !== null) : [];
             if (usable.length && usable.every((v) => typeof v === "number" || typeof v === "boolean" || (typeof v === "string" && v === cleanText(v, PARAM_LIMITS.length)))) {
                 declaration.enum = usable;
             } else if (usable.length) {
                 note(`The ${label}'s list of values is not copied: it holds values that are not plain texts, numbers or true and false.`);
             }
-            const example = own(parameter, "example") ?? own(schema, "example") ?? (Array.isArray(own(schema, "examples")) ? schema.examples[0] : undefined);
+            const example = exampleOf;
             if (example !== undefined && example !== null && typeof example !== "object") {
                 declaration.example = typeof example === "string" ? cleanText(example, PARAM_LIMITS.length) : example;
             }
-        } else {
+        } else if (secretLooking) {
             note(`The ${label}'s name looks like a credential's, so its example and list of values are not copied. A caller would send this value: if it is the API's key, remove the parameter and configure the backend's auth instead.`);
         }
         if (type === "string") {
@@ -685,8 +745,8 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames) {
     for (const p of ordered.slice(PARAM_LIMITS.count)) {
         note(`Skipped the query parameter ${shown(p.original)}: a source has at most ${PARAM_LIMITS.count} parameters.`);
     }
-    if (!path.startsWith("/") || /[?#]/.test(path)) {
-        throw new OpenApiError(`the path ${shown(path)} is no path an HTTP source can use (it starts with "/" and has no "?" or "#")`);
+    if (!path.startsWith("/") || /[?#]/.test(path) || path.includes("//") || path.length > OPENAPI_LIMITS.path) {
+        throw new OpenApiError(`the path ${shown(path)} is no path an HTTP source can use (it starts with "/", has no "?", "#" or empty segment, and at most ${OPENAPI_LIMITS.path} characters)`);
     }
     // the path with each {original} as {name}
     let httpPath = path;
@@ -741,7 +801,7 @@ function answerOf(operation, refs, note, id) {
         rows = "";
         row = refs.schema(own(body, "items"), "the rows' schema");
     } else if (typeOf(body) === "object") {
-        const properties = ownObject(body, "properties") ?? {};
+        const properties = Object.fromEntries(refs.entriesOf(ownObject(body, "properties"), OPENAPI_LIMITS.merged));
         const lists = Object.keys(properties).filter((name) => plainName(name) && typeOf(refs.schema(properties[name], `the answer's property ${shown(name)}`)) === "array");
         if (lists.length === 1) {
             rows = pointerTo(lists[0]);
@@ -754,19 +814,23 @@ function answerOf(operation, refs, note, id) {
     }
     /** @type {Array<{ name: string, description: string }>} */
     const fields = [];
-    const properties = ownObject(row, "properties") ?? {};
-    for (const name of Object.keys(properties)) {
+    /** @type {string[]} */
+    const skipped = [];
+    for (const [name, value] of refs.entriesOf(ownObject(row, "properties"), OPENAPI_LIMITS.merged)) {
         if (!plainName(name)) {
-            note(`Skipped the row's property ${shown(name)}: its name cannot be a key of the configuration.`);
+            skipped.push(name);
             continue;
         }
         if (fields.length >= OPENAPI_LIMITS.fields) {
             note(`Only the first ${OPENAPI_LIMITS.fields} of the row's properties are listed.`);
             break;
         }
-        const property = refs.schema(properties[name], `the row's property ${shown(name)}`);
-        const text = own(property, "description") ?? own(properties[name], "description");
+        const property = refs.schema(value, `the row's property ${shown(name)}`);
+        const text = own(property, "description") ?? own(value, "description");
         fields.push({ name, description: typeof text === "string" ? cleanText(text) : "" });
+    }
+    if (skipped.length) {
+        note(`Skipped the row's ${skipped.length === 1 ? "property" : `${skipped.length} properties`} ${skipped.slice(0, 5).map(shown).join(", ")}${skipped.length > 5 ? ", ..." : ""}: a name that cannot be a key of the configuration.`);
     }
     if (row && typeOf(row) !== "object") {
         note("The rows are not objects with named properties: check what the backend sends with check-source.");
@@ -781,40 +845,57 @@ function answerOf(operation, refs, note, id) {
  * @param {Record<string, any>} operation
  * @param {(note: string) => void} note
  */
-function serverOf(doc, pathItem, operation, note) {
+function serverOf(doc, pathItem, operation, note, documentUrl) {
     const servers = [own(operation, "servers"), own(pathItem, "servers"), own(doc, "servers")].find((s) => Array.isArray(s) && s.length) ?? [];
     const first = servers.find((s) => typeof own(s, "url") === "string");
     if (!first) {
         return { url: `${TODO_MARK}: https://... (the document names no server address)` };
     }
-    const named = describedAddress(first.url);
     if (servers.length > 1) {
         note(`The document names ${servers.length} server addresses; the first is shown in the backend's url.`);
     }
-    if (/[{}]/.test(first.url)) {
+    const raw = String(first.url);
+    let named = describedAddress(raw);
+    if (raw.includes("{")) {
+        // a template ("https://{region}.example.com/{base}"): its text as written, never through URL, which would encode the braces
+        const defaults = Object.entries(ownObject(first, "variables") ?? {})
+            .slice(0, 10)
+            .map(([name, v]) => `${cleanText(name, 40)}=${cleanText(String(own(v, "default") ?? "?"), 60)}`);
         note("The document's server address has variables in braces: write the address with your values.");
+        named = `${named}${defaults.length ? ` (${defaults.join(", ")})` : ""}`;
+    } else if (!/^[a-z][a-z0-9+.-]*:/i.test(raw)) {
+        // a relative address: relative to where the document was read from
+        let resolved;
+        try {
+            resolved = documentUrl ? describedAddress(new URL(raw, documentUrl).href) : null;
+        } catch {
+            resolved = null;
+        }
+        named = resolved ? `the relative address ${named}, which is ${resolved} from the document's address` : `a relative address ${named}`;
     }
     return { url: `${TODO_MARK}: https://... (the document names ${named}; check it)` };
 }
 
 /**
  * An address from the document as a TODO value names it: without a user name, password, query or
- * fragment, cleaned and short.
+ * fragment, cleaned and short. A template with braces is shown as written (URL would encode them).
  * @param {string} text
  */
 function describedAddress(text) {
     let shownText = cleanText(text, 300);
-    try {
-        const url = new URL(shownText);
-        url.username = "";
-        url.password = "";
-        url.search = "";
-        url.hash = "";
-        shownText = url.href;
-    } catch {
-        // a relative address or one with variables: shown without what follows ? or #
-        shownText = shownText.replace(/[?#].*$/, "").replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@]*@/i, "$1");
+    if (!shownText.includes("{")) {
+        try {
+            const url = new URL(shownText);
+            url.username = "";
+            url.password = "";
+            url.search = "";
+            url.hash = "";
+            return cleanText(url.href, 200) || "an empty address";
+        } catch {
+            // relative: below
+        }
     }
+    shownText = shownText.replace(/[?#].*$/, "").replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@]*@/i, "$1");
     return cleanText(shownText, 200) || "an empty address";
 }
 
@@ -858,7 +939,7 @@ function securityOf(doc, operation, refs, note) {
         }
         const name = names[0];
         const scheme = Object.hasOwn(schemes, name) ? refs.resolve(schemes[name], `the security scheme ${shown(name)}`) : null;
-        const auth = scheme ? authOf(scheme, requirement[name], name, unsupported) : null;
+        const auth = scheme ? authOf(scheme, requirement[name], name, unsupported, note) : null;
         if (auth) {
             if (unsupported.length) {
                 note(`The document also names sign-ins pivotkit does not write for you: ${unsupported.join("; ")}.`);
@@ -866,7 +947,7 @@ function securityOf(doc, operation, refs, note) {
             return { auth, queryNames };
         }
     }
-    note(`The document's sign-in (${unsupported.join("; ") || "a scheme it does not define"}) is not one pivotkit writes for you: configure the backend's auth by hand (${DOCS.replace("#openapi", "#http-auth")}). For each person's own access, tokenExchange is the one to use.`);
+    note(`The document's sign-in is not one pivotkit writes for you (${unsupported.join("; ") || "a scheme it does not define"}): configure the backend's auth by hand (${DOCS.replace("#openapi", "#http-auth")}); for each person's own access, use tokenExchange.`);
     return { auth: null, queryNames };
 }
 
@@ -876,8 +957,9 @@ function securityOf(doc, operation, refs, note) {
  * @param {unknown} scopes  the requirement's scopes
  * @param {string} name
  * @param {string[]} unsupported
+ * @param {(note: string) => void} note
  */
-function authOf(scheme, scopes, name, unsupported) {
+function authOf(scheme, scopes, name, unsupported, note) {
     const type = own(scheme, "type");
     const label = cleanText(name, 40);
     const secret = (what) => ({ env: `${TODO_MARK}: the variable that holds ${what}` });
@@ -885,10 +967,13 @@ function authOf(scheme, scopes, name, unsupported) {
         const where = own(scheme, "in");
         const header = own(scheme, "name");
         if (where !== "header") {
-            unsupported.push(`${label} (an API key in the ${where === "query" ? "query" : where === "cookie" ? "cookie" : "request"}; a backend's auth sends a header)`);
+            unsupported.push(`${label}: an API key in the ${where === "query" ? "query" : where === "cookie" ? "cookie" : "request"}, while a backend's auth sends a header`);
             return null;
         }
-        const usable = typeof header === "string" && HEADER_NAME.test(header) && !CONNECTION_HEADERS.test(header);
+        const usable = typeof header === "string" && HEADER_NAME.test(header) && !UNFIT_HEADERS.test(header);
+        if (!usable) {
+            note(`The security scheme ${shown(label)} sends its API key in the header ${shown(String(header ?? ""))}, which is not copied: write the header's name.`);
+        }
         return { header: { name: usable ? header.toLowerCase() : `${TODO_MARK}: the header's name`, value: secret("the API key") } };
     }
     if (type === "http") {
@@ -899,13 +984,13 @@ function authOf(scheme, scopes, name, unsupported) {
         if (kind === "basic") {
             return { header: { prefix: "Basic ", value: secret('the base64 of "user:password"') } };
         }
-        unsupported.push(`${label} (HTTP ${cleanText(kind, 20) || "scheme"})`);
+        unsupported.push(`${label}: HTTP ${cleanText(kind, 20) || "scheme"}`);
         return null;
     }
     if (type === "oauth2") {
         const flow = ownObject(ownObject(scheme, "flows"), "clientCredentials");
         if (!flow) {
-            unsupported.push(`${label} (OAuth for people, not client credentials)`);
+            unsupported.push(`${label}: OAuth for people, not client credentials`);
             return null;
         }
         const tokenUrl = own(flow, "tokenUrl");
@@ -915,13 +1000,18 @@ function authOf(scheme, scopes, name, unsupported) {
             clientId: `${TODO_MARK}: the client id`,
             clientSecret: secret("the client secret")
         };
-        const wanted = Array.isArray(scopes) ? scopes.filter((s) => typeof s === "string" && SCOPE_TOKEN.test(s)) : [];
+        const listed = Array.isArray(scopes) ? scopes.filter((s) => typeof s === "string" && SCOPE_TOKEN.test(s)) : [];
+        // a scope starting with the placeholder word would make the whole value read as a TODO
+        const wanted = listed.filter((s) => !s.toUpperCase().startsWith(TODO_MARK));
+        if (wanted.length < listed.length) {
+            note(`The security scheme ${shown(label)}: scopes starting with ${TODO_MARK} are left out; add the ones the API needs to scope.`);
+        }
         if (wanted.length) {
             cc.scope = wanted.join(" ").slice(0, 1000);
         }
         return { clientCredentials: cc };
     }
-    unsupported.push(`${label} (${type === "openIdConnect" ? "OpenID Connect" : type === "mutualTLS" ? "mutual TLS" : cleanText(String(type ?? "no type"), 20)})`);
+    unsupported.push(`${label}: ${type === "openIdConnect" ? "OpenID Connect" : type === "mutualTLS" ? "mutual TLS" : cleanText(String(type ?? "no type"), 20)}`);
     return null;
 }
 
@@ -931,9 +1021,11 @@ function authOf(scheme, scopes, name, unsupported) {
  * @param {Generated} generated
  */
 export function operatorText(generated) {
-    const lines = [CHECK_FIRST, ""];
-    lines.push(`Still to decide: ${generated.todos.length} ${generated.todos.length === 1 ? "value says" : "values say"} ${TODO_MARK}, and the server refuses the configuration until none does:`);
-    lines.push(...generated.todos.map((p) => `  ${p}`));
+    const tokenUrl = Object.values(generated.config.httpSources.backends).some((b) => b.auth?.clientCredentials?.tokenUrl);
+    const todos = todoEntries(generated.config);
+    const lines = [tokenUrl ? CHECK_FIRST : CHECK_HOST, ""];
+    lines.push(`Still to decide: ${todos.length} ${todos.length === 1 ? "value says" : "values say"} ${TODO_MARK}, and the server refuses the configuration until none does:`);
+    lines.push(...todos.map(([path, text]) => `  ${path}: ${text}`));
     if (generated.notes.length) {
         lines.push("", "Notes:", ...generated.notes.map((n) => `  - ${n}`));
     }
@@ -959,20 +1051,23 @@ export async function loadDocumentText(target, means = {}) {
         } catch {
             throw new OpenApiError("not an address");
         }
-        const where = `${url.protocol}//${url.host}`;
+        // named without its query, which may hold a key
+        const where = cleanText(`${url.protocol}//${url.host}${url.pathname}`, 300);
+        let response;
         try {
-            const response = await (means.fetch ?? guardedFetch)(url, { method: "GET", headers: { accept: "application/json" }, maxBytes: OPENAPI_LIMITS.bytes, timeMs: OPENAPI_LIMITS.timeMs });
-            if (response.status !== 200) {
-                throw new OpenApiError(`${where} answered ${response.status}`);
-            }
-            return new TextDecoder("utf-8", { fatal: true }).decode(response.body);
+            response = await (means.fetch ?? guardedFetch)(url, { method: "GET", headers: { accept: "application/json" }, maxBytes: OPENAPI_LIMITS.bytes, timeMs: OPENAPI_LIMITS.timeMs });
         } catch (e) {
-            if (e instanceof OpenApiError) {
-                throw e;
-            }
             if (e instanceof GuardedFetchError) {
                 throw new OpenApiError(`${where}: ${e.code === "TOO_LARGE" ? `the document is larger than ${OPENAPI_LIMITS.bytes} bytes (5 MiB)` : cleanText(e.message, 200)}${e.code === "NOT_HTTPS" || e.code === "REFUSED_ADDRESS" || e.code === "IP_LITERAL" ? "; download the document and pass the file instead" : ""}`);
             }
+            throw e;
+        }
+        if (response.status !== 200) {
+            throw new OpenApiError(`${where} answered ${response.status}`);
+        }
+        try {
+            return new TextDecoder("utf-8", { fatal: true }).decode(response.body);
+        } catch {
             throw new OpenApiError(`${where}: the document is not UTF-8 text`);
         }
     }
@@ -1011,7 +1106,26 @@ export async function loadDocumentText(target, means = {}) {
 }
 
 /** The command's usage line. */
-export const USAGE = "pivotkit-server source-from-openapi <file or https URL> --operation <operationId> [--id <source id>] [--backend <name>]";
+export const USAGE = 'pivotkit-server source-from-openapi <file or https URL> --operation <operationId | "GET /path"> [--id <source id>] [--backend <name>]';
+
+/** The command's help. */
+export const HELP = `Usage: ${USAGE}
+
+Proposes an HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON
+(a file, or an https:// URL fetched without credentials). The block goes to stdout, what you must
+check and decide to stderr; every value you must fill in starts with "TODO: ", and the server
+refuses the configuration until none does.
+
+Options:
+  --operation <id>    the operation: its operationId, or its method and path ("GET /pets/{id}")
+  --id <source id>    the source's id (default: the operationId, else the path)
+  --backend <name>    the backend's name under httpSources.backends (default: from info.title, else api)
+  -h, --help          this help
+
+Exit: 0 when it wrote a block; 2 on a usage error, a document it does not read, or an operation
+that cannot be a source.
+Docs: ${DOCS}
+`;
 
 /**
  * The command: prints the block (JSON) on stdout and what the operator must decide on stderr; 0 on
@@ -1044,11 +1158,12 @@ export async function sourceFromOpenApiCommand(argv, io, means = {}) {
         }
     }
     if (rest.length !== 1 || !flags.operation) {
-        return usage(io, rest.length !== 1 ? "name one OpenAPI document, a file or an https:// URL" : "--operation names the operation (its operationId)");
+        return usage(io, rest.length !== 1 ? "name one OpenAPI document, a file or an https:// URL" : '--operation names the operation (its operationId, or "GET /path")');
     }
     try {
         const doc = readDocument(await loadDocumentText(rest[0], means));
-        const generated = sourceFromOpenApi(doc, { operation: flags.operation, id: flags.id, backend: flags.backend });
+        const documentUrl = /^https?:\/\//i.test(rest[0]) ? rest[0] : undefined;
+        const generated = sourceFromOpenApi(doc, { operation: flags.operation, id: flags.id, backend: flags.backend, documentUrl });
         io.stdout.write(`${JSON.stringify(generated.config, null, 2)}\n`);
         io.stderr.write(operatorText(generated));
         return 0;
@@ -1057,7 +1172,9 @@ export async function sourceFromOpenApiCommand(argv, io, means = {}) {
             io.stderr.write(`pivotkit-server source-from-openapi: ${cleanText(e.message, 2000)}\n`);
             return 2;
         }
-        throw e;
+        // anything else (a stack too deep, memory) gets a fixed text: never a stack or a path
+        io.stderr.write(`pivotkit-server source-from-openapi: the document could not be read (${cleanText(String(/** @type {any} */ (e)?.name ?? "error"), 40)}); it may be too large or built to exhaust whoever reads it\n`);
+        return 2;
     }
 }
 

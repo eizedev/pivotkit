@@ -649,90 +649,106 @@ result, fill in what it leaves to you and add it to your configuration. The comm
 the command line; the server never reads the document.
 
 ```text
-pivotkit-server source-from-openapi <file or https URL> --operation <operationId> [--id <source id>] [--backend <name>]
+pivotkit-server source-from-openapi <file or https URL> --operation <operationId | "GET /path"> [--id <source id>] [--backend <name>]
 ```
 
-It prints the block as JSON on stdout and, on stderr, what you must still check and decide. Exit 0
-when it wrote a block, 2 on a usage error, a document it does not read or an operation that cannot
-be a source. `--id` names the source (default: the operation's id), `--backend` the backend (default:
-the document's `info.title` in lower case with `-`, else `api`).
+`--operation` names the operation by its `operationId`, or, for a document without them, by its
+method and path as the document writes it (`--operation "GET /pet/{petId}"`); an unknown name lists
+the document's GET operations in both forms. It prints the block as JSON on stdout and, on stderr,
+what you must still check and decide. Exit 0 when it wrote a block, 2 on a usage error, a document it
+does not read or an operation that cannot be a source. `--id` names the source (default: the
+`operationId`, else the path: `pet-petId`), `--backend` the backend (default: the document's
+`info.title` in lower case with `-`, else `api`). `pivotkit-server source-from-openapi --help` lists
+the options.
+
+With the public Swagger Petstore (OpenAPI 3) document:
 
 ```text
-$ pivotkit-server source-from-openapi platform-openapi.json --operation listVms --id vms --backend platform > vms.json
+$ pivotkit-server source-from-openapi https://petstore3.swagger.io/api/v3/openapi.json --operation findPetsByStatus --backend petstore > petstore.json
 ```
 
 ```json
 {
   "httpSources": {
     "backends": {
-      "platform": {
-        "url": "TODO: https://... (the document names https://api.example.com/v1; check it)",
-        "auth": {
-          "clientCredentials": {
-            "tokenUrl": "TODO: https://... (the document names https://auth.example.com/oauth/token; check it)",
-            "clientId": "TODO: the client id",
-            "clientSecret": { "env": "TODO: the variable that holds the client secret" },
-            "scope": "vms:read"
-          }
-        }
+      "petstore": {
+        "url": "TODO: https://... (the document names the relative address /api/v3, which is https://petstore3.swagger.io/api/v3 from the document's address; check it)"
       }
     }
   },
   "sources": {
-    "vms": {
-      "title": "Virtual machines of a customer",
-      "description": "Every virtual machine the customer runs, with its size and state.",
+    "findPetsByStatus": {
+      "title": "Finds Pets by status.",
+      "description": "Multiple status values can be provided with comma separated strings.",
       "http": {
-        "backend": "platform",
-        "path": "/customers/{customerId}/vms",
-        "query": { "state": "{state}", "created-after": "{created_after}", "limit": "{limit}", "page": "{page}" },
-        "rows": "/items"
+        "backend": "petstore",
+        "path": "/pet/findByStatus",
+        "query": {
+          "status": "{status}"
+        },
+        "rows": ""
       },
       "params": {
-        "customerId": { "type": "string", "required": true, "description": "The customer's short name", "example": "acme", "maxLength": 40 },
-        "state": { "type": "string", "description": "Only machines in this state", "enum": ["running", "stopped", "deleted"] },
-        "created_after": { "type": "string", "description": "Only machines created on or after this day", "format": "date", "example": "2026-01-01" },
-        "limit": { "type": "integer", "description": "Machines per page", "minimum": 1, "maximum": 500 },
-        "page": { "type": "integer", "minimum": 1 }
+        "status": {
+          "type": "string",
+          "required": true,
+          "description": "Status values that need to be considered for filter",
+          "enum": [
+            "available",
+            "pending",
+            "sold"
+          ]
+        }
       },
       "fields": {
-        "name": { "description": "The machine's name" },
-        "cpu": { "description": "Virtual CPUs" },
-        "owner": { "description": "E-mail address of the person who owns the machine" }
+        "status": {
+          "description": "pet status in the store"
+        }
       },
-      "policy": { "default": "hide", "fields": { "name": "hide", "cpu": "hide", "owner": "hide" } }
+      "policy": {
+        "default": "hide",
+        "fields": {
+          "id": "hide",
+          "name": "hide",
+          "category": "hide",
+          "photoUrls": "hide",
+          "tags": "hide",
+          "status": "hide"
+        }
+      }
     }
   }
 }
 ```
 
 ```text
-The API host and the token URL come from the document; check them before adding credentials.
+The API host comes from the document; check it before adding credentials.
 
-Still to decide: 4 values say TODO, and the server refuses the configuration until none does:
-  httpSources.backends.platform.url
-  httpSources.backends.platform.auth.clientCredentials.tokenUrl
-  httpSources.backends.platform.auth.clientCredentials.clientId
-  httpSources.backends.platform.auth.clientCredentials.clientSecret.env
+Still to decide: 1 value says TODO, and the server refuses the configuration until none does:
+  httpSources.backends.petstore.url: TODO: https://... (the document names the relative address /api/v3, which is https://petstore3.swagger.io/api/v3 from the document's address; check it)
 
 Notes:
-  - The path parameter "customerId"'s pattern is not copied (...); the safe default applies: letters, digits and . _ ~ -. ...
-  - The query parameter "created-after" is the parameter created_after (a parameter's name is letters, digits and "_").
-  - The query parameters limit, page look like paging: if the API pages, remove them from params and http.query and set http.paging instead (...).
-  - Every field is hidden (sources.vms.policy): set the ones a caller may see to "show", "values" or "summary".
+  - The document's sign-in is not one pivotkit writes for you (petstore_auth: OAuth for people, not client credentials): configure the backend's auth by hand (https://pivotkit.eize.dev/reference/sources/#http-auth); for each person's own access, use tokenExchange.
+  - The query parameter "status"'s explode is left out: it makes no difference for a single value.
+  - Every field is hidden (sources.findPetsByStatus.policy): set the ones a caller may see to "show", "values" or "summary".
 
 Review these as text the model will read:
-  sources.vms.title: "Virtual machines of a customer"
-  sources.vms.params.customerId.description: "The customer's short name"
-  sources.vms.fields.owner.description: "E-mail address of the person who owns the machine"
-  ...
+  sources.findPetsByStatus.title: "Finds Pets by status."
+  sources.findPetsByStatus.description: "Multiple status values can be provided with comma separated strings."
+  sources.findPetsByStatus.params.status.description: "Status values that need to be considered for filter"
+  sources.findPetsByStatus.params.status.enum: "available, pending, sold"
+  sources.findPetsByStatus.fields.status.description: "pet status in the store"
+
+Add the block to your configuration, fill in every TODO, then run pivotkit-server check-config and check-source findPetsByStatus. Docs: https://pivotkit.eize.dev/reference/sources/#openapi
 ```
 
-(The example is shortened: the command lists every field.)
+The document names its server as `/api/v3`, an address relative to the document's own, so the TODO
+names both. Its sign-in is OAuth for people (an implicit flow), which the command does not write: a
+token exchange or another backend auth is yours to configure.
 
 ### What it reads { #openapi-input }
 
-- **OpenAPI 3.0 or 3.1 in JSON**, at most 5 MiB and 128 levels deep. A YAML document is refused
+- **OpenAPI 3.0 or 3.1 in JSON** (`"openapi": "3.1.0"`, also `"3.1"`), at most 5 MiB and 128 levels deep. A YAML document is refused
   with how to convert it, for example `npx js-yaml openapi.yaml > openapi.json` (js-yaml's command
   writes a YAML file as JSON). Swagger 2.0 is refused; convert it to OpenAPI 3 first.
 - **A file, or an `https://` URL.** A URL is fetched once with the guarded fetch HTTP sources use
@@ -741,8 +757,9 @@ Review these as text the model will read:
   allowed here without `intranet`. For a document behind a sign-in or on plain `http://`, download it
   and pass the file.
 - **Local references only.** `$ref` values that start with `#/` are followed, with own properties
-  only, at most 32 in a chain, `allOf` at most 8 deep, and one budget of 100,000 nodes for the whole
-  run. A reference to another file or address (`file:`, `https:`, `http://169.254.169.254/...`) is
+  only, at most 32 in a chain, `allOf` at most 8 deep and merging at most 1,000 properties, and one
+  budget of 100,000 nodes for the whole run, which every property read counts against. A document
+  over a limit is refused or shortened with a note, quickly. A reference to another file or address (`file:`, `https:`, `http://169.254.169.254/...`) is
   never fetched: the command names it in a note and goes on without it. A circular reference is
   named the same way.
 
@@ -750,8 +767,8 @@ Review these as text the model will read:
 
 | From the document | In the block |
 | --- | --- |
-| The server address (`servers`, the operation's or path's first) | The backend's `url`, as a `TODO` that names the address without a user name, password, query or fragment |
-| The operation's path | `http.path`, with each path parameter as `{name}` |
+| The server address (`servers`, the operation's or path's first) | The backend's `url`, as a `TODO` that names the address without a user name, password, query or fragment; an address with variables as written with their defaults (`https://{region}.example.com (region=eu)`); a relative address with what it is relative to the document's URL |
+| The operation's path | `http.path`, with each path parameter as `{name}`; a path over 2,000 characters or with an empty segment refuses the operation |
 | Path parameters | Required `params` |
 | Query parameters | `params` and `http.query`; `required` is kept |
 | A parameter's `type`, `enum`, `minLength`, `maxLength`, `minimum`, `maximum`, `format: date`, `description`, `example` | The same keys of the parameter, as far as the server accepts them (an `example` outside the safe characters, a `maxLength` over 256 or an `enum` of more than 100 values is left out or capped, with a note) |
@@ -772,18 +789,20 @@ through `list_sources` and `describe_source`, so the command prints each one und
 text the model will read": an API's documentation can hold instructions meant for a model.
 
 A parameter whose name looks like a credential's (`key`, `token`, `secret`, `auth`, `pass`) keeps
-no example and no list of values, and a query parameter in which the document's own security scheme
-sends an API key is left out: a credential never comes from a caller.
+no example and no list of values, nor does a parameter whose example or values look like one (a
+known token prefix such as `sk-`, `ghp_`, `xoxb-`, `AKIA`, a JWT, or 32 or more token characters
+that are no UUID). A query parameter in which the document's own security scheme sends an API key is
+left out: a credential never comes from a caller.
 
 The sign-in, from the operation's `security` (else the document's), the first alternative of one
 scheme that maps:
 
 | Security scheme | Backend auth |
 | --- | --- |
-| `apiKey` in a header | `header` with the header's name and `value: { "env": "TODO: ..." }` |
+| `apiKey` in a header | `header` with the header's name (listed for review; `Cookie`, `Authorization`, `Origin`, `Referer` or a header of the connection becomes a `TODO`) and `value: { "env": "TODO: ..." }` |
 | `http` with `bearer` | `header` with `prefix: "Bearer "` |
 | `http` with `basic` | `header` with `prefix: "Basic "`; the secret holds the base64 of `user:password` |
-| `oauth2` with a `clientCredentials` flow | `clientCredentials` with `tokenUrl`, `clientId` and `clientSecret` as `TODO`s and the operation's scopes |
+| `oauth2` with a `clientCredentials` flow | `clientCredentials` with `tokenUrl`, `clientId` and `clientSecret` as `TODO`s and the operation's scopes (a scope starting with `TODO` is left out) |
 | An API key in the query or a cookie, OAuth for people, OpenID Connect, mutual TLS, two schemes together | No auth, with a note: configure it by hand; for each person's own access use `tokenExchange` |
 
 ### TODO values { #openapi-todo }
@@ -791,10 +810,10 @@ scheme that maps:
 Every value you must decide starts with `TODO: `, the same word everywhere, so `grep TODO` finds
 them. The server refuses a configuration with a value under `httpSources` or a source's `http` that
 still starts with `TODO: `, right after the check of the keys and their types and before the other
-rules:
+rules; `pivotkit-server check-config` and `serve` exit 2 while one is left:
 
 ```text
-pivotkit-server: 4 values still say TODO: httpSources.backends.platform.url, httpSources.backends.platform.auth.clientCredentials.tokenUrl, httpSources.backends.platform.auth.clientCredentials.clientId, httpSources.backends.platform.auth.clientCredentials.clientSecret.env; replace each with the real value
+pivotkit-server: 1 value still says TODO: httpSources.backends.petstore.url; replace each with the real value
 ```
 
 No address from the document becomes a value by itself: a document could name an attacker's host as
