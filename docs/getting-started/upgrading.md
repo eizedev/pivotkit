@@ -1,6 +1,6 @@
 ---
 title: Upgrading
-description: How to update the command line, the services, the container image and the Claude Code plugin, and what changes between releases - 0.6.0 to 0.6.1, 0.5 to 0.6 and 0.4 to 0.5 - and whom each change concerns.
+description: How to update the command line, the services, the image and the plugin, and what changes between releases.
 ---
 
 # Upgrading
@@ -25,14 +25,15 @@ pivotkit-mcp --version
 pivotkit --version
 ```
 
-Update pivotkit-server and pivotkit-mcp together, to the same release: `pivotkit-server serve` loads
-the pivotkit-mcp installed beside it, and with another release of it can stop at start with an
-error that a module "does not provide an export named ...". If you see that, compare both
-`--version`s. pivotkit-cli updates on its own. `npm update --global` updates every global package
+Update pivotkit-server and pivotkit-mcp in one command, to the same release: `pivotkit-server serve`
+loads the pivotkit-mcp installed beside it, and a pivotkit-server changed alone afterwards can make
+it stop at start with an error that a module "does not provide an export named ...". The sure sign
+is `npm ls -g --all` marking pivotkit-server under pivotkit-mcp `invalid`; install both again in one
+command. pivotkit-cli updates on its own. `npm update --global` updates every global package
 to its newest release, across minor versions too. Install global packages into a folder you own
 (npm's `prefix`), not with `sudo`. `npm audit signatures` checks the registry's signatures in a
-project only, not for global packages: to check a release first, install it into an empty folder and
-run it there.
+project only, not for global packages: to check a release first, install it into an empty folder,
+run `npm audit signatures` there, then install it globally.
 
 ### In a project or an app folder { #update-project }
 
@@ -71,8 +72,8 @@ A running process keeps the version it started with. Restart it right after the 
   session.
 - `pivotkit-server serve` and `pivotkit-mcp --http`: restart the process; a Windows service by its
   name (`nssm restart pivotkit` for [the service under NSSM](mcp.md#psu-service)). If `serve` stops
-  at start with "does not provide an export named", pivotkit-server and pivotkit-mcp are of
-  different releases ([above](#update-global)).
+  at start with "does not provide an export named", pivotkit-server and pivotkit-mcp do not fit
+  together ([above](#update-global)).
 
 ### The container image { #update-image }
 
