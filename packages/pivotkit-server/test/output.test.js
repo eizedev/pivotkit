@@ -179,7 +179,7 @@ test("an output directory the server cannot write: a warning at start, 409 NO_OU
         assert.equal(check.status, 1, check.stdout);
         const said = factsOf(check.stdout);
         assert.match(said, /^PROBLEM: output\.dir is not writable by the user \d+ the server runs as -> the server starts; every report fails with NO_OUTPUT$/m);
-        assert.match(said, /^pivotkit-server: the configuration is valid; the server starts, but not everything will work\.\n1 problem, /);
+        assert.match(said, /^pivotkit-server: the server starts, but not everything will work\.\n1 problem, /);
     } finally {
         chmodSync(out, 0o755);
     }
@@ -215,8 +215,8 @@ test("check-config warns of a policy rule that matches no column and prints the 
     assert.match(said, /\n {4}policy: summary by default; Product show, Margin hide, Region show, Customr hide\n/);
     assert.match(said, /WARNING: sources\.sales\.policy\.fields\.Customr: no column of sales\.csv has this name; did you mean "Customer"\?/);
     assert.match(said, /WARNING: policy\.fields\.Margin: no column of any source has this name/);
-    assert.match(said, /\nProfile export: fields as each source by default; Customer show\n {2}sales: [^\n]*Customer show/);
-    assert.ok(!/warning: .*PRODUCT|warning: .*region/i.test(res.stdout), "a rule that matches by another case is no warning");
+    assert.match(said, /\nProfile export:\n {2}policy: as each source by default; Customer show\n {2}sales: [^\n]*Customer show/);
+    assert.ok(!/warning: .*PRODUCT|warning: .*region/i.test(said), "a rule that matches by another case is no warning");
 });
 
 test("a missing output directory is created at start (0700, or 0755 narrowed by the umask where a web server serves it) and said once in the log", async () => {

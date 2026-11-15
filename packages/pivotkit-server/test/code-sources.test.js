@@ -1198,8 +1198,8 @@ test("where it runs: a table key only for a load that is kept and reused", async
     }
     assert.throws(() => validateOptions({ sourceCache: { maxMb: 0 } }), /sourceCache\.maxMb: from 1 to 65536/);
     assert.ok(validateOptions({ sourceCache: { maxMb: 1024 } }));
-    assert.match(factsOf((await checkConfig({ sources: { a: { load: async () => [] } }, sourceCache: { maxMb: 1024 } }, { http: false })).text), /\nKept loads of code and HTTP sources: at most 1024 MiB \(sourceCache\.maxMb\)\n {2}a table over 256 MiB \(a quarter\) is not kept and loads on every call\n {2}with several contexts in one process, the largest setting applies\n/);
-    assert.match(factsOf((await checkConfig({ sources: { a: { load: async () => [] } } }, { http: false })).text), /\nKept loads of code and HTTP sources: at most 256 MiB\n {2}a table over 64 MiB \(a quarter\)/);
+    assert.match(factsOf((await checkConfig({ sources: { a: { load: async () => [] } }, sourceCache: { maxMb: 1024 } }, { http: false })).text), /\nKept loads: at most 1024 MiB \(sourceCache\.maxMb\)\n {2}the data code and HTTP sources loaded, kept for their next calls\n {2}a table over 256 MiB \(a quarter\) is not kept and loads on every call\n {2}with several contexts in one process, the largest setting applies\n/);
+    assert.match(factsOf((await checkConfig({ sources: { a: { load: async () => [] } } }, { http: false })).text), /\nKept loads: at most 256 MiB\n {2}the data code and HTTP sources loaded, kept for their next calls\n {2}a table over 64 MiB \(a quarter\)/);
 });
 
 test("the load cache: the largest sourceCache.maxMb of the open contexts applies; a close shrinks it to the largest left", async () => {

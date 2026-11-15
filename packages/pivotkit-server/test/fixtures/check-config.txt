@@ -1,5 +1,4 @@
-pivotkit-server: the configuration is valid; the server starts, but not
-    everything will work.
+pivotkit-server: the server starts, but not everything will work.
 1 problem, 1 warning.
 
 PROBLEM: sources.gone.file: data/missing.csv is not there -> the server
@@ -25,7 +24,9 @@ Code sources (1):
     loaded on every call
     data per caller
     last good data: up to 3600 s after a transient failure
-Kept loads of code and HTTP sources: at most 256 MiB
+
+Kept loads: at most 256 MiB
+  the data code and HTTP sources loaded, kept for their next calls
   a table over 64 MiB (a quarter) is not kept and loads on every call
   with several contexts in one process, the largest setting applies
 
@@ -54,7 +55,8 @@ Auth: token
   WARNING: the token bot's scope "typo:scope" is named by no source, tool or
       required scope
 
-Profile analyst: fields show by default
+Profile analyst:
+  policy: show by default
   file downloads (REST): allowed
   sales: Region show, Product show, Customer hide, Sales show
   code: fields known only after a load; show by default

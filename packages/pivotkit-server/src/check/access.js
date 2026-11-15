@@ -33,7 +33,7 @@ export const ISSUER_MS = 3000;
 
 /** @type {import("./index.js").Section} */
 export async function section(options, _registry, runtime) {
-    const items = [...transport(options, runtime), heading("")];
+    const items = [...transport(options, runtime)];
     const auth = options.auth ?? {};
     const mode = auth.mode ?? "none";
     const stop = { stops: /** @type {const} */ (true) };
@@ -121,15 +121,18 @@ async function issuerItems(options, runtime) {
     }
     const out = [];
     for (const [issuer, [key, until]] of issuers) {
+        // one wait for both of discover's tries; the race is a backstop for a discover that ignores it
+        const signal = AbortSignal.timeout(ISSUER_MS);
+        const late = `no answer within ${ISSUER_MS / 1000} s`;
         const why = await Promise.race([
             Promise.resolve()
-                .then(() => runtime.discover(issuer))
+                .then(() => runtime.discover(issuer, { signal }))
                 .then(
                     () => null,
                     // discover tries two addresses: a reason said twice is said once
-                    (e) => [...new Set(String(e?.message ?? e).split("; "))].join("; ").slice(0, 200)
+                    (e) => (signal.aborted ? late : [...new Set(String(e?.message ?? e).split("; "))].join("; ").slice(0, 200))
                 ),
-            new Promise((resolve) => setTimeout(() => resolve(`no answer within ${ISSUER_MS / 1000} s`), ISSUER_MS).unref())
+            new Promise((resolve) => setTimeout(() => resolve(late), ISSUER_MS + 100).unref())
         ]);
         if (why) {
             out.push(warning(`${key}: the metadata of ${issuer} cannot be loaded from here (${why}); the server starts and keeps trying; ${until}`));

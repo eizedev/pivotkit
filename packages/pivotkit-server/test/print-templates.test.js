@@ -27,7 +27,7 @@ test("check-config lists each source's print template and reports the parser's m
     const dir = withTemplate(BRAND);
     const result = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: dir }, { http: false, name: "pivotkit-server" });
     const lines = factsOf(result.text).split("\n");
-    assert.equal(lines[0], "pivotkit-server: the configuration is valid, but the server would not start with it as it is.");
+    assert.equal(lines[0], "pivotkit-server: the server would not start with this configuration.");
     assert.ok(lines.includes("    template: data/brand.html"), result.text);
     assert.ok(lines.includes(`PROBLEM: sources.sales.template: ${TYPO} -> the server does not start`), result.text);
     assert.equal(result.problems, 1);
@@ -46,7 +46,7 @@ test("check-config: a template the parser accepts is listed with no PROBLEM; a m
     // like a missing source file: the server starts, the source's html reports fail until it is there
     assert.match(gone.text, /^ {4}template: data\/brand\.html$/m);
     assert.match(factsOf(gone.text), /^PROBLEM: sources\.sales\.template: brand\.html: not found -> the server starts; html reports of sales fail until it can be read$/m);
-    assert.match(factsOf(gone.text), /^pivotkit-mcp: the configuration is valid; the server starts, but not everything will work\.\n1 problem, /);
+    assert.match(factsOf(gone.text), /^pivotkit-mcp: the server starts, but not everything will work\.\n1 problem, /);
     assert.equal(gone.problems, 1);
     assert.equal(gone.stops, 0);
 

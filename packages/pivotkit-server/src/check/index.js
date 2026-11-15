@@ -35,7 +35,7 @@ import * as rest from "./rest.js";
  * @property {string} tokenEnv
  * @property {boolean} rest
  * @property {boolean} [mcp]  the MCP server is served (false: a REST-only server)
- * @property {(issuer: string) => Promise<unknown>} [discover]  loads an issuer's metadata (auth.js discover); without it no issuer is asked
+ * @property {(issuer: string, how: { signal: AbortSignal }) => Promise<unknown>} [discover]  loads an issuer's metadata (auth.js discover); without it no issuer is asked
  * @property {Map<string, { names: string[], stats: any }>} columns  filled by check/sources.js
  * @property {Map<string, string> | null} [everyColumn]  every column of every source by its policy key (null: not all known); set by check/sources.js
  */

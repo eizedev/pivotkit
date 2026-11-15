@@ -43,7 +43,7 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     const check = runner(["--config", join(dir, "pivotkit-mcp.json"), "--source", "more=data/none.csv", "--allow-dir", "data", "--check-config"], other);
     assert.equal(check.status, 1, "a missing file is a problem: exit 1");
     const said = factsOf(check.stdout);
-    assert.match(said, /^pivotkit-mcp: the configuration is valid; the server starts, but not everything will work\.\n1 problem, 0 warnings\./);
+    assert.match(said, /^pivotkit-mcp: the server starts, but not everything will work\.\n1 problem, 0 warnings\./);
     assert.match(said, /sales: .*data\/sales\.csv\n {4}policy: summary by default; Region show, Customer hide/);
     assert.match(said, /PROBLEM: sources\.more\.file: data\/none\.csv is not there -> the server starts; more answers FILE_NOT_AVAILABLE/);
     assert.match(said, /Files by path: allowed in .*data/);

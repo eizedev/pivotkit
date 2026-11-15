@@ -465,8 +465,8 @@ test("check-config prints each profile's levels per source: a profile has no aut
     const dir = workspace({ "tickets.csv": tickets() });
     const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv" } }, policy: { autoValues: true, profiles: { export: { results: true }, analyst: { default: "show" } } }, baseDir: dir }, { http: false });
     // a profile's own allowances come first (file downloads), then its levels per source
-    assert.match(factsOf(check.text), /Profile export:[^\n]*\n {2}file downloads \(REST\): allowed\n {2}tickets: Status summary, Team summary, Region summary/);
-    assert.match(factsOf(check.text), /Profile analyst:[^\n]*\n {2}tickets: Status show, Team show/);
+    assert.match(factsOf(check.text), /Profile export:\n {2}policy: [^\n]*\n {2}file downloads \(REST\): allowed\n {2}tickets: Status summary, Team summary, Region summary/);
+    assert.match(factsOf(check.text), /Profile analyst:\n {2}policy: show by default\n {2}tickets: Status show, Team show/);
 });
 
 test("the deny list reads through leet digits, marks, small capitals, spaces inside a word and German without umlauts; special categories and money words", () => {
@@ -493,7 +493,7 @@ test("check-config warns of an explicit values field whose values look personal;
     const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv", policy: { fields: { Mail: "values", Status: "values" } } } }, baseDir: dir }, { http: false });
     assert.match(check.text, /\n {6}Mail: values \(a rule\)\n/);
     assert.match(factsOf(check.text), /WARNING: sources\.tickets: the values field Mail holds a value that looks like email/);
-    assert.doesNotMatch(check.text, /values field Status/);
+    assert.doesNotMatch(factsOf(check.text), /values field Status/);
     for (const key of ["minRows", "minRowsPerValue"]) {
         assert.throws(() => validateOptions({ policy: { autoValues: { [key]: 0 } } }), new RegExp(`policy.autoValues.${key}: must be 1 or more`));
         assert.doesNotThrow(() => validateOptions({ policy: { autoValues: { [key]: 1 } } }));

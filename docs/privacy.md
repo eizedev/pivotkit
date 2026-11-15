@@ -176,8 +176,12 @@ Data in memory goes with a restart.
 
 `check-config` and `check-source` print no value and no secret, but they print field names, and
 `check-source` prints the keys of a backend's answer where it finds no rows. Field names can be data
-(a column per person or per customer). Treat their output as you treat the data: do not paste it
-into public issues or chats without reading it.
+(a column per person or per customer). `check-config` also prints the full path of each file a
+secret is read from, and the addresses of your issuer and backends. Treat their output as you treat
+the data: do not paste it into public issues or chats without reading it. `pivotkit-server
+check-config` (and `pivotkit-mcp --check-config --http`) asks the OAuth issuer for its public
+metadata once, with nothing of yours in the request, so it can warn when the issuer cannot be
+reached; a library host's `checkConfig()` asks nothing.
 
 ## Logs { #logs }
 

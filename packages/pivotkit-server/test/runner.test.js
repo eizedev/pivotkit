@@ -68,15 +68,15 @@ test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST woul
     assert.equal(unset.status, 1, unset.stderr);
     // the verdict and the counts first, then the problems: the token stops the start, the missing file does not
     const said = factsOf(unset.stdout).split("\n");
-    assert.deepEqual(said.slice(0, 2), ["pivotkit-server: the configuration is valid, but the server would not start with it as it is.", "2 problems, 0 warnings."]);
+    assert.deepEqual(said.slice(0, 2), ["pivotkit-server: the server would not start with this configuration.", "2 problems, 0 warnings."]);
     assert.deepEqual(said.slice(3, 5), ["PROBLEM: the token bot ($BOT) is not set or shorter than 32 characters -> the server does not start", "PROBLEM: sources.gone.file: data/gone.csv is not there -> the server starts; gone answers FILE_NOT_AVAILABLE"]);
     const res = run(["check-config"], { env: { PIVOTKIT_CONFIG: config, BOT: TOKEN } });
     assert.equal(res.status, 1, res.stderr);
     const text = factsOf(res.stdout);
-    assert.match(text, /^pivotkit-server: the configuration is valid; the server starts, but not everything will work\.\n1 problem, 0 warnings\./);
+    assert.match(text, /^pivotkit-server: the server starts, but not everything will work\.\n1 problem, 0 warnings\./);
     assert.match(text, /\n {2}gone: \S+gone\.csv\n/);
     assert.match(text, /token bot from \$BOT: all scopes, profile export/);
-    assert.match(text, /\nProfile export: [^\n]*\n {2}file downloads \(REST\): allowed\n/);
+    assert.match(text, /\nProfile export:\n {2}policy: [^\n]*\n {2}file downloads \(REST\): allowed\n/);
     // what REST does differently from its defaults: here only CORS
     assert.match(text, /\nREST: \/api\/v1\n {2}CORS: https:\/\/app\.example\.com\n/);
     const open = run(["check-config", "--config", config, "--host", "0.0.0.0", "--auth", "none"], { env: { BOT: TOKEN } });

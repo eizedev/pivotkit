@@ -388,10 +388,11 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     assert.ok(own.includes("  otherwise: profile restricted"), result.text);
     assert.ok(own.includes("  scopes offered: pivotkit pivotkit:sales (define these at your provider; it may refuse a sign-in that asks for one it does not know)"), result.text);
     assert.ok(own.includes("  WARNING: the source hr needs the scope pivotkit:hr, which the server does not offer (auth.scopeProfiles names it, and a client must not choose its own profile): a client learns of it only from you"), result.text);
-    assert.doesNotMatch(result.text, /Sign-in:|→|subject from claim/);
+    assert.doesNotMatch(factsOf(result.text), /Sign-in:|→|subject from claim/);
     // the wider profile first is the intended order: silent
-    assert.doesNotMatch(result.text, /shows fields that/);
-    assert.ok(lines.includes("Audit: the person is logged as a keyed hash of issuer and sub"), result.text);
+    assert.doesNotMatch(factsOf(result.text), /shows fields that/);
+    assert.ok(lines.includes("Audit: hash"), result.text);
+    assert.ok(lines.includes("  the person is logged as a keyed hash of issuer and sub"), result.text);
     assert.ok(lines.includes(`  key from the file audit.key (${join(dir, "audit.key")})`), result.text);
     assert.ok(lines.some((l) => /the audit key's file audit\.key can be read by other users/.test(l)), result.text);
     // offering the sources' scopes is opt-in: no change for an existing installation

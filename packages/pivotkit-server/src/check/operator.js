@@ -147,9 +147,9 @@ async function auditItems(options, runtime, oauth) {
     const subject = audit.subject ?? "off";
     const claim = options.auth?.subjectClaim ?? "sub";
     if (subject === "off") {
-        return { items: [heading("Audit: off (log lines name the client, never the person)")], upgrade: [] };
+        return { items: [heading("Audit: off"), plain("log lines name the client, never the person")], upgrade: [] };
     }
-    const items = [heading(subject === "hash" ? `Audit: the person is logged as a keyed hash of issuer and ${claim}` : `Audit: the person is logged by ${claim} as it is`)];
+    const items = [heading(`Audit: ${subject}`), plain(subject === "hash" ? `the person is logged as a keyed hash of issuer and ${claim}` : `the person is logged by ${claim} as it is`)];
     if (subject !== "hash") {
         items.push(plain("this is personal data: say so where your log goes and how long it is kept"));
     }

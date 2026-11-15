@@ -131,8 +131,7 @@ test("check sections: each section's items in its order; problems first under th
     assert.deepEqual(out.upgrade, ["one changed", "three changed"]);
     const page = render("pivotkit-server", out.sections, out.upgrade, "https://example.com/upgrading/");
     assert.deepEqual(page.text.split("\n"), [
-        "pivotkit-server: the configuration is valid, but the server would not start",
-        "    with it as it is.",
+        "pivotkit-server: the server would not start with this configuration.",
         "2 problems, 1 warning.",
         "",
         // the one that stops the start first, each with what it does
@@ -151,7 +150,7 @@ test("check sections: each section's items in its order; problems first under th
     ]);
     assert.deepEqual([page.problems, page.warnings, page.stops], [2, 1, 1]);
     // only problems that do not stop the start: the server starts, and the verdict says so
-    assert.match(render("pivotkit-server", [out.sections[1]], [], "u").text, /^pivotkit-server: the configuration is valid; the server starts, but not\n {4}everything will work\.\n1 problem, 1 warning\.\n/);
+    assert.match(render("pivotkit-server", [out.sections[1]], [], "u").text, /^pivotkit-server: the server starts, but not everything will work\.\n1 problem, 1 warning\.\n/);
     const none = await runSections(sections.slice(1, 2), {}, null, {});
     assert.deepEqual(render("x", none.sections, none.upgrade, "u").text, "x: the configuration is valid.\n0 problems, 0 warnings.\n");
 });
@@ -240,7 +239,7 @@ test("secrets: check-config warns of a secret file other users can read (a stati
     assert.equal(await secretFileWarning({ file: "missing" }, { baseDir: dir }), null, "a missing file is said elsewhere");
     const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "open", file: "open-token" }, { name: "closed", file: "closed-token" }] }, baseDir: dir }, { http: true });
     assert.match(factsOf(result.text), /\n {2}WARNING: the token open's file open-token can be read by other users of this machine \(mode 644\)/);
-    assert.doesNotMatch(result.text, /closed-token can be read/);
+    assert.doesNotMatch(factsOf(result.text), /closed-token can be read/);
     assert.equal(result.problems, 0, "a warning, not a problem");
     assert.equal(result.warnings, 1);
 });

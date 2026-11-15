@@ -243,7 +243,7 @@ test("check-config: who may send data on MCP and REST, and how much; warnings fo
     assert.deepEqual((await sectionOf({})).facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB"]);
     const off = await sectionOf({ mcp: { data: false } });
     assert.deepEqual(off.facts, ["  MCP: off (mcp.data: false)"]);
-    assert.doesNotMatch(off.text, /data in the request \(inline:\)/);
+    assert.doesNotMatch(factsOf(off.text), /data in the request \(inline:\)/);
     const everyone = await sectionOf({ policy: { data: true, profiles: { bot: { data: false } } }, auth: { allowUnauthenticated: true } });
     assert.deepEqual(everyone.facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB; not for profiles bot", "  REST: for every caller but profiles bot, up to 10 MiB"]);
     assert.equal(everyone.warnings.length, 2);
@@ -625,12 +625,12 @@ test("check-config: a profile without downloads may still send data; a REST-only
     const options = { sources: { sales: { file: "data/sales.csv" } }, policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL", profile: "etl" }] }, baseDir: dir };
     const both = await checkConfig(options, { http: true, rest: true, env: { ETL: "x".repeat(40) }, name: "pivotkit-server" });
     // file downloads are off (the default, not said); sending data is allowed
-    assert.match(both.text, /\nProfile etl: fields as each source by default\n {2}data sent in the request \(REST\): allowed\n/);
-    assert.doesNotMatch(both.text, /file downloads \(REST\)/);
+    assert.match(both.text, /\nProfile etl:\n {2}policy: as each source by default\n {2}data sent in the request \(REST\): allowed\n/);
+    assert.doesNotMatch(factsOf(both.text), /file downloads \(REST\)/);
     assert.match(both.text, /\nData in the request \(inline:\):\n {2}MCP: on/);
     const restOnly = await checkConfig(options, { http: true, rest: true, mcp: false, env: { ETL: "x".repeat(40) }, name: "pivotkit-server" });
     assert.match(restOnly.text, /\nData in the request \(inline:\):\n {2}REST: for profiles etl, up to 10 MiB\n/);
-    assert.doesNotMatch(restOnly.text, /MCP:|data in the request \(inline:\)/);
+    assert.doesNotMatch(factsOf(restOnly.text), /MCP:|data in the request \(inline:\)/);
 });
 
 test("a cell full of brackets is data, not nesting: only a view or layout given as text is scanned", async () => {

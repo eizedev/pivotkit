@@ -193,7 +193,8 @@ then lists every `PROBLEM` with what it does (`-> the server does not start`, or
 the server runs), then the sections, one fact per line wrapped at 78 columns, with `WARNING` lines
 last in each section. What was `NOT FOUND` or `NOT WRITABLE` is a `PROBLEM` line, and "would not start"
 is said only for what `serve` refuses: a missing source file, backend secret, download key or
-upload secret starts the server. The exit code is as before: 1 for any problem
+upload secret starts the server. With OAuth it asks the issuer for its public metadata once (3 s at
+most) and warns when it cannot be loaded. The exit code is as before: 1 for any problem
 ([reading check-config](../reference/rest.md#check-config)).
 
 ### Print templates checked at start { #template-at-start }

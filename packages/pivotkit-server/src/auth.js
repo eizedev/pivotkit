@@ -122,9 +122,11 @@ async function staticTokens(auth, env, options, tokenEnv) {
 /**
  * Fetches a JSON document of the issuer: a time limit, no redirect, a size cap.
  * @param {string} url
+ * @param {AbortSignal} [signal]  ends it sooner (check-config's shorter wait)
  */
-async function fetchJson(url) {
-    const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(10_000), headers: { accept: "application/json" } });
+async function fetchJson(url, signal) {
+    const limit = AbortSignal.timeout(10_000);
+    const response = await fetch(url, { redirect: "error", signal: signal ? AbortSignal.any([signal, limit]) : limit, headers: { accept: "application/json" } });
     if (!response.ok) {
         throw new Error(`${response.status} from ${url}`);
     }
@@ -146,15 +148,16 @@ async function fetchJson(url) {
  * The issuer's metadata: RFC 8414 first (the well-known part before the issuer's path), then OpenID
  * Connect discovery (after it). Its issuer must equal the configured one exactly.
  * @param {string} issuer
+ * @param {{ signal?: AbortSignal }} [how]  signal: ends both tries sooner than their own 10 s each (check-config)
  */
-export async function discover(issuer) {
+export async function discover(issuer, { signal } = {}) {
     const url = new URL(issuer);
     const path = url.pathname.replace(/\/$/, "");
     const tries = [`${url.origin}/.well-known/oauth-authorization-server${path}`, `${url.origin}${path}/.well-known/openid-configuration`];
     const errors = [];
     for (const at of tries) {
         try {
-            const doc = await fetchJson(at);
+            const doc = await fetchJson(at, signal);
             if (doc.issuer !== issuer) {
                 throw new Error(`the metadata at ${at} names the issuer ${JSON.stringify(String(doc.issuer).slice(0, 200))}, not ${issuer}`);
             }

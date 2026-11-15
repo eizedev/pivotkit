@@ -5,7 +5,8 @@
  * values may be summary here), or, for an HTTP or code source, its policy, since its fields are known
  * only after a load.
  *
- *   Profile staff: fields as each source by default; Region show
+ *   Profile staff:
+ *     policy: as each source by default; Region show
  *     sales: Region show, Product summary, Customer hide
  *     vms: fields known only after a load; hide by default, name show
  *
@@ -21,7 +22,7 @@ export async function section(options, _registry, runtime) {
     const items = [];
     for (const [name, p] of Object.entries(options.policy?.profiles ?? {})) {
         const fields = Object.entries(p.fields ?? {});
-        items.push(heading(`Profile ${name}: fields ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${runtime.everyColumn?.get(fieldKey(n)) ?? n} ${l}`).join(", ")}` : ""}`));
+        items.push(heading(`Profile ${name}:`), plain(`policy: ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${runtime.everyColumn?.get(fieldKey(n)) ?? n} ${l}`).join(", ")}` : ""}`));
         if (p.results) {
             items.push(plain("file downloads (REST): allowed"));
         }

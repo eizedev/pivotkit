@@ -4,10 +4,12 @@
 // uses, an unreachable issuer (a WARNING), no sources, file secrets by their full path, stdio.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { join } from "node:path";
 import { checkConfig, serve } from "pivotkit-server";
-import { TOKEN, factsOf, workspace } from "./helpers.js";
+import { BIN, TOKEN, factsOf, workspace } from "./helpers.js";
 
 /** A test issuer nothing listens on: the start loads its metadata in the background and keeps trying. */
 const ISSUER = "http://127.0.0.1:9/issuer";
@@ -36,7 +38,9 @@ const CASES = [
     { name: "a download key that is not set", options: { sources: { sales }, output: { dir: "out", downloads: { key: { env: "DOWNLOADS_KEY" } } } }, stops: false, says: /output\.downloads\.key: \$DOWNLOADS_KEY is not set -> the server starts; reports get no download links until it can be read/ },
     { name: "an upload header secret that is not set", options: { sources: { sales }, output: { dir: "out", upload: { url: "https://store.example.com/r/{id}/{name}", headers: { authorization: { prefix: "Bearer ", value: { env: "STORE_TOKEN" } } } } } }, stops: false, says: /output\.upload\.headers\.authorization: \$STORE_TOKEN is not set -> the server starts; every upload fails/ },
     { name: "the download links' client secret that cannot be read", options: { sources: { sales }, output: { dir: "out", downloads: { signIn: { clientId: "pivotkit-downloads", clientSecret: { file: "secrets/client-secret" } } } }, auth: OAUTH, http: { publicUrl: "https://reports.example.com" } }, stops: false, says: /output\.downloads\.signIn\.clientSecret: the file secrets\/client-secret cannot be read \(no such file\) -> the server starts; download links \(signed in\) fail after the person signs in/ },
+    { name: "an upload target on a loopback address", options: { sources: { sales }, output: { dir: "out", upload: { url: "https://localhost:8443/r/{id}" } } }, stops: false, says: /output\.upload\.url: localhost resolves to \S+, a loopback or private address, which uploads refuse without output\.upload\.intranet: true -> the server starts; every upload fails/ },
     // refused at start
+    { name: "an http:// issuer without allowInsecureIssuer", options: { sources: { sales }, auth: { mode: "oauth", issuer: "http://127.0.0.1:9/issuer", resource: "http://127.0.0.1:3333/mcp" } }, stops: true, says: /auth\.issuer must be https:\/\/ \(auth\.allowInsecureIssuer is for tests only\) -> the server does not start/ },
     { name: "a static token that is not set", options: { sources: { sales }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT_TOKEN" }] } }, stops: true, says: /the token bot \(\$BOT_TOKEN\) is not set or shorter than 32 characters -> the server does not start/ },
     { name: "an output.dir that is a file", options: { sources: { sales }, output: { dir: "data/sales.csv" } }, stops: true, says: /output\.dir: not a directory -> the server does not start/ },
     { name: "a short audit key with OAuth", options: { sources: { sales }, auth: OAUTH, audit: { subject: "hash", key: { env: "AUDIT_KEY" } } }, env: { AUDIT_KEY: "short" }, stops: true, says: /audit\.key: at least \d+ characters -> the server does not start/ },
@@ -57,7 +61,8 @@ for (const c of CASES) {
         assert.equal(result.problems, 1, result.text);
         assert.equal(result.stops, c.stops ? 1 : 0, result.text);
         assert.match(text, c.says);
-        assert.match(text.split("\n")[0], c.stops ? /the server would not start with it as it is\.$/ : /the server starts, but not everything will work\.$/);
+        assert.ok(result.text.split("\n")[0].length <= 78, "the verdict is one line a script can read");
+        assert.match(text.split("\n")[0], c.stops ? /the server would not start with this configuration\.$/ : /the server starts, but not everything will work\.$/);
         const started = await starts(options, env);
         if (c.stops) {
             assert.ok(started instanceof Error, `serve started, but check-config says it would not:\n${result.text}`);
@@ -101,9 +106,51 @@ test("check-config: an issuer whose metadata cannot be loaded is a WARNING; the 
     assert.match(factsOf(down.text), /WARNING: auth\.issuer: the metadata of https:\/\/auth\.example\.com\/application\/o\/pivotkit\/ cannot be loaded from here \(fetch failed \(ENOTFOUND\)\); the server starts and keeps trying; callers get 503 until it loads; download links \(signed in\) answer 503 too/);
     assert.equal(down.problems, 0);
     const up = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", discover: async () => ({}) });
-    assert.doesNotMatch(up.text, /cannot be loaded/);
+    assert.doesNotMatch(factsOf(up.text), /cannot be loaded/);
     // without discover (a library host's call) no issuer is asked
-    assert.doesNotMatch((await checkConfig(options, { http: true, env: {} })).text, /cannot be loaded/);
+    assert.doesNotMatch(factsOf((await checkConfig(options, { http: true, env: {} })).text), /cannot be loaded/);
+});
+
+test("check-config: an issuer that accepts and never answers is a WARNING after 3 s, and the command ends then", async () => {
+    // a listener that takes the connection and says nothing
+    const held = [];
+    const silent = createServer((socket) => held.push(socket));
+    await new Promise((resolve) => silent.listen(0, "127.0.0.1", resolve));
+    const issuer = `http://127.0.0.1:${/** @type {any} */ (silent.address()).port}/issuer`;
+    try {
+        const dir = workspace();
+        const config = join(dir, "pivotkit.json");
+        writeFileSync(config, JSON.stringify({ sources: { sales }, auth: { mode: "oauth", issuer, resource: "http://127.0.0.1:3333/mcp", allowInsecureIssuer: true } }));
+        const started = Date.now();
+        const run = await new Promise((resolve) => {
+            const child = spawn(process.execPath, [BIN, "check-config", "--config", config], { cwd: dir, env: { PATH: process.env.PATH ?? "" } });
+            let stdout = "";
+            child.stdout.on("data", (c) => (stdout += c));
+            child.on("close", (status) => resolve({ status, stdout }));
+        });
+        const took = Date.now() - started;
+        assert.match(factsOf(run.stdout), /WARNING: auth\.issuer: the metadata of http:\/\/127\.0\.0\.1:\d+\/issuer cannot be loaded from here \(no answer within 3 s\); the server starts and keeps trying; callers get 503 until it loads/);
+        assert.equal(run.status, 0, run.stdout);
+        assert.ok(took < 8000, `check-config took ${took} ms`);
+    } finally {
+        for (const socket of held) socket.destroy();
+        silent.close();
+    }
+    // a discover that never settles and ignores the signal: the wait still ends
+    const options = { sources: { sales }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: "https://reports.example.com/mcp" }, baseDir: workspace() };
+    const stuck = await checkConfig(options, { http: true, env: {}, discover: () => new Promise(() => undefined) });
+    assert.match(factsOf(stuck.text), /cannot be loaded from here \(no answer within 3 s\)/);
+});
+
+test("check-config: a warning stays under its own heading when a section prints two (Delivery: and Retention:)", async () => {
+    const dir = workspace();
+    const options = { sources: { sales, open: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir };
+    const text = factsOf((await checkConfig(options, { http: true, env: {}, name: "pivotkit-server" })).text);
+    const delivery = text.slice(text.indexOf("\nDelivery:"), text.indexOf("\nRetention:"));
+    assert.match(delivery, /\n {2}WARNING: output\.downloads\.key is not set: links stop working on a restart and on another replica\n$/);
+    const retention = text.slice(text.indexOf("\nRetention:"));
+    assert.match(retention, /^\nRetention:\n {2}no age limit: [^\n]*\n {2}WARNING: output\.maxAgeDays is 0/);
+    assert.doesNotMatch(retention, /downloads\.key/);
 });
 
 test("check-config: no configuration read and no source given says so", async () => {

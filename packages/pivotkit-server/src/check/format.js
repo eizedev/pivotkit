@@ -2,7 +2,7 @@
  * check-config's layout, shared by every section (check/<feature>.js): a section says what it found
  * as items, and render() puts them on the page the same way for all of them.
  *
- *   pivotkit-server: the configuration is valid; the server starts, but not everything will work.
+ *   pivotkit-server: the server starts, but not everything will work.
  *   1 problem, 2 warnings.
  *
  *   PROBLEM: httpSources.backends.platform.auth.clientCredentials.clientSecret:
@@ -20,8 +20,8 @@
  *
  * Three markers: PROBLEM (counted; keeps the server from starting, or a source or feature from
  * working, and says which), WARNING (counted, not an error) and plain. The verdict and the counts come
- * first, then every PROBLEM line, then the sections in their order. In a section the plain lines come
- * first in the order the section gives them, its warnings last. One fact per line, wrapped at WIDTH
+ * first, then every PROBLEM line, then the sections in their order, a blank line before each heading.
+ * Under a heading the plain lines come first in the order the section gives them, its warnings last. One fact per line, wrapped at WIDTH
  * columns. A fact under another is two spaces further in; a wrapped line goes on four spaces
  * further in, so the two are never confused.
  */
@@ -89,6 +89,27 @@ export const fileText = (options, file) => {
     return full === file ? file : `${file} (${full})`;
 };
 
+/**
+ * A section's items cut into blocks, one per heading (a section may print two: Delivery: and
+ * Retention:), without its problems (printed first); a block holds nothing but a heading's facts and
+ * warnings, so a warning stays under its own heading.
+ * @param {Item[]} items
+ * @returns {Item[][]}
+ */
+function blocksOf(items) {
+    const blocks = [];
+    for (const item of items) {
+        if (item.kind === "problem") {
+            continue;
+        }
+        if (item.kind === "heading" || !blocks.length) {
+            blocks.push([]);
+        }
+        blocks[blocks.length - 1].push(item);
+    }
+    return blocks;
+}
+
 /** "1 problem", "2 warnings". */
 const count = (n, what) => `${n} ${what}${n === 1 ? "" : "s"}`;
 
@@ -109,19 +130,16 @@ export function render(name, sections, upgrade, upgradingUrl) {
     const problems = all.filter((i) => i.kind === "problem");
     const warnings = all.filter((i) => i.kind === "warning").length;
     const stops = problems.filter((i) => /** @type {any} */ (i).stops).length;
-    const verdict = stops ? "the configuration is valid, but the server would not start with it as it is." : problems.length ? "the configuration is valid; the server starts, but not everything will work." : "the configuration is valid.";
+    // one line a script can read: the server starts or not (any problem exits with 1 all the same)
+    const verdict = stops ? "the server would not start with this configuration." : problems.length ? "the server starts, but not everything will work." : "the configuration is valid.";
     const lines = [...wrap(`${name}: ${verdict}`, 0), `${count(problems.length, "problem")}, ${count(warnings, "warning")}.`];
     if (problems.length) {
         // the ones that stop the start first
         lines.push("", ...[...problems].sort((a, b) => Number(/** @type {any} */ (b).stops) - Number(/** @type {any} */ (a).stops)).flatMap((p) => wrap(problemText(p), 0)));
     }
-    for (const items of sections) {
-        const shown = items.filter((i) => i.kind !== "problem");
-        if (!shown.length) {
-            continue;
-        }
+    for (const block of sections.flatMap(blocksOf)) {
         lines.push("");
-        for (const item of [...shown.filter((i) => i.kind !== "warning"), ...shown.filter((i) => i.kind === "warning")]) {
+        for (const item of [...block.filter((i) => i.kind !== "warning"), ...block.filter((i) => i.kind === "warning")]) {
             if (item.kind === "heading") {
                 lines.push(...wrap(item.text, 0));
             } else if (item.kind === "plain") {
