@@ -322,7 +322,9 @@ installation notices:
 - An error at the start of `serve` or `pivotkit-mcp` (a configuration it cannot read, an unknown
   flag) follows the log's format: a JSON line where stderr is no terminal (a container, a service
   manager, a pipe) or JSON is asked for, the plain `pivotkit-server: ...` line on a terminal or with
-  `--log-format text`. A script that reads that line from a pipe reads JSON now.
+  `--log-format text`. A script that reads that line from a pipe reads JSON now. Only `serve` (and
+  `pivotkit-mcp`) write start errors as JSON; check-config and the other commands of
+  `pivotkit-server` stay plain text.
 
 ### Code sources { #code-sources }
 

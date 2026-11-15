@@ -230,10 +230,13 @@ To a plain receiver on port 514, over TCP or UDP (whichever the receiver listens
 ```
 
 The receiver's format and transport must match what the driver sends: an RFC 5424 sender to a
-receiver that expects RFC 3164 (or TCP to a UDP port) gives garbled or no messages. On a Synology NAS,
-Log Center's log receiving takes this when its rule uses the IETF format (RFC 5424) and the same
-protocol and port as `syslog-address` (the names of these settings depend on the DSM version: check
-the receiving rule there). The message text the receiver shows is pivotkit's JSON line.
+receiver that expects RFC 3164 (or TCP to a UDP port) gives garbled or no messages.
+
+On a Synology NAS, create a receiving rule in Log Center > Log Receiving with the IETF format
+(RFC 5424) and the same protocol (UDP or TCP) as `syslog-address`, and set an archive location first
+(Log Center > Archive Settings). If the lines look wrong, try the BSD format or a custom rule. The
+message text is pivotkit's JSON line. The names of these settings depend on the DSM version: check
+them in yours.
 
 Both drivers put pivotkit's whole JSON line into the message (GELF `short_message`, the syslog
 message text). The driver's own level is the stream's, the same for every line of stderr, so it says
@@ -260,11 +263,15 @@ SyslogIdentifier=pivotkit
 journalctl -u pivotkit -o cat | jq 'select(.level != "info")'   # every warning and error
 ```
 
-rsyslog reads the journal and can pass the lines on, here in RFC 5424 format over TCP (the template
-is rsyslog's own; check its name in your rsyslog's documentation):
+rsyslog reads the journal through its `imjournal` module (many distributions load it already; the
+line below does it where yours does not) and can pass the lines on over TCP. The template
+`RSYSLOG_SyslogProtocol23Format` is rsyslog's IETF draft form (syslog-protocol-23), close to
+RFC 5424; `RSYSLOG_SyslogRFC5424Format` is the strict one, but it ends a message without a line
+feed, which a receiver reading lines over TCP may not split:
 
 ```text
 # /etc/rsyslog.d/pivotkit.conf
+module(load="imjournal")
 if $programname == 'pivotkit' then @@logs.example.com:514;RSYSLOG_SyslogProtocol23Format
 ```
 
