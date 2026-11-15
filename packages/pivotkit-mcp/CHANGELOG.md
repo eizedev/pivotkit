@@ -9,7 +9,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 ### Upgrading from 0.1.1
 
 - Behaviour change: pivotkit-server's `output.maxAgeDays` is 30 by default, so reports and schedule
-  drafts older than 30 days are deleted from `output.dir` at start and every hour; set
+  drafts older than 30 days are deleted from `output.dir` at start and every hour, including drafts
+  still waiting for approval; set
   `output.maxAgeDays: 0` for no age limit ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
 
 - Over HTTP with `output.dir` and without `output.baseUrl`, reports come with pivotkit-server's

@@ -238,6 +238,8 @@ export function createLimits(rest = {}, now = Date.now, how = {}) {
         },
         /** How many addresses and callers are kept (tests). */
         size: () => ({ addresses: failures.size, callers: buckets.size }),
+        /** Drops now what the timer drops (tests). */
+        prune,
         /** Stops dropping entries on a timer (the server closes). */
         close() {
             clearInterval(pruning);

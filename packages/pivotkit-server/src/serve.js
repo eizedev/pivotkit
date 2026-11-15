@@ -55,12 +55,18 @@ export async function createServerHandler(options, runtime) {
     const enable = asked ?? ["rest", ...(mcpModule ? ["mcp"] : [])];
     /** @type {any} */
     const context = mcpModule ? await mcpModule.createMcpContext(options, { showPaths: false, stderr: runtime.stderr, tokenEnv: TOKEN_ENV }) : await createContext(options, { showPaths: false, stderr: runtime.stderr, tokenEnv: TOKEN_ENV });
+    // what is made so far, closed again when a later step fails (their timers would run on)
+    /** @type {ReturnType<typeof createDownloadHandler> | null} */
+    let made = null;
+    /** @type {any} */
+    let rest = null;
     try {
         // the download links' route: before REST and MCP (a browser's form POST carries an Origin
         // that is not an MCP client's), shared with pivotkit-mcp's handler on this context
         const downloads = createDownloadHandler(context, { env: runtime.env, loopback: runtime.loopback });
+        made = downloads;
         const isDownload = (request) => downloads.handles(new URL(request.url).pathname);
-        const rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
+        rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         const mcp = enable.includes("mcp") && mcpModule ? await mcpModule.createHttpHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         const hosts = allowedHosts(options);
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
@@ -131,6 +137,8 @@ export async function createServerHandler(options, runtime) {
             }
         };
     } catch (e) {
+        made?.close();
+        await rest?.close().catch(() => undefined);
         await context.close();
         throw e;
     }

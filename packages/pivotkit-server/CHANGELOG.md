@@ -9,7 +9,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 ### Upgrading from 0.1.1
 
 - Behaviour change: `output.maxAgeDays` is 30 by default, so reports and schedule drafts older than
-  30 days are deleted from `output.dir` at start and every hour. `output.maxAgeDays: 0` keeps them
+  30 days are deleted from `output.dir` at start and every hour, including drafts still waiting for
+  approval. `output.maxAgeDays: 0` keeps them
   with no age limit, as before. The default does not apply where `output.dir` holds the
   configuration or a source, template or token file ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
 

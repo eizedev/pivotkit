@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
-import { NOT_IN_GROUP, callerOf, checkConfig, createContext, groupRefusal, present, validateOptions } from "pivotkit-server";
+import { NOT_IN_GROUP, callerOf, checkConfig, createContext, createServerHandler, groupRefusal, present, validateOptions } from "pivotkit-server";
 import { loadRunner } from "../src/sources/run.js";
 import { tableKeyOf } from "../src/sources/keys.js";
 import { isClosedForDelivery } from "../src/registry.js";
@@ -304,4 +304,58 @@ test("limits: an address without a refused token in the last minute and a caller
     t += 61_000;
     await wait();
     assert.deepEqual(closed.size(), { addresses: 1, callers: 0 }, "no prune after close()");
+});
+
+test("limits: an address that reached failedAuthPerMinute stays blocked and kept for the whole minute; it goes once its last refusal is older than a minute", () => {
+    let t = 5_000_000;
+    // no timer tick in this test: prune() runs when the test says
+    const limits = createLimits({ rateLimit: { failedAuthPerMinute: 3 } }, () => t, { pruneEveryMs: 3_600_000 });
+    try {
+        for (let i = 0; i < 3; i++) {
+            limits.failed("198.51.100.4");
+        }
+        assert.ok(limits.blocked("198.51.100.4") > 0);
+        t += 40_000;
+        limits.prune();
+        assert.ok(limits.blocked("198.51.100.4") > 0, "still blocked after 40 s");
+        assert.equal(limits.size().addresses, 1, "still kept after 40 s");
+        t += 21_000;
+        limits.prune();
+        assert.equal(limits.size().addresses, 0, "gone after a minute");
+        assert.equal(limits.blocked("198.51.100.4"), 0);
+    } finally {
+        limits.close();
+    }
+});
+
+test("serve: a start that fails after the download links (or REST) were made stops their timers; an embedded host's retry starts", async () => {
+    const dir = workspace();
+    const options = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", downloads: { bind: "once" } }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT_TOKEN" }] }, http: { enable: ["rest"] }, baseDir: dir };
+    const runtime = { stderr: { write: () => undefined }, loopback: true };
+    // every interval made during the start, and every one cleared
+    const made = new Set();
+    const cleared = new Set();
+    const realSet = globalThis.setInterval;
+    const realClear = globalThis.clearInterval;
+    globalThis.setInterval = /** @type {any} */ ((...args) => {
+        const handle = realSet(...args);
+        made.add(handle);
+        return handle;
+    });
+    globalThis.clearInterval = /** @type {any} */ ((handle) => {
+        cleared.add(handle);
+        return realClear(handle);
+    });
+    try {
+        // the token's variable is not set: the REST handler refuses, after the download links were made
+        await assert.rejects(createServerHandler(/** @type {any} */ (options), { ...runtime, env: {} }), /BOT_TOKEN/);
+    } finally {
+        globalThis.setInterval = realSet;
+        globalThis.clearInterval = realClear;
+    }
+    assert.ok(made.size > 0, "the start made a timer");
+    assert.deepEqual([...made].filter((h) => !cleared.has(h)).length, 0, "no timer of the failed start runs on");
+    // the host retries with the variable set
+    const handler = await createServerHandler(/** @type {any} */ (options), { ...runtime, env: { BOT_TOKEN: "t".repeat(40) } });
+    await handler.close();
 });
