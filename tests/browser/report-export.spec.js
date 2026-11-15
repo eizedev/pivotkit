@@ -2,13 +2,11 @@
 // report opened on its own (its policy loads and runs nothing), and the print frame the browser's
 // dialog prints, with print() stubbed (a headless browser has no dialog).
 import { readFile } from "node:fs/promises";
-import { TRACE_IN_PRINT_FRAME, capturePrint, expect, test, toolbar } from "./fixtures.js";
+import { capturePrint, expect, test, toolbar } from "./fixtures.js";
 
 const printed = (page) => page.evaluate(() => /** @type {any} */ (window).__printed ?? null);
 
 test.describe("Export menu: HTML report, SVG and print", () => {
-    // the print frame runs no script; Playwright's trace recorder tries to (fixtures.js)
-    test.use({ ignoreConsole: [TRACE_IN_PRINT_FRAME] });
 
     test("HTML report (.html): the table as shown, the details, a policy first in <head>; it opens on its own", async ({ page, context }) => {
         await page.goto("?data=tickets");
@@ -121,5 +119,66 @@ test.describe("Export menu: HTML report, SVG and print", () => {
         // afterprint of the page: the frame goes in every browser
         await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
         await expect(frames).toHaveCount(0);
+    });
+
+    test("Print: print() runs in the click, the second time and after too, table and chart (#210)", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await capturePrint(page);
+        const frames = page.locator("iframe.pk-print-frame");
+        const printOnce = async () => {
+            await page.evaluate(() => {
+                /** @type {any} */ (window).__printed = null;
+            });
+            await toolbar(page, "export");
+            await page.getByTestId("export-print").click();
+            await expect.poll(() => printed(page)).not.toBeNull();
+            return printed(page);
+        };
+        for (const [n, display] of ["table", "table", "chart", "chart"].entries()) {
+            if (display === "chart" && !(await page.locator('[data-testid="pivot-chart"] canvas').count())) {
+                await page.getByTestId("show-chart").click();
+                await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+            }
+            const p = await printOnce();
+            // inside the click: Safari prints without asking "This webpage is trying to print". The
+            // first print may wait for the report's modules (they load when Print is pointed at, and
+            // Playwright's click comes at once); from the second on they are there
+            if (n > 0) {
+                expect(p.inClick, `print ${n + 1} (${display})`).toBe(true);
+                if (p.activation !== null) {
+                    expect(p.activation).toBe(true);
+                }
+            }
+            expect(p.body).toContain('<table class="pk-table">');
+            if (display === "chart") {
+                expect(p.body).toMatch(/<figure class="pk-report-chart"><svg /);
+            } else {
+                expect(p.body).not.toContain("pk-report-chart");
+            }
+            await expect(frames).toHaveCount(1);
+        }
+        // the menu opened again makes a frame ready; closed without a print, it takes that frame along
+        // and leaves the printed one to its dialog
+        await toolbar(page, "export");
+        await expect(frames).toHaveCount(2);
+        await page.keyboard.press("Escape");
+        await expect(frames).toHaveCount(1);
+        expect(await frames.evaluate((f) => f.contentDocument.body.innerHTML)).toContain('<table class="pk-table">');
+        // the dialog closed: the frame goes
+        await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+        await expect(frames).toHaveCount(0);
+    });
+
+    test("Print: a page that gets no animation frame (a hidden one) prints all the same (#210)", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await capturePrint(page);
+        await toolbar(page, "export");
+        // a hidden page gets no animation frame: printing waits for none
+        await page.evaluate(() => {
+            window.requestAnimationFrame = () => 0;
+        });
+        await page.getByTestId("export-print").click();
+        await expect.poll(() => printed(page)).not.toBeNull();
+        expect((await printed(page)).body).toContain('<table class="pk-table">');
     });
 });
