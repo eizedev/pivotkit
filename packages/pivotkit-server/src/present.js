@@ -106,6 +106,30 @@ export function presentedOutput(name) {
     return { ...base, properties: { ...base.properties, ...extra }, additionalProperties: true };
 }
 
+/** The formats whose result can come back inline: text a caller reads as it is. */
+const INLINE_FORMATS = new Set(["csv", "json"]);
+
+/**
+ * render_view's `save`: false returns the result inline only, never a file. present() takes it out
+ * before the operation runs (renderInput), since saving is the server's work, not the operation's.
+ */
+const SAVE_INPUT = Object.freeze({ type: "boolean", default: true, description: "false: no file and no link; csv or json comes back inline only, or the call fails saying why." });
+
+/**
+ * render_view's input for the operation: without `save`, with the format decided.
+ * @param {Record<string, any>} input
+ * @param {string} format
+ */
+const renderInput = ({ save: _save, ...input }, format) => ({ ...input, format });
+
+/**
+ * The log fields of a call that asked for no file (render_view with save: false): `saved: false`,
+ * on its call or request line whatever its outcome, since such a call never saves one.
+ * @param {string} name  the operation
+ * @param {Record<string, any> | undefined} input
+ */
+export const saveLogFields = (name, input) => (name === "render_view" && input?.save === false ? { saved: false } : {});
+
 /** A source that is an id, never "file:" and a path (REST). */
 const SOURCE_ID_ONLY = "^(?!file:)";
 
@@ -117,7 +141,8 @@ const SOURCE_ID_ONLY = "^(?!file:)";
  */
 export function presentedInput(name, how = {}) {
     const input = /** @type {any} */ (OPERATIONS[name].input);
-    const properties = { ...input.properties, ...extraInputs(name, how.offers) };
+    // the server's own inputs before the extras a surface offers
+    const properties = { ...input.properties, ...(name === "render_view" ? { save: SAVE_INPUT } : {}), ...extraInputs(name, how.offers) };
     if (name === "describe_source") {
         delete properties.items;
     }
@@ -366,12 +391,19 @@ const STEPS = {
 
     async render_view(args, context, caller, how) {
         const format = args.format ?? "xlsx";
+        const inlineOnly = args.save === false;
+        if (inlineOnly && !INLINE_FORMATS.has(format)) {
+            throw new OperationError("INVALID_INPUT", `save: false returns the result inline, which only csv and json can be: pass format "csv" or "json", or leave out save to get the ${format} file`);
+        }
         const resolved = await resolveFor(context, args, caller, how);
-        const inlinable = (format === "csv" || format === "json") && resolved.policy.inline !== false && how.inline !== false;
+        const inlinable = INLINE_FORMATS.has(format) && resolved.policy.inline !== false && how.inline !== false;
+        if (inlineOnly && !inlinable) {
+            throw new OperationError("NOT_ALLOWED", how.surface === "rest" ? "inline results are off on this service (rest.inline or the policy's inline): leave out save to save the file, or use POST /views/render/file where your profile allows" : "inline results are off for this source (the policy's inline): leave out save to get the result as a file");
+        }
         if (!outputDir(context) && !inlinable) {
             throw new OperationError("NO_OUTPUT", how.surface === "rest" ? `this server has no output directory, so a ${format} file cannot be saved (the operator sets output.dir); POST /views/render/file returns the file where your profile allows` : `this server has no output directory, so a ${format} file cannot be made (the operator sets output.dir); csv or json may come back inline where the policy allows`);
         }
-        const ran = await compute(context, "render_view", { ...args, format }, resolved, caller, how.signal);
+        const ran = await compute(context, "render_view", renderInput(args, format), resolved, caller, how.signal);
         const policy = ran.policy;
         const { result, file } = ran.outcome;
         const asOf = asOfMembers(ran);
@@ -393,10 +425,20 @@ const STEPS = {
         }
         // no summary: no size known, so not inline
         const cells = result.summary ? result.summary.rows * result.summary.columns : Infinity;
-        if (inlinable && !closed && policy.inline && cells <= policy.inline.cells && file.bytes.length <= policy.inline.bytes) {
+        const caps = policy.inline || null;
+        const fits = caps !== null && cells <= caps.cells && file.bytes.length <= caps.bytes;
+        if (inlineOnly && closed) {
+            // nothing of the result is said: not its size, not whether it would fit
+            throw new OperationError("NOT_ALLOWED", "the view uses a field that is not fully shown, so its result cannot come back inline: leave out save to get it as a file");
+        }
+        if (inlineOnly && !fits) {
+            throw new OperationError("LIMIT_EXCEEDED", `the result is larger than may come back inline (${caps?.cells} cells, ${caps?.bytes} bytes): filter more, or leave out save to get it as a file`);
+        }
+        if (inlinable && !closed && fits) {
             out.inline = { format, text: new TextDecoder().decode(file.bytes).replace(/^\uFEFF/, "") };
         }
-        const output = await deliver(context, file, { caller, sourceClosed: resolved.sourceClosed, surface: how.surface ?? "mcp", policy });
+        // save: false: never written, so no file in the output directory, no upload and no link
+        const output = inlineOnly ? null : await deliver(context, file, { caller, sourceClosed: resolved.sourceClosed, surface: how.surface ?? "mcp", policy });
         out.output = output ? { ...output, format } : null;
         if (!output && !out.inline) {
             throw new OperationError("NO_OUTPUT", closed ? "the view uses a field whose values may not be shown, and this server has no output directory to put the file in (output.dir)" : `the result is larger than may come back inline (${policy.inline && how.inline !== false ? `${policy.inline.cells} cells, ${policy.inline.bytes} bytes` : "inline results are off"}) and this server has no output directory (output.dir)`);
@@ -471,7 +513,7 @@ export async function renderFile(context, input, caller, how = {}) {
         throw new OperationError("NOT_ALLOWED", "your token may not download files; ask the operator for a token whose profile has results: true");
     }
     const format = input.format ?? "xlsx";
-    const ran = await compute(context, "render_view", { ...input, format }, resolved, caller, how.signal);
+    const ran = await compute(context, "render_view", renderInput(input, format), resolved, caller, how.signal);
     const { result, file } = ran.outcome;
     const policy = ran.policy;
     const findings = withEmptyFilter(exposeFindings(result.findings, policy, result.uses), result, touchesClosed(policy, result.uses));

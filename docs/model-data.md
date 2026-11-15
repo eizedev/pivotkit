@@ -146,7 +146,8 @@ In short:
 A view that uses a field that is not `show` anywhere in it (rows, columns, values, filters, sorting)
 has its whole result withheld, so a filter on a `summary` field cannot be used to read counts. xlsx,
 html and svg never come back inline: the model reads the file's name and, where every field of the
-view is `show`, the counts in `summary`. Over stdio the
+view is `show`, the counts in `summary`. A render with `save: false` writes no file: it comes back
+inline by these rules or fails ([inline only](reference/mcp.md#inline-only)). Over stdio the
 result names the file's full path on your machine (your user name is in it); over HTTP it names the
 file and a [link](#links) or the note "The report is saved on the server; ask the operator how to
 open it."

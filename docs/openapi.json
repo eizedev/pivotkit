@@ -602,7 +602,7 @@
       "post": {
         "operationId": "renderView",
         "summary": "Render a view into the output directory",
-        "description": "Runs a view (or a layout: a view by field names) over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline).",
+        "description": "Runs a view (or a layout: a view by field names) over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline); with save: false they come back inline only and nothing is saved, or the call fails saying why.",
         "tags": [
           "views"
         ],
@@ -3433,6 +3433,11 @@
             "type": "string",
             "maxLength": 80,
             "description": "The file's name without extension (default from the title)."
+          },
+          "save": {
+            "type": "boolean",
+            "default": true,
+            "description": "false: no file and no link; csv or json comes back inline only, or the call fails saying why."
           }
         },
         "required": [

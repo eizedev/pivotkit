@@ -70,7 +70,7 @@ const WORDS = {
     },
     render_view: {
         summary: "Render a view into the output directory",
-        description: "Runs a view (or a layout: a view by field names) over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline).",
+        description: "Runs a view (or a layout: a view by field names) over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline); with save: false they come back inline only and nothing is saved, or the call fails saying why.",
         example: { input: { source: "sales", view: VIEW, format: "xlsx" }, output: { ok: true, findings: [], uses: ["Region", "Sales"], format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", withheld: ["rows", "columns", "bytes", "content"], output: { name: "Sum of Sales by Region.pivotkit-out.xlsx", format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }, message: "The report is saved as Sum of Sales by Region.pivotkit-out.xlsx in the output directory." } }
     },
     create_link: {

@@ -11,7 +11,7 @@
  */
 
 export { createContext, callerOf, VERSION, TOKEN_ENV } from "./context.js";
-export { present, presentedInput, presentedOutput, renderFile, findingsText } from "./present.js";
+export { present, presentedInput, presentedOutput, renderFile, findingsText, saveLogFields } from "./present.js";
 export { ConfigError, loadConfig, validateOptions, pathOf, restResourceOf, OPTION_KEYS, SERVER_LIMITS, COMPUTE_DEFAULTS, DEFAULT_ALGORITHMS, ENDPOINTS, REST_BASE, SOURCE_ID } from "./config.js";
 export { POLICY_LEVELS, POLICY_DEFAULTS } from "./policy.js";
 export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, groupRefusal, groupsOf, GROUPS_REFUSED, NOT_IN_GROUP, resourceMetadataUrlOf, TOKEN_MIN } from "./auth.js";
