@@ -279,7 +279,7 @@ checked and written again by pivotkit before `load` sees them. With `params` dec
 `load(params, { caller })` and `version(params, { caller })`, where `caller` is a frozen copy of who
 calls (`client`, `profile`, `scopes`, `groups`, and with OAuth `subject` and `issuer`, else null;
 never a token), and keeps the data
-per caller and values; a caller without an identity (an OAuth token without a usable subject) gets
+per caller (with its client, scopes, groups and claims) and values; a caller without an identity (an OAuth token without a usable subject) gets
 no kept data. A source without `params` is called as `load()` and `version()`.
 
 ```js
@@ -295,7 +295,7 @@ A parameter has a `type` (`string`, `integer`, `number`, `boolean`) and may have
 `default`, `description`, `example`, `enum`, `pattern`, `minLength`, `maxLength` (strings: 64 unless
 set, at most 256), `minimum`, `maximum` and `format: "date"`; at most 16 per source, names letters,
 digits and `_`. A `pattern` is matched against the whole value (as if written `^(?:...)$`) and may
-not repeat a group that has a quantifier of its own (`(a+)+`); a string without `pattern` or `enum`
+not repeat a group without a bound (`(a|b)*`, `(ab)+`; repeat a character or a class, `[ab]*`, or bound the group, `(ab){1,5}`); a string without `pattern` or `enum`
 takes letters, digits and `. _ ~ -` only, and no string value may hold `..` or a control character. `list_sources` lists a source's parameters, and the tools that take a source take `params` only
 when a configured source declares any. A missing required value, an unknown name or a value of the
 wrong form is `INVALID_INPUT` naming the parameter. `createHttpHandler(context, { env })`

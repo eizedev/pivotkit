@@ -437,3 +437,38 @@ test("delivery: a source the automatic values rule may apply to counts as closed
         await context.close();
     }
 });
+
+test("params: a pattern may not repeat a group without a bound (slow on some values), nor escape its anchors", () => {
+    for (const pattern of ["(a|a)*b", "(?:a|aa)+$", "(ab){2,}", "(x)+", "([a-z]|-)*"]) {
+        assert.match(declaredProblems({ x: { type: "string", pattern } }).join(), /repeats a group/, pattern);
+    }
+    // a quantifier on a single atom or class, and a bounded one on a group, stay allowed
+    for (const pattern of ["[a-z]+", "a*b", "\\d{2,}", "(ab){1,3}", "(-[a-z]{2})?", "[(]+", "\\(+"]) {
+        assert.deepEqual(declaredProblems({ x: { type: "string", pattern } }), [], pattern);
+    }
+    assert.match(declaredProblems({ x: { type: "string", pattern: "a)|(b" } }).join(), /not a valid regular expression/);
+    assert.throws(() => validateOptions({ sources: { s: { load: async () => [], params: { x: { type: "string", pattern: "(?:a|aa)+$" } } } } }), /repeats a group/);
+});
+
+test("a code source with params keeps its data per client and groups too, not only per person", async () => {
+    let loads = 0;
+    const context = await contextOf({ sources: { t: { load: async (params) => (loads++, [{ Team: params.team }]), version: () => 1, params: { team: { type: "string" } } } } });
+    const person = (client, groups) => {
+        const caller = callerOf("oauth", { token: "jwt", clientId: client, scopes: ["pivotkit"], expiresAt: 0, extra: { subject: "ana", issuer: "https://issuer.example" } });
+        return groups ? Object.assign(caller, { groups }) : caller;
+    };
+    try {
+        const describe = (caller) => present(context, "describe_source", { source: "t", params: { team: "a" } }, caller);
+        await describe(person("broad"));
+        await describe(person("broad"));
+        assert.equal(loads, 1);
+        await describe(person("narrow"));
+        assert.equal(loads, 2, "another client of the same person");
+        await describe(person("broad", ["finance"]));
+        assert.equal(loads, 3, "another set of groups");
+        await describe(person("broad", ["finance"]));
+        assert.equal(loads, 3);
+    } finally {
+        await context.close();
+    }
+});

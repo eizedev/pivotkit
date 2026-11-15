@@ -42,8 +42,29 @@ export const PATTERN_MAX = 256;
  */
 export const compilePattern = (pattern) => new RegExp(`^(?:${pattern})$`, "u");
 
-/** A group with a quantifier inside that is itself repeated ("(a+)+", "(a|aa)*"): it can take exponential time. */
-const NESTED_QUANTIFIER = /\((?:[^()\\]|\\.)*[+*}](?:[^()\\]|\\.)*\)\s*[+*{]/u;
+/**
+ * Whether a pattern repeats a group without a bound ("(a|a)*", "(?:a|aa)+", "(ab){2,}"). Such a group
+ * can match one text in many ways, and a backtracking engine tries them all: some values take
+ * seconds or longer, in the server's main thread. A quantifier without a bound is allowed on a single
+ * character, an escape or a class only; a group may take a bounded one ("(ab){1,3}", "(-x)?").
+ * @param {string} pattern
+ */
+export function repeatsGroup(pattern) {
+    let inClass = false;
+    for (let i = 0; i < pattern.length; i++) {
+        const c = pattern[i];
+        if (c === "\\") {
+            i++;
+        } else if (inClass) {
+            inClass = c !== "]";
+        } else if (c === "[") {
+            inClass = true;
+        } else if (c === ")" && /^(?:[*+]|\{\d+,\})/u.test(pattern.slice(i + 1))) {
+            return true;
+        }
+    }
+    return false;
+}
 
 /** The compiled patterns of a declaration, made once. */
 const compiled = new WeakMap();
@@ -109,10 +130,12 @@ export function declaredProblems(declared) {
                 fail("pattern is a regular expression, for a string parameter");
             } else if (p.pattern.length > PATTERN_MAX) {
                 fail(`pattern has at most ${PATTERN_MAX} characters`);
-            } else if (NESTED_QUANTIFIER.test(p.pattern)) {
-                fail("pattern repeats a group that has a quantifier of its own (such as (a+)+), which can take very long on some values; write it without the nesting");
+            } else if (repeatsGroup(p.pattern)) {
+                fail("pattern repeats a group without a bound (such as (a|b)* or (ab)+), which can take very long on some values; repeat single characters or classes ([ab]*), or bound the group ({1,5})");
             } else {
                 try {
+                    // the pattern alone, so it cannot close the anchoring group around it ("a)|(b")
+                    new RegExp(p.pattern, "u");
                     compilePattern(p.pattern);
                 } catch {
                     fail("pattern is not a valid regular expression");

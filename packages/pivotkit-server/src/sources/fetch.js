@@ -11,8 +11,8 @@
  *   differently the second time cannot pass. An IP address in the URL is checked before the request
  *   (node:net looks nothing up for one) and the socket's remote address once more after it connects.
  *   Always refused: 0.0.0.0/8, ::, link-local 169.254.0.0/16 and fe80::/10, multicast, 240.0.0.0/4
- *   with the broadcast address, the cloud metadata addresses fd00:ec2::254, 100.100.100.200 and
- *   168.63.129.16, also where an IPv6 address carries an IPv4 one (mapped ::ffff:0:0/96, SIIT
+ *   with the broadcast address, the cloud metadata addresses fd00:ec2::254, 100.100.100.200,
+ *   168.63.129.16 and 192.0.0.192, also where an IPv6 address carries an IPv4 one (mapped ::ffff:0:0/96, SIIT
  *   ::ffff:0:0:0/96, compatible ::/96, NAT64 64:ff9b::/96 and 64:ff9b:1::/48, 6to4 2002::/16,
  *   Teredo 2001::/32): the IPv4 address is taken out and its rule applies. Loopback, private and
  *   shared ranges are refused only with allowPrivate: false. An IP address written in the URL is
@@ -122,7 +122,7 @@ export function ipBytes(text) {
  */
 function v4Rule(bytes) {
     const [a, b, c, d] = bytes;
-    if (a === 0 || (a === 169 && b === 254) || a >= 224 || (a === 100 && b === 100 && c === 100 && d === 200) || (a === 168 && b === 63 && c === 129 && d === 16)) {
+    if (a === 0 || (a === 169 && b === 254) || a >= 224 || (a === 100 && b === 100 && c === 100 && d === 200) || (a === 168 && b === 63 && c === 129 && d === 16) || (a === 192 && b === 0 && c === 0 && d === 192)) {
         return "always";
     }
     if (a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || (a === 198 && (b === 18 || b === 19)) || (a === 192 && b === 0 && c === 0)) {
