@@ -11,21 +11,54 @@ at `/mcp` on port 3333, from one configuration file. The example manifest
 [docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/main/docker/kubernetes.example.yaml)
 holds every part shown below; the sections explain each one.
 
-Before you apply it, replace `<version>` with a release of pivotkit-server (or the image's digest;
-[which tag](upgrading.md#update-image)), `reports.example.com` with your host name, the CronJob's
-`SOURCE_URL` and the namespace of your ingress controller. Then apply it and create the token (the
-pod waits for its Secret):
+## Set it up { #setup }
+
+1. Download the manifest:
+
+    ```bash
+    curl -fsSLO https://raw.githubusercontent.com/eizedev/pivotkit/main/docker/kubernetes.example.yaml
+    ```
+
+2. Edit your copy: `<version>` (a release of pivotkit-server, or the image's digest;
+   [which tag](upgrading.md#update-image)), `reports.example.com` (your host name), the CronJob's
+   `SOURCE_URL` and the addresses of its host in the NetworkPolicy `pivotkit-fetch-data`, and the
+   namespace of your ingress controller in the NetworkPolicy `pivotkit`.
+3. Create the namespace and the token, then apply the manifest and fetch the data once:
+
+    ```bash
+    kubectl create namespace pivotkit
+    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" > reports.token
+    kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
+    kubectl apply -f kubernetes.example.yaml
+    kubectl -n pivotkit create job --from=cronjob/pivotkit-fetch-data pivotkit-fetch-data-first
+    kubectl -n pivotkit rollout status deployment/pivotkit
+    ```
+
+    `apply` warns once that the namespace has no `last-applied-configuration` annotation and adds
+    it. A token has at least 32 characters. Keep it out of the manifest and out of environment
+    variables (`kubectl describe` shows those).
+
+## Check it { #check }
+
+From your machine, through a port forward (it sends `Host: localhost:3333`, which the server
+answers):
 
 ```bash
-kubectl apply -f kubernetes.example.yaml
-node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" > reports.token
-kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
-kubectl -n pivotkit create job --from=cronjob/pivotkit-fetch-data pivotkit-fetch-data-first
-kubectl -n pivotkit rollout status deployment/pivotkit
+kubectl -n pivotkit port-forward svc/pivotkit 3333:3333 &
+curl -s http://localhost:3333/readyz
+curl -s -H "Authorization: Bearer $(cat reports.token)" http://localhost:3333/api/v1/sources
 ```
 
-A token has at least 32 characters. Keep it out of the manifest and out of environment variables
-(`kubectl describe` shows those).
+`/readyz` answers `{"ok":true,...}`, and `/api/v1/sources` lists `sales`; a call to the source
+answers 404 `FILE_NOT_AVAILABLE` until the job has written the file
+(`kubectl -n pivotkit logs job/pivotkit-fetch-data-first`). Then the same through the Ingress:
+
+```bash
+curl -s -H "Authorization: Bearer $(cat reports.token)" https://reports.example.com/api/v1/sources
+```
+
+Give the token to its users the way you hand out secrets, then delete the local file
+(`rm reports.token`).
 
 ## Configuration and token { #config }
 
@@ -37,10 +70,10 @@ The configuration is a ConfigMap mounted at `/config`, where the image reads
 --8<-- "kubernetes.example.yaml:config"
 ```
 
-- `http.publicUrl` is the address clients use; the server answers that host name, the localhost
-  names and `http.allowHosts`. The two names in `allowHosts` are the Service's, for clients inside the
-  cluster (`http://pivotkit.pivotkit.svc:3333`). Any other `Host`, such as the pod's IP address, gets
-  403.
+- `http.publicUrl` is the address clients use; the server answers that host name and the localhost
+  names (and the names in `http.allowHosts`). Any other `Host`, such as the pod's IP address, gets
+  403. Clients inside the cluster use the public address too, through the ingress controller; see
+  [clients inside the cluster](#in-cluster) for the other way.
 - `http.trustProxy` makes the server read the client's address from the last entry of
   `X-Forwarded-For`, which the ingress controller writes. Only the controller may reach the pod then
   (the [NetworkPolicy](#networkpolicy) below), or a client could name any address.
@@ -49,6 +82,7 @@ The configuration is a ConfigMap mounted at `/config`, where the image reads
   `kubectl create secret ... --dry-run=client -o yaml | kubectl apply -f -` with a new token, the
   kubelet updates the file after a short delay (its sync period and cache) and the new token works
   without a restart. That holds only without `subPath`: a file mounted with `subPath` never changes.
+- With [OAuth](#oauth) instead of tokens, remove the `tokens` volume and its mount.
 - A changed ConfigMap is not read again: restart the Deployment
   (`kubectl -n pivotkit rollout restart deployment/pivotkit`).
 
@@ -65,7 +99,8 @@ What each setting is for:
 | `replicas: 1`, `strategy: Recreate` | One server process per output directory (`/out`): the count of its files and their clean-up are kept within one process ([output directory](../reference/rest.md#auth)). A rolling update would run two pods on it for a while |
 | `enableServiceLinks: false` | With it on, Kubernetes sets `PIVOTKIT_PORT=tcp://<address>:3333` in every pod of the namespace for the Service named `pivotkit`, and the server stops with `http.port: must be a whole number`. `PIVOTKIT_PORT` is set to 3333 as well |
 | `automountServiceAccountToken: false` | pivotkit calls no Kubernetes API |
-| User and group 10001, `fsGroup: 10001` | The image's user; `fsGroup` makes the volumes and the Secret's files (mode 0440) readable and `/out` writable for it |
+| User and group 10001, `fsGroup: 10001` | The image's user; `fsGroup` makes the volumes and the Secret's files (mode 0440) readable and `/out` writable for it. `fsGroupChangePolicy: OnRootMismatch` changes the owner of a volume's files only when its top directory does not match yet, so a start does not walk a large volume every time |
+| The namespace's label `pod-security.kubernetes.io/enforce: restricted` | Kubernetes refuses any pod in the namespace that does not meet the restricted Pod Security Standard (non-root, no privilege escalation, no capabilities, a seccomp profile); every pod of the example meets it |
 | `readOnlyRootFilesystem`, no capabilities, `RuntimeDefault` seccomp | As `--read-only --cap-drop ALL` in [Run it](../reference/container.md#run); `/tmp` is an `emptyDir` |
 | Probes with `Host: localhost` | A probe sends the pod's IP address as `Host`, which the server refuses. `/healthz` answers while the process runs (liveness, startup); `/readyz` answers 200 only when the server can take work: the OAuth issuer loaded, the workers up, `/out` writable ([Health](../reference/container.md#health)) |
 | `terminationGracePeriodSeconds: 30` | After SIGTERM the server takes no new connection and lets running reports finish for up to 25 seconds (`http.graceMs`) |
@@ -140,6 +175,19 @@ where the cluster's default class is not one.
 --8<-- "kubernetes.example.yaml:cronjob"
 ```
 
+The job takes only HTTPS (`--proto '=https'`, and no redirects: a redirect would give an empty
+file), stops at 50 MB (`limits.fileBytes`, the largest file the server reads) and replaces the data
+only after an answer 200 with content; on any failure the old file stays and the temporary one is
+removed. When the data's host needs a credential, put the header line into the Secret
+`pivotkit-source`, which the job mounts as a file and sends with `-H @file` (never in `SOURCE_URL` or
+an environment variable, which `kubectl describe` shows):
+
+```bash
+printf 'Authorization: Bearer %s\n' "$(cat source.token)" > header
+kubectl -n pivotkit create secret generic pivotkit-source --from-file=header=./header
+rm header
+```
+
 The job runs as the user 10001 too, so the files it writes are the server's to read. Some NFS
 servers ignore `fsGroup`: there the volume's directory must be writable by the user 10001 already
 (set by the storage's administrator, or by a provisioner option). Fetch the first data right after
@@ -152,8 +200,14 @@ renames it does.
 A second container in the pod fetches the data into an `emptyDir` that the server's container mounts
 read-only. No ReadWriteMany storage is needed, and each pod has its own copy (fetched again after a
 restart). The example uses [git-sync](https://github.com/kubernetes/git-sync) (v4), which clones a
-Git repository and flips a symbolic link to each new commit: change the Deployment's `data` volume
-and add the container.
+Git repository and flips a symbolic link to each new commit. Starting from the example manifest:
+remove the CronJob, its NetworkPolicy `pivotkit-fetch-data` and the volume claim `pivotkit-data`;
+point the source at the link in the ConfigMap; replace the Deployment's `data` volume and add the
+container and its `/tmp`:
+
+```json
+"sales": { "file": "/data/git/current/sales.csv", "title": "Sales", "policy": { "fields": { "Region": "show", "Product": "show", "Customer": "hide" } } }
+```
 
 ```yaml
       containers:
@@ -167,6 +221,7 @@ and add the container.
             - --link=current
             - --period=5m
           securityContext:
+            readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
@@ -179,21 +234,33 @@ and add the container.
           volumeMounts:
             - name: data
               mountPath: /data
+            # the image's HOME
+            - name: git-tmp
+              mountPath: /tmp
       volumes:
         - name: data
           emptyDir:
             sizeLimit: 1Gi
+        - name: git-tmp
+          emptyDir:
+            sizeLimit: 64Mi
 ```
 
-The source's file is then `/data/git/current/sales.csv`. Mount the volume at the same path in both
-containers, so the link resolves the same way in each. The server follows the link on every call: a
-flip to a new commit is read by the next report. `files.allowDirs`, if you use it, is resolved once at
+Mount the volume at the same path in both containers, so the link resolves the same way in each.
+The server follows the link on every call: a flip to a new commit is read by the next report, and a
+call that reads the file in the moment of the flip may fail once. git-sync's image sets `HOME` to
+`/tmp`, hence the `emptyDir` there with the read-only root file system. `files.allowDirs`, if you use it, is resolved once at
 start and the server does not start while a directory named there is missing: name the volume's
 mount (`/data`), which exists from the start, not a directory git-sync makes later (`/data/git`) or the
 link (`/data/git/current`). A private repository needs credentials (git-sync's `--password-file` or
-`--ssh-key-file`, from a Secret), and the NetworkPolicy then needs egress to the Git server (as for
-[the issuer](#oauth-egress)). Check the flags against git-sync's documentation of the version you
-run. Any other sidecar works the same way when it renames or flips a link.
+`--ssh-key-file`, from a Secret). The policy `pivotkit` needs egress to the Git server (port 443, as
+for [the issuer](#oauth-egress)); it holds for both containers of the pod. This sidecar setup follows
+git-sync's documentation and passes the schema check, but has not been run in a cluster here: check
+the flags against the documentation of the version you run. Any other sidecar works the same way when
+it renames or flips a link.
+
+The images of the CronJob and the sidecar are third-party images pinned by tag; pin them by digest
+(`image@sha256:...`) where you need the exact image every time, as for pivotkit's own.
 
 ## Service and Ingress { #service }
 
@@ -215,17 +282,35 @@ controller must pass the request's `Host` on unchanged and write `X-Forwarded-Fo
 for an answer must be longer than `compute.queueMs` + `compute.timeMs` (40 seconds with the
 defaults): check your controller's default.
 
+To publish less, give the Ingress the paths `/mcp` and `/api/v1` (and with OAuth the prefix
+`/.well-known/oauth-protected-resource`) instead of `/`. When the ingress controller sits behind a
+LoadBalancer Service, the client's address reaches it only with `externalTrafficPolicy: Local` (or the
+PROXY protocol, by controller); otherwise `X-Forwarded-For` and so the server's limits per address
+see a node's address.
+
 ## NetworkPolicy { #networkpolicy }
 
 ```yaml
 --8<-- "kubernetes.example.yaml:networkpolicy"
 ```
 
-It takes effect only with a network plugin that enforces NetworkPolicy. The namespace selector uses
+`default-deny` stops all traffic of every pod in the namespace that the other policies do not allow:
+`pivotkit` lets the ingress controller in and name lookups out, `pivotkit-fetch-data` lets the job's
+pods look up names and reach the data's host on port 443 (put the addresses its host name resolves
+to there; a policy cannot name a host). Policies take effect only with a network plugin that enforces NetworkPolicy. The namespace selector uses
 the label `kubernetes.io/metadata.name`, which Kubernetes sets on every namespace: put the name of
 your ingress controller's namespace there (`ingress-controller` is a placeholder). The kubelet's
 probes come from the node, which most network plugins let through whatever the policy says; check
 yours if the pod never gets ready with the policy applied.
+
+### Clients inside the cluster { #in-cluster }
+
+With the policy as it is, programs in the cluster call the public address through the ingress
+controller. To let them call the Service directly (`http://pivotkit.pivotkit.svc:3333`), allow their
+namespace in the policy's `ingress`, add `pivotkit` and `pivotkit.pivotkit.svc` to `http.allowHosts`,
+and turn `http.trustProxy` off: a direct caller can write any `X-Forwarded-For`, and with
+`trustProxy` the server would believe it (its limits per address count by that header). With
+`trustProxy` off, every request through the controller counts with the controller's address.
 
 ### Egress { #egress }
 
@@ -240,13 +325,17 @@ With OAuth the MCP endpoint takes access tokens of your identity provider instea
 access tokens). With [Authentik](https://goauthentik.io/):
 
 1. Under **Customization > Property Mappings**, create a **Scope Mapping** with the **Scope name**
-   `pivotkit` and an expression that returns `{}` (the scope adds no claims). Authentik drops a scope a client asks for when the
-   provider has no scope mapping for it, and a token without `pivotkit` then gets 403.
+   `pivotkit` and an expression that returns `{}` (the scope adds no claims). Authentik drops a
+   scope a client asks for when the provider has no scope mapping for it, and a token without
+   `pivotkit` then gets 403.
 2. Under **Applications > Applications**, **New Application** with the slug `pivotkit` and the
    provider type **OAuth2/OIDC**, with these provider settings:
      - **Client Type**: **Public** (an MCP client keeps no secret; it signs in with PKCE).
      - **Redirect URIs/Origins (RegEx)**: the callback addresses of the MCP clients you allow, from
-       their documentation.
+       their documentation, each with the matching mode **Strict** (the address exactly). With
+       **Regex** the whole address must match the expression: anchor nothing more than needed,
+       escape every dot (`https://app\.example\.com/callback`) and never use `.*`, or a sign-in can
+       be sent to an address you did not mean.
      - **Signing Key**: a certificate with an RSA key (RS256), an EC P-256 key (ES256) or an Ed25519
        key (EdDSA), the algorithms the server accepts by default (`auth.algorithms`; Authentik signs
        with ES384 or ES512 for the other EC curves). Without a signing key, Authentik signs with HS256
@@ -256,7 +345,13 @@ access tokens). With [Authentik](https://goauthentik.io/):
      - **Access Token Validity**: minutes, e.g. `minutes=10`; the default is one hour, and a token
        stays valid until it expires.
      - **Scopes**: add the `pivotkit` mapping to the selected scopes.
-3. Note the provider's **Client ID**.
+3. On the application's **Policy / Group / User Bindings**, bind the group (or users, or a policy)
+   that may use pivotkit (**Bind existing group/user**). An application without any binding lets
+   every user of Authentik sign in to it.
+4. Note the provider's **Client ID**.
+
+The server accepts every access token this provider issues for its audience with the required
+scopes: who gets one is decided in Authentik, by the bindings of step 3 and the scopes.
 
 The issuer is `https://auth.example.com/application/o/pivotkit/` (the application's slug at the end,
 with the default issuer mode, each provider its own issuer). Authentik puts the client ID into the
@@ -270,8 +365,7 @@ configuration:
     "resource": "https://reports.example.com/mcp",
     "audience": ["<the provider's client id>"],
     "requiredScopes": ["pivotkit"] },
-  "http": { "publicUrl": "https://reports.example.com/", "allowHosts": ["pivotkit", "pivotkit.pivotkit.svc"],
-    "trustProxy": true, "enable": ["mcp"] }
+  "http": { "publicUrl": "https://reports.example.com/", "trustProxy": true, "enable": ["mcp"] }
 }
 ```
 
@@ -304,8 +398,10 @@ the controller's namespace instead of an `ipBlock`.
 What these settings are based on: Authentik's
 [OAuth2 provider documentation](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)
 (issuer, signing key, PKCE) and its source code at the release `version/2026.8.5`
-(`authentik/providers/oauth2/`: the access token's `aud`, `scope` and header, the default validity,
-scopes without a mapping; `web/src/admin/`: the labels of the forms), checked in November 2026. Labels
+(`authentik/providers/oauth2/`: the access token's `aud`, `scope` and header, the signing algorithm
+per key, the default validity, scopes without a mapping, redirect addresses matched in full;
+`authentik/policies/engine.py`: an application without bindings passes everyone; `web/src/admin/`:
+the labels of the forms), checked in November 2026. Labels
 and defaults can change between Authentik releases. Whether Authentik reads the `resource` parameter
 of [RFC 8707](https://www.rfc-editor.org/rfc/rfc8707) was not checked; the server does not need it,
 since it accepts the client ID as audience. Decode an access token of your own to see what your
@@ -321,7 +417,7 @@ pod stops before the new one starts.
 
 [docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/main/docker/kubernetes.example.yaml)
 holds the Namespace, the ConfigMap, the two volume claims, the Deployment, the Service, the Ingress,
-the NetworkPolicy and the CronJob, in this order. To check your changed copy against the Kubernetes
+the three NetworkPolicies and the CronJob, in this order. To check your changed copy against the Kubernetes
 API schemas without a cluster, use [kubeconform](https://github.com/yannh/kubeconform)
 (`kubeconform -strict -summary kubernetes.example.yaml`), or `kubectl apply --dry-run=server` with
 one.
