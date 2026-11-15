@@ -40,10 +40,10 @@ export async function stdioClient(args, { era = "legacy", cwd, env = {} } = {}) 
     return { client, stderr, close: () => client.close() };
 }
 
-/** The runner's HTTP server on a free port, its log kept. */
+/** The runner's HTTP server on a free port (also when options.http sets other keys), its log kept. */
 export async function httpServer(options, { env = {} } = {}) {
     const log = [];
-    const server = await listen({ http: { port: 0, ...options.http }, ...options, baseDir: options.baseDir }, { env, stderr: { write: (t) => log.push(...String(t).trim().split("\n").map((l) => JSON.parse(l))) } });
+    const server = await listen({ ...options, http: { port: 0, ...options.http } }, { env, stderr: { write: (t) => log.push(...String(t).trim().split("\n").map((l) => JSON.parse(l))) } });
     return { ...server, log };
 }
 
