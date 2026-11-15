@@ -26,7 +26,7 @@ import { readFile } from "node:fs/promises";
 import { OperationError } from "pivotkit-report/operations";
 import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
-import { auditText, noteAudit } from "./log.js";
+import { AUDIT_KEY_MIN, auditText, noteAudit } from "./log.js";
 import { readSecret } from "./secrets.js";
 import { guardedFetch } from "./sources/fetch.js";
 
@@ -285,11 +285,16 @@ export async function auditOf(options, { env, log }) {
         log.warn("audit.subject is hash without audit.key: a random key is used, so the same person gets another hash after every restart");
         return { subject, key: randomBytes(32) };
     }
+    let key;
     try {
-        return { subject, key: Buffer.from(await readSecret(options.audit.key, options, env), "utf8") };
+        key = await readSecret(options.audit.key, options, env);
     } catch (e) {
         throw new ConfigError(`audit.key: ${String(e?.message ?? e)}`);
     }
+    if (key.length < AUDIT_KEY_MIN) {
+        throw new ConfigError(`audit.key: at least ${AUDIT_KEY_MIN} characters (a short key lets anyone with the log try names)`);
+    }
+    return { subject, key: Buffer.from(key, "utf8") };
 }
 
 /**

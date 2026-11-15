@@ -69,7 +69,8 @@ quotes from an error), the status and the time (a source id only when it is a co
 default level never a view, a value or a token, and no client address unless
 `http.trustProxy` is set. It names the person only with `audit.subject`
 ([logging](reference/mcp.md#logging)): `hash`, a keyed hash of issuer and subject, is still personal
-data for as long as you keep `audit.key`, since you can match it to a person again; `plain` writes
+data for as long as you keep `audit.key`, since you can match it to a person again (a rotated key,
+which takes effect at a restart, changes every person's value); `plain` writes
 the subject as the token carries it (often an e-mail address or an employee id). Turn it on only for
 a purpose you can name (who used which source when), tell the people concerned, and keep that log
 no longer than the purpose needs. Reports and drafts stay in the output directory until you remove them, or,

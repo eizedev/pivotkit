@@ -269,7 +269,9 @@ const STEPS = {
     async list_sources(_args, context, caller, how) {
         const sources = await context.registry.list(caller, how);
         const hint = listHint(context, caller, sources, how);
-        return { text: `${sources.length} source${sources.length === 1 ? "" : "s"}. Call describe_source with one of the ids.${hint ? ` ${hint}` : ""}`, result: { sources, ...listExtras(context, caller, how), ...(hint ? { hint } : {}) } };
+        // an empty list says what to do instead of naming a tool there is nothing to call with
+        const next = sources.length ? "Call describe_source with one of the ids." : (hint ?? "Ask the operator which sources this sign-in may use.");
+        return { text: `${sources.length} source${sources.length === 1 ? "" : "s"}. ${next}`, result: { sources, ...listExtras(context, caller, how), ...(hint ? { hint } : {}) } };
     },
 
     async describe_source(args, context, caller, how) {

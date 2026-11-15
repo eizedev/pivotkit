@@ -17,13 +17,20 @@ export const CALLER_LOG_FIELDS = Object.freeze(["client"]);
 /** The most characters of a subject logged as text (audit.subject "plain"). */
 export const AUDIT_PLAIN_TEXT = 128;
 
+/** What a subject logged as text leaves out: control characters (C0, C1), the bidi controls that turn text around, and U+2028/U+2029, which split a line; never the joiners (ZWJ, ZWNJ) a name may need. */
+const AUDIT_STRIPPED = /[\p{Cc}\p{Zl}\p{Zp}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
+
+/** The least characters of audit.key. */
+export const AUDIT_KEY_MIN = 16;
+
 /** The hex characters of a subject logged as a keyed hash (audit.subject "hash"). */
 export const AUDIT_HASH_TEXT = 16;
 
 /**
  * How a log line names a signed-in person, or null for none: "hash", the first AUDIT_HASH_TEXT hex
  * characters of HMAC-SHA256(key, JSON of [issuer, subject]); "plain", the subject without control
- * characters, at most AUDIT_PLAIN_TEXT characters; "off" or no subject, null.
+ * characters (C0, C1, the bidi controls, the line and paragraph separators; the joiners that some
+ * names need stay), at most AUDIT_PLAIN_TEXT characters; "off" or no subject, null.
  * @param {{ subject: "off" | "hash" | "plain", key?: Uint8Array | null }} audit
  * @param {string | null | undefined} issuer
  * @param {string | null | undefined} subject
@@ -36,8 +43,7 @@ export function auditText(audit, issuer, subject) {
     if (audit.subject === "hash") {
         return audit.key ? createHmac("sha256", audit.key).update(JSON.stringify([issuer ?? null, subject])).digest("hex").slice(0, AUDIT_HASH_TEXT) : null;
     }
-    // C0 and C1 controls, and the format characters that turn text around (bidi), never reach a line
-    const text = subject.replace(/[\p{Cc}\p{Cf}]/gu, "").slice(0, AUDIT_PLAIN_TEXT);
+    const text = subject.replace(AUDIT_STRIPPED, "").slice(0, AUDIT_PLAIN_TEXT);
     return text || null;
 }
 

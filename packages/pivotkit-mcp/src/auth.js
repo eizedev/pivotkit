@@ -16,6 +16,17 @@
 import { OAuthError, getOAuthProtectedResourceMetadataUrl, oauthMetadataResponse, requireBearerAuth } from "@modelcontextprotocol/server";
 import { AuthRefusal, groupRefusal, offeredScopes } from "pivotkit-server";
 
+/** The client of each answer that refused a verified token for its person's groups, for the log line. */
+const refusedClients = new WeakMap();
+
+/**
+ * The client (app) whose verified token an answer refused for its person's groups, or undefined:
+ * the refused log line names it, so the operator finds the app to fix; never the person.
+ * @param {Response} response
+ * @returns {string | undefined}
+ */
+export const refusedClientOf = (response) => refusedClients.get(response);
+
 /** A JSON answer with a status and headers. */
 const json = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
 
@@ -88,7 +99,12 @@ export async function createAuth(context, runtime) {
             // a person whose groups the token does not carry (auth.groupProfiles): 403, no scope
             // challenge (more scopes would not help), not counted as a refused token
             const refused = authInfo instanceof Response ? null : groupRefusal(auth, authInfo);
-            return refused ? json(403, { error: "access_denied", error_description: refused }) : authInfo;
+            if (!refused) {
+                return authInfo;
+            }
+            const answer = json(403, { error: "access_denied", error_description: refused });
+            refusedClients.set(answer, String(/** @type {any} */ (authInfo).clientId));
+            return answer;
         },
         /** The discovery documents (RFC 9728, and the issuer's metadata for older clients), or undefined. */
         metadata(request) {

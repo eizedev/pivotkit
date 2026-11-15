@@ -6,17 +6,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
-### Upgrading from 0.1.1
-
-- With OAuth, the Protected Resource Metadata lists the sources' scopes besides the required ones;
-  the 401 challenge asks for the required scopes only. Define the scopes at your provider, or set
-  `auth.offerSourceScopes: false` ([#331](https://github.com/eizedev/pivotkit/issues/331)).
-
 ### Added
 
 - pivotkit-server's operator controls ([#331](https://github.com/eizedev/pivotkit/issues/331)):
   groups to profiles (`auth.groupProfiles`), `auth.defaultProfile`, the person on `call` lines
-  (`audit.subject`), the hint of an empty `list_sources`. A token whose groups are unknown, with
+  (`audit.subject`), the sources' scopes in the Protected Resource Metadata with
+  `auth.offerSourceScopes: true` (off by default), the hint of an empty `list_sources`. A token whose groups are unknown, with
   `auth.groupProfiles` and no default profile, gets 403 `access_denied` without a scope challenge.
   Needs pivotkit-server's `groupRefusal`.
 

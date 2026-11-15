@@ -7,7 +7,7 @@
  */
 
 import { PivotkitError, closest, computePivot, describeView, encode, fromViewFile, normalize, outsideLimits, reportLabels, toGrid } from "pivotkit-core";
-import { toCsvBytes, toJson, toXlsx } from "pivotkit-core/export";
+import { isDataAsOf, toCsvBytes, toJson, toXlsx } from "pivotkit-core/export";
 import { DEFAULT_TEMPLATE } from "./default-template.js";
 import { htmlTable } from "./html-table.js";
 import { reportCss } from "./report-css.js";
@@ -73,12 +73,6 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
 const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false] });
 
 /** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
-/** The one form of dataAsOf: ISO 8601 in UTC to the second. */
-const DATA_AS_OF = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
-
-/** Whether a dataAsOf names a time that exists (no 30 February, no hour 25). */
-const isDay = (text) => !Number.isNaN(Date.parse(text)) && new Date(text).toISOString().replace(".000Z", "Z") === text;
-
 const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf"]);
 
 /**
@@ -174,7 +168,7 @@ export async function render(view, data, options = {}) {
     if ((format === "svg" || (format === "html" && options.chart === true)) && typeof options.echarts?.init !== "function") {
         throw badOption("echarts", `${format === "svg" ? "an SVG" : "a report with chart: true"} needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts`);
     }
-    if (options.dataAsOf !== undefined && !(typeof options.dataAsOf === "string" && DATA_AS_OF.test(options.dataAsOf) && isDay(options.dataAsOf))) {
+    if (options.dataAsOf !== undefined && !isDataAsOf(options.dataAsOf)) {
         throw badOption("dataAsOf", 'dataAsOf is a time in UTC to the second: "2026-11-15T08:00:00Z"');
     }
     if (options.now !== undefined) {

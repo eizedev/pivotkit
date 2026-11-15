@@ -45,7 +45,7 @@ test("xlsx: the workbook carries dataAsOf as the document property DataAsOf", as
 });
 
 test("dataAsOf: only a time that exists, in UTC to the second; csv, json and svg leave it to the result", async () => {
-    for (const bad of ["2026-02-30T08:00:00Z", "2026-11-15T25:00:00Z", "2026-11-15T08:00:00.000Z", "2026-11-15 08:00", "<b>soon</b>", 1763193600000]) {
+    for (const bad of ["2026-02-30T25:00:00Z", "2026-02-30T08:00:00Z", "2026-11-15T25:00:00Z", "2026-11-15T08:00:00.000Z", "2026-11-15 08:00", "<b>soon</b>", 1763193600000]) {
         await assert.rejects(render(VIEW, SALES, { format: "html", ...FIXED, dataAsOf: /** @type {any} */ (bad) }), { code: "INVALID_OPTION" }, String(bad));
     }
     for (const format of ["csv", "json"]) {

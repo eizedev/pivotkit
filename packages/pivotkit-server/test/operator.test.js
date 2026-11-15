@@ -172,7 +172,8 @@ test("groups over REST: finance, staff and the default profile; a cut list is 40
         const bad = await call(`${strict.api}/sources`, { token: "not-a-valid-token-but-long-enough-for-the-syntax" });
         assert.equal(bad.status, 401, JSON.stringify(bad.data));
         assert.equal((await call(`${strict.api}/sources`, { token: await jwt({ groups: ["finance"] }) })).status, 200);
-        assert.ok(strict.log.some((l) => l.event === "refused" && l.status === 403));
+        // the refused line names the client (the app to fix), never the person
+        assert.ok(strict.log.some((l) => l.event === "refused" && l.status === 403 && l.client === "report-bot"), JSON.stringify(strict.log));
         assert.ok(!JSON.stringify(strict.log).includes("ana@example.com"));
     } finally {
         await strict.close();
@@ -200,8 +201,10 @@ test("groups: with --log debug one line per sign-in gives how many groups and th
 
 test("scopes: the metadata offers the required scopes and the sources', never a scopeProfiles scope; the challenge asks for the required ones only", async () => {
     const sources = { sales: { file: "s.csv", scopes: ["pivotkit:sales"] }, vms: { file: "v.csv", scopes: ["pivotkit:vms", "pivotkit:sales"] }, hr: { file: "h.csv", scopes: ["pivotkit:admin"] } };
-    const auth = { mode: "oauth", requiredScopes: ["pivotkit"], scopeProfiles: { "pivotkit:admin": "finance" } };
+    const auth = { mode: "oauth", requiredScopes: ["pivotkit"], scopeProfiles: { "pivotkit:admin": "finance" }, offerSourceScopes: true };
     const options = { sources, files: { allowDirs: ["d"], scopes: ["pivotkit:files"] }, auth };
+    // off by default: the required scopes only
+    assert.deepEqual(offeredScopes({ ...options, auth: { ...auth, offerSourceScopes: undefined } }, "mcp"), ["pivotkit"]);
     assert.deepEqual(offeredScopes(options, "mcp"), ["pivotkit", "pivotkit:sales", "pivotkit:vms", "pivotkit:files"]);
     // REST reads no files by path: files.scopes is not offered there
     assert.deepEqual(offeredScopes({ ...options, rest: { requiredScopes: ["pivotkit:rest"] } }, "rest"), ["pivotkit:rest", "pivotkit:sales", "pivotkit:vms"]);
@@ -209,9 +212,17 @@ test("scopes: the metadata offers the required scopes and the sources', never a 
     // the operator's own list is taken as it is
     assert.deepEqual(offeredScopes({ ...options, auth: { ...auth, scopesSupported: ["pivotkit", "x"] } }, "mcp"), ["pivotkit", "x"]);
     // no required scope, but sources with scopes: offered (an empty required list names nothing)
-    assert.deepEqual(offeredScopes({ sources, auth: { mode: "oauth" } }, "rest"), ["pivotkit:sales", "pivotkit:vms", "pivotkit:admin"]);
+    assert.deepEqual(offeredScopes({ sources, auth: { mode: "oauth", offerSourceScopes: true } }, "rest"), ["pivotkit:sales", "pivotkit:vms", "pivotkit:admin"]);
+    assert.equal(offeredScopes({ sources, auth: { mode: "oauth" } }, "rest"), null);
 
-    const server = await oauthServer();
+    const plain = await oauthServer();
+    try {
+        const prm = await call(`${plain.url}/.well-known/oauth-protected-resource/api/v1`);
+        assert.deepEqual(prm.data.scopes_supported, ["pivotkit"], "nothing but the required scopes unless switched on");
+    } finally {
+        await plain.close();
+    }
+    const server = await oauthServer({ offerSourceScopes: true });
     try {
         const prm = await call(`${server.url}/.well-known/oauth-protected-resource/api/v1`);
         assert.deepEqual(prm.data.scopes_supported, ["pivotkit", "pivotkit:hr"]);
@@ -226,14 +237,16 @@ test("scopes: the metadata offers the required scopes and the sources', never a 
 
 test("list_sources: an empty list for a sign-in without the sources' scopes says which scopes the server offers", async () => {
     const dir = workspace();
-    const server = await restServer({ sources: { sales: { file: "data/sales.csv", scopes: ["pivotkit:sales"] }, vms: { file: "data/sales.csv", scopes: ["pivotkit:vms"] }, admin: { file: "data/sales.csv", scopes: ["pivotkit:admin"] } }, policy: { profiles: PROFILES }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], scopeProfiles: { "pivotkit:admin": "finance" } }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir });
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", scopes: ["pivotkit:sales"] }, vms: { file: "data/sales.csv", scopes: ["pivotkit:vms"] }, admin: { file: "data/sales.csv", scopes: ["pivotkit:admin"] } }, policy: { profiles: PROFILES }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], scopeProfiles: { "pivotkit:admin": "finance" }, offerSourceScopes: true }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir });
     try {
         await ready(server);
         const empty = await call(`${server.api}/sources`, { token: await jwt() });
         assert.equal(empty.status, 200);
         assert.deepEqual(empty.data.sources, []);
         // a scopeProfiles scope is never named: it is not in the metadata either
-        assert.equal(empty.data.hint, "No source is available with your current sign-in. This server offers the scopes: pivotkit:sales pivotkit:vms.");
+        assert.equal(empty.data.hint, "No source is available with your current sign-in. This server offers the scopes: pivotkit:sales pivotkit:vms. Sign in with one of them, or ask the operator.");
+        const rest = await call(`${server.api}/sources`, { token: await jwt() });
+        assert.equal(rest.data.hint, empty.data.hint);
         const some = await call(`${server.api}/sources`, { token: await jwt({ scope: "pivotkit pivotkit:sales" }) });
         assert.deepEqual(
             some.data.sources.map((s) => s.id),
@@ -248,8 +261,10 @@ test("list_sources: an empty list for a sign-in without the sources' scopes says
     assert.equal(listHint(context, { scopes: new Set(["b"]), client: "bot" }, []), "No source is available with your current sign-in. Ask the operator for a token with the scopes of a source.");
     assert.equal(listHint(context, { scopes: null, client: "bot" }, []), null);
     assert.equal(listHint({ options: { sources: {}, auth: { mode: "oauth" } } }, { scopes: new Set(), client: "x" }, []), null, "no source at all: nothing withheld");
-    // offerSourceScopes false: the scopes are not public, so the hint names none
-    assert.equal(listHint({ options: { sources: { s: { scopes: ["a"] } }, auth: { mode: "oauth", offerSourceScopes: false } } }, { scopes: new Set(), client: "x" }, []), "No source is available with your current sign-in. Ask the operator which scopes to sign in with.");
+    // nothing offered (the default): the scopes are not public, so the hint names none
+    for (const auth of [{ mode: "oauth" }, { mode: "oauth", offerSourceScopes: false }]) {
+        assert.equal(listHint({ options: { sources: { s: { scopes: ["a"] } }, auth } }, { scopes: new Set(), client: "x" }, []), "No source is available with your current sign-in. Ask the operator which scopes to sign in with.");
+    }
 });
 
 test("audit: hash logs a keyed hash of issuer and subject on request and download lines; refused requests and other people's claims never", async () => {
@@ -289,9 +304,12 @@ test("audit: hash logs a keyed hash of issuer and subject on request and downloa
 test("audit: plain logs the subject without control characters, at most 128 characters; off and static tokens log no person", async () => {
     const plain = await oauthServer({}, { audit: { subject: "plain" } });
     try {
-        await levels(plain, await jwt({}, { sub: `ana‮\u0007\n${"x".repeat(200)}` }));
+        await levels(plain, await jwt({}, { sub: `ana\u202e\u2066\u0007\n\u2028\u2029\u0085${"x".repeat(200)}` }));
         const line = plain.log.find((l) => l.event === "request");
         assert.equal(line?.subject, `ana${"x".repeat(125)}`);
+        // joiners belong to some names (Persian, Indic scripts, emoji sequences): kept
+        await levels(plain, await jwt({}, { sub: "\u0645\u06cc\u200c\u0631\u0627 \u0d15\u0d4d\u200d" }));
+        assert.equal(plain.log.filter((l) => l.event === "request").at(-1)?.subject, "\u0645\u06cc\u200c\u0631\u0627 \u0d15\u0d4d\u200d");
     } finally {
         await plain.close();
     }
@@ -326,6 +344,13 @@ test("audit: hash without a key warns that hashes change on restart; a key that 
         restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true }, http: { publicUrl: "https://pk.example.com/" }, audit: { subject: "hash", key: { file: "missing.key" } }, baseDir: dir }),
         (e) => e instanceof ConfigError && /audit\.key: the file missing\.key cannot be read \(no such file\)/.test(e.message)
     );
+    // a key shorter than 16 characters is refused at start and in check-config
+    const short = { sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true }, http: { publicUrl: "https://pk.example.com/" }, audit: { subject: "hash", key: { env: "AUDIT_KEY" } }, baseDir: dir };
+    await assert.rejects(restServer(short, { env: { AUDIT_KEY: "fifteen-chars-x" } }), (e) => e instanceof ConfigError && /audit\.key: at least 16 characters/.test(e.message));
+    const checked = await checkConfig(short, { http: true, env: { AUDIT_KEY: "fifteen-chars-x" }, name: "pivotkit-server", rest: true });
+    assert.match(checked.text, /PROBLEM: audit\.key: at least 16 characters/);
+    const server = await restServer(short, { env: { AUDIT_KEY: "sixteen-chars-xx" } });
+    await server.close();
 });
 
 test("options: groupProfiles and defaultProfile name profiles that exist; audit.key goes with hash only", () => {
@@ -344,11 +369,11 @@ test("options: groupProfiles and defaultProfile name profiles that exist; audit.
 
 test("check-config: groups, the default profile, the scopes offered, unreachable sources, wider first entries and the audit", async () => {
     const dir = workspace();
-    writeFileSync(join(dir, "audit.key"), "a-key\n", { mode: 0o644 });
+    writeFileSync(join(dir, "audit.key"), "an-audit-key-of-enough-length\n", { mode: 0o644 });
     const options = {
         sources: { sales: { file: "data/sales.csv", scopes: ["pivotkit:sales"] }, hr: { file: "data/sales.csv", scopes: ["pivotkit:hr"] } },
         policy: { profiles: PROFILES },
-        auth: { mode: "oauth", issuer: "https://login.example.com/", resource: "https://pk.example.com/mcp", requiredScopes: ["pivotkit"], groupProfiles: GROUP_PROFILES, defaultProfile: "restricted", scopeProfiles: { "pivotkit:hr": "finance" } },
+        auth: { mode: "oauth", issuer: "https://login.example.com/", resource: "https://pk.example.com/mcp", requiredScopes: ["pivotkit"], groupProfiles: GROUP_PROFILES, defaultProfile: "restricted", scopeProfiles: { "pivotkit:hr": "finance" }, offerSourceScopes: true },
         audit: { subject: "hash", key: { file: "audit.key" } },
         baseDir: dir
     };
@@ -357,18 +382,23 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     assert.ok(lines.includes("Sign-in: subject from claim sub; groups from claim groups: finance → profile finance, staff → profile staff (first match wins; a client profile comes first); otherwise profile restricted"), result.text);
     assert.ok(lines.includes("  scopes offered: pivotkit pivotkit:sales (define these at your provider; a provider may refuse a sign-in that asks for an undefined scope)"), result.text);
     assert.ok(lines.includes("  warning: the source hr needs the scope pivotkit:hr, which the server does not offer (auth.scopeProfiles names it, and a client must not choose its own profile): a client learns of it only from you"), result.text);
-    assert.ok(lines.includes("  warning: groupProfiles entry 1 (finance) shows fields that entry 2 (staff) holds back: people in both groups get the wider profile, since the first match wins"), result.text);
-    assert.ok(lines.includes("Audit: the person is logged as a keyed hash of sub"), result.text);
+    // the wider profile first is the intended order: silent
+    assert.doesNotMatch(result.text, /shows fields that/);
+    assert.ok(lines.includes("Audit: the person is logged as a keyed hash of issuer and sub"), result.text);
     assert.ok(lines.includes("  key from audit.key"), result.text);
     assert.ok(lines.some((l) => /the audit key's file audit\.key can be read by other users/.test(l)), result.text);
-    assert.ok(lines.some((l) => /^ {2}- The OAuth metadata \(scopes_supported\) offers the sources' scopes too \(pivotkit:sales\)/.test(l)), result.text);
+    // offering the sources' scopes is opt-in: no change for an existing installation
+    assert.doesNotMatch(result.text, /New in this version/);
     assert.equal(result.problems, 0, result.text);
 
-    // the narrower entry first: no warning; offerSourceScopes false: every source scope is unreachable
-    const quiet = await checkConfig({ ...options, auth: { ...options.auth, groupProfiles: [...GROUP_PROFILES].reverse(), offerSourceScopes: false, scopeProfiles: undefined, defaultProfile: undefined }, audit: { subject: "hash", key: { env: "NOT_SET" } } }, { http: true, name: "pivotkit-server", rest: true });
-    assert.doesNotMatch(quiet.text, /shows fields that/);
-    assert.match(quiet.text, /warning: the source sales needs the scope pivotkit:sales, which the server does not offer \(auth\.offerSourceScopes is false\)/);
+    // a wider profile after a narrower one: a warning; the default (scopes not offered): every source scope is unreachable
+    const quiet = await checkConfig({ ...options, auth: { ...options.auth, groupProfiles: [...GROUP_PROFILES].reverse(), offerSourceScopes: undefined, scopeProfiles: undefined, defaultProfile: undefined }, audit: { subject: "hash", key: { env: "NOT_SET" } } }, { http: true, name: "pivotkit-server", rest: true });
+    assert.match(quiet.text, /\n {2}warning: groupProfiles entry 2 \(finance\) shows fields that entry 1 \(staff\) holds back: people in both groups get entry 1, since the first match wins; if that is not intended, put the wider profile first\n/);
+    assert.match(quiet.text, /warning: the source sales needs the scope pivotkit:sales, which the server does not offer \(auth\.offerSourceScopes is not on\)/);
     assert.match(quiet.text, /a person whose token does not carry the groups is refused/);
+    // groupProfiles without defaultProfile: what a person in no listed group gets, and a warning
+    assert.match(quiet.text, /Sign-in: .*; a person in none of these groups gets the sources' own policy;/);
+    assert.match(quiet.text, /warning: auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups gets the sources' own policy; set auth\.defaultProfile to a narrow profile/);
     assert.match(quiet.text, /PROBLEM: audit\.key: \$NOT_SET is not set; the server will not start/);
     assert.equal(quiet.problems, 1);
     assert.doesNotMatch(quiet.text, /New in this version/);

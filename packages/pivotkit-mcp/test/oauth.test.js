@@ -62,8 +62,8 @@ test("Protected Resource Metadata (RFC 9728) names the resource and the issuer; 
         const prm = await (await fetch(server.url.replace("/mcp", "/.well-known/oauth-protected-resource/mcp"))).json();
         assert.equal(prm.resource, RESOURCE);
         assert.deepEqual(prm.authorization_servers, [issuer]);
-        // the required scope, then each source's (auth.offerSourceScopes, default true)
-        assert.deepEqual(prm.scopes_supported, ["pivotkit", "pivotkit:hr"]);
+        // the required scope; a source's scope only with auth.offerSourceScopes (off by default)
+        assert.deepEqual(prm.scopes_supported, ["pivotkit"]);
         const res = await post(server.url);
         assert.equal(res.status, 401);
         const challenge = res.headers.get("www-authenticate");

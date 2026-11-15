@@ -216,8 +216,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
   `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: how a written report
   reaches the caller, `output.note`), `src/scopes.js` (`offeredScopes`, the metadata's
-  `scopes_supported` of MCP and REST: the required scopes and the sources', never a `scopeProfiles`
-  scope, while the 401 challenge names the required ones only; `listHint`, the hint of an empty
+  `scopes_supported` of MCP and REST: the required scopes, and the sources' with
+  `auth.offerSourceScopes: true`, never a `scopeProfiles` scope, while the 401 challenge names the required ones only; `listHint`, the hint of an empty
   list_sources), `src/request-id.js`
   (a request's id: `newRequestId`, `withRequestId` (each REST request and MCP tool call runs in one;
   its log lines carry the id), `requestId`, `errorDetails` for an `OperationError`'s `details`, which

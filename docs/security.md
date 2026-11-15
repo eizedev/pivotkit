@@ -291,8 +291,13 @@ may try to steer it:
   (`http.page.sources`); without sign-in (`auth` `none`) it lists them by default.
 - **The log** names tools, source ids, file base names and the client (a token's name or an OAuth
   client id), never a view, a value, a token or a full path; a person's id only when the operator
-  sets `audit.subject` (`hash`: a keyed hash; `plain`: the claim's text), their groups
-  never.
+  sets `audit.subject` (`hash`: HMAC-SHA256 with `audit.key`, at least 16 characters, read at start
+  with OAuth only; a rotated key needs a restart and changes every value; `plain`: the claim's text),
+  their groups never.
+- **Groups to profiles** (`auth.groupProfiles`): a token whose group list is cut, missing or
+  replaced by an overage marker never gets a group's or a scope's profile. Set `auth.defaultProfile`
+  to a narrow profile with it: a person in none of the groups otherwise gets the sources' own policy.
+  A provider that cuts a list without a marker cannot be detected.
 
 ## The REST service { #rest }
 

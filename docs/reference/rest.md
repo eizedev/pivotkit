@@ -207,8 +207,10 @@ Groups to profiles, with a narrow profile for everyone else:
 }
 ```
 
-A person in both groups gets `finance`, since it comes first; `check-config` warns when an earlier
-entry shows a field a later one holds back.
+A person in both groups gets `finance`, since it comes first; `check-config` warns when a later
+entry shows a field an earlier one holds back. Without `defaultProfile`, a person in none of the
+groups gets the sources' own policy: set it to a narrow profile whenever you use `groupProfiles`
+(`check-config` warns when it is missing).
 
 ## Downloads { #downloads }
 
@@ -261,8 +263,9 @@ the required scopes gets 403 `INSUFFICIENT_SCOPE` with `WWW-Authenticate: Bearer
 error="insufficient_scope", scope="..."` naming them. A person whose token does not carry their groups
 (with `auth.groupProfiles` and no `auth.defaultProfile`, [groups](mcp.md#groups)) gets 403
 `NOT_ALLOWED` without a challenge: signing in again with more scopes would not help. The metadata
-lists the required scopes and the sources' ([which scopes](mcp.md#scopes)); an empty `GET /sources`
-for a token without the sources' scopes has a `hint` naming them.
+lists the required scopes, and the sources' with `auth.offerSourceScopes: true` ([which
+scopes](mcp.md#scopes)); an empty `GET /sources` for a token without the sources' scopes has a
+`hint`. The `refused` log line of a 403 for groups names the client.
 
 Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068), so an ID
 token with the right audience is refused.

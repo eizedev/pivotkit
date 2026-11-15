@@ -9,7 +9,8 @@
 
 import { GROUPS_REFUSED } from "../auth.js";
 import { POLICY_LEVELS, levelOf, resolvePolicy } from "../policy.js";
-import { offeredScopes, sourceScopes } from "../scopes.js";
+import { AUDIT_KEY_MIN } from "../log.js";
+import { offeredScopes } from "../scopes.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
 
 /** The most entries of auth.groupProfiles compared pair by pair for the "first match wins" warning. */
@@ -21,6 +22,7 @@ export async function section(options, _registry, runtime) {
     const mode = auth.mode ?? "none";
     const lines = [];
     let problems = 0;
+    /** @type {string[]} */
     const upgrade = [];
     const oauth = mode === "oauth";
 
@@ -44,10 +46,8 @@ export async function section(options, _registry, runtime) {
                 lines.push(`  warning: auth.scopesSupported offers ${scope}, which auth.scopeProfiles binds to the profile ${auth.scopeProfiles[scope]}: a client that asks for it chooses that profile itself`);
             }
         }
-        // what changes with this version: the sources' scopes in the metadata
-        const added = auth.scopesSupported ? [] : surfaces.flatMap((surface) => sourceScopes(options, surface)).filter((s) => !required.has(s) && !(auth.scopeProfiles && Object.hasOwn(auth.scopeProfiles, s)));
-        if (added.length) {
-            upgrade.push(`The OAuth metadata (scopes_supported) offers the sources' scopes too (${[...new Set(added)].join(" ")}): clients that ask for every offered scope request them at their next sign-in, and a provider may refuse a scope it does not define; define them there first, or set auth.offerSourceScopes: false`);
+        if (auth.groupProfiles?.length && !auth.defaultProfile) {
+            lines.push("  warning: auth.groupProfiles without auth.defaultProfile: a person in none of the groups gets the sources' own policy; set auth.defaultProfile to a narrow profile");
         }
     } else if (mode === "token") {
         // a scope no static token holds: nobody reaches the source
@@ -88,6 +88,7 @@ function signInText(auth, mode) {
     if (auth.defaultProfile) {
         parts.push(`otherwise profile ${auth.defaultProfile}`);
     } else if (auth.groupProfiles?.length && mode === "oauth") {
+        parts.push("a person in none of these groups gets the sources' own policy");
         parts.push(`a person whose token does not carry the groups is refused ("${GROUPS_REFUSED}"); set auth.defaultProfile to give them a profile instead`);
     }
     return parts.join("; ") || "each static token's own profile, else the sources' policy";
@@ -101,12 +102,13 @@ function notOfferedWhy(auth, scope) {
     if (auth.scopeProfiles && Object.hasOwn(auth.scopeProfiles, scope)) {
         return "auth.scopeProfiles names it, and a client must not choose its own profile";
     }
-    return "auth.offerSourceScopes is false";
+    return "auth.offerSourceScopes is not on";
 }
 
 /**
- * The warnings for entries of auth.groupProfiles where an earlier one shows a field a later one
- * holds back: a person in both groups gets the earlier one, since the first match wins.
+ * The warnings for entries of auth.groupProfiles where a later one shows a field an earlier one holds
+ * back: a person in both groups gets the earlier, narrower one, since the first match wins. The
+ * wider profile first is the usual order and says nothing.
  * @param {import("../config.js").ServerOptions} options
  * @returns {string[]}
  */
@@ -117,8 +119,8 @@ function widerEntries(options) {
     for (let i = 0; i < entries.length; i++) {
         for (let j = i + 1; j < entries.length; j++) {
             const [a, b] = [entries[i], entries[j]];
-            if (a.profile !== b.profile && Object.hasOwn(profiles, a.profile) && Object.hasOwn(profiles, b.profile) && shows(options, profiles[a.profile], profiles[b.profile])) {
-                out.push(`warning: groupProfiles entry ${i + 1} (${a.group}) shows fields that entry ${j + 1} (${b.group}) holds back: people in both groups get the wider profile, since the first match wins`);
+            if (a.profile !== b.profile && Object.hasOwn(profiles, a.profile) && Object.hasOwn(profiles, b.profile) && shows(options, profiles[b.profile], profiles[a.profile])) {
+                out.push(`warning: groupProfiles entry ${j + 1} (${b.group}) shows fields that entry ${i + 1} (${a.group}) holds back: people in both groups get entry ${i + 1}, since the first match wins; if that is not intended, put the wider profile first`);
             }
         }
     }
@@ -153,7 +155,7 @@ async function auditLines(options, runtime, oauth) {
     if (subject === "off") {
         return { lines: ["Audit: off (log lines name the client, never the person)"], problems };
     }
-    lines.push(subject === "hash" ? `Audit: the person is logged as a keyed hash of ${claim}` : `Audit: the person is logged by ${claim} as it is (personal data: say so where your log goes and how long it is kept)`);
+    lines.push(subject === "hash" ? `Audit: the person is logged as a keyed hash of issuer and ${claim}` : `Audit: the person is logged by ${claim} as it is (personal data: say so where your log goes and how long it is kept)`);
     if (!oauth) {
         lines.push("  warning: audit names a person only with auth.mode oauth; a static token is logged by its name already");
     }
@@ -164,7 +166,7 @@ async function auditLines(options, runtime, oauth) {
             // read at start with OAuth only, where a key that cannot be read stops the start
             const readable = oauth
                 ? await readSecret(audit.key, options, runtime.env).then(
-                      () => null,
+                      (key) => (key.length < AUDIT_KEY_MIN ? `at least ${AUDIT_KEY_MIN} characters` : null),
                       (e) => String(e?.message ?? e)
                   )
                 : null;

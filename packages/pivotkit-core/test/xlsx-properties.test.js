@@ -7,7 +7,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { readSheet } from "read-excel-file/node";
 import { computePivot, encode, toGrid } from "../src/index.js";
-import { toXlsx } from "../src/export.js";
+import { isDataAsOf, toXlsx } from "../src/export.js";
 import { SALES } from "./fixtures.js";
 
 const grid = toGrid(computePivot(encode(SALES), { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }));
@@ -38,7 +38,9 @@ test("toXlsx: without dataAsOf no document property part; another form of it is 
     assert.equal(parts["docProps/custom.xml"], undefined);
     assert.doesNotMatch(strFromU8(parts["[Content_Types].xml"]), /custom-properties/);
     assert.doesNotMatch(strFromU8(parts["_rels/.rels"]), /custom-properties/);
-    for (const bad of ["2026-11-15", "2026-11-15T08:00:00.000Z", "2026-11-15T08:00:00+01:00", "<x/>2026-11-15T08:00:00Z", 1763193600000]) {
+    for (const bad of ["2026-02-30T25:00:00Z", "2026-02-30T08:00:00Z", "2026-11-15T24:00:00Z", "2026-11-15", "2026-11-15T08:00:00.000Z", "2026-11-15T08:00:00+01:00", "<x/>2026-11-15T08:00:00Z", 1763193600000]) {
         assert.throws(() => toXlsx(grid, { dataAsOf: /** @type {any} */ (bad) }), { code: "INVALID_ARGUMENT" }, String(bad));
+        assert.equal(isDataAsOf(bad), false, String(bad));
     }
+    assert.equal(isDataAsOf("2024-02-29T23:59:59Z"), true);
 });

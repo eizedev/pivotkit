@@ -2,8 +2,9 @@
  * Scopes as a caller sees them: the ones a resource's metadata offers (scopes_supported) and the hint
  * list_sources gives when a sign-in reaches no source.
  *
- * The metadata offers the required scopes and, with auth.offerSourceScopes (default true), every
- * scope a source needs, so a person and a client can see which scopes exist. The 401 challenge keeps
+ * The metadata offers the required scopes and, with auth.offerSourceScopes (off by default: a
+ * provider may refuse a sign-in that asks for a scope it does not define, and the metadata is public),
+ * every scope a source needs, so a person and a client can see which scopes exist. The 401 challenge keeps
  * naming the required scopes only: a client that follows the MCP specification asks for those first,
  * and asking every client for every source's scope would be the over-broad consent the MCP security
  * best practices warn of. A scope of auth.scopeProfiles is never offered by itself: a client that
@@ -15,8 +16,8 @@ import { holds } from "./registry.js";
 /**
  * The scopes a resource's metadata offers (scopes_supported), or null for none. auth.scopesSupported,
  * when set, is taken as it is (an empty list too); otherwise the surface's required scopes (REST:
- * rest.requiredScopes, else auth.requiredScopes; MCP: auth.requiredScopes) and, unless
- * auth.offerSourceScopes is false, the scopes of the sources (MCP: files.scopes too; REST takes no
+ * rest.requiredScopes, else auth.requiredScopes; MCP: auth.requiredScopes) and, with
+ * auth.offerSourceScopes true, the scopes of the sources (MCP: files.scopes too; REST takes no
  * file paths), without those auth.scopeProfiles names. null when that leaves none.
  * @param {import("./config.js").ServerOptions} options
  * @param {"mcp" | "rest"} surface
@@ -39,13 +40,13 @@ export function offeredScopes(options, surface) {
 
 /**
  * The scopes the sources need that the metadata may offer: each source's (in the options' order)
- * and, on MCP, files.scopes; none with auth.offerSourceScopes false.
+ * and, on MCP, files.scopes; none unless auth.offerSourceScopes is true.
  * @param {import("./config.js").ServerOptions} options
  * @param {"mcp" | "rest"} surface
  * @returns {string[]}
  */
 export function sourceScopes(options, surface) {
-    if (options.auth?.offerSourceScopes === false) {
+    if (options.auth?.offerSourceScopes !== true) {
         return [];
     }
     const scopes = Object.values(options.sources ?? {}).flatMap((s) => s.scopes ?? []);
@@ -83,5 +84,5 @@ export function listHint(context, caller, sources, how = {}) {
         return `${NO_SOURCE} Ask the operator for a token with the scopes of a source.`;
     }
     const missing = (offeredScopes(options, surface) ?? []).filter((s) => !caller.scopes?.has(s));
-    return missing.length ? `${NO_SOURCE} This server offers the scopes: ${missing.join(" ")}.` : `${NO_SOURCE} Ask the operator which scopes to sign in with.`;
+    return missing.length ? `${NO_SOURCE} This server offers the scopes: ${missing.join(" ")}. Sign in with one of them, or ask the operator.` : `${NO_SOURCE} Ask the operator which scopes to sign in with.`;
 }

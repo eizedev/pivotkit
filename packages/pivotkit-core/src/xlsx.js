@@ -38,6 +38,16 @@ const RESERVED_SHEET_NAMES = new Set(["history"]);
 /** The one form of a dataAsOf: ISO 8601 in UTC to the second. */
 const DATA_AS_OF = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
+/**
+ * Whether a value is a dataAsOf: a text in UTC to the second ("2026-11-15T08:00:00Z") that names a
+ * time that exists (no 30 February, no hour 25). pivotkit-report's render checks with it too.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function isDataAsOf(value) {
+    return typeof value === "string" && DATA_AS_OF.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().replace(".000Z", "Z") === value;
+}
+
 /** Characters XML 1.0 does not allow are removed; markup characters are escaped. */
 export function xmlEscape(text) {
     return String(text)
@@ -140,7 +150,7 @@ export function toXlsx(grid, options) {
     options = optionsOf(options, "toXlsx");
     expect(isGrid(grid), "toXlsx(grid): grid must come from toGrid()");
     const asOf = options.dataAsOf;
-    expect(asOf === undefined || DATA_AS_OF.test(asOf), "toXlsx: dataAsOf must look like 2026-11-15T08:00:00Z");
+    expect(asOf === undefined || isDataAsOf(asOf), "toXlsx: dataAsOf must be a time like 2026-11-15T08:00:00Z");
     checkLimit("xlsxRows", grid.rows.length, EXCEL_MAX_ROWS, "rows (an Excel sheet)");
     checkLimit("xlsxColumns", grid.columnCount, EXCEL_MAX_COLUMNS, "columns (an Excel sheet)");
     const theme = { ...DEFAULT_THEME, ...(options.theme || {}) };

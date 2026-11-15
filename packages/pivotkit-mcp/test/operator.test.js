@@ -57,6 +57,7 @@ test("groups choose the profile; a token whose groups are elsewhere gets 403 acc
         const overage = await fetch(server.url, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${await token({ hasgroups: true })}` }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } }) });
         assert.equal(overage.status, 403);
         assert.equal(overage.headers.get("www-authenticate"), null);
+        assert.ok(server.log.some((l) => l.event === "refused" && l.status === 403 && l.client === "desktop-client"), JSON.stringify(server.log));
         assert.deepEqual(await overage.json(), { error: "access_denied", error_description: "your sign-in does not carry your groups; ask the operator" });
     } finally {
         await server.close();
@@ -64,7 +65,7 @@ test("groups choose the profile; a token whose groups are elsewhere gets 403 acc
 });
 
 test("the metadata offers the sources' scopes; an empty list_sources names them in its hint", async () => {
-    const server = await oauthServer({ requiredScopes: [] }, { sources: { vms: { file: "data/sales.csv", scopes: ["pivotkit:vms"] } } });
+    const server = await oauthServer({ requiredScopes: [], offerSourceScopes: true }, { sources: { vms: { file: "data/sales.csv", scopes: ["pivotkit:vms"] } } });
     try {
         const prm = await (await fetch(server.url.replace("/mcp", "/.well-known/oauth-protected-resource/mcp"))).json();
         assert.deepEqual(prm.scopes_supported, ["pivotkit:vms"]);
@@ -72,8 +73,9 @@ test("the metadata offers the sources' scopes; an empty list_sources names them 
         const listed = await call(client, "list_sources");
         assert.equal(listed.isError, false);
         assert.deepEqual(listed.data.sources, []);
-        assert.equal(listed.data.hint, "No source is available with your current sign-in. This server offers the scopes: pivotkit:vms.");
-        assert.match(listed.text, /This server offers the scopes: pivotkit:vms\./);
+        assert.equal(listed.data.hint, "No source is available with your current sign-in. This server offers the scopes: pivotkit:vms. Sign in with one of them, or ask the operator.");
+        // an empty list does not ask the model to call describe_source
+        assert.equal(listed.text.split("\n")[0], `0 sources. ${listed.data.hint}`);
         await close();
     } finally {
         await server.close();
@@ -81,13 +83,13 @@ test("the metadata offers the sources' scopes; an empty list_sources names them 
 });
 
 test("audit hash: a call line names the person as a keyed hash; groups and the subject itself never", async () => {
-    const server = await oauthServer({ groupProfiles: [{ group: "finance", profile: "finance" }] }, { audit: { subject: "hash", key: { env: "AUDIT_KEY" } } }, { AUDIT_KEY: "the-audit-key" });
+    const server = await oauthServer({ groupProfiles: [{ group: "finance", profile: "finance" }] }, { audit: { subject: "hash", key: { env: "AUDIT_KEY" } } }, { AUDIT_KEY: "the-audit-key-of-enough-length" });
     try {
         const { client, close } = await httpClient(server.url, { token: await token({ groups: ["finance"] }) });
         await call(client, "describe_source", { source: "sales" });
         await close();
         const line = server.log.find((l) => l.event === "call" && l.tool === "describe_source");
-        assert.equal(line?.subject, createHmac("sha256", "the-audit-key").update(JSON.stringify([issuer, "ana"])).digest("hex").slice(0, 16));
+        assert.equal(line?.subject, createHmac("sha256", "the-audit-key-of-enough-length").update(JSON.stringify([issuer, "ana"])).digest("hex").slice(0, 16));
         const text = JSON.stringify(server.log);
         assert.ok(!text.includes('"ana"') && !text.includes("finance"), text);
     } finally {
