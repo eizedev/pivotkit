@@ -32,6 +32,14 @@ const READ_PER_SCAN = 1.6;
 const PARSE_PER_UNPACK = 3;
 const SCAN_PER_UNPACK = 12;
 const PADDED_READ_PER_SCAN = 5;
+/**
+ * Other test workspaces running in parallel slow the phases of one measurement unevenly (a read 1.8
+ * times its scan was seen that way). The used-range test therefore measures unpack, scan and read in
+ * interleaved rounds and bounds the fastest of each, with a new round only while a bound fails, up to
+ * this many. A filter that passes the empty rows on fails in every round: its parse alone is several
+ * times the unpacking, so the fastest of five stays far above the bound.
+ */
+const USED_RANGE_ROUNDS = 5;
 
 /**
  * How long one sheet takes to unpack alone (the fastest of three), and to unpack and pass through
@@ -104,10 +112,21 @@ test("sheets: names, order and visibility; read one by name or by index", async 
 test("the used range: formatted empty cells to row 900,000 are left out before parsing, with a note", async (ctx) => {
     // two formatted columns down to row 900,000 (the benchmark, bench.js, formats all 20)
     const bytes = tickets(500, { usedRangeTo: 900_000, emptyCells: 2 });
-    const { unpackMs, scanMs } = await sheetScanTimes(bytes, "xl/worksheets/sheet2.xml");
-    const started = performance.now();
-    const t = await read(fileOf(bytes));
-    const ms = performance.now() - started;
+    let unpackMs = Infinity;
+    let scanMs = Infinity;
+    let ms = Infinity;
+    const holds = () => ms < READ_PER_SCAN * scanMs && ms - scanMs < PARSE_PER_UNPACK * unpackMs && scanMs < SCAN_PER_UNPACK * unpackMs;
+    let t;
+    let rounds = 0;
+    while (rounds < USED_RANGE_ROUNDS && !holds()) {
+        rounds++;
+        const times = await sheetScanTimes(bytes, "xl/worksheets/sheet2.xml");
+        unpackMs = Math.min(unpackMs, times.unpackMs);
+        scanMs = Math.min(scanMs, times.scanMs);
+        const started = performance.now();
+        t = await read(fileOf(bytes));
+        ms = Math.min(ms, performance.now() - started);
+    }
     assert.equal(t.rowCount, 500);
     const used = t.notes.find((n) => n.code === "USED_RANGE");
     assert.deepEqual(used.params, { usedRow: 900_000, lastRow: 503 });
@@ -116,7 +135,8 @@ test("the used range: formatted empty cells to row 900,000 are left out before p
     // 900,000 rows of styled cells unpack to about 90 MB. The read takes about as long as the scan
     // before parsing (unpack, check, filter) alone, and the parse after it little more than one
     // unpacking: the empty rows never reach the parser. The scan takes a few times the unpacking.
-    ctx.diagnostic(`read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms, unpack ${Math.round(unpackMs)} ms`);
+    // Each is the fastest of its rounds (USED_RANGE_ROUNDS).
+    ctx.diagnostic(`read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms, unpack ${Math.round(unpackMs)} ms, ${rounds} round(s)`);
     assert.ok(ms < READ_PER_SCAN * scanMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`);
     assert.ok(ms - scanMs < PARSE_PER_UNPACK * unpackMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms, unpack ${Math.round(unpackMs)} ms`);
     assert.ok(scanMs < SCAN_PER_UNPACK * unpackMs, `scan ${Math.round(scanMs)} ms, unpack ${Math.round(unpackMs)} ms`);
