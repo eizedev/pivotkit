@@ -265,19 +265,25 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 // the body is not sent: given up, so whatever waits for its end (a caller's slot) is freed
                 await response.body.cancel().catch(() => undefined);
             } else if (response.body) {
-                // a client that leaves stops the stream (through the reader that holds its lock: the
-                // stream itself cannot be cancelled while it is read, and the handler cannot count on
-                // its own request's signal, since a clone's signal can stop following the original's
-                // once garbage collected); a full socket is waited for
+                // a client that leaves stops the stream, also one that left before the answer came: the
+                // stream is read through a reader of its own, which its cancel ends at once (a cancel
+                // of the locked stream itself would be refused), and its source learns it is given up,
+                // so whatever waits for its end (a caller's slot) is freed; a full socket is waited for
                 const reader = response.body.getReader();
                 const stop = () => reader.cancel().catch(() => undefined);
                 if (abort.signal.aborted) {
                     await stop();
+                } else {
+                    abort.signal.addEventListener("abort", stop, { once: true });
                 }
-                abort.signal.addEventListener("abort", stop, { once: true });
-                for (let next = await reader.read(); !next.done; next = await reader.read()) {
-                    const chunk = next.value;
-                    if (!res.write(chunk)) {
+                for (;;) {
+                    // a body that fails rejects here: the catch below ends the connection, so a cut answer
+                    // never looks complete; a cancel (the client left) ends the read with done
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+                    if (!res.write(value)) {
                         // a client that leaves while the socket is full sends no drain: its close ends the wait
                         await new Promise((resolve) => {
                             res.once("drain", resolve);

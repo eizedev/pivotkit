@@ -62,15 +62,15 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- A client that leaves while a streamed answer waits (an MCP call over a slow source) frees its
+  caller's slot at once, also when it left before the answer started: the stream was only given up
+  when the socket was written to, so the slot stayed taken until the call ended.
 - `output.dir` with a name longer than the file system allows, or a symbolic link loop in its path:
   `check-config` reports it as a directory that cannot be created, with the reason, as the start
   refuses it (it said "will be created at start"); with `output.create: false` both say it cannot
   be examined. Start errors name these reasons in words, keep any other file system code in a
   neutral sentence, and a link changed while the directory is made is refused with its reason
   instead of a raw error.
-- A client that leaves a streamed answer (MCP over HTTP) gives its concurrency slot back at once:
-  the server cancelled the stream on a lock it did not hold, and the slot could stay taken until the
-  call ended.
 - `isLoopback` takes only literal loopback addresses: a host name that starts with `127.`
   (`127.example.com`) is no longer loopback, and `[::1]` as a URL writes it is. A listen host
   written short, `127.1` or `127.0.1`, no longer counts as loopback either: on it the server needs

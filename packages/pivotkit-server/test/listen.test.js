@@ -245,7 +245,68 @@ test("oauth without required scopes or tool scopes: REST warns at start, as MCP 
     }
 });
 
-test("serveFetch: a client that leaves cancels the streamed answer it was waiting for", async () => {
+test("a client that leaves before the answer starts: its streamed body is given up as soon as it comes, so what waits for its end (a caller's slot) is freed", async () => {
+    let cancelled = false;
+    const listening = await serveFetch(
+        {
+            // the answer comes 300 ms after the client left; its body would stream until a call ends
+            fetch: async () => {
+                await new Promise((resolve) => setTimeout(resolve, 300));
+                return new Response(new ReadableStream({ cancel: () => void (cancelled = true) }), { headers: { "content-type": "text/event-stream" } });
+            }
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024 }
+    );
+    try {
+        await new Promise((resolve) => {
+            const socket = connect(listening.port, "127.0.0.1", () => {
+                socket.write("POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}");
+                setTimeout(() => {
+                    socket.destroy();
+                    resolve(undefined);
+                }, 30);
+            });
+        });
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        assert.equal(cancelled, true, "the body of an answer whose client already left is cancelled");
+    } finally {
+        await listening.close();
+    }
+});
+
+test("a body that fails in the middle of an answer ends the connection, never a clean answer cut short", async () => {
+    const listening = await serveFetch(
+        {
+            fetch: async () =>
+                new Response(
+                    new ReadableStream({
+                        start(controller) {
+                            controller.enqueue(new TextEncoder().encode("part"));
+                            setTimeout(() => controller.error(new Error("the source failed")), 50);
+                        }
+                    }),
+                    { headers: { "content-type": "text/event-stream" } }
+                )
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024 }
+    );
+    try {
+        const ended = await new Promise((resolve) => {
+            const socket = connect(listening.port, "127.0.0.1", () => socket.write("GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"));
+            let text = "";
+            socket.on("data", (d) => (text += d));
+            socket.on("error", () => resolve({ text, how: "error" }));
+            socket.on("close", () => resolve({ text, how: "close" }));
+        });
+        assert.match(ended.text, /part/);
+        // chunked transfer: a clean end is the zero-length chunk; a failed body must not send it
+        assert.doesNotMatch(ended.text, /\r\n0\r\n\r\n$/, "no terminating chunk: the client sees the answer was cut");
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a client that leaves while the answer streams cancels it", async () => {
     let cancelled = 0;
     const listening = await serveFetch(
         {
