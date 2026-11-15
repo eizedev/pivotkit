@@ -33,21 +33,6 @@ test("help, version, an unknown command; cli and mcp hand over to their packages
     assert.match(mcp.stdout, /^pivotkit-mcp /);
 });
 
-test("PIVOTKIT_PORT as Kubernetes service links set it (tcp://...): serve, check-config and healthcheck name it", () => {
-    const dir = workspace();
-    const env = { PIVOTKIT_PORT: "tcp://10.0.0.1:3333" };
-    const said = 'pivotkit-server: PIVOTKIT_PORT is "tcp://10.0.0.1:3333", which Kubernetes sets for a Service named pivotkit; set enableServiceLinks: false in the pod, or PIVOTKIT_PORT to the port number\n';
-    for (const args of [["serve", "--source", "sales=data/sales.csv"], ["check-config", "--source", "sales=data/sales.csv"], ["healthcheck"]]) {
-        const r = run(args, { env, cwd: dir });
-        assert.equal(r.status, 2, `${args[0]}: ${r.stderr}`);
-        assert.equal(r.stderr, said, args[0]);
-    }
-    // a port given otherwise wins, as before: --port for serve, a URL for healthcheck
-    const check = run(["check-config", "--source", "sales=data/sales.csv", "--port", "3333"], { env, cwd: dir });
-    assert.equal(check.status, 0, check.stderr);
-    assert.equal(run(["healthcheck", "http://127.0.0.1:1/healthz"], { env }).status, 1);
-});
-
 test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST would expose; 1 when a file is missing", () => {
     const dir = workspace();
     const config = join(dir, "pivotkit.json");
@@ -135,4 +120,19 @@ test("/readyz says 503 when the output directory is not writable", { skip: proce
         chmodSync(join(dir, "out"), 0o700);
         await server.close();
     }
+});
+
+test("PIVOTKIT_PORT as Kubernetes service links set it (tcp://...): serve, check-config and healthcheck name it", () => {
+    const dir = workspace();
+    const env = { PIVOTKIT_PORT: "tcp://10.0.0.1:3333" };
+    const said = 'pivotkit-server: PIVOTKIT_PORT is "tcp://10.0.0.1:3333", which Kubernetes sets for a Service named pivotkit; set enableServiceLinks: false in the pod, or PIVOTKIT_PORT to the port number\n';
+    for (const args of [["serve", "--source", "sales=data/sales.csv"], ["check-config", "--source", "sales=data/sales.csv"], ["healthcheck"]]) {
+        const r = run(args, { env, cwd: dir });
+        assert.equal(r.status, 2, `${args[0]}: ${r.stderr}`);
+        assert.equal(r.stderr, said, args[0]);
+    }
+    // a port given otherwise wins, as before: --port for serve, a URL for healthcheck
+    const check = run(["check-config", "--source", "sales=data/sales.csv", "--port", "3333"], { env, cwd: dir });
+    assert.equal(check.status, 0, check.stderr);
+    assert.equal(run(["healthcheck", "http://127.0.0.1:1/healthz"], { env }).status, 1);
 });
