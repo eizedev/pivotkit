@@ -36,6 +36,15 @@ Nothing changes unless the operator sets it; the [upgrade page](https://pivotkit
 
 - The message of a withheld render names the fields the operator does not show results over.
 
+### Fixed
+
+- `output.dir` with a name longer than the file system allows, or a symbolic link loop in its path:
+  `check-config` reports it as a directory that cannot be created, with the reason, as the start
+  refuses it (it said "will be created at start"); with `output.create: false` both say it cannot
+  be examined. Start errors name these reasons in words, keep any other file system code in a
+  neutral sentence, and a link changed while the directory is made is refused with its reason
+  instead of a raw error.
+
 ## [0.1.1] - 2026-11-14
 
 ### Upgrading from 0.1.0
