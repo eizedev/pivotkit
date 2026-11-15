@@ -123,6 +123,9 @@ configuration file reads it too.
 - Write no secret into the address or `query`: the configuration file holds it in plain text, and a
   backend's sign-in is not configured there. The log and `check-source` write each literal query
   value as `...`, but the path as it is.
+- A parameter's `description`, `example`, `enum`, `pattern`, `format`, lengths and range are shown to
+  callers (`list_sources`, and the message of a refused value): write no internal names or secrets
+  there.
 - A query name is given once (without regard to case); a name the paging fills cannot also be a
   parameter or a query value. `check-config` warns about a parameter no part of the address uses.
 

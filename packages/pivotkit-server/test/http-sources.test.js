@@ -730,7 +730,8 @@ test("a new load is a new table: after ttl the worker computes the backend's new
 });
 
 test("the request's signal reaches every operation over a source (suggest, validate, describe a view, the file route) and a code source over REST", async () => {
-    const context = await contextOf({ ...optionsOf({}, {}, { policy: { results: true } }), sources: { slow: { http: { backend: "platform", path: "/slow", rows: "/items" }, policy: POLICY } } });
+    // a time limit far beyond the test's bound: only the caller's signal can end these calls in time
+    const context = await contextOf({ ...optionsOf({}, {}, { policy: { results: true } }), sources: { slow: { http: { backend: "platform", path: "/slow", rows: "/items" }, timeMs: 60_000, policy: POLICY } } });
     const runs = {
         suggest_view: (signal) => present(context, "suggest_view", { source: "slow" }, LOCAL, { signal }),
         validate_view: (signal) => present(context, "validate_view", { source: "slow", view: VIEW }, LOCAL, { signal }),
@@ -745,8 +746,12 @@ test("the request's signal reaches every operation over a source (suggest, valid
             const call = start(gone.signal);
             call.catch(() => undefined);
             assert.ok(await until(() => asked.length === 1), `${name}: the backend was asked`);
+            const aborted = Date.now();
             gone.abort();
-            await assert.rejects(call);
+            const ended = await Promise.race([call.then(() => "answered", (e) => e), new Promise((r) => setTimeout(() => r("still waiting"), 2000))]);
+            assert.ok(ended instanceof Error, `${name}: the call ended at the abort (${ended})`);
+            assert.notEqual(ended.name, "TimeoutError", `${name}: not by a time limit`);
+            assert.ok(Date.now() - aborted < 2000, `${name}: within 2 s of the abort`);
             assert.ok(await until(() => state.closed), `${name}: the backend's connection was closed`);
         }
     } finally {
