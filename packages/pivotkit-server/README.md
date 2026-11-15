@@ -34,6 +34,7 @@ curl -s -H "Content-Type: application/json" \
 | Run it and call it with curl and PowerShell | [Getting started: REST service](https://pivotkit.eize.dev/getting-started/rest/) |
 | Routes, profiles, downloads, sign-in, CORS, limits, errors, OpenAPI, embedding | [pivotkit-server reference](https://pivotkit.eize.dev/reference/rest/) |
 | The container image | [Container image](https://pivotkit.eize.dev/reference/container/) |
+| Update it (with pivotkit-mcp), and what changes between releases | [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#update) |
 | What it protects against and what not | [Security: the REST service](https://pivotkit.eize.dev/security/#rest) |
 | Changes | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-server/CHANGELOG.md) |
 
