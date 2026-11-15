@@ -24,9 +24,6 @@ export async function section(options, _registry, runtime) {
     const upgrade = [];
     const oauth = mode === "oauth";
 
-    if (oauth || auth.groupProfiles?.length || auth.defaultProfile || auth.groupsClaim) {
-        lines.push(`Sign-in: ${signInText(auth, mode)}`);
-    }
     if (!oauth && (auth.groupProfiles?.length || auth.groupsClaim || auth.groupsSeparator)) {
         lines.push("  warning: auth.groupProfiles takes effect with auth.mode oauth only: a static token has its own profile (auth.tokens[].profile)");
     }
@@ -65,6 +62,10 @@ export async function section(options, _registry, runtime) {
         }
     }
     lines.push(...widerEntries(options).map((line) => `  ${line}`));
+    // every line of the section stands under its heading
+    if (lines.length || oauth || auth.groupProfiles?.length || auth.defaultProfile || auth.groupsClaim) {
+        lines.unshift(`Sign-in: ${signInText(auth, mode)}`);
+    }
 
     if (options.audit) {
         const audit = await auditLines(options, runtime, oauth);
@@ -89,7 +90,7 @@ function signInText(auth, mode) {
     } else if (auth.groupProfiles?.length && mode === "oauth") {
         parts.push(`a person whose token does not carry the groups is refused ("${GROUPS_REFUSED}"); set auth.defaultProfile to give them a profile instead`);
     }
-    return parts.join("; ") || "no profile but a token's own";
+    return parts.join("; ") || "each static token's own profile, else the sources' policy";
 }
 
 /** Why a source's scope is not offered. */

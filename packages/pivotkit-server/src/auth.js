@@ -210,7 +210,7 @@ const UNKNOWN_GROUPS = Object.freeze({ missing: "the claim is missing", overage:
  * The groups a verified token carries in auth.groupsClaim (default "groups"): a list of texts, or a
  * text split by auth.groupsSeparator when one is set. Anything else leaves them unknown, never
  * empty: a missing claim, an overage marker instead of the list (`_claim_names` naming the claim, or
- * `hasgroups`), a text without a separator, a list with something other than texts, more than
+ * `hasgroups` for the claim "groups"), a text without a separator, a list with something other than texts, more than
  * GROUPS_MAX entries or one longer than GROUP_MAX characters. An empty list is known: no groups.
  * @param {Record<string, unknown>} payload
  * @param {import("./config.js").AuthOptions} auth
@@ -219,7 +219,8 @@ const UNKNOWN_GROUPS = Object.freeze({ missing: "the claim is missing", overage:
 export function groupsOf(payload, auth) {
     const claim = auth.groupsClaim ?? "groups";
     const names = payload._claim_names;
-    if ((names && typeof names === "object" && Object.hasOwn(names, claim)) || payload.hasgroups === true || payload.hasgroups === "true") {
+    // `hasgroups` (Microsoft Entra ID's marker) speaks of the claim "groups" only
+    if ((names && typeof names === "object" && Object.hasOwn(names, claim)) || (claim === "groups" && (payload.hasgroups === true || payload.hasgroups === "true"))) {
         return { unknown: "overage" };
     }
     const raw = Object.hasOwn(payload, claim) ? payload[claim] : undefined;
@@ -542,7 +543,7 @@ const known = new WeakMap();
 /**
  * Who calls, from the request's verified token: its scopes, how the log names it, its policy
  * profile (profileOf) and, for an OAuth token, its subject, issuer and groups (only when it carries
- * some). A caller groupRefusal refuses holds no scope and no profile.
+ * some). Throws OperationError NOT_ALLOWED for a caller groupRefusal refuses.
  * @param {string} mode
  * @param {any} authInfo
  * @param {import("./config.js").AuthOptions} [authOptions]  for the profiles of clients, groups and scopes and the default one
@@ -567,9 +568,11 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
         known.set(caller, { basis: ["token", String(authInfo.clientId ?? "token")], token: null });
         return caller;
     }
-    if (groupRefusal(authOptions, authInfo)) {
-        // the front ends refuse such a caller (403); one made anyway holds no scope and no profile
-        return { scopes: new Set(), client, profile: null };
+    const refused = groupRefusal(authOptions, authInfo);
+    if (refused) {
+        // the front ends refuse such a caller (403) before they make one; a host with a gate of its
+        // own is refused here, since no profile (the sources' own policy) could be wider
+        throw new OperationError("NOT_ALLOWED", refused);
     }
     const subject = subjectOf(authInfo.extra?.subject);
     const issuer = typeof authInfo.extra?.issuer === "string" ? authInfo.extra.issuer : null;

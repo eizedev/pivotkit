@@ -83,6 +83,7 @@ test("groups: a list of texts; a cut, long, missing, overage or text claim is un
         [{ groups: ["finance", "x".repeat(257)] }, "long"],
         [{ _claim_names: { groups: "src1" }, _claim_sources: { src1: { endpoint: "https://graph.example/x" } } }, "overage"],
         [{ hasgroups: true }, "overage"],
+        [{ hasgroups: "true" }, "overage"],
         [{ groups: ["finance"], hasgroups: true }, "overage"],
         [{}, "missing"],
         [{ groups: null }, "missing"],
@@ -97,8 +98,9 @@ test("groups: a list of texts; a cut, long, missing, overage or text claim is un
     assert.deepEqual(groupsOf({ roles: "a,,b" }, { groupsClaim: "roles", groupsSeparator: "," }), { groups: ["a", "b"] });
     // a group named with a space is one group in a list: never split into two
     assert.deepEqual(groupsOf({ groups: ["finance staff"] }, auth), { groups: ["finance staff"] });
-    // the claim the operator named, not "groups"
+    // the claim the operator named, not "groups"; hasgroups speaks of "groups" only
     assert.deepEqual(groupsOf({ groups: ["finance"] }, { groupsClaim: "roles" }), { unknown: "missing" });
+    assert.deepEqual(groupsOf({ roles: ["finance"], hasgroups: true }, { groupsClaim: "roles" }), { groups: ["finance"] });
 });
 
 test("profiles: a token's, then the client's, then the first matching group, then scopes, then the default", () => {
@@ -134,10 +136,9 @@ test("groups: unknown groups without a default profile are refused; a client's o
     assert.equal(groupRefusal({ ...auth, clientProfiles: { "report-bot": "staff" } }, unknown), null);
     assert.equal(groupRefusal({ scopeProfiles: auth.scopeProfiles }, unknown), null, "without groupProfiles nothing is refused");
     assert.equal(groupRefusal(auth, { ...unknown, extra: { ...unknown.extra, groupsUnknown: false, groups: [] } }), null);
-    // a caller made anyway (a host that skips the gate) holds no scope and no profile
-    const caller = callerOf("oauth", unknown, auth);
-    assert.equal(caller.profile, null);
-    assert.equal(caller.scopes?.size, 0);
+    // a host with a gate of its own that makes the caller anyway is refused: no profile would be the
+    // sources' own policy, which may show more than any profile
+    assert.throws(() => callerOf("oauth", unknown, auth), { name: "OperationError", code: "NOT_ALLOWED", message: "your sign-in does not carry your groups; ask the operator" });
     // a known caller carries its groups for a code source, and only when it has some
     const known = callerOf("oauth", { ...unknown, extra: { ...unknown.extra, groupsUnknown: false, groups: ["staff"] } }, auth);
     assert.deepEqual(known.groups, ["staff"]);
@@ -166,7 +167,10 @@ test("groups over REST: finance, staff and the default profile; a cut list is 40
             assert.equal(refused.data.detail, "your sign-in does not carry your groups; ask the operator");
             assert.equal(refused.headers.get("www-authenticate"), null, "more scopes would not help: no challenge");
         }
-        // four refusals over a limit of two refused tokens: not counted as bad tokens
+        // four refusals over a limit of two refused tokens: not counted as bad tokens, so a bad token
+        // from this address still gets 401, not 429
+        const bad = await call(`${strict.api}/sources`, { token: "not-a-valid-token-but-long-enough-for-the-syntax" });
+        assert.equal(bad.status, 401, JSON.stringify(bad.data));
         assert.equal((await call(`${strict.api}/sources`, { token: await jwt({ groups: ["finance"] }) })).status, 200);
         assert.ok(strict.log.some((l) => l.event === "refused" && l.status === 403));
         assert.ok(!JSON.stringify(strict.log).includes("ana@example.com"));
@@ -374,6 +378,11 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     assert.match(token.text, /warning: the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it/);
     assert.match(token.text, /warning: auth\.groupProfiles takes effect with auth\.mode oauth only/);
     assert.match(token.text, /warning: audit names a person only with auth\.mode oauth/);
+    // the token mode's warning stands under the section's heading
+    const plainToken = await checkConfig({ sources: options.sources, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT", scopes: ["pivotkit:sales"] }] }, baseDir: dir }, { http: false, env: { BOT: "x".repeat(40) }, name: "pivotkit-server" });
+    const at = plainToken.text.split("\n");
+    const warning = at.findIndex((l) => /no static token holds/.test(l));
+    assert.equal(at[warning - 1], "Sign-in: each static token's own profile, else the sources' policy", plainToken.text);
 });
 
 test("dataAsOf in files: the html report prints it, the xlsx carries it as the document property DataAsOf", async () => {

@@ -5,6 +5,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { strFromU8, unzipSync } from "fflate";
+import { readFile } from "pivotkit-core/import";
+import xlsxReader from "pivotkit-xlsx";
 import { render } from "pivotkit-report";
 import { FIXED, SALES } from "./fixtures.js";
 
@@ -34,6 +36,11 @@ test("html: a print template's {{dataAsOf}} placeholder, empty without one", asy
 test("xlsx: the workbook carries dataAsOf as the document property DataAsOf", async () => {
     const r = await render(VIEW, SALES, { format: "xlsx", ...FIXED, dataAsOf: AS_OF });
     assert.match(strFromU8(unzipSync(r.body)["docProps/custom.xml"]), /name="DataAsOf"><vt:filetime>2026-11-15T08:00:00Z<\/vt:filetime>/);
+    // pivotkit-xlsx reads the workbook with its property as it reads one without
+    const table = await readFile(new File([r.body], "report.xlsx"), { plugins: [xlsxReader] });
+    const plain = await readFile(new File([(await render(VIEW, SALES, { format: "xlsx", ...FIXED })).body], "report.xlsx"), { plugins: [xlsxReader] });
+    assert.ok(table.data.flat().map(String).includes("Grand Total"));
+    assert.deepEqual(table.data, plain.data);
     assert.equal(unzipSync((await render(VIEW, SALES, { format: "xlsx", ...FIXED })).body)["docProps/custom.xml"], undefined);
 });
 

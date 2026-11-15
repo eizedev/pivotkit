@@ -140,7 +140,7 @@ export function toXlsx(grid, options) {
     options = optionsOf(options, "toXlsx");
     expect(isGrid(grid), "toXlsx(grid): grid must come from toGrid()");
     const asOf = options.dataAsOf;
-    expect(asOf === undefined || (typeof asOf === "string" && DATA_AS_OF.test(asOf) && !Number.isNaN(Date.parse(asOf))), 'toXlsx: dataAsOf is a time in UTC to the second, "2026-11-15T08:00:00Z"');
+    expect(asOf === undefined || DATA_AS_OF.test(asOf), "toXlsx: dataAsOf must look like 2026-11-15T08:00:00Z");
     checkLimit("xlsxRows", grid.rows.length, EXCEL_MAX_ROWS, "rows (an Excel sheet)");
     checkLimit("xlsxColumns", grid.columnCount, EXCEL_MAX_COLUMNS, "columns (an Excel sheet)");
     const theme = { ...DEFAULT_THEME, ...(options.theme || {}) };
