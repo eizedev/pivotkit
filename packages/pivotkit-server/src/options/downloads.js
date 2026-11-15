@@ -16,8 +16,8 @@ export const NAME = "downloads";
 /** How a link to a report over a closed source is bound: to the person's sign-in, used once, or none (no link). */
 export const BINDINGS = Object.freeze(["signIn", "once", "none"]);
 
-/** How long a link works by default, and at most, in minutes. */
-export const EXPIRES_MINUTES = Object.freeze({ default: 60, min: 1, max: 1440 });
+/** How long a link works by default, at least, at most, and below what check-config warns (too short for a person to read the answer, open the link and sign in), in minutes. */
+export const EXPIRES_MINUTES = Object.freeze({ default: 60, min: 1, max: 1440, short: 5 });
 
 /** The scopes the sign-in asks for by default: an ID token is all it needs. */
 export const SIGN_IN_SCOPES = Object.freeze(["openid"]);
