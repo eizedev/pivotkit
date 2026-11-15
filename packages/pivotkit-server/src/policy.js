@@ -61,35 +61,47 @@ export const NAME_TEXT = 80;
 export const AUTO_VALUES_DEFAULT = false;
 
 /**
- * Words a field name must not hold for the automatic "values" level, in English and German: names of
- * people and their roles, personal traits, health, money, places and free text. Matched per word of
- * the name (folded with NFKC, invisible characters and look-alike letters removed, split at spaces,
- * punctuation and camelCase; case does not count): a word of four letters or more anywhere in a word
- * of the name ("Kundenname", "Birthdate"), a shorter one as a word of its own ("Age", "age_group",
- * not "Stage"), an entry of two words as those words in a row ("created by"). A second layer behind
- * the statistics, not the safeguard; policy.autoValues.deny adds words.
+ * Words a field name must not hold for the automatic "values" level, in English and German: people
+ * and their roles, personal traits, health, beliefs, money, places, family and free text. Matched per
+ * word of the name (see deniedWord for how a name is read): an entry of AUTO_VALUES_WHOLE_WORDS or
+ * of fewer than four letters as a word of its own, with a plural or German ending ("Age", "Namen",
+ * not "Stage" or "Filename"); any other anywhere in a word of the name ("Kundenname", "Birthdate")
+ * and, from five letters, across spaces ("Ow ner"); an entry of two words as those words in a row
+ * ("created by"). A second layer behind the statistics, not the safeguard; policy.autoValues.deny
+ * adds words.
  */
 export const AUTO_VALUES_DENY = Object.freeze([
     // people and their roles
-    "name", "customer", "client", "employee", "owner", "assignee", "responsible", "contact", "agent", "author", "manager", "lead", "supervisor", "person", "user", "patient", "student", "teacher", "doctor", "created by", "approver", "reviewer", "driver", "applicant", "partner", "sender", "sales rep",
-    "kunde", "mitarbeiter", "besitzer", "eigentümer", "inhaber", "bearbeiter", "zuständig", "verantwortlich", "ansprechpartner", "kontakt", "autor", "leiter", "nutzer", "benutzer", "lehrer", "arzt", "erstellt von", "fahrer", "bewerber", "betreuer", "vertrieb",
-    // personal traits and beliefs
-    "gender", "sex", "race", "ethnicity", "religion", "nationality", "party", "birth", "dob", "born", "age",
-    "geschlecht", "ethnie", "konfession", "nationalität", "staatsangehörigkeit", "partei", "geburt", "jahrgang", "alter",
+    "name", "firstname", "lastname", "surname", "fullname", "nickname", "vorname", "nachname", "customer", "client", "employee", "owner", "assignee", "responsible", "contact", "agent", "author", "manager", "team lead", "supervisor", "person", "user", "patient", "student", "teacher", "doctor", "approver", "reviewer", "driver", "applicant", "partner", "sender", "sales rep",
+    "creator", "reporter", "requester", "submitter", "initiator", "editor", "staff", "worker", "member", "participant", "attendee", "guest", "tenant", "resident", "witness", "victim", "suspect", "wife", "husband", "son", "daughter",
+    "created by", "assigned to", "modified by", "updated by", "approved by", "owned by", "account holder",
+    "kunde", "mitarbeiter", "besitzer", "eigentümer", "inhaber", "bearbeiter", "zuständig", "verantwortlich", "ansprechpartner", "kontakt", "autor", "leiter", "nutzer", "benutzer", "lehrer", "arzt", "erstellt von", "fahrer", "bewerber", "betreuer", "vertrieb", "zugewiesen", "vorgesetzter",
+    // personal traits, beliefs and status
+    "gender", "sex", "sexual", "orientation", "race", "ethnicity", "ethnic", "religion", "belief", "nationality", "citizen", "immigra", "party", "politics", "political", "vote", "union", "birth", "dob", "born", "age", "crimin", "conviction",
+    "geschlecht", "ethnie", "konfession", "glaube", "nationalität", "staatsangehörigkeit", "partei", "politik", "wahl", "gewerkschaft", "geburt", "geb datum", "gebdat", "jahrgang", "alter", "strafe",
     // health
-    "diagnosis", "health", "medication", "illness", "diagnose", "gesundheit", "medikament", "krankheit",
+    "diagnosis", "health", "medical", "medication", "illness", "disease", "treatment", "therap", "allerg", "pregnan", "disability", "weight",
+    "diagnose", "gesundheit", "medikament", "medikation", "krankheit", "schwanger", "behinderung", "gewicht",
     // money and work
-    "salary", "income", "bonus", "bank", "account", "job", "gehalt", "lohn", "einkommen", "konto", "beruf",
+    "salary", "income", "bonus", "payroll", "compensation", "pay", "wage", "bank", "account number", "credit", "loan", "mortgage", "debt", "wealth", "net worth", "ssn", "tax", "insurance", "job",
+    "gehalt", "lohn", "vergütung", "einkommen", "konto", "kredit", "schufa", "schulden", "vermögen", "steuer", "versicherung", "beruf",
     // places
-    "address", "city", "postcode", "zip", "adresse", "anschrift", "stadt", "plz", "wohnort",
-    // special categories and family
-    "disability", "union", "orientation", "politics", "political", "ethnic", "passport", "spouse", "mother", "father", "child", "weight",
-    "behinderung", "gewerkschaft", "politik", "ausweis", "ehepartner", "mutter", "vater", "kind", "gewicht",
-    // debts, pay and taxes
-    "pay", "wage", "debt", "ssn", "tax", "insurance", "schulden", "steuer", "versicherung",
+    "address", "adress", "street", "city", "postcode", "zip", "adresse", "anschrift", "straße", "stadt", "plz", "wohnort",
+    // family
+    "spouse", "mother", "father", "child", "passport", "ehepartner", "mutter", "vater", "kinder", "kindes", "ausweis",
     // free text
     "comment", "note", "reason", "kommentar", "notiz", "bemerkung", "grund"
 ]);
+
+/**
+ * Entries of AUTO_VALUES_DENY that are also parts of everyday neutral words ("Capacity", "Trace",
+ * "Reunion", "Alternative", "Notebook", "Grundstück"): they match only as a word of their own, with a
+ * plural or German ending.
+ */
+export const AUTO_VALUES_WHOLE_WORDS = Object.freeze(["name", "race", "city", "union", "alter", "note", "grund", "son", "pay", "tax", "age", "sex", "job", "zip", "plz", "ssn", "dob", "born", "bank", "party", "vote", "wahl", "wife", "guest", "staff", "member", "editor", "credit", "loan", "kinder", "kindes", "agent", "wage", "user"]);
+
+/** The endings a whole-word entry may have: plural and German forms ("Namen", "Kunden", "Wählerin"). */
+const WORD_ENDINGS = Object.freeze(["", "s", "es", "n", "en", "er", "in", "innen"]);
 
 /**
  * The automatic "values" rule's thresholds: a text field qualifies with at most `maxDistinct` distinct
@@ -258,8 +270,8 @@ const REPEATED = /^(.*\S) \(\d+\)$/;
 const LOOK_ALIKES = Object.freeze({
     а: "a", е: "e", о: "o", р: "p", с: "c", у: "y", х: "x", і: "i", ј: "j", ѕ: "s", к: "k", м: "m", т: "t", н: "h", в: "b", α: "a", ο: "o", ρ: "p", ε: "e", ι: "i", κ: "k", ν: "v", τ: "t", υ: "u",
     ᴀ: "a", ʙ: "b", ᴄ: "c", ᴅ: "d", ᴇ: "e", ꜰ: "f", ɢ: "g", ʜ: "h", ɪ: "i", ᴊ: "j", ᴋ: "k", ʟ: "l", ᴍ: "m", ɴ: "n", ᴏ: "o", ᴘ: "p", ʀ: "r", ꜱ: "s", ᴛ: "t", ᴜ: "u", ᴠ: "v", ᴡ: "w", ʏ: "y", ᴢ: "z",
-    ı: "i", ȷ: "j", ł: "l", ø: "o", đ: "d", ħ: "h", ŧ: "t", ɑ: "a", ɡ: "g", ƒ: "f", ŀ: "l", ɩ: "i", ɵ: "o",
-    0: "o", 1: "i", 3: "e", 4: "a", 5: "s"
+    ω: "w", ı: "i", ȷ: "j", ł: "l", ø: "o", đ: "d", ħ: "h", ŧ: "t", ɑ: "a", ɡ: "g", ƒ: "f", ŀ: "l", ɩ: "i", ɵ: "o",
+    0: "o", 3: "e", 4: "a", 5: "s"
 });
 
 /** German letters as they are written without them: "Zuständig" and "Zustaendig" read alike. */
@@ -269,10 +281,11 @@ const GERMAN = Object.freeze({ ä: "ae", ö: "oe", ü: "ue", ß: "ss" });
  * The words of a text as the deny list reads them: NFKC (fullwidth and other compatibility forms
  * folded), no invisible or control characters, split at camelCase, lower case, German umlauts and ß
  * written out, NFD with every mark removed ("Ōwner", "Owneŕ"), look-alike letters and digits as Latin
- * letters, split at everything else.
+ * letters ("1" as `one`: a name is read with "i" and with "l"), split at everything else.
  * @param {string} text
+ * @param {"i" | "l"} [one]
  */
-const denyWords = (text) =>
+const denyWords = (text, one = "i") =>
     String(text)
         .normalize("NFKC")
         .replace(/[\p{Cf}\p{Cc}]/gu, "")
@@ -281,13 +294,13 @@ const denyWords = (text) =>
         .replace(/[äöüß]/gu, (c) => GERMAN[c])
         .normalize("NFD")
         .replace(/\p{M}/gu, "")
-        .replace(/./gu, (c) => LOOK_ALIKES[c] ?? c)
+        .replace(/./gu, (c) => (c === "1" ? one : LOOK_ALIKES[c] ?? c))
         .split(/[^\p{L}\p{N}]+/u)
         .filter(Boolean);
 
 /**
  * The deny list read once (autoValuesOf): each entry's words, joined, and how it matches.
- * @typedef {{ entry: string, text: string, words: number, long: boolean }} DenyEntry
+ * @typedef {{ entry: string, text: string, words: number, whole: boolean }} DenyEntry
  */
 
 /** Deny lists already read, by the list. */
@@ -307,7 +320,8 @@ export function denyEntries(deny) {
                 .flatMap((entry) => {
                     const shown = entry.normalize("NFC").toLowerCase().trim();
                     const plain = shown.normalize("NFD").replace(/\p{M}/gu, "");
-                    return [...new Set([denyWords(shown).join(" "), denyWords(plain).join(" ")])].map((text) => ({ entry: shown, text, words: text.split(" ").length, long: [...text].length >= 4 }));
+                    const whole = AUTO_VALUES_WHOLE_WORDS.includes(shown) || [...shown].length < 4;
+                    return [...new Set([denyWords(shown).join(" "), denyWords(plain).join(" ")])].map((text) => ({ entry: shown, text, words: text.split(" ").length, whole }));
                 })
                 .filter((e) => e.text)
         );
@@ -316,26 +330,47 @@ export function denyEntries(deny) {
 }
 
 /**
- * The word of the deny list a field name holds, or null. A word of four letters or more matches
- * anywhere in a word of the name, and one of five or more also in the name with its separators
- * removed ("Ow ner"); a shorter one as a word of its own (or with a plural "s"); an entry of two
- * words as those words in a row ("created by").
+ * A name's words as deniedWord compares them: as read, and each run of words of one or two letters
+ * glued ("DoB", "D.o.B." as "dob").
+ */
+function comparedWords(words) {
+    const out = [...words];
+    let run = "";
+    for (const w of [...words, ""]) {
+        if (w && w.length <= 2) {
+            run += w;
+        } else {
+            if (run.length > 2) {
+                out.push(run);
+            }
+            run = "";
+        }
+    }
+    return out;
+}
+
+/**
+ * The word of the deny list a field name holds, or null (see AUTO_VALUES_DENY for how each entry
+ * matches). The name is read as denyWords reads it, once with "1" as "i" and once as "l"
+ * ("Emp1oyee").
  * @param {string} name
  * @param {readonly string[]} deny
  */
 export function deniedWord(name, deny) {
-    const words = denyWords(name);
-    const joined = ` ${words.join(" ")} `;
-    const glued = words.join("");
-    for (const e of denyEntries(deny)) {
-        const hit =
-            e.words > 1
-                ? joined.includes(` ${e.text} `) || joined.includes(` ${e.text}s `) || glued.includes(e.text.replace(/ /gu, ""))
-                : e.long
-                  ? words.some((t) => t.includes(e.text)) || ([...e.text].length >= 5 && glued.includes(e.text))
-                  : words.some((t) => t === e.text || t === `${e.text}s`);
-        if (hit) {
-            return e.entry;
+    for (const one of /** @type {const} */ (["i", "l"])) {
+        const words = comparedWords(denyWords(name, one));
+        const joined = ` ${words.join(" ")} `;
+        const glued = words.join("");
+        for (const e of denyEntries(deny)) {
+            const hit =
+                e.words > 1
+                    ? joined.includes(` ${e.text} `) || joined.includes(` ${e.text}s `) || glued.includes(e.text.replace(/ /gu, ""))
+                    : e.whole
+                      ? words.some((t) => WORD_ENDINGS.some((end) => t === `${e.text}${end}`))
+                      : words.some((t) => t.includes(e.text)) || ([...e.text].length >= 5 && glued.includes(e.text));
+            if (hit) {
+                return e.entry;
+            }
         }
     }
     return null;

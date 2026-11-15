@@ -77,7 +77,7 @@ test("the deny list: English and German words, compounds, camelCase and snake_ca
     for (const name of ["Stage", "Average", "Status", "Region", "Team", "Category", "Priority", "Usage"]) {
         assert.equal(deniedWord(name, deny), null, `${name} passes`);
     }
-    assert.equal(autoLevel("Kundenname", stat(), 300, AUTO_VALUES).why, 'name matches the deny list ("name")');
+    assert.equal(autoLevel("Kundenname", stat(), 300, AUTO_VALUES).why, 'name matches the deny list ("kunde")');
     // the operator adds words
     const own = resolvePolicy({ autoValues: { deny: ["Tier"] } }, {}).auto;
     assert.ok(own && deniedWord("Service tier", own.deny));
@@ -205,7 +205,7 @@ test("check-config: each field's level and why, with the automatic rule on", asy
     assert.match(check.text, /automatic values on: 2 fields; policy.autoValues false turns it off/);
     assert.match(check.text, /Status: values \(auto: 3 distinct, min 100 rows\)/);
     assert.match(check.text, /Team: values \(auto: 12 distinct, min 25 rows\)/);
-    assert.match(check.text, /Kundenname: summary \(name matches the deny list \("name"\)\)/);
+    assert.match(check.text, /Kundenname: summary \(name matches the deny list \("kunde"\)\)/);
     assert.match(check.text, /Mail: summary \(a value looks like an e-mail address\)/);
     assert.match(check.text, /Sales: summary \(values asked, but a number field lists no values\)/);
     assert.match(check.text, /Region: values \(a rule\)/, "an explicit values with 13 distinct fits valuesMax");
@@ -495,5 +495,15 @@ test("check-config warns of an explicit values field whose values look personal;
     for (const key of ["minRows", "minRowsPerValue"]) {
         assert.throws(() => validateOptions({ policy: { autoValues: { [key]: 0 } } }), new RegExp(`policy.autoValues.${key}: must be 1 or more`));
         assert.doesNotThrow(() => validateOptions({ policy: { autoValues: { [key]: 1 } } }));
+    }
+});
+
+test("the deny list: ambiguous short words only as words of their own, so neutral headers stay eligible; roles, family and money words; 1 read as i and l; DoB in any spelling", () => {
+    const deny = AUTO_VALUES.deny;
+    for (const name of ["Emp1oyee", "0wner", "Ow ner", "Ownér", "\u1D0Fwner", "\u014Cwner", "O\u03C9ner", "Zustaendig", "Kundenname", "Firstname", "Namen", "Kinder", "DoB", "D.o.B", "Geb. Datum", "Gebdatum", "Straße", "Strasse", "Assigned to", "Modified By", "Requester", "Tenant", "Witness", "Daughter", "Vorgesetzter", "Zugewiesen", "Payroll", "Vergütung", "Net worth", "Mortgage", "Schufa", "Allergies", "Therapy", "Pregnancy", "Schwangerschaft", "Citizenship", "Immigration status", "Criminal record", "Wahl", "Glaube", "Medical", "Account holder", "Team lead"]) {
+        assert.ok(deniedWord(name, deny), `${name} is denied`);
+    }
+    for (const name of ["Kind", "Lead Source", "Account Type", "Trace", "Capacity", "Reunion", "Alternative", "Notebook", "Filename", "Grundstück", "Stage", "Average", "Usage", "Segment", "Status"]) {
+        assert.equal(deniedWord(name, deny), null, `${name} passes`);
     }
 });

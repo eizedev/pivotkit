@@ -122,18 +122,23 @@ always wins. A field qualifies when all of these hold:
   digits or more anywhere), an address on the web, an IBAN, an IP address or a run of 6 or more
   digits;
 - a field name without a word of the deny list, in English and German: people and their roles
-  (name, customer, employee, owner, contact, manager, user, created by, Kunde, Ansprechpartner, ...),
-  personal traits (gender, age, birth, religion, nationality, party, ...), health, money (salary,
-  income, bank, ...), places (address, city, postcode, PLZ, ...) and free text (comment, note,
-  reason, ...), special categories (disability, union, orientation, politics, ...) and family.
-  Names are read with compatibility forms folded, invisible characters and accents removed, German
-  umlauts and ß written out (and also without their dots), Latin small capitals, Cyrillic and Greek
-  look-alike letters and the digits 0, 1, 3, 4 and 5 read as letters, and words of five letters or
-  more also across spaces ("Ow ner"); `deny` adds words.
+  (name, customer, employee, owner, contact, manager, user, created by, assigned to, Kunde,
+  Ansprechpartner, ...), personal traits and beliefs (gender, age, birth, religion, nationality,
+  party, union, ...), health, money (salary, payroll, income, credit, bank, ...), places (address,
+  street, city, postcode, PLZ, ...), family and free text (comment, note, reason, ...). Names are
+  read with compatibility forms folded, invisible characters and accents removed, German umlauts and
+  ß written out (and also without their dots), Latin small capitals, Cyrillic and Greek look-alike
+  letters and the digits 0, 1 (as i and as l), 3, 4 and 5 read as letters, and runs of one- and
+  two-letter words glued ("D.o.B."). Short or everyday words (name, age, city, note, union, ...)
+  match only as a word of their own, with a plural or German ending; others anywhere in a word
+  ("Kundenname") and, from five letters, across spaces ("Ow ner"); `deny` adds words.
 
 The deny list is a second layer, not the safeguard. It is English and German only: a header in
 another language ("Propriétaire") or a column of person names under a neutral header ("Team") is not
-caught, so read what `check-config` would list before you switch the rule on. The level is decided from statistics counted
+caught, so read what `check-config` would list before you switch the rule on. It also fails closed
+the other way: a neutral header that holds a listed word ("Bank holiday", "Member tier") stays
+`summary`; give such a field `values` in `fields` (`"Member tier": "values"`), since a field's own
+rule always wins. The level is decided from statistics counted
 when the data is read (numbers, never values) and kept with the data; when they are missing the
 field is `summary`. A change after the data is read again is logged, and the start log says how many
 fields the rule puts at `values`. `check-config` prints every field's level and why, for example
