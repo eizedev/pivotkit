@@ -105,11 +105,12 @@ export function issuerHint(error, rules) {
  * A JSON document of the issuer: a time limit, no redirect, a size cap.
  * @param {string} url
  * @param {IssuerRules} rules
+ * @param {AbortSignal} [signal]  ends it sooner (check-config's shorter wait)
  */
-async function fetchJson(url, rules) {
+async function fetchJson(url, rules, signal) {
     let answer;
     try {
-        answer = await issuerFetch(url, rules, { headers: { accept: "application/json" }, maxBytes: ISSUER_LIMITS.metadataBytes, timeMs: ISSUER_LIMITS.metadataMs });
+        answer = await issuerFetch(url, rules, { headers: { accept: "application/json" }, maxBytes: ISSUER_LIMITS.metadataBytes, timeMs: ISSUER_LIMITS.metadataMs, ...(signal ? { signal } : {}) });
     } catch (e) {
         throw new Error(`${url}: ${e instanceof GuardedFetchError ? `${e.code}, ${e.message}` : String(/** @type {any} */ (e)?.message ?? e)}${issuerHint(e, rules)}`, { cause: e });
     }
@@ -124,15 +125,16 @@ async function fetchJson(url, rules) {
  * Connect discovery (after it). Its issuer must equal the configured one exactly.
  * @param {string} issuer
  * @param {IssuerRules} [rules]  default: the rules of an issuer at that address, without intranet
+ * @param {{ signal?: AbortSignal }} [how]  signal: ends both tries sooner than their own time limit (check-config)
  */
-export async function discover(issuer, rules = issuerRulesOf({ auth: { issuer } })) {
+export async function discover(issuer, rules = issuerRulesOf({ auth: { issuer } }), { signal } = {}) {
     const url = new URL(issuer);
     const path = url.pathname.replace(/\/$/, "");
     const tries = [`${url.origin}/.well-known/oauth-authorization-server${path}`, `${url.origin}${path}/.well-known/openid-configuration`];
     const errors = [];
     for (const at of tries) {
         try {
-            const doc = await fetchJson(at, rules);
+            const doc = await fetchJson(at, rules, signal);
             if (doc.issuer !== issuer) {
                 throw new Error(`the metadata at ${at} names the issuer ${JSON.stringify(String(doc.issuer).slice(0, 200))}, not ${issuer}`);
             }

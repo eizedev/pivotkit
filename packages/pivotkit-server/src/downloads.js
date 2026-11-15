@@ -767,6 +767,10 @@ export function createDownloadHandler(context, runtime = {}) {
             return found.response;
         }
         await found.report.handle.close();
+        // a link preview (HEAD) learns the link works, but starts no sign-in and gets no cookie
+        if (method === "HEAD") {
+            return page("Sign in to download the report", "<p>Open this link in your browser and sign in to download the report.</p>");
+        }
         return startSignIn(request, token);
     }
 

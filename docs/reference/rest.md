@@ -494,12 +494,66 @@ pivotkit-server's.
 | Command | What it does |
 | --- | --- |
 | `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json`, and with pivotkit-mcp installed `/mcp` and its quick-start page; `/healthz` and `/readyz` |
-| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant. Where a change of this version applies to the configuration, it closes with "New in this version" |
+| `pivotkit-server check-config [flags]` | Whether `serve` would start and what it would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, delivery, auth, profiles, REST settings), then exit; 1 when it finds a problem, whether or not the server would start with it ([reading it](#check-config)). A policy rule that names no column of the data is a warning (exit 0), with the name probably meant |
 | `pivotkit-server check-source <id> [--param name=value ...] [flags]` | Load an [HTTP source](sources.md#check-source) once as the server would: each page's status, content type and size, the rows, the fields with their types (never a value), when the data is from, and what a caller would get when it fails; 1 when it fails, 2 when the id names no HTTP source |
 | `pivotkit-server source-from-openapi <file or https URL> --operation <operationId or "GET /path"> [--id <id>] [--backend <name>]` | Propose an [HTTP source](sources.md#openapi) from one GET operation of an OpenAPI document (JSON): the block on stdout, what you must check and decide on stderr; the values you must fill in say `TODO`, which the server refuses until you do; 2 when the operation cannot be a source |
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit` |
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |
+
+### Reading check-config { #check-config }
+
+`check-config`'s first line says whether the server starts ("the server does not start with this
+configuration", "the server starts, but not everything will work", or "the configuration is
+valid"); the second counts problems and warnings. Then come every `PROBLEM` line, every `WARNING`
+line named by the section it belongs to (the issuer's under `Auth`, where the sign-in is), and the
+sections. A `PROBLEM` ends with what it does: `->
+the server does not start` (what `serve` refuses: an output directory it cannot use, a static token
+that is missing or too short, an address off loopback without auth, an issuer that is not https, an
+audit key, a print template the parser refuses), or what does not work while the server runs (a
+source file that is not there, a backend secret, the download key, an upload header's secret, the
+download links' client secret, an issuer or upload target on an address the server refuses, an
+output directory the server cannot write). Any `PROBLEM` exits with 1. A `WARNING` does not change
+the exit code; an issuer whose metadata cannot be loaded from where you run it is one, with the
+connection's error (for example `ENOTFOUND`), since the server starts and keeps trying.
+
+```text
+pivotkit-server: the server starts, but not everything will work.
+1 problem, 1 warning.
+
+PROBLEM: httpSources.backends.platform.auth.clientCredentials.clientSecret:
+    the file secrets/backend-secret cannot be read (no such file) -> the
+    server starts; vms answers SOURCE_UNAVAILABLE
+
+WARNING (Auth): the token export's scope "typo:scope" is named by no source,
+    tool or required scope
+
+Sources (1):
+  values listed per shown field: 20 (policy.items)
+  results inline in the tool answer: up to 500 cells (policy.inline)
+  vms: an HTTP source, described under HTTP sources
+    policy: hide by default; name show, cpu show
+    fields: known only after a load (pivotkit-server check-source vms loads
+        it)
+...
+Auth: token
+  token export from $PIVOTKIT_TOKEN: all scopes, profile export
+
+New in this version: data in the request (inline:; mcp.data: false switches
+    it off), reports deleted after 30 days (output.maxAgeDays: 0 keeps them)
+    -> https://pivotkit.eize.dev/getting-started/upgrading/
+```
+
+Each line holds one fact: a fact under another is two spaces further in, a wrapped line four. Lines
+are wrapped at 78 columns at spaces; a path stands on a line of its own and is never cut, so a long
+one makes its line longer. Limits and defaults that matter are printed with their values (the
+exposure limits, the output directory's size, CORS, who may read `/openapi.json`); a field's level
+says whether it comes from a rule or the default. A secret is named by its variable or by its file,
+as written and with its full path, never by its value. Over stdio (`pivotkit-mcp` without `--http`)
+there are no download links and no signed-in person, and the `Transport:` section says which
+sources therefore cannot be used. "New in this version" names the changes of this release that
+apply to the configuration, with the setting that switches each off, and links to the
+[upgrading page](../getting-started/upgrading.md).
 | `pivotkit-server --version` | The version |
 
 The flags of `serve` are the [MCP runner's](mcp.md#configuration) without `--http`, `--allow-dir`

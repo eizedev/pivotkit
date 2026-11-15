@@ -227,7 +227,7 @@ error that names the key and the one probably meant.
 | `sources.<id>.sheet` | - | first visible | A workbook's sheet |
 | `sources.<id>.policy` | - | the server's | The source's exposure policy |
 | `sources.<id>.link`, `.linkKey` | - | none | The page that shows this source's reports, for create_link; the report's key there |
-| `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html, its path relative to the configuration file, at most 1 MiB; its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). Read and checked at start and by `check-config`: a template with an unknown placeholder, over 1 MiB or not a regular file keeps the server from starting; a missing one is a warning (NOT FOUND in `check-config`) and fails that source's html reports |
+| `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html, its path relative to the configuration file, at most 1 MiB; its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). Read and checked at start and by `check-config`: a template with an unknown placeholder, over 1 MiB or not a regular file keeps the server from starting; a missing one starts the server with a warning (a `PROBLEM` the server starts with in `check-config`) and fails that source's html reports |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
 | `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`; control and direction characters are removed |
 | `sources.<id>.http` | - | none | An [HTTP source](sources.md#http): an operator's backend, its address with `{name}` for a parameter, where the rows are, paging and limits, its sign-in (`http.auth`: a secret header, client credentials or a token exchange, [backend sign-in](sources.md#http-auth)) |
@@ -275,7 +275,7 @@ error that names the key and the one probably meant.
 | `audit.subject` | - | off | `hash` or `plain`: the person (`auth.subjectClaim` of an OAuth token) on the `call`, `request` and `download` [log lines](#logging) |
 | `audit.key` | - | a random key per start | `hash`: the key (at least 16 characters), `{ "env": "NAME" }` or `{ "file": "path" }`, read at start with OAuth only |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
-| - | `--check-config` | - | Print what would be exposed (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output, auth) and exit; 1 when a file or directory it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0). Where a change of this version applies to the configuration, it closes with "New in this version" |
+| - | `--check-config` | - | Print whether the server would start and what it would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output, auth) and exit; 1 when it finds a problem ([reading it](rest.md#check-config)). A policy rule that names no column of the data is a warning (exit 0) |
 
 A write the server is killed in leaves its temporary file
 (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). It is not a report: neither counted toward

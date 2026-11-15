@@ -35,7 +35,7 @@ export const SHARED_FLAGS = Object.freeze({
     log: { type: "string", value: "level", text: "debug, info (default), warn, error or off; $PIVOTKIT_LOG_LEVEL." },
     "log-format": { type: "string", value: "format", text: "auto (default: text on a terminal, JSON otherwise), text or json; $PIVOTKIT_LOG_FORMAT." },
     "log-address": { type: "string", value: "on|off", text: "Log the client's address (default on); $PIVOTKIT_LOG_ADDRESS." },
-    "check-config": { type: "boolean", text: "Print what the server would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable)." },
+    "check-config": { type: "boolean", text: "Print whether the server starts and what it would expose, then exit (1 when there is a PROBLEM)." },
     help: { type: "boolean", short: "h", text: "Print this help and exit." }
 });
 

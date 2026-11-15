@@ -15,7 +15,7 @@ import { isClosedForDelivery } from "../src/registry.js";
 import { createDownloadHandler } from "../src/downloads.js";
 import { createLimits } from "../src/limits.js";
 import { NO_LINK_NOTE } from "../src/delivery.js";
-import { BY_REGION, call, restServer, workspace } from "./helpers.js";
+import { BY_REGION, call, factsOf, restServer, workspace } from "./helpers.js";
 
 const OAUTH = Object.freeze({ mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" });
 const ROWS = [
@@ -113,32 +113,33 @@ test("output.baseUrl: a report over data sent in the request gets no address; th
 
 test("check-config: per-person sources and data sent in requests are named with why they count as closed", async () => {
     const dir = workspace();
-    const text = (await checkConfig({ sources: { ...PERSONAL_SOURCES, sales: { file: "data/sales.csv" } }, auth: OAUTH, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} })).text;
+    const text = factsOf((await checkConfig({ sources: { ...PERSONAL_SOURCES, sales: { file: "data/sales.csv" } }, auth: OAUTH, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} })).text);
     assert.match(text, /^ {2}per person \(counted as closed\): team \(a parameter bound to a claim\), mine \(perPerson\), data sent in requests \(inline:\)$/m);
     assert.match(text, /^ {2}reports over closed sources \(team, mine, sales\): no links/m);
     assert.match(text, /^ {2}reports over open sources \(open\): plain links$/m);
     // a code source open by its fields: pivotkit cannot see whether load answers per caller
-    assert.match(text, /^ {2}open: load up to 30000 ms[^\n]*\n {4}reports over it get plain links \(every field is shown\); if load answers each caller differently, set perPerson: true/m);
-    assert.match(text, /^ {2}mine: load up to 30000 ms, loaded on every call; data per caller, per person \(perPerson: no plain links to its reports\)/m);
-    assert.doesNotMatch(text, /^ {2}(team|mine): load[^\n]*\n {4}reports over it get plain links/m);
+    assert.match(text, /^ {2}open: load up to 30000 ms\n(?: {4}[^\n]*\n)*? {4}reports over it get plain links \(every field is shown\)\n {4}if load answers each caller differently, set perPerson: true/m);
+    assert.match(text, /^ {2}mine: load up to 30000 ms\n {4}loaded on every call\n {4}data per caller, per person \(perPerson: no plain links to its reports\)/m);
+    assert.doesNotMatch(text, /^ {2}(team|mine): load[^\n]*\n(?: {4}[^\n]*\n)*? {4}reports over it get plain links/m);
 });
 
 // --- F2: reports without an age limit --------------------------------------------------------------
 
 test("check-config: warns only when output.maxAgeDays is 0 while closed sources or data sent in requests are on; the default limit is said on the output line", async () => {
     const dir = workspace();
-    const warned = (await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text;
-    assert.match(warned, /^Retention:\n {2}warning: output\.maxAgeDays is 0 \(no age limit\): reports stay in output\.dir until output\.maxFiles \(1000\) or output\.maxMb \(1024 MB\) push them out, also after their link expired; reports over closed sources \(sales\) and data sent in requests can hold data about people; leave out output\.maxAgeDays \(the default deletes reports after 30 days\) or set a number of days$/m);
-    assert.match(warned, /drafts are kept; no age limit \(output\.maxAgeDays 0\)$/m);
+    const warned = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.match(warned, /^Retention:\n {2}no age limit: reports stay in output\.dir until output\.maxFiles \(1000\) or output\.maxMb \(1024 MB\) push them out, also after their link expired$/m);
+    assert.match(warned, /^WARNING \(Retention\): output\.maxAgeDays is 0 \(no age limit\) and reports over closed sources \(sales\) and data sent in requests can hold data about people; leave out output\.maxAgeDays \(the default deletes reports after 30 days\) or set a number of days$/m);
+    assert.match(warned, /^ {2}no age limit \(output\.maxAgeDays 0\)$/m);
     // data sent in requests alone: an open source, MCP on
-    const inlineOnly = (await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text;
-    assert.match(inlineOnly, /warning: output\.maxAgeDays is 0 \(no age limit\): .*; data sent in requests can hold/);
+    const inlineOnly = factsOf((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.match(inlineOnly, /WARNING \(Retention\): output\.maxAgeDays is 0 \(no age limit\) and data sent in requests can hold/);
     // the default (30 days), a written limit, no output.dir, or nothing closed and no data in requests: no warning
-    const byDefault = (await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text;
+    const byDefault = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
     assert.doesNotMatch(byDefault, /Retention:/);
-    assert.match(byDefault, /drafts are kept; reports and drafts older than 30 days are deleted \(the default\)$/m);
-    assert.match(byDefault, /New in this version[\s\S]*Reports and schedule drafts older than 30 days are deleted from output\.dir at start and every hour \(output\.maxAgeDays; 0 keeps them with no age limit\)/);
-    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 7 }, baseDir: dir }, { http: false, env: {} })).text, /Retention:|New in this version[\s\S]*older than 30 days/);
+    assert.match(byDefault, /^ {2}reports and drafts older than 30 days are deleted$/m);
+    assert.match(byDefault, /\nNew in this version: [^\n]*reports deleted after 30 days/);
+    assert.doesNotMatch(factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 7 }, baseDir: dir }, { http: false, env: {} })).text), /Retention:|deleted after 30 days/);
     assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
     assert.doesNotMatch((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, mcp: { data: false }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
 });
@@ -166,9 +167,9 @@ test("output.maxAgeDays: 30 days by default in a directory of the reports' own; 
         await shared.close();
     }
     const text = (await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data" }, baseDir: dir }, { http: false, env: {} })).text;
-    assert.match(text, /; no age limit: the directory holds other files$/m);
+    assert.match(text, /^ {2}no age limit: the directory holds other files$/m);
     assert.doesNotMatch(text, /PROBLEM: output\.maxAgeDays/);
-    assert.doesNotMatch(text, /New in this version[\s\S]*older than 30 days/);
+    assert.doesNotMatch(factsOf(text), /deleted after 30 days/);
     // a limit written for such a directory still stops the start, as before
     await assert.rejects(contextOf({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", maxAgeDays: 30 }, baseDir: dir }), /output\.maxAgeDays could delete/);
 });
@@ -233,8 +234,9 @@ test("groups: a person in no group of auth.groupProfiles is refused without auth
 
 test("check-config: with groupProfiles and no defaultProfile it says a person in none of the groups is refused", async () => {
     const options = { sources: { sales: { file: "data/sales.csv" } }, policy: { profiles: { finance: { default: "show" } } }, auth: { ...OAUTH, groupProfiles: [{ group: "finance", profile: "finance" }] }, baseDir: workspace() };
-    const text = (await checkConfig(options, { http: true, env: {} })).text;
-    assert.match(text, /a person in none of these groups is refused \("[^"]*ask the operator"\); set auth\.defaultProfile to give them a profile instead/);
+    const text = factsOf((await checkConfig(options, { http: true, env: {} })).text);
+    assert.match(text, /\n {2}a person in none of these groups is refused: "[^"]*ask the operator"\n/);
+    assert.match(text, /WARNING \(Auth\): auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups is refused \(403\); set auth\.defaultProfile to a narrow profile to let them in/);
 });
 
 // --- F10: one-time markers swept on a timer -------------------------------------------------------

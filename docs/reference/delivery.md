@@ -64,7 +64,7 @@ same rules for closed sources.
 | `output.downloads.key` | a random key per process | The link key, a secret reference (`{ "env": "NAME" }` or `{ "file": "path" }`) of at least 32 bytes; set it for more than one replica and for links that survive a restart. Make one with `openssl rand -base64 48`. It is read on every use, so a rotated key works without a restart (links made with the old key stop working) |
 | `output.downloads.signIn.clientId` | none | The browser client the person signs in with |
 | `output.downloads.signIn.clientSecret` | none (a public client with PKCE) | Its secret, a secret reference, sent as HTTP Basic (or in the form where the provider only takes `client_secret_post`) |
-| `output.downloads.signIn.issuer` | `auth.issuer` | May be left out; when given, it must equal `auth.issuer` (a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did) |
+| `output.downloads.signIn.issuer` | `auth.issuer` | May be left out; when given, it must be `auth.issuer` exactly (a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did). The server does not start otherwise, and `check-config` stops with the same message: one that differs only in spelling (a trailing slash, case in the scheme or host, a default port) says to leave it out; another issuer points to [#441](https://github.com/eizedev/pivotkit/issues/441), a sign-in with an issuer of its own for providers with one issuer per application |
 | `output.downloads.signIn.scopes` | `["openid"]` | What the sign-in asks for; must hold `openid` |
 | `output.downloads.signIn.tokenUrl` | the metadata's `token_endpoint` | The token endpoint the code (and the client secret) goes to, `https://`. Without it the metadata's endpoint must be on the issuer's own origin; set it for a provider that keeps it on another host |
 
@@ -86,7 +86,8 @@ their result says to ask the operator.
 A sign-in link opens the provider's sign-in page in the browser (the OAuth 2.1 code flow with PKCE,
 `state` and `nonce`), comes back to `/downloads/callback`, and sends the file only when the ID
 token's issuer and subject are those of the access token the report was asked with (an ID token for
-several audiences must name this client as `azp`). Register at the provider:
+several audiences must name this client as `azp`). A HEAD of the link (a link preview) answers 200
+with a short page, or the link's error, and starts no sign-in. Register at the provider:
 
 1. A client for the browser (`signIn.clientId`), public with PKCE or confidential with a secret,
    with the redirect URI `https://reports.example.com/downloads/callback` (`http.publicUrl` +
@@ -286,7 +287,9 @@ With `bind: "signIn"` the presign request carries `subject`: an HMAC of the call
 subject under a key derived from `output.downloads.key` for this purpose alone (never the subject
 itself, and never a value a sign-in link holds), so your presign service can scope the object to the
 person and check it when they open the link. The value is the same for one person across reports, so
-the store can tell which reports belong to the same person. Over stdio, or when the key cannot be
+the store can tell which reports belong to the same person. A program signed in with client
+credentials (a service account) has a subject too, usually its client: its reports are bound to
+that client, so only a sign-in as the same service account opens them. Over stdio, or when the key cannot be
 read, no `subject` is sent. Without `output.downloads.key` the server uses a random key per process,
 so the value changes on every restart and differs between replicas (`check-config` warns of it). A `signIn` link is only as strong as the
 store's own access control: pivotkit declares the binding, it does not verify it.
@@ -329,10 +332,11 @@ code, since it would describe your store's setup.
 link given out for it. pivotkit does not delete it there (it may not have the right to); let the
 store's own retention remove such objects.
 
-`check-config` prints an `Upload:` section: the target (without its query), which sources' reports go there, a
-`PROBLEM:` line for a header secret it cannot read, and a `PROBLEM:` line for a target that resolves
-to an address uploads refuse (an IP address, a metadata address, or a loopback or private one
-without `intranet`).
+`check-config` prints an `Upload:` section: the target (without its query), which sources' reports
+go there, and where each header's secret comes from. A header secret it cannot read and a target
+that resolves to an address uploads refuse (an IP address, a metadata address, or a loopback or
+private one without `intranet`) are each a `PROBLEM` the server starts with: every upload fails
+until it is fixed ([reading check-config](rest.md#check-config)).
 
 ## Behind a proxy { #proxy }
 
@@ -361,4 +365,6 @@ configuration or a source, template or token file. `check-config` warns under `R
 set 0 while closed sources or data sent in requests are on.
 
 `check-config` prints a `Delivery:` section: where links point, which sources get which link, the
-redirect URI to register and the warnings.
+redirect URI to register, where the key and the sign-in client's secret come from, and the
+warnings. A key or client secret it cannot read is a `PROBLEM` the server starts with: reports get
+no links, or download links (signed in) fail after the person signs in, until it is fixed.

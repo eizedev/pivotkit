@@ -458,16 +458,32 @@ What a CSV answer takes in memory:
 
 ```text
 HTTP sources (1):
-  vms: backend platform (https://api.example.com/v1) /customers/{customer}/vms?state={state}&limit=..., rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: create_link makes none (no sources.<id>.link); schedules: draft_schedule drafts them with the caller's params
+  vms: backend platform (https://api.example.com/v1)
+    GET /customers/{customer}/vms?state={state}&limit=...
+    rows at /items
+    next page at /next
+    up to 10 pages / 20 MiB / 15 s
+    kept 300 s per caller
+    last good data: up to 3600 s
+    create_link: none (no sources.<id>.link)
+    draft_schedule: drafts with the caller's params
     params: customer (string, pattern, required), state (running|stopped)
-    backend auth: client credentials as pivotkit-backend (secret from a file) at https://auth.example.com/application/o/token/, scope platform:read (httpSources.backends.platform)
+    backend authentication: client credentials as pivotkit-backend at
+        https://auth.example.com/application/o/token/, scope platform:read
+        (httpSources.backends.platform.auth)
+      client secret from the file secrets/backend-secret
+          (/etc/pivotkit/secrets/backend-secret)
 ```
 
-The `backend auth` line says how the sign-in is made and where its secrets come from (a variable's
-name, "a file"), never a value or its length. A variable that is not set or a file that cannot be
-read is a `PROBLEM`; a secret file other users of the machine can read is a warning, as are a token
-endpoint on a loopback or private address without `intranet: true`, and a token exchange's
-`tokenUrl` on another host than `auth.issuer` (the person's token goes there).
+The `backend authentication` lines say how it is made and where its secrets come from (a
+variable's name, or a file as written and with its full path), never a value or its length. A
+variable that is not set or a file that cannot be read is a `PROBLEM` the server starts with: the
+sources that use it answer `SOURCE_UNAVAILABLE` until it is there. A secret file other users of the
+machine can read is a warning, as are a token endpoint on a loopback or private address without
+`intranet: true`, a token exchange's `tokenUrl` on another host than `auth.issuer` (the person's
+token goes there), and a backend's `auth` that no source uses because each has its own `http.auth`.
+In the `Sources` and profile lines an HTTP source's fields are known only after a load
+([reading check-config](rest.md#check-config)).
 
 `pivotkit-server check-source <id> [--param name=value ...] [--config file]` (the id and the
 options in any order) loads a source once as the server would, without an AI client, and prints
@@ -825,6 +841,7 @@ token exchange or another backend auth is yours to configure.
 | From the document | In the block |
 | --- | --- |
 | The server address (`servers`, the operation's or path's first) | The backend's `url`, as a `TODO` that names the address without a user name, password, query or fragment; an address with variables as written with their defaults (`https://{region}.example.com (region=eu)`); a relative address with what it is relative to the document's URL |
+| A server on a private address (a loopback or private IP address, `localhost`, a name of one label or ending in `.local`, `.lan`, `.internal`, `.intranet`, `.corp`, `.home`, `.home.arpa`, `.localdomain`) | A note that the backend needs `intranet: true`; the block does not set it (no name is looked up). A link-local, unspecified or metadata IP address (169.254.0.0/16, fe80::/10, 0.0.0.0, a cloud's metadata address) gets a note that the server refuses it even with `intranet` |
 | The operation's path | `http.path`, with each path parameter as `{name}`; a path over 2,000 characters or with an empty segment refuses the operation |
 | Path parameters | Required `params` |
 | Query parameters | `params` and `http.query`; `required` is kept |
@@ -834,6 +851,7 @@ token exchange or another backend auth is yours to configure.
 | Header and cookie parameters, array and object values, a `style` or `allowReserved` | Left out, with a note (a path parameter like that refuses the operation) |
 | A JSON answer (the first 2xx) that is a list | `http.rows: ""` |
 | An object with exactly one list | `http.rows` pointing at it (`/items`) |
+| The object's one property in `date-time` format, else its one property named like a time (`generatedAt`, `updated_at`, `timestamp`, ...; a text or a number) | `http.asOf` pointing at it, with a note; two of a kind give none and a note |
 | Any other answer | `http.rows` as a `TODO` |
 | A `text/csv` answer | `http.format: "csv"` |
 | The row's properties | `fields.<name>.description` where the document describes them, and every property in `policy.fields` as `hide`, under `policy.default: "hide"` |

@@ -58,7 +58,7 @@ export async function readSecret(ref, options, env = process.env) {
 }
 
 /**
- * check-config's warning for a secret file other users of the machine can read (group or world
+ * check-config's warning (its text, without a marker) for a secret file other users of the machine can read (group or world
  * bits), or null: for an environment variable, a file only its owner reads, a missing file (said
  * elsewhere) and on Windows (no such modes).
  * @param {{ env?: string, file?: string }} ref
@@ -74,5 +74,5 @@ export async function secretFileWarning(ref, options, label = `the file ${ref.fi
     if (!info || (info.mode & 0o077) === 0) {
         return null;
     }
-    return `warning: ${label} can be read by other users of this machine (mode ${(info.mode & 0o777).toString(8)}); make it readable by the server's user only (chmod 600)`;
+    return `${label} can be read by other users of this machine (mode ${(info.mode & 0o777).toString(8)}); make it readable by the server's user only (chmod 600)`;
 }

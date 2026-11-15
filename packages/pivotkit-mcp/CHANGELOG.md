@@ -96,6 +96,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Changed
 
+- `--check-config` prints pivotkit-server's new layout: whether the server starts, the counts and
+  every `PROBLEM` first, one fact per line; over stdio a `Transport:` section says there are no
+  download links and no signed-in person. With `--http` it also asks the OAuth issuer for its
+  metadata and warns when it cannot be loaded ([#424](https://github.com/eizedev/pivotkit/issues/424)).
 - The log names a tool call's source by a configured id, `inline:` or `file:` (no file name), else
   `unknown`, never the model's text; a request the protocol layer refuses is logged at warn with its
   error's class and the SDK's name for the refusal, its message (which can quote the body) only with

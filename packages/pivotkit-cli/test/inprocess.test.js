@@ -69,6 +69,8 @@ test("writeNew never replaces a file: a taken name gets -2, -3; the name is clea
     assert.equal(await writeNew(dir, "../../etc/passwd", "csv", new Uint8Array()), "etc-passwd.csv");
     assert.equal(await writeNew(dir, ".hidden\u202e", "csv", new Uint8Array()), "hidden.csv");
     assert.equal(await writeNew(dir, "Umsätze Q1/2026", "xlsx", new Uint8Array()), "Umsatze Q1-2026.xlsx");
+    // parentheses stay: a title such as "Orders (fake backend)" keeps its shape
+    assert.equal(await writeNew(dir, "Orders (fake backend)", "xlsx", new Uint8Array()), "Orders (fake backend).xlsx");
     assert.equal(await writeNew(dir, "", "json", new Uint8Array()), "report.json");
     assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".tmp")), []);
     await assert.rejects(writeNew(dir, "Sales", "csv", new Uint8Array(), { tries: 3 }), (e) => e.code === "EXISTS");

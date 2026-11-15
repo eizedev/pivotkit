@@ -1,13 +1,17 @@
 /*
  * check-config's section for the log (log.js): its level, its format and whether lines name
- * addresses, each with where it was set.
+ * addresses.
  *
- *   Log: level info, format auto (text on a terminal, JSON otherwise), addresses on (the socket's peer; the forwarded client with http.trustProxy)
+ *   Log:
+ *     level info, format auto (text on a terminal, JSON otherwise)
+ *     addresses on: the socket's peer (with http.trustProxy the forwarded client, the proxy as peerAddress)
  *
- * check/index.js says what a section returns.
+ * check/index.js says what a section returns. No "New in this version" note: the log changes for
+ * every server, and upgrading.md says how.
  */
 
 import { logSettingsOf } from "../log.js";
+import { heading, plain } from "./format.js";
 
 /** What each format writes. */
 const FORMAT_TEXT = Object.freeze({ auto: "auto (text on a terminal, JSON otherwise)", text: "text", json: "JSON" });
@@ -15,8 +19,11 @@ const FORMAT_TEXT = Object.freeze({ auto: "auto (text on a terminal, JSON otherw
 /** @type {import("./index.js").Section} */
 export async function section(options, _registry, runtime) {
     const log = logSettingsOf(options.log);
-    const address = log.address === "off" ? "addresses off" : runtime.http ? `addresses on (${options.http?.trustProxy ? "the forwarded client, the proxy as peerAddress" : "the socket's peer"})` : null;
-    const lines = ["", `Log: level ${log.level}, format ${FORMAT_TEXT[log.format]}${address ? `, ${address}` : ""}`];
-    // no "New in this version" note: the log changes for every server, and upgrading.md says how
-    return { lines, problems: 0, upgrade: [] };
+    const items = [heading("Log:"), plain(`level ${log.level}, format ${FORMAT_TEXT[log.format]}`)];
+    if (log.address === "off") {
+        items.push(plain("addresses off (log.address)"));
+    } else if (runtime.http) {
+        items.push(plain(`addresses on: ${options.http?.trustProxy ? "the forwarded client, the proxy as peerAddress (http.trustProxy)" : "the socket's peer"}`));
+    }
+    return { items, upgrade: [] };
 }

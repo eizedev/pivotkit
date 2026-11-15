@@ -178,7 +178,8 @@ callers notice:
 | [Requests to the issuer](#issuer-requests) | `auth.mode` is `oauth` and the issuer resolves to a loopback or private address, is reached through a proxy, redirects, or serves a key set over 256 KiB | set `auth.intranet: true` for an issuer in your LAN or cluster; run `check-config` |
 | [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
 | [The log](#log) | you read the log on a terminal, parse it, alert on it, or ship it to a log server | JSON lines gain fields and the client's address is logged by default (`log.address: "off"` keeps it out); levels and `msg` are new, and more refusals get a line; on a terminal the log is text unless `log.format` is `json`; a start error is a JSON line where stderr is no terminal |
-| [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM or NOT FOUND |
+| [check-config's layout](#check-config-layout) | you read `check-config`'s output in a script | use its exit code, or its first line, which says whether the server starts |
+| [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
 
 ### Data as of in files { #data-as-of-files }
 
@@ -189,6 +190,17 @@ custom document property `DataAsOf`. A print template of your own shows it only 
 its own footer without it (add `{{dataAsOf}}` there where your reports always come from a service).
 csv, json and svg carry it in the result only.
 
+### check-config's layout { #check-config-layout }
+
+`check-config` starts with whether the server starts and how many problems and warnings it found,
+then lists every `PROBLEM` with what it does (`-> the server does not start`, or what fails while
+the server runs) and every `WARNING` with its section, then the sections, one fact per line wrapped
+at 78 columns. What was `NOT FOUND` or `NOT WRITABLE` is a `PROBLEM` line, and "would not start"
+is said only for what `serve` refuses: a missing source file, backend secret, download key or
+upload secret starts the server. With OAuth it asks the issuer for its public metadata once (3 s at
+most) and warns when it cannot be loaded. The exit code is as before: 1 for any problem
+([reading check-config](../reference/rest.md#check-config)).
+
 ### Print templates checked at start { #template-at-start }
 
 The server reads and checks each source's print template (`sources.<id>.template`) at start, as an
@@ -196,7 +208,7 @@ html report reads it. A template the parser refuses (for example
 `sources.sales.template: unknown placeholder {{titel}} (line 7); did you mean {{title}}?`), one over
 1 MiB or one that is not a regular file keeps the server from starting; `check-config` reports the
 same message as a PROBLEM line. A template file that is not there or cannot be read is treated like
-a missing source file: the server starts with a warning, `check-config` marks it NOT FOUND, and that
+a missing source file: the server starts with a warning, `check-config` reports a PROBLEM the server starts with, and that
 source's html reports fail until the file is there. A template changed after the start is checked
 again on every html report, as before.
 
@@ -282,7 +294,7 @@ until `output.maxFiles` or `output.maxMb` pushed them out. Set `output.maxAgeDay
 of days, or to `0` for no age limit, the old behaviour. The default applies only to a directory of the
 reports' own: where `output.dir` holds the configuration or a source, template or token file, nothing
 is deleted by age and the server starts as before (`check-config` says "no age limit: the directory
-holds other files"). Copy the reports you want to keep elsewhere before you upgrade.
+holds other files" under `Output:`). Copy the reports you want to keep elsewhere before you upgrade.
 
 ### Request ids { #request-ids }
 

@@ -4,47 +4,53 @@
  * storeFor), and the secrets of its headers (readable, not readable by other users).
  *
  *   Upload:
- *     target: presigned via https://store.example.com/presign, PUT, up to 50 MiB, 30 s
- *     reports over open sources (weather): store links (bind none), from https://files.example.com
- *     reports over closed sources (sales, vms): not uploaded (the store's links work for anyone); the server's own sign-in links
+ *     target: presigned via https://store.example.com/presign
+ *       PUT, up to 50 MiB, 30 s
+ *     reports over open sources (weather): store links from https://files.example.com
+ *       bind none, as you declared it; pivotkit does not check the store
+ *     reports over closed sources (sales, vms): not uploaded (the store's links work for anyone who
+ *       has them)
  *
  * check/index.js says what a section returns. Without output.upload it says nothing.
  */
 
 import { settingsOf as downloadSettingsOf } from "../options/downloads.js";
-import { inlineOffered, perPersonLine, perPersonOf } from "./downloads.js";
+import { inlineOffered, perPersonItem, perPersonOf } from "./downloads.js";
+import { heading, idsText, plain, problem, secretText, warning } from "./format.js";
 import { OUTPUT_DEFAULTS } from "../config.js";
 import { addressText, uploadMaxBytes, uploadSettingsOf } from "../options/upload.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
 import { resolveRefusal } from "./host.js";
 
+/** What a PROBLEM of the upload target does: the server starts, uploads fail. */
+const FAILS = { effect: "the server starts; every upload fails (UPLOAD_FAILED)" };
+
 /**
- * What keeps the server from reaching a host the uploads go to (check/host.js): a PROBLEM line, a
- * warning when the name cannot be looked up now, or null.
+ * What keeps the server from reaching a host the uploads go to (check/host.js): a PROBLEM, a
+ * WARNING when the name cannot be looked up now, or null.
  * @param {string} host
  * @param {boolean} intranet
  * @param {string} key  the option that names it
+ * @returns {Promise<import("./format.js").Item | null>}
  */
-async function hostLine(host, intranet, key) {
+async function hostItem(host, intranet, key) {
     const refusal = await resolveRefusal(host, { allowPrivate: intranet, ipLiterals: false });
     if (!refusal) {
         return null;
     }
     const { kind, said } = refusal;
     if (kind === "ipLiteral") {
-        return `PROBLEM: ${key}: ${said} is an IP address, which uploads refuse; name the server`;
+        return problem(`${key}: ${said} is an IP address, which uploads refuse; name the server`, FAILS);
     }
     if (kind === "lookup") {
-        return `warning: ${key}: ${said} cannot be looked up from here; the upload checks its addresses when it runs`;
+        return warning(`${key}: ${said} cannot be looked up from here; the upload checks its addresses when it runs`);
     }
     if (kind === "always") {
-        return `PROBLEM: ${key}: ${said}, which is never connected to (link-local, metadata, multicast or unspecified)`;
+        return problem(`${key}: ${said}, which is never connected to (link-local, metadata, multicast or unspecified)`, FAILS);
     }
-    return `PROBLEM: ${key}: ${said}, a loopback or private address, which uploads refuse without output.upload.intranet: true`;
+    return problem(`${key}: ${said}, a loopback or private address, which uploads refuse without output.upload.intranet: true`, FAILS);
 }
 
-/** Up to six ids, then how many more. */
-const idsText = (ids) => (ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", "));
 
 /** A size in MiB (or KiB, or bytes) for a line. */
 const sizeText = (bytes) => (bytes >= 1_048_576 ? `${+(bytes / 1_048_576).toFixed(1)} MiB` : bytes >= 1024 ? `${+(bytes / 1024).toFixed(1)} KiB` : `${bytes} bytes`);
@@ -56,7 +62,7 @@ function ownDelivery(options, runtime) {
         return "no link (the file is kept; the person asks you for it)";
     }
     if (downloads.bind === "signIn") {
-        return "the server's own sign-in links";
+        return "the server's own download links (signed in)";
     }
     return downloads.bind === "once" ? "the server's own one-time links" : "no link (the file is kept; the person asks you for it)";
 }
@@ -65,65 +71,70 @@ function ownDelivery(options, runtime) {
 export async function section(options, registry, runtime) {
     const settings = uploadSettingsOf(options);
     if (!settings) {
-        return { lines: [], problems: 0, upgrade: [] };
+        return { items: [], upgrade: [] };
     }
     const sources = await registry.check();
     const closed = sources.filter((s) => s.closed).map((s) => s.id);
     const open = sources.filter((s) => !s.closed).map((s) => s.id);
-    const lines = ["Upload:"];
-    let problems = 0;
-    const how = `${settings.method}, up to ${sizeText(uploadMaxBytes(settings, options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb))}, ${+(settings.timeMs / 1000).toFixed(1)} s${settings.intranet ? ", may reach loopback and private addresses (intranet)" : ""}`;
-    lines.push(settings.presign ? `  target: presigned via ${addressText(settings.presign.url)} (uploads to ${settings.presign.allowOrigins.join(", ")}), ${how}` : `  target: ${addressText(/** @type {string} */ (settings.template))}, ${how}`);
+    const items = [heading("Upload:")];
+    items.push(plain(settings.presign ? `target: presigned via ${addressText(settings.presign.url)}` : `target: ${addressText(/** @type {string} */ (settings.template))}`));
+    if (settings.presign) items.push(plain(`uploads to ${settings.presign.allowOrigins.join(", ")}`, 2));
+    items.push(plain(`${settings.method}, up to ${sizeText(uploadMaxBytes(settings, options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb))}, ${+(settings.timeMs / 1000).toFixed(1)} s`, 2));
+    if (settings.intranet) items.push(plain("may reach loopback and private addresses (intranet)", 2));
     // the hosts requests go to, checked as a request checks them
     const hosts = settings.presign ? [[new URL(settings.presign.url).hostname, "output.upload.presign.url"], ...settings.presign.allowOrigins.map((o) => [new URL(o).hostname, "output.upload.presign.allowOrigins"])] : [[new URL(/** @type {string} */ (settings.template).replace(/\{(id|name|format)\}/g, "x")).hostname, "output.upload.url"]];
     for (const [host, key] of hosts) {
-        const said = await hostLine(host, settings.intranet, key);
+        const said = await hostItem(host, settings.intranet, key);
         if (said) {
-            lines.push(`  ${said}`);
-            problems += said.startsWith("PROBLEM") ? 1 : 0;
+            items.push(said);
         }
     }
     const from = `from ${settings.linkOrigins.join(", ")}`;
     if (open.length) {
-        lines.push(`  reports over open sources (${idsText(open)}): store links (bind ${settings.bind}, as you declared it; pivotkit does not check the store), ${from}`);
+        items.push(plain(`reports over open sources (${idsText(open)}): store links ${from}`), plain(`bind ${settings.bind}, as you declared it; pivotkit does not check the store`, 2));
     }
     // closed also for being one person's data, as the Delivery section says: per-person sources and data sent in requests
     const personal = perPersonOf(options);
     const inline = inlineOffered(options, runtime);
     if (personal.size || inline) {
-        lines.push(perPersonLine(personal, inline));
+        items.push(perPersonItem(personal, inline));
     }
     if (closed.length || inline) {
-        const which = [closed.length ? `reports over closed sources (${idsText(closed)})` : "", inline ? "reports over data sent in requests (inline:)" : ""].filter(Boolean).join(" and ");
+        const which = [closed.length ? `reports over closed sources (${idsText(closed)})` : "", inline ? "over data sent in requests (inline:)" : ""].filter(Boolean).join(" and ");
         if (settings.bind === "none") {
-            lines.push(`  ${which}: not uploaded (the store's links work for anyone who has them); ${ownDelivery(options, runtime)}`);
+            items.push(plain(`${which}: not uploaded (the store's links work for anyone who has them)`), plain(`they get ${ownDelivery(options, runtime)}`, 2));
         } else {
-            lines.push(`  ${which}: store links (bind ${settings.bind}: ${settings.bind === "signIn" ? "you declared that the store lets only the person open them; callers without a subject get the server's own delivery" : "you declared that each link works once"}), ${from}${runtime.rest ? "; REST programs get them only with results: true" : ""}`);
+            items.push(
+                plain(`${which}: store links ${from}`),
+                plain(`bind ${settings.bind}: ${settings.bind === "signIn" ? "you declared that the store lets only the person open them" : "you declared that each link works once"}`, 2),
+                ...(settings.bind === "signIn" ? [plain("callers without a subject get the server's own delivery", 2)] : []),
+                ...(runtime.rest ? [plain("REST programs get them only with results: true", 2)] : [])
+            );
             if (settings.bind === "once") {
-                lines.push("  warning: one-time store links: anyone who sees the link can use it once, including an assistant with a browser or code tool");
+                items.push(warning("one-time store links: anyone who sees the link can use it once, including an assistant with a browser or code tool"));
             }
         }
     }
     if (settings.bind === "signIn" && !options.output?.downloads?.key) {
-        lines.push("  warning: output.downloads.key is not set: the subject binding the presign service receives changes on every restart and differs between replicas; set output.downloads.key");
+        items.push(warning("output.downloads.key is not set: the subject binding the presign service receives changes on every restart and differs between replicas; set output.downloads.key"));
     }
-    lines.push(settings.keepLocal ? "  the report stays in output.dir too" : "  the report is removed from output.dir once the store has it (a failed upload keeps it until it is cleaned up)");
-    lines.push("  schedule drafts are not uploaded (the host approves them in output.dir)");
+    items.push(plain(settings.keepLocal ? "the report stays in output.dir too" : "the report is removed from output.dir once the store has it (a failed upload keeps it until it is cleaned up)"));
+    items.push(plain("schedule drafts are not uploaded (the host approves them in output.dir)"));
     for (const [name, value] of Object.entries(settings.headers)) {
         if (typeof value === "string") {
             continue;
         }
         const where = `output.upload${settings.presign ? ".presign" : ""}.headers.${name}`;
+        items.push(plain(`header ${name} from ${secretText(options, value.value)}`));
         try {
             await readSecret(value.value, options, runtime.env);
         } catch (e) {
-            lines.push(`  PROBLEM: ${where}: ${String(/** @type {any} */ (e)?.message ?? e)}`);
-            problems++;
+            items.push(problem(`${where}: ${String(/** @type {any} */ (e)?.message ?? e)}`, FAILS));
         }
         const readable = await secretFileWarning(value.value, options, `the file ${value.value.file} of ${where}`);
         if (readable) {
-            lines.push(`  ${readable}`);
+            items.push(warning(readable));
         }
     }
-    return { lines, problems, upgrade: [] };
+    return { items, upgrade: [] };
 }

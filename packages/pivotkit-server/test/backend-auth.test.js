@@ -24,7 +24,7 @@ import { createGuardedFetch } from "../src/sources/fetch.js";
 import { httpMeans } from "../src/sources/http.js";
 import { withRequestId } from "../src/request-id.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { call, restServer, tempDir } from "./helpers.js";
+import { call, factsOf, restServer, tempDir } from "./helpers.js";
 
 /** Values that must never leave the server: a secret, a person's own token, the tokens issued, an error description. */
 const SECRET = "SENTINEL-client-secret-7f3a";
@@ -712,7 +712,7 @@ test("claims: only the claims the configuration names reach a caller, email only
     }
 });
 
-test("check-config: how each sign-in is made and where its secrets come from; a missing variable or file is a PROBLEM, a readable file a warning; never a value", async () => {
+test("check-config: how each backend authentication is made and where its secrets come from (a file by its full path); a missing variable or file is a PROBLEM the server starts with, a readable file a warning; never a value", async () => {
     const readable = secretFile(SECRET, 0o644);
     const options = {
         auth: OAUTH,
@@ -725,18 +725,22 @@ test("check-config: how each sign-in is made and where its secrets come from; a 
             own: { http: { url: `${backendUrl()}/customers/{customer}` }, params: { customer: { type: "string", required: true, claim: "customer", pattern: "^[a-z]+$" } }, policy: POLICY }
         }
     };
-    const { text, problems } = await checkConfig(options, { env: { PIVOTKIT_TEST_API_KEY: SECRET } });
-    assert.match(text, /backend auth: client credentials as pivotkit-backend \(secret from a file\) at https:\/\/auth\.example\.test:\d+\/token, scope platform:read \(httpSources\.backends\.platform\.auth\)/);
-    assert.match(text, /warning: httpSources\.backends\.platform\.auth\.clientCredentials\.clientSecret \(.*\) can be read by other users of this machine \(mode 644\)/);
+    const result = await checkConfig(options, { env: { PIVOTKIT_TEST_API_KEY: SECRET } });
+    const text = factsOf(result.text);
+    assert.match(text, /\n {4}backend authentication: client credentials as pivotkit-backend at https:\/\/auth\.example\.test:\d+\/token, scope platform:read \(httpSources\.backends\.platform\.auth\)\n {6}client secret from the file \S+\n/);
+    assert.ok(text.includes(`client secret from the file ${readable}`), result.text);
+    assert.match(text, /WARNING \(HTTP sources\): httpSources\.backends\.platform\.auth\.clientCredentials\.clientSecret \(.*\) can be read by other users of this machine \(mode 644\)/);
     // a backend's secrets are checked once, for all its sources
     assert.equal(text.match(/can be read by other users/g)?.length, 1);
-    assert.match(text, /backend auth: header x-api-key from \$PIVOTKIT_TEST_MISSING/);
-    assert.match(text, /PROBLEM: sources\.keyed\.http\.auth\.header\.value: \$PIVOTKIT_TEST_MISSING is not set/);
-    assert.match(text, /backend auth: token exchange for audience platform-api at the issuer's token endpoint as pivotkit-backend \(secret from \$PIVOTKIT_TEST_API_KEY\), each token reused up to 300 s; only for a signed-in person/);
-    assert.match(text, /mine: .*links: create_link links to the source's page .*schedules: draft_schedule makes none \(token exchange: the data is the signed-in person's\)/);
-    assert.match(text, /own: .*schedules: draft_schedule makes none \(a claim: the data is the signed-in person's\)/);
-    assert.match(text, /from the sign-in: customer \(claim customer\); listed only for a signed-in person/);
-    assert.ok(problems >= 1);
+    assert.match(text, /\n {4}backend authentication: header x-api-key\n {6}value from \$PIVOTKIT_TEST_MISSING\n/);
+    // the server starts with it; the source that uses it answers SOURCE_UNAVAILABLE
+    assert.match(text, /PROBLEM: sources\.keyed\.http\.auth\.header\.value: \$PIVOTKIT_TEST_MISSING is not set -> the server starts; keyed answers SOURCE_UNAVAILABLE/);
+    assert.match(text, /\n {4}backend authentication: token exchange for audience platform-api at the issuer's token endpoint as pivotkit-backend\n {6}client secret from \$PIVOTKIT_TEST_API_KEY\n {6}each token reused up to 300 s; only for a signed-in person\n/);
+    assert.match(text, /\n {2}mine:\n(?: {4}[^\n]*\n)*? {4}create_link: links to the source's page \(sources\.<id>\.link\)\n {4}draft_schedule: none \(token exchange: the data is the signed-in person's\)\n/);
+    assert.match(text, /\n {2}own:\n(?: {4}[^\n]*\n)*? {4}draft_schedule: none \(a claim: the data is the signed-in person's\)\n/);
+    assert.match(text, /from the person's token: customer \(claim customer\); listed only for a signed-in person/);
+    assert.equal(result.problems, 1);
+    assert.equal(result.stops, 0);
     clean("check-config", text);
 });
 
@@ -921,8 +925,8 @@ test("review: check-config warns of a token endpoint off the issuer's origin and
         }
     };
     const { text } = await checkConfig(options, { env: { PIVOTKIT_TEST_API_KEY: SECRET } });
-    assert.match(text, /warning: sources\.other\.http\.auth\.tokenExchange\.tokenUrl: the person's token goes to elsewhere\.example\.test, not to the issuer's login\.example\.test/);
-    assert.match(text, /warning: sources\.local\.http\.auth\.clientCredentials\.tokenUrl: localhost is a loopback or private address, which is refused unless intranet: true is set there/);
+    assert.match(factsOf(text), /WARNING \(HTTP sources\): sources\.other\.http\.auth\.tokenExchange\.tokenUrl: the person's token goes to elsewhere\.example\.test, not to the issuer's login\.example\.test/);
+    assert.match(factsOf(text), /WARNING \(HTTP sources\): sources\.local\.http\.auth\.clientCredentials\.tokenUrl: localhost is a loopback or private address, which is refused unless intranet: true is set there/);
     routes.set("/v1/vms", json({ items: VMS }));
     routes.set("/token", json({ error: "invalid_client" }, 401));
     const file = secretFile(SECRET);

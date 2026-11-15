@@ -14,7 +14,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { readTable } from "pivotkit-cli/files";
-import { READ_JOB, asOperationError, fileData, holds, packedUpload, setCacheBytes, tableData, uploadData } from "./data.js";
+import { READ_JOB, asOperationError, cacheBytesNow, fileData, holds, packedUpload, setCacheBytes, tableData, uploadData } from "./data.js";
 import { draftingOf } from "./policy.js";
 
 if (typeof workerData?.cacheBytes === "number") {
@@ -83,4 +83,5 @@ parentPort?.on("message", async (job) => {
 // the readers load on first use: read a tiny file once, so a run's time is the run's, not the loading's
 await readTable(new TextEncoder().encode("a\n1\n"), "warm-up.csv").catch(() => undefined);
 await readTable(new TextEncoder().encode("[]"), "warm-up.json").catch(() => undefined);
-parentPort?.postMessage({ ready: true });
+// with the bound of the data sets it keeps, as it applies it (compute.js bounds())
+parentPort?.postMessage({ ready: true, cacheBytes: cacheBytesNow() });

@@ -13,7 +13,7 @@ import { unzipSync, strFromU8 } from "fflate";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { ConfigError, callerOf, checkConfig, createContext, groupRefusal, groupsOf, offeredScopes, profileOf, validateOptions } from "pivotkit-server";
 import { listHint } from "../src/scopes.js";
-import { BY_REGION, TOKEN, call, restServer, workspace } from "./helpers.js";
+import { BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 
 const REST_RESOURCE = "https://pk.example.com/api/v1";
 let issuer;
@@ -378,43 +378,56 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
         baseDir: dir
     };
     const result = await checkConfig(options, { http: true, name: "pivotkit-server", rest: true });
-    const lines = result.text.split("\n");
-    assert.ok(lines.includes("Sign-in: subject from claim sub; groups from claim groups: finance → profile finance, staff → profile staff (first match wins; a client profile comes first); otherwise profile restricted"), result.text);
-    assert.ok(lines.includes("  scopes offered: pivotkit pivotkit:sales (define these at your provider; a provider may refuse a sign-in that asks for an undefined scope)"), result.text);
-    assert.ok(lines.includes("  warning: the source hr needs the scope pivotkit:hr, which the server does not offer (auth.scopeProfiles names it, and a client must not choose its own profile): a client learns of it only from you"), result.text);
+    const lines = factsOf(result.text).split("\n");
+    // under Auth: how a person gets a profile, one fact per line, ASCII arrows; the default subject claim is not said
+    const auth = lines.indexOf("Auth: oauth");
+    assert.ok(auth > 0, result.text);
+    const own = lines.slice(auth, lines.indexOf("", auth));
+    assert.ok(own.includes("  profile by group (claim groups; first match wins, a client's profile comes first):"), result.text);
+    assert.ok(own.includes("    finance -> finance, staff -> staff"), result.text);
+    assert.ok(own.includes("  otherwise: profile restricted"), result.text);
+    assert.ok(own.includes("  scopes offered: pivotkit pivotkit:sales (define these at your provider; it may refuse a sign-in that asks for one it does not know)"), result.text);
+    assert.ok(lines.includes("WARNING (Auth): the source hr needs the scope pivotkit:hr, which the server does not offer (auth.scopeProfiles names it, and a client must not choose its own profile): a client learns of it only from you"), result.text);
+    assert.doesNotMatch(factsOf(result.text), /Sign-in:|→|subject from claim/);
     // the wider profile first is the intended order: silent
-    assert.doesNotMatch(result.text, /shows fields that/);
-    assert.ok(lines.includes("Audit: the person is logged as a keyed hash of issuer and sub"), result.text);
-    assert.ok(lines.includes("  key from audit.key"), result.text);
+    assert.doesNotMatch(factsOf(result.text), /shows fields that/);
+    assert.ok(lines.includes("Audit: hash"), result.text);
+    assert.ok(lines.includes("  the person is logged as a keyed hash of issuer and sub"), result.text);
+    assert.ok(lines.includes(`  key from the file audit.key (${join(dir, "audit.key")})`), result.text);
     assert.ok(lines.some((l) => /the audit key's file audit\.key can be read by other users/.test(l)), result.text);
     // offering the sources' scopes is opt-in: no change for an existing installation
     // (the block may hold other features' lines: none of this section's)
     assert.doesNotMatch(result.text, /New in this version[\s\S]*(scope|group|audit|profile)/i);
     assert.equal(result.problems, 0, result.text);
+    // a subject claim other than sub is said
+    assert.match((await checkConfig({ ...options, auth: { ...options.auth, subjectClaim: "oid" } }, { http: true, name: "pivotkit-server" })).text, /\n {2}a person is told apart by the claim oid\n/);
 
     // a wider profile after a narrower one: a warning; the default (scopes not offered): every source scope is unreachable
     const quiet = await checkConfig({ ...options, auth: { ...options.auth, groupProfiles: [...GROUP_PROFILES].reverse(), offerSourceScopes: undefined, scopeProfiles: undefined, defaultProfile: undefined }, audit: { subject: "hash", key: { env: "NOT_SET" } } }, { http: true, name: "pivotkit-server", rest: true });
-    assert.match(quiet.text, /\n {2}warning: groupProfiles entry 2 \(finance\) shows fields that entry 1 \(staff\) holds back: people in both groups get entry 1, since the first match wins; if that is not intended, put the wider profile first\n/);
-    assert.match(quiet.text, /warning: the source sales needs the scope pivotkit:sales, which the server does not offer \(auth\.offerSourceScopes is not on\)/);
-    assert.match(quiet.text, /a person whose token does not carry the groups is refused/);
+    const said = factsOf(quiet.text);
+    assert.match(said, /\nWARNING \(Auth\): groupProfiles entry 2 \(finance\) shows fields that entry 1 \(staff\) holds back: people in both groups get entry 1, since the first match wins; if that is not intended, put the wider profile first\n/);
+    assert.match(said, /WARNING \(Auth\): the source sales needs the scope pivotkit:sales, which the server does not offer \(auth\.offerSourceScopes is not on\)/);
+    assert.match(said, /\n {2}a person whose token does not carry the groups is refused: "your sign-in does not carry your groups; ask the operator"\n/);
     // groupProfiles without defaultProfile: a person in no listed group is refused (not given the
     // sources' own policy, which may show more than any profile), and a warning
-    assert.match(quiet.text, /Sign-in: .*; a person in none of these groups( whose client or scopes name no profile)? is refused \("your sign-in gives you no access to this server's data; ask the operator"\);/);
-    assert.match(quiet.text, /warning: auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups is refused \(403\); set auth\.defaultProfile to a narrow profile to let them in/);
-    assert.match(quiet.text, /PROBLEM: audit\.key: \$NOT_SET is not set; the server will not start/);
+    assert.match(said, /\n {2}a person in none of these groups( whose client or scopes name no profile)? is refused: "your sign-in gives you no access to this server's data; ask the operator"\n/);
+    assert.match(said, /WARNING \(Auth\): auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups is refused \(403\); set auth\.defaultProfile to a narrow profile to let them in/);
+    assert.match(said, /PROBLEM: audit\.key: \$NOT_SET is not set -> the server does not start/);
     assert.equal(quiet.problems, 1);
+    assert.equal(quiet.stops, 1);
     assert.doesNotMatch(quiet.text, /New in this version[\s\S]*(scope|group|audit|profile)/i);
 
     // a static token: the scope no token holds, groups that take no effect, a person never named
     const token = await checkConfig({ sources: options.sources, policy: options.policy, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT", scopes: ["pivotkit:sales"] }], groupProfiles: GROUP_PROFILES }, audit: { subject: "plain" }, baseDir: dir }, { http: false, env: { BOT: "x".repeat(40) }, name: "pivotkit-server" });
-    assert.match(token.text, /warning: the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it/);
-    assert.match(token.text, /warning: auth\.groupProfiles takes effect with auth\.mode oauth only/);
-    assert.match(token.text, /warning: audit names a person only with auth\.mode oauth/);
-    // the token mode's warning stands under the section's heading
+    const tokenSaid = factsOf(token.text);
+    assert.match(tokenSaid, /WARNING \(Auth\): the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it/);
+    assert.match(tokenSaid, /WARNING \(Auth\): auth\.groupProfiles takes effect with auth\.mode oauth only/);
+    assert.match(tokenSaid, /WARNING \(Audit\): audit names a person only with auth\.mode oauth/);
+    // the token mode's warning is named by the Auth heading, listed once after the counts
     const plainToken = await checkConfig({ sources: options.sources, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT", scopes: ["pivotkit:sales"] }] }, baseDir: dir }, { http: false, env: { BOT: "x".repeat(40) }, name: "pivotkit-server" });
-    const at = plainToken.text.split("\n");
-    const warning = at.findIndex((l) => /no static token holds/.test(l));
-    assert.equal(at[warning - 1], "Sign-in: each static token's own profile, else the sources' policy", plainToken.text);
+    const at = factsOf(plainToken.text).split("\n");
+    assert.deepEqual(at.filter((l) => /no static token holds/.test(l)), ["WARNING (Auth): the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it"], plainToken.text);
+    assert.ok(at.indexOf("WARNING (Auth): the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it") < at.indexOf("Auth: token"), plainToken.text);
 });
 
 test("dataAsOf in files: the html report prints it, the xlsx carries it as the document property DataAsOf", async () => {

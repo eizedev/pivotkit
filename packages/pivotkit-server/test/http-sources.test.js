@@ -18,7 +18,7 @@ import { compileTemplate, expandUrl } from "../src/sources/template.js";
 import { checkSource, paramFlags } from "../src/check-source.js";
 import { loadRunner } from "../src/sources/run.js";
 import { run } from "../src/runner.js";
-import { call, restServer, tempDir } from "./helpers.js";
+import { call, factsOf, restServer, tempDir } from "./helpers.js";
 
 /** What the backend answers per path, set by each test; and what it was asked. */
 let routes = new Map();
@@ -505,25 +505,45 @@ test("httpSources.enabled: false leaves every HTTP source out: not listed, not f
         await context.close();
     }
     const { text } = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
-    assert.match(text, /HTTP sources: off \(httpSources\.enabled: false\); 1 configured source is ignored/);
+    assert.match(text, /\nHTTP sources: off \(httpSources\.enabled: false\)\n {2}1 configured source is ignored\n/);
 });
 
 test("check-config: where each HTTP source asks (never a value), its limits and keeping, which backends may reach private addresses, warnings", async () => {
     const options = optionsOf({ headers: { "x-api-key": "abc-not-printed" }, query: { state: "{state}", token: "tok-not-printed" }, paging: { next: "/next" } }, { ttl: 300, params: { ...optionsOf().sources.vms.params, unused: { type: "string" } } });
-    const { text, problems } = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
-    assert.equal(problems, 0);
-    assert.match(text, /vms: an HTTP source \(see HTTP sources\)/);
-    assert.match(text, new RegExp(`HTTP sources \\(1\\):\\n  vms: backend platform \\(https://api\\.example\\.test:${port}/v1\\) /customers/\\{customer\\}/vms\\?state=\\{state\\}&token=\\.\\.\\., rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: create_link makes none \\(no sources\\.<id>\\.link\\); schedules: draft_schedule drafts them with the caller's params`));
-    assert.match(text, /params: customer \(string, pattern, required\), state \(running\|stopped\), unused \(string\)/);
-    assert.match(text, /warning: sources\.vms\.params\.unused: no part of the address uses it/);
-    assert.match(text, /warning: sources\.vms: the header x-api-key has a literal value and its name looks like a secret's/);
-    assert.match(text, /warning: sources\.vms: the query token has a literal value/);
-    assert.match(text, /intranet: backend platform may reach loopback and private addresses \(source vms\)/);
-    assert.doesNotMatch(text, /abc-not-printed|tok-not-printed/);
+    const result = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
+    assert.equal(result.problems, 0);
+    const text = factsOf(result.text);
+    assert.match(text, /vms: an HTTP source, described under HTTP sources/);
+    // one fact per line
+    assert.ok(
+        text.includes(
+            [
+                "HTTP sources (1):",
+                `  vms: backend platform (https://api.example.test:${port}/v1)`,
+                "    GET /customers/{customer}/vms?state={state}&token=...",
+                "    rows at /items",
+                "    next page at /next",
+                "    up to 10 pages / 20 MiB / 15 s",
+                "    kept 300 s per caller",
+                "    last good data: up to 3600 s",
+                "    create_link: none (no sources.<id>.link)",
+                "    draft_schedule: drafts with the caller's params",
+                "    params: customer (string, pattern, required), state (running|stopped), unused (string)",
+                "  intranet: backend platform may reach loopback and private addresses (source vms)"
+            ].join("\n")
+        ),
+        result.text
+    );
+    assert.match(text, /WARNING \(HTTP sources\): sources\.vms\.params\.unused: no part of the address uses it/);
+    assert.match(text, /WARNING \(HTTP sources\): sources\.vms: the header x-api-key has a literal value and its name looks like a secret's/);
+    assert.match(text, /WARNING \(HTTP sources\): sources\.vms: the query token has a literal value/);
+    // the profile lines of an HTTP source: its fields are known only after a load
+    assert.match(text, /\n {4}fields: known only after a load \(pivotkit-server check-source vms loads it\)\n/);
+    assert.doesNotMatch(result.text, /abc-not-printed|tok-not-printed/);
     // maxBytes over the server's limits.fileBytes (50 MiB unless set): what a load reads, and why
     const big = await checkConfig(optionsOf({ maxBytes: 104_857_600 }), { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
     assert.match(big.text, /up to 50 MiB \/ 15 s/);
-    assert.match(big.text, /warning: sources\.vms: maxBytes \(100 MiB\) is over limits\.fileBytes \(50 MiB\); a load reads at most 50 MiB/);
+    assert.match(factsOf(big.text), /WARNING \(HTTP sources\): sources\.vms: maxBytes \(100 MiB\) is over limits\.fileBytes \(50 MiB\); a load reads at most 50 MiB/);
 });
 
 test("check-source: one load with the operator's values, pages, rows and fields with types (never a value); a wrong pointer names the body's keys; exit 1 on failure", async () => {
@@ -905,7 +925,7 @@ test("operator hints: intranet for a private address, NODE_EXTRA_CA_CERTS for a 
         await context.close();
     }
     const local = await checkConfig({ httpSources: { backends: { platform: { url: "https://localhost:8443/v1" } } }, sources: { all: sources.all } }, { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
-    assert.match(local.text, /warning: sources\.all: localhost is a loopback or private address, which is refused unless the backend has intranet: true/);
+    assert.match(factsOf(local.text), /WARNING \(HTTP sources\): sources\.all: localhost is a loopback or private address, which is refused unless the backend has intranet: true/);
 });
 
 test("options: a query's problem is reported under http.query", () => {

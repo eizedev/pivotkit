@@ -28,7 +28,7 @@ import { open } from "node:fs/promises";
 import { SOURCE_ID } from "pivotkit-cli/rest";
 import { FIELD_DESCRIPTION_MAX, TODO_MARK, todoEntries, todoPaths } from "./options/base.js";
 import { SECRET_NAME } from "./options/http.js";
-import { GuardedFetchError, guardedFetch } from "./sources/fetch.js";
+import { GuardedFetchError, addressRefusal, guardedFetch, ipBytes } from "./sources/fetch.js";
 import { PARAM_LIMITS, PARAM_NAME, PARAM_TYPES, declaredProblems } from "./sources/params.js";
 import { compileTemplate } from "./sources/template.js";
 
@@ -531,6 +531,12 @@ export function sourceFromOpenApi(doc, how) {
     const { params, query, httpPath } = parametersOf(path, pathItem, operation, refs, note, security.queryNames);
     const answer = answerOf(operation, refs, note, id);
     const server = serverOf(doc, pathItem, operation, note, how.documentUrl);
+    const kind = server.host ? hostKind(server.host) : null;
+    if (kind === "private") {
+        note(`The document's server is a private address: a backend there needs intranet: true (httpSources.backends.${backend}.intranet); without it the server refuses it.`);
+    } else if (kind === "always") {
+        note("The document's server is a link-local, unspecified or metadata address: the server refuses a link-local, unspecified or metadata address even with intranet.");
+    }
 
     /** @type {Array<{ path: string, text: string }>} */
     const review = [];
@@ -552,6 +558,9 @@ export function sourceFromOpenApi(doc, how) {
         http.format = "csv";
     } else {
         http.rows = answer.rows;
+        if (answer.asOf) {
+            http.asOf = answer.asOf;
+        }
     }
     source.http = http;
     if (Object.keys(params).length) {
@@ -806,7 +815,7 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames) {
  * @param {Resolver} refs
  * @param {(note: string) => void} note
  * @param {string} id
- * @returns {{ format: "json" | "csv", rows: string, fields: Array<{ name: string, description: string }> }}
+ * @returns {{ format: "json" | "csv", rows: string, fields: Array<{ name: string, description: string }>, asOf?: string }}
  */
 function answerOf(operation, refs, note, id) {
     const todoRows = `${TODO_MARK}: JSON Pointer to the rows`;
@@ -827,6 +836,8 @@ function answerOf(operation, refs, note, id) {
     }
     const body = refs.schema(own(content[json], "schema"), "the answer's schema");
     let rows = todoRows;
+    /** @type {string | undefined} */
+    let asOf;
     /** @type {Record<string, any> | null} */
     let row = null;
     if (typeOf(body) === "array") {
@@ -835,6 +846,7 @@ function answerOf(operation, refs, note, id) {
     } else if (typeOf(body) === "object") {
         const properties = Object.fromEntries(refs.entriesOf(ownObject(body, "properties"), OPENAPI_LIMITS.merged));
         const lists = Object.keys(properties).filter((name) => plainName(name) && typeOf(refs.schema(properties[name], `the answer's property ${shown(name)}`)) === "array");
+        asOf = asOfOf(properties, refs, note, id);
         if (lists.length === 1) {
             rows = pointerTo(lists[0]);
             row = refs.schema(own(refs.schema(properties[lists[0]], "the rows' schema"), "items"), "the rows' schema");
@@ -867,7 +879,66 @@ function answerOf(operation, refs, note, id) {
     if (row && typeOf(row) !== "object") {
         note("The rows are not objects with named properties: check what the backend sends with check-source.");
     }
-    return { format: "json", rows, fields };
+    return { format: "json", rows, fields, ...(asOf ? { asOf } : {}) };
+}
+
+/** A property name that reads as the time of an answer ("generatedAt", "last_updated", "timestamp"). */
+const TIME_NAME = /^(generated|updated|modified|created|last_?modified|last_?updated|as_?of|data_?as_?of|snapshot|timestamp)(_?at|_?on|_?time)?$/i;
+
+/**
+ * The asOf pointer of an answer's body: its one property in date-time format, else its one
+ * property whose name reads as a time (a text, or a number: epoch seconds); a list is rows, not the
+ * answer's time. Two of a kind: none, and a note names them.
+ * @param {Record<string, any>} properties  the body's
+ * @param {Resolver} refs
+ * @param {(note: string) => void} note
+ * @param {string} id
+ * @returns {string | undefined}
+ */
+function asOfOf(properties, refs, note, id) {
+    const dated = [];
+    const named = [];
+    for (const [name, value] of Object.entries(properties)) {
+        // a list (the rows) has the type "array", which the checks below never take
+        if (!plainName(name)) {
+            continue;
+        }
+        const schema = refs.schema(value, `the answer's property ${shown(name)}`);
+        const type = typeOf(schema);
+        if (type === "string" && own(schema, "format") === "date-time") {
+            dated.push(name);
+        } else if ((type === "string" || type === "integer" || type === "number") && TIME_NAME.test(name)) {
+            named.push(name);
+        }
+    }
+    const tier = dated.length ? dated : named;
+    if (tier.length === 1) {
+        note(`The answer's ${cleanText(tier[0], 40)} looks like the time of the data: sources.${id}.http.asOf is ${pointerTo(tier[0])} (the results' dataAsOf); remove it if it is not.`);
+        return pointerTo(tier[0]);
+    }
+    if (tier.length > 1) {
+        note(`The answer has ${tier.length} time fields (${tier.slice(0, 5).map((n) => cleanText(n, 40)).join(", ")}): set sources.${id}.http.asOf to the one that says when the data is from.`);
+    }
+    return undefined;
+}
+
+/** Names that are private by convention (RFC 6761, 6762, 8375 and common LAN suffixes). */
+const PRIVATE_SUFFIX = /(^|\.)(localhost|local|lan|internal|intranet|corp|home|home\.arpa|localdomain)$/i;
+
+/**
+ * What a server's host is to the server's address rule: "private" (a loopback or private IP
+ * address, a name that is private by convention, or a name of one label), "always" (an IP address
+ * never connected to: link-local, unspecified, metadata), or null. No name is looked up.
+ * @param {string} host  a URL's hostname
+ * @returns {"private" | "always" | null}
+ */
+function hostKind(host) {
+    const bare = host.replace(/^\[|\]$/g, "").replace(/\.$/, "");
+    if (ipBytes(bare)) {
+        const rule = addressRefusal(bare, { allowPrivate: false });
+        return rule === "always" || rule === "private" ? rule : null;
+    }
+    return PRIVATE_SUFFIX.test(bare) || !bare.includes(".") ? "private" : null;
 }
 
 /**
@@ -888,6 +959,8 @@ function serverOf(doc, pathItem, operation, note, documentUrl) {
     }
     const raw = String(first.url);
     let named = describedAddress(raw);
+    /** @type {string | undefined} the host, where the address names one without variables */
+    let host;
     if (raw.includes("{")) {
         // a template ("https://{region}.example.com/{base}"): its text as written, never through URL, which would encode the braces
         /** @type {Array<[string, any]>} */
@@ -900,7 +973,9 @@ function serverOf(doc, pathItem, operation, note, documentUrl) {
             .map(([name, v]) => `${cleanText(name, 40)}=${cleanText(String(own(v, "default") ?? "?"), 60)}`);
         note("The document's server address has variables in braces: write the address with your values.");
         named = `${named}${defaults.length ? ` (${defaults.join(", ")})` : ""}`;
-    } else if (!/^[a-z][a-z0-9+.-]*:/i.test(raw)) {
+    } else if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) {
+        host = URL.canParse(raw) ? new URL(raw).hostname : undefined;
+    } else {
         // a relative address: relative to where the document was read from
         let resolved;
         try {
@@ -909,8 +984,9 @@ function serverOf(doc, pathItem, operation, note, documentUrl) {
             resolved = null;
         }
         named = resolved ? `the relative address ${named}, which is ${resolved} from the document's address` : `a relative address ${named}`;
+        host = resolved && documentUrl && URL.canParse(raw, documentUrl) ? new URL(raw, documentUrl).hostname : undefined;
     }
-    return { url: `${TODO_MARK}: https://... (the document names ${named}; check it)` };
+    return { url: `${TODO_MARK}: https://... (the document names ${named}; check it)`, ...(host ? { host } : {}) };
 }
 
 /**

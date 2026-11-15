@@ -13,7 +13,7 @@ import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { dispositionOf, filenameOf, placeMarker, readToken, signToken, sizeText, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
 import { NO_LINK_NOTE, linkFor, resourceLinkOf } from "../src/delivery.js";
-import { BY_REGION, SALES_CSV, TOKEN, call, raw, restServer, tempDir, workspace } from "./helpers.js";
+import { BY_REGION, SALES_CSV, TOKEN, call, factsOf, raw, restServer, tempDir, workspace } from "./helpers.js";
 import { createContext } from "../src/context.js";
 import { deliver } from "../src/delivery.js";
 
@@ -227,6 +227,37 @@ test("options: expiry from 1 to 1440 minutes; enabled next to output.baseUrl, a 
     assert.throws(() => validateOptions({ output: { dir: "out", downloads: { signIn: { ...signIn, issuer: "https://other.example.com/" } } }, auth: oauth, http: { publicUrl: PUBLIC } }), /signIn\.issuer: must be auth\.issuer/);
     validateOptions({ output: { dir: "out", downloads: { signIn: { ...signIn, issuer: oauth.issuer } } }, auth: oauth, http: { publicUrl: PUBLIC } });
     validateOptions({ output: { dir: "out", baseUrl: "https://files.example.com/", downloads: { enabled: false } } });
+});
+
+test("signIn.issuer: compared with auth.issuer after normalising; a spelling difference and another issuer are refused at start and by check-config, with what to do", async () => {
+    const oauth = { mode: "oauth", issuer: "https://auth.example.com/application/o/pivotkit/", resource: MCP_RESOURCE };
+    const options = (issuer, auth = oauth) => ({ sources: { sales: { file: "data/sales.csv" } }, baseDir: workspace(), output: { dir: "out", downloads: { signIn: { clientId: CLIENT_ID, issuer } } }, auth, http: { publicUrl: PUBLIC } });
+    // the same issuer, written another way: the tokens name it exactly as auth.issuer, so one of the two would never match
+    for (const spelling of ["https://auth.example.com/application/o/pivotkit", "https://AUTH.example.com/application/o/pivotkit/", "HTTPS://auth.example.com/application/o/pivotkit/", "https://auth.example.com:443/application/o/pivotkit/"]) {
+        assert.throws(() => validateOptions(options(spelling)), /^ConfigError: output\.downloads\.signIn\.issuer: must be auth\.issuer exactly; it differs only in its spelling \(a trailing slash, upper-case letters in the scheme or host, a default port\), and tokens name the issuer as auth\.issuer does: leave signIn\.issuer out$/, spelling);
+    }
+    // another issuer (another Authentik application, another realm, a path in other case): the per-application case points to the follow-up
+    const another = /^ConfigError: output\.downloads\.signIn\.issuer: must be auth\.issuer \("https:\/\/auth\.example\.com\/application\/o\/pivotkit\/"\), not "[^"]+": a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did; leave it out\. A download sign-in with an issuer of its own \(a provider with one issuer per application, such as Authentik\) is https:\/\/github\.com\/eizedev\/pivotkit\/issues\/441$/;
+    for (const other of [
+        "https://auth.example.com/application/o/pivotkit-downloads/",
+        "https://auth.example.com/application/o/Pivotkit/",
+        "https://login.example.com/application/o/pivotkit/",
+        "http://auth.example.com/application/o/pivotkit/",
+        "https://auth.example.com:8443/application/o/pivotkit/",
+        "https://auth.example.com/application/o/pivotkit/?tenant=b",
+        "https://auth.example.com/application/o/pivotkit/#b",
+        "https://someone@auth.example.com/application/o/pivotkit/",
+        "https://someone:secret@auth.example.com/application/o/pivotkit/"
+    ]) {
+        // allowInsecureIssuer lets an http:// address reach the comparison
+        assert.throws(() => validateOptions(options(other, { ...oauth, allowInsecureIssuer: true })), another, other);
+    }
+    // check-config refuses the same configuration with the same words (exit 1 in the command)
+    await assert.rejects(checkConfig(options("https://auth.example.com/application/o/pivotkit-downloads/"), { http: true }), another);
+    await assert.rejects(checkConfig(options("https://auth.example.com/application/o/pivotkit")), /differs only in its spelling/);
+    // exactly auth.issuer, or left out: valid
+    validateOptions(options(oauth.issuer));
+    validateOptions({ ...options(undefined), output: { dir: "out", downloads: { signIn: { clientId: CLIENT_ID } } } });
 });
 
 // --- plain links (open sources) -------------------------------------------------------------------
@@ -909,32 +940,36 @@ test("the log of every kind of download names its binding and outcome, never a t
 test("check-config: where links point, which sources get which link, the redirect address to register, and the warnings", async () => {
     const dir = workspace();
     const sources = { sales: { file: "data/sales.csv" }, open: { file: "data/sales.csv", policy: { default: "show" } } };
-    const signIn = await checkConfig({ sources, output: { dir: "out", downloads: { signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: MCP_RESOURCE }, http: { publicUrl: PUBLIC }, baseDir: dir }, { http: true, env: {}, rest: true });
-    assert.match(signIn.text, /^Delivery:\n {2}downloads: on, links https:\/\/reports\.example\.com\/downloads\/<token> \(route \/downloads to this service\), expire after 60 minutes$/m);
-    assert.match(signIn.text, /^ {2}reports over closed sources \(sales\): sign-in links; register https:\/\/reports\.example\.com\/downloads\/callback at the provider for client pivotkit-downloads; it must resolve the same subject \(sub\) as the MCP client; REST programs get them only with results: true$/m);
+    const signedIn = await checkConfig({ sources, output: { dir: "out", downloads: { signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: MCP_RESOURCE }, http: { publicUrl: PUBLIC }, baseDir: dir }, { http: true, env: {}, rest: true });
+    const signIn = { text: factsOf(signedIn.text) };
+    assert.match(signIn.text, /^Delivery:\n {2}download links: https:\/\/reports\.example\.com\/downloads\/<token>\n {4}route \/downloads to this service\n {4}expire after 60 minutes$/m);
+    // "sign-in" only for people: the links are "download links (signed in)"
+    assert.match(signIn.text, /^ {2}reports over closed sources \(sales\): download links \(signed in\)\n {4}register https:\/\/reports\.example\.com\/downloads\/callback at the provider for the client pivotkit-downloads\n {4}it must give the same subject \(claim sub\) as the MCP client\n {4}REST programs get them only with results: true$/m);
     assert.match(signIn.text, /^ {2}reports over open sources \(open\): plain links$/m);
     // why a source counts as closed: open needs default "show" and no field below it
     assert.match(signIn.text, /^ {2}closed \(a field not shown for someone\): sales \(fields summary by default\)$/m);
     const why = await checkConfig({ sources: { listed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "values" } } }, profiled: { file: "data/sales.csv", policy: { default: "show" } } }, policy: { profiles: { reader: { default: "summary" } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
-    assert.match(why.text, /closed \(a field not shown for someone\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
-    assert.match(signIn.text, /^ {2}warning: output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
-    assert.match(signIn.text, /New in this version[\s\S]*download links under \/downloads/);
+    assert.match(factsOf(why.text), /closed \(a field not shown for someone\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
+    assert.match(signIn.text, /^WARNING \(Delivery\): output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
+    assert.match(signIn.text, /\nNew in this version: [^\n]*download links under \/downloads/);
 
     const once = await checkConfig({ sources, output: { dir: "out", downloads: { bind: "once", key: { env: "DL_KEY" } } }, baseDir: dir }, { http: true, env: { DL_KEY: "short" } });
     assert.match(once.text, /reports over closed sources \(sales\): one-time links/);
-    assert.match(once.text, /warning: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters/);
-    assert.match(once.text, /PROBLEM: output\.downloads\.key is shorter than 32 bytes/);
+    assert.match(factsOf(once.text), /WARNING \(Delivery\): one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters/);
+    // the server starts with a short key (it logs it), and reports get no links until it is fixed
+    assert.match(factsOf(once.text), /PROBLEM: output\.downloads\.key is shorter than 32 bytes; make one with: openssl rand -base64 48 -> the server starts; reports get no download links until it can be read/);
     assert.equal(once.problems, 1);
+    assert.equal(once.stops, 0);
 
     const baseUrl = await checkConfig({ sources, output: { dir: "out", baseUrl: "https://files.example.com/" }, baseDir: dir }, { http: false, env: {} });
     assert.match(baseUrl.text, /reports over closed sources \(sales\): no address under output\.baseUrl/);
-    assert.match(baseUrl.text, /New in this version[\s\S]*no longer carry a url under output\.baseUrl/);
+    assert.match(factsOf(baseUrl.text), /\nNew in this version: [^\n]*no output\.baseUrl address for closed sources/);
 
     const stdio = await checkConfig({ sources, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} });
     assert.doesNotMatch(stdio.text, /Delivery:/);
 
     const wide = await checkConfig({ sources, output: { dir: "out" }, auth: { mode: "token" }, http: { host: "0.0.0.0" }, baseDir: dir }, { http: true, env: {} });
-    assert.match(wide.text, /downloads: on, but no links: the server listens on 0\.0\.0\.0 and http\.publicUrl is not set/);
+    assert.match(factsOf(wide.text), /download links: none, the server listens on 0\.0\.0\.0 and http\.publicUrl is not set/);
 });
 
 test("deliver: a source whose state is not known counts as closed (no output.baseUrl address); an open one keeps it", async () => {
@@ -1148,6 +1183,29 @@ test("signIn: a token endpoint on a metadata address is refused before a request
         assert.equal(got.status, 400);
         assert.match(await got.text(), /The sign-in did not complete/);
         assert.match(logText(server), /download links: the issuer's token endpoint could not be reached: REFUSED_ADDRESS, the address is never connected to/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("signIn: HEAD on a link answers its state without starting a sign-in: no redirect, no cookie (link previews)", async () => {
+    const { server, render, local, open } = await signInServer();
+    try {
+        const output = await render("alice");
+        await open(output.url);
+        const head = await fetch(local(output.url), { method: "HEAD", redirect: "manual" });
+        assert.equal(head.status, 200);
+        assert.equal(head.headers.get("location"), null);
+        assert.equal(head.headers.get("set-cookie"), null);
+        assert.match(head.headers.get("content-type") ?? "", /^text\/html/);
+        assertBaseHeaders(head.headers);
+        // an expired or unknown link says so on HEAD too
+        const unknown = await fetch(local(output.url.replace(/\.[^.]+$/, ".AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")), { method: "HEAD", redirect: "manual" });
+        assert.equal(unknown.status, 404);
+        // GET still starts the sign-in
+        const get = await fetch(local(output.url), { redirect: "manual" });
+        assert.equal(get.status, 302);
+        assert.ok(get.headers.get("set-cookie"));
     } finally {
         await server.close();
     }

@@ -30,6 +30,27 @@ export function workspace(files = { "sales.csv": SALES_CSV }) {
     return dir;
 }
 
+/**
+ * check-config's text with each wrapped fact joined back into one line (check/format.js: a wrapped
+ * line goes on four spaces further in than the fact it continues), so a test can match a fact
+ * whatever the width cuts it at.
+ * @param {string} text
+ */
+export function factsOf(text) {
+    const out = [];
+    let indent = -1;
+    for (const line of text.split("\n")) {
+        const own = line.length - line.trimStart().length;
+        if (out.length && line.trim() && indent >= 0 && own >= indent + 4) {
+            out[out.length - 1] += ` ${line.trim()}`;
+            continue;
+        }
+        out.push(line);
+        indent = line.trim() ? own : -1;
+    }
+    return out.join("\n");
+}
+
 /** The REST service on a free port, its log kept as parsed lines. */
 export async function restServer(options, { env = {}, enable = ["rest"] } = {}) {
     const log = [];
