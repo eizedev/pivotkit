@@ -175,6 +175,7 @@ with code sources check [Code sources](#code-sources). Over HTTP with an output 
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
 | [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
 | [The log](#log) | you read the log on a terminal, parse it, or ship it to a log server | nothing for JSON consumers (fields are only added); on a terminal it is text unless `log.format` is `json`; with `http.trustProxy`, the client's address is in `clientAddress`; `log.address: "off"` keeps addresses out |
+| [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM or NOT FOUND |
 
 ### Data as of in files { #data-as-of-files }
 
@@ -184,6 +185,17 @@ custom document property `DataAsOf`. A print template of your own shows it only 
 `{{details}}` or `{{dataAsOf}}`: the Minimal example uses `{{details}}`, the Corporate example writes
 its own footer without it (add `{{dataAsOf}}` there where your reports always come from a service).
 csv, json and svg carry it in the result only.
+
+### Print templates checked at start { #template-at-start }
+
+The server reads and checks each source's print template (`sources.<id>.template`) at start, as an
+html report reads it. A template the parser refuses (for example
+`sources.sales.template: unknown placeholder {{titel}} (line 7); did you mean {{title}}?`), one over
+1 MiB or one that is not a regular file keeps the server from starting; `check-config` reports the
+same message as a PROBLEM line. A template file that is not there or cannot be read is treated like
+a missing source file: the server starts with a warning, `check-config` marks it NOT FOUND, and that
+source's html reports fail until the file is there. A template changed after the start is checked
+again on every html report, as before.
 
 ### Groups, a default profile, source scopes, the person in the log { #operator-controls }
 

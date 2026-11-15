@@ -11,7 +11,9 @@ command line as `--template <file>`. Two templates to copy and adapt, Corporate 
 with `pivotkit example templates`: [your own corporate design](corporate-design.md). A template is
 trusted like code: its own markup is used as it is. What pivotkit fills in is not: every value is
 escaped, and the template is checked before anything is rendered, so a value can never become
-markup, a link or code.
+markup, a link or code. The REST service and the MCP server check a source's template
+(`sources.<id>.template`) at start and in `check-config` too, so a typo stops the start, not the
+first report.
 
 ## Placeholders
 
