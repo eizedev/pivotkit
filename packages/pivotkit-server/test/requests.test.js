@@ -6,9 +6,9 @@ import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { OperationError } from "pivotkit-report/operations";
 import { SIGNED_IN, serveFetch } from "pivotkit-server";
-import { BODY_BYTES, MAX_BODY_BYTES, bodyCapOf, peekSignIn } from "../src/listen.js";
+import { BODY_BYTES, MAX_BODY_BYTES, bodyCapOf, peekSignIn, untilSent } from "../src/listen.js";
 import { bodyBytesOf } from "../src/limits.js";
-import { CALLER_LOG_FIELDS, callerFields } from "../src/log.js";
+import { CALLER_LOG_FIELDS, callerFields, noteAnswered } from "../src/log.js";
 import { REQUEST_ID, errorDetails, requestId, withRequestId } from "../src/request-id.js";
 import { offeredScopes } from "../src/scopes.js";
 import { problem, problemOf, serverTextOf } from "../src/rest/problem.js";
@@ -173,6 +173,47 @@ test("body size: a 413 names its request's id, in the answer and on a log line, 
     }
 });
 
+test("body size: a streamed body far over the cap (as a proxy forwards an HTTP/2 body) still gets its 413 and request id before the connection is cut", async () => {
+    const lines = [];
+    const handler = {
+        fetch: async () => Response.json({ ok: true }),
+        problem: (status) => {
+            lines.push(status);
+            return Response.json({ error: "too large" }, { status });
+        }
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024 });
+    try {
+        const { request } = await import("node:http");
+        // 64 KiB in 1 KiB chunks, no Content-Length: past 4 x the cap the server cuts the connection
+        const answer = await new Promise((resolve) => {
+            const req = request({ host: "127.0.0.1", port: listening.port, path: "/x", method: "POST", headers: { "transfer-encoding": "chunked" } }, (res) => {
+                res.resume();
+                res.on("end", () => resolve({ status: res.statusCode, id: res.headers["x-request-id"] }));
+            });
+            req.on("error", (e) => resolve({ error: e.code }));
+            const chunk = Buffer.alloc(1024, 120);
+            let sent = 0;
+            const more = () => {
+                while (sent < 64 && !req.destroyed) {
+                    sent++;
+                    if (!req.write(chunk)) {
+                        req.once("drain", more);
+                        return;
+                    }
+                }
+                req.end();
+            };
+            more();
+        });
+        assert.equal(answer.status, 413, JSON.stringify(answer));
+        assert.match(answer.id ?? "", REQUEST_ID);
+        assert.deepEqual(lines, [413]);
+    } finally {
+        await listening.close();
+    }
+});
+
 test("log: only the allowlisted caller fields reach a line, never groups, claims, subject, issuer, scopes or a token", () => {
     assert.deepEqual(CALLER_LOG_FIELDS, ["client"]);
     const caller = { client: "report-bot", profile: "finance", scopes: new Set(["pivotkit"]), subject: "u-123", issuer: "https://idp.example", groups: ["finance-secret-group"], claims: { customer: "acme-secret" }, token: "eyJ.secret" };
@@ -287,4 +328,238 @@ test("params: a pattern that ran out of time once is tried once more before it i
     assert.ok(calls > 1);
     // slow on both tries: refused
     assert.equal(slowOn(re, 8, () => null), true);
+});
+
+test("body size: a client that stops sending after its 413 leaves one refused line, not a second one of the HTTP parser", async () => {
+    const { connect } = await import("node:net");
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
+    try {
+        const port = Number(new URL(server.url).port);
+        // a declared 20 MiB, a part of it sent, then the client's side closed once the answer is in
+        const status = await new Promise((resolve) => {
+            const socket = connect(port, "127.0.0.1", () => {
+                socket.write(`POST /api/v1/views/render HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: ${20 << 20}\r\n\r\n`);
+                socket.write(Buffer.alloc(1 << 20, 32));
+            });
+            let got = "";
+            socket.on("data", (d) => {
+                got += d;
+                if (got.includes("\r\n\r\n")) {
+                    socket.end();
+                }
+            });
+            socket.on("error", () => undefined);
+            socket.on("close", () => resolve(got.split("\r\n")[0]));
+        });
+        assert.match(status, /^HTTP\/1\.1 413 /);
+        // the parser's line (if any) is written when the closed side reaches it
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const refused = server.log.filter((l) => l.event === "refused");
+        assert.deepEqual(refused.map((l) => [l.status, l.reason]), [[413, "body_too_large"]], JSON.stringify(refused));
+    } finally {
+        await server.close();
+    }
+});
+
+test("body size: the wait for a refused body's end is over at once for a request already destroyed or complete (its events are past)", async () => {
+    const { EventEmitter } = await import("node:events");
+    for (const state of [{ destroyed: true, complete: false }, { destroyed: false, complete: true }]) {
+        const req = Object.assign(new EventEmitter(), state);
+        const started = Date.now();
+        let timer;
+        const waited = await Promise.race([untilSent(/** @type {any} */ (req), 5000).then(() => "ended"), new Promise((resolve) => (timer = setTimeout(() => resolve("still waiting"), 500)))]);
+        clearTimeout(timer);
+        assert.equal(waited, "ended", `${JSON.stringify(state)} after ${Date.now() - started} ms`);
+    }
+});
+
+test("serveFetch: a handler that throws gets a 500 with no error text and one internal line, not a 400 bad_request", async () => {
+    const told = [];
+    const problems = [];
+    const handler = {
+        fetch: async () => {
+            throw new Error("a secret detail of the failure");
+        },
+        problem: (status) => {
+            problems.push(status);
+            return Response.json({ error: "bad" }, { status });
+        }
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onInternalError: (entry) => told.push(entry) });
+    try {
+        const answer = await raw(`http://127.0.0.1:${listening.port}/x`, { method: "POST", body: "{}" });
+        assert.equal(answer.status, 500);
+        assert.match(String(answer.headers["x-request-id"]), REQUEST_ID);
+        assert.doesNotMatch(JSON.stringify(answer.data), /secret/);
+        assert.deepEqual(problems, [], "not answered as a body that cannot be read");
+        assert.deepEqual(told.map((t) => [t.status, t.requestId]), [[500, answer.headers["x-request-id"]]]);
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a malformed request pipelined right after a refused body that was sent whole is still the parser's refusal", async () => {
+    const { connect } = await import("node:net");
+    const told = [];
+    const handler = {
+        precheck: async () => new Response("no", { status: 401 }),
+        fetch: async () => Response.json({ ok: true })
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onClientError: (entry) => told.push(entry) });
+    try {
+        // the refused request's whole body and a broken request line in one write
+        await new Promise((resolve) => {
+            const socket = connect(listening.port, "127.0.0.1", () => socket.write("POST /x HTTP/1.1\r\nHost: localhost\r\nContent-Length: 10\r\n\r\n0123456789BROKEN REQUEST LINE\r\n\r\n"));
+            socket.on("data", () => undefined);
+            socket.on("error", () => undefined);
+            socket.on("close", resolve);
+            setTimeout(() => socket.end(), 300);
+        });
+        assert.equal(told.length, 1, JSON.stringify(told));
+        assert.notEqual(told[0].parserError, "HPE_INVALID_EOF_STATE");
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a request the server cannot build from its request line (TRACE, which the Fetch API refuses) is the client's: 400 and the problem's line, never the 500 of a handler that threw", async () => {
+    const problems = [];
+    const internal = [];
+    const handler = {
+        fetch: async () => Response.json({ ok: true }),
+        problem: (status) => {
+            problems.push(status);
+            return Response.json({ error: "bad request" }, { status });
+        }
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onInternalError: (entry) => internal.push(entry) });
+    try {
+        const answer = await raw(`http://127.0.0.1:${listening.port}/x`, { method: "TRACE" });
+        assert.equal(answer.status, 400);
+        assert.match(String(answer.headers["x-request-id"]), REQUEST_ID);
+        assert.deepEqual(problems, [400]);
+        assert.deepEqual(internal, []);
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a handler that throws after its precheck took a place gives the place back (the handler's release), and no second line where the request has its own 5xx line", async () => {
+    const released = [];
+    const internal = [];
+    const PLACE = Symbol("place");
+    const handler = {
+        precheck: async (_request, info) => {
+            info[PLACE] = () => released.push("place");
+            return null;
+        },
+        release: (info) => {
+            info[PLACE]?.();
+            delete info[PLACE];
+        },
+        fetch: async (request) => {
+            if (new URL(request.url).pathname === "/logged") {
+                // the request wrote its own error line (a 5xx) before it failed
+                noteAnswered(500);
+            }
+            throw new Error("unexpected");
+        }
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onInternalError: (entry) => internal.push(entry) });
+    try {
+        assert.equal((await raw(`http://127.0.0.1:${listening.port}/x`, { method: "POST", body: "{}" })).status, 500);
+        assert.deepEqual(released, ["place"]);
+        assert.equal(internal.length, 1);
+        assert.equal((await raw(`http://127.0.0.1:${listening.port}/logged`, { method: "POST", body: "{}" })).status, 500);
+        assert.deepEqual(released, ["place", "place"]);
+        assert.equal(internal.length, 1, "the request's own line is its one line");
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a 500 always has an error line, also after the request logged a line below 500; a thrown status 413 outside the body's reading is a 500", async () => {
+    const internal = [];
+    const { createLog } = await import("../src/log.js");
+    const lines = [];
+    const log = createLog("debug", { write: (t) => lines.push(JSON.parse(t)) });
+    const handler = {
+        fetch: async (request) => {
+            const path = new URL(request.url).pathname;
+            if (path === "/logged-200") {
+                log.request({ operation: "describe_source", status: 200 });
+            } else if (path === "/logged-500") {
+                log.request({ operation: "describe_source", status: 502 });
+            }
+            throw Object.assign(new Error("unexpected"), path === "/thrown-413" ? { status: 413 } : {});
+        }
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onInternalError: (entry) => internal.push(entry.requestId) });
+    try {
+        const base = `http://127.0.0.1:${listening.port}`;
+        const after200 = await raw(`${base}/logged-200`);
+        const after500 = await raw(`${base}/logged-500`);
+        const thrown413 = await raw(`${base}/thrown-413`);
+        assert.deepEqual([after200.status, after500.status, thrown413.status], [500, 500, 500]);
+        // told for the one that logged a 200 and the 413 thrown by the handler, not for the one with its own 5xx line
+        assert.deepEqual(internal, [after200.headers["x-request-id"], thrown413.headers["x-request-id"]]);
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: CONNECT gets a 400 with an id and one line, never a closed socket without an answer", async () => {
+    const { connect } = await import("node:net");
+    const told = [];
+    const listening = await serveFetch({ fetch: async () => Response.json({ ok: true }) }, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onClientError: (entry) => told.push(entry) });
+    try {
+        for (const target of ["example.com:443", "/x"]) {
+            const answer = await new Promise((resolve) => {
+                const socket = connect(listening.port, "127.0.0.1", () => socket.write(`CONNECT ${target} HTTP/1.1\r\nHost: example.com:443\r\n\r\n`));
+                let got = "";
+                socket.on("data", (d) => (got += d));
+                socket.on("error", () => undefined);
+                socket.on("close", () => resolve(got));
+            });
+            assert.match(answer, /^HTTP\/1\.1 400 Bad Request\r\n/, target);
+            const id = /X-Request-Id: ([A-Za-z0-9_-]{11})/.exec(answer)?.[1];
+            assert.ok(id, answer);
+            assert.equal(told.filter((t) => t.requestId === id).length, 1, JSON.stringify(told));
+        }
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a CONNECT client that never closes its side does not keep its socket: the slot is free again and the server stops", async () => {
+    const { connect } = await import("node:net");
+    // one connection in all: a socket left open would refuse the next one
+    const listening = await serveFetch({ fetch: async () => Response.json({ ok: true }) }, { host: "127.0.0.1", port: 0, bodyBytes: 1024, limits: { total: 1 } });
+    const socket = connect({ port: listening.port, host: "127.0.0.1", allowHalfOpen: true });
+    let timer;
+    try {
+        // the server's side ends (the client's stays open: allowHalfOpen)
+        const ended = new Promise((resolve) => socket.on("end", resolve));
+        socket.resume();
+        socket.on("error", () => undefined);
+        await new Promise((resolve) => socket.once("connect", resolve));
+        socket.write("CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n");
+        // the client never ends its side: whether the server let go of its socket shows in the
+        // connection slot and in close()
+        assert.equal(await Promise.race([ended.then(() => "answered"), new Promise((resolve) => (timer = setTimeout(() => resolve("no answer"), 1000)))]), "answered");
+        clearTimeout(timer);
+        const next = await raw(`http://127.0.0.1:${listening.port}/`);
+        assert.equal(next.status, 200, "the connection slot is free again");
+        const stopped = await Promise.race([listening.close().then(() => "stopped"), new Promise((resolve) => (timer = setTimeout(() => resolve("hangs"), 2000)))]);
+        clearTimeout(timer);
+        assert.equal(stopped, "stopped");
+    } finally {
+        clearTimeout(timer);
+        socket.destroy();
+        // a failed run: the server is stopped here (its socket goes with the client's)
+        if (listening.server.listening) {
+            await listening.close();
+        }
+    }
 });

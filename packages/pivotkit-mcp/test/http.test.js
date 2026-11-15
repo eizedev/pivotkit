@@ -72,6 +72,23 @@ test("a body over 2 MiB is refused with 413 before it is parsed", async () => {
     }
 });
 
+test("pivotkit-mcp's own server: a body that is not JSON and an unsupported protocol version each get one refused line under the answer's X-Request-Id", async () => {
+    const dir = workspace();
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
+    try {
+        const broken = await raw(server.url, { method: "POST", headers: { ...POST, "mcp-protocol-version": "2025-06-18" }, body: '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"MKR-BROKEN"' });
+        const version = await raw(server.url, { method: "POST", headers: { ...POST, "mcp-protocol-version": "1999-01-01" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }) });
+        for (const answer of [broken, version]) {
+            assert.equal(answer.status, 400, answer.body);
+            const mine = server.log.filter((l) => l.requestId === answer.headers["x-request-id"]);
+            assert.deepEqual(mine.map((l) => [l.event, l.level, l.status, l.reason, l.path]), [["refused", "warn", 400, "bad_request", "/mcp"]], JSON.stringify(mine));
+        }
+        assert.ok(!JSON.stringify(server.log).includes("MKR-BROKEN"), "the body is not logged");
+    } finally {
+        await server.close();
+    }
+});
+
 test("token: no token, a wrong one, one in the address, two headers: 401; the right one works; the page lists no source", async () => {
     const dir = workspace();
     const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir }, { env: { PIVOTKIT_MCP_TOKEN: TOKEN } });

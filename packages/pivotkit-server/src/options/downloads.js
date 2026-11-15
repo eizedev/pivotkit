@@ -129,7 +129,8 @@ export function validate(options) {
             throw new ConfigError('output.downloads.signIn: needs auth.mode "oauth" (the person signs in where the MCP client signs in)');
         }
         if (!settings.signIn?.issuer || !httpsOrAllowed(settings.signIn.issuer, options.auth?.allowInsecureIssuer === true)) {
-            throw new ConfigError("output.downloads.signIn.issuer: must be an https:// address (auth.allowInsecureIssuer is for tests only)");
+            // the key the operator set: signIn.issuer, or auth.issuer it follows when it is left out
+            throw new ConfigError(`${d.signIn.issuer !== undefined ? "output.downloads.signIn.issuer" : "auth.issuer"}: must be an https:// address (auth.allowInsecureIssuer is for tests only)`);
         }
         // links are bound to the issuer and subject the MCP or REST token named: the person must sign in at the same issuer
         if (d.signIn.issuer !== undefined && d.signIn.issuer !== options.auth?.issuer) {

@@ -297,6 +297,10 @@ root `package.json`: `npm run types` and the builds depend on it.
   (`createLog`: one line per event as JSON or logfmt text (`log.format`, auto by the stream's TTY),
   `level`, `severity`, `msg`, `service`, `version` and the request scope on every line, the level of
   call/request/download/refused lines by status, `started`/`stopped` at every level; `refusalReason`,
+  `logUnanswered` (the HTTP edge's last check, in the REST, MCP and serve handlers: an error answer
+  whose request wrote no line gets a `refused` line, its reason the problem's code or its status's;
+  `noteAnswered` marks a line written elsewhere, on the scope's `answer` box that `withRequestId`
+  keeps for the same id; `noteProtocolRefusal` puts the MCP SDK's refusal on that line),
   `startFields`, `startErrorLine`, `flushed`; `callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
   auth.js; `options/log.js` and `check/log.js` are its options and check-config section), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
@@ -410,8 +414,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   rendered to XLSX by the CLI (`pivotkit render weather.pivotkit.json --data weather.csv -o
   weather.xlsx`), opened in Microsoft Excel for Mac at 100 % on a Retina screen and captured as
   Excel's window only (`screencapture -o -l <window id>`), cropped to cells A1:N16; the sheet stays
-  white in Excel's dark mode; Excel formats the numbers by the system's region, so the picture
-  is taken with a region that writes a decimal point. Taken again by hand when the export's look changes. `docs/playground/` (the live demo),
+  white in Excel's dark mode; Excel formats the numbers by its region (the system's unless
+  Excel's own `AppleLocale` is set), so the picture is taken with Excel's region set to one that
+  writes a decimal point (`en_US`). Taken again by hand when the export's look changes. `docs/playground/` (the live demo),
   `docs/schema/`, `docs/assets/social-preview.png` and `docs/robots.txt` (all written by
   `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. The theme's
   repository link in the header asks api.github.com for the repository's stars, forks and latest

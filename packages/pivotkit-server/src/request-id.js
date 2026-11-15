@@ -32,6 +32,7 @@ import { clientAddress } from "./checks.js";
  * @property {string} [upstreamRequestId]  an incoming X-Request-Id that passed UPSTREAM_REQUEST_ID
  * @property {string} [address]  the client as best known: with http.trustProxy the forwarded one (the last entry of X-Forwarded-For), "invalid" for one that is no IP address; else the socket's peer
  * @property {string} [peerAddress]  the socket's peer, only where it differs from address (the proxy)
+ * @property {{ logged: boolean, worst?: number, protocol?: { error: string, refusal?: string, detail: string } }} [answer]  whether the request wrote a line of its own, and a refusal the MCP SDK reported for it (log.js noteAnswered); one box per request, shared by every copy of the scope that keeps its id
  */
 
 /** The scope of the work running now. */
@@ -50,7 +51,12 @@ export const REQUEST_ID = /^[A-Za-z0-9_-]{11}$/;
  * @param {() => T} fn
  * @returns {T}
  */
-export const withRequestId = (id, fn) => current.run({ ...(current.getStore() ?? { traceId: newTraceId() }), id }, fn);
+export const withRequestId = (id, fn) => {
+    const store = current.getStore();
+    // the same request keeps its scope's box (log.js noteAnswered reaches the HTTP edge's check); a
+    // new id is a request of its own
+    return current.run({ ...(store ?? { traceId: newTraceId() }), id, answer: store?.id === id && store.answer ? store.answer : { logged: false } }, fn);
+};
 
 /**
  * Runs fn inside a request's scope (requestScopeFor's): requestId() and requestScope() read it.
@@ -155,7 +161,8 @@ export function requestScopeFor(request, info, { trustProxy = false } = {}) {
             id: requestIdFor(info),
             traceId: traceIdOf(headers.get("traceparent")) ?? newTraceId(),
             ...(upstream ? { upstreamRequestId: upstream } : {}),
-            ...addressesOf(request, info.address, trustProxy)
+            ...addressesOf(request, info.address, trustProxy),
+            answer: { logged: false }
         });
     } else if (trustProxy && request?.headers.has("x-forwarded-for") && !info[SCOPE_KEY].peerAddress && info[SCOPE_KEY].address === plainAddress(info.address)) {
         // made first by a host's serveFetch without trustProxy: the front end's setting wins

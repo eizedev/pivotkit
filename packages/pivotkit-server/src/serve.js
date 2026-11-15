@@ -17,10 +17,10 @@ export { TOKEN_ENV };
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./listen.js";
 import { bodyBytesOf } from "./limits.js";
-import { DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
+import { DOWNLOADS_PATH, DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { problem } from "./rest/problem.js";
-import { refusalReason, startFields } from "./log.js";
+import { logUnanswered, noteAnswered, refusalReason, startFields } from "./log.js";
 import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 
 /** The default port. */
@@ -123,7 +123,10 @@ export async function createServerHandler(options, runtime) {
         const trustProxy = options.http?.trustProxy ?? false;
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
 
-        /** /healthz and /readyz, after the Host check. */
+        /** Whether /readyz last found the server ready (it starts out so): a line is written only when that changes. */
+        let wasReady = true;
+
+        /** /healthz and /readyz, after the Host check: a probe writes no line; /readyz one when readiness changes. */
         async function health(request) {
             const path = new URL(request.url).pathname;
             if ((request.method !== "GET" && request.method !== "HEAD") || (path !== "/healthz" && path !== "/readyz")) {
@@ -134,12 +137,25 @@ export async function createServerHandler(options, runtime) {
                 context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
                 return problem("FORBIDDEN_HOST", refused);
             }
+            // a probe's answer is not a refusal: no line of its own, none from the HTTP edge's check
+            noteAnswered();
             if (path === "/healthz") {
                 return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
             }
             const ready = await context.ready();
+            if (ready.ok !== wasReady) {
+                wasReady = ready.ok;
+                if (ready.ok) {
+                    context.log.info("ready again: the server takes work");
+                } else {
+                    context.log.warn(`not ready: ${ready.reason}`);
+                }
+            }
             return Response.json(ready, { status: ready.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
         }
+
+        /** The route family of a request, for a refused line written by logUnanswered (REST's and MCP's own handlers name theirs). */
+        const routeFamily = (request) => (isDownload(request) ? { path: DOWNLOADS_PATH, notFound: /** @type {const} */ ("info") } : {});
 
         /** The routes, in order: health, download links, REST, MCP. */
         const routes = {
@@ -153,9 +169,15 @@ export async function createServerHandler(options, runtime) {
                 if (!mcp) {
                     const refused = hostRefusal(request, hosts);
                     if (refused) {
+                        context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
                         return problem("FORBIDDEN_HOST", refused);
                     }
-                    return Number(request.headers.get("content-length") ?? 0) > REST_BODY_BYTES ? problem("BODY_TOO_LARGE", "the body is larger than 2 MiB, the most this service takes") : null;
+                    const declared = Number(request.headers.get("content-length") ?? 0);
+                    if (declared > REST_BODY_BYTES) {
+                        context.log.refused({ status: 413, reason: refusalReason("BODY_TOO_LARGE"), limit: REST_BODY_BYTES, size: declared });
+                        return problem("BODY_TOO_LARGE", "the body is larger than 2 MiB, the most this service takes");
+                    }
+                    return null;
                 }
                 return mcp.precheck(request, info);
             },
@@ -190,14 +212,18 @@ export async function createServerHandler(options, runtime) {
             async precheck(request, info = { address: "" }) {
                 // the request's scope: serveFetch's, or made here for a host that serves the handler itself
                 const scope = requestScopeFor(request, info, { trustProxy });
-                const answer = await withRequestScope(scope, () => routes.precheck(request, info));
+                const answer = await logUnanswered(context.log, scope, await withRequestScope(scope, () => routes.precheck(request, info)), routeFamily(request));
                 return answer && withRequestIdHeader(answer, scope.id);
             },
             /** @type {import("./listen.js").FetchHandler["fetch"]} */
             async fetch(request, info = { address: "" }) {
                 const scope = requestScopeFor(request, info, { trustProxy });
-                return withRequestIdHeader(await withRequestScope(scope, () => routes.fetch(request, info)), scope.id);
+                // every 4xx answer has a line: the routes' own, or a refused line by its status
+                const response = await logUnanswered(context.log, scope, await withRequestScope(scope, () => routes.fetch(request, info)), routeFamily(request));
+                return withRequestIdHeader(/** @type {Response} */ (response), scope.id);
             },
+            /** @type {import("./listen.js").FetchHandler["release"]} */
+            release: (info) => rest?.release(info),
             problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than 2 MiB, the most this service takes" : "the request cannot be read")),
             async close() {
                 downloads.close();
@@ -231,7 +257,7 @@ export async function serve(options, runtime) {
     try {
         const bodyBytes = bodyBytesOf(options);
         // a download takes no body: the form of a one-time link sends none
-        listening = await serveFetch(handler, { host, port, bodyBytes: (request, info) => (handler.downloads.handles(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : bodyBytes(request, info)), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onClientError: (entry) => handler.context.log.refused({ ...entry, reason: refusalReason("INVALID_INPUT") }), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
+        listening = await serveFetch(handler, { host, port, bodyBytes: (request, info) => (handler.downloads.handles(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : bodyBytes(request, info)), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onClientError: (entry) => handler.context.log.refused({ ...entry, reason: refusalReason("INVALID_INPUT") }), onInternalError: () => handler.context.log.refused({ status: 500, reason: refusalReason("INTERNAL") }), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler.close();
         throw e;

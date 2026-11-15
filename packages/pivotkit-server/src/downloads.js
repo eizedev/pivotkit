@@ -967,7 +967,7 @@ export function createDownloadHandler(context, runtime = {}) {
                 return answer(request, "FORBIDDEN_HOST");
             }
             if (Number(request.headers.get("content-length") ?? 0) > DOWNLOAD_BODY_BYTES) {
-                context.log.refused({ status: 413, path: DOWNLOADS_PATH, reason: "body_too_large", limit: DOWNLOAD_BODY_BYTES, size: Number(request.headers.get("content-length")) }, { level: "debug" });
+                context.log.refused({ status: 413, path: DOWNLOADS_PATH, reason: "body_too_large", limit: DOWNLOAD_BODY_BYTES, size: Number(request.headers.get("content-length")) });
                 return answer(request, "BODY_TOO_LARGE");
             }
             return null;
@@ -984,8 +984,11 @@ export function createDownloadHandler(context, runtime = {}) {
             return withRequestId(requestId() ?? newRequestId(), () => route(request, path));
         },
 
-        /** The answer for a body that cannot be read (too large, cut off). */
-        problem: (status) => new Response(JSON.stringify({ code: status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", requestId: requestId() ?? newRequestId() }), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", connection: "close" } }),
+        /** The answer for a body that cannot be read (too large, cut off), with its refused line. */
+        problem: (status) => {
+            context.log.refused({ status, path: DOWNLOADS_PATH, reason: status === 413 ? "body_too_large" : "bad_request", ...(status === 413 ? { limit: DOWNLOAD_BODY_BYTES } : {}) });
+            return new Response(JSON.stringify({ code: status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", requestId: requestId() ?? newRequestId() }), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", connection: "close" } });
+        },
 
         /**
          * The address the server listens on, once it does: the links' base on loopback without

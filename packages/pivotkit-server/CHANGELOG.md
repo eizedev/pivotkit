@@ -382,6 +382,31 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- Every error answer (4xx and 5xx) has one log line under its `X-Request-Id`, a 404 or 405 only at
+  `log.level` `debug`: its own line, or a `refused` line whose reason is the answer's problem code or
+  its status's (`method_not_allowed` and `not_found` at `debug`, other 4xx at `warn`, a 5xx at
+  `error`), plus an `internal` line at `error` when a request fails unexpectedly after it logged a
+  line below 500. A link under `/downloads` that nobody has is `not_found` at `info`. A refused
+  download has one line, not two ([#456](https://github.com/eizedev/pivotkit/issues/456)).
+- What you will notice in the log: new `warn` `refused` lines for a body that is not JSON or an
+  unsupported `mcp-protocol-version`, an `info` line for a download link nobody has, a `warn` line
+  when `/readyz` finds the server not ready and an `info` line when it is ready again (no line per
+  probe), and an `error` `refused` line for a 5xx that had no line of its own.
+- A body found larger than the cap while it streams (no `Content-Length`, as a proxy forwards an
+  HTTP/2 body) is answered 413 with its `X-Request-Id` at once; the connection is cut after four
+  times the cap, at least 64 KiB, so a download's small cap still lets the client read the answer.
+  A streamed body over a download's cap gets its `refused` line.
+- A client that stops sending its body after a 413 leaves one `refused` line, not a second one of
+  the HTTP parser.
+- A handler that throws is answered 500 without detail and logged as one `refused` line at `error`
+  with reason `internal`; a place it held for a large body is given back. A request whose method or
+  headers cannot be read as a request (such as `TRACE`) is the client's: 400, `bad_request`. A 500
+  has an `error` line also where the request logged a line below 500 first. A `CONNECT` is answered
+  400 with an `X-Request-Id` and a `bad_request` line, and its connection is closed after the answer.
+- check-config prints a source's policy rules in that source's own spelling, never another
+  source's.
+- An `http://` `auth.issuer` with download sign-in and no `output.downloads.signIn.issuer` is
+  reported as `auth.issuer: must be an https:// address`.
 - A compute worker's kept data set of a CSV (an HTTP source's answer or a file) no longer keeps the
   whole text it was read from in memory, the columns the policy hides included: its texts were
   slices of that text, which V8 keeps alive whole. The data set's texts are copies of their own, and
