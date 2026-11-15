@@ -229,8 +229,8 @@ export function dispositionOf(name) {
 /** How often the markers of expired one-time links are swept: ten minutes. */
 const MARKER_SWEEP_MS = 600_000;
 
-/** A marker of a used one-time link: its nonce. */
-const MARKER_NAME = /^[A-Za-z0-9_-]{22}\.used$/;
+/** A marker of a used one-time link (its nonce) or of a used sign-in state (the state). */
+const MARKER_NAME = /^[A-Za-z0-9_-]{22}\.(?:used|state)$/;
 
 /** A marker being written: its name before it is linked into place. */
 const MARKER_TEMP = /^\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]+\.tmp$/;
@@ -244,7 +244,7 @@ const MARKER_TEMP = /^\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]+\.tmp$/;
  */
 export async function placeMarker(marker, expiry) {
     const name = marker.split(/[\\/]/).pop() ?? "";
-    const temp = join(marker, "..", `.${name.replace(/\.used$/, "")}.${randomBytes(6).toString("base64url")}.tmp`);
+    const temp = join(marker, "..", `.${name.replace(/\.(?:used|state)$/, "")}.${randomBytes(6).toString("base64url")}.tmp`);
     await writeFile(temp, `${expiry}\n`, { flag: "wx", mode: 0o600 });
     try {
         await hardLink(temp, marker);
@@ -792,6 +792,25 @@ export function createDownloadHandler(context, runtime = {}) {
         return startSignIn(request, token);
     }
 
+    /**
+     * Marks a sign-in's state used (placeMarker, as a one-time link): false when it was used already.
+     * @param {string} stateValue  NONCE_SYNTAX
+     * @param {unknown} expiry  the cookie entry's `x` (seconds), when the state stops working anyway
+     */
+    async function markStateUsed(stateValue, expiry) {
+        const until = Number.isSafeInteger(expiry) ? /** @type {number} */ (expiry) : Math.floor(Date.now() / 1000) + SIGN_IN_SECONDS;
+        try {
+            await mkdir(markersDir(), { recursive: true, mode: 0o700 });
+            await placeMarker(join(markersDir(), `${stateValue}.state`), until);
+            return true;
+        } catch (e) {
+            if (/** @type {any} */ (e)?.code === "EEXIST") {
+                return false;
+            }
+            throw e;
+        }
+    }
+
     /** The POST of a one-time link: the file once, or again to the browser that took it within REPEAT_SECONDS. */
     async function once(request, payload) {
         void sweep().catch(() => undefined);
@@ -896,6 +915,13 @@ export function createDownloadHandler(context, runtime = {}) {
             // no sign-in of this browser under way (a missing or foreign cookie, a used state): anyone can send that, so the debug log only
             // (a tab left open, a reload, another browser): the page says to open the link again, here
             context.log.debug("download links: a sign-in callback without its cookie", { via: "link", bound: "signIn", code: "SIGN_IN_FAILED", requestId: requestId() });
+            return answer(request, "SIGN_IN_STALE", { "set-cookie": cookie });
+        }
+        // the state is used once on the server too, not only because the browser drops it from its
+        // cookie: a callback replayed with the cookie from before it is refused (a marker beside the
+        // one-time links', written only for a state of this server's signed cookie, swept at its expiry)
+        if (!(await markStateUsed(stateValue, entry.x))) {
+            context.log.debug("download links: a sign-in callback with a used state", { via: "link", bound: "signIn", code: "SIGN_IN_FAILED", requestId: requestId() });
             return answer(request, "SIGN_IN_STALE", { "set-cookie": cookie });
         }
         if (url.searchParams.has("error")) {

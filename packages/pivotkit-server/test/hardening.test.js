@@ -4,8 +4,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { REQUEST_LIMITS, callerOf, checkConfig, createLimits, limitKeyOf, validateOptions } from "pivotkit-server";
 import { randomBytes } from "node:crypto";
-import { signToken, subkeysOf } from "../src/downloads.js";
-import { call, factsOf, restServer, workspace } from "./helpers.js";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { placeMarker, signToken, subkeysOf, sweepMarkers } from "../src/downloads.js";
+import { call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
 
 // --- F2: columns the file gives no header never take a "show" default --------------------------------
 
@@ -134,4 +136,18 @@ test("F4: requests with forged tokens do not read the key file or variable each 
     } finally {
         await server.close();
     }
+});
+
+// --- F5: a used sign-in state is kept on the server until it expires ---------------------------------
+
+test("F5: sweepMarkers deletes an expired sign-in state's marker and keeps a live one", async () => {
+    const dir = tempDir();
+    const old = join(dir, `${randomBytes(16).toString("base64url")}.state`);
+    const live = join(dir, `${randomBytes(16).toString("base64url")}.state`);
+    await placeMarker(old, Math.floor(Date.now() / 1000) - 1);
+    await placeMarker(live, Math.floor(Date.now() / 1000) + 600);
+    assert.deepEqual(readdirSync(dir).filter((n) => n.endsWith(".tmp")), [], "no temporary file is left");
+    await sweepMarkers(dir);
+    assert.equal(existsSync(old), false);
+    assert.equal(existsSync(live), true);
 });

@@ -1244,3 +1244,23 @@ test("the log: a refused download has exactly one line under its X-Request-Id; a
         await server.close();
     }
 });
+
+test("signIn: a callback replayed with the cookie from before it (and a provider that takes a code twice) is refused: the state is marked used on the server", async () => {
+    const { server, render, open, callback } = await signInServer();
+    try {
+        const output = await render("alice");
+        const redirect = await open(output.url);
+        const cookie = cookieOf(redirect);
+        const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        const grant = { ...codes.get(code) };
+        assert.equal((await callback(code, state, cookie)).status, 200);
+        // someone who copied the callback's address and the cookie sent before it, at a provider
+        // that does not hold codes to one use
+        codes.set(code, grant);
+        const replay = await callback(code, state, cookie);
+        assert.equal(replay.status, 400);
+        assert.match(await replay.text(), /This sign-in was already used/);
+    } finally {
+        await server.close();
+    }
+});
