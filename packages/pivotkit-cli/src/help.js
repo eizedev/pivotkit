@@ -2,7 +2,7 @@
  * The help texts and the shell completions, both made from the command table (commands.js).
  */
 
-import { COMMANDS, DOCS, GLOBAL_OPTIONS, SHELLS, optionsOf } from "./commands.js";
+import { COMMANDS, DOCS, GLOBAL_OPTIONS, SHELLS, WHERE, optionsOf } from "./commands.js";
 import { exampleNames } from "./examples.js";
 
 /** One option as the help writes it: "-o, --output <file>". */
@@ -10,7 +10,9 @@ function optionLine(name, spec) {
     const flag = `${spec.short ? `-${spec.short}, ` : "    "}--${name}${spec.type === "string" ? ` <${spec.value ?? "value"}>` : ""}`;
     const choices = spec.choices ? ` (${spec.choices.join(", ")})` : "";
     const env = spec.env ? ` [env ${spec.env}]` : "";
-    return { flag, text: `${spec.text}${choices}${env}` };
+    // where it acts, from the table (left out: locally and with a server)
+    const where = spec.where ? ` [${WHERE[spec.where]}]` : "";
+    return { flag, text: `${spec.text}${choices}${env}${where}` };
 }
 
 /** Lines of two columns, the first padded. */
@@ -23,7 +25,7 @@ const columns = (rows) => {
 export function helpText(command) {
     if (!command || !Object.hasOwn(COMMANDS, command)) {
         const list = Object.entries(COMMANDS).map(([name, c]) => ({ flag: name, text: c.text }));
-        return `pivotkit - run pivotkit views without a browser\n\nUsage: pivotkit <command> [options]\n\nCommands:\n${columns(list)}\n\nOptions:\n${columns([...Object.entries(GLOBAL_OPTIONS).map(([n, s]) => optionLine(n, s)), { flag: "    --version", text: "Show the versions of pivotkit-cli, pivotkit-report and pivotkit-core." }])}\n\nExit codes: 0 done, 1 findings (errors in the view, or warnings with --strict), 2 usage, file, limit or template errors.\nRun "pivotkit help <command>" for a command's options. Documentation: ${DOCS}reference/cli/\n`;
+        return `pivotkit - run pivotkit views without a browser\n\nUsage: pivotkit <command> [options]\n\nCommands:\n${columns(list)}\n\nOptions:\n${columns([...Object.entries(GLOBAL_OPTIONS).map(([n, s]) => optionLine(n, s)), { flag: "    --version", text: "Show the versions of pivotkit-cli, pivotkit-report and pivotkit-core." }])}\n\nExit codes: 0 done, 1 findings (errors in the view, or warnings with --strict), 2 usage, file, limit, template or server errors.\nWith --url (or PIVOTKIT_URL) and --source, render, validate and describe run on a pivotkit-server's source.\nRun "pivotkit help <command>" for a command's options. Documentation: ${DOCS}reference/cli/\n`;
     }
     const c = COMMANDS[command];
     const args = c.args.length ? `\n\nArguments:\n${columns(c.args.map((a) => ({ flag: a.optional ? `[${a.name}]` : `<${a.name}>`, text: a.text })))}` : "";

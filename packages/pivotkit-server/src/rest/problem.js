@@ -6,24 +6,10 @@
  */
 
 import { OPERATION_ERRORS } from "pivotkit-report/operations";
+import { REST_ERRORS } from "pivotkit-cli/rest";
 
-/** The codes the REST layer adds to the operations', with their status. */
-export const REST_ERRORS = Object.freeze({
-    INVALID_TOKEN: 401,
-    INSUFFICIENT_SCOPE: 403,
-    FORBIDDEN_HOST: 403,
-    FORBIDDEN_ORIGIN: 403,
-    NOT_FOUND: 404,
-    METHOD_NOT_ALLOWED: 405,
-    BODY_TOO_LARGE: 413,
-    UNSUPPORTED_MEDIA_TYPE: 415,
-    VIEW_HAS_ERRORS: 422,
-    RATE_LIMITED: 429,
-    AUTH_NOT_READY: 503
-});
-
-/** Every code a problem can carry. */
-export const PROBLEM_CODES = Object.freeze([...Object.keys(OPERATION_ERRORS), ...Object.keys(REST_ERRORS)]);
+/** The codes the REST layer adds to the operations', with their status, and every code a problem can carry: pivotkit-cli/rest's, which the CLI's remote mode checks answers against. */
+export { REST_ERRORS, PROBLEM_CODES } from "pivotkit-cli/rest";
 
 /** A code's status. */
 export const statusOf = (code) => REST_ERRORS[code] ?? OPERATION_ERRORS[code] ?? 500;

@@ -5,8 +5,10 @@ import { test as base, expect } from "@playwright/test";
  * Playwright's trace recording (trace: "retain-on-failure") injects its snapshot script into every
  * frame; Chromium refuses it in the report's print frame, which is sandboxed without scripts, and logs
  * this. The page itself runs no script there: without tracing the message is not logged (checked with
- * --trace off and with a plain browser), so it is the harness's, not the report's. Only the specs that
- * open the print frame ignore it: `test.use({ ignoreConsole: [TRACE_IN_PRINT_FRAME] })`.
+ * --trace off and with a plain browser), so it is the harness's, not the report's. Every spec ignores
+ * it, not only the print specs: the Export menu makes the print frame ready whenever it opens
+ * (print-frame.js), so every spec that opens the menu would log it. Errors of the page itself still
+ * fail every test.
  */
 export const TRACE_IN_PRINT_FRAME = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
 
@@ -16,7 +18,7 @@ export const test = base.extend({
     page: async ({ page, ignoreConsole }, use) => {
         const problems = [];
         page.on("console", (m) => {
-            if ((m.type() === "error" || m.type() === "warning") && !ignoreConsole.some((re) => re.test(m.text()))) problems.push(`${m.type()}: ${m.text()}`);
+            if ((m.type() === "error" || m.type() === "warning") && ![TRACE_IN_PRINT_FRAME, ...ignoreConsole].some((re) => re.test(m.text()))) problems.push(`${m.type()}: ${m.text()}`);
         });
         page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
         await use(page);
@@ -170,13 +172,22 @@ export async function pickItem(page, scope, testId, label) {
 
 /**
  * Call after page.goto. The print frame's window.print replaced by a stub that keeps what it would print in window.__printed:
- * its markup, its stylesheets (adopted, never a <style>), its language and the frame's sandbox.
+ * its markup, its stylesheets (adopted, never a <style>), its language and the frame's sandbox; and
+ * whether it ran in the click: `inClick` while the click was being dispatched (its listeners and the
+ * microtasks after them; Safari asks before a print it does not take as the person's), `activation`
+ * the page's transient user activation then (navigator.userActivation, null where it is missing).
+ * window.__prints counts the calls; with window.__printThrows set, print() throws (a browser that
+ * refuses it).
  */
 export async function capturePrint(page) {
     // installed in the page after it loaded, not as an init script: Playwright runs init scripts in
     // every frame, and the sandboxed print frame (no scripts) would log that it blocked one
     await page.evaluate(() => {
         const w = /** @type {any} */ (window);
+        w.__clicking = false;
+        document.addEventListener("click", () => (w.__clicking = true), true);
+        // the last listener of the click's way back up: after the report's own and their microtasks
+        window.addEventListener("click", () => (w.__clicking = false));
         const own = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, "contentWindow");
         Object.defineProperty(HTMLIFrameElement.prototype, "contentWindow", {
             configurable: true,
@@ -184,8 +195,14 @@ export async function capturePrint(page) {
                 const win = own.get.call(this);
                 if (win && this.classList.contains("pk-print-frame")) {
                     win.print = () => {
+                        w.__prints = (w.__prints ?? 0) + 1;
+                        if (w.__printThrows) {
+                            throw new Error("print refused");
+                        }
                         const d = this.contentDocument;
                         w.__printed = {
+                            inClick: w.__clicking,
+                            activation: "userActivation" in navigator ? navigator.userActivation.isActive : null,
                             body: d.body.innerHTML,
                             title: d.title,
                             lang: d.documentElement.lang,

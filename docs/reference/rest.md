@@ -9,7 +9,9 @@ description: The pivotkit REST service - routes, the OpenAPI 3.1 document, sign-
 Universal endpoint, a scheduler or a web app lists data sources, checks a [view](view-file.md),
 renders it into a file and makes links. It runs the same operations as the
 [MCP server](mcp.md) and the [command line](cli.md), with the same exposure policy, so a program sees
-of a source what the operator allows. The package also holds what the MCP server is built on, so
+of a source what the operator allows. The command line is also its client: `pivotkit render`,
+`validate`, `describe` and `sources` with `--url` and `--source` run on the server's sources
+([With a server](cli.md#with-a-server)). The package also holds what the MCP server is built on, so
 `pivotkit-server serve` runs the REST service and, when `pivotkit-mcp` is installed beside it, the MCP
 endpoint on the same port.
 
@@ -193,6 +195,12 @@ A view with errors answers 422 `VIEW_HAS_ERRORS` with its `findings`.
 curl -s -o report.xlsx -H "Authorization: Bearer $EXPORT_TOKEN" -H "Content-Type: application/json" \
   -d '{"source":"sales","view":{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]}}' \
   http://127.0.0.1:3333/api/v1/views/render/file
+```
+
+The [command line](cli.md#with-a-server) does the same with a view file, and checks the view first:
+
+```bash
+PIVOTKIT_TOKEN=$EXPORT_TOKEN pivotkit render sales.pivotkit.json --url http://127.0.0.1:3333/api/v1 --source sales -o report.xlsx
 ```
 
 ## Sign-in { #auth }

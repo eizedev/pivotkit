@@ -40,6 +40,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 ### Changed
 
 - The message of a withheld render names the fields that are not fully shown.
+- `REST_BASE`, `SOURCE_ID`, `TOKEN_SYNTAX`, `TOKEN_SYNTAX_TEXT`, `REST_ERRORS`, `PROBLEM_CODES` and
+  `isLoopback` come from `pivotkit-cli/rest`, which the command line's remote mode checks against
+  ([#306](https://github.com/eizedev/pivotkit/issues/306)); the exports keep their names.
+  pivotkit-server needs the pivotkit-cli release that has `pivotkit-cli/rest` (its release raises
+  the `pivotkit-cli` range).
 
 ### Fixed
 
@@ -49,6 +54,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   be examined. Start errors name these reasons in words, keep any other file system code in a
   neutral sentence, and a link changed while the directory is made is refused with its reason
   instead of a raw error.
+- `isLoopback` takes only literal loopback addresses: a host name that starts with `127.`
+  (`127.example.com`) is no longer loopback, and `[::1]` as a URL writes it is. A listen host
+  written short, `127.1` or `127.0.1`, no longer counts as loopback either: on it the server needs
+  `auth` (or `--allow-unauthenticated`); write `127.0.0.1`.
 
 ## [0.1.1] - 2026-11-14
 

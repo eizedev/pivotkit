@@ -757,16 +757,18 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
 
 /**
  * One entry of an export menu: the option and, when it needs explaining, its "i".
- * @param {{ icon: string, text: string, info?: string, onSelect: () => void, testId: string, disabled?: boolean, reason?: string }} props
+ * @param {{ icon: string, text: string, info?: string, onSelect: () => void, testId: string, disabled?: boolean, reason?: string, onIntent?: () => void }} props
+ *   `onIntent`: when the pointer comes to the entry, presses on it or the focus does (an entry with
+ *   its "i")
  */
-export function ExportOption({ icon, text, info, onSelect, testId, disabled, reason }) {
+export function ExportOption({ icon, text, info, onSelect, testId, disabled, reason, onIntent }) {
     const option = (
         <Option icon={icon} onSelect={onSelect} disabled={disabled} reason={reason} testId={testId}>
             {text}
         </Option>
     );
     return info ? (
-        <div className="pk-setting-row">
+        <div className="pk-setting-row" onPointerEnter={onIntent} onPointerDown={onIntent} onFocus={onIntent}>
             {option}
             <SettingInfo id={/** @type {any} */ (info)} name={text} />
         </div>
@@ -780,17 +782,16 @@ export function ExportOption({ icon, text, info, onSelect, testId, disabled, rea
  * printing (or saving as PDF from the print dialog), the table on the clipboard (as shown, or its data
  * as JSON), and last, when the host turns it on (exportData), the source data: every row as it is,
  * CSV or JSON, apart from the table's exports so the two are not taken for each other. The export module loads when the menu opens, so a copy happens right in
- * the click. An empty report (no field placed) has no table to export: those entries are off, and say
+ * the click; so does a print (the print frame is made ready when the menu opens, the report's modules
+ * load when Print is pointed at or focused: use-export.js). An empty report (no field placed) has no table to export: those entries are off, and say
  * so; the source data is there all the same. The chart's images are off while the table is shown.
  * `dataExport`: the host's exportData with the data shown, read by export-scope.js (#259).
  * @param {{ labels: import("./labels.js").UiLabels, onExport: (kind: string) => void, chartReady: boolean, display: string, empty?: boolean,
- *   dataExport?: { exportData: unknown, encoded: import("pivotkit-core").Encoded | null }, prepare: () => void, close: () => void }} props
+ *   dataExport?: { exportData: unknown, encoded: import("pivotkit-core").Encoded | null }, prepare: (what: "menu" | "print") => (() => void) | undefined, close: () => void }} props
  */
 export function ExportPanel({ labels, onExport, chartReady, display, empty = false, dataExport, prepare, close }) {
     const source = dataExport ? dataExportFor(dataExport.exportData, dataExport.encoded).source : false;
-    useEffect(() => {
-        prepare();
-    }, [prepare]);
+    useEffect(() => prepare("menu"), [prepare]);
     const run = (kind) => () => {
         close();
         onExport(kind);
@@ -807,7 +808,7 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
                 <ExportOption icon="image" text={labels.exportSvg} disabled={empty || display !== "chart"} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("svg")} testId="export-svg" />
             </Section>
             <Section title={labels.exportPrintGroup}>
-                <ExportOption icon="print" text={labels.exportPrint} info="exportPrint" onSelect={run("print")} {...off} testId="export-print" />
+                <ExportOption icon="print" text={labels.exportPrint} info="exportPrint" onSelect={run("print")} {...off} testId="export-print" onIntent={() => prepare("print")} />
             </Section>
             <Section title={labels.exportCopy}>
                 <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} {...off} testId="export-copy-table" />
