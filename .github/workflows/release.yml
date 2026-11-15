@@ -87,8 +87,8 @@ jobs:
           PACKAGE: ${{ steps.package.outputs.name }}
         run: |
           mkdir -p "$RUNNER_TEMP/pack"
-          # prepack logs to stderr; the JSON with the file name goes to stdout
-          file="$(npm pack --workspace "$PACKAGE" --pack-destination "$RUNNER_TEMP/pack" --json | node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => console.log(JSON.parse(s.slice(s.indexOf("[")))[0].filename))')"
+          # the JSON with the file name goes to stdout; scripts/npm-pack.js reads it in the shape of any npm version
+          file="$(npm pack --workspace "$PACKAGE" --pack-destination "$RUNNER_TEMP/pack" --json | node scripts/npm-pack.js)"
           test -f "$RUNNER_TEMP/pack/$file"
           echo "file=$file" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
