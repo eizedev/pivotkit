@@ -274,7 +274,7 @@ holds other files"). Copy the reports you want to keep elsewhere before you upgr
 ### Request ids { #request-ids }
 
 The `call`, `request`, `download`, `refused` and `error` log lines carry `requestId`. Every REST
-problem document carries it too, and every MCP tool error ends with `(id ...)`; a person gives the id
+problem document carries it too, and every MCP tool error ends with `(request id ...)`; a person gives the id
 to the operator. On MCP an `INTERNAL` error says "internal error", as REST does, instead of its own
 words. A body over the cap gets a `refused` log line. `check-config` warns of a static token's file
 that other users of the machine can read, and closes with "New in this version" where a change

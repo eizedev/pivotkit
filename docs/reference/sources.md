@@ -65,9 +65,11 @@ A call with `"params": { "customer": "acme", "state": "running" }` requests
 `https://api.example.com/v1/customers/acme/vms?state=running&limit=500`, follows the `next` pages,
 and reads the rows at `/items` of each answer. `list_sources` names the parameters with their type,
 description, example, list of values, pattern, format, lengths and range; a call without a required one answers `INVALID_INPUT`
-naming it ("the source vms needs params.customer (string): The customer's short name, for example
-acme"), and a value of the wrong form is refused with the parameter's description, example and
-(when short) pattern. A value must have the parameter's type: a number for a `string` parameter is
+naming it and how to call again ("the source vms needs params.customer (The customer's short name,
+for example acme); re-run with params.customer=acme"; the command line says `--param
+customer=acme`), and a value of the wrong form is refused with the parameter's description, example
+and (when short) pattern in one parenthesis ("params.customer is not in the expected form (The
+customer's short name, for example acme; pattern ^[a-z0-9-]{1,40}$)"). A value must have the parameter's type: a number for a `string` parameter is
 refused, as is a text with lone surrogates. The fields of a source with required parameters are known only after a load with values, so
 `describe_source` needs them too.
 
@@ -188,7 +190,8 @@ and no proxy of the environment.
 A backend whose certificate comes from an internal certificate authority needs that authority's
 certificate in `NODE_EXTRA_CA_CERTS` (a file of PEM certificates, read when the server starts); the
 container image takes it as an environment variable too. `check-source` says so on a certificate
-error.
+error, and when the variable is set, that its file holds no authority that signed the backend's
+certificate.
 
 Each page's body is held in memory while it is read and parsed, up to `maxBytes` per load, and the
 rows of a kept load stay in memory for `ttl` (bounded as for code sources); keep `maxBytes` near what
@@ -444,10 +447,17 @@ read is a `PROBLEM`; a secret file other users of the machine can read is a warn
 endpoint on a loopback or private address without `intranet: true`, and a token exchange's
 `tokenUrl` on another host than `auth.issuer` (the person's token goes there).
 
-`pivotkit-server check-source <id> [--param name=value ...] [--config file]` loads a source once as
-the server would, without an AI client, and prints each page's status, content type and size, the
-rows, the fields with their types, when the data is from and what a caller would get when it fails,
-with the operator's hint where there is one (`intranet`, a certificate); exit 1 when it fails. It
+`pivotkit-server check-source <id> [--param name=value ...] [--config file]` (the id and the
+options in any order) loads a source once as the server would, without an AI client, and prints
+each page's status, content type and size, the rows, the fields with their types, when the data is
+from and what a caller would get when it fails, with the operator's hint where there is one: the
+`--param` to re-run with when a required value is missing or a value is refused (the declared
+example filled in, else `<value>`), the secret behind `http.auth` (its
+variable or file, never the value) or where to set one when the backend answers 401 or 403,
+`intranet` for a private address, `NODE_EXTRA_CA_CERTS` for a certificate (and, when it is set,
+that its file holds no authority that signed the backend's certificate). On success the last line
+names the values it loaded with (`OK with customer=acme`). Exit 1 when the load fails, 2 when the
+id names no HTTP source (or the command line is wrong). It
 prints no cell value and no secret: each value in the address is `{name}` and each literal query
 value `...`. Field names, and the keys where the rows' pointer finds no list, are printed: they can
 be data of the backend's, so treat the output as you treat the backend's answers. A load without
@@ -464,7 +474,7 @@ source vms: GET https://api.example.com/v1/customers/{customer}/vms?state={state
   1 page, 18342 bytes, 42 rows, 180 ms
   fields: name (text), cpu (number), state (text), owner (text), tags (text)
   data as of 2026-11-15T08:00:00Z (from the body)
-OK
+OK with customer=acme
 ```
 
 With a pointer that matches nothing:

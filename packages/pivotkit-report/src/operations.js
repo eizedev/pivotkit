@@ -473,7 +473,7 @@ export function checkInput(schema, value, path = "input") {
     }
     if (typeof value === "string") {
         if (s.minLength !== undefined && value.length < s.minLength) fail(`must have at least ${s.minLength} characters`);
-        if (s.maxLength !== undefined && value.length > s.maxLength) fail(`must have at most ${s.maxLength} characters`);
+        if (s.maxLength !== undefined && value.length > s.maxLength) fail(`must have at most ${s.maxLength} characters, not ${value.length}; shorten it`);
         if (s.pattern !== undefined && !new RegExp(s.pattern).test(value)) fail("is not in the expected form");
     }
     if (typeof value === "number") {

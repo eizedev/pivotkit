@@ -41,7 +41,7 @@ test("a cut chart and a limit say no count for a view over a summary field", () 
         const many = await call(client, "render_view", { source: "people", view: { rows: ["Name"] }, format: "csv" });
         assert.match(many.text, /^LIMIT_EXCEEDED: the report is over a limit of the server \(limits\.groups\)/);
         // the message ends with the call's id (random letters and digits, no count): the rest holds no count
-        const [message, id] = many.text.split(/ \(id ([A-Za-z0-9_-]{11})\)$/);
+        const [message, id] = many.text.split(/ \(request id ([A-Za-z0-9_-]{11})\)$/);
         assert.match(id ?? "", /^[A-Za-z0-9_-]{11}$/, many.text);
         assert.doesNotMatch(message, /\d{2}/);
     });

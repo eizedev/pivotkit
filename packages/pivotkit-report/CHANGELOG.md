@@ -42,6 +42,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Changed
 
+- `checkInput`: a text over its `maxLength` says its own length and to shorten it ("input.name must
+  have at most 80 characters, not 81; shorten it").
 - A token's value with a quoted string is left out (the default stands in), except in
   `font-family`: in the host's `tokens` too. A quote in a colour could only make the chart's SVG
   refused ([#369](https://github.com/eizedev/pivotkit/issues/369)).

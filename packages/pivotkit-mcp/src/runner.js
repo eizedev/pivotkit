@@ -25,7 +25,7 @@ export const FLAGS = Object.freeze({
 /** The help text, from the table. */
 export function helpText() {
     const lines = flagLines(FLAGS);
-    return `pivotkit-mcp ${VERSION}: an MCP server for pivotkit reports.\n\nUsage: pivotkit-mcp [options]\n\n${lines.join("\n")}\n\nDocs: https://pivotkit.eize.dev/reference/mcp/\n`;
+    return `pivotkit-mcp ${VERSION}: an MCP server for pivotkit reports.\n\nUsage: pivotkit-mcp [options]\n       pivotkit-mcp --version\n\nOptions:\n${lines.join("\n")}\n\nDocs: https://pivotkit.eize.dev/reference/mcp/\n`;
 }
 
 /**
@@ -34,7 +34,7 @@ export function helpText() {
  * @param {Record<string, string | undefined>} env
  */
 export async function optionsFrom(argv, env) {
-    return sharedOptionsFrom(argv, env, { flags: FLAGS, configEnv: "PIVOTKIT_MCP_CONFIG" });
+    return sharedOptionsFrom(argv, env, { flags: FLAGS, configEnv: "PIVOTKIT_MCP_CONFIG", program: "pivotkit-mcp" });
 }
 
 /**

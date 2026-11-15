@@ -372,12 +372,14 @@ a JSON-RPC error; the counts live in the memory of one process.
 
 A tool error is a result with `isError` and the text `CODE: message` (an input the tool's schema
 refuses is answered by the SDK before the tool runs, as `Input validation error: ...`); the message names a file by its
-base name only and holds no file content. Every tool error ends with the call's id,
-`CODE: message (id Ab3_xY9-k2Q)`: the person gives it to the operator, who finds the call's
+base name only and holds no file content. Every tool error ends with the call's request id,
+`CODE: message (request id Ab3_xY9-k2Q)`: the person gives it to the operator, who finds the call's
 [log line](#logging) by it. An error of status 500 or more says the same fixed text as the REST
-service, never its own words, with the source and whether trying again may work
-(`SOURCE_UNAVAILABLE: the source is not available right now; if it stays so, give the operator the
-request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BUSY`, `NOT_READY` and
+service, never its own words, with the source and whether trying again may work in the same
+parenthesis (`SOURCE_UNAVAILABLE: the source is not available right now; if it stays so, give the
+operator the request id (source tickets; trying again later may work; request id Ab3_xY9-k2Q)`);
+A message that ends in a parenthesis (a refused value's "(The team, for example blue)") takes the
+request id inside it, so no two stand in a row. `BUSY`, `NOT_READY` and
 `TIMEOUT` keep their own words, which name only the server's limits.
 
 | Code | When |

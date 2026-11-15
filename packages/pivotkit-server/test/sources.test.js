@@ -50,7 +50,7 @@ test("params: a declaration is checked when the configuration is", () => {
         [{ x: { type: "integer", pattern: "^1$" } }, /for a string parameter/],
         [{ x: { type: "string", maxLength: 1000 } }, /maxLength is a whole number from 0 to 256/],
         [{ x: { type: "string", enum: ["a"], default: "b" } }, /default: must be one of a/],
-        [{ x: { type: "string", pattern: "^[a-z]+$", example: "ACME" } }, /example: is not in the form/],
+        [{ x: { type: "string", pattern: "^[a-z]+$", example: "ACME" } }, /example: is not in the expected form/],
         [{ x: { type: "string", secret: true } }, /unknown key "secret"/],
         [Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`p${i}`, { type: "string" }])), /at most 16 parameters/]
     ];
@@ -70,7 +70,7 @@ test("params: values are checked, typed and written again; defaults filled; unkn
     assert.equal(Object.getPrototypeOf(out), null);
     assert.equal(normalizeParams(declared, { customer: "acme" }, caller, "vms").limit, 100);
     const refused = [
-        [{}, "INVALID_INPUT", /^the source vms needs params\.customer \(string\): The customer's short name, for example acme$/],
+        [{}, "INVALID_INPUT", /^the source vms needs params\.customer \(The customer's short name, for example acme\); re-run with params\.customer=acme$/],
         [{ customer: "acme", region: "x" }, "INVALID_INPUT", /has no param "region"; it takes customer, day, limit, live, ratio/],
         [{ customer: "acme", tenant: "t-2" }, "INVALID_INPUT", /set by the server from your sign-in/],
         [{ customer: "../admin" }, "INVALID_INPUT", /may not hold \.\. or control characters/],
@@ -139,7 +139,7 @@ test("params end to end: offered only when a source declares them; the code sour
         assert.equal(seen[0].caller.client, "local");
         const error = await present(context, "describe_source", { source: "tickets" }, LOCAL).catch((e) => e);
         assert.equal(error.code, "INVALID_INPUT");
-        assert.match(error.message, /needs params\.team \(string\), one of blue, red/);
+        assert.match(error.message, /needs params\.team \(one of blue, red\); re-run with params\.team=blue$/);
         // a source without params gets no values, the caller and the signal of its time limit; params for it are refused
         await present(context, "describe_source", { source: "plain" }, LOCAL);
         const [values, how] = seen.at(-1).args;
@@ -499,4 +499,10 @@ test("params: an operator's pattern never runs unbounded: a slow one is refused 
     const started = Date.now();
     assert.throws(() => normalizeParams({ x: { type: "string", pattern: "(a|a){1,60}b", maxLength: 64 } }, { x: `${"a".repeat(40)}!` }, null, "s"), (e) => e.code === "INVALID_INPUT" && /could not be checked/.test(e.message));
     assert.ok(Date.now() - started < 1000);
+});
+
+test("a refused value: the parameter's words in one parenthesis at the end, its pattern after a semicolon", async () => {
+    const { normalizeParams } = await import("../src/sources/params.js");
+    assert.throws(() => normalizeParams({ team: { type: "string", enum: ["blue", "red"], description: "The team", example: "blue" } }, { team: "green" }, null, "t"), (e) => e.message === "params.team must be one of blue, red (The team, for example blue)");
+    assert.throws(() => normalizeParams({ team: { type: "string", pattern: "^[a-z]+$" } }, { team: "Blue" }, null, "t"), (e) => e.message === "params.team is not in the expected form (pattern ^[a-z]+$)");
 });
