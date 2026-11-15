@@ -2,13 +2,21 @@
 // field's name and values must appear nowhere: not in a result, an error, a suggestion or the log.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { utimesSync } from "node:fs";
+import { join } from "node:path";
 import { BY_REGION, call, httpClient, httpServer, workspace } from "./helpers.js";
 
 /** Every text a client got, joined: results, structured content and errors. */
 const seen = (results) => results.map((r) => `${r.text}\n${JSON.stringify(r.data ?? null)}`).join("\n");
 
+// The data file's time, fixed: a result says when its data is from ("Data as of 2026-01-02 03:04
+// UTC"), and a time of the run could hold a number the checks below look for (20 at 04:20 or on a
+// 20th). This one holds none of the sample's values.
+const FILE_TIME = new Date("2026-01-02T03:04:05Z");
+
 async function withServer(policy, run, extra = {}) {
     const dir = workspace();
+    utimesSync(join(dir, "data", "sales.csv"), FILE_TIME, FILE_TIME);
     const server = await httpServer({ sources: { sales: { file: "data/sales.csv", policy } }, output: { dir: "out" }, baseDir: dir, ...extra });
     const { client, close } = await httpClient(server.url);
     try {
@@ -53,6 +61,7 @@ test("summary (the default): names, types and counts; no items, no smallest or l
         assert.deepEqual(rendered.data.withheld, ["rows", "columns", "bytes", "content"]);
         assert.equal(rendered.data.inline, undefined);
         assert.equal(rendered.data.summary, undefined);
+        assert.equal(rendered.data.dataAsOf, FILE_TIME.toISOString().replace(".000Z", "Z"));
         assert.doesNotMatch(rendered.text, /North|\b20\b/);
     }));
 
