@@ -32,6 +32,14 @@ import { checkTemplates } from "../print-template.js";
 import { HTTP_HEADING } from "./http.js";
 import { heading, plain, problem, warning } from "./format.js";
 
+/**
+ * The warning for a policy that shows by default and hides fields by name: a deny list, where a
+ * column the data gains later (a new one, a renamed one, a row longer than the header shifting a
+ * hidden value) is shown without anyone deciding.
+ * @param {string} path
+ */
+const denyListText = (path) => `${path}: "show" by default with hidden fields is a deny list: a column the data gains later is shown unless someone hides it; prefer "summary" by default and give the fields to show the level show`;
+
 /** A column's name as check-config prints it: cleaned of control and direction characters, capped. */
 export const nameText = (name) => findingText(name).slice(0, 80);
 
@@ -56,7 +64,7 @@ export async function section(options, registry, runtime) {
     for (const s of sources) {
         const written = options.sources?.[s.id] ?? {};
         const fields = Object.entries(s.policy.fields);
-        const columns = s.file && s.exists ? await columnsOf(s.file, written.sheet, options) : { names: null, stats: null, why: null };
+        const columns = s.file && s.exists ? await columnsOf(s.file, written.sheet, options) : { names: null, unnamed: [], stats: null, why: null };
         const byKey = new Map((columns.names ?? []).map((c) => [fieldKey(c), c]));
         for (const [key, name] of byKey) {
             everyColumn?.set(key, name);
@@ -71,6 +79,9 @@ export async function section(options, registry, runtime) {
         }
         const configured = spelt(options.policy?.fields, written.policy?.fields);
         items.push(plain(`policy: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}`, 2));
+        if (s.policy.default === "show" && fields.some(([, l]) => l === "hide")) {
+            items.push(warning(denyListText(`sources.${s.id}.policy`)));
+        }
         // the limits only where this source's policy changes the server's
         if (s.policy.items !== server.items) {
             items.push(plain(`values listed per shown field: ${s.policy.items}`, 2));
@@ -99,7 +110,7 @@ export async function section(options, registry, runtime) {
         }
         if (columns.names && columns.stats) {
             runtime.columns.set(s.id, columns);
-            items.push(...fieldLevelItems(s.id, s.resolved, columns.names, columns.stats, written.policy, options.policy));
+            items.push(...fieldLevelItems(s.id, { ...s.resolved, unnamed: new Set(columns.unnamed.map(fieldKey)) }, columns.names, columns.stats, written.policy, options.policy));
         }
         if (columns.names) {
             for (const name of Object.keys(written.policy?.fields ?? {})) {
@@ -128,6 +139,9 @@ export async function section(options, registry, runtime) {
         items.push(heading(`Files by path: allowed in ${registry.allow.join(", ")}`));
         if (options.files?.list) items.push(plain("listed by list_sources"));
         items.push(plain(`policy: ${filePolicy.default} by default`));
+        if (filePolicy.default === "show" && [...filePolicy.fields.values()].includes("hide")) {
+            items.push(warning(denyListText("files.policy")));
+        }
         if (options.files?.hardLinks) items.push(plain("hard links: read"));
     } else {
         items.push(heading("Files by path: off"));
@@ -180,7 +194,7 @@ function fieldLevelItems(id, resolved, names, stats, sourcePolicy, serverPolicy)
 /**
  * The column names of a source file as the server reads them and its statistics, or why they could
  * not be read.
- * @returns {Promise<{ names: string[] | null, stats: import("../stats.js").SourceStats | null, why: string | null }>}
+ * @returns {Promise<{ names: string[] | null, unnamed: string[], stats: import("../stats.js").SourceStats | null, why: string | null }>}
  */
 async function columnsOf(path, sheet, options) {
     const limits = serverLimitsOf(options);
@@ -189,8 +203,8 @@ async function columnsOf(path, sheet, options) {
         const { table } = await readTable(bytes, basename(path), { ...(sheet ? { sheet } : {}), ...(options.timeZone ? { timeZone: options.timeZone } : {}), limits });
         // the statistics as the server counts them: encoded the same way (data.js)
         const stats = sourceStats(encode({ columns: table.columns, types: table.types, data: table.data }, { timeZone: options.timeZone ?? "UTC", limits }));
-        return { names: table.columns, stats, why: null };
+        return { names: table.columns, unnamed: table.unnamed ?? [], stats, why: null };
     } catch (e) {
-        return { names: null, stats: null, why: String(e?.message ?? e).slice(0, 200) };
+        return { names: null, unnamed: [], stats: null, why: String(e?.message ?? e).slice(0, 200) };
     }
 }

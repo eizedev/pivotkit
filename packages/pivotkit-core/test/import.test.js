@@ -165,6 +165,13 @@ test("rows with more values than names get columns named Column N", async () => 
     assert.ok(t.notes.some((n) => n.code === "COLUMNS_ADDED" && n.params.rows === 1));
 });
 
+test("unnamed lists the columns the file gives no name: a blank header cell and a row longer than the header, not a renamed repeat", async () => {
+    const t = await readFile(text("x.csv", "A;;B;B\n1;2;3;4\n5;6;7;8;9\n"));
+    assert.deepEqual(t.columns, ["A", "Column 2", "B", "B (2)", "Column 5"]);
+    assert.deepEqual(t.unnamed, ["Column 2", "Column 5"]);
+    assert.deepEqual((await readFile(text("y.csv", "A;B\n1;2\n"))).unnamed, []);
+});
+
 test("types from text: dates before numbers, leading zeros and long numbers stay text, the notation per column", async () => {
     const t = await readFile(text("t.csv", [
         "Day;Zip;Long;De;En;Int;Flag;Mixed",

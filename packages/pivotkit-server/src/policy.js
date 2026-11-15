@@ -13,8 +13,10 @@
  * - "hide": the column is dropped when the data is read; nothing about it reaches the model but the
  *   number of hidden fields.
  *
- * A field's level (levelOf): its own rule, else "hide" for a repeated header of a hidden column,
- * else the automatic rule, else the default. The automatic rule (autoLevel) gives "values" to a text
+ * A field's level (levelOf): its own rule, else "hide" for a column the file gives no header (a
+ * blank header cell, a row longer than the header: its values may be another column's, shifted by a
+ * delimiter in a value), else "hide" for a repeated header of a hidden column, else the automatic
+ * rule, else the default. The automatic rule (autoLevel) gives "values" to a text
  * field of a registered source whose data looks like a category (few values, each in many rows, short,
  * nothing personal or technical, a name off the deny list); it applies only where no default is
  * written (server, source or profile), never to a caller bound to a profile and never to a file: path,
@@ -448,12 +450,17 @@ function listable(policy, key, level, why) {
     return { level, why };
 }
 
+/** Why a column the file gives no header is hidden (levelInfo). */
+export const UNNAMED_WHY = "the file gives this column no header";
+
 /**
  * A field's level with why, and whether the automatic rule gave it: its own rule, else "hide" for a
- * column the reader renamed because its header repeats a hidden one ("Email (2)" next to "Email"),
- * else the automatic rule, else the default. "values" falls back to "summary" where the data does
+ * column the file gives no header (policy.unnamed: the reader named it "Column N"; "summary" would
+ * still put its values into a rendered file), else "hide" for a column the reader renamed because
+ * its header repeats a hidden one ("Email (2)" next to "Email"), else the automatic rule, else the
+ * default. "values" falls back to "summary" where the data does
  * not allow it (listable), and needs the statistics (withStats).
- * @param {{ default: string, fields: Map<string, string>, auto?: AutoValues | false, stats?: import("./stats.js").SourceStats | null, counts?: boolean, rows?: boolean, valuesMax?: number }} policy
+ * @param {{ default: string, fields: Map<string, string>, unnamed?: ReadonlySet<string>, auto?: AutoValues | false, stats?: import("./stats.js").SourceStats | null, counts?: boolean, rows?: boolean, valuesMax?: number }} policy  unnamed: the keys (fieldKey) of the columns the file gives no header
  * @param {string} name
  * @returns {{ level: Level, why: string, auto?: true }}
  */
@@ -463,6 +470,9 @@ export function levelInfo(policy, name) {
     const own = p.fields.get(key);
     if (own) {
         return listable(p, key, own, "a rule");
+    }
+    if (p.unnamed?.has(key)) {
+        return { level: "hide", why: UNNAMED_WHY };
     }
     const base = REPEATED.exec(key)?.[1];
     if (base !== undefined && (p.fields.get(base) ?? p.default) === "hide") {

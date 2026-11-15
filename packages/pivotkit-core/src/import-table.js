@@ -66,6 +66,7 @@ export const IMPORT_NOTE_CODES = Object.freeze([
  * @property {number} rowCount
  * @property {ImportNote[]} notes
  * @property {ImportHints} hints
+ * @property {string[]} [unnamed]  the columns the file gives no name (a blank header cell, a row longer than the header) as they are named here ("Column 7"); a plugin's own table may leave it out
  *
  * @typedef {object} ImportProgress
  * @property {"read" | "unpack" | "parse" | "type"} phase
@@ -773,6 +774,7 @@ function finishTable({ header, columns, rowCount, notes, counts, hints, limits, 
     }
     const keptHeader = keep.map((c) => (c < header.length ? header[c] : null));
     const names = nameColumns(keptHeader, keep.length, notes);
+    const unnamed = names.filter((_, i) => keptHeader[i] === null || keptHeader[i] === "");
     const raw = keep.map((c) => columns[c]);
     const added = keep.filter((c) => c >= header.length).length;
     if (counts.extraRows > 0 && added > 0) notes.push(note("COLUMNS_ADDED", { rows: counts.extraRows, count: added }));
@@ -788,7 +790,8 @@ function finishTable({ header, columns, rowCount, notes, counts, hints, limits, 
         detected: [],
         rowCount,
         notes,
-        hints
+        hints,
+        unnamed
     };
     const inferred = raw.map((values) => inferColumn(values, hints));
     table.detected = inferred.map((x) => x.type);

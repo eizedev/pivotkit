@@ -70,9 +70,14 @@ export const holds = (key) => key !== null && cache.has(key);
 /** The data formats read, by extension. */
 const FORMATS = new Set(["csv", "tsv", "txt", "json", "xlsx"]);
 
-/** The names of the columns the levels hide, in lower case. */
-const hiddenOf = (levels, columns) => {
-    const policy = { default: levels.default, fields: new Map(Object.entries(levels.fields)) };
+/**
+ * The names of the columns the levels hide, in lower case.
+ * @param {{ default: string, fields: Record<string, string> }} levels
+ * @param {string[]} columns
+ * @param {unknown} [unnamed]  a read table's `unnamed`: the columns the file gives no header
+ */
+const hiddenOf = (levels, columns, unnamed = undefined) => {
+    const policy = { default: levels.default, fields: new Map(Object.entries(levels.fields)), unnamed: new Set(Array.isArray(unnamed) ? unnamed.map(fieldKey) : []) };
     return columns.filter((c) => levelOf(policy, c) === "hide").map(fieldKey);
 };
 
@@ -94,7 +99,7 @@ function withoutHidden(table, hide) {
  * @returns {{ columns: string[], rows: unknown[][], dropped: number }}
  */
 export function withoutHiddenRows(levels, table) {
-    const hide = hiddenOf(levels, table.columns);
+    const hide = hiddenOf(levels, table.columns, /** @type {any} */ (table).unnamed);
     if (!hide.length) {
         return { columns: table.columns, rows: table.rows, dropped: 0 };
     }
@@ -178,7 +183,7 @@ export async function fileData(spec) {
         }
         const bytes = await readSafe(/** @type {string} */ (spec.path), { cwd: "/", allow: spec.allow ?? [], maxBytes: spec.limits.fileBytes ?? 52_428_800, hardLinks: spec.hardLinks ?? true });
         const { table, notes } = await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
-        const hide = hiddenOf(spec.levels, table.columns);
+        const hide = hiddenOf(spec.levels, table.columns, table.unnamed);
         const data = encode(withoutHidden(table, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
         return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data), asOf: asOfText(info.mtime) }));
     } catch (e) {
@@ -378,7 +383,7 @@ function columnarOf(spec, table) {
         throw new OperationError("INTERNAL", "a table has columns and rows (or columnar data)");
     }
     const columns = plain.columns.map(String);
-    const hide = hiddenOf(spec.levels, columns);
+    const hide = hiddenOf(spec.levels, columns, plain.unnamed);
     const columnar = Array.isArray(plain.data) ? { columns, types: plain.types, data: plain.data } : { columns, data: columns.map((_, i) => /** @type {unknown[][]} */ (plain.rows ?? []).map((row) => (Array.isArray(row) ? row[i] : undefined))) };
     return { input: withoutHidden(columnar, hide), hide, dropped };
 }
@@ -463,7 +468,7 @@ export async function uploadData(spec, upload, key, asOf = null) {
 export async function packedUpload(spec, upload, key, asOf) {
     const read = await readUpload(spec, upload);
     const { table } = read;
-    const hide = hiddenOf(spec.levels, table.columns);
+    const hide = hiddenOf(spec.levels, table.columns, table.unnamed);
     const notes = cleanNotes(read.notes, hide);
     const columnar = withoutHidden(table, hide);
     const packed = packTable(columnar, table.data[0]?.length ?? 0, hide.length);
