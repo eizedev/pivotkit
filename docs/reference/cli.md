@@ -394,6 +394,9 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
   answer; an XLSX file is not written to a terminal. It is written with mode `0600` (only you read
   it) through a temporary file once the whole answer is in: a refused, failed or cut download never
   replaces a file. A view with errors (422 `VIEW_HAS_ERRORS`) gives the server's findings and exit 1.
+  `--json` has `summary: null` (the file route gives none). A token the operator lets render but not
+  validate (`auth.toolScopes`) still gets the file, with an `info` finding `notValidated`: the
+  server's errors stop the file, its warnings are not known.
 - **Findings and exit codes** are as without a server: errors (and warnings with `--strict`) exit 1.
   The data's own notes (how a file was read, a data mismatch explained against local columns,
   `noRowsKept`) come from the server's findings instead.

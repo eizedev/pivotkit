@@ -10,7 +10,8 @@
  */
 
 import { viewFileText } from "pivotkit-core";
-import { CliError, asCliError, shortName } from "./errors.js";
+import { RENDER_FORMATS } from "pivotkit-report";
+import { CliError, RemoteError, asCliError, shortName } from "./errors.js";
 import { fromFields, filtersOf, hasLayoutFlags, mapOf } from "./layout-view.js";
 import { layoutOf } from "./layout-flags.js";
 import { createClient, readToken, serverOf, sourceId } from "./remote.js";
@@ -59,7 +60,11 @@ export async function remoteCommand(command, positionals, values, ctx, helpers) 
     return run(positionals, values, ctx, client, helpers);
 }
 
-/** Every string of a server's answer cleaned (the token out, control characters out), for --json. */
+/**
+ * Every string of a server's answer with the token taken out, for a file or --json (uncut: a view
+ * file's names keep their length; JSON escapes control characters). What is printed goes through
+ * the client's `clean` as well.
+ */
 function deepClean(value, clean) {
     if (typeof value === "string") {
         return clean(value);
@@ -105,7 +110,7 @@ async function validateRemote(positionals, values, ctx, client, helpers) {
     const valid = data.valid === true && !findings.some((f) => f.severity === "error");
     const warnings = findings.filter((f) => f.severity === "warning").length;
     const note = valid ? `valid: no errors, ${warnings === 0 ? "no warnings" : `${warnings} warning${warnings === 1 ? "" : "s"}`} (with the server's source ${values.source})` : null;
-    return { findings, extra: { valid, uses: deepClean(Array.isArray(data.uses) ? data.uses : [], client.clean), source: values.source }, note };
+    return { findings, extra: { valid, uses: deepClean(Array.isArray(data.uses) ? data.uses : [], client.strip), source: values.source }, note };
 }
 
 async function describeRemote(positionals, values, ctx, client, helpers) {
@@ -129,7 +134,7 @@ async function describeRemote(positionals, values, ctx, client, helpers) {
         ctx.io.stdout.write(`${client.clean(data.name) || "view"}: ${text}\n`);
     }
     const { findings, ...rest } = data;
-    return { findings: client.cleanFindings(findings), extra: { kind: "view", ...deepClean(rest, client.clean), source: values.source } };
+    return { findings: client.cleanFindings(findings), extra: { kind: "view", ...deepClean(rest, client.strip), source: values.source } };
 }
 
 /** describe --suggest: the server's draft as a view file, on stdout or into -o. */
@@ -145,14 +150,14 @@ async function suggestRemote(positionals, values, ctx, client) {
     }
     const { data } = await jsonOf(client.json("POST", "views/suggest", { source: values.source, layout: await layoutFor(values, ctx) }));
     const findings = client.cleanFindings(data.findings);
-    const picks = deepClean(Array.isArray(data.picks) ? data.picks : [], client.clean);
-    const lines = picks.filter((p) => typeof p?.text === "string").map((p) => `picked: ${p.text}`);
+    const picks = deepClean(Array.isArray(data.picks) ? data.picks : [], client.strip);
+    const lines = picks.filter((p) => typeof p?.text === "string").map((p) => `picked: ${client.clean(p.text)}`);
     /** @type {any} */
     const extra = { kind: "source", draft: true, picks, source: values.source };
     if (failing(findings, values) || !data.view || typeof data.view !== "object") {
         return { findings, extra: { ...extra, output: null }, note: "nothing written: the draft has errors.", noteIsError: true };
     }
-    const view = deepClean(data.view, client.clean);
+    const view = deepClean(data.view, client.strip);
     const text = viewFileText(view);
     if (values.output !== undefined) {
         const bytes = new TextEncoder().encode(text);
@@ -195,13 +200,21 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
             findings.push(...(view.findings ?? []));
             return { view: view.view };
         })();
-        // the view's findings first, so warnings (and --strict) are known before the file is made
-        const { data } = await jsonOf(client.json("POST", "views/validate", { source: values.source, ...given }));
-        findings.push(...client.cleanFindings(data.findings));
+        // the view's findings first, so warnings (and --strict) are known before the file is made; a
+        // token scoped for render_view but not validate_view (auth.toolScopes) renders without them
+        try {
+            const { data } = await jsonOf(client.json("POST", "views/validate", { source: values.source, ...given }));
+            findings.push(...client.cleanFindings(data.findings));
+        } catch (e) {
+            if (!(e instanceof RemoteError && e.code === "INSUFFICIENT_SCOPE")) {
+                throw e;
+            }
+            findings.push({ severity: "info", code: "notValidated", path: "", message: "the view was not checked first: this token may not validate (auth.toolScopes); the server's errors still stop the file, its warnings are not shown" });
+        }
         what = given;
     }
     /** @type {any} */
-    const extra = { summary: null, source: values.source };
+    const extra = { summary: null, sheet: null, source: values.source };
     if (failing(findings, values) || (!what.view && !what.layout)) {
         return { findings, extra: { ...extra, output: null }, note: "nothing written: the view has errors.", noteIsError: true };
     }
@@ -212,7 +225,7 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
     }
     if (values.output) {
         await writeFile(values.output, answer.bytes, ctx);
-        extra.output = { file: shortName(values.output), format, bytes: answer.bytes.length };
+        extra.output = { file: shortName(values.output), format, mediaType: RENDER_FORMATS[format].mediaType, bytes: answer.bytes.length };
         return { findings, extra, note: `wrote ${extra.output.file}: ${helpers.formatNames[format]} of the server's source ${values.source}` };
     }
     ctx.io.stdout.write(answer.bytes);
@@ -226,11 +239,12 @@ async function sourcesRemote(positionals, values, ctx, client) {
     const id = positionals[0];
     if (id === undefined) {
         const { data } = await jsonOf(client.json("GET", "sources"));
-        const list = deepClean(Array.isArray(data.sources) ? data.sources : [], client.clean).filter((s) => s && typeof s.id === "string");
+        const list = deepClean(Array.isArray(data.sources) ? data.sources : [], client.strip).filter((s) => s && typeof s.id === "string");
         if (!values.json) {
             const width = Math.min(30, Math.max(0, ...list.map((s) => s.id.length)));
             for (const s of list) {
-                ctx.io.stdout.write(`${s.id.padEnd(width)}  ${s.title ?? ""}${s.description ? ` - ${s.description}` : ""}\n`.replace(/ +\n$/, "\n"));
+                const line = `${client.clean(s.id).padEnd(width)}  ${client.clean(s.title ?? "")}${s.description ? ` - ${client.clean(s.description)}` : ""}`;
+                ctx.io.stdout.write(`${line.trimEnd()}\n`);
             }
         }
         const note = list.length ? null : "this token reaches no source of the server (the operator gives each token its sources)";
@@ -238,12 +252,12 @@ async function sourcesRemote(positionals, values, ctx, client) {
     }
     sourceId(id, "the id");
     const { data } = await jsonOf(client.json("GET", `sources/${encodeURIComponent(id)}`));
-    const description = deepClean({ rows: data.rows ?? null, fields: Array.isArray(data.fields) ? data.fields : [], text: data.text ?? "", ...(typeof data.hiddenFields === "number" ? { hiddenFields: data.hiddenFields } : {}) }, client.clean);
+    const description = deepClean({ rows: data.rows ?? null, fields: Array.isArray(data.fields) ? data.fields : [], text: data.text ?? "", ...(typeof data.hiddenFields === "number" ? { hiddenFields: data.hiddenFields } : {}) }, client.strip);
     if (!values.json) {
-        ctx.io.stdout.write(`${description.text}\n`);
+        ctx.io.stdout.write(`${client.clean(description.text)}\n`);
         for (const f of description.fields) {
             if (typeof f?.text === "string") {
-                ctx.io.stdout.write(`  ${f.text}\n`);
+                ctx.io.stdout.write(`  ${client.clean(f.text)}\n`);
             }
         }
     }

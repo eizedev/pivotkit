@@ -229,13 +229,8 @@ function send(url, { method, headers, body }, loopback, signal) {
     });
 }
 
-/**
- * A server's text (a problem's detail, a finding's message) safe to print: the token taken out,
- * control characters out, capped.
- */
-function cleanFrom(token) {
-    return (text) => printable(token ? String(text ?? "").split(token).join("\u2026") : String(text ?? ""));
-}
+/** A server's text with the token taken out (data that goes into a file or --json keeps its length). */
+const stripFrom = (token) => (text) => (token ? String(text ?? "").split(token).join("…") : String(text ?? ""));
 
 /**
  * The client of one run.
@@ -247,7 +242,10 @@ export function createClient({ server, values, ctx, userAgent }) {
     /** The token of the last request, to take out of what the server says. */
     let lastToken = null;
     const warnings = new Set();
-    const clean = (text) => cleanFrom(lastToken)(text);
+    /** Text the token is taken out of, uncut: what goes into a file or --json (JSON escapes control characters). */
+    const strip = (text) => stripFrom(lastToken)(text);
+    /** Text to print: the token out, control and direction characters out, capped (a message, a finding). */
+    const clean = (text) => printable(strip(text));
 
     /** A network error in fixed words (never the exception's message: it may hold the address or a header). */
     function networkError(e, signal) {
@@ -412,5 +410,5 @@ export function createClient({ server, values, ctx, userAgent }) {
         return request("POST", "views/render/file", { body, accept: format.mediaType.split(";")[0].trim().toLowerCase(), max: ANSWER_BYTES.file });
     }
 
-    return { json, file, clean, cleanFindings, warnings: () => [...warnings], origin: server.origin };
+    return { json, file, clean, strip, cleanFindings, warnings: () => [...warnings], origin: server.origin };
 }

@@ -176,7 +176,8 @@ test("200: render checks the view, then writes the server's file with mode 0600,
         }
         // the name of the answer's Content-Disposition is never used
         assert.ok(!existsSync(join(cwd, "..", "..", "evil.csv")));
-        assert.deepEqual(jsonOf(r).output, { file: "out.csv", format: "csv", bytes: CSV.length });
+        assert.deepEqual(jsonOf(r).output, { file: "out.csv", format: "csv", mediaType: "text/csv;charset=utf-8", bytes: CSV.length });
+        assert.equal(jsonOf(r).sheet, null);
         assertClean(r, server.url);
         // without -o: stdout
         const out = await remote(server, ["render", "view.json", "--source", "sales", "-f", "csv", "--title", "Q4"]);
@@ -547,6 +548,41 @@ test("layout flags and --suggest go to the server as a layout; the data argument
         const describeData = await remote(server, ["describe", "--source", "sales"], { cwd });
         assert.equal(describeData.code, 2);
         assert.match(describeData.stderr, /the fields of a source: pivotkit sources <id>/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("a draft's names over 200 characters are written whole; only what is printed is cut", async () => {
+    const long = `Region ${"x".repeat(300)}`;
+    const DRAFT = { format: "pivotkit-view", formatVersion: 2, name: "Draft", view: { version: 2, rows: [long], values: [{ agg: "count" }] } };
+    const server = await fakeServer((req, res) => json(res, { ok: true, findings: [], view: DRAFT, name: "Draft", picks: [{ part: "rows", code: "fewValues", field: long, others: [], text: `${long}: the first text field with few values` }] }));
+    try {
+        const cwd = workdir();
+        const r = await remote(server, ["describe", "--source", "sales", "--suggest", "-o", "draft.pivotkit.json"], { cwd });
+        assert.equal(r.code, 0, r.stderr);
+        assert.equal(JSON.parse(readFileSync(join(cwd, "draft.pivotkit.json"), "utf8")).view.rows[0], long);
+        assert.ok(!r.stderr.includes(long), "the printed line is cut");
+        const j = jsonOf(await remote(server, ["describe", "--source", "sales", "--suggest", "--json"], { cwd }));
+        assert.equal(j.view.view.rows[0], long);
+        assert.equal(j.picks[0].field, long);
+    } finally {
+        await server.close();
+    }
+});
+
+test("render with a token that may not validate (auth.toolScopes): the file still comes, with a note", async () => {
+    const server = await fakeServer((req, res) => {
+        if (req.url.endsWith("/views/validate")) return problem(res, req, 403, "INSUFFICIENT_SCOPE", { detail: "validate_view needs the scopes reports:check" });
+        res.writeHead(200, { "content-type": "text/csv;charset=utf-8" });
+        res.end("Region,Sum of Sales\n");
+    });
+    try {
+        const r = await remote(server, ["render", "view.json", "--source", "sales", "-f", "csv", "--verbose"]);
+        assert.equal(r.code, 0, r.stderr);
+        assert.equal(r.stdout, "Region,Sum of Sales\n");
+        assert.match(r.stderr, /info notValidated: the view was not checked first/);
+        assertClean(r, server.url);
     } finally {
         await server.close();
     }
