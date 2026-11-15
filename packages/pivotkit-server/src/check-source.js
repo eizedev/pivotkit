@@ -177,6 +177,8 @@ async function exchangeOnly(auth, how) {
         lines.push(authLine(trace));
         if (probe.clientRefused) {
             lines.push(`  the token endpoint refused the client ${auth.clientId}: check ${auth.at}.clientId and clientSecret`);
+        } else if (!probe.reached) {
+            lines.push(`  the token endpoint did not answer as one does (a 400 with an OAuth error for a request without a person's token): check ${auth.at}.tokenUrl`);
         } else {
             lines.push("  the token endpoint answers and took the client; a token exchange needs a signed-in person's token, so the source itself loads only for a caller (MCP or REST with OAuth)");
             ok = true;

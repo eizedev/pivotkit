@@ -440,8 +440,9 @@ export async function backendHeaders(auth, caller, how) {
 
 /**
  * A backend answered 401 to these headers: the kept token it was sent is dropped (only that one: a
- * newer token another request got stays). Whether there was one to drop, so the request may be
- * made once more with a new token.
+ * newer token another request got stays). Whether the request may be made once more with a new
+ * token: for a token of client credentials or a token exchange, also when another request dropped
+ * it first (the caller asks once more, never twice).
  * @param {import("../options/http.js").BackendAuth | null} auth
  * @param {import("../registry.js").Caller} caller
  * @param {Record<string, string>} headers  backendHeaders' for the refused request
@@ -451,12 +452,14 @@ export function dropToken(auth, caller, headers) {
         return false;
     }
     const key = keyOf(auth, caller);
-    const hit = key === null ? undefined : kept.get(key);
-    if (key !== null && hit && "token" in hit && headers.authorization === `Bearer ${hit.token}`) {
-        kept.delete(key);
-        return true;
+    if (key === null) {
+        return false;
     }
-    return false;
+    const hit = kept.get(key);
+    if (hit && "token" in hit && headers.authorization === `Bearer ${hit.token}`) {
+        kept.delete(key);
+    }
+    return true;
 }
 
 /**
@@ -491,7 +494,7 @@ export const isPerson = (caller) => typeof caller.subject === "string" && caller
  * client's credentials and no subject token, to see that it answers and does not refuse the client.
  * @param {Extract<import("../options/http.js").BackendAuth, { kind: "tokenExchange" }>} auth
  * @param {{ id: string, log: any, fetch?: typeof guardedFetch, trace: AuthTrace }} how
- * @returns {Promise<{ reached: boolean, clientRefused: boolean }>}
+ * @returns {Promise<{ reached: boolean, clientRefused: boolean }>}  reached: it answered as a token endpoint does (400 with an OAuth error)
  */
 export async function probeExchange(auth, how) {
     const means = { id: how.id, log: how.log, fetch: how.fetch ?? guardedFetch, trace: how.trace };
@@ -523,5 +526,8 @@ export async function probeExchange(auth, how) {
     if (code) {
         how.trace.error = code;
     }
-    return { reached: true, clientRefused: answer.status === 401 || code === "invalid_client" || code === "unauthorized_client" };
+    const clientRefused = answer.status === 401 || code === "invalid_client" || code === "unauthorized_client";
+    // a token endpoint asked without a subject token answers 400 with an OAuth error; anything else
+    // (a wrong path's 404, a server error) is not one
+    return { reached: answer.status === 400 && Boolean(code), clientRefused };
 }

@@ -294,7 +294,9 @@ tokens", Authorization, Token Handling; Security Best Practices, Token Passthrou
 | A secret is missing, the token endpoint cannot be reached by its address rules, its answer holds no bearer token | `SOURCE_UNAVAILABLE` "the source is not set up correctly; ..." | false |
 | The token endpoint failed (5xx, 429), a timeout, a network error | `SOURCE_UNAVAILABLE` "the source is not available right now; ..." | false |
 
-Last good data never stands in after a failed sign-in. The log names the token endpoint's status and
+Last good data never stands in after a refused or failed token request (it drops what was kept).
+When the source's `timeMs` ends while pivotkit still waits for a token, the source's time limit
+answers as for any slow load, and the same caller's last good data may stand in. The log names the token endpoint's status and
 its RFC 6749 `error` code only (`error_description` is dropped), and a missing secret by its
 reference; never a secret or a token.
 
@@ -360,20 +362,21 @@ current documentation of your provider's version, as these settings change.
     }
     ```
 
-    The token file is a projected service account token in the pod (`serviceAccountToken` volume
-    source with an `audience` your Authentik source accepts).
+    The token file is the pod's service account token, for example a projected
+    `serviceAccountToken` volume. `check-config` warns when other users of the machine can read it;
+    check that the file's mode and owner fit the user the server runs as.
 
 === "Keycloak: token exchange"
 
     Keycloak's standard token exchange: switch on **Standard token exchange** on pivotkit's client,
-    which must be confidential. The person's token must name pivotkit's client in its `aud` (an
-    audience mapper on the client the AI client signs in with), the `audience` is the backend's
-    client id, and Keycloak does not take the `resource` parameter (Keycloak documentation,
-    "Configuring and using token exchange").
+    which must be confidential and in the same realm as the backend's client. The person's token must
+    name pivotkit's client in its `aud`, the `audience` is the backend's client id, and Keycloak does
+    not take the `resource` parameter (Keycloak documentation, "Configuring and using token
+    exchange"). Without `tokenUrl`, pivotkit takes the token endpoint from the metadata of
+    `auth.issuer` (the realm).
 
     ```json
     "auth": { "tokenExchange": {
-      "tokenUrl": "https://keycloak.example.com/realms/example/protocol/openid-connect/token",
       "audience": "platform-api",
       "scope": "platform:read",
       "clientId": "pivotkit",

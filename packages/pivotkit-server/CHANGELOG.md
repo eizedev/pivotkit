@@ -41,7 +41,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   person, whose own token goes only to the token endpoint as `subject_token`. Tokens are kept in
   memory: client credentials per setting, exchanged tokens per person, client and scopes, never past
   the person's own token or `maxAgeSeconds`; one request per key at a time; a backend's 401 asks once
-  more with a new token. A failed sign-in answers `SOURCE_UNAVAILABLE` (not retryable, no last good
+  more with a new token. A refused or failed token request answers `SOURCE_UNAVAILABLE` (not retryable, no last good
   data); only the token endpoint's RFC 6749 error code is logged. `check-config` prints how each
   sign-in is made and checks its secrets (never a value); `check-source` prints the token endpoint's
   status, error code, granted scope and `expires_in`. `http.headers` refuses `authorization` and

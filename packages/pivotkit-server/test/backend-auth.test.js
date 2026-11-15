@@ -247,16 +247,16 @@ test("client credentials: a client secret as client_secret_basic, the token kept
     } finally {
         await context.close();
     }
-    // expires_in 31: kept 1 s, then asked for again
+    // expires_in 33: kept 3 s, then asked for again
     tokenCache.clear();
-    routes.set("/token", tokenEndpoint({ expires_in: 31 }));
+    routes.set("/token", tokenEndpoint({ expires_in: 33 }));
     const short = await contextOf(optionsOf({ clientCredentials: { tokenUrl: tokenUrl(), clientId: "p", clientSecret: { file }, intranet: true } }));
     try {
         asked = [];
         await describe(short);
         await describe(short);
         assert.equal(asked.filter((a) => a.path === "/token").length, 1);
-        await sleep(1100);
+        await sleep(3100);
         await describe(short);
         assert.equal(asked.filter((a) => a.path === "/token").length, 2);
     } finally {
@@ -350,6 +350,62 @@ test("REST and MCP: a refused sign-in answers with pivotkit's fixed text; no sec
     } finally {
         await client.close();
         await s.close();
+    }
+});
+
+test("a token endpoint that drops the connection: no last good data; one that hangs past the source's timeMs: the source's time limit", async () => {
+    routes.set("/v1/vms", json({ items: VMS }));
+    routes.set("/token", tokenEndpoint({ expires_in: 1 }));
+    const file = secretFile(SECRET);
+    const auth = { clientCredentials: { tokenUrl: tokenUrl(), clientId: "p", clientSecret: { file }, intranet: true } };
+    const context = await contextOf(optionsOf(auth, { source: { ttl: 0, maxStale: 3600, timeMs: 500 } }));
+    try {
+        await describe(context);
+        routes.set("/token", (req) => req.socket.destroy());
+        const dropped = await failure(describe(context));
+        assert.deepEqual([dropped.code, dropped.details.retryable], ["SOURCE_UNAVAILABLE", false]);
+        assert.equal(dropped.stale, undefined);
+    } finally {
+        await context.close();
+    }
+    // a token request still running when the source's time limit ends: that limit answers (the same
+    // caller's last good data may stand in, as after any time limit)
+    tokenCache.clear();
+    routes.set("/token", tokenEndpoint({ expires_in: 1 }));
+    const slow = await contextOf(optionsOf(auth, { source: { ttl: 0, maxStale: 3600, timeMs: 500 } }));
+    try {
+        await describe(slow);
+        routes.set("/token", (req, res) => setTimeout(() => tokenEndpoint({ expires_in: 1 })(req, res), 1500));
+        const late = await describe(slow);
+        assert.ok(late.result.stale, "the source's time limit, after which last good data stands in");
+    } finally {
+        await slow.close();
+    }
+});
+
+test("races: a caller that goes away does not fail others waiting for the same token; two 401s at once both ask once more and share the new token", async () => {
+    routes.set("/v1/vms", json({ items: VMS }));
+    routes.set("/token", (req, res) => setTimeout(() => tokenEndpoint()(req, res), 200));
+    const file = secretFile(SECRET);
+    const context = await contextOf(optionsOf({ clientCredentials: { tokenUrl: tokenUrl(), clientId: "p", clientSecret: { file }, intranet: true } }));
+    try {
+        const gone = new AbortController();
+        const first = present(context, "describe_source", { source: "vms" }, LOCAL, { signal: gone.signal });
+        const second = describe(context, staticToken);
+        setTimeout(() => gone.abort(new Error("went away")), 50);
+        await assert.rejects(first);
+        assert.equal((await second).result.fields.length, 3);
+        assert.equal(asked.filter((a) => a.path === "/token").length, 1);
+        // the backend stops taking the kept token: both loads at once get 401, both ask once more
+        const old = lastBearer();
+        asked = [];
+        routes.set("/v1/vms", (req, res) => (req.headers.authorization === old ? json({}, 401)(req, res) : json({ items: VMS })(req, res)));
+        const [a, b] = await Promise.all([describe(context, LOCAL), describe(context, person("ana"))]);
+        assert.equal(a.result.fields.length, 3);
+        assert.equal(b.result.fields.length, 3);
+        assert.equal(asked.filter((x) => x.path === "/token").length, 1, "one new token for both");
+    } finally {
+        await context.close();
     }
 });
 
@@ -463,12 +519,12 @@ test("token exchange: an exchanged token never outlives the person's own token o
     }
     tokenCache.clear();
     asked = [];
-    const short = await contextOf(optionsOf({ tokenExchange: { ...auth.tokenExchange, maxAgeSeconds: 1 } }, { auth: OAUTH }));
+    const short = await contextOf(optionsOf({ tokenExchange: { ...auth.tokenExchange, maxAgeSeconds: 3 } }, { auth: OAUTH }));
     try {
         await describe(short, person("ana"));
         await describe(short, person("ana"));
         assert.equal(asked.filter((a) => a.path === "/xchg").length, 1);
-        await sleep(1100);
+        await sleep(3100);
         await describe(short, person("ana"));
         assert.equal(asked.filter((a) => a.path === "/xchg").length, 2, "maxAgeSeconds");
     } finally {
@@ -563,7 +619,7 @@ test("claims: only the claims the configuration names reach a caller, email only
         const jwt = await new SignJWT({ scope: "pivotkit", client_id: "claude", sub: "ana", ...claims }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(RESOURCE).setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
         return callerOf("oauth", await core.verify(jwt, { audience: [RESOURCE], resource: new URL(RESOURCE) }), auth);
     };
-    const context = await contextOf(options);
+    const context = await contextOf(options, "debug");
     try {
         routes.set("/v1/customers/acme/vms", json({ items: VMS }));
         const ana = await callerFor({ customer: "acme", team: "red", department: "SENTINEL-not-named", email: "ana@example.com" });
@@ -602,6 +658,11 @@ test("claims: only the claims the configuration names reach a caller, email only
         // without a subject the claim-bound sources are not there
         const noSubject = callerOf("oauth", { token: "t", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject: null, issuer, claims: { customer: "acme" } } });
         assert.deepEqual((await present(context, "list_sources", {}, noSubject)).result.sources.map((s) => s.id), []);
+        // claims are never logged, not even at debug
+        const log = JSON.stringify(context.lines);
+        for (const value of ["acme", "zeta", "ana@example.com", "SENTINEL-not-named"]) {
+            assert.ok(!log.includes(value), value);
+        }
     } finally {
         await context.close();
         core.close();
@@ -618,7 +679,8 @@ test("check-config: how each sign-in is made and where its secrets come from; a 
             vms: { http: { backend: "platform", path: "/vms", rows: "/items" }, policy: POLICY },
             hosts: { http: { backend: "platform", path: "/hosts", rows: "/items" }, policy: POLICY },
             keyed: { http: { url: `${backendUrl()}/keyed`, auth: { header: { name: "x-api-key", value: { env: "PIVOTKIT_TEST_MISSING" } } } }, policy: POLICY },
-            mine: { http: { url: `${backendUrl()}/mine`, auth: { tokenExchange: { audience: "platform-api", clientId: "pivotkit-backend", clientSecret: { env: "PIVOTKIT_TEST_API_KEY" } } } }, policy: POLICY }
+            mine: { http: { url: `${backendUrl()}/mine`, auth: { tokenExchange: { audience: "platform-api", clientId: "pivotkit-backend", clientSecret: { env: "PIVOTKIT_TEST_API_KEY" } } } }, policy: POLICY, link: "https://platform.example.com/mine" },
+            own: { http: { url: `${backendUrl()}/customers/{customer}` }, params: { customer: { type: "string", required: true, claim: "customer", pattern: "^[a-z]+$" } }, policy: POLICY }
         }
     };
     const { text, problems } = await checkConfig(options, { env: { PIVOTKIT_TEST_API_KEY: SECRET } });
@@ -629,7 +691,9 @@ test("check-config: how each sign-in is made and where its secrets come from; a 
     assert.match(text, /backend auth: header x-api-key from \$PIVOTKIT_TEST_MISSING/);
     assert.match(text, /PROBLEM: sources\.keyed\.http\.auth\.header\.value: \$PIVOTKIT_TEST_MISSING is not set/);
     assert.match(text, /backend auth: token exchange for audience platform-api at the issuer's token endpoint as pivotkit-backend \(secret from \$PIVOTKIT_TEST_API_KEY\), each token reused up to 300 s; only for a signed-in person/);
-    assert.match(text, /mine: .*schedules: draft_schedule makes none \(token exchange: the data is the signed-in person's\)/);
+    assert.match(text, /mine: .*links: create_link links to the source's page .*schedules: draft_schedule makes none \(token exchange: the data is the signed-in person's\)/);
+    assert.match(text, /own: .*schedules: draft_schedule makes none \(a claim: the data is the signed-in person's\)/);
+    assert.match(text, /from the sign-in: customer \(claim customer\); listed only for a signed-in person/);
     assert.ok(problems >= 1);
     clean("check-config", text);
 });
@@ -670,6 +734,12 @@ test("check-source: the sign-in's outcome (status, error code, scope, expires_in
     out = await checkSource(exchange, "vms", {}, { fetch: httpMeans.fetch });
     assert.equal(out.ok, false);
     assert.match(out.text, /refused the client pivotkit-backend/);
+    for (const [status, body] of [[404, {}], [503, {}], [200, { access_token: "x", token_type: "Bearer" }]]) {
+        routes.set("/xchg", json(body, status));
+        out = await checkSource(exchange, "vms", {}, { fetch: httpMeans.fetch });
+        assert.equal(out.ok, false, String(status));
+        assert.match(out.text, /did not answer as one does .* check vms|did not answer as one does/);
+    }
     clean("check-source", out.text);
     // a claim-bound parameter: --param stands in for the claim
     routes.set("/v1/customers/acme/vms", json({ items: VMS }));

@@ -126,7 +126,7 @@ export async function section(options, registry, runtime) {
         const fileBytes = /** @type {number} */ (serverLimitsOf(options).fileBytes);
         const bytes = Math.min(s.maxBytes, fileBytes);
         const entry = sourcesListed.get(id);
-        const links = entry?.link ? "create_link links to the source's page (sources.<id>.link)" : "create_link makes none (no sources.<id>.link)";
+        const links = source.link ? "create_link links to the source's page (sources.<id>.link)" : "create_link makes none (no sources.<id>.link)";
         const bound = personBound(options, source);
         const schedules = bound ? `draft_schedule makes none (${s.auth?.kind === "tokenExchange" ? "token exchange" : "a claim"}: the data is the signed-in person's)` : entry?.schedulable === false ? "draft_schedule makes none" : "draft_schedule drafts them with the caller's params";
         lines.push(`  ${id}: ${where}${query}, ${reads}${s.pagingText ? `, ${s.pagingText}` : ""}, up to ${s.paging ? `${s.maxPages} pages / ` : ""}${bytesText(bytes)} / ${s.timeMs / 1000} s, ${kept}; links: ${links}; schedules: ${schedules}`);
@@ -149,6 +149,10 @@ export async function section(options, registry, runtime) {
                 lines.push(...said.lines);
                 problems += said.problems;
             }
+        }
+        const claimed = Object.entries(source.params ?? {}).filter(([, p]) => p?.claim !== undefined);
+        if (claimed.length) {
+            lines.push(`    from the sign-in: ${claimed.map(([name, p]) => `${name} (claim ${p.claim}${p.claim === "email" ? ", verified only" : ""})`).join(", ")}; listed only for a signed-in person`);
         }
         for (const name of s.unused) {
             lines.push(`    warning: sources.${id}.params.${name}: no part of the address uses it, so the backend never gets it`);
