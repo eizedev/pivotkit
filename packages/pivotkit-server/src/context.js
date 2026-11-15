@@ -19,8 +19,11 @@ import { createRegistry } from "./registry.js";
 import { createAuthCore, profileOf } from "./auth.js";
 import { prune } from "./present.js";
 
-/** Why an output directory inside (or holding) an allowed directory is refused. */
-export const OUTPUT_INSIDE_ALLOWED = "output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them";
+/**
+ * Why an output directory inside (or holding) an allowed directory is refused: the reason alone,
+ * which the start's ConfigError and check-config's PROBLEM line each put their own prefix before.
+ */
+export const OUTPUT_INSIDE_ALLOWED = "lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them";
 
 /** The variable of the one static token when auth.tokens is empty. */
 export const TOKEN_ENV = "PIVOTKIT_TOKEN";
@@ -64,8 +67,14 @@ export async function createContext(options, runtime = {}) {
     let output = null;
     if (options.output?.dir) {
         const wanted = pathOf(options, options.output.dir);
-        const missing = !(await stat(wanted).catch(() => null));
-        if (missing && (await lstat(wanted).catch(() => null))) {
+        // only ENOENT is a missing directory: any other error (a name too long, a symbolic link
+        // loop) is refused with its reason, as check-config reports it
+        const found = await entryOf(wanted);
+        if (found.code) {
+            throw new ConfigError(`output.dir: cannot be created: ${whyNot(found.code)}`);
+        }
+        const missing = !found.info;
+        if (missing && (await entryOf(wanted, lstat)).info) {
             throw new ConfigError("output.dir: a symbolic link to nothing (its target does not exist)");
         }
         if (missing && options.output.create === false) {
@@ -80,7 +89,7 @@ export async function createContext(options, runtime = {}) {
         // a directory the model may read files from must not hold what it may not see: the results
         const insideAllowed = (path) => registry.allow.some((allowed) => isInside(path, allowed) || isInside(allowed, path));
         if (insideAllowed(planned)) {
-            throw new ConfigError(OUTPUT_INSIDE_ALLOWED);
+            throw new ConfigError(`output.dir: ${OUTPUT_INSIDE_ALLOWED}`);
         }
         if (missing) {
             const why = await cannotCreate(wanted);
@@ -97,9 +106,11 @@ export async function createContext(options, runtime = {}) {
             log.warn(`the output directory did not exist and was created (${options.output.baseUrl ? "mode 0755 narrowed by the umask: output.baseUrl is served" : "mode 0700"}); check output.dir if that was not meant`);
         }
         const dir = await realpath(wanted);
-        // what was made may have come out elsewhere (a link changed in between): checked again
+        // what was made may have come out elsewhere (a link changed in between): checked again. The
+        // directories just made stay: deleting them here could hit something that is not ours (the
+        // same link may have moved again), and empty directories hold nothing the model could read
         if (insideAllowed(dir)) {
-            throw new ConfigError(OUTPUT_INSIDE_ALLOWED);
+            throw new ConfigError(`output.dir: ${OUTPUT_INSIDE_ALLOWED}`);
         }
         // old reports are deleted by their extension (.csv, .json, ...): never where the operator's
         // own files lie, which have such names too
@@ -194,8 +205,33 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
     return { scopes: new Set(authInfo.scopes ?? []), client: String(authInfo.clientId ?? "client").slice(0, 80), profile };
 }
 
-/** Why a directory cannot be made or read, in words, from a file system error's code. */
-export const whyNot = (code) => (code === "EACCES" || code === "EPERM" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : code === "ENOTDIR" || code === "EEXIST" ? "a part of the path is a file" : code === "EROFS" ? "the file system is read-only" : code === "ENOENT" ? "a symbolic link in the path points to nothing" : String(code ?? "unknown error"));
+/** The words for the file system error codes a directory made at start meets (permissions apart). */
+const WHY_NOT = new Map([
+    ["ENOTDIR", "a part of the path is a file"],
+    // also what a second mkdir of the same path at the same moment gets
+    ["EEXIST", "something already exists at the path (a file, or a directory made at the same moment)"],
+    ["EROFS", "the file system is read-only"],
+    ["ENOENT", "a symbolic link in the path points to nothing"],
+    ["ELOOP", "a symbolic link in the path leads in a loop"],
+    ["ENAMETOOLONG", "a name in the path is longer than the file system allows"]
+]);
+
+/**
+ * Why a directory cannot be made or read, in words, from a file system error's code; any other code
+ * is kept in a neutral sentence, so the operator can still look it up.
+ * @param {string | null | undefined} code
+ */
+export const whyNot = (code) => (code === "EACCES" || code === "EPERM" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : (WHY_NOT.get(String(code)) ?? `the file system refused it (${code ?? "unknown error"})`));
+
+/**
+ * A path's entry in the file system: its stats, or why there are none. Only ENOENT means nothing is
+ * there (info and code null); any other error's code (a name too long, a symbolic link loop, a part
+ * of the path a file) is a problem with its own reason, not a missing path.
+ * @param {string} path
+ * @param {typeof stat} [how]  stat follows symbolic links, lstat looks at the link itself
+ * @returns {Promise<{ info: import("node:fs").Stats | null, code: string | null }>}
+ */
+export const entryOf = (path, how = stat) => how(path).then((info) => ({ info, code: null }), (e) => ({ info: null, code: e?.code === "ENOENT" ? null : String(e?.code ?? "unknown error") }));
 
 /**
  * Whether a missing directory can be made with mkdir -p: the code that keeps it from being made
@@ -205,13 +241,17 @@ export const whyNot = (code) => (code === "EACCES" || code === "EPERM" ? `permis
  */
 export async function cannotCreate(path) {
     for (let dir = dirname(path); ; ) {
-        const info = await stat(dir).catch(() => null);
+        const { info, code } = await entryOf(dir);
+        if (code) {
+            return code;
+        }
         if (info) {
             return !info.isDirectory() ? "ENOTDIR" : (await writable(dir)) ? null : "EACCES";
         }
         // a link whose target is missing: mkdir -p cannot go through it
-        if (await lstat(dir).catch(() => null)) {
-            return "ENOENT";
+        const link = await entryOf(dir, lstat);
+        if (link.info || link.code) {
+            return link.code ?? "ENOENT";
         }
         const up = dirname(dir);
         if (up === dir) {

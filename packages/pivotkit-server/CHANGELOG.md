@@ -6,6 +6,13 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- `output.dir` with a name longer than the file system allows, or a symbolic link loop in its path:
+  `check-config` reports it as a directory that cannot be created, with the reason, as the start
+  refuses it (it said "will be created at start"). Start errors name these reasons in words, and
+  keep any other file system code in a neutral sentence.
+
 ## [0.1.1] - 2026-11-14
 
 ### Upgrading from 0.1.0
