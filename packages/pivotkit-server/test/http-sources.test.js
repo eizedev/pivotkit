@@ -849,3 +849,60 @@ test("the kept answer: hidden columns dropped before it is kept, the values only
         await context.close();
     }
 });
+
+/** Every text a kept value holds, its byte arrays read as UTF-8 too (a CSV answer kept as it came). */
+function keptTexts(value, out = [], seen = new Set()) {
+    if (typeof value === "string") {
+        out.push(value);
+    } else if (value instanceof Uint8Array) {
+        // a copy: a packed column's bytes sit on a SharedArrayBuffer, which TextDecoder does not read
+        out.push(new TextDecoder().decode(new Uint8Array(value)));
+    } else if (value !== null && typeof value === "object" && !seen.has(value) && !ArrayBuffer.isView(value)) {
+        seen.add(value);
+        for (const v of Object.values(value)) {
+            keptTexts(v, out, seen);
+        }
+    }
+    return out.join("\n");
+}
+
+test("a CSV answer is kept without the columns the caller's levels hide; a profile that shows more gets its own copy", async () => {
+    routes.set("/v1/export.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,state,owner,secret\nweb-1,4,running,alice@example.com,s3cr3t-a\nweb-2,2,stopped,bob@example.com,s3cr3t-b\ndb-1,8,running,carol@example.com,s3cr3t-c\n");
+    });
+    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp", clientProfiles: { "narrow-bot": "narrow" } };
+    const shown = { default: "hide", fields: { name: "show", cpu: "show", state: "show", owner: "show" } };
+    const options = { ...optionsOf({}, {}, { policy: { results: true, profiles: { narrow: { fields: { owner: "hide" } } } }, auth }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: shown } } };
+    const context = await contextOf(options);
+    const through = (client) => callerOf("oauth", { token: "jwt", clientId: client, scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+    const kept = [];
+    const original = loadRunner.runLoad;
+    loadRunner.runLoad = async (key, ...rest) => {
+        const ran = await original(key, ...rest);
+        kept.push({ key, value: ran.value });
+        return ran;
+    };
+    try {
+        const narrow = (await describe(context, undefined, through("narrow-bot"), "csv")).result;
+        assert.deepEqual(narrow.fields.map((f) => f.name).sort(), ["cpu", "name", "state"]);
+        assert.equal(narrow.hiddenFields, 2, "owner and secret, dropped before the answer was kept, still count as hidden");
+        assert.match(await csvOf(context, { source: "csv" }, through("narrow-bot")), /running,12/);
+        const wide = (await describe(context, undefined, through("claude"), "csv")).result;
+        assert.deepEqual(wide.fields.map((f) => f.name).sort(), ["cpu", "name", "owner", "state"]);
+        assert.equal(wide.hiddenFields, 1);
+        assert.equal(asked.length, 2, "the narrow profile's second call reads what was kept; the wide one loads its own");
+        // what is kept for the narrow profile holds neither hidden column, the wide one only its own
+        const narrowKept = keptTexts(kept[0].value);
+        assert.doesNotMatch(narrowKept, /alice@example\.com|s3cr3t/);
+        assert.match(narrowKept, /web-1/, "the shown values are kept");
+        const wideKept = keptTexts(kept.at(-1).value);
+        assert.match(wideKept, /alice@example\.com/);
+        assert.doesNotMatch(wideKept, /s3cr3t/);
+        assert.equal(kept[0].key, kept[1].key);
+        assert.notEqual(kept[0].key, kept.at(-1).key, "a narrower and a wider profile never share a kept answer");
+    } finally {
+        loadRunner.runLoad = original;
+        await context.close();
+    }
+});
