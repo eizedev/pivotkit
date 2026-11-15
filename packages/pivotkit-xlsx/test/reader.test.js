@@ -18,6 +18,37 @@ const rejects = (promise, reason, check = () => true) =>
 const tickets = (count, extra = {}) =>
     makeXlsx({ sheets: [{ name: "Notes", hidden: true, rows: [["internal"], ["x"]] }, { name: "Tickets", rows: () => ticketRows(count), ...extra }, { name: "Summary", rows: [["Total"], [count]] }] });
 
+/**
+ * Bounds of the used-range test, as ratios of times taken in the same process, so a slow runner and
+ * coverage change them little. Measured: a read is 1.0-1.1 times the scan (up to 1.3 under full CPU
+ * load), 1.7-2.5 times when the filter passes the empty rows on to the parser; the scan is 3-5.6
+ * times the unpacking.
+ */
+const READ_PER_SCAN = 1.6;
+const SCAN_PER_UNPACK = 12;
+
+/**
+ * How long one sheet takes to unpack alone, and to unpack and pass through the checks before
+ * parsing (createXmlCheck, createXmlGuard, createSheetFilter) as read() does, its output thrown away.
+ */
+async function sheetScanTimes(bytes, path) {
+    const { readDirectory, unpackStream } = await import("../src/zip.js");
+    const { createSheetFilter, createXmlCheck, createXmlGuard } = await import("../src/xml.js");
+    const entry = readDirectory(bytes, "book.xlsx", { archiveEntries: 100, unpackedBytes: 1e9 }).find((e) => e.name === path);
+    let started = performance.now();
+    await unpackStream(bytes, entry, "book.xlsx", () => {}, () => {});
+    const unpackMs = performance.now() - started;
+    started = performance.now();
+    const check = createXmlCheck("book.xlsx", path);
+    const filter = createSheetFilter(createXmlGuard({ write() {} }, "book.xlsx", path), { file: "book.xlsx", part: path });
+    await unpackStream(bytes, entry, "book.xlsx", (chunk) => {
+        check(chunk);
+        filter.push(chunk);
+    }, () => {});
+    filter.end();
+    return { unpackMs, scanMs: performance.now() - started };
+}
+
 test("a ticket export: the first visible sheet below its title block, types from the cell formats", async () => {
     const t = await read(fileOf(tickets(2_000)));
     assert.deepEqual(t.columns, TICKET_COLUMNS);
@@ -58,9 +89,10 @@ test("sheets: names, order and visibility; read one by name or by index", async 
     await rejects(read(fileOf(bytes), { sheet: 7 }), "NO_SHEET");
 });
 
-test("the used range: formatted empty cells to row 900,000 are left out before parsing, with a note", async () => {
+test("the used range: formatted empty cells to row 900,000 are left out before parsing, with a note", async (ctx) => {
     // two formatted columns down to row 900,000 (the benchmark, bench.js, formats all 20)
     const bytes = tickets(500, { usedRangeTo: 900_000, emptyCells: 2 });
+    const { unpackMs, scanMs } = await sheetScanTimes(bytes, "xl/worksheets/sheet2.xml");
     const started = performance.now();
     const t = await read(fileOf(bytes));
     const ms = performance.now() - started;
@@ -69,8 +101,12 @@ test("the used range: formatted empty cells to row 900,000 are left out before p
     assert.deepEqual(used.params, { usedRow: 900_000, lastRow: 503 });
     assert.equal(used.message, "The sheet's used range reaches row 900,000; values end at row 503, the empty rows below were skipped.");
     assert.ok(!t.notes.some((n) => n.code === "ROWS_EMPTY"), "no empty rows reached the table");
-    // 900,000 rows of styled cells unpack to about 70 MB; read in about a second, not parsed into rows
-    assert.ok(ms < 15_000, `${ms} ms`);
+    // 900,000 rows of styled cells unpack to about 90 MB. The read takes about as long as the scan
+    // before parsing (unpack, check, filter) alone: the empty rows never reach the parser. The scan
+    // takes a few times the unpacking alone, not more.
+    ctx.diagnostic(`read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms, unpack ${Math.round(unpackMs)} ms`);
+    assert.ok(ms < READ_PER_SCAN * scanMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`);
+    assert.ok(scanMs < SCAN_PER_UNPACK * unpackMs, `scan ${Math.round(scanMs)} ms, unpack ${Math.round(unpackMs)} ms`);
 });
 
 test("cells with an Excel error are empty, with a note", async () => {
