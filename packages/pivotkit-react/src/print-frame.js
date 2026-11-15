@@ -76,19 +76,26 @@ function newSlot(container) {
     frame.hidden = true;
     /** @type {PrintSlot} */
     const slot = { frame, isLoaded: false, loaded: Promise.resolve(false) };
+    // ended when the frame goes (removeFrame) while it loads: its timer with it
+    const loading = new AbortController();
+    listeners.set(frame, loading);
     // the frame's own document: a browser may first load about:blank (Firefox), which srcdoc replaces
     slot.loaded = new Promise((resolve) => {
         const timer = setTimeout(() => resolve(false), PRINT_LOAD_TIMEOUT);
+        loading.signal.addEventListener("abort", () => {
+            clearTimeout(timer);
+            resolve(false);
+        });
         const done = () => {
             if (frame.contentDocument?.URL === "about:srcdoc" && frame.contentDocument.readyState === "complete") {
-                clearTimeout(timer);
-                frame.removeEventListener("load", done);
                 frame.hidden = false;
                 slot.isLoaded = true;
                 resolve(true);
+                // the load listener and the timer end (the abort's resolve comes too late to count)
+                loading.abort();
             }
         };
-        frame.addEventListener("load", done);
+        frame.addEventListener("load", done, { signal: loading.signal });
     });
     frame.srcdoc = '<!doctype html><html><head><meta charset="utf-8"><title></title></head><body></body></html>';
     container.append(frame);
@@ -169,6 +176,21 @@ export function printHtml(html, slot) {
  * @returns {boolean}  false when the frame could not be used
  */
 function fillAndPrint(html, frame) {
+    try {
+        return fillAndPrintIn(html, frame);
+    } catch (error) {
+        // no dialog came of it: the frame goes, the caller says what went wrong
+        removeFrame(frame);
+        throw error;
+    }
+}
+
+/**
+ * @param {string} html
+ * @param {HTMLIFrameElement} frame
+ * @returns {boolean}
+ */
+function fillAndPrintIn(html, frame) {
     const win = frame.contentWindow;
     const fdoc = frame.contentDocument;
     if (!frame.isConnected) {

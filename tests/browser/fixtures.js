@@ -6,7 +6,9 @@ import { test as base, expect } from "@playwright/test";
  * frame; Chromium refuses it in the report's print frame, which is sandboxed without scripts, and logs
  * this. The page itself runs no script there: without tracing the message is not logged (checked with
  * --trace off and with a plain browser), so it is the harness's, not the report's. Every spec ignores
- * it: the Export menu makes the print frame ready whenever it opens (print-frame.js).
+ * it, not only the print specs: the Export menu makes the print frame ready whenever it opens
+ * (print-frame.js), so every spec that opens the menu would log it. Errors of the page itself still
+ * fail every test.
  */
 export const TRACE_IN_PRINT_FRAME = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
 
@@ -174,6 +176,8 @@ export async function pickItem(page, scope, testId, label) {
  * whether it ran in the click: `inClick` while the click was being dispatched (its listeners and the
  * microtasks after them; Safari asks before a print it does not take as the person's), `activation`
  * the page's transient user activation then (navigator.userActivation, null where it is missing).
+ * window.__prints counts the calls; with window.__printThrows set, print() throws (a browser that
+ * refuses it).
  */
 export async function capturePrint(page) {
     // installed in the page after it loaded, not as an init script: Playwright runs init scripts in
@@ -191,6 +195,10 @@ export async function capturePrint(page) {
                 const win = own.get.call(this);
                 if (win && this.classList.contains("pk-print-frame")) {
                     win.print = () => {
+                        w.__prints = (w.__prints ?? 0) + 1;
+                        if (w.__printThrows) {
+                            throw new Error("print refused");
+                        }
                         const d = this.contentDocument;
                         w.__printed = {
                             inClick: w.__clicking,

@@ -48,6 +48,8 @@ export function loadExporters() {
 
 /** @type {Promise<[typeof import("./report-run.js"), any]> | null} */
 let reportPending = null;
+/** @type {[typeof import("./report-run.js"), any] | null} */
+let reportModules = null;
 
 /**
  * pivotkit-report with ECharts (the report's chart parts, through the first load's loader, and the SVG
@@ -55,10 +57,13 @@ let reportPending = null;
  * @param {() => Promise<any>} loadECharts  chart.jsx's: dist/echarts.js is a file next to dist/index.js
  */
 function loadReport(loadECharts) {
-    reportPending ??= Promise.all([import("./report-run.js"), loadECharts()]).catch((error) => {
-        reportPending = null;
-        throw error;
-    });
+    reportPending ??= Promise.all([import("./report-run.js"), loadECharts()]).then(
+        (modules) => (reportModules = modules),
+        (error) => {
+            reportPending = null;
+            throw error;
+        }
+    );
     return reportPending;
 }
 
@@ -257,12 +262,14 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
             return;
         }
         if (kind === "html" || kind === "svg" || kind === "print") {
-            // the print's frame, taken in the click before anything is awaited (print-frame.js): with
-            // the modules loaded, all that follows up to print() runs in the click too
+            // the print's frame, taken in the click before anything is awaited (print-frame.js). With
+            // the modules loaded, nothing is awaited but render(): pivotkit-report's render is async
+            // (its work is not), so print() comes in the microtasks right after the click's listener,
+            // still inside the click's dispatch; a click before the modules have loaded prints after it
             const slot = kind === "print" && root.current ? takePrintFrame(root.current) : null;
             let printing = false;
             try {
-                const [report, echarts] = await loadReport(/** @type {() => Promise<any>} */ (loadECharts));
+                const [report, echarts] = reportModules ?? (await loadReport(/** @type {() => Promise<any>} */ (loadECharts)));
                 const chart = chartRef.current;
                 // the chart's size on the screen, when it is drawn
                 const size = chart ? { width: clampSize(chart.getWidth()), height: clampSize(chart.getHeight()) } : undefined;

@@ -7,7 +7,6 @@ import { capturePrint, expect, test, toolbar } from "./fixtures.js";
 const printed = (page) => page.evaluate(() => /** @type {any} */ (window).__printed ?? null);
 
 test.describe("Export menu: HTML report, SVG and print", () => {
-
     test("HTML report (.html): the table as shown, the details, a policy first in <head>; it opens on its own", async ({ page, context }) => {
         await page.goto("?data=tickets");
         await toolbar(page, "export");
@@ -167,6 +166,68 @@ test.describe("Export menu: HTML report, SVG and print", () => {
         // the dialog closed: the frame goes
         await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
         await expect(frames).toHaveCount(0);
+    });
+
+    test("Print: a click before the menu's frame has loaded waits for it and prints once (#210)", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await capturePrint(page);
+        const frames = page.locator("iframe.pk-print-frame");
+        await toolbar(page, "export");
+        await expect(frames).toHaveCount(1);
+        // as if the click came before the menu's frame was there: the print makes and loads its own
+        await page.evaluate(() => document.querySelector("iframe.pk-print-frame").remove());
+        await page.getByTestId("export-print").click();
+        await expect.poll(() => printed(page)).not.toBeNull();
+        expect((await printed(page)).body).toContain('<table class="pk-table">');
+        expect(await page.evaluate(() => /** @type {any} */ (window).__prints)).toBe(1);
+        await expect(frames).toHaveCount(1);
+    });
+
+    test("Print: a print() that throws leaves no frame behind and says the export failed (#210)", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await capturePrint(page);
+        await page.evaluate(() => {
+            /** @type {any} */ (window).__printThrows = true;
+        });
+        await toolbar(page, "export");
+        await page.getByTestId("export-print").click();
+        await expect(page.locator(".pk-toasts")).toContainText("print refused");
+        await expect(page.locator("iframe.pk-print-frame")).toHaveCount(0);
+    });
+
+    for (const strict of [false, true]) {
+        test(`Print: a host that prints the report itself (onExport returns false) gets it, no frame stays${strict ? ", in StrictMode" : ""} (#210)`, async ({ page }) => {
+            await page.goto(`pages/host.html?printself${strict ? "&strict" : ""}`);
+            await capturePrint(page);
+            const frames = page.locator("iframe.pk-print-frame");
+            await toolbar(page, "export");
+            // the menu's frame, one also after StrictMode's second mount
+            await expect(frames).toHaveCount(1);
+            await page.getByTestId("export-print").click();
+            await expect.poll(() => page.evaluate(() => /** @type {any} */ (window).__hostPrinted ?? null)).toMatch(/\.html$/);
+            await expect(frames).toHaveCount(0);
+            expect(await page.evaluate(() => /** @type {any} */ (window).__prints ?? 0)).toBe(0);
+        });
+    }
+
+    test("Print in StrictMode: print() runs in the click from the second print on, one frame (#210)", async ({ page }) => {
+        await page.goto("pages/host.html?strict");
+        await capturePrint(page);
+        const frames = page.locator("iframe.pk-print-frame");
+        for (const n of [1, 2, 3]) {
+            await page.evaluate(() => {
+                /** @type {any} */ (window).__printed = null;
+            });
+            await toolbar(page, "export");
+            await expect(frames).toHaveCount(n === 1 ? 1 : 2);
+            await page.getByTestId("export-print").click();
+            await expect.poll(() => printed(page)).not.toBeNull();
+            if (n > 1) {
+                expect((await printed(page)).inClick).toBe(true);
+            }
+            await expect(frames).toHaveCount(1);
+        }
+        expect(await page.evaluate(() => /** @type {any} */ (window).__prints)).toBe(3);
     });
 
     test("Print: a page that gets no animation frame (a hidden one) prints all the same (#210)", async ({ page }) => {
