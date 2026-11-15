@@ -686,6 +686,10 @@ test.describe("a press on a menu's button that never ends in a click", () => {
         const button = page.getByTestId("export");
         await button.click();
         await expect(button).toHaveAttribute("aria-expanded", "true");
+        // the menu has taken the focus (a frame after it opens, later on a busy page): only a focus that
+        // leaves the menu closes it, and the menu's own move to its first control must not come after
+        // the move below
+        await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover")))).toBe(true);
         // the press only (a pointerdown, as a held button leaves it), no click after it
         await button.evaluate((el) => el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "mouse", button: 0 })));
         // the focus leaves without a key or a press (assistive technology, a script): the blur closes it
