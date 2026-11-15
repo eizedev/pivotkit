@@ -3,8 +3,9 @@
 The [pivotkit](https://pivotkit.eize.dev/) command line, `pivotkit`: run a view over a CSV, JSON or
 Excel file and write an HTML report, CSV, JSON, XLSX or the chart as SVG; get a draft view from a
 file's fields, or render from layout flags without a view file; validate and describe views in CI
-with stable exit codes and `--json`. No network, no browser; with `--now` the output is the same
-on every run. Files are read and written only as regular files, and `--allow-dir` limits them to the
+with stable exit codes and `--json`; run the same commands on a pivotkit-server's sources with
+`--url` and `--source`. No browser, and no network for local files; with `--now` the output is the
+same on every run. Files are read and written only as regular files, and `--allow-dir` limits them to the
 directories you name.
 
 ## Install
@@ -38,6 +39,7 @@ limit or template error.
 | --- | --- |
 | Getting started: install, the example files, your own report, CI, PowerShell | [Getting started with the command line](https://pivotkit.eize.dev/getting-started/cli/) |
 | Commands, options, exit codes, `--json`, completion, file safety | [pivotkit-cli reference](https://pivotkit.eize.dev/reference/cli/) |
+| `--url`, `--source`, `pivotkit sources`: a server's data | [With a server](https://pivotkit.eize.dev/reference/cli/#with-a-server) |
 | `--suggest`, layout flags, `--map`, `--save-view` | [A view from the data's fields](https://pivotkit.eize.dev/reference/cli/#a-view-from-the-datas-fields) |
 | The print template of `--template` | [Print template](https://pivotkit.eize.dev/reference/print-template/) |
 | The library it runs on | [pivotkit-report reference](https://pivotkit.eize.dev/reference/report/) |

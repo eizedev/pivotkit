@@ -149,7 +149,8 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   ... --values ...`), `--map` for a renamed column, `--save-view`
   ([a view from the data's fields](reference/cli.md#a-view-from-the-datas-fields)); with exit codes, `--json`,
   messages that say what to fix, the sheet of a workbook a view names (`describe` lists a workbook's
-  sheets), shell completion and safe file handling; offline
+  sheets), shell completion and safe file handling; offline, or on a pivotkit-server's sources with
+  `--url` and `--source` and `pivotkit sources` ([with a server](reference/cli.md#with-a-server))
   ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)).
 - For programs and reviews: `validate` with "did you mean" hints, `describeSource` and `describeView`
   in plain words ([views](concepts/views.md)).

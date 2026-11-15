@@ -131,11 +131,13 @@ root `package.json`: `npm run types` and the builds depend on it.
   operation is an entry there, its tests in `test/operations.test.js`, its tool in pivotkit-mcp's
   `tools.js` (`TOOLS`) and, if the CLI has it, its command in `commands.js`.
 - `packages/pivotkit-cli/` - the command line `pivotkit` (Node only): `bin/pivotkit.js`, `src/cli.js`
-  (`main(argv, io)`: render, validate, describe, example, completion, help; a view file's
+  (`main(argv, io)`: render, validate, describe, sources, example, completion, help; a view file's
   `source.fields` decide the type of a column the reader inferred otherwise, `withViewTypes`, never
   when a value does not fit; exit codes 0, 1 findings, 2 usage,
-  io, limit, template; `--json` on stdout), `src/commands.js` (the one table of commands and options
-  that the parser, the help and the completions are made from), `src/help.js` (help and bash, zsh,
+  io, limit, template, remote; `--json` on stdout), `src/commands.js` (the one table of commands and options
+  that the parser, the help and the completions are made from; each option's `where`, local, remote
+  or both, from which the help's marks and the usage error for an option given where it does not act
+  come), `src/help.js` (help and bash, zsh,
   fish and PowerShell completions), `src/safe-files.js` (read a regular file once with its size checked
   first, `hardLinks: false` refuses a second name; write through a temporary file, `exclusive` and
   `writeNew` never replace one; `--allow-dir` by real path), exported with `readTable` (a data file
@@ -145,12 +147,21 @@ root `package.json`: `npm run types` and the builds depend on it.
   `--chart-type`, `--map` as a layout: one value names one thing, so names may hold commas and
   colons), `src/layout-view.js` (`describe --suggest` and `render` from the data's fields through
   `viewOfLayout`; the view file it writes names the data with `sourceIdOf` and the sheet),
-  `src/errors.js` (`CliError` with a kind; no file content in a message beyond the data's
+  `src/remote.js` (remote mode's client of pivotkit-server's REST service: the address, https or
+  loopback http, the token from `--token-file` or `PIVOTKIT_TOKEN` read for every request, no
+  redirects, time limit, size caps, the answer's type checked, a loopback address through node:http
+  with its own agent so no proxy, other addresses through Node's fetch with Node's proxy support;
+  errors as `RemoteError`, never a fetch error's message), `src/remote-commands.js` (render,
+  validate, describe and sources against the server, with cli.js's helpers passed in),
+  `src/rest-contract.js` (`pivotkit-cli/rest`: `REST_BASE`, `SOURCE_ID`, `TOKEN_SYNTAX`,
+  `REST_ERRORS`, `PROBLEM_CODES`, `isLoopback`, the one copy pivotkit-server re-exports),
+  `src/errors.js` (`CliError` with a kind, `RemoteError`; no file content in a message beyond the data's
   field names and one cell value cut at 20 characters, `printable` cleans names), `src/examples.js` (`pivotkit example`: `examples/examples.json`, the files written, never
   over one). `examples/` holds the example files: the view files and `examples.json` committed, the
   data gzipped (`*.csv.gz`, build output of `npm run build -w pivotkit-cli`, also in prepack and the
   CLI's `npm test`). `test/` spawns the CLI as a user runs it; `test/examples.test.js` runs every
-  shipped example through validate and render.
+  shipped example through validate and render; `test/remote.test.js` runs remote mode against a
+  fake server and a fake proxy on loopback.
 - `packages/pivotkit-server/` - what the MCP server and the REST service share, and the REST service
   (Node only, no MCP SDK): `src/config.js` (`OPTION_KEYS`, the one table of options for both, `rest.*`
   included; `validateOptions` with "did you mean"; `loadConfig`), `src/flags.js` (`optionsFrom`, the
@@ -172,7 +183,10 @@ root `package.json`: `npm run types` and the builds depend on it.
   of both runners), `src/limits.js` (`createLimits`: rate and concurrency limits in one process, one
   set per front end: `rest.*`, `mcp.*`), `src/log.js`, `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/healthz`, `/readyz`),
-  `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck).
+  `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck). What
+  the REST service and the CLI's remote mode agree on (base path, source ids, token syntax, problem
+  codes, loopback) is pivotkit-cli/rest's, re-exported here; `test/cli-remote.test.js` runs the CLI
+  against the service.
   `src/rest/` is `pivotkit-server/rest`: `handler.js` (`createRestHandler`: Host, CORS, routes,
   sign-in with the REST resource's audience, limits, operation scopes, the JSON body, `present()` or
   the file), `routes.js` (`REST_ROUTES`: a route per operation of pivotkit-report's table from its
