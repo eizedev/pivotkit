@@ -24,7 +24,8 @@ Every kind has the same exposure policy, scopes, field descriptions and `dataAsO
 An HTTP source asks an operator's backend for its rows. You write the address once in the
 configuration, with a parameter in braces where a caller's value goes; a caller (a model or a
 program) passes only the values, which pivotkit checks against their declared type, pattern or list
-before anything is sent. A caller never gives an address.
+before anything is sent. A caller never gives an address. When the API has an OpenAPI document,
+[`source-from-openapi`](#openapi) proposes the block for one of its operations.
 
 ```json
 {
@@ -405,3 +406,167 @@ returns to what a report needs.
 
 A code source is your code: pivotkit hands it a frozen copy of the caller and never a token, which
 guards against mistakes, not against code that means harm.
+
+## HTTP sources from an OpenAPI document { #openapi }
+
+`pivotkit-server source-from-openapi` reads an API's OpenAPI document and proposes the
+configuration of an HTTP source for one of its GET operations: the address with its parameters, the
+parameters' types and descriptions, where the rows are and the fields' descriptions. You review the
+result, fill in what it leaves to you and add it to your configuration. The command is for you at
+the command line; the server never reads the document.
+
+```text
+pivotkit-server source-from-openapi <file or https URL> --operation <operationId> [--id <source id>] [--backend <name>]
+```
+
+It prints the block as JSON on stdout and, on stderr, what you must still check and decide. Exit 0
+when it wrote a block, 2 on a usage error, a document it does not read or an operation that cannot
+be a source. `--id` names the source (default: the operation's id), `--backend` the backend (default:
+the document's `info.title` in lower case with `-`, else `api`).
+
+```text
+$ pivotkit-server source-from-openapi platform-openapi.json --operation listVms --id vms --backend platform > vms.json
+```
+
+```json
+{
+  "httpSources": {
+    "backends": {
+      "platform": {
+        "url": "TODO: https://... (the document names https://api.example.com/v1; check it)",
+        "auth": {
+          "clientCredentials": {
+            "tokenUrl": "TODO: https://... (the document names https://auth.example.com/oauth/token; check it)",
+            "clientId": "TODO: the client id",
+            "clientSecret": { "env": "TODO: the variable that holds the client secret" },
+            "scope": "vms:read"
+          }
+        }
+      }
+    }
+  },
+  "sources": {
+    "vms": {
+      "title": "Virtual machines of a customer",
+      "description": "Every virtual machine the customer runs, with its size and state.",
+      "http": {
+        "backend": "platform",
+        "path": "/customers/{customerId}/vms",
+        "query": { "state": "{state}", "created-after": "{created_after}", "limit": "{limit}", "page": "{page}" },
+        "rows": "/items"
+      },
+      "params": {
+        "customerId": { "type": "string", "required": true, "description": "The customer's short name", "example": "acme", "maxLength": 40 },
+        "state": { "type": "string", "description": "Only machines in this state", "enum": ["running", "stopped", "deleted"] },
+        "created_after": { "type": "string", "description": "Only machines created on or after this day", "format": "date", "example": "2026-01-01" },
+        "limit": { "type": "integer", "description": "Machines per page", "minimum": 1, "maximum": 500 },
+        "page": { "type": "integer", "minimum": 1 }
+      },
+      "fields": {
+        "name": { "description": "The machine's name" },
+        "cpu": { "description": "Virtual CPUs" },
+        "owner": { "description": "E-mail address of the person who owns the machine" }
+      },
+      "policy": { "default": "hide", "fields": { "name": "hide", "cpu": "hide", "owner": "hide" } }
+    }
+  }
+}
+```
+
+```text
+The API host and the token URL come from the document; check them before adding credentials.
+
+Still to decide: 4 values say TODO, and the server refuses the configuration until none does:
+  httpSources.backends.platform.url
+  httpSources.backends.platform.auth.clientCredentials.tokenUrl
+  httpSources.backends.platform.auth.clientCredentials.clientId
+  httpSources.backends.platform.auth.clientCredentials.clientSecret.env
+
+Notes:
+  - The path parameter "customerId"'s pattern is not copied (...); the safe default applies: letters, digits and . _ ~ -. ...
+  - The query parameter "created-after" is the parameter created_after (a parameter's name is letters, digits and "_").
+  - The query parameters limit, page look like paging: if the API pages, remove them from params and http.query and set http.paging instead (...).
+  - Every field is hidden (sources.vms.policy): set the ones a caller may see to "show", "values" or "summary".
+
+Review these as text the model will read:
+  sources.vms.title: "Virtual machines of a customer"
+  sources.vms.params.customerId.description: "The customer's short name"
+  sources.vms.fields.owner.description: "E-mail address of the person who owns the machine"
+  ...
+```
+
+(The example is shortened: the command lists every field.)
+
+### What it reads { #openapi-input }
+
+- **OpenAPI 3.0 or 3.1 in JSON**, at most 5 MiB and 128 levels deep. A YAML document is refused
+  with how to convert it, for example `npx js-yaml openapi.yaml > openapi.json` (js-yaml's command
+  writes a YAML file as JSON). Swagger 2.0 is refused; convert it to OpenAPI 3 first.
+- **A file, or an `https://` URL.** A URL is fetched once with the same guarded fetch as HTTP sources
+  (no redirects, no cloud metadata addresses, the size limit while it streams), within 10 seconds and
+  without credentials. For a document behind a sign-in or on plain `http://`, download it and pass
+  the file.
+- **Local references only.** `$ref` values that start with `#/` are followed, with own properties
+  only, at most 32 in a chain, `allOf` at most 8 deep, and one budget of 100,000 nodes for the whole
+  run. A reference to another file or address (`file:`, `https:`, `http://169.254.169.254/...`) is
+  never fetched: the command names it in a note and goes on without it. A circular reference is
+  named the same way.
+
+### What it writes { #openapi-output }
+
+| From the document | In the block |
+| --- | --- |
+| The server address (`servers`, the operation's or path's first) | The backend's `url`, as a `TODO` that names the address without a user name, password, query or fragment |
+| The operation's path | `http.path`, with each path parameter as `{name}` |
+| Path parameters | Required `params` |
+| Query parameters | `params` and `http.query`; `required` is kept |
+| A parameter's `type`, `enum`, `minLength`, `maxLength`, `minimum`, `maximum`, `format: date`, `description`, `example` | The same keys of the parameter, as far as the server accepts them (an `example` outside the safe characters, a `maxLength` over 256 or an `enum` of more than 100 values is left out or capped, with a note) |
+| A parameter's `pattern` | Never copied: a document's regular expression could take very long on a caller's value; a text parameter without a pattern takes letters, digits and `. _ ~ -` only. Write your own pattern where values need more |
+| A name that is no parameter's name (`created-after`, `filter[name]`) | The parameter `created_after`, `filter_name`; the query keeps the document's name |
+| Header and cookie parameters, array and object values, a `style` or `allowReserved` | Left out, with a note (a path parameter like that refuses the operation) |
+| A JSON answer (the first 2xx) that is a list | `http.rows: ""` |
+| An object with exactly one list | `http.rows` pointing at it (`/items`) |
+| Any other answer | `http.rows` as a `TODO` |
+| A `text/csv` answer | `http.format: "csv"` |
+| The row's properties | `fields.<name>.description` where the document describes them, and every property in `policy.fields` as `hide`, under `policy.default: "hide"` |
+| The operation's `summary` and `description` | The source's `title` and `description` |
+| The security scheme | A skeleton of the backend's [sign-in](#http-auth), see below |
+
+Descriptions and other texts lose control characters, terminal escape sequences and bidi controls,
+line breaks become spaces, and they are cut at 500 characters (a title at 200). The model reads them
+through `list_sources` and `describe_source`, so the command prints each one under "Review these as
+text the model will read": an API's documentation can hold instructions meant for a model.
+
+A parameter whose name looks like a credential's (`key`, `token`, `secret`, `auth`, `pass`) keeps
+no example and no list of values, and a query parameter in which the document's own security scheme
+sends an API key is left out: a credential never comes from a caller.
+
+The sign-in, from the operation's `security` (else the document's), the first alternative of one
+scheme that maps:
+
+| Security scheme | Backend auth |
+| --- | --- |
+| `apiKey` in a header | `header` with the header's name and `value: { "env": "TODO: ..." }` |
+| `http` with `bearer` | `header` with `prefix: "Bearer "` |
+| `http` with `basic` | `header` with `prefix: "Basic "`; the secret holds the base64 of `user:password` |
+| `oauth2` with a `clientCredentials` flow | `clientCredentials` with `tokenUrl`, `clientId` and `clientSecret` as `TODO`s and the operation's scopes |
+| An API key in the query or a cookie, OAuth for people, OpenID Connect, mutual TLS, two schemes together | No auth, with a note: configure it by hand; for each person's own access use `tokenExchange` |
+
+### TODO values { #openapi-todo }
+
+Every value you must decide says `TODO`, the same word everywhere, so `grep TODO` finds them. The
+server refuses a configuration with a value under `httpSources` or a source's `http` that still
+starts with `TODO`, before any other rule:
+
+```text
+pivotkit-server: 4 values still say TODO: httpSources.backends.platform.url, httpSources.backends.platform.auth.clientCredentials.tokenUrl, httpSources.backends.platform.auth.clientCredentials.clientId, httpSources.backends.platform.auth.clientCredentials.clientSecret.env; replace each with the real value
+```
+
+No address from the document becomes a value by itself: a document could name an attacker's host as
+the API or the token endpoint, which would then receive your credentials. Check the host, write it
+into `url` and `tokenUrl`, then add the credentials. Other texts (a title, a description) may say
+TODO as ordinary words.
+
+Then decide which fields a caller may see (`policy.fields`), and test the source with
+`pivotkit-server check-config` and [`check-source`](#check-source), which also prints the fields the
+backend really sends.

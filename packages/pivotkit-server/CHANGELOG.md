@@ -74,6 +74,14 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   server would make it, with each page's status, the rows, the fields and their types (no cell
   value; literal query values as `...`), what a caller would get when it fails, and the operator's
   hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`).
+- `pivotkit-server source-from-openapi <file or https URL> --operation <operationId>`: proposes an
+  HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (path and query
+  parameters with their types, where the rows are, the fields' descriptions, a skeleton of the
+  backend's sign-in). The document is read as untrusted input: local references only, size and
+  node budgets, no `pattern` copied, descriptions cleaned and listed for review, and no address
+  copied as a value. What the operator must decide says `TODO`, and the server refuses a value under
+  `httpSources` or a source's `http` that still does
+  ([data sources](https://pivotkit.eize.dev/reference/sources/#openapi)).
 - Parameters: a refused value's `INVALID_INPUT` names the parameter's description, example and short
   pattern; a value must have the parameter's type (a number for a `string` parameter is refused) and
   a text must be well-formed Unicode; `list_sources` adds each parameter's `pattern`, `format`,

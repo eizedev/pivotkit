@@ -168,7 +168,7 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   [security](security.md#rest), [privacy](privacy.md)).
 - Sources for both: data files, an operator's API as an HTTP source (its address written once with
   typed parameters a caller fills, paging, data kept per caller, `pivotkit-server check-source` to
-  test it) and a library host's code sources ([data sources](reference/sources.md)).
+  test it, `pivotkit-server source-from-openapi` to start from the API's OpenAPI document) and a library host's code sources ([data sources](reference/sources.md)).
 - Download links: the server serves each report for a while under a link that expires; for sources
   whose fields are not all shown only to the person who asked, after signing in with your identity
   provider ([download links](reference/delivery.md)).
