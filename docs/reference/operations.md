@@ -103,7 +103,9 @@ The level of a `call`, `request`, `download` or `refused` line follows its statu
 `warn` for 4xx, `error` for 5xx. A refused request is `warn` or `error`, except the two routine ones
 above, which are `debug`. Every error answer (4xx and 5xx) has one line under the `requestId` of its
 `X-Request-Id`: its own `call`, `request` or `download` line, or a `refused` line; a 404 or 405 only
-at `log.level` `debug`. A log line never holds the path a request asked for, only the route family.
+at `log.level` `debug`. A log line names the route family; the path, query and body a request sent
+are never logged. A host or origin refusal names the refused Host or Origin value, cut to 100
+characters.
 
 `/healthz` and `/readyz` write no line per probe. `/readyz` writes one when the server stops being
 ready (`warn`, with what is missing) and one when it is ready again (`info`).

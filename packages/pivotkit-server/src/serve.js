@@ -255,7 +255,7 @@ export async function serve(options, runtime) {
     try {
         const bodyBytes = bodyBytesOf(options);
         // a download takes no body: the form of a one-time link sends none
-        listening = await serveFetch(handler, { host, port, bodyBytes: (request, info) => (handler.downloads.handles(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : bodyBytes(request, info)), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onClientError: (entry) => handler.context.log.refused({ ...entry, reason: refusalReason("INVALID_INPUT") }), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
+        listening = await serveFetch(handler, { host, port, bodyBytes: (request, info) => (handler.downloads.handles(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : bodyBytes(request, info)), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onClientError: (entry) => handler.context.log.refused({ ...entry, reason: refusalReason("INVALID_INPUT") }), onInternalError: () => handler.context.log.refused({ status: 500, reason: refusalReason("INTERNAL") }), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler.close();
         throw e;

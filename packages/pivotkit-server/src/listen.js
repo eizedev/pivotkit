@@ -284,22 +284,22 @@ const defaultProblem = (status) => Response.json({ error: status === 413 ? "requ
  * Serves a fetch handler on node:http. Every request runs in its scope (request-id.js requestScopeFor: its id, trace id and addresses, on
  * every log line written for it), and every answer names its id in X-Request-Id.
  * @param {FetchHandler} handler
- * @param {{ host: string, port: number, bodyBytes: number | BodyBytes, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void, trustProxy?: boolean, onClientError?: (entry: ClientErrorEntry) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close); trustProxy: the scope names the forwarded client (http.trustProxy); onClientError: told of a request the HTTP parser refused
+ * @param {{ host: string, port: number, bodyBytes: number | BodyBytes, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void, trustProxy?: boolean, onClientError?: (entry: ClientErrorEntry) => void, onInternalError?: (entry: { status: 500, requestId: string }) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close); trustProxy: the scope names the forwarded client (http.trustProxy); onClientError: told of a request the HTTP parser refused; onInternalError: told, inside the request's scope, of a handler that threw (answered 500 with no detail)
  * @returns {Promise<{ port: number, server: import("node:http").Server, close(): Promise<void> }>}
  */
-export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused, trustProxy = false, onClientError }) {
+export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused, trustProxy = false, onClientError, onInternalError }) {
     const problem = handler.problem ?? defaultProblem;
     const limits = { ...CONNECTION_LIMITS, ...given };
     const gate = connectionGate(limits);
     let running = 0;
     /** @type {Array<() => void>} */
     let idle = [];
-    /** The connections whose request was answered (refused) while its body still came, until that body ends. */
-    const answeredMidBody = new WeakSet();
+    /** Per connection, the request answered (refused) while its body still came, until that body ends. */
+    const answeredMidBody = new WeakMap();
     /** Marks a request answered before its body ended; a body that then ends leaves its connection as any other. */
     const markMidBody = (req) => {
         if (!req.complete) {
-            answeredMidBody.add(req.socket);
+            answeredMidBody.set(req.socket, req);
             req.once("end", () => answeredMidBody.delete(req.socket));
         }
     };
@@ -319,6 +319,8 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         res.on("close", () => abort.abort());
         /** @type {import("./request-id.js").RequestScope | null} the request's, once its headers are read */
         let scope = null;
+        /** Whether the body is being read: a failure then is the body's (400 or 413), else the handler's (500). */
+        let reading = false;
         try {
             // every value of a repeated header: node:http keeps only the first Authorization (and drops
             // the others) in req.headers, so two tokens would pass as one; joined, the auth check sees both
@@ -357,7 +359,9 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 res.end(Buffer.from(await early.arrayBuffer()));
                 return;
             }
+            reading = true;
             const body = req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req, cap);
+            reading = false;
             const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
             const response = await withRequestScope(inScope, () => handler.fetch(request, info));
             res.writeHead(response.status, { ...Object.fromEntries(response.headers), "x-request-id": inScope.id });
@@ -404,6 +408,14 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 return;
             }
             const failed = scope ?? requestScopeFor(null, info, { trustProxy });
+            if (!reading && e?.status !== 413) {
+                // the handler threw (not the body's reading): a 500 with no detail, told once
+                withRequestScope(failed, () => onInternalError?.({ status: 500, requestId: failed.id }));
+                markMidBody(req);
+                res.writeHead(500, { "content-type": "application/json", connection: "close", "x-request-id": failed.id });
+                res.end(JSON.stringify({ error: "internal error", requestId: failed.id }));
+                return;
+            }
             const answer = withRequestScope(failed, () => problem(e?.status === 413 ? 413 : 400, req.url ?? "/", info));
             const bytes = Buffer.from(await answer.arrayBuffer());
             markMidBody(req);
@@ -433,13 +445,17 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
     // a request the HTTP parser refuses (a broken request line, headers too large, too slow) never
     // reaches the handler: it is answered as node:http would, with an id, and told to onClientError
     server.on("clientError", (error, socket) => {
-        if (answeredMidBody.has(socket)) {
-            // the rest of a body this server refused and answered, cut short by the client: the
-            // request has its refused line already
+        const code = String(/** @type {any} */ (error)?.code ?? "");
+        // the rest of a body this server refused and answered, cut short by the client (it closed
+        // its side halfway: the parser's end-of-input error): the request has its refused line
+        // already. Only that error and only while that request's body is unfinished: anything else
+        // the parser refuses on the connection (a broken request pipelined after a finished body) is
+        // a refusal of its own
+        const refusedBody = answeredMidBody.get(socket);
+        if (refusedBody && !refusedBody.complete && code === "HPE_INVALID_EOF_STATE") {
             socket.destroy();
             return;
         }
-        const code = String(/** @type {any} */ (error)?.code ?? "");
         // as node:http's own handler: an answer only on a socket that can take one and is not in the
         // middle of another answer, then the socket destroyed at once (never left half-closed), so its
         // connection slot is free by the time the client sees it close

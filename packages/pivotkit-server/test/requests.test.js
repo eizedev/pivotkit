@@ -373,3 +373,52 @@ test("body size: the wait for a refused body's end is over at once for a request
         assert.equal(waited, "ended", `${JSON.stringify(state)} after ${Date.now() - started} ms`);
     }
 });
+
+test("serveFetch: a handler that throws gets a 500 with no error text and one internal line, not a 400 bad_request", async () => {
+    const told = [];
+    const problems = [];
+    const handler = {
+        fetch: async () => {
+            throw new Error("a secret detail of the failure");
+        },
+        problem: (status) => {
+            problems.push(status);
+            return Response.json({ error: "bad" }, { status });
+        }
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onInternalError: (entry) => told.push(entry) });
+    try {
+        const answer = await raw(`http://127.0.0.1:${listening.port}/x`, { method: "POST", body: "{}" });
+        assert.equal(answer.status, 500);
+        assert.match(String(answer.headers["x-request-id"]), REQUEST_ID);
+        assert.doesNotMatch(JSON.stringify(answer.data), /secret/);
+        assert.deepEqual(problems, [], "not answered as a body that cannot be read");
+        assert.deepEqual(told.map((t) => [t.status, t.requestId]), [[500, answer.headers["x-request-id"]]]);
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a malformed request pipelined right after a refused body that was sent whole is still the parser's refusal", async () => {
+    const { connect } = await import("node:net");
+    const told = [];
+    const handler = {
+        precheck: async () => new Response("no", { status: 401 }),
+        fetch: async () => Response.json({ ok: true })
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onClientError: (entry) => told.push(entry) });
+    try {
+        // the refused request's whole body and a broken request line in one write
+        await new Promise((resolve) => {
+            const socket = connect(listening.port, "127.0.0.1", () => socket.write("POST /x HTTP/1.1\r\nHost: localhost\r\nContent-Length: 10\r\n\r\n0123456789BROKEN REQUEST LINE\r\n\r\n"));
+            socket.on("data", () => undefined);
+            socket.on("error", () => undefined);
+            socket.on("close", resolve);
+            setTimeout(() => socket.end(), 300);
+        });
+        assert.equal(told.length, 1, JSON.stringify(told));
+        assert.notEqual(told[0].parserError, "HPE_INVALID_EOF_STATE");
+    } finally {
+        await listening.close();
+    }
+});
