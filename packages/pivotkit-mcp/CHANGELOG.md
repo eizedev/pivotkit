@@ -6,7 +6,20 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Upgrading from 0.1.1
+
+- Over HTTP with `output.dir` and without `output.baseUrl`, reports come with pivotkit-server's
+  [download links](https://pivotkit.eize.dev/reference/delivery/) under `/downloads/`: route that path
+  to the server, or set `output.downloads.enabled: false`. With `output.baseUrl`, reports over a
+  source with a field that is not `show` carry no `url` any more.
+
 ### Added
+
+- render_view and draft_schedule results with a download link carry it in the text and, after it, as
+  a `resource_link` (MCP 2026-07-28; `size` only for a report the assistant was shown in full)
+  ([#327](https://github.com/eizedev/pivotkit/issues/327)). The HTTP transport serves `/downloads/`
+  before its Origin check and body cap (a browser's form, not an MCP client). Release pivotkit-server
+  first: this version needs its new exports (`createDownloadHandler`, `DOWNLOAD_BODY_BYTES`).
 
 - The exposure policy's level `values` and the opt-in automatic rule (`policy.autoValues`) of
   pivotkit-server ([#362](https://github.com/eizedev/pivotkit/issues/362)); `--check-config` prints

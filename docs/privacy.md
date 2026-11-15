@@ -75,7 +75,9 @@ in once they are an hour old; or clean it up on a schedule of your own; give the
 to pivotkit alone. Reports are written with mode 0644 (less the umask), readable for other local
 users: restrict the directory itself where that matters. Decide how long the log and the reports
 are kept, and who can read the output directory (a web server that serves it, `output.baseUrl`,
-makes every file reachable by its name).
+makes every file reachable by its name). The server's own [download links](reference/delivery.md)
+expire (60 minutes by default) and, for sources with fields that are not shown, open only for the
+person who asked; a link is in the browser's history and a proxy's log until it expires.
 
 ## The AI client { #ai-client }
 

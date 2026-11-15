@@ -36,7 +36,7 @@ holds what it shares with the REST service (sources, policy, workers, output, si
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
 | `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
-| `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows | a new file |
+| `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows; over HTTP a [download link](delivery.md) in the text and as a `resource_link` where the report gets one | a new file |
 | `create_link` | A link that opens the view in the source's report page (only for sources with `link`); a view only, a `layout` is refused with the way to make one (`validate_view`) | - |
 | `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing; a view only, as `create_link` | a new file |
 
@@ -203,7 +203,8 @@ error that names the key and the one probably meant.
 | `files.scopes`, `files.policy` | - | none, the server's | Scopes and policy of `file:` sources |
 | `output.dir` | `--output dir` | none | Where reports and drafts are written; made at start when missing (with its parents, mode 0700: reports may hold what a model may not see; 0755 narrowed by the umask when `output.baseUrl` is set, so the web server can read it), a warning in the log; a missing directory was an error before, now only with `output.create: false` |
 | `output.create` | - | true | `false`: a missing `output.dir` is an error at start instead |
-| `output.baseUrl` | - | none | The address the directory is served at: results carry a `url`, file names start with 22 random characters |
+| `output.baseUrl` | - | none | The address the directory is served at: file names start with 22 random characters, and results over sources whose fields are all `show` carry a `url` (others none: anyone with it could open what the model was not shown) |
+| `output.downloads` | - | on over HTTP | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` (`clientId`, `clientSecret`, `issuer`, `scopes`) |
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold; a new report deletes the oldest reports, whoever made them; drafts are never deleted this way (see [REST](rest.md#running) for the trade-off) |
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
@@ -343,7 +344,8 @@ request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BU
 One JSON line per event on stderr (on stdio, stdout is the protocol): `started` (version, transport,
 address, auth mode, the number of sources, whether files and an output directory are on), `call`
 (tool, source id or the base name of a file, client, `requestId`, `ok`, error code, time in ms),
-`refused` (an HTTP request refused by the Host, Origin or token check, with its status) and
+`download` (a [download link](delivery.md) opened: `via: "link"`, its binding, whether it worked and
+the code, never the token), `refused` (an HTTP request refused by the Host, Origin or token check, with its status) and
 `warning`. `requestId` is random (11 characters), the same on every line of one call and at the end of
 its error. The client
 is the static token's name or the OAuth token's client id, never the person's id: a line takes only
@@ -391,7 +393,7 @@ The server listens on 127.0.0.1 unless `--host` says otherwise, and refuses anot
 authentication unless `--allow-unauthenticated` says the network is trusted. There are no sessions:
 every request gets a fresh server from the shared context. Behind a reverse proxy: keep the server
 on 127.0.0.1 when the proxy runs on the same machine, terminate TLS at the proxy, forward `/mcp`,
-`/.well-known/` and `/`, keep the `Host` header (or add the proxy's name with `--allow-host`), set
+`/.well-known/`, `/downloads/` ([download links](delivery.md)) and `/`, keep the `Host` header (or add the proxy's name with `--allow-host`), set
 `--public-url`, and turn response buffering off for `/mcp`. The server reads no `X-Forwarded-*`
 header: client addresses are in the proxy's log. For IIS with ARR, see
 [PowerShell Universal](../getting-started/mcp.md#psu-iis). For nginx:

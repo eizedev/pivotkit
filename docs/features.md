@@ -164,6 +164,9 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   profiles per token or OAuth client (more values, downloads); CORS off by default; limits per caller
   ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
   [security](security.md#rest), [privacy](privacy.md)).
+- Download links: the server serves each report for a while under a link that expires; for sources
+  whose fields are not all shown only to the person who asked, after signing in with your identity
+  provider ([download links](reference/delivery.md)).
 - One container image for the REST service, the MCP server and the command line: distroless Node 22,
   non-root, read-only, health checks, signed with provenance and an SBOM
   ([container image](reference/container.md), [Kubernetes](getting-started/kubernetes.md)).

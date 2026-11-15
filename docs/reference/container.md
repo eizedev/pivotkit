@@ -51,7 +51,7 @@ docker run -d --name pivotkit \
 | --- | --- |
 | `/config/pivotkit.json` | The configuration (`$PIVOTKIT_CONFIG` names another) |
 | `/data` | The data files, mounted read-only |
-| `/out` | The output directory, writable by the user 10001 (a named volume is; a host folder needs `chown 10001:10001`, and Docker makes a missing one as root, so make it yourself first; `check-config` and the start say so when it is not writable). A directory below it in `output.dir` is made at start, with mode 0700 (0755 narrowed by the umask when `output.baseUrl` is set): only the user 10001 reads it, so a second reader (a web server, a backup) needs `output.baseUrl` or a directory you make yourself |
+| `/out` | The output directory, writable by the user 10001 (a named volume is; a host folder needs `chown 10001:10001`, and Docker makes a missing one as root, so make it yourself first; `check-config` and the start say so when it is not writable). A directory below it in `output.dir` is made at start, with mode 0700 (0755 narrowed by the umask when `output.baseUrl` is set): only the user 10001 reads it, so a second reader (a web server, a backup) needs `output.baseUrl` or a directory you make yourself. The server's own [download links](delivery.md) keep which one-time links were used in `.pivotkit-downloads/` there |
 | `/run/secrets/` | Token files, readable by the user 10001 |
 | `/tmp` | A tmpfs: the root file system stays read-only |
 
@@ -121,6 +121,13 @@ service (an audience mapper in Keycloak, the application ID URI in Entra ID; see
 Until it has loaded the issuer's keys, `/readyz` is 503. It tries again after 2, 4, 8 seconds and so
 on, at most every minute, so after a long outage of the issuer it can take up to a minute to be
 ready again.
+
+The proxy also routes `/downloads/` to the container: reports come back as
+[download links](delivery.md) there. Give the link key as a secret file
+(`"output": { "downloads": { "key": { "file": "/run/secrets/download-key" } } }`), so links survive a
+restart; more than one container needs the same key and one shared `/out` (or one container). For
+sign-in links, add a browser client at the provider with the redirect URI
+`https://reports.example.com/downloads/callback` and `"signIn": { "clientId": "..." }` there.
 
 ## Kubernetes { #kubernetes }
 
