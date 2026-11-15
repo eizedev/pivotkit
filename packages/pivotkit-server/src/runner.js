@@ -49,6 +49,20 @@ async function runMcp(argv, io) {
     return mcp.run(argv, { ...io, env });
 }
 
+/**
+ * $PIVOTKIT_PORT, or undefined when it is not set. A ConfigError when it holds what Kubernetes'
+ * service links put there for a Service named pivotkit (tcp://<address>:<port>), which would
+ * otherwise read as a port that is not a number.
+ * @param {Record<string, string | undefined>} env
+ */
+function portOfEnv(env) {
+    const value = env.PIVOTKIT_PORT;
+    if (value && /^tcp:\/\//i.test(value)) {
+        throw new ConfigError(`PIVOTKIT_PORT is "${value.slice(0, 80)}", which Kubernetes sets for a Service named pivotkit; set enableServiceLinks: false in the pod, or PIVOTKIT_PORT to the port number`);
+    }
+    return value || undefined;
+}
+
 /** GET a health address; 0 when it answers 200. */
 async function healthcheck(url, io) {
     try {
@@ -117,9 +131,12 @@ export async function run(argv, io) {
         }
         if (command === "healthcheck") {
             // the port serve listens on: $PIVOTKIT_PORT, else the configuration file's, else the default
+            if (rest[0]) {
+                return healthcheck(rest[0], io);
+            }
             const configured = io.env[CONFIG_ENV] ? await loadConfig(io.env[CONFIG_ENV]).then((o) => o.http?.port, () => undefined) : undefined;
-            const port = io.env.PIVOTKIT_PORT ?? String(configured ?? DEFAULT_PORT);
-            return healthcheck(rest[0] ?? `http://127.0.0.1:${port}/healthz`, io);
+            const port = portOfEnv(io.env) ?? String(configured ?? DEFAULT_PORT);
+            return healthcheck(`http://127.0.0.1:${port}/healthz`, io);
         }
         if (command === "check-source") {
             return await checkSourceCommand(rest, io);
@@ -133,7 +150,7 @@ export async function run(argv, io) {
         }
         const { options, values } = await optionsFrom(rest, io.env, { flags: SERVER_FLAGS, configEnv: CONFIG_ENV });
         if (io.env.PIVOTKIT_PORT && !values.port && options.http?.port === undefined) {
-            options.http = { ...options.http, port: Number(io.env.PIVOTKIT_PORT) };
+            options.http = { ...options.http, port: Number(portOfEnv(io.env)) };
         }
         if (command === "check-config" || values["check-config"]) {
             const { checkConfig } = await import("./check.js");

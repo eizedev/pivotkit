@@ -203,6 +203,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- `PIVOTKIT_PORT` set to `tcp://<address>:<port>`, as Kubernetes' service links do for a Service
+  named pivotkit: `serve`, `check-config` and `healthcheck` say so and name `enableServiceLinks:
+  false`, instead of "http.port: must be a whole number of 0 or more" (`healthcheck`: a failed
+  request). An empty `PIVOTKIT_PORT` counts as not set for `healthcheck`, as it does for `serve`.
 - A client that leaves while a streamed answer waits (an MCP call over a slow source) frees its
   caller's slot at once, also when it left before the answer started: the stream was only given up
   when the socket was written to, so the slot stayed taken until the call ended.
