@@ -18,6 +18,8 @@ import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
 import { callerOf, createAuthCore, identityKey } from "./auth.js";
 import { offersOf } from "./sources/input.js";
+import { httpSettingsOf } from "./options/http.js";
+import { warnUnreadableSecrets } from "./sources/auth.js";
 import { prune } from "./output.js";
 import { autoValuesFields, noteAutoValues } from "./present.js";
 import { resolvePolicy, withStats } from "./policy.js";
@@ -68,9 +70,11 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
 export async function createContext(options, runtime = {}) {
     validateOptions(options);
     const log = createLog(options.log ?? "info", runtime.stderr ?? process.stderr);
-    const registry = await createRegistry(options).catch((e) => {
+    const registry = await createRegistry(options, { log }).catch((e) => {
         throw e?.code === "ALLOW_DIR_NOT_FOUND" || e?.code === "ALLOW_DIR_NOT_DIRECTORY" ? new ConfigError(`files.allowDirs: ${e.message.replace(/^--allow-dir /, "")}`) : e;
     });
+    // a backend's sign-in whose secret cannot be read: said at start, not first to a caller
+    await warnUnreadableSecrets(options, log, (source) => httpSettingsOf(source).auth);
     let output = null;
     if (options.output?.dir) {
         const wanted = pathOf(options, options.output.dir);

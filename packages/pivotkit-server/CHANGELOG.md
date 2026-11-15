@@ -44,6 +44,23 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Added
 
+- Backend sign-in for HTTP sources ([#329](https://github.com/eizedev/pivotkit/issues/329)):
+  `sources.<id>.http.auth` or `httpSources.backends.<name>.auth` is a header from a secret reference,
+  OAuth client credentials (a client secret, or a JWT client assertion such as a Kubernetes service
+  account token, read on every token request), or an RFC 8693 token exchange for the signed-in
+  person, whose own token goes only to the token endpoint as `subject_token`. Tokens are kept in
+  memory: client credentials per setting, exchanged tokens per person, client and scopes, never past
+  the person's own token or `maxAgeSeconds`; one request per key at a time; a backend's 401 asks once
+  more with a new token. A refused or failed token request answers `SOURCE_UNAVAILABLE` (not retryable, no last good
+  data); only the token endpoint's RFC 6749 error code is logged. `check-config` prints how each
+  sign-in is made and checks its secrets (never a value); `check-source` prints the token endpoint's
+  status, error code, granted scope and `expires_in`. `http.headers` refuses `authorization` and
+  `cookie` with a pointer to `http.auth`.
+- Parameters bound to a claim (`params.<name>.claim`, HTTP and code sources, `auth.mode: "oauth"`):
+  filled from the verified token, checked like a caller's value (a text needs a `pattern` or an
+  `enum`), an email only when verified; never offered, never set by a caller, never said back. Only the claims
+  a parameter names are read from a token (`Caller.claims`). A source with a token exchange or a
+  claim is listed only for a caller with a subject and is not schedulable (`NOT_SCHEDULABLE`).
 - Operator controls ([#331](https://github.com/eizedev/pivotkit/issues/331)):
   `auth.groupProfiles` maps an OAuth token's groups (`auth.groupsClaim`, a list; a text with
   `auth.groupsSeparator`) to policy profiles, the first match winning after a client's profile; a

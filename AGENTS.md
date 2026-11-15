@@ -207,7 +207,11 @@ root `package.json`: `npm run types` and the builds depend on it.
   `http.js` HTTP sources, an operator's backend (`loadHttp`: the requests with guardedFetch,
   `intranet` for private addresses, paging on the same host and path, JSON nested at most `MAX_DEPTH`,
   the rows at a JSON Pointer as a table the worker encodes; `backendAnswer`, a backend's
-  status as a `SourceError`; `httpMeans`, the tests' fetch); `template.js` an HTTP source's address
+  status as a `SourceError`; `httpMeans`, the tests' fetch); `auth.js` a backend's sign-in
+  (`backendHeaders`: a header from a secret, client credentials, the token exchange through
+  auth.js `exchangeTokenFor`; the token cache per setting or per person, client and scopes;
+  `dropToken` after a backend's 401; `personBound` and `isPerson`, which sources only a signed-in
+  person sees, none schedulable); `template.js` an HTTP source's address
   (`compileTemplate` at start, `expandUrl`: RFC 6570 simple expansion, the template's origin and
   shape kept); `inline.js` data sent in the request (the reserved id `inline:`, the
   kind "inline": `checkTable`, the MCP cap `MCP_DATA_CAP` and `mcp.data`, who may send it
