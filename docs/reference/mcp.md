@@ -295,7 +295,7 @@ A parameter has a `type` (`string`, `integer`, `number`, `boolean`) and may have
 `default`, `description`, `example`, `enum`, `pattern`, `minLength`, `maxLength` (strings: 64 unless
 set, at most 256), `minimum`, `maximum` and `format: "date"`; at most 16 per source, names letters,
 digits and `_`. A `pattern` is matched against the whole value (as if written `^(?:...)$`) and may
-not repeat a group without a bound (`(a|b)*`, `(ab)+`; repeat a character or a class, `[ab]*`, or bound the group, `(ab){1,5}`); a string without `pattern` or `enum`
+not repeat a group (`(a|b)*`, `(ab)+`, `(ab){1,3}`; repeat a character or a class, `[ab]*`, or make the group optional, `(-x)?`). Every match runs with a time limit of 25 ms: a pattern that takes longer on values made to be slow is refused at start, and a value it cannot check in time is `INVALID_INPUT`; a string without `pattern` or `enum`
 takes letters, digits and `. _ ~ -` only, and no string value may hold `..` or a control character. `list_sources` lists a source's parameters, and the tools that take a source take `params` only
 when a configured source declares any. A missing required value, an unknown name or a value of the
 wrong form is `INVALID_INPUT` naming the parameter. `createHttpHandler(context, { env })`

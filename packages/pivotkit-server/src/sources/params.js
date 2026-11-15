@@ -11,6 +11,7 @@
  *   paramsList(declared)                       what list_sources says about them
  */
 
+import { createContext, Script } from "node:vm";
 import { LIMITS } from "pivotkit-core";
 import { OperationError } from "pivotkit-report/operations";
 
@@ -43,10 +44,13 @@ export const PATTERN_MAX = 256;
 export const compilePattern = (pattern) => new RegExp(`^(?:${pattern})$`, "u");
 
 /**
- * Whether a pattern repeats a group without a bound ("(a|a)*", "(?:a|aa)+", "(ab){2,}"). Such a group
- * can match one text in many ways, and a backtracking engine tries them all: some values take
- * seconds or longer, in the server's main thread. A quantifier without a bound is allowed on a single
- * character, an escape or a class only; a group may take a bounded one ("(ab){1,3}", "(-x)?").
+ * Whether a pattern repeats a group ("(a|a)*", "(?:a|aa)+", "(a|a){1,60}", "(ab){2}"). A repeated
+ * group can match one text in many ways, bounded or not, and a backtracking engine tries them all:
+ * some values take seconds or longer, in the server's main thread. A group may only be optional
+ * ("(-x)?", "(-x){0,1}"); any quantifier is allowed on a single character, an escape or a class.
+ * Syntax alone cannot catch every slow pattern ("\d*\d*\d*x" is slow without a group), so every
+ * match also runs under a time limit (matchWithin) and declaredProblems tries each pattern on
+ * values made to be slow.
  * @param {string} pattern
  */
 export function repeatsGroup(pattern) {
@@ -59,8 +63,57 @@ export function repeatsGroup(pattern) {
             inClass = c !== "]";
         } else if (c === "[") {
             inClass = true;
-        } else if (c === ")" && /^(?:[*+]|\{\d+,\})/u.test(pattern.slice(i + 1))) {
+        } else if (c === ")" && /^(?:[*+]|\{(?!0,1\})\d*(?:,\d*)?\})/u.test(pattern.slice(i + 1))) {
             return true;
+        }
+    }
+    return false;
+}
+
+/** The longest an operator's pattern may run on one value, in ms. */
+export const MATCH_MS = 25;
+
+/** Where operator patterns run: a context of their own, so the time limit can stop one. */
+const sandbox = createContext(Object.create(null));
+const MATCH = new Script("re.test(text)");
+
+/**
+ * Whether a pattern matches a text, run with a time limit of MATCH_MS (node:vm's timeout, which
+ * interrupts a running regular expression): true, false, or null when it took longer.
+ * @param {RegExp} re
+ * @param {string} text
+ * @returns {boolean | null}
+ */
+export function matchWithin(re, text) {
+    sandbox.re = re;
+    sandbox.text = text;
+    try {
+        return Boolean(MATCH.runInContext(sandbox, { timeout: MATCH_MS }));
+    } catch (e) {
+        if (/** @type {any} */ (e)?.code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
+            return null;
+        }
+        throw e;
+    } finally {
+        sandbox.re = undefined;
+        sandbox.text = undefined;
+    }
+}
+
+/**
+ * Whether a pattern is slow on some value of up to `length` characters: tried on runs of letters,
+ * digits, spaces, punctuation and each character the pattern names, each followed by a character
+ * that ends a match late ("!").
+ * @param {RegExp} re
+ * @param {number} length
+ */
+function slowOn(re, length) {
+    const chars = new Set(["a", "1", " ", "-", "_", ".", ...String(re.source).replace(/\\./gu, "").replace(/[\\^$.|?*+()[\]{}]/gu, "")]);
+    for (const c of chars) {
+        for (const tail of ["!", "\u0000", ""]) {
+            if (matchWithin(re, `${c.repeat(Math.max(length - 1, 1))}${tail}`) === null) {
+                return true;
+            }
         }
     }
     return false;
@@ -131,14 +184,18 @@ export function declaredProblems(declared) {
             } else if (p.pattern.length > PATTERN_MAX) {
                 fail(`pattern has at most ${PATTERN_MAX} characters`);
             } else if (repeatsGroup(p.pattern)) {
-                fail("pattern repeats a group without a bound (such as (a|b)* or (ab)+), which can take very long on some values; repeat single characters or classes ([ab]*), or bound the group ({1,5})");
+                fail("pattern repeats a group (such as (a|b)*, (ab)+ or (ab){1,3}), which can take very long on some values; repeat single characters or classes ([ab]*), or make the group optional only ((-x)?)");
             } else {
+                let re = null;
                 try {
                     // the pattern alone, so it cannot close the anchoring group around it ("a)|(b")
                     new RegExp(p.pattern, "u");
-                    compilePattern(p.pattern);
+                    re = compilePattern(p.pattern);
                 } catch {
                     fail("pattern is not a valid regular expression");
+                }
+                if (re && slowOn(re, Number.isSafeInteger(p.maxLength) ? Math.min(p.maxLength, PARAM_LIMITS.length) : PARAM_LIMITS.defaultLength)) {
+                    fail(`pattern takes too long on some values (over ${MATCH_MS} ms); write it so that one value can match it in one way only`);
                 }
             }
         }
@@ -297,7 +354,9 @@ function valueOf(name, p, value) {
             if (!day || Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== text) fail("must be a date (YYYY-MM-DD)");
         } else if (p.regex) {
             // an operator's pattern, anchored, runs on at most PARAM_LIMITS.length characters (maxLength holds)
-            if (!p.regex.test(text)) fail("is not in the form the source takes");
+            const matched = matchWithin(p.regex, text);
+            if (matched === null) fail("could not be checked in time; send a shorter or simpler value");
+            if (!matched) fail("is not in the form the source takes");
         } else if (!p.enum && !SAFE_TEXT.test(text)) {
             fail('may hold letters, digits and . _ ~ - only (the operator sets a pattern for other values)');
         }

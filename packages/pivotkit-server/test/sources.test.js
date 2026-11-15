@@ -12,7 +12,7 @@ import { errorDetails, newRequestId, requestId, withRequestId } from "../src/req
 import { asOfMembers, asOfSentence, asOfText } from "../src/sources/as-of.js";
 import { INLINE_ID, kindOf } from "../src/sources/index.js";
 import { canonicalJson, tableKeyOf } from "../src/sources/keys.js";
-import { declaredProblems, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
+import { MATCH_MS, declaredProblems, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
 import { TOKEN, call, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
@@ -439,11 +439,11 @@ test("delivery: a source the automatic values rule may apply to counts as closed
 });
 
 test("params: a pattern may not repeat a group without a bound (slow on some values), nor escape its anchors", () => {
-    for (const pattern of ["(a|a)*b", "(?:a|aa)+$", "(ab){2,}", "(x)+", "([a-z]|-)*"]) {
+    for (const pattern of ["(a|a)*b", "(?:a|aa)+$", "(ab){2,}", "(x)+", "([a-z]|-)*", "(a|a){1,60}b", "((a|a){1,8}){1,8}b", "(?:a{1,40}){1,40}b", "(ab){1,3}", "(ab){2}"]) {
         assert.match(declaredProblems({ x: { type: "string", pattern } }).join(), /repeats a group/, pattern);
     }
-    // a quantifier on a single atom or class, and a bounded one on a group, stay allowed
-    for (const pattern of ["[a-z]+", "a*b", "\\d{2,}", "(ab){1,3}", "(-[a-z]{2})?", "[(]+", "\\(+"]) {
+    // a quantifier on a single atom or class, and an optional group, stay allowed
+    for (const pattern of ["[a-z]+", "a*b", "\\d{2,}", "(-[a-z]{2})?", "(-[a-z]{2}){0,1}", "[(]+", "\\(+"]) {
         assert.deepEqual(declaredProblems({ x: { type: "string", pattern } }), [], pattern);
     }
     assert.match(declaredProblems({ x: { type: "string", pattern: "a)|(b" } }).join(), /not a valid regular expression/);
@@ -471,4 +471,22 @@ test("a code source with params keeps its data per client and groups too, not on
     } finally {
         await context.close();
     }
+});
+
+test("params: an operator's pattern never runs unbounded: a slow one is refused at start, a slow match at run time", () => {
+    // passes the syntax rules, but takes polynomial time on a long run of digits
+    const slow = "\\d*\\d*\\d*\\d*\\d*\\d*x";
+    assert.match(declaredProblems({ x: { type: "string", pattern: slow, maxLength: 256 } }).join(), /takes too long/);
+    // the time limit really interrupts a running regular expression (here one the rules would refuse)
+    for (const [pattern, text] of [["(a|a){1,60}b", `${"a".repeat(40)}!`], ["(?:a{1,40}){1,40}b", `${"a".repeat(40)}!`], [slow, `${"1".repeat(256)}!`]]) {
+        const started = Date.now();
+        assert.equal(matchWithin(new RegExp(`^(?:${pattern})$`, "u"), text), null, pattern);
+        assert.ok(Date.now() - started < MATCH_MS * 10, `${pattern}: cut after ${Date.now() - started} ms`);
+    }
+    assert.equal(matchWithin(/^[a-z]+$/u, "abc"), true);
+    assert.equal(matchWithin(/^[a-z]+$/u, "ab1"), false);
+    // a declaration that skipped the check (a host's own code): the value is refused, in time
+    const started = Date.now();
+    assert.throws(() => normalizeParams({ x: { type: "string", pattern: "(a|a){1,60}b", maxLength: 64 } }, { x: `${"a".repeat(40)}!` }, null, "s"), (e) => e.code === "INVALID_INPUT" && /could not be checked/.test(e.message));
+    assert.ok(Date.now() - started < 1000);
 });
