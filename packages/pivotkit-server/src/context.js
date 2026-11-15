@@ -17,7 +17,7 @@ import { createComputer } from "./compute.js";
 import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
 import { createAuthCore, profileOf } from "./auth.js";
-import { prune } from "./present.js";
+import { prune } from "./output.js";
 
 /** Why an output directory inside (or holding) an allowed directory is refused. */
 export const OUTPUT_INSIDE_ALLOWED = "output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them";
