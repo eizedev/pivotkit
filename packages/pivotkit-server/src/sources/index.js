@@ -35,5 +35,5 @@ export const kindOf = (source) => (source.http ? "http" : source.load ? "code" :
  */
 export function runResolved(context, op, input, resolved, caller) {
     const base = { link: resolved.link, template: resolved.template, locale: context.options.locale, timeZone: context.options.timeZone };
-    return KINDS[/** @type {"file" | "code" | "http"} */ (resolved.sourceKind)].run(context.computer, op, withoutExtras(input), resolved, base, caller);
+    return KINDS[/** @type {"file" | "code" | "http"} */ (resolved.sourceKind)].run(context.computer, op, withoutExtras(input), resolved, base, caller, context.log);
 }

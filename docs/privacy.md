@@ -57,9 +57,12 @@ With OAuth the server reads who the person is from the token (`auth.subjectClaim
 and its issuer. It keeps them in memory only, to keep a code source's data per person (as a keyed
 hash that means nothing outside the process), and does not log them unless you set `audit.subject`
 (below). With `auth.groupProfiles` it reads the person's groups to choose a profile and logs none of
-them. A library host's code source
-that declares `params` receives them as `caller.subject` and `caller.issuer`: what it does with them
-is the host's decision. The access token itself goes to no source.
+them. A library host's code source receives them as `caller.subject` and `caller.issuer` (unless it
+is shared by all callers, `cacheShared`): what it does with them is the host's decision. The access
+token itself goes to no source. The data a code source loaded is kept in the server's memory per
+person (at most 64 loads and 256 MiB in all) until newer loads push it out, also after its
+`maxStale` has passed or the person lost access: it is not given to anyone then, but it stays in
+memory until it is pushed out or the process restarts.
 
 ## Logs and retention { #retention }
 

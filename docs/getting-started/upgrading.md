@@ -147,7 +147,8 @@ Then restart Claude Code.
 ## From 0.6.1 to the next release { #from-0-6-1 }
 
 Operators of pivotkit-server and pivotkit-mcp need not act: every field keeps its level, and the
-automatic values rule and the new operator controls are off. What callers notice:
+automatic values rule and the new operator controls are off. Library hosts with code sources check
+[Code sources](#code-sources). What callers notice:
 
 - a filter item that is none of a `show` field's values gets the warning `itemUnknown` where
   `describe_source` lists all of them, and `itemCase` comes for a `show` field also when the view
@@ -163,6 +164,7 @@ automatic values rule and the new operator controls are off. What callers notice
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
 | [Request ids](#request-ids) | you parse the log or MCP tool errors, or a program reads problem documents | accept the new members and the id at the end of a tool error |
+| [Code sources](#code-sources) | you embed pivotkit-server or pivotkit-mcp with a source that has `load` | check the time limit, the per-caller cache and `cacheShared`; read `stale` |
 
 ### Data as of in files { #data-as-of-files }
 
@@ -225,6 +227,32 @@ to the operator. On MCP an `INTERNAL` error says "internal error", as REST does,
 words. A body over the cap gets a `refused` log line. `check-config` warns of a static token's file
 that other users of the machine can read, and closes with "New in this version" where a change
 applies to the configuration.
+
+### Code sources { #code-sources }
+
+For library hosts whose sources have `load` ([code sources](../reference/sources.md#code)), when
+they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next release:
+
+- `load` is called as `load(params, { caller, signal })` and `version` as `version(params,
+  { caller })`, also without declared `params` (then `{}`). A `load()` that takes no arguments works
+  as it is; one whose first parameter has a default of its own now gets `{}` there. A `version`
+  that returns a promise is refused (`SOURCE_UNAVAILABLE`): return the value itself.
+- A load is aborted after 30 s (`timeMs`, at most ten minutes); pass `signal` on to `fetch` or your
+  database client.
+- Loaded data is kept per caller (and per values and policy levels), not per source: a `load` that
+  gives every caller the same data sets `cacheShared: true` (it then gets `caller: null`). Without
+  `version` and `ttl` nothing is reused, as before; parallel calls for the same data share one load.
+- A load that fails transiently (the time limit, a network error, a `SourceError` with `transient`)
+  answers with the data last loaded for that caller, up to an hour old, and `stale: { since }` in
+  the result; `maxStale: 0` turns it off.
+- An error a load throws answers `SOURCE_UNAVAILABLE` (502) with a fixed text instead of `INTERNAL`
+  (500); throw a `SourceError` to answer `NOT_ALLOWED`, `INVALID_INPUT` or `DATA_NOT_AVAILABLE` with
+  your own words.
+- The data has a file's limits: `limits.rows`, `limits.columns`, `limits.importCells`
+  (`LIMIT_EXCEEDED`), and texts are cut at `limits.textLength`.
+
+`check-config` given these options lists each code source with its time limit and how its data is
+kept.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 

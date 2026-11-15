@@ -34,10 +34,8 @@ export { ConfigError } from "./options/shared.js";
  */
 
 /**
- * @typedef {object} SourceOptions
+ * @typedef {object} SourceOptionsBase  what every source takes; SourceOptions adds load, version and cacheShared
  * @property {string} [file]  a CSV, TSV, JSON or XLSX file (relative to the config file)
- * @property {() => Promise<unknown>} [load]  a library host's loader: rows, columnar data or encode()'s result (instead of file)
- * @property {() => unknown} [version]  with load: changes when the data changes (the cache's key)
  * @property {string} [title]
  * @property {string} [description]
  * @property {string} [sheet]  a workbook's sheet
@@ -48,9 +46,17 @@ export { ConfigError } from "./options/shared.js";
  * @property {PolicyOptions} [policy]
  * @property {Record<string, { type: "string" | "integer" | "number" | "boolean", required?: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number, format?: "date", default?: string | number | boolean }>} [params]  values a caller passes with the source (a code source gets them: load(params, { caller }))
  * @property {Record<string, { description?: string }>} [fields]  the operator's words about fields, shown by describe_source (at most 500 characters each)
- * @property {number} [ttl]  code sources: seconds a load is kept (taken, not used yet)
- * @property {number} [maxStale]  code sources: seconds the last good data stands in after a failed load (taken, not used yet)
- * @property {number} [timeMs]  code sources: the longest load, in ms (taken, not used yet)
+ * @property {number} [ttl]  code sources: seconds a load is reused (default: only while version() gives the same)
+ * @property {number} [maxStale]  code sources: seconds the last good data stands in after a transient failure (default 3600; 0: never)
+ * @property {number} [timeMs]  code sources: the longest load, in ms (default 30000; the signal is aborted then)
+ */
+
+/**
+ * A source: a file, or a library host's code source (load instead of file; sources/code.js), whose
+ * load gets the caller unless cacheShared is true (then null: one copy of the data for all callers).
+ * version is called at once on every call (never awaited) and must be cheap; kept data is reused
+ * while it gives the same value.
+ * @typedef {SourceOptionsBase & ({ load?: import("./sources/code.js").SourceLoad, version?: import("./sources/code.js").SourceVersion, cacheShared?: false } | { load: import("./sources/code.js").SharedSourceLoad, version?: import("./sources/code.js").SharedSourceVersion, cacheShared: true })} SourceOptions
  */
 
 /**

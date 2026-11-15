@@ -19,7 +19,7 @@ const treeOf = (schema) =>
 test("options: the composed table is today's, in today's order, plus the shared source keys and the features' keys", () => {
     const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
     const expected = structuredClone(before);
-    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer" });
+    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer", cacheShared: "boolean" });
     // the operator's controls (options/operator.js): after the base's keys, in the fragment's order
     Object.assign(expected.auth.object, { groupsClaim: "string", groupsSeparator: "string", groupProfiles: { list: { object: { group: "string", profile: "string" } } }, defaultProfile: "string", offerSourceScopes: "boolean" });
     expected.audit = { object: { subject: { enum: ["off", "hash", "plain"] }, key: { custom: "fn" } } };
@@ -100,7 +100,7 @@ test("check sections: problems are counted, warnings are not, and New in this ve
     assert.deepEqual(none, { lines: [], problems: 0, upgrade: [] });
 });
 
-test("check-config: today's configurations print exactly what they printed before (no section line, no New in this version)", async () => {
+test("check-config: today's configurations print exactly what they printed before, plus the code sources' section and its note in New in this version", async () => {
     const dir = workspace({ "sales.csv": "Region,Product,Customer,Sales\nNorth,A,Alice,10\nSouth,B,Bob,20\n" });
     const options = {
         sources: { sales: { file: "data/sales.csv", title: "Sales", scopes: ["sales:read"], policy: { default: "show", fields: { Customer: "hide" } } }, gone: { file: "data/missing.csv" }, code: { load: async () => [] } },
@@ -111,9 +111,21 @@ test("check-config: today's configurations print exactly what they printed befor
     };
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: "x".repeat(40) }, name: "pivotkit-server", rest: true });
     const golden = readFileSync(new URL("./fixtures/check-config-before-fragments.txt", import.meta.url), "utf8");
-    assert.equal(result.text.split(dir).join("<dir>"), golden);
+    // the configuration has a code source, whose behaviour changes in this version: its section and
+    // its upgrade note are the only lines added
+    const code = [
+        "Code sources (1):",
+        "  code: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure"
+    ];
+    const upgrade = [
+        "",
+        "New in this version (what changes with this configuration; https://pivotkit.eize.dev/getting-started/upgrading/):",
+        "  - Code sources: load gets (params, { caller, signal }) and is aborted after timeMs (default 30000 ms); a failing load answers SOURCE_UNAVAILABLE (502), not INTERNAL; data is kept per caller unless cacheShared; after a transient failure last good data up to maxStale (default 3600 s) stands in"
+    ];
+    const expected = golden.replace("\n\n1 problem: see NOT FOUND above.\n", `\n${code.join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
+    assert.notEqual(expected, golden);
+    assert.equal(result.text.split(dir).join("<dir>"), expected);
     assert.equal(result.problems, 1);
-    assert.doesNotMatch(result.text, /New in this version/);
 });
 
 test("check-config: a section's problem is counted with the others and its upgrade lines close the text", async () => {

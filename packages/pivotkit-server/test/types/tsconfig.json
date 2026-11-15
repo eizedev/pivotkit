@@ -9,5 +9,5 @@
     "types": ["node"],
     "skipLibCheck": false
   },
-  "files": ["consumer.ts"]
+  "files": ["consumer.ts", "sources-example.ts"]
 }
