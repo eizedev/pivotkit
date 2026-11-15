@@ -15,7 +15,7 @@ import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
 import { sourceStats } from "./stats.js";
 import { asOfText } from "./sources/as-of.js";
-import { isOwnError, ownError } from "./sources/run.js";
+import { ownError } from "./sources/run.js";
 
 /**
  * What a worker or the main thread needs to read a source.
@@ -131,98 +131,126 @@ export async function fileData(spec) {
 /** A loaded table over a limit (limits.rows, limits.columns, limits.importCells), as pivotkit-core words it. */
 const overLimit = (limit, value, max, what) => ownError(new OperationError("LIMIT_EXCEEDED", `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (limits.${limit})`));
 
-/** A value cut to the longest text a loaded table may hold. */
-const cut = (value, max) => (typeof value === "string" && value.length > max ? value.slice(0, max) : value);
+/**
+ * A host's value as a plain value encode() reads without running the host's code: text cut at the
+ * longest a loaded table may hold, a Date copied, any other object written as encode writes it
+ * (JSON) and cut too. Reading it may run the host's code (a getter, toJSON): its errors are the
+ * source's.
+ */
+function plainOf(value, max) {
+    if (value === null || value === undefined || typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+        return value;
+    }
+    if (typeof value === "string") {
+        return value.length > max ? value.slice(0, max) : value;
+    }
+    if (value instanceof Date) {
+        return new Date(Date.prototype.getTime.call(value));
+    }
+    let text;
+    try {
+        text = typeof value === "object" ? (JSON.stringify(value) ?? "") : String(value);
+    } catch {
+        // as encode does with a value it cannot write
+        text = "";
+    }
+    return text.length > max ? text.slice(0, max) : text;
+}
+
+/** A row's own keys, at most `max` of them: one key more than that ends the count. */
+function keysOf(row, max) {
+    const keys = [];
+    for (const key in row) {
+        if (Object.hasOwn(row, key)) {
+            keys.push(key);
+            if (keys.length > max) {
+                break;
+            }
+        }
+    }
+    return keys;
+}
 
 /**
- * What a code source's load() gave, checked against the run limits a file has (rows, columns, cells)
- * and its texts cut at limits.textLength, on a copy: rows (`[{...}]` or `{ rows, asOf }`) or
- * columnar data (`{ columns, types?, data, asOf? }`), with its asOf.
+ * What a code source's load() gave, read once into plain values (the host's code, getters and toJSON,
+ * runs only here, and its errors are the source's): checked against the run limits a file has (rows
+ * before any is read, columns, cells), texts cut at limits.textLength, hidden fields left out. Rows
+ * (`[{...}]` or `{ rows, asOf }`) or columnar data (`{ columns, types?, data, asOf? }`).
  * @param {unknown} loaded
- * @param {Partial<import("pivotkit-core").Limits>} given  the server's limits
- * @returns {{ rows: Array<Record<string, unknown>> | null, columnar: { columns: string[], types?: string[], data: unknown[][] } | null, asOf: unknown }}
+ * @param {SourceSpec} spec
+ * @returns {{ rows: Array<Record<string, unknown>> | null, columnar: { columns: string[], types?: string[], data: unknown[][] } | null, asOf: unknown, hidden: number }}
  */
-function loadedTable(loaded, given) {
-    const limits = { ...LIMITS, ...given };
+function loadedTable(loaded, spec) {
+    const limits = { ...LIMITS, ...spec.limits };
     const shape = /** @type {any} */ (loaded);
     const rows = Array.isArray(shape) ? shape : shape && typeof shape === "object" && Array.isArray(shape.rows) && !Array.isArray(shape.columns) ? shape.rows : null;
+    const asOf = plainAsOf(Array.isArray(shape) ? undefined : shape?.asOf);
     if (rows) {
         if (rows.length > limits.rows) {
             throw overLimit("rows", rows.length, limits.rows, "rows");
         }
         const keys = new Set();
-        let long = false;
+        /** @type {string[][]} */
+        const rowKeys = [];
         for (const row of rows) {
-            for (const [k, v] of Object.entries(row ?? {})) {
+            const own = row !== null && typeof row === "object" ? keysOf(row, limits.columns) : [];
+            for (const k of own) {
                 keys.add(k);
-                long ||= typeof v === "string" && v.length > limits.textLength;
             }
             if (keys.size > limits.columns) {
                 throw overLimit("columns", keys.size, limits.columns, "columns");
             }
+            rowKeys.push(own);
         }
         if (rows.length * keys.size > limits.importCells) {
             throw overLimit("importCells", rows.length * keys.size, limits.importCells, "cells");
         }
-        const copy = long ? rows.map((r) => Object.fromEntries(Object.entries(r ?? {}).map(([k, v]) => [k, cut(v, limits.textLength)]))) : rows;
-        return { rows: copy, columnar: null, asOf: Array.isArray(shape) ? undefined : shape.asOf };
+        const hide = new Set(hiddenOf(spec.levels, [...keys]));
+        const copy = rows.map((row, i) => Object.fromEntries(rowKeys[i].filter((k) => !hide.has(fieldKey(k))).map((k) => [k, plainOf(row[k], limits.textLength)])));
+        return { rows: copy, columnar: null, asOf, hidden: hide.size };
     }
     if (!shape || typeof shape !== "object" || typeof shape.column === "function" || !Array.isArray(shape.columns) || !Array.isArray(shape.data)) {
         throw ownError(new OperationError("INTERNAL", "a code source returns rows, { rows, asOf } or columnar data ({ columns, types, data, asOf }), not encoded data, so hidden fields can be dropped"));
+    }
+    if (shape.columns.length > limits.columns) {
+        throw overLimit("columns", shape.columns.length, limits.columns, "columns");
     }
     const count = shape.data.reduce((n, column) => Math.max(n, Array.isArray(column) ? column.length : 0), 0);
     if (count > limits.rows) {
         throw overLimit("rows", count, limits.rows, "rows");
     }
-    if (shape.columns.length > limits.columns) {
-        throw overLimit("columns", shape.columns.length, limits.columns, "columns");
-    }
     if (count * shape.columns.length > limits.importCells) {
         throw overLimit("importCells", count * shape.columns.length, limits.importCells, "cells");
     }
-    const data = shape.data.map((column) => (Array.isArray(column) && column.some((v) => typeof v === "string" && v.length > limits.textLength) ? column.map((v) => cut(v, limits.textLength)) : column));
-    return { rows: null, columnar: { columns: shape.columns, types: shape.types, data }, asOf: shape.asOf };
+    const columns = Array.from(shape.columns, (c) => String(plainOf(c, limits.textLength)));
+    const types = Array.isArray(shape.types) ? Array.from(shape.types, (t) => (typeof t === "string" ? t : undefined)) : undefined;
+    const data = columns.map((_, i) => (Array.isArray(shape.data[i]) ? Array.from(shape.data[i], (v) => plainOf(v, limits.textLength)) : []));
+    const hide = hiddenOf(spec.levels, columns);
+    return { rows: null, columnar: withoutHidden({ columns, types, data }, hide), asOf, hidden: hide.length };
 }
+
+/** A host's asOf as a plain value (a Date read without its own methods). */
+const plainAsOf = (value) => (value instanceof Date ? Date.prototype.getTime.call(value) : typeof value === "string" || typeof value === "number" ? value : undefined);
 
 /**
  * A code source's loaded data (what its load() gave), checked against the run limits, hidden fields
  * dropped and encoded; asOf the source's own (parsed, sources/as-of.js), else now. Keeping and
- * reusing it is sources/run.js's. pivotkit's own errors are marked (ownError); anything else thrown
- * here comes from the host's data (a getter of its rows) and is the source's failure.
+ * reusing it is sources/run.js's. Errors of pivotkit's own checks and of encoding the plain copy are
+ * marked (ownError); an error of the host's code while its data is read is the source's failure.
  * @param {SourceSpec} spec
  * @param {unknown} loaded
+ * @returns {import("pivotkit-report/operations").SourceData & { hidden: number, stats: import("./stats.js").SourceStats }}
  */
 export function codeTable(spec, loaded) {
+    // the host's code runs here: its errors pass unmarked
+    const { rows, columnar, asOf, hidden } = loadedTable(loaded, spec);
     try {
-        const { rows, columnar, asOf } = loadedTable(loaded, spec.limits);
-        let data;
-        let hide;
-        if (rows) {
-            // rows: the hidden keys dropped from a copy of each row
-            const keys = new Set();
-            for (const row of rows) {
-                for (const k of Object.keys(row ?? {})) {
-                    keys.add(k);
-                }
-            }
-            hide = hiddenOf(spec.levels, [...keys]);
-            const kept = hide.length ? rows.map((r) => Object.fromEntries(Object.entries(r ?? {}).filter(([k]) => !hide.includes(fieldKey(k))))) : rows;
-            data = encode(kept, { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        } else {
-            const table = /** @type {{ columns: string[], types?: string[], data: unknown[][] }} */ (columnar);
-            hide = hiddenOf(spec.levels, table.columns);
-            data = encode(/** @type {any} */ (withoutHidden(table, hide)), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        }
+        const data = encode(/** @type {any} */ (rows ?? columnar), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
         // when the host says the data is from, else when load() gave it
-        return { data, notes: [], hidden: hide.length, asOf: (asOf !== undefined ? asOfText(asOf) : null) ?? asOfText(new Date()), stats: sourceStats(data), name: spec.name, schedulable: spec.schedulable };
+        return { data, notes: [], hidden, asOf: (asOf !== undefined ? asOfText(asOf) : null) ?? asOfText(new Date()), stats: sourceStats(data), name: spec.name, schedulable: spec.schedulable };
     } catch (e) {
-        if (isOwnError(e)) {
-            throw e;
-        }
-        if (e instanceof PivotkitError) {
-            throw ownError(asOperationError(e, spec.name));
-        }
-        throw e;
+        // only plain values are encoded here: whatever fails is pivotkit's
+        throw ownError(e instanceof PivotkitError ? asOperationError(e, spec.name) : new OperationError("INTERNAL", "internal error"));
     }
 }
 

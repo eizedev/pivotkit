@@ -340,6 +340,7 @@ gives it to the operator. An error of a source or a store that failed (`SOURCE_U
 | 404 | <a id="error-not-found"></a>`NOT_FOUND` | No such route |
 | 404 | <a id="error-source-not-found"></a>`SOURCE_NOT_FOUND` | No such source, or one the caller lacks the scopes for |
 | 404 | <a id="error-file-not-available"></a>`FILE_NOT_AVAILABLE` | The source's file is missing or changed while read |
+| 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](sources.md#code-errors)) |
 | 405 | <a id="error-method-not-allowed"></a>`METHOD_NOT_ALLOWED` | GET for a POST route or the other way round (`Allow` names the method) |
 | 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | 409 | <a id="error-no-link"></a>`NO_LINK`, <a id="error-not-schedulable"></a>`NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a source that cannot have one |
@@ -347,12 +348,11 @@ gives it to the operator. An error of a source or a store that failed (`SOURCE_U
 | 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form); a source file in no data format |
 | 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file or print template (`sources.<id>.template`, a [print template](print-template.md) whose `--pk-*` colours reach the chart, [options](mcp.md)) cannot be used |
 | 422 | <a id="error-view-has-errors"></a>`VIEW_HAS_ERRORS` | The file route for a view with errors (with `findings`) |
+| 422, 502 | <a id="error-data-mismatch"></a>`DATA_MISMATCH`, <a id="error-upload-failed"></a>`UPLOAD_FAILED` | Reserved for data sent in a request and delivery that stores reports elsewhere; this version does not answer them |
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else; the details only in the log with `--log debug` |
-| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free; starting or stopping; the OAuth issuer not loaded yet |
-| 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](sources.md#code-errors)) |
 | 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code source's load failed, took longer than its `timeMs` or has too many loads running; `retryable` says whether trying again may work |
-| 422, 502 | <a id="error-data-mismatch"></a>`DATA_MISMATCH`, <a id="error-upload-failed"></a>`UPLOAD_FAILED` | Reserved for data sent in a request and delivery that stores reports elsewhere; this version does not answer them |
+| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free; starting or stopping; the OAuth issuer not loaded yet |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 
 ## The OpenAPI document { #openapi }

@@ -203,7 +203,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   one copy, caller null); `run.js` how data loaded in the main thread is loaded (`runLoad`: time
   limit with the signal aborted, coalescing, load limits per source and identity, kept data, last good
   data after a transient failure only; `SourceError` and `sourceFailure`, what a caller gets of a
-  source's error); `cache.js` the process cache of loaded data (64 entries, 256 MiB, 8 per identity);
+  source's error); `cache.js` the process cache of loaded data (64 entries, 256 MiB; per owner 8 entries and a quarter of the bytes, its own oldest out first);
   `http.js` and `inline.js` (the
   reserved id `inline:`) not offered yet; `params.js` a source's parameters: `declaredProblems`,
   `paramSchemaOf`, `normalizeParams`, `paramsList`; `input.js` the extra inputs (`params`) a surface

@@ -484,22 +484,29 @@ test("options: cacheShared only for a code source; timeMs at most ten minutes; t
     assert.doesNotMatch((await checkConfig({ sources: { f: { file: "x.csv" } } }, { http: false })).text, /Code sources|New in this version/);
 });
 
-test("the load cache: least recently used out, at most 8 entries per identity, a byte budget; encoded data measured", () => {
+test("the load cache: least recently used out, at most 8 entries and a quarter of the bytes per owner, its own entries first; encoded data measured", () => {
     const cache = createLoadCache({ entries: 4, bytes: 100, perIdentity: 2 });
     cache.set("a1", 1, { identity: "a", bytes: 10 });
     cache.set("a2", 2, { identity: "a", bytes: 10 });
     cache.set("a3", 3, { identity: "a", bytes: 10 });
-    assert.equal(cache.get("a1"), undefined, "a third entry of one identity pushes out its oldest");
+    assert.equal(cache.get("a1"), undefined, "a third entry of one owner pushes out its oldest");
     assert.equal(cache.get("a2"), 2);
     cache.set("b1", 4, { identity: "b", bytes: 10 });
     cache.set("c1", 5, { identity: "c", bytes: 10 });
     assert.equal(cache.size().entries, 4);
     cache.set("d1", 6, { identity: "d", bytes: 10 });
     assert.equal(cache.get("a3"), undefined, "the least recently used of all goes");
-    cache.set("big", 7, { identity: "e", bytes: 80 });
+    // one owner over its share (25 of 100 bytes) pushes out its own entries, never the others'
+    cache.set("e1", 7, { identity: "e", bytes: 20 });
+    cache.set("e2", 8, { identity: "e", bytes: 20 });
+    assert.equal(cache.get("e1"), undefined);
+    assert.equal(cache.get("e2"), 8);
+    for (const key of ["b1", "c1", "d1"]) {
+        assert.notEqual(cache.get(key), undefined, key);
+    }
+    cache.set("huge", 9, { identity: "f", bytes: 26 });
+    assert.equal(cache.get("huge"), undefined, "larger than an owner's share: not kept");
     assert.ok(cache.size().bytes <= 100);
-    cache.set("huge", 8, { identity: "e", bytes: 101 });
-    assert.equal(cache.get("huge"), undefined, "larger than the budget: not kept");
     assert.deepEqual(LOAD_CACHE, { entries: 64, bytes: 268_435_456, perIdentity: 8 });
     const data = { columns: [{ codes: new Int32Array(4), values: new Float64Array(4), dict: ["ab", "c"] }] };
     assert.equal(encodedBytes(data), 16 + 32 + 16 + 4 + 16 + 2);
@@ -633,4 +640,222 @@ test("hostile: the host's code that throws while its rows are read, and a versio
     } finally {
         await context.close();
     }
+});
+
+test("hostile: a host value that throws pivotkit's own error class while it is read never shows its text", async () => {
+    const { PivotkitError } = await import("pivotkit-core");
+    const boom = () => {
+        throw new PivotkitError("LIMIT_EXCEEDED", "db at 10.1.2.3 is full");
+    };
+    const getter = Object.defineProperty({ Region: "North" }, "Sales", { get: boom, enumerable: true });
+    const column = Object.defineProperty([], 0, { get: boom, enumerable: true });
+    const json = { toJSON: boom };
+    const context = await contextOf({
+        sources: {
+            getter: { load: async () => [getter] },
+            columnar: { load: async () => ({ columns: ["Region"], data: [column] }) },
+            json: { load: async () => [{ Region: json, Sales: 1 }] }
+        }
+    });
+    try {
+        for (const id of ["getter", "columnar"]) {
+            const error = await failure(describe(context, LOCAL, undefined, id));
+            assert.equal(error.code, "SOURCE_UNAVAILABLE", id);
+            assert.doesNotMatch(error.message, /10\.1\.2\.3/, id);
+        }
+        // a value whose toJSON throws is written as encode writes it: empty
+        const json = await present(context, "render_view", { source: "json", view: VIEW, format: "csv" }, LOCAL);
+        assert.doesNotMatch(JSON.stringify(json), /10\.1\.2\.3/);
+    } finally {
+        await context.close();
+    }
+});
+
+test("run limits: a value that is not text is cut after it is written as text; a row with too many keys fails before they are listed; rows are counted before any is read", async () => {
+    const long = ["y".repeat(50)];
+    let wideKeys = 0;
+    const counted = Object.create(null);
+    for (let i = 0; i < 50_000; i++) {
+        counted[`k${i}`] = i;
+    }
+    const trap = { get Region() { wideKeys++; return "x"; } };
+    const context = await contextOf({
+        limits: { rows: 2, columns: 3, textLength: 10 },
+        sources: {
+            long: { load: async () => [{ Region: long, Sales: 1 }] },
+            many: { load: async () => [{ ...counted }] },
+            rows: { load: async () => [trap, trap, trap] }
+        }
+    });
+    try {
+        const cut = await present(context, "render_view", { source: "long", view: VIEW, format: "csv" }, LOCAL);
+        // written as encode writes it, ["yyy..., then cut to 10 characters
+        assert.match(cut.result.inline.text, /\[""y{8}"?,1/);
+        assert.doesNotMatch(cut.result.inline.text, /y{9}/);
+        const many = await failure(describe(context, LOCAL, undefined, "many"));
+        assert.equal(many.code, "LIMIT_EXCEEDED");
+        assert.match(many.message, /exceed the limit of 3 \(limits\.columns\)/);
+        const rows = await failure(describe(context, LOCAL, undefined, "rows"));
+        assert.match(rows.message, /3 rows exceed the limit of 2 \(limits\.rows\)/);
+        assert.equal(wideKeys, 0, "no row was read");
+    } finally {
+        await context.close();
+    }
+});
+
+/** A runner's options for a unit test, with a log that keeps its lines. */
+function unitHow(extra = {}) {
+    const lines = [];
+    const log = { warn: (m) => lines.push(["warn", m]), error: (e) => lines.push(["error", String(e?.message ?? e)]), debug: (m) => lines.push(["debug", m]) };
+    return { lines, how: { prepare: (raw) => raw, source: "s", label: "s", bucket: "b", owner: "o", timeMs: 1000, ttl: 0, maxStale: 3600, version: null, sizeOf: () => 1, log, ...extra } };
+}
+
+test("a version() whose promise rejects answers SOURCE_UNAVAILABLE and leaves no unhandled rejection", async () => {
+    const context = await contextOf({ sources: { t: { load: async () => ROWS, version: () => Promise.reject(new Error("db at 10.1.2.3")) } } });
+    let unhandled = 0;
+    const count = () => unhandled++;
+    process.on("unhandledRejection", count);
+    try {
+        const error = await failure(describe(context));
+        assert.equal(error.code, "SOURCE_UNAVAILABLE");
+        await wait(20);
+        assert.equal(unhandled, 0);
+    } finally {
+        process.off("unhandledRejection", count);
+        await context.close();
+    }
+    // a version that JSON cannot write is no version
+    const runner = createLoadRunner();
+    const { how } = unitHow({ version: () => () => 1, ttl: null });
+    let loads = 0;
+    await runner.runLoad("k", async () => ++loads, how);
+    await runner.runLoad("k", async () => ++loads, how);
+    assert.equal(loads, 2, "nothing fresh without a version");
+});
+
+test("a caller that goes away: a shared load runs on for the others; aborted only when every caller left, and that is no failure of the source", async () => {
+    const runner = createLoadRunner();
+    const { how } = unitHow();
+    await runner.runLoad("k", async () => "first", how);
+    let release = gate();
+    let seen;
+    const gated = (signal) => {
+        seen = signal;
+        const mine = release;
+        return new Promise((resolve, reject) => {
+            mine.opened.then(resolve);
+            signal.addEventListener("abort", () => reject(signal.reason));
+        });
+    };
+    const a = new AbortController();
+    const b = new AbortController();
+    const first = runner.runLoad("k", gated, { ...how, signal: a.signal });
+    const second = runner.runLoad("k", gated, { ...how, signal: b.signal });
+    a.abort();
+    await assert.rejects(first);
+    assert.equal(seen.aborted, false, "the other caller still waits");
+    release.open("second");
+    assert.equal((await second).value, "second");
+    // the only caller leaves: the load is aborted, nothing is refused or dropped
+    release = gate();
+    const c = new AbortController();
+    const alone = runner.runLoad("k", gated, { ...how, signal: c.signal });
+    await wait(5);
+    c.abort();
+    await assert.rejects(alone);
+    assert.equal(seen.aborted, true);
+    const stale = await runner.runLoad("k", async () => {
+        throw new SourceError("SOURCE_UNAVAILABLE", { transient: true });
+    }, how);
+    assert.equal(stale.value, "second", "the last good data is still there");
+    assert.ok(stale.stale);
+    // a caller that is gone before it asks
+    const gone = new AbortController();
+    gone.abort();
+    await assert.rejects(runner.runLoad("other", async () => 1, { ...how, signal: gone.signal }));
+});
+
+test("a refusal is never transient: no last good data after NOT_ALLOWED, whatever transient or status say", async () => {
+    assert.equal(new SourceError("NOT_ALLOWED", { transient: true }).transient, false);
+    assert.equal(new SourceError("DATA_NOT_AVAILABLE", { status: 503 }).transient, false);
+    assert.equal(isTransient(new SourceError("INVALID_INPUT", { transient: true })), false);
+    const runner = createLoadRunner();
+    const { how } = unitHow();
+    await runner.runLoad("k", async () => "good", how);
+    const refused = await failure(runner.runLoad("k", async () => {
+        throw new SourceError("NOT_ALLOWED", { transient: true, status: 503 });
+    }, how));
+    assert.equal(refused.code, "NOT_ALLOWED");
+    assert.equal((await failure(runner.runLoad("k", async () => {
+        throw new SourceError("SOURCE_UNAVAILABLE", { transient: true });
+    }, how))).code, "SOURCE_UNAVAILABLE", "the refusal dropped the last good data");
+});
+
+test("SourceError: retryAfter passed on for a transient SOURCE_UNAVAILABLE, checked as OperationError checks it; a publicMessage is never cut inside a character", () => {
+    assert.equal(sourceFailure(new SourceError("SOURCE_UNAVAILABLE", { transient: true, retryAfter: 30 })).details?.retryAfter, 30);
+    assert.equal(new SourceError("SOURCE_UNAVAILABLE", { retryAfter: -1 }).retryAfter, undefined);
+    assert.equal(new SourceError("SOURCE_UNAVAILABLE", { retryAfter: 1.5 }).retryAfter, undefined);
+    const text = sourceFailure(new SourceError("NOT_ALLOWED", { publicMessage: `${"x".repeat(299)}\u{1F600}` })).message;
+    assert.equal(text, "x".repeat(299));
+});
+
+test("a load still holding its slot after twice its time limit is logged; the slot stays until it ends", async () => {
+    const runner = createLoadRunner();
+    const { how, lines } = unitHow({ timeMs: 20 });
+    const release = gate();
+    await failure(runner.runLoad("k", () => release.opened, how));
+    await wait(60);
+    assert.ok(lines.some(([level, m]) => level === "warn" && /still holds a load slot 40 ms after it started/.test(m)), JSON.stringify(lines));
+    assert.equal(runner.running("s"), 1);
+    release.open(1);
+    await wait(5);
+    assert.equal(runner.running("s"), 0);
+});
+
+test("the time limit's timer ends with the load: a load that answered in time is never aborted later", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const runner = createLoadRunner();
+    const { how } = unitHow({ timeMs: 1000 });
+    let seen;
+    await runner.runLoad("k", async (signal) => ((seen = signal), "fast"), how);
+    t.mock.timers.tick(5000);
+    assert.equal(seen.aborted, false);
+});
+
+test("kept data counts from when its load ended: ttl and stale's since", async (t) => {
+    t.mock.timers.enable({ apis: ["Date"], now: Date.UTC(2026, 10, 14, 8, 0, 0) });
+    const runner = createLoadRunner();
+    const { how } = unitHow({ ttl: 10 });
+    const release = gate();
+    const loading = runner.runLoad("k", () => release.opened, how);
+    t.mock.timers.tick(8000);
+    release.open("v");
+    await loading;
+    t.mock.timers.tick(5000);
+    let loads = 0;
+    await runner.runLoad("k", async () => (loads++, "w"), how);
+    assert.equal(loads, 0, "5 s after the load ended: within ttl");
+    t.mock.timers.tick(6000);
+    const stale = await runner.runLoad("k", async () => {
+        throw new SourceError("SOURCE_UNAVAILABLE", { transient: true });
+    }, how);
+    assert.equal(stale.stale?.since, "2026-11-14T08:00:08Z");
+});
+
+test("checkConfig(options) refuses what createContext refuses, and needs no second argument", async () => {
+    const load = async () => [];
+    for (const [source, why] of [
+        [{ load, timeMs: 700_000 }, /timeMs: at most 600000/],
+        [{ load, ttl: -1 }, /ttl/],
+        [{ load, ttl: "5s" }, /ttl/],
+        [{ load, cacheShared: "yes" }, /cacheShared/],
+        [{ load, file: "a.csv" }, /file or load/]
+    ]) {
+        await assert.rejects(checkConfig({ sources: { s: /** @type {any} */ (source) } }), (e) => e instanceof ConfigError && why.test(e.message), String(why));
+        await assert.rejects(createContext({ sources: { s: /** @type {any} */ (source) } }), ConfigError);
+    }
+    const { text, problems } = await checkConfig({ sources: { s: { load } } });
+    assert.equal(problems, 0);
+    assert.match(text, /^pivotkit-mcp: the configuration is valid\./);
+    assert.match((await checkConfig({ sources: { s: { load } } }, { name: "my-app" })).text, /^my-app: the configuration is valid\./);
 });

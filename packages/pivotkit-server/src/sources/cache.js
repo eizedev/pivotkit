@@ -2,12 +2,16 @@
  * The process cache of loaded data (code sources, and HTTP sources later): encoded data by a key
  * (sources/keys.js canonical JSON), least recently used out, bounded three ways so one source or one
  * person cannot push everyone else's data out or fill the memory: at most 64 entries, at most 256 MiB
- * of encoded data (measured by encodedBytes), at most 8 entries per identity. An entry larger than
- * the whole budget is not kept.
+ * of encoded data (measured by encodedBytes), at most 8 entries and a quarter of the bytes per owner
+ * (a person, or a shared source). A new entry pushes out its own owner's oldest entries first; an
+ * entry larger than an owner's share is not kept.
  */
 
 /** The bounds of the process cache. */
 export const LOAD_CACHE = Object.freeze({ entries: 64, bytes: 268_435_456, perIdentity: 8 });
+
+/** The share of the bytes one owner may hold. */
+export const OWNER_SHARE = 0.25;
 
 /**
  * About how many bytes encoded data takes: each column's codes and values, and its dictionary (texts
@@ -88,11 +92,13 @@ export function createLoadCache(bounds = {}) {
          */
         set(key, value, about) {
             drop(key);
-            if (about.bytes > bytes) {
+            const share = Math.floor(bytes * OWNER_SHARE);
+            if (about.bytes > share) {
                 return;
             }
-            const count = () => [...map.values()].filter((e) => e.identity === about.identity).length;
-            trim(() => count() >= perIdentity, about.identity);
+            const own = () => [...map.values()].filter((e) => e.identity === about.identity);
+            // the owner's own entries go first, so one owner never pushes out the others' data
+            trim(() => own().length >= perIdentity || own().reduce((n, e) => n + e.bytes, 0) + about.bytes > share, about.identity);
             trim(() => map.size >= entries || total + about.bytes > bytes);
             map.set(key, { value, identity: about.identity, bytes: about.bytes });
             total += about.bytes;

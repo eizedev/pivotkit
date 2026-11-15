@@ -45,25 +45,46 @@ const context = await createContext({
       ttl: 120,
       maxStale: 3600,
       policy: { default: "summary", fields: { Team: "show", Status: "values" } }
+    },
+    rates: {
+      // the same data for everyone: one copy, and load gets no caller
+      load: async (_params, { caller, signal }) => {
+        const res = await fetch("https://rates.example.com/today.json", { signal });
+        return { rows: caller === null ? await res.json() : [], asOf: new Date() };
+      },
+      cacheShared: true,
+      ttl: 600
     }
   }
 });
 ```
+
+The example compiles with strict TypeScript: pivotkit-server's types give `load` a `caller` of type
+`SourceCaller` (and `null` with `cacheShared: true`), and export `SourceCaller`, `SourceLoad`,
+`SharedSourceLoad`, `SourceVersion`, `LoadResult` and `SourceParams` for your own functions.
 
 ### Options { #code-options }
 
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `sources.<id>.load` | - | `load(params, { caller, signal })`: the data (see below) |
-| `sources.<id>.version` | none | `version(params, { caller })`: a value (not a promise) that changes when the data changes; kept data is reused while it is the same |
+| `sources.<id>.version` | none | `version(params, { caller })`: a value (not a promise) that changes when the data changes; kept data is reused while it is the same. It is called at once on every call, never awaited, so keep it cheap |
 | `sources.<id>.params` | none | The values a caller passes with the source ([parameters](mcp.md#configuration)) |
 | `sources.<id>.timeMs` | 30000 ms | The longest `load` may take, at most 600000 (ten minutes); the signal is aborted then |
 | `sources.<id>.ttl` | none (only `version` decides) | Seconds a load is reused; `0` only shares loads that run at the same time |
 | `sources.<id>.maxStale` | 3600 s | How old the last good data may be to stand in after a transient failure; `0` turns it off |
 | `sources.<id>.cacheShared` | `false` | The data is the same for every caller: one copy for all, and `load` gets `caller: null` |
 
-`check-config` lists each code source when it is given the options (`checkConfig(options)`): its time
-limit, how its data is kept, and whether last good data may stand in.
+`checkConfig` lists each code source: its time limit, how its data is kept, and whether last good
+data may stand in. It checks the options first as `createContext` does, so it throws the same
+`ConfigError` for options the server would refuse:
+
+```js
+import { checkConfig } from "pivotkit-server";
+
+const { text, problems } = await checkConfig(options, { name: "my-app" });  // name: the first line's
+console.log(text);                                                           // (default "pivotkit-mcp")
+```
 
 ### What load gets and returns { #code-load }
 
@@ -74,8 +95,11 @@ limit, how its data is kept, and whether last good data may stand in.
   the configuration names), and with OAuth `subject` and `issuer` (else `null`). With
   `cacheShared: true` it is `null`, so a source that reads it there fails at once instead of
   serving one person's rows to everyone.
-- `signal`: an `AbortSignal` that is aborted after `timeMs` (with a `TimeoutError`). Pass it to
-  `fetch` and your database client; a load that ignores it runs on in the background.
+- `signal`: an `AbortSignal` that is aborted after `timeMs` (with a `TimeoutError`), or when every
+  caller waiting for this load went away. Pass it to `fetch` and your database client. A load that
+  ignores it runs on in the background and keeps its slot (see the load limits) until it ends; after
+  twice `timeMs` the log warns once. A load that never ends holds its slot until the process
+  restarts.
 
 `load` returns rows (`[{ ... }]`), `{ rows, asOf }`, or columnar data `{ columns, types?, data, asOf? }`
 with one array per column; not `encode()`'s result, so hidden fields can be dropped. `asOf` (a `Date`,
@@ -96,11 +120,13 @@ Throw a `SourceError` to say what went wrong in words a caller may read:
 | `DATA_NOT_AVAILABLE` | 404 with your `publicMessage` | dropped |
 | `SOURCE_UNAVAILABLE` | 502 with pivotkit's fixed text, `retryable` as `transient` | used when `transient` |
 
-`new SourceError(code, { publicMessage, transient, status })`: `publicMessage` is the only text of
-yours that reaches a caller (cleaned of control characters, at most 300 characters; a 502 always
-says pivotkit's fixed text); `transient: true` says the failure may pass; `status` is a backend's
-HTTP status for the log, and 429, 502, 503 or 504 make the error transient unless `transient` says
-otherwise. Without `publicMessage`, the code's own words are used.
+`new SourceError(code, { publicMessage, transient, status, retryAfter })`: `publicMessage` is the
+only text of yours that reaches a caller (cleaned of control characters, at most 300 characters; a
+502 always says pivotkit's fixed text). For `SOURCE_UNAVAILABLE` only: `transient: true` says the
+failure may pass, `status` (a backend's HTTP status, also for the log) of 429, 502, 503 or 504 makes
+it transient unless `transient` says otherwise, and `retryAfter` (whole seconds) becomes the answer's
+`Retry-After`. A refusal (`NOT_ALLOWED`, `INVALID_INPUT`, `DATA_NOT_AVAILABLE`) is never transient.
+Without `publicMessage`, the code's own words are used.
 
 Anything else `load` throws, an `OperationError` of pivotkit's own codes too, answers
 `SOURCE_UNAVAILABLE` with `retryable: false` and the fixed text; its class is logged, its message
@@ -108,7 +134,8 @@ only with `log: "debug"`. A network error that may pass (`ECONNRESET`, `ETIMEDOU
 `ENOTFOUND`, `EAI_AGAIN`, undici's socket and timeout errors, also as the `cause` of `fetch`'s
 error) answers `SOURCE_UNAVAILABLE` with `retryable: true`. An error your code throws while pivotkit
 reads the returned rows (a getter), or a `version` that returns a promise, is `SOURCE_UNAVAILABLE`
-too.
+too. pivotkit reads your rows once into plain values (getters and `toJSON` run then); objects in
+cells are written as JSON text, and every text is cut at `limits.textLength`.
 
 ### Kept data, coalescing and last good data { #code-cache }
 
@@ -118,8 +145,11 @@ too.
   without a usable subject) gets nothing kept, shares no load and gets no last good data. With
   `cacheShared: true` all callers share one copy per set of values and policy levels.
 - **Reuse.** Kept data is reused while `version` gives the same value (and within `ttl` when both
-  are set), or for `ttl` seconds without `version`. Without either, every call loads.
-- **Coalescing.** Calls that need the same data while it loads wait for that one load.
+  are set), or for `ttl` seconds without `version`. Without either, every call loads. `ttl` counts
+  from when the load ended.
+- **Coalescing.** Calls that need the same data while it loads wait for that one load. A caller that
+  goes away stops waiting; the load is aborted only when every caller waiting for it went away, and
+  that is no failure of the source (nothing kept is dropped).
 - **Load limits.** At most 4 loads of one source run at once, and at most 2 of them for one person
   (callers without an identity count per client), so one person trying many values cannot take every
   slot. A call over the limit answers `SOURCE_UNAVAILABLE` with `retryable: true` and
@@ -130,12 +160,15 @@ too.
 - **Last good data.** After a transient failure only (the time limit, a network error, a
   `SourceError` with `transient`), the data last loaded for the same caller and values stands in
   when it is at most `maxStale` seconds old. The result keeps that data's `dataAsOf` and adds
-  `stale: { since }` (when it was loaded); `render_view`'s message says "The data is from ...: the
+  `stale: { since }` (when its load ended); `render_view`'s message says "The data is from ...: the
   source could not be refreshed.", and the log has a warning with the source's id. Any other failure
   answers at once and drops what was kept for that caller and values, so a withdrawn access is never
   covered by the cache.
-- **Bounds.** The process keeps at most 64 loads, 256 MiB of encoded data, and 8 loads per person
-  (a shared source's loads count as one person); the least recently used go first.
+- **Bounds.** The process keeps at most 64 loads and 256 MiB of encoded data; one person (a shared
+  source counts as one) at most 8 loads and a quarter of the bytes, and a person's new load pushes
+  out that person's oldest first, so one caller cannot push out everyone else's data. Otherwise the
+  least recently used go first. Kept data stays in the process's memory until it is pushed out,
+  also after `maxStale` has passed.
 
 ### Where it runs { #code-thread }
 

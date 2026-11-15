@@ -198,7 +198,8 @@ applies to the configuration.
 
 ### Code sources { #code-sources }
 
-For library hosts whose sources have `load` ([code sources](../reference/sources.md#code)):
+For library hosts whose sources have `load` ([code sources](../reference/sources.md#code)), when
+they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next release:
 
 - `load` is called as `load(params, { caller, signal })` and `version` as `version(params,
   { caller })`, also without declared `params` (then `{}`). A `load()` that takes no arguments works

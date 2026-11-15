@@ -34,10 +34,8 @@ export { ConfigError } from "./options/shared.js";
  */
 
 /**
- * @typedef {object} SourceOptions
+ * @typedef {object} SourceOptionsBase  what every source takes; SourceOptions adds load, version and cacheShared
  * @property {string} [file]  a CSV, TSV, JSON or XLSX file (relative to the config file)
- * @property {(params: Record<string, string | number | boolean>, how: { caller: Readonly<Record<string, unknown>> | null, signal: AbortSignal }) => unknown} [load]  a library host's loader (instead of file): rows, { rows, asOf } or columnar data ({ columns, types?, data, asOf? }); params {} without declared params; caller null with cacheShared; signal aborted at timeMs
- * @property {(params: Record<string, string | number | boolean>, how: { caller: Readonly<Record<string, unknown>> | null }) => unknown} [version]  with load: changes when the data changes; kept data is reused while it is the same
  * @property {string} [title]
  * @property {string} [description]
  * @property {string} [sheet]  a workbook's sheet
@@ -51,7 +49,14 @@ export { ConfigError } from "./options/shared.js";
  * @property {number} [ttl]  code sources: seconds a load is reused (default: only while version() gives the same)
  * @property {number} [maxStale]  code sources: seconds the last good data stands in after a transient failure (default 3600; 0: never)
  * @property {number} [timeMs]  code sources: the longest load, in ms (default 30000; the signal is aborted then)
- * @property {boolean} [cacheShared]  code sources: the data is the same for every caller: one copy for all, and load gets caller null (default false)
+ */
+
+/**
+ * A source: a file, or a library host's code source (load instead of file; sources/code.js), whose
+ * load gets the caller unless cacheShared is true (then null: one copy of the data for all callers).
+ * version is called at once on every call (never awaited) and must be cheap; kept data is reused
+ * while it gives the same value.
+ * @typedef {SourceOptionsBase & ({ load?: import("./sources/code.js").SourceLoad, version?: import("./sources/code.js").SourceVersion, cacheShared?: false } | { load: import("./sources/code.js").SharedSourceLoad, version?: import("./sources/code.js").SharedSourceVersion, cacheShared: true })} SourceOptions
  */
 
 /**

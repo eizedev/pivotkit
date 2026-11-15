@@ -34,6 +34,12 @@ export { serve, createServerHandler, DEFAULT_PORT } from "./serve.js";
 /**
  * @typedef {import("./config.js").ServerOptions} ServerOptions
  * @typedef {import("./config.js").SourceOptions} SourceOptions
+ * @typedef {import("./sources/code.js").SourceCaller} SourceCaller
+ * @typedef {import("./sources/code.js").SourceLoad} SourceLoad
+ * @typedef {import("./sources/code.js").SharedSourceLoad} SharedSourceLoad
+ * @typedef {import("./sources/code.js").SourceVersion} SourceVersion
+ * @typedef {import("./sources/code.js").LoadResult} LoadResult
+ * @typedef {import("./sources/code.js").SourceParams} SourceParams
  * @typedef {import("./config.js").PolicyOptions} PolicyOptions
  * @typedef {import("./config.js").AuthOptions} AuthOptions
  * @typedef {import("./config.js").RestOptions} RestOptions

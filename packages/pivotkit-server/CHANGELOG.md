@@ -25,6 +25,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   good data up to an hour old after a transient failure, with `stale` (`maxStale: 0` turns it off);
   an error thrown by `load` answers `SOURCE_UNAVAILABLE` (502) instead of `INTERNAL` (500); the data
   has a file's limits ([code sources](https://pivotkit.eize.dev/getting-started/upgrading/#code-sources)).
+- `checkConfig(options)` checks the options as `createContext` does first and throws the same
+  `ConfigError`; its second argument is optional.
 
 ### Added
 
@@ -53,7 +55,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `NOT_ALLOWED`, `INVALID_INPUT` or `DATA_NOT_AVAILABLE` with its `publicMessage`, or
   `SOURCE_UNAVAILABLE`; anything else a load throws is `SOURCE_UNAVAILABLE` with the fixed text.
   `CODE_DEFAULTS`; `check-config` lists each code source. `ttl`, `maxStale` and `timeMs` are refused
-  on file sources.
+  on file sources. A shared load is aborted only when every caller waiting for it went away; a
+  person's kept data is at most 8 loads and a quarter of the cache's bytes; `SourceError` takes
+  `retryAfter`; a load still running after twice its `timeMs` is logged. Types: `SourceCaller`,
+  `SourceLoad`, `SharedSourceLoad`, `SourceVersion`, `LoadResult`, `SourceParams`; `load`'s caller is
+  typed non-null unless `cacheShared: true`.
 - The level `values` between `show` and `summary`: a field's distinct values as a complete, sorted
   list (`items`, `complete: true`), never a result over them. A number or date field, more values
   than `policy.valuesMax` (default 50), a value over 80 characters, `counts: false` or `rows: false`

@@ -57,14 +57,15 @@ const DEFAULT_TEXT = Object.freeze({
  *   throw new SourceError("SOURCE_UNAVAILABLE", { transient: true });   // last good data may stand in
  *
  * `code` is one of SOURCE_ERROR_CODES; `publicMessage` is the only text of the source that reaches a
- * caller (for the codes below 500; SOURCE_UNAVAILABLE always says a fixed text); `transient: true`
- * allows last good data; `status` is a backend's HTTP status, for the log (429, 502, 503 and 504 make
- * the error transient when `transient` is not given).
+ * caller (for the codes below 500; SOURCE_UNAVAILABLE always says a fixed text). For
+ * SOURCE_UNAVAILABLE only: `transient: true` allows last good data, `status` (a backend's HTTP status,
+ * also for the log) of 429, 502, 503 or 504 makes it transient when `transient` is not given, and
+ * `retryAfter` (seconds) is passed on as Retry-After. A refusal (the other codes) is never transient.
  */
 export class SourceError extends Error {
     /**
      * @param {"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE"} code
-     * @param {{ transient?: boolean, publicMessage?: string, status?: number }} [how]
+     * @param {{ transient?: boolean, publicMessage?: string, status?: number, retryAfter?: number }} [how]
      */
     constructor(code, how = {}) {
         if (!SOURCE_ERROR_CODES.includes(code)) {
@@ -76,11 +77,13 @@ export class SourceError extends Error {
         /** @type {"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE"} */
         this.code = code;
         /** @type {boolean} */
-        this.transient = typeof how.transient === "boolean" ? how.transient : status !== undefined && TRANSIENT_STATUSES.includes(status);
+        this.transient = code === "SOURCE_UNAVAILABLE" && (typeof how.transient === "boolean" ? how.transient : status !== undefined && TRANSIENT_STATUSES.includes(status));
         /** @type {string | undefined} */
         this.publicMessage = typeof how.publicMessage === "string" ? how.publicMessage : undefined;
         /** @type {number | undefined} */
         this.status = status;
+        /** @type {number | undefined} seconds, as OperationError's details take them */
+        this.retryAfter = Number.isSafeInteger(how.retryAfter) && /** @type {number} */ (how.retryAfter) >= 0 ? how.retryAfter : undefined;
     }
 }
 
@@ -102,6 +105,9 @@ export const ownError = (error) => Object.defineProperty(error, OWN, { value: tr
 
 /** Whether an error is one ownError marked. */
 export const isOwnError = (error) => Boolean(read(error, OWN));
+
+/** What a caller that went away gets (nobody reads it): its signal's reason, or an AbortError. */
+const callerGone = (signal) => (signal.reason instanceof Error ? signal.reason : new DOMException("the caller went away", "AbortError"));
 
 /** A source's failure inside a shared load: each caller turns it into its own answer (sourceFailure, with its request id). */
 class LoadFailure {
@@ -140,7 +146,7 @@ function hasNetworkCode(error, depth = 0) {
  */
 export function isTransient(error) {
     if (error instanceof SourceError) {
-        return error.transient === true;
+        return error.code === "SOURCE_UNAVAILABLE" && error.transient === true;
     }
     return Boolean(read(error, TIMED_OUT)) || hasNetworkCode(error);
 }
@@ -156,10 +162,12 @@ export function isTransient(error) {
 export function sourceFailure(error) {
     const transient = isTransient(error);
     if (error instanceof SourceError && SOURCE_ERROR_CODES.includes(error.code) && error.code !== "SOURCE_UNAVAILABLE") {
-        const text = typeof error.publicMessage === "string" ? cleanText(error.publicMessage).trim().slice(0, PUBLIC_MESSAGE_MAX) : "";
+        // cut without leaving half of a character outside the Basic Multilingual Plane
+        const text = typeof error.publicMessage === "string" ? cleanText(error.publicMessage).trim().slice(0, PUBLIC_MESSAGE_MAX).replace(/[\uD800-\uDBFF]$/, "") : "";
         return Object.assign(new OperationError(error.code, text || DEFAULT_TEXT[error.code], errorDetails({ retryable: false })), { cause: error });
     }
-    return Object.assign(new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: transient })), { cause: error });
+    const retryAfter = error instanceof SourceError && transient ? error.retryAfter : undefined;
+    return Object.assign(new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: transient, ...(retryAfter !== undefined ? { retryAfter } : {}) })), { cause: error });
 }
 
 /** How a log line names a failure, never with the source's words. */
@@ -182,7 +190,8 @@ export function createLoadRunner(parts = {}) {
     /** @type {{ get(key: string): Kept | undefined, set(key: string, value: Kept, about: { identity: string, bytes: number }): void, delete(key: string): void, size(): { entries: number, bytes: number } }} */
     const cache = /** @type {any} */ (parts.cache ?? createLoadCache());
     const limits = { ...LOAD_LIMITS, ...(parts.limits ?? {}) };
-    /** @type {Map<string, Promise<any>>} loads in flight by key */
+    /** @typedef {{ controller: AbortController, waiting: number, cancelled: boolean, work: Promise<any> }} Shared  a load in flight with the callers waiting for it */
+    /** @type {Map<string, Shared>} loads in flight by key */
     const inflight = new Map();
     /** @type {Map<string, number>} when each key was last refused */
     const refusedAt = new Map();
@@ -229,18 +238,18 @@ export function createLoadRunner(parts = {}) {
      * @param {string | null} key  canonical JSON of what decides the data (sources/keys.js); null: nothing is kept or shared
      * @param {(signal: AbortSignal) => Promise<R>} load  the source's load; its errors are the source's own
      * @param {object} how
-     * @param {(raw: R) => V} how.prepare  pivotkit's work on what the load gave (limits, encoding); its OperationErrors pass as they are
+     * @param {(raw: R) => V} how.prepare  pivotkit's work on what the load gave (limits, encoding); errors it marks with ownError pass as they are, any other is the source's failure
      * @param {string} how.source  the source (its load limits); unique per configured source
      * @param {string} how.label  how the log names the source (its id)
      * @param {string} how.bucket  whose load it is, for the load limits (an identity, or the client's name without one)
-     * @param {string} how.owner  whose kept data it is, for the cache's bound per identity
+     * @param {string} how.owner  whose kept data it is, for the cache's bounds per owner
      * @param {number} how.timeMs
      * @param {number | null} [how.ttl]  seconds a load is reused (null: only while its version is the same)
      * @param {number} how.maxStale  seconds last good data may stand in (0: never)
-     * @param {(() => unknown) | null} [how.version]  the source's version: kept data is reused while it is the same; null from it keeps nothing fresh
+     * @param {(() => unknown) | null} [how.version]  the source's version, called at once on every call (not awaited): kept data is reused while it is the same; null from it keeps nothing fresh
      * @param {(value: V) => number} how.sizeOf  the bytes a value takes in the cache
      * @param {any} how.log  the server's log
-     * @param {AbortSignal} [how.signal]  the caller's own (a request that went away)
+     * @param {AbortSignal} [how.signal]  the caller's own (a request that went away): a shared load is aborted only when every caller waiting for it went away
      * @returns {Promise<{ value: V, stale: { since: string } | null }>}
      */
     async function runLoad(key, load, how) {
@@ -254,15 +263,20 @@ export function createLoadRunner(parts = {}) {
 
     /** runLoad's work; a source's failure comes out as a LoadFailure. */
     async function attempt(key, load, how) {
+        if (how.signal?.aborted) {
+            throw callerGone(how.signal);
+        }
         let version = null;
         if (how.version) {
             try {
                 // called as it always was, at once: a promise is no version (it would never change)
                 const given = how.version();
                 if (given !== null && typeof given === "object" && typeof (/** @type {any} */ (given).then) === "function") {
+                    // its rejection is handled here, or it would end the process as unhandled
+                    Promise.resolve(given).then(undefined, () => undefined);
                     throw new TypeError("version() returns a value, not a promise");
                 }
-                version = given === null || given === undefined ? null : JSON.stringify(given);
+                version = given === null || given === undefined ? null : (JSON.stringify(given) ?? null);
             } catch (e) {
                 return failed(key, e, how);
             }
@@ -271,33 +285,87 @@ export function createLoadRunner(parts = {}) {
         if (kept && freshOf(kept, version, how.ttl)) {
             return { value: kept.value, stale: null };
         }
-        if (key !== null && inflight.has(key)) {
-            return inflight.get(key);
+        let shared = key !== null ? inflight.get(key) : undefined;
+        if (!shared) {
+            const slots = running.get(how.source);
+            if ((slots?.total ?? 0) >= limits.perSource || (slots?.by.get(how.bucket) ?? 0) >= limits.perIdentity) {
+                how.log.warn(`the source ${how.label} has too many loads running; a call was refused`, { source: how.label });
+                throw new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: true, retryAfter: 1 }));
+            }
+            shared = start(key, load, how, version);
+            if (key !== null) {
+                const own = shared;
+                inflight.set(key, own);
+                own.work.finally(() => inflight.get(key) === own && inflight.delete(key)).catch(() => undefined);
+            }
         }
-        const slots = running.get(how.source);
-        if ((slots?.total ?? 0) >= limits.perSource || (slots?.by.get(how.bucket) ?? 0) >= limits.perIdentity) {
-            how.log.warn(`the source ${how.label} has too many loads running; a call was refused`, { source: how.label });
-            throw new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: true, retryAfter: 1 }));
-        }
-        const work = start(key, load, how, version);
-        if (key !== null) {
-            inflight.set(key, work);
-            work.finally(() => inflight.get(key) === work && inflight.delete(key)).catch(() => undefined);
-        }
-        return work;
+        return join(shared, key, how.signal);
     }
 
-    /** Starts a load with its time limit and slot. */
-    async function start(key, load, how, version) {
+    /**
+     * Waits for a load as one of its callers. A caller whose signal fires stops waiting; the load is
+     * aborted only when every caller waiting for it went away, and that is no failure of the source.
+     */
+    function join(shared, key, signal) {
+        if (!signal) {
+            shared.waiting++;
+            return shared.work.finally(() => shared.waiting--);
+        }
+        if (signal.aborted) {
+            return Promise.reject(callerGone(signal));
+        }
+        shared.waiting++;
+        return new Promise((resolve, reject) => {
+            const leave = () => {
+                shared.waiting--;
+                reject(callerGone(signal));
+                if (shared.waiting === 0) {
+                    shared.cancelled = true;
+                    if (key !== null && inflight.get(key) === shared) {
+                        inflight.delete(key);
+                    }
+                    shared.controller.abort(new DOMException("every caller went away", "AbortError"));
+                }
+            };
+            signal.addEventListener("abort", leave, { once: true });
+            shared.work.then(
+                (value) => {
+                    signal.removeEventListener("abort", leave);
+                    shared.waiting--;
+                    resolve(value);
+                },
+                (e) => {
+                    signal.removeEventListener("abort", leave);
+                    shared.waiting--;
+                    reject(e);
+                }
+            );
+        });
+    }
+
+    /** Starts a load with its time limit and slot: { work, controller, waiting, cancelled }. */
+    function start(key, load, how, version) {
+        const shared = { controller: new AbortController(), waiting: 0, cancelled: false, work: /** @type {Promise<any>} */ (Promise.resolve()) };
+        shared.work = run(shared, key, load, how, version);
+        // a caller that went away does not wait for the result; nobody else may see its failure
+        shared.work.catch(() => undefined);
+        return shared;
+    }
+
+    /** The load itself. */
+    async function run(shared, key, load, how, version) {
         const started = Date.now();
-        const controller = new AbortController();
-        const signal = how.signal ? AbortSignal.any([controller.signal, how.signal]) : controller.signal;
+        const { controller } = shared;
         take(how.source, how.bucket);
-        const loading = Promise.resolve().then(() => load(signal));
+        const loading = Promise.resolve().then(() => load(controller.signal));
+        // a load still running long after its time limit ignores the signal: it keeps its slot until
+        // it ends (the operator restarts a host whose loads hang), and the log says so once
+        const hung = setTimeout(() => how.log.warn(`the source ${how.label} still holds a load slot ${2 * how.timeMs} ms after it started: its load ignores the abort signal`, { source: how.label }), 2 * how.timeMs);
+        hung.unref?.();
         // the slot is the load's until it really ends, also when it ignores the abort
         loading.then(
-            () => give(how.source, how.bucket),
-            () => give(how.source, how.bucket)
+            () => (clearTimeout(hung), give(how.source, how.bucket)),
+            () => (clearTimeout(hung), give(how.source, how.bucket))
         );
         /** @type {ReturnType<typeof setTimeout> | undefined} */
         let timer;
@@ -311,6 +379,10 @@ export function createLoadRunner(parts = {}) {
         try {
             raw = await Promise.race([loading, limit]);
         } catch (e) {
+            if (shared.cancelled) {
+                // every caller went away: not the source's failure, nothing is refused or dropped
+                throw new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: true }));
+            }
             if (read(e, TIMED_OUT)) {
                 how.log.warn(`the source ${how.label} took longer than ${how.timeMs} ms (timeMs); its load was aborted`, { source: how.label });
                 // a late result is kept for the next call, unless the key was refused meanwhile or a
@@ -318,7 +390,7 @@ export function createLoadRunner(parts = {}) {
                 loading.then(
                     (late) => {
                         if (key !== null && !((refusedAt.get(key) ?? 0) >= started) && !((cache.get(key)?.loadedAt ?? -Infinity) >= started)) {
-                            keep(key, late, how, version, started);
+                            keep(key, late, how, version);
                         }
                     },
                     () => undefined
@@ -339,21 +411,21 @@ export function createLoadRunner(parts = {}) {
             return failed(key, e, how);
         }
         if (key !== null) {
-            remember(key, value, how, version, started);
+            remember(key, value, how, version, Date.now());
         }
         return { value, stale: null };
     }
 
     /** Prepares a late load's result and keeps it; a result that cannot be prepared is not kept. */
-    function keep(key, raw, how, version, started) {
+    function keep(key, raw, how, version) {
         try {
-            remember(key, how.prepare(raw), how, version, started);
+            remember(key, how.prepare(raw), how, version, Date.now());
         } catch {
             // the next call loads again and says why
         }
     }
 
-    /** Keeps a value with when it was loaded and its version. */
+    /** Keeps a value with when its load ended (ttl and stale's since count from then) and its version. */
     function remember(key, value, how, version, loadedAt) {
         if (version === null && !how.ttl && !(how.maxStale > 0)) {
             return;

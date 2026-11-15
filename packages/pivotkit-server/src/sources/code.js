@@ -13,6 +13,28 @@
  */
 
 import { randomBytes } from "node:crypto";
+
+/**
+ * Who calls, as a code source sees it: a frozen copy without any token. `scopes` is null when the
+ * caller holds every scope (no OAuth); `subject` and `issuer` are null without OAuth; `claims` only
+ * those the configuration names.
+ * @typedef {Readonly<{ subject: string | null, issuer: string | null, client: string, profile: string | null, scopes: readonly string[] | null, groups: readonly string[], claims?: Readonly<Record<string, string | number | boolean>> }>} SourceCaller
+ */
+
+/** @typedef {Readonly<Record<string, string | number | boolean>>} SourceParams  a caller's checked values ({} without declared params) */
+
+/** @typedef {Date | string | number} SourceAsOf  when the data is from: a Date, an ISO 8601 text or epoch milliseconds */
+
+/**
+ * What a code source's load returns: rows, rows with their time, or columnar data (one array per
+ * column), never encode()'s result.
+ * @typedef {Array<Record<string, unknown>> | { rows: Array<Record<string, unknown>>, asOf?: SourceAsOf } | { columns: string[], types?: Array<"string" | "number" | "date" | "boolean">, data: unknown[][], asOf?: SourceAsOf }} LoadResult
+ */
+
+/** @typedef {(params: SourceParams, how: { caller: SourceCaller, signal: AbortSignal }) => LoadResult | Promise<LoadResult>} SourceLoad  a code source's load; signal is aborted at its timeMs */
+/** @typedef {(params: SourceParams, how: { caller: null, signal: AbortSignal }) => LoadResult | Promise<LoadResult>} SharedSourceLoad  load of a source with cacheShared: true */
+/** @typedef {(params: SourceParams, how: { caller: SourceCaller }) => unknown} SourceVersion  a value (not a promise) that changes when the data changes */
+/** @typedef {(params: SourceParams, how: { caller: null }) => unknown} SharedSourceVersion */
 import { callerView, identityKey } from "../auth.js";
 import { codeTable } from "../data.js";
 import { CODE_DEFAULTS } from "../options/code.js";
