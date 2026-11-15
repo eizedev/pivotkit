@@ -17,7 +17,7 @@
  */
 
 import { cleanText } from "pivotkit-core/import";
-import { LIMITS } from "pivotkit-core";
+import { LIMITS, PivotkitError } from "pivotkit-core";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, resolvePolicy } from "../policy.js";
 import { asOfText } from "./as-of.js";
@@ -275,6 +275,36 @@ export function resolveInline(reg, _ref, caller, how, params) {
         suppliedAsOf: supplied,
         spec: { id: INLINE_ID, kind: "inline", name: nameOf(meta?.name), levels: reg.levelsOf(policy), limits: reg.limits, timeZone: reg.options.timeZone, schedulable: false }
     };
+}
+
+/** The longest message of a file sent in the request that cannot be read. */
+const UPLOAD_MESSAGE = 300;
+
+/**
+ * The error of a file the caller sent that cannot be read, in words: the reader's own sentence (the
+ * file is the caller's, so what it quotes of it goes back to its sender), cleaned and cut, and for a
+ * workbook without the sheet asked for, its sheets. Anything else as data.js asOperationError says it.
+ * @param {unknown} error
+ * @param {{ bytes: Uint8Array, format: string, sheet?: string }} upload
+ * @param {Partial<import("pivotkit-core").Limits>} limits
+ * @returns {Promise<Error>}
+ */
+export async function uploadError(error, upload, limits) {
+    if (!(error instanceof PivotkitError) || error.code !== "INVALID_FILE") {
+        const { asOperationError } = await import("../data.js");
+        return asOperationError(error, INLINE_NAME);
+    }
+    let text = cleanText(String(error.message)).replace(/\.$/, "");
+    if (error.details?.reason === "NO_SHEET" && upload.format === "xlsx") {
+        try {
+            const reader = await (await import("pivotkit-xlsx")).default.load();
+            const sheets = await reader.sheets(new File([/** @type {BlobPart} */ (upload.bytes)], `${INLINE_NAME}.xlsx`), { name: `${INLINE_NAME}.xlsx`, limits });
+            text += `; its sheets: ${sheets.map((s) => `"${cleanText(String(s.name)).slice(0, 80)}"`).join(", ")}`;
+        } catch {
+            // the list is a help; the error stands without it
+        }
+    }
+    return new OperationError("INVALID_FILE", text.slice(0, UPLOAD_MESSAGE));
 }
 
 /** Data sent in the request: computed in a worker as a table job, never kept. */

@@ -18,7 +18,7 @@ import { deliver } from "./delivery.js";
 import { listHint } from "./scopes.js";
 import { asOfMembers, asOfSentence } from "./sources/as-of.js";
 import { runResolved } from "./sources/index.js";
-import { extraInputs, listExtras } from "./sources/input.js";
+import { INLINE_SOURCE_TEXT, extraInputs, listExtras } from "./sources/input.js";
 import { inlineHow } from "./sources/inline.js";
 
 export { OUTPUT_MARK, draftCap, prune } from "./output.js";
@@ -111,6 +111,9 @@ export function presentedInput(name, how = {}) {
     if (how.files === false && properties.source) {
         properties.source = { ...properties.source, pattern: SOURCE_ID_ONLY, description: "A source id from GET /sources." };
     }
+    if (how.offers?.data && properties.source) {
+        properties.source = { ...properties.source, description: `${properties.source.description.replace(/\.$/, "")}, ${INLINE_SOURCE_TEXT}` };
+    }
     return { ...input, properties };
 }
 
@@ -129,7 +132,7 @@ function depthOf(value) {
     while (stack.length) {
         const [node, depth] = /** @type {[unknown, number]} */ (stack.pop());
         if (typeof node === "string") {
-            deepest = Math.max(deepest, depth + textDepth(node));
+            deepest = Math.max(deepest, depth + jsonDepth(node, INPUT_DEPTH));
         } else if (node && typeof node === "object") {
             deepest = Math.max(deepest, depth + 1);
             if (deepest > INPUT_DEPTH) {
@@ -143,24 +146,41 @@ function depthOf(value) {
     return deepest;
 }
 
-/** The deepest bracket nesting of a JSON text, outside its strings. */
-function textDepth(text) {
+/** The character codes of a JSON text's quote, backslash and brackets (one byte each in UTF-8). */
+const QUOTE = 34;
+const BACKSLASH = 92;
+const OPEN = new Set([91, 123]);
+const CLOSE = new Set([93, 125]);
+
+/**
+ * The deepest bracket nesting of a JSON text, outside its strings, counted without parsing it: a text
+ * or its UTF-8 bytes (a request's body, before JSON.parse is given it), linear, no allocation. Stops at
+ * the first level over `max` and says that level.
+ * @param {string | Uint8Array} text
+ * @param {number} [max]
+ * @returns {number}
+ */
+export function jsonDepth(text, max = Infinity) {
+    const code = typeof text === "string" ? (i) => text.charCodeAt(i) : (i) => text[i];
     let depth = 0;
     let deepest = 0;
     let inString = false;
     for (let i = 0; i < text.length; i++) {
-        const c = text[i];
+        const c = code(i);
         if (inString) {
-            if (c === "\\") {
+            if (c === BACKSLASH) {
                 i++;
-            } else if (c === '"') {
+            } else if (c === QUOTE) {
                 inString = false;
             }
-        } else if (c === '"') {
+        } else if (c === QUOTE) {
             inString = true;
-        } else if (c === "{" || c === "[") {
+        } else if (OPEN.has(c)) {
             deepest = Math.max(deepest, ++depth);
-        } else if (c === "}" || c === "]") {
+            if (deepest > max) {
+                return deepest;
+            }
+        } else if (CLOSE.has(c)) {
             depth--;
         }
     }

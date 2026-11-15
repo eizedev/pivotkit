@@ -35,8 +35,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `sha256` must match (`DATA_MISMATCH`); no exposure policy applies; the data is computed in a worker,
   never cached, and cannot be linked or scheduled; the file route takes it with `data: true` alone.
   Results carry the caller's time as `suppliedAsOf`; `list_sources` adds `data` with the cap; the
-  log counts rows and columns. `bodyBytesOf` gives the larger cap; exported: `INLINE_ID`,
-  `MCP_DATA_CAP`, `REST_DATA_BYTES`, `inlineLogFields`.
+  log counts rows and columns. `bodyBytesOf` gives the larger cap, only on the routes that take a
+  source; at most two bodies over 2 MiB are read at once (else 503 `BUSY`, retryable). A JSON body
+  nested deeper than 64 levels is refused before it is parsed, a multipart body with more than two
+  parts before its parts are read; a 413 names the cap that applied; a file sent that cannot be read
+  says why in words. Exported: `INLINE_ID`, `MCP_DATA_CAP`, `REST_DATA_BYTES`, `inlineLogFields`.
 
 - A request id on every REST request and MCP tool call: on every log line written inside it, inside
   its work (a source's code, an error's details), in every REST problem document and at the end of

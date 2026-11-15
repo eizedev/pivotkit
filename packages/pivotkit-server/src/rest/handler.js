@@ -22,9 +22,9 @@ import { REST_BASE, restResourceOf } from "../config.js";
 import { AuthRefusal, bearerOf, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
-import { BODY_BYTES, SIGNED_IN, isLoopback, takeSignIn } from "../listen.js";
-import { present, presentedInput, renderFile } from "../present.js";
-import { createLimits, restBodyBytesFor, restBodyCeilingOf } from "../limits.js";
+import { BODY_BYTES, SIGNED_IN, isLoopback, peekSignIn, takeSignIn } from "../listen.js";
+import { INPUT_DEPTH, jsonDepth, present, presentedInput, renderFile } from "../present.js";
+import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, isRestPost, restBodyBytesAt, restBodyBytesFor, restBodyCeilingOf } from "../limits.js";
 import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData } from "../sources/inline.js";
 import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
@@ -66,14 +66,19 @@ function disposition(name) {
     return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
+/** Where a request keeps its place for a large body (createLargeBodies): the function that gives it back. */
+const LARGE_PLACE = Symbol("large body place");
+
 /**
  * Reads a body, at most `max` bytes, while it streams.
  * @param {Request} request
  * @param {number} max
+ * @param {string} [detail]  what a body over it is told
  */
-async function readBytes(request, max) {
+export async function readBytes(request, max, detail) {
+    const tooLarge = () => Object.assign(new Error("too large"), { problem: "BODY_TOO_LARGE", ...(detail ? { detail } : {}) });
     if (Number(request.headers.get("content-length") ?? 0) > max) {
-        throw Object.assign(new Error("too large"), { problem: "BODY_TOO_LARGE" });
+        throw tooLarge();
     }
     const chunks = [];
     let size = 0;
@@ -87,7 +92,7 @@ async function readBytes(request, max) {
             size += value.length;
             if (size > max) {
                 await reader.cancel().catch(() => undefined);
-                throw Object.assign(new Error("too large"), { problem: "BODY_TOO_LARGE" });
+                throw tooLarge();
             }
             chunks.push(value);
         }
@@ -96,12 +101,18 @@ async function readBytes(request, max) {
 }
 
 /**
- * Reads a JSON body, at most `max` bytes, while it streams.
+ * Reads a JSON body, at most `max` bytes, while it streams. Its nesting is counted on the bytes before
+ * it is parsed: JSON.parse of a body of millions of brackets would hold the thread and gigabytes.
  * @param {Request} request
  * @param {number} max
+ * @param {string} [detail]  what a body over `max` is told
  */
-async function readJson(request, max) {
-    const text = new TextDecoder("utf-8", { fatal: false }).decode(await readBytes(request, max));
+async function readJson(request, max, detail) {
+    const bytes = await readBytes(request, max, detail);
+    if (jsonDepth(bytes, INPUT_DEPTH) > INPUT_DEPTH) {
+        throw new OperationError("INVALID_INPUT", `the input is nested deeper than ${INPUT_DEPTH} levels`);
+    }
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
     if (!text.trim()) {
         return {};
     }
@@ -136,6 +147,8 @@ export async function createRestHandler(context, runtime = {}) {
     const limits = createLimits(rest);
     // the largest body anyone may send: a larger declared size is refused before the token is checked
     const ceiling = restBodyCeilingOf(options);
+    // the large bodies read at once, over all callers (limits.js)
+    const largeBodies = createLargeBodies(LARGE_BODIES);
     let warnedAddress = false;
     const trustProxy = options.http?.trustProxy ?? false;
     let document = null;
@@ -228,19 +241,20 @@ export async function createRestHandler(context, runtime = {}) {
         let input = {};
         /** @type {Awaited<ReturnType<typeof readMultipart>>["upload"] | null} a file sent in a multipart body */
         let upload = null;
-        const takesSource = Boolean(presentedInput(route.operation).properties?.source);
+        const takesSource = route.takesSource;
         if (route.method === "POST") {
             const type = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-            const cap = restBodyBytesFor(options, caller);
+            const cap = takesSource ? restBodyBytesFor(options, caller) : BODY_BYTES;
+            const detail = bodyTooLargeText(options, cap);
             if (type === "multipart/form-data" && takesSource) {
                 if (!maySendData(options, caller, "rest")) {
                     throw dataRefusal("rest");
                 }
-                ({ input, upload } = await readMultipart(await readBytes(request, cap), request.headers.get("content-type") ?? "", route.operation, context.offers?.rest));
+                ({ input, upload } = await readMultipart(await readBytes(request, cap, detail), request.headers.get("content-type") ?? "", route.operation, context.offers?.rest));
             } else if (type !== "application/json") {
                 return problem("UNSUPPORTED_MEDIA_TYPE", `send the input as JSON (Content-Type: application/json)${takesSource && maySendData(options, caller, "rest") ? ", or a file with it as multipart/form-data" : ""}`);
             } else {
-                input = await readJson(request, cap);
+                input = await readJson(request, cap, detail);
             }
         } else if (match.params?.id !== undefined) {
             let id;
@@ -400,19 +414,27 @@ export async function createRestHandler(context, runtime = {}) {
             // the request's id (the precheck's, when it ran): on every log line of the request, in its
             // work (a source's code, an error's details) and in an error's answer
             const id = requestIdFor(info);
-            return withRequestIdMember(await withRequestId(id, () => answer(request, info)), id);
+            try {
+                return withRequestIdMember(await withRequestId(id, () => answer(request, info)), id);
+            } finally {
+                // a place for a large body, held since the precheck: given back once the request ran
+                info[LARGE_PLACE]?.();
+            }
         },
         /**
          * The answer to a body that cannot be read (serveFetch's problem): 413 or 400, with the
          * request's id, also on a log line.
          * @param {400 | 413} status
-         * @param {string} _path
+         * @param {string} path  the request's
          * @param {Record<string | symbol, any>} [info]
          */
-        problem(status, _path, info = {}) {
+        problem(status, path, info = {}) {
             const id = requestIdFor(info);
+            // the body was not read (too large, or the client left): its place is free again
+            info[LARGE_PLACE]?.();
             context.log.refused({ status, path: REST_BASE, requestId: id });
-            return problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than the service takes" : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: id } });
+            const cap = restBodyBytesAt(options, peekSignIn(info)?.caller, new URL(path, "http://localhost").pathname);
+            return problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? bodyTooLargeText(options, cap) : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: id } });
         },
         async close() {}
     };
@@ -435,26 +457,37 @@ export async function createRestHandler(context, runtime = {}) {
         }
         // the declared size: over what anyone may send, refused before the token is checked; over what
         // this caller may send (rest.data.maxBytes only for one that may send data), once it is known
-        const declared = Number(request.headers.get("content-length") ?? 0);
-        const tooLarge = () => {
+        const length = request.headers.get("content-length");
+        const declared = Number(length ?? 0);
+        const tooLarge = (cap) => {
             context.log.refused({ status: 413, path: REST_BASE });
-            return withCors(problem("BODY_TOO_LARGE", "the body is larger than the service takes"), origin);
+            return withCors(problem("BODY_TOO_LARGE", bodyTooLargeText(options, cap)), origin);
         };
         if (declared > ceiling) {
-            return tooLarge();
+            return tooLarge(ceiling);
         }
-        if (request.method === "POST" && new URL(request.url).pathname.startsWith(`${REST_BASE}/`)) {
-            const who = await authenticate(request, clientAddress(request, info.address ?? "", trustProxy));
-            if ("refused" in who) {
-                context.log.refused({ status: who.refused.status, path: REST_BASE });
-                return withCors(who.refused, origin);
+        if (!isRestPost(request)) {
+            return declared > BODY_BYTES ? tooLarge(BODY_BYTES) : null;
+        }
+        const who = await authenticate(request, clientAddress(request, info.address ?? "", trustProxy));
+        if ("refused" in who) {
+            context.log.refused({ status: who.refused.status, path: REST_BASE });
+            return withCors(who.refused, origin);
+        }
+        info[SIGNED_IN] = who;
+        const cap = restBodyBytesAt(options, who.caller, new URL(request.url).pathname);
+        if (declared > cap) {
+            return tooLarge(cap);
+        }
+        // a body that may be larger than everyone's (declared so, or of no declared size) holds one of
+        // the few places for large bodies while it is read and its request runs
+        if (cap > BODY_BYTES && (length === null || declared > BODY_BYTES)) {
+            const give = largeBodies.take();
+            if (!give) {
+                context.log.refused({ status: 503, path: REST_BASE });
+                return withCors(problem("BUSY", "", { headers: { "retry-after": "2" }, extra: { retryable: true } }), origin);
             }
-            info[SIGNED_IN] = who;
-            if (declared > restBodyBytesFor(options, who.caller)) {
-                return tooLarge();
-            }
-        } else if (declared > BODY_BYTES) {
-            return tooLarge();
+            info[LARGE_PLACE] = give;
         }
         return null;
     }

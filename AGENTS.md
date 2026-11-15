@@ -222,7 +222,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   (a request's id: `newRequestId`, `withRequestId` (each REST request and MCP tool call runs in one;
   its log lines carry the id), `requestId`, `errorDetails` for an `OperationError`'s `details`, which
   `rest/problem.js problemOf` and MCP's error text show; `serverTextOf`, the fixed 5xx texts both
-  use). pivotkit-mcp imports these from pivotkit-server, so pivotkit-server is released first and
+  use; `inlineLogFields` of `sources/inline.js` too). pivotkit-mcp imports these from pivotkit-server, so pivotkit-server is released first and
   pivotkit-mcp's range raised in the release PR), `src/auth.js` (`createAuthCore`: static tokens, the
   OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`; `callerOf`, a caller's
   identity (`auth.subjectClaim`) and `identityKey`, the only identity a cache or binding uses, null

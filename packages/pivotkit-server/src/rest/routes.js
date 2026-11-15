@@ -97,6 +97,7 @@ const WORDS = {
  * @property {string} summary
  * @property {string} description
  * @property {"json" | "file"} answer
+ * @property {boolean} takesSource  the operation's input has a source: data may be sent with it (inline:)
  * @property {{ input: Record<string, unknown>, output: Record<string, unknown> }} example
  */
 
@@ -114,7 +115,7 @@ export const REST_ROUTES = Object.freeze([
         answer: /** @type {const} */ ("file"),
         example: { input: { source: "sales", view: VIEW, format: "csv" }, output: {} }
     }
-].map((route) => Object.freeze(route)));
+].map((route) => Object.freeze({ ...route, takesSource: Boolean(/** @type {any} */ (OPERATIONS[route.operation].input)?.properties?.source) })));
 
 /** "describe_source" as "describeSource". */
 function camel(name) {

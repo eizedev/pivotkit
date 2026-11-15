@@ -379,7 +379,7 @@ test("REST multipart: csv, tsv, json and xlsx files with the input beside them; 
             [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ data: { rowCount: 3 } })]], 400, /has no key "rowCount"/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ source: "sales" })]], 400, /leave source out or give "inline:"/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", "{not json"]], 400, /not valid JSON/],
-            [[["data", [new Blob(["{not json"]), "a.json"]], ["input", input()]], 422, /cannot be read/]
+            [[["data", [new Blob(["{not json"]), "a.json"]], ["input", input()]], 422, /^"Data sent with the request\.json": this is no valid JSON/]
         ];
         for (const [parts, status, pattern] of cases) {
             const answer = await multipart(url, TOKEN, parts);
@@ -450,7 +450,7 @@ test("every operation that takes a source works over inline data: a draft, a lay
 });
 
 test("REST multipart on the other routes; hostile files: garbage, a sheet that is not there, over the file limit", async () => {
-    const server = await restServer(restOptions(workspace(), { limits: { fileBytes: 2000 } }), restEnv);
+    const server = await restServer(restOptions(workspace(), { limits: { fileBytes: 20_000 } }), restEnv);
     const csv = "Region,Sales\nNorth,10\nSouth,20\nNorth,5\nSouth,7\n";
     try {
         const described = await multipart(`${server.api}/sources/describe`, TOKEN, [["data", [new Blob([csv]), "a.csv"]]]);
@@ -462,11 +462,15 @@ test("REST multipart on the other routes; hostile files: garbage, a sheet that i
         const garbage = await multipart(`${server.api}/sources/describe`, TOKEN, [["data", [new Blob(["PK\u0003\u0004 not a workbook at all"]), "book.xlsx"]]]);
         assert.equal(garbage.status, 422, JSON.stringify(garbage.data));
         assert.equal(garbage.data.code, "INVALID_FILE");
+        // in words, not a reader's code: the file is the caller's own, so its reader's sentence may come back
+        assert.doesNotMatch(garbage.data.detail, /\([A-Z_]+\)$/);
+        assert.match(garbage.data.detail, /Data sent with the request\.xlsx/);
         const book = await call(`${server.api}/views/render/file`, { token: TOKEN, body: { source: "inline:", data: TICKETS, view: BY_REGION, format: "xlsx" } });
         assert.equal(book.status, 200);
         const sheet = await multipart(`${server.api}/sources/describe`, TOKEN, [["data", [new Blob([book.data]), "book.xlsx"]], ["input", JSON.stringify({ data: { sheet: "No such sheet" } })]]);
-        assert.ok(sheet.status >= 400 && sheet.status < 500, JSON.stringify(sheet.data));
-        const large = await multipart(`${server.api}/sources/describe`, TOKEN, [["data", [new Blob([`Region\n${"North\n".repeat(500)}`]), "a.csv"]]]);
+        assert.equal(sheet.status, 422, JSON.stringify(sheet.data));
+        assert.match(sheet.data.detail, /no sheet "No such sheet".*; its sheets: "Report"/);
+        const large = await multipart(`${server.api}/sources/describe`, TOKEN, [["data", [new Blob([`Region\n${"North\n".repeat(5000)}`]), "a.csv"]]]);
         assert.equal(large.status, 413);
         assert.equal(large.data.code, "LIMIT_EXCEEDED");
         // multipart on a route without a source is not taken
@@ -505,4 +509,116 @@ test("pivotkit-server check-config refuses a cap above the built-in one and a bo
         assert.equal(res.status, 2, res.stdout + res.stderr);
         assert.match(res.stderr, pattern);
     }
+});
+
+test("a body nested deeply is refused before it is parsed, in a fixed time; brackets inside texts do not count", async () => {
+    const { jsonDepth } = await import("../src/present.js");
+    assert.equal(jsonDepth('{"a":"[[[[\\"[[[{{","b":[1,[2]]}', 64), 3);
+    assert.equal(jsonDepth(new TextEncoder().encode('[[["]]]\\\\"]]]'), 64), 3, "a text, an escaped backslash before its end");
+    assert.equal(jsonDepth("[".repeat(1000), 64), 65, "stops at the first level over the maximum");
+    const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } } }), restEnv);
+    try {
+        for (const bomb of [`{"source":"inline:","data":${"[".repeat(3 * 1_048_576)}`, `{"source":"inline:","view":${"[".repeat(1_000_000)}${"]".repeat(1_000_000)}}`]) {
+            const started = Date.now();
+            const answer = await call(`${server.api}/sources/describe`, { token: TOKEN, body: bomb });
+            assert.equal(answer.status, 400);
+            // the nesting, not "not valid JSON": counted before JSON.parse saw the unclosed brackets
+            assert.equal(answer.data.detail, "the input is nested deeper than 64 levels");
+            assert.ok(Date.now() - started < 1500, `${Date.now() - started} ms`);
+        }
+    } finally {
+        await server.close();
+    }
+});
+
+test("multipart: more than two parts are refused by counting boundaries, before the parts are parsed", async () => {
+    const { multipartParts } = await import("../src/rest/multipart.js");
+    const body = (n) => new TextEncoder().encode(`${Array.from({ length: n }, (_, i) => `--xyz\r\nContent-Disposition: form-data; name="p${i}"\r\n\r\nv\r\n`).join("")}--xyz--\r\n`);
+    assert.equal(multipartParts(body(2), 'multipart/form-data; boundary="xyz"'), 2);
+    assert.equal(multipartParts(body(5000), "multipart/form-data; boundary=xyz"), 3, "counting stops past the most");
+    assert.equal(multipartParts(body(1), "multipart/form-data"), null, "no boundary");
+    const server = await restServer(restOptions(workspace()), restEnv);
+    try {
+        const answer = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "multipart/form-data; boundary=xyz", authorization: `Bearer ${TOKEN}` }, body: Buffer.from(body(20_000)) });
+        assert.equal(answer.status, 400);
+        assert.match(answer.data.detail, /at most two parts/);
+        const none = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "multipart/form-data", authorization: `Bearer ${TOKEN}` }, body: "x" });
+        assert.equal(none.status, 400);
+        assert.match(none.data.detail, /boundary/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("the large body: only on a route that takes a source, and at most two at once (503 BUSY, retryable)", async () => {
+    const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } } }), restEnv);
+    const size = 3 * 1_048_576;
+    try {
+        // (a request that declares a size it never sends gets a connection of its own: one kept alive
+        // would carry the next request as the rest of its body)
+        // a route that takes no source (or none at all) keeps 2 MiB, even for a caller that may send data
+        const nowhere = await raw(`${server.api}/nothing`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}`, "content-length": String(size), connection: "close" } });
+        assert.equal(nowhere.status, 413);
+        assert.match(nowhere.data.detail, /larger than 2 MiB/);
+        // two large bodies on their way hold the two places; a third waits for none and is told to try again
+        const { request } = await import("node:http");
+        const url = new URL(`${server.api}/sources/describe`);
+        const open = [];
+        for (let i = 0; i < 2; i++) {
+            const req = request({ agent: false, host: url.hostname, port: url.port, path: url.pathname, method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}`, "content-length": String(size), connection: "close" } });
+            req.on("error", () => undefined);
+            req.write("{");
+            open.push(req);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const third = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}`, "content-length": String(size), connection: "close" } });
+        assert.equal(third.status, 503);
+        assert.equal(third.data.code, "BUSY");
+        assert.equal(third.data.retryable, true);
+        assert.ok(Number(third.headers["retry-after"]) >= 1);
+        // a small body is not held back
+        assert.equal((await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: TICKETS } })).status, 200);
+        // clients that leave give their places back
+        for (const req of open) {
+            req.destroy();
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const big = { columns: ["Region", "Note"], rows: Array.from({ length: 25_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 25_000 };
+        assert.equal((await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status, 200);
+    } finally {
+        await server.close();
+    }
+});
+
+test("words: the source and data inputs say what inline: is; a 413 names the cap that applied", async () => {
+    const offered = presentedInput("render_view", { offers: { data: true } });
+    assert.match(offered.properties.source.description, /or "inline:" with data: a table you send/);
+    assert.doesNotMatch(presentedInput("render_view", { offers: { data: false } }).properties.source.description, /inline:/);
+    assert.match(presentedInput("render_view", { files: false, offers: { data: true } }).properties.source.description, /^A source id from GET \/sources, or "inline:"/);
+    const data = offered.properties.data;
+    assert.match(data.properties.rows.description, /numbers as JSON numbers, not texts/);
+    assert.match(data.properties.rowCount.description, /must equal the number of rows you send/);
+    assert.match(data.description, /list_sources says how much may be sent/);
+    const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } } }), restEnv);
+    try {
+        const other = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${OTHER_TOKEN}`, "content-length": String(3 * 1_048_576), connection: "close" } });
+        assert.equal(other.status, 413);
+        assert.equal(other.data.detail, "the body is larger than 2 MiB, the most this service takes from you; a profile with data: true may send up to 4 MiB (rest.data.maxBytes)");
+        const etl = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}`, "content-length": String(5 * 1_048_576), connection: "close" } });
+        assert.equal(etl.status, 413);
+        assert.match(etl.data.detail, /^the body is larger than 4 MiB/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("check-config: a profile without downloads may still send data; a REST-only server says nothing of MCP", async () => {
+    const dir = workspace();
+    const options = { sources: { sales: { file: "data/sales.csv" } }, policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL", profile: "etl" }] }, baseDir: dir };
+    const both = await checkConfig(options, { http: true, rest: true, env: { ETL: "x".repeat(40) }, name: "pivotkit-server" });
+    assert.match(both.text, /Profile etl: .*file downloads \(REST\) off \(data sent in the request still works: data: true\)/);
+    assert.match(both.text, /Data in the request: MCP on/);
+    const restOnly = await checkConfig(options, { http: true, rest: true, mcp: false, env: { ETL: "x".repeat(40) }, name: "pivotkit-server" });
+    assert.match(restOnly.text, /^Data in the request: REST for profiles etl, up to 10 MiB \(default\)$/m);
+    assert.doesNotMatch(restOnly.text, /MCP clients may send/);
 });

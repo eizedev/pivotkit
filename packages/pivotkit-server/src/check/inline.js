@@ -29,7 +29,8 @@ export async function section(options, _registry, runtime) {
     const restOn = restDataOffered(options);
     const restWho = options.policy?.data === true ? `for every caller${off.length ? ` but profiles ${off.join(", ")}` : ""}` : `for profiles ${on.join(", ")}`;
     const rest = runtime.rest === false ? "" : `; ${restOn ? `REST ${restWho}, up to ${bytesText(restDataBytesOf(options))} (${options.rest?.data?.maxBytes !== undefined ? "rest.data.maxBytes" : "default"})` : "REST off (no policy or profile has data: true)"}`;
-    lines.push("", `Data in the request: ${mcp}${rest}`);
+    const parts = [...(runtime.mcp === false ? [] : [mcp]), ...(rest ? [rest.slice(2)] : [])];
+    lines.push("", `Data in the request: ${parts.join("; ")}`);
     if (restOn && options.policy?.data === true) {
         lines.push(`  warning: policy.data: true lets every REST caller send its own data, in bodies of up to ${bytesText(restDataBytesOf(options))}; give data: true to the profiles that need it instead`);
     }
@@ -39,6 +40,6 @@ export async function section(options, _registry, runtime) {
     if (!restOn && options.rest?.data?.maxBytes !== undefined) {
         lines.push("  warning: rest.data.maxBytes does nothing: no policy or profile has data: true");
     }
-    const upgrade = cap ? [`MCP clients may send a small table of their own with source "inline:" (up to ${capText(cap)}); no exposure policy applies to it; mcp.data: false switches it off`] : [];
+    const upgrade = cap && runtime.mcp !== false ? [`MCP clients may send a small table of their own with source "inline:" (up to ${capText(cap)}); no exposure policy applies to it; mcp.data: false switches it off`] : [];
     return { lines, problems: 0, upgrade };
 }

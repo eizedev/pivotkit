@@ -220,6 +220,7 @@ refused (422 `DATA_MISMATCH`). The body has at most these two parts; nothing is 
 the file's name is used for its extension only:
 
 ```bash
+printf 'Region,Sales\nNorth,10\nSouth,20\nNorth,5\n' > sales.csv
 curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
   -F data=@sales.csv -F 'input={"view":{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]},"data":{"sha256":"'"$(shasum -a 256 sales.csv | cut -d' ' -f1)"'"}}' \
   http://127.0.0.1:3333/api/v1/views/render/file
@@ -229,14 +230,19 @@ curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
   server's or its profile's policy says of fields of that name. The profile's `inline` limits still
   apply. A report over such data is no proof that its content came from the operator's data.
 - **Size.** A caller with `data: true` may send a body of up to `rest.data.maxBytes` (default
-  10 MiB, at most 64 MiB) on the POST routes; every other request keeps 2 MiB. The larger cap
-  applies only once the token is checked: a body declared larger than any caller may send is refused
-  before that. The server's import limits (`limits.rows`, `limits.importCells`, `limits.fileBytes`)
+  10 MiB, 2 to 64 MiB) on the POST routes that take a source; every other request keeps 2 MiB, and
+  a 413 says which cap applied. The larger cap applies only once the token is checked: a body
+  declared larger than any caller may send is refused before that. At most two bodies over 2 MiB are
+  read at once over all callers; a third gets 503 `BUSY` with `Retry-After` and `retryable: true`.
+  A JSON body nested deeper than 64 levels is refused before it is parsed, a multipart body with more
+  than two parts before its parts are read. A JSON body is parsed in the server's main thread: a
+  `data: true` token is trusted with that time and memory ([security](../security.md#rest)). The server's import limits (`limits.rows`, `limits.importCells`, `limits.fileBytes`)
   apply as to a file source; a file is read in a worker under `compute.timeMs` and
   `compute.memoryMb`.
 - **Downloads.** The file route over `inline:` needs `data: true` only, not `results: true`: there
   is no operator data to protect. `results` still decides for configured sources.
-- **Not kept.** The data is never cached and is gone after the request. A link (`/views/link`)
+- **Not kept.** The data is never cached and is gone after the request; a report rendered over it
+  is saved in the output directory like any other and counts against its quota. A link (`/views/link`)
   answers 409 `NO_LINK` and a schedule (`/schedules/draft`) 409 `NOT_SCHEDULABLE`.
 - `GET /sources` adds `"data": { "maxBytes": 10485760 }` for a caller that may send data.
 
@@ -412,7 +418,7 @@ gives it to the operator. An error of a source or a store that failed (`SOURCE_U
 | 422 | <a id="error-view-has-errors"></a>`VIEW_HAS_ERRORS` | The file route for a view with errors (with `findings`) |
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else; the details only in the log with `--log debug` |
-| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free; starting or stopping; the OAuth issuer not loaded yet |
+| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, or two [large bodies](#data) read already; starting or stopping; the OAuth issuer not loaded yet |
 | 422 | <a id="error-data-mismatch"></a>`DATA_MISMATCH` | [Data sent in the request](#data) whose `rowCount` differs from the rows sent, or a file whose SHA-256 differs from `sha256` |
 | 404, 502 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE`, <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE`, <a id="error-upload-failed"></a>`UPLOAD_FAILED` | Reserved for sources and delivery that load data or store reports elsewhere; this version does not answer them |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |

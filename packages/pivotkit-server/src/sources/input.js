@@ -25,6 +25,9 @@ export const DATA_CELL_TEXT = 32_767;
 /** The most columns of a table sent in `data`. */
 export const DATA_COLUMNS = 1000;
 
+/** What a source's description adds where data may be sent. */
+export const INLINE_SOURCE_TEXT = `or "${INLINE_ID}" with data: a table you send.`;
+
 /** The `data` input: a table the caller sends, with source "inline:". */
 export const DATA_INPUT = Object.freeze({
     type: "object",
@@ -33,8 +36,8 @@ export const DATA_INPUT = Object.freeze({
     properties: {
         name: { type: "string", maxLength: 200, description: "What the data is, for the report's title." },
         columns: { type: "array", minItems: 1, maxItems: DATA_COLUMNS, items: { type: "string", minLength: 1, maxLength: 256 }, description: "The column names, each once." },
-        rows: { type: "array", items: { type: "array", items: { type: ["string", "number", "boolean", "null"], maxLength: DATA_CELL_TEXT } }, description: "The rows, each a list of one value per column, in the columns' order." },
-        rowCount: { type: "integer", minimum: 0, description: "How many rows the whole table has: a table that arrives cut short is refused." },
+        rows: { type: "array", items: { type: "array", items: { type: ["string", "number", "boolean", "null"], maxLength: DATA_CELL_TEXT } }, description: "The rows, each a list of one value per column, in the columns' order; numbers as JSON numbers, not texts; null for none." },
+        rowCount: { type: "integer", minimum: 0, description: "How many rows the whole table has: it must equal the number of rows you send, so send the whole table; a table cut short is refused." },
         asOf: { type: "string", maxLength: 40, description: "When the data is from, as you state it (ISO 8601)." }
     },
     description: `Your own rows, with source "${INLINE_ID}". They are not the operator's data and the operator's exposure policy does not apply to them. list_sources says how much may be sent.`

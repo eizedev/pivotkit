@@ -12,7 +12,7 @@
 
 import { createHash } from "node:crypto";
 import { OperationError, checkInput } from "pivotkit-report/operations";
-import { presentedInput } from "../present.js";
+import { INPUT_DEPTH, jsonDepth, presentedInput } from "../present.js";
 import { INLINE_ID, UPLOAD_FORMATS } from "../sources/inline.js";
 
 /** The parts a multipart body may have. */
@@ -41,6 +41,28 @@ export function multipartInputSchema(operation, offers) {
     return { ...schema, required: (schema.required ?? []).filter((/** @type {string} */ key) => key !== "source"), properties: { ...schema.properties, data: MULTIPART_DATA } };
 }
 
+/**
+ * The parts of a multipart body, counted by its boundary lines without parsing it, at most one past
+ * PARTS.length (counting stops there); null when the content type names no boundary.
+ * @param {Uint8Array} bytes
+ * @param {string} contentType
+ * @returns {number | null}
+ */
+export function multipartParts(bytes, contentType) {
+    const boundary = /;\s*boundary=(?:"([^"]{1,70})"|([^\s;]{1,70}))/i.exec(contentType);
+    if (!boundary) {
+        return null;
+    }
+    const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const delimiter = Buffer.from(`--${boundary[1] ?? boundary[2]}`);
+    // each part starts with a delimiter; the last delimiter (with "--") ends the body
+    let found = 0;
+    for (let at = buffer.indexOf(delimiter); at >= 0 && found <= PARTS.length + 1; at = buffer.indexOf(delimiter, at + delimiter.length)) {
+        found++;
+    }
+    return Math.max(0, found - 1);
+}
+
 /** A REST problem other than an operation's error (handler.js answers it). */
 const problemError = (code, detail) => Object.assign(new Error(detail), { problem: code, detail });
 
@@ -64,6 +86,14 @@ export function uploadFormatOf(file) {
  * @returns {Promise<{ input: Record<string, any>, upload: { bytes: Uint8Array, format: string, sheet?: string, name?: string, asOf?: string } }>}
  */
 export async function readMultipart(bytes, contentType, operation, offers) {
+    // counted before the parts are parsed: thousands of small parts cost the parser
+    const parts = multipartParts(bytes, contentType);
+    if (parts === null) {
+        throw new OperationError("INVALID_INPUT", "a multipart body names its boundary in Content-Type (multipart/form-data; boundary=...)");
+    }
+    if (parts > PARTS.length) {
+        throw new OperationError("INVALID_INPUT", "a multipart body has at most two parts: data (the file) and input (the operation's input as JSON)");
+    }
     let form;
     try {
         form = await new Response(/** @type {any} */ (bytes), { headers: { "content-type": contentType } }).formData();
@@ -98,6 +128,9 @@ export async function readMultipart(bytes, contentType, operation, offers) {
     let input = {};
     if (part !== null) {
         const text = typeof part === "string" ? part : await part.text();
+        if (jsonDepth(text, INPUT_DEPTH) > INPUT_DEPTH) {
+            throw new OperationError("INVALID_INPUT", `the part input is nested deeper than ${INPUT_DEPTH} levels`);
+        }
         try {
             input = text.trim() ? JSON.parse(text) : {};
         } catch {

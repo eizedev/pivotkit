@@ -4,6 +4,9 @@
 // over stdio the same; mcp.data: false leaves `data` out of every tool.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { INSTRUCTIONS, SKILLS_DIR, instructionsOf } from "../src/context.js";
 import { BY_REGION, call, httpClient, httpServer, stdioClient, workspace } from "./helpers.js";
 
 /** A table of n rows and w columns. */
@@ -65,6 +68,25 @@ test("MCP over stdio: the same table works; mcp.data: false leaves data out of e
         assert.match(refused.text, /^NOT_ALLOWED: this server takes no data sent in the request/);
     } finally {
         await off.close();
+        await server.close();
+    }
+});
+
+test("the instructions and the skill tell the model about inline: where it is offered", async () => {
+    assert.match(instructionsOf({ data: true }), /source "inline:" with data/);
+    assert.match(instructionsOf({ data: true }), /not the operator's data/);
+    assert.equal(instructionsOf({ data: false }), INSTRUCTIONS);
+    const skill = readFileSync(join(SKILLS_DIR, "pivotkit-reports", "SKILL.md"), "utf8");
+    assert.match(skill, /inline:/);
+    assert.match(skill, /rowCount/);
+    assert.match(skill, /numbers as JSON numbers/);
+    const dir = workspace();
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
+    const { client, close } = await httpClient(server.url);
+    try {
+        assert.match(client.getInstructions() ?? "", /source "inline:" with data/);
+    } finally {
+        await close();
         await server.close();
     }
 });
