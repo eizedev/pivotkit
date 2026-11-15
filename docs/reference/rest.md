@@ -335,7 +335,9 @@ endpoints. With OAuth the REST service is a protected resource of its own: its r
 `rest.resource` (default the origin of `auth.resource` with `/api/v1`, e.g.
 `https://reports.example.com/api/v1`), its metadata ([RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728))
 is at `/.well-known/oauth-protected-resource/api/v1`, and a token must carry its audience: a token
-issued for the MCP endpoint is refused by REST, and one for REST by the MCP endpoint. A token without
+issued for the MCP endpoint is refused by REST, and one for REST by the MCP endpoint. The issuer's
+settings are the MCP endpoint's ([OAuth 2.1](mcp.md#oauth)), including `auth.intranet` for an issuer
+on a private address. A token without
 the required scopes gets 403 `INSUFFICIENT_SCOPE` with `WWW-Authenticate: Bearer
 error="insufficient_scope", scope="..."` naming them. A person whose token does not carry their groups
 (with `auth.groupProfiles` and no `auth.defaultProfile`, [groups](mcp.md#groups)) gets 403
@@ -510,7 +512,8 @@ the REST service only, `http.page` and `http.allowOrigins` by the MCP endpoint o
 
 `/healthz` answers `{ "ok": true }` while the process runs; `/readyz` answers 200 when it can take
 work (`{ "ok": true, "checks": { "auth": true, "workers": true, "output": true } }`: the OAuth issuer
-loaded, workers up, the output directory writable) and 503 otherwise; both answer `HEAD` too. An
+loaded, workers up, the output directory writable) and 503 otherwise, with `reason` in fixed words
+(`"the OAuth issuer's metadata is not loaded; see the log"`); both answer `HEAD` too. An
 output directory the
 server's user cannot write is also a warning at start, a problem in `check-config`, and 409
 `NO_OUTPUT` for a report. On SIGTERM the server takes no

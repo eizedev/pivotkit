@@ -318,7 +318,11 @@ may try to steer it:
   are capped at 2 MiB. Authentication is a static token (compared in constant time, never logged) or
   OAuth 2.1 as the [MCP authorization spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
   describes: JWT access tokens checked for signature, issuer, audience (the server itself), expiry and
-  algorithm, never passed on; scopes per tool and per source. The quick-start page at `/` is not
+  algorithm, never passed on; scopes per tool and per source. The issuer's metadata, its keys and the
+  download sign-in's token endpoint are requested under the rules of every other outbound request
+  (no redirects, sizes capped, link-local and metadata addresses never, loopback and private
+  addresses only with `auth.intranet`), so a hostile metadata document cannot point the server at
+  an internal address. The quick-start page at `/` is not
   behind authentication and shows no source ids unless the operator turns that on
   (`http.page.sources`); without sign-in (`auth` `none`) it lists them by default.
 - **The log** names tools, source ids (`inline:`, `file:` for a file by path, `unknown` for anything

@@ -335,7 +335,8 @@ needs the issuer too ([below](#oauth-egress)), and an [HTTP source](../reference
 needs the addresses of its backend (port 443) as the issuer does, and of its token endpoint when it
 signs in with client credentials or a token exchange ([backend sign-in](../reference/sources.md#http-auth));
 a backend inside the cluster also needs `intranet: true` on it, since cluster addresses are private
-ones, and a token endpoint inside the cluster `intranet: true` in its sign-in's settings.
+ones, and a token endpoint inside the cluster `intranet: true` in its sign-in's settings (an issuer
+inside the cluster `auth.intranet: true`, see [below](#oauth-egress)).
 
 ## Sign-in with Authentik { #oauth }
 
@@ -412,7 +413,9 @@ cluster, on port 443. Add the rule to the policy's `egress`:
 ```
 
 When Authentik runs in the same cluster and its host name resolves to the ingress controller, allow
-the controller's namespace instead of an `ipBlock`.
+the controller's namespace instead of an `ipBlock`. An issuer whose name resolves to a cluster or
+other private address also needs `"intranet": true` in `auth`: the server refuses loopback and
+private addresses for the issuer without it (`check-config` names it).
 
 What these settings are based on: Authentik's
 [OAuth2 provider documentation](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)

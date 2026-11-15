@@ -14,7 +14,8 @@
  *   sends the file once (an exclusive marker in the output directory, so replicas on a shared
  *   directory agree); the same browser may repeat it for two minutes. "signIn": GET signs the person
  *   in at the issuer (code flow, PKCE, state, nonce) and the callback sends the file only to the
- *   person whose subject the token holds.
+ *   person whose subject the token holds. The issuer's metadata, keys and token endpoint are
+ *   requested through issuer.js, under the rules of auth.issuer (signIn.issuer is auth.issuer).
  * - Nothing here logs a token, a code, a state, a cookie or a path.
  */
 
@@ -25,7 +26,8 @@ import { join } from "node:path";
 import { ConfigError } from "./options/shared.js";
 import { DEFAULT_ALGORITHMS } from "./config.js";
 import { settingsOf } from "./options/downloads.js";
-import { discover, subjectOf } from "./auth.js";
+import { subjectOf } from "./auth.js";
+import { discover, ISSUER_LIMITS, issuerFetch, issuerHint, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { isLoopback } from "./listen.js";
 import { OUTPUT_MARK, outputDir } from "./output.js";
@@ -51,9 +53,6 @@ export const SIGN_IN_SECONDS = 600;
 
 /** The most entries the cookie holds (parallel sign-ins and repeats); the oldest go first. */
 const COOKIE_ENTRIES = 8;
-
-/** The most bytes of the token endpoint's answer. */
-const TOKEN_ANSWER_BYTES = 65_536;
 
 /** A token as it may appear in a path: checked before anything else is done with it. */
 const TOKEN_SYNTAX = /^([A-Za-z0-9_-]{16,600})\.([A-Za-z0-9_-]{43})$/;
@@ -367,31 +366,53 @@ function keySource(settings, options, env) {
 }
 
 /**
+ * The sign-in's token endpoint: output.downloads.signIn.tokenUrl, else the metadata's
+ * token_endpoint, which must be on the issuer's origin (the client secret goes there), as for a
+ * token exchange (sources/auth.js). Throws Error.
+ * @param {any} metadata
+ * @param {{ issuer: string, tokenUrl: string | null }} signIn
+ */
+function tokenUrlOf(metadata, signIn) {
+    if (signIn.tokenUrl) {
+        return signIn.tokenUrl;
+    }
+    const given = metadata?.token_endpoint;
+    if (typeof given !== "string" || !URL.canParse(given)) {
+        throw new Error("the issuer's metadata names no token_endpoint (set output.downloads.signIn.tokenUrl)");
+    }
+    if (new URL(given).origin !== new URL(signIn.issuer).origin) {
+        throw new Error(`the issuer's token_endpoint is on another origin (${new URL(given).origin}); set output.downloads.signIn.tokenUrl to accept it`);
+    }
+    return given;
+}
+
+/**
  * The sign-in issuer: its metadata and keys, loaded in the background with retries (until then a
  * sign-in link answers 503).
  * @param {NonNullable<import("./options/downloads.js").DownloadSettings["signIn"]>} signIn
+ * @param {import("./issuer.js").IssuerRules} rules
+ * @param {string | undefined} jwksUri  auth.jwksUri
  * @param {any} log
  */
-function signInIssuer(signIn, log) {
-    /** @type {{ metadata: any, jwks: any } | null} */
+function signInIssuer(signIn, rules, jwksUri, log) {
+    /** @type {{ metadata: any, tokenUrl: string, jwks: any } | null} */
     let loaded = null;
     let timer = null;
     let closed = false;
     let delay = 2000;
     const attempt = async () => {
         try {
-            const metadata = await discover(signIn.issuer);
-            if (typeof metadata.authorization_endpoint !== "string" || typeof metadata.token_endpoint !== "string" || typeof metadata.jwks_uri !== "string") {
-                throw new Error("the issuer's metadata names no authorization_endpoint, token_endpoint or jwks_uri");
+            const metadata = await discover(signIn.issuer, rules);
+            if (typeof metadata.authorization_endpoint !== "string") {
+                throw new Error("the issuer's metadata names no authorization_endpoint");
             }
-            const { createRemoteJWKSet } = await import("jose");
-            loaded = { metadata, jwks: createRemoteJWKSet(new URL(metadata.jwks_uri), { timeoutDuration: 5000, cooldownDuration: 30_000, cacheMaxAge: 600_000 }) };
+            loaded = { metadata, tokenUrl: tokenUrlOf(metadata, signIn), jwks: await remoteKeySet(jwksUriOf(metadata, signIn.issuer, jwksUri), rules, log) };
             log.info("download links: the sign-in issuer's metadata loaded", { issuer: signIn.issuer });
         } catch (e) {
             if (closed) {
                 return;
             }
-            log.warn(`download links: the sign-in issuer's metadata could not be loaded, trying again in ${delay / 1000} s: ${String(/** @type {any} */ (e)?.message ?? e).slice(0, 300)}`);
+            log.warn(`download links: the sign-in issuer's metadata could not be loaded, trying again in ${delay / 1000} s: ${String(/** @type {any} */ (e)?.message ?? e).slice(0, 600)}`);
             timer = setTimeout(attempt, delay);
             timer.unref?.();
             delay = Math.min(delay * 2, 60_000);
@@ -514,7 +535,10 @@ export function createDownloadHandler(context, runtime = {}) {
     const hosts = allowedHosts(options);
     const keys = keySource(settings, options, env);
     const active = settings.enabled;
-    const issuer = active && settings.bind === "signIn" && settings.signIn ? signInIssuer(settings.signIn, context.log) : null;
+    const issuerRules = issuerRulesOf(options);
+    // the operator's tokenUrl is an origin the operator wrote, like auth.issuer's
+    const signInRules = settings.signIn?.tokenUrl ? Object.freeze({ ...issuerRules, origins: [...issuerRules.origins, new URL(settings.signIn.tokenUrl).origin] }) : issuerRules;
+    const issuer = active && settings.bind === "signIn" && settings.signIn ? signInIssuer(settings.signIn, issuerRules, options.auth?.jwksUri, context.log) : null;
     const subjectClaim = options.auth?.subjectClaim ?? "sub";
     /** @type {any} */
     const state = { settings, keys, base: publicUrl ? publicUrl.origin + publicUrl.pathname.replace(/\/$/, "") : null, handler: null };
@@ -798,7 +822,7 @@ export function createDownloadHandler(context, runtime = {}) {
         return new Response(null, { status: 302, headers: { ...BASE_HEADERS, location: target.href, "set-cookie": cookie } });
     }
 
-    /** Exchanges the code for tokens at the issuer: no redirect, a time limit, a size cap. */
+    /** Exchanges the code for tokens at the issuer (issuer.js: its address rules, no redirect, a time limit, a size cap). */
     async function exchange(loaded, code, verifier) {
         const signIn = /** @type {NonNullable<typeof settings.signIn>} */ (settings.signIn);
         const form = new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: `${state.base}${CALLBACK_PATH}`, code_verifier: verifier, client_id: signIn.clientId });
@@ -813,20 +837,18 @@ export function createDownloadHandler(context, runtime = {}) {
                 headers.authorization = `Basic ${Buffer.from(`${encodeURIComponent(signIn.clientId)}:${encodeURIComponent(secret)}`).toString("base64")}`;
             }
         }
-        const response = await fetch(loaded.metadata.token_endpoint, { method: "POST", headers, body: form, redirect: "error", signal: AbortSignal.timeout(10_000) });
-        const chunks = [];
-        let size = 0;
-        for await (const chunk of /** @type {any} */ (response.body ?? [])) {
-            size += chunk.length;
-            if (size > TOKEN_ANSWER_BYTES) {
-                throw new Error("the token endpoint's answer is too large");
-            }
-            chunks.push(chunk);
+        let response;
+        try {
+            response = await issuerFetch(loaded.tokenUrl, signInRules, { method: "POST", headers, body: form.toString(), maxBytes: ISSUER_LIMITS.tokenBytes, timeMs: ISSUER_LIMITS.tokenMs });
+        } catch (e) {
+            // the operator's part of a refused request (an address, a redirect) as a warning; the person gets SIGN_IN_FAILED
+            context.log.warn(`download links: the issuer's token endpoint could not be reached: ${/** @type {any} */ (e)?.code ?? "error"}, ${String(/** @type {any} */ (e)?.message ?? e).slice(0, 200)}${issuerHint(e, signInRules)}`);
+            throw e;
         }
-        if (!response.ok) {
+        if (response.status < 200 || response.status > 299) {
             throw new Error(`the token endpoint answered ${response.status}`);
         }
-        const doc = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        const doc = JSON.parse(new TextDecoder().decode(response.body));
         if (typeof doc?.id_token !== "string") {
             throw new Error("the token endpoint's answer has no id_token");
         }

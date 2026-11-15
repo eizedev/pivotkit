@@ -116,6 +116,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {number} [clockTolerance]
  * @property {string} [requireTyp]
  * @property {boolean} [allowInsecureIssuer]
+ * @property {boolean} [intranet]  the issuer may be on a loopback or private address (options/issuer.js)
  * @property {Record<string, string>} [clientProfiles]  OAuth client id to policy profile
  * @property {Record<string, string>} [scopeProfiles]  OAuth scope to policy profile
  * @property {string} [groupsClaim]  the claim with a person's groups, a list (default "groups")

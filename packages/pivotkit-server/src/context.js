@@ -27,6 +27,9 @@ import { prune } from "./output.js";
 import { autoValuesFields, noteAutoValues } from "./present.js";
 import { resolvePolicy, withStats } from "./policy.js";
 
+/** Why the server cannot take work yet, by /readyz check: fixed texts, never an address. */
+const NOT_READY = Object.freeze({ auth: "the OAuth issuer's metadata is not loaded", workers: "no compute worker is running", output: "the output directory is not writable" });
+
 /**
  * Why an output directory inside (or holding) an allowed directory is refused: the reason alone,
  * which the start's ConfigError and check-config's PROBLEM line each put their own prefix before.
@@ -197,7 +200,13 @@ export async function createContext(options, runtime = {}) {
                 workers: computer.size() > 0,
                 output: output ? await writable(output.dir) : true
             };
-            return { ok: Object.values(checks).every(Boolean), checks };
+            const ok = Object.values(checks).every(Boolean);
+            // why not, in fixed words without an address: the log has the details
+            const reason = Object.entries(checks)
+                .filter(([, passed]) => !passed)
+                .map(([name]) => NOT_READY[/** @type {keyof typeof NOT_READY} */ (name)])
+                .join("; ");
+            return ok ? { ok, checks } : { ok, checks, reason: `${reason}; see the log` };
         },
 
         /**
