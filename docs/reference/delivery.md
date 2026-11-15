@@ -86,7 +86,8 @@ their result says to ask the operator.
 A sign-in link opens the provider's sign-in page in the browser (the OAuth 2.1 code flow with PKCE,
 `state` and `nonce`), comes back to `/downloads/callback`, and sends the file only when the ID
 token's issuer and subject are those of the access token the report was asked with (an ID token for
-several audiences must name this client as `azp`). Register at the provider:
+several audiences must name this client as `azp`). A HEAD of the link (a link preview) answers 200
+with a short page, or the link's error, and starts no sign-in. Register at the provider:
 
 1. A client for the browser (`signIn.clientId`), public with PKCE or confidential with a secret,
    with the redirect URI `https://reports.example.com/downloads/callback` (`http.publicUrl` +
@@ -286,7 +287,9 @@ With `bind: "signIn"` the presign request carries `subject`: an HMAC of the call
 subject under a key derived from `output.downloads.key` for this purpose alone (never the subject
 itself, and never a value a sign-in link holds), so your presign service can scope the object to the
 person and check it when they open the link. The value is the same for one person across reports, so
-the store can tell which reports belong to the same person. Over stdio, or when the key cannot be
+the store can tell which reports belong to the same person. A program signed in with client
+credentials (a service account) has a subject too, usually its client: its reports are bound to
+that client, so only a sign-in as the same service account opens them. Over stdio, or when the key cannot be
 read, no `subject` is sent. Without `output.downloads.key` the server uses a random key per process,
 so the value changes on every restart and differs between replicas (`check-config` warns of it). A `signIn` link is only as strong as the
 store's own access control: pivotkit declares the binding, it does not verify it.

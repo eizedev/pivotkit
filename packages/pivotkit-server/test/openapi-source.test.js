@@ -65,7 +65,9 @@ test("source-from-openapi: a paged list with path and query parameters, referenc
         backend: "platform-api",
         path: "/customers/{customerId}/vms",
         query: { state: "{state}", "created-after": "{created_after}", limit: "{limit}", page: "{page}" },
-        rows: "/items"
+        rows: "/items",
+        // the body's generatedAt (date-time) is the time of the data
+        asOf: "/generatedAt"
     });
     // the path parameter from the path item's $ref; its pattern is not copied, its example passes the safe charset
     assert.deepEqual(source.params.customerId, { type: "string", required: true, description: "The customer's short name", example: "acme", maxLength: 40 });
@@ -625,3 +627,48 @@ test("source-from-openapi: a schema merged deep down does not cut the same schem
     assert.ok(forward.includes("f9"), forward.join(","));
 });
 
+
+test("source-from-openapi: a server on a private address suggests intranet (a note, never set), a public one does not", () => {
+    const noteOf = (url) => generate(readDocument(JSON.stringify(minimal({ type: "object" }, { servers: [{ url }] }))), "op").notes.find((n) => /intranet/.test(n));
+    for (const url of ["https://10.1.2.3/api", "https://192.168.1.20:8443/v1", "https://[fd12::1]/v1", "https://localhost:8080/v1", "https://platform.internal/v1", "https://vms.lan/api", "https://idp.home.arpa/x", "https://printer.local/", "https://platform/v1"]) {
+        assert.match(noteOf(url) ?? "", /The document's server is a private address: a backend there needs intranet: true \(httpSources\.backends\.t\.intranet\); without it the server refuses it/, url);
+    }
+    // an address the server never connects to: no intranet advice, the refusal instead
+    for (const url of ["https://169.254.169.254/latest", "https://[fe80::1]/v1", "https://0.0.0.0/v1", "https://[fd00:ec2::254]/v1", "https://100.100.100.200/v1"]) {
+        assert.match(noteOf(url) ?? "", /the server refuses a link-local, unspecified or metadata address even with intranet/, url);
+        assert.doesNotMatch(noteOf(url) ?? "", /needs intranet: true/, url);
+    }
+    for (const url of ["https://api.example.com/v1", "https://8.8.8.8/x", "/relative/v1", "https://{region}.example.com/v1"]) {
+        assert.equal(noteOf(url), undefined, url);
+    }
+    // a suggestion only: the block does not loosen the address rule itself
+    const g = generate(readDocument(JSON.stringify(minimal({ type: "object" }, { servers: [{ url: "https://10.1.2.3/api" }] }))), "op");
+    assert.equal(g.config.httpSources.backends.t.intranet, undefined);
+});
+
+test("source-from-openapi: a timestamp field of the answer's body becomes the asOf pointer", () => {
+    const withBody = (properties) => {
+        const doc = minimal({ type: "object" });
+        doc.paths["/a"].get.responses[200].content["application/json"].schema = { type: "object", properties: { items: { type: "array", items: { type: "object", properties: { name: { type: "string" } } } }, ...properties } };
+        return generate(readDocument(JSON.stringify(doc)), "op");
+    };
+    const named = withBody({ generatedAt: { type: "string" } });
+    assert.equal(named.config.sources.op.http.asOf, "/generatedAt");
+    assert.ok(named.notes.some((n) => /http\.asOf is \/generatedAt/.test(n)));
+    // a date-time format wins over a name, and an epoch number is taken
+    assert.equal(withBody({ updated: { type: "string" }, snapshot: { type: "string", format: "date-time" } }).config.sources.op.http.asOf, "/snapshot");
+    assert.equal(withBody({ timestamp: { type: "integer" } }).config.sources.op.http.asOf, "/timestamp");
+    // two candidates of the same kind: none chosen, a note names them; none at all: no asOf
+    const two = withBody({ generatedAt: { type: "string" }, updatedAt: { type: "string" } });
+    assert.equal(two.config.sources.op.http.asOf, undefined);
+    assert.ok(two.notes.some((n) => /generatedAt, updatedAt/.test(n)));
+    assert.equal(withBody({ count: { type: "integer" } }).config.sources.op.http.asOf, undefined);
+    // a list with a time-like name is rows, not the answer's time (also as a list of date-times)
+    assert.equal(withBody({ updated: { type: "array", items: { type: "string", format: "date-time" } } }).config.sources.op.http.asOf, undefined);
+    assert.equal(withBody({ updated: { type: "array", items: { type: "string" } }, generatedAt: { type: "string" } }).config.sources.op.http.asOf, "/generatedAt");
+    // a row's own date is no time of the answer
+    const doc = minimal({ type: "object", properties: { createdAt: { type: "string", format: "date-time" } } });
+    assert.equal(generate(readDocument(JSON.stringify(doc)), "op").config.sources.op.http.asOf, undefined);
+    // what comes out is still a valid block once filled in
+    assert.ok(todoPaths(named.config).length > 0);
+});

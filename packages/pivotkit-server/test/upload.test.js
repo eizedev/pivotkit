@@ -796,3 +796,19 @@ test("check-config's Upload section names per-person sources and data sent in re
     const bound = factsOf((await checkConfig({ ...options, output: { dir: "out", upload: { ...options.output.upload, bind: "once" } } }, { http: true, env: {} })).text);
     assert.match(bound.slice(bound.indexOf("Upload:")), /^ {2}reports over closed sources \(team, sales\) and over data sent in requests \(inline:\): store links from \S+\n {4}bind once/m);
 });
+
+test("a presign answer that is no JSON object (an array, a text, null, not JSON) is PRESIGN_ANSWER, as the docs say", async () => {
+    const answers = [JSON.stringify([{ uploadUrl: `${origin("bucket")}/b/x?X-Sig=${SIGNATURE}` }]), JSON.stringify("text"), "null", "<html>"];
+    for (const body of answers) {
+        routes.set("POST /presign", (entry, res) => {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(body);
+        });
+        routes.set("PUT *", bucket());
+        asked = [];
+        const { error, code } = await failing();
+        assert.equal(error.code, "UPLOAD_FAILED", body);
+        assert.equal(code, "PRESIGN_ANSWER", body);
+        assert.equal(asked.filter((a) => a.method === "PUT").length, 0, body);
+    }
+});

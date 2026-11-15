@@ -348,7 +348,7 @@ export async function upload(context, file, meta) {
                 throw new UploadFailure(`PRESIGN_${answer.status}`, transientStatus(answer.status));
             }
             const body = jsonOf(answer.body);
-            if (body === null || typeof body !== "object") {
+            if (body === null || typeof body !== "object" || Array.isArray(body)) {
                 throw new UploadFailure("PRESIGN_ANSWER", false);
             }
             const address = addressCheck(pointerValue(body, presign.uploadUrl), presign.allowOrigins, UPLOAD_URL_MAX);

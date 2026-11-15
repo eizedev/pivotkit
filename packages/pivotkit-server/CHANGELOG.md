@@ -335,6 +335,13 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- Findings of a live review ([#448](https://github.com/eizedev/pivotkit/issues/448)): a presign
+  answer that is a JSON array (or any other non-object) is `PRESIGN_ANSWER`, as documented, not
+  `UPLOAD_URL_MISSING`; HEAD on a sign-in download link answers 200 with a short page and starts no
+  sign-in (no redirect, no cookie), so a link preview does not; `source-from-openapi` notes that a
+  backend on a private address needs `intranet: true` and sets `http.asOf` to the answer's one
+  timestamp field (`date-time`, or a name such as `generatedAt`); report file names keep
+  parentheses (pivotkit-cli).
 - `PIVOTKIT_PORT` set to `tcp://<address>:<port>`, as Kubernetes' service links do for a Service
   named pivotkit: `serve`, `check-config` and `healthcheck` say so and name `enableServiceLinks:
   false`, instead of "http.port: must be a whole number of 0 or more" (`healthcheck`: a failed

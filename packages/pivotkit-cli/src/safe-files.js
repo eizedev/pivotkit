@@ -248,11 +248,11 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false, mo
     return target;
 }
 
-/** The characters a name of writeNew keeps; the others become "-". */
-const NAME_CHARS = /[^A-Za-z0-9 ._-]/g;
+/** The characters a name of writeNew keeps (parentheses too: "Orders (fake backend)"); the others become "-". */
+const NAME_CHARS = /[^A-Za-z0-9 ._()-]/g;
 
 /**
- * A file name from a name given from outside: letters, digits, space, ".", "_" and "-" only, no
+ * A file name from a name given from outside: letters, digits, space, ".", "_", "-" and parentheses only, no
  * leading dot, at most `max` characters; "report" when nothing is left.
  * @param {unknown} name
  * @param {number} [max]

@@ -12,6 +12,7 @@ import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.
 import { LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, ownError, sourceFailure } from "../src/sources/run.js";
 import { createComputer } from "../src/compute.js";
 import { packTable, packedBytes, unpackTable } from "../src/packed.js";
+import { encode } from "pivotkit-core";
 import { call, factsOf, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
@@ -1133,30 +1134,48 @@ test("the pool: a worker that asks again for a table it was just sent is a fault
     }
 });
 
-test("the pool: a worker keeps at most a quarter of compute.memoryMb; a table over it goes with every call", async () => {
-    // 300,000 rows encode to about 4.6 MiB: over the 4 MiB of 16 MB, within the 8 MiB of 32 MB
-    const job = (key) => ({ spec: JOB_SPEC, table: smallKinds(300_000), tableKey: key, asOf: null });
-    const describeJob = (computer, key) => computer.run("describe_source", { source: "t" }, job(key)).then((r) => r.outcome.result.rows);
-    const small = createComputer({ workers: 1, memoryMb: 16 });
-    try {
-        for (let i = 0; i < 3; i++) {
-            assert.equal(await describeJob(small, "a"), 300_000);
+test("the pool: a worker keeps at most a quarter of compute.memoryMb of data sets", async () => {
+    const MIB = 1_048_576;
+    for (const memoryMb of [64, 256]) {
+        const computer = createComputer({ workers: 2, memoryMb });
+        try {
+            assert.deepEqual(await computer.bounds(), [(memoryMb * MIB) / 4, (memoryMb * MIB) / 4], `${memoryMb} MB`);
+        } finally {
+            await computer.close();
         }
-        assert.deepEqual(small.sent(), { tables: 3, cached: 0 }, "never kept, never sent without its table");
-    } finally {
-        await small.close();
     }
-    const larger = createComputer({ workers: 1, memoryMb: 32 });
+});
+
+test("the pool: a table over the worker's bound goes with every call; a second one pushes the first out by its bytes", async () => {
+    // the bound comes from the test seam, relative to the table's own encoded size, so the worker's
+    // memory (and a coverage run's overhead on it) is the default's, far above what a run needs
+    const n = 50_000;
+    const table = smallKinds(n);
+    const size = encodedBytes(encode(/** @type {any} */ (unpackTable(table)), { timeZone: "UTC", limits: JOB_SPEC.limits }));
+    const job = (key) => ({ spec: JOB_SPEC, table, tableKey: key, asOf: null });
+    const describeJob = (computer, key) => computer.run("describe_source", { source: "t" }, job(key)).then((r) => r.outcome.result.rows);
+    const below = createComputer({ workers: 1 }, { cacheBytes: Math.floor(size * 0.9) });
     try {
-        await describeJob(larger, "a");
-        await describeJob(larger, "a");
-        assert.deepEqual(larger.sent(), { tables: 1, cached: 1 });
-        // a second table pushes the first out by its bytes (two entries of four)
-        await describeJob(larger, "b");
-        assert.equal(await describeJob(larger, "a"), 300_000);
-        assert.deepEqual(larger.sent(), { tables: 3, cached: 2 }, "a went without its table, was asked for and sent");
+        assert.deepEqual(await below.bounds(), [Math.floor(size * 0.9)]);
+        for (let i = 0; i < 3; i++) {
+            assert.equal(await describeJob(below, "a"), n);
+        }
+        assert.deepEqual(below.sent(), { tables: 3, cached: 0 }, "never kept, never sent without its table");
     } finally {
-        await larger.close();
+        await below.close();
+    }
+    // room for one such table, not two
+    const one = createComputer({ workers: 1 }, { cacheBytes: Math.floor(size * 1.5) });
+    try {
+        await describeJob(one, "a");
+        await describeJob(one, "a");
+        assert.deepEqual(one.sent(), { tables: 1, cached: 1 });
+        // a second table pushes the first out by its bytes (two entries of four)
+        await describeJob(one, "b");
+        assert.equal(await describeJob(one, "a"), n);
+        assert.deepEqual(one.sent(), { tables: 3, cached: 2 }, "a went without its table, was asked for and sent");
+    } finally {
+        await one.close();
     }
 });
 

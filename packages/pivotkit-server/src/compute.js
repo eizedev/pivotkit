@@ -19,11 +19,11 @@ import { isOwnError, sourceFailure } from "./sources/run.js";
 
 /**
  * @param {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [options]
- * @param {{ worker?: URL }} [internal]  worker: another worker script (tests that need a worker which misbehaves)
+ * @param {{ worker?: URL, cacheBytes?: number }} [internal]  worker: another worker script (tests that need a worker which misbehaves); cacheBytes: the workers' bound on kept data sets instead of a quarter of memoryMb (tests that need a bound below what a run needs, independent of the run's own memory)
  */
 export function createComputer(options = {}, internal = {}) {
     const { workers: size, timeMs, memoryMb, queueMs } = { ...COMPUTE_DEFAULTS, ...options };
-    /** @type {Array<{ worker: Worker, busy: boolean, exited: boolean, ready: Promise<unknown>, keys: string[] }>} */
+    /** @type {Array<{ worker: Worker, busy: boolean, exited: boolean, ready: Promise<unknown>, keys: string[], cacheBytes: number | null }>} */
     const pool = [];
     /** How many table jobs went with their table, and how many without (the worker had kept it). */
     const sent = { tables: 0, cached: 0 };
@@ -34,11 +34,11 @@ export function createComputer(options = {}, internal = {}) {
 
     const spawn = () => {
         // the data sets a worker keeps take at most a quarter of its memory
-        const worker = new Worker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: Math.floor((memoryMb * 1_048_576) / 4) } });
+        const worker = new Worker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: internal.cacheBytes ?? Math.floor((memoryMb * 1_048_576) / 4) } });
         worker.unref();
         /** @type {string[]} the table keys it said it kept, oldest first (its cache may have pushed them out since) */
         const keys = [];
-        const slot = { worker, busy: false, exited: false, ready: /** @type {Promise<unknown>} */ (Promise.resolve()), keys };
+        const slot = { worker, busy: false, exited: false, ready: /** @type {Promise<unknown>} */ (Promise.resolve()), keys, cacheBytes: /** @type {number | null} */ (null) };
         // an error without a listener would end the process: a worker that dies between runs (or while
         // it starts) is only replaced; a run's own listener says what happened to that run
         worker.on("error", () => undefined);
@@ -52,6 +52,7 @@ export function createComputer(options = {}, internal = {}) {
         slot.ready = new Promise((resolve) => {
             const onReady = (msg) => {
                 if (msg?.ready) {
+                    slot.cacheBytes = typeof msg.cacheBytes === "number" ? msg.cacheBytes : null;
                     worker.off("message", onReady);
                     resolve(undefined);
                 }
@@ -273,6 +274,11 @@ export function createComputer(options = {}, internal = {}) {
          * @returns {Promise<{ table: import("./packed.js").PackedTable, notes: import("pivotkit-report/operations").Finding[] }>}
          */
         read: async (spec, upload, tableKey, asOf, signal = undefined) => /** @type {any} */ ((await inWorker(READ_JOB, null, { spec, upload, tableKey, asOf }, signal)).outcome),
+        /** The bound on kept data sets each worker reported when it was ready (tests, once the workers started). */
+        async bounds() {
+            await Promise.all(pool.map((s) => s.ready));
+            return pool.map((s) => s.cacheBytes);
+        },
         /** How many table jobs with a key went with their table and how many without it (tests). */
         sent: () => ({ ...sent }),
         /** The workers alive (0 once closed). */
