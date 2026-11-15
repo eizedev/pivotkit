@@ -10,7 +10,7 @@ import { encode } from "pivotkit-core";
 import { AUTO_VALUES, AUTO_VALUES_DEFAULT, POLICY_LEVELS, autoLevel, deniedWord, exposeFindings, levelInfo, levelOf, resolvePolicy, stricter, withStats } from "pivotkit-server/policy";
 import { ConfigError, checkConfig, validateOptions } from "pivotkit-server";
 import { LOOKS_LIKE, sourceStats } from "../src/stats.js";
-import { OTHER_TOKEN, TOKEN, call, restServer, workspace } from "./helpers.js";
+import { OTHER_TOKEN, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 
 /**
  * Tickets of a made-up help desk, `n` rows: Status (3 values) and Team (12) qualify for the
@@ -193,7 +193,7 @@ test("the shipped default (automatic rule off): every field without a rule is su
         const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv" } }, baseDir: dir }, { http: false });
         assert.match(check.text, /field levels \(automatic values off\):/);
         assert.match(check.text, /Status: summary \(the default\)/);
-        assert.match(check.text, /automatic values would list: Status \(3 distinct, min 100 rows\), Team \(12 distinct, min 25 rows\); review them before you switch it on with policy.autoValues: true/);
+        assert.match(factsOf(check.text), /automatic values would list: Status \(3 distinct, min 100 rows\), Team \(12 distinct, min 25 rows\)\n {4}review them before you switch it on with policy.autoValues: true/);
     } finally {
         await server.close();
     }
@@ -202,7 +202,7 @@ test("the shipped default (automatic rule off): every field without a rule is su
 test("check-config: each field's level and why, with the automatic rule on", async () => {
     const dir = workspace({ "tickets.csv": tickets() });
     const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv", policy: { fields: { Sales: "values", Region: "values" } } } }, policy: { autoValues: true }, baseDir: dir }, { http: false });
-    assert.match(check.text, /automatic values on: 2 fields; policy.autoValues false turns it off/);
+    assert.match(factsOf(check.text), /automatic values on: 2 fields; policy.autoValues false turns it off/);
     assert.match(check.text, /Status: values \(auto: 3 distinct, min 100 rows\)/);
     assert.match(check.text, /Team: values \(auto: 12 distinct, min 25 rows\)/);
     assert.match(check.text, /Kundenname: summary \(name matches the deny list \("kunde"\)\)/);
@@ -464,8 +464,9 @@ test("a finding about items without a field counts as closed; one that names a h
 test("check-config prints each profile's levels per source: a profile has no automatic rule", async () => {
     const dir = workspace({ "tickets.csv": tickets() });
     const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv" } }, policy: { autoValues: true, profiles: { export: { results: true }, analyst: { default: "show" } } }, baseDir: dir }, { http: false });
-    assert.match(check.text, /Profile export:[^\n]*\n {2}tickets: Status summary, Team summary, Region summary/);
-    assert.match(check.text, /Profile analyst:[^\n]*\n {2}tickets: Status show, Team show/);
+    // a profile's own allowances come first (file downloads), then its levels per source
+    assert.match(factsOf(check.text), /Profile export:[^\n]*\n {2}file downloads \(REST\): allowed\n {2}tickets: Status summary, Team summary, Region summary/);
+    assert.match(factsOf(check.text), /Profile analyst:[^\n]*\n {2}tickets: Status show, Team show/);
 });
 
 test("the deny list reads through leet digits, marks, small capitals, spaces inside a word and German without umlauts; special categories and money words", () => {
@@ -490,8 +491,9 @@ test("stats.js: an e-mail address after an earlier @ is found", () => {
 test("check-config warns of an explicit values field whose values look personal; autoValues.minRows and minRowsPerValue are 1 or more", async () => {
     const dir = workspace({ "tickets.csv": tickets() });
     const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv", policy: { fields: { Mail: "values", Status: "values" } } } }, baseDir: dir }, { http: false });
-    assert.match(check.text, /Mail: values \(a rule\) {2}warning: a value looks like email/);
-    assert.doesNotMatch(check.text, /Status: values \(a rule\) {2}warning/);
+    assert.match(check.text, /\n {6}Mail: values \(a rule\)\n/);
+    assert.match(factsOf(check.text), /WARNING: sources\.tickets: the values field Mail holds a value that looks like email/);
+    assert.doesNotMatch(check.text, /values field Status/);
     for (const key of ["minRows", "minRowsPerValue"]) {
         assert.throws(() => validateOptions({ policy: { autoValues: { [key]: 0 } } }), new RegExp(`policy.autoValues.${key}: must be 1 or more`));
         assert.doesNotThrow(() => validateOptions({ policy: { autoValues: { [key]: 1 } } }));

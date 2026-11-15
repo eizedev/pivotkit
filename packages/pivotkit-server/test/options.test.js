@@ -1,6 +1,6 @@
 // The options table composed from per-feature fragments (src/options/), the check-config sections
 // (src/check/), and secret references: a key declared twice is an error when the table is composed,
-// an unknown key is still refused, today's table and check-config text stay as they were.
+// an unknown key is still refused, today's table stays as it was; check-config's layout (check/format.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, readFileSync, writeFileSync } from "node:fs";
@@ -9,8 +9,9 @@ import { ConfigError, OPTION_KEYS, checkConfig, validateOptions } from "pivotkit
 import { FRAGMENTS, composeSlots } from "../src/options/index.js";
 import { SLOTS, SECRET_REF } from "../src/options/shared.js";
 import { SECTIONS, runSections } from "../src/check/index.js";
+import { heading, plain, problem, render, warning, wrap } from "../src/check/format.js";
 import { readSecret, secretFileWarning, SecretError } from "../src/secrets.js";
-import { tempDir, workspace } from "./helpers.js";
+import { factsOf, tempDir, workspace } from "./helpers.js";
 
 /** An options table as a plain tree: a function (a custom check) as "fn". */
 const treeOf = (schema) =>
@@ -80,10 +81,13 @@ test("options: every fragment has frozen keys in known slots and a validate; eac
             assert.ok(SLOTS.includes(slot), `${f.name}: ${slot}`);
         }
     }
-    assert.deepEqual(
-        SECTIONS.map((s) => s.name),
-        FRAGMENTS.slice(1).map((f) => f.name)
-    );
+    // every feature's fragment has its check section of the same name; the others are the core's
+    // (check/index.js), in the order check-config prints them
+    const names = SECTIONS.map((s) => s.name);
+    for (const f of FRAGMENTS.slice(1)) {
+        assert.ok(names.includes(f.name), f.name);
+    }
+    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "auth", "operator", "profiles", "rest"]);
 });
 
 test("options: an unknown key is still refused with the name meant, also for keys no fragment declares yet", () => {
@@ -115,21 +119,56 @@ test("options: the docker example configuration still validates", () => {
     assert.ok(validateOptions(example));
 });
 
-test("check sections: problems are counted, warnings are not, and New in this version lists only what a section says applies", async () => {
+test("check sections: each section's items in its order; problems first under the verdict, warnings last in their section, New in this version in one line", async () => {
     const sections = [
-        { name: "one", section: async () => ({ lines: ["One: on", "  PROBLEM: one is broken", "  warning: one looks odd"], problems: 1, upgrade: ["one changed"] }) },
-        { name: "two", section: async () => ({ lines: [], problems: 0, upgrade: [] }) },
-        { name: "three", section: async () => ({ lines: ["Three: off"], problems: 0, upgrade: ["three changed"] }) }
+        { name: "one", section: async () => ({ items: [heading("One: on"), warning("one looks odd"), plain("a fact"), problem("one is broken", { effect: "the server starts; one answers ONE_BROKEN" })], upgrade: ["one changed"] }) },
+        { name: "two", section: async () => ({ items: [], upgrade: [] }) },
+        { name: "three", section: async () => ({ items: [heading("Three: off"), problem("three needs a key", { stops: true })], upgrade: ["three changed"] }) }
     ];
     const seen = [];
-    const out = await runSections([{ name: "spy", section: async (...args) => (seen.push(args), { lines: [], problems: 0, upgrade: [] }) }, ...sections], { a: 1 }, "registry", { http: true });
+    const out = await runSections([{ name: "spy", section: async (...args) => (seen.push(args), { items: [], upgrade: [] }) }, ...sections], { a: 1 }, "registry", { http: true });
     assert.deepEqual(seen[0], [{ a: 1 }, "registry", { http: true }]);
-    assert.deepEqual(out, { lines: ["One: on", "  PROBLEM: one is broken", "  warning: one looks odd", "Three: off"], problems: 1, upgrade: ["one changed", "three changed"] });
+    assert.deepEqual(out.upgrade, ["one changed", "three changed"]);
+    const page = render("pivotkit-server", out.sections, out.upgrade, "https://example.com/upgrading/");
+    assert.deepEqual(page.text.split("\n"), [
+        "pivotkit-server: the configuration is valid, but the server would not start",
+        "    with it as it is.",
+        "2 problems, 1 warning.",
+        "",
+        // the one that stops the start first, each with what it does
+        "PROBLEM: three needs a key -> the server does not start",
+        "PROBLEM: one is broken -> the server starts; one answers ONE_BROKEN",
+        "",
+        "One: on",
+        "  a fact",
+        "  WARNING: one looks odd",
+        "",
+        "Three: off",
+        "",
+        "New in this version: one changed, three changed",
+        "    -> https://example.com/upgrading/",
+        ""
+    ]);
+    assert.deepEqual([page.problems, page.warnings, page.stops], [2, 1, 1]);
+    // only problems that do not stop the start: the server starts, and the verdict says so
+    assert.match(render("pivotkit-server", [out.sections[1]], [], "u").text, /^pivotkit-server: the configuration is valid; the server starts, but not\n {4}everything will work\.\n1 problem, 1 warning\.\n/);
     const none = await runSections(sections.slice(1, 2), {}, null, {});
-    assert.deepEqual(none, { lines: [], problems: 0, upgrade: [] });
+    assert.deepEqual(render("x", none.sections, none.upgrade, "u").text, "x: the configuration is valid.\n0 problems, 0 warnings.\n");
 });
 
-test("check-config: today's configurations print exactly what they printed before, plus each feature's own section and its note in New in this version", async () => {
+test("check-config layout: one fact per line, wrapped at 78 columns at spaces, a wrapped line four spaces further in than its fact; a long address stays whole", () => {
+    const text = "reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it)";
+    assert.deepEqual(wrap(text, 2), ["  reports over closed sources (sales, gone, code): no links (the file is kept;", "      the person asks you for it)"]);
+    for (const line of wrap(text.repeat(5), 2)) {
+        assert.ok(line.length <= 78, line);
+    }
+    const long = `at /${"x".repeat(90)}/reports`;
+    assert.deepEqual(wrap(long, 2), [`  ${long}`]);
+    // a fact under another is two spaces in, a wrapped line four: factsOf (the tests' reader) joins only the wrapped ones
+    assert.equal(factsOf(["One:", ...wrap(text, 2), "    a child", ...wrap(text, 4)].join("\n")), ["One:", `  ${text}`, "    a child", `    ${text}`].join("\n"));
+});
+
+test("check-config: the whole text of a configuration of every kind of source, with a missing file, a token and a profile", async () => {
     const dir = workspace({ "sales.csv": "Region,Product,Customer,Sales\nNorth,A,Alice,10\nSouth,B,Bob,20\n" });
     const options = {
         sources: { sales: { file: "data/sales.csv", title: "Sales", scopes: ["sales:read"], policy: { default: "show", fields: { Customer: "hide" } } }, gone: { file: "data/missing.csv" }, code: { load: async () => [] } },
@@ -139,45 +178,13 @@ test("check-config: today's configurations print exactly what they printed befor
         rest: { cors: { origins: ["https://app.example.com"] } }
     };
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: "x".repeat(40) }, name: "pivotkit-server", rest: true });
-    const golden = readFileSync(new URL("./fixtures/check-config-before-fragments.txt", import.meta.url), "utf8");
-    // what this version adds for this configuration, each said once and nothing else: data sent in the
-    // request (check/inline.js), the download links, and the code sources' section, since the configuration has one
-    // download links (check/downloads.js): where links would point, and that these closed sources
-    // (a hidden field, the default summary) get none with static tokens
-    const delivery = ["Delivery:", "  downloads: on, links http://127.0.0.1:3333/downloads/<token>, expire after 60 minutes", "  closed (a field not shown for someone): sales (Customer hide), gone (fields summary by default), code (fields summary by default)", "  per person (counted as closed): data sent in requests (inline:)", "  reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open"];
-    // the default age limit of 30 days (output.maxAgeDays not set): said on the output line and as
-    // an upgrade note; no Retention warning, which is only for an explicit 0
-    const retention = [];
-    const ageLine = ["drafts are kept\n", "drafts are kept; reports and drafts older than 30 days are deleted (the default)\n"];
-    const inline = ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"];
-    const code = [
-        "Code sources (1):",
-        "  code: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure",
-        "  Kept loads of code and HTTP sources: at most 256 MiB in all; the largest table that can be kept is a quarter of it, 64 MiB per person or shared source (sourceCache.maxMb; with several contexts in one process the largest setting applies); a larger table loads on every call"
-    ];
-    const upgrade = [
-        "",
-        "New in this version (what changes with this configuration; https://pivotkit.eize.dev/getting-started/upgrading/):",
-        '  - MCP clients may send a small table of their own with source "inline:" (up to 500 rows / 5000 cells / 256 KiB); no exposure policy applies to it; mcp.data: false switches it off',
-        "  - Reports and schedule drafts older than 30 days are deleted from output.dir at start and every hour (output.maxAgeDays; 0 keeps them with no age limit)",
-        "  - Code sources: load gets (params, { caller, signal }) and is aborted after timeMs (default 30000 ms); a failing load answers SOURCE_UNAVAILABLE (502), not INTERNAL; data is kept per caller unless cacheShared; after a transient failure last good data up to maxStale (default 3600 s) stands in"
-    ];
-    const expected = golden.replace(ageLine[0], ageLine[1]).replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...delivery, ...retention, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
-    assert.notEqual(expected, golden);
-    assert.equal(result.text.split(dir).join("<dir>"), expected);
-    assert.equal(result.problems, 1);
-});
-
-test("check-config: a section's problem is counted with the others and its upgrade lines close the text", async () => {
-    const dir = workspace();
-    const section = { name: "demo", section: async () => ({ lines: ["Demo: on", "  PROBLEM: demo needs a key"], problems: 1, upgrade: ["Demo links are on by default for this server"] }) };
-    const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { http: false, sections: [section] });
-    assert.equal(result.problems, 1);
-    const lines = result.text.trimEnd().split("\n");
-    assert.match(lines[0], /would not start with it as it is/);
-    const total = lines.findIndex((l) => /^1 problem: see PROBLEM above\.$/.test(l));
-    assert.ok(total > lines.indexOf("Demo: on"), result.text);
-    assert.deepEqual(lines.slice(total + 1), ["", "New in this version (what changes with this configuration; https://pivotkit.eize.dev/getting-started/upgrading/):", "  - Demo links are on by default for this server"]);
+    const golden = readFileSync(new URL("./fixtures/check-config.txt", import.meta.url), "utf8");
+    assert.equal(result.text.split(dir).join("<dir>"), golden);
+    assert.deepEqual([result.problems, result.warnings, result.stops], [1, 1, 0]);
+    // every line fits, but for a full path (one word, never cut)
+    for (const line of result.text.split("\n").filter((l) => !l.includes(dir))) {
+        assert.ok(line.length <= 78, line);
+    }
 });
 
 test("secrets: a reference is exactly one of env or file", () => {
@@ -232,7 +239,8 @@ test("secrets: check-config warns of a secret file other users can read (a stati
     assert.equal(await secretFileWarning({ env: "X" }, { baseDir: dir }), null);
     assert.equal(await secretFileWarning({ file: "missing" }, { baseDir: dir }), null, "a missing file is said elsewhere");
     const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "open", file: "open-token" }, { name: "closed", file: "closed-token" }] }, baseDir: dir }, { http: true });
-    assert.match(result.text, /\n {2}warning: the token open's file open-token can be read by other users of this machine \(mode 644\)/);
+    assert.match(factsOf(result.text), /\n {2}WARNING: the token open's file open-token can be read by other users of this machine \(mode 644\)/);
     assert.doesNotMatch(result.text, /closed-token can be read/);
     assert.equal(result.problems, 0, "a warning, not a problem");
+    assert.equal(result.warnings, 1);
 });

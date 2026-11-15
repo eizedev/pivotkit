@@ -45,14 +45,14 @@ export async function section(options, registry) {
     } else if (notMade === "dangling") {
         items.push(problem("output.dir: a symbolic link to nothing (its target does not exist)", stop));
     } else if (notMade === "off") {
-        items.push(problem("output.dir: not found; create the directory first, or leave output.create on", stop));
+        items.push(problem("output.dir: not found (create it first, or leave output.create on)", stop));
     } else if (notMade) {
         items.push(problem(`output.dir: ${outputRefusal(notMade, out.create !== false)}`, stop));
     }
     // what the start refuses: the directory, or where it will be made, inside an allowed directory
     const where = info ? await realpath(dir).catch(() => null) : notMade ? null : await plannedPath(dir);
     if (where && registry.allow.some((allowed) => isInside(where, allowed) || isInside(allowed, where))) {
-        items.push(problem(`output.dir ${OUTPUT_INSIDE_ALLOWED}`, stop));
+        items.push(problem(`output.dir: ${OUTPUT_INSIDE_ALLOWED}`, stop));
     }
     if (!found) {
         return { items, upgrade: [] };

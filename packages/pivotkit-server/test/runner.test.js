@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { serve } from "pivotkit-server";
-import { BIN, BY_REGION, TOKEN, call, workspace } from "./helpers.js";
+import { BIN, BY_REGION, TOKEN, call, factsOf, workspace } from "./helpers.js";
 
 const { version: VERSION } = createRequire(import.meta.url)("../package.json");
 
@@ -66,18 +66,21 @@ test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST woul
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" }, gone: { file: "data/gone.csv" } }, policy: { profiles: { export: { results: true } } }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT", profile: "export" }] }, rest: { cors: { origins: ["https://app.example.com"] } }, output: { dir: "out" } }));
     const unset = run(["check-config"], { env: { PIVOTKIT_CONFIG: config } });
     assert.equal(unset.status, 1, unset.stderr);
-    assert.match(unset.stdout, /^pivotkit-server: the configuration is valid, but the server would not start with it as it is\./);
-    assert.match(unset.stdout, /PROBLEM: the token bot \(\$BOT\) is not set or shorter than 32 characters/);
-    assert.match(unset.stdout, /2 problems: see NOT FOUND and PROBLEM above/);
+    // the verdict and the counts first, then the problems: the token stops the start, the missing file does not
+    const said = factsOf(unset.stdout).split("\n");
+    assert.deepEqual(said.slice(0, 2), ["pivotkit-server: the configuration is valid, but the server would not start with it as it is.", "2 problems, 0 warnings."]);
+    assert.deepEqual(said.slice(3, 5), ["PROBLEM: the token bot ($BOT) is not set or shorter than 32 characters -> the server does not start", "PROBLEM: sources.gone.file: data/gone.csv is not there -> the server starts; gone answers FILE_NOT_AVAILABLE"]);
     const res = run(["check-config"], { env: { PIVOTKIT_CONFIG: config, BOT: TOKEN } });
     assert.equal(res.status, 1, res.stderr);
-    assert.match(res.stdout, /^pivotkit-server: the configuration is valid, but not everything it names is there\./);
-    assert.match(res.stdout, /gone: .*\(NOT FOUND\)/);
-    assert.match(res.stdout, /token bot from \$BOT: scopes all, profile export/);
-    assert.match(res.stdout, /Profile export: .*file downloads \(REST\) allowed/);
-    assert.match(res.stdout, /REST: \/api\/v1; files by path refused; inline results off; CORS https:\/\/app\.example\.com; \/openapi\.json auth/);
+    const text = factsOf(res.stdout);
+    assert.match(text, /^pivotkit-server: the configuration is valid; the server starts, but not everything will work\.\n1 problem, 0 warnings\./);
+    assert.match(text, /\n {2}gone: \S+gone\.csv\n/);
+    assert.match(text, /token bot from \$BOT: all scopes, profile export/);
+    assert.match(text, /\nProfile export: [^\n]*\n {2}file downloads \(REST\): allowed\n/);
+    // what REST does differently from its defaults: here only CORS
+    assert.match(text, /\nREST: \/api\/v1\n {2}CORS: https:\/\/app\.example\.com\n/);
     const open = run(["check-config", "--config", config, "--host", "0.0.0.0", "--auth", "none"], { env: { BOT: TOKEN } });
-    assert.match(open.stdout, /PROBLEM: 0\.0\.0\.0 is not loopback/);
+    assert.match(factsOf(open.stdout), /PROBLEM: 0\.0\.0\.0 is not loopback: it needs auth token or oauth \(or auth\.allowUnauthenticated\) -> the server does not start/);
     const bad = run(["check-config", "--config", config, "--enable", "rest,soap"]);
     assert.equal(bad.status, 2);
     assert.match(bad.stderr, /http\.enable\[1\]: must be one of mcp, rest/);

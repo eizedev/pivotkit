@@ -14,7 +14,7 @@ import { ConfigError, callerOf, checkConfig, createContext, present, presentedIn
 import { openApiDocument } from "pivotkit-server/rest";
 import { BODY_BYTES, MAX_BODY_BYTES } from "../src/listen.js";
 import { MCP_DATA_CAP, REST_DATA_BYTES } from "../src/sources/inline.js";
-import { BIN, OTHER_TOKEN, TOKEN, call, raw, restServer, workspace } from "./helpers.js";
+import { BIN, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
 const BY_REGION = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -228,25 +228,28 @@ test("config: data only in the server's policy and its profiles; rest.data.maxBy
 
 test("check-config: who may send data on MCP and REST, and how much; warnings for a server-wide switch", async () => {
     const dir = workspace();
-    const lineOf = async (options, runtime = {}) => {
+    // the section's facts, one per line, and its warnings (REST off is the default and not said)
+    const sectionOf = async (options, runtime = {}) => {
         const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir, ...options }, { http: true, rest: true, name: "pivotkit-server", ...runtime });
-        const lines = result.text.split("\n");
-        const at = lines.findIndex((l) => l.startsWith("Data in the request:"));
-        return { line: lines[at], next: lines.slice(at + 1).filter((l) => l.startsWith("  warning:")), text: result.text };
+        const lines = factsOf(result.text).split("\n");
+        const at = lines.indexOf("Data in the request (inline:):");
+        const end = lines.indexOf("", at);
+        const block = at < 0 ? [] : lines.slice(at + 1, end);
+        return { facts: block.filter((l) => !l.startsWith("  WARNING:")), warnings: block.filter((l) => l.startsWith("  WARNING:")), text: result.text };
     };
-    const designed = await lineOf({ policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }] }, rest: { data: { maxBytes: 20_971_520 } }, mcp: { data: { rows: 200, cells: 2000, bytes: 131_072 } } }, { env: { ETL_TOKEN: "x".repeat(40) } });
-    assert.equal(designed.line, "Data in the request: MCP on, up to 200 rows / 2000 cells / 128 KiB (mcp.data); REST for profiles etl, up to 20 MiB (rest.data.maxBytes)");
-    assert.match(designed.text, /New in this version[\s\S]*up to 200 rows \/ 2000 cells \/ 128 KiB/);
-    assert.equal((await lineOf({})).line, "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)");
-    const off = await lineOf({ mcp: { data: false } });
-    assert.equal(off.line, "Data in the request: MCP off (mcp.data: false); REST off (no policy or profile has data: true)");
-    assert.doesNotMatch(off.text, /New in this version/);
-    const everyone = await lineOf({ policy: { data: true, profiles: { bot: { data: false } } }, auth: { allowUnauthenticated: true } });
-    assert.equal(everyone.line, "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap), not for profiles bot; REST for every caller but profiles bot, up to 10 MiB (default)");
-    assert.equal(everyone.next.length, 2);
-    assert.match(everyone.next[1], /anyone who reaches the server may send data/);
-    assert.match((await lineOf({ rest: { data: { maxBytes: BODY_BYTES } } })).next[0], /rest\.data\.maxBytes does nothing/);
-    assert.equal((await lineOf({}, { rest: false })).line, "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap)", "an MCP server says nothing of REST");
+    const designed = await sectionOf({ policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }] }, rest: { data: { maxBytes: 20_971_520 } }, mcp: { data: { rows: 200, cells: 2000, bytes: 131_072 } } }, { env: { ETL_TOKEN: "x".repeat(40) } });
+    assert.deepEqual(designed.facts, ["  MCP: on, up to 200 rows / 2000 cells / 128 KiB (mcp.data)", "  REST: for profiles etl, up to 20 MiB (rest.data.maxBytes)"]);
+    assert.match(factsOf(designed.text), /\nNew in this version: [^\n]*data in the request \(inline:\)/);
+    assert.deepEqual((await sectionOf({})).facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB"]);
+    const off = await sectionOf({ mcp: { data: false } });
+    assert.deepEqual(off.facts, ["  MCP: off (mcp.data: false)"]);
+    assert.doesNotMatch(off.text, /data in the request \(inline:\)/);
+    const everyone = await sectionOf({ policy: { data: true, profiles: { bot: { data: false } } }, auth: { allowUnauthenticated: true } });
+    assert.deepEqual(everyone.facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB; not for profiles bot", "  REST: for every caller but profiles bot, up to 10 MiB"]);
+    assert.equal(everyone.warnings.length, 2);
+    assert.match(everyone.warnings[1], /anyone who reaches the server may send data/);
+    assert.match((await sectionOf({ rest: { data: { maxBytes: BODY_BYTES } } })).warnings[0], /rest\.data\.maxBytes does nothing/);
+    assert.deepEqual((await sectionOf({}, { rest: false })).facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB"], "an MCP server says nothing of REST");
 });
 
 /** A REST server where the profile etl (the token TOKEN) may send data and OTHER_TOKEN may not. */
@@ -621,11 +624,13 @@ test("check-config: a profile without downloads may still send data; a REST-only
     const dir = workspace();
     const options = { sources: { sales: { file: "data/sales.csv" } }, policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL", profile: "etl" }] }, baseDir: dir };
     const both = await checkConfig(options, { http: true, rest: true, env: { ETL: "x".repeat(40) }, name: "pivotkit-server" });
-    assert.match(both.text, /Profile etl: .*file downloads \(REST\) off \(data sent in the request still works: data: true\)/);
-    assert.match(both.text, /Data in the request: MCP on/);
+    // file downloads are off (the default, not said); sending data is allowed
+    assert.match(both.text, /\nProfile etl: fields as each source by default\n {2}data sent in the request \(REST\): allowed\n/);
+    assert.doesNotMatch(both.text, /file downloads \(REST\)/);
+    assert.match(both.text, /\nData in the request \(inline:\):\n {2}MCP: on/);
     const restOnly = await checkConfig(options, { http: true, rest: true, mcp: false, env: { ETL: "x".repeat(40) }, name: "pivotkit-server" });
-    assert.match(restOnly.text, /^Data in the request: REST for profiles etl, up to 10 MiB \(default\)$/m);
-    assert.doesNotMatch(restOnly.text, /MCP clients may send/);
+    assert.match(restOnly.text, /\nData in the request \(inline:\):\n {2}REST: for profiles etl, up to 10 MiB\n/);
+    assert.doesNotMatch(restOnly.text, /MCP:|data in the request \(inline:\)/);
 });
 
 test("a cell full of brackets is data, not nesting: only a view or layout given as text is scanned", async () => {

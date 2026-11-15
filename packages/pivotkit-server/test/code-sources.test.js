@@ -12,7 +12,7 @@ import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.
 import { LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, sourceFailure } from "../src/sources/run.js";
 import { createComputer } from "../src/compute.js";
 import { packTable, packedBytes, unpackTable } from "../src/packed.js";
-import { call, restServer, workspace } from "./helpers.js";
+import { call, factsOf, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
 const VIEW = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -441,7 +441,7 @@ test("cacheShared: one load for everyone and caller null; each profile's hidden 
             await context.close();
         }
     }
-    assert.match((await checkConfig({ sources: { t: { load: async () => [], cacheShared: true, ttl: 120 } } }, { http: false })).text, /t: load up to 30000 ms, reused for 120 s; shared by all callers/);
+    assert.match((await checkConfig({ sources: { t: { load: async () => [], cacheShared: true, ttl: 120 } } }, { http: false })).text, /\n {2}t: load up to 30000 ms\n {4}reused for 120 s\n {4}shared by all callers/);
 });
 
 test("run limits: rows, columns and cells as for files; long texts cut on a copy; { rows, asOf } and columnar with asOf", async () => {
@@ -481,10 +481,10 @@ test("options: cacheShared only for a code source; timeMs at most ten minutes; t
     assert.ok(validateOptions({ sources: { s: { load: async () => [], cacheShared: false, timeMs: 600_000, ttl: 0, maxStale: 0 } } }));
     const text = (await checkConfig({ sources: { a: { load: async () => [], version: () => 1, timeMs: 20_000, maxStale: 0 }, b: { load: async () => [] }, f: { file: "x.csv" } } }, { http: false })).text;
     assert.match(text, /^Code sources \(2\):$/m);
-    assert.match(text, /^ {2}a: load up to 20000 ms, reused while version\(\) is the same; data per caller; last good data off$/m);
-    assert.match(text, /^ {2}b: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure$/m);
-    // among the notes of this version (data sent in the request has one on an MCP server too)
-    assert.match(text, /New in this version[^\n]*\n(?: {2}- [^\n]*\n)* {2}- Code sources: load gets \(params, \{ caller, signal \}\)/);
+    assert.match(text, /^ {2}a: load up to 20000 ms\n {4}reused while version\(\) is the same\n {4}data per caller\n {4}last good data: off$/m);
+    assert.match(text, /^ {2}b: load up to 30000 ms\n {4}loaded on every call\n {4}data per caller\n {4}last good data: up to 3600 s after a transient failure$/m);
+    // among the changes of this version (data sent in the request is one on an MCP server too)
+    assert.match(factsOf(text), /\nNew in this version: [^\n]*code sources with a time limit and data per caller/);
     // without MCP, where data sent in the request adds no note, a file source alone gives none
     assert.doesNotMatch((await checkConfig({ sources: { f: { file: "x.csv" } } }, { http: false, mcp: false })).text, /Code sources|New in this version/);
     // with MCP on (the default) a file source alone gets no code-source line or note either
@@ -1198,8 +1198,8 @@ test("where it runs: a table key only for a load that is kept and reused", async
     }
     assert.throws(() => validateOptions({ sourceCache: { maxMb: 0 } }), /sourceCache\.maxMb: from 1 to 65536/);
     assert.ok(validateOptions({ sourceCache: { maxMb: 1024 } }));
-    assert.match((await checkConfig({ sources: { a: { load: async () => [] } }, sourceCache: { maxMb: 1024 } }, { http: false })).text, /at most 1024 MiB in all; the largest table that can be kept is a quarter of it, 256 MiB per person or shared source \(sourceCache\.maxMb; with several contexts in one process the largest setting applies\)/);
-    assert.match((await checkConfig({ sources: { a: { load: async () => [] } } }, { http: false })).text, /at most 256 MiB in all; the largest table that can be kept is a quarter of it, 64 MiB/);
+    assert.match(factsOf((await checkConfig({ sources: { a: { load: async () => [] } }, sourceCache: { maxMb: 1024 } }, { http: false })).text), /\nKept loads of code and HTTP sources: at most 1024 MiB \(sourceCache\.maxMb\)\n {2}a table over 256 MiB \(a quarter\) is not kept and loads on every call\n {2}with several contexts in one process, the largest setting applies\n/);
+    assert.match(factsOf((await checkConfig({ sources: { a: { load: async () => [] } } }, { http: false })).text), /\nKept loads of code and HTTP sources: at most 256 MiB\n {2}a table over 64 MiB \(a quarter\)/);
 });
 
 test("the load cache: the largest sourceCache.maxMb of the open contexts applies; a close shrinks it to the largest left", async () => {

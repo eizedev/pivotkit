@@ -1,0 +1,67 @@
+pivotkit-server: the configuration is valid; the server starts, but not
+    everything will work.
+1 problem, 1 warning.
+
+PROBLEM: sources.gone.file: data/missing.csv is not there -> the server
+    starts; gone answers FILE_NOT_AVAILABLE
+
+Sources (3):
+  sales: <dir>/data/sales.csv
+    policy: show by default; Customer hide
+    scopes: sales:read
+    field levels (automatic values: not applied, a default is written):
+      Region: show (the default)
+      Product: show (the default)
+      Customer: hide (a rule)
+      Sales: show (the default)
+  gone: <dir>/data/missing.csv
+    policy: summary by default
+  code: a code source
+    policy: summary by default
+    fields: known only after a load
+
+Code sources (1):
+  code: load up to 30000 ms
+    loaded on every call
+    data per caller
+    last good data: up to 3600 s after a transient failure
+Kept loads of code and HTTP sources: at most 256 MiB
+  a table over 64 MiB (a quarter) is not kept and loads on every call
+  with several contexts in one process, the largest setting applies
+
+Data in the request (inline:):
+  MCP: on, up to 500 rows / 5000 cells / 256 KiB
+
+Output: out
+  at <dir>/out
+  when full, the oldest reports are deleted to make room; drafts are kept
+  reports and drafts older than 30 days are deleted
+
+Delivery:
+  download links: http://127.0.0.1:3333/downloads/<token>
+    expire after 60 minutes
+  closed (a field not shown for someone): sales (Customer hide), gone (fields
+      summary by default), code (fields summary by default)
+  per person (counted as closed): data sent in requests (inline:)
+  reports over closed sources (sales, gone, code): no links (the file is kept;
+      the person asks you for it)
+    set output.downloads.signIn for links only the person can open
+
+HTTP: 127.0.0.1:3333
+
+Auth: token
+  token bot from $BOT_TOKEN: scopes sales:read typo:scope, profile analyst
+  WARNING: the token bot's scope "typo:scope" is named by no source, tool or
+      required scope
+
+Profile analyst: fields show by default
+  file downloads (REST): allowed
+  sales: Region show, Product show, Customer hide, Sales show
+  code: fields known only after a load; show by default
+
+REST: /api/v1
+  CORS: https://app.example.com
+
+New in this version: code sources with a time limit and data per caller, data
+    in the request (inline:), reports deleted after 30 days
+    -> https://pivotkit.eize.dev/getting-started/upgrading/

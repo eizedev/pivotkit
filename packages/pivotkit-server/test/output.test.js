@@ -9,7 +9,7 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, statSync, symlinkSync, u
 import { join } from "node:path";
 import { whyNot } from "../src/context.js";
 import { prune } from "../src/present.js";
-import { BIN, BY_REGION, call, restServer, workspace } from "./helpers.js";
+import { BIN, BY_REGION, call, factsOf, restServer, workspace } from "./helpers.js";
 
 const run = (args) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
 
@@ -177,8 +177,9 @@ test("an output directory the server cannot write: a warning at start, 409 NO_OU
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" } }));
         const check = run(["check-config", "--config", config]);
         assert.equal(check.status, 1, check.stdout);
-        assert.match(check.stdout, /Output: out .*\(NOT WRITABLE/);
-        assert.match(check.stdout, /1 problem: see NOT WRITABLE above/);
+        const said = factsOf(check.stdout);
+        assert.match(said, /^PROBLEM: output\.dir is not writable by the user \d+ the server runs as -> the server starts; every report fails with NO_OUTPUT$/m);
+        assert.match(said, /^pivotkit-server: the configuration is valid; the server starts, but not everything will work\.\n1 problem, /);
     } finally {
         chmodSync(out, 0o755);
     }
@@ -191,7 +192,7 @@ test("output.maxAgeDays never cleans a directory of the operator's own files: ch
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", maxAgeDays: 1 } }));
     const check = run(["check-config", "--config", config]);
     assert.equal(check.status, 1, check.stdout);
-    assert.match(check.stdout, /PROBLEM: output\.maxAgeDays in a directory that holds the configuration or a source/);
+    assert.match(factsOf(check.stdout), /PROBLEM: output\.maxAgeDays in a directory that holds the configuration or a source, template or token file; give the reports a directory of their own -> the server does not start/);
     assert.doesNotMatch(check.stdout, /older than 1 days are deleted/);
     // createContext refuses this; a context built another way is held to the same rule
     await prune({ output: { dir: join(dir, "data"), maxAgeDays: 1, cleanUp: false } });
@@ -210,10 +211,11 @@ test("check-config warns of a policy rule that matches no column and prints the 
     }));
     const res = run(["check-config", "--config", config]);
     assert.equal(res.status, 0, res.stdout);
-    assert.match(res.stdout, /fields: summary by default; Product show, Margin hide, Region show, Customr hide;/);
-    assert.match(res.stdout, /warning: sources\.sales\.policy\.fields\.Customr: no column of sales\.csv has this name; did you mean "Customer"\?/);
-    assert.match(res.stdout, /warning: policy\.fields\.Margin: no column of any source has this name/);
-    assert.match(res.stdout, /Profile export: .*Customer show/);
+    const said = factsOf(res.stdout);
+    assert.match(said, /\n {4}policy: summary by default; Product show, Margin hide, Region show, Customr hide\n/);
+    assert.match(said, /WARNING: sources\.sales\.policy\.fields\.Customr: no column of sales\.csv has this name; did you mean "Customer"\?/);
+    assert.match(said, /WARNING: policy\.fields\.Margin: no column of any source has this name/);
+    assert.match(said, /\nProfile export: fields as each source by default; Customer show\n {2}sales: [^\n]*Customer show/);
     assert.ok(!/warning: .*PRODUCT|warning: .*region/i.test(res.stdout), "a rule that matches by another case is no warning");
 });
 
@@ -276,7 +278,7 @@ test("a symbolic link to nothing as output.dir is a problem in check-config and 
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "dangling" } }));
     const check = run(["check-config", "--config", config]);
     assert.equal(check.status, 1, check.stdout);
-    assert.match(check.stdout, /Output: dangling {2}\(NOT FOUND: a symbolic link to nothing\)/);
+    assert.match(factsOf(check.stdout), /PROBLEM: output\.dir: a symbolic link to nothing \(its target does not exist\) -> the server does not start/);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "dangling" }, baseDir: dir }), /output\.dir: a symbolic link to nothing/);
     // inside an allowed directory: refused before anything is made
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/new/out" }, baseDir: dir }), /files\.allowDirs/);
@@ -293,10 +295,10 @@ test("check-config refuses what serve refuses: a missing output.dir inside an al
     };
     const inside = check({ files: { allowDirs: ["data"] }, output: { dir: "data/new/out" } });
     assert.equal(inside.status, 1, inside.stdout);
-    assert.match(inside.stdout, /PROBLEM: output\.dir lies inside a directory of files\.allowDirs/);
+    assert.match(factsOf(inside.stdout), /PROBLEM: output\.dir: lies inside a directory of files\.allowDirs/);
     const below = check({ output: { dir: "link/out" } });
     assert.equal(below.status, 1, below.stdout);
-    assert.match(below.stdout, /Output: link\/out {2}\(NOT FOUND: cannot be created: a symbolic link in the path points to nothing\)/);
+    assert.match(factsOf(below.stdout), /PROBLEM: output\.dir: cannot be created: a symbolic link in the path points to nothing -> the server does not start/);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "link/out" }, baseDir: dir }), /output\.dir: cannot be created: a symbolic link in the path points to nothing/);
 });
 
@@ -309,16 +311,16 @@ test("check-config says whether the output directory exists, will be created, or
     };
     const created = check({ dir: "later/out" });
     assert.equal(created.status, 0, created.stdout);
-    assert.match(created.stdout, /Output: later\/out {2}\(does not exist yet: will be created at start; check the path\)/);
+    assert.match(factsOf(created.stdout), /\nOutput: later\/out\n {2}at \S+\/later\/out \(will be created at start\)\n/);
     const off = check({ dir: "later/out", create: false });
     assert.equal(off.status, 1, off.stdout);
-    assert.match(off.stdout, /Output: later\/out {2}\(NOT FOUND: create the directory first, or leave output\.create on\)/);
+    assert.match(factsOf(off.stdout), /PROBLEM: output\.dir: not found \(create it first, or leave output\.create on\) -> the server does not start/);
     if (process.getuid?.() !== 0 && process.platform !== "win32") {
         chmodSync(join(dir, "data"), 0o555);
         try {
             const denied = check({ dir: "data/out" });
             assert.equal(denied.status, 1, denied.stdout);
-            assert.match(denied.stdout, /Output: data\/out {2}\(NOT FOUND: cannot be created: permission denied for the user \d+/);
+            assert.match(factsOf(denied.stdout), /PROBLEM: output\.dir: cannot be created: permission denied for the user \d+/);
         } finally {
             chmodSync(join(dir, "data"), 0o755);
         }
@@ -333,7 +335,7 @@ test("a name longer than the file system allows: check-config and serve both ref
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path } }));
         const check = run(["check-config", "--config", config]);
         assert.equal(check.status, 1, check.stdout);
-        assert.match(check.stdout, /\(NOT FOUND: cannot be created: a name in the path is longer than the file system allows\)/);
+        assert.match(factsOf(check.stdout), /PROBLEM: output\.dir: cannot be created: a name in the path is longer than the file system allows -> the server does not start/);
         await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path }, baseDir: dir }), /^ConfigError: output\.dir: cannot be created: a name in the path is longer than the file system allows$/);
     }
     assert.deepEqual(readdirSync(dir).sort(), ["data", "out", "pivotkit.json"], "a refused start makes nothing");
@@ -347,7 +349,7 @@ test("a symbolic link loop in output.dir is named as one, in check-config and at
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path } }));
         const check = run(["check-config", "--config", config]);
         assert.equal(check.status, 1, check.stdout);
-        assert.match(check.stdout, /\(NOT FOUND: cannot be created: a symbolic link in the path leads in a loop\)/);
+        assert.match(factsOf(check.stdout), /PROBLEM: output\.dir: cannot be created: a symbolic link in the path leads in a loop -> the server does not start/);
         await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path }, baseDir: dir }), /^ConfigError: output\.dir: cannot be created: a symbolic link in the path leads in a loop$/);
     }
 });
@@ -369,7 +371,7 @@ test("check-config and serve give the same reason for an output.dir stat refuses
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output }));
         const check = run(["check-config", "--config", config]);
         assert.equal(check.status, 1, check.stdout);
-        assert.ok(check.stdout.includes(`Output: ${output.dir}  (NOT FOUND: ${reason})`), check.stdout);
+        assert.ok(factsOf(check.stdout).split("\n").includes(`PROBLEM: output.dir: ${reason} -> the server does not start`), check.stdout);
         await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output, baseDir: dir }), (e) => e.message === `output.dir: ${reason}`);
     };
     try {
@@ -389,6 +391,6 @@ test("an output.dir inside an allowed directory: the start's error and check-con
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/out" } }));
     const check = run(["check-config", "--config", config]);
     assert.equal(check.status, 1, check.stdout);
-    assert.ok(check.stdout.split("\n").includes(`  PROBLEM: output.dir ${reason}`), check.stdout);
+    assert.ok(factsOf(check.stdout).split("\n").includes(`PROBLEM: output.dir: ${reason} -> the server does not start`), check.stdout);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/out" }, baseDir: dir }), (e) => e.message === `output.dir: ${reason}`);
 });

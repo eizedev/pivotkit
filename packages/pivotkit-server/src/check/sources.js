@@ -58,7 +58,7 @@ export async function section(options, registry, runtime) {
         }
         items.push(plain(`${s.id}: ${s.file ? s.file : written.http ? `an HTTP source (see ${HTTP_HEADING})` : "a code source"}`));
         if (s.file && !s.exists) {
-            items.push(problem(`sources.${s.id}.file: ${s.file} is not there`, { effect: `the server starts; ${s.id} answers FILE_NOT_AVAILABLE` }));
+            items.push(problem(`sources.${s.id}.file: ${written.file} is not there`, { effect: `the server starts; ${s.id} answers FILE_NOT_AVAILABLE` }));
         }
         items.push(plain(`policy: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}`, 2));
         if (s.policy.items !== POLICY_DEFAULTS.items) {

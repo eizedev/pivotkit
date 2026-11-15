@@ -5,15 +5,15 @@
  *   pivotkit-server: the configuration is valid; the server starts, but not everything will work.
  *   1 problem, 2 warnings.
  *
- *   PROBLEM: httpSources.backends.platform.auth.clientCredentials.clientSecret: the file
- *     secrets/backend-secret cannot be read (no such file) -> the server starts; its sources
- *     (vms) answer SOURCE_UNAVAILABLE
+ *   PROBLEM: httpSources.backends.platform.auth.clientCredentials.clientSecret:
+ *       the file secrets/backend-secret cannot be read (no such file) -> the server
+ *       starts; vms answers SOURCE_UNAVAILABLE
  *
  *   Sources (2):
  *     sales: /srv/pivotkit/data/sales.csv
  *     ...
- *     WARNING: sources.sales.policy.fields.Custmer: no column of sales.csv has this name; did you
- *       mean "Customer"?
+ *     WARNING: sources.sales.policy.fields.Custmer: no column of sales.csv has this
+ *         name; did you mean "Customer"?
  *
  *   New in this version: data in the request (inline:)
  *     -> https://pivotkit.eize.dev/getting-started/upgrading/
@@ -22,7 +22,8 @@
  * working, and says which), WARNING (counted, not an error) and plain. The verdict and the counts come
  * first, then every PROBLEM line, then the sections in their order. In a section the plain lines come
  * first in the order the section gives them, its warnings last. One fact per line, wrapped at WIDTH
- * columns; a wrapped line goes on two spaces further in.
+ * columns. A fact under another is two spaces further in; a wrapped line goes on four spaces
+ * further in, so the two are never confused.
  */
 
 import { pathOf } from "../config.js";
@@ -64,7 +65,7 @@ export const problem = (text, how) => /** @type {Item} */ ({ kind: "problem", te
  * @param {number} [width]
  * @returns {string[]}
  */
-export function wrap(text, indent, hang = indent + 2, width = WIDTH) {
+export function wrap(text, indent, hang = indent + 4, width = WIDTH) {
     const out = [];
     let line = " ".repeat(indent);
     let empty = true;
@@ -131,7 +132,7 @@ export function render(name, sections, upgrade, upgradingUrl) {
         }
     }
     if (upgrade.length) {
-        lines.push("", ...wrap(`New in this version: ${upgrade.join(", ")}`, 0), `  -> ${upgradingUrl}`);
+        lines.push("", ...wrap(`New in this version: ${upgrade.join(", ")}`, 0), `    -> ${upgradingUrl}`);
     }
     return { text: `${lines.join("\n")}\n`, problems: problems.length, warnings, stops };
 }
