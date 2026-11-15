@@ -37,6 +37,15 @@ export const KEYS = Object.freeze({
 });
 
 /**
+ * @typedef {object} DownloadOptions  output.downloads as written
+ * @property {boolean} [enabled]  the server's own links (default true; off with output.baseUrl)
+ * @property {number} [expiresMinutes]  how long a link works, 1 to 1440 (default 60)
+ * @property {"signIn" | "once" | "none"} [bind]  how links to reports over closed sources are bound (default "signIn" with OAuth and signIn.clientId, else "none")
+ * @property {{ env?: string, file?: string }} [key]  the link key, at least 32 bytes (default a random key per process)
+ * @property {{ clientId: string, clientSecret?: { env?: string, file?: string }, issuer?: string, scopes?: string[] }} [signIn]  the browser client of the sign-in
+ */
+
+/**
  * @typedef {object} DownloadSettings
  * @property {boolean} enabled  the built-in links are on: not switched off, no output.baseUrl, an output directory
  * @property {number} expiresMinutes
@@ -51,7 +60,7 @@ export const KEYS = Object.freeze({
  * @returns {DownloadSettings}
  */
 export function settingsOf(options) {
-    const d = /** @type {any} */ (options.output)?.downloads ?? {};
+    const d = options.output?.downloads ?? {};
     const oauth = options.auth?.mode === "oauth";
     const signIn = d.signIn?.clientId ? { clientId: d.signIn.clientId, clientSecret: d.signIn.clientSecret ?? null, issuer: d.signIn.issuer ?? options.auth?.issuer ?? "", scopes: d.signIn.scopes ?? [...SIGN_IN_SCOPES] } : null;
     return {
@@ -78,7 +87,7 @@ const httpsOrAllowed = (text, insecure) => {
  * @param {import("../config.js").ServerOptions} options
  */
 export function validate(options) {
-    const d = /** @type {any} */ (options.output)?.downloads;
+    const d = options.output?.downloads;
     if (!d) {
         return;
     }

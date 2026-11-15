@@ -172,7 +172,8 @@ export function filenameOf(stored) {
  * @param {string} name
  */
 export function dispositionOf(name) {
-    const clean = name.replace(/[\r\n"\\]/g, "").replace(/[\u0000-\u001f\u007f]/g, "");
+    // control characters (line breaks among them), quotes and backslashes out
+    const clean = [...name].filter((c) => c.charCodeAt(0) > 0x1f && c.charCodeAt(0) !== 0x7f && c !== '"' && c !== "\\").join("");
     const ascii = clean.replace(/[^\x20-\x7e]/g, "_") || "report";
     const encoded = encodeURIComponent(clean).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
     return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;

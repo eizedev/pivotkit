@@ -13,7 +13,9 @@ import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { dispositionOf, filenameOf, readToken, signToken, subjectDigest, subkeysOf } from "../src/downloads.js";
 import { NO_LINK_NOTE, linkFor } from "../src/delivery.js";
-import { BY_REGION, SALES_CSV, TOKEN, call, raw, restServer, workspace } from "./helpers.js";
+import { BY_REGION, SALES_CSV, TOKEN, call, raw, restServer, tempDir, workspace } from "./helpers.js";
+import { createContext } from "../src/context.js";
+import { deliver } from "../src/delivery.js";
 
 const PUBLIC = "https://reports.example.com";
 const MCP_RESOURCE = `${PUBLIC}/mcp`;
@@ -96,8 +98,8 @@ function signInAt(location, sub, grant = {}) {
 }
 
 /** A signed access token of the provider for one of the server's resources. */
-async function accessToken(sub, aud = REST_RESOURCE) {
-    return new SignJWT({ scope: "pivotkit", client_id: "claude" }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(aud).setSubject(sub).setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
+async function accessToken(sub, aud = REST_RESOURCE, client = "claude") {
+    return new SignJWT({ scope: "pivotkit", client_id: client }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(aud).setSubject(sub).setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
 }
 
 /** The cookie a Set-Cookie header sets, as a Cookie header sends it. */
@@ -579,7 +581,7 @@ test("signIn: while the sign-in issuer is not loaded a link answers 503; REST ca
             sources: SOURCES,
             output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID, issuer: "http://127.0.0.1:9/nobody" } } },
             policy: { profiles: { reader: { results: false } }, results: true },
-            auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true },
+            auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, clientProfiles: { "report-bot": "reader" } },
             http: { publicUrl: PUBLIC },
             baseDir: dir
         },
@@ -594,6 +596,14 @@ test("signIn: while the sign-in issuer is not loaded a link answers 503; REST ca
         const waiting = await call(r.data.output.url.replace(PUBLIC, server.url), { headers: { accept: "application/json" } });
         assert.equal(waiting.status, 503);
         assert.equal(waiting.headers.get("retry-after"), "5");
+        // a REST program whose profile may not take files (results false) gets no link to a closed report
+        const bot = await call(`${server.api}/views/render`, { token: await accessToken("alice", REST_RESOURCE, "report-bot"), body: { source: "sales", view: BY_REGION, format: "csv", name: "Bot" } });
+        assert.equal(bot.status, 200, JSON.stringify(bot.data));
+        assert.equal(bot.data.output.url, undefined);
+        assert.equal(bot.data.output.note, NO_LINK_NOTE);
+        // its link to an open report stays
+        const openBot = await call(`${server.api}/views/render`, { token: await accessToken("alice", REST_RESOURCE, "report-bot"), body: { source: "open", view: BY_REGION, format: "csv", name: "Bot" } });
+        assert.equal(openBot.data.output.bound, "none");
     } finally {
         await server.close();
     }
@@ -650,4 +660,21 @@ test("check-config: where links point, which sources get which link, the redirec
 
     const wide = await checkConfig({ sources, output: { dir: "out" }, auth: { mode: "token" }, http: { host: "0.0.0.0" }, baseDir: dir }, { http: true, env: {} });
     assert.match(wide.text, /downloads: on, but no links: the server listens on 0\.0\.0\.0 and http\.publicUrl is not set/);
+});
+
+test("deliver: a source whose state is not known counts as closed (no output.baseUrl address); an open one keeps it", async () => {
+    const dir = tempDir();
+    const context = await createContext({ output: { dir: join(dir, "out"), baseUrl: "https://files.example.com/reports/" } }, { stderr: { write() {} } });
+    try {
+        const file = { bytes: new TextEncoder().encode("a,b\n1,2\n"), mediaType: "text/csv;charset=utf-8", extension: "csv", name: "Unknown" };
+        const how = { caller: { scopes: null, client: "local", profile: null }, surface: /** @type {const} */ ("mcp"), policy: /** @type {any} */ ({}) };
+        const unknown = await deliver(context, file, { ...how, sourceClosed: undefined });
+        assert.equal(unknown?.url, undefined);
+        assert.equal(unknown?.note, NO_LINK_NOTE);
+        const open = await deliver(context, file, { ...how, sourceClosed: false });
+        assert.match(String(open?.url), /^https:\/\/files\.example\.com\/reports\/[A-Za-z0-9_-]{22}-Unknown\.pivotkit-out\.csv$/);
+        assert.equal(open?.note, undefined);
+    } finally {
+        await context.close();
+    }
 });
