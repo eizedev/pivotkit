@@ -76,20 +76,22 @@ refused, as is a text with lone surrogates. The fields of a source with required
 | --- | --- | --- |
 | `httpSources.enabled` | `true` | `false` leaves every HTTP source out (not listed, `SOURCE_NOT_FOUND`); `check-config` says how many are ignored |
 | `httpSources.allowIpLiterals` | `false` | An IP address as the host of a backend's or a source's address |
-| `httpSources.backends.<name>` | none | A backend many sources share: `url` (an `https://` address and path prefix, no query), `intranet`, `headers`, `timeMs`, `maxBytes`, `ttl`, `maxStale`; a source's own value wins |
+| `httpSources.backends.<name>` | none | A backend many sources share: `url` (an `https://` address and path prefix, no query), `intranet`, `headers`, `auth`, `timeMs`, `maxBytes`, `ttl`, `maxStale`; a source's own value wins |
+| `httpSources.backends.<name>.auth` | none | The backend's sign-in for all its sources ([backend sign-in](#http-auth)) |
 | `httpSources.backends.<name>.intranet` | `false` | The backend may be on a loopback or private address (an internal API); `check-config` lists each such backend |
 | `sources.<id>.http.backend` + `.path` | - | A backend and the path after its `url`, with `{name}` for a parameter |
 | `sources.<id>.http.url` | - | Instead of `backend` and `path`: a whole `https://` address template |
 | `sources.<id>.http.intranet` | `false` | With `url`: as a backend's `intranet` |
 | `.http.query` | none | Query parameters: each value a literal or exactly one `{name}`; a parameter without a value is left out |
-| `.http.headers` | none | Static headers, over the backend's. `authorization`, `cookie`, `host`, `content-length`, `transfer-encoding`, `connection`, `te`, `trailer`, `upgrade`, `keep-alive`, `accept-encoding`, `forwarded`, `proxy-*` and `x-forwarded-*` are refused |
+| `.http.auth` | the backend's | The source's own sign-in: a header from a secret, client credentials or a token exchange ([backend sign-in](#http-auth)) |
+| `.http.headers` | none | Static headers, over the backend's (literal values: no secret). `authorization` and `cookie` go to `http.auth`; `host`, `content-length`, `transfer-encoding`, `connection`, `te`, `trailer`, `upgrade`, `keep-alive`, `accept-encoding`, `forwarded`, `proxy-*` and `x-forwarded-*` are refused |
 | `.http.rows` | `""` (the body is the list) | A JSON Pointer (RFC 6901) to the rows: `"/items"`, `"/data/rows"` |
 | `.http.format` | `"json"` | `"csv"`: the body is a CSV file, one page, read as a file is |
 | `.http.asOf` | none | A JSON Pointer to the body's own time (ISO 8601 text or epoch seconds): the results' `dataAsOf`; else the time the last page arrived |
 | `.http.paging` | none | How further pages are found (see [Paging](#http-paging)) |
 | `.http.maxPages` | 10 | 1 to 100; a source with more pages answers `LIMIT_EXCEEDED` |
 | `.http.maxBytes` | 20 MiB | All pages together, after decompression; over it `LIMIT_EXCEEDED`. A load reads at most `limits.fileBytes` (50 MiB unless set): a larger value is refused when `limits.fileBytes` is set, and a `check-config` warning otherwise |
-| `sources.<id>.params` | none | The values a caller passes: `type` (`string`, `integer`, `number`, `boolean`), `required`, `description`, `example`, `enum`, `pattern`, `minLength`, `maxLength` (strings: default 64, at most 256), `minimum`, `maximum`, `format: "date"`, `default` |
+| `sources.<id>.params` | none | The values a caller passes: `type` (`string`, `integer`, `number`, `boolean`), `required`, `description`, `example`, `enum`, `pattern`, `minLength`, `maxLength` (strings: default 64, at most 256), `minimum`, `maximum`, `format: "date"`, `default`, `claim` (filled from the sign-in, [claims](#http-claims)) |
 | `sources.<id>.timeMs` | 15000 ms | All pages of one load, at most 600000 |
 | `sources.<id>.ttl` | 60 s | Seconds a load is reused for the same caller and values; `0` only shares loads that run at the same time |
 | `sources.<id>.maxStale` | 3600 s | How old the last good data may be to stand in after a transient failure; `0` turns it off |
@@ -98,10 +100,10 @@ An HTTP source's policy needs a `default` that is not `show`, under the server's
 profile, or the server does not start: a field the backend adds later would otherwise be shown
 without anyone deciding. Set `policy.default` to `hide` and list the fields to show.
 
-pivotkit sends no credentials to a backend: the configuration has no sign-in for one, and headers
-that carry one are refused. A header whose name looks like a secret's (`key`, `token`, `secret`,
-`auth`, `pass`) with a literal value is a warning in `check-config`, since everyone who can read the
-configuration file reads it too.
+A backend's sign-in goes to `http.auth`, never to `http.headers`, and its secret is a reference to
+a variable or a file ([backend sign-in](#http-auth)). A header whose name looks like a secret's
+(`key`, `token`, `secret`, `auth`, `pass`) with a literal value is a warning in `check-config`,
+since everyone who can read the configuration file reads it too.
 
 ### The address { #http-address }
 
@@ -120,8 +122,8 @@ configuration file reads it too.
   backends decode `%2F` before they route); no value may hold `..` or a control character. A
   `pattern` is the whole value (anchored), and one that can take long on some values is refused at
   start.
-- Write no secret into the address or `query`: the configuration file holds it in plain text, and a
-  backend's sign-in is not configured there. The log and `check-source` write each literal query
+- Write no secret into the address or `query`: the configuration file holds it in plain text; a
+  backend's sign-in goes to [`http.auth`](#http-auth). The log and `check-source` write each literal query
   value as `...`, but the path as it is.
 - A parameter's `description`, `example`, `enum`, `pattern`, `format`, lengths and range are shown to
   callers (`list_sources`, and the message of a refused value): write no internal names or secrets
@@ -191,6 +193,193 @@ Each page's body is held in memory while it is read and parsed, up to `maxBytes`
 rows of a kept load stay in memory for `ttl` (bounded as for code sources); keep `maxBytes` near what
 a source needs.
 
+### Backend sign-in { #http-auth }
+
+A backend's sign-in is configured in `http.auth` of a source, or in `auth` of a backend for all its
+sources (a source's own wins). It is exactly one of three; a secret is always a reference,
+`{ "env": "NAME" }` or `{ "file": "path" }` (relative to the configuration file), read when it is
+used, so a rotated file or variable works without a restart.
+
+=== "Header"
+
+    A static header, such as an API key:
+
+    ```json
+    { "header": { "name": "authorization", "prefix": "Bearer ", "value": { "env": "PLATFORM_TOKEN" } } }
+    ```
+
+=== "Client credentials"
+
+    An OAuth access token for pivotkit itself (RFC 6749, client credentials), with a client secret
+    sent as HTTP Basic credentials (`client_secret_basic`):
+
+    ```json
+    { "clientCredentials": {
+        "tokenUrl": "https://auth.example.com/application/o/token/",
+        "clientId": "pivotkit-backend",
+        "clientSecret": { "file": "secrets/backend-secret" },
+        "scope": "platform:read" } }
+    ```
+
+    or with a JWT as the client's proof (RFC 7523 `client_assertion`), such as a projected Kubernetes
+    service account token, read again for every token request:
+
+    ```json
+    { "clientCredentials": {
+        "tokenUrl": "https://auth.example.com/application/o/token/",
+        "clientId": "pivotkit-backend",
+        "assertion": { "file": "/var/run/secrets/tokens/pivotkit" } } }
+    ```
+
+=== "Token exchange"
+
+    An access token for the signed-in person (RFC 8693 token exchange), so the backend applies that
+    person's rights:
+
+    ```json
+    { "tokenExchange": {
+        "audience": "platform-api",
+        "scope": "platform:read",
+        "clientId": "pivotkit-backend",
+        "clientSecret": { "file": "secrets/backend-secret" },
+        "maxAgeSeconds": 300 } }
+    ```
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `header.name` | `authorization` | The header's name; not one the connection sets (`host`, `content-length`, ...), and not also a static header |
+| `header.prefix` | none | Text before the secret, such as `Bearer ` |
+| `header.value` | - | The secret reference |
+| `clientCredentials.tokenUrl` | - | The token endpoint, `https://` |
+| `clientCredentials.clientId` | - | pivotkit's client at the token endpoint |
+| `clientCredentials.clientSecret` or `.assertion` | - | One of the two, as a secret reference |
+| `clientCredentials.scope`, `.audience`, `.resource` | none | Sent with the token request |
+| `tokenExchange.tokenUrl` | the `token_endpoint` of `auth.issuer`'s metadata | An `https://` address; the metadata's endpoint must be on the issuer's own origin |
+| `tokenExchange.clientId`, `.clientSecret` | - | pivotkit's confidential client (`client_secret_basic`) |
+| `tokenExchange.audience` or `.resource` | - | The backend the exchanged token is for; at least one |
+| `tokenExchange.scope` | none | The scopes asked for; ask for the narrowest |
+| `tokenExchange.maxAgeSeconds` | 300 | The longest an exchanged token is reused, 1 to 86400 |
+| `.intranet` (both OAuth kinds) | `false` | The token endpoint may be on a loopback or private address |
+
+A token exchange needs `auth.mode: "oauth"` (see [sign-in](mcp.md#oauth)), and works only for a
+signed-in person: a caller whose token has a subject (`auth.subjectClaim`). Without one (a static
+token, no sign-in, stdio, an OAuth token without a subject) the source is not listed and answers
+`SOURCE_NOT_FOUND`. A header and client credentials work for every caller, also over stdio.
+
+**The person's token goes to the token endpoint only.** pivotkit sends the caller's own access token
+as `subject_token` to the token endpoint, and never to a backend or to an address taken from an
+answer, as the MCP specification requires ("MCP servers MUST NOT accept or transit any other
+tokens", Authorization, Token Handling; Security Best Practices, Token Passthrough).
+
+#### Tokens kept { #http-auth-cache }
+
+- Client credentials: one token per sign-in setting, shared by every caller, until 30 s before it
+  expires (`expires_in`).
+- Token exchange: one token per person, client and scopes (a token got through a broad client never
+  serves a restricted one), until the first of: 30 s before it expires, the person's own token
+  expires, `maxAgeSeconds`.
+- One token request per key at a time, shared by all who wait for it; a failed request is kept 5 s;
+  at most 1000 tokens per process, the oldest out first. Tokens stay in memory only.
+- A backend that answers 401 makes pivotkit drop the token it sent and ask once more with a new one.
+- The token endpoint's answer must hold an `access_token` of `token_type` Bearer (for a token
+  exchange also `N_A` with an access token as `issued_token_type`); an `expires_in` that is missing
+  or outside 1 to 86400 counts as 60 s. When the token is a JWT, its `aud` is compared with the
+  requested `audience`, and a difference is logged as a warning.
+
+#### When the sign-in fails { #http-auth-errors }
+
+| What happened | Caller gets | `retryable` |
+| --- | --- | --- |
+| The token endpoint refused (4xx), e.g. `invalid_client`, `invalid_grant` | `SOURCE_UNAVAILABLE` "the source's backend refused pivotkit's access; ..." | false |
+| A secret is missing, the token endpoint cannot be reached by its address rules, its answer holds no bearer token | `SOURCE_UNAVAILABLE` "the source is not set up correctly; ..." | false |
+| The token endpoint failed (5xx, 429), a timeout, a network error | `SOURCE_UNAVAILABLE` "the source is not available right now; ..." | false |
+
+Last good data never stands in after a failed sign-in. The log names the token endpoint's status and
+its RFC 6749 `error` code only (`error_description` is dropped), and a missing secret by its
+reference; never a secret or a token.
+
+#### Parameters bound to a claim { #http-claims }
+
+A backend without rights per person can still serve each person their own rows: a parameter with
+`claim` is filled from that claim of the caller's verified token, never from the caller. It works
+for HTTP and code sources and needs `auth.mode: "oauth"`.
+
+```json
+"params": {
+  "customer": { "type": "string", "required": true, "claim": "customer", "pattern": "^[a-z0-9-]{1,40}$" }
+}
+```
+
+- A text parameter bound to a claim needs a `pattern` or an `enum`; the claim's value is checked as
+  a caller's value is (texts, numbers and booleans only), and a value with `/`, `\`, `..`, `%`, `?`,
+  a line break or one outside the pattern is refused (`NOT_ALLOWED`) before anything is sent.
+- `claim: "email"` takes the email only when the token's `email_verified` is `true`.
+- `list_sources` does not offer the parameter, a caller that sends it gets `INVALID_INPUT` ("params.customer
+  is set by the server from your sign-in; leave it out"), and a token without the claim gets
+  `NOT_ALLOWED` ("your sign-in has no customer claim, which the source vms needs; ask the
+  operator"). The claim's value is never said back: a backend's 401, 403 or 404 names the caller's
+  own values only.
+- Only the claims a parameter names are read from a token; a code source sees them in
+  `caller.claims` too. Claims are never logged.
+
+A source with a token exchange or a claim is listed only for a signed-in person (with a subject),
+and `draft_schedule` answers `NOT_SCHEDULABLE` for it (`schedulable: false` in `list_sources`): a
+schedule runs later without a person signed in.
+
+#### What the provider must allow { #http-auth-provider }
+
+A token exchange makes pivotkit a deputy that asks for tokens on a person's behalf. Configure the
+provider so it can do no more than this source needs:
+
+- only pivotkit's client may exchange tokens, and it is a confidential client;
+- only tokens whose audience is pivotkit's own resource can be exchanged;
+- only for the named audience (the backend), with the narrowest scopes.
+
+The settings below were checked against the providers' documentation in November 2026; check the
+current documentation of your provider's version, as these settings change.
+
+=== "Authentik: client credentials with a service account token"
+
+    Authentik's OAuth2 provider takes a JWT as `client_assertion` in a client credentials request
+    when the JWT is signed by a source listed under **Federated OIDC Sources** of the provider: an
+    OAuth source configured with the Kubernetes API server's OpenID configuration URL or its JWKS.
+    Authentik then issues a token for a service account named after the provider and the JWT's `sub`
+    (Authentik documentation, "Client credentials").
+
+    ```json
+    "httpSources": {
+      "backends": {
+        "platform": {
+          "url": "https://platform.example.com/api",
+          "auth": { "clientCredentials": {
+            "tokenUrl": "https://auth.example.com/application/o/token/",
+            "clientId": "pivotkit-backend",
+            "assertion": { "file": "/var/run/secrets/tokens/pivotkit" } } }
+        }
+      }
+    }
+    ```
+
+    The token file is a projected service account token in the pod (`serviceAccountToken` volume
+    source with an `audience` your Authentik source accepts).
+
+=== "Keycloak: token exchange"
+
+    Keycloak's standard token exchange: switch on **Standard token exchange** on pivotkit's client,
+    which must be confidential. The person's token must name pivotkit's client in its `aud` (an
+    audience mapper on the client the AI client signs in with), the `audience` is the backend's
+    client id, and Keycloak does not take the `resource` parameter (Keycloak documentation,
+    "Configuring and using token exchange").
+
+    ```json
+    "auth": { "tokenExchange": {
+      "tokenUrl": "https://keycloak.example.com/realms/example/protocol/openid-connect/token",
+      "audience": "platform-api",
+      "scope": "platform:read",
+      "clientId": "pivotkit",
+      "clientSecret": { "file": "secrets/pivotkit-client-secret" } } }
+    ```
+
 ### Kept data { #http-cache }
 
 As for [code sources](#code-cache): data is kept per caller (the person, a static token's name, or
@@ -199,7 +388,8 @@ load, and a caller that goes away stops waiting (the requests are cancelled when
 more); at most 4 loads of one source and 2 of one person run at once; last good data stands in only
 after a transient failure, with `stale: { since }`, and a refusal drops it. A load aborted because
 every caller went away keeps nothing: the next call loads again. A caller without an identity (an
-OAuth token without a usable subject) gets nothing kept and shares no load.
+OAuth token without a usable subject) gets nothing kept and shares no load. For a source with a
+token exchange or a claim, the data is kept per person, client and scopes, as its token is.
 
 ### check-config and check-source { #check-source }
 
@@ -209,7 +399,12 @@ OAuth token without a usable subject) gets nothing kept and shares no load.
 HTTP sources (1):
   vms: backend platform (https://api.example.com/v1) /customers/{customer}/vms?state={state}&limit=..., rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: create_link makes none (no sources.<id>.link); schedules: draft_schedule drafts them with the caller's params
     params: customer (string, pattern, required), state (running|stopped)
+    backend auth: client credentials as pivotkit-backend (secret from a file) at https://auth.example.com/application/o/token/, scope platform:read (httpSources.backends.platform)
 ```
+
+The `backend auth` line says how the sign-in is made and where its secrets come from (a variable's
+name, "a file"), never a value or its length. A variable that is not set or a file that cannot be
+read is a `PROBLEM`; a secret file other users of the machine can read is a warning.
 
 `pivotkit-server check-source <id> [--param name=value ...] [--config file]` loads a source once as
 the server would, without an AI client, and prints each page's status, content type and size, the
@@ -218,7 +413,11 @@ with the operator's hint where there is one (`intranet`, a certificate); exit 1 
 prints no cell value and no secret: each value in the address is `{name}` and each literal query
 value `...`. Field names, and the keys where the rows' pointer finds no list, are printed: they can
 be data of the backend's, so treat the output as you treat the backend's answers. A load without
-rows prints a warning. It uses the same configuration, address rules and limits as the server:
+rows prints a warning. With a sign-in, it prints the token endpoint's status, its error code, the
+scope it granted and `expires_in` (never a token). A token exchange needs a person's token, which a
+command line does not have: `check-source` asks the token endpoint with the client's credentials
+only, says whether it answers and takes the client, and does not load the source. A `--param` for a
+parameter bound to a claim stands in for the sign-in's claim. It uses the same configuration, address rules and limits as the server:
 
 ```text
 $ pivotkit-server check-source vms --param customer=acme --config pivotkit.json
@@ -293,7 +492,7 @@ The example compiles with strict TypeScript: pivotkit-server's types give `load`
 | --- | --- | --- |
 | `sources.<id>.load` | - | `load(params, { caller, signal })`: the data (see below) |
 | `sources.<id>.version` | none | `version(params, { caller })`: a value (not a promise) that changes when the data changes; kept data is reused while it is the same. It is called at once on every call, never awaited, so keep it cheap |
-| `sources.<id>.params` | none | The values a caller passes with the source ([parameters](mcp.md#configuration)) |
+| `sources.<id>.params` | none | The values a caller passes with the source ([parameters](mcp.md#configuration)); a parameter with `claim` is filled from the signed-in person's token instead ([claims](#http-claims)) |
 | `sources.<id>.timeMs` | 30000 ms | The longest `load` may take, at most 600000 (ten minutes); the signal is aborted then |
 | `sources.<id>.ttl` | none (only `version` decides) | Seconds a load is reused; `0` only shares loads that run at the same time |
 | `sources.<id>.maxStale` | 3600 s | How old the last good data may be to stand in after a transient failure; `0` turns it off |
