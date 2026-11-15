@@ -501,7 +501,9 @@ pivotkit-server's.
 
 ### Reading check-config { #check-config }
 
-`check-config` says first whether the server starts, then counts problems and warnings, then lists
+`check-config`'s first line says whether the server starts ("the server would not start with this
+configuration", "the server starts, but not everything will work", or "the configuration is
+valid"), the second counts problems and warnings; then it lists
 every `PROBLEM` line, then the sections. A `PROBLEM` ends with what it does: `-> the server does not
 start` (what `serve` refuses: an output directory it cannot use, a static token that is missing or
 too short, an address off loopback without auth, an audit key, a print template the parser refuses),
@@ -512,8 +514,7 @@ does not change the exit code; an issuer whose metadata cannot be loaded from wh
 one, since the server starts and keeps trying.
 
 ```text
-pivotkit-server: the configuration is valid; the server starts, but not
-    everything will work.
+pivotkit-server: the server starts, but not everything will work.
 1 problem, 1 warning.
 
 PROBLEM: httpSources.backends.platform.auth.clientCredentials.clientSecret:
