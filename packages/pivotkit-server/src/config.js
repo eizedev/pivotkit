@@ -45,7 +45,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {string} [template]  an HTML print template file for render_view's html
  * @property {string[]} [scopes]  OAuth scopes a caller needs to see and use the source
  * @property {PolicyOptions} [policy]
- * @property {Record<string, { type: "string" | "integer" | "number" | "boolean", required?: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number, format?: "date", default?: string | number | boolean }>} [params]  values a caller passes with the source (a code source gets them: load(params, { caller }))
+ * @property {Record<string, { type: "string" | "integer" | "number" | "boolean", required?: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number, format?: "date", default?: string | number | boolean, claim?: string }>} [params]  values a caller passes with the source (a code source gets them: load(params, { caller })); claim: filled from that claim of the caller's verified token, never from the caller
  * @property {Record<string, { description?: string }>} [fields]  the operator's words about fields, shown by describe_source (at most 500 characters each)
  * @property {import("./options/http.js").HttpSourceOptions} [http]  an HTTP source: the backend's address and how to read its answer (instead of file or load)
  * @property {number} [ttl]  code and HTTP sources: seconds a load is reused (code: default only while version() gives the same; HTTP: 60)

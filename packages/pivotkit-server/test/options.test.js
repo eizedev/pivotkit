@@ -20,7 +20,15 @@ test("options: the composed table is today's, in today's order, plus the shared 
     const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
     const expected = structuredClone(before);
     // HTTP sources (options/http.js): a source's http, before code's cacheShared (the fragments' order); httpSources last of the top keys
-    const http = { object: { backend: "string", path: "string", url: "string", intranet: "boolean", query: { map: "string" }, headers: { map: "string" }, rows: "string", format: { enum: ["json", "csv"] }, asOf: "string", paging: { custom: "fn" }, maxPages: "integer", maxBytes: "integer" } };
+    // a backend's sign-in (#329): a source's http.auth and a backend's auth, secrets as references
+    const auth = {
+        object: {
+            header: { object: { name: "string", prefix: "string", value: { custom: "fn" } } },
+            clientCredentials: { object: { tokenUrl: "string", clientId: "string", clientSecret: { custom: "fn" }, assertion: { custom: "fn" }, scope: "string", audience: "string", resource: "string", intranet: "boolean" } },
+            tokenExchange: { object: { tokenUrl: "string", clientId: "string", clientSecret: { custom: "fn" }, audience: "string", resource: "string", scope: "string", maxAgeSeconds: "integer", intranet: "boolean" } }
+        }
+    };
+    const http = { object: { backend: "string", path: "string", url: "string", intranet: "boolean", query: { map: "string" }, headers: { map: "string" }, auth, rows: "string", format: { enum: ["json", "csv"] }, asOf: "string", paging: { custom: "fn" }, maxPages: "integer", maxBytes: "integer" } };
     Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer", http, cacheShared: "boolean" });
     // data sent in the request (options/inline.js): a policy's data, after results; mcp.data; rest.data
     const withData = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "results" ? [[k, v], ["data", "boolean"]] : [[k, v]])));
@@ -30,7 +38,7 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.policy.object.profiles.map.object = withData(expected.policy.object.profiles.map.object);
     expected.mcp.object.data = { or: [{ const: false }, { object: { rows: "integer", cells: "integer", bytes: "integer" } }] };
     expected.rest.object.data = { object: { maxBytes: "integer" } };
-    expected.httpSources = { object: { enabled: "boolean", allowIpLiterals: "boolean", backends: { map: { object: { url: "string", intranet: "boolean", headers: { map: "string" }, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } } } };
+    expected.httpSources = { object: { enabled: "boolean", allowIpLiterals: "boolean", backends: { map: { object: { url: "string", intranet: "boolean", headers: { map: "string" }, auth, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } } } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });

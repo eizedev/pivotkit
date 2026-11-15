@@ -154,18 +154,20 @@ test("template: refused at start: another scheme, an expression outside the path
     assert.throws(() => compileTemplate("https://a.example/x", { page: "1" }, declared, { reserved: ["page"] }), /paging fills/);
 });
 
-test("options: an HTTP source compiles; its keys are checked with the path; a backend's sign-in is not configurable in this version", () => {
+test("options: an HTTP source compiles; its keys are checked with the path; a sign-in header goes to http.auth, never to http.headers", () => {
     assert.doesNotThrow(() => validateOptions(optionsOf()));
     const cases = [
         [optionsOf({ backend: "nope" }), /sources\.vms\.http\.backend: no backend "nope" in httpSources\.backends \(known: platform\)/],
         [optionsOf({ url: "https://api.example.test/x" }), /give either backend and path, or url/],
         [optionsOf({ intranet: true }), /set intranet on the backend/],
         [optionsOf({ path: "/vms?all=1" }), /starts with "\/" and has no "\?"/],
-        [optionsOf({ headers: { Authorization: "Bearer x" } }), /headers\.Authorization: this header is set by the connection or is a sign-in/],
+        [optionsOf({ headers: { Authorization: "Bearer x" } }), /headers\.Authorization: a sign-in header holds a secret, which is never written in the configuration; set the backend's sign-in in http\.auth/],
+        [optionsOf({ headers: { Cookie: "session=x" } }), /headers\.Cookie: a sign-in header holds a secret/],
+        [optionsOf({ headers: { Host: "evil.example" } }), /headers\.Host: this header is set by the connection/],
         [optionsOf({ headers: { "x-forwarded-for": "1.2.3.4" } }), /x-forwarded-for/],
         [optionsOf({ headers: { "proxy-authorization": "x" } }), /proxy-authorization/],
         [optionsOf({ headers: { "x-team": "a\r\nhost: evil" } }), /without line breaks/],
-        [optionsOf({ auth: { header: { value: { env: "X" } } } }), /sources\.vms\.http: unknown key "auth"/],
+        [optionsOf({ auth: { header: { value: "the-secret-itself" } } }), /sources\.vms\.http\.auth\.header\.value: must be a reference to a secret/],
         [optionsOf({ paging: { page: "customer" } }), /customer is a query name pivotkit fills while paging, so it cannot also be a parameter/],
         [optionsOf({ paging: { offset: "o", limit: "l", size: 0 } }), /size: the rows per page/],
         [optionsOf({ paging: { cursor: "/next" } }), /paging: is one of/],
