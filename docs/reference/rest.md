@@ -76,9 +76,11 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
 Every answer over a source's data (all routes but `GET /sources` and `GET /views/guide`) carries
 `dataAsOf`: when the data is from, in UTC to the second (a file's modification time, a code source's
 own time or when it gave the data), parsed and written again by the server in this one form.
-A source a library host configured with parameters takes their values as `params` with its id in a
-POST body (`{ "source": "tickets", "params": { "team": "blue" } }`; describe such a source with
-`POST /sources/describe`, since `GET /sources/{id}` carries no params); `GET /sources` lists them,
+A source with parameters (an [HTTP source](sources.md#http) in the configuration, or a library
+host's code source) takes their values as `params` with its id in a POST body
+(`{ "source": "vms", "params": { "customer": "acme" } }`). Describe such a source with
+`POST /sources/describe`: `GET /sources/{id}` carries no params, so it answers `INVALID_INPUT` for a
+source with required ones; `GET /sources` lists them,
 and the routes take `params` only when a configured source declares any
 ([parameters](mcp.md#configuration)).
 
@@ -412,7 +414,7 @@ gives it to the operator. An error of a source or a store that failed (`SOURCE_U
 | 404 | <a id="error-not-found"></a>`NOT_FOUND` | No such route |
 | 404 | <a id="error-source-not-found"></a>`SOURCE_NOT_FOUND` | No such source, or one the caller lacks the scopes for |
 | 404 | <a id="error-file-not-available"></a>`FILE_NOT_AVAILABLE` | The source's file is missing or changed while read |
-| 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](sources.md#code-errors)) |
+| 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](sources.md#code-errors)); an HTTP source's backend answered 401, 403 or 404 for the values given ([HTTP sources](sources.md#http-errors)) |
 | 405 | <a id="error-method-not-allowed"></a>`METHOD_NOT_ALLOWED` | GET for a POST route or the other way round (`Allow` names the method) |
 | 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | 409 | <a id="error-no-link"></a>`NO_LINK`, <a id="error-not-schedulable"></a>`NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a source that cannot have one |
@@ -424,7 +426,7 @@ gives it to the operator. An error of a source or a store that failed (`SOURCE_U
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else; the details only in the log with `--log debug` |
 | 422 | <a id="error-data-mismatch"></a>`DATA_MISMATCH` | [Data sent in the request](#data) whose `rowCount` differs from the rows sent, or a file whose SHA-256 differs from `sha256` |
-| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code source's load failed, took longer than its `timeMs` or has too many loads running; `retryable` says whether trying again may work |
+| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running; `detail` is one of pivotkit's fixed texts (not available right now; the source's backend refused pivotkit's access; the source is not set up correctly), `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, or two [large bodies](#data) read already; starting or stopping; the OAuth issuer not loaded yet |
 | 400, 403, 409, 410, 503 | <a id="error-link-expired"></a>`LINK_EXPIRED`, <a id="error-link-used"></a>`LINK_USED`, <a id="error-link-not-yours"></a>`LINK_NOT_YOURS`, <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED`, <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | Answers of the server's own [download links](delivery.md#answers) (`/downloads/`), not of `/api/v1` |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
@@ -453,6 +455,7 @@ pivotkit-server's.
 | --- | --- |
 | `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json`, and with pivotkit-mcp installed `/mcp` and its quick-start page; `/healthz` and `/readyz` |
 | `pivotkit-server check-config [flags]` | What `serve` would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant. Where a change of this version applies to the configuration, it closes with "New in this version" |
+| `pivotkit-server check-source <id> [--param name=value ...] [flags]` | Load an [HTTP source](sources.md#check-source) once as the server would: each page's status, content type and size, the rows, the fields with their types (never a value), when the data is from, and what a caller would get when it fails; 1 when it fails |
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit` |
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |
@@ -559,7 +562,9 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
   trims one trailing newline and refuses a value with another line break or a NUL; its error names
   the reference, never the value.
 
-A source may be a function instead of a file, a [code source](sources.md#code):
+A configured source may be an operator's backend, an [HTTP source](sources.md#http)
+(`sources.<id>.http`, with typed `params`), or, for a library host, a function instead of a file, a
+[code source](sources.md#code):
 `load(params, { caller, signal })` returns an array of row objects, `{ rows, asOf }` or columnar data
 `{ columns, types, data }` with one array per column (not `encode()`'s result, so hidden fields can
 be dropped). It runs in the host's thread, not in a worker; its `signal` is aborted after `timeMs`

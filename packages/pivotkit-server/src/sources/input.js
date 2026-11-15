@@ -16,7 +16,7 @@ export const PARAMS_INPUT = Object.freeze({
     type: "object",
     maxProperties: PARAM_LIMITS.count,
     additionalProperties: { type: ["string", "number", "boolean"], maxLength: PARAM_LIMITS.length },
-    description: "Values for the source's parameters; list_sources names them."
+    description: "Values for the source's parameters; list_sources names them. A source with required params needs them in every call."
 });
 
 /** The longest text of a cell sent in `data` (Excel's longest cell). */

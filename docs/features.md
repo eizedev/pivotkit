@@ -165,6 +165,9 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   csv, tsv, json or xlsx file); CORS off by default; limits per caller
   ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
   [security](security.md#rest), [privacy](privacy.md)).
+- Sources for both: data files, an operator's API as an HTTP source (its address written once with
+  typed parameters a caller fills, paging, data kept per caller, `pivotkit-server check-source` to
+  test it) and a library host's code sources ([data sources](reference/sources.md)).
 - Download links: the server serves each report for a while under a link that expires; for sources
   whose fields are not all shown only to the person who asked, after signing in with your identity
   provider ([download links](reference/delivery.md)).

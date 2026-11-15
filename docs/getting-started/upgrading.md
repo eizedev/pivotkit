@@ -165,6 +165,7 @@ keeps its level, and the automatic values rule is off. Library hosts with code s
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
 | [Request ids](#request-ids) | you parse the log or MCP tool errors, or a program reads problem documents | accept the new members and the id at the end of a tool error |
 | [Code sources](#code-sources) | you embed pivotkit-server or pivotkit-mcp with a source that has `load` | check the time limit, the per-caller cache and `cacheShared`; read `stale` |
+| [HTTP sources](../reference/sources.md#http) | you want an API's data as a source without writing code | add `sources.<id>.http` with typed `params`, test it with `pivotkit-server check-source` |
 | [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
@@ -241,8 +242,9 @@ they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next re
   { caller })`, also without declared `params` (then `{}`). A `load()` that takes no arguments works
   as it is; one whose first parameter has a default of its own now gets `{}` there. A `version`
   that returns a promise is refused (`SOURCE_UNAVAILABLE`): return the value itself.
-- A load is aborted after 30 s (`timeMs`, at most ten minutes); pass `signal` on to `fetch` or your
-  database client.
+- A load is aborted after 30 s (`timeMs`, at most ten minutes), and when every request waiting for
+  it went away (a REST client that closed its connection, an MCP call over HTTP whose connection closed); pass
+  `signal` on to `fetch` or your database client.
 - Loaded data is kept per caller (and per values and policy levels), not per source: a `load` that
   gives every caller the same data sets `cacheShared: true` (it then gets `caller: null`). Without
   `version` and `ttl` nothing is reused, as before; parallel calls for the same data share one load.

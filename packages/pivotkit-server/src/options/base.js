@@ -4,8 +4,8 @@
  * claim that names a person, stays in config.js's auth keys, where it was first). A feature that uses one of them never declares it again; it relaxes or adds rules
  * in its own fragment.
  *
- * ttl, maxStale and timeMs are taken by code sources only; options/code.js gives them their defaults
- * and sources/run.js their behaviour. HTTP sources take them too.
+ * params, ttl, maxStale and timeMs are taken by code and HTTP sources (load, http); options/code.js
+ * and options/http.js give them their defaults, sources/run.js their behaviour.
  */
 
 import { declaredProblems } from "../sources/params.js";
@@ -23,8 +23,8 @@ export const KEYS = Object.freeze({
     }
 });
 
-/** The keys of a source only a code source (load) takes. */
-const CODE_ONLY = Object.freeze(["params", "ttl", "maxStale", "timeMs"]);
+/** The keys of a source only a code source (load) or an HTTP source (http) takes. */
+const LOADED_ONLY = Object.freeze(["params", "ttl", "maxStale", "timeMs"]);
 
 /** The longest description of a field, in characters. */
 export const FIELD_DESCRIPTION_MAX = 500;
@@ -34,9 +34,9 @@ export const FIELD_DESCRIPTION_MAX = 500;
  */
 export function validate(options) {
     for (const [id, source] of Object.entries(options.sources ?? {})) {
-        for (const key of CODE_ONLY) {
-            if (/** @type {any} */ (source)[key] !== undefined && !source.load) {
-                throw new ConfigError(`sources.${id}.${key}: only a code source (load) takes ${key}`);
+        for (const key of LOADED_ONLY) {
+            if (/** @type {any} */ (source)[key] !== undefined && !source.load && !(/** @type {any} */ (source).http)) {
+                throw new ConfigError(`sources.${id}.${key}: only a code source (load) takes ${key}, or an HTTP source (http)`);
             }
         }
         if (source.timeMs !== undefined && source.timeMs < 1) {

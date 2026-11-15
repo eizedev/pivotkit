@@ -4,6 +4,7 @@
  *
  *   pivotkit-server serve [flags]          HTTP: REST at /api/v1 (and MCP at /mcp with pivotkit-mcp)
  *   pivotkit-server check-config [flags]   what serve would expose, then exit
+ *   pivotkit-server check-source <id> [--param name=value ...] [flags]   load an HTTP source once and say what came back
  *   pivotkit-server mcp [flags]            pivotkit-mcp's runner (stdio by default)
  *   pivotkit-server cli <command> ...      the command line pivotkit (pivotkit-cli)
  *   pivotkit-server healthcheck [url]      exit 0 when the server answers /healthz (the image's HEALTHCHECK)
@@ -21,6 +22,7 @@ export const CONFIG_ENV = "PIVOTKIT_CONFIG";
 const COMMANDS = Object.freeze({
     serve: "Serve REST (and MCP, when pivotkit-mcp is installed) over HTTP.",
     "check-config": "Print what serve would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable).",
+    "check-source <id>": "Load an HTTP source once (--param name=value for its parameters) and print the backend's status, pages, rows and fields, never a value (1 when it fails).",
     mcp: "Run pivotkit-mcp (stdio by default; its own flags, pivotkit-mcp --help).",
     cli: "Run the command line pivotkit (pivotkit-server cli --help).",
     healthcheck: `Exit 0 when the server answers GET /healthz (default http://127.0.0.1:${DEFAULT_PORT}/healthz).`
@@ -29,7 +31,7 @@ const COMMANDS = Object.freeze({
 /** The help text. */
 export function helpText() {
     const commands = Object.entries(COMMANDS).map(([name, text]) => `  ${name.padEnd(30)}${text}`);
-    return `pivotkit-server ${VERSION}: pivotkit's REST service, its MCP server and its command line in one.\n\nUsage: pivotkit-server <command> [options]\n\nCommands:\n${commands.join("\n")}\n\nOptions of serve and check-config:\n${flagLines(SERVER_FLAGS).join("\n")}\n\nThe static token, when the configuration names none: $${TOKEN_ENV}.\nDocs: https://pivotkit.eize.dev/reference/rest/\n`;
+    return `pivotkit-server ${VERSION}: pivotkit's REST service, its MCP server and its command line in one.\n\nUsage: pivotkit-server <command> [options]\n\nCommands:\n${commands.join("\n")}\n\nOptions of serve, check-config and check-source:\n${flagLines(SERVER_FLAGS).join("\n")}\n\nThe static token, when the configuration names none: $${TOKEN_ENV}.\nDocs: https://pivotkit.eize.dev/reference/rest/\n`;
 }
 
 /**
@@ -63,6 +65,33 @@ async function healthcheck(url, io) {
 }
 
 /**
+ * check-source: one load of an HTTP source; 0 when it worked, 1 when not.
+ * @param {string[]} argv  the source's id, --param name=value, and the flags of serve
+ * @param {any} io
+ */
+async function checkSourceCommand(argv, io) {
+    if (argv.includes("--help") || argv.includes("-h")) {
+        io.stdout.write(helpText());
+        return 0;
+    }
+    const { checkSource, paramFlags } = await import("./check-source.js");
+    let parts;
+    try {
+        parts = paramFlags(argv);
+    } catch (e) {
+        throw new ConfigError(/** @type {Error} */ (e).message);
+    }
+    const [id, ...flags] = parts.rest;
+    if (!id || id.startsWith("-")) {
+        throw new ConfigError("check-source takes a source's id: pivotkit-server check-source <id> [--param name=value ...] [--config file]");
+    }
+    const { options } = await optionsFrom(flags, io.env, { flags: SERVER_FLAGS, configEnv: CONFIG_ENV });
+    const { text, ok } = await checkSource(options, id, parts.params);
+    io.stdout.write(text);
+    return ok ? 0 : 1;
+}
+
+/**
  * Runs a subcommand; resolves when it has started (serve, mcp) or with the exit code.
  * @param {string[]} argv
  * @param {{ env: Record<string, string | undefined>, stdout: { write(t: string): unknown }, stderr: { write(t: string): unknown }, stdin?: any, cwd?: string }} io
@@ -92,8 +121,11 @@ export async function run(argv, io) {
             const port = io.env.PIVOTKIT_PORT ?? String(configured ?? DEFAULT_PORT);
             return healthcheck(rest[0] ?? `http://127.0.0.1:${port}/healthz`, io);
         }
+        if (command === "check-source") {
+            return await checkSourceCommand(rest, io);
+        }
         if (command !== "serve" && command !== "check-config") {
-            throw new ConfigError(`unknown command "${command.slice(0, 40)}"; the commands are ${Object.keys(COMMANDS).join(", ")}`);
+            throw new ConfigError(`unknown command "${command.slice(0, 40)}"; the commands are ${Object.keys(COMMANDS).map((c) => c.split(" ")[0]).join(", ")}`);
         }
         if (rest.includes("--help") || rest.includes("-h")) {
             io.stdout.write(helpText());

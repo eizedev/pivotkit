@@ -15,6 +15,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- HTTP sources of pivotkit-server ([#328](https://github.com/eizedev/pivotkit/issues/328)) in
+  `sources.<id>.http`, with their parameters in `list_sources`. A `SOURCE_UNAVAILABLE` tool error says
+  the fixed text its reason picks (not available right now, the backend refused pivotkit's access,
+  the source is not set up correctly). A call over HTTP whose connection closed stops waiting for a source's load,
+  and the load is aborted when no other call waits for it. Needs the pivotkit-server release of the
+  same round (`serverTextOf` with a reason).
+
 - Data in the request ([#326](https://github.com/eizedev/pivotkit/issues/326)): the tools that take
   a source offer `data`, a small table of the model's own with `source` `inline:` (at most 500 rows,
   5,000 cells and 256 KiB; `mcp.data` lowers the cap or switches it off). Its description says that

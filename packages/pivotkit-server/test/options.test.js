@@ -19,7 +19,9 @@ const treeOf = (schema) =>
 test("options: the composed table is today's, in today's order, plus the shared source keys", () => {
     const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
     const expected = structuredClone(before);
-    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer", cacheShared: "boolean" });
+    // HTTP sources (options/http.js): a source's http, before code's cacheShared (the fragments' order); httpSources last of the top keys
+    const http = { object: { backend: "string", path: "string", url: "string", intranet: "boolean", query: { map: "string" }, headers: { map: "string" }, rows: "string", format: { enum: ["json", "csv"] }, asOf: "string", paging: { custom: "fn" }, maxPages: "integer", maxBytes: "integer" } };
+    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer", http, cacheShared: "boolean" });
     // data sent in the request (options/inline.js): a policy's data, after results; mcp.data; rest.data
     const withData = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "results" ? [[k, v], ["data", "boolean"]] : [[k, v]])));
     expected.sources.map.object.policy.object = withData(expected.sources.map.object.policy.object);
@@ -28,6 +30,7 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.policy.object.profiles.map.object = withData(expected.policy.object.profiles.map.object);
     expected.mcp.object.data = { or: [{ const: false }, { object: { rows: "integer", cells: "integer", bytes: "integer" } }] };
     expected.rest.object.data = { object: { maxBytes: "integer" } };
+    expected.httpSources = { object: { enabled: "boolean", allowIpLiterals: "boolean", backends: { map: { object: { url: "string", intranet: "boolean", headers: { map: "string" }, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } } } };
     // download links (options/downloads.js)
     const secretRef = { custom: "fn" };
     expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings" } } } };
@@ -71,7 +74,9 @@ test("options: an unknown key is still refused with the name meant, also for key
     const load = async () => [];
     assert.throws(() => validateOptions({ sources: { s: { load, tll: 60 } } }), /sources\.s: unknown key "tll"; did you mean "ttl"\?/);
     assert.throws(() => validateOptions({ auth: { subjectClam: "oid" } }), /auth: unknown key "subjectClam"; did you mean "subjectClaim"\?/);
-    assert.throws(() => validateOptions({ httpSources: { enabled: true } }), /unknown key "httpSources"/);
+    // (httpSources is options/http.js's now: a misspelling of it is still refused with the name meant)
+    assert.throws(() => validateOptions({ httpSource: { enabled: true } }), /unknown key "httpSource"; did you mean "httpSources"\?/);
+    assert.throws(() => validateOptions({ httpSources: { allowPrivate: true } }), /httpSources: unknown key "allowPrivate"/);
     assert.throws(() => validateOptions({ output: { downloads: { enabeld: true } } }), /output\.downloads: unknown key "enabeld"; did you mean "enabled"\?/);
     assert.throws(() => validateOptions({ sources: { s: { load, ttl: -1 } } }), /sources\.s\.ttl: must be a whole number/);
 });

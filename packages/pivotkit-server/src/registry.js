@@ -10,7 +10,7 @@ import { allowedDirs, readSafe } from "pivotkit-cli/files";
 import { closest } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
-import { SERVER_LIMITS, pathOf } from "./config.js";
+import { pathOf, serverLimitsOf } from "./config.js";
 import { asOperationError } from "./data.js";
 import { fieldKey, resolvePolicy } from "./policy.js";
 import { FILE_PREFIX, INLINE_ID, KINDS, kindOf } from "./sources/index.js";
@@ -51,10 +51,11 @@ export const holds = (caller, scopes) => caller.scopes === null || (scopes ?? []
  * @param {import("./config.js").ServerOptions} options
  */
 export async function createRegistry(options) {
-    const limits = { ...SERVER_LIMITS, ...(options.limits ?? {}) };
+    const limits = serverLimitsOf(options);
     const files = options.files ?? {};
     const allow = await allowedDirs((files.allowDirs ?? []).map((d) => pathOf(options, d)), options.baseDir ?? process.cwd());
-    const sources = new Map(Object.entries(options.sources ?? {}));
+    // httpSources.enabled: false leaves every HTTP source out, as if it were not configured
+    const sources = new Map(Object.entries(options.sources ?? {}).filter(([, s]) => !(s.http && options.httpSources?.enabled === false)));
     const filePolicy = resolvePolicy(options.policy, files.policy, undefined, { file: true });
     /** The profile a caller's policy takes, if any. */
     const profileOf = (caller) => (caller.profile && Object.hasOwn(options.policy?.profiles ?? {}, caller.profile) ? options.policy?.profiles?.[caller.profile] : undefined);
@@ -149,7 +150,7 @@ export async function createRegistry(options) {
             return {
                 sourceKind: kind,
                 policy,
-                source: source.load ? source : null,
+                source: source.load || source.http ? source : null,
                 link: source.link ? { url: source.link, key: source.linkKey ?? null } : null,
                 template,
                 params: values,
