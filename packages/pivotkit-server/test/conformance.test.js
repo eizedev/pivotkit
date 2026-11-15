@@ -27,7 +27,7 @@ const CALLS = [
 ];
 
 /** What may differ: the words, and the name a written file got (each call writes its own). */
-const comparable = (body) => JSON.parse(JSON.stringify({ ...body, message: undefined, output: body.output ? { ...body.output, name: undefined, url: undefined } : body.output, draft: body.draft ? { ...body.draft, created: undefined } : body.draft }));
+const comparable = (body) => JSON.parse(JSON.stringify({ ...body, message: undefined, output: body.output ? { ...body.output, name: undefined, filename: undefined, url: undefined, expiresAt: undefined } : body.output, draft: body.draft ? { ...body.draft, created: undefined } : body.draft }));
 
 test("every operation: the MCP tool's structured content and the REST answer are the same", async () => {
     const dir = workspace();

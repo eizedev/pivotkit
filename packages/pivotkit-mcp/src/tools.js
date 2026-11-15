@@ -68,8 +68,13 @@ export function errorResult(error, { requestId, source }) {
     return { isError: true, content: [{ type: "text", text }] };
 }
 
-/** A tool's result: a short text without data, the JSON, and the structured content. */
-const okResult = (summary, structured) => ({ content: [{ type: "text", text: `${summary}\n${JSON.stringify(structured)}` }], structuredContent: structured });
+/**
+ * A tool's result: a short text without data, the JSON, and the structured content; after the text,
+ * a resource_link to a written file where it has an address (MCP 2026-07-28, Tools > Tool Result >
+ * Resource Links: the client shows or opens it for the user; its audience is a hint, not a protection:
+ * the link's binding is).
+ */
+const okResult = (summary, structured, link) => ({ content: [{ type: "text", text: `${summary}\n${JSON.stringify(structured)}` }, ...(link ? [link] : [])], structuredContent: structured });
 
 /** A source as a log line names it: an id, or a file by its base name. */
 const logSource = (source) => (typeof source !== "string" ? undefined : source.startsWith("file:") ? `file:${source.split(/[\\/]/).pop()?.slice(0, 80)}` : source.slice(0, 80));
@@ -114,9 +119,9 @@ export function registerTools(server, context, caller) {
                     if (VIEW_ONLY.has(name) && args?.layout !== undefined) {
                         throw new OperationError("INVALID_INPUT", `${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here`);
                     }
-                    const { text, result } = await withRequestId(id, () => present(context, name, args ?? {}, caller));
+                    const { text, result, link } = await withRequestId(id, () => present(context, name, args ?? {}, caller));
                     context.log.call({ ...entry, ok: true, ms: Date.now() - started });
-                    return /** @type {any} */ (okResult(text, result));
+                    return /** @type {any} */ (okResult(text, result, link));
                 } catch (e) {
                     const error = e instanceof OperationError ? e : null;
                     if (!error || (error.code === "INTERNAL" && error.cause)) {

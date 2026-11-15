@@ -13,8 +13,8 @@
 
 import { OPERATIONS, OperationError, findingText } from "pivotkit-report/operations";
 import { exposeFindings, exposeSource, levelInfo, levelOf, mayList, touchesClosed, withStats } from "./policy.js";
-import { outputDir, writeOutput } from "./output.js";
-import { deliver } from "./delivery.js";
+import { outputDir } from "./output.js";
+import { deliver, resourceLinkOf } from "./delivery.js";
 import { listHint } from "./scopes.js";
 import { asOfMembers, asOfSentence } from "./sources/as-of.js";
 import { runResolved } from "./sources/index.js";
@@ -25,7 +25,17 @@ export { OUTPUT_MARK, draftCap, prune } from "./output.js";
 /** What a result may add about a written file. */
 const OUTPUT_FILE = {
     type: ["object", "null"],
-    properties: { name: { type: "string" }, path: { type: "string" }, url: { type: "string" }, format: { type: "string" }, mediaType: { type: "string" }, note: { type: "string", description: "How to open the link, in one sentence." } }
+    properties: {
+        name: { type: "string", description: "The file's name on the server." },
+        filename: { type: "string", description: "The file's name for the person." },
+        path: { type: "string" },
+        url: { type: "string" },
+        expiresAt: { type: "string", description: "The server's own link: when it stops working (ISO 8601, UTC)." },
+        bound: { type: "string", description: "The server's own link: none (anyone with the link until it expires), once (one download), signIn (only the person who asked, after signing in)." },
+        format: { type: "string" },
+        mediaType: { type: "string" },
+        note: { type: "string", description: "How to open the file, in one sentence." }
+    }
 };
 
 /** What every result over a source's data says about when the data is from. */
@@ -244,8 +254,17 @@ function withEmptyFilter(findings, result, closed) {
     return [...findings, { severity: "warning", code: "noRowsKept", path: "", message: "the filters keep none of the source's rows: check their items against the values the source describes" }];
 }
 
-/** Where the user finds a written file, in words. */
-const whereText = (output) => (output.url ? output.url : output.path ? output.path : `${output.name} in the output directory`);
+/**
+ * Where the user finds a written file, in words, or null where the note says it (a report over a
+ * closed source without a link).
+ */
+const whereText = (output) => (output.url ? output.url : output.path ? output.path : output.note ? null : `${output.name} in the output directory`);
+
+/** "The report is saved as <where>." with the note, or the note alone where it says where. */
+const savedText = (what, output) => {
+    const where = whereText(output);
+    return where ? `${what} saved as ${where}.` : output.note;
+};
 
 /** "valid: 0 errors, 1 warning" in words. */
 export function findingsText(valid, findings) {
@@ -334,7 +353,7 @@ const STEPS = {
         if (inlinable && !closed && policy.inline && cells <= policy.inline.cells && file.bytes.length <= policy.inline.bytes) {
             out.inline = { format, text: new TextDecoder().decode(file.bytes).replace(/^\uFEFF/, "") };
         }
-        const output = await deliver(context, await writeOutput(context, file), { caller, sourceClosed: resolved.sourceClosed, surface: how.surface ?? "mcp", policy });
+        const output = await deliver(context, file, { caller, sourceClosed: resolved.sourceClosed, surface: how.surface ?? "mcp", policy });
         out.output = output ? { ...output, format } : null;
         if (!output && !out.inline) {
             throw new OperationError("NO_OUTPUT", closed ? "the view uses a field whose values may not be shown, and this server has no output directory to put the file in (output.dir)" : `the result is larger than may come back inline (${policy.inline && how.inline !== false ? `${policy.inline.cells} cells, ${policy.inline.bytes} bytes` : "inline results are off"}) and this server has no output directory (output.dir)`);
@@ -344,9 +363,11 @@ const STEPS = {
         // ("values" lists a field's values, never a result over them, so a "values" field is named too)
         const withheldText = how.surface === "rest" ? ` Its content is not part of this answer: results over fields that are not fully shown (${closedFields.join(", ")}) stay in the file.` : ` Its content was not shown to the assistant: results over fields that are not fully shown (${closedFields.join(", ")}) stay in the file; open it to see them.`;
         const when = asOfSentence(asOf);
-        const note = output?.note ? ` ${output.note}` : "";
-        out.message = `${output ? `The report is saved as ${whereText(output)}.${closed ? withheldText : ""}` : "The result is shown inline; it was not saved as a file."}${note}${when ? ` ${when}` : ""}`;
-        return { text: `${result.ok ? "Done" : "Done with errors"}: ${format}${output ? `, saved as ${output.name}` : ", inline"}${closed ? "; content withheld" : ""}. ${findingsText(result.ok, findings)}${note}${when ? ` ${when}` : ""}`, result: out };
+        // the note once: where it already says where the file is, not again after it
+        const note = output?.note && whereText(output) ? ` ${output.note}` : "";
+        out.message = `${output ? `${savedText("The report is", output)}${closed ? withheldText : ""}` : "The result is shown inline; it was not saved as a file."}${note}${when ? ` ${when}` : ""}`;
+        const link = resourceLinkOf(output, { bytes: file.bytes.length, closed });
+        return { text: `${result.ok ? "Done" : "Done with errors"}: ${format}${output ? `, saved as ${output.filename}` : ", inline"}${closed ? "; content withheld" : ""}. ${findingsText(result.ok, findings)}${output?.note ? ` ${output.note}` : ""}${when ? ` ${when}` : ""}`, result: out, ...(link ? { link } : {}) };
     },
 
     async create_link(args, context, caller, how) {
@@ -362,9 +383,11 @@ const STEPS = {
         if (!outcome.file) {
             return { text: findingsText(false, result.findings), result: { ...result, output: null } };
         }
-        const output = await deliver(context, await writeOutput(context, outcome.file, true), { caller, sourceClosed: resolved.sourceClosed, surface: how.surface ?? "mcp", policy });
-        const message = `The draft "${result.draft?.name}" is ready for approval${output ? `, saved as ${whereText(output)}` : ""}. Nothing runs until a person approves it in the host.${output?.note ? ` ${output.note}` : ""}`;
-        return { text: message, result: { ...result, output: output ? { ...output, format: "json" } : null, message } };
+        const output = await deliver(context, outcome.file, { caller, sourceClosed: resolved.sourceClosed, surface: how.surface ?? "mcp", policy, draft: true });
+        const where = output ? whereText(output) : null;
+        const message = `The draft "${result.draft?.name}" is ready for approval${where ? `, saved as ${where}` : ""}. Nothing runs until a person approves it in the host.${output?.note ? ` ${output.note}` : ""}`;
+        const link = resourceLinkOf(output, { bytes: outcome.file.bytes.length, closed: false });
+        return { text: message, result: { ...result, output: output ? { ...output, format: "json" } : null, message }, ...(link ? { link } : {}) };
     }
 };
 
@@ -376,7 +399,7 @@ const STEPS = {
  * @param {Record<string, any>} input
  * @param {import("./registry.js").Caller} caller
  * @param {PresentOptions} [how]
- * @returns {Promise<{ text: string, result: Record<string, any> }>}
+ * @returns {Promise<{ text: string, result: Record<string, any>, link?: Record<string, any> }>}  link: an MCP resource_link of the file, where it has an address
  */
 export async function present(context, name, input, caller, how = {}) {
     if (!Object.hasOwn(STEPS, name)) {

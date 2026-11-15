@@ -20,6 +20,9 @@ test("options: the composed table is today's, in today's order, plus the shared 
     const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
     const expected = structuredClone(before);
     Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer" });
+    // download links (options/downloads.js)
+    const secretRef = { custom: "fn" };
+    expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings" } } } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -61,7 +64,7 @@ test("options: an unknown key is still refused with the name meant, also for key
     assert.throws(() => validateOptions({ sources: { s: { load, tll: 60 } } }), /sources\.s: unknown key "tll"; did you mean "ttl"\?/);
     assert.throws(() => validateOptions({ auth: { subjectClam: "oid" } }), /auth: unknown key "subjectClam"; did you mean "subjectClaim"\?/);
     assert.throws(() => validateOptions({ httpSources: { enabled: true } }), /unknown key "httpSources"/);
-    assert.throws(() => validateOptions({ output: { downloads: { enabled: true } } }), /output: unknown key "downloads"/);
+    assert.throws(() => validateOptions({ output: { downloads: { enabeld: true } } }), /output\.downloads: unknown key "enabeld"; did you mean "enabled"\?/);
     assert.throws(() => validateOptions({ sources: { s: { load, ttl: -1 } } }), /sources\.s\.ttl: must be a whole number/);
 });
 
@@ -97,7 +100,7 @@ test("check sections: problems are counted, warnings are not, and New in this ve
     assert.deepEqual(none, { lines: [], problems: 0, upgrade: [] });
 });
 
-test("check-config: today's configurations print exactly what they printed before (no section line, no New in this version)", async () => {
+test("check-config: today's configurations print exactly what they printed before, plus the download links' section (no New in this version where no report gets a link)", async () => {
     const dir = workspace({ "sales.csv": "Region,Product,Customer,Sales\nNorth,A,Alice,10\nSouth,B,Bob,20\n" });
     const options = {
         sources: { sales: { file: "data/sales.csv", title: "Sales", scopes: ["sales:read"], policy: { default: "show", fields: { Customer: "hide" } } }, gone: { file: "data/missing.csv" }, code: { load: async () => [] } },
@@ -108,7 +111,10 @@ test("check-config: today's configurations print exactly what they printed befor
     };
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: "x".repeat(40) }, name: "pivotkit-server", rest: true });
     const golden = readFileSync(new URL("./fixtures/check-config-before-fragments.txt", import.meta.url), "utf8");
-    assert.equal(result.text.split(dir).join("<dir>"), golden);
+    // HTTP and an output directory: the download links' section says where links would point and
+    // that these closed sources (a hidden field, the default summary) get none with static tokens
+    const delivery = ["Delivery:", "  downloads: on, links http://127.0.0.1:3333/downloads/<token>, expire after 60 minutes", "  reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open"];
+    assert.equal(result.text.split(dir).join("<dir>"), golden.replace("\n\n1 problem:", `\n${delivery.join("\n")}\n\n1 problem:`));
     assert.equal(result.problems, 1);
     assert.doesNotMatch(result.text, /New in this version/);
 });

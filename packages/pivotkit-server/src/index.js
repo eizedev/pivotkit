@@ -25,6 +25,7 @@ export { offeredScopes } from "./scopes.js";
 export { readSecret, secretFileWarning, SecretError } from "./secrets.js";
 export { SECRET_REF } from "./options/shared.js";
 export { checkConfig } from "./check.js";
+export { createDownloadHandler, linksOf, DOWNLOADS_PATH, CALLBACK_PATH, DOWNLOAD_BODY_BYTES } from "./downloads.js";
 export { OperationError } from "pivotkit-report/operations";
 export { optionsFrom, flagLines, httpFlags, SERVER_FLAGS, SHARED_FLAGS } from "./flags.js";
 export { serve, createServerHandler, DEFAULT_PORT } from "./serve.js";
