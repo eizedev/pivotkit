@@ -11,7 +11,7 @@ import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash, createHmac, hkdfSync } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync , readlinkSync } from "node:fs";
 import { platform } from "node:process";
 import { createServer } from "node:https";
 import { join } from "node:path";
@@ -635,6 +635,9 @@ test("check-config: where reports go and which go there", async () => {
 
 /** The file descriptors this process has open (macOS and Linux). */
 const openFds = () => readdirSync(platform === "linux" ? "/proc/self/fd" : "/dev/fd").length;
+// TMP fd-loop: what each open fd points at (Linux)
+const fdTargets = () => { const out = new Map(); for (const fd of readdirSync("/proc/self/fd")) { try { out.set(fd, readlinkSync(`/proc/self/fd/${fd}`)); } catch { out.set(fd, "?"); } } return out; };
+const fdDiff = (a, b) => [...b].filter(([fd, t]) => a.get(fd) !== t).map(([fd, t]) => `${fd}->${t}`).join(" ");
 
 test("a refused or timed-out upload closes its file: the count of open files stays flat", { skip: platform === "win32" }, async () => {
     /** @type {import("node:http").ServerResponse[]} */
@@ -651,6 +654,7 @@ test("a refused or timed-out upload closes its file: the count of open files sta
         const { context, log } = await contextOf({ sources: SOURCES, output: { dir: "out", upload: { intranet: true, ...upload } } });
         try {
             const before = openFds();
+            const beforeTargets = fdTargets();
             const tries = code === "TIMEOUT" ? 3 : 20;
             for (let i = 0; i < tries; i++) {
                 await assert.rejects(deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }), /could not be stored/);
@@ -659,7 +663,11 @@ test("a refused or timed-out upload closes its file: the count of open files sta
             unanswered.splice(0).forEach((res) => res.destroy());
             await new Promise((resolve) => setTimeout(resolve, 300));
             assert.equal(log.findLast((l) => l.upload)?.upload, code, what);
-            assert.ok(openFds() - before < tries, `${what}: ${openFds() - before} more open files after ${tries} uploads`);
+            const extra = openFds() - before;
+            if (extra >= tries) {
+                console.log(`FDLOOP ${what}: ${extra} more: ${fdDiff(beforeTargets, fdTargets())}`);
+            }
+            assert.ok(extra < tries, `${what}: ${extra} more open files after ${tries} uploads`);
         } finally {
             await context.close();
         }

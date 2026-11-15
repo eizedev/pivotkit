@@ -1,0 +1,50 @@
+name: fd loop (temporary)
+
+on:
+  push:
+    branches: ["tmp/fd-loop-*"]
+
+permissions:
+  contents: read
+
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - run: npm ci --no-audit --no-fund --ignore-scripts
+      - name: The open-files test alone, 30 times, with coverage
+        working-directory: packages/pivotkit-server
+        run: |
+          pass=0; fail=0
+          for i in $(seq 1 30); do
+            out=$(node --test --experimental-test-coverage --test-coverage-include="src/**" --test-reporter=tap --test-name-pattern="closes its file" test/upload.test.js 2>&1 || true)
+            if echo "$out" | grep -q "^# fail 0"; then pass=$((pass+1)); else fail=$((fail+1)); echo "$out" | grep -E "FDLOOP|more open files" | head -5; fi
+          done
+          echo "SINGLE pass=$pass fail=$fail"
+      - name: The server suite with coverage, 10 times
+        working-directory: packages/pivotkit-server
+        run: |
+          hit=0
+          for i in $(seq 1 10); do
+            out=$(node --test --experimental-test-coverage --test-coverage-include="src/**" --test-reporter=tap "test/*.test.js" 2>&1 || true)
+            echo "$out" | grep -E "FDLOOP" | head -5
+            if echo "$out" | grep -q "^not ok.*closes its file"; then hit=$((hit+1)); fi
+            echo "run $i: $(echo "$out" | grep -E '^not ok' | cut -c1-90 | tr '\n' ';')"
+          done
+          echo "SUITE runs=10 open-files-failed=$hit"
+      - name: The whole coverage step as CI runs it, 5 times
+        run: |
+          hit=0
+          for i in $(seq 1 5); do
+            out=$(npm run coverage 2>&1 || true)
+            echo "$out" | grep -E "FDLOOP" | head -5
+            if echo "$out" | grep -q "✖ a refused or timed-out upload closes its file"; then hit=$((hit+1)); fi
+          done
+          echo "COVERAGE runs=5 open-files-failed=$hit"
