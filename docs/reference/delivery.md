@@ -148,8 +148,9 @@ address: the address is `output.url`.
 
 A browser gets a short page with a title and heading of its own for each answer and the request's
 id, a program that asks for JSON (`Accept: application/json`) a problem document like the [REST
-service's](rest.md#errors), with `requestId`. The id is also on the request's `download` log line, so
-a person can quote it to the operator.
+service's](rest.md#errors), with `requestId`. A person quotes the id to the operator, who finds it
+on the request's log line where there is one: its `download` line, or the debug line of a link that
+does not exist.
 
 | Status | Code | When |
 | --- | --- | --- |

@@ -101,7 +101,8 @@ test("the pages, light and dark, wide and at 390 px: details of the file, contra
                         await page.goto(url);
                         const where = `${name}, ${colorScheme}, ${width} px`;
                         const drawn = await page.evaluate(measure);
-                        expect(drawn.colorScheme, where).toContain(colorScheme);
+                        // the scheme's own surface is what is measured against
+                        expect(drawn.body, where).toBe(colorScheme === "dark" ? "rgb(13, 17, 23)" : "rgb(255, 255, 255)");
                         for (const t of drawn.texts) {
                             expect(t.ratio, `${where}: "${t.text}"`).toBeGreaterThanOrEqual(4.5);
                         }

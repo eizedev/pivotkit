@@ -111,7 +111,7 @@ const ANSWERS = Object.freeze({
     FORBIDDEN_HOST: { status: 403, heading: "Address not served", text: "This address is not served here." },
     METHOD_NOT_ALLOWED: { status: 405, heading: "Open the link in a browser", text: "This link is opened in a browser." },
     BODY_TOO_LARGE: { status: 413, heading: "Request too large", text: "The request is larger than a download takes." },
-    INTERNAL: { status: 500, heading: "Download failed", text: "The download failed. Try again; if it keeps failing, tell the operator and give them the request id below." }
+    INTERNAL: { status: 500, heading: "Download failed", text: "The download failed. Try again; if it keeps failing, tell the operator and give them the request id." }
 });
 
 /** What a page calls a report's file, by extension. */
