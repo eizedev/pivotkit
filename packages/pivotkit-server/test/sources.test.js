@@ -11,7 +11,7 @@ import { createComputer } from "../src/compute.js";
 import { errorDetails, newRequestId, requestId, withRequestId } from "../src/request-id.js";
 import { asOfMembers, asOfSentence, asOfText } from "../src/sources/as-of.js";
 import { INLINE_ID, kindOf } from "../src/sources/index.js";
-import { tableKeyOf } from "../src/sources/keys.js";
+import { canonicalJson, tableKeyOf } from "../src/sources/keys.js";
 import { declaredProblems, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
 import { TOKEN, call, restServer, workspace } from "./helpers.js";
 
@@ -71,7 +71,8 @@ test("params: values are checked, typed and written again; defaults filled; unkn
         [{}, "INVALID_INPUT", /^the source vms needs params\.customer \(string\): The customer's short name, for example acme$/],
         [{ customer: "acme", region: "x" }, "INVALID_INPUT", /has no param "region"; it takes customer, day, limit, live, ratio/],
         [{ customer: "acme", tenant: "t-2" }, "INVALID_INPUT", /set by the server from your sign-in/],
-        [{ customer: "../admin" }, "INVALID_INPUT", /letters, digits and \. _ ~ - only/],
+        [{ customer: "../admin" }, "INVALID_INPUT", /may not hold \.\. or control characters/],
+        [{ customer: "a b" }, "INVALID_INPUT", /letters, digits and \. _ ~ - only/],
         [{ customer: "a/b" }, "INVALID_INPUT", /letters, digits/],
         [{ customer: "acme", limit: 0 }, "INVALID_INPUT", /at least 1/],
         [{ customer: "acme", limit: "4.5" }, "INVALID_INPUT", /whole number/],
@@ -391,4 +392,23 @@ test("error codes: the new ones with their status; details a person can act on, 
     assert.match(errorDetails({ retryable: false }).requestId, /^[A-Za-z0-9_-]{11}$/);
     assert.equal(new OperationError("INVALID_INPUT", "x").details, undefined);
     assert.deepEqual(new OperationError("SOURCE_UNAVAILABLE", "x", /** @type {any} */ ({ requestId: 5, retryable: "yes", retryAfter: -1, other: 1 })).details, {});
+});
+
+test("params: an operator's pattern is the whole value (anchored), and never lets .. or a control character through", () => {
+    const declared = { id: { type: "string", pattern: "[a-z]+" }, path: { type: "string", pattern: "[a-z./]+" }, any: { type: "string", pattern: "^.*$" } };
+    assert.equal(normalizeParams(declared, { id: "abc" }, null, "s").id, "abc");
+    for (const [name, value] of [["id", "abc/admin?x=1"], ["id", "x abc"], ["path", "a/../b"], ["path", ".."], ["any", "a\nb"], ["any", "a\u0000b"], ["any", "..%2F"]]) {
+        assert.throws(() => normalizeParams(declared, { [name]: value }, null, "s"), (e) => e.code === "INVALID_INPUT", `${name}=${JSON.stringify(value)}`);
+    }
+    // a pattern a nested quantifier makes slow is refused at start, as is a very long one
+    assert.match(declaredProblems({ x: { type: "string", pattern: "(a+)+$" } }).join(), /repeats a group/);
+    assert.match(declaredProblems({ x: { type: "string", pattern: "(\\w|\\d+)*" } }).join(), /repeats a group/);
+    assert.match(declaredProblems({ x: { type: "string", pattern: "a".repeat(257) } }).join(), /at most 256 characters/);
+    assert.deepEqual(declaredProblems({ x: { type: "string", pattern: "[a-z]{2,8}(-[a-z]{2})?" } }), []);
+});
+
+test("canonicalJson: keys sorted at every level, __proto__ a plain key", () => {
+    assert.equal(canonicalJson({ b: 1, a: { d: [1, { z: 1, y: 2 }], c: 2 } }), '{"a":{"c":2,"d":[1,{"y":2,"z":1}]},"b":1}');
+    assert.equal(canonicalJson({ b: 1, a: 2 }), canonicalJson({ a: 2, b: 1 }));
+    assert.equal(canonicalJson(JSON.parse('{"__proto__":{"x":1},"a":1}')), '{"__proto__":{"x":1},"a":1}');
 });

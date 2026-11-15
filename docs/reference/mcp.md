@@ -49,7 +49,9 @@ from the data), then the JSON. A view with errors is not a tool error: `ok` or `
 `asOf` (see below), else when `load()` gave the data. pivotkit parses every such time and writes it
 again in this one form, so no text of a source reaches the model through it; a time that does not
 parse is left out for when the data arrived, one in the future becomes now. `render_view`'s message and
-summary line end with it in words ("Data as of 2026-11-15 08:00 UTC."). The tools are one table shared with the command line
+summary line end with it in words ("Data as of 2026-11-15 08:00 UTC."). A result may also carry
+`stale: { since }` when last good data stands in for a load that failed; no source of this version
+does that yet. The tools are one table shared with the command line
 ([`pivotkit-report/operations`](report.md#operations)); the [REST service](rest.md) offers the
 same operations with the same policy to programs.
 
@@ -219,7 +221,8 @@ columnar data with `asOf` (a `Date`, an ISO 8601 text or epoch milliseconds) giv
 A code source may declare **parameters**: values a caller passes as `params` with the source's id,
 checked and written again by pivotkit before `load` sees them. With `params` declared, pivotkit calls
 `load(params, { caller })` and `version(params, { caller })`, where `caller` is a frozen copy of who
-calls (`subject`, `issuer`, `client`, `profile`, `scopes`, `groups`; never a token), and keeps the data
+calls (`client`, `profile`, `scopes`, `groups`, and with OAuth `subject` and `issuer`, else null;
+never a token), and keeps the data
 per caller and values; a caller without an identity (an OAuth token without a usable subject) gets
 no kept data. A source without `params` is called as `load()` and `version()`.
 
@@ -235,8 +238,9 @@ sources: {
 A parameter has a `type` (`string`, `integer`, `number`, `boolean`) and may have `required`,
 `default`, `description`, `example`, `enum`, `pattern`, `minLength`, `maxLength` (strings: 64 unless
 set, at most 256), `minimum`, `maximum` and `format: "date"`; at most 16 per source, names letters,
-digits and `_`. A string without `pattern` or `enum` takes letters, digits and `. _ ~ -` only, never
-`..`. `list_sources` lists a source's parameters, and the tools that take a source take `params` only
+digits and `_`. A `pattern` is matched against the whole value (as if written `^(?:...)$`) and may
+not repeat a group that has a quantifier of its own (`(a+)+`); a string without `pattern` or `enum`
+takes letters, digits and `. _ ~ -` only, and no string value may hold `..` or a control character. `list_sources` lists a source's parameters, and the tools that take a source take `params` only
 when a configured source declares any. A missing required value, an unknown name or a value of the
 wrong form is `INVALID_INPUT` naming the parameter. `createHttpHandler(context, { env })`
 reads static tokens from `env` (default `process.env`). `pivotkit-mcp/policy` exports the exposure

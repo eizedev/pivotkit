@@ -72,9 +72,11 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
 Every answer over a source's data (all routes but `GET /sources` and `GET /views/guide`) carries
 `dataAsOf`: when the data is from, in UTC to the second (a file's modification time, a code source's
 own time or when it gave the data), parsed and written again by the server in this one form.
-A source a library host configured with parameters takes their values as `params` with its id
-(`{ "source": "tickets", "params": { "team": "blue" } }`); `GET /sources` lists them, and the routes
-take `params` only when a configured source declares any ([parameters](mcp.md#configuration)).
+A source a library host configured with parameters takes their values as `params` with its id in a
+POST body (`{ "source": "tickets", "params": { "team": "blue" } }`; describe such a source with
+`POST /sources/describe`, since `GET /sources/{id}` carries no params); `GET /sources` lists them,
+and the routes take `params` only when a configured source declares any
+([parameters](mcp.md#configuration)).
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where
 (`output.name`, and `output.url` when `output.baseUrl` is set). The file's name is `name` from the

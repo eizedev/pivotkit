@@ -11,9 +11,12 @@
  *   differently the second time cannot pass. An IP address in the URL is checked before the request
  *   (node:net looks nothing up for one) and the socket's remote address once more after it connects.
  *   Always refused: 0.0.0.0/8, ::, link-local 169.254.0.0/16 and fe80::/10, multicast, 240.0.0.0/4
- *   with the broadcast address, the cloud metadata addresses fd00:ec2::254 and 100.100.100.200, also
- *   as IPv4-mapped, IPv4-compatible and NAT64 (64:ff9b::/96) IPv6 addresses. Loopback, private and
- *   shared ranges are refused only with allowPrivate: false.
+ *   with the broadcast address, the cloud metadata addresses fd00:ec2::254, 100.100.100.200 and
+ *   168.63.129.16, also where an IPv6 address carries an IPv4 one (mapped ::ffff:0:0/96, SIIT
+ *   ::ffff:0:0:0/96, compatible ::/96, NAT64 64:ff9b::/96 and 64:ff9b:1::/48, 6to4 2002::/16,
+ *   Teredo 2001::/32): the IPv4 address is taken out and its rule applies. Loopback, private and
+ *   shared ranges are refused only with allowPrivate: false. An IP address written in the URL is
+ *   refused unless allowIpLiterals is set (a backend is configured by name).
  * - Every request has its own connection (agent: false): no socket is shared between requests with
  *   different rules, and the proxy of the environment (NODE_USE_ENV_PROXY with HTTP(S)_PROXY, which
  *   node:http's global agent follows) is not used, so no proxy connects past the address check
@@ -43,12 +46,21 @@ export const FETCH_DEFAULTS = Object.freeze({ maxBytes: 20_971_520, timeMs: 15_0
 /** Headers a caller of guardedFetch may not set: the connection is guardedFetch's. */
 const OWN_HEADERS = /^(host|connection|content-length|transfer-encoding|te|trailer|upgrade|keep-alive|proxy-.*|accept-encoding)$/i;
 
+/** The methods a request may have. */
+const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]);
+
+/** A header's name (RFC 9110 token). */
+const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+
+/** A header's value: Latin-1 without control characters but tab. */
+const HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]*$/;
+
 /** Network errors after which the same request may work again. */
 const TRANSIENT = new Set(["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN", "EPIPE", "ENETUNREACH", "EHOSTUNREACH", "ECONNABORTED", "UND_ERR_SOCKET"]);
 
 /**
  * A request guardedFetch refused or could not finish. `code` is one of BAD_URL, NOT_HTTPS, USERINFO,
- * BAD_HEADER, BAD_BODY, REFUSED_ADDRESS, REDIRECT, TOO_LARGE, TIMEOUT, ABORTED, BAD_ENCODING, NETWORK;
+ * BAD_HEADER, BAD_METHOD, BAD_BODY, IP_LITERAL, REFUSED_ADDRESS, REDIRECT, TOO_LARGE, TIMEOUT, ABORTED, BAD_ENCODING, NETWORK;
  * `transient` says whether the same request may work later. The message never holds the address's
  * path or query.
  */
@@ -110,7 +122,7 @@ export function ipBytes(text) {
  */
 function v4Rule(bytes) {
     const [a, b, c, d] = bytes;
-    if (a === 0 || (a === 169 && b === 254) || a >= 224 || (a === 100 && b === 100 && c === 100 && d === 200)) {
+    if (a === 0 || (a === 169 && b === 254) || a >= 224 || (a === 100 && b === 100 && c === 100 && d === 200) || (a === 168 && b === 63 && c === 129 && d === 16)) {
         return "always";
     }
     if (a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || (a === 198 && (b === 18 || b === 19)) || (a === 192 && b === 0 && c === 0)) {
@@ -137,20 +149,15 @@ export function addressRefusal(address, how = {}) {
     } else {
         const b = ip.bytes;
         const zeros = (n) => b.slice(0, n).every((x) => x === 0);
-        const v4 = b.slice(12);
-        if (zeros(10) && b[10] === 255 && b[11] === 255) {
-            // IPv4-mapped ::ffff:a.b.c.d
-            rule = v4Rule(v4);
-        } else if (b[0] === 0 && b[1] === 0x64 && b[2] === 0xff && b[3] === 0x9b && b.slice(4, 12).every((x) => x === 0)) {
-            // NAT64 64:ff9b::a.b.c.d reaches the IPv4 address through a gateway
-            rule = v4Rule(v4);
+        const embedded = embeddedV4(b);
+        if (embedded.length) {
+            // an IPv6 form that reaches an IPv4 address: the strictest rule of the addresses it may carry
+            const rules = embedded.map(v4Rule);
+            rule = rules.includes("always") ? "always" : rules.includes("private") ? "private" : null;
         } else if (zeros(15) && b[15] === 1) {
             rule = "private";
         } else if (zeros(16)) {
             rule = "always";
-        } else if (zeros(12)) {
-            // IPv4-compatible ::a.b.c.d (deprecated)
-            rule = v4Rule(v4);
         } else if (b[0] === 0xff || (b[0] === 0xfe && (b[1] & 0xc0) === 0x80)) {
             // multicast ff00::/8, link-local fe80::/10
             rule = "always";
@@ -168,6 +175,44 @@ export function addressRefusal(address, how = {}) {
         return null;
     }
     return rule;
+}
+
+/**
+ * The IPv4 addresses an IPv6 address carries (empty for none): mapped ::ffff:0:0/96, SIIT
+ * ::ffff:0:0:0/96, NAT64 64:ff9b::/96 and the local 64:ff9b:1::/48 (RFC 8215; the IPv4 address at
+ * either place RFC 6052 allows), 6to4 2002::/16, Teredo 2001::/32 (its server and its client, stored
+ * inverted). IPv4-compatible ::/96 is left to the caller (:: and ::1 are not IPv4).
+ * @param {number[]} b  the 16 bytes
+ * @returns {number[][]}
+ */
+function embeddedV4(b) {
+    const zeros = (from, to) => b.slice(from, to).every((x) => x === 0);
+    const tail = b.slice(12);
+    if (zeros(0, 10) && b[10] === 255 && b[11] === 255) {
+        return [tail];
+    }
+    if (zeros(0, 8) && b[8] === 255 && b[9] === 255 && b[10] === 0 && b[11] === 0) {
+        return [tail];
+    }
+    if (b[0] === 0 && b[1] === 0x64 && b[2] === 0xff && b[3] === 0x9b) {
+        if (zeros(4, 12)) {
+            return [tail];
+        }
+        if (b[4] === 0 && b[5] === 1) {
+            return [tail, [b[6], b[7], b[9], b[10]]];
+        }
+    }
+    if (b[0] === 0x20 && b[1] === 0x02) {
+        return [b.slice(2, 6)];
+    }
+    if (b[0] === 0x20 && b[1] === 0x01 && b[2] === 0 && b[3] === 0) {
+        return [b.slice(4, 8), tail.map((x) => x ^ 0xff)];
+    }
+    if (zeros(0, 12) && !(zeros(12, 15) && b[15] <= 1)) {
+        // IPv4-compatible ::a.b.c.d (deprecated)
+        return [tail];
+    }
+    return [];
 }
 
 /** Whether an address is a loopback address (127.0.0.0/8, ::1, ::ffff:127.x). */
@@ -249,6 +294,7 @@ function decoderOf(encoding) {
  * @property {number} [maxBytes]  the most bytes of the body, decoded (default 20 MiB)
  * @property {number} [timeMs]  the whole request's time (default 15 s)
  * @property {boolean} [allowPrivate]  loopback and private addresses may be reached (default true)
+ * @property {boolean} [allowIpLiterals]  an IP address may be the URL's host (default false)
  */
 
 /**
@@ -282,6 +328,9 @@ export function createGuardedFetch(means = {}) {
         }
         const rules = { allowPrivate: request.allowPrivate !== false, plainHttp };
         const host = url.hostname.replace(/^\[|\]$/g, "");
+        if (isIP(host) && !request.allowIpLiterals) {
+            throw new GuardedFetchError("IP_LITERAL", "an IP address as the host is refused; name the server");
+        }
         if (isIP(host)) {
             const rule = addressRefusal(host, rules);
             if (rule) {
@@ -290,6 +339,10 @@ export function createGuardedFetch(means = {}) {
             if (plainHttp && !isLoopback(host)) {
                 throw new GuardedFetchError("NOT_HTTPS", "plain http goes to a loopback address only");
             }
+        }
+        const method = request.method ?? "GET";
+        if (!METHODS.has(method)) {
+            throw new GuardedFetchError("BAD_METHOD", `the method is one of ${[...METHODS].join(", ")}`);
         }
         const streamed = isStream(request.body);
         /** @type {Record<string, string>} */
@@ -302,8 +355,8 @@ export function createGuardedFetch(means = {}) {
                 }
                 continue;
             }
-            if (OWN_HEADERS.test(name) || /[\r\n\0]/.test(String(value))) {
-                throw new GuardedFetchError("BAD_HEADER", `the header ${JSON.stringify(name.slice(0, 40))} is guardedFetch's own or holds a line break`);
+            if (!TOKEN.test(name) || OWN_HEADERS.test(name) || !HEADER_VALUE.test(String(value))) {
+                throw new GuardedFetchError("BAD_HEADER", `the header ${JSON.stringify(String(name).slice(0, 40))} is no header name, is guardedFetch's own, or its value holds a line break or a character outside Latin-1`);
             }
             headers[name.toLowerCase()] = String(value);
         }
@@ -323,8 +376,10 @@ export function createGuardedFetch(means = {}) {
         const timeMs = request.timeMs ?? FETCH_DEFAULTS.timeMs;
         return new Promise((resolve, reject) => {
             let settled = false;
-            /** @type {import("node:http").ClientRequest} */
+            /** @type {import("node:http").ClientRequest | undefined} */
             let req;
+            /** @type {ReturnType<typeof setTimeout> | undefined} */
+            let timer;
             const fail = (/** @type {GuardedFetchError} */ error) => {
                 if (!settled) {
                     settled = true;
@@ -334,73 +389,81 @@ export function createGuardedFetch(means = {}) {
                 }
                 req?.destroy();
             };
-            const timer = setTimeout(() => fail(new GuardedFetchError("TIMEOUT", `no complete answer within ${timeMs} ms`, { transient: true })), timeMs);
             const onAbort = () => fail(new GuardedFetchError("ABORTED", "the request was cancelled"));
             if (request.signal?.aborted) {
                 onAbort();
                 return;
             }
-            request.signal?.addEventListener("abort", onAbort, { once: true });
             const options = {
-                method: request.method ?? "GET",
+                method,
                 headers,
                 agent: false,
                 lookup: guardedLookup(lookup, rules),
                 ...(means.ca ? { ca: means.ca } : {})
             };
-            req = (plainHttp ? http : https).request(url, options, (res) => {
-                const status = res.statusCode ?? 0;
-                if (status >= 300 && status < 400) {
-                    res.resume();
-                    fail(new GuardedFetchError("REDIRECT", `the server answered ${status}, a redirect, which is not followed`, { status }));
-                    return;
-                }
-                const length = Number(res.headers["content-length"]);
-                const decoder = decoderOf(res.headers["content-encoding"]);
-                if (decoder === undefined) {
-                    res.resume();
-                    fail(new GuardedFetchError("BAD_ENCODING", "the answer's content encoding is not one pivotkit reads"));
-                    return;
-                }
-                if (!decoder && Number.isFinite(length) && length > maxBytes) {
-                    res.resume();
-                    fail(new GuardedFetchError("TOO_LARGE", `the answer is larger than ${maxBytes} bytes`));
-                    return;
-                }
-                const stream = decoder ? res.pipe(decoder) : res;
-                /** @type {Buffer[]} */
-                const chunks = [];
-                let size = 0;
-                stream.on("data", (/** @type {Buffer} */ chunk) => {
-                    size += chunk.length;
-                    if (size > maxBytes) {
-                        decoder?.destroy();
+            try {
+                req = (plainHttp ? http : https).request(url, options, (res) => {
+                    const status = res.statusCode ?? 0;
+                    if (status >= 300 && status < 400 && status !== 304) {
+                        res.resume();
+                        fail(new GuardedFetchError("REDIRECT", `the server answered ${status}, a redirect, which is not followed`, { status }));
+                        return;
+                    }
+                    const length = Number(res.headers["content-length"]);
+                    const decoder = decoderOf(res.headers["content-encoding"]);
+                    if (decoder === undefined) {
+                        res.resume();
+                        fail(new GuardedFetchError("BAD_ENCODING", "the answer's content encoding is not one pivotkit reads"));
+                        return;
+                    }
+                    if (!decoder && Number.isFinite(length) && length > maxBytes) {
+                        res.resume();
                         fail(new GuardedFetchError("TOO_LARGE", `the answer is larger than ${maxBytes} bytes`));
                         return;
                     }
-                    chunks.push(chunk);
-                });
-                stream.on("error", (/** @type {any} */ e) => fail(decoder && e?.code?.startsWith?.("Z_") ? new GuardedFetchError("BAD_ENCODING", "the answer's compressed body is broken") : networkError(e)));
-                res.on("aborted", () => fail(new GuardedFetchError("NETWORK", "the connection closed before the answer was complete", { transient: true })));
-                stream.on("end", () => {
-                    if (settled) {
-                        return;
-                    }
-                    settled = true;
-                    clearTimeout(timer);
-                    request.signal?.removeEventListener("abort", onAbort);
-                    /** @type {Record<string, string>} */
-                    const out = {};
-                    for (const [name, value] of Object.entries(res.headers)) {
-                        if (value !== undefined && name !== "set-cookie") {
-                            out[name] = Array.isArray(value) ? value.join(", ") : String(value);
+                    const stream = decoder ? res.pipe(decoder) : res;
+                    /** @type {Buffer[]} */
+                    const chunks = [];
+                    let size = 0;
+                    stream.on("data", (/** @type {Buffer} */ chunk) => {
+                        size += chunk.length;
+                        if (size > maxBytes) {
+                            decoder?.destroy();
+                            fail(new GuardedFetchError("TOO_LARGE", `the answer is larger than ${maxBytes} bytes`));
+                            return;
                         }
-                    }
-                    const all = Buffer.concat(chunks);
-                    resolve({ status, headers: out, body: new Uint8Array(all.buffer, all.byteOffset, all.byteLength) });
+                        chunks.push(chunk);
+                    });
+                    stream.on("error", (/** @type {any} */ e) => fail(decoder && e?.code?.startsWith?.("Z_") ? new GuardedFetchError("BAD_ENCODING", "the answer's compressed body is broken") : networkError(e)));
+                    res.on("aborted", () => fail(new GuardedFetchError("NETWORK", "the connection closed before the answer was complete", { transient: true })));
+                    stream.on("end", () => {
+                        if (settled) {
+                            return;
+                        }
+                        settled = true;
+                        clearTimeout(timer);
+                        request.signal?.removeEventListener("abort", onAbort);
+                        /** @type {Record<string, string>} */
+                        const out = {};
+                        for (const [name, value] of Object.entries(res.headers)) {
+                            if (value !== undefined && name !== "set-cookie") {
+                                out[name] = Array.isArray(value) ? value.join(", ") : String(value);
+                            }
+                        }
+                        const all = Buffer.concat(chunks);
+                        resolve({ status, headers: out, body: new Uint8Array(all.buffer, all.byteOffset, all.byteLength) });
+                    });
                 });
-            });
-            // the address the socket reached, checked once more (an IP address in the URL is never looked up)
+            } catch (e) {
+                // node:http refuses an option it cannot send (a header it does not take): never a raw error
+                fail(new GuardedFetchError("BAD_HEADER", "the request cannot be sent as given", { cause: e }));
+                return;
+            }
+            timer = setTimeout(() => fail(new GuardedFetchError("TIMEOUT", `no complete answer within ${timeMs} ms`, { transient: true })), timeMs);
+            request.signal?.addEventListener("abort", onAbort, { once: true });
+            // the address the socket reached, checked again once it is connected: a second line behind
+            // the lookup's check (an IP address in the URL is never looked up); by then a plain http
+            // request may already be on its way, so the lookup's check is the one that keeps it back
             req.on("socket", (socket) => {
                 const check = () => {
                     const remote = socket.remoteAddress ?? "";

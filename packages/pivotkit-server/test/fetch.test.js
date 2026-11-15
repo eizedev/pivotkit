@@ -1,6 +1,8 @@
 // guardedFetch, the one way the server makes a request to another server: https only, no redirect,
 // the address checked where the socket connects (also a name that resolves to a forbidden one, and
 // IPv4-mapped IPv6), bodies counted after decompression while they stream, one time limit for all.
+// The https tests make a certificate per run with the openssl command: it must be on the PATH
+// (it is on the Linux and macOS runners; this package's tests do not run on Windows).
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
@@ -67,8 +69,9 @@ before(async () => {
 });
 after(() => new Promise((resolve) => server.close(resolve)));
 
-/** A guardedFetch that may use plain http to loopback (this test's server). */
-const local = createGuardedFetch({ allowHttpLoopback: true });
+/** A guardedFetch that may use plain http to loopback, by its IP address (this test's server). */
+const plainLocal = createGuardedFetch({ allowHttpLoopback: true });
+const local = (url, request = {}) => plainLocal(url, { allowIpLiterals: true, ...request });
 
 /** A lookup that answers what `answers` says, counting its calls. */
 function stubLookup(answers) {
@@ -140,10 +143,17 @@ test("metadata, link-local and unspecified addresses are refused as literals in 
         "http://224.0.0.1/",
         "http://255.255.255.255/",
         "http://[64:ff9b::a9fe:a9fe]/",
+        "http://[::ffff:0:a9fe:a9fe]/",
+        "http://[64:ff9b:1:a9fe:a9:fea9:fe00:0]/",
+        "http://[2002:a9fe:a9fe::1]/",
+        "http://[2001:0:4136:e378:8000:63bf:5601:5601]/",
+        "http://168.63.129.16/",
         "https://169.254.169.254/"
     ];
     for (const url of literals) {
-        assert.equal(await codeOf(fetcher(url, { timeMs: 2000 })), "REFUSED_ADDRESS", url);
+        assert.equal(await codeOf(fetcher(url, { timeMs: 2000, allowIpLiterals: true })), "REFUSED_ADDRESS", url);
+        // without allowIpLiterals no IP address is taken as a host at all
+        assert.equal(await codeOf(fetcher(url, { timeMs: 2000 })), "IP_LITERAL", url);
     }
     assert.equal(lookup.calls, 0, "a literal is never looked up");
 });
@@ -161,9 +171,9 @@ test("allowPrivate: false refuses loopback and private addresses, by name (the s
     const before = connections;
     assert.equal(await codeOf(local(`http://localhost:${server.address().port}/ok`, { allowPrivate: false })), "REFUSED_ADDRESS");
     assert.equal(await codeOf(local(`${base}/ok`, { allowPrivate: false })), "REFUSED_ADDRESS");
-    assert.equal(await codeOf(guardedFetch("https://10.1.2.3/", { allowPrivate: false })), "REFUSED_ADDRESS");
-    assert.equal(await codeOf(guardedFetch("https://[::ffff:192.168.1.1]/", { allowPrivate: false })), "REFUSED_ADDRESS");
-    assert.equal(await codeOf(guardedFetch("https://[fd12::1]/", { allowPrivate: false })), "REFUSED_ADDRESS");
+    assert.equal(await codeOf(guardedFetch("https://10.1.2.3/", { allowPrivate: false, allowIpLiterals: true })), "REFUSED_ADDRESS");
+    assert.equal(await codeOf(guardedFetch("https://[::ffff:192.168.1.1]/", { allowPrivate: false, allowIpLiterals: true })), "REFUSED_ADDRESS");
+    assert.equal(await codeOf(guardedFetch("https://[fd12::1]/", { allowPrivate: false, allowIpLiterals: true })), "REFUSED_ADDRESS");
     assert.equal(connections, before, "nothing reached the server");
     // allowed by default (internal APIs)
     assert.equal((await local(`http://localhost:${server.address().port}/ok`)).status, 200);
@@ -227,8 +237,8 @@ test("an error names no part of the address's path or query", async () => {
 });
 
 test("addressRefusal: the rules by range", () => {
-    const always = ["0.1.2.3", "169.254.1.1", "100.100.100.200", "224.0.0.251", "240.0.0.1", "::", "fe80::1", "febf::1", "ff02::fb", "fd00:ec2::254", "::ffff:0.0.0.0", "::ffff:169.254.169.254", "64:ff9b::169.254.169.254", "not an ip"];
-    const privateOnes = ["127.0.0.1", "10.0.0.1", "172.16.0.1", "172.31.255.255", "192.168.0.1", "100.64.0.1", "::1", "fc00::1", "fd12:3456::1", "::ffff:127.0.0.1", "::ffff:10.0.0.1", "fd00:ec2::253"];
+    const always = ["0.1.2.3", "169.254.1.1", "100.100.100.200", "224.0.0.251", "240.0.0.1", "::", "fe80::1", "febf::1", "ff02::fb", "fd00:ec2::254", "::ffff:0.0.0.0", "::ffff:169.254.169.254", "64:ff9b::169.254.169.254", "::ffff:0:169.254.169.254", "64:ff9b:1:a9fe:a9:fea9:fe00:0", "2002:a9fe:a9fe::", "2001:0:4136:e378:8000:63bf:5601:5601", "2001:0:a9fe:a9fe::1", "168.63.129.16", "not an ip"];
+    const privateOnes = ["127.0.0.1", "10.0.0.1", "172.16.0.1", "172.31.255.255", "192.168.0.1", "100.64.0.1", "::1", "fc00::1", "fd12:3456::1", "::ffff:127.0.0.1", "::ffff:10.0.0.1", "fd00:ec2::253", "2002:0a00:0001::1", "::ffff:0:10.0.0.1", "64:ff9b::10.0.0.1"];
     const open = ["8.8.8.8", "172.32.0.1", "100.128.0.1", "2001:4860:4860::8888"];
     for (const a of always) {
         assert.equal(addressRefusal(a), "always", a);
@@ -285,7 +295,7 @@ test("the environment's proxy is not used: a request goes straight to the addres
     await new Promise((resolve) => proxy.listen(0, "127.0.0.1", resolve));
     try {
         const module = new URL("../src/sources/fetch.js", import.meta.url).href;
-        const script = `const { createGuardedFetch } = await import(${JSON.stringify(module)}); const answer = await createGuardedFetch({ allowHttpLoopback: true })(${JSON.stringify(`${base}/ok`)}); console.log(new TextDecoder().decode(answer.body));`;
+        const script = `const { createGuardedFetch } = await import(${JSON.stringify(module)}); const answer = await createGuardedFetch({ allowHttpLoopback: true })(${JSON.stringify(`${base}/ok`)}, { allowIpLiterals: true }); console.log(new TextDecoder().decode(answer.body));`;
         const proxyUrl = `http://127.0.0.1:${proxy.address().port}`;
         const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, NODE_USE_ENV_PROXY: "1", HTTP_PROXY: proxyUrl, HTTPS_PROXY: proxyUrl, NO_PROXY: "" }, encoding: "utf8" });
         assert.deepEqual(JSON.parse(stdout), { ok: true });
@@ -324,5 +334,43 @@ test("a streamed body (a file's read stream) is sent with its stated length; a l
         assert.equal(await codeOf(local(url, { method: "PUT", body: "x", headers: { "content-length": "1" } })), "BAD_HEADER");
     } finally {
         await new Promise((resolve) => sink.close(resolve));
+    }
+});
+
+/** The timers this process has pending. */
+const timers = () => process.getActiveResourcesInfo().filter((r) => r === "Timeout").length;
+
+test("a header name or value node:http cannot send, or another method, is a GuardedFetchError and leaves no timer behind", async () => {
+    const before = timers();
+    const cases = [
+        [{ headers: { "bad name": "x" } }, "BAD_HEADER"],
+        [{ headers: { "x-a": "caf\u00e9 \u2603" } }, "BAD_HEADER"],
+        [{ headers: { "x-a": "a\u0007b" } }, "BAD_HEADER"],
+        [{ headers: { "x-\u00e9": "1" } }, "BAD_HEADER"],
+        [{ method: "CONNECT" }, "BAD_METHOD"],
+        [{ method: "GET /x HTTP/1.1\r\n" }, "BAD_METHOD"],
+        [{ method: "TRACE" }, "BAD_METHOD"]
+    ];
+    for (const [request, code] of cases) {
+        assert.equal(await codeOf(local(`${base}/ok`, request)), code, JSON.stringify(request));
+    }
+    // a Latin-1 value is sent as it is
+    assert.equal((await local(`${base}/ok`, { headers: { "x-a": "caf\u00e9" } })).status, 200);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(timers(), before);
+});
+
+test("an IP address as the host needs allowIpLiterals; a name does not; 304 is an answer, not a redirect", async () => {
+    assert.equal(await codeOf(plainLocal(`${base}/ok`)), "IP_LITERAL");
+    assert.equal((await plainLocal(`http://localhost:${server.address().port}/ok`)).status, 200);
+    const notModified = createServer((_req, res) => {
+        res.writeHead(304);
+        res.end();
+    });
+    await new Promise((resolve) => notModified.listen(0, "127.0.0.1", resolve));
+    try {
+        assert.equal((await local(`http://127.0.0.1:${notModified.address().port}/`)).status, 304);
+    } finally {
+        await new Promise((resolve) => notModified.close(resolve));
     }
 });

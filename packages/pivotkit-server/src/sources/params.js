@@ -32,6 +32,19 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** The keys a parameter's declaration may have. */
 const DECLARATION_KEYS = new Set(["type", "required", "description", "example", "enum", "pattern", "minLength", "maxLength", "minimum", "maximum", "format", "default", "claim"]);
 
+/** The longest pattern a parameter may have. */
+export const PATTERN_MAX = 256;
+
+/**
+ * An operator's pattern as it is run: anchored at both ends (a pattern is the whole value, never a
+ * part of it: "^[a-z]+" would let "abc/../admin" through otherwise), with the u flag.
+ * @param {string} pattern
+ */
+export const compilePattern = (pattern) => new RegExp(`^(?:${pattern})$`, "u");
+
+/** A group with a quantifier inside that is itself repeated ("(a+)+", "(a|aa)*"): it can take exponential time. */
+const NESTED_QUANTIFIER = /\((?:[^()\\]|\\.)*[+*}](?:[^()\\]|\\.)*\)\s*[+*{]/u;
+
 /** The compiled patterns of a declaration, made once. */
 const compiled = new WeakMap();
 
@@ -43,7 +56,7 @@ function entriesOf(declared) {
             .sort()
             .map((name) => {
                 const p = declared[name];
-                return { name, ...p, regex: typeof p.pattern === "string" ? new RegExp(p.pattern, "u") : null };
+                return { name, ...p, regex: typeof p.pattern === "string" ? compilePattern(p.pattern) : null };
             });
         compiled.set(declared, entries);
     }
@@ -94,9 +107,13 @@ export function declaredProblems(declared) {
         if (p.pattern !== undefined) {
             if (!text || typeof p.pattern !== "string") {
                 fail("pattern is a regular expression, for a string parameter");
+            } else if (p.pattern.length > PATTERN_MAX) {
+                fail(`pattern has at most ${PATTERN_MAX} characters`);
+            } else if (NESTED_QUANTIFIER.test(p.pattern)) {
+                fail("pattern repeats a group that has a quantifier of its own (such as (a+)+), which can take very long on some values; write it without the nesting");
             } else {
                 try {
-                    new RegExp(p.pattern, "u");
+                    compilePattern(p.pattern);
                 } catch {
                     fail("pattern is not a valid regular expression");
                 }
@@ -118,7 +135,7 @@ export function declaredProblems(declared) {
         }
         for (const [key, value] of values) {
             try {
-                valueOf(name, { ...p, regex: p.pattern ? new RegExp(p.pattern, "u") : null, enum: key.startsWith("enum") ? [value] : p.enum }, value);
+                valueOf(name, { ...p, regex: p.pattern ? compilePattern(p.pattern) : null, enum: key.startsWith("enum") ? [value] : p.enum }, value);
             } catch (e) {
                 fail(`${key}: ${String(e.message).replace(/^params\.\w+ /, "")}`);
             }
@@ -248,14 +265,17 @@ function valueOf(name, p, value) {
         const max = p.maxLength ?? PARAM_LIMITS.defaultLength;
         if (text.length > max) fail(`must have at most ${max} characters`);
         if (p.minLength !== undefined && text.length < p.minLength) fail(`must have at least ${p.minLength} characters`);
+        // whatever the pattern allows: never a path step up, a line break or another control character
+        if (text.includes("..") || /\p{Cc}/u.test(text)) {
+            fail("may not hold .. or control characters");
+        }
         if (p.format === "date") {
             const day = DATE.test(text) ? new Date(`${text}T00:00:00Z`) : null;
             if (!day || Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== text) fail("must be a date (YYYY-MM-DD)");
         } else if (p.regex) {
-            // an operator's pattern runs on at most PARAM_LIMITS.length characters (maxLength holds)
-            p.regex.lastIndex = 0;
+            // an operator's pattern, anchored, runs on at most PARAM_LIMITS.length characters (maxLength holds)
             if (!p.regex.test(text)) fail("is not in the form the source takes");
-        } else if (!p.enum && (!SAFE_TEXT.test(text) || text.includes(".."))) {
+        } else if (!p.enum && !SAFE_TEXT.test(text)) {
             fail('may hold letters, digits and . _ ~ - only (the operator sets a pattern for other values)');
         }
         out = text;

@@ -2,6 +2,8 @@
 // "local"; identityKey is the only identity caches and bindings use, and it fails closed (null) for a
 // token without a usable subject and for a caller the server did not make. The caller never holds the
 // access token; only exchangeTokenFor sends it, and only sources/auth.js may import it.
+// The https tests make a certificate per run with the openssl command: it must be on the PATH
+// (it is on the Linux and macOS runners; this package's tests do not run on Windows).
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";

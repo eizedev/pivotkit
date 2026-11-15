@@ -21,8 +21,9 @@ function sorted(value) {
         return value.map((v) => (typeof v === "function" || v === undefined ? null : sorted(v)));
     }
     if (value && typeof value === "object" && !(value instanceof Date)) {
+        // no prototype: a key named __proto__ is a plain key
         /** @type {Record<string, unknown>} */
-        const out = {};
+        const out = Object.create(null);
         for (const key of Object.keys(value).sort()) {
             const v = /** @type {any} */ (value)[key];
             if (typeof v !== "function" && v !== undefined) {
