@@ -208,11 +208,12 @@ root `package.json`: `npm run types` and the builds depend on it.
   `load(params, { caller, signal })` in the main thread, its data kept per identity, values and levels (`cacheShared`:
   one copy, caller null) as a packed table and computed in a worker as a table job (a key only for a load that is kept and reused); `run.js` how data loaded in the main thread is loaded (`runLoad`: time
   limit with the signal aborted, coalescing, load limits per source and identity, kept data, last good
-  data after a transient failure only; `SourceError` and `sourceFailure`, what a caller gets of a
+  data after a transient failure only; an async `prepare` with the load's signal, whose value is not kept when every caller left, the key was refused or a later load was kept meanwhile (a load order counter); a warning once an hour per source whose data is over the owner's share; `SourceError` and `sourceFailure`, what a caller gets of a
   source's error, its `reason` picking the fixed text, `serverTextOf`); `cache.js` the process cache of loaded data (64 entries, 256 MiB or `sourceCache.maxMb` (options/code.js `sourceCacheOf`; the largest of the open contexts, `loadRunner.claimCacheBytes` at create, released at close), a code source's packed table measured by `packedBytes`; per owner 8 entries and a quarter of the bytes, its own oldest out first);
   `http.js` HTTP sources, an operator's backend (`loadHttp`: the requests with guardedFetch,
   `intranet` for private addresses, paging on the same host and path, JSON nested at most `MAX_DEPTH`,
-  the rows at a JSON Pointer as a table the worker encodes; `backendAnswer`, a backend's
+  the rows at a JSON Pointer as a table the worker encodes; a CSV answer read in a worker
+  (`computer.read`) into a packed table without hidden columns, which is what is kept; `backendAnswer`, a backend's
   status as a `SourceError`; `httpMeans`, the tests' fetch); `auth.js` a backend's sign-in
   (`backendHeaders`: a header from a secret, client credentials, the token exchange through
   auth.js `exchangeTokenFor`; the token cache per setting or per person, client and scopes;
@@ -230,8 +231,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   one way the server requests another server: https only, no redirects, the address checked on the
   connection's own lookup, bodies counted after decompression, one time limit), `src/data.js`
   (`fileData`, `codeTable` (a code source's rows read once into a packed table with a file's run limits, hidden fields left out; encoded in the worker), and `tableData`/`uploadData` for a table job: data loaded in the main
-  thread (an HTTP or code source's) or a file handed in, computed in a worker; the data sets a process keeps, `CACHE_ENTRIES` and a byte bound, `holds`),
-  `src/packed.js` (`packTable`, `unpackTable`, `packedBytes`: a code source's table with text columns dictionary-coded and numbers, dates and true/false values in typed arrays on SharedArrayBuffers, so posting it to a worker copies no value per cell; its exact size),
+  thread (an HTTP or code source's) or a file handed in, computed in a worker; `packedUpload`, the
+  read job (`READ_JOB`) of an HTTP source's CSV answer: packed without hidden columns, its data set kept by the job's key; the data sets a process keeps, `CACHE_ENTRIES` and a byte bound, `holds`),
+  `src/packed.js` (`packTable`, `unpackTable`, `packedBytes`: a code source's table (and an HTTP source's CSV answer) with text columns dictionary-coded (the dictionary one UTF-8 buffer with its ends, a string list only for a lone surrogate or a huge one; codes one, two or four bytes), whole numbers in the narrowest integer array, other numbers, dates and true/false values in typed arrays, all on SharedArrayBuffers, so posting it to a worker copies no value per cell and no text; its exact size),
   `src/compute.js` and `src/worker.js` (worker threads with memory and time limits; an input the
   structured clone cannot copy is `INVALID_INPUT` and frees the worker; a table job with a key goes
   to the worker that kept its data, without the table, and a worker that pushed it out answers

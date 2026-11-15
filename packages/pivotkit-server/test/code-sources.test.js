@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
 import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, serverTextOf, validateOptions } from "pivotkit-server";
 import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.js";
-import { LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, sourceFailure } from "../src/sources/run.js";
+import { LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, ownError, sourceFailure } from "../src/sources/run.js";
 import { createComputer } from "../src/compute.js";
 import { packTable, packedBytes, unpackTable } from "../src/packed.js";
 import { call, restServer, workspace } from "./helpers.js";
@@ -1102,13 +1102,16 @@ test("packed tables: each kind of column back as it was; their size counted exac
     assert.deepEqual(back.data[3], [true, false, null, true, false]);
     assert.equal(back.data[4], table.data[4], "a mixed column goes as it is");
     assert.ok(packed.columns[0].codes.buffer instanceof SharedArrayBuffer);
-    // header 64; names; text: codes 5 x 4 and North, "" once each; number and date: 5 x 8 and a blank byte each; flags 5; mixed: 5 x 8, "x", a Date and a BigInt
+    assert.ok(packed.columns[0].text.buffer instanceof SharedArrayBuffer, "the dictionary's bytes are shared too");
+    // header 64; names; text: codes 5 x 1 (two entries fit a byte), "North" and "" as 5 UTF-8 bytes and
+    // two ends of 4; number (1.5 and -0 are no whole numbers) and date: 5 x 8 and a blank byte each;
+    // flags 5; mixed: 5 x 8, "x", a Date and a BigInt
     const names = table.columns.reduce((n, c) => n + 16 + 2 * c.length, 0);
-    const expected = 64 + names + (20 + 8 + 26 + 8 + 16) + (40 + 5) + (40 + 5) + 5 + (40 + 18 + 24 + 24);
+    const expected = 64 + names + (5 + 5 + 8) + (40 + 5) + (40 + 5) + 5 + (40 + 18 + 24 + 24);
     assert.equal(packedBytes(packed), expected);
     // the same text in two strings is one entry; without columns the rows stay counted
     const two = packTable({ columns: ["T"], data: [["ab", ["a", "b"].join("")]] }, 2, 0);
-    assert.deepEqual(/** @type {any} */ (two.columns[0]).dict, ["ab"]);
+    assert.deepEqual([/** @type {any} */ (two.columns[0]).ends.length, [.../** @type {any} */ (two.columns[0]).codes]], [1, [1, 1]]);
     assert.deepEqual(unpackTable(packTable({ columns: [], data: [] }, 3, 1)), [{}, {}, {}]);
 });
 
@@ -1232,4 +1235,201 @@ test("the load cache: the largest sourceCache.maxMb of the open contexts applies
         await smaller.close();
     }
     assert.equal(loadRunner.cacheBytes(), LOAD_CACHE.bytes, "every context closed: the default again");
+});
+
+test("an async prepare (an HTTP source's CSV answer read in a worker): callers share it, its own errors pass, any other is the source's failure, a late result is kept", async () => {
+    const runner = createLoadRunner();
+    // two callers while prepare waits: one load, one prepare
+    let loads = 0;
+    let prepared = 0;
+    const reading = gate();
+    const { how } = unitHow({ ttl: 60, prepare: async (raw) => (prepared++, await reading.opened, `${raw} read`) });
+    const first = runner.runLoad("k", async () => (++loads, "answer"), how);
+    await wait(5);
+    const second = runner.runLoad("k", async () => (++loads, "answer"), how);
+    reading.open();
+    assert.deepEqual([(await first).value, (await second).value, loads, prepared], ["answer read", "answer read", 1, 1]);
+    assert.equal((await runner.runLoad("k", async () => ++loads, how)).value, "answer read", "kept");
+    // pivotkit's own error of prepare (a limit of the reader, BUSY): as it is, nothing kept
+    const own = unitHow({ ttl: 60, prepare: async () => {
+        throw ownError(new OperationError("LIMIT_EXCEEDED", "1,001 rows exceed the limit of 1,000 (limits.rows)"));
+    } });
+    const limited = await failure(runner.runLoad("own", async () => "answer", own.how));
+    assert.deepEqual([limited.code, limited.message], ["LIMIT_EXCEEDED", "1,001 rows exceed the limit of 1,000 (limits.rows)"]);
+    assert.equal((await runner.runLoad("own", async () => "again", unitHow({ ttl: 60 }).how)).value, "again", "nothing was kept");
+    // any other error of prepare: the source's failure, its words not passed on
+    const other = unitHow({ prepare: async () => {
+        throw new Error("db at 10.1.2.3");
+    } });
+    const failed = await failure(runner.runLoad("other", async () => "answer", other.how));
+    assert.equal(failed.code, "SOURCE_UNAVAILABLE");
+    assert.doesNotMatch(failed.message, /10\.1\.2\.3/);
+    // a load over its time: its late result is prepared and kept; a late prepare that fails leaves no unhandled rejection
+    let unhandled = 0;
+    const count = () => unhandled++;
+    process.on("unhandledRejection", count);
+    try {
+        const late = gate();
+        const timed = unitHow({ timeMs: 20, ttl: 60, prepare: async (raw) => `${raw} read` });
+        await failure(runner.runLoad("late", () => late.opened, timed.how));
+        late.open("late answer");
+        await wait(10);
+        assert.equal((await runner.runLoad("late", async () => "new", timed.how)).value, "late answer read");
+        const lateBad = gate();
+        const bad = unitHow({ timeMs: 20, ttl: 60, prepare: async () => {
+            throw new Error("cannot be read");
+        } });
+        await failure(runner.runLoad("bad", () => lateBad.opened, bad.how));
+        lateBad.open("late answer");
+        await wait(10);
+        assert.equal((await runner.runLoad("bad", async () => "new", unitHow({ ttl: 60 }).how)).value, "new", "a late result that cannot be prepared is not kept");
+        assert.equal(unhandled, 0);
+    } finally {
+        process.off("unhandledRejection", count);
+    }
+});
+
+test("packed tables: whole numbers in the narrowest integer array, texts as one UTF-8 buffer, back as they were", () => {
+    const n = 70_000;
+    const table = {
+        columns: ["Byte", "Signed", "Wide", "Huge", "City", "Odd", "Many"],
+        data: [
+            Array.from({ length: n }, (_, i) => (i % 9 === 0 ? null : i % 256)),
+            Array.from({ length: n }, (_, i) => (i % 2 ? -129 : 300)),
+            Array.from({ length: n }, (_, i) => i * 30_000),
+            Array.from({ length: n }, (_, i) => (i ? 1 : 2 ** 31)),
+            Array.from({ length: n }, (_, i) => ["Zürich", "東京", "", "😀 x"][i % 4]),
+            Array.from({ length: n }, (_, i) => (i ? "a" : "\uD800 lone")),
+            Array.from({ length: n }, (_, i) => `id-${i}`)
+        ]
+    };
+    const packed = packTable(table, n, 0);
+    const columns = /** @type {any[]} */ (packed.columns);
+    assert.deepEqual(columns.map((c) => c.kind), ["number", "number", "number", "number", "text", "text", "text"]);
+    assert.deepEqual(columns.slice(0, 4).map((c) => c.values.constructor.name), ["Uint8Array", "Int16Array", "Int32Array", "Float64Array"]);
+    assert.ok(columns[0].blank, "a whole-number column keeps its blanks");
+    assert.equal(columns[0].values.buffer.constructor, SharedArrayBuffer);
+    assert.deepEqual(columns.slice(4).map((c) => c.codes.constructor.name), ["Uint8Array", "Uint8Array", "Uint32Array"]);
+    assert.ok("text" in columns[4] && "ends" in columns[4]);
+    assert.ok("dict" in columns[5], "a lone surrogate stays a string: UTF-8 cannot carry it");
+    // about the answer's own bytes: the distinct ids as UTF-8, their ends and the codes
+    const many = columns[6];
+    assert.equal(many.text.byteLength, table.data[6].join("").length);
+    assert.equal(packedBytes({ packed: true, length: n, dropped: 0, columns: [many] }), 64 + 16 + 2 * "Many".length + many.text.byteLength + 4 * n + 4 * n);
+    const back = /** @type {any} */ (unpackTable(packed));
+    for (let c = 0; c < table.columns.length; c++) {
+        assert.deepEqual(back.data[c], table.data[c], table.columns[c]);
+    }
+});
+
+test("an async prepare and a refusal: a value prepared after the key was refused is never kept", async () => {
+    // the only caller leaves while prepare waits; a new load is refused; the old prepare ends after
+    const runner = createLoadRunner();
+    const reading = gate();
+    const leave = new AbortController();
+    let seen;
+    const first = runner.runLoad("k", async () => "old", unitHow({ ttl: 60, signal: leave.signal, prepare: async (raw, signal) => ((seen = signal), await reading.opened, raw) }).how);
+    await wait(10);
+    leave.abort();
+    await assert.rejects(first);
+    assert.equal(seen?.aborted, true, "prepare's signal fires when every caller went away");
+    await failure(runner.runLoad("k", async () => {
+        throw new SourceError("NOT_ALLOWED", { transient: false });
+    }, unitHow({ ttl: 60 }).how));
+    reading.open();
+    await wait(10);
+    assert.deepEqual(runner.size(), { entries: 0, bytes: 0 });
+    assert.equal((await runner.runLoad("k", async () => "fresh", unitHow({ ttl: 60 }).how)).value, "fresh");
+    // a late result (over timeMs) still in prepare when the key is refused
+    const late = gate();
+    const lateReading = gate();
+    await failure(runner.runLoad("late", () => late.opened, unitHow({ timeMs: 20, ttl: 60, prepare: async (raw) => (await lateReading.opened, raw) }).how));
+    late.open("late");
+    await wait(10);
+    await failure(runner.runLoad("late", async () => {
+        throw new SourceError("NOT_ALLOWED", { transient: false });
+    }, unitHow({ ttl: 60 }).how));
+    lateReading.open();
+    await wait(10);
+    assert.equal((await runner.runLoad("late", async () => "fresh", unitHow({ ttl: 60 }).how)).value, "fresh", "the refused key's old data is not brought back");
+    // a load that started later and is kept already is not overwritten by an earlier one's late result
+    const slow = gate();
+    const slowReading = gate();
+    await failure(runner.runLoad("order", () => slow.opened, unitHow({ timeMs: 20, ttl: 60, prepare: async (raw) => (await slowReading.opened, raw) }).how));
+    slow.open("earlier");
+    await wait(5);
+    assert.equal((await runner.runLoad("order", async () => "later", unitHow({ ttl: 60 }).how)).value, "later");
+    slowReading.open();
+    await wait(10);
+    assert.equal((await runner.runLoad("order", async () => "again", unitHow({ ttl: 60 }).how)).value, "later");
+});
+
+test("an async prepare: last good data after a transient failure is the prepared value", async () => {
+    const runner = createLoadRunner();
+    const { how } = unitHow({ ttl: 0, maxStale: 3600, prepare: async (raw) => `${raw} read` });
+    assert.equal((await runner.runLoad("k", async () => "answer", how)).value, "answer read");
+    const stale = await runner.runLoad("k", async () => {
+        throw new SourceError("SOURCE_UNAVAILABLE", { transient: true });
+    }, how);
+    assert.equal(stale.value, "answer read");
+    assert.ok(stale.stale);
+});
+
+test("data too large to keep: one warning per source an hour naming sourceCache.maxMb, and every call loads", async (t) => {
+    const runner = createLoadRunner({ cache: createLoadCache({ bytes: 4 * 1_048_576 }) });
+    const { how, lines } = unitHow({ ttl: 60, sizeOf: () => 2 * 1_048_576, label: "big" });
+    let loads = 0;
+    for (let i = 0; i < 3; i++) {
+        await runner.runLoad("k", async () => ++loads, how);
+    }
+    assert.equal(loads, 3);
+    const warned = lines.filter(([level, m]) => level === "warn" && /sourceCache\.maxMb/.test(m));
+    assert.deepEqual(warned.map(([, m]) => m), ["the source big: its data (2.0 MiB) is larger than a quarter of sourceCache.maxMb (1.0 MiB), so it is not kept and every call loads it again; raise sourceCache.maxMb to keep it"]);
+    t.mock.timers.enable({ apis: ["Date"], now: Date.now() + 3_600_000 });
+    await runner.runLoad("k", async () => ++loads, how);
+    assert.equal(lines.filter(([level, m]) => level === "warn" && /sourceCache\.maxMb/.test(m)).length, 2, "said again after an hour");
+});
+
+test("the pool: a CSV read whose callers all went away stops, its worker replaced", async () => {
+    const computer = createComputer({ workers: 1, timeMs: 30_000 });
+    const rows = ["a,b,c"];
+    for (let i = 0; i < 400_000; i++) {
+        rows.push(`x${i},${i},y${i % 7}`);
+    }
+    const bytes = new TextEncoder().encode(`${rows.join("\n")}\n`);
+    try {
+        const leave = new AbortController();
+        const started = Date.now();
+        const reading = computer.read(JOB_SPEC, { bytes, format: "csv" }, null, null, leave.signal);
+        setTimeout(() => leave.abort(new DOMException("every caller went away", "AbortError")), 30);
+        await assert.rejects(reading, { name: "AbortError" });
+        assert.ok(Date.now() - started < 1000, "stopped, not run to its end");
+        // the next job gets a new worker
+        const read = await computer.read(JOB_SPEC, { bytes: new TextEncoder().encode("a,b\n1,2\n"), format: "csv" }, null, null);
+        assert.equal(read.table.length, 1);
+    } finally {
+        await computer.close();
+    }
+});
+
+test("packed tables: a number column with -0 stays Float64, so -0 comes back as -0", () => {
+    const packed = packTable({ columns: ["N"], data: [[1, -0]] }, 2, 0);
+    const column = /** @type {any} */ (packed.columns[0]);
+    assert.equal(column.values.constructor, Float64Array);
+    const back = /** @type {any} */ (unpackTable(packed));
+    assert.ok(Object.is(back.data[0][1], -0), "an integer array would give 0");
+});
+
+test("an async prepare that ignores the signal: when every caller left before it resolved, its value is not kept", async () => {
+    const runner = createLoadRunner();
+    const reading = gate();
+    const leave = new AbortController();
+    const first = runner.runLoad("k", async () => "old", unitHow({ ttl: 60, signal: leave.signal, prepare: async (raw) => (await reading.opened, raw) }).how);
+    await wait(10);
+    leave.abort();
+    await assert.rejects(first);
+    reading.open();
+    await wait(10);
+    assert.deepEqual(runner.size(), { entries: 0, bytes: 0 });
+    assert.equal((await runner.runLoad("k", async () => "fresh", unitHow({ ttl: 60 }).how)).value, "fresh");
 });
