@@ -5,14 +5,14 @@
  *   true. MCP: unless false. A source's policy and files.policy do not take it (it is about the caller).
  * - `mcp.data`: false switches MCP inline data off; an object lowers the built-in cap
  *   (MCP_DATA_CAP), each of rows, cells and bytes at most the built-in value.
- * - `rest.data.maxBytes`: the largest body of a REST caller that may send data, at most
- *   MAX_BODY_BYTES (listen.js).
+ * - `rest.data.maxBytes`: the largest body of a REST caller that may send data, from BODY_BYTES (what
+ *   every caller may send) to MAX_BODY_BYTES (listen.js).
  *
  * A key is declared here once, never also in config.js or another fragment (options/index.js refuses a
  * second declaration).
  */
 
-import { MAX_BODY_BYTES } from "../listen.js";
+import { BODY_BYTES, MAX_BODY_BYTES } from "../listen.js";
 import { MCP_DATA_CAP, bytesText } from "../sources/inline.js";
 import { ConfigError } from "./shared.js";
 
@@ -51,7 +51,7 @@ export function validate(options) {
         }
     }
     const maxBytes = options.rest?.data?.maxBytes;
-    if (maxBytes !== undefined && (maxBytes < 1 || maxBytes > MAX_BODY_BYTES)) {
-        throw new ConfigError(`rest.data.maxBytes: 1 to ${MAX_BODY_BYTES} (${bytesText(MAX_BODY_BYTES)})`);
+    if (maxBytes !== undefined && (maxBytes < BODY_BYTES || maxBytes > MAX_BODY_BYTES)) {
+        throw new ConfigError(`rest.data.maxBytes: ${BODY_BYTES} (${bytesText(BODY_BYTES)}, what every caller may send) to ${MAX_BODY_BYTES} (${bytesText(MAX_BODY_BYTES)})`);
     }
 }

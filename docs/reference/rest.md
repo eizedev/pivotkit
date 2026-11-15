@@ -221,7 +221,7 @@ the file's name is used for its extension only:
 
 ```bash
 curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
-  -F data=@sales.csv -F 'input={"view":{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]},"data":{"sha256":"'"$(sha256sum sales.csv | cut -d' ' -f1)"'"}}' \
+  -F data=@sales.csv -F 'input={"view":{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]},"data":{"sha256":"'"$(shasum -a 256 sales.csv | cut -d' ' -f1)"'"}}' \
   http://127.0.0.1:3333/api/v1/views/render/file
 ```
 
@@ -243,7 +243,7 @@ curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
 | Key | Default | What it is |
 | --- | --- | --- |
 | `policy.data`, `policy.profiles.<name>.data` | false (REST) | The caller may send its own data; a source's policy and `files.policy` do not take it |
-| `rest.data.maxBytes` | 10485760 (10 MiB) | The largest body of a caller that may send data, at most 67108864 (64 MiB) |
+| `rest.data.maxBytes` | 10485760 (10 MiB) | The largest body of a caller that may send data: 2097152 (2 MiB) to 67108864 (64 MiB) |
 
 ## Downloads { #downloads }
 

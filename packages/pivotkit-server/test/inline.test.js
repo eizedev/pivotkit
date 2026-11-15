@@ -6,14 +6,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { unzipSync, strFromU8 } from "fflate";
 import { ConfigError, callerOf, checkConfig, createContext, present, presentedInput, validateOptions } from "pivotkit-server";
 import { openApiDocument } from "pivotkit-server/rest";
 import { BODY_BYTES, MAX_BODY_BYTES } from "../src/listen.js";
 import { MCP_DATA_CAP, REST_DATA_BYTES } from "../src/sources/inline.js";
-import { OTHER_TOKEN, TOKEN, call, raw, restServer, workspace } from "./helpers.js";
+import { BIN, OTHER_TOKEN, TOKEN, call, raw, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
 const BY_REGION = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -218,8 +219,9 @@ test("formula injection: a cell that would run as a formula is written safe in c
 test("config: data only in the server's policy and its profiles; rest.data.maxBytes up to 64 MiB", () => {
     assert.throws(() => validateOptions({ sources: { s: { file: "a.csv", policy: { data: true } } } }), /sources\.s\.policy\.data: whether a caller may send data is set in policy\.data or a profile/);
     assert.throws(() => validateOptions({ files: { policy: { data: true } } }), /files\.policy\.data/);
-    assert.throws(() => validateOptions({ rest: { data: { maxBytes: MAX_BODY_BYTES + 1 } } }), /rest\.data\.maxBytes: 1 to 67108864 \(64 MiB\)/);
-    assert.throws(() => validateOptions({ rest: { data: { maxBytes: 0 } } }), /rest\.data\.maxBytes/);
+    assert.throws(() => validateOptions({ rest: { data: { maxBytes: MAX_BODY_BYTES + 1 } } }), /rest\.data\.maxBytes: 2097152 \(2 MiB, what every caller may send\) to 67108864 \(64 MiB\)/);
+    assert.throws(() => validateOptions({ rest: { data: { maxBytes: BODY_BYTES - 1 } } }), /rest\.data\.maxBytes/, "never less than everyone gets");
+    validateOptions({ rest: { data: { maxBytes: BODY_BYTES } } });
     assert.throws(() => validateOptions({ rest: { data: { max: 1 } } }), /rest\.data: unknown key "max" \(known: maxBytes\)/);
     validateOptions({ policy: { data: false, profiles: { etl: { data: true } } }, rest: { data: { maxBytes: MAX_BODY_BYTES } } });
 });
@@ -243,7 +245,7 @@ test("check-config: who may send data on MCP and REST, and how much; warnings fo
     assert.equal(everyone.line, "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap), not for profiles bot; REST for every caller but profiles bot, up to 10 MiB (default)");
     assert.equal(everyone.next.length, 2);
     assert.match(everyone.next[1], /anyone who reaches the server may send data/);
-    assert.match((await lineOf({ rest: { data: { maxBytes: 1000 } } })).next[0], /rest\.data\.maxBytes does nothing/);
+    assert.match((await lineOf({ rest: { data: { maxBytes: BODY_BYTES } } })).next[0], /rest\.data\.maxBytes does nothing/);
     assert.equal((await lineOf({}, { rest: false })).line, "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap)", "an MCP server says nothing of REST");
 });
 
@@ -331,6 +333,8 @@ test("REST: a larger body only for a signed-in caller that may send data; a larg
         const tooLarge = await fetch(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}` }, body: stream, duplex: "half" }).catch((e) => e);
         // the 413, or a connection cut while the rest was still on its way: never an answer of 200
         assert.ok(tooLarge instanceof Error || tooLarge.status === 413, String(tooLarge.status ?? tooLarge));
+        // whichever the client saw, the server refused it as too large
+        assert.ok(server.log.some((l) => l.event === "refused" && l.status === 413), JSON.stringify(server.log.slice(-3)));
     } finally {
         await server.close();
     }
@@ -422,4 +426,83 @@ test("OpenAPI: data and a multipart body only where a policy offers data", () =>
     assert.ok(!body.schema.properties.input.required?.includes("source"));
     assert.equal(on.paths["/api/v1/views/link"].post.requestBody.content["multipart/form-data"] !== undefined, true, "a link refuses inline data at run time, with its own message");
     assert.equal(on.paths["/api/v1/sources"].get.requestBody, undefined);
+});
+
+test("every operation that takes a source works over inline data: a draft, a layout, validate and describe a view", async () => {
+    const context = await contextOf({});
+    try {
+        const suggested = await present(context, "suggest_view", { source: "inline:", data: TICKETS }, LOCAL);
+        assert.equal(suggested.result.ok, true);
+        assert.deepEqual(suggested.result.view.view.rows, ["Region"]);
+        const layout = { rows: ["Owner"], values: [{ field: "Sales", agg: "sum" }] };
+        const validated = await present(context, "validate_view", { source: "inline:", data: TICKETS, layout }, LOCAL);
+        assert.equal(validated.result.valid, true);
+        const described = await present(context, "describe_view", { source: "inline:", data: TICKETS, view: BY_REGION }, LOCAL);
+        assert.match(described.result.description.text, /Sales by Region/);
+        const rendered = await present(context, "render_view", { source: "inline:", data: TICKETS, layout, format: "json" }, LOCAL);
+        assert.equal(rendered.result.ok, true);
+        assert.match(rendered.result.inline.text, /Alice Example/, "the caller's own values come back to it");
+        const typo = await present(context, "validate_view", { source: "inline:", data: TICKETS, view: { rows: ["Regoin"] } }, LOCAL);
+        assert.equal(typo.result.findings[0].suggestion, "Region");
+    } finally {
+        await context.close();
+    }
+});
+
+test("REST multipart on the other routes; hostile files: garbage, a sheet that is not there, over the file limit", async () => {
+    const server = await restServer(restOptions(workspace(), { limits: { fileBytes: 2000 } }), restEnv);
+    const csv = "Region,Sales\nNorth,10\nSouth,20\nNorth,5\nSouth,7\n";
+    try {
+        const described = await multipart(`${server.api}/sources/describe`, TOKEN, [["data", [new Blob([csv]), "a.csv"]]]);
+        assert.equal(described.status, 200, JSON.stringify(described.data));
+        assert.deepEqual(described.data.fields.map((f) => f.name), ["Region", "Sales"]);
+        const suggested = await multipart(`${server.api}/views/suggest`, TOKEN, [["data", [new Blob([csv]), "a.csv"]], ["input", "{}"]]);
+        assert.equal(suggested.status, 200, JSON.stringify(suggested.data));
+        assert.equal(suggested.data.ok, true);
+        const garbage = await multipart(`${server.api}/sources/describe`, TOKEN, [["data", [new Blob(["PK\u0003\u0004 not a workbook at all"]), "book.xlsx"]]]);
+        assert.equal(garbage.status, 422, JSON.stringify(garbage.data));
+        assert.equal(garbage.data.code, "INVALID_FILE");
+        const book = await call(`${server.api}/views/render/file`, { token: TOKEN, body: { source: "inline:", data: TICKETS, view: BY_REGION, format: "xlsx" } });
+        assert.equal(book.status, 200);
+        const sheet = await multipart(`${server.api}/sources/describe`, TOKEN, [["data", [new Blob([book.data]), "book.xlsx"]], ["input", JSON.stringify({ data: { sheet: "No such sheet" } })]]);
+        assert.ok(sheet.status >= 400 && sheet.status < 500, JSON.stringify(sheet.data));
+        const large = await multipart(`${server.api}/sources/describe`, TOKEN, [["data", [new Blob([`Region\n${"North\n".repeat(500)}`]), "a.csv"]]]);
+        assert.equal(large.status, 413);
+        assert.equal(large.data.code, "LIMIT_EXCEEDED");
+        // multipart on a route without a source is not taken
+        const guide = await multipart(`${server.api}/sources`, TOKEN, [["data", [new Blob([csv]), "a.csv"]]]);
+        assert.equal(guide.status, 405);
+    } finally {
+        await server.close();
+    }
+});
+
+test("the larger body with the MCP endpoint on the same port; the MCP endpoint keeps 2 MiB", async () => {
+    const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } } }), { ...restEnv, enable: ["rest", "mcp"] });
+    const big = { columns: ["Region", "Note"], rows: Array.from({ length: 30_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 30_000 };
+    const body = JSON.stringify({ source: "inline:", data: big });
+    try {
+        assert.equal((await call(`${server.api}/sources/describe`, { token: TOKEN, body })).status, 200);
+        assert.equal((await call(`${server.api}/sources/describe`, { token: OTHER_TOKEN, body })).status, 413);
+        const mcp = await raw(`${server.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${TOKEN}`, "content-length": String(body.length) } });
+        assert.equal(mcp.status, 413, "the MCP endpoint takes 2 MiB from everyone");
+    } finally {
+        await server.close();
+    }
+});
+
+test("pivotkit-server check-config refuses a cap above the built-in one and a body cap above 64 MiB (exit 2, an invalid configuration)", () => {
+    const dir = workspace();
+    for (const [options, pattern] of [
+        [{ mcp: { data: { rows: 1000 } } }, /mcp\.data\.rows: the built-in cap can only be lowered, to at most 500/],
+        [{ rest: { data: { maxBytes: 100_000_000 } } }, /rest\.data\.maxBytes: 2097152 \(2 MiB, what every caller may send\) to 67108864 \(64 MiB\)/],
+        [{ sources: { sales: { file: "data/sales.csv", policy: { data: true } } } }, /sources\.sales\.policy\.data/]
+    ]) {
+        const config = join(dir, "pivotkit.json");
+        writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, ...options }));
+        const res = spawnSync(process.execPath, [BIN, "check-config", "--config", config], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+        // an invalid configuration, as for any other key: the runner's exit code for one
+        assert.equal(res.status, 2, res.stdout + res.stderr);
+        assert.match(res.stderr, pattern);
+    }
 });

@@ -31,7 +31,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `mcp.data` can lower or switch off, never raise. REST: only for callers whose policy says
   `data: true` (`policy.data`, `policy.profiles.<name>.data`), as JSON or a csv, tsv, json or xlsx
   file in a `multipart/form-data` body with an optional `sha256`, in a body of up to
-  `rest.data.maxBytes` (default 10 MiB, at most 64 MiB) once the token is checked. `rowCount` and
+  `rest.data.maxBytes` (default 10 MiB, 2 to 64 MiB) once the token is checked. `rowCount` and
   `sha256` must match (`DATA_MISMATCH`); no exposure policy applies; the data is computed in a worker,
   never cached, and cannot be linked or scheduled; the file route takes it with `data: true` alone.
   Results carry the caller's time as `suppliedAsOf`; `list_sources` adds `data` with the cap; the
