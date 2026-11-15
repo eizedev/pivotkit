@@ -60,6 +60,7 @@ test("pivotkit --url: a plain token validates, describes and lists; render needs
         assert.equal(refused.code, 2);
         const { error } = JSON.parse(refused.stdout);
         assert.deepEqual([error.kind, error.code, error.status], ["remote", "NOT_ALLOWED", 403]);
+        assert.equal(error.message, "the server answered 403 NOT_ALLOWED: your token may not download files; ask the operator for a token whose profile has results: true. validate, describe and sources still work with this token.");
         for (const r of [sources, fields, valid, typo, described, refused]) {
             assert.ok(!r.stdout.includes(TOKEN) && !r.stderr.includes(TOKEN));
         }
@@ -78,6 +79,57 @@ test("pivotkit --url: a plain token validates, describes and lists; render needs
         assert.equal(xlsx.code, 0, xlsx.stderr);
         assert.equal(readFileSync(join(dir, "out.xlsx")).subarray(0, 2).toString("latin1"), "PK");
         assert.ok(!rendered.stderr.includes(OTHER_TOKEN) && !xlsx.stderr.includes(OTHER_TOKEN));
+    } finally {
+        await server.close();
+    }
+});
+
+test("pivotkit --param against the service: a text, a whole number and a true/false typed on the command line reach a code source's load as their types, in sources, validate, describe --suggest and render", async () => {
+    const dir = workspace();
+    writeFileSync(join(dir, "view.json"), VIEW);
+    /** @type {any[]} */
+    const seen = [];
+    const server = await restServer(
+        {
+            sources: {
+                team: {
+                    load: async (params) => (seen.push(params), ["a", "b", "a", "b"].map((x, i) => ({ Region: `${params.team}-${params.year}-${x}`, Sales: params.open ? i : -i }))),
+                    params: { team: { type: "string", required: true, pattern: "^[a-z]+$" }, year: { type: "integer", required: true }, open: { type: "boolean" } },
+                    policy: { default: "show" }
+                }
+            },
+            policy: { profiles: { export: { results: true } } },
+            auth: { mode: "token", tokens: [{ name: "exporter", env: "EXPORTER", profile: "export" }] },
+            baseDir: dir
+        },
+        { env: { EXPORTER: TOKEN } }
+    );
+    try {
+        const as = { cwd: dir, token: TOKEN };
+        const params = ["--param", "team=north", "--param", "year=2026", "--param", "open=true"];
+        const listed = await pivotkit(["sources", "--url", server.api], as);
+        assert.match(listed.stdout, /^team {2}team \(needs: team, year\)\n$/);
+        const described = await pivotkit(["sources", "team", "--url", server.api, ...params, "--json"], as);
+        assert.equal(described.code, 0, described.stderr);
+        const remote = ["--url", server.api, "--source", "team", ...params];
+        const valid = await pivotkit(["validate", "view.json", ...remote], as);
+        assert.equal(valid.code, 0, valid.stderr);
+        const draft = await pivotkit(["describe", "--suggest", ...remote], as);
+        assert.equal(draft.code, 0, draft.stderr);
+        const rendered = await pivotkit(["render", "view.json", ...remote, "-o", "out.csv"], as);
+        assert.equal(rendered.code, 0, rendered.stderr);
+        assert.match(readFileSync(join(dir, "out.csv"), "utf8"), /north-2026/);
+        assert.ok(seen.length > 0);
+        assert.ok(seen.every((p) => p.team === "north" && p.year === 2026 && p.open === true), JSON.stringify(seen));
+        // a value of the wrong form: the server's words, in one line
+        const wrong = await pivotkit(["sources", "team", "--url", server.api, "--param", "team=north", "--param", "year=soon"], as);
+        assert.equal(wrong.code, 2);
+        assert.match(wrong.stderr, /params\.year must be a whole number/);
+        // left out: the flag that gives it
+        const missing = await pivotkit(["sources", "team", "--url", server.api], as);
+        assert.match(missing.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: the source team needs params\.team \(a string\); re-run with --param team=<value>\n$/);
+        // a refused value: the server's words in one parenthesis, then the flag that fixes it
+        assert.match(wrong.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: params\.year must be a whole number; fix it with --param year=<value>\n$/);
     } finally {
         await server.close();
     }

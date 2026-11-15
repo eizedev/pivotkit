@@ -175,10 +175,10 @@ test("create_link and draft_schedule given a layout: one short error that says t
             const r = await call(client, name, { source: "sales", layout, ...extra });
             assert.equal(r.isError, true, name);
             // every tool error ends with the call's id, for the person to give the operator
-            assert.match(r.text, new RegExp(`^INVALID_INPUT: ${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here \\(id [A-Za-z0-9_-]{11}\\)$`));
+            assert.match(r.text, new RegExp(`^INVALID_INPUT: ${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here \\(request id [A-Za-z0-9_-]{11}\\)$`));
             // a view still works, and without either it is refused
             const neither = await call(client, name, { source: "sales", ...extra });
-            assert.match(neither.text, /^INVALID_INPUT: input needs view \(id [A-Za-z0-9_-]{11}\)$/, name);
+            assert.match(neither.text, /^INVALID_INPUT: input needs view \(request id [A-Za-z0-9_-]{11}\)$/, name);
         }
         assert.equal((await call(client, "create_link", { source: "sales", view: BY_REGION })).isError, false);
         await close();

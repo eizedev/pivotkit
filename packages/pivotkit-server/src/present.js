@@ -406,11 +406,12 @@ const STEPS = {
         // ("values" lists a field's values, never a result over them, so a "values" field is named too)
         const withheldText = how.surface === "rest" ? ` Its content is not part of this answer: results over fields that are not fully shown (${closedFields.join(", ")}) stay in the file.` : ` Its content was not shown to the assistant: results over fields that are not fully shown (${closedFields.join(", ")}) stay in the file; open it to see them.`;
         const when = asOfSentence(asOf);
-        // the note once: where it already says where the file is, not again after it
+        // the note once: where it already says where the file is, not again after it; the MCP text's
+        // summary line leaves it out, since the message after it says it
         const note = output?.note && whereText(output) ? ` ${output.note}` : "";
         out.message = `${output ? `${savedText("The report is", output)}${closed ? withheldText : ""}` : "The result is shown inline; it was not saved as a file."}${note}${when ? ` ${when}` : ""}`;
         const link = resourceLinkOf(output, { bytes: file.bytes.length, closed });
-        return { text: `${result.ok ? "Done" : "Done with errors"}: ${format}${output ? `, saved as ${output.filename}` : ", inline"}${closed ? "; content withheld" : ""}. ${findingsText(result.ok, findings)}${output?.note ? ` ${output.note}` : ""}${when ? ` ${when}` : ""}`, result: out, ...(link ? { link } : {}) };
+        return { text: `${result.ok ? "Done" : "Done with errors"}: ${format}${output ? `, saved as ${output.filename}` : ", inline"}${closed ? "; content withheld" : ""}. ${findingsText(result.ok, findings)}${when ? ` ${when}` : ""}`, result: out, ...(link ? { link } : {}) };
     },
 
     async create_link(args, context, caller, how) {
@@ -467,7 +468,7 @@ export async function renderFile(context, input, caller, how = {}) {
     checkDepth(input);
     const resolved = await resolveFor(context, input, caller, { files: false, surface: "rest", ...(how.upload ? { upload: how.upload } : {}) });
     if (!resolved.policy.results) {
-        throw new OperationError("NOT_ALLOWED", "your token may not download files (the operator allows it per profile: results: true)");
+        throw new OperationError("NOT_ALLOWED", "your token may not download files; ask the operator for a token whose profile has results: true");
     }
     const format = input.format ?? "xlsx";
     const ran = await compute(context, "render_view", { ...input, format }, resolved, caller, how.signal);

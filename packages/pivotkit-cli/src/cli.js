@@ -20,7 +20,7 @@ import xlsxReader from "pivotkit-xlsx";
 import { readViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { OPERATIONS, findingOf } from "pivotkit-report/operations";
-import { COMMANDS, DOCS, SHELLS, WHERE, optionsOf } from "./commands.js";
+import { COMMANDS, DOCS, GLOBAL_OPTIONS, SHELLS, WHERE, optionsOf } from "./commands.js";
 import { CliError, RemoteError, asCliError, printable, shortName } from "./errors.js";
 import { examples, templateLine, tryLine, writeExample } from "./examples.js";
 import { completionScript, helpText } from "./help.js";
@@ -38,6 +38,7 @@ import { stat } from "node:fs/promises";
  * @property {{ write(chunk: string | Uint8Array): unknown }} stderr
  * @property {Record<string, string | undefined>} env
  * @property {string} cwd
+ * @property {string} [program]  how the user ran it, for the pointers to its help (default "pivotkit"; pivotkit-server: "pivotkit-server cli")
  */
 
 /** The most findings stderr lists; --json has them all. */
@@ -103,7 +104,7 @@ function parse(command, args) {
     } catch (e) {
         const flag = /'(-{1,2}[^'\s]+)'/.exec(String(e.message))?.[1] ?? "";
         if (e.code === "ERR_PARSE_ARGS_UNKNOWN_OPTION") {
-            throw new CliError("usage", "UNKNOWN_OPTION", `unknown option ${printable(flag)} for "${command}"${didYouMean(flag.replace(/^-+/, ""), Object.keys(specs), "--")}`);
+            throw new CliError("usage", "UNKNOWN_OPTION", `unknown option ${printable(JSON.stringify(flag))}${didYouMean(flag.replace(/^-+/, ""), Object.keys(specs), "--")}`);
         }
         throw new CliError("usage", "BAD_OPTION", printable(String(e.message).split("\n")[0]));
     }
@@ -159,6 +160,8 @@ function intOption(name, value, min, max) {
  */
 export async function main(argv, io) {
     const json = argv.includes("--json");
+    // the name a user typed to run it (pivotkit-server runs it as "pivotkit-server cli"), for the pointers to its help
+    const program = io.program ?? "pivotkit";
     /** @type {any[]} */
     let findings = [];
     let command = argv.find((a) => !a.startsWith("-")) ?? "";
@@ -178,11 +181,19 @@ export async function main(argv, io) {
             return 0;
         }
         command = argv[0];
+        if (command.startsWith("-")) {
+            // an option before the command: say where it goes, and claim no command that is none
+            const named = argv.find((a) => Object.hasOwn(COMMANDS, a));
+            const global = Object.hasOwn(GLOBAL_OPTIONS, command.replace(/^-+/, "").split("=")[0]);
+            command = named ?? "";
+            throw new CliError("usage", "UNKNOWN_OPTION", named && global ? `${printable(JSON.stringify(argv[0]))} comes after the command: ${program} ${named} ${printable(argv[0])}; run "${program} --help"` : `unknown option ${printable(JSON.stringify(argv[0]))}; run "${program} --help"`);
+        }
         if (command === "serve") {
             throw new CliError("usage", "UNKNOWN_COMMAND", 'the server is a package of its own: use "pivotkit-server serve" (npm install --global pivotkit-server pivotkit-mcp)');
         }
         if (!Object.hasOwn(COMMANDS, command)) {
-            throw new CliError("usage", "UNKNOWN_COMMAND", `unknown command ${printable(JSON.stringify(command))}${didYouMean(command, Object.keys(COMMANDS))}; run "pivotkit help"`);
+            const near = didYouMean(command, Object.keys(COMMANDS));
+            throw new CliError("usage", "UNKNOWN_COMMAND", `unknown command ${printable(JSON.stringify(command))}${near}${near ? " " : "; "}run "${program} --help"`);
         }
         const { values, positionals } = parse(command, argv.slice(1));
         if (values.help) {
@@ -267,14 +278,14 @@ export async function main(argv, io) {
         return exitCode;
     } catch (e) {
         const error = asCliError(e);
-        // a usage error ends with the way to the command's help
-        if (error.kind === "usage" && Object.hasOwn(COMMANDS, command) && command !== "help" && !error.message.includes("pivotkit help")) {
-            error.message = `${error.message}; see "pivotkit help ${command}"`;
+        // a usage error ends with the way to the command's help, in the form every program of pivotkit uses
+        if (error.kind === "usage" && Object.hasOwn(COMMANDS, command) && command !== "help" && !/ help"| --help"/.test(error.message)) {
+            error.message = `${error.message}${error.message.endsWith("?") ? " " : "; "}run "${program} ${command} --help"`;
         }
         if (json) {
             // a server's error: its HTTP status (null without an answer) and the seconds it asks to wait
             const remote = error instanceof RemoteError ? { status: error.status, retryAfter: error.retryAfter } : {};
-            io.stdout.write(`${JSON.stringify({ ok: false, exitCode: 2, command, findings, error: { kind: error.kind, code: error.code, message: error.message, ...remote } })}\n`);
+            io.stdout.write(`${JSON.stringify({ ok: false, exitCode: 2, command: command || null, findings, error: { kind: error.kind, code: error.code, message: error.message, ...remote } })}\n`);
         } else {
             say(`pivotkit: ${error.message}`);
         }
@@ -815,7 +826,7 @@ async function renderCommand(positionals, values, ctx) {
     const view = made ? made.read : withMap(await readView(positionals, values, ctx), values);
     const data = made ? made.data : withViewTypes(await readData(values, ctx, view.sheet), viewFields(view.view));
     if (!data) {
-        throw new CliError("usage", "MISSING_DATA", "render needs data: --data <file> or --data -");
+        throw new CliError("usage", "MISSING_DATA", "render needs data: --data <file>, --data - for stdin, or a server's source: --source <id> with --url or PIVOTKIT_URL");
     }
     const findings = [...data.notes, ...(made?.findings ?? /** @type {any} */ (view).findings ?? []), ...ignoredOptions(values, format)];
     const template = values.template !== undefined ? textOf(await ctx.readInput(values.template, "the template", TEMPLATE_BYTES, "template")) : undefined;
@@ -1006,7 +1017,7 @@ async function viewFromData(positionals, values, ctx, command) {
     }
     const input = arg ?? values.data;
     if (input === undefined) {
-        throw new CliError("usage", "MISSING_DATA", `--${flag} needs the data: pivotkit ${command} <data> --${flag} ...`);
+        throw new CliError("usage", "MISSING_DATA", `--${flag} needs the data: pivotkit ${command} <data> --${flag} ..., or a server's source: --source <id> with --url or PIVOTKIT_URL`);
     }
     const data = await readData({ ...values, data: input }, await notAView(input, values, ctx, command, flag));
     const built = await layoutView(data, values, ctx, { sheets: data.sheets, command, input });
@@ -1157,7 +1168,7 @@ async function validateCommand(positionals, values, ctx) {
     const data = withViewTypes(await readData(values, ctx, view.sheet), viewFields(view.view));
     const fields = data ? null : listedFields(view);
     if (!data && fields === null) {
-        throw new CliError("usage", "MISSING_DATA", "validate needs data (--data) or a view file that lists its fields (source.fields)");
+        throw new CliError("usage", "MISSING_DATA", "validate needs data: --data <file>, a view file that lists its fields (source.fields), or a server's source: --source <id> with --url or PIVOTKIT_URL");
     }
     const { result } = await runOperation("validate_view", { source: data?.name || "view file", view: view.view }, operationEnv(ctx, data, fields));
     const { findings: all, ...extra } = result;

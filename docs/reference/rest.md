@@ -80,7 +80,7 @@ A source with parameters (an [HTTP source](sources.md#http) in the configuration
 host's code source) takes their values as `params` with its id in a POST body
 (`{ "source": "vms", "params": { "customer": "acme" } }`). Describe such a source with
 `POST /sources/describe`: `GET /sources/{id}` carries no params, so it answers `INVALID_INPUT` for a
-source with required ones; `GET /sources` lists them,
+source with required ones, and its `detail` names `POST /sources/describe`; `GET /sources` lists them,
 and the routes take `params` only when a configured source declares any
 ([parameters](mcp.md#configuration)).
 
@@ -493,17 +493,19 @@ pivotkit-server's.
 | --- | --- |
 | `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json`, and with pivotkit-mcp installed `/mcp` and its quick-start page; `/healthz` and `/readyz` |
 | `pivotkit-server check-config [flags]` | What `serve` would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant. Where a change of this version applies to the configuration, it closes with "New in this version" |
-| `pivotkit-server check-source <id> [--param name=value ...] [flags]` | Load an [HTTP source](sources.md#check-source) once as the server would: each page's status, content type and size, the rows, the fields with their types (never a value), when the data is from, and what a caller would get when it fails; 1 when it fails |
+| `pivotkit-server check-source <id> [--param name=value ...] [flags]` | Load an [HTTP source](sources.md#check-source) once as the server would: each page's status, content type and size, the rows, the fields with their types (never a value), when the data is from, and what a caller would get when it fails; 1 when it fails, 2 when the id names no HTTP source |
 | `pivotkit-server source-from-openapi <file or https URL> --operation <operationId or "GET /path"> [--id <id>] [--backend <name>]` | Propose an [HTTP source](sources.md#openapi) from one GET operation of an OpenAPI document (JSON): the block on stdout, what you must check and decide on stderr; the values you must fill in say `TODO`, which the server refuses until you do; 2 when the operation cannot be a source |
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit` |
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |
+| `pivotkit-server --version` | The version |
 
 The flags of `serve` are the [MCP runner's](mcp.md#configuration) without `--http`, `--allow-dir`
 and `--list-files`, plus `--enable rest,mcp` (`http.enable`: what to serve; default REST, and MCP
 when pivotkit-mcp is installed). The configuration file is `--config` or `$PIVOTKIT_CONFIG`; the
 one static token without `auth.tokens` is `$PIVOTKIT_TOKEN`; `$PIVOTKIT_PORT` sets the port when
-neither the flag nor the file does. It is one configuration for both endpoints: `rest.*` is read by
+neither the flag nor the file does. An unknown flag is a usage error (exit 2) that points to
+`--help`. It is one configuration for both endpoints: `rest.*` is read by
 the REST service only, `http.page` and `http.allowOrigins` by the MCP endpoint only.
 
 `/healthz` answers `{ "ok": true }` while the process runs; `/readyz` answers 200 when it can take

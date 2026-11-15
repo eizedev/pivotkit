@@ -232,6 +232,19 @@ export async function createRestHandler(context, runtime = {}) {
         return new Response(response.body, { status: response.status, headers });
     }
 
+    /**
+     * GET /sources/{id} of a source whose params are missing: the route takes none, so the refusal
+     * names the one that does.
+     * @param {unknown} e
+     * @param {string} id
+     */
+    function withDescribeHint(e, id) {
+        if (!(e instanceof OperationError) || e.code !== "INVALID_INPUT" || !/ needs params\./.test(e.message)) {
+            return e;
+        }
+        return new OperationError("INVALID_INPUT", `${e.message}. GET /sources/{id} takes no params: send them with POST /sources/describe, {"source": ${JSON.stringify(id)}, "params": {...}}`, e.details);
+    }
+
     /** Whether a path is the REST service's. */
     const handles = (path) => path === REST_BASE || path.startsWith(`${REST_BASE}/`) || path === "/openapi.json" || path === PRM_PATH;
 
@@ -301,7 +314,9 @@ export async function createRestHandler(context, runtime = {}) {
                 headers: { ...SAFE_HEADERS, "content-type": format.mediaType, "content-disposition": disposition(name), "content-security-policy": "sandbox; default-src 'none'", "content-length": String(file.bytes.length) }
             });
         }
-        const { result } = await present(context, route.operation, input, caller, { surface: "rest", inline: rest.inline === true, files: false, signal: request.signal, ...(upload ? { upload } : {}) });
+        const { result } = await present(context, route.operation, input, caller, { surface: "rest", inline: rest.inline === true, files: false, signal: request.signal, ...(upload ? { upload } : {}) }).catch((e) => {
+            throw match.params?.id !== undefined ? withDescribeHint(e, input.source) : e;
+        });
         return json(result);
     }
 

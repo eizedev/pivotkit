@@ -1219,6 +1219,7 @@ export async function sourceFromOpenApiCommand(argv, io, means = {}) {
 
 /** A usage error: the message and the usage line, exit 2. */
 function usage(io, message) {
-    io.stderr.write(`pivotkit-server source-from-openapi: ${message}\nUsage: ${USAGE}\n`);
+    // the pointer to the help in the form every program of pivotkit ends a usage error with
+    io.stderr.write(`pivotkit-server source-from-openapi: ${message}; run "pivotkit-server source-from-openapi --help"\nUsage: ${USAGE}\n`);
     return 2;
 }

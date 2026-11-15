@@ -23,6 +23,21 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 - `pivotkit-cli/rest`: what the REST service and its client agree on (`REST_BASE`, `SOURCE_ID`,
   `TOKEN_SYNTAX`, `REST_ERRORS`, `PROBLEM_CODES`, `isLoopback`); `writeSafe` takes `mode`.
 - `pivotkit serve` says to use `pivotkit-server serve`.
+- `--param name=value` gives a server's source its parameters (render, validate, describe and
+  `pivotkit sources <id>`, which then asks `POST /sources/describe`); `pivotkit sources` marks a
+  source with required parameters `(needs: customer)`. A 401 is one line that says whether a token
+  was sent and from where; "render needs data" and the layout flags' message name `--source` too. A
+  missing parameter ends with "re-run with --param customer=acme", a refused value with "fix it with
+  --param customer=<value>"; a server's hints follow its words after a semicolon
+  ([#424](https://github.com/eizedev/pivotkit/issues/424)).
+
+### Changed
+
+- Usage errors end with `run "pivotkit <command> --help"` (was `see "pivotkit help <command>"`);
+  unknown options and commands read `unknown option "--bogus"`, quoted, as in pivotkit-server and
+  pivotkit-mcp. An option before the command says where it goes and `--json` names the command, not
+  the option. Run as `pivotkit-server cli`, the pointers name that. `--token-file` that is not there
+  says `--token-file missing.txt: not found`.
 
 ## [0.2.1] - 2026-11-14
 

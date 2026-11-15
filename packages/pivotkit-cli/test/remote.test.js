@@ -187,18 +187,92 @@ test("200: render checks the view, then writes the server's file with mode 0600,
     }
 });
 
-test("401: token missing or refused, kind remote with the code and status; the echoed token is taken out", async () => {
+test("params: sources names what a source needs; --param goes with the source as params, sources <id> --param asks POST /sources/describe; --param needs a server and a source", async () => {
+    const VMS = { id: "vms", title: "Virtual machines", kind: "source", link: false, schedulable: true, params: [{ name: "customer", type: "string", required: true, example: "acme" }, { name: "state", type: "string" }] };
+    const server = await fakeServer((req, res, body) => {
+        if (req.url.endsWith("/sources")) return json(res, { sources: [{ id: "sales", title: "Sales", kind: "source", link: false, schedulable: false }, VMS] });
+        if (req.url.endsWith("/sources/describe")) return json(res, { rows: 2, fields: [{ name: "name", type: "string", text: "name: text" }], text: "2 rows, 1 field" });
+        if (req.url.endsWith("/views/validate")) return json(res, { valid: true, findings: [], uses: ["name"] });
+        if (req.url.endsWith("/views/render/file")) {
+            res.writeHead(200, { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="r.csv"' });
+            return res.end("name\nweb-1\n");
+        }
+        return problem(res, req, 404, "NOT_FOUND", { detail: `no route ${req.method} ${req.url} ${body.length}` });
+    });
+    try {
+        const list = await remote(server, ["sources"]);
+        assert.equal(list.code, 0, list.stderr);
+        assert.match(list.stdout, /^sales {2}Sales\nvms {4}Virtual machines \(needs: customer\)\n$/);
+
+        const described = await remote(server, ["sources", "vms", "--param", "customer=acme", "--param", "state=running"]);
+        assert.equal(described.code, 0, described.stderr);
+        const asked = server.requests.at(-1);
+        assert.equal(`${asked.method} ${asked.url}`, `POST ${PATH_MARK}/sources/describe`);
+        assert.deepEqual(JSON.parse(asked.body), { source: "vms", params: { customer: "acme", state: "running" } });
+
+        const view = join(workdir(), "v.json");
+        writeFileSync(view, JSON.stringify({ rows: ["name"] }));
+        server.requests.length = 0;
+        const rendered = await remote(server, ["render", view, "--source", "vms", "--param", "customer=acme", "-f", "csv"]);
+        assert.equal(rendered.code, 0, rendered.stderr);
+        assert.deepEqual(server.requests.map((r) => [r.url.slice(PATH_MARK.length), JSON.parse(r.body).source, JSON.parse(r.body).params]), [["/views/validate", "vms", { customer: "acme" }], ["/views/render/file", "vms", { customer: "acme" }]]);
+
+        // a required value left out: the server's words and the flag that gives it, not the REST route's pointer
+        const without = await fakeServer((req, res) => problem(res, req, 400, "INVALID_INPUT", { detail: 'the source vms needs params.customer (The customer\'s short name, for example acme); re-run with params.customer=acme. GET /sources/{id} takes no params: send them with POST /sources/describe, {"source": "vms", "params": {...}}' }));
+        try {
+            const r = await remote(without, ["sources", "vms"]);
+            assert.equal(r.code, 2);
+            assert.match(r.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: the source vms needs params\.customer \(The customer's short name, for example acme\); re-run with --param customer=acme\n$/);
+        } finally {
+            await without.close();
+        }
+
+        // a token file that is not there: named after the flag
+        const gone = await remote(server, ["sources", "--token-file", "missing.txt"]);
+        assert.equal(gone.code, 2);
+        assert.match(gone.stderr, /^pivotkit: --token-file missing\.txt: not found\n$/);
+
+        // usage: name=value, once each, with a source; and only with a server
+        const malformed = await remote(server, ["sources", "vms", "--param", "customer"]);
+        assert.match(malformed.stderr, /^pivotkit: --param takes name=value, not "customer"/, "refused before the first line and the first request");
+        assert.match((await remote(server, ["sources", "vms", "--param", "customer=a", "--param", "customer=b"])).stderr, /--param customer is given twice/);
+        const bare = await remote(server, ["sources", "--param", "customer=acme"]);
+        assert.equal(bare.code, 2);
+        assert.match(bare.stderr, /--param goes with a source: pivotkit sources <id> --param name=value/);
+        const local = await run(["render", view, "--data", view, "--param", "customer=acme"], { cwd: workdir(), env: {} });
+        assert.equal(local.code, 2);
+        assert.match(local.stderr, /--param acts with a server only/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("render without data names a server's source as the third way", async () => {
+    const view = join(workdir(), "v.json");
+    writeFileSync(view, JSON.stringify({ rows: ["Region"] }));
+    const r = await run(["render", view], { cwd: workdir(), env: {} });
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /render needs data: --data <file>, --data - for stdin, or a server's source: --source <id> with --url or PIVOTKIT_URL/);
+    const layout = await run(["render", "--rows", "Region"], { cwd: workdir(), env: {} });
+    assert.match(layout.stderr, /--rows needs the data: pivotkit render <data> --rows \.\.\., or a server's source: --source <id> with --url or PIVOTKIT_URL/);
+});
+
+test("401: one line that says whether a token went and from where, kind remote with the code and status; the echoed token is taken out", async () => {
     const server = await fakeServer((req, res) => problem(res, req, 401, "INVALID_TOKEN", { headers: { "www-authenticate": 'Bearer realm="pivotkit"' } }));
     try {
         const r = await remote(server, ["sources", "--json"]);
         assert.equal(r.code, 2);
         const { error } = jsonOf(r);
         assert.deepEqual({ kind: error.kind, code: error.code, status: error.status, retryAfter: error.retryAfter }, { kind: "remote", code: "INVALID_TOKEN", status: 401, retryAfter: null });
-        assert.match(error.message, /token missing or refused/);
+        assert.match(error.message, /^the server refused the token from PIVOTKIT_TOKEN: refused Bearer \u2026 \(401 INVALID_TOKEN\)$/);
         assertClean(r, server.url);
         const text = await remote(server, ["sources"]);
-        assert.match(text.stderr, /the server answered 401 INVALID_TOKEN: refused Bearer \u2026/);
+        assert.match(text.stderr, /\npivotkit: the server refused the token from PIVOTKIT_TOKEN: refused Bearer \u2026 \(401 INVALID_TOKEN\)\n$/);
         assertClean(text, server.url);
+        // no token at all: what to set, in one line
+        const none = await run(["sources", "--url", server.url], { cwd: workdir(), env: {} });
+        assert.equal(none.code, 2);
+        assert.match(none.stderr, /\npivotkit: the server needs a token: set PIVOTKIT_TOKEN or give --token-file <file> \(401 INVALID_TOKEN\)\n$/);
     } finally {
         await server.close();
     }
@@ -214,7 +288,7 @@ test("403 NOT_ALLOWED on render: the profile has no results: true; nothing is wr
         const { error } = jsonOf(r);
         assert.equal(error.code, "NOT_ALLOWED");
         assert.equal(error.status, 403);
-        assert.match(error.message, /this token's profile has no results: true; validate, describe and sources work with it/);
+        assert.match(error.message, /; this token's profile has no results: true; validate, describe and sources still work with this token$/);
         assert.equal(readFileSync(join(cwd, "out.xlsx"), "utf8"), "old");
         assertClean(r, server.url);
     } finally {
@@ -232,7 +306,7 @@ test("404: an unknown source by its code; an unknown route says the address shou
         assertClean(r, server.url);
         const root = await run(["sources", "--url", `${server.origin}/pk-mark-9f2`], { cwd: workdir(), env: { PIVOTKIT_TOKEN: TOKEN } });
         assert.equal(root.code, 2);
-        assert.match(root.stderr, /404 NOT_FOUND: no such route \(the address should end in \/api\/v1\)/);
+        assert.match(root.stderr, /404 NOT_FOUND: no such route; the address should end in \/api\/v1\n/);
         assertClean(root, `${server.origin}/pk-mark-9f2`);
     } finally {
         await server.close();
