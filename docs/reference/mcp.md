@@ -11,8 +11,9 @@ model never reads the data itself. It sees what the operator allows of each sour
 names, types and counts), writes a [view](view-file.md), lets the server check it, and has the
 report written into a file or made into a link for the person who asked.
 
-To set it up step by step, see [Getting started: MCP server](../getting-started/mcp.md). This page
-is the reference.
+To set it up step by step, see [Getting started: MCP server](../getting-started/mcp.md); to update
+it, see [Update an installation](../getting-started/upgrading.md#update). This page is the
+reference.
 
 ```bash
 npx -y pivotkit-mcp --source sales=sales.csv --output reports     # stdio, for a local client

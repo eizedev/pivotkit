@@ -14,7 +14,8 @@ of a source what the operator allows. The package also holds what the MCP server
 endpoint on the same port.
 
 To try it step by step, see [Getting started: REST service](../getting-started/rest.md); to run it as a
-container, see [Container image](container.md). This page is the reference.
+container, see [Container image](container.md); to update it, see
+[Update an installation](../getting-started/upgrading.md#update). This page is the reference.
 
 ```bash
 npm install --global pivotkit-server pivotkit-mcp

@@ -26,7 +26,8 @@ npx -y pivotkit-server serve --source sales=sales.csv --output reports
 ```
 
 The log says `started` with the address. Leave it running and open a second terminal in the same
-folder.
+folder. `npx -y` takes the newest release at each start; for a service others use, install a version
+you name and update it as in [Update an installation](upgrading.md#update).
 
 ## 2. Look at the data { #describe }
 
@@ -179,4 +180,5 @@ try {
 - [pivotkit-server (REST)](../reference/rest.md): every route, profiles, sign-in with OAuth, CORS, limits, errors.
 - The OpenAPI document of your service: `GET /openapi.json` with a token.
 - [Container image](../reference/container.md): the same service in Docker or Kubernetes.
+- [Update an installation](upgrading.md#update): a new release of the service, the image or the CLI.
 - [Getting started: MCP server](mcp.md): the same sources for an AI client.
