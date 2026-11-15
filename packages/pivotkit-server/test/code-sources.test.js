@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
 import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, serverTextOf, validateOptions } from "pivotkit-server";
 import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.js";
-import { LOAD_LIMITS, createLoadRunner, isTransient, sourceFailure } from "../src/sources/run.js";
+import { LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, sourceFailure } from "../src/sources/run.js";
 import { createComputer } from "../src/compute.js";
 import { packTable, packedBytes, unpackTable } from "../src/packed.js";
 import { call, restServer, workspace } from "./helpers.js";
@@ -1196,9 +1196,38 @@ test("where it runs: a table key only for a load that is kept and reused", async
     }
     assert.throws(() => validateOptions({ sourceCache: { maxMb: 0 } }), /sourceCache\.maxMb: from 1 to 65536/);
     assert.ok(validateOptions({ sourceCache: { maxMb: 1024 } }));
-    assert.match((await checkConfig({ sources: { a: { load: async () => [] } }, sourceCache: { maxMb: 1024 } }, { http: false })).text, /at most 1024 MiB in all, tables up to 256 MiB per person or shared source \(sourceCache\.maxMb\)/);
-    // the next context without the key sets the default again
-    const plain = await contextOf({ sources: {} });
-    await plain.close();
-    assert.match((await checkConfig({ sources: { a: { load: async () => [] } } }, { http: false })).text, /at most 256 MiB in all, tables up to 64 MiB/);
+    assert.match((await checkConfig({ sources: { a: { load: async () => [] } }, sourceCache: { maxMb: 1024 } }, { http: false })).text, /at most 1024 MiB in all; the largest table that can be kept is a quarter of it, 256 MiB per person or shared source \(sourceCache\.maxMb; with several contexts in one process the largest setting applies\)/);
+    assert.match((await checkConfig({ sources: { a: { load: async () => [] } } }, { http: false })).text, /at most 256 MiB in all; the largest table that can be kept is a quarter of it, 64 MiB/);
+});
+
+test("the load cache: the largest sourceCache.maxMb of the open contexts applies; a close shrinks it to the largest left", async () => {
+    const MIB = 1_048_576;
+    assert.equal(loadRunner.cacheBytes(), LOAD_CACHE.bytes, "no context open: the default");
+    // a table of about 800 KB, kept per owner up to a quarter of the cache
+    const table = { columns: ["N"], data: [Array.from({ length: 100_000 }, (_, i) => i + 0.5)] };
+    let loads = 0;
+    const source = { load: async () => (loads++, table), ttl: 60 };
+    const larger = await contextOf({ sourceCache: { maxMb: 8 }, sources: { t: source } });
+    const smaller = await contextOf({ sourceCache: { maxMb: 1 }, sources: { t: source } });
+    try {
+        assert.equal(loadRunner.cacheBytes(), 8 * MIB, "the smaller context does not shrink the larger one's cache");
+        const [ana, ben] = [token("ana"), token("ben")];
+        await describe(smaller, ana);
+        await describe(smaller, ben);
+        await describe(smaller, ana);
+        await describe(smaller, ben);
+        assert.equal(loads, 2, "both kept: within 2 MiB each, a quarter of the larger setting");
+        await larger.close();
+        assert.equal(loadRunner.cacheBytes(), 1 * MIB, "the largest left");
+        // trimmed to 1 MiB: ana's load, the least recently used, went; ben's still fits
+        await describe(smaller, ben);
+        assert.equal(loads, 2);
+        await describe(smaller, ana);
+        await describe(smaller, ana);
+        assert.equal(loads, 4, "over the 256 KiB share now: loaded on every call");
+    } finally {
+        await larger.close();
+        await smaller.close();
+    }
+    assert.equal(loadRunner.cacheBytes(), LOAD_CACHE.bytes, "every context closed: the default again");
 });

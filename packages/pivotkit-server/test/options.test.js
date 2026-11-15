@@ -146,7 +146,7 @@ test("check-config: today's configurations print exactly what they printed befor
     const code = [
         "Code sources (1):",
         "  code: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure",
-        "  Kept loads of code and HTTP sources: at most 256 MiB in all, tables up to 64 MiB per person or shared source (sourceCache.maxMb); a larger table loads on every call"
+        "  Kept loads of code and HTTP sources: at most 256 MiB in all; the largest table that can be kept is a quarter of it, 64 MiB per person or shared source (sourceCache.maxMb; with several contexts in one process the largest setting applies); a larger table loads on every call"
     ];
     const upgrade = [
         "",

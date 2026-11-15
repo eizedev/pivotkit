@@ -26,7 +26,7 @@ export async function section(options, _registry, _runtime) {
     const loaded = code.length > 0 || Object.values(options.sources ?? {}).some((s) => s.http);
     const { bytes, share } = sourceCacheOf(options);
     const mb = (n) => `${Math.round((n / 1_048_576) * 10) / 10} MiB`;
-    const cacheLine = `Kept loads of code and HTTP sources: at most ${mb(bytes)} in all, tables up to ${mb(share)} per person or shared source (sourceCache.maxMb); a larger table loads on every call`;
+    const cacheLine = `Kept loads of code and HTTP sources: at most ${mb(bytes)} in all; the largest table that can be kept is a quarter of it, ${mb(share)} per person or shared source (sourceCache.maxMb; with several contexts in one process the largest setting applies); a larger table loads on every call`;
     if (!code.length) {
         return { lines: loaded ? [cacheLine] : [], problems: 0, upgrade: [] };
     }

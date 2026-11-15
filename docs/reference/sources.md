@@ -637,7 +637,8 @@ cells are written as JSON text, and every text is cut at `limits.textLength`.
   default share: every call then takes about 0.6 to 1 s, 0.2 to 0.5 s of it in the host's thread
   (measured on a laptop). With `"sourceCache": { "maxMb": 512 }` (tables up to 128 MiB) it is kept,
   and a later call takes a few milliseconds; give the process the memory for it. The process
-  keeps one load cache; when a host creates several contexts, the last one sets its size.
+  keeps one load cache: with several contexts in one process, the largest `sourceCache.maxMb` of
+  those open applies, and when a context closes the cache shrinks to the largest left.
 
 ### Where it runs { #code-thread }
 

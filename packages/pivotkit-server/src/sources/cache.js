@@ -2,7 +2,7 @@
  * The process cache of loaded data (code and HTTP sources): their tables by a key (sources/keys.js
  * canonical JSON), least recently used out, bounded three ways so one source or one person cannot
  * push everyone else's data out or fill the memory: at most 64 entries, at most 256 MiB by default
- * (sourceCache.maxMb, set by createContext through sources/run.js setCacheBytes; each entry
+ * (the largest sourceCache.maxMb of the open contexts, sources/run.js claimCacheBytes; each entry
  * measured by its kind: a code source's packed table by packed.js packedBytes), at most 8 entries and a quarter of the bytes per owner
  * (a person, or a shared source). A new entry pushes out its own owner's oldest entries first; an
  * entry larger than an owner's share is not kept.

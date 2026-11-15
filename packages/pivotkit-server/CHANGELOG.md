@@ -46,8 +46,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 ### Added
 
 - `sourceCache.maxMb` (default 256): the loaded data of code and HTTP sources the process keeps.
-  One person or shared source keeps tables up to a quarter of it (64 MiB by default); a larger
-  table loads on every call. `check-config` prints both limits
+  The largest table that can be kept is a quarter of it (64 MiB by default); a larger table loads
+  on every call. With several contexts in one process the largest setting applies. `check-config`
+  prints both limits
   ([#414](https://github.com/eizedev/pivotkit/issues/414)).
 - Backend sign-in for HTTP sources ([#329](https://github.com/eizedev/pivotkit/issues/329)):
   `sources.<id>.http.auth` or `httpSources.backends.<name>.auth` is a header from a secret reference,
