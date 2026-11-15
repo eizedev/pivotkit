@@ -43,7 +43,7 @@ for (const [name, { template, own, theme }] of Object.entries(TEMPLATES)) {
                 // light: the template's own tokens over the report's; dark: the report's dark ones
                 const light = { ...LIGHT_TOKENS, ...own };
                 const tokens = dark ? DARK_TOKENS : light;
-                for (const [viewName, { view, rows, options }] of Object.entries(CASES)) {
+                for (const [viewName, { view, rows, options, shows }] of Object.entries(CASES)) {
                     const report = await render(view, rows, { format: "html", echarts, template, source: "sales.csv", now: "2026-11-13T10:00:00Z", ...options });
                     expect(report.ok).toBe(true);
                     await page.setContent(report.text);
@@ -53,7 +53,7 @@ for (const [name, { template, own, theme }] of Object.entries(TEMPLATES)) {
                     // paper: dark text on white (Corporate's surface is white too)
                     if (media === "print") expect(seen.body, `${viewName}: paper`).toBe("rgb(255, 255, 255)");
                     if (media === "screen") expect(seen.colorScheme, `${viewName}: colour scheme`).toBe(theme ?? (scheme === "dark" ? "dark" : "light dark"));
-                    expectReportColours(seen, { name: `${name}, ${viewName}`, tokens, light, dark, media });
+                    expectReportColours(seen, { name: `${name}, ${viewName}`, tokens, light, dark, media, shows });
                 }
             });
         }

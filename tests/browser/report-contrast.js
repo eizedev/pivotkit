@@ -26,13 +26,19 @@ const ITEMS = Array.from({ length: 120 }, (_, i) => ({ Group: `Group ${Math.floo
  * chart as inline SVG, so the texts drawn in it are measured too.
  */
 export const CASES = {
-    ...Object.fromEntries(Object.entries(VIEWS).map(([name, view]) => [name, { view, rows: ROWS, options: {} }])),
+    scale: { view: VIEWS.scale, rows: ROWS, options: {}, shows: ["scale cells", "grand total background"] },
+    bars: { view: VIEWS.bars, rows: ROWS, options: {}, shows: ["data bars", "cell background", "subtotal background", "grand total background"] },
+    chart: { view: VIEWS.chart, rows: ROWS, options: {}, shows: ["chart card", "cell background", "grand total background"] },
     notes: {
         view: { rows: ["Group", "Item"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" }, display: "chart", collapsed: { rows: [["Group 2"]] } },
         rows: ITEMS,
-        options: { chartEmbed: "inline", tableCells: 120, description: "Units of every item, by group" }
+        options: { chartEmbed: "inline", tableCells: 120, description: "Units of every item, by group" },
+        shows: ["chart card", "chart note", "chart texts", "collapsed +", "muted text", "subtotal background"]
     }
 };
+
+/** What every report shows, whatever its view and template (a table cut at its cells has no grand total). */
+const ALWAYS_SHOWN = ["body background", "body text", "header background", "row header background", "table text", "table borders"];
 
 /**
  * Runs in the page: every element with text of its own (outside the chart's image), its contrast on
@@ -121,11 +127,21 @@ export const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i 
  * every text 4.5:1 on what is behind it (WCAG AA), a scale's low, middle and high cells and a data
  * bar's shortest and longest among them, and a colour scale running from the surface outwards.
  * @param {ReturnType<typeof measure>} seen
- * @param {{ name: string, tokens: Record<string, string>, light: Record<string, string>, dark: boolean, media: "screen" | "print" }} expected
+ * @param {{ name: string, tokens: Record<string, string>, light: Record<string, string>, dark: boolean, media: "screen" | "print", shows: string[] }} expected
  *   tokens: the theme the page shows; light: the light theme the chart is drawn in (its card's
- *   surface, its note's colour); dark: a dark screen
+ *   surface, its note's colour); dark: a dark screen; shows: what the case must show besides
+ *   ALWAYS_SHOWN (a part's name, "scale cells", "data bars", "chart texts", "collapsed +"), so a
+ *   part the page lost fails instead of being left unchecked
  */
-export function expectReportColours(seen, { name, tokens, light, dark, media }) {
+export function expectReportColours(seen, { name, tokens, light, dark, media, shows }) {
+    const shown = {
+        ...Object.fromEntries(Object.entries(seen.parts).map(([part, colours]) => [part, colours !== null])),
+        "scale cells": seen.scale.length > 0,
+        "data bars": seen.bars.length > 0,
+        "chart texts": seen.texts.some((t) => t.on === "chart"),
+        "collapsed +": seen.texts.some((t) => t.text.startsWith("+ before "))
+    };
+    for (const what of [...ALWAYS_SHOWN, ...shows]) expect(shown[what], `${name}: shows ${what}`).toBe(true);
     const want = {
         "body background": tokens["--pk-surface"],
         "body text": tokens["--pk-text"],

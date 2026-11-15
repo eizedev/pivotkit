@@ -39,7 +39,7 @@ for (const [templateName, { template, own, ownDark = {}, theme }] of Object.entr
                 const dark = media === "screen" && (theme ?? scheme) === "dark";
                 const light = { ...LIGHT_TOKENS, ...own };
                 const tokens = dark ? { ...DARK_TOKENS, ...ownDark } : light;
-                for (const [name, { view, rows, options }] of Object.entries(CASES)) {
+                for (const [name, { view, rows, options, shows }] of Object.entries(CASES)) {
                     const report = await render(view, rows, { format: "html", echarts, template, now: "2026-11-13T10:00:00Z", ...options });
                     await page.setContent(report.text);
                     const seen = await page.evaluate(measure);
@@ -50,7 +50,7 @@ for (const [templateName, { template, own, ownDark = {}, theme }] of Object.entr
                     if (theme && media === "screen") {
                         expect(seen.colorScheme, `${name}: the root's colour scheme`).toBe(theme);
                     }
-                    expectReportColours(seen, { name, tokens, light, dark, media });
+                    expectReportColours(seen, { name, tokens, light, dark, media, shows });
                 }
             });
         }
