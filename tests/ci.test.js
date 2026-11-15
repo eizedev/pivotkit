@@ -3,11 +3,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { chmodSync, copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { releaseProblems, unreleasedEntries } from "../scripts/check-release.js";
+import { tempDir } from "./temp-dir.js";
 
 const root = new URL("../", import.meta.url);
 
@@ -157,13 +157,10 @@ test("check-release refuses a package whose own dependency has unreleased change
 // published one, E404 (as npm 11 does for an unknown package or version) or a network error. No network.
 // The script is run through a symlink to that directory, which its main guard must follow (else it
 // checks nothing and exits 0).
-test("check-release --published refuses a dependency that is not on npm and says when npm cannot tell", { skip: process.platform === "win32" && "the stub npm is a POSIX shell script; releases run on Linux" }, (t) => {
-    const dir = mkdtempSync(join(realpathSync(tmpdir()), "pivotkit-check-release-"));
-    const link = `${dir}-link`;
-    t.after(() => {
-        rmSync(link, { force: true });
-        rmSync(dir, { recursive: true, force: true });
-    });
+test("check-release --published refuses a dependency that is not on npm and says when npm cannot tell", { skip: process.platform === "win32" && "the stub npm is a POSIX shell script; releases run on Linux" }, () => {
+    const scratch = tempDir("check-release");
+    const dir = join(scratch, "repository");
+    const link = join(scratch, "link");
     const files = {
         "package.json": { type: "module", workspaces: ["packages/pivotkit-core", "packages/pivotkit-report", "packages/pivotkit-react"] },
         "packages/pivotkit-core/package.json": { name: "pivotkit-core", version: "0.6.0" },

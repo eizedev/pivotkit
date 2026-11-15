@@ -132,6 +132,9 @@ pages: they link to the site and repeat none of it.
   the pull request says which.
 - Behaviour that depends on the machine (time zone, locale) is tested in child processes with `TZ` and
   `LANG` set, as in `test/time-zones.test.js`.
+- A test that needs files on disk makes its directory with `tempDir()` (`tests/temp-dir.js`, or the
+  `tempDir` of the package's `test/helpers.js`); it is removed when the test file ends, and a test
+  run that leaves one behind fails.
 - A type change: `test/types/consumer.ts` compiles against the generated declarations
   (`npm run types`).
 - UI logic of `pivotkit-react` (view changes, the history, keyboard moves, names, the chart's text)
@@ -140,6 +143,9 @@ pages: they link to the site and repeat none of it.
   downloads, themes, layouts) is a Playwright test in `tests/browser/` against the playground and the
   pages of `tests/browser/pages/` (a host page with React from an import map, a shadow root, the web
   component's pages in `pages/element/`); it fails on any console error or warning. A test that measures layout waits until it has settled.
+  The HTML report's colours in both system themes, on screen and in print, and its contrast are
+  measured there too, and Chromium prints it to a PDF that the test reads; a change to the report's
+  stylesheet or tokens runs `npx playwright test tests/browser/report-` before the pull request.
 
 ## Releasing
 

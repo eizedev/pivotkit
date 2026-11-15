@@ -7,15 +7,18 @@
 //
 // The workbooks are pivotkit-xlsx's test generator's SHEET_BOOKS, the same the CLI's tests read.
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toViewFile } from "pivotkit-core";
 import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
 import { SHEET_BOOKS, makeXlsx } from "../../packages/pivotkit-xlsx/test/make-xlsx.js";
 import { fieldNames, fileOf, pickThroughMenu } from "./import-helpers.js";
+import { removeTempDirs, tempDir } from "../temp-dir.js";
+
+// the command line's working directories go when the file's tests are done
+test.afterAll(removeTempDirs);
 
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const quarters = fileOf("quarters.xlsx", XLSX, SHEET_BOOKS.quarters());
@@ -143,7 +146,7 @@ test("Open view file… with a view file made on another sheet of the workbook s
 
 test("a draft view the command line made for a workbook's sheet opens in the report on that sheet, as a view of this file", async ({ page }) => {
     // pivotkit describe book.xlsx --suggest --sheet 2025, run as a user runs it
-    const dir = mkdtempSync(join(tmpdir(), "pivotkit-draft-"));
+    const dir = tempDir("draft");
     writeFileSync(join(dir, "book.xlsx"), SHEET_BOOKS.sales());
     const cli = fileURLToPath(new URL("../../packages/pivotkit-cli/bin/pivotkit.js", import.meta.url));
     const draft = JSON.parse(execFileSync(process.execPath, [cli, "describe", "book.xlsx", "--suggest", "--sheet", "2025"], { cwd: dir, encoding: "utf8" }));

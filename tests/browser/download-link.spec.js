@@ -4,18 +4,21 @@
 // repeated, the file saved once, and the link used for any other browser at once. Then the pages as
 // people read them, light and dark, wide and at 390 px: every text's contrast 4.5:1 or more as the
 // engine draws it, a visible focus ring on the button, nothing wider than the window.
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { serve } from "pivotkit-server";
 import { expect, test } from "@playwright/test";
 import { measure } from "./report-contrast.js";
+import { removeTempDirs, tempDir } from "../temp-dir.js";
+
+// the servers' directories go when the file's tests are done
+test.afterAll(removeTempDirs);
 
 const SALES = "Region,Customer,Sales\nNorth,Alice Example,10\nSouth,Bob Example,20\n";
 
 /** A pivotkit-server on loopback whose closed source gets one-time links (a report named `name`). */
 async function onceServer(name = "Sales once") {
-    const dir = realpathSync(mkdtempSync(join(tmpdir(), "pivotkit-dl-")));
+    const dir = tempDir("dl");
     mkdirSync(join(dir, "data"));
     writeFileSync(join(dir, "data", "sales.csv"), SALES);
     const server = await serve({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", downloads: { bind: "once" } }, policy: { results: true }, http: { port: 0, enable: ["rest"] }, log: "off", baseDir: dir }, { env: {}, stderr: { write() {} } });

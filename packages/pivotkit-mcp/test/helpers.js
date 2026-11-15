@@ -1,9 +1,9 @@
 // Runs the server as a client meets it: the runner over stdio (a spawned process) or Streamable HTTP
 // (listen() on a free port), with the SDK's own client, in either protocol era.
-import { mkdtempSync, realpathSync, writeFileSync, mkdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { listen } from "pivotkit-mcp";
@@ -16,8 +16,8 @@ export const ERAS = Object.freeze({ legacy: undefined, modern: { mode: { pin: "2
 /** Orders of a made-up shop: a personal field (Customer), dates over two years, a one-letter field. */
 export const SALES_CSV = ["Region,Product,Customer,Sales,OrderDate,Q", "North,A,Alice Example,10,2025-11-05,1", "South,B,Bob Example,20,2026-09-01,2", "North,B,Carol Example,5,2026-10-01,3", "West,A,Dan Example,7,2026-10-20,1", ",A,Eve Example,3,2024-12-31,2"].join("\n") + "\n";
 
-/** A new empty directory (its real path). */
-export const tempDir = (prefix = "pivotkit-mcp-") => realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+/** A new empty directory (its real path), removed when the test file ends (tests/temp-dir.js). */
+export const tempDir = (prefix = "pivotkit-mcp-") => sharedTempDir(prefix);
 
 /** A directory with data/sales.csv and an empty out/. */
 export function workspace(files = { "sales.csv": SALES_CSV }) {
