@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateOptions } from "../src/config.js";
 import { todoPaths } from "../src/options/base.js";
-import { CHECK_FIRST, CHECK_HOST, OPENAPI_LIMITS, OpenApiError, loadDocumentText, operatorText, readDocument, sourceFromOpenApi, sourceFromOpenApiCommand } from "../src/openapi-source.js";
+import { CHECK_FIRST, CHECK_HOST, OPENAPI_LIMITS, OpenApiError, looksSecret, loadDocumentText, operatorText, readDocument, sourceFromOpenApi, sourceFromOpenApiCommand } from "../src/openapi-source.js";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { BIN, tempDir } from "./helpers.js";
 
@@ -598,5 +598,30 @@ test("source-from-openapi: credential-looking values: the known prefixes and lon
         assert.ok(!g.notes.some((n) => n.includes(`"${name}"'s example or list of values looks like a credential`)), name);
     }
     assertValidates(g);
+});
+
+test("source-from-openapi: known key prefixes with 16 or more token characters are credentials, digits or not; short ones are words", () => {
+    // made-up keys, assembled here so no scanner takes the test file for one
+    const tail = "AbCdEfGhIjKlMnOpQrStUvWx";
+    for (const secret of [["sk", "live", tail].join("_"), `ghp_${"a".repeat(36)}`, `AKIA${"ABCDEFGHIJKLMNOPQR"}`, ["xoxb", "AbCdEfGhIj", "AbCdEf"].join("-"), `AIza${"Sy"}${tail}`, "sk-proj-abc123def456ghi789"]) {
+        assert.equal(looksSecret(secret), true, secret);
+    }
+    for (const word of ["sk-SK", "ghp_1", "skp_1", "pk-", "pk-ordinary", "order-status-pending-fulfillment-queue", "running", "123e4567-e89b-12d3-a456-426614174000"]) {
+        assert.equal(looksSecret(word), false, word);
+    }
+});
+
+test("source-from-openapi: a schema merged deep down does not cut the same schema used at the top (the merge cache is per depth)", () => {
+    // C0..C9: each an allOf of the next, C9 a field; C5 reached first at depth 1 must not shorten C5 at the top
+    const schemas = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`C${i}`, { allOf: [{ $ref: `#/components/schemas/C${i + 1}` }], properties: { [`f${i}`]: { type: "string", description: `level ${i}` } } }]));
+    schemas.C9 = { type: "object", properties: { f9: { type: "string", description: "level 9" } } };
+    const fieldsOf = (order) => {
+        const doc = minimal({ allOf: order.map((n) => ({ $ref: `#/components/schemas/${n}` })) }, { components: { schemas } });
+        return Object.keys(generate(readDocument(JSON.stringify(doc)), "op").config.sources.op.policy.fields).sort();
+    };
+    const forward = fieldsOf(["C0", "C5"]);
+    assert.deepEqual(fieldsOf(["C5", "C0"]), forward);
+    // C5 at depth 1 reaches C9 (depth 5), so every level shows up whichever comes first
+    assert.ok(forward.includes("f9"), forward.join(","));
 });
 
