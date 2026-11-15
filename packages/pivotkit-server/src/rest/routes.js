@@ -110,7 +110,7 @@ export const REST_ROUTES = Object.freeze([
         method: /** @type {const} */ ("POST"),
         path: "/views/render/file",
         summary: "Render a view and download the file",
-        description: "Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true; a view with errors answers 422 with its findings.",
+        description: 'Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true, or, over data the caller sends with source "inline:", data: true; a view with errors answers 422 with its findings.',
         answer: /** @type {const} */ ("file"),
         example: { input: { source: "sales", view: VIEW, format: "csv" }, output: {} }
     }

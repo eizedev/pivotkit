@@ -271,6 +271,12 @@ may try to steer it:
   half of `maxFiles`, a draft over that is refused. A file named with `.pivotkit-out.` by hand counts
   as pivotkit's. Set `maxFiles` high, give `render_view` and `draft_schedule` scopes of their own,
   set `output.maxAgeDays` and keep the rate limits ([REST](reference/rest.md#auth)).
+- **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) is the model's,
+  not the operator's: no exposure policy applies to it, and a report over it is no proof that its
+  content came from the operator's data. It is capped (500 rows, 5,000 cells, 256 KiB; the operator
+  may lower it or switch it off with `mcp.data`, never raise it), `rowCount` must match the rows
+  sent, it is computed in a worker like a file, never cached, and cannot be linked or scheduled.
+  Formulas in its cells are written safe like any other text.
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
 - **Connections**: at most 256 at once, 16 kept for loopback clients (the health check), 5 seconds
@@ -309,6 +315,13 @@ and the sign-in above hold for it too. What differs:
   `X-Content-Type-Options: nosniff`, `Cache-Control: no-store` and
   `Content-Security-Policy: sandbox; default-src 'none'`, so an HTML or SVG report runs nothing when
   a browser opens it.
+- **Data in the request** ([details](reference/rest.md#data)) is off unless a profile has
+  `data: true`. Only such a caller, once its token is checked, may send a body of up to
+  `rest.data.maxBytes` (default 10 MiB, at most 64 MiB); everyone else keeps 2 MiB, and a body
+  declared larger than any caller may send is refused before the token is read. A file is parsed in
+  a worker under the time, memory and import limits; a `sha256` of its bytes catches a file altered
+  on the way, `rowCount` a cut JSON table. The data is never cached and no exposure policy applies
+  to it.
 - **No files by path**: `file:` sources are refused, whatever the MCP server's `files.allowDirs` says.
   Inline results are off unless the operator turns them on, since a program can enumerate through
   them.

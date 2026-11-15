@@ -19,6 +19,7 @@ import { listHint } from "./scopes.js";
 import { asOfMembers, asOfSentence } from "./sources/as-of.js";
 import { runResolved } from "./sources/index.js";
 import { extraInputs, listExtras } from "./sources/input.js";
+import { inlineHow } from "./sources/inline.js";
 
 export { OUTPUT_MARK, draftCap, prune } from "./output.js";
 
@@ -31,7 +32,8 @@ const OUTPUT_FILE = {
 /** What every result over a source's data says about when the data is from. */
 const AS_OF_OUTPUT = {
     dataAsOf: { type: "string", description: "When the data is from: ISO 8601 in UTC, to the second." },
-    stale: { type: "object", properties: { since: { type: "string" } }, required: ["since"], description: "The source could not be refreshed: this is the last good data, kept since then." }
+    stale: { type: "object", properties: { since: { type: "string" } }, required: ["since"], description: "The source could not be refreshed: this is the last good data, kept since then." },
+    suppliedAsOf: { type: "string", description: 'Data sent with the request (source "inline:"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived.' }
 };
 
 /** The operations whose results carry dataAsOf. */
@@ -58,6 +60,15 @@ export function presentedOutput(name) {
     }
     if (name === "draft_schedule") {
         Object.assign(extra, { output: OUTPUT_FILE, message: { type: "string" } });
+    }
+    if (name === "list_sources") {
+        Object.assign(extra, {
+            data: {
+                type: "object",
+                properties: { rows: { type: "integer" }, cells: { type: "integer" }, bytes: { type: "integer" }, maxBytes: { type: "integer" } },
+                description: 'You may send a table of your own with source "inline:": at most rows, cells and bytes (MCP), or a body of at most maxBytes (REST). Absent: you may not.'
+            }
+        });
     }
     if (name === "describe_source") {
         const field = base.properties.fields.items;
@@ -218,8 +229,8 @@ export function noteAutoValues(context, spec, policy) {
     }
 }
 
-/** A source for a caller, with the values it passed for the source's parameters. */
-const resolveFor = (context, input, caller, how) => context.registry.resolve(input.source, caller, how, input.params);
+/** A source for a caller, with the values it passed for the source's parameters (and, for "inline:", the data it sent). */
+const resolveFor = (context, input, caller, how) => context.registry.resolve(input.source, caller, inlineHow(input, how), input.params);
 
 /** Runs an operation over a source. */
 async function runOver(context, name, input, caller, how) {
@@ -259,6 +270,7 @@ export function findingsText(valid, findings) {
  * @property {"mcp" | "rest"} [surface]  whose words: a model's (the default) or a program's
  * @property {boolean} [inline]  csv and json may come back inline where the policy allows (default true)
  * @property {boolean} [files]  false: "file:" sources are refused and not listed (REST)
+ * @property {{ bytes: Uint8Array, format: string, sheet?: string, name?: string, asOf?: string }} [upload]  a file sent in a multipart body: what source "inline:" stands for (REST)
  */
 
 /** Each operation's work after (or instead of) its run. */
@@ -388,16 +400,18 @@ export async function present(context, name, input, caller, how = {}) {
 
 /**
  * render_view for a caller that takes the file itself (REST's file route): allowed only when the
- * caller's policy has `results: true`, whatever fields the view uses. A view with errors gives no
+ * caller's policy has `results: true`, whatever fields the view uses (over data the caller sent, its
+ * policy is open: sending it needs `data: true`, which resolving checked). A view with errors gives no
  * file: `file` is null and `result` holds the findings.
  * @param {any} context
  * @param {Record<string, any>} input
  * @param {import("./registry.js").Caller} caller
+ * @param {{ upload?: PresentOptions["upload"] }} [how]  upload: a file sent in a multipart body
  * @returns {Promise<{ result: Record<string, any>, file: { bytes: Uint8Array, mediaType: string, extension: string, name: string } | null }>}
  */
-export async function renderFile(context, input, caller) {
+export async function renderFile(context, input, caller, how = {}) {
     checkDepth(input);
-    const resolved = await context.registry.resolve(input.source, caller, { files: false, surface: "rest" }, input.params);
+    const resolved = await resolveFor(context, input, caller, { files: false, surface: "rest", ...(how.upload ? { upload: how.upload } : {}) });
     if (!resolved.policy.results) {
         throw new OperationError("NOT_ALLOWED", "your token may not download files (the operator allows it per profile: results: true)");
     }

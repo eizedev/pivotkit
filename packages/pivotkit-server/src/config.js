@@ -30,6 +30,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {boolean} [counts]  show distinct and blank counts (default true)
  * @property {{ cells?: number, bytes?: number } | false} [inline]  results that may come back in the tool result (default 500 cells, 32 KiB)
  * @property {boolean} [results]  REST: the caller may download a rendered file (POST /api/v1/views/render/file; default false)
+ * @property {boolean} [data]  server and profiles only: the caller may send its own data (source "inline:"); REST only with true, MCP unless false
  * @property {Record<string, PolicyOptions>} [profiles]  server level only: named policies bound to tokens or OAuth clients (auth.tokens[].profile, auth.clientProfiles, auth.scopeProfiles)
  */
 
@@ -66,7 +67,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number, maxConnectionsPerAddress?: number }} [http]
  * @property {AuthOptions} [auth]
  * @property {RestOptions} [rest]
- * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens
+ * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number, data?: false | { rows?: number, cells?: number, bytes?: number } }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens; data: inline data off, or a lower cap
  * @property {"info" | "debug" | "off"} [log]
  * @property {string} [baseDir]  where relative paths start (loadConfig sets the config file's directory; default the working directory)
  */
@@ -83,6 +84,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {boolean} [inline]  csv and json results may come back in the JSON answer (default false)
  * @property {{ perMinute?: number, burst?: number, failedAuthPerMinute?: number }} [rateLimit]  per caller, and per address for refused tokens
  * @property {number} [concurrency]  requests of one caller at once (default 4)
+ * @property {{ maxBytes?: number }} [data]  the largest body of a caller that may send data (default 10 MiB, at most 64 MiB)
  */
 
 /**

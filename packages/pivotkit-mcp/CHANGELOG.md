@@ -8,6 +8,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- Data in the request ([#326](https://github.com/eizedev/pivotkit/issues/326)): the tools that take
+  a source offer `data`, a small table of the model's own with `source` `inline:` (at most 500 rows,
+  5,000 cells and 256 KiB; `mcp.data` lowers the cap or switches it off). Its description says that
+  the operator's exposure policy does not apply to it. The `call` log line counts its rows and
+  columns.
+
 - The exposure policy's level `values` and the opt-in automatic rule (`policy.autoValues`) of
   pivotkit-server ([#362](https://github.com/eizedev/pivotkit/issues/362)); `--check-config` prints
   each field's level and why.

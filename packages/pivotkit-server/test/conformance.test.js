@@ -36,6 +36,9 @@ test("every operation: the MCP tool's structured content and the REST answer are
             sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales", policy: { fields: { Region: "show", Customer: "hide" } } }, open: { file: "data/sales.csv", policy: { default: "show" } }, listed: { file: "data/sales.csv", policy: { fields: { Region: "values", Customer: "hide" } } } },
             output: { dir: "out" },
             rest: { inline: true },
+            // list_sources tells each surface what data it may send, in its own terms (sources.test.js):
+            // with MCP's switched off, the two answer alike
+            mcp: { data: false },
             baseDir: dir
         },
         { enable: ["rest", "mcp"] }

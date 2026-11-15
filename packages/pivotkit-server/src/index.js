@@ -22,6 +22,7 @@ export { callerFields, CALLER_LOG_FIELDS } from "./log.js";
 export { newRequestId, withRequestId, requestId, errorDetails, isRequestId, REQUEST_ID } from "./request-id.js";
 export { serverTextOf } from "./rest/problem.js";
 export { offeredScopes } from "./scopes.js";
+export { INLINE_ID, MCP_DATA_CAP, REST_DATA_BYTES, inlineLogFields } from "./sources/inline.js";
 export { readSecret, secretFileWarning, SecretError } from "./secrets.js";
 export { SECRET_REF } from "./options/shared.js";
 export { checkConfig } from "./check.js";

@@ -161,6 +161,7 @@ automatic values rule is off. What callers notice:
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
 | [Request ids](#request-ids) | you parse the log or MCP tool errors, or a program reads problem documents | accept the new members and the id at the end of a tool error |
+| [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
 
 ### The values level { #values-level }
 
@@ -194,6 +195,17 @@ to the operator. On MCP an `INTERNAL` error says "internal error", as REST does,
 words. A body over the cap gets a `refused` log line. `check-config` warns of a static token's file
 that other users of the machine can read, and closes with "New in this version" where a change
 applies to the configuration.
+
+### Data in the request { #data-in-request }
+
+The MCP tools that take a source offer `data`, a small table the model sends with `source`
+`inline:` (at most 500 rows, 5,000 cells and 256 KiB), on by default. No exposure policy applies to
+it: it is the model's own data, not yours. `"mcp": { "data": false }` switches it off,
+`"mcp": { "data": { "rows": 100 } }` lowers the cap, and a profile with `"data": false` switches it
+off for its callers ([details](../reference/mcp.md#data)). On REST it is off until a profile has
+`"data": true`; such a caller may also send a file as `multipart/form-data` and a body of up to
+`rest.data.maxBytes` (default 10 MiB) ([details](../reference/rest.md#data)). `inline:` was
+answered as an unknown source before; `check-config` says who may send data.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 

@@ -20,6 +20,14 @@ test("options: the composed table is today's, in today's order, plus the shared 
     const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
     const expected = structuredClone(before);
     Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer" });
+    // data sent in the request (options/inline.js): a policy's data, after results; mcp.data; rest.data
+    const withData = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "results" ? [[k, v], ["data", "boolean"]] : [[k, v]])));
+    expected.sources.map.object.policy.object = withData(expected.sources.map.object.policy.object);
+    expected.files.object.policy.object = withData(expected.files.object.policy.object);
+    expected.policy.object = withData(expected.policy.object);
+    expected.policy.object.profiles.map.object = withData(expected.policy.object.profiles.map.object);
+    expected.mcp.object.data = { or: [{ const: false }, { object: { rows: "integer", cells: "integer", bytes: "integer" } }] };
+    expected.rest.object.data = { object: { maxBytes: "integer" } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -97,7 +105,7 @@ test("check sections: problems are counted, warnings are not, and New in this ve
     assert.deepEqual(none, { lines: [], problems: 0, upgrade: [] });
 });
 
-test("check-config: today's configurations print exactly what they printed before (no section line, no New in this version)", async () => {
+test("check-config: today's configurations print what they printed before, plus each feature's own line and upgrade note", async () => {
     const dir = workspace({ "sales.csv": "Region,Product,Customer,Sales\nNorth,A,Alice,10\nSouth,B,Bob,20\n" });
     const options = {
         sources: { sales: { file: "data/sales.csv", title: "Sales", scopes: ["sales:read"], policy: { default: "show", fields: { Customer: "hide" } } }, gone: { file: "data/missing.csv" }, code: { load: async () => [] } },
@@ -108,9 +116,15 @@ test("check-config: today's configurations print exactly what they printed befor
     };
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: "x".repeat(40) }, name: "pivotkit-server", rest: true });
     const golden = readFileSync(new URL("./fixtures/check-config-before-fragments.txt", import.meta.url), "utf8");
-    assert.equal(result.text.split(dir).join("<dir>"), golden);
+    // what the features of this version add, each said once: data sent in the request (check/inline.js)
+    const added = {
+        lines: ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"],
+        upgrade: ['MCP clients may send a small table of their own with source "inline:" (up to 500 rows / 5000 cells / 256 KiB); no exposure policy applies to it; mcp.data: false switches it off']
+    };
+    const [before, total] = golden.split("\n\n1 problem:");
+    const expected = `${before}\n${added.lines.join("\n")}\n\n1 problem:${total.trimEnd()}\n\nNew in this version (what changes with this configuration; https://pivotkit.eize.dev/getting-started/upgrading/):\n${added.upgrade.map((l) => `  - ${l}`).join("\n")}\n`;
+    assert.equal(result.text.split(dir).join("<dir>"), expected);
     assert.equal(result.problems, 1);
-    assert.doesNotMatch(result.text, /New in this version/);
 });
 
 test("check-config: a section's problem is counted with the others and its upgrade lines close the text", async () => {

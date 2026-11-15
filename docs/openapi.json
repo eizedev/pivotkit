@@ -1048,7 +1048,7 @@
       "post": {
         "operationId": "renderViewFile",
         "summary": "Render a view and download the file",
-        "description": "Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true; a view with errors answers 422 with its findings.",
+        "description": "Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true, or, over data the caller sends with source \"inline:\", data: true; a view with errors answers 422 with its findings.",
         "tags": [
           "views"
         ],
@@ -2359,6 +2359,24 @@
                 }
               }
             }
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "rows": {
+                "type": "integer"
+              },
+              "cells": {
+                "type": "integer"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "maxBytes": {
+                "type": "integer"
+              }
+            },
+            "description": "You may send a table of your own with source \"inline:\": at most rows, cells and bytes (MCP), or a body of at most maxBytes (REST). Absent: you may not."
           }
         },
         "required": [
@@ -2532,6 +2550,10 @@
               "since"
             ],
             "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
           },
           "hiddenFields": {
             "type": "integer"
@@ -2790,6 +2812,10 @@
               "since"
             ],
             "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
           }
         },
         "required": [
@@ -3035,6 +3061,10 @@
               "since"
             ],
             "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
           }
         },
         "required": [
@@ -3212,6 +3242,10 @@
               "since"
             ],
             "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
           }
         },
         "required": [
@@ -3491,6 +3525,10 @@
             ],
             "description": "The source could not be refreshed: this is the last good data, kept since then."
           },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
+          },
           "output": {
             "type": [
               "object",
@@ -3656,6 +3694,10 @@
               "since"
             ],
             "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
           }
         },
         "required": [
@@ -3855,6 +3897,10 @@
             ],
             "description": "The source could not be refreshed: this is the last good data, kept since then."
           },
+          "suppliedAsOf": {
+            "type": "string",
+            "description": "Data sent with the request (source \"inline:\"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived."
+          },
           "output": {
             "type": [
               "object",
@@ -3946,7 +3992,7 @@
         }
       },
       "Problem413": {
-        "description": "A limit: the body, the file or the result is too large.",
+        "description": "A limit: the body, the file, the data sent or the result is too large.",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -3956,7 +4002,7 @@
         }
       },
       "Problem415": {
-        "description": "The body is not JSON, or the file's format is not read.",
+        "description": "The body is not JSON (or multipart/form-data with data, where allowed), or the file's format is not read.",
         "content": {
           "application/problem+json": {
             "schema": {

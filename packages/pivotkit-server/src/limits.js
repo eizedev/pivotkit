@@ -5,19 +5,44 @@
  * of refused tokens per address over the last minute (.failedAuthPerMinute: someone trying tokens is
  * stopped before the next one is checked), and the requests of one caller at once
  * (rest.concurrency). Every map is bounded: the oldest key goes first. And the cap of a request's
- * body (bodyBytesOf).
+ * body (bodyBytesOf): larger only for a REST caller, signed in, that may send data.
  */
 
-import { BODY_BYTES } from "./listen.js";
+import { REST_BASE } from "./config.js";
+import { BODY_BYTES, peekSignIn } from "./listen.js";
+import { maySendData, restDataBytesOf, restDataOffered } from "./sources/inline.js";
+
+/**
+ * The most bytes of a REST request's body for a caller: rest.data.maxBytes for one that may send data
+ * (sources/inline.js), else BODY_BYTES.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {import("./registry.js").Caller | null | undefined} caller  null: not signed in
+ */
+export const restBodyBytesFor = (options, caller) => (caller && maySendData(options, caller, "rest") ? restDataBytesOf(options) : BODY_BYTES);
+
+/**
+ * The most bytes any REST request's body may have, whoever calls: what a body's declared size is
+ * checked against before the caller is signed in.
+ * @param {import("./config.js").ServerOptions} options
+ */
+export const restBodyCeilingOf = (options) => (restDataOffered(options) ? Math.max(BODY_BYTES, restDataBytesOf(options)) : BODY_BYTES);
 
 /**
  * The most bytes of a request's body, decided per request after the precheck signed the caller in
- * (serveFetch's bodyBytes; listen.js peekSignIn reads the sign-in): BODY_BYTES for every request.
- * @param {import("./config.js").ServerOptions} _options
+ * (serveFetch's bodyBytes; listen.js peekSignIn reads the sign-in): restBodyBytesFor a POST to the
+ * REST service by a caller the precheck signed in, BODY_BYTES for everything else (the MCP endpoint's
+ * too). listen.js's bodyCapOf gives a caller the precheck did not sign in BODY_BYTES whatever this says.
+ * @param {import("./config.js").ServerOptions} options
  * @returns {(request: Request, info: Record<string | symbol, any>) => number}
  */
-export function bodyBytesOf(_options) {
-    return () => BODY_BYTES;
+export function bodyBytesOf(options) {
+    if (!restDataOffered(options)) {
+        return () => BODY_BYTES;
+    }
+    return (request, info) => {
+        const caller = peekSignIn(info)?.caller;
+        return request.method === "POST" && new URL(request.url).pathname.startsWith(`${REST_BASE}/`) ? restBodyBytesFor(options, caller) : BODY_BYTES;
+    };
 }
 
 /** The defaults, the same for both front ends. */

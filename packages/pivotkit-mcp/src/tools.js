@@ -8,7 +8,7 @@
 
 import { fromJsonSchema } from "@modelcontextprotocol/server";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
-import { callerFields, isRequestId, newRequestId, present, presentedInput, presentedOutput, serverTextOf, withRequestId } from "pivotkit-server";
+import { callerFields, inlineLogFields, isRequestId, newRequestId, present, presentedInput, presentedOutput, serverTextOf, withRequestId } from "pivotkit-server";
 
 /** The tool's description: the operation's, plus what the model must know about this server. */
 function descriptionOf(name) {
@@ -106,7 +106,8 @@ export function registerTools(server, context, caller) {
                 const started = Date.now();
                 // the call's id: on its log lines, and inside its work (a source's code, an error's details)
                 const id = newRequestId();
-                const entry = { tool: name, ...callerFields(caller), requestId: id, source: logSource(args?.source) };
+                // data sent with source "inline:": how many rows and columns, never a value
+                const entry = { tool: name, ...callerFields(caller), requestId: id, source: logSource(args?.source), ...inlineLogFields(args) };
                 try {
                     if (caller.scopes !== null && !scopes.every((s) => caller.scopes?.has(s))) {
                         throw new OperationError("NOT_ALLOWED", `your token may not use ${name}`);

@@ -37,13 +37,16 @@ export function asOfText(value, how = {}) {
 }
 
 /**
- * The members a result gets from what its data said: dataAsOf, and stale when last good data stood in.
- * @param {{ asOf?: string | null, stale?: { since: string } | null }} read
+ * The members a result gets from what its data said: dataAsOf, stale when last good data stood in,
+ * and suppliedAsOf when the caller sent the data and said when it is from (as it states it; never
+ * dataAsOf).
+ * @param {{ asOf?: string | null, stale?: { since: string } | null, suppliedAsOf?: string | null }} read
  */
 export function asOfMembers(read) {
     const asOf = typeof read?.asOf === "string" && AS_OF_FORM.test(read.asOf) ? read.asOf : null;
     const since = typeof read?.stale?.since === "string" && AS_OF_FORM.test(read.stale.since) ? read.stale.since : null;
-    return { ...(asOf ? { dataAsOf: asOf } : {}), ...(asOf && since ? { stale: { since } } : {}) };
+    const supplied = typeof read?.suppliedAsOf === "string" && AS_OF_FORM.test(read.suppliedAsOf) ? read.suppliedAsOf : null;
+    return { ...(asOf ? { dataAsOf: asOf } : {}), ...(asOf && since ? { stale: { since } } : {}), ...(supplied ? { suppliedAsOf: supplied } : {}) };
 }
 
 /** "2026-11-15 08:00 UTC" of a dataAsOf. */
@@ -52,12 +55,14 @@ const wordsOf = (asOf) => `${asOf.slice(0, 10)} ${asOf.slice(11, 16)} UTC`;
 /**
  * One sentence on when the data is from, for a message: "Data as of 2026-11-15 08:00 UTC.", or
  * "The data is from 2026-11-15 08:00 UTC: the source could not be refreshed." for last good data;
- * empty without a time.
- * @param {{ dataAsOf?: string, stale?: { since: string } }} members  asOfMembers'
+ * for data the caller sent with a time of its own, a second sentence with that time as the caller
+ * states it; empty without a time.
+ * @param {{ dataAsOf?: string, stale?: { since: string }, suppliedAsOf?: string }} members  asOfMembers'
  */
 export function asOfSentence(members) {
     if (!members.dataAsOf) {
         return "";
     }
-    return members.stale ? `The data is from ${wordsOf(members.dataAsOf)}: the source could not be refreshed.` : `Data as of ${wordsOf(members.dataAsOf)}.`;
+    const supplied = members.suppliedAsOf ? ` The sender states the data is from ${wordsOf(members.suppliedAsOf)}.` : "";
+    return `${members.stale ? `The data is from ${wordsOf(members.dataAsOf)}: the source could not be refreshed.` : `Data as of ${wordsOf(members.dataAsOf)}.`}${supplied}`;
 }
