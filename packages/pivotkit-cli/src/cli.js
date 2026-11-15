@@ -186,7 +186,7 @@ export async function main(argv, io) {
             const named = argv.find((a) => Object.hasOwn(COMMANDS, a));
             const global = Object.hasOwn(GLOBAL_OPTIONS, command.replace(/^-+/, "").split("=")[0]);
             command = named ?? "";
-            throw new CliError("usage", "UNKNOWN_OPTION", named && global ? `${printable(JSON.stringify(argv[0]))} comes after the command: ${program} ${named} ${printable(argv[0])}; run "${program} help"` : `unknown option ${printable(JSON.stringify(argv[0]))}; run "${program} --help"`);
+            throw new CliError("usage", "UNKNOWN_OPTION", named && global ? `${printable(JSON.stringify(argv[0]))} comes after the command: ${program} ${named} ${printable(argv[0])}; run "${program} --help"` : `unknown option ${printable(JSON.stringify(argv[0]))}; run "${program} --help"`);
         }
         if (command === "serve") {
             throw new CliError("usage", "UNKNOWN_COMMAND", 'the server is a package of its own: use "pivotkit-server serve" (npm install --global pivotkit-server pivotkit-mcp)');

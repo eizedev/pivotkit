@@ -38,7 +38,7 @@ test("help: pivotkit, a command's help and help <command>; an unknown command is
     assert.equal(early.code, 2);
     const envelope = JSON.parse(early.stdout);
     assert.equal(envelope.command, "sources");
-    assert.equal(envelope.error.message, '"--json" comes after the command: pivotkit sources --json; run "pivotkit help"');
+    assert.equal(envelope.error.message, '"--json" comes after the command: pivotkit sources --json; run "pivotkit --help"');
     assert.equal((await run(["--bogus"])).stderr, 'pivotkit: unknown option "--bogus"; run "pivotkit --help"\n');
     // run as "pivotkit-server cli", the pointers name that
     const { main } = await import("../src/cli.js");

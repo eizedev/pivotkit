@@ -107,6 +107,9 @@ function refusedLine(settings, id, status, params) {
     return `  the backend answered ${status}: ${value}check the secret behind ${auth.at} (${secretRefText(secret)}) and that the backend accepts it`;
 }
 
+/** The value a re-run's --param shows: the declared example, else the first of the list, else <value>. */
+const flagValue = (p) => p?.example ?? (Array.isArray(p?.enum) ? p.enum[0] : "<value>");
+
 /**
  * The --param flags a failed check of the values asks for: each required parameter not given (a
  * claim's too: its --param stands in for the sign-in's claim), with its example.
@@ -116,7 +119,7 @@ function refusedLine(settings, id, status, params) {
 function missingParams(declared, params) {
     return Object.entries(declared ?? {})
         .filter(([name, p]) => p?.required && p.default === undefined && !Object.hasOwn(params, name))
-        .map(([name, p]) => `--param ${name}=${p.example ?? (Array.isArray(p.enum) ? p.enum[0] : `<${p.type ?? "value"}>`)}`);
+        .map(([name, p]) => `--param ${name}=${flagValue(p)}`);
 }
 
 /** A column's type as check-source names it, from its values (none printed). */
@@ -175,7 +178,10 @@ export async function checkSource(options, id, params, means = {}) {
         const missing = missingParams(source.params, params);
         // the message's "; re-run with params.x=..." said once, for every missing one, as flags
         const message = /** @type {Error} */ (e).message.replace(/; re-run with params\..*$/, "");
-        lines.push(`  params: ${message}`, ...(missing.length ? [`  re-run with ${missing.join(" ")}`] : []), "FAILED");
+        // a refused value: the flag to fix it with, as the command line says it
+        const refused = missing.length ? undefined : /^params\.([A-Za-z0-9_-]{1,64}) /.exec(message)?.[1];
+        const fix = refused ? `; re-run with --param ${refused}=${flagValue(source.params?.[refused])}` : "";
+        lines.push(`  params: ${message}${fix}`, ...(missing.length ? [`  re-run with ${missing.join(" ")}`] : []), "FAILED");
         return { text: `${lines.join("\n")}\n`, ok: false };
     }
     /** @type {string[]} */

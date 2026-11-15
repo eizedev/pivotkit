@@ -603,7 +603,11 @@ test("check-source for the operator: options in any order, exit 2 for an id that
     // a missing required value: the flag to re-run with, the declared example
     const missing = await checkSource(optionsOf(), "vms", {});
     assert.match(missing.text, /\n {2}re-run with --param customer=acme\nFAILED\n$/);
-    assert.match((await checkSource(optionsOf({}, { params: { customer: { type: "string", required: true, pattern: "^[a-z]+$" }, state: { type: "string", required: true, enum: ["running", "stopped"] } } }), "vms", {})).text, /re-run with --param customer=<string> --param state=running\n/);
+    assert.match((await checkSource(optionsOf({}, { params: { customer: { type: "string", required: true, pattern: "^[a-z]+$" }, state: { type: "string", required: true, enum: ["running", "stopped"] } } }), "vms", {})).text, /re-run with --param customer=<value> --param state=running\n/);
+
+    // a refused value: the flag to fix it with, the example filled in
+    assert.match((await checkSource(optionsOf(), "vms", { customer: "ACME" })).text, /\n  params: params\.customer is not in the expected form \(The customer's short name, for example acme; pattern \^\[a-z0-9-\]\{1,40\}\$\); re-run with --param customer=acme\nFAILED\n$/);
+    assert.match((await checkSource(optionsOf(), "vms", { customer: "acme", state: "gone" })).text, /params\.state must be one of running, stopped; re-run with --param state=running\n/);
 
     // 401 or 403: without credentials, where to set them; with a header from a secret, which secret (never its value)
     routes.set("/v1/customers/zed/vms", json({ error: "no" }, 403));

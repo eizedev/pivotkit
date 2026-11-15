@@ -447,7 +447,8 @@ endpoint on a loopback or private address without `intranet: true`, and a token 
 options in any order) loads a source once as the server would, without an AI client, and prints
 each page's status, content type and size, the rows, the fields with their types, when the data is
 from and what a caller would get when it fails, with the operator's hint where there is one: the
-`--param` to re-run with when a required value is missing, the secret behind `http.auth` (its
+`--param` to re-run with when a required value is missing or a value is refused (the declared
+example filled in, else `<value>`), the secret behind `http.auth` (its
 variable or file, never the value) or where to set one when the backend answers 401 or 403,
 `intranet` for a private address, `NODE_EXTRA_CA_CERTS` for a certificate (and, when it is set,
 that its file holds no authority that signed the backend's certificate). On success the last line
