@@ -38,6 +38,9 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   pivotkit-mcp. An option before the command says where it goes and `--json` names the command, not
   the option. Run as `pivotkit-server cli`, the pointers name that. `--token-file` that is not there
   says `--token-file missing.txt: not found`.
+- File names keep parentheses: a report named "Orders (fake backend)" is written as
+  `Orders (fake backend).xlsx`, not `Orders -fake backend.xlsx`
+  ([#448](https://github.com/eizedev/pivotkit/issues/448)).
 
 ## [0.2.1] - 2026-11-14
 

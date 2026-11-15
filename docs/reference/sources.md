@@ -802,6 +802,7 @@ token exchange or another backend auth is yours to configure.
 | From the document | In the block |
 | --- | --- |
 | The server address (`servers`, the operation's or path's first) | The backend's `url`, as a `TODO` that names the address without a user name, password, query or fragment; an address with variables as written with their defaults (`https://{region}.example.com (region=eu)`); a relative address with what it is relative to the document's URL |
+| A server on a private address (a loopback or private IP address, `localhost`, a name of one label or ending in `.local`, `.lan`, `.internal`, `.intranet`, `.corp`, `.home`, `.home.arpa`, `.localdomain`) | A note that the backend needs `intranet: true`; the block does not set it (no name is looked up) |
 | The operation's path | `http.path`, with each path parameter as `{name}`; a path over 2,000 characters or with an empty segment refuses the operation |
 | Path parameters | Required `params` |
 | Query parameters | `params` and `http.query`; `required` is kept |
@@ -811,6 +812,7 @@ token exchange or another backend auth is yours to configure.
 | Header and cookie parameters, array and object values, a `style` or `allowReserved` | Left out, with a note (a path parameter like that refuses the operation) |
 | A JSON answer (the first 2xx) that is a list | `http.rows: ""` |
 | An object with exactly one list | `http.rows` pointing at it (`/items`) |
+| The object's one property in `date-time` format, else its one property named like a time (`generatedAt`, `updated_at`, `timestamp`, ...; a text or a number) | `http.asOf` pointing at it, with a note; two of a kind give none and a note |
 | Any other answer | `http.rows` as a `TODO` |
 | A `text/csv` answer | `http.format: "csv"` |
 | The row's properties | `fields.<name>.description` where the document describes them, and every property in `policy.fields` as `hide`, under `policy.default: "hide"` |

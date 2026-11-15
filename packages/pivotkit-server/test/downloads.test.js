@@ -1150,3 +1150,26 @@ test("signIn: a token endpoint on a metadata address is refused before a request
         await server.close();
     }
 });
+
+test("signIn: HEAD on a link answers its state without starting a sign-in: no redirect, no cookie (link previews)", async () => {
+    const { server, render, local, open } = await signInServer();
+    try {
+        const output = await render("alice");
+        await open(output.url);
+        const head = await fetch(local(output.url), { method: "HEAD", redirect: "manual" });
+        assert.equal(head.status, 200);
+        assert.equal(head.headers.get("location"), null);
+        assert.equal(head.headers.get("set-cookie"), null);
+        assert.match(head.headers.get("content-type") ?? "", /^text\/html/);
+        assertBaseHeaders(head.headers);
+        // an expired or unknown link says so on HEAD too
+        const unknown = await fetch(local(output.url.replace(/\.[^.]+$/, ".AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")), { method: "HEAD", redirect: "manual" });
+        assert.equal(unknown.status, 404);
+        // GET still starts the sign-in
+        const get = await fetch(local(output.url), { redirect: "manual" });
+        assert.equal(get.status, 302);
+        assert.ok(get.headers.get("set-cookie"));
+    } finally {
+        await server.close();
+    }
+});
