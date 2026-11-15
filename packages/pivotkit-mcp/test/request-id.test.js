@@ -93,3 +93,30 @@ test("stdio: each call gets its own id and trace; started names the sources, the
     assert.notEqual(calls[0].requestId, calls[1].requestId);
     assert.ok(calls.every((l) => /^[0-9a-f]{32}$/.test(l.traceId) && l.address === undefined));
 });
+
+test("a body over the cap without a declared length: the standalone HTTP server logs it refused, and the answer names the line's id", async () => {
+    const { request: httpRequest } = await import("node:http");
+    const dir = workspace();
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
+    try {
+        const url = new URL(server.url);
+        const answer = await new Promise((resolve, reject) => {
+            const req = httpRequest({ host: url.hostname, port: url.port, path: url.pathname, method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "transfer-encoding": "chunked" } }, (res) => {
+                res.resume();
+                res.on("end", () => resolve(res));
+            });
+            req.on("error", reject);
+            const chunk = "x".repeat(65_536);
+            for (let i = 0; i < 40; i++) {
+                req.write(chunk);
+            }
+            req.end();
+        });
+        assert.equal(/** @type {any} */ (answer).statusCode, 413);
+        const refused = server.log.find((l) => l.event === "refused" && l.reason === "body_too_large");
+        assert.ok(refused, JSON.stringify(server.log));
+        assert.deepEqual([refused.limit, refused.size, /** @type {any} */ (answer).headers["x-request-id"]], [2_097_152, undefined, refused.requestId]);
+    } finally {
+        await server.close();
+    }
+});

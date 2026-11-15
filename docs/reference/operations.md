@@ -158,8 +158,8 @@ To find a proxy's access log line next to pivotkit's:
   and `$request_id` in its log format) and search pivotkit's log for `upstreamRequestId`.
 - Or let the proxy log the answer's header (nginx: `$upstream_http_x_request_id`) and search for
   `requestId`.
-- A proxy or service mesh that sends W3C `traceparent` (OpenTelemetry, Envoy, Traefik with tracing,
-  Caddy with tracing) gives its trace id to `traceId`, so lines join a trace in your tracing tool. A
+- A proxy or service mesh with W3C trace context propagation turned on (its OpenTelemetry tracing)
+  sends `traceparent`; its trace id becomes `traceId`, so lines join a trace in your tracing tool. A
   `traceparent` that does not parse strictly (version 00 with exactly four lower-case hex fields, or
   a later version) is ignored and a new trace id is made.
 - With `http.trustProxy`, `clientAddress` is the client the proxy saw; without it, `address` is the
@@ -209,14 +209,14 @@ receiver that expects RFC 3164 (or TCP to a UDP port) gives garbled or no messag
 Both drivers put pivotkit's whole JSON line into the message (GELF `short_message`, the syslog
 message text). The driver's own level is the stream's, the same for every line of stderr, so it says
 nothing: let the log server parse the message as JSON and use pivotkit's `level` (or `severity`).
-In Graylog, add a JSON extractor (or a pipeline rule with `parse_json`) on the message and map its
-`level` and `severity` fields instead of the GELF level the driver sets.
+In Graylog, add a JSON extractor on the message (or a pipeline rule that parses it as JSON) and use
+its `level` and `severity` fields instead of the GELF level the driver sets.
 
 ## Kubernetes { #kubernetes }
 
 Kubernetes has no log driver per pod: the container runtime writes each container's stderr to a file
 on the node, which `kubectl logs` reads and a log agent of the cluster (Fluent Bit, Vector, the
-OpenTelemetry Collector, Promtail, a Graylog sidecar) ships. Keep `log.format` at `json` (the image's
+OpenTelemetry Collector, Grafana Alloy) ships. Keep `log.format` at `json` (the image's
 setting), let the agent parse each line as JSON, and keep pivotkit's `level` and `requestId` as
 fields. See [Kubernetes](../getting-started/kubernetes.md) for the deployment itself.
 

@@ -634,8 +634,8 @@ export function createDownloadHandler(context, runtime = {}) {
         return new Response(body, { status: 200, headers: responseHeaders });
     }
 
-    /** Logs a download request: never its token, path, code, state or cookie. */
-    const log = (entry) => context.log.download({ via: "link", requestId: requestId() ?? newRequestId(), ...entry });
+    /** Logs a download request: never its token, path, code, state or cookie; its status is the answer's (the line's level follows it). */
+    const log = (entry) => context.log.download({ via: "link", requestId: requestId() ?? newRequestId(), ...entry, status: entry.ok ? 200 : (ANSWERS[/** @type {keyof typeof ANSWERS} */ (entry.code)]?.status ?? 500) });
 
     /** A token's payload for a request, or the answer: 404 for one that does not hold, 410 for an expired one. */
     async function tokenOf(request, token) {

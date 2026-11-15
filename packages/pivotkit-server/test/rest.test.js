@@ -377,6 +377,8 @@ test("a file name cut at 80 characters never splits a character; the download st
         const res = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
         assert.equal(res.status, 200);
         assert.match(res.headers.get("content-disposition"), /filename\*=UTF-8''x{79}%F0%9F%98%80\.csv$/);
+        const sent = server.log.find((l) => l.event === "download");
+        assert.deepEqual([sent.status, sent.level, sent.outcome, sent.msg], [200, "info", "ok", "file sent"]);
         const quoted = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv", name: "it's (a) *test*" } });
         assert.match(quoted.headers.get("content-disposition"), /filename\*=UTF-8''it%27s%20%28a%29%20_test_\.csv$/);
     } finally {

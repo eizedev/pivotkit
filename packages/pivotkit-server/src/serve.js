@@ -183,14 +183,14 @@ export async function createServerHandler(options, runtime) {
             enable,
             downloads,
             /** @type {import("./listen.js").FetchHandler["precheck"]} */
-            async precheck(request, info) {
+            async precheck(request, info = {}) {
                 // the request's scope: serveFetch's, or made here for a host that serves the handler itself
                 const scope = requestScopeFor(request, info, { trustProxy });
                 const answer = await withRequestScope(scope, () => routes.precheck(request, info));
                 return answer && withRequestIdHeader(answer, scope.id);
             },
             /** @type {import("./listen.js").FetchHandler["fetch"]} */
-            async fetch(request, info) {
+            async fetch(request, info = {}) {
                 const scope = requestScopeFor(request, info, { trustProxy });
                 return withRequestIdHeader(await withRequestScope(scope, () => routes.fetch(request, info)), scope.id);
             },

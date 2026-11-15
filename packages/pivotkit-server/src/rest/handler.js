@@ -308,7 +308,7 @@ export async function createRestHandler(context, runtime = {}) {
             }
             const format = RENDER_FORMATS[result.format] ?? RENDER_FORMATS.xlsx;
             const name = `${safeName(file.name)}.${format.extension}`;
-            context.log.download({ operation: route.operation, ...callerFields(caller), requestId: entry.requestId, source: entry.source, format: result.format, bytes: file.bytes.length });
+            context.log.download({ operation: route.operation, ...callerFields(caller), requestId: entry.requestId, source: entry.source, format: result.format, bytes: file.bytes.length, status: 200 });
             return new Response(/** @type {any} */ (file.bytes), {
                 status: 200,
                 headers: { ...SAFE_HEADERS, "content-type": format.mediaType, "content-disposition": disposition(name), "content-security-policy": "sandbox; default-src 'none'", "content-length": String(file.bytes.length) }

@@ -262,18 +262,24 @@ test("redaction: no token, value, claim or path on any line, in JSON and in text
     const SECRET_VALUE = "SecretRegion-7f3a";
     for (const [format, level] of [["json", "info"], ["text", "info"], ["json", "debug"], ["text", "debug"]]) {
         const dir = workspace({ "sales.csv": `Region,Sales,Customer\n${SECRET_VALUE},10,Alice Example\nNorth,5,Bob Example\n` });
-        const { server, text, api } = await rawServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } } } }, auth: { mode: "token" }, output: { dir: "out" }, log: { format, level }, baseDir: dir }, { PIVOTKIT_TOKEN: TOKEN });
+        const { server, text, api } = await rawServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } } } }, auth: { mode: "token" }, output: { dir: "out" }, http: { enable: ["rest", "mcp"] }, log: { format, level }, baseDir: dir }, { PIVOTKIT_TOKEN: TOKEN });
         try {
             await call(`${api}/views/render`, { token: TOKEN, body: { source: "sales", view: { ...BY_REGION, filters: [{ field: "Region", type: "in", items: [SECRET_VALUE] }] }, format: "csv" } });
             await call(`${api}/views/render`, { token: TOKEN, body: { source: "sales", view: { rows: ["Customer"], values: [{ field: "Sales", agg: "sum" }] } } });
             await call(`${api}/sources/describe`, { token: TOKEN, body: { source: `${dir}/data/sales.csv` } });
             await call(`${api}/sources`, { token: OTHER_TOKEN });
             await call(`${api}/sources`, { headers: { authorization: `Bearer ${OTHER_TOKEN}`, cookie: "session=abc" } });
+            // the same over MCP: a call with the value in its view, and a refused token
+            const mcpHeaders = { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-06-18" };
+            const tool = (token) => fetch(`${server.url}/mcp`, { method: "POST", headers: { ...mcpHeaders, authorization: `Bearer ${token}` }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "render_view", arguments: { source: "sales", view: { ...BY_REGION, filters: [{ field: "Region", type: "in", items: [SECRET_VALUE] }] }, format: "csv" } } }) }).then((r) => r.text());
+            await tool(TOKEN);
+            await tool(OTHER_TOKEN);
         } finally {
             await server.close();
         }
         const all = text.join("");
         assert.ok(all.split("\n").filter(Boolean).length >= 5, `${format} ${level}: lines were written`);
+        assert.ok(all.includes("render_view ok"), `${format} ${level}: the MCP call was logged`);
         for (const secret of [TOKEN, OTHER_TOKEN, "session=abc"]) {
             assert.ok(!all.includes(secret), `${format} ${level}: ${secret.slice(0, 8)}... is not logged`);
         }
@@ -359,5 +365,25 @@ test("redaction with OAuth: no token, claim, group or subject on any line, in JS
         }
     } finally {
         await new Promise((resolve) => issuerServer.close(resolve));
+    }
+});
+
+test("a host that serves the handler itself: every answer still names its id in X-Request-Id, the same as its lines; the handler's trustProxy wins", async () => {
+    const { createServerHandler } = await import("pivotkit-server");
+    const dir = workspace();
+    const lines = [];
+    const handler = await createServerHandler({ sources: { sales: { file: "data/sales.csv" } }, http: { enable: ["rest"], trustProxy: true }, baseDir: dir }, { env: {}, stderr: { write: (t) => lines.push(JSON.parse(t)) }, loopback: true });
+    try {
+        const info = { address: "::ffff:192.0.2.44" };
+        const request = new Request("http://localhost/api/v1/sources/describe", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.9" }, body: JSON.stringify({ source: "nope" }) });
+        const answer = await handler.fetch(request, info);
+        const id = answer.headers.get("x-request-id");
+        assert.match(id ?? "", /^[A-Za-z0-9_-]{11}$/);
+        const line = lines.find((l) => l.event === "request");
+        assert.deepEqual([line.requestId, line.address, line.clientAddress, line.status], [id, "192.0.2.44", "203.0.113.9", 404]);
+        const health = await handler.fetch(new Request("http://localhost/healthz"));
+        assert.match(health.headers.get("x-request-id") ?? "", /^[A-Za-z0-9_-]{11}$/);
+    } finally {
+        await handler.close();
     }
 });

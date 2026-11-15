@@ -572,6 +572,8 @@ test("pages: every answer has its own title and heading; an error page and a pro
         assert.equal(gone.status, 410);
         const line = server.log.findLast((l) => l.event === "download" && l.code === "LINK_EXPIRED");
         assert.equal(gone.data.requestId, line?.requestId);
+        // its status and level are the answer's: 410 is a warning, and the answer names the same id
+        assert.deepEqual([line?.status, line?.level, line?.outcome, gone.headers.get("x-request-id")], [410, "warn", "error", line?.requestId]);
         assert.ok(readdirSync(join(dir, "out")).some((n) => n.endsWith("Titles.pivotkit-out.csv")));
     } finally {
         await server.close();

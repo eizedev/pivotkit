@@ -135,6 +135,9 @@ export function requestScopeFor(request, info, { trustProxy = false } = {}) {
             ...(address ? { address } : {}),
             ...(forwarded ? { clientAddress: plainAddress(forwarded) } : {})
         });
+    } else if (trustProxy && request?.headers.has("x-forwarded-for") && !info[SCOPE_KEY].clientAddress) {
+        // made first by a host's serveFetch without trustProxy: the front end's setting wins
+        info[SCOPE_KEY] = Object.freeze({ ...info[SCOPE_KEY], clientAddress: plainAddress(clientAddress(request, "", true)) });
     }
     return info[SCOPE_KEY];
 }

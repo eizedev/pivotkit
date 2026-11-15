@@ -341,7 +341,7 @@ export async function listen(options, runtime) {
         handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
         const downloads = handler.downloads;
         const isDownload = (path) => downloads.handles(path.split("?")[0]);
-        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: (status, path) => (isDownload(path) ? downloads.problem(status) : bodyProblem(status)) }, { host, port, bodyBytes: (request) => (isDownload(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : BODY_BYTES), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onRefused: (entry) => context.log.warn(refusedText(entry), entry) });
+        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: (status, path, info) => (isDownload(path) ? downloads.problem(status) : handler.problem(status, path, info)) }, { host, port, bodyBytes: (request) => (isDownload(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : BODY_BYTES), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onRefused: (entry) => context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler?.close();
         await context.close();

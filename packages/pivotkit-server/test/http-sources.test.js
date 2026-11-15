@@ -943,3 +943,26 @@ test("the kept answer: hidden columns dropped before it is kept, the values only
         await context.close();
     }
 });
+
+test("upstream warnings at the default level: the cause, the backend's name, its status and the time; the backend named, not its address", async () => {
+    const context = await contextOf(optionsOf());
+    try {
+        routes.set("/v1/customers/acme/vms", json({ error: "down for maintenance at db-7.internal" }, 503));
+        await assert.rejects(describe(context, { customer: "acme" }), /SOURCE_UNAVAILABLE|not available/);
+        routes.set("/v1/customers/beta/vms", (_req, res) => {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end("{ not json");
+        });
+        await assert.rejects(describe(context, { customer: "beta" }));
+        const warnings = context.lines.filter((l) => l.level === "warn" && l.cause);
+        const status = warnings.find((l) => l.cause === "http_status");
+        assert.deepEqual([status?.backend, status?.upstreamStatus, typeof status?.upstreamMs, status?.status], ["platform", 503, "number", 503]);
+        const body = warnings.find((l) => l.cause === "bad_body");
+        assert.deepEqual([body?.backend, body?.upstreamStatus, body?.event], ["platform", 200, "warning"]);
+        // the backend by its name: only the status line's address template (the operator's own setting) names the host
+        assert.deepEqual(context.lines.filter((l) => JSON.stringify({ ...l, template: undefined }).includes("api.example.test")), [], "no host name");
+        assert.ok(!JSON.stringify(context.lines).includes("db-7.internal"), "no word of the backend's body");
+    } finally {
+        await context.close();
+    }
+});
