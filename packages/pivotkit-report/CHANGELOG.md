@@ -50,6 +50,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Fixed
 
+- HTML report on a dark screen: the note under a chart cut at its categories ("The chart shows the
+  first 50 of ...") sits on the chart's light card and takes the light theme's muted text (a
+  template's own included); it took the dark theme's light grey there, 2.3:1 on the card
+  ([#370](https://github.com/eizedev/pivotkit/issues/370)).
 - HTML report on a dark screen: `--pk-scale-mid` is `initial` unless `darkTokens` sets it, so a
   host's light middle colour (of `tokens` or of a template's light rule) no longer shows in dark
   mode; the cells run halfway between the dark low and high colours. This changes how an existing

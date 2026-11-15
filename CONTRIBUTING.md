@@ -140,6 +140,9 @@ pages: they link to the site and repeat none of it.
   downloads, themes, layouts) is a Playwright test in `tests/browser/` against the playground and the
   pages of `tests/browser/pages/` (a host page with React from an import map, a shadow root, the web
   component's pages in `pages/element/`); it fails on any console error or warning. A test that measures layout waits until it has settled.
+  The HTML report's colours in both system themes, on screen and in print, and its contrast are
+  measured there too, and Chromium prints it to a PDF that the test reads; a change to the report's
+  stylesheet or tokens runs `npx playwright test tests/browser/report-` before the pull request.
 
 ## Releasing
 

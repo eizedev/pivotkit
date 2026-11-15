@@ -129,7 +129,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   holds the report's colours in both themes to WCAG AA (text on its surfaces, a theme's colour scale
   and data bars as `report-css.js` mixes them, `SCALE_MIX`, `BAR_MIX`); the root's
   `tests/browser/report-theme.spec.js` measures the default report in both colour schemes, on screen
-  and in print, in three engines. `test/golden/`
+  and in print, in three engines, and `tests/browser/report-pdf.spec.js` prints it to a PDF in
+  Chromium. `test/golden/`
   holds CSV, JSON and HTML golden files (`-text` in `.gitattributes`; rebuild with
   `PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report` and review the diff); the SVG is checked by
   its structure, the XLSX by reading it back (#163). ECharts is an optional peer dependency.
@@ -353,8 +354,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   (always light, every colour token set) and Minimal (follows the system), as people read and copy
   them (the docs page `reference/corporate-design.md`); `scripts/examples.js` copies them into the
   CLI's examples, `tests/browser/report-templates.spec.js` checks them in both colour schemes, on
-  screen and in print, in three engines (with `report-contrast.js`, the measure it shares with
-  `report-theme.spec.js`).
+  screen and in print, in three engines (with `report-contrast.js`, the measure and the checks it
+  shares with `report-theme.spec.js`).
 - `examples/reader-plugin/` - a complete reader plugin (JSON Lines) to copy, the example of the docs
   page `reference/write-a-plugin.md`; tested by `tests/reader-plugin.test.js`.
 - `tests/browser/` - Playwright tests in Chromium, Firefox and WebKit of the playground and of
@@ -365,7 +366,13 @@ root `package.json`: `npm run types` and the builds depend on it.
   counts, a page with its own React, the element next to the fixed navigation, loading data under the
   strict CSP with its worker (`import.html`) and with workers refused (`import-noworker.html`);
   `xlsx.html`: pivotkit-xlsx's dist/ reading a picked workbook under the strict CSP; `host.html?import`:
-  loading data on the host page); CI runs them on React 18 and
+  loading data on the host page); the HTML report (`report-*.spec.js`) as a page of its own, in a
+  light and a dark system theme, on screen and with print media emulated: each part's colour (body,
+  header, row header, totals, text, the chart's card), no light and dark mixed, every text 4.5:1 on
+  what is drawn behind it, measured from the computed styles (`report-contrast.js`); and printed to
+  a real PDF in Chromium (`report-pdf.spec.js`, read by `pdf-read.js`, a minimal reader of Chromium's
+  PDFs: page count, text, fill colours). Real Safari and a browser's print dialog are not covered
+  (Playwright's WebKit is not Safari); CI runs them on React 18 and
   React 19 (`tests/react19/`, own lock file), one job per engine and React version. `tests/ci.test.js` checks the pinning (Playwright image = locked `@playwright/test`, exact
   versions, caret ranges for this repository's own packages).
 - `bench/browser/` - the browser benchmark (`npm run bench:browser`): `page.jsx` is `<PivotReport>`

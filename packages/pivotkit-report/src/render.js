@@ -271,7 +271,7 @@ export async function render(view, data, options = {}) {
         };
         const detail = (label, value) => (value ? `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>` : "");
         const markup = {
-            style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), darkTokens: cleanTokens(options.darkTokens ?? {}), chartSurface: theme["--pk-surface"], extra: table.css })}</style>`,
+            style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), darkTokens: cleanTokens(options.darkTokens ?? {}), chartSurface: theme["--pk-surface"], chartMuted: theme["--pk-muted"], extra: table.css })}</style>`,
             chart: chartHtml,
             table: table.html + tableNote,
             details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.dataAsOf, values.dataAsOf)}${detail(texts.rows, number.format(data2.length))}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`

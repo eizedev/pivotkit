@@ -42,17 +42,18 @@ const DARK_SCREEN = Object.freeze({ ...DARK_TOKENS, "--pk-scale-mid": "initial" 
 export const PRINT_WIDE = Object.freeze({ landscape: 8, small: 16 });
 
 /**
- * @param {{ columns: number, tokens?: Record<string, string>, darkTokens?: Record<string, string>, chartSurface?: string, extra?: string }} options
+ * @param {{ columns: number, tokens?: Record<string, string>, darkTokens?: Record<string, string>, chartSurface?: string, chartMuted?: string, extra?: string }} options
  *   columns: the table's; tokens: the host's (cleaned), over the light ones; darkTokens: the host's
  *   (cleaned), over the dark ones (DARK_SCREEN); chartSurface: the light
- *   surface the chart's image is drawn on (tokens.js reportTokens, a template's own included); extra:
+ *   surface the chart's image is drawn on (tokens.js reportTokens, a template's own included);
+ *   chartMuted: the light secondary text of the same theme, for the note on the chart's card; extra:
  *   the cells' colour rules
  */
-export function reportCss({ columns, tokens = {}, darkTokens = {}, chartSurface = { ...LIGHT_TOKENS, ...tokens }["--pk-surface"], extra = "" }) {
+export function reportCss({ columns, tokens = {}, darkTokens = {}, chartSurface = { ...LIGHT_TOKENS, ...tokens }["--pk-surface"], chartMuted = { ...LIGHT_TOKENS, ...tokens }["--pk-muted"], extra = "" }) {
     const font = tokens["font-family"] ?? REPORT_FONT;
     const light = declarations({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, ...tokens });
     // the chart is drawn in the light colours, on a screen in dark mode too: its card keeps the light
-    // surface the chart's image is drawn on
+    // surface the chart's image is drawn on, and the note under a cut chart on it the light muted text
     const page = columns > PRINT_WIDE.landscape ? "size:landscape;" : "";
     return `:root{${light};color-scheme:light dark}
 :root[data-pk-theme="light"]{color-scheme:light}
@@ -79,6 +80,7 @@ body{margin:0;background:var(--pk-surface);color:var(--pk-text);font:var(--pk-fo
 ${darkScreen((root) => `${root} .pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-dark,var(--pk-cell-bg)) ${SCALE_MIX.dark}%,var(--pk-surface))}`)}
 .pk-td.pk-has-bar{background-image:linear-gradient(90deg,color-mix(in srgb,var(--pk-bar-color,var(--pk-chart-1)) ${BAR_MIX}%,transparent) var(--pk-bar),transparent var(--pk-bar));background-repeat:no-repeat;background-size:100% 64%;background-position:left center}
 .pk-report-note{color:var(--pk-muted);margin:8px 0}
+.pk-report-chart .pk-report-note{color:${chartMuted}}
 .pk-report-details{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:16px 0 0;color:var(--pk-muted);font-size:var(--pk-small)}
 .pk-report-details dt{font-weight:var(--pk-weight-strong)}
 .pk-report-details dd{margin:0}
