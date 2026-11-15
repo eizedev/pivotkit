@@ -26,7 +26,7 @@ import { readFile } from "node:fs/promises";
 import { OperationError } from "pivotkit-report/operations";
 import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
-import { guardedFetch } from "./sources/fetch.js";
+import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
 import { claimNamesOf, claimsOf } from "./sources/params.js";
 
 /** The fewest characters of a static token. */
@@ -355,7 +355,8 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             try {
                 const { payload } = await verifyJwt(token, audience);
                 const subject = subjectOf(payload[auth.subjectClaim ?? "sub"]);
-                return { token, clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80), scopes: scopesOf(payload, auth.scopeClaim), expiresAt: /** @type {number} */ (payload.exp), resource, extra: { subject, issuer: typeof payload.iss === "string" ? payload.iss : null, ...(claimsOf(payload, claimNames) ? { claims: claimsOf(payload, claimNames) } : {}) } };
+                const claims = claimsOf(payload, claimNames);
+                return { token, clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80), scopes: scopesOf(payload, auth.scopeClaim), expiresAt: /** @type {number} */ (payload.exp), resource, extra: { subject, issuer: typeof payload.iss === "string" ? payload.iss : null, ...(claims ? { claims } : {}) } };
             } catch (e) {
                 // why a token failed stays here (a message would help someone who tries tokens); the
                 // operator sees it with --log debug: jose's code and the claim, never the token
@@ -437,7 +438,7 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
     const issuer = typeof authInfo.extra?.issuer === "string" ? authInfo.extra.issuer : null;
     const claims = authInfo.extra?.claims && typeof authInfo.extra.claims === "object" ? claimsOf(authInfo.extra.claims, new Set(Object.keys(authInfo.extra.claims)), { verified: true }) : undefined;
     const caller = { scopes, client, profile, subject, issuer, ...(claims ? { claims } : {}) };
-    known.set(caller, { basis: subject && issuer ? [issuer, subject] : null, token: typeof authInfo.token === "string" && authInfo.token ? authInfo.token : null, expiresAt: Number.isSafeInteger(authInfo.expiresAt) ? authInfo.expiresAt : null });
+    known.set(caller, { basis: subject && issuer ? [issuer, subject] : null, token: typeof authInfo.token === "string" && authInfo.token ? authInfo.token : null, expiresAt: typeof authInfo.expiresAt === "number" && Number.isFinite(authInfo.expiresAt) ? Math.floor(authInfo.expiresAt) : null });
     return caller;
 }
 
@@ -499,7 +500,7 @@ export function callerView(caller) {
  * caller's own token expires (subjectExpiresAt, seconds since 1970), which an exchanged token must
  * not outlive.
  * @param {import("./registry.js").Caller} caller
- * @param {{ url: string, clientId: string, clientSecret?: string, audience?: string, resource?: string, scope?: string, signal?: AbortSignal, timeMs?: number, maxBytes?: number, allowPrivate?: boolean, allowIpLiterals?: boolean, fetch?: typeof guardedFetch }} request  fetch: the guardedFetch to use (sources/auth.js passes the one its tests replace)
+ * @param {{ url: string, clientId: string, clientSecret?: string, audience?: string, resource?: string, scope?: string, signal?: AbortSignal, timeMs?: number, maxBytes?: number, allowPrivate?: boolean, allowIpLiterals?: boolean, fetch?: typeof guardedFetch }} request  fetch: a guardedFetch (createGuardedFetch's: sources/auth.js passes httpMeans.fetch, which the tests replace with one trusting their certificate); anything else is refused
  * @returns {Promise<import("./sources/fetch.js").GuardedResponse & { subjectExpiresAt: number | null }>}
  */
 export async function exchangeTokenFor(caller, request) {
@@ -520,6 +521,9 @@ export async function exchangeTokenFor(caller, request) {
         headers.authorization = `Basic ${Buffer.from(`${encodeURIComponent(request.clientId)}:${encodeURIComponent(request.clientSecret)}`).toString("base64")}`;
     } else {
         form.set("client_id", request.clientId);
+    }
+    if (request.fetch !== undefined && !isGuardedFetch(request.fetch)) {
+        throw new TypeError("exchangeTokenFor sends a person's token through a guardedFetch only");
     }
     const answer = await (request.fetch ?? guardedFetch)(request.url, { method: "POST", headers, body: form.toString(), ...(request.signal ? { signal: request.signal } : {}), ...(request.timeMs ? { timeMs: request.timeMs } : {}), ...(request.maxBytes ? { maxBytes: request.maxBytes } : {}), ...(request.allowPrivate !== undefined ? { allowPrivate: request.allowPrivate } : {}), ...(request.allowIpLiterals ? { allowIpLiterals: true } : {}) });
     return { ...answer, subjectExpiresAt: entry.expiresAt ?? null };

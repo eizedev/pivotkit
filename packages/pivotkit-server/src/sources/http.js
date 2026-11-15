@@ -366,6 +366,10 @@ export async function loadHttp(settings, values, how) {
         how.log.debug(`the source ${id}: GET ${loggedPath(template, extra)} answered ${answer.status}`, { source: id, status: answer.status, requestId: requestId() });
         if (answer.status < 200 || answer.status > 299) {
             how.log.warn(`the source ${id}: the backend answered ${answer.status}`, { source: id, status: answer.status, template: template.text });
+            if (answer.status === 401 && settings.auth?.kind === "header") {
+                // a caller of a source with params reads DATA_NOT_AVAILABLE: this line says where to look
+                how.log.warn(`the source ${id}: the backend answered 401 to the header from ${settings.auth.at}.value: check the secret behind it`, { source: id, requestId: requestId() });
+            }
             throw backendAnswer(answer.status, how.declared, values, answer.headers);
         }
         if (settings.format === "csv") {

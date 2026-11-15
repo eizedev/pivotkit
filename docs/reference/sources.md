@@ -261,10 +261,12 @@ used, so a rotated file or variable works without a restart.
 | `tokenExchange.maxAgeSeconds` | 300 | The longest an exchanged token is reused, 1 to 86400 |
 | `.intranet` (both OAuth kinds) | `false` | The token endpoint may be on a loopback or private address |
 
-A token exchange needs `auth.mode: "oauth"` (see [sign-in](mcp.md#oauth)), and works only for a
-signed-in person: a caller whose token has a subject (`auth.subjectClaim`). Without one (a static
-token, no sign-in, stdio, an OAuth token without a subject) the source is not listed and answers
-`SOURCE_NOT_FOUND`. A header and client credentials work for every caller, also over stdio.
+A token exchange needs `auth.mode: "oauth"` (see [sign-in](mcp.md#oauth)); with `auth.mode`
+`token` or `none` the server does not start with one. It works only for a signed-in person: a caller
+whose token has a subject (`auth.subjectClaim`). A caller whose token has none, and a stdio session
+(which has no sign-in), does not see the source: it is not listed and answers `SOURCE_NOT_FOUND`,
+and the log has an info line naming the source for the operator. A header and client credentials
+work for every caller, also over stdio.
 
 **The person's token goes to the token endpoint only.** pivotkit sends the caller's own access token
 as `subject_token` to the token endpoint, and never to a backend or to an address taken from an
@@ -292,11 +294,20 @@ tokens", Authorization, Token Handling; Security Best Practices, Token Passthrou
 | --- | --- | --- |
 | The token endpoint refused (4xx), e.g. `invalid_client`, `invalid_grant` | `SOURCE_UNAVAILABLE` "the source's backend refused pivotkit's access; ..." | false |
 | A secret is missing, the token endpoint cannot be reached by its address rules, its answer holds no bearer token | `SOURCE_UNAVAILABLE` "the source is not set up correctly; ..." | false |
-| The token endpoint failed (5xx, 429), a timeout, a network error | `SOURCE_UNAVAILABLE` "the source is not available right now; ..." | false |
+| The token endpoint failed (5xx, 429), its own time limit (10 s), a network error | `SOURCE_UNAVAILABLE` "the source is not available right now; ..." | false |
+| The source's `timeMs` ended while pivotkit still waited for a token | `SOURCE_UNAVAILABLE` "the source is not available right now; ...", or the same caller's last good data with `stale` | true |
 
 Last good data never stands in after a refused or failed token request (it drops what was kept).
-When the source's `timeMs` ends while pivotkit still waits for a token, the source's time limit
-answers as for any slow load, and the same caller's last good data may stand in. The log names the token endpoint's status and
+When the source's `timeMs` ends first, the source's time limit answers as for any slow load. A
+failed token request is kept 5 s: calls in that time get the same answer without a new request (the
+log has an info line "token request failed (cached)" with each call's request id). A secret that
+cannot be read is a warning in the log when the server starts, and a warning about the sign-in's
+settings is logged at most once a minute, not on every call.
+
+A backend that answers 401 to a source with parameters gives the caller `DATA_NOT_AVAILABLE`
+("nothing you may see for ..."), the same answer as for a value it does not know, so a wrong secret
+looks like an empty answer to the caller: look at the log's warning first. With a header sign-in
+the warning names the secret behind it. The log names the token endpoint's status and
 its RFC 6749 `error` code only (`error_description` is dropped), and a missing secret by its
 reference; never a secret or a token.
 
@@ -363,14 +374,32 @@ current documentation of your provider's version, as these settings change.
     ```
 
     The token file is the pod's service account token, for example a projected
-    `serviceAccountToken` volume. `check-config` warns when other users of the machine can read it;
-    check that the file's mode and owner fit the user the server runs as.
+    `serviceAccountToken` volume. Such files are usually readable by group and others (Kubernetes'
+    default mode for a projected volume is 0644), so `check-config`'s warning about a secret file
+    other users can read is expected there; the pod has no other users.
+
+    With the provider's client secret instead, Authentik issues the token for a service account it
+    makes itself, `ak-<provider name>-client_credentials`; scopes the backend needs come from scope
+    mappings on the provider, asked for in `scope` (Authentik documentation, "Client credentials").
+    Authentik's page shows the secret sent in the form body; pivotkit sends it as HTTP Basic
+    credentials (`client_secret_basic`), so check that your Authentik version takes those.
+
+    ```json
+    "auth": { "clientCredentials": {
+      "tokenUrl": "https://auth.example.com/application/o/token/",
+      "clientId": "pivotkit-backend",
+      "clientSecret": { "file": "secrets/backend-secret" },
+      "scope": "platform:read" } }
+    ```
 
 === "Keycloak: token exchange"
 
     Keycloak's standard token exchange: switch on **Standard token exchange** on pivotkit's client,
     which must be confidential and in the same realm as the backend's client. The person's token must
-    name pivotkit's client in its `aud`, the `audience` is the backend's client id, and Keycloak does
+    hold both pivotkit's resource, which pivotkit checks (`auth.resource`, put there by the audience
+    mapper of the [Keycloak sign-in](mcp.md#oauth)), and pivotkit's client id, since Keycloak
+    exchanges a token only for a client in its `aud` (a second audience mapper); the `audience` is
+    the backend's client id, and Keycloak does
     not take the `resource` parameter (Keycloak documentation, "Configuring and using token
     exchange"). Without `tokenUrl`, pivotkit takes the token endpoint from the metadata of
     `auth.issuer` (the realm).
@@ -407,7 +436,9 @@ HTTP sources (1):
 
 The `backend auth` line says how the sign-in is made and where its secrets come from (a variable's
 name, "a file"), never a value or its length. A variable that is not set or a file that cannot be
-read is a `PROBLEM`; a secret file other users of the machine can read is a warning.
+read is a `PROBLEM`; a secret file other users of the machine can read is a warning, as are a token
+endpoint on a loopback or private address without `intranet: true`, and a token exchange's
+`tokenUrl` on another host than `auth.issuer` (the person's token goes there).
 
 `pivotkit-server check-source <id> [--param name=value ...] [--config file]` loads a source once as
 the server would, without an AI client, and prints each page's status, content type and size, the

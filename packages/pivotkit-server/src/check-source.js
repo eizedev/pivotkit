@@ -154,6 +154,10 @@ export async function checkSource(options, id, params, means = {}) {
         if (signal.aborted) {
             lines.push(`  the load took longer than ${settings.timeMs} ms (timeMs)`);
         }
+        const refusedClient = trace.auth && (trace.auth.error === "invalid_client" || trace.auth.error === "unauthorized_client" || (trace.auth.kind === "clientCredentials" && trace.auth.status === 401));
+        if (refusedClient && settings.auth && settings.auth.kind !== "header") {
+            lines.push(`  check ${settings.auth.at}.clientId and ${settings.auth.kind === "clientCredentials" && settings.auth.assertion ? "assertion" : "clientSecret"}`);
+        }
         const answer = e instanceof OperationError ? e : sourceFailure(e);
         const text = answer.status >= 500 ? serverTextOf(answer.code, /** @type {any} */ (answer).reason) : answer.message;
         lines.push(`  a caller gets: ${answer.code}: ${text}${e instanceof SourceError && e.status !== undefined ? ` (the backend answered ${e.status})` : ""}`, "FAILED");

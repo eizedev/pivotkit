@@ -16,12 +16,13 @@ import { createServer } from "node:https";
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { callerOf, checkConfig, createContext, present, serverTextOf, validateOptions } from "pivotkit-server";
-import { createAuthCore } from "../src/auth.js";
+import { createAuthCore, exchangeTokenFor } from "../src/auth.js";
 import { checkSource } from "../src/check-source.js";
 import { authMeans, backendHeaders, tokenCache, TOKEN_LIMITS } from "../src/sources/auth.js";
 import { httpSettingsOf } from "../src/options/http.js";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { httpMeans } from "../src/sources/http.js";
+import { withRequestId } from "../src/request-id.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { call, restServer, tempDir } from "./helpers.js";
 
@@ -307,7 +308,7 @@ test("a token endpoint's refusal: SOURCE_UNAVAILABLE that is not retryable, only
         const error = await failure(describe(context));
         assert.deepEqual([error.code, error.reason, error.details.retryable], ["SOURCE_UNAVAILABLE", "refused", false]);
         assert.equal(error.stale, undefined);
-        assert.ok(context.lines.some((l) => l.event === "warning" && l.message === "the source vms: the token endpoint answered 401 (invalid_client)"));
+        assert.ok(context.lines.some((l) => l.event === "warning" && l.message === "the source vms: the token endpoint answered 401 (invalid_client) for httpSources.backends.platform.auth.clientCredentials"));
         // kept 5 s: no second request
         const before = asked.filter((a) => a.path === "/token").length;
         assert.equal((await failure(describe(context))).code, "SOURCE_UNAVAILABLE");
@@ -324,7 +325,7 @@ test("a token endpoint's refusal: SOURCE_UNAVAILABLE that is not retryable, only
     try {
         const error = await failure(describe(other));
         assert.deepEqual([error.code, error.reason, error.details.retryable], ["SOURCE_UNAVAILABLE", undefined, false]);
-        assert.ok(other.lines.some((l) => l.message === "the source vms: the token endpoint answered 503"));
+        assert.ok(other.lines.some((l) => l.message === "the source vms: the token endpoint answered 503 for httpSources.backends.platform.auth.clientCredentials"));
         clean("the log", JSON.stringify(other.lines));
     } finally {
         await other.close();
@@ -346,7 +347,7 @@ test("REST and MCP: a refused sign-in answers with pivotkit's fixed text; no sec
         clean("the REST answer", JSON.stringify(rest.data));
         clean("the MCP answer", mcp);
         clean("the log", JSON.stringify(s.log));
-        assert.ok(s.log.some((l) => l.message === "the source vms: the token endpoint answered 400 (invalid_grant)"));
+        assert.ok(s.log.some((l) => l.message === "the source vms: the token endpoint answered 400 (invalid_grant) for httpSources.backends.platform.auth.clientCredentials"));
     } finally {
         await client.close();
         await s.close();
@@ -763,4 +764,137 @@ test("the token cache holds at most TOKEN_LIMITS.entries tokens, the oldest out 
     const before = asked.length;
     await backendHeaders(auth, person("p0"), { id: "vms", log: quiet, fetch: httpMeans.fetch });
     assert.equal(asked.length, before + 1, "the oldest was dropped");
+});
+
+test("review: the quick-start page's titles leave out sources only a signed-in person can use", async () => {
+    const file = secretFile(SECRET);
+    const options = { ...optionsOf({ tokenExchange: { tokenUrl: tokenUrl("/xchg"), audience: "a", clientId: "p", clientSecret: { file }, intranet: true } }, { auth: OAUTH }), sources: { ...optionsOf().sources, open: { http: { url: `${backendUrl()}/vms`, intranet: true, rows: "/items" }, policy: POLICY }, claimed: { http: { url: `${backendUrl()}/c/{customer}`, intranet: true }, params: { customer: { type: "string", required: true, claim: "customer", pattern: "^[a-z]+$" } }, policy: POLICY } } };
+    const context = await contextOf(options);
+    try {
+        // vms (a token exchange through its backend) and claimed (a claim) are left out
+        assert.deepEqual(context.registry.titles().map((t) => t.id), ["open"]);
+    } finally {
+        await context.close();
+    }
+});
+
+test("review: an exchanged token never outlives a person's token whose exp is fractional, and is not kept when its exp is unknown", async () => {
+    routes.set("/xchg", tokenEndpoint());
+    routes.set("/v1/vms", json({ items: VMS }));
+    const file = secretFile(SECRET);
+    const context = await contextOf(optionsOf({ tokenExchange: { tokenUrl: tokenUrl("/xchg"), audience: "a", clientId: "p", clientSecret: { file }, intranet: true } }, { auth: OAUTH }));
+    try {
+        const exp = Date.now() / 1000 + 1.9;
+        await describe(context, person("ana", { expiresAt: exp }));
+        await sleep(Math.max(0, exp * 1000 - Date.now()) + 200);
+        await describe(context, person("ana"));
+        assert.equal(asked.filter((a) => a.path === "/xchg").length, 2, "a fractional exp still bounds the exchanged token");
+        tokenCache.clear();
+        asked = [];
+        await describe(context, person("ben", { expiresAt: null }));
+        await describe(context, person("ben", { expiresAt: null }));
+        assert.equal(asked.filter((a) => a.path === "/xchg").length, 2, "nothing kept without the person's exp");
+    } finally {
+        await context.close();
+    }
+});
+
+test("review: a Bearer answer whose issued_token_type is not an access token is refused; the issuer's metadata is read once for callers at once", async () => {
+    routes.set("/v1/vms", json({ items: VMS }));
+    const file = secretFile(SECRET);
+    routes.set("/token", tokenEndpoint({ issued_token_type: "urn:ietf:params:oauth:token-type:refresh_token" }));
+    const cc = await contextOf(optionsOf({ clientCredentials: { tokenUrl: tokenUrl(), clientId: "p", clientSecret: { file }, intranet: true } }));
+    try {
+        assert.deepEqual([(await failure(describe(cc))).reason], ["setup"]);
+    } finally {
+        await cc.close();
+    }
+    routes.set("/oauth/token", tokenEndpoint());
+    const issuer = `https://auth.example.test:${port}/`;
+    const original = authMeans.discover;
+    let reads = 0;
+    authMeans.discover = async () => {
+        reads++;
+        await sleep(100);
+        return { issuer, token_endpoint: `https://auth.example.test:${port}/oauth/token` };
+    };
+    try {
+        const context = await contextOf(optionsOf({ tokenExchange: { audience: "a", clientId: "p", clientSecret: { file }, intranet: true } }, { auth: { ...OAUTH, issuer } }));
+        try {
+            await Promise.all(["a1", "a2", "a3"].map((p) => describe(context, person(p))));
+            assert.equal(reads, 1);
+        } finally {
+            await context.close();
+        }
+    } finally {
+        authMeans.discover = original;
+    }
+});
+
+test("review: the log: a setup warning once per interval, a cached failure with the request id, a hidden person-bound source, a backend 401 to a static header, unreadable secrets at start", async () => {
+    routes.set("/v1/vms", json({}, 401));
+    const context = await contextOf(optionsOf({ header: { value: { env: "PIVOTKIT_TEST_API_KEY" } } }));
+    try {
+        // at start: the secret that cannot be read, by its reference
+        assert.ok(context.lines.some((l) => l.event === "warning" && /httpSources\.backends\.platform\.auth\.header\.value: \$PIVOTKIT_TEST_API_KEY is not set/.test(l.message)), "start warning");
+        const before = context.lines.length;
+        await failure(describe(context));
+        await failure(describe(context));
+        const said = context.lines.slice(before).filter((l) => /cannot be made/.test(l.message ?? ""));
+        assert.equal(said.length, 1, "once per interval");
+        process.env.PIVOTKIT_TEST_API_KEY = HEADER_SECRET;
+        await failure(describe(context));
+        assert.ok(context.lines.some((l) => l.event === "warning" && /answered 401 to the header from httpSources\.backends\.platform\.auth\.header\.value: check the secret/.test(l.message)));
+        clean("the log", JSON.stringify(context.lines));
+    } finally {
+        await context.close();
+    }
+    routes.set("/v1/vms", json({ items: VMS }));
+    routes.set("/token", json({ error: "invalid_client" }, 401));
+    const file = secretFile(SECRET);
+    const cached = await contextOf(optionsOf({ clientCredentials: { tokenUrl: tokenUrl(), clientId: "p", clientSecret: { file }, intranet: true } }));
+    try {
+        await failure(describe(cached));
+        await failure(withRequestId("req-cached-1", () => describe(cached)));
+        assert.ok(cached.lines.some((l) => l.event === "info" && l.message === "the source vms: token request failed (cached)" && l.requestId === "req-cached-1"));
+    } finally {
+        await cached.close();
+    }
+    const bound = await contextOf(optionsOf({ tokenExchange: { tokenUrl: tokenUrl("/xchg"), audience: "a", clientId: "p", clientSecret: { file }, intranet: true } }, { auth: OAUTH }));
+    try {
+        const noSubject = callerOf("oauth", { token: PERSON_TOKEN, clientId: "claude", scopes: [], expiresAt: 0, extra: { subject: null, issuer: OAUTH.issuer } });
+        const error = await failure(describe(bound, noSubject));
+        assert.equal(error.code, "SOURCE_NOT_FOUND");
+        assert.ok(bound.lines.some((l) => l.event === "info" && /only a signed-in person can use .* the caller's token has no subject/.test(l.message) && l.source === "vms"));
+    } finally {
+        await bound.close();
+    }
+});
+
+test("review: check-config warns of a token endpoint off the issuer's origin and of one on a private address without intranet; check-source names the client settings on a refusal", async () => {
+    const options = {
+        auth: { ...OAUTH, issuer: "https://login.example.test/" },
+        sources: {
+            other: { http: { url: "https://api.example.test/x", auth: { tokenExchange: { tokenUrl: "https://elsewhere.example.test/token", audience: "a", clientId: "p", clientSecret: { env: "PIVOTKIT_TEST_API_KEY" } } } }, policy: POLICY },
+            local: { http: { url: "https://api.example.test/y", auth: { clientCredentials: { tokenUrl: "https://localhost/token", clientId: "p", clientSecret: { env: "PIVOTKIT_TEST_API_KEY" } } } }, policy: POLICY }
+        }
+    };
+    const { text } = await checkConfig(options, { env: { PIVOTKIT_TEST_API_KEY: SECRET } });
+    assert.match(text, /warning: sources\.other\.http\.auth\.tokenExchange\.tokenUrl: the person's token goes to elsewhere\.example\.test, not to the issuer's login\.example\.test/);
+    assert.match(text, /warning: sources\.local\.http\.auth\.clientCredentials\.tokenUrl: localhost is a loopback or private address, which is refused unless intranet: true is set there/);
+    routes.set("/v1/vms", json({ items: VMS }));
+    routes.set("/token", json({ error: "invalid_client" }, 401));
+    const file = secretFile(SECRET);
+    const out = await checkSource(optionsOf({ clientCredentials: { tokenUrl: tokenUrl(), clientId: "p", clientSecret: { file }, intranet: true } }), "vms", {}, { fetch: httpMeans.fetch });
+    assert.match(out.text, /check httpSources\.backends\.platform\.auth\.clientCredentials\.clientId and clientSecret/);
+});
+
+test("review: exchangeTokenFor sends a person's token through a guardedFetch only", async () => {
+    let called = false;
+    const plain = async () => {
+        called = true;
+        return { status: 200, headers: {}, body: new Uint8Array() };
+    };
+    await assert.rejects(exchangeTokenFor(person("ana"), { url: tokenUrl("/xchg"), clientId: "p", clientSecret: "s", fetch: /** @type {any} */ (plain) }), /through a guardedFetch only/);
+    assert.equal(called, false);
 });

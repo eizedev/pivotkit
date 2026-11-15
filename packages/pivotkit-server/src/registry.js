@@ -52,7 +52,7 @@ export const holds = (caller, scopes) => caller.scopes === null || (scopes ?? []
  * The registry of a server's sources.
  * @param {import("./config.js").ServerOptions} options
  */
-export async function createRegistry(options) {
+export async function createRegistry(options, { log = null } = {}) {
     const limits = serverLimitsOf(options);
     const files = options.files ?? {};
     const allow = await allowedDirs((files.allowDirs ?? []).map((d) => pathOf(options, d)), options.baseDir ?? process.cwd());
@@ -64,6 +64,12 @@ export async function createRegistry(options) {
     const bound = new Set([...sources.entries()].filter(([, s]) => personBound(options, s)).map(([id]) => id));
     /** Whether a caller may use a source: its scopes, and a person for a bound one. */
     const usable = (caller, id, source) => holds(caller, source.scopes) && (!bound.has(id) || isPerson(caller));
+    /** The operator's line when a caller without a subject asks for such a source (the caller reads "not found"). */
+    const hidden = (caller, id) => {
+        if (bound.has(id) && holds(caller, sources.get(id)?.scopes) && !isPerson(caller)) {
+            log?.info(`a source only a signed-in person can use was asked for, and the caller's token has no subject (auth.subjectClaim); it answered "not found"`, { source: id });
+        }
+    };
     /** The profile a caller's policy takes, if any. */
     const profileOf = (caller) => (caller.profile && Object.hasOwn(options.policy?.profiles ?? {}, caller.profile) ? options.policy?.profiles?.[caller.profile] : undefined);
     // the operator's sources by their files' real paths: a file: path to one of them is that source
@@ -88,6 +94,7 @@ export async function createRegistry(options) {
     function sourceOf(id, caller, how = {}) {
         const source = sources.get(id);
         if (!source || !usable(caller, id, source)) {
+            hidden(caller, id);
             notFound(id, caller, how);
         }
         return source;
@@ -193,7 +200,8 @@ export async function createRegistry(options) {
 
         /** The ids of every source (the quick-start page, --check-config). */
         ids: () => [...sources.keys()],
-        titles: () => [...sources.entries()].map(([id, s]) => ({ id, title: s.title ?? id, scopes: s.scopes ?? [] })),
+        // the quick-start page has no caller: a source only a signed-in person can use is not there
+        titles: () => [...sources.entries()].filter(([id]) => !bound.has(id)).map(([id, s]) => ({ id, title: s.title ?? id, scopes: s.scopes ?? [] })),
 
         /** For --check-config: each source's file, whether it exists, its fields by level, and whether it is closed (a field not "show" for someone). */
         async check() {

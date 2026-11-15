@@ -47,7 +47,9 @@ export const TOKEN_LIMITS = Object.freeze({
     /** the most tokens (and failures) kept */
     entries: 1000,
     /** how long the issuer's token_endpoint is kept, in ms */
-    metadataMs: 3_600_000
+    metadataMs: 3_600_000,
+    /** a warning about the sign-in's settings is logged at most once in this time, in ms */
+    warnEveryMs: 60_000
 });
 
 /** An RFC 6749 error code as the log may hold it. */
@@ -76,17 +78,34 @@ export const authMeans = { discover };
  * @typedef {{ kind: string, tokenUrl?: string, status?: number, error?: string, scope?: string, expiresIn?: number, audienceDiffers?: boolean, notes?: string[] }} AuthTrace
  */
 
+/** When each setup warning was last logged, by its text: once per TOKEN_LIMITS.warnEveryMs. */
+const warned = new Map();
+
 /**
- * A warning of the sign-in: to the log, and to check-source's trace.
+ * A warning of the sign-in: to the log, and to check-source's trace. A warning about the settings
+ * (`once`) is logged once per TOKEN_LIMITS.warnEveryMs, not on every request.
  * @param {{ id: string, log: any, trace?: AuthTrace }} how
  * @param {string} text  without the source's name
  * @param {Record<string, unknown>} [fields]
+ * @param {{ once?: boolean }} [more]
  */
-function warn(how, text, fields = {}) {
-    how.log.warn(`the source ${how.id}: ${text}`, { source: how.id, requestId: requestId(), ...fields });
+function warn(how, text, fields = {}, more = {}) {
     if (how.trace) {
         (how.trace.notes ??= []).push(text);
     }
+    const line = `the source ${how.id}: ${text}`;
+    if (more.once && !how.trace) {
+        const last = warned.get(line);
+        if (last !== undefined && Date.now() - last < TOKEN_LIMITS.warnEveryMs) {
+            return;
+        }
+        warned.delete(line);
+        warned.set(line, Date.now());
+        if (warned.size > TOKEN_LIMITS.entries) {
+            warned.delete(/** @type {string} */ (warned.keys().next().value));
+        }
+    }
+    how.log.warn(line, { source: how.id, requestId: requestId(), ...fields });
 }
 
 /** @typedef {{ token: string, until: number } | { error: Error, until: number }} Kept */
@@ -97,6 +116,8 @@ const kept = new Map();
 const inflight = new Map();
 /** @type {Map<string, { url: string, until: number } | { error: Error, until: number }>} each issuer's token_endpoint */
 const endpoints = new Map();
+/** @type {Map<string, Promise<string>>} the issuers' metadata being read */
+const reading = new Map();
 
 /** The token cache, for tests: its size and a way to empty it. */
 export const tokenCache = Object.freeze({
@@ -104,6 +125,7 @@ export const tokenCache = Object.freeze({
     clear() {
         kept.clear();
         endpoints.clear();
+        warned.clear();
     }
 });
 
@@ -149,11 +171,17 @@ function until(promise, signal) {
  * @param {string} key
  * @param {() => Promise<{ token: string, until: number }>} get  until: when it stops being used (ms)
  * @param {AbortSignal | undefined} signal
+ * @param {{ id: string, log: any }} how
  */
-function tokenFor(key, get, signal) {
+function tokenFor(key, get, signal, how) {
     const hit = kept.get(key);
     if (hit && hit.until > Date.now()) {
-        return "error" in hit ? Promise.reject(hit.error) : Promise.resolve(hit.token);
+        if ("error" in hit) {
+            // the failure's own line was logged when it happened; this caller's request id is here
+            how.log.info(`the source ${how.id}: token request failed (cached)`, { source: how.id, requestId: requestId() });
+            return Promise.reject(hit.error);
+        }
+        return Promise.resolve(hit.token);
     }
     let pending = inflight.get(key);
     if (!pending) {
@@ -194,7 +222,7 @@ async function secretOf(ref, auth, how, key) {
         return await readSecret(ref, { baseDir: auth.baseDir });
     } catch (e) {
         if (e instanceof SecretError) {
-            warn(how, `the backend's sign-in cannot be made: ${auth.at}.${key}: ${e.message}`);
+            warn(how, `the backend's sign-in cannot be made: ${auth.at}.${key}: ${e.message}`, {}, { once: true });
             throw signInFailure("setup");
         }
         throw e;
@@ -205,7 +233,7 @@ async function secretOf(ref, auth, how, key) {
  * The token endpoint's answer read: an access token of the bearer type and how long it lasts. A
  * refusal logs its RFC 6749 error code only.
  * @param {import("./fetch.js").GuardedResponse} answer
- * @param {{ id: string, log: any, trace?: AuthTrace, audience: string | null, exchange: boolean }} how
+ * @param {{ id: string, log: any, trace?: AuthTrace, audience: string | null, exchange: boolean, at: string }} how
  * @returns {{ token: string, expiresIn: number }}
  */
 function tokenAnswer(answer, how) {
@@ -224,14 +252,16 @@ function tokenAnswer(answer, how) {
         if (how.trace && code) {
             how.trace.error = code;
         }
-        warn(how, `the token endpoint answered ${answer.status}${code ? ` (${code})` : ""}`, { status: answer.status });
+        warn(how, `the token endpoint answered ${answer.status}${code ? ` (${code})` : ""} for ${how.at}`, { status: answer.status });
         // a refusal (4xx) is pivotkit's access refused; the endpoint failing (5xx) is the source not available
         throw signInFailure(answer.status >= 400 && answer.status < 500 && answer.status !== 429 ? "refused" : undefined);
     }
     const type = typeof body?.token_type === "string" ? body.token_type.toLowerCase() : "";
-    const bearer = type === "bearer" || (how.exchange && type === "n_a" && body?.issued_token_type === ACCESS_TOKEN_TYPE);
+    // issued_token_type, when given, must be an access token's (RFC 8693 2.2.1), for a Bearer answer too
+    const issued = body?.issued_token_type;
+    const bearer = (issued === undefined || issued === ACCESS_TOKEN_TYPE) && (type === "bearer" || (how.exchange && type === "n_a" && issued === ACCESS_TOKEN_TYPE));
     if (!body || typeof body.access_token !== "string" || !TOKEN_TEXT.test(body.access_token) || !bearer) {
-        warn(how, `the token endpoint's answer holds no bearer access token (access_token, token_type Bearer)`);
+        warn(how, `the token endpoint's answer holds no bearer access token (access_token, token_type Bearer) for ${how.at}`, {}, { once: true });
         throw signInFailure("setup");
     }
     const given = body.expires_in;
@@ -305,11 +335,26 @@ async function issuerTokenUrl(issuer, how) {
         }
         return hit.url;
     }
+    // one read for the callers that come at once
+    let pending = reading.get(issuer);
+    if (!pending) {
+        pending = readTokenUrl(issuer, how).finally(() => reading.delete(issuer));
+        reading.set(issuer, pending);
+    }
+    return pending;
+}
+
+/**
+ * Reads the issuer's metadata for its token endpoint and keeps the answer (or the failure).
+ * @param {string} issuer
+ * @param {{ id: string, log: any }} how
+ */
+async function readTokenUrl(issuer, how) {
     try {
         const metadata = await authMeans.discover(issuer);
         const url = typeof metadata?.token_endpoint === "string" && URL.canParse(metadata.token_endpoint) ? new URL(metadata.token_endpoint) : null;
         if (!url || url.protocol !== "https:" || url.origin !== new URL(issuer).origin) {
-            warn(how, `the issuer's metadata names no https:// token_endpoint on the issuer's origin; set tokenExchange.tokenUrl`);
+            warn(how, `the issuer's metadata names no https:// token_endpoint on the issuer's origin; set tokenExchange.tokenUrl`, {}, { once: true });
             throw signInFailure("setup");
         }
         endpoints.set(issuer, { url: url.href, until: Date.now() + TOKEN_LIMITS.metadataMs });
@@ -355,7 +400,7 @@ async function clientCredentials(auth, how) {
     } catch (e) {
         throw requestFailure(e, how);
     }
-    const got = tokenAnswer(answer, { ...how, audience: auth.audience, exchange: false });
+    const got = tokenAnswer(answer, { ...how, audience: auth.audience, exchange: false, at: auth.at });
     return { token: got.token, until: Date.now() + (got.expiresIn - TOKEN_LIMITS.earlySeconds) * 1000 };
 }
 
@@ -378,10 +423,10 @@ async function tokenExchange(auth, caller, how) {
     } catch (e) {
         throw requestFailure(e, how);
     }
-    const got = tokenAnswer(answer, { ...how, audience: auth.audience, exchange: true });
+    const got = tokenAnswer(answer, { ...how, audience: auth.audience, exchange: true, at: auth.at });
     const now = Date.now();
-    // never past the person's own token, never longer than maxAgeSeconds
-    const ends = [now + (got.expiresIn - TOKEN_LIMITS.earlySeconds) * 1000, now + auth.maxAgeSeconds * 1000, ...(answer.subjectExpiresAt !== null ? [answer.subjectExpiresAt * 1000] : [])];
+    // never past the person's own token (unknown: used for this request only), never longer than maxAgeSeconds
+    const ends = [now + (got.expiresIn - TOKEN_LIMITS.earlySeconds) * 1000, now + auth.maxAgeSeconds * 1000, answer.subjectExpiresAt !== null ? answer.subjectExpiresAt * 1000 : 0];
     return { token: got.token, until: Math.min(...ends) };
 }
 
@@ -425,7 +470,7 @@ export async function backendHeaders(auth, caller, how) {
     if (auth.kind === "header") {
         const value = `${auth.prefix}${await secretOf(auth.value, auth, means, "value")}`;
         if (!HEADER_VALUE.test(value)) {
-            warn(how, `${auth.at}.value is no header value (a character outside Latin-1, or longer than 16 KiB)`);
+            warn(how, `${auth.at}.value is no header value (a character outside Latin-1, or longer than 16 KiB)`, {}, { once: true });
             throw signInFailure("setup");
         }
         return { [auth.name]: value };
@@ -434,7 +479,7 @@ export async function backendHeaders(auth, caller, how) {
     if (key === null) {
         throw new OperationError("NOT_ALLOWED", "this source needs a signed-in person (an OAuth token with a subject)");
     }
-    const token = await tokenFor(key, () => (auth.kind === "clientCredentials" ? clientCredentials(auth, means) : tokenExchange(auth, caller, means)), how.signal);
+    const token = await tokenFor(key, () => (auth.kind === "clientCredentials" ? clientCredentials(auth, means) : tokenExchange(auth, caller, means)), how.signal, means);
     return { authorization: `Bearer ${token}` };
 }
 
@@ -530,4 +575,57 @@ export async function probeExchange(auth, how) {
     // a token endpoint asked without a subject token answers 400 with an OAuth error; anything else
     // (a wrong path's 404, a server error) is not one
     return { reached: answer.status === 400 && Boolean(code), clientRefused };
+}
+
+/**
+ * The secrets of a sign-in that cannot be read now, each with where it is configured and why (the
+ * reference, never a value): check-config's PROBLEM lines and the warning at start.
+ * @param {import("../options/http.js").BackendAuth} auth
+ * @param {{ baseDir?: string }} options
+ * @param {Record<string, string | undefined>} env
+ * @returns {Promise<Array<{ at: string, ref: import("../options/http.js").SecretRef, problem: string | null }>>}  every secret, problem null when it reads
+ */
+export async function secretsOf(auth, options, env) {
+    /** @type {Array<[string, any]>} */
+    const refs = auth.kind === "header" ? [["value", auth.value]] : auth.kind === "clientCredentials" ? [["clientSecret", auth.clientSecret], ["assertion", auth.assertion]] : [["clientSecret", auth.clientSecret]];
+    const out = [];
+    for (const [key, ref] of refs) {
+        if (!ref) {
+            continue;
+        }
+        let problem = null;
+        try {
+            await readSecret(ref, options, env);
+        } catch (e) {
+            if (!(e instanceof SecretError)) {
+                throw e;
+            }
+            problem = e.message;
+        }
+        out.push({ at: `${auth.at}.${key}`, ref, problem });
+    }
+    return out;
+}
+
+/**
+ * At start: a warning for each sign-in secret that cannot be read (each sign-in once), so the
+ * operator sees it before the first caller does.
+ * @param {import("../config.js").ServerOptions} options
+ * @param {any} log
+ * @param {(source: any) => import("../options/http.js").BackendAuth | null} authOf  a source's compiled sign-in
+ */
+export async function warnUnreadableSecrets(options, log, authOf) {
+    const seen = new Set();
+    for (const source of Object.values(options.sources ?? {})) {
+        const auth = source?.http && options.httpSources?.enabled !== false ? authOf(source) : null;
+        if (!auth || seen.has(auth)) {
+            continue;
+        }
+        seen.add(auth);
+        for (const secret of await secretsOf(auth, options, process.env)) {
+            if (secret.problem) {
+                log.warn(`a backend's sign-in cannot be made: ${secret.at}: ${secret.problem}; its sources answer SOURCE_UNAVAILABLE until it is there`);
+            }
+        }
+    }
 }

@@ -55,7 +55,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `cookie` with a pointer to `http.auth`.
 - Parameters bound to a claim (`params.<name>.claim`, HTTP and code sources, `auth.mode: "oauth"`):
   filled from the verified token, checked like a caller's value (a text needs a `pattern` or an
-  `enum`), an email only when verified, never offered, set by a caller or said back. Only the claims
+  `enum`), an email only when verified; never offered, never set by a caller, never said back. Only the claims
   a parameter names are read from a token (`Caller.claims`). A source with a token exchange or a
   claim is listed only for a caller with a subject and is not schedulable (`NOT_SCHEDULABLE`).
 - HTTP sources ([#328](https://github.com/eizedev/pivotkit/issues/328)): `sources.<id>.http` asks an

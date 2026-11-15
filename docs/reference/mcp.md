@@ -384,7 +384,7 @@ request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BU
 | `NOT_ALLOWED` | A tool the caller's token has no scope for; [data sent](#data) where it is switched off; a code source that refuses the caller (its `SourceError`) |
 | `DATA_MISMATCH` | [Data sent](#data) whose `rowCount` differs from the rows sent |
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
-| `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source or data sent in the request |
+| `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source, data sent in the request, or a source with a token exchange or a parameter bound to a claim ([backend sign-in](sources.md#http-claims)) |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
 | `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)); one of pivotkit's fixed texts (not available right now; the backend refused pivotkit's access; not set up correctly), with the source's id and whether trying again may work |
 | `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`); an HTTP source's backend answered 401, 403 or 404 for the values given |

@@ -25,7 +25,8 @@ import { addressRefusal } from "../sources/fetch.js";
 import { bytesText } from "../sources/inline.js";
 import { paramsList } from "../sources/params.js";
 import { personBound } from "../sources/auth.js";
-import { readSecret, secretFileWarning } from "../secrets.js";
+import { secretFileWarning } from "../secrets.js";
+import { secretsOf } from "../sources/auth.js";
 
 /** The section's heading, which check.js's list of sources points to. */
 export const HTTP_HEADING = "HTTP sources";
@@ -76,24 +77,26 @@ function authText(auth) {
  * @returns {Promise<{ lines: string[], problems: number }>}
  */
 async function secretLines(auth, options, env) {
-    /** @type {Array<[string, any]>} */
-    const refs = auth.kind === "header" ? [["value", auth.value]] : auth.kind === "clientCredentials" ? [["clientSecret", auth.clientSecret], ["assertion", auth.assertion]] : [["clientSecret", auth.clientSecret]];
     const lines = [];
     let problems = 0;
-    for (const [key, ref] of refs) {
-        if (!ref) {
-            continue;
-        }
-        try {
-            await readSecret(ref, options, env);
-        } catch (e) {
-            lines.push(`    PROBLEM: ${auth.at}.${key}: ${/** @type {Error} */ (e).message}`);
+    for (const secret of await secretsOf(auth, options, env)) {
+        if (secret.problem) {
+            lines.push(`    PROBLEM: ${secret.at}: ${secret.problem}`);
             problems++;
             continue;
         }
-        const warning = await secretFileWarning(ref, options, `${auth.at}.${key} (${ref.file})`);
+        const warning = await secretFileWarning(secret.ref, options, `${secret.at} (${/** @type {any} */ (secret.ref).file})`);
         if (warning) {
             lines.push(`    ${warning}`);
+        }
+    }
+    if (auth.kind !== "header") {
+        const url = auth.tokenUrl ? new URL(auth.tokenUrl) : null;
+        if (url && !auth.intranet && localHost(url.hostname)) {
+            lines.push(`    warning: ${auth.at}.tokenUrl: ${url.hostname} is a loopback or private address, which is refused unless intranet: true is set there`);
+        }
+        if (url && auth.kind === "tokenExchange" && auth.issuer && URL.canParse(auth.issuer) && new URL(auth.issuer).origin !== url.origin) {
+            lines.push(`    warning: ${auth.at}.tokenUrl: the person's token goes to ${url.host}, not to the issuer's ${new URL(auth.issuer).host}; check that this is the provider's token endpoint`);
         }
     }
     return { lines, problems };

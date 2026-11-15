@@ -40,6 +40,9 @@ import https from "node:https";
 import { isIP, isIPv4, isIPv6 } from "node:net";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
+/** The functions createGuardedFetch made. */
+const guardedFetches = new WeakSet();
+
 /** The defaults of a request: 20 MiB, 15 s. */
 export const FETCH_DEFAULTS = Object.freeze({ maxBytes: 20_971_520, timeMs: 15_000 });
 
@@ -312,7 +315,11 @@ function decoderOf(encoding) {
  */
 export function createGuardedFetch(means = {}) {
     const lookup = means.lookup ?? dnsLookup;
-    return async function guarded(target, request = {}) {
+    guardedFetches.add(guarded);
+    return guarded;
+
+    /** @type {(target: string | URL, request?: GuardedRequest) => Promise<GuardedResponse>} */
+    async function guarded(target, request = {}) {
         let url;
         try {
             url = new URL(String(target));
@@ -540,3 +547,10 @@ function networkError(e) {
  * @type {(url: string | URL, request?: GuardedRequest) => Promise<GuardedResponse>}
  */
 export const guardedFetch = createGuardedFetch();
+
+/**
+ * Whether a function is a guardedFetch (made by createGuardedFetch), so a module that is handed one
+ * (the token exchange of auth.js) can refuse anything else.
+ * @param {unknown} fn
+ */
+export const isGuardedFetch = (fn) => typeof fn === "function" && guardedFetches.has(/** @type {any} */ (fn));

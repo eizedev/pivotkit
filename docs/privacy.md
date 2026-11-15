@@ -70,7 +70,7 @@ token, no identity, unless the operator configured one of these
 to the provider's token endpoint and gives the backend a token for that person; a parameter bound to
 a claim sends that claim's value (a customer id, a verified email) to the backend. Only the claims
 the configuration names are read from a token, and they are never logged. Exchanged tokens are kept
-in memory only, at most until the person's own token expires. Its data is kept per person in the same way (`ttl`, 60 seconds by default). The
+in memory only, at most until the person's own token expires. The HTTP source's data is kept per person in the same way (`ttl`, 60 seconds by default). The
 log holds the backend's status, the address template and the source's id, never a value; with
 `log: "debug"` also each request's path with the values written as `{name}`.
 
