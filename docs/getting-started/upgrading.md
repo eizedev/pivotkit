@@ -180,7 +180,8 @@ callers notice:
 | [The log](#log) | you read the log on a terminal, parse it, alert on it, or ship it to a log server | JSON lines gain fields and the client's address is logged by default (`log.address: "off"` keeps it out); levels and `msg` are new, and more refusals get a line; on a terminal the log is text unless `log.format` is `json`; a start error is a JSON line where stderr is no terminal |
 | [check-config's layout](#check-config-layout) | you read `check-config`'s output in a script | use its exit code, or its first line, which says whether the server starts |
 | [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
-| [HTML reports on a dark screen](#dark-mid-colour) | your reports or print templates set a colour scale's middle colour (`--pk-scale-mid`) | pass the middle colour in `darkTokens` to keep one on a dark screen |
+| [HTML reports on a dark screen](#dark-mid-colour) | your reports or print templates set a colour scale's middle colour (`--pk-scale-mid`), or pass `tokens` with quoted strings | pass the middle colour in `darkTokens` to keep one on a dark screen |
+| [Loopback addresses](#loopback) | the server listens on `127.1`, `127.0.1` or a host name that starts with `127.` | write `127.0.0.1`, or set `auth` |
 | [Command line](#cli-next) | a script reads the names of files `pivotkit render` writes, or its error text | name the output with `-o`; read the exit code or `--json` |
 
 Before you connect a cloud model to a server you upgraded, read [what reaches an AI
@@ -355,6 +356,16 @@ high colours, and a view's own colours are mixed fainter (30 %), as on the page.
 light. To keep a middle colour on a dark screen, pass it in pivotkit-report's `darkTokens`
 (`--pk-scale-mid`, [options](../reference/report.md#options)) or a print template's dark rule
 ([theming](../reference/theming.md)).
+
+A host's `tokens` (and `darkTokens`) value that holds a quoted string is left out, and the default
+stands in, except in `font-family`. Write such a colour without quotes.
+
+### Loopback addresses { #loopback }
+
+Only literal loopback addresses count as loopback: `127.0.0.1` (and the rest of `127.0.0.0/8`
+written in full), `::1` and `localhost`. A listen host written short (`127.1`, `127.0.1`) or a host
+name that starts with `127.` (`127.example.com`) is no longer loopback, so the server needs `auth`
+there (or `--allow-unauthenticated`). Write `127.0.0.1`.
 
 ### Command line { #cli-next }
 

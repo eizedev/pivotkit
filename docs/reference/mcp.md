@@ -380,7 +380,7 @@ base name only and holds no file content. Every tool error ends with the call's 
 [log line](#logging) by it. An error of status 500 or more says the same fixed text as the REST
 service, never its own words, with the source and whether trying again may work in the same
 parenthesis (`SOURCE_UNAVAILABLE: the source is not available right now; if it stays so, give the
-operator the request id (source tickets; trying again later may work; request id Ab3_xY9-k2Q)`);
+operator the request id (source tickets; trying again later may work; request id Ab3_xY9-k2Q)`).
 A message that ends in a parenthesis (a refused value's "(The team, for example blue)") takes the
 request id inside it, so no two stand in a row. `BUSY`, `NOT_READY` and
 `TIMEOUT` keep their own words, which name only the server's limits.

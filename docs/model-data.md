@@ -38,8 +38,8 @@ The request is "Revenue by channel as CSV":
 ```
 
 Each tool answers with one text block (a sentence with counts and ids, then the same JSON) and the
-JSON as structured content. The excerpts show the parts that change; `aggregators` and `filters` of a
-field are left out.
+JSON as structured content. The excerpts show the parts that change (keys such as `aggregators`,
+`filters`, `findings` and `mediaType` are left out), and the paths are those of a user `you`.
 
 === "show"
 
@@ -151,6 +151,19 @@ open it."
     data?", and field names are data too. For a field the model must not learn anything about, use
     `hide`, or leave the column out of the data ([exposure policy](reference/mcp.md#policy)).
 
+## Each tool's answer { #tools }
+
+| Tool | What the model gets |
+| --- | --- |
+| `list_sources` | Each source it may use: id, title, description, whether a link or a schedule works, its parameters (type, description, example, list of values, pattern); how much data it may send. A source whose scopes the token lacks is not listed. |
+| `describe_source` | The rows, and per field its name, type, level, counts and what its level lists (above), the operator's description, the aggregators and filters it takes; `hiddenFields`, `withheld`, `hint`, example views, `dataAsOf`. |
+| `suggest_view` | A draft view and `picks` from the fields' names and types: no value, no count. |
+| `get_view_guide` | How to write a view: pivotkit's own text, nothing of yours. |
+| `validate_view`, `describe_view` | Findings (field names, the items the model wrote, the data's spelling for `show` and `values` fields), the view in words, the fields it uses, `dataAsOf`. |
+| `render_view` | The file's name (over stdio its path), a link where the report gets one, and counts and an inline result only where every field of the view is `show`. |
+| `create_link` | A link to the source's report page with the view in it (field names and filter items); the page loads the data, not the link. |
+| `draft_schedule` | The draft (the view, formats, when, recipients by name) and where it is saved. |
+
 ## What else the model reads { #other }
 
 Besides the fields, a model reads:
@@ -181,7 +194,7 @@ not instructions.
 The model's own input goes to the server, and from there:
 
 - **Views and layouts** hold field names and, in filters, the items the model wrote. They are
-  checked and never logged. A link from `create_link` carries the view to whoever opens it, and a
+  checked and not logged (at the default level). A link from `create_link` carries the view to whoever opens it, and a
   schedule draft holds recipients by name.
 - **Parameters** of an [HTTP source](reference/sources.md#http) go into the backend's address the
   operator wrote (and so into the backend's access log); a code source's `load` receives them.
@@ -202,15 +215,33 @@ A report is a file in the server's output directory. Who can open it:
 | Way | Who | Over |
 | --- | --- | --- |
 | The path in the result | whoever can read the directory | stdio |
-| A [download link](reference/delivery.md) (`/downloads/...`, 60 minutes) | anyone with the link, for a source whose fields are all `show` for every caller | HTTP |
-| A sign-in link | only the person who asked, after signing in (OAuth with `output.downloads.signIn`) | HTTP, a source with a field that is not `show` for someone, or data that belongs to one person |
+| A [download link](reference/delivery.md) (`/downloads/...`, 60 minutes) | anyone with the link | HTTP, an open source |
+| A sign-in link | only the person who asked, after signing in (OAuth with `output.downloads.signIn`) | HTTP, any other source |
 | A one-time link (`output.downloads.bind: "once"`) | whoever opens it first | the same, where you choose it |
-| `output.baseUrl` | anyone with the address, with no expiry | only sources whose fields are all `show` |
+| `output.baseUrl` | anyone with the address, with no expiry | an open source |
+| Your [upload store](reference/delivery.md#upload) (`output.upload`) | as the store's links allow (`bind`, `none` by default) | an open source; another only where you declare the store's links bound (`once`, or `signIn` for a signed-in person; on REST with `results: true`) |
 | The REST file route | a program whose policy has `results: true` | REST |
 
-A report over a source the model does not fully see gets a link only where it is bound: a link the
-client or the model could open would hand over what was withheld. With static tokens there is no
-person to bind it to, so such a report gets no link and its result says to ask you for the file.
+A source is open when its policy resolves to `"default": "show"` with no field below `show` under
+the server's policy and under every profile, and the automatic values rule is off for it; listing
+every column as `show` is not enough. Data that belongs to one person is never open: data sent in
+the request, a source with a parameter bound to a claim or a token exchange, and a code source with
+`perPerson: true`. `check-config` lists the closed sources under `Delivery:`.
+
+A report over an open source comes with a link the model reads, and so its provider (the link
+shortened here):
+
+```json
+{ "output": { "name": "K3mGCm03vaQ5447yoLrlag-Sales.pivotkit-out.xlsx", "filename": "Sales.xlsx",
+    "url": "https://reports.example.com/downloads/eyJ2IjoxLCJu...", "expiresAt": "2026-11-15T18:03:49Z",
+    "bound": "none", "note": "Open the link in your browser; it works for 60 minutes.", "format": "xlsx" },
+  "message": "The report is saved as \"Sales.xlsx\". Open the link in your browser; it works for 60 minutes. Data as of 2026-11-15 16:48 UTC." }
+```
+
+A client of protocol 2025-06-18 or later also gets it as a `resource_link` for the user. A report over
+a closed source gets a link only where it is bound: a link the client or the model could open would
+hand over what was withheld. With static tokens there is no person to bind it to, so such a report
+gets no link and its result says to ask you for the file.
 
 The report page a link from `create_link` opens is your application's, not pivotkit's: it loads the
 data with the rights of the person who opens it, and the exposure policy does not limit it. The same
@@ -225,8 +256,9 @@ A client that starts `pivotkit-mcp` itself signs in to nothing: the server has o
 and no profile applies (`auth` settings do nothing over stdio). What this client sees is the policy
 in the configuration it starts. To give two clients different rules, give each its own
 configuration file: a `"default": "summary"` file for a client whose model runs at a provider, a
-`"default": "show"` file for one whose model runs on your machine. Every file in an allowed directory
-(`files.allowDirs`) can be read by the model; leave it out unless the model may open any file there.
+`"default": "show"` file for one whose model runs on your machine. With `files.allowDirs` the model
+may name any file in those directories as a source (`file:q3.csv`), at the levels `files.policy`
+sets, and every such file's first line becomes field names it sees: put only data files there.
 
 ### Tokens and profiles over HTTP { #tokens }
 
@@ -381,8 +413,9 @@ PowerShell Universal scripts and apps call the REST service with a token of thei
 A tool call's log line holds the tool, the client (a token's name or an OAuth client id), the
 source's id (`inline:` with the number of rows and columns of data sent, `file:` for a file by
 path), the status, the time, a request id and, over HTTP, the client's IP address (`log.address`, on
-by default). It never holds a view, a value, a parameter's value, a token or a person's groups. The
-person is named only with `audit.subject`. Details: [privacy: logs](privacy.md#logs),
+by default). At the default level it never holds a view, a value, a parameter's value, a token or
+a person's groups; `--log debug` is for setting a server up, and its lines can hold an error's own
+message, which may quote a value or a request's body. The person is named only with `audit.subject`. Details: [privacy: logs](privacy.md#logs),
 [logging](reference/mcp.md#logging).
 
 ## Switches and defaults { #switches }
@@ -404,7 +437,8 @@ person is named only with `audit.subject`. Details: [privacy: logs](privacy.md#l
 | `sources.<id>.scopes`, `auth.toolScopes` | none | Scopes a caller needs for a source or a tool |
 | `auth.tokens[].profile`, `auth.clientProfiles`, `auth.groupProfiles`, `auth.scopeProfiles`, `auth.defaultProfile` | none | Which profile a caller gets |
 | `output.downloads` | on over HTTP; `bind` is `signIn` with OAuth and a sign-in client, else `none` | The server's own [download links](reference/delivery.md); `none` gives reports over closed sources no link |
-| `output.baseUrl` | none | A permanent address for reports over sources whose fields are all `show` |
+| `output.baseUrl` | none | A permanent address for reports over open sources |
+| `output.upload` | none | Reports go to your store; over a closed source only with `bind` `once` or `signIn` |
 | `log.address` | on | The client's IP address on a request's log lines |
 | `audit.subject` | off | The person on the log lines |
 
