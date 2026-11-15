@@ -7,17 +7,28 @@
  * when they open), the whole way from the click to navigator.clipboard.writeText runs without an
  * await. Only when a module is still loading is there a wait first; if the browser then refuses the
  * copy, the note says so ("This page does not allow copying. Download a file instead.").
+ *
+ * A print runs in the click the same way (Safari asks before a print it does not take as the
+ * person's): the Export menu makes the print frame ready when it opens, and pointing at Print (or
+ * focusing it) starts loading the report's modules (export-run.js's prepareExport).
  */
 
+import { useCallback } from "react";
 import { loadMenus, menusNow } from "./lazy-menus.jsx";
 import { fill, messageOf } from "./labels.js";
 
 /**
  * @param {import("./export-run.js").ExportContext} context
- * @returns {(kind: "xlsx" | "csv" | "png" | "html" | "svg" | "print" | "copy-table" | "copy-json" | "data-csv" | "data-json") => Promise<void>}
+ * @returns {{ run: (kind: "xlsx" | "csv" | "png" | "html" | "svg" | "print" | "copy-table" | "copy-json" | "data-csv" | "data-json") => Promise<void>,
+ *   prepare: (what: "menu" | "print") => (() => void) | undefined }}
+ *   `prepare`: the Export menu's, when it opens ("menu"; it returns what ends the menu's print frame)
+ *   and when Print is pointed at or focused ("print"); one function for the report's lifetime
  */
 export function useExport(context) {
-    return async (kind) => {
+    const { root, loadECharts } = context;
+    // the menu that calls it is in the menus' module: loaded
+    const prepare = useCallback((what) => menusNow()?.prepareExport(what, root, loadECharts), [root, loadECharts]);
+    const run = async (kind) => {
         try {
             // loaded: no await before the copy (see above)
             // with the menus' texts of the report's language: the notes of a copy say it in that language
@@ -29,7 +40,5 @@ export function useExport(context) {
             context.announce(fill(context.labels.toastExportFailed, { message: messageOf(e) }), { tone: "error" });
         }
     };
+    return { run, prepare };
 }
-
-/** Starts loading the export module when a menu that copies opens: a copy right in the click is allowed everywhere. */
-export const prepareExporters = () => void loadMenus().then((m) => m.prepareExporters(), () => undefined);

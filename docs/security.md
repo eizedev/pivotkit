@@ -215,6 +215,13 @@ sandbox: a hard link inside an allowed directory reaches the file it names, and 
 the same user can change the directories while the CLI runs. Its messages never hold a file's
 content, and `describe` shows a data file's values only when asked (`--items`).
 
+With a server (`--url`, `--source`), the token comes only from `--token-file` or `PIVOTKIT_TOKEN`
+and is never printed; the CLI speaks https (http only to loopback), follows no redirect, refuses to
+send the token with `NODE_TLS_REJECT_UNAUTHORIZED=0`, caps and checks every answer, and writes a
+downloaded report with mode 0600. A token whose profile has `results: true` exports every field that
+is not hidden: keep it out of an environment an AI agent controls
+([With a server](reference/cli.md#with-a-server)).
+
 ## The MCP server { #mcp }
 
 [pivotkit-mcp](reference/mcp.md) lets an AI model build reports over data the operator names. It

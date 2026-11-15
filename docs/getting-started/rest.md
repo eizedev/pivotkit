@@ -26,7 +26,8 @@ npx -y pivotkit-server serve --source sales=sales.csv --output reports
 ```
 
 The log says `started` with the address. Leave it running and open a second terminal in the same
-folder.
+folder. `npx -y` takes the newest release at each start; for a service others use, install a version
+you name and update it as in [Update an installation](upgrading.md#update).
 
 ## 2. Look at the data { #describe }
 
@@ -43,6 +44,13 @@ folder.
     $api = "http://127.0.0.1:3333/api/v1"
     Invoke-RestMethod "$api/sources"
     (Invoke-RestMethod "$api/sources/sales").fields | Format-Table name, type, level, distinct
+    ```
+
+=== "pivotkit"
+
+    ```bash
+    npx -y pivotkit-cli sources --url http://127.0.0.1:3333/api/v1
+    npx -y pivotkit-cli sources sales --url http://127.0.0.1:3333/api/v1
     ```
 
 Each field has a `level`. By default every field is `summary`: you get its name, type and counts, not
@@ -153,6 +161,17 @@ set), a call without a token is now 401, and only the export token may download 
     Invoke-RestMethod "$api/views/render/file" -Method Post -ContentType "application/json" -Body $view -Headers $headers -OutFile revenue.xlsx
     ```
 
+=== "pivotkit"
+
+    ```bash
+    export PIVOTKIT_URL=http://127.0.0.1:3333/api/v1
+    PIVOTKIT_TOKEN=$SCRIPTS_TOKEN npx -y pivotkit-cli validate sales.pivotkit.json --source sales
+    PIVOTKIT_TOKEN=$SCRIPTS_TOKEN npx -y pivotkit-cli render sales.pivotkit.json --source sales -o revenue.xlsx   # exit 2, NOT_ALLOWED
+    PIVOTKIT_TOKEN=$EXPORT_TOKEN npx -y pivotkit-cli render sales.pivotkit.json --source sales -o revenue.xlsx
+    ```
+
+    The command line runs on the server's source instead of a file ([With a server](../reference/cli.md#with-a-server)).
+
 An error is a problem document with a stable `code` and a `detail` that says what to do; with
 PowerShell 7, `Invoke-RestMethod` throws and the document is in `$_.ErrorDetails.Message`.
 
@@ -178,4 +197,6 @@ try {
 - [pivotkit-server (REST)](../reference/rest.md): every route, profiles, sign-in with OAuth, CORS, limits, errors.
 - The OpenAPI document of your service: `GET /openapi.json` with a token.
 - [Container image](../reference/container.md): the same service in Docker or Kubernetes.
+- [Update an installation](upgrading.md#update): a new release of the service, the image or the CLI.
+- The command line against this service: [pivotkit-cli with a server](../reference/cli.md#with-a-server).
 - [Getting started: MCP server](mcp.md): the same sources for an AI client.

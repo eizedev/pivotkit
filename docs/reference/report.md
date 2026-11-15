@@ -116,7 +116,12 @@ first element of `<head>` (`default-src 'none'; style-src 'unsafe-inline'; img-s
 - **The chart** above the table when the view shows the chart (`chart: "auto"`), kept whole on a
   page.
 - **The details**: the source, the data's rows, the filters in words and the time it was generated.
-- **On screen** light or dark after the reader's system; **on paper** always light, with 12 mm
+- **On screen** light or dark after the reader's system (a template's root can pin light or ask for
+  dark, [dark mode](print-template.md#dark-mode)): in dark, the page, the table and its totals
+  take the dark theme's tokens, a colour scale whose view names no colours runs through the dark
+  heat colours (a view's own colours are mixed fainter, so the light text stays readable), and the
+  chart keeps its light card, as it is drawn in the light colours. Every text meets WCAG AA in both.
+  **On paper** always light, also from a dark screen and in a PDF, with 12 mm
   margins, the header row on every page, rows never split, landscape from 9 columns and a smaller
   font (7 pt) from 17. A table wider than a landscape page is cut by the browser: split the view, or
   export Excel.

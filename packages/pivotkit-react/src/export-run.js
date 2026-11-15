@@ -13,7 +13,7 @@
 import { chartThemeFrom, toGrid } from "pivotkit-core";
 import { dataExportFor } from "./export-scope.js";
 import { copyText, dataUrlToBlob, safeFileName, saveBlob } from "./files.js";
-import { printHtml } from "./print-frame.js";
+import { dropPrintFrame, preparePrintFrame, printHtml, releasePrintFrame, takePrintFrame } from "./print-frame.js";
 import { lightTokens } from "./light-tokens.js";
 import { fill, messageOf } from "./labels.js";
 import { menuLabels } from "./menu-labels.js";
@@ -48,6 +48,8 @@ export function loadExporters() {
 
 /** @type {Promise<[typeof import("./report-run.js"), any]> | null} */
 let reportPending = null;
+/** @type {[typeof import("./report-run.js"), any] | null} */
+let reportModules = null;
 
 /**
  * pivotkit-report with ECharts (the report's chart parts, through the first load's loader, and the SVG
@@ -55,10 +57,13 @@ let reportPending = null;
  * @param {() => Promise<any>} loadECharts  chart.jsx's: dist/echarts.js is a file next to dist/index.js
  */
 function loadReport(loadECharts) {
-    reportPending ??= Promise.all([import("./report-run.js"), loadECharts()]).catch((error) => {
-        reportPending = null;
-        throw error;
-    });
+    reportPending ??= Promise.all([import("./report-run.js"), loadECharts()]).then(
+        (modules) => (reportModules = modules),
+        (error) => {
+            reportPending = null;
+            throw error;
+        }
+    );
     return reportPending;
 }
 
@@ -67,6 +72,33 @@ export const exportersNow = () => exporters;
 
 /** Starts loading the export module (a menu that copies, when it opens); a failure waits for the click. */
 export const prepareExporters = () => void loadExporters().catch(() => undefined);
+
+/**
+ * Makes the Export menu's exports ready to happen in the click (use-export.js). When the menu opens
+ * ("menu"): the export module (a copy) and an empty print frame (print-frame.js); the function it
+ * returns removes the frame when the menu closes without a print. When Print is pointed at or focused
+ * ("print"): the report's modules, ECharts with them (a chunk too large to load whenever the menu
+ * opens). A failure waits for the click.
+ * @param {"menu" | "print"} what
+ * @param {React.RefObject<HTMLElement | null>} root  the report's root
+ * @param {(() => Promise<any>) | undefined} loadECharts  chart.jsx's
+ * @returns {(() => void) | undefined}
+ */
+export function prepareExport(what, root, loadECharts) {
+    if (what === "print") {
+        if (loadECharts) {
+            void loadReport(loadECharts).catch(() => undefined);
+        }
+        return undefined;
+    }
+    prepareExporters();
+    const container = root.current;
+    if (!container) {
+        return undefined;
+    }
+    preparePrintFrame(container);
+    return () => releasePrintFrame(container);
+}
 
 /**
  * Hands the file to the host's onExport, then downloads it unless onExport returned false.
@@ -230,40 +262,54 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
             return;
         }
         if (kind === "html" || kind === "svg" || kind === "print") {
-            const [report, echarts] = await loadReport(/** @type {() => Promise<any>} */ (loadECharts));
-            const chart = chartRef.current;
-            // the chart's size on the screen, when it is drawn
-            const size = chart ? { width: clampSize(chart.getWidth()), height: clampSize(chart.getHeight()) } : undefined;
-            const rendered = await report.render(result.view, result.encoded, {
-                format: kind === "svg" ? "svg" : "html",
-                echarts,
-                locale,
-                trusted: true,
-                labels: labels.core,
-                ...(limits ? { limits } : {}),
-                timeZone: result.timeZone,
-                ...(title ? { title } : {}),
-                ...(source ? { source } : {}),
-                ...(size ? { size } : {}),
-                tokens: reportTokens(root.current, report, echarts),
-                chartEmbed: kind === "print" ? "inline" : "image"
-            });
-            const file = `${base}.${kind === "svg" ? "svg" : "html"}`;
-            const blob = new Blob([/** @type {BlobPart} */ (rendered.body)], { type: rendered.mediaType });
-            if (kind !== "print") {
-                if (deliver(blob, { kind, fileName: file, doc, onExport })) {
-                    announce(fill(labels.toastExported, { file }));
+            // the print's frame, taken in the click before anything is awaited (print-frame.js). With
+            // the modules loaded, what is awaited is resolved already (render() is async, its work is
+            // not), so print() comes in the microtasks right after the click's listener, still inside
+            // the click's dispatch; a click before the modules have loaded prints after it
+            const slot = kind === "print" && root.current ? takePrintFrame(root.current) : null;
+            let printing = false;
+            try {
+                const [report, echarts] = reportModules ?? (await loadReport(/** @type {() => Promise<any>} */ (loadECharts)));
+                const chart = chartRef.current;
+                // the chart's size on the screen, when it is drawn
+                const size = chart ? { width: clampSize(chart.getWidth()), height: clampSize(chart.getHeight()) } : undefined;
+                const rendered = await report.render(result.view, result.encoded, {
+                    format: kind === "svg" ? "svg" : "html",
+                    echarts,
+                    locale,
+                    trusted: true,
+                    labels: labels.core,
+                    ...(limits ? { limits } : {}),
+                    timeZone: result.timeZone,
+                    ...(title ? { title } : {}),
+                    ...(source ? { source } : {}),
+                    ...(size ? { size } : {}),
+                    tokens: reportTokens(root.current, report, echarts),
+                    chartEmbed: kind === "print" ? "inline" : "image"
+                });
+                const file = `${base}.${kind === "svg" ? "svg" : "html"}`;
+                const blob = new Blob([/** @type {BlobPart} */ (rendered.body)], { type: rendered.mediaType });
+                if (kind !== "print") {
+                    if (deliver(blob, { kind, fileName: file, doc, onExport })) {
+                        announce(fill(labels.toastExported, { file }));
+                    }
+                    return;
+                }
+                // the host may print itself (a PDF on its server): it gets the report first
+                if (onExport?.({ kind, fileName: file, blob }) === false) {
+                    return;
+                }
+                printing = true;
+                if (!slot || !(await printHtml(/** @type {string} */ (rendered.text), slot))) {
+                    announce(labels.toastPrintBlocked, { tone: "error" });
                 }
                 return;
+            } finally {
+                // no print came of it (the host took the report, or it failed): its frame goes
+                if (slot && !printing) {
+                    dropPrintFrame(slot);
+                }
             }
-            // the host may print itself (a PDF on its server): it gets the report first
-            if (onExport?.({ kind, fileName: file, blob }) === false) {
-                return;
-            }
-            if (!root.current || !(await printHtml(/** @type {string} */ (rendered.text), root.current))) {
-                announce(labels.toastPrintBlocked, { tone: "error" });
-            }
-            return;
         }
         const m = exporters ?? (await loadExporters());
         const grid = toGrid(result, { locale, labels: labels.core, limits });

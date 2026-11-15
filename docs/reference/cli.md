@@ -1,13 +1,16 @@
 ---
 title: pivotkit-cli
-description: The pivotkit command line - render a view over CSV, JSON or Excel data to an HTML report, CSV, JSON, XLSX or SVG, get a draft view from a file's fields or render from layout flags without a view file, validate and describe views in CI, with stable exit codes, --json, shell completion and safe file handling.
+description: The pivotkit command line - render a view over CSV, JSON or Excel data to an HTML report, CSV, JSON, XLSX or SVG, get a draft view from a file's fields or render from layout flags without a view file, validate and describe views in CI, run the same commands against a pivotkit-server's sources, with stable exit codes, --json, shell completion and safe file handling.
 ---
 
 # pivotkit-cli
 
 `pivotkit` runs [views](view-file.md) without a browser: it renders a view over a data file, checks
-views in a pipeline before they go live, and describes views and data. It needs no network, and with
-`--now` its output is the same on every run.
+views in a pipeline before they go live, and describes views and data. On local files it needs no
+network, and with `--now` its output is the same on every run. With `--url` and `--source` the same
+commands run on the sources of a [pivotkit-server](rest.md) ([With a server](#with-a-server)), for
+data that lives there. To update it, see
+[Update an installation](../getting-started/upgrading.md#update).
 
 ```bash
 npm install --global pivotkit-cli     # the command pivotkit
@@ -73,6 +76,8 @@ view does not apply to it.
 | `pivotkit validate <view> [--data <file>]` | Checks the view against the data, or against the fields its view file lists (`source.fields`). |
 | `pivotkit describe <view \| data>` | What a view shows and filters, or a data file's fields (the data may be given with `--data` instead: `describe --data - --data-format csv`). |
 | `pivotkit describe <data> --suggest [-o <file>]` | A [draft view](#a-view-from-the-datas-fields) of the data as a view file: on stdout, or into `-o`. |
+| `pivotkit render <view> --url <address> --source <id> [-o <file>]` | The same on a server's source; `validate` and `describe` too ([With a server](#with-a-server)). |
+| `pivotkit sources [id] --url <address>` | A server's sources, or one source's fields, types and counts. |
 | `pivotkit example [name] [--list]` | Writes an example's data and views into the current directory (default `sales`), never over a file, and says what to run next; `--list` names the examples ([Try it](#try-it)). |
 | `pivotkit completion bash \| zsh \| fish \| powershell` | The shell's completion script. |
 | `pivotkit help [command]`, `-h`, `--version` | Help; the versions of pivotkit-cli, pivotkit-report and pivotkit-core. |
@@ -117,6 +122,10 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--now <date>` | render (taken and checked by all) | "Today" of relative filters and the generated time; environment `PIVOTKIT_NOW`. |
 | `--limit key=n` | all | One of pivotkit-core's [limits](../concepts/limits.md) (`--limit rows=200000`); repeatable. |
 | `--allow-dir <dir>` | all | Read and write only inside this directory; repeatable. |
+| `--url <address>` | render, validate, describe, sources | A pivotkit-server's REST address, `https://host/api/v1`; environment `PIVOTKIT_URL`. [With a server](#with-a-server) |
+| `--source <id>` | render, validate, describe | The server's source to run on (`pivotkit sources` lists them). |
+| `--token-file <file>` | | Read the server's token from this file instead of `PIVOTKIT_TOKEN`. |
+| `--timeout <s>` | | Seconds to wait for the server's answer (default 30). |
 
 An option on the command line wins over its environment variable. Every command checks `--locale`,
 `--time-zone` and `--now` (from the command line or the environment, and the message names the
@@ -302,7 +311,7 @@ pivotkit render revenue.pivotkit.json --data new-export.csv --map Revenue=Turnov
 | --- | --- |
 | 0 | Done. Warnings and the line that says what was written are on stderr (with `--verbose` also the reader's notes on how the data was read). |
 | 1 | Findings: an error in the view, or a warning with `--strict`. `render` writes nothing unless `--lenient`. |
-| 2 | A usage error, a file that cannot be read or written, a limit, or a refused template. Nothing is written. |
+| 2 | A usage error, a file that cannot be read or written, a limit, a refused template, or a server's refusal or a network error (`kind: "remote"`). Nothing is written. |
 
 ## --json
 
@@ -325,11 +334,18 @@ One object on stdout, for scripts and for the PowerShell Universal module:
   `groupingNeedsDate`) has `followsFrom` with the grouping's code; stderr counts it on the grouping's
   error instead of showing it.
 - `error` (exit 2): `{ kind, code, message }`, `kind` one of `usage`, `io`, `limit`, `template`,
-  `internal` (more may come).
+  `remote`, `internal` (more may come). A `remote` error also has `status` (the HTTP status, `null`
+  without an answer) and `retryAfter` (the seconds the server asks to wait, else `null`); its `code`
+  is the server's problem code ([REST errors](rest.md#errors)), `PROBLEM` for one this version does
+  not know, or the CLI's own: `REDIRECT`, `NOT_PIVOTKIT`, `ANSWER_TOO_LARGE`, `ANSWER_CUT`, `TIMEOUT`,
+  a network error's code (`ECONNREFUSED`, `ENOTFOUND` ...) or `NETWORK`.
 - `pivotkit --version --json`: `{ "pivotkit-cli", "pivotkit-report", "pivotkit-core", environment }`,
   `environment` with `node`, `locale`, `timeZone` (each `{ value, from, known }`: from the environment
   variable or the default, and whether Node's Intl knows it), `now` (`{ value, from }`) and pivotkit-core's
   default `limits`: for a bug report or a CI log.
+- `sources`: `kind: "sources"` and `sources` (each `{ id, title, kind, link, schedulable }`, as the
+  server lists them); `sources <id>`: `kind: "source"`, `source` and `description` (`rows`, `fields`,
+  `text`, `hiddenFields`).
 - `render`: `summary` and `output` (`{ file, format, mediaType, bytes }`, or `null` when nothing was
   written); with `--save-view` also `savedView` (`{ file, bytes }`); with `--suggest`, `draft: true`
   and `picks`. `describe --suggest`: `draft: true`, `picks` (each `{ part, code, field, agg, by,
@@ -343,6 +359,93 @@ One object on stdout, for scripts and for the PowerShell Universal module:
 - `render`, `validate` and `describe`: `sheet`, the sheet of a workbook read (`null` for other data or
   without data). `describe` of a workbook also gives `sheets`: `[{ name, index, visible }]` in the
   workbook's order.
+
+## With a server { #with-a-server }
+
+A [pivotkit-server](rest.md) keeps the data and decides who sees what; `render`, `validate` and
+`describe` run on its sources instead of local files, through its REST service, and `pivotkit
+sources` lists what the token reaches. The view is a local file, JSON text or stdin, as without a
+server; the layout flags, `--suggest` and `--map` work too.
+
+```bash
+export PIVOTKIT_URL=https://reports.example.com/api/v1
+export PIVOTKIT_TOKEN=...                 # or --token-file token.txt
+pivotkit sources                          # the sources this token reaches
+pivotkit sources sales                    # their fields, types and counts
+pivotkit validate sales.pivotkit.json --source sales --strict
+pivotkit describe --source sales --suggest -o draft.pivotkit.json
+pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
+```
+
+- **Remote mode** starts with `--url` or `--source` on the command line. `PIVOTKIT_URL` alone is
+  only the default address: `render --data` stays local in a shell that has it set. `--source`
+  without an address is a usage error.
+- **Options that act on local data or files** are a usage error with a server, never silently
+  ignored: `--data`, `--data-format`, `--sheet`, `--limit`, `--template`, `--locale`, `--time-zone`,
+  `--now`, `--bom`, `--width`, `--height`, `--lenient`, `--link`, `--key`, `--save-view`, `--as` and
+  `--items`. `pivotkit help <command>` marks them "local only", and the server's own options "with a
+  server". `PIVOTKIT_LOCALE`, `PIVOTKIT_TIME_ZONE` and `PIVOTKIT_NOW` are not used with a server (a
+  note says so). A view file's own `formatting.locale` and `timeZone` still apply; relative dates
+  ("the last 30 days") count from the server's time.
+- **Routes**: `validate` is `POST /views/validate`, `describe <view>` `POST /views/describe`,
+  `describe --suggest` `POST /views/suggest`, `render` `POST /views/validate` and then `POST
+  /views/render/file` (`render --suggest`: `POST /views/suggest` first), `sources` `GET /sources` and
+  `GET /sources/{id}`. `describe` with a server takes a view; a source's fields are `pivotkit sources
+  <id>`.
+- **Render** needs a token whose [policy profile](rest.md#profiles) has `results: true`;
+  without it the server answers 403 `NOT_ALLOWED` and the CLI says so (exit 2): validate, describe
+  and sources work with any token. The file goes only to `-o` or stdout, never to a name from the
+  answer; an XLSX file is not written to a terminal. It is written with mode `0600` (only you read
+  it) through a temporary file once the whole answer is in: a refused, failed or cut download never
+  replaces a file. A view with errors (422 `VIEW_HAS_ERRORS`) gives the server's findings and exit 1.
+  `--json` has `summary: null` (the file route gives none). A token the operator lets render but not
+  validate (`auth.toolScopes`) still gets the file, with a warning `notValidated`: the server's
+  errors stop the file, its warnings are not known (so `--strict` writes nothing).
+- **Findings and exit codes** are as without a server: errors (and warnings with `--strict`) exit 1.
+  The data's own notes (how a file was read, a data mismatch explained against local columns,
+  `noRowsKept`) come from the server's findings instead.
+
+### The token { #token }
+
+- From `--token-file` first, else `PIVOTKIT_TOKEN`, read again for every request; never from a
+  flag's value (it would be in the shell's history and the process list) and never printed, also not
+  in an error.
+- The token file is read like every file of the CLI (a regular file, no symbolic link at its end, at
+  most 4 KiB); a trailing newline is trimmed; on Linux and macOS a file the group or others can read
+  gives a warning, also with `-q`. `-o` naming the token file is a usage error. A token with characters a bearer token cannot carry is refused before any request.
+- `PIVOTKIT_TOKEN` is also the variable the server reads its own token from: on a machine that runs
+  both, the CLI sends the server's token.
+- A token whose profile has `results: true` lets whoever holds it export every field that is not
+  hidden. Hide identifier fields at the source, give render tokens a profile of their own, and keep a
+  token with `results: true` out of an environment an AI agent controls.
+
+### The connection { #connection }
+
+- `https://` everywhere; `http://` only for a literal loopback address (`localhost`, `127.0.0.1` to
+  `127.255.255.255`, `[::1]`), where nothing leaves the machine. A user name, password, query or
+  fragment in the address is a usage error. The CLI writes the server's origin and where the token
+  came from on stderr on every run (`server: https://reports.example.com (token: PIVOTKIT_TOKEN)`;
+  not with `-q`), so a wrong target or token shows.
+- Redirects are not followed: "the server redirected (a common cause: http instead of https)". An
+  unknown route says "the address should end in /api/v1".
+- Every request has a time limit (`--timeout`, default 30 s) and a size limit on the answer (5 MB of
+  JSON, 64 MiB for a rendered file). An answer that is neither the expected type nor a problem
+  document (a sign-in page of a proxy, say), a rendered file that is not sent as an attachment
+  (`Content-Disposition`), or JSON nested deeper than 64 levels is "not a pivotkit server answer"
+  with its status only. Stderr lists at most 200 findings and says how many more; `--json` has all.
+- With `NODE_TLS_REJECT_UNAUTHORIZED=0` (no check of the server's certificate) the CLI does not talk
+  to an https server at all, with or without a token; there is no `--insecure`. A certificate of your own CA: `NODE_EXTRA_CA_CERTS`.
+- **A proxy**: the CLI uses `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` only as Node does, when Node's
+  proxy support is on: `NODE_USE_ENV_PROXY=1` (Node 22.21.0 or later, 24.0.0 or later) or
+  `node --use-env-proxy` (Node 22.21.0 or later, 24.5.0 or later). Node marks both "Active
+  development" ([Node's CLI documentation](https://nodejs.org/api/cli.html#node_use_env_proxy1),
+  [built-in proxy support](https://nodejs.org/api/http.html#built-in-proxy-support)). When a proxy
+  variable is set and Node does not use it, a network error says so. A loopback address never goes
+  through a proxy.
+- Messages hold the problem's code and its cleaned `detail` (control characters out, cut at 200
+  characters), never headers, the answer's body, the full address or the text of a network error.
+  Fixed hints: 401 "token missing or refused", 403 `NOT_ALLOWED` "this token's profile has no results:
+  true", 429 and 503 "retry in N s" (a `Retry-After` over a day is left out).
 
 ## The sheet of a workbook
 

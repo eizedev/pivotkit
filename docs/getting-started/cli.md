@@ -7,7 +7,8 @@ description: Install pivotkit-cli, write the example files with pivotkit example
 
 `pivotkit` renders a [view](../concepts/views.md) over a data file without a browser: an HTML report
 to print or save as PDF, CSV, JSON, an Excel workbook or the chart as SVG. It also checks views in a
-pipeline before they go live. It needs Node 22 or later and no network.
+pipeline before they go live. It needs Node 22 or later, and no network for local files; with
+`--url` it runs on a [pivotkit-server](#server)'s data instead.
 
 You get there in five steps: install it, try it on the example files, get a view from your own file,
 render a report from the files the report downloads, then put it into CI.
@@ -38,6 +39,8 @@ The package is named `pivotkit-cli`, its command `pivotkit`. Without an install,
 runs the command once; it does not put `pivotkit` on your `PATH`, so each line starts with
 `npx pivotkit-cli` (`npx pivotkit` alone asks npm for another package). The rest of this page writes
 `pivotkit`.
+
+To update it later, see [Update an installation](upgrading.md#update).
 
 ## 2. Try it on the example files { #try-it }
 
@@ -173,6 +176,23 @@ jobs:
 every run. Pin the version (`npm install --global pivotkit-cli@<version>`) where the output must not
 change with a release.
 
+## A server's data { #server }
+
+When the data lives on a [pivotkit-server](../reference/rest.md) and may not be copied, the same
+commands run there: `--url` names the server, `--source` its source, and the token comes from
+`PIVOTKIT_TOKEN` or `--token-file`.
+
+```bash
+export PIVOTKIT_URL=https://reports.example.com/api/v1
+pivotkit sources --token-file token.txt                                   # what the token reaches
+pivotkit validate sales.pivotkit.json --source sales --token-file token.txt --strict
+pivotkit render sales.pivotkit.json --source sales --token-file token.txt -o sales.xlsx
+```
+
+`render` needs a token whose profile may download files (`results: true`); validate, describe and
+sources work with any. Options that act on local files, such as `--data` or `--locale`, are an error
+there. Everything else: [With a server](../reference/cli.md#with-a-server).
+
 ## PowerShell { #powershell }
 
 `--json` writes one object on stdout, for a script:
@@ -194,5 +214,6 @@ in [the reference](../reference/cli.md#completion)).
 
 - Every command, option, exit code and message: [pivotkit-cli reference](../reference/cli.md).
 - A column renamed since the view was made: [`--map Old=New`](../reference/cli.md#map).
+- A server's sources instead of files: [With a server](../reference/cli.md#with-a-server).
 - The same from your own code, in Node or the browser: [getting started with reports](report.md).
 - A print template with your logo and layout: [print template](../reference/print-template.md).

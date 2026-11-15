@@ -12,6 +12,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
   colours and the font that the print template's own CSS gives the report, computed as the browser
   computes them for `.pk-report` (light values, `var()` resolved), so a template's CSS is the one
   place of its design ([#369](https://github.com/eizedev/pivotkit/issues/369)).
+- The HTML report's root (`<html>` of a print template) takes `data-pk-theme="light"` (light on
+  every screen) and `data-pk-theme="dark"` (dark on every screen, light on paper). On a dark screen
+  the report's dark tokens win over a template's plain `:root` colours
+  ([#370](https://github.com/eizedev/pivotkit/issues/370)).
 
 ### Changed
 
@@ -21,6 +25,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Fixed
 
+- HTML report on a dark screen: a colour scale whose view names no colours runs through the dark
+  theme's heat colours, as the report on a page does; the light ones made its low end a bright grey
+  under light text (3.3:1). A view's own colours are mixed fainter there (30 %, as on the page).
+  Each cell carries only its place on the scale; the colour is mixed by one rule per half
+  ([#370](https://github.com/eizedev/pivotkit/issues/370)).
 - A host's token that is another token alone (`var(--pk-chart-2)`) reaches the chart as that token's
   value; one with any other `var()` keeps the default instead of reaching the chart as `var(...)`. A
   heatmap colour ECharts cannot mix (such as `oklch()`) keeps the default scale instead of turning

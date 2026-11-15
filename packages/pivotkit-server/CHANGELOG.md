@@ -6,6 +6,27 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- `REST_BASE`, `SOURCE_ID`, `TOKEN_SYNTAX`, `TOKEN_SYNTAX_TEXT`, `REST_ERRORS`, `PROBLEM_CODES` and
+  `isLoopback` come from `pivotkit-cli/rest`, which the command line's remote mode checks against
+  ([#306](https://github.com/eizedev/pivotkit/issues/306)); the exports keep their names.
+  pivotkit-server needs the pivotkit-cli release that has `pivotkit-cli/rest` (its release raises
+  the `pivotkit-cli` range).
+
+### Fixed
+
+- `output.dir` with a name longer than the file system allows, or a symbolic link loop in its path:
+  `check-config` reports it as a directory that cannot be created, with the reason, as the start
+  refuses it (it said "will be created at start"); with `output.create: false` both say it cannot
+  be examined. Start errors name these reasons in words, keep any other file system code in a
+  neutral sentence, and a link changed while the directory is made is refused with its reason
+  instead of a raw error.
+- `isLoopback` takes only literal loopback addresses: a host name that starts with `127.`
+  (`127.example.com`) is no longer loopback, and `[::1]` as a URL writes it is. A listen host
+  written short, `127.1` or `127.0.1`, no longer counts as loopback either: on it the server needs
+  `auth` (or `--allow-unauthenticated`); write `127.0.0.1`.
+
 ## [0.1.1] - 2026-11-14
 
 ### Upgrading from 0.1.0

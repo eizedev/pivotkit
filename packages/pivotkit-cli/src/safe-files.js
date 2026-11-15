@@ -194,10 +194,11 @@ export function isWindowsDevice(name) {
  * between the check and the write), so nothing is replaced: `EXISTS`.
  * @param {string} path
  * @param {Uint8Array} bytes
- * @param {{ cwd: string, allow: string[], exclusive?: boolean }} options
+ * @param {{ cwd: string, allow: string[], exclusive?: boolean, mode?: number }} options  `mode`: the new file's
+ *   permissions (0o600: only its owner reads it), also when it replaces one; default the replaced file's, else 0o644
  * @returns {Promise<string>}  the real path written
  */
-export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) {
+export async function writeSafe(path, bytes, { cwd, allow, exclusive = false, mode }) {
     const full = resolve(cwd, path);
     let dir;
     try {
@@ -222,7 +223,7 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) 
         throw new CliError("io", existing.isSymbolicLink() || existing.isDirectory() ? "NOT_REGULAR_FILE" : "SPECIAL_FILE", `${shortName(path)}: exists and is ${what}; not replaced`);
     }
     const temp = join(dir, tempFileName(basename(full)));
-    const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), existing ? existing.mode & 0o777 : 0o644);
+    const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), mode ?? (existing ? existing.mode & 0o777 : 0o644));
     try {
         await handle.writeFile(bytes);
         await handle.sync();
