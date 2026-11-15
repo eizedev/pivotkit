@@ -27,9 +27,10 @@ pivotkit --version
 
 Update pivotkit-server and pivotkit-mcp in one command, to the same release: `pivotkit-server serve`
 loads the pivotkit-mcp installed beside it, and a pivotkit-server changed alone afterwards can make
-it stop at start with an error that a module "does not provide an export named ...". The sure sign
-is `npm ls -g --all` marking pivotkit-server under pivotkit-mcp `invalid`; install both again in one
-command. pivotkit-cli updates on its own. `npm update --global` updates every global package
+it stop at start with "pivotkit-mcp <x> does not fit pivotkit-server <y>" (pivotkit-server 0.1.1
+and earlier: a module "does not provide an export named ..."). The sure sign is `npm ls -g --all`
+marking pivotkit-server under pivotkit-mcp `invalid`; install both again in one command.
+pivotkit-cli updates on its own. `npm update --global` updates every global package
 to its newest release, across minor versions too. Install global packages into a folder you own
 (npm's `prefix`), not with `sudo`. `npm audit signatures` checks the registry's signatures in a
 project only, not for global packages: to check a release first, install it into an empty folder,
@@ -72,8 +73,8 @@ A running process keeps the version it started with. Restart it right after the 
   session.
 - `pivotkit-server serve` and `pivotkit-mcp --http`: restart the process; a Windows service by its
   name (`nssm restart pivotkit` for [the service under NSSM](mcp.md#psu-service)). If `serve` stops
-  at start with "does not provide an export named", pivotkit-server and pivotkit-mcp do not fit
-  together ([above](#update-global)).
+  at start with "does not fit" or "does not provide an export named", pivotkit-server and
+  pivotkit-mcp do not fit together ([above](#update-global)).
 
 ### The container image { #update-image }
 

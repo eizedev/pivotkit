@@ -5,8 +5,12 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { serve } from "pivotkit-server";
 import { BIN, BY_REGION, TOKEN, call, workspace } from "./helpers.js";
+
+const { version: VERSION } = createRequire(import.meta.url)("../package.json");
 
 const run = (args, { env = {}, cwd } = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", cwd, env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env }, timeout: 30_000 });
 
@@ -31,6 +35,25 @@ test("help, version, an unknown command; cli and mcp hand over to their packages
     const mcp = run(["mcp", "--version"]);
     assert.equal(mcp.status, 0, mcp.stderr);
     assert.match(mcp.stdout, /^pivotkit-mcp /);
+});
+
+test("a pivotkit-mcp of another release: serve and mcp say so with both versions, not a missing export", () => {
+    const hook = fileURLToPath(new URL("./fixtures/mcp-other-release/hook.js", import.meta.url));
+    const dir = workspace();
+    for (const args of [["serve", "--source", "sales=data/sales.csv", "--port", "0"], ["mcp", "--version"]]) {
+        const r = spawnSync(process.execPath, ["--import", hook, BIN, ...args], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+        assert.equal(r.status, 2, `${args[0]}: ${r.stderr}`);
+        // the first line: a Node release may warn of the resolution hook below it
+        assert.equal(
+            r.stderr.split("\n")[0],
+            `pivotkit-server: pivotkit-mcp 0.0.1 does not fit pivotkit-server ${VERSION} (it needs pivotkit-server ^0.0.1; The requested module 'pivotkit-server' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'). Install pivotkit-server and pivotkit-mcp of one release in one command: https://pivotkit.eize.dev/getting-started/upgrading/#update`,
+            args[0]
+        );
+    }
+    // a missing export of another package is no mismatch of the two: its own error stays
+    const other = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "core-export.js" }, timeout: 30_000 });
+    assert.equal(other.status, 2, other.stderr);
+    assert.equal(other.stderr.split("\n")[0], "pivotkit-server: could not start: The requested module 'pivotkit-core' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'");
 });
 
 test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST would expose; 1 when a file is missing", () => {

@@ -260,7 +260,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   (`callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
   auth.js), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
-  pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
+  pivotkit-mcp installed (imported by name, no dependency; one of another release that imports what this pivotkit-server lacks is refused with both versions), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source, mcp, cli,
   healthcheck), `src/check-source.js` (`check-source`: one load of an HTTP source, never a value
   printed). What

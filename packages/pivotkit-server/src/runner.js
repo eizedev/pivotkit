@@ -40,7 +40,7 @@ export function helpText() {
  * @param {any} io
  */
 async function runMcp(argv, io) {
-    const mcp = await loadMcp().catch(() => null);
+    const mcp = await loadMcp();
     if (!mcp) {
         io.stderr.write("pivotkit-server: mcp needs the package pivotkit-mcp beside pivotkit-server (npm install pivotkit-mcp)\n");
         return 2;
@@ -113,7 +113,7 @@ export async function run(argv, io) {
             return main(rest, { stdin: io.stdin ?? process.stdin, stdout: io.stdout, stderr: io.stderr, env: io.env, cwd: io.cwd ?? process.cwd() });
         }
         if (command === "mcp") {
-            return runMcp(rest, io);
+            return await runMcp(rest, io);
         }
         if (command === "healthcheck") {
             // the port serve listens on: $PIVOTKIT_PORT, else the configuration file's, else the default

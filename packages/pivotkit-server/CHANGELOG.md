@@ -199,6 +199,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   (`127.example.com`) is no longer loopback, and `[::1]` as a URL writes it is. A listen host
   written short, `127.1` or `127.0.1`, no longer counts as loopback either: on it the server needs
   `auth` (or `--allow-unauthenticated`); write `127.0.0.1`.
+- A pivotkit-mcp of another release beside pivotkit-server: `serve` and `mcp` stop with "pivotkit-mcp
+  <x> does not fit pivotkit-server <y> (it needs pivotkit-server <range>; ...)" and a link to the
+  update guide, instead of "could not start: The requested module ... does not provide an export
+  named ...". `pivotkit-server mcp` no longer says "needs the package pivotkit-mcp" when
+  pivotkit-mcp is installed but cannot be loaded; it names the error.
 
 ## [0.1.1] - 2026-11-14
 
