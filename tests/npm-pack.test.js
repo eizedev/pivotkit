@@ -73,7 +73,7 @@ test("npm's error JSON, a package without a file name and text after the JSON ar
 
 test("tarballName takes a plain .tgz name of one package only", () => {
     assert.equal(tarballName(NPM12), "pivotkit-xlsx-0.3.1.tgz");
-    for (const filename of ["../x.tgz", "dir/x.tgz", "x.tar", "..tgz"]) {
+    for (const filename of ["../x.tgz", "dir/x.tgz", "x.tar", "..tgz", "a\nb.tgz", "a b.tgz", "x.tgz\nfile=y.tgz"]) {
         assert.throws(() => tarballName(JSON.stringify([{ ...entry, filename }], null, 2)), /not a tarball's file name/, filename);
     }
     assert.throws(() => tarballName(JSON.stringify([entry, entry], null, 2)), /expected one package/);

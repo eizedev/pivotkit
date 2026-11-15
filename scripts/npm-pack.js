@@ -30,15 +30,16 @@ export function packEntries(stdout) {
 }
 
 /**
- * The tarball's file name of the one package npm pack made, checked to be a plain .tgz name: the
- * release workflow puts it into a path and uploads that file.
+ * The tarball's file name of the one package npm pack made, checked to be a plain .tgz name (letters,
+ * digits and . _ @ + -, no leading dot): the release workflow puts it into a path and into
+ * $GITHUB_OUTPUT, where a line break would start another output.
  * @param {string} stdout  what npm pack printed on stdout
  */
 export function tarballName(stdout) {
     const entries = packEntries(stdout);
     if (entries.length !== 1) throw new Error(`expected one package from npm pack, got ${entries.length}`);
     const { filename } = entries[0];
-    if (!/^[^/\\]+\.tgz$/.test(filename) || filename.startsWith(".")) throw new Error(`not a tarball's file name: ${JSON.stringify(filename)}`);
+    if (!/^[A-Za-z0-9._@+-]+\.tgz$/.test(filename) || filename.startsWith(".")) throw new Error(`not a tarball's file name: ${JSON.stringify(filename)}`);
     return filename;
 }
 
