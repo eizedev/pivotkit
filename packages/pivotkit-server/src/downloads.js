@@ -20,7 +20,7 @@
 
 import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
 import { constants } from "node:fs";
-import { link as hardLink, mkdir, open, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import { access, link as hardLink, mkdir, open, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ConfigError } from "./options/shared.js";
 import { DEFAULT_ALGORITHMS } from "./config.js";
@@ -29,7 +29,7 @@ import { discover, subjectOf } from "./auth.js";
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { isLoopback } from "./listen.js";
 import { OUTPUT_MARK, outputDir } from "./output.js";
-import { newRequestId } from "./request-id.js";
+import { newRequestId, requestId, withRequestId } from "./request-id.js";
 import { readSecret } from "./secrets.js";
 import { typeOf } from "./rest/problem.js";
 
@@ -70,10 +70,16 @@ const PURPOSES = Object.freeze({ token: "pivotkit downloads: token v1", subject:
 /** The headers every answer of the route carries. */
 const BASE_HEADERS = Object.freeze({ "cache-control": "no-store", "referrer-policy": "no-referrer", "x-robots-tag": "noindex", "x-content-type-options": "nosniff", "cross-origin-resource-policy": "same-origin" });
 
-/** A page's own policy, and a file's. */
-/** The pages' own style and script (the button's feedback), allowed by their hashes and nothing else. */
-const PAGE_STYLE = ":root{color-scheme:light dark;--fg:#1f2328;--bg:#fff;--muted:#59636e;--accent:#0969da}@media (prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--muted:#9198a1;--accent:#4493f8}}body{font:16px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg);max-width:36rem;margin:3rem auto;padding:0 1rem}.brand{color:var(--muted);font-size:.875rem;margin:0}h1{font-size:1.5rem;margin:.25rem 0 1rem}button{font:inherit;padding:.5rem 1.25rem;border:0;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer}[role=status]{color:var(--muted);min-height:1.5em}";
-const PAGE_SCRIPT = "document.querySelector('form')?.addEventListener('submit',()=>{document.getElementById('status').textContent='The download has started: look in your browser\\'s downloads.'});";
+/**
+ * The pages' own style and script, allowed by their hashes and nothing else. Both are the same text on
+ * every page (nothing of a request in them). Colours: text, the muted text and the button's text on
+ * its background reach 4.5:1 in both schemes (tests/browser/download-link.spec.js measures them); the
+ * focus ring is the accent, 3:1 or more against the page. The script writes a `<time>` in the
+ * browser's own zone and, after the click, says that the download started and how long it can be
+ * repeated.
+ */
+const PAGE_STYLE = ":root{color-scheme:light dark;--fg:#1f2328;--bg:#fff;--muted:#59636e;--accent:#0969da;--on-accent:#fff}@media (prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--muted:#9198a1;--accent:#4493f8;--on-accent:#0d1117}}body{font:16px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg);max-width:36rem;margin:3rem auto;padding:0 1rem;overflow-wrap:anywhere}.brand{color:var(--muted);font-size:.875rem;margin:0}h1{font-size:1.5rem;margin:.25rem 0 1rem}.file{font-weight:600;margin:0}button{font:inherit;min-height:2.75rem;padding:.5rem 1.25rem;border:0;border-radius:6px;background:var(--accent);color:var(--on-accent);cursor:pointer}button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}[role=status]{min-height:1.5em}.ref{color:var(--muted);font-size:.875rem}";
+const PAGE_SCRIPT = `for(const t of document.querySelectorAll('time[datetime]')){t.textContent=new Date(t.dateTime).toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})}document.querySelector('form')?.addEventListener('submit',()=>{document.getElementById('status').textContent='Downloaded once. You can repeat it for ${REPEAT_SECONDS / 60} minutes, in this browser.';document.getElementById('until')?.remove()});`;
 const hashOf = (text) => `'sha256-${createHash("sha256").update(text).digest("base64")}'`;
 const PAGE_CSP = `default-src 'none'; style-src ${hashOf(PAGE_STYLE)}; script-src ${hashOf(PAGE_SCRIPT)}; form-action 'self'; frame-ancestors 'none'`;
 const FILE_CSP = "sandbox; default-src 'none'";
@@ -84,21 +90,48 @@ const MEDIA_TYPES = Object.freeze({ xlsx: "application/vnd.openxmlformats-office
 /** A stored name of pivotkit's (a report or a draft) with a link's prefix. */
 const LINKED_NAME = new RegExp(`^([A-Za-z0-9_-]{22})-(.+)\\.${OUTPUT_MARK}\\.((?:report\\.)?(xlsx|html|csv|json|svg))$`);
 
-/** The answers of the route that are not a file, their status and words (a page's and a problem's). */
+/** How a page writes a duration of whole minutes. */
+const minutesText = (seconds) => `${seconds / 60} minutes`;
+
+/**
+ * The answers of the route that are not a file: their status, the page's heading (also its title) and
+ * the words of the page and the problem. An entry with `code` answers under that code with words of
+ * its own (a problem's `code` is part of the contract; the words are not).
+ */
 const ANSWERS = Object.freeze({
-    NOT_FOUND: { status: 404, text: "There is no such link. Check that the whole link was copied." },
-    LINK_EXPIRED: { status: 410, text: "This link has expired. Ask whoever made the report to make it again." },
-    REPORT_REMOVED: { status: 410, code: "LINK_EXPIRED", text: "The report was removed from the server before the link expired. Ask whoever made the report to make it again." },
-    LINK_USED: { status: 409, text: "This link was already used. Ask whoever made the report to make it again." },
-    LINK_NOT_YOURS: { status: 403, text: "You are signed in as a different account than the one that asked for this report." },
-    SIGN_IN_FAILED: { status: 400, text: "The sign-in did not complete. Open the link again to try once more." },
-    SIGN_IN_NOT_READY: { status: 503, text: "The server is waiting for its sign-in service. Try again in a moment." },
-    FORBIDDEN_ORIGIN: { status: 403, text: "This download must be started from its own page. Open the link again." },
-    FORBIDDEN_HOST: { status: 403, text: "This address is not served here." },
-    METHOD_NOT_ALLOWED: { status: 405, text: "This link is opened in a browser." },
-    BODY_TOO_LARGE: { status: 413, text: "The request is larger than a download takes." },
-    INTERNAL: { status: 500, text: "The download failed. Try again; if it keeps failing, tell the operator." }
+    NOT_FOUND: { status: 404, heading: "Link not found", text: "There is no such link. Check that the whole link was copied." },
+    LINK_EXPIRED: { status: 410, heading: "Link expired", text: "This link has expired. Ask whoever made the report to make it again." },
+    REPORT_REMOVED: { status: 410, code: "LINK_EXPIRED", heading: "Report removed", text: "The report was removed from the server before the link expired. Ask whoever made the report to make it again." },
+    LINK_USED: { status: 409, heading: "Link already used", text: "This link was already used. If you downloaded the report earlier, look in the downloads of the browser you used. Otherwise ask whoever made the report to make it again." },
+    LINK_NOT_YOURS: { status: 403, heading: "Signed in as someone else", text: "You are signed in as a different account than the one that asked for this report. To get it, open the download link you were sent once more and sign in with that account." },
+    SIGN_IN_FAILED: { status: 400, heading: "Sign-in failed", text: "The sign-in did not complete. Open the download link you were sent once more (not this page) to try again." },
+    SIGN_IN_DENIED: { status: 400, code: "SIGN_IN_FAILED", heading: "Not signed in", text: "You were not signed in. The sign-in was cancelled or the sign-in service refused it. To get the report, open the download link you were sent once more and sign in." },
+    SIGN_IN_STALE: { status: 400, code: "SIGN_IN_FAILED", heading: "Sign-in page out of date", text: `This sign-in was already used, is older than ${minutesText(SIGN_IN_SECONDS)}, or was started in another browser. Open the download link you were sent once more, in this browser.` },
+    SIGN_IN_NOT_READY: { status: 503, heading: "Sign-in not ready", text: "The server is waiting for its sign-in service. Try again in a moment." },
+    FORBIDDEN_ORIGIN: { status: 403, heading: "Download not started from its page", text: "This download must be started from its own page. Open the download link once more and press Download there." },
+    FORBIDDEN_HOST: { status: 403, heading: "Address not served", text: "This address is not served here." },
+    METHOD_NOT_ALLOWED: { status: 405, heading: "Open the link in a browser", text: "This link is opened in a browser." },
+    BODY_TOO_LARGE: { status: 413, heading: "Request too large", text: "The request is larger than a download takes." },
+    INTERNAL: { status: 500, heading: "Download failed", text: "The download failed. Try again; if it keeps failing, tell the operator and give them the request id." }
 });
+
+/** What a page calls a report's file, by extension. */
+const FILE_KINDS = Object.freeze({ xlsx: "Excel workbook", html: "HTML report", csv: "CSV file", json: "JSON file", svg: "SVG image" });
+
+/** A file's size as a page writes it: bytes, KB or MB (of 1024), one decimal below 10. */
+export function sizeText(bytes) {
+    if (bytes < 1024) {
+        return bytes === 1 ? "1 byte" : `${bytes} bytes`;
+    }
+    const [value, unit] = bytes < 1024 * 1024 ? [bytes / 1024, "KB"] : [bytes / (1024 * 1024), "MB"];
+    return `${value < 10 ? Math.round(value * 10) / 10 : Math.round(value)} ${unit}`;
+}
+
+/** A time (seconds) as a `<time>` element: UTC in the page, the browser's own zone once its script ran. */
+function timeHtml(seconds) {
+    const iso = new Date(seconds * 1000).toISOString();
+    return `<time datetime="${iso}">${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC</time>`;
+}
 
 /** base64url of a buffer or text. */
 const b64 = (data) => Buffer.from(data).toString("base64url");
@@ -404,7 +437,9 @@ function cookieJar(keyOf, secure) {
             }
             const keys = await keyOf();
             const body = b64(JSON.stringify(Object.fromEntries(entries)));
-            return `${name}=${body}.${mac(keys.cookie, body)}; Max-Age=${SIGN_IN_SECONDS}; ${attributes}`;
+            // as long as its last entry: REPEAT_SECONDS for a repeat alone, SIGN_IN_SECONDS with a sign-in under way
+            const maxAge = Math.max(1, entries[entries.length - 1][1].x - Math.floor(Date.now() / 1000));
+            return `${name}=${body}.${mac(keys.cookie, body)}; Max-Age=${maxAge}; ${attributes}`;
         }
     };
 }
@@ -412,9 +447,14 @@ function cookieJar(keyOf, secure) {
 /** Escapes a text for HTML. */
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-/** A short page: a heading, a sentence and, for a one-time link, its button. */
-function page(title, text, { status = 200, form = false, headers = {} } = {}) {
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)}</title><style>${PAGE_STYLE}</style></head><body><p class="brand">pivotkit report</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(text)}</p>${form ? `<form method="post"><button type="submit">Download</button></form><p id="status" role="status"></p><script>${PAGE_SCRIPT}</script>` : ""}</body></html>`;
+/**
+ * A short page: a heading (also the title), its body as HTML (escaped by the caller) and, for a
+ * one-time link, the button. A page of status 500 or more names the request's id, for the operator.
+ */
+function page(heading, body, { status = 200, form = false, headers = {} } = {}) {
+    // the request id where the operator has something to look up: a failure of the server's own
+    const tail = form ? `<form method="post"><button type="submit">Download</button></form><p id="status" role="status"></p><script>${PAGE_SCRIPT}</script>` : status >= 500 ? `<p class="ref">Request id: ${escapeHtml(requestId() ?? newRequestId())}</p>` : "";
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(heading)} - pivotkit report</title><style>${PAGE_STYLE}</style></head><body><main><p class="brand">pivotkit report</p><h1>${escapeHtml(heading)}</h1>${body}${tail}</main></body></html>`;
     return new Response(html, { status, headers: { ...BASE_HEADERS, "content-security-policy": PAGE_CSP, "content-type": "text/html; charset=utf-8", ...headers } });
 }
 
@@ -431,12 +471,12 @@ const wantsJson = (request) => {
  * @param {Record<string, string>} [headers]
  */
 function answer(request, code, headers = {}) {
-    const { status, text, code: shown = code } = /** @type {{ status: number, text: string, code?: string }} */ (ANSWERS[code]);
+    const { status, heading, text, code: shown = code } = /** @type {{ status: number, heading: string, text: string, code?: string }} */ (ANSWERS[code]);
     if (wantsJson(request)) {
-        const body = { type: typeOf(shown), title: shown.toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()), status, code: shown, detail: text };
+        const body = { type: typeOf(shown), title: shown.toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()), status, code: shown, detail: text, requestId: requestId() ?? newRequestId() };
         return new Response(JSON.stringify(body), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", ...headers } });
     }
-    return page(status >= 500 ? "Not available" : "Cannot download", text, { status, headers });
+    return page(heading, `<p>${escapeHtml(text)}</p>`, { status, headers });
 }
 
 /**
@@ -528,7 +568,7 @@ export function createDownloadHandler(context, runtime = {}) {
             return null;
         }
         const extension = /** @type {string} */ (LINKED_NAME.exec(names[0])?.[4]);
-        return { handle, size: info.size, filename: filenameOf(names[0]), mediaType: MEDIA_TYPES[/** @type {keyof typeof MEDIA_TYPES} */ (extension)] };
+        return { handle, size: info.size, filename: filenameOf(names[0]), mediaType: MEDIA_TYPES[/** @type {keyof typeof MEDIA_TYPES} */ (extension)], kind: FILE_KINDS[/** @type {keyof typeof FILE_KINDS} */ (extension)] };
     }
 
     /**
@@ -580,7 +620,7 @@ export function createDownloadHandler(context, runtime = {}) {
     }
 
     /** Logs a download request: never its token, path, code, state or cookie. */
-    const log = (entry) => context.log.download({ via: "link", requestId: newRequestId(), ...entry });
+    const log = (entry) => context.log.download({ via: "link", requestId: requestId() ?? newRequestId(), ...entry });
 
     /** A token's payload for a request, or the answer: 404 for one that does not hold, 410 for an expired one. */
     async function tokenOf(request, token) {
@@ -594,7 +634,7 @@ export function createDownloadHandler(context, runtime = {}) {
         }
         const payload = readToken(k, token);
         if (!payload) {
-            context.log.debug("download links: no such link", { via: "link", code: "NOT_FOUND" });
+            context.log.debug("download links: no such link", { via: "link", code: "NOT_FOUND", requestId: requestId() });
             return { response: answer(request, "NOT_FOUND") };
         }
         if (payload.e < Math.floor(Date.now() / 1000)) {
@@ -656,9 +696,19 @@ export function createDownloadHandler(context, runtime = {}) {
                     return found.response;
                 }
                 await found.report.handle.close();
+                // a used link says so at once (to a second browser, at a later visit), except to the
+                // browser that took it, which may repeat it for REPEAT_SECONDS
+                const repeat = (await jar.read(request))[`o:${payload.n}`];
+                if (!repeat && (await access(join(markersDir(), `${payload.n}.used`)).then(() => true, () => false))) {
+                    return answer(request, "LINK_USED");
+                }
+                const { filename, kind, size } = found.report;
+                const what = `<p class="file">${escapeHtml(filename)}</p><p>${kind}, ${sizeText(size)}. `;
+                // the sentence about when it can be downloaded goes once the status line says it (the page's script)
+                const body = repeat ? `${what}<span id="until">You downloaded it in this browser a moment ago and can download it again until ${timeHtml(repeat.x)}; after that the link is used.</span></p>` : `${what}<span id="until">It can be downloaded once, until ${timeHtml(payload.e)}.</span></p>`;
                 // same-origin, not no-referrer: so the browser names the page's origin when it posts the
                 // form (under no-referrer it sends Origin: null); nothing leaves for another site
-                return page("Download the report", `${found.report.filename} can be downloaded once.`, { form: true, headers: { "referrer-policy": "same-origin" } });
+                return page("Download the report", body, { form: true, headers: { "referrer-policy": "same-origin" } });
             }
             if (method !== "POST") {
                 return answer(request, "METHOD_NOT_ALLOWED", { allow: "GET, HEAD, POST" });
@@ -780,16 +830,18 @@ export function createDownloadHandler(context, runtime = {}) {
         delete rest[key];
         const cookie = await jar.write(rest);
         const fail = (code, extra = {}) => {
-            log({ bound: "signIn", ok: false, code, ...extra });
+            log({ bound: "signIn", ok: false, code: /** @type {{ code?: string }} */ (ANSWERS[code]).code ?? code, ...extra });
             return answer(request, code, { "set-cookie": cookie });
         };
         if (!entry || typeof entry.t !== "string" || typeof entry.v !== "string" || typeof entry.nn !== "string") {
             // no sign-in of this browser under way (a missing or foreign cookie, a used state): anyone can send that, so the debug log only
-            context.log.debug("download links: a sign-in callback without its cookie", { via: "link", bound: "signIn", code: "SIGN_IN_FAILED" });
-            return answer(request, "SIGN_IN_FAILED", { "set-cookie": cookie });
+            // (a tab left open, a reload, another browser): the page says to open the link again, here
+            context.log.debug("download links: a sign-in callback without its cookie", { via: "link", bound: "signIn", code: "SIGN_IN_FAILED", requestId: requestId() });
+            return answer(request, "SIGN_IN_STALE", { "set-cookie": cookie });
         }
         if (url.searchParams.has("error")) {
-            return fail("SIGN_IN_FAILED", { reason: "issuer" });
+            // read only after this browser's own sign-in matched; the provider's words are never shown
+            return fail("SIGN_IN_DENIED", { reason: "issuer" });
         }
         const code = url.searchParams.get("code");
         if (!code || code.length > 2048) {
@@ -841,6 +893,27 @@ export function createDownloadHandler(context, runtime = {}) {
         return fileAnswer(found.report, "GET", { headers: { "set-cookie": cookie } });
     }
 
+    /** A request of the route after its precheck, inside its request id. */
+    async function route(request, path) {
+        try {
+            if (!active || !state.base) {
+                return answer(request, "NOT_FOUND");
+            }
+            if (path === CALLBACK_PATH) {
+                return request.method === "GET" ? await callback(request) : answer(request, "METHOD_NOT_ALLOWED", { allow: "GET" });
+            }
+            const token = path.slice(DOWNLOADS_PATH.length + 1);
+            if (!TOKEN_SYNTAX.test(token)) {
+                context.log.debug("download links: no such link", { via: "link", code: "NOT_FOUND", requestId: requestId() });
+                return answer(request, "NOT_FOUND");
+            }
+            return await link(request, token);
+        } catch (e) {
+            context.log.error(e, { where: "downloads", requestId: requestId() });
+            return answer(request, "INTERNAL");
+        }
+    }
+
     const handler = {
         /** Whether a path is the route's (anything under /downloads; what is not a link answers 404). */
         handles: (path) => path === DOWNLOADS_PATH || path.startsWith(`${DOWNLOADS_PATH}/`),
@@ -865,27 +938,12 @@ export function createDownloadHandler(context, runtime = {}) {
                 return early;
             }
             const path = new URL(request.url).pathname;
-            try {
-                if (!active || !state.base) {
-                    return answer(request, "NOT_FOUND");
-                }
-                if (path === CALLBACK_PATH) {
-                    return request.method === "GET" ? await callback(request) : answer(request, "METHOD_NOT_ALLOWED", { allow: "GET" });
-                }
-                const token = path.slice(DOWNLOADS_PATH.length + 1);
-                if (!TOKEN_SYNTAX.test(token)) {
-                    context.log.debug("download links: no such link", { via: "link", code: "NOT_FOUND" });
-                    return answer(request, "NOT_FOUND");
-                }
-                return await link(request, token);
-            } catch (e) {
-                context.log.error(e, { where: "downloads" });
-                return answer(request, "INTERNAL");
-            }
+            // one id per request: its log lines, its problem document and its page name the same one
+            return withRequestId(newRequestId(), () => route(request, path));
         },
 
         /** The answer for a body that cannot be read (too large, cut off). */
-        problem: (status) => new Response(JSON.stringify({ code: status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT" }), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", connection: "close" } }),
+        problem: (status) => new Response(JSON.stringify({ code: status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", requestId: newRequestId() }), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", connection: "close" } }),
 
         /**
          * The address the server listens on, once it does: the links' base on loopback without
