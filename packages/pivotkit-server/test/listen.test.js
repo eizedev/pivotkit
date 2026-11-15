@@ -244,3 +244,32 @@ test("oauth without required scopes or tool scopes: REST warns at start, as MCP 
         await scoped.close();
     }
 });
+
+test("a client that leaves before the answer starts: its streamed body is given up as soon as it comes, so what waits for its end (a caller's slot) is freed", async () => {
+    let cancelled = false;
+    const listening = await serveFetch(
+        {
+            // the answer comes 300 ms after the client left; its body would stream until a call ends
+            fetch: async () => {
+                await new Promise((resolve) => setTimeout(resolve, 300));
+                return new Response(new ReadableStream({ cancel: () => void (cancelled = true) }), { headers: { "content-type": "text/event-stream" } });
+            }
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024 }
+    );
+    try {
+        await new Promise((resolve) => {
+            const socket = connect(listening.port, "127.0.0.1", () => {
+                socket.write("POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}");
+                setTimeout(() => {
+                    socket.destroy();
+                    resolve(undefined);
+                }, 30);
+            });
+        });
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        assert.equal(cancelled, true, "the body of an answer whose client already left is cancelled");
+    } finally {
+        await listening.close();
+    }
+});

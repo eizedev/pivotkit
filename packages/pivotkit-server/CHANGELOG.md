@@ -48,6 +48,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- A client that leaves while a streamed answer waits (an MCP call over a slow source) frees its
+  caller's slot at once, also when it left before the answer started: the stream was only given up
+  when the socket was written to, so the slot stayed taken until the call ended.
 - `output.dir` with a name longer than the file system allows, or a symbolic link loop in its path:
   `check-config` reports it as a directory that cannot be created, with the reason, as the start
   refuses it (it said "will be created at start"); with `output.create: false` both say it cannot
