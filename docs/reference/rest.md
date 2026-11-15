@@ -268,6 +268,8 @@ curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
   a 413 says which cap applied. The larger cap applies only once the token is checked: a body
   declared larger than any caller may send is refused before that. At most two bodies over 2 MiB are
   read at once over all callers, one per caller; another gets 503 `BUSY` with `Retry-After` and `retryable: true`.
+  A caller here is a token (by its name) or an OAuth client: programs that share one token, or people
+  who sign in through one OAuth client, send one such body at a time between them.
   A JSON body nested deeper than 64 levels is refused before it is parsed, a multipart body with more
   than two parts before its parts are read. A JSON body is parsed in the server's main thread: a
   `data: true` token is trusted with that time and memory ([security](../security.md#rest)). The server's import limits (`limits.rows`, `limits.importCells`, `limits.fileBytes`)

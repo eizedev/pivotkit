@@ -341,7 +341,8 @@ and the sign-in above hold for it too. What differs:
   `rest.data.maxBytes` (default 10 MiB, 2 to 64 MiB), and only to a route that takes a source;
   everyone else keeps 2 MiB, and a body declared larger than any caller may send is refused before
   the token is read. At most two such large bodies are read at once over all callers, one per
-  caller; another gets 503 `BUSY` with `Retry-After`. A file is parsed in a worker under the time, memory and import
+  caller (a token by its name, or an OAuth client, however many use it); another gets 503 `BUSY`
+  with `Retry-After`. A file is parsed in a worker under the time, memory and import
   limits; a `sha256` of its bytes catches a file altered on the way, `rowCount` a cut JSON table.
   The data is never cached and no exposure policy applies to it.
 - **What runs in the main thread.** Reading a body, the check of its nesting (counted on the bytes,

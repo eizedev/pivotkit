@@ -120,7 +120,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {string} [groupsSeparator]  also accept a text groups claim, split by this separator
  * @property {Array<{ group: string, profile: string }>} [groupProfiles]  a person's group to policy profile; the first matching entry wins
  * @property {string} [defaultProfile]  the profile of a signed-in caller no token, client, group or scope entry names
- * @property {boolean} [offerSourceScopes]  offer the sources' scopes in the OAuth metadata (default true)
+ * @property {boolean} [offerSourceScopes]  offer the sources' scopes in the OAuth metadata (default false)
  */
 
 /** The import limits a server uses unless the operator sets them: lower than a command line's. */
