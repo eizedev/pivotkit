@@ -404,15 +404,18 @@ root `package.json`: `npm run types` and the builds depend on it.
   symlink works; every such script of this repository uses it (`tests/is-main.test.js`).
 - `tests/temp-dir.js` - `tempDir(label)`: the one way a test, probe, benchmark or browser spec makes a
   temporary directory (`pivotkit-<run>-<label>-…` under the system's temporary directory, its real
-  path), removed when the process ends, also after a failure, `exit()` or SIGINT/SIGTERM;
+  path), removed when the process ends, also after a failure, `exit()` or SIGINT/SIGTERM (a signal
+  handler of the process's own, such as a server's graceful stop, runs to its end first);
   `removeTempDirs()` for a Playwright spec's `test.afterAll`. The `tempDir` of pivotkit-server's,
   pivotkit-mcp's and pivotkit-cli's `test/helpers.js` is this one with the package's label.
   `scripts/test-run.js` runs a test command as one run (`PIVOTKIT_TEST_RUN`, kept from an outer run)
-  and fails when it leaves a directory with its id behind; the root's `test`, `coverage` and
+  and fails when it leaves a directory with its id behind, also after a SIGINT or SIGTERM it hands
+  on to the command; the root's `test`, `coverage` and
   `test:browser`, those three packages' `test` and `coverage`, and CI's repository checks and browser
-  jobs go through it. `tests/temp-dirs.test.js` fails on `mkdtemp` or `tmpdir()` outside the helper
-  (the packages' `src/` and `bin/` aside). `tests/source-files.js` lists the repository's
-  JavaScript files for such checks.
+  jobs go through it. `tests/temp-dirs.test.js` fails on `mkdtemp`, `tmpdir`, the `TMPDIR`/`TEMP`/`TMP`
+  variables or a `"/tmp"` path in code outside the helper (the packages' `src/` and `bin/` aside;
+  comments do not count). `tests/source-files.js` lists the repository's JavaScript and TypeScript
+  files (`.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.tsx`) for such checks.
 - `scripts/openapi.js` - writes `docs/openapi.json`, the REST service's OpenAPI document as
   pivotkit-server generates it (committed; served by the site; pivotkit-server's `test/openapi.test.js`
   fails until it is what the script writes).
