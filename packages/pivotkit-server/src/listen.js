@@ -265,16 +265,33 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 // the body is not sent: given up, so whatever waits for its end (a caller's slot) is freed
                 await response.body.cancel().catch(() => undefined);
             } else if (response.body) {
-                // a client that leaves stops the stream; a full socket is waited for
-                abort.signal.addEventListener("abort", () => response.body?.cancel().catch(() => undefined), { once: true });
-                for await (const chunk of response.body) {
-                    if (!res.write(chunk)) {
+                // a client that leaves stops the stream, also one that left before the answer came: the
+                // stream is read through a reader of its own, which its cancel ends at once (a cancel
+                // of the locked stream itself would be refused), and its source learns it is given up,
+                // so whatever waits for its end (a caller's slot) is freed; a full socket is waited for
+                const reader = response.body.getReader();
+                const stop = () => reader.cancel().catch(() => undefined);
+                if (abort.signal.aborted) {
+                    await stop();
+                } else {
+                    abort.signal.addEventListener("abort", stop, { once: true });
+                }
+                for (;;) {
+                    const { done, value } = await reader.read().catch(() => ({ done: true, value: undefined }));
+                    if (done || res.destroyed) {
+                        if (!done) {
+                            await stop();
+                        }
+                        break;
+                    }
+                    if (!res.write(value)) {
                         // a client that leaves while the socket is full sends no drain: its close ends the wait
                         await new Promise((resolve) => {
                             res.once("drain", resolve);
                             res.once("close", resolve);
                         });
                         if (res.destroyed) {
+                            await stop();
                             break;
                         }
                     }
