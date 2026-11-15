@@ -815,7 +815,7 @@ async function renderCommand(positionals, values, ctx) {
     const view = made ? made.read : withMap(await readView(positionals, values, ctx), values);
     const data = made ? made.data : withViewTypes(await readData(values, ctx, view.sheet), viewFields(view.view));
     if (!data) {
-        throw new CliError("usage", "MISSING_DATA", "render needs data: --data <file> or --data -");
+        throw new CliError("usage", "MISSING_DATA", "render needs data: --data <file>, --data - for stdin, or a server's source: --source <id> with --url or PIVOTKIT_URL");
     }
     const findings = [...data.notes, ...(made?.findings ?? /** @type {any} */ (view).findings ?? []), ...ignoredOptions(values, format)];
     const template = values.template !== undefined ? textOf(await ctx.readInput(values.template, "the template", TEMPLATE_BYTES, "template")) : undefined;
@@ -1006,7 +1006,7 @@ async function viewFromData(positionals, values, ctx, command) {
     }
     const input = arg ?? values.data;
     if (input === undefined) {
-        throw new CliError("usage", "MISSING_DATA", `--${flag} needs the data: pivotkit ${command} <data> --${flag} ...`);
+        throw new CliError("usage", "MISSING_DATA", `--${flag} needs the data: pivotkit ${command} <data> --${flag} ..., or a server's source: --source <id> with --url or PIVOTKIT_URL`);
     }
     const data = await readData({ ...values, data: input }, await notAView(input, values, ctx, command, flag));
     const built = await layoutView(data, values, ctx, { sheets: data.sheets, command, input });
@@ -1157,7 +1157,7 @@ async function validateCommand(positionals, values, ctx) {
     const data = withViewTypes(await readData(values, ctx, view.sheet), viewFields(view.view));
     const fields = data ? null : listedFields(view);
     if (!data && fields === null) {
-        throw new CliError("usage", "MISSING_DATA", "validate needs data (--data) or a view file that lists its fields (source.fields)");
+        throw new CliError("usage", "MISSING_DATA", "validate needs data: --data <file>, a view file that lists its fields (source.fields), or a server's source: --source <id> with --url or PIVOTKIT_URL");
     }
     const { result } = await runOperation("validate_view", { source: data?.name || "view file", view: view.view }, operationEnv(ctx, data, fields));
     const { findings: all, ...extra } = result;

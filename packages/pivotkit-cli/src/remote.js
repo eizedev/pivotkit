@@ -322,8 +322,19 @@ export function createClient({ server, values, ctx, userAgent }) {
     function problemError(problem, status, retryAfter) {
         const code = typeof problem.code === "string" && PROBLEM_CODES.includes(problem.code) ? problem.code : "PROBLEM";
         const detail = typeof problem.detail === "string" ? clean(problem.detail) : "";
+        if (code === "INVALID_TOKEN") {
+            // one sentence: whether a token went, where it came from, and the server's reason for a refused one
+            const from = values["token-file"] !== undefined ? `--token-file ${shortName(values["token-file"])}` : "PIVOTKIT_TOKEN";
+            const text = lastToken ? `the server refused the token from ${from}${detail ? `: ${detail}` : ""} (${status} ${code})` : `the server needs a token: set PIVOTKIT_TOKEN or give --token-file <file> (${status} ${code})`;
+            return new RemoteError(code, text, { status, retryAfter });
+        }
+        // a source's parameter missing: the flag that gives it (the REST route's own pointer is for programs)
+        const needs = code === "INVALID_INPUT" ? /\bneeds params\.([A-Za-z0-9_-]{1,64})\b/.exec(detail)?.[1] : undefined;
+        if (needs) {
+            const text = detail.replace(/\. GET \/sources\/.*$/, "");
+            return new RemoteError(code, `the server answered ${status} ${code}: ${text} (give it with --param ${needs}=<value>)`, { status, retryAfter });
+        }
         const hints = {
-            INVALID_TOKEN: "token missing or refused: PIVOTKIT_TOKEN or --token-file",
             NOT_ALLOWED: detail.includes("results: true") ? "validate, describe and sources work with this token" : "this token's profile has no results: true; validate, describe and sources work with it",
             NOT_FOUND: server.apiPath ? "" : `the address should end in ${REST_BASE}`
         };

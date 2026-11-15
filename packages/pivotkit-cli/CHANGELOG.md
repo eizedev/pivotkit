@@ -23,6 +23,11 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 - `pivotkit-cli/rest`: what the REST service and its client agree on (`REST_BASE`, `SOURCE_ID`,
   `TOKEN_SYNTAX`, `REST_ERRORS`, `PROBLEM_CODES`, `isLoopback`); `writeSafe` takes `mode`.
 - `pivotkit serve` says to use `pivotkit-server serve`.
+- `--param name=value` gives a server's source its parameters (render, validate, describe and
+  `pivotkit sources <id>`, which then asks `POST /sources/describe`); `pivotkit sources` marks a
+  source with required parameters `(needs: customer)`. A 401 is one line that says whether a token
+  was sent and from where; "render needs data" and the layout flags' message name `--source` too
+  ([#424](https://github.com/eizedev/pivotkit/issues/424)).
 
 ## [0.2.1] - 2026-11-14
 

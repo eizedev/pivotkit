@@ -267,24 +267,24 @@ test("a backend's answers as a caller gets them, alike on REST and MCP; a backen
             set(status);
             rest = await restOf("vms");
             assert.deepEqual([rest.status, rest.data.code, rest.data.detail, rest.data.retryable], [404, "DATA_NOT_AVAILABLE", "nothing you may see for customer=acme: check the value", false], String(status));
-            assert.match(await mcpOf("vms"), /^DATA_NOT_AVAILABLE: nothing you may see for customer=acme: check the value \(id [A-Za-z0-9_-]{11}\)$/);
+            assert.match(await mcpOf("vms"), /^DATA_NOT_AVAILABLE: nothing you may see for customer=acme: check the value \(request id [A-Za-z0-9_-]{11}\)$/);
         }
         // without params: a refusal and a wrong address have texts of their own, never the backend's words
         set(403);
         rest = await restOf("all");
         assert.deepEqual([rest.status, rest.data.code, rest.data.detail, rest.data.retryable], [502, "SOURCE_UNAVAILABLE", serverTextOf("SOURCE_UNAVAILABLE", "refused"), false]);
         assert.match(rest.data.detail, /refused pivotkit's access; ask the operator/);
-        assert.match(await mcpOf("all"), /^SOURCE_UNAVAILABLE: the source's backend refused pivotkit's access; ask the operator and give the request id \(source all; trying again will not help\) \(id [A-Za-z0-9_-]{11}\)$/);
+        assert.match(await mcpOf("all"), /^SOURCE_UNAVAILABLE: the source's backend refused pivotkit's access; ask the operator and give the request id \(source all; trying again will not help; request id [A-Za-z0-9_-]{11}\)$/);
         set(404);
         rest = await restOf("all");
         assert.equal(rest.data.detail, serverTextOf("SOURCE_UNAVAILABLE", "setup"));
         assert.match(rest.data.detail, /not set up correctly/);
-        assert.match(await mcpOf("all"), /^SOURCE_UNAVAILABLE: the source is not set up correctly; ask the operator and give the request id \(source all; trying again will not help\)/);
+        assert.match(await mcpOf("all"), /^SOURCE_UNAVAILABLE: the source is not set up correctly; ask the operator and give the request id \(source all; trying again will not help; request id [A-Za-z0-9_-]{11}\)$/);
         // try again later: retryable, Retry-After passed on
         set(503, { "retry-after": "30" });
         rest = await restOf("all");
         assert.deepEqual([rest.status, rest.data.detail, rest.data.retryable, rest.headers.get("retry-after")], [502, serverTextOf("SOURCE_UNAVAILABLE"), true, "30"]);
-        assert.match(await mcpOf("all"), /^SOURCE_UNAVAILABLE: the source is not available right now; .*\(source all; trying again later may work\)/);
+        assert.match(await mcpOf("all"), /^SOURCE_UNAVAILABLE: the source is not available right now; .*\(source all; trying again later may work; request id [A-Za-z0-9_-]{11}\)$/);
         set(500);
         rest = await restOf("all");
         assert.deepEqual([rest.data.detail, rest.data.retryable], [serverTextOf("SOURCE_UNAVAILABLE"), false]);
@@ -529,7 +529,7 @@ test("check-source: one load with the operator's values, pages, rows and fields 
     routes.set("/v1/customers/acme/vms", json({ items: VMS, generatedAt: "2026-11-14T07:30:00Z", next: null }));
     const ok = await checkSource(optionsOf(), "vms", { customer: "acme" });
     assert.equal(ok.ok, true);
-    assert.match(ok.text, new RegExp(`^source vms: GET https://api\\.example\\.test:${port}/v1/customers/\\{customer\\}/vms\\?state=\\{state\\}&limit=\\.\\.\\.\\n  page 1: 200 application/json, \\d+ bytes\\n  1 page, \\d+ bytes, 3 rows, \\d+ ms\\n  fields: name \\(text\\), cpu \\(number\\), state \\(text\\), owner \\(text\\), tags \\(text\\)\\n  data as of 2026-11-14T07:30:00Z \\(from the body\\)\\nOK\\n$`));
+    assert.match(ok.text, new RegExp(`^source vms: GET https://api\\.example\\.test:${port}/v1/customers/\\{customer\\}/vms\\?state=\\{state\\}&limit=\\.\\.\\.\\n  page 1: 200 application/json, \\d+ bytes\\n  1 page, \\d+ bytes, 3 rows, \\d+ ms\\n  fields: name \\(text\\), cpu \\(number\\), state \\(text\\), owner \\(text\\), tags \\(text\\)\\n  data as of 2026-11-14T07:30:00Z \\(from the body\\)\\nOK with customer=acme\\n$`));
     assert.doesNotMatch(ok.text, /web-1|alice/);
     const wrong = await checkSource(optionsOf({ rows: "/results" }), "vms", { customer: "acme" });
     assert.equal(wrong.ok, false);
@@ -564,6 +564,85 @@ test("check-source as a command: the configuration file, --param, exit codes", a
     out.length = 0;
     assert.equal(await run(["check-source", "--config", file], io), 2);
     assert.match(out.join(""), /check-source takes a source's id/);
+});
+
+test("check-source for the operator: options in any order, exit 2 for an id that is no HTTP source, the values on success, the --param to re-run with, where a refusal's secret is, and NODE_EXTRA_CA_CERTS that does not cover the certificate", async () => {
+    const dir = tempDir();
+    const file = join(dir, "pivotkit.json");
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(file, JSON.stringify(optionsOf()));
+    routes.set("/v1/customers/acme/vms", json({ items: VMS }));
+    const out = [];
+    const err = [];
+    const io = { env: {}, stdout: { write: (t) => out.push(t) }, stderr: { write: (t) => err.push(t) } };
+    // the id after the options, between them, and --param first
+    for (const argv of [["--config", file, "vms", "--param", "customer=acme"], ["--param", "customer=acme", "--config", file, "vms"], [`--config=${file}`, "vms", "--param=customer=acme", "--log", "off"]]) {
+        out.length = 0;
+        assert.equal(await run(["check-source", ...argv], io), 0, `${argv.join(" ")}: ${err.join("")}`);
+        assert.match(out.join(""), /\nOK with customer=acme\n$/);
+    }
+    // an id the configuration has no HTTP source for is a usage error, said on stderr
+    err.length = 0;
+    out.length = 0;
+    assert.equal(await run(["check-source", "--config", file, "nope"], io), 2);
+    assert.equal(err.join(""), 'pivotkit-server: no source "nope"; the HTTP sources are vms\n');
+    assert.equal(out.join(""), "");
+    err.length = 0;
+    assert.equal(await run(["check-source", "vms", "other", "--config", file], io), 2);
+    assert.match(err.join(""), /check-source takes one source's id, not 2 \(vms, other\)/);
+    err.length = 0;
+    assert.equal(await run(["check-source", "vms", "--config", file, "--bogus"], io), 2);
+    assert.match(err.join(""), /Unknown option '--bogus'; --help lists the options/);
+
+    // a missing required value: the flag to re-run with, the declared example
+    const missing = await checkSource(optionsOf(), "vms", {});
+    assert.match(missing.text, /\n {2}re-run with --param customer=acme\nFAILED\n$/);
+    assert.match((await checkSource(optionsOf({}, { params: { customer: { type: "string", required: true, pattern: "^[a-z]+$" }, state: { type: "string", required: true, enum: ["running", "stopped"] } } }), "vms", {})).text, /re-run with --param customer=<string> --param state=running\n/);
+
+    // 401 or 403: without credentials, where to set them; with a header from a secret, which secret (never its value)
+    routes.set("/v1/customers/zed/vms", json({ error: "no" }, 403));
+    assert.match((await checkSource(optionsOf(), "vms", { customer: "zed" })).text, /\n {2}the backend answered 403 and the source sends no credentials: if the values are right, set httpSources\.backends\.platform\.auth \(a header from a secret, client credentials or token exchange\)\n/);
+    const secret = join(dir, "backend-token.txt");
+    writeFileSync(secret, "s3cret-value-for-the-backend\n");
+    routes.set("/v1/all", json({ error: "no" }, 401));
+    const withHeader = { httpSources: { backends: { platform: { url: `https://api.example.test:${port}/v1`, intranet: true, auth: { header: { value: { file: secret } } } } } }, sources: { all: { http: { backend: "platform", path: "/all", rows: "/items" }, policy: POLICY } } };
+    const refused = await checkSource(withHeader, "all", {});
+    assert.match(refused.text, new RegExp(`\\n  the backend answered 401: check the secret behind httpSources\\.backends\\.platform\\.auth\\.header \\(the file ${secret.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\) and that the backend accepts it\\n`));
+    assert.doesNotMatch(refused.text, /s3cret/);
+
+    // a certificate the server does not trust: with NODE_EXTRA_CA_CERTS set, that its file does not cover it
+    routes.set("/v1/all", json({ items: VMS }));
+    const open = { httpSources: { backends: { platform: { url: `https://api.example.test:${port}/v1`, intranet: true } } }, sources: { all: { http: { backend: "platform", path: "/all", rows: "/items" }, policy: POLICY } } };
+    const noCa = createGuardedFetch({ lookup: (_h, o, cb) => cb(null, o?.all ? [{ address: "127.0.0.1", family: 4 }] : "127.0.0.1", 4) });
+    const set = (await checkSource(open, "all", {}, { fetch: noCa, env: { NODE_EXTRA_CA_CERTS: join(dir, "ca.pem") } })).text;
+    assert.match(set, /a certificate error: NODE_EXTRA_CA_CERTS is set, but no certificate in that file signed this server's certificate; add the certificate authority that did and start the server again/);
+    assert.doesNotMatch(set, /ca\.pem/, "the file's path is the operator's own; the hint does not repeat it");
+});
+
+test("REST: GET /sources/{id} of a source that needs params points to POST /sources/describe, which takes them", async () => {
+    routes.set("/v1/customers/acme/vms", json({ items: VMS }));
+    const s = await restServer(optionsOf());
+    try {
+        const got = await call(`${s.api}/sources/vms?customer=acme`);
+        assert.equal(got.status, 400);
+        assert.equal(got.data.code, "INVALID_INPUT");
+        assert.equal(got.data.detail, 'the source vms needs params.customer (string): The customer\'s short name, for example acme. GET /sources/{id} takes no params: send them with POST /sources/describe, {"source": "vms", "params": {...}}');
+        const posted = await call(`${s.api}/sources/describe`, { body: { source: "vms", params: { customer: "acme" } } });
+        assert.equal(posted.status, 200, JSON.stringify(posted.data));
+        // POST names no route to go to: only the GET does
+        const missing = await call(`${s.api}/sources/describe`, { body: { source: "vms" } });
+        assert.doesNotMatch(missing.data.detail, /POST \/sources\/describe/);
+    } finally {
+        await s.close();
+    }
+});
+
+test("pivotkit-server --help names --version", async () => {
+    const out = [];
+    const io = { env: {}, stdout: { write: (t) => out.push(t) }, stderr: { write: (t) => out.push(t) } };
+    assert.equal(await run(["--help"], io), 0);
+    assert.match(out.join(""), /\n {7}pivotkit-server --version\n/);
+    assert.match(out.join(""), /\n {2}--version +Print the version and exit\.\n/);
 });
 
 test("an answer without rows is an empty table: describe_source says no rows and render_view a report without them, not an error", async () => {
@@ -681,7 +760,7 @@ test("a caller's value of the wrong form: refused with the parameter's descripti
     const context = await contextOf(optionsOf());
     try {
         const upper = await failure(describe(context, { customer: "ACME" }));
-        assert.equal(upper.message, "params.customer is not in the form the source takes (The customer's short name; for example acme; pattern ^[a-z0-9-]{1,40}$)");
+        assert.equal(upper.message, "params.customer is not in the form the source takes; expected: The customer's short name; for example acme; pattern ^[a-z0-9-]{1,40}$");
         assert.match((await failure(describe(context, { customer: 42 }))).message, /^params\.customer must be a text/);
         assert.equal(asked.length, 0);
     } finally {

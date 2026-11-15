@@ -72,7 +72,7 @@ export async function optionsFrom(argv, env, { flags, configEnv }) {
     } catch (e) {
         const flag = /'(-{1,2}[^'\s]+)'/.exec(String(e.message))?.[1] ?? "";
         const near = closest(flag.replace(/^-+/, ""), Object.keys(flags));
-        throw new ConfigError(`${String(e.message).split("\n")[0]}${near ? `; did you mean --${near}?` : ""}`);
+        throw new ConfigError(`${String(e.message).split("\n")[0]}; ${near ? `did you mean --${near}? ` : ""}--help lists the options`);
     }
     const values = /** @type {Record<string, any>} */ (parsed.values);
     const file = values.config ?? env[configEnv];

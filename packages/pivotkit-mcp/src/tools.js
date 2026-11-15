@@ -64,7 +64,8 @@ export function errorResult(error, { requestId, source }) {
     const retryable = error?.details?.retryable;
     const notes = server ? [...(source ? [`source ${source}`] : []), ...(retryable === true ? ["trying again later may work"] : retryable === false ? ["trying again will not help"] : [])] : [];
     const id = isRequestId(error?.details?.requestId) ? error?.details?.requestId : requestId;
-    const text = `${code}: ${server ? serverTextOf(code, /** @type {any} */ (error)?.reason) : /** @type {OperationError} */ (error).message}${notes.length ? ` (${notes.join("; ")})` : ""} (id ${id})`;
+    // one parenthesis at the end, the request id last: the message itself may hold some
+    const text = `${code}: ${server ? serverTextOf(code, /** @type {any} */ (error)?.reason) : /** @type {OperationError} */ (error).message} (${[...notes, `request id ${id}`].join("; ")})`;
     return { isError: true, content: [{ type: "text", text }] };
 }
 

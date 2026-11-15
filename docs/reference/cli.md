@@ -127,6 +127,7 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--allow-dir <dir>` | all | Read and write only inside this directory; repeatable. |
 | `--url <address>` | render, validate, describe, sources | A pivotkit-server's REST address, `https://host/api/v1`; environment `PIVOTKIT_URL`. [With a server](#with-a-server) |
 | `--source <id>` | render, validate, describe | The server's source to run on (`pivotkit sources` lists them). |
+| `--param name=value` | render, validate, describe, sources `<id>` | A value of the source's parameter; repeatable. `pivotkit sources` says which a source needs. |
 | `--token-file <file>` | | Read the server's token from this file instead of `PIVOTKIT_TOKEN`. |
 | `--timeout <s>` | | Seconds to wait for the server's answer (default 30). |
 
@@ -375,6 +376,7 @@ export PIVOTKIT_URL=https://reports.example.com/api/v1
 export PIVOTKIT_TOKEN=...                 # or --token-file token.txt
 pivotkit sources                          # the sources this token reaches
 pivotkit sources sales                    # their fields, types and counts
+pivotkit sources vms --param customer=acme   # a source with parameters: a value for each it needs
 pivotkit validate sales.pivotkit.json --source sales --strict
 pivotkit describe --source sales --suggest -o draft.pivotkit.json
 pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
@@ -393,8 +395,13 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
 - **Routes**: `validate` is `POST /views/validate`, `describe <view>` `POST /views/describe`,
   `describe --suggest` `POST /views/suggest`, `render` `POST /views/validate` and then `POST
   /views/render/file` (`render --suggest`: `POST /views/suggest` first), `sources` `GET /sources` and
-  `GET /sources/{id}`. `describe` with a server takes a view; a source's fields are `pivotkit sources
-  <id>`.
+  `GET /sources/{id}` (with `--param`: `POST /sources/describe`). `describe` with a server takes a
+  view; a source's fields are `pivotkit sources <id>`.
+- **Parameters**: a source with parameters (an HTTP source with `{customer}` in its address, a code
+  source that declares `params`) needs a value for each required one in every call. `pivotkit
+  sources` lists such a source with `(needs: customer)`; give the values with `--param
+  customer=acme`, once per parameter. They go with the source as `params`, as typed; the server reads
+  a number or `true`/`false` from the text where the parameter is one.
 - **Render** needs a token whose [policy profile](rest.md#profiles) has `results: true`;
   without it the server answers 403 `NOT_ALLOWED` and the CLI says so (exit 2): validate, describe
   and sources work with any token. The file goes only to `-o` or stdout, never to a name from the
@@ -447,8 +454,10 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
   through a proxy.
 - Messages hold the problem's code and its cleaned `detail` (control characters out, cut at 200
   characters), never headers, the answer's body, the full address or the text of a network error.
-  Fixed hints: 401 "token missing or refused", 403 `NOT_ALLOWED` "this token's profile has no results:
-  true", 429 and 503 "retry in N s" (a `Retry-After` over a day is left out).
+  A 401 is one line: "the server needs a token: set PIVOTKIT_TOKEN or give --token-file <file>" when
+  none was sent, "the server refused the token from --token-file token.txt: ..." with the server's
+  reason when one was. Fixed hints: 403 `NOT_ALLOWED` "this token's profile has no results: true",
+  429 and 503 "retry in N s" (a `Retry-After` over a day is left out).
 
 ## The sheet of a workbook
 

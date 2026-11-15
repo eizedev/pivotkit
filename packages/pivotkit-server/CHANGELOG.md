@@ -90,9 +90,16 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - `pivotkit-server check-source <id> [--param name=value ...]`: one load of an HTTP source as the
   server would make it, with each page's status, the rows, the fields and their types (no cell
   value; literal query values as `...`), what a caller would get when it fails, and the operator's
-  hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`).
+  hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`, and when it is
+  set, that its file does not cover the certificate). The id and the options in any order; exit 2
+  for an id that names no HTTP source; `OK with customer=acme` on success; the `--param` to re-run
+  with for a missing value; on a backend's 401 or 403 the secret behind `http.auth` (its variable or
+  file) or where to set one ([#424](https://github.com/eizedev/pivotkit/issues/424)).
+- `pivotkit-server --help` names `--version`; an unknown flag points to `--help` (pivotkit-mcp's
+  too).
 - Parameters: a refused value's `INVALID_INPUT` names the parameter's description, example and short
-  pattern; a value must have the parameter's type (a number for a `string` parameter is refused) and
+  pattern after "; expected:" (no parentheses, which a pattern may hold); `GET /sources/{id}` of a
+  source that needs params says to use `POST /sources/describe`; a value must have the parameter's type (a number for a `string` parameter is refused) and
   a text must be well-formed Unicode; `list_sources` adds each parameter's `pattern`, `format`,
   `minLength`, `maxLength`, `minimum` and `maximum`. The descriptions of `list_sources`,
   `describe_source`, `render_view` and the `params` input say that required params go into every

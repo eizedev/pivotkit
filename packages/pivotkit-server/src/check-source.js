@@ -21,7 +21,7 @@ import { serverLimitsOf, validateOptions } from "./config.js";
 import { httpSettingsOf } from "./options/http.js";
 import { serverTextOf } from "./rest/problem.js";
 import { probeExchange } from "./sources/auth.js";
-import { loadHttp } from "./sources/http.js";
+import { certificateHint, loadHttp } from "./sources/http.js";
 import { normalizeParams } from "./sources/params.js";
 import { SourceError, sourceFailure } from "./sources/run.js";
 import { loggedPath } from "./sources/template.js";
@@ -55,6 +55,70 @@ export function paramFlags(argv) {
     return { params: { ...params }, rest };
 }
 
+/**
+ * The source's id and the runner's flags of a check-source command line, in any order: the one
+ * argument that is neither a flag nor a flag's value is the id (a flag of type string takes the next
+ * argument unless it is written --name=value).
+ * @param {string[]} argv  without --param (paramFlags')
+ * @param {Readonly<Record<string, { type: string, short?: string }>>} flags  the runner's
+ * @returns {{ id: string | undefined, flags: string[] }}
+ */
+export function sourceArgs(argv, flags) {
+    const shorts = new Map(Object.entries(flags).flatMap(([name, f]) => (f.short ? [[f.short, name]] : [])));
+    /** @type {string[]} */
+    const ids = [];
+    const rest = [];
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if (!arg.startsWith("-") || arg === "-") {
+            ids.push(arg);
+            continue;
+        }
+        rest.push(arg);
+        const name = arg.startsWith("--") ? arg.slice(2) : shorts.get(arg.slice(1));
+        if (name !== undefined && !name.includes("=") && flags[name]?.type === "string" && i + 1 < argv.length) {
+            rest.push(argv[++i]);
+        }
+    }
+    if (ids.length > 1) {
+        throw new Error(`check-source takes one source's id, not ${ids.length} (${ids.map((a) => a.slice(0, 40)).join(", ")})`);
+    }
+    return { id: ids[0], flags: rest };
+}
+
+/** A secret reference as check-source names it: the variable or the file, never the value. */
+const secretRefText = (ref) => (ref?.env ? `$${ref.env}` : ref?.file ? `the file ${ref.file}` : "a secret");
+
+/**
+ * The line for a backend that answered 401 or 403: the secret behind http.auth, or where to set one.
+ * @param {import("./options/http.js").HttpSettings} settings
+ * @param {string} id
+ * @param {number} status
+ * @param {boolean} params  whether the source takes params (then the value may be what was refused)
+ */
+function refusedLine(settings, id, status, params) {
+    const value = params ? "if the values are right, " : "";
+    const auth = settings.auth;
+    if (!auth) {
+        const where = settings.backend ? `httpSources.backends.${settings.backend}.auth` : `sources.${id}.http.auth`;
+        return `  the backend answered ${status} and the source sends no credentials: ${value}set ${where} (a header from a secret, client credentials or token exchange)`;
+    }
+    const secret = auth.kind === "header" ? auth.value : auth.kind === "clientCredentials" ? (auth.assertion ?? auth.clientSecret) : auth.clientSecret;
+    return `  the backend answered ${status}: ${value}check the secret behind ${auth.at} (${secretRefText(secret)}) and that the backend accepts it`;
+}
+
+/**
+ * The --param flags a failed check of the values asks for: each required parameter not given (a
+ * claim's too: its --param stands in for the sign-in's claim), with its example.
+ * @param {Record<string, any> | undefined} declared
+ * @param {Record<string, string>} params
+ */
+function missingParams(declared, params) {
+    return Object.entries(declared ?? {})
+        .filter(([name, p]) => p?.required && p.default === undefined && !Object.hasOwn(params, name))
+        .map(([name, p]) => `--param ${name}=${p.example ?? (Array.isArray(p.enum) ? p.enum[0] : `<${p.type ?? "value"}>`)}`);
+}
+
 /** A column's type as check-source names it, from its values (none printed). */
 function typeOf(rows, i) {
     const kinds = new Set(rows.map((r) => r[i]).filter((v) => v !== null && v !== undefined && v !== "").map((v) => typeof v));
@@ -82,19 +146,20 @@ function authLine(trace) {
  * @param {import("./config.js").ServerOptions} options
  * @param {string} id
  * @param {Record<string, string>} params  as typed on the command line
- * @param {{ fetch?: any }} [means]  tests: another guardedFetch
- * @returns {Promise<{ text: string, ok: boolean }>}
+ * @param {{ fetch?: any, env?: Record<string, string | undefined> }} [means]  tests: another guardedFetch; the environment (process.env)
+ * @returns {Promise<{ text: string, ok: boolean, usage?: boolean }>}  usage: the id names no HTTP source (exit 2)
  */
 export async function checkSource(options, id, params, means = {}) {
     validateOptions(options);
+    const env = means.env ?? process.env;
     const lines = [];
     const source = Object.hasOwn(options.sources ?? {}, id) ? options.sources?.[id] : undefined;
     if (!source) {
         const known = Object.keys(options.sources ?? {}).filter((k) => options.sources?.[k]?.http);
-        return { text: `no source "${id.slice(0, 80)}"${known.length ? `; the HTTP sources are ${known.join(", ")}` : "; the configuration has no HTTP source"}\n`, ok: false };
+        return { text: `no source "${id.slice(0, 80)}"${known.length ? `; the HTTP sources are ${known.join(", ")}` : "; the configuration has no HTTP source"}\n`, ok: false, usage: true };
     }
     if (!source.http) {
-        return { text: `the source ${id} is a ${source.load ? "code" : "file"} source; check-source loads HTTP sources (check-config reads file sources)\n`, ok: false };
+        return { text: `the source ${id} is a ${source.load ? "code" : "file"} source; check-source loads HTTP sources (check-config reads file sources)\n`, ok: false, usage: true };
     }
     const settings = httpSettingsOf(source);
     lines.push(`source ${id}: GET ${settings.template.origin}${loggedPath(settings.template)}${options.httpSources?.enabled === false ? " (HTTP sources are off: httpSources.enabled is false; checked anyway)" : ""}`);
@@ -107,7 +172,8 @@ export async function checkSource(options, id, params, means = {}) {
         const given = Object.fromEntries(Object.entries(params).filter(([k]) => !claimed.includes(k)));
         values = normalizeParams(source.params, given, { claims }, id);
     } catch (e) {
-        lines.push(`  params: ${/** @type {Error} */ (e).message}`, "FAILED");
+        const missing = missingParams(source.params, params);
+        lines.push(`  params: ${/** @type {Error} */ (e).message}`, ...(missing.length ? [`  re-run with ${missing.join(" ")}`] : []), "FAILED");
         return { text: `${lines.join("\n")}\n`, ok: false };
     }
     /** @type {string[]} */
@@ -137,7 +203,8 @@ export async function checkSource(options, id, params, means = {}) {
             lines.push(`  a CSV body of ${loaded.bytes} bytes, ${Date.now() - started} ms (its fields are read as a file's: check-config and describe_source name them)`);
         }
         lines.push(`  data as of ${loaded.asOf}${settings.asOf ? (trace.asOfRaw ? " (from the body)" : " (the body has nothing at the asOf pointer: the time it arrived)") : " (the time it arrived)"}`);
-        lines.push("OK");
+        const given = Object.entries(params).map(([k, v]) => `${k}=${v}`);
+        lines.push(given.length ? `OK with ${given.join(", ")}` : "OK");
         return { text: `${lines.join("\n")}\n`, ok: true };
     } catch (e) {
         if (trace.auth) {
@@ -149,7 +216,11 @@ export async function checkSource(options, id, params, means = {}) {
         }
         // why it failed, as the debug log says it (the pages and the pointer are printed above)
         for (const d of details.filter((d) => !/ answered \d{3}$/.test(d) && !(trace.keys && /rows' pointer/.test(d)))) {
-            lines.push(`  ${d.replace(`the source ${id}: `, "")}`);
+            lines.push(`  ${d.replace(`the source ${id}: `, "").replace(certificateHint(process.env), certificateHint(env))}`);
+        }
+        const backendStatus = e instanceof SourceError ? e.status : undefined;
+        if ((backendStatus === 401 || backendStatus === 403) && !trace.auth?.error) {
+            lines.push(refusedLine(settings, id, backendStatus, Boolean(source.params && Object.keys(source.params).length)));
         }
         if (signal.aborted) {
             lines.push(`  the load took longer than ${settings.timeMs} ms (timeMs)`);

@@ -344,12 +344,13 @@ const HINT_PATTERN = 40;
 
 /**
  * What a refusal of a caller's value adds about the parameter: its description, an example, a short
- * pattern ("" when it has none of them).
+ * pattern ("" when it has none of them). Not in parentheses: a pattern or a description may hold
+ * some, and a front end adds its own after the message (MCP's request id, the CLI's hint).
  * @param {any} p  a declaration
  */
 function hintOf(p) {
     const parts = [p.description, p.example !== undefined ? `for example ${p.example}` : null, typeof p.pattern === "string" && p.pattern.length <= HINT_PATTERN ? `pattern ${p.pattern}` : null].filter(Boolean);
-    return parts.length ? ` (${parts.join("; ")})` : "";
+    return parts.length ? `; expected: ${parts.join("; ")}` : "";
 }
 
 /**
