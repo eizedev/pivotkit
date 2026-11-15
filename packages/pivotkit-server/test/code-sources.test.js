@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
 import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, serverTextOf, validateOptions } from "pivotkit-server";
 import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.js";
-import { LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, sourceFailure } from "../src/sources/run.js";
+import { LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, ownError, sourceFailure } from "../src/sources/run.js";
 import { createComputer } from "../src/compute.js";
 import { packTable, packedBytes, unpackTable } from "../src/packed.js";
 import { call, restServer, workspace } from "./helpers.js";
@@ -1232,4 +1232,56 @@ test("the load cache: the largest sourceCache.maxMb of the open contexts applies
         await smaller.close();
     }
     assert.equal(loadRunner.cacheBytes(), LOAD_CACHE.bytes, "every context closed: the default again");
+});
+
+test("an async prepare (an HTTP source's CSV answer read in a worker): callers share it, its own errors pass, any other is the source's failure, a late result is kept", async () => {
+    const runner = createLoadRunner();
+    // two callers while prepare waits: one load, one prepare
+    let loads = 0;
+    let prepared = 0;
+    const reading = gate();
+    const { how } = unitHow({ ttl: 60, prepare: async (raw) => (prepared++, await reading.opened, `${raw} read`) });
+    const first = runner.runLoad("k", async () => (++loads, "answer"), how);
+    await wait(5);
+    const second = runner.runLoad("k", async () => (++loads, "answer"), how);
+    reading.open();
+    assert.deepEqual([(await first).value, (await second).value, loads, prepared], ["answer read", "answer read", 1, 1]);
+    assert.equal((await runner.runLoad("k", async () => ++loads, how)).value, "answer read", "kept");
+    // pivotkit's own error of prepare (a limit of the reader, BUSY): as it is, nothing kept
+    const own = unitHow({ ttl: 60, prepare: async () => {
+        throw ownError(new OperationError("LIMIT_EXCEEDED", "1,001 rows exceed the limit of 1,000 (limits.rows)"));
+    } });
+    const limited = await failure(runner.runLoad("own", async () => "answer", own.how));
+    assert.deepEqual([limited.code, limited.message], ["LIMIT_EXCEEDED", "1,001 rows exceed the limit of 1,000 (limits.rows)"]);
+    assert.equal((await runner.runLoad("own", async () => "again", unitHow({ ttl: 60 }).how)).value, "again", "nothing was kept");
+    // any other error of prepare: the source's failure, its words not passed on
+    const other = unitHow({ prepare: async () => {
+        throw new Error("db at 10.1.2.3");
+    } });
+    const failed = await failure(runner.runLoad("other", async () => "answer", other.how));
+    assert.equal(failed.code, "SOURCE_UNAVAILABLE");
+    assert.doesNotMatch(failed.message, /10\.1\.2\.3/);
+    // a load over its time: its late result is prepared and kept; a late prepare that fails leaves no unhandled rejection
+    let unhandled = 0;
+    const count = () => unhandled++;
+    process.on("unhandledRejection", count);
+    try {
+        const late = gate();
+        const timed = unitHow({ timeMs: 20, ttl: 60, prepare: async (raw) => `${raw} read` });
+        await failure(runner.runLoad("late", () => late.opened, timed.how));
+        late.open("late answer");
+        await wait(10);
+        assert.equal((await runner.runLoad("late", async () => "new", timed.how)).value, "late answer read");
+        const lateBad = gate();
+        const bad = unitHow({ timeMs: 20, ttl: 60, prepare: async () => {
+            throw new Error("cannot be read");
+        } });
+        await failure(runner.runLoad("bad", () => lateBad.opened, bad.how));
+        lateBad.open("late answer");
+        await wait(10);
+        assert.equal((await runner.runLoad("bad", async () => "new", unitHow({ ttl: 60 }).how)).value, "new", "a late result that cannot be prepared is not kept");
+        assert.equal(unhandled, 0);
+    } finally {
+        process.off("unhandledRejection", count);
+    }
 });
