@@ -196,7 +196,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   by, never a value; counted in data.js when the data is read, cached with it, returned by the worker
   with every outcome), `src/registry.js` (source ids and `file:` paths, scopes, "not
   found" for a source the caller may not use; `files: false` for REST; `resolve(ref, caller, how,
-  params)` dispatches by kind and checks params), `src/sources/` (the kinds of source:
+  params)` dispatches by kind and checks params; `isClosedForDelivery(options, ref)`, the one rule
+  for which reports get only bound links: a field not shown for someone, or data per person;
+  `logName`, a source as a log line names it), `src/sources/` (the kinds of source:
   `index.js` `kindOf`, `KINDS` and `runResolved`, the one way present() runs an operation over a
   source; `file.js` configured files and `file:` paths, read in a worker; `code.js` a library host's
   `load(params, { caller, signal })`, its data kept per identity, values and levels (`cacheShared`:
@@ -219,7 +221,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   `paramSchemaOf`, `normalizeParams`, `paramsList`; `input.js` the extra inputs (`params`, `data`) a surface
   offers (`offersOf`, `extraInputs`, `withoutExtras`) and `listExtras` of list_sources; `as-of.js`
   `dataAsOf`, every source's time parsed and written in one form (`asOfText`, `asOfMembers`); `keys.js`
-  canonical JSON cache keys (`tableKeyOf`: null without an identity); `fetch.js` `guardedFetch`, the
+  canonical JSON cache keys (`tableKeyOf`: null without an identity; `privatePart`: a caller's values,
+  groups and claims only as a keyed digest); `fetch.js` `guardedFetch`, the
   one way the server requests another server: https only, no redirects, the address checked on the
   connection's own lookup, bodies counted after decompression, one time limit), `src/data.js`
   (`fileData`, `codeTable` (a code source's data with a file's run limits, encoded), and `tableData`/`uploadData` for a table job: data loaded in the main
@@ -264,7 +267,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   (`callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
   auth.js), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
-  pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
+  pivotkit-mcp installed (imported by name, no dependency; one of another release that imports what this pivotkit-server lacks is refused with both versions), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source, mcp, cli,
   healthcheck), `src/check-source.js` (`check-source`: one load of an HTTP source, never a value
   printed). What

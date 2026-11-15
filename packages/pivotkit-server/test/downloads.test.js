@@ -613,7 +613,7 @@ test("once on REST and MCP on one port (serve): a browser's form POST with its O
 // --- sign-in links ---------------------------------------------------------------------------------
 
 /** A server whose closed sources get sign-in links, its issuer loaded. */
-async function signInServer({ signIn = {}, downloads = {} } = {}) {
+async function signInServer({ signIn = {}, downloads = {}, more = {} } = {}) {
     const dir = workspace({ "sales.csv": SALES_CSV });
     const server = await restServer(
         {
@@ -622,7 +622,8 @@ async function signInServer({ signIn = {}, downloads = {} } = {}) {
             policy: { results: true },
             auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] },
             http: { publicUrl: PUBLIC },
-            baseDir: dir
+            baseDir: dir,
+            ...more
         },
         { env: { DL_KEY }, enable: ["rest", "mcp"] }
     );
@@ -683,6 +684,67 @@ test("signIn: the person who asked opens the report after signing in; PKCE, stat
         assert.match(await refused.text(), /You are signed in as a different account than the one that asked for this report\./);
     } finally {
         await server.close();
+    }
+});
+
+test("signIn: the subject digest holds the link's nonce: two links of one person cannot be tied together, and a digest moved to another link is refused", async () => {
+    const { server, render, open, callback } = await signInServer();
+    try {
+        const first = /** @type {any} */ (readToken(KEYS, (await render("alice")).url.split("/downloads/")[1]));
+        const second = /** @type {any} */ (readToken(KEYS, (await render("alice")).url.split("/downloads/")[1]));
+        assert.notEqual(first.s, second.s, "the same person's links carry different digests");
+        // the first link's digest on the second link's nonce, signed with the right key: alice is still refused
+        const moved = signToken(KEYS, { ...second, s: first.s });
+        const redirect = await open(`${PUBLIC}/downloads/${moved}`);
+        const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        const got = await callback(code, state, cookieOf(redirect));
+        assert.equal(got.status, 403);
+    } finally {
+        await server.close();
+    }
+});
+
+test("signIn: a report over data sent in the request gets a link only its sender can open; a caller without a usable subject gets none", async () => {
+    const { server } = await signInServer({ more: { policy: { results: true, data: true } } });
+    try {
+        const data = { columns: ["Region", "Sales"], rows: [["North", 10], ["South", 20]], rowCount: 2 };
+        const mine = await call(`${server.api}/views/render`, { token: await accessToken("alice"), body: { source: "inline:", data, view: BY_REGION, format: "csv", name: "Mine" } });
+        assert.equal(mine.status, 200, JSON.stringify(mine.data));
+        assert.equal(mine.data.output.bound, "signIn");
+        const nobody = await call(`${server.api}/views/render`, { token: await accessToken("x".repeat(300)), body: { source: "inline:", data, view: BY_REGION, format: "csv", name: "Nobody" } });
+        assert.equal(nobody.status, 200, JSON.stringify(nobody.data));
+        assert.equal(nobody.data.output.url, undefined);
+        assert.equal(nobody.data.output.note, NO_LINK_NOTE);
+    } finally {
+        await server.close();
+    }
+});
+
+test("signIn: with audit.subject a link's download names the person who signed in, the refused one too; without it no one", async () => {
+    const audited = await signInServer({ more: { audit: { subject: "plain" } } });
+    try {
+        const output = await audited.render("alice");
+        const redirect = await audited.open(output.url);
+        const alice = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        assert.equal((await audited.callback(alice.code, alice.state, cookieOf(redirect))).status, 200);
+        const again = await audited.open(output.url);
+        const bob = signInAt(/** @type {string} */ (again.headers.get("location")), "bob");
+        assert.equal((await audited.callback(bob.code, bob.state, cookieOf(again))).status, 403);
+        const downloads = audited.server.log.filter((l) => l.event === "download" && l.via === "link");
+        assert.ok(downloads.some((l) => l.ok === true && l.subject === "alice"), JSON.stringify(downloads));
+        assert.ok(downloads.some((l) => l.code === "LINK_NOT_YOURS" && l.subject === "bob"), JSON.stringify(downloads));
+    } finally {
+        await audited.server.close();
+    }
+    const plain = await signInServer();
+    try {
+        const output = await plain.render("alice");
+        const redirect = await plain.open(output.url);
+        const alice = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        assert.equal((await plain.callback(alice.code, alice.state, cookieOf(redirect))).status, 200);
+        assert.ok(plain.server.log.filter((l) => l.event === "download").every((l) => l.subject === undefined));
+    } finally {
+        await plain.server.close();
     }
 });
 
@@ -751,7 +813,7 @@ test("signIn: the callback checks the link's expiry again; reports over open sou
         const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
         // the token in the cookie is the link's: an expired one of the same nonce is not let through
         const payload = /** @type {any} */ (readToken(KEYS, output.url.split("/downloads/")[1]));
-        assert.equal(payload.s, subjectDigest(KEYS, issuer, "alice"));
+        assert.equal(payload.s, subjectDigest(KEYS, payload.n, issuer, "alice"));
         const ok = await callback(code, state, cookieOf(redirect));
         assert.equal(ok.status, 200);
         const expired = signToken(KEYS, { ...payload, e: Math.floor(Date.now() / 1000) - 1 });
