@@ -56,7 +56,7 @@ Over stdio there is no HTTP server and no link: a local server keeps showing the
 | `output.downloads.key` | a random key per process | The link key, a secret reference (`{ "env": "NAME" }` or `{ "file": "path" }`) of at least 32 bytes; set it for more than one replica and for links that survive a restart. Make one with `openssl rand -base64 48`. It is read on every use, so a rotated key works without a restart (links made with the old key stop working) |
 | `output.downloads.signIn.clientId` | none | The browser client the person signs in with |
 | `output.downloads.signIn.clientSecret` | none (a public client with PKCE) | Its secret, a secret reference, sent as HTTP Basic (or in the form where the provider only takes `client_secret_post`) |
-| `output.downloads.signIn.issuer` | `auth.issuer` | Must be `auth.issuer` when written: a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did |
+| `output.downloads.signIn.issuer` | `auth.issuer` | May be left out; when given, it must equal `auth.issuer` (a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did) |
 | `output.downloads.signIn.scopes` | `["openid"]` | What the sign-in asks for; must hold `openid` |
 
 `bind: "signIn"` needs `auth.mode: "oauth"`, `http.publicUrl` with `https://` and
@@ -108,7 +108,10 @@ Anyone who sees a one-time link can use it once, and an assistant with a browser
 use it before the person does. `check-config` warns of that; use `signIn` where it matters.
 
 Which links were used is kept in `.pivotkit-downloads/` in the output directory, a file per link
-made exclusively, so replicas sharing the directory agree; the files go once their link expired.
+made exclusively, so replicas sharing the directory agree; the files go once their link expired. Each
+file is written whole and then hard-linked to its name, so the output directory's file system must
+support hard links (local disks and NFS do; some network or object-store mounts do not, and a
+one-time download there answers 500).
 
 ## What a result holds { #result }
 

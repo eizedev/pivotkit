@@ -769,7 +769,9 @@ export function createDownloadHandler(context, runtime = {}) {
             return answer(request, code, { "set-cookie": cookie });
         };
         if (!entry || typeof entry.t !== "string" || typeof entry.v !== "string" || typeof entry.nn !== "string") {
-            return fail("SIGN_IN_FAILED");
+            // no sign-in of this browser under way (a missing or foreign cookie, a used state): anyone can send that, so the debug log only
+            context.log.debug("download links: a sign-in callback without its cookie", { via: "link", bound: "signIn", code: "SIGN_IN_FAILED" });
+            return answer(request, "SIGN_IN_FAILED", { "set-cookie": cookie });
         }
         if (url.searchParams.has("error")) {
             return fail("SIGN_IN_FAILED", { reason: "issuer" });

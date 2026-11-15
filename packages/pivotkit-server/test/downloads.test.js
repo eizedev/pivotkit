@@ -819,3 +819,33 @@ test("resource_link: the title loses only the output's own extension", () => {
     assert.equal(resourceLinkOf({ ...base, filename: "Weekly.report.json" }, { bytes: 10, closed: false })?.title, "Weekly");
     assert.equal(resourceLinkOf({ ...base, filename: "v1.2" }, { bytes: 10, closed: false })?.title, "v1.2");
 });
+
+test("once: a POST sweeps the markers of expired links from the output directory", async () => {
+    const { dir, server, local, render } = await onceServer();
+    try {
+        const output = await render("Sweep");
+        const markers = join(dir, "out", ".pivotkit-downloads");
+        mkdirSync(markers, { recursive: true });
+        const old = join(markers, `${randomBytes(16).toString("base64url")}.used`);
+        writeFileSync(old, `${Math.floor(Date.now() / 1000) - 60}\n`);
+        assert.equal((await fetch(local(output.url), { method: "POST", headers: { origin: PUBLIC } })).status, 200);
+        for (let i = 0; i < 50 && existsSync(old); i++) {
+            await new Promise((r) => setTimeout(r, 20));
+        }
+        assert.equal(existsSync(old), false, "the expired marker is gone");
+        assert.equal(readdirSync(markers).filter((n) => n.endsWith(".used")).length, 1, "the new link's marker stays");
+    } finally {
+        await server.close();
+    }
+});
+
+test("a sign-in callback without its cookie is on the debug log only", async () => {
+    const { server } = await onceServer();
+    try {
+        const r = await fetch(`${server.url}/downloads/callback?code=x&state=${"A".repeat(22)}`);
+        assert.equal(r.status, 400);
+        assert.ok(!server.log.some((l) => l.event === "download" && l.code === "SIGN_IN_FAILED"), JSON.stringify(server.log));
+    } finally {
+        await server.close();
+    }
+});
