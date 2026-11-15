@@ -177,7 +177,9 @@ function proxyNote(server, env) {
         return "";
     }
     const names = server.base.protocol === "https:" ? ["https_proxy", "HTTPS_PROXY"] : ["http_proxy", "HTTP_PROXY"];
-    const set = names.find((n) => env[n]);
+    // named as it is spelt in the environment (Windows reads variables in any case: env.https_proxy is HTTPS_PROXY there)
+    const keys = Object.keys(env);
+    const set = names.find((n) => keys.includes(n) && env[n]) ?? names.find((n) => env[n]);
     if (!set) {
         return "";
     }
