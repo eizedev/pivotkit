@@ -226,14 +226,16 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * table writes years, the reference date's field for years after 9999, days compared by their ms; in
  * menu-ops.js, so the first load stays as it is): the menus 46.9 on a Mac (CI about 47.0, at the budget
  * of 47 after #339 and #355), budget 48 (2 % above CI, below the rule's 3 %).
- * A print template's own colours for the chart (#369): pivotkit-report reads a template's CSS in a
- * module of its own, template-style.js, loaded only for a template of the host's; the element's Export
- * menu renders with the default template and never loads it (the group "template", 1.1 on a Mac,
- * budget 1.5). What stays in the report group, the tokens' var() resolved for the chart: report 22.3 on
- * a Mac (21.6 before; CI about 22.4), budget 23.
+ * A print template's own colours for the chart (#369): pivotkit-report reads and resolves a
+ * template's CSS in a module of its own, template-style.js, loaded only for a template of the host's
+ * (it imports nothing, so no module of the report becomes a chunk of its own); the element's Export
+ * menu renders with the default template and never loads it: the group "template", 2.5 on a Mac,
+ * budget 3, counted as what it adds to the report group. What stays in the report group (a token
+ * that names another one followed, a heatmap colour ECharts cannot mix left out): report 21.9 on a
+ * Mac (21.6 before), within its budget.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 1.5 };
+export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 22, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -289,6 +291,12 @@ export function loadGroups(metafile) {
     const report = groups.find((g) => g.group === "report");
     if (report) {
         report.files = report.files.filter((f) => !chart.has(f));
+    }
+    // a print template's CSS is read after the report has loaded: it counts what it adds to both
+    const template = groups.find((g) => g.group === "template");
+    if (template && report) {
+        const loaded = new Set([...chart, ...report.files]);
+        template.files = template.files.filter((f) => !loaded.has(f));
     }
     return groups;
 }

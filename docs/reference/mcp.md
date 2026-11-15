@@ -128,7 +128,7 @@ error that names the key and the one probably meant.
 | `sources.<id>.sheet` | - | first visible | A workbook's sheet |
 | `sources.<id>.policy` | - | the server's | The source's exposure policy |
 | `sources.<id>.link`, `.linkKey` | - | none | The page that shows this source's reports, for create_link; the report's key there |
-| `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html |
+| `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html; its `--pk-*` colours reach the chart ([details](print-template.md#template-design)) |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
 | `files.allowDirs` | `--allow-dir dir` | none | Directories the model may name files in (`file:`) |
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |

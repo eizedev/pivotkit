@@ -110,3 +110,33 @@ test("a heatmap's colours ECharts cannot mix (oklch) keep the default; colours i
     }
     assert.deepEqual(warnings, []);
 });
+
+test("hostile markup and CSS are read in linear time: 200,000 characters of unclosed tags or stray semicolons in well under a second", async () => {
+    const tails = ["<style ".repeat(28_000), "<script ".repeat(25_000), "<template ".repeat(20_000), `<style>${" ".repeat(100_000)}${";".repeat(100_000)}</style>`];
+    for (const tail of tails) {
+        // after </html>, where no ">" follows: an unclosed tag must not be searched again from each start
+        const template = DEFAULT_TEMPLATE + tail;
+        const unit = tail.slice(0, 12);
+        const start = performance.now();
+        await render(BAR_CELLS, SALES, { format: "html", template, ...FIXED });
+        const ms = performance.now() - start;
+        assert.ok(ms < 1000, `${unit}: ${Math.round(ms)} ms`);
+    }
+});
+
+test("a quoted string is a font's names only: in any other token, the host's or the template's, it keeps the default", async () => {
+    const host = await report(DEFAULT_TEMPLATE, { tokens: { "--pk-chart-1": '"#c0392b"', "--pk-text": "x'y" } });
+    assert.ok(fills(host.text).has(LIGHT_TOKENS["--pk-chart-1"]));
+    assert.ok(!host.text.includes("x'y") && !host.text.includes("x&#39;y"));
+    const own = await report(withCss(`<style>:root{--pk-muted:"a'b"} .pk-report{font-family:"Brand Sans", serif}</style>`));
+    assert.match(own.text, /<text [^>]*fill="#5a6270"[^>]*font-family="Brand Sans, serif"/);
+});
+
+test("var() is resolved where the page resolves it: a :root property before {{style}}, a font from var(), :root before .pk-report", async () => {
+    const r = await report(withCss("<style>:root{--pk-chart-2:var(--pk-chart-1)} .pk-report{--pk-chart-1:#00aa55;font-family:var(--f)} :root{--f:Georgia, serif}</style>", "<style>:root{--pk-chart-1:var(--brand);--brand:#7a1f5c}</style>"));
+    const marks = fills(r.text);
+    // --brand (before {{style}}, a property the report does not set) counts; --pk-chart-1 there does not;
+    // --pk-chart-2 takes :root's --pk-chart-1, the report's, not .pk-report's
+    assert.ok(marks.has("#00aa55") && marks.has(LIGHT_TOKENS["--pk-chart-1"]), [...marks].join(" "));
+    assert.match(r.text, /<text [^>]*font-family="Georgia, serif"/);
+});

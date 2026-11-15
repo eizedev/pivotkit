@@ -14,7 +14,7 @@ import { reportCss } from "./report-css.js";
 import { chartSvg } from "./svg.js";
 import { TEMPLATE_LIMIT, escapeHtml, fillTemplate, parseTemplate } from "./template.js";
 import { fill, textsFor } from "./texts.js";
-import { cleanTokens, conditionalColors, reportTokens, tokenStyle } from "./tokens.js";
+import { BASE_TOKENS, REPORT_FONT, TOKEN_LENGTH, cleanTokens, conditionalColors, reportTokens, tokenStyle } from "./tokens.js";
 
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -194,7 +194,7 @@ export async function render(view, data, options = {}) {
     // them the template's own (its CSS is the one place of its design; template-style.js)
     // (template-style.js is loaded only for a template of the host's: a page that renders with the
     // default one, as pivotkit-react's Export menu, never loads it)
-    const theme = reportTokens(options.tokens, template && options.template !== undefined ? (await import("./template-style.js")).templateTokens(template) : {});
+    const theme = template && options.template !== undefined ? (await import("./template-style.js")).templateTheme(template, options.tokens ?? {}, { base: BASE_TOKENS, font: REPORT_FONT, maxLength: TOKEN_LENGTH, clean: cleanTokens }) : reportTokens(options.tokens);
     const chartOf = () =>
         chartSvg(result, {
             echarts: /** @type {any} */ (options.echarts),

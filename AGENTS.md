@@ -115,11 +115,13 @@ root `package.json`: `npm run types` and the builds depend on it.
   stylesheet and print rules), `src/tokens.js` (`LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`,
   `SHAPE_TOKENS`: a kept copy of pivotkit-react's `styles.css` values, `test/tokens.test.js` compares
   them, and `DEFAULT_THEME`'s with them; `SIZE_TOKENS`, the HTML report's own font sizes; `reportTokens`,
-  the light values the chart and the cells' colours are drawn with: defaults, the host's `tokens`, the
-  template's own, `var()` resolved by `resolveVars`), `src/template-style.js` (`templateTokens`: the
-  `--pk-*` values and font a template's own `<style>` sets on `:root`, `body`, `.pk-report`, read as
-  the page applies them, so the chart drawn without a browser follows the template; loaded by
-  `render()` only for a template of the host's), `src/texts.js`
+  the light values the chart and the cells' colours are drawn with: defaults and the host's `tokens`,
+  a token that names another one followed), `src/template-style.js` (`templateTheme`: those values
+  with a print template's own CSS over them, computed as the browser computes them for `.pk-report`:
+  `:root`, `body`, `.pk-report` each inheriting, the cascade's order with the report's `{{style}}` in
+  it, `var()` with cycles; loaded by `render()` only for a template of the host's and importing
+  nothing, tokens.js's parts passed in; `tests/browser/report-template.spec.js` compares it with
+  `getComputedStyle` in three engines), `src/texts.js`
   (`REPORT_TEXTS`, en and de), `src/svg.js` (the chart through ECharts' server-side SVG renderer, the
   ECharts module passed in as `options.echarts`; `cleanSvg` checks and cleans it). `test/golden/`
   holds CSV, JSON and HTML golden files (`-text` in `.gitattributes`; rebuild with

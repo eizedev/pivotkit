@@ -9,15 +9,22 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 ### Added
 
 - An HTML report's chart, its card and the table's colour scales and data bars take the `--pk-*`
-  colours and the font that the print template's own CSS sets on `:root`, `body` or `.pk-report`
-  (light values, `var()` resolved), so a template's CSS is the one place of its design
-  ([#369](https://github.com/eizedev/pivotkit/issues/369)).
+  colours and the font that the print template's own CSS gives the report, computed as the browser
+  computes them for `.pk-report` (light values, `var()` resolved), so a template's CSS is the one
+  place of its design ([#369](https://github.com/eizedev/pivotkit/issues/369)).
+
+### Changed
+
+- A token's value with a quoted string is left out (the default stands in), except in
+  `font-family`: in the host's `tokens` too. A quote in a colour could only make the chart's SVG
+  refused ([#369](https://github.com/eizedev/pivotkit/issues/369)).
 
 ### Fixed
 
-- A token that refers to another one with `var()` reaches the chart as its value, not as `var(...)`;
-  one that does not resolve keeps the default. A heatmap colour ECharts cannot mix (such as
-  `oklch()`) keeps the default scale instead of turning the heatmap black.
+- A host's token that is another token alone (`var(--pk-chart-2)`) reaches the chart as that token's
+  value; one with any other `var()` keeps the default instead of reaching the chart as `var(...)`. A
+  heatmap colour ECharts cannot mix (such as `oklch()`) keeps the default scale instead of turning
+  the heatmap black ([#369](https://github.com/eizedev/pivotkit/issues/369)).
 
 ## [0.2.1] - 2026-11-14
 

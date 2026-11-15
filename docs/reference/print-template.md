@@ -90,8 +90,8 @@ by a `<style>` of the template after `{{style}}`.
 
 Set your design once, as `--pk-*` tokens in the template's own `<style>`: the page takes them, and
 pivotkit draws the chart, its card and the table's colour scales and data bars with them. The chart
-is an image drawn before any browser sees the page, so pivotkit reads these values from the
-template:
+is an image drawn before any browser sees the page, so pivotkit computes these values from the
+template as the browser computes them for the report (`.pk-report`):
 
 ```html
 {{style}}
@@ -100,24 +100,30 @@ template:
     --brand: #7a1f5c;
     --pk-chart-1: var(--brand);
     --pk-chart-2: #c0392b;
-    --pk-text: #20232a;
 }
 .pk-report { font-family: "Brand Sans", system-ui, sans-serif; }
 </style>
 ```
 
+The example sets colours of the chart and a font, which read on a light and a dark screen alike. A
+value on `:root` applies in both colour schemes, so a page colour such as `--pk-surface` or
+`--pk-text` set there needs a dark counterpart.
+
 | What is read | Details |
 | --- | --- |
-| Custom properties (`--pk-*`, and any `--name` they refer to with `var()`) | in rules on `:root`, `body` or `.pk-report` (also in a selector list such as `h1, .pk-report`); `:root` only after `{{style}}`, where it overrides the report's tokens on the page too |
-| `font-family` | on `.pk-report`, or on `body` after `{{style}}` |
-| Order | `.pk-report` over `body` over `:root`, and a later rule over an earlier one, as the page applies them; `!important` is ignored |
-| Left out | rules inside `@media`, `@supports` and other at-rules, a `<style media="print">` (or any media but `all`), other selectors, and a `<style>` inside a comment, `<template>` or `<script>`: the chart is drawn in the light colours, and the page is light on paper |
+| Custom properties (`--pk-*`, and any `--name` they refer to with `var()`) | in rules on `:root` (or `html`), `body` or `.pk-report`, also in a selector list such as `h1, .pk-report`, and in `@layer` |
+| `font-family` | on `body` or `.pk-report`, also from the `font` shorthand |
+| Order | as the page applies them: `.pk-report` inherits from `body`, `body` from `:root`; on each, a later rule wins over an earlier one and `!important` over both. The report's `{{style}}` sets its tokens on `:root` where it stands, so a `:root` rule before `{{style}}` counts only for properties the report does not set (`--brand`); a rule in `@layer` or on `html` is below every other |
+| Left out | rules inside `@media`, `@supports` and other at-rules, a `<style>` with a `media` other than `all` or a `type` other than `text/css`, other selectors, and a `<style>` inside a comment, `<template>` or `<script>`: the chart is drawn in the light colours, and the page is light on paper |
 
-A value is used as the page would compute it: `var(--name)` and `var(--name, fallback)` are
-resolved, `light-dark(light, dark)` gives its light colour. A value that does not resolve, refers to
-itself, is longer than 200 characters or would load something (`url(`) is left out, and the
-default (or the host's `tokens`) stands in. The template's values win over the host's
-[`tokens`](report.md#options), as on the page.
+A value is resolved as the page computes it: `var(--name)` takes the value the element has (its own,
+else inherited), `var(--name, fallback)` the fallback where there is none, a property in a cycle has
+no value (its fallbacks too), `inherit` and `unset` inherit, `initial` has no value, and
+`light-dark(light, dark)` gives its light colour. A value that has none, is longer than 200
+characters, would load something (`url(`) or holds a quoted string (except in a font's names) keeps
+the default (or the host's `tokens`). The template's values win over the host's
+[`tokens`](report.md#options), as on the page. pivotkit does not check a selector list the browser
+would refuse as a whole, so write valid CSS.
 
 Colours in any form a browser reads reach the chart's marks as they are. The heatmap mixes its scale
 itself, so `--pk-heat-low` and `--pk-heat-high` need a form ECharts reads (`#rrggbb`, `rgb(r, g, b)`,

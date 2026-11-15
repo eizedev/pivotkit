@@ -120,127 +120,38 @@ function safeValue(value) {
 }
 
 /** The values every report starts from: the light theme, the weights, corners and sizes, the font. */
-const BASE_TOKENS = Object.freeze({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, "font-family": REPORT_FONT });
+export const BASE_TOKENS = Object.freeze({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, "font-family": REPORT_FONT });
 
 /** The characters of a token's value at most (a host's and a template's). */
-const TOKEN_LENGTH = 200;
+export const TOKEN_LENGTH = 200;
 
-/** A resolved value longer than this is dropped (a chain of var()s could grow it without bound). */
-const RESOLVED_LENGTH = 1000;
+/** A value that is another token alone: `var(--pk-name)`. */
+const TOKEN_REF = /^var\((--pk-[a-z0-9-]+)\)$/;
 
 /**
- * Custom properties with their var() replaced, as a browser computes them: a var() takes the named
- * property's value, else its fallback (`var(--brand, #c00)`). A property whose var() names nothing
- * known, or that refers to itself, is left out. Each property is resolved once (memoized), so the
- * work is linear in the text.
- * @param {Record<string, string>} props
+ * The light values a report draws its chart and its cells' colours with: the defaults and the host's
+ * `tokens` over them (cleanTokens), a value that is another token alone followed to it, as the
+ * defaults' --pk-scale-low and --pk-scale-high are; a value with any other var() keeps the default.
+ * A print template's own values come over these through template-style.js, loaded only for one.
+ * @param {Record<string, string>} [tokens]  the host's
  * @returns {Record<string, string>}
  */
-export function resolveVars(props) {
-    /** @type {Map<string, string | null>} */
-    const done = new Map();
-    const resolving = new Set();
-    /** @param {string} name  @returns {string | null} */
-    const valueOf = (name) => {
-        if (done.has(name)) {
-            return /** @type {string | null} */ (done.get(name));
-        }
-        if (!Object.hasOwn(props, name) || resolving.has(name)) {
-            return null;
-        }
-        resolving.add(name);
-        const value = substitute(props[name]);
-        resolving.delete(name);
-        done.set(name, value);
-        return value;
-    };
-    /** @param {string} value  @returns {string | null} */
-    const substitute = (value) => {
-        let out = "";
-        let i = 0;
-        for (;;) {
-            const at = value.slice(i).search(/\bvar\(/i);
-            if (at === -1) {
-                out += value.slice(i);
-                return out.length <= RESOLVED_LENGTH ? out : null;
-            }
-            out += value.slice(i, i + at);
-            const open = i + at + 4;
-            // the var()'s arguments up to its closing parenthesis
-            let depth = 1;
-            let j = open;
-            while (j < value.length && depth > 0) {
-                depth += value[j] === "(" ? 1 : value[j] === ")" ? -1 : 0;
-                j++;
-            }
-            if (depth > 0) {
-                return null;
-            }
-            const args = value.slice(open, j - 1);
-            const comma = args.indexOf(",");
-            const name = (comma === -1 ? args : args.slice(0, comma)).trim();
-            const found = /^--[\w-]+$/.test(name) ? valueOf(name) : null;
-            const fallback = comma === -1 ? null : substitute(args.slice(comma + 1).trim());
-            const replaced = found ?? fallback;
-            if (replaced === null || out.length + replaced.length > RESOLVED_LENGTH) {
-                return null;
-            }
-            out += replaced;
-            i = j;
-        }
+export function reportTokens(tokens = {}) {
+    const all = { ...BASE_TOKENS, ...cleanTokens(tokens) };
+    /** @param {string} name  @param {number} depth  @returns {string | undefined} */
+    const follow = (name, depth = 0) => {
+        const value = Object.hasOwn(all, name) ? all[name] : undefined;
+        const ref = value === undefined ? null : TOKEN_REF.exec(value);
+        return ref ? (depth < 4 ? follow(ref[1], depth + 1) : undefined) : value;
     };
     /** @type {Record<string, string>} */
     const out = {};
-    for (const name of Object.keys(props)) {
-        const value = name.startsWith("--") ? valueOf(name) : props[name];
-        if (value !== null) {
-            out[name] = value;
+    for (const name of Object.keys(all)) {
+        const value = follow(name);
+        const plain = value !== undefined && !/\bvar\(/i.test(value) ? value : BASE_TOKENS[name];
+        if (plain !== undefined) {
+            out[name] = plain;
         }
-    }
-    return out;
-}
-
-/**
- * The light values a report draws its chart and its cells' colours with: the defaults, the host's
- * `tokens` over them, a template's own (template-style.js) over those, var() resolved and every value
- * checked (cleanTokens); a value that does not resolve or is not safe keeps the default.
- * @param {Record<string, string>} [tokens]  the host's
- * @param {Record<string, string>} [own]  the template's (templateTokens)
- * @returns {Record<string, string>}
- */
-export function reportTokens(tokens = {}, own = {}) {
-    // the template's values are held to the host's length before they are resolved
-    const owned = Object.fromEntries(Object.entries(own).filter(([, value]) => typeof value === "string" && value.length <= TOKEN_LENGTH));
-    const resolved = resolveVars({ ...BASE_TOKENS, ...cleanTokens(tokens), ...owned });
-    for (const name of Object.keys(resolved)) {
-        resolved[name] = lightOf(resolved[name]);
-    }
-    return { ...BASE_TOKENS, ...cleanTokens(resolved) };
-}
-
-/**
- * A value with every light-dark(light, dark) replaced by its light colour: the chart and the cells'
- * colours are drawn light, and ECharts reads no light-dark(). A call that is not closed is kept as it
- * is (cleanTokens checks it).
- * @param {string} value
- */
-function lightOf(value) {
-    let out = value;
-    for (let at = out.search(/\blight-dark\(/i); at !== -1; at = out.search(/\blight-dark\(/i)) {
-        const open = at + "light-dark(".length;
-        let depth = 1;
-        let comma = -1;
-        let j = open;
-        for (; j < out.length && depth > 0; j++) {
-            depth += out[j] === "(" ? 1 : out[j] === ")" ? -1 : 0;
-            if (out[j] === "," && depth === 1 && comma === -1) {
-                comma = j;
-            }
-        }
-        if (depth > 0 || comma === -1) {
-            return value;
-        }
-        out = out.slice(0, at) + out.slice(open, comma).trim() + out.slice(j);
     }
     return out;
 }
@@ -265,7 +176,8 @@ export function cleanTokens(tokens) {
     /** @type {Record<string, string>} */
     const out = {};
     for (const [name, value] of Object.entries(tokens ?? {})) {
-        if ((/^--pk-[a-z0-9-]+$/.test(name) || name === "font-family") && typeof value === "string" && value.length <= TOKEN_LENGTH && safeValue(value)) {
+        // a quoted string only in a font's names: in any other token it could end an SVG attribute
+        if ((/^--pk-[a-z0-9-]+$/.test(name) || name === "font-family") && typeof value === "string" && value.length <= TOKEN_LENGTH && safeValue(value) && (name === "font-family" || !/["']/.test(value))) {
             out[name] = value.trim();
         }
     }
@@ -276,21 +188,16 @@ export function cleanTokens(tokens) {
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 /**
- * The colours of a colour scale and of data bars whose view names none, from the host's tokens over
- * the light ones, as the report on screen resolves them: the scale --pk-scale-low, the host's
- * --pk-scale-mid and --pk-scale-high (by default the heat tokens), the bars --pk-chart-1. A value
- * that is no plain hex colour (another token is followed) keeps pivotkit-core's default.
- * @param {Record<string, string>} [tokens]
+ * The colours of a colour scale and of data bars whose view names none, from the report's resolved
+ * light values (reportTokens, a template's over them): the scale --pk-scale-low, --pk-scale-mid where
+ * set and --pk-scale-high (by default the heat tokens), the bars --pk-chart-1. A value that is no
+ * plain hex colour keeps pivotkit-core's default.
+ * @param {Record<string, string>} theme
  * @returns {{ colorScale?: string[], dataBar?: string }}
  */
-export function conditionalColors(tokens = {}) {
-    const all = { ...LIGHT_TOKENS, ...cleanTokens(tokens) };
-    const resolve = (/** @type {string} */ name, depth = 0) => {
-        const value = Object.hasOwn(all, name) ? all[name] : "";
-        const ref = /^var\((--pk-[a-z0-9-]+)\)$/.exec(value);
-        return ref && depth < 4 ? resolve(ref[1], depth + 1) : HEX_COLOR.test(value) ? value : null;
-    };
-    const [low, mid, high, bar] = ["--pk-scale-low", "--pk-scale-mid", "--pk-scale-high", "--pk-chart-1"].map((name) => resolve(name));
+export function conditionalColors(theme) {
+    const hex = (/** @type {string} */ name) => (Object.hasOwn(theme, name) && HEX_COLOR.test(theme[name]) ? theme[name] : null);
+    const [low, mid, high, bar] = ["--pk-scale-low", "--pk-scale-mid", "--pk-scale-high", "--pk-chart-1"].map(hex);
     return {
         ...(low && high ? { colorScale: mid ? [low, mid, high] : [low, high] } : {}),
         ...(bar ? { dataBar: bar } : {})
