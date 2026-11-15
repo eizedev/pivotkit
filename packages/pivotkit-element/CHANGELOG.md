@@ -11,6 +11,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 - The element bundles pivotkit-react's fix of Print or save as PDF: the print dialog opens in the
   click itself (Safari asked "This webpage is trying to print" from the second print on while it
   came an animation frame later) ([#210](https://github.com/eizedev/pivotkit/issues/210)).
+- The element bundles pivotkit-react's fix of a menu's button in Safari and other WebKit browsers: a
+  second click on it closes the menu ([#393](https://github.com/eizedev/pivotkit/issues/393)).
 
 ## [0.6.1] - 2026-11-14
 

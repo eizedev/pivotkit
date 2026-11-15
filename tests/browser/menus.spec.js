@@ -3,7 +3,7 @@
 // Collapse all only when they change something, the grip of a field, sort, top N and value conditions by a
 // chosen value. Every test fails without its feature.
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openLevel, openRules, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openLevel, openRules, openSaveAs, openZones, tableRows, test, toolbar } from "./fixtures.js";
 
 /** Filters a field of the Filters zone or an axis to one value through its popover. */
 async function onlyValue(page, value) {
@@ -644,5 +644,34 @@ test.describe("menus in levels", () => {
         // the image needs the chart: disabled, with the reason
         await expect(page.getByTestId("export-png")).toBeDisabled();
         await expect(page.getByTestId("export-png")).toContainText("Switch to Chart first.");
+    });
+});
+
+test.describe("a second click on a menu's button closes it", () => {
+    // WebKit does not focus a button a person clicks: the press moves the focus out of the open menu
+    // to the report around it, which closed the menu, and the click then opened it again (#393). Real
+    // mouse clicks, in every engine.
+    test("the toolbar's menus and a chip menu close on a second click on their button and open on a third", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await openZones(page);
+        // every menu button the toolbar shows at this width (Options is in "More" here), and the first
+        // field's chip menu
+        const ids = ["export", "views", "data", "start-over", "more", await page.locator('[data-testid^="chip-menu-"]').first().getAttribute("data-testid")];
+        for (const id of ids) {
+            const button = page.getByTestId(id);
+            const panel = page.locator(".pk-popover");
+            await button.click();
+            await expect(button, id).toHaveAttribute("aria-expanded", "true");
+            await expect(panel, id).toHaveCount(1);
+            // the menu has taken the focus, as a person sees it before the second click
+            await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover"))), id).toBe(true);
+            await button.click();
+            await expect(button, id).toHaveAttribute("aria-expanded", "false");
+            await expect(panel, id).toHaveCount(0);
+            await button.click();
+            await expect(button, id).toHaveAttribute("aria-expanded", "true");
+            await page.keyboard.press("Escape");
+            await expect(panel, id).toHaveCount(0);
+        }
     });
 });

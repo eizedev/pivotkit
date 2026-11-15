@@ -13,6 +13,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   Safari asked "This webpage is trying to print" from the second print on while the dialog came an
   animation frame after the click; a page hidden while it printed (it gets no animation frame) did
   not print at all ([#210](https://github.com/eizedev/pivotkit/issues/210)).
+- A second click on a menu's button closes the menu in Safari and other WebKit browsers, as in the
+  others: the toolbar's menus (Export, Views, Data, Start over, More) and a field's chip menu. WebKit
+  does not focus a clicked button, so the press moved the focus out of the menu, which closed it,
+  and the click opened it again ([#393](https://github.com/eizedev/pivotkit/issues/393)).
 
 ## [0.6.1] - 2026-11-14
 
