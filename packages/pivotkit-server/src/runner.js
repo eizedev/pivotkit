@@ -134,8 +134,16 @@ export async function run(argv, io) {
             if (rest[0]) {
                 return healthcheck(rest[0], io);
             }
+            let fromEnv;
+            try {
+                fromEnv = portOfEnv(io.env);
+            } catch (e) {
+                // 1, not 2: a container's health check reserves exit code 2
+                io.stderr.write(`pivotkit-server: ${e.message}\n`);
+                return 1;
+            }
             const configured = io.env[CONFIG_ENV] ? await loadConfig(io.env[CONFIG_ENV]).then((o) => o.http?.port, () => undefined) : undefined;
-            const port = portOfEnv(io.env) ?? String(configured ?? DEFAULT_PORT);
+            const port = fromEnv ?? String(configured ?? DEFAULT_PORT);
             return healthcheck(`http://127.0.0.1:${port}/healthz`, io);
         }
         if (command === "check-source") {
