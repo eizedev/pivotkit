@@ -40,6 +40,9 @@ import { stat } from "node:fs/promises";
  * @property {string} cwd
  */
 
+/** The most findings stderr lists; --json has them all. */
+const PRINTED_FINDINGS = 200;
+
 /** The most bytes a view or a template file may have (a view file's characters as UTF-8). */
 const VIEW_BYTES = OUTSIDE_LIMITS.json * 4;
 const TEMPLATE_BYTES = 262_144 * 4;
@@ -233,17 +236,28 @@ export async function main(argv, io) {
         if (json) {
             io.stdout.write(`${JSON.stringify({ ok: exitCode === 0, exitCode, command, findings, ...outcome.extra })}\n`);
         } else {
+            let printed = 0;
+            let more = 0;
             for (const f of findings) {
                 // an error that follows from another one (the fields a data mismatch is about) is counted there; --json keeps it
                 if (f.followsFrom) {
                     continue;
                 }
                 if (f.severity === "error" || (f.severity === "warning" && !values.quiet) || (f.severity === "info" && values.verbose && !values.quiet)) {
+                    // a long list (a server may send many) is cut; --json keeps them all
+                    if (printed >= PRINTED_FINDINGS) {
+                        more++;
+                        continue;
+                    }
+                    printed++;
                     say(`${f.severity} ${f.code}${f.path ? ` at ${f.path}` : ""}: ${f.message}${f.suggestion ? ` (did you mean "${f.suggestion}"?)` : ""}`);
                     for (const line of f.details ?? []) {
                         say(`  ${line}`);
                     }
                 }
+            }
+            if (more > 0) {
+                say(`and ${more} more finding${more === 1 ? "" : "s"} (--json lists them all)`);
             }
             // what was written or checked: a line for a person (not with -q, and an error's line always)
             if (outcome.note && (!values.quiet || outcome.noteIsError)) {

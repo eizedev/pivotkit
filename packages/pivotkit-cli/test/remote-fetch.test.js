@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { gzipSync } from "node:zlib";
 import { RemoteError } from "../src/errors.js";
-import { ANSWER_BYTES, createClient, serverOf } from "../src/remote.js";
+import { ANSWER_BYTES, createClient, nodeUsesEnvProxy, serverOf } from "../src/remote.js";
 import { tempDir } from "./helpers.js";
 
 const TOKEN = "fetch-token-SECRET-0123456789abcdefghijkl";
@@ -95,7 +95,7 @@ test("fetch: the size cap counts the answer after decoding (a small gzip that un
 
 test("fetch: a cut answer and a timeout", async () => {
     const cut = await fakeServer((req, res) => {
-        res.writeHead(200, { "content-type": "text/csv;charset=utf-8", "content-length": "1000" });
+        res.writeHead(200, { "content-type": "text/csv;charset=utf-8", "content-length": "1000", "content-disposition": "attachment" });
         res.write("Region,Sum\n");
         setTimeout(() => res.socket.destroy(), 50);
     });
@@ -112,4 +112,14 @@ test("fetch: a cut answer and a timeout", async () => {
     } finally {
         await silent.close();
     }
+});
+
+test("which Node uses the environment's proxy, as Node's documentation dates it", () => {
+    const variable = { NODE_USE_ENV_PROXY: "1" };
+    const flag = { NODE_OPTIONS: "--use-env-proxy" };
+    for (const [version, byVariable, byFlag] of [["22.20.0", false, false], ["22.21.0", true, true], ["23.11.0", false, false], ["24.0.0", true, false], ["24.4.1", true, false], ["24.5.0", true, true], ["26.1.0", true, true]]) {
+        assert.equal(nodeUsesEnvProxy(variable, version), byVariable, `${version} NODE_USE_ENV_PROXY`);
+        assert.equal(nodeUsesEnvProxy(flag, version), byFlag, `${version} --use-env-proxy`);
+    }
+    assert.equal(nodeUsesEnvProxy({}, "26.1.0"), false);
 });

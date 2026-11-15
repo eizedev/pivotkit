@@ -58,7 +58,7 @@ const NETWORK_TEXTS = Object.freeze({
     UNABLE_TO_GET_ISSUER_CERT_LOCALLY: "the server's certificate cannot be verified (its issuer is not known here; NODE_EXTRA_CA_CERTS adds one)",
     ERR_TLS_CERT_ALTNAME_INVALID: "the server's certificate is for another host name",
     ERR_SSL_WRONG_VERSION_NUMBER: "the server does not speak TLS on that port (http instead of https?)",
-    EPROTO: "the TLS handshake failed"
+    EPROTO: "the TLS handshake failed (http instead of https on that port?)"
 });
 
 /**
@@ -124,7 +124,7 @@ const withoutLineEnd = (text) => text.replace(/\r?\n$/, "");
  * The token: --token-file, else PIVOTKIT_TOKEN, else none. Read again on every call.
  * @param {Record<string, any>} values
  * @param {{ io: any, allow: string[] }} ctx
- * @returns {Promise<{ token: string | null, warning: string | null }>}
+ * @returns {Promise<{ token: string | null, warning: string | null, from: string | null }>}  from: where the token came from, for the server line
  */
 export async function readToken(values, ctx) {
     const path = values["token-file"];
@@ -133,7 +133,7 @@ export async function readToken(values, ctx) {
         if (token && !TOKEN_SYNTAX.test(token)) {
             throw new CliError("usage", "BAD_TOKEN", `the token of PIVOTKIT_TOKEN ${TOKEN_SYNTAX_TEXT}`);
         }
-        return { token: token || null, warning: null };
+        return { token: token || null, warning: null, from: token ? "PIVOTKIT_TOKEN" : null };
     }
     let info;
     try {
@@ -160,16 +160,26 @@ export async function readToken(values, ctx) {
     }
     // POSIX: a token others on the machine can read is theirs too
     const open = process.platform !== "win32" && (info.mode & 0o077) !== 0;
-    return { token, warning: open ? `--token-file ${shortName(path)}: readable by the group or by others; chmod 600 ${shortName(path)}` : null };
+    return { token, warning: open ? `--token-file ${shortName(path)}: readable by the group or by others; chmod 600 ${shortName(path)}` : null, from: `--token-file ${shortName(path)}` };
 }
 
-/** Whether Node routes fetch through the environment's proxy (NODE_USE_ENV_PROXY=1 or --use-env-proxy, Node 22.21 or later, 24 or later). */
-export function nodeUsesEnvProxy(env) {
-    const [major, minor] = process.versions.node.split(".").map(Number);
-    const supported = major >= 24 || (major === 22 && minor >= 21);
-    const asked = env.NODE_USE_ENV_PROXY === "1" || process.execArgv.includes("--use-env-proxy") || /(^|\s)--use-env-proxy(\s|$)/.test(env.NODE_OPTIONS ?? "");
-    return supported && asked;
+/**
+ * Whether Node routes fetch through the environment's proxy, as Node's documentation dates it:
+ * NODE_USE_ENV_PROXY=1 since v24.0.0 and v22.21.0, --use-env-proxy since v24.5.0 and v22.21.0
+ * (neither in 23).
+ * @param {Record<string, string | undefined>} env
+ * @param {string} [version]  Node's, for tests
+ */
+export function nodeUsesEnvProxy(env, version = process.versions.node) {
+    const [major, minor] = version.split(".").map(Number);
+    const variable = major >= 24 || (major === 22 && minor >= 21);
+    const flag = major >= 25 || (major === 24 && minor >= 5) || (major === 22 && minor >= 21);
+    const byFlag = process.execArgv.includes("--use-env-proxy") || /(^|\s)--use-env-proxy(\s|$)/.test(env.NODE_OPTIONS ?? "");
+    return (variable && env.NODE_USE_ENV_PROXY === "1") || (flag && byFlag);
 }
+
+/** What the proxy note says about Node's versions (Node's documentation). */
+export const ENV_PROXY_VERSIONS = "NODE_USE_ENV_PROXY=1 (Node 22.21.0 or later, 24.0.0 or later) or --use-env-proxy (Node 22.21.0 or later, 24.5.0 or later)";
 
 /** What a network error says about the proxy variables (none of their values). */
 function proxyNote(server, env) {
@@ -183,19 +193,20 @@ function proxyNote(server, env) {
     if (!set) {
         return "";
     }
-    return nodeUsesEnvProxy(env) ? `; the request went through the proxy of ${set}` : `; ${set} is set, but Node uses it only with NODE_USE_ENV_PROXY=1 or --use-env-proxy (Node 22.21 or later, 24 or later)`;
+    return nodeUsesEnvProxy(env) ? `; the request went through the proxy of ${set}` : `; ${set} is set, but Node uses it only with ${ENV_PROXY_VERSIONS}`;
 }
 
-/** Retry-After in seconds, or null. */
+/** The longest wait a Retry-After is taken at: a day (a longer one is no hint worth passing on). */
+const MAX_RETRY_AFTER = 86_400;
+
+/** Retry-After in seconds, or null (also for one over a day). */
 function retryAfterOf(value) {
     if (!value) {
         return null;
     }
-    if (/^\d+$/.test(value.trim())) {
-        return Number(value.trim());
-    }
     const at = Date.parse(value);
-    return Number.isNaN(at) ? null : Math.max(0, Math.ceil((at - Date.now()) / 1000));
+    const seconds = /^\d+$/.test(value.trim()) ? Number(value.trim()) : Number.isNaN(at) ? null : Math.max(0, Math.ceil((at - Date.now()) / 1000));
+    return seconds !== null && seconds <= MAX_RETRY_AFTER ? seconds : null;
 }
 
 /**
@@ -233,6 +244,16 @@ function send(url, { method, headers, body }, loopback, signal) {
 
 /** A server's text with the token taken out (data that goes into a file or --json keeps its length). */
 const stripFrom = (token) => (text) => (token ? String(text ?? "").split(token).join("…") : String(text ?? ""));
+
+/**
+ * NODE_TLS_REJECT_UNAUTHORIZED=0 turns off the check of an https server's certificate: refused, with
+ * or without a token (what comes back could be anyone's).
+ */
+export function checkTls(server, env) {
+    if (server.base.protocol === "https:" && env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+        throw new CliError("usage", "INSECURE_TLS", "NODE_TLS_REJECT_UNAUTHORIZED=0 turns off the check of the server's certificate: pivotkit does not talk to a server so; unset it (a certificate of your own CA: NODE_EXTRA_CA_CERTS)");
+    }
+}
 
 /**
  * The client of one run.
@@ -303,7 +324,7 @@ export function createClient({ server, values, ctx, userAgent }) {
         const detail = typeof problem.detail === "string" ? clean(problem.detail) : "";
         const hints = {
             INVALID_TOKEN: "token missing or refused: PIVOTKIT_TOKEN or --token-file",
-            NOT_ALLOWED: "this token's profile has no results: true; validate, describe and sources work with it",
+            NOT_ALLOWED: detail.includes("results: true") ? "validate, describe and sources work with this token" : "this token's profile has no results: true; validate, describe and sources work with it",
             NOT_FOUND: server.apiPath ? "" : `the address should end in ${REST_BASE}`
         };
         const wait = retryAfter !== null ? `retry in ${retryAfter} s` : "";
@@ -315,16 +336,14 @@ export function createClient({ server, values, ctx, userAgent }) {
      * A request to a path under the address.
      * @param {"GET" | "POST"} method
      * @param {string} path  relative, without a leading "/" ("views/validate", "sources/sales")
-     * @param {{ body?: unknown, accept: string, max: number }} how
+     * @param {{ body?: unknown, accept: string, max: number, attachment?: boolean }} how  attachment: a 2xx must say Content-Disposition: attachment (the file route)
      * @returns {Promise<{ status: number, bytes: Buffer } | { status: number, viewErrors: any[] }>}
      */
-    async function request(method, path, { body, accept, max }) {
+    async function request(method, path, { body, accept, max, attachment = false }) {
+        checkTls(server, env);
         const { token, warning } = await readToken(values, ctx);
         if (warning) {
             warnings.add(warning);
-        }
-        if (token && server.base.protocol === "https:" && env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
-            throw new CliError("usage", "INSECURE_TLS", "NODE_TLS_REJECT_UNAUTHORIZED=0 turns off the check of the server's certificate: the token is not sent so; unset it (a certificate of your own CA: NODE_EXTRA_CA_CERTS)");
         }
         lastToken = token;
         const url = new URL(path, server.base);
@@ -367,7 +386,10 @@ export function createClient({ server, values, ctx, userAgent }) {
             }
             throw problemError(problem, status, retryAfter);
         }
-        if (status < 200 || status >= 300) {
+        // the file route answers with an attachment; a page of the same type (a portal's sign-in page as
+        // text/html) is not taken as the report. Only a marker: the name in it is never used
+        const isAttachment = /^\s*attachment\b/i.test(answer.header("content-disposition") ?? "");
+        if (status < 200 || status >= 300 || (attachment && !isAttachment)) {
             answer.cancel();
             throw notPivotkit(status);
         }
@@ -409,7 +431,7 @@ export function createClient({ server, values, ctx, userAgent }) {
     async function file(body) {
         const format = RENDER_FORMATS[body.format];
         // the media type without its parameters ("text/csv; charset=utf-8"), as the answer's is compared
-        return request("POST", "views/render/file", { body, accept: format.mediaType.split(";")[0].trim().toLowerCase(), max: ANSWER_BYTES.file });
+        return request("POST", "views/render/file", { body, accept: format.mediaType.split(";")[0].trim().toLowerCase(), max: ANSWER_BYTES.file, attachment: true });
     }
 
     return { json, file, clean, strip, cleanFindings, warnings: () => [...warnings], origin: server.origin };

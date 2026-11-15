@@ -104,7 +104,7 @@ const REMOTE_OPTIONS = Object.freeze({
 /** @type {Readonly<Record<string, CommandSpec>>} */
 export const COMMANDS = Object.freeze({
     render: {
-        usage: "pivotkit render <view> --data <file> [-o <file>] [options]\n       pivotkit render <data> (--rows <field> ... --values <agg:field> | --suggest) [-o <file>] [options]",
+        usage: "pivotkit render <view> --data <file> [-o <file>] [options]\n       pivotkit render <data> (--rows <field> ... --values <agg:field> | --suggest) [-o <file>] [options]\n       pivotkit render <view> --url <https://host/api/v1> --source <id> [-o <file>] [options]",
         text: "Run a view over data and write the result: an HTML report, CSV, JSON, XLSX or the chart as SVG.",
         args: [{ name: "view", text: "A view file, a view as JSON text, or - for stdin; with layout flags or --suggest: the data.", optional: true, complete: "file" }],
         options: {

@@ -14,7 +14,8 @@ import { RENDER_FORMATS } from "pivotkit-report";
 import { CliError, RemoteError, asCliError, shortName } from "./errors.js";
 import { fromFields, filtersOf, hasLayoutFlags, mapOf } from "./layout-view.js";
 import { layoutOf } from "./layout-flags.js";
-import { createClient, readToken, serverOf, sourceId } from "./remote.js";
+import { checkTls, createClient, readToken, serverOf, sourceId, timeoutOf } from "./remote.js";
+import { SOURCE_ID } from "./rest-contract.js";
 import { writeSafe } from "./safe-files.js";
 
 /** Permissions of a file remote mode writes: only its owner reads it (the server's data). */
@@ -47,13 +48,17 @@ export async function remoteCommand(command, positionals, values, ctx, helpers) 
         }
         sourceId(values.source);
     }
-    // the token is checked before the first request, so a bad one never reaches the network
+    // every option and the token are checked before the first line and the first request
+    timeoutOf(values);
+    checkTls(server, ctx.io.env);
     const first = await readToken(values, ctx);
-    const say = (line) => !values.quiet && ctx.io.stderr.write(`${line}\n`);
-    // where the requests go, so a wrong target shows (the origin only, never the path)
-    say(`server: ${server.origin}`);
+    // where the requests go and with which token, so a wrong target shows (the origin only, never the path)
+    if (!values.quiet) {
+        ctx.io.stderr.write(`server: ${server.origin} (token: ${first.from ?? "none"})\n`);
+    }
+    // a token others can read is said also with -q
     if (first.warning) {
-        say(`warning: ${first.warning}`);
+        ctx.io.stderr.write(`warning: ${first.warning}\n`);
     }
     const client = createClient({ server, values, ctx, userAgent: `pivotkit-cli/${helpers.version}` });
     const run = { render: renderRemote, validate: validateRemote, describe: describeRemote, sources: sourcesRemote }[command];
@@ -65,18 +70,24 @@ export async function remoteCommand(command, positionals, values, ctx, helpers) 
  * file's names keep their length; JSON escapes control characters). What is printed goes through
  * the client's `clean` as well.
  */
-function deepClean(value, clean) {
+function deepClean(value, clean, depth = 0) {
+    if (depth > MAX_DEPTH) {
+        throw new RemoteError("NOT_PIVOTKIT", `not a pivotkit server answer (nested deeper than ${MAX_DEPTH} levels)`);
+    }
     if (typeof value === "string") {
         return clean(value);
     }
     if (Array.isArray(value)) {
-        return value.map((v) => deepClean(v, clean));
+        return value.map((v) => deepClean(v, clean, depth + 1));
     }
     if (value && typeof value === "object") {
-        return Object.fromEntries(Object.entries(value).map(([k, v]) => [clean(k), deepClean(v, clean)]));
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [clean(k), deepClean(v, clean, depth + 1)]));
     }
     return value;
 }
+
+/** The deepest a server's answer may nest (a view nests far less; the server itself refuses 64). */
+const MAX_DEPTH = 64;
 
 /** Whether findings fail the command: an error, or a warning with --strict. */
 const failing = (findings, values) => findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
@@ -115,7 +126,7 @@ async function validateRemote(positionals, values, ctx, client, helpers) {
 
 async function describeRemote(positionals, values, ctx, client, helpers) {
     if (values.suggest) {
-        return suggestRemote(positionals, values, ctx, client);
+        return suggestRemote(positionals, values, ctx, client, helpers);
     }
     const onlySuggest = ["output", "map"].find((f) => values[f] !== undefined) ?? (hasLayoutFlags(values) ? ["rows", "cols", "values", "group", "filter", "chart-type"].find((f) => values[f] !== undefined) : undefined);
     if (onlySuggest) {
@@ -127,7 +138,14 @@ async function describeRemote(positionals, values, ctx, client, helpers) {
     if (positionals.length > 1) {
         throw new CliError("usage", "EXTRA_ARGUMENT", `describe takes one view, not ${positionals.length}`);
     }
-    const view = await helpers.readView(positionals, values, ctx);
+    let view;
+    try {
+        view = await helpers.readView(positionals, values, ctx);
+    } catch (e) {
+        // a source's id where the view belongs (pivotkit describe sales --source sales)
+        const arg = positionals[0];
+        throw e instanceof CliError && e.code === "NOT_FOUND" && SOURCE_ID.test(arg) ? new CliError(e.kind, e.code, `${e.message}; the fields of a source: pivotkit sources ${arg}`) : e;
+    }
     const { data } = await jsonOf(client.json("POST", "views/describe", { source: values.source, view: view.view }));
     const text = data.description && typeof data.description.text === "string" ? client.clean(data.description.text) : "";
     if (!values.json && text) {
@@ -138,7 +156,7 @@ async function describeRemote(positionals, values, ctx, client, helpers) {
 }
 
 /** describe --suggest: the server's draft as a view file, on stdout or into -o. */
-async function suggestRemote(positionals, values, ctx, client) {
+async function suggestRemote(positionals, values, ctx, client, helpers) {
     noDataArgument(positionals, "describe");
     if (values.output !== undefined) {
         if (values.output === "-") {
@@ -147,6 +165,7 @@ async function suggestRemote(positionals, values, ctx, client) {
         if (!/\.json$/i.test(values.output)) {
             throw new CliError("usage", "UNKNOWN_EXTENSION", `-o ${shortName(values.output)}: a view file is JSON: name it <name>.pivotkit.json`);
         }
+        await helpers.checkNotInput(ctx, "-o", values.output, [[values["token-file"], "token"]], "draft");
     }
     const { data } = await jsonOf(client.json("POST", "views/suggest", { source: values.source, layout: await layoutFor(values, ctx) }));
     const findings = client.cleanFindings(data.findings);
@@ -184,7 +203,9 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
         throw new CliError("usage", "EXTRA_ARGUMENT", `render takes one view, not ${positionals.length}`);
     }
     if (values.output !== undefined && !layoutMode) {
-        await helpers.checkNotInput(ctx, "-o", values.output, [[positionals[0], "view"]], "output");
+        await helpers.checkNotInput(ctx, "-o", values.output, [[positionals[0], "view"], [values["token-file"], "token"]], "output");
+    } else if (values.output !== undefined) {
+        await helpers.checkNotInput(ctx, "-o", values.output, [[values["token-file"], "token"]], "output");
     }
     const findings = [...helpers.ignoredOptions(values, format)];
     /** @type {Record<string, unknown>} the view or the layout to render */
@@ -209,7 +230,8 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
             if (!(e instanceof RemoteError && e.code === "INSUFFICIENT_SCOPE")) {
                 throw e;
             }
-            findings.push({ severity: "info", code: "notValidated", path: "", message: "the view was not checked first: this token may not validate (auth.toolScopes); the server's errors still stop the file, its warnings are not shown" });
+            // a warning, so --strict stops: its warnings could not be checked
+            findings.push({ severity: "warning", code: "notValidated", path: "", message: "the view was not checked first: this token may not validate (auth.toolScopes); the server's errors still stop the file, its warnings are not known" });
         }
         what = given;
     }
@@ -241,14 +263,16 @@ async function sourcesRemote(positionals, values, ctx, client) {
         const { data } = await jsonOf(client.json("GET", "sources"));
         const list = deepClean(Array.isArray(data.sources) ? data.sources : [], client.strip).filter((s) => s && typeof s.id === "string");
         if (!values.json) {
-            const width = Math.min(30, Math.max(0, ...list.map((s) => s.id.length)));
+            // a loop, not Math.max(...list): a list of hundreds of thousands would overflow the stack
+            let width = 0;
+            for (const s of list) width = Math.min(30, Math.max(width, s.id.length));
             for (const s of list) {
                 const line = `${client.clean(s.id).padEnd(width)}  ${client.clean(s.title ?? "")}${s.description ? ` - ${client.clean(s.description)}` : ""}`;
                 ctx.io.stdout.write(`${line.trimEnd()}\n`);
             }
         }
         const note = list.length ? null : "this token reaches no source of the server (the operator gives each token its sources)";
-        return { findings: [], extra: { sources: list }, note };
+        return { findings: [], extra: { kind: "sources", sources: list }, note };
     }
     sourceId(id, "the id");
     const { data } = await jsonOf(client.json("GET", `sources/${encodeURIComponent(id)}`));

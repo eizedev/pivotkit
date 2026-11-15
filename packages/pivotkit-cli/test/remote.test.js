@@ -95,7 +95,7 @@ test("200: sources lists the server's sources, with the token, the user agent an
         const r = await remote(server, ["sources"]);
         assert.equal(r.code, 0, r.stderr);
         assert.match(r.stdout, /^sales {2}Sales\nhr {5}People\n$/);
-        assert.match(r.stderr, new RegExp(`^server: ${server.origin.replace(/\./g, "\\.")}\\n`));
+        assert.match(r.stderr, new RegExp(`^server: ${server.origin.replace(/\./g, "\\.")} \\(token: PIVOTKIT_TOKEN\\)\\n`));
         assertClean(r, server.url);
         const [request] = server.requests;
         assert.equal(request.url, `${PATH_MARK}/sources`);
@@ -363,7 +363,7 @@ test("a JSON answer over 5 MB and a file cut short are refused; an existing file
     }
     const cut = await fakeServer((req, res) => {
         if (req.url.endsWith("/views/validate")) return json(res, { valid: true, findings: [] });
-        res.writeHead(200, { "content-type": "text/csv", "content-length": "1000" });
+        res.writeHead(200, { "content-type": "text/csv", "content-length": "1000", "content-disposition": "attachment" });
         res.write("Region,Sum\n");
         setTimeout(() => res.socket.destroy(), 50);
     });
@@ -478,8 +478,12 @@ test("the token: --token-file first, a trailing newline trimmed; a link, an open
 test("NODE_TLS_REJECT_UNAUTHORIZED=0: the token is not sent", async () => {
     const r = await run(["sources", "--url", "https://pivotkit.invalid/api/v1"], { cwd: workdir(), env: { PIVOTKIT_TOKEN: TOKEN, NODE_TLS_REJECT_UNAUTHORIZED: "0" } });
     assert.equal(r.code, 2);
-    assert.match(r.stderr, /NODE_TLS_REJECT_UNAUTHORIZED=0 turns off the check of the server's certificate: the token is not sent so/);
+    assert.match(r.stderr, /NODE_TLS_REJECT_UNAUTHORIZED=0 turns off the check of the server's certificate: pivotkit does not talk to a server so/);
     assert.ok(!r.stderr.includes(TOKEN));
+    // also without a token, and before the server line
+    const none = await run(["sources", "--url", "https://pivotkit.invalid/api/v1"], { cwd: workdir(), env: { NODE_TLS_REJECT_UNAUTHORIZED: "0" } });
+    assert.equal(none.code, 2);
+    assert.match(none.stderr, /^pivotkit: NODE_TLS_REJECT_UNAUTHORIZED=0/);
 });
 
 /** Whether this Node routes fetch through HTTP_PROXY with NODE_USE_ENV_PROXY=1 (22.21 or later, 24 or later). */
@@ -519,7 +523,7 @@ test("another address uses the proxy only as Node does, and a network error says
         const ignored = await run(["sources", "--url", "https://pivotkit.invalid/api/v1", "--json"], { cwd, env: { HTTPS_PROXY: proxy.url, PIVOTKIT_TOKEN: TOKEN } });
         assert.equal(ignored.code, 2);
         assert.equal(proxy.hits.length, 1);
-        assert.match(jsonOf(ignored).error.message, /HTTPS_PROXY is set, but Node uses it only with NODE_USE_ENV_PROXY=1 or --use-env-proxy/);
+        assert.match(jsonOf(ignored).error.message, /HTTPS_PROXY is set, but Node uses it only with NODE_USE_ENV_PROXY=1 \(Node 22\.21\.0 or later, 24\.0\.0 or later\) or --use-env-proxy \(Node 22\.21\.0 or later, 24\.5\.0 or later\)/);
     } finally {
         await proxy.close();
     }
@@ -530,7 +534,7 @@ test("layout flags and --suggest go to the server as a layout; the data argument
     const server = await fakeServer((req, res, body) => {
         if (req.url.endsWith("/views/suggest")) return json(res, { ok: true, findings: [], view: DRAFT, name: DRAFT.name, picks: [{ part: "rows", code: "fewValues", field: "Region", others: [], text: "Region: the first text field with few values" }] });
         if (req.url.endsWith("/views/validate")) return json(res, { valid: true, findings: [] });
-        res.writeHead(200, { "content-type": "text/csv" });
+        res.writeHead(200, { "content-type": "text/csv", "content-disposition": "attachment" });
         res.end(`${JSON.stringify(JSON.parse(body).layout ?? "view")}\n`);
     });
     try {
@@ -574,15 +578,132 @@ test("a draft's names over 200 characters are written whole; only what is printe
 test("render with a token that may not validate (auth.toolScopes): the file still comes, with a note", async () => {
     const server = await fakeServer((req, res) => {
         if (req.url.endsWith("/views/validate")) return problem(res, req, 403, "INSUFFICIENT_SCOPE", { detail: "validate_view needs the scopes reports:check" });
-        res.writeHead(200, { "content-type": "text/csv;charset=utf-8" });
+        res.writeHead(200, { "content-type": "text/csv;charset=utf-8", "content-disposition": "attachment" });
         res.end("Region,Sum of Sales\n");
     });
     try {
-        const r = await remote(server, ["render", "view.json", "--source", "sales", "-f", "csv", "--verbose"]);
+        const r = await remote(server, ["render", "view.json", "--source", "sales", "-f", "csv"]);
         assert.equal(r.code, 0, r.stderr);
         assert.equal(r.stdout, "Region,Sum of Sales\n");
-        assert.match(r.stderr, /info notValidated: the view was not checked first/);
+        assert.match(r.stderr, /warning notValidated: the view was not checked first/);
         assertClean(r, server.url);
+        // --strict does not pass a view it could not check
+        const strict = await remote(server, ["render", "view.json", "--source", "sales", "-f", "csv", "--strict"]);
+        assert.equal(strict.code, 1);
+        assert.equal(strict.stdout, "");
+    } finally {
+        await server.close();
+    }
+});
+
+test("the Content-Type and the attachment are checked: valid JSON as text/html, a page as the HTML report, CSV bytes as text/html", async () => {
+    const page = `<html><body>sign in ${RAW}</body></html>`;
+    const server = await fakeServer((req, res) => {
+        if (req.url.endsWith("/sources")) {
+            res.writeHead(200, { "content-type": "text/html" });
+            return res.end(JSON.stringify({ sources: [{ id: "sales", title: "Sales" }] }));
+        }
+        if (req.url.endsWith("/views/validate")) return json(res, { valid: true, findings: [] });
+        // a captive portal's page: the type the html report has, but no attachment
+        res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+        res.end(page);
+    });
+    try {
+        const list = await remote(server, ["sources", "--json"]);
+        assert.equal(list.code, 2);
+        assert.equal(jsonOf(list).error.code, "NOT_PIVOTKIT");
+        const cwd = workdir();
+        const html = await remote(server, ["render", "view.json", "--source", "sales", "-o", "r.html", "--json"], { cwd });
+        assert.equal(html.code, 2);
+        assert.equal(jsonOf(html).error.code, "NOT_PIVOTKIT");
+        assert.ok(!existsSync(join(cwd, "r.html")));
+        const csv = await remote(server, ["render", "view.json", "--source", "sales", "-o", "r.csv", "--json"], { cwd });
+        assert.equal(jsonOf(csv).error.code, "NOT_PIVOTKIT");
+        assert.ok(!existsSync(join(cwd, "r.csv")));
+        for (const r of [list, html, csv]) assertClean(r, server.url);
+    } finally {
+        await server.close();
+    }
+});
+
+test("hostile sizes: 400,000 sources list without a stack overflow; an answer nested 10,000 deep is no pivotkit answer", async () => {
+    const many = JSON.stringify({ sources: Array.from({ length: 400_000 }, (_, i) => ({ id: `s${i % 10}` })) });
+    const deep = `{"valid":true,"findings":[],"uses":${"[".repeat(10_000)}${"]".repeat(10_000)}}`;
+    const server = await fakeServer((req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(req.url.endsWith("/sources") ? many : deep);
+    });
+    try {
+        const list = await remote(server, ["sources", "-q"]);
+        assert.equal(list.code, 0, list.stderr.slice(0, 500));
+        assert.equal(list.stdout.split("\n").length - 1, 400_000);
+        const nested = await remote(server, ["validate", "view.json", "--source", "sales", "--json"]);
+        assert.equal(nested.code, 2);
+        assert.deepEqual([jsonOf(nested).error.code, jsonOf(nested).error.message], ["NOT_PIVOTKIT", "not a pivotkit server answer (nested deeper than 64 levels)"]);
+    } finally {
+        await server.close();
+    }
+});
+
+test("many findings: stderr lists 200 and says how many more; --json keeps them all", async () => {
+    const findings = Array.from({ length: 250 }, (_, i) => ({ severity: "error", code: "unknownField", path: `rows[${i}]`, message: `unknown field "F${i}"` }));
+    const server = await fakeServer((req, res) => json(res, { valid: false, findings }));
+    try {
+        const r = await remote(server, ["validate", "view.json", "--source", "sales"]);
+        assert.equal(r.code, 1);
+        assert.equal((r.stderr.match(/^error unknownField/gm) ?? []).length, 200);
+        assert.match(r.stderr, /and 50 more findings \(--json lists them all\)/);
+        assert.equal(jsonOf(await remote(server, ["validate", "view.json", "--source", "sales", "--json"])).findings.length, 250);
+    } finally {
+        await server.close();
+    }
+});
+
+test("small things: -o over the token file, a source id as the view, Retry-After over a day, --timeout first, sources --json kind, the token's source, 127.example.com", async () => {
+    const server = await fakeServer((req, res) => (req.url.endsWith("/sources") ? json(res, { sources: [] }) : problem(res, req, 429, "RATE_LIMITED", { headers: { "retry-after": "999999" } })));
+    try {
+        const cwd = workdir();
+        writeFileSync(join(cwd, "token.txt"), TOKEN);
+        chmodSync(join(cwd, "token.txt"), 0o600);
+        // a token file whose name is one of a format's
+        writeFileSync(join(cwd, "token.csv"), TOKEN);
+        chmodSync(join(cwd, "token.csv"), 0o600);
+        const over = await remote(server, ["render", "view.json", "--source", "sales", "--token-file", "token.csv", "-o", "token.csv"], { cwd });
+        assert.equal(over.code, 2);
+        assert.match(over.stderr, /-o names the token file/);
+        assert.equal(readFileSync(join(cwd, "token.csv"), "utf8"), TOKEN);
+        const id = await remote(server, ["describe", "sales", "--source", "sales"], { cwd });
+        assert.equal(id.code, 2);
+        assert.match(id.stderr, /the fields of a source: pivotkit sources sales/);
+        const wait = await remote(server, ["validate", "view.json", "--source", "sales", "--json"]);
+        assert.deepEqual([jsonOf(wait).error.code, jsonOf(wait).error.retryAfter], ["RATE_LIMITED", null]);
+        const timeout = await remote(server, ["sources", "--timeout", "0"]);
+        assert.equal(timeout.code, 2);
+        assert.match(timeout.stderr, /^pivotkit: --timeout takes/);
+        const kind = jsonOf(await remote(server, ["sources", "--json"]));
+        assert.equal(kind.kind, "sources");
+        const file = await remote(server, ["sources", "--token-file", "token.txt"], { cwd });
+        assert.match(file.stderr, /\(token: --token-file token.txt\)/);
+        const none = await run(["sources", "--url", server.url], { cwd });
+        assert.match(none.stderr, /\(token: none\)/);
+        const name = await run(["sources", "--url", "http://127.example.com/api/v1"], { cwd, env: { PIVOTKIT_TOKEN: TOKEN } });
+        assert.equal(name.code, 2);
+        assert.match(name.stderr, /http:\/\/ only for localhost/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("-q does not hide that the token file is readable by others", { skip: process.platform === "win32" && "POSIX permissions" }, async () => {
+    const server = await fakeServer((req, res) => json(res, { sources: [] }));
+    try {
+        const cwd = workdir();
+        writeFileSync(join(cwd, "token.txt"), TOKEN);
+        chmodSync(join(cwd, "token.txt"), 0o644);
+        const r = await remote(server, ["sources", "-q", "--token-file", "token.txt"], { cwd });
+        assert.equal(r.code, 0);
+        assert.match(r.stderr, /^warning: --token-file token.txt: readable by the group or by others/);
+        assert.doesNotMatch(r.stderr, /server:/);
     } finally {
         await server.close();
     }

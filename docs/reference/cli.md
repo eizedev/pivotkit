@@ -343,6 +343,9 @@ One object on stdout, for scripts and for the PowerShell Universal module:
   `environment` with `node`, `locale`, `timeZone` (each `{ value, from, known }`: from the environment
   variable or the default, and whether Node's Intl knows it), `now` (`{ value, from }`) and pivotkit-core's
   default `limits`: for a bug report or a CI log.
+- `sources`: `kind: "sources"` and `sources` (each `{ id, title, kind, link, schedulable }`, as the
+  server lists them); `sources <id>`: `kind: "source"`, `source` and `description` (`rows`, `fields`,
+  `text`, `hiddenFields`).
 - `render`: `summary` and `output` (`{ file, format, mediaType, bytes }`, or `null` when nothing was
   written); with `--save-view` also `savedView` (`{ file, bytes }`); with `--suggest`, `draft: true`
   and `picks`. `describe --suggest`: `draft: true`, `picks` (each `{ part, code, field, agg, by,
@@ -396,8 +399,8 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
   it) through a temporary file once the whole answer is in: a refused, failed or cut download never
   replaces a file. A view with errors (422 `VIEW_HAS_ERRORS`) gives the server's findings and exit 1.
   `--json` has `summary: null` (the file route gives none). A token the operator lets render but not
-  validate (`auth.toolScopes`) still gets the file, with an `info` finding `notValidated`: the
-  server's errors stop the file, its warnings are not known.
+  validate (`auth.toolScopes`) still gets the file, with a warning `notValidated`: the server's
+  errors stop the file, its warnings are not known (so `--strict` writes nothing).
 - **Findings and exit codes** are as without a server: errors (and warnings with `--strict`) exit 1.
   The data's own notes (how a file was read, a data mismatch explained against local columns,
   `noRowsKept`) come from the server's findings instead.
@@ -409,7 +412,7 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
   in an error.
 - The token file is read like every file of the CLI (a regular file, no symbolic link at its end, at
   most 4 KiB); a trailing newline is trimmed; on Linux and macOS a file the group or others can read
-  gives a warning. A token with characters a bearer token cannot carry is refused before any request.
+  gives a warning, also with `-q`. `-o` naming the token file is a usage error. A token with characters a bearer token cannot carry is refused before any request.
 - `PIVOTKIT_TOKEN` is also the variable the server reads its own token from: on a machine that runs
   both, the CLI sends the server's token.
 - A token whose profile has `results: true` lets whoever holds it export every field that is not
@@ -420,15 +423,18 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
 
 - `https://` everywhere; `http://` only for a literal loopback address (`localhost`, `127.0.0.1` to
   `127.255.255.255`, `[::1]`), where nothing leaves the machine. A user name, password, query or
-  fragment in the address is a usage error. The CLI writes the server's origin on stderr on every
-  run (not with `-q`), so a wrong target shows.
+  fragment in the address is a usage error. The CLI writes the server's origin and where the token
+  came from on stderr on every run (`server: https://reports.example.com (token: PIVOTKIT_TOKEN)`;
+  not with `-q`), so a wrong target or token shows.
 - Redirects are not followed: "the server redirected (a common cause: http instead of https)". An
   unknown route says "the address should end in /api/v1".
 - Every request has a time limit (`--timeout`, default 30 s) and a size limit on the answer (5 MB of
   JSON, 64 MiB for a rendered file). An answer that is neither the expected type nor a problem
-  document (a sign-in page of a proxy, say) is "not a pivotkit server answer" with its status only.
-- `NODE_TLS_REJECT_UNAUTHORIZED=0` (no check of the server's certificate) makes the CLI refuse to
-  send the token; there is no `--insecure`. A certificate of your own CA: `NODE_EXTRA_CA_CERTS`.
+  document (a sign-in page of a proxy, say), a rendered file that is not sent as an attachment
+  (`Content-Disposition`), or JSON nested deeper than 64 levels is "not a pivotkit server answer"
+  with its status only. Stderr lists at most 200 findings and says how many more; `--json` has all.
+- With `NODE_TLS_REJECT_UNAUTHORIZED=0` (no check of the server's certificate) the CLI does not talk
+  to an https server at all, with or without a token; there is no `--insecure`. A certificate of your own CA: `NODE_EXTRA_CA_CERTS`.
 - **A proxy**: the CLI uses `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` only as Node does, when Node's
   proxy support is on: `NODE_USE_ENV_PROXY=1` (Node 22.21.0 or later, 24.0.0 or later) or
   `node --use-env-proxy` (Node 22.21.0 or later, 24.5.0 or later). Node marks both "Active
@@ -439,7 +445,7 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
 - Messages hold the problem's code and its cleaned `detail` (control characters out, cut at 200
   characters), never headers, the answer's body, the full address or the text of a network error.
   Fixed hints: 401 "token missing or refused", 403 `NOT_ALLOWED` "this token's profile has no results:
-  true", 429 and 503 "retry in N s".
+  true", 429 and 503 "retry in N s" (a `Retry-After` over a day is left out).
 
 ## The sheet of a workbook
 
