@@ -1,6 +1,7 @@
 // The server's own download links in a real browser: a one-time link's page, its Download button
 // clicked with the mouse (the browser's own Origin and fetch metadata under the page's
-// Referrer-Policy: no-referrer), the file saved once, and the link used for any other browser.
+// Referrer-Policy: same-origin), the page's word that the download started, the file saved once, and
+// the link used for any other browser.
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -43,6 +44,7 @@ test("a one-time link: the page's Download button saves the file once; the link 
         expect(answer.headers()["content-disposition"]).toBe(`attachment; filename="Sales once.csv"; filename*=UTF-8''Sales%20once.csv`);
         const download = await downloading;
         if (download) {
+            await expect(page.getByRole("status")).toHaveText("The download has started: look in your browser's downloads.");
             expect(download.suggestedFilename()).toBe("Sales once.csv");
             expect(readFileSync(await download.path())).toEqual(stored);
         } else {
@@ -56,7 +58,7 @@ test("a one-time link: the page's Download button saves the file once; the link 
             const second = await other.newPage();
             await second.goto(output.url);
             await second.getByRole("button", { name: "Download" }).click();
-            await expect(second.getByText("This link was already used. Ask the assistant to make the report again.")).toBeVisible();
+            await expect(second.getByText("This link was already used. Ask whoever made the report to make it again.")).toBeVisible();
         } finally {
             await other.close();
         }

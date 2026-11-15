@@ -11,10 +11,12 @@ A report the MCP server or the REST service writes lands in the server's output 
 the text the model reads and as a `resource_link` the client can show the person. Nothing else has
 to run beside the server.
 
-Which report gets which link depends on the source. A source is **open** when every field is `show`
-for everyone (the server's policy, the source's and every profile); a source with a field at
-`values`, `summary` or `hide` for anyone is **closed**, since its report may hold what the model was
-not shown.
+Which report gets which link depends on the source. A source is **open** when its policy has
+`"default": "show"` and no field below `show`, for the server's policy, the source's and every
+profile; listing every column as `show` is not enough, since a column the data gains later would
+take the default. A source with a field at `values`, `summary` or `hide` for anyone, or whose default
+is not `show`, is **closed**, since its report may hold what the model was not shown. `check-config`
+names, for each closed source, what makes it closed.
 
 | Source | Caller | Link |
 | --- | --- | --- |
@@ -54,7 +56,7 @@ Over stdio there is no HTTP server and no link: a local server keeps showing the
 | `output.downloads.key` | a random key per process | The link key, a secret reference (`{ "env": "NAME" }` or `{ "file": "path" }`) of at least 32 bytes; set it for more than one replica and for links that survive a restart. Make one with `openssl rand -base64 48`. It is read on every use, so a rotated key works without a restart (links made with the old key stop working) |
 | `output.downloads.signIn.clientId` | none | The browser client the person signs in with |
 | `output.downloads.signIn.clientSecret` | none (a public client with PKCE) | Its secret, a secret reference, sent as HTTP Basic (or in the form where the provider only takes `client_secret_post`) |
-| `output.downloads.signIn.issuer` | `auth.issuer` | For a provider that issues the browser client's tokens under another issuer (https) |
+| `output.downloads.signIn.issuer` | `auth.issuer` | Must be `auth.issuer` when written: a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did |
 | `output.downloads.signIn.scopes` | `["openid"]` | What the sign-in asks for; must hold `openid` |
 
 `bind: "signIn"` needs `auth.mode: "oauth"`, `http.publicUrl` with `https://` and
@@ -66,14 +68,16 @@ internal address.
 The reports that get a link are stored with the link's 22 random characters before their name
 (`Q3vB0rD3cE1fG9hI2jK4lM-Sales by region.pivotkit-out.xlsx`); the result's `output.name` is that
 stored name and `output.filename` the name the person sees (`Sales by region.xlsx`). Reports
-without a link keep their names.
+without a link keep their names. A key that cannot be read (a missing variable or file, shorter than
+32 bytes) is a warning at start; until it can be read, reports get no link, keep their names, and
+their result says to ask the operator.
 
 ## Sign-in links { #sign-in }
 
 A sign-in link opens the provider's sign-in page in the browser (the OAuth 2.1 code flow with PKCE,
 `state` and `nonce`), comes back to `/downloads/callback`, and sends the file only when the ID
-token's subject is the subject of the access token the report was asked with. Register at the
-provider:
+token's issuer and subject are those of the access token the report was asked with (an ID token for
+several audiences must name this client as `azp`). Register at the provider:
 
 1. A client for the browser (`signIn.clientId`), public with PKCE or confidential with a secret,
    with the redirect URI `https://reports.example.com/downloads/callback` (`http.publicUrl` +
@@ -81,7 +85,8 @@ provider:
 2. Make the client resolve the same subject as the MCP client: `auth.subjectClaim` (default `sub`) is
    read from both tokens. Providers that give each application its own `sub` need a claim that is the
    same for every application (for example `oid` with Microsoft Entra ID; check your provider's
-   documentation).
+   documentation). A claim such as `email` binds a link only as strongly as the provider checks
+   that the address belongs to the person (and keeps it from moving to another account).
 
 ID tokens must be signed with a key from the issuer's `jwks_uri` (RS256, ES256 and the like); tokens
 signed with the client secret (HS256) are not accepted. Someone signed in as another account gets
@@ -91,9 +96,10 @@ outlives the download: the short cookie that holds the sign-in under way is clea
 ## One-time links { #once }
 
 `bind: "once"` is your explicit choice for servers without a sign-in client. A GET (or HEAD) of the
-link answers a page with a Download button and never uses the link, so a chat client's link preview
+link answers a short page (light or dark, as the browser is set) with a Download button that says
+when the download has started, and never uses the link, so a chat client's link preview
 does not use it up; the button's POST sends the file once. The same browser may repeat the download
-for two minutes; anyone else gets 409 "This link was already used." The POST must come from the
+for two minutes; anyone else gets 409 "This link was already used. Ask whoever made the report to make it again." The POST must come from the
 link's own page: its `Origin` is `http.publicUrl`'s origin (the page is served with
 `Referrer-Policy: same-origin`, so the browser names it), or `Origin: null` with
 `Sec-Fetch-Site: same-origin`.
@@ -127,7 +133,10 @@ after its text, a [resource link](https://modelcontextprotocol.io/specification/
 ```
 
 It carries `size` only for a report the assistant was shown in full. `audience` is a hint to the
-client, not a protection: the binding is.
+client, not a protection: the binding is. The resource link goes only to clients that send
+`MCP-Protocol-Version` 2025-06-18 or later (the revision that brought resource links); older
+clients get the link in the result's JSON alone. The result's `message` names the file, not the
+address: the address is `output.url`.
 
 ## Answers { #answers }
 
@@ -148,8 +157,9 @@ Every answer carries `Cache-Control: no-store`, `Referrer-Policy: no-referrer` (
 one-time link's page),
 `X-Robots-Tag: noindex`, `X-Content-Type-Options: nosniff` and `Cross-Origin-Resource-Policy:
 same-origin`; a file `Content-Security-Policy: sandbox; default-src 'none'` and
-`Content-Disposition: attachment`, a page `default-src 'none'; form-action 'self'; frame-ancestors
-'none'`. Ranges are not served. A download request takes a body of at most 1 KiB.
+`Content-Disposition: attachment`, a page `default-src 'none'` with only its own style and the
+button's script allowed by their hashes (`style-src`, `script-src`), `form-action 'self'` and
+`frame-ancestors 'none'`. Ranges are not served. A download request takes a body of at most 1 KiB.
 
 ## Behind a proxy { #proxy }
 
@@ -158,7 +168,8 @@ proxy's name to `http.allowHosts`), and set `http.publicUrl` to the address peop
 in the link's path: proxies and browsers keep paths in their logs and history. That is why plain
 links go only to reports over open sources; keep proxy logs of `/downloads/` short or leave the path
 out of them. The server's own log names a download's binding, outcome and request id, never its
-token. With more than one replica, set `output.downloads.key` (the same on every replica) and give
+token; a link that does not exist is on the debug log only (`--log debug`), so a scan does not fill
+the log. With more than one replica, set `output.downloads.key` (the same on every replica) and give
 them one output directory (a ReadWriteMany volume), or run one replica; see
 [the container](container.md) and [Kubernetes](../getting-started/kubernetes.md).
 

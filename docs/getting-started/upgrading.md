@@ -198,14 +198,16 @@ the new `itemUnknown` (an item that is none of a field's values, with the closes
 A server that serves HTTP and has an output directory, without `output.baseUrl`, serves reports
 itself under `/downloads/<token>` for 60 minutes ([download links](../reference/delivery.md)):
 
-- Reports over sources whose fields are all `show` get a plain link; reports over other sources get
+- Reports over open sources (`"default": "show"` and no field below `show`, in every profile; listing
+  every column as `show` is not enough) get a plain link; reports over other sources get
   one only with a sign-in client (`output.downloads.signIn`, with OAuth) or one-time links you switch
   on (`output.downloads.bind: "once"`). With static tokens and the default `summary`, such reports
   get no link, as before, and their result says to ask you for the file.
 - A report that gets a link is stored with 22 random characters before its name: `output.name` is
   that stored name, the new `output.filename` the plain one. Reports without a link keep their names.
-- Results with a link carry `url`, `expiresAt`, `bound`, `note` and `filename`, and MCP results a
-  `resource_link`.
+- Results with a link carry `url`, `expiresAt`, `bound`, `note` and `filename`, and MCP results for
+  clients of protocol 2025-06-18 or later a `resource_link`; the `message` names the file and leaves
+  the address to `output.url`.
 - Off loopback the links need `http.publicUrl`; route `/downloads/` to the server at the proxy or
   ingress. Set `output.downloads.key` (a secret of at least 32 bytes), or links stop working on a
   restart and differ between replicas.

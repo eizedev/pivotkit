@@ -59,7 +59,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   60 minutes by default). The token is HMAC-signed with 128 random bits and names no file. Reports
   over sources whose fields are all `show` get a plain link; reports over other sources only a link
   bound to the person's sign-in (OpenID Connect code flow with PKCE against `output.downloads.signIn`,
-  the subject compared with the caller's) or, where the operator chooses `bind: "once"`, a one-time
+  the issuer and subject compared with the caller's token's) or, where the operator chooses `bind: "once"`, a one-time
   link (GET shows a page, one POST sends the file). REST callers get links to such reports only with
   `results: true`. Results carry `output.filename`, `url`, `expiresAt`, `bound` and `note`;
   `present()` returns the file's MCP `resource_link`. `check-config` prints a `Delivery:` section.

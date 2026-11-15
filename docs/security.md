@@ -285,7 +285,7 @@ may try to steer it:
   bits, checked in constant time (a forged and an unknown link get the same 404); it names no file.
   A report over a source with a field that is not `show` for someone gets a link only where the
   link is bound: to the person's sign-in (OpenID Connect code flow with PKCE, `state` and `nonce`;
-  the file only for the subject that asked, which the token holds as an HMAC), or, as the operator's
+  the file only for the issuer and subject that asked, which the token holds as an HMAC), or, as the operator's
   explicit choice, used once (a GET never uses it, so a link preview cannot). Otherwise no link: a
   link anyone can open would let the client or the model fetch what was withheld from it. Over REST
   such a link also needs `results: true`. Links carry no internal address (none off loopback without

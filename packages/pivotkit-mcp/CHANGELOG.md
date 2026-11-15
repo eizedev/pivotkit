@@ -23,7 +23,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   release of the same round (it imports `inlineLogFields`): release pivotkit-server first and raise
   the range in the release PR.
 - render_view and draft_schedule results with a download link carry it in the text and, after it, as
-  a `resource_link` (MCP 2026-07-28; `size` only for a report the assistant was shown in full)
+  a `resource_link` for clients of protocol 2025-06-18 or later (`size` only for a report the
+  assistant was shown in full); the message names the file, the address is `output.url`
   ([#327](https://github.com/eizedev/pivotkit/issues/327)). The HTTP transport serves `/downloads/`
   before its Origin check and body cap (a browser's form, not an MCP client). Release pivotkit-server
   first: this version needs its new exports (`createDownloadHandler`, `DOWNLOAD_BODY_BYTES`).
