@@ -227,7 +227,7 @@ error that names the key and the one probably meant.
 | `sources.<id>.sheet` | - | first visible | A workbook's sheet |
 | `sources.<id>.policy` | - | the server's | The source's exposure policy |
 | `sources.<id>.link`, `.linkKey` | - | none | The page that shows this source's reports, for create_link; the report's key there |
-| `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html, its path relative to the configuration file; its `--pk-*` colours reach the chart ([details](print-template.md#template-design)) |
+| `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html, its path relative to the configuration file, at most 1 MiB; its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). Read and checked at start and by `check-config`: a template with an unknown placeholder or one that cannot be read keeps the server from starting |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
 | `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`; control and direction characters are removed |
 | `sources.<id>.http` | - | none | An [HTTP source](sources.md#http): an operator's backend, its address with `{name}` for a parameter, where the rows are, paging and limits, its sign-in (`http.auth`: a secret header, client credentials or a token exchange, [backend sign-in](sources.md#http-auth)) |

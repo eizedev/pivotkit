@@ -17,6 +17,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   [download links](https://pivotkit.eize.dev/reference/delivery/) under `/downloads/`: route that path
   to the server, or set `output.downloads.enabled: false`. With `output.baseUrl`, reports over a
   source with a field that is not `show` carry no `url` any more.
+- Behaviour change: a source's print template (`sources.<id>.template`) is checked at start and by
+  `--check-config`; one with an unknown placeholder or that cannot be read keeps the server from
+  starting ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-at-start)).
 
 ### Added
 

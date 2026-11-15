@@ -174,6 +174,7 @@ with code sources check [Code sources](#code-sources). Over HTTP with an output 
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
 | [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
+| [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
 
 ### Data as of in files { #data-as-of-files }
 
@@ -183,6 +184,15 @@ custom document property `DataAsOf`. A print template of your own shows it only 
 `{{details}}` or `{{dataAsOf}}`: the Minimal example uses `{{details}}`, the Corporate example writes
 its own footer without it (add `{{dataAsOf}}` there where your reports always come from a service).
 csv, json and svg carry it in the result only.
+
+### Print templates checked at start { #template-at-start }
+
+The server reads and checks each source's print template (`sources.<id>.template`) at start, as an
+html report reads it: a template it cannot read, one over 1 MiB or one with an unknown placeholder
+keeps it from starting, with the message an html report got before as `INVALID_TEMPLATE` (for
+example `sources.sales.template: unknown placeholder {{titel}} (line 7); did you mean {{title}}?`).
+`check-config` lists each source's template and reports the same message as a PROBLEM line. A
+template changed after the start is checked again on every html report, as before.
 
 ### Groups, a default profile, source scopes, the person in the log { #operator-controls }
 

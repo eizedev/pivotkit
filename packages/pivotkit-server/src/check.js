@@ -21,6 +21,7 @@ import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, wit
 import { sourceStats } from "./stats.js";
 import { SECTIONS, UPGRADING_URL, runSections } from "./check/index.js";
 import { secretFileWarning } from "./secrets.js";
+import { checkTemplates } from "./print-template.js";
 
 /** How long reports and drafts stay, in words: the age limit, or why there is none. */
 function ageText(options, shared) {
@@ -50,6 +51,7 @@ export async function checkConfig(options, { http = false, env = {}, name = "piv
     const registry = await createRegistry(options);
     const lines = [`${name}: the configuration is valid.`, ""];
     const sources = await registry.check();
+    const templates = new Map((await checkTemplates(options)).map((t) => [t.id, t]));
     // every column of every source by its policy key, in the data's spelling; null: not all known
     /** @type {Map<string, string> | null} */
     let everyColumn = registry.allow.length ? null : new Map();
@@ -73,6 +75,15 @@ export async function checkConfig(options, { http = false, env = {}, name = "piv
         lines.push(`    fields: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}; values listed per shown field: ${s.policy.items}; inline results: ${s.policy.inline ? `up to ${s.policy.inline.cells} cells` : "off"}`);
         if (s.scopes.length) lines.push(`    scopes: ${s.scopes.join(" ")}`);
         if (s.link) lines.push(`    link: ${s.link}`);
+        // the print template, read and parsed as the start does: what it refuses, the start refuses
+        const template = templates.get(s.id);
+        if (template) {
+            lines.push(`    template: ${template.file}`);
+            if (template.problem) {
+                other += 1;
+                lines.push(`    PROBLEM: sources.${s.id}.template: ${template.problem}`);
+            }
+        }
         if (columns.why) {
             lines.push(`    warning: its columns could not be read to check the policy (${columns.why})`);
         }
