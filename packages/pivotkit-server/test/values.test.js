@@ -467,3 +467,33 @@ test("check-config prints each profile's levels per source: a profile has no aut
     assert.match(check.text, /Profile export:[^\n]*\n {2}tickets: Status summary, Team summary, Region summary/);
     assert.match(check.text, /Profile analyst:[^\n]*\n {2}tickets: Status show, Team show/);
 });
+
+test("the deny list reads through leet digits, marks, small capitals, spaces inside a word and German without umlauts; special categories and money words", () => {
+    const deny = AUTO_VALUES.deny;
+    for (const name of ["0wner", "Ow ner", "Ownér", "\u1D0Fwner", "\u014Cwner", "Owne\u0155", "Zustaendig", "Zustandig", "Nationalitat", "Disability", "Gewerkschaft", "Sexual orientation", "Politik", "Ethnic group", "Passport", "Ehepartner", "Mother", "Vater", "Child", "Gewicht", "Pay grade", "Wage", "Schulden", "SSN", "Tax class", "Steuerklasse", "Versicherung", "Insurance"]) {
+        assert.ok(deniedWord(name, deny), `${name} is denied`);
+    }
+    for (const name of ["Segment", "Department", "Category", "Status", "Stage", "Region 1", "Top 5", "Priority", "Country"]) {
+        assert.equal(deniedWord(name, deny), null, `${name} passes`);
+    }
+    // the operator's words are read the same way
+    const own = resolvePolicy({ autoValues: { deny: ["Tarifgruppe"] } }, {}).auto;
+    assert.ok(own && deniedWord("Tarif gruppe", own.deny));
+});
+
+test("stats.js: an e-mail address after an earlier @ is found", () => {
+    assert.ok(LOOKS_LIKE.email("Ask @bob or alice@corp.example"));
+    assert.ok(LOOKS_LIKE.email("see: @team, bob@corp.com"));
+    assert.equal(LOOKS_LIKE.email("@team and @bob"), false);
+});
+
+test("check-config warns of an explicit values field whose values look personal; autoValues.minRows and minRowsPerValue are 1 or more", async () => {
+    const dir = workspace({ "tickets.csv": tickets() });
+    const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv", policy: { fields: { Mail: "values", Status: "values" } } } }, baseDir: dir }, { http: false });
+    assert.match(check.text, /Mail: values \(a rule\) {2}warning: a value looks like email/);
+    assert.doesNotMatch(check.text, /Status: values \(a rule\) {2}warning/);
+    for (const key of ["minRows", "minRowsPerValue"]) {
+        assert.throws(() => validateOptions({ policy: { autoValues: { [key]: 0 } } }), new RegExp(`policy.autoValues.${key}: must be 1 or more`));
+        assert.doesNotThrow(() => validateOptions({ policy: { autoValues: { [key]: 1 } } }));
+    }
+});

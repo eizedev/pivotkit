@@ -32,10 +32,15 @@ const looksText = (v) => v.normalize("NFKC");
  * @type {Readonly<Record<string, (value: string) => boolean>>}
  */
 export const LOOKS_LIKE = Object.freeze({
-    // a word with "@" and a dot after it; found from "@" on, so the test is linear
+    // a word with "@" and a dot after it, at any "@" of the value ("ask @bob or alice@corp.example");
+    // each test starts at its "@" and values are at most LOOKS_LENGTH long
     email: (v) => {
-        const at = v.indexOf("@");
-        return at > 0 && !/\s/u.test(v[at - 1]) && /^[^\s@]+\.[^\s@]/u.test(v.slice(at + 1));
+        for (let at = v.indexOf("@"); at >= 0; at = v.indexOf("@", at + 1)) {
+            if (at > 0 && !/[\s@]/u.test(v[at - 1]) && /^[^\s@]+\.[^\s@]/u.test(v.slice(at + 1))) {
+                return true;
+            }
+        }
+        return false;
     },
     // seven digits or more anywhere: a phone number, written with any separators or words around it
     // ("Tel 030 123 456", "+49 (30) 1234-567")

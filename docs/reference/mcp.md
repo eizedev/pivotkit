@@ -125,10 +125,15 @@ always wins. A field qualifies when all of these hold:
   (name, customer, employee, owner, contact, manager, user, created by, Kunde, Ansprechpartner, ...),
   personal traits (gender, age, birth, religion, nationality, party, ...), health, money (salary,
   income, bank, ...), places (address, city, postcode, PLZ, ...) and free text (comment, note,
-  reason, ...). Names are read with compatibility forms folded, invisible characters removed and
-  look-alike letters as Latin ones; `deny` adds words.
+  reason, ...), special categories (disability, union, orientation, politics, ...) and family.
+  Names are read with compatibility forms folded, invisible characters and accents removed, German
+  umlauts and ß written out (and also without their dots), Latin small capitals, Cyrillic and Greek
+  look-alike letters and the digits 0, 1, 3, 4 and 5 read as letters, and words of five letters or
+  more also across spaces ("Ow ner"); `deny` adds words.
 
-The deny list is a second layer, not the safeguard. The level is decided from statistics counted
+The deny list is a second layer, not the safeguard. It is English and German only: a header in
+another language ("Propriétaire") or a column of person names under a neutral header ("Team") is not
+caught, so read what `check-config` would list before you switch the rule on. The level is decided from statistics counted
 when the data is read (numbers, never values) and kept with the data; when they are missing the
 field is `summary`. A change after the data is read again is logged, and the start log says how many
 fields the rule puts at `values`. `check-config` prints every field's level and why, for example

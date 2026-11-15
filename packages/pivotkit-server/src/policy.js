@@ -82,6 +82,11 @@ export const AUTO_VALUES_DENY = Object.freeze([
     "salary", "income", "bonus", "bank", "account", "job", "gehalt", "lohn", "einkommen", "konto", "beruf",
     // places
     "address", "city", "postcode", "zip", "adresse", "anschrift", "stadt", "plz", "wohnort",
+    // special categories and family
+    "disability", "union", "orientation", "politics", "political", "ethnic", "passport", "spouse", "mother", "father", "child", "weight",
+    "behinderung", "gewerkschaft", "politik", "ausweis", "ehepartner", "mutter", "vater", "kind", "gewicht",
+    // debts, pay and taxes
+    "pay", "wage", "debt", "ssn", "tax", "insurance", "schulden", "steuer", "versicherung",
     // free text
     "comment", "note", "reason", "kommentar", "notiz", "bemerkung", "grund"
 ]);
@@ -126,6 +131,13 @@ const LOOKS_TEXT = Object.freeze({ email: "an e-mail address", phone: "a phone n
 /** The server's policy defaults. */
 export const POLICY_DEFAULTS = Object.freeze({ default: /** @type {Level} */ ("summary"), items: 20, valuesMax: 50, rows: true, counts: true, inline: Object.freeze({ cells: 500, bytes: 32_768 }), results: false, autoValues: AUTO_VALUES_DEFAULT });
 
+/** A deny list, read for deniedWord at once (denyEntries keeps it), so a rule reads its list once. */
+const withDenyRead = (deny) => {
+    const frozen = Object.freeze(deny);
+    denyEntries(frozen);
+    return frozen;
+};
+
 /**
  * The automatic rule of a policy.autoValues option: off, the thresholds, or the thresholds with the
  * option's numbers and deny words.
@@ -145,7 +157,7 @@ export function autoValuesOf(option) {
         ...(maxDistinct !== undefined ? { maxDistinct } : {}),
         ...(minRowsPerValue !== undefined ? { minRowsPerValue } : {}),
         ...(minRows !== undefined ? { minRows } : {}),
-        deny: [...AUTO_VALUES.deny, ...(deny ?? []).map((w) => w.normalize("NFC").toLowerCase().trim()).filter(Boolean)]
+        deny: withDenyRead([...AUTO_VALUES.deny, ...(deny ?? []).map((w) => w.normalize("NFC").toLowerCase().trim()).filter(Boolean)])
     };
 }
 
@@ -238,36 +250,92 @@ export const fieldKey = (name) => String(name).normalize("NFC").replace(/\s+/gu,
 /** A reader's name for a repeated header ("Email (2)", "email (3)"): the part before it is the first one's name. */
 const REPEATED = /^(.*\S) \(\d+\)$/;
 
-/** Look-alike letters of other scripts that a name could hide a deny word with, as the Latin letter. */
-const LOOK_ALIKES = Object.freeze({ а: "a", е: "e", о: "o", р: "p", с: "c", у: "y", х: "x", і: "i", ј: "j", ѕ: "s", к: "k", м: "m", т: "t", н: "h", в: "b", α: "a", ο: "o", ρ: "p", ε: "e", ι: "i", κ: "k", ν: "v", τ: "t", υ: "u" });
-
-/** A text as the deny list reads it: NFKC (fullwidth and other compatibility forms folded), no invisible or control characters, look-alike letters as Latin ones. */
-const denyText = (text) => String(text).normalize("NFKC").replace(/[\p{Cf}\p{Cc}]/gu, "").replace(/[\p{Script=Cyrillic}\p{Script=Greek}]/gu, (c) => LOOK_ALIKES[c.toLowerCase()] ?? c);
-
 /**
- * The words of a field name as the deny list reads them: denyText, split at camelCase, spaces and
- * punctuation, lower case.
+ * Letters a name could hide a deny word with, as the plain Latin letter: look-alikes of other scripts
+ * (Cyrillic, Greek), Latin small capitals and other Latin letters NFD does not take apart, and the
+ * digits written for letters ("0wner").
  */
-const nameWords = (name) => denyText(name).replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const LOOK_ALIKES = Object.freeze({
+    а: "a", е: "e", о: "o", р: "p", с: "c", у: "y", х: "x", і: "i", ј: "j", ѕ: "s", к: "k", м: "m", т: "t", н: "h", в: "b", α: "a", ο: "o", ρ: "p", ε: "e", ι: "i", κ: "k", ν: "v", τ: "t", υ: "u",
+    ᴀ: "a", ʙ: "b", ᴄ: "c", ᴅ: "d", ᴇ: "e", ꜰ: "f", ɢ: "g", ʜ: "h", ɪ: "i", ᴊ: "j", ᴋ: "k", ʟ: "l", ᴍ: "m", ɴ: "n", ᴏ: "o", ᴘ: "p", ʀ: "r", ꜱ: "s", ᴛ: "t", ᴜ: "u", ᴠ: "v", ᴡ: "w", ʏ: "y", ᴢ: "z",
+    ı: "i", ȷ: "j", ł: "l", ø: "o", đ: "d", ħ: "h", ŧ: "t", ɑ: "a", ɡ: "g", ƒ: "f", ŀ: "l", ɩ: "i", ɵ: "o",
+    0: "o", 1: "i", 3: "e", 4: "a", 5: "s"
+});
+
+/** German letters as they are written without them: "Zuständig" and "Zustaendig" read alike. */
+const GERMAN = Object.freeze({ ä: "ae", ö: "oe", ü: "ue", ß: "ss" });
 
 /**
- * The word of the deny list a field name holds, or null: a word of four letters or more anywhere in a
- * word of the name, a shorter one as a word of its own (or with a plural "s").
+ * The words of a text as the deny list reads them: NFKC (fullwidth and other compatibility forms
+ * folded), no invisible or control characters, split at camelCase, lower case, German umlauts and ß
+ * written out, NFD with every mark removed ("Ōwner", "Owneŕ"), look-alike letters and digits as Latin
+ * letters, split at everything else.
+ * @param {string} text
+ */
+const denyWords = (text) =>
+    String(text)
+        .normalize("NFKC")
+        .replace(/[\p{Cf}\p{Cc}]/gu, "")
+        .replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2")
+        .toLowerCase()
+        .replace(/[äöüß]/gu, (c) => GERMAN[c])
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+        .replace(/./gu, (c) => LOOK_ALIKES[c] ?? c)
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(Boolean);
+
+/**
+ * The deny list read once (autoValuesOf): each entry's words, joined, and how it matches.
+ * @typedef {{ entry: string, text: string, words: number, long: boolean }} DenyEntry
+ */
+
+/** Deny lists already read, by the list. */
+const readDeny = new WeakMap();
+
+/**
+ * A deny list as deniedWord reads it, read once per list.
+ * @param {readonly string[]} deny
+ * @returns {DenyEntry[]}
+ */
+export function denyEntries(deny) {
+    if (!readDeny.has(deny)) {
+        readDeny.set(
+            deny,
+            deny
+                // an entry with an umlaut also matches the name written without its dots ("Zustandig")
+                .flatMap((entry) => {
+                    const shown = entry.normalize("NFC").toLowerCase().trim();
+                    const plain = shown.normalize("NFD").replace(/\p{M}/gu, "");
+                    return [...new Set([denyWords(shown).join(" "), denyWords(plain).join(" ")])].map((text) => ({ entry: shown, text, words: text.split(" ").length, long: [...text].length >= 4 }));
+                })
+                .filter((e) => e.text)
+        );
+    }
+    return readDeny.get(deny);
+}
+
+/**
+ * The word of the deny list a field name holds, or null. A word of four letters or more matches
+ * anywhere in a word of the name, and one of five or more also in the name with its separators
+ * removed ("Ow ner"); a shorter one as a word of its own (or with a plural "s"); an entry of two
+ * words as those words in a row ("created by").
  * @param {string} name
  * @param {readonly string[]} deny
  */
 export function deniedWord(name, deny) {
-    const words = nameWords(name);
+    const words = denyWords(name);
     const joined = ` ${words.join(" ")} `;
-    for (const entry of deny) {
-        const parts = nameWords(entry);
-        const w = parts.join(" ");
-        if (!w) {
-            continue;
-        }
-        const hit = parts.length > 1 ? joined.includes(` ${w} `) || joined.includes(` ${w}s `) : [...w].length >= 4 ? words.some((t) => t.includes(w)) : words.some((t) => t === w || t === `${w}s`);
+    const glued = words.join("");
+    for (const e of denyEntries(deny)) {
+        const hit =
+            e.words > 1
+                ? joined.includes(` ${e.text} `) || joined.includes(` ${e.text}s `) || glued.includes(e.text.replace(/ /gu, ""))
+                : e.long
+                  ? words.some((t) => t.includes(e.text)) || ([...e.text].length >= 5 && glued.includes(e.text))
+                  : words.some((t) => t === e.text || t === `${e.text}s`);
         if (hit) {
-            return w;
+            return e.entry;
         }
     }
     return null;
