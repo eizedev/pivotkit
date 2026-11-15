@@ -263,9 +263,9 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
         }
         if (kind === "html" || kind === "svg" || kind === "print") {
             // the print's frame, taken in the click before anything is awaited (print-frame.js). With
-            // the modules loaded, nothing is awaited but render(): pivotkit-report's render is async
-            // (its work is not), so print() comes in the microtasks right after the click's listener,
-            // still inside the click's dispatch; a click before the modules have loaded prints after it
+            // the modules loaded, what is awaited is resolved already (render() is async, its work is
+            // not), so print() comes in the microtasks right after the click's listener, still inside
+            // the click's dispatch; a click before the modules have loaded prints after it
             const slot = kind === "print" && root.current ? takePrintFrame(root.current) : null;
             let printing = false;
             try {
