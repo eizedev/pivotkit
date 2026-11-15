@@ -37,9 +37,9 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
 </figure>
 
 <figure markdown>
-![The same report as an Excel workbook: cities down, months across, Grand Total in bold, numbers as numbers](assets/screenshots/xlsx-result-light.png#only-light)
-![The same report as an Excel workbook: cities down, months across, Grand Total in bold, numbers as numbers](assets/screenshots/xlsx-result-dark.png#only-dark)
-<figcaption>The same report as a workbook (here in the macOS preview; Excel also shows its colour scale).</figcaption>
+![The same report as a workbook in Microsoft Excel: cities down, months across, a blue to red colour scale, Grand Total in bold, numbers as numbers](assets/screenshots/xlsx-result-light.png#only-light)
+![The same report as a workbook in Microsoft Excel: cities down, months across, a blue to red colour scale, Grand Total in bold, numbers as numbers](assets/screenshots/xlsx-result-dark.png#only-dark)
+<figcaption>The same report as a workbook in Excel, colour scale included.</figcaption>
 </figure>
 
 </div>

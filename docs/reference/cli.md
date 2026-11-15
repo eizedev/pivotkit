@@ -7,7 +7,8 @@ description: The pivotkit command line - render a view over CSV, JSON or Excel d
 
 `pivotkit` runs [views](view-file.md) without a browser: it renders a view over a data file, checks
 views in a pipeline before they go live, and describes views and data. It needs no network, and with
-`--now` its output is the same on every run.
+`--now` its output is the same on every run. To update it, see
+[Update an installation](../getting-started/upgrading.md#update).
 
 ```bash
 npm install --global pivotkit-cli     # the command pivotkit

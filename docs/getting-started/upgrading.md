@@ -1,12 +1,146 @@
 ---
 title: Upgrading
-description: What a host or a script checks when it moves to the next release of pivotkit - from 0.6.0 to 0.6.1 (the services' output files and request limits, checks at start, years before 1 AD and the command line), from 0.5 to 0.6 (Table as CSV, Source data, the report's words and the command line) and from 0.4 to 0.5 (view and file format 2, dark theme selectors, the colour scale, labels, font weights, chart text and column subtotals).
+description: How to update the command line, the services, the image and the plugin, and what changes between releases.
 ---
 
 # Upgrading
 
-Each section lists what changes between two releases and whom it concerns; **Breaking** marks a
-change that needs your action when it applies.
+The first section says how to update the command line, the REST service, the MCP server, the
+container image and the Claude Code plugin. Each section after it lists what changes between two
+releases and whom it concerns; **Breaking** marks a change that needs your action when it applies.
+
+## Update an installation { #update }
+
+Read the sections below from your version to the new one before you update; each package's
+`CHANGELOG.md` has the full list, and `npm view <package> version` names its newest release. For a
+setup others rely on, update to a version you name and checked, not to whatever is newest.
+
+### Installed with `npm install --global` { #update-global }
+
+```bash
+npm outdated --global       # which global packages have a newer release (exit code 1 when one has)
+npm install --global pivotkit-server@<version> pivotkit-mcp@<version> pivotkit-cli@<version>
+pivotkit-server --version
+pivotkit-mcp --version
+pivotkit --version
+```
+
+Update pivotkit-server and pivotkit-mcp in one command, to the same release: `pivotkit-server serve`
+loads the pivotkit-mcp installed beside it, and a pivotkit-server changed alone afterwards can make
+it stop at start with an error that a module "does not provide an export named ...". The sure sign
+is `npm ls -g --all` marking pivotkit-server under pivotkit-mcp `invalid`; install both again in one
+command. pivotkit-cli updates on its own. `npm update --global` updates every global package
+to its newest release, across minor versions too. Install global packages into a folder you own
+(npm's `prefix`), not with `sudo`. `npm audit signatures` checks the registry's signatures in a
+project only, not for global packages: to check a release first, install it into an empty folder,
+run `npm audit signatures` there, then install it globally.
+
+### In a project or an app folder { #update-project }
+
+A project's `package.json` keeps a range: `npm update` stays inside it, and in 0.x a caret range
+spans patch releases only (`^0.y.z` takes the later 0.y patches, never 0.(y+1)). For the next
+minor version, name it:
+
+```bash
+npm install <package>@<version>
+npm audit signatures        # the registry's signatures of the installed packages
+npx <command> --version
+```
+
+For the services, name pivotkit-server and pivotkit-mcp in one command at the same release, as for
+[PowerShell Universal](mcp.md#psu-install).
+
+### Started with `npx` { #update-npx }
+
+`npx -y pivotkit-mcp` without a version asks the registry at each start and takes the newest
+release, unless the package is installed in the folder `npx` runs in (or a folder above it) or
+globally: then it runs that copy, whatever its version, without asking. Write the version into the
+command:
+
+- `npx -y pivotkit-mcp@<version>`: one release; change it to update. Use this for a setup others
+  rely on and for every shared configuration.
+- `npx -y pivotkit-mcp@latest`: the newest release at each start, for a setup of your own; `-y`
+  then runs code you have not looked at yet whenever a release comes out.
+
+The same holds for `npx pivotkit-cli` and `npx pivotkit-server`.
+
+### Restart what runs { #update-restart }
+
+A running process keeps the version it started with. Restart it right after the update:
+
+- An MCP client over stdio starts the server for a session: restart the client, or start a new
+  session.
+- `pivotkit-server serve` and `pivotkit-mcp --http`: restart the process; a Windows service by its
+  name (`nssm restart pivotkit` for [the service under NSSM](mcp.md#psu-service)). If `serve` stops
+  at start with "does not provide an export named", pivotkit-server and pivotkit-mcp do not fit
+  together ([above](#update-global)).
+
+### The container image { #update-image }
+
+The image is built for each release of pivotkit-server, with pivotkit-mcp and pivotkit-cli of the
+same commit; a release of pivotkit-cli or pivotkit-mcp alone reaches the image with the next
+pivotkit-server release. Its [tags](../reference/container.md):
+
+- `<version>` never moves;
+- `<major>.<minor>` moves to each patch release of that minor version, never to the next minor
+  version;
+- `latest` is the image of the pivotkit-server release published last: a new minor version with
+  breaking changes too, and an older version again when a patch of an older minor version comes out
+  later. Not for production.
+
+For production, use the exact version or its digest (`ghcr.io/eizedev/pivotkit@sha256:...`, the
+digest the signature names), and [check the signature](../reference/container.md#verify) of the
+new image before you restart. Pulling a tag does not change a running container; make it again:
+
+=== "docker run"
+
+    ```bash
+    docker pull ghcr.io/eizedev/pivotkit:<version>
+    docker rm -f pivotkit
+    # then the same docker run as before, with the new tag
+    ```
+
+    The reports stay in the volume `pivotkit-out`; `docker rm` does not remove a volume.
+
+=== "Docker Compose"
+
+    [docker/compose.example.yml](https://github.com/eizedev/pivotkit/blob/main/docker/compose.example.yml)
+    takes the tag from `PIVOTKIT_VERSION` (in the shell or in a `.env` file beside it). Set it to the
+    new release, then:
+
+    ```bash
+    docker compose pull
+    docker compose up -d
+    ```
+
+    With `<major>.<minor>`, each `pull` takes that line's newest patch: check its signature too.
+
+=== "Kubernetes"
+
+    Write the exact version or the digest into the manifest, never `latest` or `<major>.<minor>`:
+    with `latest` Kubernetes pulls on every start (`imagePullPolicy` defaults to `Always`), and with
+    another tag a node that pulled it once keeps that image (`IfNotPresent`). To update, change the
+    tag and apply the manifest again (or `kubectl set image`).
+
+Check the versions inside the image:
+
+```bash
+docker run --rm ghcr.io/eizedev/pivotkit:<version> --version
+docker run --rm ghcr.io/eizedev/pivotkit:<version> mcp --version
+docker run --rm ghcr.io/eizedev/pivotkit:<version> cli --version
+```
+
+### The Claude Code plugin { #update-plugin }
+
+The plugin `pivotkit-mcp@pivotkit` holds [the skill](mcp.md#skill) only: updating it does not update
+the server, and updating the server does not update the skill. Update both:
+
+```bash
+claude plugin marketplace update pivotkit
+claude plugin update pivotkit-mcp@pivotkit
+```
+
+Then restart Claude Code.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 
