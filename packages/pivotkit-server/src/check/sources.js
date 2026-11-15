@@ -1,7 +1,8 @@
 /*
  * check-config's section for the configured sources: per source where its data comes from, its
  * policy, each column's level and why (file sources: their columns and statistics are read once, never
- * to show a value), its scopes, link and print template; warnings for a policy rule that names no
+ * to show a value), its scopes, link and print template (read and parsed as the start does,
+ * print-template.js); warnings for a policy rule that names no
  * column. HTTP and code sources are described in their own sections; their fields are known only
  * after a load.
  *
@@ -26,6 +27,7 @@ import { findingText } from "pivotkit-report/operations";
 import { serverLimitsOf } from "../config.js";
 import { POLICY_DEFAULTS, autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "../policy.js";
 import { sourceStats } from "../stats.js";
+import { checkTemplates } from "../print-template.js";
 import { HTTP_HEADING } from "./http.js";
 import { heading, plain, problem, warning } from "./format.js";
 
@@ -36,6 +38,7 @@ export const nameText = (name) => findingText(name).slice(0, 80);
 export async function section(options, registry, runtime) {
     const items = [];
     const sources = await registry.check();
+    const templates = new Map((await checkTemplates(options)).map((t) => [t.id, t]));
     // every column of every source by its policy key, in the data's spelling; null: not all known
     /** @type {Map<string, string> | null} */
     let everyColumn = registry.allow.length ? null : new Map();
@@ -71,6 +74,17 @@ export async function section(options, registry, runtime) {
         }
         if (s.scopes.length) items.push(plain(`scopes: ${s.scopes.join(" ")}`, 2));
         if (s.link) items.push(plain(`link: ${s.link}`, 2));
+        // the print template, read and parsed as the start does: what the parser refuses stops the
+        // start; a file that is not there is like a missing source file (its html reports fail)
+        const template = templates.get(s.id);
+        if (template) {
+            items.push(plain(`template: ${template.file}`, 2));
+            if (template.problem) {
+                items.push(problem(`sources.${s.id}.template: ${template.problem}`, { stops: true }));
+            } else if (template.missing) {
+                items.push(problem(`sources.${s.id}.template: ${template.missing}`, { effect: `the server starts; html reports of ${s.id} fail until it can be read` }));
+            }
+        }
         if (columns.why) {
             items.push(warning(`sources.${s.id}: its columns could not be read to check the policy (${columns.why})`));
         }

@@ -7,7 +7,7 @@
 
 import { readdir, realpath, stat } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-import { allowedDirs, readSafe } from "pivotkit-cli/files";
+import { allowedDirs } from "pivotkit-cli/files";
 import { closest } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
@@ -19,6 +19,7 @@ import { FILE_PREFIX, INLINE_ID, KINDS, kindOf } from "./sources/index.js";
 import { resolveFilePath } from "./sources/file.js";
 import { resolveInline } from "./sources/inline.js";
 import { normalizeParams, paramsList } from "./sources/params.js";
+import { readTemplateFile } from "./print-template.js";
 
 export { FILE_PREFIX };
 
@@ -27,9 +28,6 @@ export const LISTED_FILES = 100;
 
 /** The data file extensions. */
 const DATA_EXTENSIONS = new Set([".csv", ".tsv", ".txt", ".json", ".xlsx"]);
-
-/** The most characters of a template file. */
-const TEMPLATE_BYTES = 1_048_576;
 
 /**
  * @typedef {object} Caller
@@ -269,10 +267,10 @@ export async function createRegistry(options, { log = null } = {}) {
         return { default: policy.default, fields: Object.fromEntries(policy.fields), counts: policy.counts, rows: policy.rows };
     }
 
-    /** An operator's template file, read the safe way. */
+    /** An operator's template file, read the safe way (print-template.js, as at start and in check-config). */
     async function readTemplate(path) {
         try {
-            return new TextDecoder().decode(await readSafe(path, { cwd: "/", allow: [], maxBytes: TEMPLATE_BYTES, limit: "template" }));
+            return await readTemplateFile(path);
         } catch (e) {
             throw asOperationError(e, path);
         }
