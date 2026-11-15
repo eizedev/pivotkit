@@ -64,3 +64,14 @@ test("the look into the workers is only there for a computer made for it: a norm
         await computer.close();
     }
 });
+
+test("a context made the way the server makes it (no COMPUTE_HOOKS) has no look into its workers", async () => {
+    const { createContext } = await import("pivotkit-server");
+    const context = await createContext({ log: "off", compute: { workers: 1 } }, { stderr: { write: () => true } });
+    try {
+        assert.equal(/** @type {any} */ (context.computer).heapSnapshots, undefined);
+        assert.equal(/** @type {any} */ (context.computer).keptDataSets, undefined);
+    } finally {
+        await context.close();
+    }
+});

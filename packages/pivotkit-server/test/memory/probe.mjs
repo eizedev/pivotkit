@@ -4,8 +4,8 @@
 // Six sources give the same kind of rows: an HTTP source answering CSV, one answering JSON and a
 // code source, each once for a signed-in person (whose load is kept) and once for a caller without
 // an identity (nothing is kept; a CSV answer goes straight to the worker). Every row has hidden
-// columns: two texts full of unique markers, a fraction (float64) and a whole number above the
-// small-integer range (int32), all unique; and shown columns: a text marker and a whole number (the
+// columns: two texts full of unique markers, a fraction (float64) and a whole number that fits an
+// int32 (and Node's 64-bit small integers), all unique; and shown columns: a text marker and a whole number (the
 // controls: what is kept is found). Hidden by the default level (HTTP sources) and by a field's own
 // `hide` (memo on HTTP sources; every hidden field of the code sources).
 //
@@ -57,7 +57,11 @@ const seed = createHash("sha256").update(String(Math.random())).digest("hex");
 /** A text marker's 24 hex characters: a hash of the run's seed, the source, its class (h, s hidden; v shown) and its row. */
 const markerOf = (source, kind, i) => createHash("sha256").update(`${seed}:${source}:${kind}:${i}`).digest("hex").slice(0, 24);
 const marker = (source, kind, i) => `K${kind}${markerOf(source, kind, i)}K`;
-/** The numbers of a source's row: hidden float64 and int32 (above the small-integer range), shown int32. */
+/**
+ * The numbers of a source's row: hidden float64 and int32, shown int32. On 64-bit V8 (Node's builds)
+ * a whole number of this size is a small integer, never boxed, so the snapshots' check of boxed
+ * numbers has no effect for hiddenInt: it is covered by the kept data only (the packed int32 bytes).
+ */
 const STEP = 20_000;
 const FLOATS = [700_000, 700_000 + SOURCES.length * STEP];
 const INTS = [1_800_000_000, 1_900_000_000 + SOURCES.length * STEP];
