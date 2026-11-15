@@ -101,18 +101,34 @@ async function reachItems(options, runtime) {
     }
     const out = [];
     for (const [issuer, [key, until]] of issuers) {
-        // one wait for both of discover's tries; the race is a backstop for a discover that ignores it
-        const signal = AbortSignal.timeout(ISSUER_MS);
+        // one wait for both of discover's tries, on a timer that holds the process (an unref'd one
+        // lets a command whose only work is this wait end before it settles); it aborts discover and,
+        // for a discover that ignores the signal, settles the race; cleared once the race settles, so a
+        // library call leaves no timer behind
+        const stop = new AbortController();
+        const signal = stop.signal;
         const late = `no answer within ${ISSUER_MS / 1000} s`;
-        const why = await Promise.race([
-            Promise.resolve()
-                .then(() => runtime.discover(issuer, issuerRulesOf(options), { signal }))
-                .then(
-                    () => null,
-                    (e) => (signal.aborted ? late : reasonOf(e))
-                ),
-            new Promise((resolve) => setTimeout(() => resolve(late), ISSUER_MS + 100).unref())
-        ]);
+        /** @type {ReturnType<typeof setTimeout> | undefined} */
+        let timer;
+        let why;
+        try {
+            why = await Promise.race([
+                Promise.resolve()
+                    .then(() => runtime.discover(issuer, issuerRulesOf(options), { signal }))
+                    .then(
+                        () => null,
+                        (e) => (signal.aborted ? late : reasonOf(e))
+                    ),
+                new Promise((resolve) => {
+                    timer = setTimeout(() => {
+                        stop.abort();
+                        resolve(late);
+                    }, ISSUER_MS);
+                })
+            ]);
+        } finally {
+            clearTimeout(timer);
+        }
         if (why) {
             out.push(warning(`${key}: the metadata of ${issuer} cannot be loaded from here (${why}); the server starts and keeps trying; ${until}`));
         }
