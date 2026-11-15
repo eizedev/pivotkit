@@ -20,6 +20,7 @@ on:
       - "package-lock.json"
       - "scripts/examples.js"
       - "examples/playground/data/**"
+      - "examples/report-templates/**"
       - ".github/workflows/image.yml"
   push:
     tags: ["pivotkit-server@*"]

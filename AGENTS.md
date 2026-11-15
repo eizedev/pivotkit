@@ -227,7 +227,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   HTTP in both eras, a local OAuth issuer, hostile files and inputs.
 - `docker/` - the container image: `Dockerfile` (built from the repository root at a release tag:
   `npm ci --omit=dev --ignore-scripts` of pivotkit-server, pivotkit-mcp and pivotkit-cli from the root
-  lock file, the CLI's example files, onto a distroless Node 22 image by digest, user 10001,
+  lock file, the CLI's example files (built there from the playground's data and `examples/report-templates/`), onto a distroless Node 22 image by digest, user 10001,
   `HEALTHCHECK`), `pivotkit.example.json` and `compose.example.yml` (the docs' example, also the CI's
   smoke test), `kubernetes.example.yaml` (the example manifest of `docs/getting-started/kubernetes.md`,
   which shows its parts marked `--8<--` through the snippets extension; check it with kubeconform

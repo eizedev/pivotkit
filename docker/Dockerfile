@@ -15,10 +15,12 @@ FROM ${BUILD_IMAGE} AS build
 WORKDIR /src
 COPY package.json package-lock.json LICENSE ./
 COPY packages/ packages/
-# the CLI's example files (pivotkit example) are build output: made from the playground's data
+# the CLI's example files (pivotkit example) are build output: made from the playground's data and
+# the print templates
 COPY scripts/examples.js scripts/is-main.js scripts/
 COPY examples/playground/src/data.js examples/playground/src/
 COPY examples/playground/data/ examples/playground/data/
+COPY examples/report-templates/ examples/report-templates/
 # only the three commands and what they need at run time, at the lock file's versions
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund --include-workspace-root=false \
         --workspace pivotkit-server --workspace pivotkit-mcp --workspace pivotkit-cli \
