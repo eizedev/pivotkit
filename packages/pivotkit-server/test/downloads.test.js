@@ -459,11 +459,12 @@ test("once: the page names the file, its kind, size and expiry; after the downlo
         assert.match(html, /<title>Download the report - pivotkit report<\/title>/);
         assert.match(html, /<p class="file">Q3 sales by region\.csv<\/p>/);
         const expiry = new Date(Date.parse(/** @type {string} */ (output.expiresAt))).toISOString();
-        assert.match(html, new RegExp(`<p>CSV file, ${size} bytes\\. It can be downloaded once, until <time datetime="${expiry}">${expiry.slice(0, 10)} ${expiry.slice(11, 16)} UTC</time>\\.</p>`));
+        assert.match(html, new RegExp(`<p>CSV file, ${size} bytes\\. <span id="until">It can be downloaded once, until <time datetime="${expiry}">${expiry.slice(0, 10)} ${expiry.slice(11, 16)} UTC</time>\\.</span></p>`));
         // shown after the click, by the page's script; the time the browser's own zone
         // after the click the page's script says it, in the repeat window's minutes
         assert.match(html, /textContent='Downloaded once\. You can repeat it for 2 minutes, in this browser\.'/);
         assert.match(html, /timeZoneName:'short'/);
+        assert.match(html, /document\.getElementById\('until'\)\?\.remove\(\)/, "the click takes the sentence about when away");
         assertPageCsp(page.headers.get("content-security-policy"), html);
 
         const first = await fetch(url, { method: "POST", headers: { origin: PUBLIC } });
@@ -486,7 +487,7 @@ test("once: the page names the file, its kind, size and expiry; after the downlo
         assert.equal(mine.status, 200);
         const mineHtml = await mine.text();
         assert.match(mineHtml, /<form method="post"><button type="submit">Download<\/button><\/form>/);
-        const until = /You downloaded it in this browser a moment ago and can download it again until <time datetime="([^"]+)">/.exec(mineHtml)?.[1];
+        const until = /<span id="until">You downloaded it in this browser a moment ago and can download it again until <time datetime="([^"]+)">/.exec(mineHtml)?.[1];
         assert.ok(until && Math.abs(Date.parse(until) - Date.now() - 120_000) < 5000, String(until));
         // a GET never uses a link: an unused one stays unused after many
         const fresh = local((await render("Fresh")).url);

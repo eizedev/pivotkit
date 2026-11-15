@@ -48,6 +48,7 @@ test("a one-time link: the page's Download button saves the file once; the link 
         const download = await downloading;
         if (download) {
             await expect(page.getByRole("status")).toHaveText("Downloaded once. You can repeat it for 2 minutes, in this browser.");
+            await expect(page.getByText(/It can be downloaded once, until/)).toHaveCount(0);
             expect(download.suggestedFilename()).toBe("Sales once.csv");
             expect(readFileSync(await download.path())).toEqual(stored);
         } else {

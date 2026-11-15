@@ -78,7 +78,7 @@ const BASE_HEADERS = Object.freeze({ "cache-control": "no-store", "referrer-poli
  * repeated.
  */
 const PAGE_STYLE = ":root{color-scheme:light dark;--fg:#1f2328;--bg:#fff;--muted:#59636e;--accent:#0969da;--on-accent:#fff}@media (prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--muted:#9198a1;--accent:#4493f8;--on-accent:#0d1117}}body{font:16px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg);max-width:36rem;margin:3rem auto;padding:0 1rem;overflow-wrap:anywhere}.brand{color:var(--muted);font-size:.875rem;margin:0}h1{font-size:1.5rem;margin:.25rem 0 1rem}.file{font-weight:600;margin:0}button{font:inherit;min-height:2.75rem;padding:.5rem 1.25rem;border:0;border-radius:6px;background:var(--accent);color:var(--on-accent);cursor:pointer}button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}[role=status]{min-height:1.5em}.ref{color:var(--muted);font-size:.875rem}";
-const PAGE_SCRIPT = `for(const t of document.querySelectorAll('time[datetime]')){t.textContent=new Date(t.dateTime).toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})}document.querySelector('form')?.addEventListener('submit',()=>{document.getElementById('status').textContent='Downloaded once. You can repeat it for ${REPEAT_SECONDS / 60} minutes, in this browser.'});`;
+const PAGE_SCRIPT = `for(const t of document.querySelectorAll('time[datetime]')){t.textContent=new Date(t.dateTime).toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})}document.querySelector('form')?.addEventListener('submit',()=>{document.getElementById('status').textContent='Downloaded once. You can repeat it for ${REPEAT_SECONDS / 60} minutes, in this browser.';document.getElementById('until')?.remove()});`;
 const hashOf = (text) => `'sha256-${createHash("sha256").update(text).digest("base64")}'`;
 const PAGE_CSP = `default-src 'none'; style-src ${hashOf(PAGE_STYLE)}; script-src ${hashOf(PAGE_SCRIPT)}; form-action 'self'; frame-ancestors 'none'`;
 const FILE_CSP = "sandbox; default-src 'none'";
@@ -689,7 +689,8 @@ export function createDownloadHandler(context, runtime = {}) {
                 }
                 const { filename, kind, size } = found.report;
                 const what = `<p class="file">${escapeHtml(filename)}</p><p>${kind}, ${sizeText(size)}. `;
-                const body = repeat ? `${what}You downloaded it in this browser a moment ago and can download it again until ${timeHtml(repeat.x)}; after that the link is used.</p>` : `${what}It can be downloaded once, until ${timeHtml(payload.e)}.</p>`;
+                // the sentence about when it can be downloaded goes once the status line says it (the page's script)
+                const body = repeat ? `${what}<span id="until">You downloaded it in this browser a moment ago and can download it again until ${timeHtml(repeat.x)}; after that the link is used.</span></p>` : `${what}<span id="until">It can be downloaded once, until ${timeHtml(payload.e)}.</span></p>`;
                 // same-origin, not no-referrer: so the browser names the page's origin when it posts the
                 // form (under no-referrer it sends Origin: null); nothing leaves for another site
                 return page("Download the report", body, { form: true, headers: { "referrer-policy": "same-origin" } });
