@@ -29,9 +29,12 @@ for (const theme of ["light", "dark"]) for (const width of [1280, 390]) test(`ou
     await expect.poll(async () => (await texts()).filter((t) => t === "Berlin").length).toBe(2);
     for (const [mode, label] of [["value", "Berlin: 15.00"], ["percent", "Berlin: 42.9%"], ["both", "Berlin: 15.00 (42.9%)"]]) {
         await page.evaluate((mode) => window.__donutLabels(mode), mode);
+        // until the new view is drawn, the chart can still hold the one before (no formatter for the
+        // default labels): null, and the poll asks again, instead of a TypeError that ends it
         await expect.poll(() => chart.evaluate(async (el) => {
             const { getInstanceByDom } = await import("echarts/core");
-            return getInstanceByDom(el).getOption().series[0].label.formatter({ name: "Berlin", value: 15, percent: 100 * 15 / 35 });
+            const formatter = getInstanceByDom(el)?.getOption().series?.[0]?.label?.formatter;
+            return typeof formatter === "function" ? formatter({ name: "Berlin", value: 15, percent: 100 * 15 / 35 }) : null;
         })).toBe(label);
         if (width > 390) await expect.poll(texts).toContain(label);
         // On phones ECharts truncates the names, but still draws both slice labels.

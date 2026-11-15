@@ -9,7 +9,7 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { basename } from "node:path";
 import { closest, encode } from "pivotkit-core";
 import { isInside, readSafe, readTable } from "pivotkit-cli/files";
-import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf } from "./config.js";
+import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf, validateOptions } from "./config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
 import { OUTPUT_INSIDE_ALLOWED, cannotCreate, entryOf, outputRefusal, ownFileDirs, plannedPath, writable } from "./context.js";
 import { draftCap } from "./present.js";
@@ -22,11 +22,14 @@ import { SECTIONS, UPGRADING_URL, runSections } from "./check/index.js";
 import { secretFileWarning } from "./secrets.js";
 
 /**
+ * What the server would expose with these options. The options are checked first as createContext
+ * checks them (validateOptions): what it refuses throws the same ConfigError here.
  * @param {import("./config.js").ServerOptions} options
- * @param {{ http: boolean, env?: Record<string, string | undefined>, name?: string, tokenEnv?: string, rest?: boolean, sections?: ReadonlyArray<{ name: string, section: import("./check/index.js").Section }> }} runtime  name: the runner's; rest: the REST service is served too; sections: the features' sections (default check/index.js SECTIONS; tests)
+ * @param {{ http?: boolean, env?: Record<string, string | undefined>, name?: string, tokenEnv?: string, rest?: boolean, mcp?: boolean, sections?: ReadonlyArray<{ name: string, section: import("./check/index.js").Section }> }} [runtime]  http: an HTTP server is planned (default false); env: the environment tokens are read from; name: the name the first line starts with (default "pivotkit-mcp"); tokenEnv: the one static token's variable; rest: the REST service is served too; mcp: the MCP server is (default true); sections: the features' sections (default check/index.js SECTIONS; tests)
  * @returns {Promise<{ text: string, problems: number }>}  problems: what would keep the server from starting or a source from working
  */
-export async function checkConfig(options, { http, env = {}, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false, sections = SECTIONS }) {
+export async function checkConfig(options, { http = false, env = {}, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false, mcp = true, sections = SECTIONS } = {}) {
+    validateOptions(options);
     let problems = 0;
     let unwritable = 0;
     let other = 0;
@@ -153,7 +156,7 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     }
     for (const [profile, p] of Object.entries(options.policy?.profiles ?? {})) {
         const fields = Object.entries(p.fields ?? {});
-        lines.push(`Profile ${profile}: fields ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${everyColumn?.get(fieldKey(n)) ?? n} ${l}`).join(", ")}` : ""}; a field a source hides stays hidden; no automatic values; file downloads (REST) ${p.results ? "allowed" : "off"}`);
+        lines.push(`Profile ${profile}: fields ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${everyColumn?.get(fieldKey(n)) ?? n} ${l}`).join(", ")}` : ""}; a field a source hides stays hidden; no automatic values; file downloads (REST) ${p.results ? "allowed" : `off${p.data === true ? " (data sent in the request still works: data: true)" : ""}`}`);
         // what its callers get per source: a profile never has the automatic rule, so a field a
         // plain caller sees at values may be summary here
         for (const [id, columns] of read) {
@@ -179,7 +182,7 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     }
     // each feature's section: its lines, its problems counted as PROBLEM lines, what changes for this
     // configuration in this version (the closing block)
-    const features = await runSections(sections, options, registry, { http, env, name, tokenEnv, rest, columns: read });
+    const features = await runSections(sections, options, registry, { http, env, name, tokenEnv, rest, mcp, columns: read });
     lines.push(...features.lines);
     other += features.problems;
     const total = problems + unwritable + other;

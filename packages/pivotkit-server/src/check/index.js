@@ -27,6 +27,7 @@ import * as upload from "./upload.js";
  * @property {string} name
  * @property {string} tokenEnv
  * @property {boolean} rest
+ * @property {boolean} [mcp]  the MCP server is served (false: a REST-only server)
  * @property {ReadonlyMap<string, { names: string[], stats: any }>} columns
  */
 

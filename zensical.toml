@@ -63,6 +63,7 @@ nav = [
     { "Getting started: MCP server" = "getting-started/mcp.md" },
     { "pivotkit-server (REST)" = "reference/rest.md" },
     { "pivotkit-mcp" = "reference/mcp.md" },
+    { "Data sources" = "reference/sources.md" },
     { "Download links" = "reference/delivery.md" },
     { "Container image" = "reference/container.md" },
     { "Kubernetes" = "getting-started/kubernetes.md" },

@@ -47,13 +47,15 @@ body). The routes are RPC-style (`POST /views/validate`), one per operation of t
 | `POST /views/link` | `create_link` | A link that opens the view in the source's report page |
 | `POST /schedules/draft` | `draft_schedule` | A draft of a scheduled report for a person to approve; runs and sends nothing |
 
-A POST takes its input as JSON (`Content-Type: application/json`, at most 2 MiB). The input and the
+A POST takes its input as JSON (`Content-Type: application/json`, at most 2 MiB; a caller that may
+[send its own data](#data) also multipart, up to `rest.data.maxBytes`). The input and the
 answer of each route are in the [OpenAPI document](#openapi). A view with errors is no error: the
 answer is 200 with `ok` or `valid` false and `findings` that say what to fix (the file route answers
 422). `validate`, `render` and `render/file` take a `layout` instead of a `view`: the view by field names
 (rows, columns, values, groupings), as the command line's layout flags write it
 ([layout](report.md#operations)); the answer then holds the `view` it made. `suggest` takes one too,
-whose parts replace those of the draft. `source` is the id of a source the operator configured: files by path (`file:`) are refused
+whose parts replace those of the draft. `source` is the id of a source the operator configured, or
+`inline:` for [data sent in the request](#data): files by path (`file:`) are refused
 over REST (`FILES_NOT_ALLOWED`), whatever `files.allowDirs` allows the MCP server.
 
 ```bash
@@ -185,12 +187,78 @@ field that is not hidden, in a file, whatever level the field has; give it only 
 | `auth.tokens[].profile` | none | A static token's profile |
 | `auth.clientProfiles` | none | OAuth client id (`azp` or `client_id`) to profile: `{ "report-bot": "export" }` |
 | `auth.scopeProfiles` | none | OAuth scope to profile: `{ "pivotkit:export": "export" }` |
+| `policy.data`, `policy.profiles.<name>.data` | false | The caller may send its own data ([below](#data)) |
+
+## Data in the request { #data }
+
+A program that has the data already (a script, a scheduled job) can send it with the request
+instead of the operator configuring a source for it. It is off by default and the operator turns it
+on per profile with `data: true` (or for every caller with `policy.data: true`). The source id is
+then `inline:`, on every route that takes a source: describe, suggest, validate, describe a view,
+render and the file route.
+
+As JSON, the table goes into `data`: the column names, the rows as lists in the columns' order, and
+`rowCount`, the number of rows of the whole table, which must match the rows sent (else 422
+`DATA_MISMATCH`), so a table cut short on the way is refused:
+
+```bash
+curl -s -H "Authorization: Bearer $ETL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"source":"inline:","data":{"columns":["Region","Sales"],"rows":[["North",10],["South",20]],"rowCount":2,"name":"Weekly sales","asOf":"2026-11-15T06:00:00Z"},"view":{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]},"format":"csv"}' \
+  http://127.0.0.1:3333/api/v1/views/render/file
+```
+
+| Key of `data` | Required | What it is |
+| --- | --- | --- |
+| `columns` | yes | The column names, each once (compared without case and with whitespace collapsed), no control or direction characters, at most 1000 |
+| `rows` | yes | One list per row, one value per column (text, number, true, false or null) |
+| `rowCount` | yes | The number of rows of the whole table |
+| `name` | no | What the data is: the report's name (default "Data sent with the request") |
+| `asOf` | no | When the data is from, as you state it (ISO 8601): the answer says it as `suppliedAsOf`; `dataAsOf` is when it arrived |
+
+A file goes as `multipart/form-data` with a part `data` (the file: csv, tsv, json or xlsx, by the
+file name's extension, else the part's content type) and an optional part `input` (the route's
+input as JSON, without `source`, or with `"inline:"`). Its `data` holds only `name`, `asOf`, `sheet`
+(a workbook's sheet) and `sha256`, the SHA-256 of the file's bytes in hex: a file that differs is
+refused (422 `DATA_MISMATCH`). The body has at most these two parts; nothing is written to disk, and
+the file's name is used for its extension only:
+
+```bash
+printf 'Region,Sales\nNorth,10\nSouth,20\nNorth,5\n' > sales.csv
+curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
+  -F data=@sales.csv -F 'input={"view":{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]},"data":{"sha256":"'"$(shasum -a 256 sales.csv | cut -d' ' -f1)"'"}}' \
+  http://127.0.0.1:3333/api/v1/views/render/file
+```
+
+- **No exposure policy.** The rows are the caller's own: every field is `show` to it, whatever the
+  server's or its profile's policy says of fields of that name. The profile's `inline` limits still
+  apply. A report over such data is no proof that its content came from the operator's data.
+- **Size.** A caller with `data: true` may send a body of up to `rest.data.maxBytes` (default
+  10 MiB, 2 to 64 MiB) on the POST routes that take a source; every other request keeps 2 MiB, and
+  a 413 says which cap applied. The larger cap applies only once the token is checked: a body
+  declared larger than any caller may send is refused before that. At most two bodies over 2 MiB are
+  read at once over all callers, one per caller; another gets 503 `BUSY` with `Retry-After` and `retryable: true`.
+  A JSON body nested deeper than 64 levels is refused before it is parsed, a multipart body with more
+  than two parts before its parts are read. A JSON body is parsed in the server's main thread: a
+  `data: true` token is trusted with that time and memory ([security](../security.md#rest)). The server's import limits (`limits.rows`, `limits.importCells`, `limits.fileBytes`)
+  apply as to a file source; a file is read in a worker under `compute.timeMs` and
+  `compute.memoryMb`.
+- **Downloads.** The file route over `inline:` needs `data: true` only, not `results: true`: there
+  is no operator data to protect. `results` still decides for configured sources.
+- **Not kept.** The data is never cached and is gone after the request; a report rendered over it
+  is saved in the output directory like any other and counts against its quota. A link (`/views/link`)
+  answers 409 `NO_LINK` and a schedule (`/schedules/draft`) 409 `NOT_SCHEDULABLE`.
+- `GET /sources` adds `"data": { "maxBytes": 10485760 }` for a caller that may send data.
+
+| Key | Default | What it is |
+| --- | --- | --- |
+| `policy.data`, `policy.profiles.<name>.data` | false (REST) | The caller may send its own data; a source's policy and `files.policy` do not take it |
+| `rest.data.maxBytes` | 10485760 (10 MiB) | The largest body of a caller that may send data: 2097152 (2 MiB) to 67108864 (64 MiB) |
 
 ## Downloads { #downloads }
 
 `POST /views/render/file` takes the input of `/views/render` and answers with the file itself, as an
 attachment. It is allowed only for a caller whose policy has `results: true` (a profile's, a source's
-or the server's), whatever fields the view uses: an answer that depended on the view's fields would
+or the server's; over [data the caller sends](#data), `data: true`), whatever fields the view uses: an answer that depended on the view's fields would
 itself tell what they hold. Without it the answer is 403 `NOT_ALLOWED`. Nothing is written to the
 output directory, and every download is a log event of its own.
 
@@ -300,6 +368,7 @@ client id, or `local` without sign-in):
 | `rest.rateLimit.failedAuthPerMinute` | 30 | Refused tokens per address and minute; beyond, a wrong token from that address gets 429 instead of 401 (a right one still works) |
 | `rest.concurrency` | 4 | Requests of one caller at once |
 | `rest.inline` | false | csv and json results inline in the answer, where the policy allows |
+| `rest.data.maxBytes` | 10485760 (10 MiB) | The body of a caller that may [send data](#data); 2 MiB for everyone else |
 
 Over a limit the answer is 429 `RATE_LIMITED` with `Retry-After`. The MCP endpoint has the same
 limits with counts of its own (`mcp.rateLimit`, `mcp.concurrency`, see [MCP](mcp.md#configuration)).
@@ -336,25 +405,28 @@ gives it to the operator. An error of a source or a store that failed (`SOURCE_U
 | 400 | <a id="error-invalid-input"></a>`INVALID_INPUT` | The body is not valid JSON, is no JSON object, or does not fit the route's schema (an unknown key, a wrong type, nested deeper than 64 levels, also inside a view given as JSON text) |
 | 401 | <a id="error-invalid-token"></a>`INVALID_TOKEN` | No token, an unknown or expired one, another scheme, a token in the address |
 | 403 | <a id="error-insufficient-scope"></a>`INSUFFICIENT_SCOPE` | The token lacks a scope the service or the operation needs |
-| 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true` |
+| 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true`; `inline:` data from a caller without `data: true`; a code source that refuses the caller (its `SourceError`) |
 | 403 | <a id="error-files-not-allowed"></a>`FILES_NOT_ALLOWED` | A `file:` source |
 | 403 | <a id="error-forbidden-host"></a>`FORBIDDEN_HOST` | A `Host` the server does not answer to (DNS rebinding protection; `http.allowHosts`, `http.publicUrl`) |
 | 403 | <a id="error-forbidden-origin"></a>`FORBIDDEN_ORIGIN` | A browser origin not in `rest.cors.origins` |
 | 404 | <a id="error-not-found"></a>`NOT_FOUND` | No such route |
 | 404 | <a id="error-source-not-found"></a>`SOURCE_NOT_FOUND` | No such source, or one the caller lacks the scopes for |
 | 404 | <a id="error-file-not-available"></a>`FILE_NOT_AVAILABLE` | The source's file is missing or changed while read |
+| 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](sources.md#code-errors)) |
 | 405 | <a id="error-method-not-allowed"></a>`METHOD_NOT_ALLOWED` | GET for a POST route or the other way round (`Allow` names the method) |
 | 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | 409 | <a id="error-no-link"></a>`NO_LINK`, <a id="error-not-schedulable"></a>`NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a source that cannot have one |
-| 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB; a file, a view or the work over a limit |
-| 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form); a source file in no data format |
+| 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB (over `rest.data.maxBytes` for a caller that may send data); a file, the data sent, a view or the work over a limit |
+| 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form) nor, where data may be sent, `multipart/form-data`; a file sent in no data format; a source file in no data format |
 | 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file or print template (`sources.<id>.template`, a [print template](print-template.md) whose `--pk-*` colours reach the chart, [options](mcp.md)) cannot be used |
 | 422 | <a id="error-view-has-errors"></a>`VIEW_HAS_ERRORS` | The file route for a view with errors (with `findings`) |
+| 502 | <a id="error-upload-failed"></a>`UPLOAD_FAILED` | Reserved for delivery that stores reports elsewhere; this version does not answer it |
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else; the details only in the log with `--log debug` |
-| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free; starting or stopping; the OAuth issuer not loaded yet |
+| 422 | <a id="error-data-mismatch"></a>`DATA_MISMATCH` | [Data sent in the request](#data) whose `rowCount` differs from the rows sent, or a file whose SHA-256 differs from `sha256` |
+| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code source's load failed, took longer than its `timeMs` or has too many loads running; `retryable` says whether trying again may work |
+| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, or two [large bodies](#data) read already; starting or stopping; the OAuth issuer not loaded yet |
 | 400, 403, 409, 410, 503 | <a id="error-link-expired"></a>`LINK_EXPIRED`, <a id="error-link-used"></a>`LINK_USED`, <a id="error-link-not-yours"></a>`LINK_NOT_YOURS`, <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED`, <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | Answers of the server's own [download links](delivery.md#answers) (`/downloads/`), not of `/api/v1` |
-| 404, 422, 502 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE`, <a id="error-data-mismatch"></a>`DATA_MISMATCH`, <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE`, <a id="error-upload-failed"></a>`UPLOAD_FAILED` | Reserved for sources and delivery that load data or store reports elsewhere; this version does not answer them |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 
 ## The OpenAPI document { #openapi }
@@ -418,7 +490,7 @@ and `/downloads/` (with MCP also `/mcp`, `/.well-known/` and `/`), keep the `Hos
 address to `X-Forwarded-For`: otherwise every client has the proxy's address and shares one count of
 refused tokens (the [limit](#limits) per address). Only when the service is reachable through the proxy alone:
 a client that reaches the server directly can write any `X-Forwarded-For`. With it, the log names the
-client's address. Let the proxy take bodies of 2 MiB (nginx's default is 1 MiB). For nginx:
+client's address. Let the proxy take bodies of 2 MiB (nginx's default is 1 MiB), or `rest.data.maxBytes` where callers [send data](#data). For nginx:
 
 ```nginx
 location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|healthz$|readyz$|$) {
@@ -442,7 +514,8 @@ and hard links on Windows).
 
 One JSON line per event on stderr, as the [MCP server's](mcp.md#logging): `started` (version,
 address, what it serves, auth mode), `request` (operation, route, client, `requestId`, source id,
-status, error code, time in ms), `download` (operation, client, `requestId`, source, format, bytes;
+status, error code, time in ms; for `inline:` data the number of rows and columns, or a file's
+format and bytes), `download` (operation, client, `requestId`, source, format, bytes;
 for a [download link](delivery.md) `via: "link"`, its binding, whether it worked and the code, never the token),
 `refused` (a request refused by the Host, Origin or token check, or a body over the cap, with its
 `requestId`) and `warning`. `requestId` is random (11 characters) and the same on every line of one
@@ -462,7 +535,7 @@ import { createContext, serveFetch } from "pivotkit-server";
 import { createRestHandler } from "pivotkit-server/rest";
 
 const context = await createContext({
-    sources: { sales: { load: async () => rows, version: () => rowsVersion, policy: { fields: { Region: "show" } } } },
+    sources: { sales: { load: async () => rows, version: () => rowsVersion, cacheShared: true, policy: { fields: { Region: "show" } } } },
     output: { dir: "/srv/reports" },
     auth: { mode: "token" }
 });
@@ -476,7 +549,7 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
 - `bodyBytes` is a number, or `(request, info) => number`: decided once per request after the
   precheck, where `peekSignIn(info)` gives the sign-in the precheck kept (`{ caller }`, or undefined).
   A function gives a caller who is not signed in at most `BODY_BYTES` (2 MiB) and a signed-in one at
-  most `MAX_BODY_BYTES` (64 MiB); `bodyBytesOf(options)` is the server's own.
+  most `MAX_BODY_BYTES` (64 MiB); `bodyBytesOf(options)` is the server's own (`rest.data.maxBytes` for a REST caller that may [send data](#data), else 2 MiB).
 - Each request runs inside `withRequestId(id, fn)`: `requestId()` gives its id anywhere in its work,
   a code source's `load` included (for the host's own log lines), and every log line written inside
   it names it. `errorDetails({ retryable, retryAfter })` builds an `OperationError`'s details with
@@ -486,12 +559,16 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
   trims one trailing newline and refuses a value with another line break or a NUL; its error names
   the reference, never the value.
 
-A source may be `load: async () => rows` instead of `file`: an array of row objects, or columnar data
+A source may be a function instead of a file, a [code source](sources.md#code):
+`load(params, { caller, signal })` returns an array of row objects, `{ rows, asOf }` or columnar data
 `{ columns, types, data }` with one array per column (not `encode()`'s result, so hidden fields can
-be dropped). It runs in the host's thread, not in a worker. With `version: () => key` the encoded data
-is kept until the key changes (per process, by source id and key); without it, every request loads
-again. An error thrown by `load` answers 500 with a fixed text; its class is logged, its message with
-`log: "debug"`.
+be dropped). It runs in the host's thread, not in a worker; its `signal` is aborted after `timeMs`
+(30 s by default). The data is kept per caller, values and policy levels while `version(params,
+{ caller })` gives the same value or for `ttl` seconds (`cacheShared: true`: one copy for all
+callers), parallel calls share one load, and after a transient failure the last good data stands in
+for up to `maxStale` seconds, with `stale` in the result. A `SourceError` answers its code with its
+`publicMessage`; anything else `load` throws answers 502 `SOURCE_UNAVAILABLE` with a fixed text, its
+class in the log, its message with `log: "debug"`.
 
 - The one static token without `auth.tokens` is `$PIVOTKIT_TOKEN` (`createContext(options,
   { tokenEnv })` names another); tokens are read from `env` of `createRestHandler`.

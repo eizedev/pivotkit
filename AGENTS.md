@@ -199,15 +199,21 @@ root `package.json`: `npm run types` and the builds depend on it.
   params)` dispatches by kind and checks params), `src/sources/` (the kinds of source:
   `index.js` `kindOf`, `KINDS` and `runResolved`, the one way present() runs an operation over a
   source; `file.js` configured files and `file:` paths, read in a worker; `code.js` a library host's
-  `load()`, with `load(params, { caller })` when it declares params; `http.js` and `inline.js` (the
-  reserved id `inline:`) not offered yet; `params.js` a source's parameters: `declaredProblems`,
-  `paramSchemaOf`, `normalizeParams`, `paramsList`; `input.js` the extra inputs (`params`) a surface
+  `load(params, { caller, signal })`, its data kept per identity, values and levels (`cacheShared`:
+  one copy, caller null); `run.js` how data loaded in the main thread is loaded (`runLoad`: time
+  limit with the signal aborted, coalescing, load limits per source and identity, kept data, last good
+  data after a transient failure only; `SourceError` and `sourceFailure`, what a caller gets of a
+  source's error); `cache.js` the process cache of loaded data (64 entries, 256 MiB; per owner 8 entries and a quarter of the bytes, its own oldest out first);
+  `http.js` not offered yet; `inline.js` data sent in the request (the reserved id `inline:`, the
+  kind "inline": `checkTable`, the MCP cap `MCP_DATA_CAP` and `mcp.data`, who may send it
+  `maySendData`, a table or upload job never kept, `NO_LINK`/`NOT_SCHEDULABLE`); `params.js` a source's parameters: `declaredProblems`,
+  `paramSchemaOf`, `normalizeParams`, `paramsList`; `input.js` the extra inputs (`params`, `data`) a surface
   offers (`offersOf`, `extraInputs`, `withoutExtras`) and `listExtras` of list_sources; `as-of.js`
   `dataAsOf`, every source's time parsed and written in one form (`asOfText`, `asOfMembers`); `keys.js`
   canonical JSON cache keys (`tableKeyOf`: null without an identity); `fetch.js` `guardedFetch`, the
   one way the server requests another server: https only, no redirects, the address checked on the
   connection's own lookup, bodies counted after decompression, one time limit), `src/data.js`
-  (`fileData`, `codeData`, and `tableData`/`uploadData` for a table job: data loaded in the main
+  (`fileData`, `codeTable` (a code source's data with a file's run limits, encoded), and `tableData`/`uploadData` for a table job: data loaded in the main
   thread or a file handed in, computed in a worker),
   `src/compute.js` and `src/worker.js` (worker threads with memory and time limits; an input the
   structured clone cannot copy is `INVALID_INPUT` and frees the worker), `src/present.js` (`present()`:
@@ -225,7 +231,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   (a request's id: `newRequestId`, `withRequestId` (each REST request and MCP tool call runs in one;
   its log lines carry the id), `requestId`, `errorDetails` for an `OperationError`'s `details`, which
   `rest/problem.js problemOf` and MCP's error text show; `serverTextOf`, the fixed 5xx texts both
-  use). pivotkit-mcp imports these from pivotkit-server, so pivotkit-server is released first and
+  use; `inlineLogFields` of `sources/inline.js` too). pivotkit-mcp imports these from pivotkit-server, so pivotkit-server is released first and
   pivotkit-mcp's range raised in the release PR), `src/auth.js` (`createAuthCore`: static tokens, the
   OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`; `callerOf`, a caller's
   identity (`auth.subjectClaim`) and `identityKey`, the only identity a cache or binding uses, null
@@ -240,7 +246,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   `MAX_BODY_BYTES` for a signed-in caller), a graceful stop), `src/check.js` (`--check-config`
   of both runners, then `src/check/`: one section per feature with its lines, problems and the
   "New in this version" lines, `runSections`), `src/limits.js` (`createLimits`: rate and concurrency
-  limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`), `src/log.js`
+  limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`, `rest.data.maxBytes` for a signed-in REST caller that may send data), `src/log.js`
   (`callerFields`: the allowlist of a caller's fields a log line holds), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck). What
@@ -248,8 +254,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   codes, loopback) is pivotkit-cli/rest's, re-exported here; `test/cli-remote.test.js` runs the CLI
   against the service.
   `src/rest/` is `pivotkit-server/rest`: `handler.js` (`createRestHandler`: Host, CORS, routes,
-  sign-in with the REST resource's audience, limits, operation scopes, the JSON body, `present()` or
-  the file), `routes.js` (`REST_ROUTES`: a route per operation of pivotkit-report's table from its
+  sign-in with the REST resource's audience, limits, operation scopes, the JSON body (or a multipart
+  one, `multipart.js`: a `data` file and an `input` part for a caller that may send data),
+  `present()` or the file), `routes.js` (`REST_ROUTES`: a route per operation of pivotkit-report's table from its
   `http`, plus `GET /sources/{id}` and `POST /views/render/file`; neutral words and an example per
   operation), `openapi.js` (`openApiDocument`, pure, the view schema bundled), `problem.js` (RFC 9457
   problems, `REST_ERRORS`). A new operation

@@ -22,17 +22,26 @@ export { callerFields, CALLER_LOG_FIELDS } from "./log.js";
 export { newRequestId, withRequestId, requestId, errorDetails, isRequestId, REQUEST_ID } from "./request-id.js";
 export { serverTextOf } from "./rest/problem.js";
 export { offeredScopes } from "./scopes.js";
+export { INLINE_ID, MCP_DATA_CAP, REST_DATA_BYTES, inlineLogFields } from "./sources/inline.js";
 export { readSecret, secretFileWarning, SecretError } from "./secrets.js";
 export { SECRET_REF } from "./options/shared.js";
 export { checkConfig } from "./check.js";
 export { createDownloadHandler, linksOf, DOWNLOADS_PATH, CALLBACK_PATH, DOWNLOAD_BODY_BYTES } from "./downloads.js";
 export { OperationError } from "pivotkit-report/operations";
+export { SourceError, SOURCE_ERROR_CODES } from "./sources/run.js";
+export { CODE_DEFAULTS } from "./options/code.js";
 export { optionsFrom, flagLines, httpFlags, SERVER_FLAGS, SHARED_FLAGS } from "./flags.js";
 export { serve, createServerHandler, DEFAULT_PORT } from "./serve.js";
 
 /**
  * @typedef {import("./config.js").ServerOptions} ServerOptions
  * @typedef {import("./config.js").SourceOptions} SourceOptions
+ * @typedef {import("./sources/code.js").SourceCaller} SourceCaller
+ * @typedef {import("./sources/code.js").SourceLoad} SourceLoad
+ * @typedef {import("./sources/code.js").SharedSourceLoad} SharedSourceLoad
+ * @typedef {import("./sources/code.js").SourceVersion} SourceVersion
+ * @typedef {import("./sources/code.js").LoadResult} LoadResult
+ * @typedef {import("./sources/code.js").SourceParams} SourceParams
  * @typedef {import("./config.js").PolicyOptions} PolicyOptions
  * @typedef {import("./config.js").AuthOptions} AuthOptions
  * @typedef {import("./config.js").RestOptions} RestOptions

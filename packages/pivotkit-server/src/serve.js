@@ -100,7 +100,7 @@ export async function createServerHandler(options, runtime) {
                     if (refused) {
                         return problem("FORBIDDEN_HOST", refused);
                     }
-                    return Number(request.headers.get("content-length") ?? 0) > REST_BODY_BYTES ? problem("BODY_TOO_LARGE", "the body is larger than the service takes") : null;
+                    return Number(request.headers.get("content-length") ?? 0) > REST_BODY_BYTES ? problem("BODY_TOO_LARGE", "the body is larger than 2 MiB, the most this service takes") : null;
                 }
                 return mcp.precheck(request, info);
             },
@@ -122,7 +122,7 @@ export async function createServerHandler(options, runtime) {
                 const refused = hostRefusal(request, hosts);
                 return refused ? problem("FORBIDDEN_HOST", refused) : problem("NOT_FOUND", "no such route; the REST service is at /api/v1 (GET /openapi.json)");
             },
-            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than the service takes" : "the request cannot be read")),
+            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than 2 MiB, the most this service takes" : "the request cannot be read")),
             async close() {
                 downloads.close();
                 await rest?.close();

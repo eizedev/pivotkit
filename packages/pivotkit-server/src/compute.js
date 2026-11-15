@@ -10,7 +10,8 @@
 import { Worker } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { COMPUTE_DEFAULTS } from "./config.js";
-import { codeData } from "./data.js";
+import { codeTable } from "./data.js";
+import { isOwnError, sourceFailure } from "./sources/run.js";
 import { draftingOf } from "./policy.js";
 
 /**
@@ -169,20 +170,34 @@ export function createComputer(options = {}) {
         });
     }
 
-    /** Runs an operation over a code source in this thread. */
+    /** A code source's own load, once: no time limit, nothing kept (sources/code.js does that). */
+    async function loadOnce(spec, source) {
+        try {
+            return { data: codeTable(spec, await source.load()), stale: null };
+        } catch (e) {
+            throw isOwnError(e) ? e : sourceFailure(e);
+        }
+    }
+
+    /** Runs an operation over a code source's data (sources/code.js: loaded in this thread) in this thread. */
     async function inThread(op, input, job, source) {
         let hidden = 0;
         /** @type {import("./stats.js").SourceStats | null} */
         let stats = null;
         /** @type {string | null} */
         let asOf = null;
+        /** @type {{ since: string } | null} */
+        let stale = null;
         const env = {
             data: async () => {
-                const data = await codeData(job.spec, source);
-                hidden = data.hidden;
-                stats = data.stats;
-                asOf = data.asOf;
-                return data;
+                // a code source's own { load } (a host calling the pool itself): loaded once, its own
+                // errors answered as runLoad answers them
+                const read = typeof source.read === "function" ? await source.read() : await loadOnce(job.spec, source);
+                hidden = read.data.hidden;
+                stats = read.data.stats;
+                asOf = read.data.asOf;
+                stale = read.stale;
+                return read.data;
             },
             link: async () => job.link ?? null,
             template: async () => job.template,
@@ -195,7 +210,7 @@ export function createComputer(options = {}) {
             ...(op === "render_view" && (input.format === "svg" || input.format === "html") ? { echarts: await import("echarts") } : {})
         };
         const outcome = await OPERATIONS[op].run(input, env);
-        return { outcome, hidden, stats, asOf, stale: null };
+        return { outcome, hidden, stats, asOf, stale };
     }
 
     return {
@@ -204,7 +219,7 @@ export function createComputer(options = {}) {
          * @param {any} input
          * @param {{ spec: import("./data.js").SourceSpec, link?: any, template?: string, locale?: string, timeZone?: string, now?: any, table?: { columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] }, upload?: { bytes: Uint8Array, format: string, sheet?: string }, tableKey?: string | null, asOf?: string | null }} job
          *   a table job (data loaded in this thread, computed in a worker): table or upload, with tableKey (sources/keys.js; null: not kept) and asOf
-         * @param {{ load: () => Promise<any>, version?: () => unknown }} [source]  a code source
+         * @param {{ read: () => Promise<{ data: any, stale: { since: string } | null }> } | { load: () => unknown }} [source]  a code source's data (sources/code.js: time limit, kept data, last good data), or its own load, called once
          */
         run: (op, input, job, source) => (source ? inThread(op, input, job, source) : inWorker(op, input, job)),
         /** The workers alive (0 once closed). */

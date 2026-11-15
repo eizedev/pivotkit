@@ -147,7 +147,8 @@ Then restart Claude Code.
 ## From 0.6.1 to the next release { #from-0-6-1 }
 
 Operators of pivotkit-server and pivotkit-mcp need not act for the exposure policy: every field
-keeps its level, and the automatic values rule is off. Over HTTP with an output directory, check the
+keeps its level, and the automatic values rule is off. Library hosts with code sources check
+[Code sources](#code-sources). Over HTTP with an output directory, check the
 [download links](#download-links): reports may get links of the server under `/downloads/`, and
 `output.baseUrl` no longer gives an address to reports over closed sources. What callers notice:
 
@@ -163,6 +164,8 @@ keeps its level, and the automatic values rule is off. Over HTTP with an output 
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
 | [Request ids](#request-ids) | you parse the log or MCP tool errors, or a program reads problem documents | accept the new members and the id at the end of a tool error |
+| [Code sources](#code-sources) | you embed pivotkit-server or pivotkit-mcp with a source that has `load` | check the time limit, the per-caller cache and `cacheShared`; read `stale` |
+| [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
 
@@ -226,6 +229,43 @@ to the operator. On MCP an `INTERNAL` error says "internal error", as REST does,
 words. A body over the cap gets a `refused` log line. `check-config` warns of a static token's file
 that other users of the machine can read, and closes with "New in this version" where a change
 applies to the configuration.
+
+### Code sources { #code-sources }
+
+For library hosts whose sources have `load` ([code sources](../reference/sources.md#code)), when
+they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next release:
+
+- `load` is called as `load(params, { caller, signal })` and `version` as `version(params,
+  { caller })`, also without declared `params` (then `{}`). A `load()` that takes no arguments works
+  as it is; one whose first parameter has a default of its own now gets `{}` there. A `version`
+  that returns a promise is refused (`SOURCE_UNAVAILABLE`): return the value itself.
+- A load is aborted after 30 s (`timeMs`, at most ten minutes); pass `signal` on to `fetch` or your
+  database client.
+- Loaded data is kept per caller (and per values and policy levels), not per source: a `load` that
+  gives every caller the same data sets `cacheShared: true` (it then gets `caller: null`). Without
+  `version` and `ttl` nothing is reused, as before; parallel calls for the same data share one load.
+- A load that fails transiently (the time limit, a network error, a `SourceError` with `transient`)
+  answers with the data last loaded for that caller, up to an hour old, and `stale: { since }` in
+  the result; `maxStale: 0` turns it off.
+- An error a load throws answers `SOURCE_UNAVAILABLE` (502) with a fixed text instead of `INTERNAL`
+  (500); throw a `SourceError` to answer `NOT_ALLOWED`, `INVALID_INPUT` or `DATA_NOT_AVAILABLE` with
+  your own words.
+- The data has a file's limits: `limits.rows`, `limits.columns`, `limits.importCells`
+  (`LIMIT_EXCEEDED`), and texts are cut at `limits.textLength`.
+
+`check-config` given these options lists each code source with its time limit and how its data is
+kept.
+
+### Data in the request { #data-in-request }
+
+The MCP tools that take a source offer `data`, a small table the model sends with `source`
+`inline:` (at most 500 rows, 5,000 cells and 256 KiB), on by default. No exposure policy applies to
+it: it is the model's own data, not yours. `"mcp": { "data": false }` switches it off,
+`"mcp": { "data": { "rows": 100 } }` lowers the cap, and a profile with `"data": false` switches it
+off for its callers ([details](../reference/mcp.md#data)). On REST it is off until a profile has
+`"data": true`; such a caller may also send a file as `multipart/form-data` and a body of up to
+`rest.data.maxBytes` (default 10 MiB) ([details](../reference/rest.md#data)). `inline:` was
+answered as an unknown source before; `check-config` says who may send data.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 

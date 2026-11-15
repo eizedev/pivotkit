@@ -19,7 +19,15 @@ const treeOf = (schema) =>
 test("options: the composed table is today's, in today's order, plus the shared source keys", () => {
     const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
     const expected = structuredClone(before);
-    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer" });
+    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer", cacheShared: "boolean" });
+    // data sent in the request (options/inline.js): a policy's data, after results; mcp.data; rest.data
+    const withData = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "results" ? [[k, v], ["data", "boolean"]] : [[k, v]])));
+    expected.sources.map.object.policy.object = withData(expected.sources.map.object.policy.object);
+    expected.files.object.policy.object = withData(expected.files.object.policy.object);
+    expected.policy.object = withData(expected.policy.object);
+    expected.policy.object.profiles.map.object = withData(expected.policy.object.profiles.map.object);
+    expected.mcp.object.data = { or: [{ const: false }, { object: { rows: "integer", cells: "integer", bytes: "integer" } }] };
+    expected.rest.object.data = { object: { maxBytes: "integer" } };
     // download links (options/downloads.js)
     const secretRef = { custom: "fn" };
     expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings" } } } };
@@ -100,7 +108,7 @@ test("check sections: problems are counted, warnings are not, and New in this ve
     assert.deepEqual(none, { lines: [], problems: 0, upgrade: [] });
 });
 
-test("check-config: today's configurations print exactly what they printed before, plus the download links' section (no New in this version where no report gets a link)", async () => {
+test("check-config: today's configurations print exactly what they printed before, plus each feature's own section and its note in New in this version", async () => {
     const dir = workspace({ "sales.csv": "Region,Product,Customer,Sales\nNorth,A,Alice,10\nSouth,B,Bob,20\n" });
     const options = {
         sources: { sales: { file: "data/sales.csv", title: "Sales", scopes: ["sales:read"], policy: { default: "show", fields: { Customer: "hide" } } }, gone: { file: "data/missing.csv" }, code: { load: async () => [] } },
@@ -111,12 +119,26 @@ test("check-config: today's configurations print exactly what they printed befor
     };
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: "x".repeat(40) }, name: "pivotkit-server", rest: true });
     const golden = readFileSync(new URL("./fixtures/check-config-before-fragments.txt", import.meta.url), "utf8");
-    // HTTP and an output directory: the download links' section says where links would point and
-    // that these closed sources (a hidden field, the default summary) get none with static tokens
+    // what this version adds for this configuration, each said once and nothing else: data sent in the
+    // request (check/inline.js), the download links, and the code sources' section, since the configuration has one
+    // download links (check/downloads.js): where links would point, and that these closed sources
+    // (a hidden field, the default summary) get none with static tokens
     const delivery = ["Delivery:", "  downloads: on, links http://127.0.0.1:3333/downloads/<token>, expire after 60 minutes", "  reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open"];
-    assert.equal(result.text.split(dir).join("<dir>"), golden.replace("\n\n1 problem:", `\n${delivery.join("\n")}\n\n1 problem:`));
+    const inline = ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"];
+    const code = [
+        "Code sources (1):",
+        "  code: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure"
+    ];
+    const upgrade = [
+        "",
+        "New in this version (what changes with this configuration; https://pivotkit.eize.dev/getting-started/upgrading/):",
+        '  - MCP clients may send a small table of their own with source "inline:" (up to 500 rows / 5000 cells / 256 KiB); no exposure policy applies to it; mcp.data: false switches it off',
+        "  - Code sources: load gets (params, { caller, signal }) and is aborted after timeMs (default 30000 ms); a failing load answers SOURCE_UNAVAILABLE (502), not INTERNAL; data is kept per caller unless cacheShared; after a transient failure last good data up to maxStale (default 3600 s) stands in"
+    ];
+    const expected = golden.replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...delivery, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
+    assert.notEqual(expected, golden);
+    assert.equal(result.text.split(dir).join("<dir>"), expected);
     assert.equal(result.problems, 1);
-    assert.doesNotMatch(result.text, /New in this version/);
 });
 
 test("check-config: a section's problem is counted with the others and its upgrade lines close the text", async () => {

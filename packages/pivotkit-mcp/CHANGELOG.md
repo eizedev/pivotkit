@@ -15,6 +15,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- Data in the request ([#326](https://github.com/eizedev/pivotkit/issues/326)): the tools that take
+  a source offer `data`, a small table of the model's own with `source` `inline:` (at most 500 rows,
+  5,000 cells and 256 KiB; `mcp.data` lowers the cap or switches it off). Its description says that
+  the operator's exposure policy does not apply to it. The `call` log line counts its rows and
+  columns. The instructions and the skill explain it where it is offered. Needs the pivotkit-server
+  release of the same round (it imports `inlineLogFields`): release pivotkit-server first and raise
+  the range in the release PR.
 - render_view and draft_schedule results with a download link carry it in the text and, after it, as
   a `resource_link` (MCP 2026-07-28; `size` only for a report the assistant was shown in full)
   ([#327](https://github.com/eizedev/pivotkit/issues/327)). The HTTP transport serves `/downloads/`
@@ -34,6 +41,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   (`INTERNAL`: "internal error"), with the source and whether trying again may work; `BUSY`,
   `NOT_READY` and `TIMEOUT` keep their own words. Release pivotkit-server first: this version needs
   its new exports (`serverTextOf`, `withRequestId`, `callerFields`, `offeredScopes`).
+- Code sources of a library host have a time limit, share parallel loads, keep data per caller and
+  give last good data with `stale` after a transient failure; a failing load is `SOURCE_UNAVAILABLE`
+  ([code sources](https://pivotkit.eize.dev/reference/sources/#code)).
 
 ## [0.1.1] - 2026-11-14
 

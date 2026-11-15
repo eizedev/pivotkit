@@ -48,7 +48,7 @@ test("without the client's address, refused tokens do not lock everyone out", as
     }
 });
 
-test("a code source whose load() throws: 500 with a fixed text, and the host's error in the log", async () => {
+test("a code source whose load() throws: 502 SOURCE_UNAVAILABLE with a fixed text, and the host's error in the log", async () => {
     const { context, rest, lines } = await embedded({
         sources: {
             broken: {
@@ -60,8 +60,12 @@ test("a code source whose load() throws: 500 with a fixed text, and the host's e
     });
     try {
         const res = await rest.fetch(new Request("http://localhost/api/v1/sources/broken"));
-        assert.equal(res.status, 500);
-        assert.equal((await res.json()).detail, "internal error");
+        assert.equal(res.status, 502);
+        const body = await res.json();
+        assert.equal(body.code, "SOURCE_UNAVAILABLE");
+        assert.equal(body.detail, "the source is not available right now; if it stays so, give the operator the request id");
+        assert.equal(body.retryable, false, "a plain error is no transient failure");
+        assert.doesNotMatch(JSON.stringify(body), /database down/);
         const error = lines.find((l) => l.event === "error");
         assert.ok(error, JSON.stringify(lines));
         assert.equal(error.error, "TypeError", "the class at the default level, the message only with --log debug");

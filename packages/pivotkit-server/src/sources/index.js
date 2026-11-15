@@ -1,20 +1,22 @@
 /*
  * The kinds of source and the dispatch to each: `file` (sources/file.js: a configured file and
  * "file:" paths, read in a worker), `code` (sources/code.js: a library host's load()), `http`
- * (sources/http.js) and the reserved id "inline:" (sources/inline.js). The registry resolves a source
- * id to its kind; runResolved runs an operation over it.
+ * (sources/http.js) and data sent in the request under the reserved id "inline:" (sources/inline.js,
+ * the kind "inline"). The registry resolves a source id to its kind; runResolved runs an operation
+ * over it.
  */
 
 import { codeKind } from "./code.js";
 import { fileKind } from "./file.js";
 import { httpKind } from "./http.js";
+import { inlineKind } from "./inline.js";
 import { withoutExtras } from "./input.js";
 
 export { FILE_PREFIX } from "./file.js";
 export { INLINE_ID } from "./inline.js";
 
-/** The kinds of a configured source by name. */
-export const KINDS = Object.freeze({ file: fileKind, code: codeKind, http: httpKind });
+/** The kinds of source by name: those of a configured source, and data sent in the request. */
+export const KINDS = Object.freeze({ file: fileKind, code: codeKind, http: httpKind, inline: inlineKind });
 
 /**
  * The kind of a configured source.
@@ -31,9 +33,9 @@ export const kindOf = (source) => (source.http ? "http" : source.load ? "code" :
  * @param {Record<string, any>} input
  * @param {any} resolved
  * @param {import("../registry.js").Caller} caller
- * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("../stats.js").SourceStats | null, asOf?: string | null, stale?: { since: string } | null }>}
+ * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("../stats.js").SourceStats | null, asOf?: string | null, stale?: { since: string } | null, suppliedAsOf?: string | null }>}
  */
 export function runResolved(context, op, input, resolved, caller) {
     const base = { link: resolved.link, template: resolved.template, locale: context.options.locale, timeZone: context.options.timeZone };
-    return KINDS[/** @type {"file" | "code" | "http"} */ (resolved.sourceKind)].run(context.computer, op, withoutExtras(input), resolved, base, caller);
+    return KINDS[/** @type {keyof typeof KINDS} */ (resolved.sourceKind)].run(context.computer, op, withoutExtras(input), resolved, base, caller, context.log);
 }

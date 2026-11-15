@@ -19,26 +19,38 @@ const tickets = (count, extra = {}) =>
     makeXlsx({ sheets: [{ name: "Notes", hidden: true, rows: [["internal"], ["x"]] }, { name: "Tickets", rows: () => ticketRows(count), ...extra }, { name: "Summary", rows: [["Total"], [count]] }] });
 
 /**
- * Bounds of the used-range test, as ratios of times taken in the same process, so a slow runner and
- * coverage change them little. Measured: a read is 1.0-1.1 times the scan (up to 1.3 under full CPU
- * load), 1.7-2.5 times when the filter passes the empty rows on to the parser; the scan is 3-5.6
- * times the unpacking.
+ * Time bounds as ratios of times taken in the same process, so a slow runner and coverage change them
+ * little; the unit is the unpacking of the same sheet (the fastest of three). Measured for the
+ * used-range test, plain and under coverage (Node 26; CI Node 22 and 24 alike): a read is 1.0-1.2
+ * times the scan before parsing (up to 1.3 under full CPU load), the parse after it (read minus
+ * scan) 0.1-1.3 times the unpacking, the scan 3.2-5.7 times the unpacking. With the filter passing
+ * the empty rows on to the parser: 1.8-3.5 times the scan, the parse 6.5-24 times the unpacking. For
+ * the padded sheet a read is 1.1-1.7 times its scan (with the shared strings, which the scan leaves
+ * out); without the guard it took minutes and ran out of stack.
  */
 const READ_PER_SCAN = 1.6;
+const PARSE_PER_UNPACK = 3;
 const SCAN_PER_UNPACK = 12;
+const PADDED_READ_PER_SCAN = 5;
 
 /**
- * How long one sheet takes to unpack alone, and to unpack and pass through the checks before
- * parsing (createXmlCheck, createXmlGuard, createSheetFilter) as read() does, its output thrown away.
+ * How long one sheet takes to unpack alone (the fastest of three), and to unpack and pass through
+ * the checks before parsing (createXmlCheck, createXmlGuard, createSheetFilter) as read() does, its
+ * output thrown away.
  */
 async function sheetScanTimes(bytes, path) {
     const { readDirectory, unpackStream } = await import("../src/zip.js");
     const { createSheetFilter, createXmlCheck, createXmlGuard } = await import("../src/xml.js");
     const entry = readDirectory(bytes, "book.xlsx", { archiveEntries: 100, unpackedBytes: 1e9 }).find((e) => e.name === path);
-    let started = performance.now();
-    await unpackStream(bytes, entry, "book.xlsx", () => {}, () => {});
-    const unpackMs = performance.now() - started;
-    started = performance.now();
+    // the unpacking is the unit of the bounds: its fastest of three, so one slow pass on a busy
+    // runner does not loosen them
+    let unpackMs = Infinity;
+    for (let k = 0; k < 3; k++) {
+        const started = performance.now();
+        await unpackStream(bytes, entry, "book.xlsx", () => {}, () => {});
+        unpackMs = Math.min(unpackMs, performance.now() - started);
+    }
+    const started = performance.now();
     const check = createXmlCheck("book.xlsx", path);
     const filter = createSheetFilter(createXmlGuard({ write() {} }, "book.xlsx", path), { file: "book.xlsx", part: path });
     await unpackStream(bytes, entry, "book.xlsx", (chunk) => {
@@ -102,10 +114,11 @@ test("the used range: formatted empty cells to row 900,000 are left out before p
     assert.equal(used.message, "The sheet's used range reaches row 900,000; values end at row 503, the empty rows below were skipped.");
     assert.ok(!t.notes.some((n) => n.code === "ROWS_EMPTY"), "no empty rows reached the table");
     // 900,000 rows of styled cells unpack to about 90 MB. The read takes about as long as the scan
-    // before parsing (unpack, check, filter) alone: the empty rows never reach the parser. The scan
-    // takes a few times the unpacking alone, not more.
+    // before parsing (unpack, check, filter) alone, and the parse after it little more than one
+    // unpacking: the empty rows never reach the parser. The scan takes a few times the unpacking.
     ctx.diagnostic(`read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms, unpack ${Math.round(unpackMs)} ms`);
     assert.ok(ms < READ_PER_SCAN * scanMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`);
+    assert.ok(ms - scanMs < PARSE_PER_UNPACK * unpackMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms, unpack ${Math.round(unpackMs)} ms`);
     assert.ok(scanMs < SCAN_PER_UNPACK * unpackMs, `scan ${Math.round(scanMs)} ms, unpack ${Math.round(unpackMs)} ms`);
 });
 
@@ -475,7 +488,7 @@ test("a sheet name from the file is cleaned in notes and messages", async () => 
 // limit, it unpacks to tens of megabytes that read-excel-file parsed in quadratic time and with a
 // stack frame per piece (a minute, up to a gigabyte, then "Maximum call stack size exceeded"); the
 // 24 MiB inside a tag did that on their own, the rest cost memory in proportion to its size
-test("a sheet padded with whitespace is read in linear time and memory, with its values", async () => {
+test("a sheet padded with whitespace is read in linear time and memory, with its values", async (ctx) => {
     const MiB = 1024 * 1024;
     const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
     const pad = (n) => " ".repeat(n);
@@ -488,6 +501,7 @@ test("a sheet padded with whitespace is read in linear time and memory, with its
     const sst = `<?xml version="1.0"?>\n<sst ${NS} count="2" uniqueCount="2"><si><t>name</t></si>${pad(4 * MiB)}<si><t>x</t></si></sst>`;
     const bytes = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), { "xl/worksheets/sheet1.xml": strToU8(sheetXml), "xl/sharedStrings.xml": strToU8(sst) });
     assert.ok(bytes.length < 200_000, `${bytes.length} bytes`);
+    const { scanMs } = await sheetScanTimes(bytes, "xl/worksheets/sheet1.xml");
     const rss = process.memoryUsage().rss;
     let peak = rss;
     const timer = setInterval(() => (peak = Math.max(peak, process.memoryUsage().rss)), 2);
@@ -502,9 +516,11 @@ test("a sheet padded with whitespace is read in linear time and memory, with its
     }
     const ms = performance.now() - started;
     peak = Math.max(peak, process.memoryUsage().rss);
-    // 50 MiB unpacked: the reader never holds the padding as text, nor all of it at once
-    // about 0.5 s on a laptop, a few seconds under coverage on a busy runner; before the fix minutes
-    assert.ok(ms < 20_000, `${Math.round(ms)} ms`);
+    // 50 MiB unpacked: the reader never holds the padding as text, nor all of it at once. The read
+    // takes about as long as the scan of the sheet before parsing; without the guard, read-excel-file
+    // took minutes and then ran out of stack
+    ctx.diagnostic(`read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`);
+    assert.ok(ms < PADDED_READ_PER_SCAN * scanMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`);
     assert.ok(peak - rss < 300 * MiB, `${Math.round((peak - rss) / MiB)} MiB more resident memory`);
 });
 

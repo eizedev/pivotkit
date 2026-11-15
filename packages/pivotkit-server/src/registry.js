@@ -125,7 +125,7 @@ export async function createRegistry(options) {
          * What a worker needs to read a source, and the policy that applies to it.
          * @param {string} ref  a source id or "file:<path>"
          * @param {Caller} caller
-         * @param {{ files?: boolean, surface?: "mcp" | "rest" }} [how]  files: false refuses a file: source whatever files.allowDirs says (REST); surface: whose words a message uses
+         * @param {{ files?: boolean, surface?: "mcp" | "rest", data?: unknown, upload?: any }} [how]  files: false refuses a file: source whatever files.allowDirs says (REST); surface: whose words a message uses (and, for "inline:", whose rules); data, upload: the table or file "inline:" stands for (sources/inline.js)
          * @param {unknown} [params]  the caller's values for the source's parameters
          */
         async resolve(ref, caller, how = {}, params = undefined) {
@@ -139,7 +139,7 @@ export async function createRegistry(options) {
                 return resolveFilePath(reg, ref, caller, how, params, (id) => this.resolve(id, caller, how, params));
             }
             if (ref === INLINE_ID) {
-                return resolveInline(reg, ref, caller, how);
+                return resolveInline(reg, ref, caller, how, params);
             }
             const source = sourceOf(ref, caller, how);
             const kind = kindOf(source);

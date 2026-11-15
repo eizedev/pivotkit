@@ -30,14 +30,13 @@ export { ConfigError } from "./options/shared.js";
  * @property {boolean} [counts]  show distinct and blank counts (default true)
  * @property {{ cells?: number, bytes?: number } | false} [inline]  results that may come back in the tool result (default 500 cells, 32 KiB)
  * @property {boolean} [results]  REST: the caller may download a rendered file (POST /api/v1/views/render/file; default false)
+ * @property {boolean} [data]  server and profiles only: the caller may send its own data (source "inline:"); REST only with true, MCP unless false
  * @property {Record<string, PolicyOptions>} [profiles]  server level only: named policies bound to tokens or OAuth clients (auth.tokens[].profile, auth.clientProfiles, auth.scopeProfiles)
  */
 
 /**
- * @typedef {object} SourceOptions
+ * @typedef {object} SourceOptionsBase  what every source takes; SourceOptions adds load, version and cacheShared
  * @property {string} [file]  a CSV, TSV, JSON or XLSX file (relative to the config file)
- * @property {() => Promise<unknown>} [load]  a library host's loader: rows, columnar data or encode()'s result (instead of file)
- * @property {() => unknown} [version]  with load: changes when the data changes (the cache's key)
  * @property {string} [title]
  * @property {string} [description]
  * @property {string} [sheet]  a workbook's sheet
@@ -48,9 +47,17 @@ export { ConfigError } from "./options/shared.js";
  * @property {PolicyOptions} [policy]
  * @property {Record<string, { type: "string" | "integer" | "number" | "boolean", required?: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number, format?: "date", default?: string | number | boolean }>} [params]  values a caller passes with the source (a code source gets them: load(params, { caller }))
  * @property {Record<string, { description?: string }>} [fields]  the operator's words about fields, shown by describe_source (at most 500 characters each)
- * @property {number} [ttl]  code sources: seconds a load is kept (taken, not used yet)
- * @property {number} [maxStale]  code sources: seconds the last good data stands in after a failed load (taken, not used yet)
- * @property {number} [timeMs]  code sources: the longest load, in ms (taken, not used yet)
+ * @property {number} [ttl]  code sources: seconds a load is reused (default: only while version() gives the same)
+ * @property {number} [maxStale]  code sources: seconds the last good data stands in after a transient failure (default 3600; 0: never)
+ * @property {number} [timeMs]  code sources: the longest load, in ms (default 30000; the signal is aborted then)
+ */
+
+/**
+ * A source: a file, or a library host's code source (load instead of file; sources/code.js), whose
+ * load gets the caller unless cacheShared is true (then null: one copy of the data for all callers).
+ * version is called at once on every call (never awaited) and must be cheap; kept data is reused
+ * while it gives the same value.
+ * @typedef {SourceOptionsBase & ({ load?: import("./sources/code.js").SourceLoad, version?: import("./sources/code.js").SourceVersion, cacheShared?: false } | { load: import("./sources/code.js").SharedSourceLoad, version?: import("./sources/code.js").SharedSourceVersion, cacheShared: true })} SourceOptions
  */
 
 /**
@@ -66,7 +73,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number, maxConnectionsPerAddress?: number }} [http]
  * @property {AuthOptions} [auth]
  * @property {RestOptions} [rest]
- * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens
+ * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number, data?: false | { rows?: number, cells?: number, bytes?: number } }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens; data: inline data off, or a lower cap
  * @property {"info" | "debug" | "off"} [log]
  * @property {string} [baseDir]  where relative paths start (loadConfig sets the config file's directory; default the working directory)
  */
@@ -83,6 +90,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {boolean} [inline]  csv and json results may come back in the JSON answer (default false)
  * @property {{ perMinute?: number, burst?: number, failedAuthPerMinute?: number }} [rateLimit]  per caller, and per address for refused tokens
  * @property {number} [concurrency]  requests of one caller at once (default 4)
+ * @property {{ maxBytes?: number }} [data]  the largest body of a caller that may send data (default 10 MiB, at most 64 MiB)
  */
 
 /**

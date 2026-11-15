@@ -50,8 +50,8 @@ from the data), then the JSON. A view with errors is not a tool error: `ok` or `
 again in this one form, so no text of a source reaches the model through it; a time that does not
 parse is left out for when the data arrived, one in the future becomes now. `render_view`'s message and
 summary line end with it in words ("Data as of 2026-11-15 08:00 UTC."). A result may also carry
-`stale: { since }` when last good data stands in for a load that failed; no source of this version
-does that yet. The tools are one table shared with the command line
+`stale: { since }` when last good data stands in for a code source's load that failed
+([last good data](sources.md#code-cache)). The tools are one table shared with the command line
 ([`pivotkit-report/operations`](report.md#operations)); the [REST service](rest.md) offers the
 same operations with the same policy to programs.
 
@@ -75,6 +75,39 @@ allowed directories, then opened once without following a link at its end and ch
 open file. A file with a second name (a hard link) is refused unless `files.hardLinks` is true. A
 file that is missing, outside the directories or replaced while it is read gets the same answer,
 `FILE_NOT_AVAILABLE`, so a model cannot probe which files exist elsewhere.
+
+### Data in the request { #data }
+
+`source` may also be **`inline:`**: a small table the model sends itself in `data`, for a table it
+already has (one a user pasted, the result of another tool). The tools that take a source offer
+`data` unless the operator switched it off (`mcp.data: false`):
+
+```json
+{ "source": "inline:", "data": { "name": "Open tickets", "columns": ["Team", "Open"],
+  "rows": [["Blue", 4], ["Red", 7]], "rowCount": 2, "asOf": "2026-11-15T06:00:00Z" },
+  "view": { "rows": ["Team"], "values": [{ "field": "Open", "agg": "sum" }] }, "format": "xlsx" }
+```
+
+- **The model wrote these rows.** They are not the operator's data, and the operator's exposure
+  policy does not apply to them: every field is `show` to the caller who sent them. A report over
+  them is no proof that its content came from the operator's data. The profile's `inline` limits
+  still apply.
+- **The whole table.** `rowCount` is required and must equal the rows sent, else `DATA_MISMATCH`
+  ("you sent 180 rows but rowCount says 200: send the whole table"); every row has one value per
+  column; column names are unique (without case), without control or direction characters.
+- **A fixed cap.** At most 500 rows, 5,000 cells and 256 KiB (the `data` object as JSON); the
+  operator may lower each (`mcp.data`) but never raise it. Over it the answer is `LIMIT_EXCEEDED`
+  with the cap in force ("the limit is 500 rows / 5000 cells / 256 KiB; send fewer, or ask the
+  operator to configure a source for this data"). `list_sources` says it as
+  `"data": { "rows": 500, "cells": 5000, "bytes": 262144 }`. For more data the operator configures a
+  source. A call far over the cap may hit the SDK's limit of 10,000 input elements first, whose
+  error the client gets instead.
+- **Not kept.** The data is never cached and is gone after the call. `create_link` answers
+  `NO_LINK` and `draft_schedule` `NOT_SCHEDULABLE`. `dataAsOf` is when the data arrived; the
+  caller's own `asOf` comes back as `suppliedAsOf`, parsed and written again, as the caller states it.
+- A profile with `data: false` (or `policy.data: false` for callers without a profile) switches it
+  off for those callers (`NOT_ALLOWED`). The same works over stdio. Programs send larger tables and
+  files to the [REST service](rest.md#data).
 
 ## Exposure policy { #policy }
 
@@ -197,6 +230,7 @@ error that names the key and the one probably meant.
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
 | `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`; control and direction characters are removed |
 | `sources.<id>.params` | - | none | A code source's parameters: values a caller passes with the source (see below) |
+| `sources.<id>.timeMs`, `.ttl`, `.maxStale`, `.cacheShared` | - | 30000 ms, none, 3600 s, false | A code source's time limit, reuse, last good data and one copy for all callers ([code sources](sources.md#code-options)) |
 | `files.allowDirs` | `--allow-dir dir` | none | Directories the model may name files in (`file:`) |
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |
 | `files.hardLinks` | - | false | Read files that have a second name |
@@ -209,6 +243,8 @@ error that names the key and the one probably meant.
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
+| `policy.data`, `policy.profiles.<name>.data` | - | MCP: on | `false`: the caller may not send [its own data](#data) (`inline:`); REST needs `true` |
+| `mcp.data` | - | 500 rows, 5000 cells, 262144 bytes | `false` switches [data in the request](#data) off; `{ "rows", "cells", "bytes" }` lowers the cap (a value above the built-in one is an error) |
 | `limits` | - | pivotkit-core's, files 50 MiB | pivotkit-core's [limits](../concepts/limits.md) (`rows`, `fileBytes`, `unpackedBytes`, ...) |
 | `locale`, `timeZone` | - | en-US, UTC | Numbers and dates of reports; the time zone of dates in the data |
 | `compute.workers` | - | 2 | Reports computed at once (worker threads) |
@@ -270,18 +306,21 @@ const server = await listen({ sources: { sales: { file: "/srv/data/sales.csv" } 
 directories and starts the workers; `context.server(ctx)` builds a fresh McpServer for the SDK's
 `serveStdio` or `createMcpHandler`; `await createHttpHandler(context)` gives `{ fetch, close }` with every
 check of this page; `loadConfig(file)` reads a configuration file into options. A library host may
-give a source `load: async () => rows` (rows or columnar data) and `version: () => key` instead of
-`file`; such sources run in the host's thread, not in a worker. The data may say when it is from:
-columnar data with `asOf` (a `Date`, an ISO 8601 text or epoch milliseconds) gives the results'
-`dataAsOf`.
+give a source a function instead of a file, a [code source](sources.md#code):
+`load(params, { caller, signal })` returns rows, `{ rows, asOf }` or columnar data, and
+`version(params, { caller })` says when the data changed. `caller` is a frozen copy of who calls
+(`client`, `profile`, `scopes`, `groups`, and with OAuth `subject` and `issuer`, else null; never a
+token); `signal` is aborted after the source's `timeMs` (30 s by default). Such sources run in the
+host's thread, not in a worker. pivotkit keeps their data per caller (with its client, scopes, groups
+and claims), values and policy levels, unless `cacheShared: true` makes one copy for all callers
+(`caller` is then null); a caller without an identity (an OAuth token without a usable subject) gets
+no kept data. Calls that need the same data while it loads share one load; after a transient failure
+the last good data stands in for up to `maxStale` seconds (3600 by default), with `stale` in the
+result. A `SourceError` (exported by pivotkit-server) says what went wrong in words a caller may read;
+anything else a load throws is `SOURCE_UNAVAILABLE` with a fixed text ([errors](sources.md#code-errors)).
 
 A code source may declare **parameters**: values a caller passes as `params` with the source's id,
-checked and written again by pivotkit before `load` sees them. With `params` declared, pivotkit calls
-`load(params, { caller })` and `version(params, { caller })`, where `caller` is a frozen copy of who
-calls (`client`, `profile`, `scopes`, `groups`, and with OAuth `subject` and `issuer`, else null;
-never a token), and keeps the data
-per caller (with its client, scopes, groups and claims) and values; a caller without an identity (an OAuth token without a usable subject) gets
-no kept data. A source without `params` is called as `load()` and `version()`.
+checked and written again by pivotkit before `load` sees them (a source without `params` gets `{}`).
 
 ```js
 sources: {
@@ -331,19 +370,23 @@ request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BU
 | `FILES_NOT_ALLOWED` | `file:` without allowed directories, or without the scopes for files |
 | `FILE_NOT_AVAILABLE` | A file missing, outside the allowed directories, or changed while read |
 | `NOT_REGULAR_FILE`, `HARD_LINK`, `UNSUPPORTED_FORMAT`, `INVALID_FILE` | The file is a directory or special file, has a second name, is no data format, or cannot be read |
-| `LIMIT_EXCEEDED` | A file, a view or the work over a limit; the worker's memory |
-| `NOT_ALLOWED` | A tool the caller's token has no scope for |
+| `LIMIT_EXCEEDED` | A file, a view, the [data sent](#data) or the work over a limit; the worker's memory |
+| `NOT_ALLOWED` | A tool the caller's token has no scope for; [data sent](#data) where it is switched off; a code source that refuses the caller (its `SourceError`) |
+| `DATA_MISMATCH` | [Data sent](#data) whose `rowCount` differs from the rows sent |
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
-| `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a `file:` source |
+| `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source or data sent in the request |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
-| `DATA_MISMATCH`, `DATA_NOT_AVAILABLE`, `SOURCE_UNAVAILABLE`, `UPLOAD_FAILED` | Reserved for sources and delivery that load data or store reports elsewhere; this version does not answer them |
+| `SOURCE_UNAVAILABLE` | A code source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors)); the text is fixed, with whether trying again may work |
+| `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`) |
+| `UPLOAD_FAILED` | Reserved for delivery that stores reports elsewhere; this version does not answer it |
 | `INTERNAL` | Anything else: "internal error", the details only in the log with `--log debug` |
 
 ## Logging { #logging }
 
 One JSON line per event on stderr (on stdio, stdout is the protocol): `started` (version, transport,
 address, auth mode, the number of sources, whether files and an output directory are on), `call`
-(tool, source id or the base name of a file, client, `requestId`, `ok`, error code, time in ms),
+(tool, source id or the base name of a file, client, `requestId`, `ok`, error code, time in ms; for
+`inline:` data the number of rows and columns),
 `download` (a [download link](delivery.md) opened: `via: "link"`, its binding, whether it worked and
 the code, never the token), `refused` (an HTTP request refused by the Host, Origin or token check, with its status) and
 `warning`. `requestId` is random (11 characters), the same on every line of one call and at the end of

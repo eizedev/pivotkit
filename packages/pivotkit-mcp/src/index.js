@@ -10,7 +10,7 @@
  *   // HTTP:  const handler = await createHttpHandler(context); handler.fetch(request)
  */
 
-export { createMcpContext, callerOf, INSTRUCTIONS, SKILLS_DIR, VERSION } from "./context.js";
+export { createMcpContext, callerOf, INSTRUCTIONS, SKILLS_DIR, VERSION, instructionsOf } from "./context.js";
 export { createHttpHandler, listen } from "./http.js";
 export { run } from "./runner.js";
 export { ConfigError, loadConfig, validateOptions, OPTION_KEYS, SERVER_LIMITS, COMPUTE_DEFAULTS, DEFAULT_ALGORITHMS, POLICY_LEVELS, POLICY_DEFAULTS } from "pivotkit-server";

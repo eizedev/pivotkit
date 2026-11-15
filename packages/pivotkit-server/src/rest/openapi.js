@@ -14,6 +14,7 @@ import { REST_BASE } from "../config.js";
 import { VERSION } from "../context.js";
 import { presentedInput, presentedOutput } from "../present.js";
 import { PROBLEM_CODES } from "./problem.js";
+import { multipartInputSchema } from "./multipart.js";
 import { REST_ROUTES } from "./routes.js";
 
 const require = createRequire(import.meta.url);
@@ -25,8 +26,8 @@ const PROBLEMS = Object.freeze({
     403: "Not allowed: a scope missing, files by path, a host or origin refused.",
     404: "No such source or route.",
     409: "The server cannot do this: no output directory, no link page, not schedulable.",
-    413: "A limit: the body, the file or the result is too large.",
-    415: "The body is not JSON, or the file's format is not read.",
+    413: "A limit: the body, the file, the data sent or the result is too large.",
+    415: "The body is not JSON (or multipart/form-data with data, where allowed), or the file's format is not read.",
     422: "The file cannot be read, or (file route) the view has errors.",
     429: "Too many requests: wait as Retry-After says.",
     503: "Busy or not ready: try again as Retry-After says.",
@@ -70,14 +71,30 @@ const VIEW_INPUT = {
     anyOf: [{ $ref: "#/components/schemas/View" }, { type: "object", description: "A view file (format pivotkit-view)." }, { type: "string", description: "A view or a view file as JSON text." }]
 };
 
-/** An operation's input schema with the view referenced. */
-function inputSchema(name, offers) {
-    const schema = structuredClone(presentedInput(name, { files: false, offers }));
-    if (schema.properties?.view) {
-        schema.properties.view = VIEW_INPUT;
+/** An input schema with the view referenced. */
+function withViewRef(schema) {
+    const out = structuredClone(schema);
+    if (out.properties?.view) {
+        out.properties.view = VIEW_INPUT;
     }
-    return schema;
+    return out;
 }
+
+/** An operation's input schema with the view referenced. */
+const inputSchema = (name, offers) => withViewRef(presentedInput(name, { files: false, offers }));
+
+/** The multipart body of an operation that takes a source, where data may be sent: the file and the input. */
+const multipartBody = (name, offers) => ({
+    schema: {
+        type: "object",
+        required: ["data"],
+        properties: {
+            data: { type: "string", contentMediaType: "application/octet-stream", description: "The file: csv, tsv, json or xlsx (by the file name's extension, else the part's content type)." },
+            input: { ...withViewRef(multipartInputSchema(name, offers)), description: 'The operation\'s input as JSON: source may be left out (it is "inline:"); data holds only name, asOf, sheet and sha256.' }
+        }
+    },
+    encoding: { input: { contentType: "application/json" } }
+});
 
 /**
  * @typedef {object} OpenApiOptions
@@ -158,7 +175,18 @@ export function openApiDocument(options = {}) {
             ...(schemeName ? { security: security(route) } : {}),
             ...(auth.toolScopes?.[route.operation]?.length ? { "x-pivotkit-scopes": auth.toolScopes[route.operation] } : {}),
             ...(route.path.includes("{id}") ? { parameters: [{ name: "id", in: "path", required: true, description: "A source id from GET /sources.", schema: { type: "string", minLength: 1, maxLength: 1024 } }] } : {}),
-            ...(route.method === "POST" ? { requestBody: { required: true, content: { "application/json": { schema: { $ref: `#/components/schemas/${pascal(route.operation)}Input` }, example: route.example.input } } } } : {}),
+            ...(route.method === "POST"
+                ? {
+                      requestBody: {
+                          required: true,
+                          content: {
+                              "application/json": { schema: { $ref: `#/components/schemas/${pascal(route.operation)}Input` }, example: route.example.input },
+                              // data as a file, for callers whose profile has data: true
+                              ...(options.offers?.data && /** @type {any} */ (op.input).properties?.source ? { "multipart/form-data": multipartBody(route.operation, options.offers) } : {})
+                          }
+                      }
+                  }
+                : {}),
             responses: {
                 200: route.answer === "file" ? { description: `The file (${Object.keys(RENDER_FORMATS).join(", ")}), as an attachment.`, headers: { "Content-Disposition": { schema: { type: "string" } } }, content: okContent } : { description: op.title, content: okContent },
                 ...Object.fromEntries(errors.map((s) => [s, { $ref: `#/components/responses/Problem${s}` }]))
