@@ -519,7 +519,8 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 | Key | Default | What it is |
 | --- | --- | --- |
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
-| `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log |
+| `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits, and log it as `clientAddress` |
+| `log.level`, `log.format`, `log.address` | info, auto, on | The log's level, its format (text on a terminal, JSON otherwise) and whether lines name the client's address; flags `--log`, `--log-format`, `--log-address`, variables `PIVOTKIT_LOG_LEVEL`, `PIVOTKIT_LOG_FORMAT`, `PIVOTKIT_LOG_ADDRESS` ([operations](operations.md#settings)) |
 | `http.maxConnectionsPerAddress` | 0 (no bound) | Connections one address may hold (loopback excepted); set it (e.g. 32) when clients reach the port directly with addresses of their own, not behind NAT, a published port or a proxy, where every client has one address |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
 | `output.create` | true | Make a missing `output.dir` at start (with its parents, mode 0700, or 0755 narrowed by the umask when `output.baseUrl` is set; a warning in the log); `false` makes it an error, as a missing directory was before. A relative `output.dir` without a configuration file is relative to the working directory. `check-config` says whether the directory exists, will be made, or cannot be, and why (a parent the server's user may not write, a name too long, a symbolic link loop) |
@@ -557,17 +558,22 @@ and hard links on Windows).
 
 ## Logging { #logging }
 
-One JSON line per event on stderr, as the [MCP server's](mcp.md#logging): `started` (version,
-address, what it serves, auth mode), `request` (operation, route, client, `requestId`, source id,
-status, error code, time in ms; for `inline:` data the number of rows and columns, or a file's
-format and bytes), `download` (operation, client, `requestId`, source, format, bytes;
-for a [download link](delivery.md) `via: "link"`, its binding, whether it worked and the code, never the token),
-`refused` (a request refused by the Host, Origin or token check, or a body over the cap, with its
-`requestId`) and `warning`. `requestId` is random (11 characters) and the same on every line of one
-request and in its error answer. The
-client is the static token's name or the OAuth client id; the person is on `request` and `download`
-lines only with `audit.subject` ([audit](mcp.md#logging)), and their groups and other claims never;
-no line holds a view, a value, a token, a path or, unless `http.trustProxy` is set, a client address.
+One line per event on stderr, as the [MCP server's](mcp.md#logging): JSON, or text on a terminal
+(`log.format`). Every line has `time`, `level`, `severity`, `event`, `msg`, `service` and `version`;
+[Operations and logs](operations.md) lists every field, the levels and how to ship the log.
+`started` (version, address, what it serves, auth mode, the source ids, the log's settings, the
+static tokens' names), `request` (operation, route, client, `requestId`, `traceId`, the client's
+`address`, source id, `status`, `outcome`, error code, time in ms; for `inline:` data the number of
+rows and columns, or a file's format and bytes), `download` (operation, client, `requestId`, source,
+format, bytes; for a [download link](delivery.md) `via: "link"`, its binding, whether it worked and
+the code, never the token), `refused` (a request refused by the Host, Origin or token check, a limit
+or a body over the cap, with its `requestId` and `reason`), `warning` and, after a stop, `stopped`.
+A request line is `info` when it worked, `warn` for 4xx and `error` for 5xx. `requestId` is random
+(11 characters), the same on every line of one request, in its error answer and in the
+`X-Request-Id` header of every answer. The client is the static token's name or the OAuth client
+id; the person is on `request` and `download` lines only with `audit.subject` ([audit](mcp.md#logging)),
+and their groups and other claims never; no line holds a view, a value, a token or a path.
+`log.address: "off"` leaves the client's address out.
 
 ## In your own server { #embed }
 

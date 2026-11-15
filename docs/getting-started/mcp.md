@@ -256,8 +256,8 @@ nssm set pivotkit AppRotateBytes 10485760
 nssm start pivotkit
 ```
 
-The server writes one JSON line per event on stderr ([logging](../reference/rest.md#logging)): no
-view, value, token or path. NSSM restarts the process when it ends, and with `AppRotateFiles` and
+The server writes one line per event on stderr, as JSON since the service's stderr is no terminal
+([operations and logs](../reference/operations.md)): no view, value, token or path. NSSM restarts the process when it ends, and with `AppRotateFiles` and
 `AppRotateOnline` renames the log once it is larger than `AppRotateBytes` (10 MiB here), also while
 the service runs.
 

@@ -249,8 +249,11 @@ root `package.json`: `npm run types` and the builds depend on it.
   `scopes_supported` of MCP and REST: the required scopes, and the sources' with
   `auth.offerSourceScopes: true`, never a `scopeProfiles` scope, while the 401 challenge names the
   required ones only; `listHint`, the hint of an empty list_sources), `src/request-id.js`
-  (a request's id: `newRequestId`, `withRequestId` (each REST request and MCP tool call runs in one;
-  its log lines carry the id), `requestId`, `errorDetails` for an `OperationError`'s `details`, which
+  (a request's id and scope: `newRequestId`, `withRequestId` (each REST request and MCP tool call runs in one;
+  its log lines carry the id), `requestScopeFor` (made once per request at the HTTP edge, serveFetch
+  and each front end's handler: the id, a `traceId` from a strictly parsed `traceparent`, a checked
+  incoming `X-Request-Id`, the addresses), `withRequestScope`, `withRequestIdHeader` (every answer's
+  `X-Request-Id`), `requestId`, `errorDetails` for an `OperationError`'s `details`, which
   `rest/problem.js problemOf` and MCP's error text show; `serverTextOf`, the fixed 5xx texts both
   use; `inlineLogFields` of `sources/inline.js` too). pivotkit-mcp imports these from pivotkit-server, so pivotkit-server is released first and
   pivotkit-mcp's range raised in the release PR), `src/auth.js` (`createAuthCore`: static tokens, the
@@ -271,9 +274,12 @@ root `package.json`: `npm run types` and the builds depend on it.
   of both runners, then `src/check/`: one section per feature with its lines, problems and the
   "New in this version" lines, `runSections`), `src/limits.js` (`createLimits`: rate and concurrency
   limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`, `rest.data.maxBytes` for a signed-in REST caller that may send data), `src/log.js`
-  (`callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
+  (`createLog`: one line per event as JSON or logfmt text (`log.format`, auto by the stream's TTY),
+  `level`, `severity`, `msg`, `service`, `version` and the request scope on every line, the level of
+  call/request/download/refused lines by status, `started`/`stopped` at every level; `refusalReason`,
+  `startFields`, `startErrorLine`, `flushed`; `callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
-  auth.js), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
+  auth.js; `options/log.js` and `check/log.js` are its options and check-config section), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency; one of another release that imports what this pivotkit-server lacks is refused with both versions), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source,
   source-from-openapi, mcp, cli, healthcheck), `src/check-source.js` (`check-source`: one load of an

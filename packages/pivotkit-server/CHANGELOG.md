@@ -8,6 +8,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Upgrading from 0.1.1
 
+- The log ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#log)): on a terminal it
+  is text unless `log.format` is `json` (stderr that is no terminal, and the container image, stay
+  JSON). JSON lines only gain fields. The client's address is logged by default as `address`, the
+  socket's peer; with `http.trustProxy` the forwarded client, which `address` held before, is now
+  `clientAddress`. `log.address: "off"` keeps both out.
+
 - Behaviour change: `output.maxAgeDays` is 30 by default, so reports and schedule drafts older than
   30 days are deleted from `output.dir` at start and every hour, including drafts still waiting for
   approval. `output.maxAgeDays: 0` keeps them
@@ -50,6 +56,29 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   more (REST and MCP); the file is still written.
 
 ### Added
+
+- Operations log ([operations](https://pivotkit.eize.dev/reference/operations/)): `log.level`
+  (`debug`, `info`, `warn`, `error`, `off`), `log.format` (`auto`, `text`, `json`) and `log.address`
+  (`on`, `off`), each a key, a flag (`--log`, `--log-format`, `--log-address`) and a variable
+  (`PIVOTKIT_LOG_LEVEL`, `PIVOTKIT_LOG_FORMAT`, `PIVOTKIT_LOG_ADDRESS`); `"log": "debug"` stays the
+  short form. Every line has `level`, `severity` (RFC 5424), `msg`, `service` and `version`; a
+  request's lines its `traceId` (from a valid W3C `traceparent`, else new), `upstreamRequestId` (a
+  checked incoming `X-Request-Id`) and the client's address; `call`, `request`, `download` and
+  `refused` lines `outcome` and `status`, at `info`, `warn` (4xx) or `error` (5xx); `refused` lines a
+  `reason` (with `limit` and `size` for a body over the cap), also for the per-caller 429s and
+  `/openapi.json`; backend warnings `cause`, `backend`, `upstreamStatus` and `upstreamMs`; `started`
+  the source ids, the log's settings and the static tokens' names; a `stopped` line ends the log.
+  The text format is logfmt, one line per event whatever a value holds, coloured only on a terminal
+  without `NO_COLOR`. `source` is at most 64 characters on every line.
+- Every answer carries `X-Request-Id`, the request's id (exposed to browsers by CORS).
+- A configuration error at the start of `serve` is a JSON line when `--log-format json` or
+  `PIVOTKIT_LOG_FORMAT=json` is set.
+- The container image sets `PIVOTKIT_LOG_FORMAT=json`; `docker/compose.example.yml` bounds the log
+  with the `local` driver and shows the `gelf` and `syslog` drivers.
+- For hosts: `requestScopeFor`, `withRequestScope`, `requestScope`, `withRequestIdHeader`,
+  `traceIdOf`, `upstreamRequestIdOf`, `refusalReason`, `startFields`, `startErrorLine`,
+  `startFormatOf`, `flushed`, `logSettingsOf` and the log's constants; `serveFetch` takes
+  `trustProxy`; a context's runtime takes `service` and `env`.
 
 - `sourceCache.maxMb` (default 256): the loaded data of code and HTTP sources the process keeps.
   The largest table that can be kept is a quarter of it (64 MiB by default); a larger table loads

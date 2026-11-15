@@ -269,7 +269,9 @@ error that names the key and the one probably meant.
 | `mcp.rateLimit.failedAuthPerMinute` | - | 30 | HTTP: refused tokens per address and minute; beyond, a wrong token from that address gets 429 instead of 401 (a right one still works) |
 | `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once (an answer that streams holds its place until it ends) |
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
-| `log` | `--log level` | info | `info`, `debug` or `off` |
+| `log.level` | `--log level` | info | `debug`, `info`, `warn`, `error` or `off`; `"log": "debug"` is short for the level; `$PIVOTKIT_LOG_LEVEL` ([operations](operations.md#settings)) |
+| `log.format` | `--log-format format` | auto | `auto` (text on a terminal, JSON otherwise), `text` or `json`; `$PIVOTKIT_LOG_FORMAT` |
+| `log.address` | `--log-address on\|off` | on | The client's address on a request's lines (HTTP); `$PIVOTKIT_LOG_ADDRESS` |
 | `audit.subject` | - | off | `hash` or `plain`: the person (`auth.subjectClaim` of an OAuth token) on the `call`, `request` and `download` [log lines](#logging) |
 | `audit.key` | - | a random key per start | `hash`: the key (at least 16 characters), `{ "env": "NAME" }` or `{ "file": "path" }`, read at start with OAuth only |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
@@ -402,20 +404,27 @@ request id inside it, so no two stand in a row. `BUSY`, `NOT_READY` and
 
 ## Logging { #logging }
 
-One JSON line per event on stderr (on stdio, stdout is the protocol): `started` (version, transport,
-address, auth mode, the number of sources, whether files and an output directory are on), `call`
-(tool, the source: a configured id, `inline:`, `file:` for any file by path or `unknown` for any
-other text, never the text the model sent; client, `requestId`, `ok`, error code, time in ms; for
-`inline:` data the number of rows and columns),
+One line per event on stderr (on stdio, stdout is the protocol): JSON, or text on a terminal
+(`log.format`). Every line has `time`, `level`, `severity`, `event`, `msg`, `service` and `version`;
+[Operations and logs](operations.md) lists every field, the levels, the request and trace ids and
+how to ship the log. `started` (version, transport, address, auth mode, the number of sources and
+their ids, whether files and an output directory are on, the log's settings, the static tokens'
+names), `call` (tool, the source: a configured id, `inline:`, `file:` for any file by path or
+`unknown` for any other text, never the text the model sent; client, `requestId`, `traceId`, `ok`,
+`status` and `outcome`, error code, time in ms; for `inline:` data the number of rows and columns),
 `download` (a [download link](delivery.md) opened: `via: "link"`, its binding, whether it worked and
-the code, never the token), `refused` (an HTTP request refused by the Host, Origin or token check, with its status) and
-`warning` (a request the protocol layer refuses is one: its error's class and the SDK's name for the
-refusal, the message itself, which can quote the request's body, only with `--log debug`).
-`requestId` is random (11 characters), the same on every line of one call and at the end of
-its error. The client
-is the static token's name or the OAuth token's client id. A line holds the person only where you
-ask for it with `audit.subject`, as `subject`, and never their groups or other claims. No line holds
-a view, a value, a token or a full path. The log is the supervisor's to keep and rotate.
+the code, never the token), `refused` (an HTTP request refused by the Host, Origin or token check, a
+limit or a body over the cap, with its status and `reason`), `warning` (a request the protocol layer
+refuses is one: its error's class and the SDK's name for the refusal, the message itself, which can
+quote the request's body, only with `--log debug`) and, after an HTTP server stops, `stopped`. A
+call line is `info` when it worked, `warn` for an error a REST caller would get as 4xx and `error`
+for 5xx. `requestId` is random (11 characters), the same on every line of one call, at the end of its
+error and, over HTTP, in the answer's `X-Request-Id` header. Over HTTP a request's lines name the
+client's `address` (the socket's peer; with `http.trustProxy` also `clientAddress`) unless
+`log.address` is `off`. The client is the static token's name or the OAuth token's client id. A line
+holds the person only where you ask for it with `audit.subject`, as `subject`, and never their groups
+or other claims. No line holds a view, a value, a token or a full path. The log is the supervisor's
+to keep and rotate.
 
 `audit.subject` names the person of an OAuth token (its `auth.subjectClaim`) on `call`, `request`
 and `download` lines; a refused request never names one, and a static token's caller is named by the

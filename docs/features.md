@@ -179,6 +179,9 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - One container image for the REST service, the MCP server and the command line: distroless Node 22,
   non-root, read-only, health checks, signed with provenance and an SBOM
   ([container image](reference/container.md), [Kubernetes](getting-started/kubernetes.md)).
+- A log for operations: JSON lines (text on a terminal) with level, severity, request and trace ids,
+  the client's address, outcome and a refused request's reason; `X-Request-Id` on every answer, and
+  examples for Docker's `gelf` and `syslog` drivers ([operations and logs](reference/operations.md)).
 
 ## AI clients (MCP) { #mcp }
 

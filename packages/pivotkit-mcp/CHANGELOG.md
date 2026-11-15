@@ -8,6 +8,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Upgrading from 0.1.1
 
+- The log ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#log)): on a terminal it
+  is text unless `log.format` is `json`; JSON lines only gain fields; over HTTP the client's address
+  is logged by default (`log.address: "off"` keeps it out).
+
 - Behaviour change: pivotkit-server's `output.maxAgeDays` is 30 by default, so reports and schedule
   drafts older than 30 days are deleted from `output.dir` at start and every hour, including drafts
   still waiting for approval; set
@@ -19,6 +23,15 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   source with a field that is not `show` carry no `url` any more.
 
 ### Added
+
+- The log settings of pivotkit-server ([operations](https://pivotkit.eize.dev/reference/operations/)):
+  `--log-format`, `--log-address` and `--log warn|error`, with their keys and variables. A `call`
+  line has `status` and `outcome` and its level follows the status; over HTTP a call's id is its
+  request's, so the answer's `X-Request-Id`, the `call` line and the error's "(request id ...)" name
+  one id, and the call line carries the request's `traceId`. `refused` lines give a `reason`, also
+  for the per-caller 429s and a body over the cap. The HTTP server ends with a `stopped` line; a
+  configuration error at start is a JSON line with `--log-format json` or `PIVOTKIT_LOG_FORMAT=json`.
+  Lines name `service` `pivotkit-mcp` when it runs on its own.
 
 - Reports can go to the operator's store (pivotkit-server's `output.upload`,
   [#332](https://github.com/eizedev/pivotkit/issues/332)): render_view then carries the store's link

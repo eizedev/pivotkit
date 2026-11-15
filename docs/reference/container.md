@@ -67,6 +67,11 @@ and [docker/pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/main
 are an example for Docker Compose with these settings: two tokens as secrets, one with a profile that
 may download files.
 
+The image sets `PIVOTKIT_LOG_FORMAT=json`: the log is JSON lines on stderr, also under `docker run -t`
+(a configuration's `log.format` still wins). Each answer carries `X-Request-Id`, the id on its log
+lines. [Operations and logs](operations.md) lists the fields and shows the `gelf` and `syslog` log
+drivers; the Compose example keeps the log with the `local` driver, bounded in size.
+
 ## Commands { #commands }
 
 The image's entry point is `pivotkit-server`; the command after the image name is its subcommand:

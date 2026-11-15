@@ -318,3 +318,46 @@ test("a context names its program and version on every line", async () => {
         await context.close();
     }
 });
+
+test("redaction with OAuth: no token, claim, group or subject on any line, in JSON and in text, a refused token included", async () => {
+    const { SignJWT, exportJWK, generateKeyPair } = await import("jose");
+    const { createServer } = await import("node:http");
+    const key = await generateKeyPair("RS256");
+    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
+    let issuer = "";
+    const issuerServer = createServer((req, res) => {
+        res.writeHead(req.url === "/.well-known/openid-configuration" || req.url === "/jwks" ? 200 : 404, { "content-type": "application/json" });
+        res.end(req.url === "/jwks" ? JSON.stringify({ keys: [jwk] }) : JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"], id_token_signing_alg_values_supported: ["RS256"] }));
+    });
+    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
+    issuer = `http://127.0.0.1:${/** @type {any} */ (issuerServer.address()).port}`;
+    const CLAIMS = { email: "ana.secret@example.com", groups: ["grp-finance-secret"], team: "team-secret-blue" };
+    const tokenOf = (aud, signWith = key.privateKey) => new SignJWT({ scope: "pivotkit", client_id: "report-bot", ...CLAIMS }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(aud).setSubject("subject-secret-4711").setIssuedAt().setExpirationTime("5m").sign(signWith);
+    try {
+        for (const format of ["json", "text"]) {
+            const dir = workspace();
+            const { server, text, api } = await rawServer({ sources: { sales: { file: "data/sales.csv", policy: { fields: { Region: "show" } } } }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], groupsClaim: "groups", groupProfiles: [{ group: "grp-finance-secret", profile: "fin" }] }, policy: { profiles: { fin: { default: "summary" } } }, http: { publicUrl: "https://pk.example.com/" }, log: { format }, baseDir: dir });
+            try {
+                for (let i = 0; i < 50 && (await call(`${server.url}/readyz`)).status !== 200; i++) {
+                    await new Promise((r) => setTimeout(r, 50));
+                }
+                const good = await tokenOf("https://pk.example.com/api/v1");
+                const wrongAudience = await tokenOf("https://elsewhere.example.com/");
+                const forged = await tokenOf("https://pk.example.com/api/v1", (await generateKeyPair("RS256")).privateKey);
+                assert.equal((await call(`${api}/sources`, { token: good })).status, 200);
+                await call(`${api}/sources`, { token: wrongAudience });
+                await call(`${api}/sources`, { token: forged });
+                const all = text.join("");
+                assert.ok(all.includes("report-bot"), "the client is named");
+                for (const secret of [good, wrongAudience, forged, good.split(".")[1], ...Object.values(CLAIMS).flat(), "subject-secret-4711"]) {
+                    assert.ok(!all.includes(secret), `${format}: ${String(secret).slice(0, 12)}... is not logged`);
+                }
+                assert.equal((all.match(/bad_token/g) ?? []).length >= 2, true);
+            } finally {
+                await server.close();
+            }
+        }
+    } finally {
+        await new Promise((resolve) => issuerServer.close(resolve));
+    }
+});

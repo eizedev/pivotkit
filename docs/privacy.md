@@ -163,8 +163,7 @@ The server keeps in its memory, never on disk:
   random key per process), so a memory dump does not show them in clear text, while the data
   itself is there;
 - the limiter's state (`rest.rateLimit`, `mcp.rateLimit`): per address that sent a refused token, the
-  times of its refused tokens of the last minute (the limit on trying tokens; the address is not
-  logged unless `http.trustProxy` is set); per client (a static token's name, an OAuth client id, or
+  times of its refused tokens of the last minute (the limit on trying tokens); per client (a static token's name, an OAuth client id, or
   `local`) a rate bucket, its fill and when it was last used, and the number of its requests running.
   Once a minute the server drops an address whose refused tokens are all older than a minute and a
   client whose bucket is full again, so an address is kept at most about two minutes after its last
@@ -185,9 +184,15 @@ pivotkit writes one line per event to stderr and keeps no log file; retention an
 of your container runtime or journal.
 
 A line holds the operation, the source, the client (a token's name or an OAuth client id), a random
-request id (it names nothing; it lets you find the line a person quotes from an error), the status
-and the time; at the default level never a view, a value or a token, and no client address unless
-`http.trustProxy` is set. A source is named by its configured id, `inline:` or `file:`, and anything
+request id (it names nothing; it lets you find the line a person quotes from an error), a trace id,
+the status and the time; at the default level never a view, a value or a token.
+
+A request's lines hold the client's IP address (`log.address`, on by default): `address`, the
+address the connection came from (behind a reverse proxy, the proxy's), and with `http.trustProxy`
+`clientAddress`, the address the proxy names. An IP address can identify a person, so it is personal
+data; it is there to tell an attack or a misbehaving script from a person, and to find a request a
+person reports. Keep the log no longer than that needs, or set `log.address` to `off` (flag
+`--log-address off`) when the proxy's own log covers it. A source is named by its configured id, `inline:` or `file:`, and anything
 else a caller typed as `unknown`. The client of a static token is the token's name: name tokens
 after systems or roles, not after people, or the log names a person without `audit.subject`.
 `--log debug` is for setting a server up: its lines can hold more, an error's own message (which may

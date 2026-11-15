@@ -175,8 +175,11 @@ reach `maxPages` and still name a next page answers `LIMIT_EXCEEDED`.
 
 The texts are pivotkit's, the same on REST and MCP; MCP adds the source's id and whether trying
 again may work, and every error names the request id. A backend's body never reaches a caller or the
-log. The log has the status, the address template and the source's id; with `log: "debug"` also each
-request's path with every value written as `{name}`, and why a request failed.
+log. The log has the status, the address template and the source's id, and a warning with the
+failure's `cause` (`timeout`, `connection`, `tls`, `dns`, `blocked_address`, `http_status`,
+`bad_body`, `setup`), the backend's name, its status and the time it took
+([operations](operations.md#lines)); with `log: "debug"` also each request's path with every value
+written as `{name}`, and why a request failed.
 
 ### The network { #http-network }
 

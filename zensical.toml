@@ -66,6 +66,7 @@ nav = [
     { "Data sources" = "reference/sources.md" },
     { "Download links" = "reference/delivery.md" },
     { "Container image" = "reference/container.md" },
+    { "Operations and logs" = "reference/operations.md" },
     { "Kubernetes" = "getting-started/kubernetes.md" },
   ] },
   { "Reference" = [
