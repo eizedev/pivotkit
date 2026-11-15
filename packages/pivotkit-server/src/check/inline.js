@@ -33,6 +33,9 @@ export async function section(options, _registry, runtime) {
         }
     }
     // REST: only where the server's policy or a profile says true
+    if (runtime.rest && !restOn) {
+        items.push(plain("REST: off (no policy or profile has data: true)"));
+    }
     if (runtime.rest !== false && restOn) {
         const who = options.policy?.data === true ? `every caller${off.length ? ` but profiles ${off.join(", ")}` : ""}` : `profiles ${on.join(", ")}`;
         items.push(plain(`REST: for ${who}, up to ${bytesText(restDataBytesOf(options))}${options.rest?.data?.maxBytes !== undefined ? " (rest.data.maxBytes)" : ""}`));
@@ -49,6 +52,6 @@ export async function section(options, _registry, runtime) {
     if (items.length) {
         items.unshift(heading("Data in the request (inline:):"));
     }
-    const upgrade = cap && runtime.mcp !== false ? ["data in the request (inline:)"] : [];
+    const upgrade = cap && runtime.mcp !== false ? ["data in the request (inline:; mcp.data: false switches it off)"] : [];
     return { items, upgrade };
 }

@@ -5,7 +5,8 @@
  * reports stay.
  *
  *   Output: reports
- *     at /srv/pivotkit/reports (will be created at start)
+ *     /srv/pivotkit/reports
+ *     will be created at start
  *     when full, the oldest reports are deleted to make room; drafts are kept
  *     reports and drafts older than 30 days are deleted
  *
@@ -35,9 +36,11 @@ export async function section(options, registry) {
     const dangling = Boolean(!info && !entry.code && (await entryOf(dir, lstat)).info);
     const notMade = !info ? (entry.code ?? (dangling ? "dangling" : out.create === false ? "off" : await cannotCreate(dir))) : null;
     const stop = { stops: /** @type {const} */ (true) };
+    // the full path on a line of its own (never cut), where it says more than output.dir
     if (dir !== out.dir) {
-        items.push(plain(`at ${dir}${!info && !notMade ? " (will be created at start)" : ""}`));
-    } else if (!info && !notMade) {
+        items.push(plain(dir));
+    }
+    if (!info && !notMade) {
         items.push(plain("will be created at start"));
     }
     if (info && !found) {
@@ -66,9 +69,7 @@ export async function section(options, registry) {
     const real = await realpath(dir).catch(() => dir);
     const shared = (await ownFileDirs(options)).includes(real);
     const maxFiles = out.maxFiles ?? OUTPUT_DEFAULTS.maxFiles;
-    if (out.maxFiles !== undefined || out.maxMb !== undefined) {
-        items.push(plain(`at most ${maxFiles} files of pivotkit's (${draftCap(maxFiles)} of them schedule drafts) and ${out.maxMb ?? OUTPUT_DEFAULTS.maxMb} MB`));
-    }
+    items.push(plain(`at most ${maxFiles} files of pivotkit's (${draftCap(maxFiles)} of them schedule drafts) and ${out.maxMb ?? OUTPUT_DEFAULTS.maxMb} MB`));
     if (shared) {
         items.push(plain("it holds the configuration or a source, template or token file: nothing there is deleted, and a full directory refuses new reports"));
         items.push(plain("no age limit: the directory holds other files"));

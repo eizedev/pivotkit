@@ -213,8 +213,8 @@ test("check-config warns of a policy rule that matches no column and prints the 
     assert.equal(res.status, 0, res.stdout);
     const said = factsOf(res.stdout);
     assert.match(said, /\n {4}policy: summary by default; Product show, Margin hide, Region show, Customr hide\n/);
-    assert.match(said, /WARNING: sources\.sales\.policy\.fields\.Customr: no column of sales\.csv has this name; did you mean "Customer"\?/);
-    assert.match(said, /WARNING: policy\.fields\.Margin: no column of any source has this name/);
+    assert.match(said, /WARNING \(Sources\): sources\.sales\.policy\.fields\.Customr: no column of sales\.csv has this name; did you mean "Customer"\?/);
+    assert.match(said, /WARNING \(Sources\): policy\.fields\.Margin: no column of any source has this name/);
     assert.match(said, /\nProfile export:\n {2}policy: as each source by default; Customer show\n {2}sales: [^\n]*Customer show/);
     assert.ok(!/warning: .*PRODUCT|warning: .*region/i.test(said), "a rule that matches by another case is no warning");
 });
@@ -311,7 +311,7 @@ test("check-config says whether the output directory exists, will be created, or
     };
     const created = check({ dir: "later/out" });
     assert.equal(created.status, 0, created.stdout);
-    assert.match(factsOf(created.stdout), /\nOutput: later\/out\n {2}at \S+\/later\/out \(will be created at start\)\n/);
+    assert.match(factsOf(created.stdout), /\nOutput: later\/out\n {2}\S+\/later\/out\n {2}will be created at start\n/);
     const off = check({ dir: "later/out", create: false });
     assert.equal(off.status, 1, off.stdout);
     assert.match(factsOf(off.stdout), /PROBLEM: output\.dir: not found \(create it first, or leave output\.create on\) -> the server does not start/);

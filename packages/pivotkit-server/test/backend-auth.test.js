@@ -726,7 +726,7 @@ test("check-config: how each backend authentication is made and where its secret
     const text = factsOf(result.text);
     assert.match(text, /\n {4}backend authentication: client credentials as pivotkit-backend at https:\/\/auth\.example\.test:\d+\/token, scope platform:read \(httpSources\.backends\.platform\.auth\)\n {6}client secret from the file \S+\n/);
     assert.ok(text.includes(`client secret from the file ${readable}`), result.text);
-    assert.match(text, /WARNING: httpSources\.backends\.platform\.auth\.clientCredentials\.clientSecret \(.*\) can be read by other users of this machine \(mode 644\)/);
+    assert.match(text, /WARNING \(HTTP sources\): httpSources\.backends\.platform\.auth\.clientCredentials\.clientSecret \(.*\) can be read by other users of this machine \(mode 644\)/);
     // a backend's secrets are checked once, for all its sources
     assert.equal(text.match(/can be read by other users/g)?.length, 1);
     assert.match(text, /\n {4}backend authentication: header x-api-key\n {6}value from \$PIVOTKIT_TEST_MISSING\n/);
@@ -922,8 +922,8 @@ test("review: check-config warns of a token endpoint off the issuer's origin and
         }
     };
     const { text } = await checkConfig(options, { env: { PIVOTKIT_TEST_API_KEY: SECRET } });
-    assert.match(factsOf(text), /WARNING: sources\.other\.http\.auth\.tokenExchange\.tokenUrl: the person's token goes to elsewhere\.example\.test, not to the issuer's login\.example\.test/);
-    assert.match(factsOf(text), /WARNING: sources\.local\.http\.auth\.clientCredentials\.tokenUrl: localhost is a loopback or private address, which is refused unless intranet: true is set there/);
+    assert.match(factsOf(text), /WARNING \(HTTP sources\): sources\.other\.http\.auth\.tokenExchange\.tokenUrl: the person's token goes to elsewhere\.example\.test, not to the issuer's login\.example\.test/);
+    assert.match(factsOf(text), /WARNING \(HTTP sources\): sources\.local\.http\.auth\.clientCredentials\.tokenUrl: localhost is a loopback or private address, which is refused unless intranet: true is set there/);
     routes.set("/v1/vms", json({ items: VMS }));
     routes.set("/token", json({ error: "invalid_client" }, 401));
     const file = secretFile(SECRET);

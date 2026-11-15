@@ -228,21 +228,21 @@ test("config: data only in the server's policy and its profiles; rest.data.maxBy
 
 test("check-config: who may send data on MCP and REST, and how much; warnings for a server-wide switch", async () => {
     const dir = workspace();
-    // the section's facts, one per line, and its warnings (REST off is the default and not said)
+    // the section's facts, one per line, and its warnings (listed after the counts, named by the heading)
     const sectionOf = async (options, runtime = {}) => {
         const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir, ...options }, { http: true, rest: true, name: "pivotkit-server", ...runtime });
         const lines = factsOf(result.text).split("\n");
         const at = lines.indexOf("Data in the request (inline:):");
         const end = lines.indexOf("", at);
         const block = at < 0 ? [] : lines.slice(at + 1, end);
-        return { facts: block.filter((l) => !l.startsWith("  WARNING:")), warnings: block.filter((l) => l.startsWith("  WARNING:")), text: result.text };
+        return { facts: block, warnings: lines.filter((l) => l.startsWith("WARNING (Data in the request): ")), text: result.text };
     };
     const designed = await sectionOf({ policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }] }, rest: { data: { maxBytes: 20_971_520 } }, mcp: { data: { rows: 200, cells: 2000, bytes: 131_072 } } }, { env: { ETL_TOKEN: "x".repeat(40) } });
     assert.deepEqual(designed.facts, ["  MCP: on, up to 200 rows / 2000 cells / 128 KiB (mcp.data)", "  REST: for profiles etl, up to 20 MiB (rest.data.maxBytes)"]);
-    assert.match(factsOf(designed.text), /\nNew in this version: [^\n]*data in the request \(inline:\)/);
-    assert.deepEqual((await sectionOf({})).facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB"]);
+    assert.match(factsOf(designed.text), /\nNew in this version: [^\n]*data in the request \(inline:; mcp\.data: false switches it off\)/);
+    assert.deepEqual((await sectionOf({})).facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB", "  REST: off (no policy or profile has data: true)"]);
     const off = await sectionOf({ mcp: { data: false } });
-    assert.deepEqual(off.facts, ["  MCP: off (mcp.data: false)"]);
+    assert.deepEqual(off.facts, ["  MCP: off (mcp.data: false)", "  REST: off (no policy or profile has data: true)"]);
     assert.doesNotMatch(factsOf(off.text), /data in the request \(inline:\)/);
     const everyone = await sectionOf({ policy: { data: true, profiles: { bot: { data: false } } }, auth: { allowUnauthenticated: true } });
     assert.deepEqual(everyone.facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB; not for profiles bot", "  REST: for every caller but profiles bot, up to 10 MiB"]);

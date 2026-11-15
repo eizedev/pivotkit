@@ -27,7 +27,7 @@ test("check-config lists each source's print template and reports the parser's m
     const dir = withTemplate(BRAND);
     const result = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: dir }, { http: false, name: "pivotkit-server" });
     const lines = factsOf(result.text).split("\n");
-    assert.equal(lines[0], "pivotkit-server: the server would not start with this configuration.");
+    assert.equal(lines[0], "pivotkit-server: the server does not start with this configuration.");
     assert.ok(lines.includes("    template: data/brand.html"), result.text);
     assert.ok(lines.includes(`PROBLEM: sources.sales.template: ${TYPO} -> the server does not start`), result.text);
     assert.equal(result.problems, 1);

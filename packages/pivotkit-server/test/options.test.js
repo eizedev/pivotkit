@@ -89,7 +89,7 @@ test("options: every fragment has frozen keys in known slots and a validate; eac
     for (const f of FRAGMENTS.slice(1)) {
         assert.ok(names.includes(f.name), f.name);
     }
-    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "operator", "profiles", "rest"]);
+    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "issuer", "operator", "profiles", "rest"]);
 });
 
 test("options: an unknown key is still refused with the name meant, also for keys no fragment declares yet", () => {
@@ -121,7 +121,7 @@ test("options: the docker example configuration still validates", () => {
     assert.ok(validateOptions(example));
 });
 
-test("check sections: each section's items in its order; problems first under the verdict, warnings last in their section, New in this version in one line", async () => {
+test("check sections: each section's items in its order; problems first under the verdict, then the warnings named by their heading, New in this version in one line", async () => {
     const sections = [
         { name: "one", section: async () => ({ items: [heading("One: on"), warning("one looks odd"), plain("a fact"), problem("one is broken", { effect: "the server starts; one answers ONE_BROKEN" })], upgrade: ["one changed"] }) },
         { name: "two", section: async () => ({ items: [], upgrade: [] }) },
@@ -133,16 +133,18 @@ test("check sections: each section's items in its order; problems first under th
     assert.deepEqual(out.upgrade, ["one changed", "three changed"]);
     const page = render("pivotkit-server", out.sections, out.upgrade, "https://example.com/upgrading/");
     assert.deepEqual(page.text.split("\n"), [
-        "pivotkit-server: the server would not start with this configuration.",
+        "pivotkit-server: the server does not start with this configuration.",
         "2 problems, 1 warning.",
         "",
         // the one that stops the start first, each with what it does
         "PROBLEM: three needs a key -> the server does not start",
         "PROBLEM: one is broken -> the server starts; one answers ONE_BROKEN",
         "",
+        // then the warnings, named by their heading
+        "WARNING (One): one looks odd",
+        "",
         "One: on",
         "  a fact",
-        "  WARNING: one looks odd",
         "",
         "Three: off",
         "",
@@ -163,8 +165,9 @@ test("check-config layout: one fact per line, wrapped at 78 columns at spaces, a
     for (const line of wrap(text.repeat(5), 2)) {
         assert.ok(line.length <= 78, line);
     }
-    const long = `at /${"x".repeat(90)}/reports`;
-    assert.deepEqual(wrap(long, 2), [`  ${long}`]);
+    // a path longer than a line stands alone on its own line, never cut
+    const path = `/${"x".repeat(90)}/reports`;
+    assert.deepEqual(wrap(`at ${path} (will be created)`, 2), ["  at", `      ${path}`, "      (will be created)"]);
     // a fact under another is two spaces in, a wrapped line four: factsOf (the tests' reader) joins only the wrapped ones
     assert.equal(factsOf(["One:", ...wrap(text, 2), "    a child", ...wrap(text, 4)].join("\n")), ["One:", `  ${text}`, "    a child", `    ${text}`].join("\n"));
 });
@@ -235,12 +238,12 @@ test("secrets: check-config warns of a secret file other users can read (a stati
     writeFileSync(closed, `${"c".repeat(40)}\n`);
     chmodSync(open, 0o644);
     chmodSync(closed, 0o600);
-    assert.equal(await secretFileWarning({ file: "open-token" }, { baseDir: dir }), "warning: the file open-token can be read by other users of this machine (mode 644); make it readable by the server's user only (chmod 600)");
+    assert.equal(await secretFileWarning({ file: "open-token" }, { baseDir: dir }), "the file open-token can be read by other users of this machine (mode 644); make it readable by the server's user only (chmod 600)");
     assert.equal(await secretFileWarning({ file: "closed-token" }, { baseDir: dir }), null);
     assert.equal(await secretFileWarning({ env: "X" }, { baseDir: dir }), null);
     assert.equal(await secretFileWarning({ file: "missing" }, { baseDir: dir }), null, "a missing file is said elsewhere");
     const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "open", file: "open-token" }, { name: "closed", file: "closed-token" }] }, baseDir: dir }, { http: true });
-    assert.match(factsOf(result.text), /\n {2}WARNING: the token open's file open-token can be read by other users of this machine \(mode 644\)/);
+    assert.match(factsOf(result.text), /\nWARNING \(Auth\): the token open's file open-token can be read by other users of this machine \(mode 644\)/);
     assert.doesNotMatch(factsOf(result.text), /closed-token can be read/);
     assert.equal(result.problems, 0, "a warning, not a problem");
     assert.equal(result.warnings, 1);

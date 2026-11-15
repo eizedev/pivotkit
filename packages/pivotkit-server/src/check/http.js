@@ -36,7 +36,7 @@ import { paramsList } from "../sources/params.js";
 import { personBound } from "../sources/auth.js";
 import { secretFileWarning } from "../secrets.js";
 import { secretsOf } from "../sources/auth.js";
-import { fileText, heading, plain, problem, warning } from "./format.js";
+import { heading, plain, problem, secretText, warning } from "./format.js";
 
 /** The section's heading, which check.js's list of sources points to. */
 export const HTTP_HEADING = "HTTP sources";
@@ -58,11 +58,6 @@ function paramText(p, declared) {
     return `${p.name} (${what})`;
 }
 
-/**
- * Where a secret comes from, in words (never its value): the variable, or the file as written and its
- * full path.
- */
-const fromText = (ref, options) => (ref.env ? `$${ref.env}` : `the file ${fileText(options, ref.file)}`);
 
 /**
  * How a backend's authentication is made, in words: the first line, then where each secret comes
@@ -73,17 +68,17 @@ const fromText = (ref, options) => (ref.env ? `$${ref.env}` : `the file ${fileTe
  */
 function authLines(auth, options) {
     if (auth.kind === "header") {
-        return [`header ${auth.name}`, `value from ${fromText(auth.value, options)}`];
+        return [`header ${auth.name}`, `value from ${secretText(options, auth.value)}`];
     }
     const at = (url) => `${new URL(url).origin}${new URL(url).pathname}`;
     if (auth.kind === "clientCredentials") {
-        const secret = auth.clientSecret ? `client secret from ${fromText(auth.clientSecret, options)}` : `assertion from ${fromText(/** @type {any} */ (auth.assertion), options)}`;
+        const secret = auth.clientSecret ? `client secret from ${secretText(options, auth.clientSecret)}` : `assertion from ${secretText(options, /** @type {any} */ (auth.assertion))}`;
         return [`client credentials as ${auth.clientId} at ${at(auth.tokenUrl)}${auth.scope ? `, scope ${auth.scope}` : ""}`, secret];
     }
     const target = [auth.audience !== null ? `audience ${auth.audience}` : null, auth.resource !== null ? `resource ${auth.resource}` : null].filter(Boolean).join(" and ");
     return [
         `token exchange for ${target} at ${auth.tokenUrl ? at(auth.tokenUrl) : "the issuer's token endpoint"} as ${auth.clientId}`,
-        `client secret from ${fromText(auth.clientSecret, options)}`,
+        `client secret from ${secretText(options, auth.clientSecret)}`,
         `each token reused up to ${auth.maxAgeSeconds} s; only for a signed-in person`
     ];
 }
@@ -107,7 +102,7 @@ async function secretItems(auth, options, env, users) {
         }
         const readable = await secretFileWarning(secret.ref, options, `${secret.at} (${/** @type {any} */ (secret.ref).file})`);
         if (readable) {
-            items.push(warning(readable.replace(/^warning: /, "")));
+            items.push(warning(readable));
         }
     }
     if (auth.kind !== "header") {

@@ -616,10 +616,10 @@ test("check-config: where reports go and which go there", async () => {
     const once = await checkConfig({ ...presignOptions({ bind: "once", maxBytes: 52_428_800, timeMs: 30_000 }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x" }, rest: true });
     assert.match(once.text, /up to 50 MiB, 30 s/);
     assert.match(factsOf(once.text), /reports over closed sources \(closed\) and over data sent in requests \(inline:\): store links from \S+\n {4}bind once: you declared that each link works once\n {4}REST programs get them only with results: true/);
-    assert.match(once.text, /WARNING: one-time store links/);
+    assert.match(once.text, /WARNING \(Upload\): one-time store links/);
     assert.doesNotMatch(factsOf(once.text), /subject binding/);
     const signIn = await checkConfig({ ...presignOptions({ bind: "signIn" }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x" } });
-    assert.match(factsOf(signIn.text), /WARNING: output\.downloads\.key is not set: the subject binding the presign service receives changes on every restart and differs between replicas; set output\.downloads\.key/);
+    assert.match(factsOf(signIn.text), /WARNING \(Upload\): output\.downloads\.key is not set: the subject binding the presign service receives changes on every restart and differs between replicas; set output\.downloads\.key/);
     const keyed = await checkConfig({ ...presignOptions({ bind: "signIn" }, { downloads: { key: { env: "K" } } }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x", K: DL_KEY } });
     assert.doesNotMatch(factsOf(keyed.text), /subject binding/);
     assert.doesNotMatch(once.text, /PROBLEM/);

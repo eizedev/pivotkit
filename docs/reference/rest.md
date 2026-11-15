@@ -503,17 +503,18 @@ pivotkit-server's.
 
 ### Reading check-config { #check-config }
 
-`check-config`'s first line says whether the server starts ("the server would not start with this
+`check-config`'s first line says whether the server starts ("the server does not start with this
 configuration", "the server starts, but not everything will work", or "the configuration is
-valid"), the second counts problems and warnings; then it lists
-every `PROBLEM` line, then the sections. A `PROBLEM` ends with what it does: `-> the server does not
-start` (what `serve` refuses: an output directory it cannot use, a static token that is missing or
-too short, an address off loopback without auth, an audit key, a print template the parser refuses),
-or what does not work while the server runs (a source file that is not there, a backend secret, the
-download key, an upload header's secret, the download links' client secret, an output directory the
-server cannot write). Any `PROBLEM` exits with 1. A `WARNING` stands at the end of its section and
-does not change the exit code; an issuer whose metadata cannot be loaded from where you run it is
-one, since the server starts and keeps trying.
+valid"); the second counts problems and warnings. Then come every `PROBLEM` line, every `WARNING`
+line named by the section it belongs to, and the sections. A `PROBLEM` ends with what it does: `->
+the server does not start` (what `serve` refuses: an output directory it cannot use, a static token
+that is missing or too short, an address off loopback without auth, an issuer that is not https, an
+audit key, a print template the parser refuses), or what does not work while the server runs (a
+source file that is not there, a backend secret, the download key, an upload header's secret, the
+download links' client secret, an issuer or upload target on an address the server refuses, an
+output directory the server cannot write). Any `PROBLEM` exits with 1. A `WARNING` does not change
+the exit code; an issuer whose metadata cannot be loaded from where you run it is one, since the
+server starts and keeps trying.
 
 ```text
 pivotkit-server: the server starts, but not everything will work.
@@ -523,28 +524,34 @@ PROBLEM: httpSources.backends.platform.auth.clientCredentials.clientSecret:
     the file secrets/backend-secret cannot be read (no such file) -> the
     server starts; vms answers SOURCE_UNAVAILABLE
 
+WARNING (Auth): the token export's scope "typo:scope" is named by no source,
+    tool or required scope
+
 Sources (1):
-  vms: an HTTP source (see HTTP sources)
+  values listed per shown field: 20 (policy.items)
+  results inline in the tool answer: up to 500 cells (policy.inline)
+  vms: an HTTP source, described under HTTP sources
     policy: hide by default; name show, cpu show
     fields: known only after a load (pivotkit-server check-source vms loads
         it)
 ...
 Auth: token
   token export from $PIVOTKIT_TOKEN: all scopes, profile export
-  WARNING: the token export's scope "typo:scope" is named by no source, tool
-      or required scope
 
-New in this version: data in the request (inline:), reports deleted after 30
-    days
+New in this version: data in the request (inline:; mcp.data: false switches
+    it off), reports deleted after 30 days (output.maxAgeDays: 0 keeps them)
     -> https://pivotkit.eize.dev/getting-started/upgrading/
 ```
 
-Each line holds one fact, wrapped at 78 columns: a fact under another is two spaces further in, a
-wrapped line four. A setting is printed where it differs from its default. A secret is named by its
-variable or by its file, as written and with its full path, never by its value. Over stdio
-(`pivotkit-mcp` without `--http`) there are no download links and no signed-in person, and the
-`Transport:` section says which sources therefore cannot be used. "New in this version" names the
-changes of this release that apply to the configuration, and links to the
+Each line holds one fact: a fact under another is two spaces further in, a wrapped line four. Lines
+are wrapped at 78 columns at spaces; a path stands on a line of its own and is never cut, so a long
+one makes its line longer. Limits and defaults that matter are printed with their values (the
+exposure limits, the output directory's size, CORS, who may read `/openapi.json`); a field's level
+says whether it comes from a rule or the default. A secret is named by its variable or by its file,
+as written and with its full path, never by its value. Over stdio (`pivotkit-mcp` without `--http`)
+there are no download links and no signed-in person, and the `Transport:` section says which
+sources therefore cannot be used. "New in this version" names the changes of this release that
+apply to the configuration, with the setting that switches each off, and links to the
 [upgrading page](../getting-started/upgrading.md).
 | `pivotkit-server --version` | The version |
 

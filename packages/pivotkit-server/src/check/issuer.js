@@ -1,6 +1,8 @@
 /*
  * check-config's lines for the requests to the OAuth issuer (issuer.js, options/issuer.js): the rules
- * they follow, and whether the issuer's host (and auth.jwksUri's) is one the server may reach now:
+ * they follow, whether the issuer's host (and auth.jwksUri's) is one the server may reach now, and,
+ * with `runtime.discover` (the runners pass issuer.js discover), whether its metadata loads within
+ * ISSUER_MS (a WARNING when not: the server starts and keeps trying; nothing secret is sent):
  *
  *   Issuer requests:
  *     https only, no redirects, metadata up to 256 KiB, keys up to 256 KiB
@@ -15,11 +17,14 @@ import { settingsOf as downloadSettingsOf } from "../options/downloads.js";
 import { resolveRefusal } from "./host.js";
 import { heading, plain, problem, warning } from "./format.js";
 
+/** How long check-config waits for an issuer's metadata. */
+export const ISSUER_MS = 3000;
+
 /** A size in KiB for a line. */
 const kib = (bytes) => `${+(bytes / 1024).toFixed(1)} KiB`;
 
 /** What a PROBLEM of the issuer's host does: the server starts, the sign-in does not work. */
-const NO_SIGN_IN = { effect: "the server starts; callers get 503 until it can reach the issuer" };
+const NO_SIGN_IN = { effect: "the server starts; callers get 503 until the issuer can be reached" };
 
 /**
  * What keeps the server from reaching the host of an address the operator wrote (check/host.js): a
@@ -35,8 +40,9 @@ async function hostItem(text, key, rules) {
         return null;
     }
     const url = new URL(text);
-    // a test issuer on plain http: loopback only, which guardedFetch checks when it connects
-    if (url.protocol === "http:" && rules.insecure) {
+    // plain http: a test issuer reaches loopback only, which guardedFetch checks when it connects;
+    // without auth.allowInsecureIssuer the start refuses it already (check/access.js)
+    if (url.protocol === "http:") {
         return null;
     }
     const refusal = await resolveRefusal(url.hostname, { allowPrivate: rules.intranet, ipLiterals: true });
@@ -53,8 +59,46 @@ async function hostItem(text, key, rules) {
     return problem(`${key}: ${said}, a loopback or private address, which the server refuses without auth.intranet: true`, NO_SIGN_IN);
 }
 
+/**
+ * A WARNING per issuer whose metadata cannot be loaded now (the sign-in for MCP and REST, and the
+ * download links' own): the server starts anyway and keeps trying.
+ */
+async function reachItems(options, runtime) {
+    if (typeof runtime.discover !== "function") {
+        return [];
+    }
+    const issuers = new Map();
+    // an issuer the start refuses for its scheme is a PROBLEM already (check/access.js)
+    const scheme = URL.canParse(String(options.auth?.issuer)) ? new URL(String(options.auth?.issuer)).protocol : "";
+    if (options.auth?.mode === "oauth" && options.auth.issuer && (scheme === "https:" || options.auth.allowInsecureIssuer)) {
+        // download links (signed in) use the same issuer (options/downloads.js)
+        const links = runtime.http && downloadSettingsOf(options).signIn ? "; download links (signed in) answer 503 too" : "";
+        issuers.set(options.auth.issuer, ["auth.issuer", `callers get 503 until it loads${links}`]);
+    }
+    const out = [];
+    for (const [issuer, [key, until]] of issuers) {
+        // one wait for both of discover's tries; the race is a backstop for a discover that ignores it
+        const signal = AbortSignal.timeout(ISSUER_MS);
+        const late = `no answer within ${ISSUER_MS / 1000} s`;
+        const why = await Promise.race([
+            Promise.resolve()
+                .then(() => runtime.discover(issuer, issuerRulesOf(options), { signal }))
+                .then(
+                    () => null,
+                    // discover tries two addresses: a reason said twice is said once
+                    (e) => (signal.aborted ? late : [...new Set(String(e?.message ?? e).split("; "))].join("; ").slice(0, 200))
+                ),
+            new Promise((resolve) => setTimeout(() => resolve(late), ISSUER_MS + 100).unref())
+        ]);
+        if (why) {
+            out.push(warning(`${key}: the metadata of ${issuer} cannot be loaded from here (${why}); the server starts and keeps trying; ${until}`));
+        }
+    }
+    return out;
+}
+
 /** @type {import("./index.js").Section} */
-export async function section(options) {
+export async function section(options, _registry, runtime) {
     const auth = options.auth ?? {};
     /** @type {import("./format.js").Item[]} */
     const items = [];
@@ -83,6 +127,11 @@ export async function section(options) {
             items.push(said);
         }
     }
-    upgrade.push("issuer requests under guardedFetch's rules (auth.intranet: true for a LAN issuer)");
+    // whether the metadata loads now (with runtime.discover, the commands'), unless the issuer's
+    // address is a problem already
+    if (!items.some((i) => i.kind === "problem" && i.text.startsWith("auth.issuer:"))) {
+        items.push(...(await reachItems(options, runtime)));
+    }
+    upgrade.push("issuer requests under the outbound rules (a LAN issuer needs auth.intranet: true)");
     return { items, upgrade };
 }

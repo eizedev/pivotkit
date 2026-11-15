@@ -40,11 +40,16 @@ const CASES = [
     { name: "the download links' client secret that cannot be read", options: { sources: { sales }, output: { dir: "out", downloads: { signIn: { clientId: "pivotkit-downloads", clientSecret: { file: "secrets/client-secret" } } } }, auth: OAUTH, http: { publicUrl: "https://reports.example.com" } }, stops: false, says: /output\.downloads\.signIn\.clientSecret: the file secrets\/client-secret cannot be read \(no such file\) -> the server starts; download links \(signed in\) fail after the person signs in/ },
     { name: "an upload target on a loopback address", options: { sources: { sales }, output: { dir: "out", upload: { url: "https://localhost:8443/r/{id}" } } }, stops: false, says: /output\.upload\.url: localhost resolves to \S+, a loopback or private address, which uploads refuse without output\.upload\.intranet: true -> the server starts; every upload fails/ },
     // refused at start
-    { name: "an http:// issuer without allowInsecureIssuer", options: { sources: { sales }, auth: { mode: "oauth", issuer: "http://127.0.0.1:9/issuer", resource: "http://127.0.0.1:3333/mcp" } }, stops: true, says: /auth\.issuer must be https:\/\/ \(auth\.allowInsecureIssuer is for tests only\) -> the server does not start/ },
+    { name: "an http:// issuer without allowInsecureIssuer", options: { sources: { sales }, auth: { mode: "oauth", issuer: "http://127.0.0.1:9/issuer", resource: "http://127.0.0.1:3333/mcp" } }, stops: true, says: /auth\.issuer: must be an https:\/\/ address \(auth\.allowInsecureIssuer is for tests only\) -> the server does not start/ },
     { name: "a static token that is not set", options: { sources: { sales }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT_TOKEN" }] } }, stops: true, says: /the token bot \(\$BOT_TOKEN\) is not set or shorter than 32 characters -> the server does not start/ },
     { name: "an output.dir that is a file", options: { sources: { sales }, output: { dir: "data/sales.csv" } }, stops: true, says: /output\.dir: not a directory -> the server does not start/ },
     { name: "a short audit key with OAuth", options: { sources: { sales }, auth: OAUTH, audit: { subject: "hash", key: { env: "AUDIT_KEY" } } }, env: { AUDIT_KEY: "short" }, stops: true, says: /audit\.key: at least \d+ characters -> the server does not start/ },
     { name: "a print template with an unknown placeholder", options: { sources: { sales: { ...sales, template: "data/brand.html" } } }, files: { "data/brand.html": "<h1>{{titel}}</h1>{{table}}" }, stops: true, says: /sources\.sales\.template: unknown placeholder \{\{titel\}\} \(line 1\); did you mean \{\{title\}\}\? -> the server does not start/ },
+    { name: "an issuer whose scheme is HTTP:// in capitals", options: { sources: { sales }, auth: { mode: "oauth", issuer: "HTTP://127.0.0.1:9/issuer", resource: "http://127.0.0.1:3333/mcp" } }, stops: true, says: /auth\.issuer: must be an https:\/\/ address \(auth\.allowInsecureIssuer is for tests only\) -> the server does not start/ },
+    { name: "an output.dir with create: false that is not there", options: { sources: { sales }, output: { dir: "later/out", create: false } }, stops: true, says: /output\.dir: not found \(create it first, or leave output\.create on\) -> the server does not start/ },
+    { name: "an output.dir below a file", options: { sources: { sales }, output: { dir: "data/sales.csv/out" } }, stops: true, says: /output\.dir: cannot be created: a part of the path is a file -> the server does not start/ },
+    { name: "an output.dir inside an allowed directory", options: { sources: { sales }, files: { allowDirs: ["data"] }, output: { dir: "data/out" } }, stops: true, says: /output\.dir: lies inside a directory of files\.allowDirs/ },
+    { name: "output.maxAgeDays in the source's directory", options: { sources: { sales }, output: { dir: "data", maxAgeDays: 7 } }, stops: true, says: /output\.maxAgeDays in a directory that holds the configuration or a source, template or token file; give the reports a directory of their own -> the server does not start/ },
     { name: "an address off loopback without auth", options: { sources: { sales }, http: { host: "0.0.0.0" } }, stops: true, says: /0\.0\.0\.0 is not loopback: it needs auth token or oauth \(or auth\.allowUnauthenticated\) -> the server does not start/ }
 ];
 
@@ -62,7 +67,7 @@ for (const c of CASES) {
         assert.equal(result.stops, c.stops ? 1 : 0, result.text);
         assert.match(text, c.says);
         assert.ok(result.text.split("\n")[0].length <= 78, "the verdict is one line a script can read");
-        assert.match(text.split("\n")[0], c.stops ? /the server would not start with this configuration\.$/ : /the server starts, but not everything will work\.$/);
+        assert.match(text.split("\n")[0], c.stops ? /the server does not start with this configuration\.$/ : /the server starts, but not everything will work\.$/);
         const started = await starts(options, env);
         if (c.stops) {
             assert.ok(started instanceof Error, `serve started, but check-config says it would not:\n${result.text}`);
@@ -92,8 +97,8 @@ test("check-config: a backend's authentication no source uses is a WARNING, its 
     };
     const result = await checkConfig(options, { http: true, env: { OWN_TOKEN: TOKEN }, name: "pivotkit-server" });
     const text = factsOf(result.text);
-    assert.match(text, /WARNING: httpSources\.backends\.platform\.auth is not used by any source \(a source with its own http\.auth replaces it\)/);
-    assert.match(text, /WARNING: httpSources\.backends\.platform\.auth\.header\.value: \$PLATFORM_TOKEN_MISSING is not set/);
+    assert.match(text, /WARNING \(HTTP sources\): httpSources\.backends\.platform\.auth is not used by any source \(a source with its own http\.auth replaces it\)/);
+    assert.match(text, /WARNING \(HTTP sources\): httpSources\.backends\.platform\.auth\.header\.value: \$PLATFORM_TOKEN_MISSING is not set/);
     assert.equal(result.problems, 0, result.text);
 });
 
@@ -103,7 +108,7 @@ test("check-config: an issuer whose metadata cannot be loaded is a WARNING; the 
     const asked = [];
     const down = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", discover: async (issuer) => (asked.push(issuer), Promise.reject(new Error("fetch failed (ENOTFOUND); fetch failed (ENOTFOUND)"))) });
     assert.deepEqual(asked, ["https://auth.example.com/application/o/pivotkit/"]);
-    assert.match(factsOf(down.text), /WARNING: auth\.issuer: the metadata of https:\/\/auth\.example\.com\/application\/o\/pivotkit\/ cannot be loaded from here \(fetch failed \(ENOTFOUND\)\); the server starts and keeps trying; callers get 503 until it loads; download links \(signed in\) answer 503 too/);
+    assert.match(factsOf(down.text), /WARNING \(Issuer requests\): auth\.issuer: the metadata of https:\/\/auth\.example\.com\/application\/o\/pivotkit\/ cannot be loaded from here \(fetch failed \(ENOTFOUND\)\); the server starts and keeps trying; callers get 503 until it loads; download links \(signed in\) answer 503 too/);
     assert.equal(down.problems, 0);
     const up = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", discover: async () => ({}) });
     assert.doesNotMatch(factsOf(up.text), /cannot be loaded/);
@@ -129,7 +134,7 @@ test("check-config: an issuer that accepts and never answers is a WARNING after 
             child.on("close", (status) => resolve({ status, stdout }));
         });
         const took = Date.now() - started;
-        assert.match(factsOf(run.stdout), /WARNING: auth\.issuer: the metadata of http:\/\/127\.0\.0\.1:\d+\/issuer cannot be loaded from here \(no answer within 3 s\); the server starts and keeps trying; callers get 503 until it loads/);
+        assert.match(factsOf(run.stdout), /WARNING \(Issuer requests\): auth\.issuer: the metadata of http:\/\/127\.0\.0\.1:\d+\/issuer cannot be loaded from here \(no answer within 3 s\); the server starts and keeps trying; callers get 503 until it loads/);
         assert.equal(run.status, 0, run.stdout);
         assert.ok(took < 8000, `check-config took ${took} ms`);
     } finally {
@@ -142,20 +147,37 @@ test("check-config: an issuer that accepts and never answers is a WARNING after 
     assert.match(factsOf(stuck.text), /cannot be loaded from here \(no answer within 3 s\)/);
 });
 
-test("check-config: a warning stays under its own heading when a section prints two (Delivery: and Retention:)", async () => {
+test("check-config: every warning is listed after the problems, named by its own heading, also when a section prints two (Delivery: and Retention:)", async () => {
     const dir = workspace();
     const options = { sources: { sales, open: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir };
-    const text = factsOf((await checkConfig(options, { http: true, env: {}, name: "pivotkit-server" })).text);
-    const delivery = text.slice(text.indexOf("\nDelivery:"), text.indexOf("\nRetention:"));
-    assert.match(delivery, /\n {2}WARNING: output\.downloads\.key is not set: links stop working on a restart and on another replica\n$/);
-    const retention = text.slice(text.indexOf("\nRetention:"));
-    assert.match(retention, /^\nRetention:\n {2}no age limit: [^\n]*\n {2}WARNING: output\.maxAgeDays is 0/);
-    assert.doesNotMatch(retention, /downloads\.key/);
+    const result = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server" });
+    const lines = factsOf(result.text).split("\n");
+    assert.equal(result.warnings, 2);
+    // right after the counts (no problems here): both warnings, each with its heading
+    assert.deepEqual(lines.slice(1, 5), [
+        "0 problems, 2 warnings.",
+        "",
+        "WARNING (Delivery): output.downloads.key is not set: links stop working on a restart and on another replica",
+        "WARNING (Retention): output.maxAgeDays is 0 (no age limit) and reports over closed sources (sales) and data sent in requests can hold data about people; leave out output.maxAgeDays (the default deletes reports after 30 days) or set a number of days"
+    ]);
+    // and not again inside the sections
+    assert.equal(lines.filter((l) => l.includes("WARNING")).length, 2);
+    assert.ok(lines.includes("Retention:"), result.text);
+});
+
+test("check-config: the MCP and the REST audience, each on its line where they differ; one audience where REST is not served", async () => {
+    const options = { sources: { sales }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: "https://reports.example.com/mcp" }, baseDir: workspace() };
+    const both = factsOf((await checkConfig(options, { http: true, env: {}, rest: true })).text);
+    assert.match(both, /\n {2}MCP audience: https:\/\/reports\.example\.com\/mcp\n {2}REST audience: https:\/\/reports\.example\.com\/api\/v1\n/);
+    const own = factsOf((await checkConfig({ ...options, rest: { audience: ["api://reports"] } }, { http: true, env: {}, rest: true })).text);
+    assert.match(own, /\n {2}REST audience: api:\/\/reports\n/);
+    const mcpOnly = factsOf((await checkConfig(options, { http: true, env: {} })).text);
+    assert.doesNotMatch(mcpOnly, /REST audience|MCP audience/);
 });
 
 test("check-config: no configuration read and no source given says so", async () => {
     const result = await checkConfig({}, { http: true, env: {}, name: "pivotkit-server" });
-    assert.match(factsOf(result.text), /Sources \(0\):\n {2}WARNING: no sources and no files by path: callers can use only data they send in a request; name a configuration file \(--config or \$PIVOTKIT_CONFIG\) or a source \(--source id=file\)/);
+    assert.match(factsOf(result.text), /\nWARNING \(Sources\): no sources and no files by path: callers can use only data they send in a request; name a configuration file \(--config or \$PIVOTKIT_CONFIG\) or a source \(--source id=file\)/);
     assert.equal(result.problems, 0);
 });
 

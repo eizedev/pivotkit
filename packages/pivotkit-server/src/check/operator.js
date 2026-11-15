@@ -12,7 +12,7 @@ import { POLICY_LEVELS, levelOf, resolvePolicy } from "../policy.js";
 import { AUDIT_KEY_MIN } from "../log.js";
 import { offeredScopes } from "../scopes.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
-import { fileText, heading, plain, problem, warning } from "./format.js";
+import { heading, plain, problem, secretText, warning } from "./format.js";
 
 /** The most entries of auth.groupProfiles compared pair by pair for the "first match wins" warning. */
 const COMPARED_ENTRIES = 50;
@@ -160,7 +160,7 @@ async function auditItems(options, runtime, oauth) {
         if (!audit.key) {
             items.push(warning("no audit.key: a random key per start, so the same person gets another hash after every restart"));
         } else {
-            items.push(plain(`key from ${audit.key.env ? `$${audit.key.env}` : `the file ${fileText(options, audit.key.file)}`}`));
+            items.push(plain(`key from ${secretText(options, audit.key)}`));
             // read at start with OAuth only, where a key that cannot be read stops the start
             const unreadable = oauth
                 ? await readSecret(audit.key, options, runtime.env).then(
@@ -173,7 +173,7 @@ async function auditItems(options, runtime, oauth) {
             }
             const shared = await secretFileWarning(audit.key, options, `the audit key's file ${audit.key.file}`);
             if (shared) {
-                items.push(warning(shared.replace(/^warning: /, "")));
+                items.push(warning(shared));
             }
         }
     }

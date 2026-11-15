@@ -387,7 +387,7 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     assert.ok(own.includes("    finance -> finance, staff -> staff"), result.text);
     assert.ok(own.includes("  otherwise: profile restricted"), result.text);
     assert.ok(own.includes("  scopes offered: pivotkit pivotkit:sales (define these at your provider; it may refuse a sign-in that asks for one it does not know)"), result.text);
-    assert.ok(own.includes("  WARNING: the source hr needs the scope pivotkit:hr, which the server does not offer (auth.scopeProfiles names it, and a client must not choose its own profile): a client learns of it only from you"), result.text);
+    assert.ok(lines.includes("WARNING (Auth): the source hr needs the scope pivotkit:hr, which the server does not offer (auth.scopeProfiles names it, and a client must not choose its own profile): a client learns of it only from you"), result.text);
     assert.doesNotMatch(factsOf(result.text), /Sign-in:|→|subject from claim/);
     // the wider profile first is the intended order: silent
     assert.doesNotMatch(factsOf(result.text), /shows fields that/);
@@ -405,13 +405,13 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     // a wider profile after a narrower one: a warning; the default (scopes not offered): every source scope is unreachable
     const quiet = await checkConfig({ ...options, auth: { ...options.auth, groupProfiles: [...GROUP_PROFILES].reverse(), offerSourceScopes: undefined, scopeProfiles: undefined, defaultProfile: undefined }, audit: { subject: "hash", key: { env: "NOT_SET" } } }, { http: true, name: "pivotkit-server", rest: true });
     const said = factsOf(quiet.text);
-    assert.match(said, /\n {2}WARNING: groupProfiles entry 2 \(finance\) shows fields that entry 1 \(staff\) holds back: people in both groups get entry 1, since the first match wins; if that is not intended, put the wider profile first\n/);
-    assert.match(said, /WARNING: the source sales needs the scope pivotkit:sales, which the server does not offer \(auth\.offerSourceScopes is not on\)/);
+    assert.match(said, /\nWARNING \(Auth\): groupProfiles entry 2 \(finance\) shows fields that entry 1 \(staff\) holds back: people in both groups get entry 1, since the first match wins; if that is not intended, put the wider profile first\n/);
+    assert.match(said, /WARNING \(Auth\): the source sales needs the scope pivotkit:sales, which the server does not offer \(auth\.offerSourceScopes is not on\)/);
     assert.match(said, /\n {2}a person whose token does not carry the groups is refused: "your sign-in does not carry your groups; ask the operator"\n/);
     // groupProfiles without defaultProfile: a person in no listed group is refused (not given the
     // sources' own policy, which may show more than any profile), and a warning
     assert.match(said, /\n {2}a person in none of these groups( whose client or scopes name no profile)? is refused: "your sign-in gives you no access to this server's data; ask the operator"\n/);
-    assert.match(said, /WARNING: auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups is refused \(403\); set auth\.defaultProfile to a narrow profile to let them in/);
+    assert.match(said, /WARNING \(Auth\): auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups is refused \(403\); set auth\.defaultProfile to a narrow profile to let them in/);
     assert.match(said, /PROBLEM: audit\.key: \$NOT_SET is not set -> the server does not start/);
     assert.equal(quiet.problems, 1);
     assert.equal(quiet.stops, 1);
@@ -420,14 +420,14 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     // a static token: the scope no token holds, groups that take no effect, a person never named
     const token = await checkConfig({ sources: options.sources, policy: options.policy, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT", scopes: ["pivotkit:sales"] }], groupProfiles: GROUP_PROFILES }, audit: { subject: "plain" }, baseDir: dir }, { http: false, env: { BOT: "x".repeat(40) }, name: "pivotkit-server" });
     const tokenSaid = factsOf(token.text);
-    assert.match(tokenSaid, /WARNING: the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it/);
-    assert.match(tokenSaid, /WARNING: auth\.groupProfiles takes effect with auth\.mode oauth only/);
-    assert.match(tokenSaid, /WARNING: audit names a person only with auth\.mode oauth/);
-    // the token mode's warning stands in the Auth section, after its facts (warnings come last in a section)
+    assert.match(tokenSaid, /WARNING \(Auth\): the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it/);
+    assert.match(tokenSaid, /WARNING \(Auth\): auth\.groupProfiles takes effect with auth\.mode oauth only/);
+    assert.match(tokenSaid, /WARNING \(Audit\): audit names a person only with auth\.mode oauth/);
+    // the token mode's warning is named by the Auth heading, listed once after the counts
     const plainToken = await checkConfig({ sources: options.sources, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT", scopes: ["pivotkit:sales"] }] }, baseDir: dir }, { http: false, env: { BOT: "x".repeat(40) }, name: "pivotkit-server" });
     const at = factsOf(plainToken.text).split("\n");
-    const warning = at.findIndex((l) => /no static token holds/.test(l));
-    assert.deepEqual(at.slice(warning - 2, warning), ["Auth: token", "  token bot from $BOT: scopes pivotkit:sales"], plainToken.text);
+    assert.deepEqual(at.filter((l) => /no static token holds/.test(l)), ["WARNING (Auth): the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it"], plainToken.text);
+    assert.ok(at.indexOf("WARNING (Auth): the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it") < at.indexOf("Auth: token"), plainToken.text);
 });
 
 test("dataAsOf in files: the html report prints it, the xlsx carries it as the document property DataAsOf", async () => {

@@ -513,7 +513,7 @@ test("check-config: where each HTTP source asks (never a value), its limits and 
     const result = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
     assert.equal(result.problems, 0);
     const text = factsOf(result.text);
-    assert.match(text, /vms: an HTTP source \(see HTTP sources\)/);
+    assert.match(text, /vms: an HTTP source, described under HTTP sources/);
     // one fact per line
     assert.ok(
         text.includes(
@@ -534,16 +534,16 @@ test("check-config: where each HTTP source asks (never a value), its limits and 
         ),
         result.text
     );
-    assert.match(text, /WARNING: sources\.vms\.params\.unused: no part of the address uses it/);
-    assert.match(text, /WARNING: sources\.vms: the header x-api-key has a literal value and its name looks like a secret's/);
-    assert.match(text, /WARNING: sources\.vms: the query token has a literal value/);
+    assert.match(text, /WARNING \(HTTP sources\): sources\.vms\.params\.unused: no part of the address uses it/);
+    assert.match(text, /WARNING \(HTTP sources\): sources\.vms: the header x-api-key has a literal value and its name looks like a secret's/);
+    assert.match(text, /WARNING \(HTTP sources\): sources\.vms: the query token has a literal value/);
     // the profile lines of an HTTP source: its fields are known only after a load
     assert.match(text, /\n {4}fields: known only after a load \(pivotkit-server check-source vms loads it\)\n/);
     assert.doesNotMatch(result.text, /abc-not-printed|tok-not-printed/);
     // maxBytes over the server's limits.fileBytes (50 MiB unless set): what a load reads, and why
     const big = await checkConfig(optionsOf({ maxBytes: 104_857_600 }), { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
     assert.match(big.text, /up to 50 MiB \/ 15 s/);
-    assert.match(factsOf(big.text), /WARNING: sources\.vms: maxBytes \(100 MiB\) is over limits\.fileBytes \(50 MiB\); a load reads at most 50 MiB/);
+    assert.match(factsOf(big.text), /WARNING \(HTTP sources\): sources\.vms: maxBytes \(100 MiB\) is over limits\.fileBytes \(50 MiB\); a load reads at most 50 MiB/);
 });
 
 test("check-source: one load with the operator's values, pages, rows and fields with types (never a value); a wrong pointer names the body's keys; exit 1 on failure", async () => {
@@ -921,7 +921,7 @@ test("operator hints: intranet for a private address, NODE_EXTRA_CA_CERTS for a 
         await context.close();
     }
     const local = await checkConfig({ httpSources: { backends: { platform: { url: "https://localhost:8443/v1" } } }, sources: { all: sources.all } }, { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
-    assert.match(factsOf(local.text), /WARNING: sources\.all: localhost is a loopback or private address, which is refused unless the backend has intranet: true/);
+    assert.match(factsOf(local.text), /WARNING \(HTTP sources\): sources\.all: localhost is a loopback or private address, which is refused unless the backend has intranet: true/);
 });
 
 test("options: a query's problem is reported under http.query", () => {

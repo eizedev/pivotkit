@@ -917,12 +917,12 @@ test("check-config: where links point, which sources get which link, the redirec
     assert.match(signIn.text, /^ {2}closed \(a field not shown for someone\): sales \(fields summary by default\)$/m);
     const why = await checkConfig({ sources: { listed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "values" } } }, profiled: { file: "data/sales.csv", policy: { default: "show" } } }, policy: { profiles: { reader: { default: "summary" } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
     assert.match(factsOf(why.text), /closed \(a field not shown for someone\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
-    assert.match(signIn.text, /^ {2}WARNING: output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
+    assert.match(signIn.text, /^WARNING \(Delivery\): output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
     assert.match(signIn.text, /\nNew in this version: [^\n]*download links under \/downloads/);
 
     const once = await checkConfig({ sources, output: { dir: "out", downloads: { bind: "once", key: { env: "DL_KEY" } } }, baseDir: dir }, { http: true, env: { DL_KEY: "short" } });
     assert.match(once.text, /reports over closed sources \(sales\): one-time links/);
-    assert.match(factsOf(once.text), /WARNING: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters/);
+    assert.match(factsOf(once.text), /WARNING \(Delivery\): one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters/);
     // the server starts with a short key (it logs it), and reports get no links until it is fixed
     assert.match(factsOf(once.text), /PROBLEM: output\.downloads\.key is shorter than 32 bytes; make one with: openssl rand -base64 48 -> the server starts; reports get no download links until it can be read/);
     assert.equal(once.problems, 1);

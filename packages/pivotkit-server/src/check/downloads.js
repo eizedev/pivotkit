@@ -19,10 +19,8 @@ import { OUTPUT_DEFAULTS, pathOf } from "../config.js";
 import { ownFileDirs } from "../context.js";
 import { personBound } from "../sources/auth.js";
 import { mcpCapOf, restDataOffered } from "../sources/inline.js";
-import { fileText, heading, plain, problem, warning } from "./format.js";
+import { heading, idsText, plain, problem, secretText, warning } from "./format.js";
 
-/** Up to six ids, then how many more. */
-const idsText = (ids) => (ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", "));
 
 /** What makes a policy closed, in words, or null where every field is shown; a field by its written name. */
 function closedBy(policy, written = []) {
@@ -117,7 +115,7 @@ async function retention(options, registry, runtime) {
         const dir = pathOf(options, options.output.dir);
         const real = await realpath(dir).catch(() => dir);
         const shared = (await ownFileDirs(options)).includes(real);
-        return shared ? none : { ...none, upgrade: [`reports deleted after ${OUTPUT_DEFAULTS.maxAgeDays} days`] };
+        return shared ? none : { ...none, upgrade: [`reports deleted after ${OUTPUT_DEFAULTS.maxAgeDays} days (output.maxAgeDays: 0 keeps them)`] };
     }
     if (options.output.maxAgeDays !== 0) {
         return none;
@@ -203,7 +201,7 @@ async function links(options, registry, runtime) {
                 plain(`reports over closed sources (${idsText(ownClosed)}): download links (signed in)`),
                 plain(`register ${base}${CALLBACK_PATH} at the provider for the client ${settings.signIn.clientId}`, 2),
                 plain(`it must give the same subject (claim ${claim}) as the MCP client`, 2),
-                ...(settings.signIn.clientSecret ? [plain(`client secret from ${settings.signIn.clientSecret.env ? `$${settings.signIn.clientSecret.env}` : `the file ${fileText(options, settings.signIn.clientSecret.file)}`}`, 2)] : []),
+                ...(settings.signIn.clientSecret ? [plain(`client secret from ${secretText(options, settings.signIn.clientSecret)}`, 2)] : []),
                 ...restOnly
             );
         } else if (settings.bind === "once") {
@@ -220,7 +218,7 @@ async function links(options, registry, runtime) {
     const linking = ownOpen.length > 0 || (ownClosed.length > 0 && settings.bind !== "none");
     const noLinks = { effect: "the server starts; reports get no download links until it can be read" };
     if (settings.key) {
-        items.push(plain(`key from ${settings.key.env ? `$${settings.key.env}` : `the file ${fileText(options, settings.key.file)}`}`));
+        items.push(plain(`key from ${secretText(options, settings.key)}`));
         try {
             const value = await readSecret(settings.key, options, runtime.env);
             if (Buffer.byteLength(value) < KEY_MIN_BYTES) {
@@ -231,7 +229,7 @@ async function links(options, registry, runtime) {
         }
         const readable = await secretFileWarning(settings.key, options, `the file ${settings.key.file} of output.downloads.key`);
         if (readable) {
-            items.push(warning(readable.replace(/^warning: /, "")));
+            items.push(warning(readable));
         }
     } else if (linking) {
         items.push(warning("output.downloads.key is not set: links stop working on a restart and on another replica"));
@@ -244,11 +242,11 @@ async function links(options, registry, runtime) {
         }
         const readable = await secretFileWarning(settings.signIn.clientSecret, options, `the file ${settings.signIn.clientSecret.file} of output.downloads.signIn.clientSecret`);
         if (readable) {
-            items.push(warning(readable.replace(/^warning: /, "")));
+            items.push(warning(readable));
         }
     }
     if (linking) {
-        upgrade.push(`download links under ${DOWNLOADS_PATH}`);
+        upgrade.push(`download links under ${DOWNLOADS_PATH}, their reports stored with a random prefix (output.name; output.downloads.enabled: false switches them off)`);
     }
     return { items, upgrade };
 }

@@ -282,7 +282,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   audit, `profiles`, `rest`; check/index.js `SECTIONS`, `runSections`), each returning items
   (`check/format.js` `heading`, `plain`, `warning`, `problem` with `stops` or its `effect`) and the
   short names of this version's changes; `format.js` `render` prints the verdict, the counts, every
-  PROBLEM first, the sections (warnings last), one fact per line wrapped at `WIDTH` 78; a PROBLEM
+  PROBLEM, then every WARNING named by its heading, then the sections, one fact per line wrapped at `WIDTH` 78 (a path alone on its line); a PROBLEM
   that stops the start must be one createContext or serve refuses (test/check-config.test.js runs
   both); tests read wrapped text through test/helpers.js `factsOf`), `src/limits.js` (`createLimits`: rate and concurrency
   limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`, `rest.data.maxBytes` for a signed-in REST caller that may send data), `src/log.js`

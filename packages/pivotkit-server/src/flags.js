@@ -32,7 +32,7 @@ export const SHARED_FLAGS = Object.freeze({
         "allow-origin": { type: "string", multiple: true, value: "name", text: "A browser origin's host name allowed to call MCP (none by default)." }
     })),
     log: { type: "string", value: "level", text: "info (default), debug or off; the log is JSON lines on stderr." },
-    "check-config": { type: "boolean", text: "Print what the server would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable)." },
+    "check-config": { type: "boolean", text: "Print whether the server starts and what it would expose, then exit (1 when there is a PROBLEM)." },
     help: { type: "boolean", short: "h", text: "Print this help and exit." }
 });
 

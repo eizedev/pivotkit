@@ -492,7 +492,7 @@ test("check-config warns of an explicit values field whose values look personal;
     const dir = workspace({ "tickets.csv": tickets() });
     const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv", policy: { fields: { Mail: "values", Status: "values" } } } }, baseDir: dir }, { http: false });
     assert.match(check.text, /\n {6}Mail: values \(a rule\)\n/);
-    assert.match(factsOf(check.text), /WARNING: sources\.tickets: the values field Mail holds a value that looks like email/);
+    assert.match(factsOf(check.text), /WARNING \(Sources\): sources\.tickets: the values field Mail holds a value that looks like email/);
     assert.doesNotMatch(factsOf(check.text), /values field Status/);
     for (const key of ["minRows", "minRowsPerValue"]) {
         assert.throws(() => validateOptions({ policy: { autoValues: { [key]: 0 } } }), new RegExp(`policy.autoValues.${key}: must be 1 or more`));

@@ -7,12 +7,13 @@
  * after a load.
  *
  *   Sources (2):
- *     sales: /srv/pivotkit/data/sales.csv
+ *     sales: a file
+ *       /srv/pivotkit/data/sales.csv
  *       policy: summary by default; Customer hide
  *       field levels (automatic values off):
  *         Region: summary (the default)
  *         ...
- *     vms: an HTTP source (see HTTP sources)
+ *     vms: an HTTP source, described under HTTP sources
  *       policy: hide by default; name show, cpu show
  *       fields: known only after a load (pivotkit-server check-source vms)
  *
@@ -25,7 +26,7 @@ import { closest, encode } from "pivotkit-core";
 import { readSafe, readTable } from "pivotkit-cli/files";
 import { findingText } from "pivotkit-report/operations";
 import { serverLimitsOf } from "../config.js";
-import { POLICY_DEFAULTS, autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "../policy.js";
+import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "../policy.js";
 import { sourceStats } from "../stats.js";
 import { checkTemplates } from "../print-template.js";
 import { HTTP_HEADING } from "./http.js";
@@ -45,6 +46,9 @@ export async function section(options, registry, runtime) {
     // a rule's name as the configuration spells it, by its key: shown where no column has it
     const configured = new Map([options.policy?.fields, ...Object.values(options.sources ?? {}).map((s) => s.policy?.fields)].flatMap((f) => Object.keys(f ?? {})).map((n) => [fieldKey(n), n]));
     items.push(heading(`Sources (${sources.length}):`));
+    // the exposure limits every source has unless its own policy says otherwise
+    const server = resolvePolicy(options.policy);
+    items.push(plain(`values listed per shown field: ${server.items} (policy.items)`), plain(server.inline ? `results inline in the tool answer: up to ${server.inline.cells} cells (policy.inline)` : "results inline in the tool answer: off (policy.inline)"));
     if (!sources.length && !registry.allow.length) {
         items.push(warning("no sources and no files by path: callers can use only data they send in a request; name a configuration file (--config or $PIVOTKIT_CONFIG) or a source (--source id=file)"));
     }
@@ -59,18 +63,18 @@ export async function section(options, registry, runtime) {
         if (!columns.names) {
             everyColumn = null;
         }
-        items.push(plain(`${s.id}: ${s.file ? s.file : written.http ? `an HTTP source (see ${HTTP_HEADING})` : "a code source"}`));
+        // a file's full path on a line of its own: never cut, and the lines around it keep their width
+        items.push(...(s.file ? [plain(`${s.id}: a file`), plain(s.file, 2)] : [plain(`${s.id}: ${written.http ? `an HTTP source, described under ${HTTP_HEADING}` : "a code source, described under Code sources"}`)]));
         if (s.file && !s.exists) {
             items.push(problem(`sources.${s.id}.file: ${written.file} is not there`, { effect: `the server starts; ${s.id} answers FILE_NOT_AVAILABLE` }));
         }
         items.push(plain(`policy: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}`, 2));
-        if (s.policy.items !== POLICY_DEFAULTS.items) {
+        // the limits only where this source's policy changes the server's
+        if (s.policy.items !== server.items) {
             items.push(plain(`values listed per shown field: ${s.policy.items}`, 2));
         }
-        if (!s.policy.inline) {
-            items.push(plain("results inline in the tool answer: off", 2));
-        } else if (s.policy.inline.cells !== POLICY_DEFAULTS.inline.cells) {
-            items.push(plain(`results inline in the tool answer: up to ${s.policy.inline.cells} cells`, 2));
+        if (Boolean(s.policy.inline) !== Boolean(server.inline) || (s.policy.inline && server.inline && s.policy.inline.cells !== server.inline.cells)) {
+            items.push(plain(s.policy.inline ? `results inline in the tool answer: up to ${s.policy.inline.cells} cells` : "results inline in the tool answer: off", 2));
         }
         if (s.scopes.length) items.push(plain(`scopes: ${s.scopes.join(" ")}`, 2));
         if (s.link) items.push(plain(`link: ${s.link}`, 2));
@@ -123,6 +127,8 @@ export async function section(options, registry, runtime) {
         if (options.files?.list) items.push(plain("listed by list_sources"));
         items.push(plain(`policy: ${filePolicy.default} by default`));
         if (options.files?.hardLinks) items.push(plain("hard links: read"));
+    } else {
+        items.push(heading("Files by path: off"));
     }
     return { items, upgrade: [] };
 }

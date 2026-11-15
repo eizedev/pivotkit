@@ -22,7 +22,7 @@ export const CONFIG_ENV = "PIVOTKIT_CONFIG";
 /** The subcommands, for the help. */
 const COMMANDS = Object.freeze({
     serve: "Serve REST (and MCP, when pivotkit-mcp is installed) over HTTP.",
-    "check-config": "Print what serve would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable).",
+    "check-config": "Print whether serve starts and what it would expose, then exit (1 when there is a PROBLEM).",
     "check-source <id>": "Load an HTTP source once (--param name=value for its parameters) and print the backend's status, pages, rows and fields, never a value (1 when it fails).",
     "source-from-openapi <file|url>": "Propose an HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (--operation <operationId or 'GET /path'>, --id, --backend); TODO values for you to fill in.",
     mcp: "Run pivotkit-mcp (stdio by default; its own flags, pivotkit-mcp --help).",

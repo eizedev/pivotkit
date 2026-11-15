@@ -3,27 +3,31 @@
  * as items, and render() puts them on the page the same way for all of them.
  *
  *   pivotkit-server: the server starts, but not everything will work.
- *   1 problem, 2 warnings.
+ *   1 problem, 1 warning.
  *
  *   PROBLEM: httpSources.backends.platform.auth.clientCredentials.clientSecret:
- *       the file secrets/backend-secret cannot be read (no such file) -> the server
- *       starts; vms answers SOURCE_UNAVAILABLE
+ *       the file secrets/backend-secret cannot be read (no such file) -> the
+ *       server starts; vms answers SOURCE_UNAVAILABLE
+ *
+ *   WARNING (Sources): sources.sales.policy.fields.Custmer: no column of
+ *       sales.csv has this name; did you mean "Customer"?
  *
  *   Sources (2):
- *     sales: /srv/pivotkit/data/sales.csv
+ *     sales:
+ *         /srv/pivotkit/data/a-long-folder-name/and-another-one/sales-2026.csv
  *     ...
- *     WARNING: sources.sales.policy.fields.Custmer: no column of sales.csv has this
- *         name; did you mean "Customer"?
  *
- *   New in this version: data in the request (inline:)
- *     -> https://pivotkit.eize.dev/getting-started/upgrading/
+ *   New in this version: data in the request (inline:; mcp.data: false switches
+ *       it off)
+ *       -> https://pivotkit.eize.dev/getting-started/upgrading/
  *
  * Three markers: PROBLEM (counted; keeps the server from starting, or a source or feature from
- * working, and says which), WARNING (counted, not an error) and plain. The verdict and the counts come
- * first, then every PROBLEM line, then the sections in their order, a blank line before each heading.
- * Under a heading the plain lines come first in the order the section gives them, its warnings last. One fact per line, wrapped at WIDTH
- * columns. A fact under another is two spaces further in; a wrapped line goes on four spaces
- * further in, so the two are never confused.
+ * working, and says which), WARNING (counted, not an error) and plain. The verdict and the counts
+ * come first, then every PROBLEM line, then every WARNING line named by its heading, then the
+ * sections in their order with their facts, a blank line before each heading. One fact per line,
+ * wrapped at WIDTH columns at spaces; a word longer than a line (a path) stands alone on its line.
+ * A fact under another is two spaces further in; a wrapped line goes on four spaces further in, so
+ * the two are never confused.
  */
 
 import { pathOf } from "../config.js";
@@ -57,8 +61,8 @@ export const problem = (text, how) => /** @type {Item} */ ({ kind: "problem", te
 
 /**
  * A text cut into lines of at most `width` columns at spaces: the first line starts at `indent`, the
- * others at `hang`. A word longer than a line (an address, a path) stays whole, on the line it
- * follows.
+ * others at `hang`. A word longer than a line (an address, a path) stays whole, on a line of its
+ * own.
  * @param {string} text
  * @param {number} indent
  * @param {number} [hang]
@@ -70,8 +74,9 @@ export function wrap(text, indent, hang = indent + 4, width = WIDTH) {
     let line = " ".repeat(indent);
     let empty = true;
     for (const word of text.split(" ")) {
-        // a word longer than any line (an address, a path) stays on the line it starts on
-        if (!empty && line.length + 1 + word.length > width && hang + word.length <= width) {
+        // a word that does not fit starts a new line; one longer than any line (a path, an address)
+        // stands alone on its own, never cut
+        if (!empty && line.length + 1 + word.length > width) {
             out.push(line);
             line = " ".repeat(hang) + word;
             continue;
@@ -110,6 +115,15 @@ function blocksOf(items) {
     return blocks;
 }
 
+/** Where a secret comes from, as check-config names it (never its value): $NAME, or the file as written and its full path. */
+export const secretText = (options, ref) => (ref.env ? `$${ref.env}` : `the file ${fileText(options, /** @type {string} */ (ref.file))}`);
+
+/** Up to six ids, then how many more. */
+export const idsText = (ids) => (ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", "));
+
+/** A block's heading as a warning names it: "Sources (2):" -> Sources, "Auth: oauth" -> Auth. */
+const headingName = (item) => (item?.kind === "heading" ? (/^([^:(]+?)\s*[:(]/.exec(item.text)?.[1] ?? item.text) : "check-config");
+
 /** "1 problem", "2 warnings". */
 const count = (n, what) => `${n} ${what}${n === 1 ? "" : "s"}`;
 
@@ -131,22 +145,26 @@ export function render(name, sections, upgrade, upgradingUrl) {
     const warnings = all.filter((i) => i.kind === "warning").length;
     const stops = problems.filter((i) => /** @type {any} */ (i).stops).length;
     // one line a script can read: the server starts or not (any problem exits with 1 all the same)
-    const verdict = stops ? "the server would not start with this configuration." : problems.length ? "the server starts, but not everything will work." : "the configuration is valid.";
+    const verdict = stops ? "the server does not start with this configuration." : problems.length ? "the server starts, but not everything will work." : "the configuration is valid.";
     const lines = [...wrap(`${name}: ${verdict}`, 0), `${count(problems.length, "problem")}, ${count(warnings, "warning")}.`];
     if (problems.length) {
         // the ones that stop the start first
         lines.push("", ...[...problems].sort((a, b) => Number(/** @type {any} */ (b).stops) - Number(/** @type {any} */ (a).stops)).flatMap((p) => wrap(problemText(p), 0)));
     }
-    for (const block of sections.flatMap(blocksOf)) {
+    // every warning next, named by the heading it belongs to, so none is missed deep in a section
+    const blocks = sections.flatMap(blocksOf);
+    const warned = blocks.flatMap((block) => block.filter((i) => i.kind === "warning").map((i) => `WARNING (${headingName(block[0])}): ${i.text}`));
+    if (warned.length) {
+        lines.push("", ...warned.flatMap((text) => wrap(text, 0)));
+    }
+    for (const block of blocks) {
+        const facts = block.filter((i) => i.kind !== "warning");
+        if (!facts.length) {
+            continue;
+        }
         lines.push("");
-        for (const item of [...block.filter((i) => i.kind !== "warning"), ...block.filter((i) => i.kind === "warning")]) {
-            if (item.kind === "heading") {
-                lines.push(...wrap(item.text, 0));
-            } else if (item.kind === "plain") {
-                lines.push(...wrap(item.text, 2 * item.depth));
-            } else {
-                lines.push(...wrap(`WARNING: ${item.text}`, 2));
-            }
+        for (const item of facts) {
+            lines.push(...wrap(item.text, item.kind === "plain" ? 2 * item.depth : 0));
         }
     }
     if (upgrade.length) {

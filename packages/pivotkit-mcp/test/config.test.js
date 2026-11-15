@@ -44,7 +44,7 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     assert.equal(check.status, 1, "a missing file is a problem: exit 1");
     const said = factsOf(check.stdout);
     assert.match(said, /^pivotkit-mcp: the server starts, but not everything will work\.\n1 problem, 0 warnings\./);
-    assert.match(said, /sales: .*data\/sales\.csv\n {4}policy: summary by default; Region show, Customer hide/);
+    assert.match(said, /\n {2}sales: a file\n {4}\S+data\/sales\.csv\n {4}policy: summary by default; Region show, Customer hide\n/);
     assert.match(said, /PROBLEM: sources\.more\.file: data\/none\.csv is not there -> the server starts; more answers FILE_NOT_AVAILABLE/);
     assert.match(said, /Files by path: allowed in .*data/);
     assert.match(said, /\nOutput: out\n/);
@@ -54,7 +54,7 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     // a missing output directory is made at start; with output.create off it is a problem
     const noOut = runner(["--config", join(dir, "bad-out.json"), "--check-config"], other);
     assert.equal(noOut.status, 0, noOut.stdout);
-    assert.match(factsOf(noOut.stdout), /\nOutput: nope\n {2}at \S+nope \(will be created at start\)\n/);
+    assert.match(factsOf(noOut.stdout), /\nOutput: nope\n {2}\S+nope\n {2}will be created at start\n/);
     writeFileSync(join(dir, "off-out.json"), JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "nope", create: false } }));
     const off = runner(["--config", join(dir, "off-out.json"), "--check-config"], other);
     assert.equal(off.status, 1);

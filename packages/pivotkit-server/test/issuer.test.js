@@ -14,7 +14,7 @@ import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig } from "pivotkit-server";
 import { ISSUER_LIMITS, issuerMeans } from "../src/issuer.js";
 import { createGuardedFetch } from "../src/sources/fetch.js";
-import { call, restServer, tempDir, workspace } from "./helpers.js";
+import { call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
 
 const REST_RESOURCE = "https://pk.example.com/api/v1";
 const NAME = "idp.example.test";
@@ -276,27 +276,30 @@ test("auth.allowInsecureIssuer allows plain http to loopback only", async () => 
 
 test("check-config: the issuer's rules, and a PROBLEM for an issuer on a private or metadata address", async () => {
     const options = (auth) => ({ sources: SOURCES, baseDir: workspace(), auth: { mode: "oauth", issuer: "https://localhost/realms/x", resource: REST_RESOURCE, ...auth } });
-    const refused = await checkConfig(options({}));
-    assert.match(refused.text, /Issuer requests: https only, no redirects, metadata up to 256 KiB, keys up to 256 KiB; loopback and private addresses refused \(set auth\.intranet: true for an issuer in your LAN or cluster\)/);
-    assert.match(refused.text, /PROBLEM: auth\.issuer: localhost resolves to (127\.0\.0\.1|::1), a loopback or private address, which the server refuses without auth\.intranet: true/);
-    assert.match(refused.text, /an issuer on a loopback or private address needs auth\.intranet: true/, "the upgrade note");
+    const checked = await checkConfig(options({}));
+    const refused = { ...checked, text: factsOf(checked.text) };
+    assert.match(refused.text, /\nIssuer requests:\n {2}https only, no redirects, metadata up to 256 KiB, keys up to 256 KiB\n {2}loopback and private addresses: refused \(set auth\.intranet: true for an issuer in your LAN or cluster\)\n/);
+    // the server starts and keeps trying: callers get 503 meanwhile
+    assert.match(refused.text, /PROBLEM: auth\.issuer: localhost resolves to (127\.0\.0\.1|::1), a loopback or private address, which the server refuses without auth\.intranet: true -> the server starts; callers get 503 until the issuer can be reached/);
+    assert.match(refused.text, /\nNew in this version: [^\n]*issuer requests under the outbound rules \(a LAN issuer needs auth\.intranet: true\)/, "the upgrade note");
     assert.ok(refused.problems >= 1);
+    assert.equal(refused.stops, 0);
     const allowed = await checkConfig(options({ intranet: true }));
-    assert.match(allowed.text, /loopback and private addresses allowed \(auth\.intranet\)/);
+    assert.match(allowed.text, /loopback and private addresses: allowed \(auth\.intranet\)/);
     assert.doesNotMatch(allowed.text, /PROBLEM: auth\.issuer/);
     const metadata = await checkConfig(options({ issuer: "https://169.254.169.254/", intranet: true }));
-    assert.match(metadata.text, /PROBLEM: auth\.issuer: 169\.254\.169\.254, which is never connected to/);
+    assert.match(factsOf(metadata.text), /PROBLEM: auth\.issuer: 169\.254\.169\.254, which is never connected to/);
     const jwks = await checkConfig(options({ intranet: true, jwksUri: "https://[fd00:ec2::254]/keys" }));
-    assert.match(jwks.text, /PROBLEM: auth\.jwksUri: fd00:ec2::254, which is never connected to/);
+    assert.match(factsOf(jwks.text), /PROBLEM: auth\.jwksUri: fd00:ec2::254, which is never connected to/);
     // the download sign-in's token endpoint: the issuer's host, or the operator's tokenUrl, checked like the issuer
     const signInOptions = (signIn) => ({ ...options({ intranet: true }), output: { dir: "out", downloads: { signIn: { clientId: "pivotkit-downloads", ...signIn } } }, http: { publicUrl: "https://pk.example.com/" } });
-    assert.match((await checkConfig(signInOptions({}), { http: true })).text, /; sign-in token endpoint on the issuer's host only/);
-    const google = await checkConfig(signInOptions({ tokenUrl: "https://169.254.169.254/token" }), { http: true });
-    assert.match(google.text, /; sign-in token endpoint on 169\.254\.169\.254 \(output\.downloads\.signIn\.tokenUrl\)/);
-    assert.match(google.text, /PROBLEM: output\.downloads\.signIn\.tokenUrl: 169\.254\.169\.254, which is never connected to/);
+    assert.match(factsOf((await checkConfig(signInOptions({}), { http: true })).text), /\n {2}download links' token endpoint: on the issuer's host only\n/);
+    const google = factsOf((await checkConfig(signInOptions({ tokenUrl: "https://169.254.169.254/token" }), { http: true })).text);
+    assert.match(google, /\n {2}download links' token endpoint: on 169\.254\.169\.254 \(output\.downloads\.signIn\.tokenUrl\)\n/);
+    assert.match(google, /PROBLEM: output\.downloads\.signIn\.tokenUrl: 169\.254\.169\.254, which is never connected to/);
     // without OAuth the setting does nothing, and check-config says so
     const token = await checkConfig({ sources: SOURCES, baseDir: workspace(), auth: { mode: "token", intranet: true } }, { env: { PIVOTKIT_MCP_TOKEN: "x".repeat(40) } });
-    assert.match(token.text, /warning: auth\.intranet has no effect without an OAuth issuer/);
+    assert.match(factsOf(token.text), /WARNING \(Issuer requests\): auth\.intranet has no effect without an OAuth issuer/);
 });
 
 test("a key set that cannot be read: tokens right after the failure do not ask the issuer again, and the warning is written once", async () => {

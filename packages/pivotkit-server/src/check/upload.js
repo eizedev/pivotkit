@@ -16,7 +16,7 @@
 
 import { settingsOf as downloadSettingsOf } from "../options/downloads.js";
 import { inlineOffered, perPersonItem, perPersonOf } from "./downloads.js";
-import { fileText, heading, plain, problem, warning } from "./format.js";
+import { heading, idsText, plain, problem, secretText, warning } from "./format.js";
 import { OUTPUT_DEFAULTS } from "../config.js";
 import { addressText, uploadMaxBytes, uploadSettingsOf } from "../options/upload.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
@@ -51,8 +51,6 @@ async function hostItem(host, intranet, key) {
     return problem(`${key}: ${said}, a loopback or private address, which uploads refuse without output.upload.intranet: true`, FAILS);
 }
 
-/** Up to six ids, then how many more. */
-const idsText = (ids) => (ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", "));
 
 /** A size in MiB (or KiB, or bytes) for a line. */
 const sizeText = (bytes) => (bytes >= 1_048_576 ? `${+(bytes / 1_048_576).toFixed(1)} MiB` : bytes >= 1024 ? `${+(bytes / 1024).toFixed(1)} KiB` : `${bytes} bytes`);
@@ -127,7 +125,7 @@ export async function section(options, registry, runtime) {
             continue;
         }
         const where = `output.upload${settings.presign ? ".presign" : ""}.headers.${name}`;
-        items.push(plain(`header ${name} from ${value.value.env ? `$${value.value.env}` : `the file ${fileText(options, value.value.file)}`}`));
+        items.push(plain(`header ${name} from ${secretText(options, value.value)}`));
         try {
             await readSecret(value.value, options, runtime.env);
         } catch (e) {
@@ -135,7 +133,7 @@ export async function section(options, registry, runtime) {
         }
         const readable = await secretFileWarning(value.value, options, `the file ${value.value.file} of ${where}`);
         if (readable) {
-            items.push(warning(readable.replace(/^warning: /, "")));
+            items.push(warning(readable));
         }
     }
     return { items, upgrade: [] };
