@@ -7,8 +7,8 @@
  */
 
 import { fromJsonSchema } from "@modelcontextprotocol/server";
-import { OPERATIONS, OperationError } from "pivotkit-report/operations";
-import { callerFields, inlineLogFields, isRequestId, newRequestId, present, presentedInput, presentedOutput, serverTextOf, withRequestId } from "pivotkit-server";
+import { OPERATIONS, OPERATION_ERRORS, OperationError } from "pivotkit-report/operations";
+import { callerFields, inlineLogFields, isRequestId, newRequestId, present, presentedInput, presentedOutput, requestId, serverTextOf, withRequestId } from "pivotkit-server";
 
 /** The tool's description: the operation's, plus what the model must know about this server. */
 function descriptionOf(name) {
@@ -123,28 +123,34 @@ export function registerTools(server, context, caller) {
             },
             async (/** @type {any} */ args, /** @type {any} */ ctx) => {
                 const started = Date.now();
-                // the call's id: on its log lines, and inside its work (a source's code, an error's details)
-                const id = newRequestId();
+                // the call's id: on its log lines, and inside its work (a source's code, an error's details);
+                // over HTTP the request's (one call per request), so its X-Request-Id names the same
+                const id = requestId() ?? newRequestId();
                 // data sent with source "inline:": how many rows and columns, never a value
                 const entry = { tool: name, ...callerFields(caller), requestId: id, source: context.registry.logName(args?.source), ...inlineLogFields(args) };
-                try {
-                    if (caller.scopes !== null && !scopes.every((s) => caller.scopes?.has(s))) {
-                        throw new OperationError("NOT_ALLOWED", `your token may not use ${name}`);
+                // the call runs in its scope: its work and every line it logs (the call line too) name its id and trace
+                return withRequestId(id, async () => {
+                    try {
+                        if (caller.scopes !== null && !scopes.every((s) => caller.scopes?.has(s))) {
+                            throw new OperationError("NOT_ALLOWED", `your token may not use ${name}`);
+                        }
+                        if (VIEW_ONLY.has(name) && args?.layout !== undefined) {
+                            throw new OperationError("INVALID_INPUT", `${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here`);
+                        }
+                        const { text, result, link } = await present(context, name, args ?? {}, caller, { signal: ctx?.mcpReq?.signal });
+                        context.log.call({ ...entry, ok: true, status: 200, ms: Date.now() - started });
+                        return /** @type {any} */ (okResult(text, result, takesResourceLink(ctx) ? link : undefined));
+                    } catch (e) {
+                        const error = e instanceof OperationError ? e : null;
+                        if (!error || (error.code === "INTERNAL" && error.cause)) {
+                            context.log.error(error?.cause ?? e, entry);
+                        }
+                        const code = error?.code ?? "INTERNAL";
+                        // the status REST would answer with: the line's level (warn for 4xx, error for 5xx)
+                        context.log.call({ ...entry, ok: false, status: OPERATION_ERRORS[/** @type {keyof typeof OPERATION_ERRORS} */ (code)] ?? 500, code, ms: Date.now() - started });
+                        return errorResult(error, { requestId: id, source: typeof args?.source === "string" && context.registry.ids().includes(args.source) ? args.source : undefined });
                     }
-                    if (VIEW_ONLY.has(name) && args?.layout !== undefined) {
-                        throw new OperationError("INVALID_INPUT", `${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here`);
-                    }
-                    const { text, result, link } = await withRequestId(id, () => present(context, name, args ?? {}, caller, { signal: ctx?.mcpReq?.signal }));
-                    context.log.call({ ...entry, ok: true, ms: Date.now() - started });
-                    return /** @type {any} */ (okResult(text, result, takesResourceLink(ctx) ? link : undefined));
-                } catch (e) {
-                    const error = e instanceof OperationError ? e : null;
-                    if (!error || (error.code === "INTERNAL" && error.cause)) {
-                        context.log.error(error?.cause ?? e, entry);
-                    }
-                    context.log.call({ ...entry, ok: false, code: error?.code ?? "INTERNAL", ms: Date.now() - started });
-                    return errorResult(error, { requestId: id, source: typeof args?.source === "string" && context.registry.ids().includes(args.source) ? args.source : undefined });
-                }
+                });
             }
         );
     }

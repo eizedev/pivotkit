@@ -45,6 +45,8 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {boolean} [showPaths]  tell the caller a written file's full path (a local stdio server)
  * @property {{ write(text: string): unknown }} [stderr]  where the log goes (default process.stderr)
  * @property {string} [tokenEnv]  the variable of the one static token when auth.tokens is empty (default PIVOTKIT_TOKEN; pivotkit-mcp: PIVOTKIT_MCP_TOKEN)
+ * @property {{ name: string, version: string }} [service]  the program every log line names (default pivotkit-server and its version)
+ * @property {Record<string, string | undefined>} [env]  the environment the log reads NO_COLOR from (default process.env)
  */
 
 /**
@@ -71,7 +73,8 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  */
 export async function createContext(options, runtime = {}) {
     validateOptions(options);
-    const log = createLog(options.log ?? "info", runtime.stderr ?? process.stderr);
+    const service = runtime.service ?? { name: "pivotkit-server", version: VERSION };
+    const log = createLog(options.log ?? "info", runtime.stderr ?? process.stderr, { service: service.name, version: service.version, env: runtime.env ?? process.env });
     const registry = await createRegistry(options, { log }).catch((e) => {
         throw e?.code === "ALLOW_DIR_NOT_FOUND" || e?.code === "ALLOW_DIR_NOT_DIRECTORY" ? new ConfigError(`files.allowDirs: ${e.message.replace(/^--allow-dir /, "")}`) : e;
     });

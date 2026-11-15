@@ -937,7 +937,7 @@ export function createDownloadHandler(context, runtime = {}) {
         async precheck(request) {
             const refused = hostRefusal(request, hosts);
             if (refused) {
-                context.log.refused({ status: 403, path: DOWNLOADS_PATH, host: String(request.headers.get("host") ?? "").slice(0, 100) });
+                context.log.refused({ status: 403, path: DOWNLOADS_PATH, reason: "host", host: String(request.headers.get("host") ?? "").slice(0, 100) });
                 return answer(request, "FORBIDDEN_HOST");
             }
             if (Number(request.headers.get("content-length") ?? 0) > DOWNLOAD_BODY_BYTES) {
@@ -954,11 +954,11 @@ export function createDownloadHandler(context, runtime = {}) {
             }
             const path = new URL(request.url).pathname;
             // one id per request: its log lines, its problem document and its page name the same one
-            return withRequestId(newRequestId(), () => route(request, path));
+            return withRequestId(requestId() ?? newRequestId(), () => route(request, path));
         },
 
         /** The answer for a body that cannot be read (too large, cut off). */
-        problem: (status) => new Response(JSON.stringify({ code: status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", requestId: newRequestId() }), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", connection: "close" } }),
+        problem: (status) => new Response(JSON.stringify({ code: status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", requestId: requestId() ?? newRequestId() }), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", connection: "close" } }),
 
         /**
          * The address the server listens on, once it does: the links' base on loopback without

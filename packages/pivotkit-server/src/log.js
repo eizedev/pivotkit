@@ -1,12 +1,20 @@
 /*
- * The log: one JSON line per event on stderr (stdout is the protocol on stdio). A tool call (MCP) or
- * a request (REST) logs its operation, the source (an id, or a file by its base name), the client (a
- * token's name or an OAuth client id), the person only where the operator asked for it (audit.subject:
- * a keyed hash or the claim's text, `subject`), the request's id (requestId: on every line written
- * inside the request, its refusal and error lines too), whether it worked (REST: the status), its
- * error code and its time; a downloaded file is an event of its own. Never a view, a value, a token,
- * a person's groups or other claims, or a full path, and a client's address only where the operator
- * trusts a proxy to name it (http.trustProxy).
+ * The log: one line per event on stderr (stdout is the protocol on stdio), as JSON or as text
+ * (logfmt, in the style of Go's slog TextHandler), with the same fields. `log.format` "auto" writes
+ * text to a terminal and JSON otherwise; "text" and "json" force one. Every line has `time`, `level`
+ * (debug, info, warn, error), `severity` (the RFC 5424 number: 7, 6, 4, 3), `event`, `msg`, `service`
+ * and `version`; a line written inside a request adds the request's scope (request-id.js):
+ * `requestId`, `traceId`, `upstreamRequestId` (a valid incoming X-Request-Id) and, unless
+ * `log.address` is "off", `address` (the socket's peer) and `clientAddress` (the forwarded client,
+ * only with http.trustProxy).
+ *
+ * A tool call (MCP) or a request (REST) logs its operation, the source (a configured id, `inline:`,
+ * `file:` or `unknown`, at most SOURCE_LOG_TEXT characters), the client (a token's name or an OAuth
+ * client id), the person only where the operator asked for it (audit.subject: a keyed hash or the
+ * claim's text, `subject`), its status and `outcome` (ok or error; the line's level follows the
+ * status: info, warn for 4xx, error for 5xx), its error code and its time; a downloaded file is an
+ * event of its own, a refused request one with its `reason`. Never a view, a value, a token, a
+ * person's groups or other claims, or a full path.
  */
 
 import { createHmac } from "node:crypto";
@@ -73,35 +81,286 @@ export function callerFields(caller) {
     return subject ? { ...fields, subject } : fields;
 }
 
-import { requestId } from "./request-id.js";
+
+import { requestScope } from "./request-id.js";
+
+/** The levels of `log.level`, least to most severe; "off" writes nothing. */
+export const LOG_LEVELS = Object.freeze(["debug", "info", "warn", "error", "off"]);
+
+/** The formats of `log.format`: "auto" is text on a terminal and JSON otherwise. */
+export const LOG_FORMATS = Object.freeze(["auto", "text", "json"]);
+
+/** `log.address`: "on" logs the socket's peer (and the forwarded client with http.trustProxy). */
+export const LOG_ADDRESS = Object.freeze(["on", "off"]);
+
+/** The settings of a server that names none. */
+export const LOG_DEFAULTS = Object.freeze({ level: "info", format: "auto", address: "on" });
+
+/** The RFC 5424 severity of each level (syslog's numbers; GELF's `level` uses the same). */
+export const SEVERITY = Object.freeze({ debug: 7, info: 6, warn: 4, error: 3 });
+
+/** The most characters of `source` on a line, the same on REST and MCP lines. */
+export const SOURCE_LOG_TEXT = 64;
+
+/** Each level's rank: a line is written when its rank reaches the setting's. */
+const RANK = Object.freeze({ debug: 0, info: 1, warn: 2, error: 3, off: 4 });
 
 /**
- * @param {"info" | "debug" | "off"} level
- * @param {{ write(text: string): unknown }} stream
+ * @typedef {{ level: "debug" | "info" | "warn" | "error" | "off", format: "auto" | "text" | "json", address: "on" | "off" }} LogSettings
  */
-export function createLog(level, stream) {
-    const write = (entry) => {
-        if (level !== "off") {
-            // every line written inside a request names it (an entry's own requestId wins)
-            const id = requestId();
-            stream.write(`${JSON.stringify({ time: new Date().toISOString(), ...(id ? { requestId: id } : {}), ...entry })}\n`);
+
+/**
+ * The log settings of the options' `log`: a level alone ("debug", the short form) or an object with
+ * level, format and address; what is not given is LOG_DEFAULTS'.
+ * @param {string | Partial<LogSettings> | undefined} log
+ * @returns {LogSettings}
+ */
+export function logSettingsOf(log) {
+    const given = typeof log === "string" ? { level: log } : (log ?? {});
+    return /** @type {LogSettings} */ ({ ...LOG_DEFAULTS, ...Object.fromEntries(Object.entries(given).filter(([, v]) => v !== undefined)) });
+}
+
+/**
+ * The format a log writes: "auto" is text when the stream is a terminal, JSON otherwise.
+ * @param {LogSettings["format"]} format
+ * @param {{ isTTY?: boolean }} stream
+ * @returns {"text" | "json"}
+ */
+export const formatOf = (format, stream) => (format === "auto" ? (stream?.isTTY ? "text" : "json") : format);
+
+/** A status's level: info below 400, warn for 4xx, error for 5xx. */
+export const levelOfStatus = (status) => (status >= 500 ? "error" : status >= 400 ? "warn" : "info");
+
+/** The fields the text format leaves out: the same on every line of a process (started names them) or meant for a log shipper. */
+const TEXT_LEFT_OUT = new Set(["severity", "service", "traceId"]);
+
+/** A key as the text format writes it: letters, digits, "_", "." and "-". */
+const textKey = (key) => key.replace(/[^A-Za-z0-9_.-]/g, "_") || "_";
+
+/** A value as text: what would break the line or turn text around removed (AUDIT_STRIPPED). */
+const plainText = (text) => text.replace(AUDIT_STRIPPED, "");
+
+/**
+ * A value as the text format writes it (slog's rules): a number or boolean as it is; a list of plain
+ * values joined with ","; any other object as JSON; text quoted (with JSON's escapes) when it is
+ * empty or holds a space, "=", a quote or a backslash; control and bidi characters removed first.
+ * @param {unknown} value
+ */
+function textValue(value) {
+    if (typeof value === "number" || typeof value === "boolean" || value === null) {
+        return String(value);
+    }
+    const text = plainText(Array.isArray(value) && value.every((v) => v === null || typeof v !== "object") ? value.join(",") : typeof value === "object" ? JSON.stringify(value) : String(value));
+    return text === "" || /[\s="\\]/.test(text) ? JSON.stringify(text) : text;
+}
+
+/** The ANSI colour of each level's name on a terminal. */
+const COLOURS = Object.freeze({ debug: "\x1b[90m", info: "\x1b[32m", warn: "\x1b[33m", error: "\x1b[31m" });
+
+/**
+ * One line of the text format: key=value pairs, the level's name coloured when `colour`.
+ * @param {Record<string, unknown>} fields
+ * @param {boolean} colour
+ */
+function textLine(fields, colour) {
+    const parts = [];
+    for (const [key, value] of Object.entries(fields)) {
+        if (value === undefined || TEXT_LEFT_OUT.has(key) || (key === "message" && typeof value === "string" && plainText(value).slice(0, 500) === fields.msg) || (key === "version" && fields.msg !== "started")) {
+            continue;
         }
+        const text = textValue(value);
+        parts.push(`${textKey(key)}=${colour && key === "level" ? `${COLOURS[/** @type {keyof typeof COLOURS} */ (value)] ?? ""}${text}\x1b[0m` : text}`);
+    }
+    return parts.join(" ");
+}
+
+/**
+ * Fields put into a line after the first of `after` it has (or at its end): the line keeps the order
+ * a person reads it in (the client, then where it came from; the status, then the outcome).
+ * @param {Array<[string, unknown]>} pairs
+ * @param {string[]} after
+ * @param {Array<[string, unknown]>} added
+ */
+function insertAfter(pairs, after, added) {
+    if (!added.length) {
+        return;
+    }
+    const at = pairs.findLastIndex(([key]) => after.includes(key));
+    pairs.splice(at < 0 ? pairs.length : at + 1, 0, ...added);
+}
+
+/** The events whose level and outcome follow their status (or `ok`). */
+const OUTCOME_EVENTS = new Set(["call", "request", "download", "refused"]);
+
+/**
+ * A log on a stream.
+ * @param {"debug" | "info" | "warn" | "error" | "off" | Partial<LogSettings>} settings  a level (the short form) or the settings
+ * @param {{ write(text: string): unknown, isTTY?: boolean }} stream
+ * @param {{ service?: string, version?: string, env?: Record<string, string | undefined> }} [about]  service and version: the program on every line; env: NO_COLOR is read from it
+ */
+export function createLog(settings, stream, { service = "pivotkit-server", version = "", env = process.env } = {}) {
+    const { level, format: wanted, address } = logSettingsOf(settings);
+    const format = formatOf(wanted, stream);
+    const colour = format === "text" && Boolean(stream?.isTTY) && !env.NO_COLOR;
+    const threshold = RANK[level] ?? RANK.info;
+
+    /**
+     * Writes one line when its level reaches the setting (`always`: at every level but off).
+     * @param {"debug" | "info" | "warn" | "error"} lineLevel
+     * @param {string} msg
+     * @param {Record<string, unknown>} entry
+     * @param {boolean} [always]
+     */
+    const write = (lineLevel, msg, entry, always = false) => {
+        if (level === "off" || (!always && RANK[lineLevel] < threshold)) {
+            return;
+        }
+        // every line written inside a request names it (an entry's own requestId wins)
+        const scope = requestScope();
+        /** @type {Array<[string, unknown]>} */
+        const pairs = [
+            ["time", new Date().toISOString()],
+            ["level", lineLevel],
+            ["severity", SEVERITY[lineLevel]],
+            ["event", entry.event],
+            ["msg", plainText(String(msg)).slice(0, 500)],
+            ["service", service],
+            ["version", version],
+            ...(scope ? /** @type {Array<[string, unknown]>} */ ([["requestId", scope.id], ["traceId", scope.traceId], ...(scope.upstreamRequestId ? [["upstreamRequestId", scope.upstreamRequestId]] : [])]) : [])
+        ];
+        const keyed = new Map(pairs);
+        for (const [key, value] of Object.entries(entry)) {
+            if (key === "event" || value === undefined || (address === "off" && (key === "address" || key === "clientAddress"))) {
+                continue;
+            }
+            const shown = key === "source" && typeof value === "string" ? plainText(value).slice(0, SOURCE_LOG_TEXT) : value;
+            if (keyed.has(key)) {
+                pairs[pairs.findIndex(([k]) => k === key)][1] = shown;
+            } else {
+                pairs.push([key, shown]);
+            }
+            keyed.set(key, shown);
+        }
+        if (address === "on" && scope && !keyed.has("address")) {
+            insertAfter(pairs, ["client", "subject"], /** @type {Array<[string, unknown]>} */ ([...(scope.address ? [["address", scope.address]] : []), ...(scope.clientAddress ? [["clientAddress", scope.clientAddress]] : [])]));
+        }
+        if (OUTCOME_EVENTS.has(String(entry.event)) && !keyed.has("outcome")) {
+            insertAfter(pairs, ["status", "ok"], [["outcome", entry.event !== "refused" && entry.ok !== false && !(Number(entry.status) >= 400) ? "ok" : "error"]]);
+        }
+        const fields = Object.fromEntries(pairs);
+        stream.write(`${format === "text" ? textLine(fields, colour) : JSON.stringify(fields)}\n`);
     };
+
+    /**
+     * A line of an event whose level follows its status (or `ok`): call, request, download, refused.
+     * @param {string} event
+     * @param {(entry: Record<string, any>, ok: boolean) => string} msgOf
+     */
+    const outcomeLine = (event, msgOf) => (/** @type {Record<string, any>} */ entry) => {
+        const status = Number(entry.status);
+        const ok = event !== "refused" && entry.ok !== false && !(status >= 400);
+        const lineLevel = Number.isFinite(status) && status > 0 ? levelOfStatus(status) : ok ? "info" : "warn";
+        write(lineLevel, msgOf(entry, ok), { event, ...entry });
+    };
+
+    /** An operation's name for a message: a known word, or "operation". */
+    const nameOf = (value) => (typeof value === "string" && /^[a-z_]{1,40}$/.test(value) ? value : "operation");
+
     return {
         level,
+        /** The format lines are written in ("text" or "json"; "auto" decided). */
+        format,
+        /** Whether lines name addresses (log.address). */
+        address,
         /** A tool call. */
-        call: (entry) => write({ event: "call", ...entry }),
+        call: outcomeLine("call", (entry, ok) => `${nameOf(entry.tool)} ${ok ? "ok" : "failed"}`),
         /** A REST request that reached an operation. */
-        request: (entry) => write({ event: "request", ...entry }),
-        /** A file handed to a REST caller (POST /api/v1/views/render/file). */
-        download: (entry) => write({ event: "download", ...entry }),
-        /** An HTTP request refused before it reached a tool (Host, Origin, token). */
-        refused: (entry) => write({ event: "refused", ...entry }),
-        info: (message, extra = {}) => write({ event: "info", message, ...extra }),
-        warn: (message, extra = {}) => write({ event: "warning", message, ...extra }),
-        /** Only with --log debug: details an operator needs to set up (why a token was refused). */
-        debug: (message, extra = {}) => level === "debug" && write({ event: "debug", message, ...extra }),
-        /** An unexpected error: its name and message only with --log debug, its stack never. */
-        error: (error, extra = {}) => write({ event: "error", ...extra, ...(level === "debug" ? { error: String(error?.message ?? error).slice(0, 500) } : { error: error?.name ?? "Error" }) })
+        request: outcomeLine("request", (entry, ok) => `${nameOf(entry.operation)} ${ok ? "ok" : "failed"}`),
+        /** A file handed out: by a REST caller's file route or a download link. */
+        download: outcomeLine("download", (_entry, ok) => (ok ? "file sent" : "download failed")),
+        /** An HTTP request refused before it reached a tool (Host, Origin, token, size, limits): its `reason`. */
+        refused: outcomeLine("refused", (entry) => `request refused${typeof entry.reason === "string" ? `: ${entry.reason}` : ""}`),
+        /** The server is serving: written at every level but off. */
+        started: (extra = {}) => write("info", "started", { event: "info", message: "started", ...extra }, true),
+        /** The server has stopped, after running requests finished or the grace time ended: written at every level but off. */
+        stopped: (extra = {}) => write("info", "stopped", { event: "info", message: "stopped", ...extra }, true),
+        info: (message, extra = {}) => write("info", message, { event: "info", message, ...extra }),
+        warn: (message, extra = {}) => write("warn", message, { event: "warning", message, ...extra }),
+        /** Only with log.level debug: details an operator needs to set up (why a token was refused). */
+        debug: (message, extra = {}) => write("debug", message, { event: "debug", message, ...extra }),
+        /** An unexpected error: its name and message only with log.level debug, its stack never. */
+        error: (error, extra = {}) => write("error", "unexpected error", { event: "error", ...extra, ...(level === "debug" ? { error: String(error?.message ?? error).slice(0, 500) } : { error: error?.name ?? "Error" }) })
     };
 }
+
+/**
+ * A line said before a log exists (a configuration that cannot be read at start), in the format
+ * the flags or the environment ask for: JSON with the fields every line has, so a JSON log stays
+ * JSON; null for text, which the runner writes as it always has.
+ * @param {"text" | "json"} format
+ * @param {string} message
+ * @param {{ service: string, version: string, code?: string }} about
+ * @returns {string | null}
+ */
+export function startErrorLine(format, message, { service, version, code = "CONFIG" }) {
+    if (format !== "json") {
+        return null;
+    }
+    const msg = plainText(message).slice(0, 500);
+    return `${JSON.stringify({ time: new Date().toISOString(), level: "error", severity: SEVERITY.error, event: "error", msg, service, version, message: msg, code })}\n`;
+}
+
+/**
+ * What the `started` line adds to the version, transport and address: the configured source ids, the
+ * log's own settings and, with static tokens, their names (never a value).
+ * @param {import("./config.js").ServerOptions} options
+ * @param {{ ids(): string[] }} registry
+ * @param {{ level: string, format: string, address: string }} log
+ */
+export function startFields(options, registry, log) {
+    const tokens = (options.auth?.mode ?? "none") === "token" ? (options.auth?.tokens?.length ? options.auth.tokens.map((t) => t.name) : ["token"]) : null;
+    return { sourceIds: registry.ids().map((id) => id.slice(0, SOURCE_LOG_TEXT)), logLevel: log.level, logFormat: log.format, logAddress: log.address, ...(tokens ? { tokens } : {}) };
+}
+
+/**
+ * Why a request was refused, by the code of its answer: the `reason` of a `refused` line. The token's
+ * reasons are told apart by the request (no Authorization header: no_token; one that did not pass:
+ * bad_token).
+ */
+const REFUSAL_REASONS = Object.freeze({
+    RATE_LIMITED: "rate_limited",
+    BODY_TOO_LARGE: "body_too_large",
+    FORBIDDEN_HOST: "host",
+    FORBIDDEN_ORIGIN: "origin",
+    INSUFFICIENT_SCOPE: "insufficient_scope",
+    NOT_ALLOWED: "not_allowed",
+    AUTH_NOT_READY: "not_ready",
+    BUSY: "busy",
+    INVALID_INPUT: "bad_request",
+    TOKEN_IN_ADDRESS: "token_in_address"
+});
+
+/** Every reason a `refused` line may give. */
+export const REFUSED_REASONS = Object.freeze(["no_token", "bad_token", ...Object.values(REFUSAL_REASONS)]);
+
+/**
+ * The `reason` of a refusal: its answer's code (REST's problem codes; MCP's refusals use the same),
+ * INVALID_TOKEN by whether the request carried a token.
+ * @param {string} code
+ * @param {Request | null} [request]
+ * @returns {string}
+ */
+export function refusalReason(code, request = null) {
+    if (code === "INVALID_TOKEN") {
+        return (request?.headers.get("authorization") ?? "").trim() ? "bad_token" : "no_token";
+    }
+    return REFUSAL_REASONS[/** @type {keyof typeof REFUSAL_REASONS} */ (code)] ?? "bad_request";
+}
+
+/**
+ * Resolves once what was written to the stream is out (a pipe's writes are asynchronous on some
+ * systems, and process.exit does not wait for them), or after a second for a stream that never says.
+ * @param {{ write(text: string, done?: () => void): unknown }} stream
+ * @returns {Promise<void>}
+ */
+export const flushed = (stream) => Promise.race([new Promise((resolve) => stream.write("", () => resolve(undefined))), new Promise((resolve) => setTimeout(resolve, 1000).unref())]).then(() => undefined);

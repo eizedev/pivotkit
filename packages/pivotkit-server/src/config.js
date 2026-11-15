@@ -78,7 +78,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number, data?: false | { rows?: number, cells?: number, bytes?: number } }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens; data: inline data off, or a lower cap
  * @property {import("./options/http.js").HttpSourcesOptions} [httpSources]  HTTP sources on or off, IP addresses as hosts, backends defined once
  * @property {{ maxMb?: number }} [sourceCache]  the loaded data of code and HTTP sources the process keeps (default 256 MiB; one owner a quarter)
- * @property {"info" | "debug" | "off"} [log]
+ * @property {"debug" | "info" | "warn" | "error" | "off" | { level?: "debug" | "info" | "warn" | "error" | "off", format?: "auto" | "text" | "json", address?: "on" | "off" }} [log]  the log's level, or its level, format and addresses (options/log.js)
  * @property {{ subject?: "off" | "hash" | "plain", key?: { env?: string, file?: string } }} [audit]  the person in the log lines of calls, requests and downloads (default off)
  * @property {string} [baseDir]  where relative paths start (loadConfig sets the config file's directory; default the working directory)
  */
@@ -168,7 +168,7 @@ const RATE_LIMIT = { object: { perMinute: "integer", burst: "integer", failedAut
 
 /** config.js's own keys by slot; the order is the one "known: ..." lists print. */
 const BASE_SLOTS = {
-    top: { sources: SLOT, files: SLOT, output: SLOT, policy: SLOT, limits: { map: "integer" }, locale: "string", timeZone: "string", compute: { object: { workers: "integer", timeMs: "integer", memoryMb: "integer", queueMs: "integer" } }, http: SLOT, auth: SLOT, mcp: SLOT, rest: SLOT, log: { enum: ["info", "debug", "off"] }, baseDir: "string" },
+    top: { sources: SLOT, files: SLOT, output: SLOT, policy: SLOT, limits: { map: "integer" }, locale: "string", timeZone: "string", compute: { object: { workers: "integer", timeMs: "integer", memoryMb: "integer", queueMs: "integer" } }, http: SLOT, auth: SLOT, mcp: SLOT, rest: SLOT, baseDir: "string" },
     source: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: SLOT },
     // a profile's and files.policy's keys; a source's and the server's add the "values" settings,
     // which belong to the data, not to a caller (a profile never gets the automatic rule) or a file: path
@@ -263,7 +263,8 @@ function check(value, schema, path) {
                 errors.push(e.message);
             }
         }
-        return fail(errors.map((e) => e.slice(path.length + 2)).join(", or "));
+        // a nested key's problem keeps its own path (log.level: ...); the key's own loses the repeated one
+        return fail(errors.map((e) => (e.startsWith(`${path}: `) ? e.slice(path.length + 2) : e)).join(", or "));
     }
     if (schema.list) {
         if (!Array.isArray(value)) {

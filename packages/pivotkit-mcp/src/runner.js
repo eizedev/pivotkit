@@ -4,7 +4,7 @@
  * expose and exits. The flags are one table (FLAGS): the parser and the help are made from it.
  */
 
-import { ConfigError, SHARED_FLAGS, flagLines, httpFlags, optionsFrom as sharedOptionsFrom } from "pivotkit-server";
+import { ConfigError, SHARED_FLAGS, flagLines, httpFlags, optionsFrom as sharedOptionsFrom, flushed, startErrorLine, startFields, startFormatOf } from "pivotkit-server";
 import { VERSION, createMcpContext } from "./context.js";
 
 /** @type {Readonly<Record<string, { type: "string" | "boolean", multiple?: boolean, short?: string, value?: string, text: string }>>} */
@@ -17,6 +17,8 @@ export const FLAGS = Object.freeze({
     http: { type: "boolean", text: "Serve Streamable HTTP instead of stdio." },
     ...httpFlags("HTTP: "),
     log: SHARED_FLAGS.log,
+    "log-format": SHARED_FLAGS["log-format"],
+    "log-address": SHARED_FLAGS["log-address"],
     "check-config": SHARED_FLAGS["check-config"],
     version: { type: "boolean", short: "v", text: "Print the version and exit." },
     help: SHARED_FLAGS.help
@@ -68,6 +70,8 @@ export async function run(argv, io) {
                 try {
                     await server.close();
                 } finally {
+                    // the stopped line out before the process ends (a pipe's writes are asynchronous on some systems)
+                    await flushed(io.stderr);
                     process.exit(0);
                 }
             };
@@ -75,18 +79,21 @@ export async function run(argv, io) {
             process.once("SIGTERM", stop);
             return null;
         }
-        const context = await createMcpContext(options, { showPaths: true, stderr: io.stderr });
+        const context = await createMcpContext(options, { showPaths: true, stderr: io.stderr, env: io.env });
         if ((options.auth?.mode ?? "none") !== "none" || options.http?.host || options.http?.port) {
             // stdio takes no credentials and listens nowhere (the authorization spec: from the environment)
             context.log.warn("auth and http settings do nothing over stdio; add --http to serve HTTP");
         }
         const { serveStdio } = await import("@modelcontextprotocol/server/stdio");
-        context.log.info("started", { version: VERSION, transport: "stdio", sources: context.registry.ids().length, files: context.registry.allow.length > 0, output: Boolean(context.output) });
+        context.log.started({ version: VERSION, transport: "stdio", sources: context.registry.ids().length, files: context.registry.allow.length > 0, output: Boolean(context.output), ...startFields(options, context.registry, context.log) });
         void context.countAutoValues();
         serveStdio((ctx) => context.server(ctx), { legacy: "serve", onerror: (e) => context.log.error(e, { where: "stdio" }) });
         return null;
     } catch (e) {
-        io.stderr.write(`pivotkit-mcp: ${e instanceof ConfigError ? e.message : `could not start: ${String(e?.message ?? e).slice(0, 300)}`}\n`);
+        const text = e instanceof ConfigError ? e.message : `could not start: ${String(e?.message ?? e).slice(0, 300)}`;
+        // an error before the log exists: a JSON line where the log is asked to be JSON
+        const line = argv.includes("--check-config") ? null : startErrorLine(startFormatOf(argv, io.env), text, { service: "pivotkit-mcp", version: VERSION, code: e instanceof ConfigError ? "CONFIG" : "START" });
+        io.stderr.write(line ?? `pivotkit-mcp: ${text}\n`);
         return 2;
     }
 }

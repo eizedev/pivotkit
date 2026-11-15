@@ -7,6 +7,7 @@
 import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
 import { ConfigError, loadConfig, validateOptions } from "./config.js";
+import { LOG_ADDRESS, LOG_FORMATS, LOG_LEVELS } from "./log.js";
 
 /**
  * @typedef {{ type: "string" | "boolean", multiple?: boolean, short?: string, value?: string, text: string }} Flag
@@ -18,7 +19,7 @@ import { ConfigError, loadConfig, validateOptions } from "./config.js";
  * runner's own words around them (pivotkit-mcp puts "HTTP: " before them, since it serves stdio by
  * default).
  */
-/** @type {Readonly<{ source: Flag, output: Flag, http: FlagTable, log: Flag, "check-config": Flag, help: Flag }>} */
+/** @type {Readonly<{ source: Flag, output: Flag, http: FlagTable, log: Flag, "log-format": Flag, "log-address": Flag, "check-config": Flag, help: Flag }>} */
 export const SHARED_FLAGS = Object.freeze({
     source: { type: "string", multiple: true, value: "id=file", text: "A source: its id and a CSV, TSV, JSON or XLSX file (may be given more than once)." },
     output: { type: "string", value: "dir", text: "Write reports and drafts into this directory (made at start if missing)." },
@@ -31,7 +32,9 @@ export const SHARED_FLAGS = Object.freeze({
         "allow-host": { type: "string", multiple: true, value: "name", text: "A host name clients use (besides localhost and the public URL's)." },
         "allow-origin": { type: "string", multiple: true, value: "name", text: "A browser origin's host name allowed to call MCP (none by default)." }
     })),
-    log: { type: "string", value: "level", text: "info (default), debug or off; the log is JSON lines on stderr." },
+    log: { type: "string", value: "level", text: "debug, info (default), warn, error or off; $PIVOTKIT_LOG_LEVEL." },
+    "log-format": { type: "string", value: "format", text: "auto (default: text on a terminal, JSON otherwise), text or json; $PIVOTKIT_LOG_FORMAT." },
+    "log-address": { type: "string", value: "on|off", text: "Log the client's address (default on); $PIVOTKIT_LOG_ADDRESS." },
     "check-config": { type: "boolean", text: "Print what the server would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable)." },
     help: { type: "boolean", short: "h", text: "Print this help and exit." }
 });
@@ -52,9 +55,67 @@ export const SERVER_FLAGS = Object.freeze({
     enable: { type: "string", value: "list", text: "What to serve: rest, mcp or rest,mcp (default rest, and mcp when pivotkit-mcp is installed)." },
     ...httpFlags(),
     log: SHARED_FLAGS.log,
+    "log-format": SHARED_FLAGS["log-format"],
+    "log-address": SHARED_FLAGS["log-address"],
     "check-config": SHARED_FLAGS["check-config"],
     help: SHARED_FLAGS.help
 });
+
+/** The log's settings: the flag, the variable and the values of each (options/log.js). */
+export const LOG_SETTINGS = Object.freeze({
+    level: { flag: "log", env: "PIVOTKIT_LOG_LEVEL", values: LOG_LEVELS },
+    format: { flag: "log-format", env: "PIVOTKIT_LOG_FORMAT", values: LOG_FORMATS },
+    address: { flag: "log-address", env: "PIVOTKIT_LOG_ADDRESS", values: LOG_ADDRESS }
+});
+
+/**
+ * The log's settings from the flags, the file and the environment: a flag wins, then the file, then
+ * the variable (as $PIVOTKIT_PORT: the container image sets PIVOTKIT_LOG_FORMAT, which a file's
+ * log.format overrides). The file's short form ("log": "debug") stays as it is when neither a flag
+ * nor a variable adds to it.
+ * @param {unknown} fromFile  the file's `log`
+ * @param {Record<string, any>} values  the parsed flags
+ * @param {Record<string, string | undefined>} env
+ * @param {string} program  for the pointer to --help
+ */
+function logOptionOf(fromFile, values, env, program) {
+    /** @type {Record<string, string>} */
+    const added = {};
+    for (const [key, { flag, env: name, values: allowed }] of Object.entries(LOG_SETTINGS)) {
+        const flagged = values[flag];
+        if (flagged !== undefined && !allowed.includes(flagged)) {
+            throw new ConfigError(`--${flag} must be ${allowed.slice(0, -1).join(", ")} or ${allowed.at(-1)}; ${helpPointer(program)}`);
+        }
+        const inFile = typeof fromFile === "string" ? (key === "level" ? fromFile : undefined) : /** @type {any} */ (fromFile)?.[key];
+        const variable = env[name] || undefined;
+        if (flagged === undefined && inFile === undefined && variable !== undefined && !allowed.includes(variable)) {
+            throw new ConfigError(`${name} is ${JSON.stringify(variable.slice(0, 40))}; it must be ${allowed.slice(0, -1).join(", ")} or ${allowed.at(-1)}`);
+        }
+        const chosen = flagged ?? (inFile === undefined ? variable : undefined);
+        if (chosen !== undefined) {
+            added[key] = chosen;
+        }
+    }
+    if (!Object.keys(added).length) {
+        return fromFile;
+    }
+    // the file's own settings, when it has an object of them, are checked with the rest of it
+    return { ...(typeof fromFile === "string" ? { level: fromFile } : fromFile && typeof fromFile === "object" ? fromFile : {}), ...added };
+}
+
+/**
+ * The format a runner writes a start error in (a configuration it cannot read, before the log
+ * exists): JSON when --log-format or $PIVOTKIT_LOG_FORMAT says json (the container image sets it), so
+ * a JSON log stays JSON; text otherwise, "auto" included, as the runner's usage errors are.
+ * @param {string[]} argv
+ * @param {Record<string, string | undefined>} env
+ * @returns {"text" | "json"}
+ */
+export function startFormatOf(argv, env) {
+    const at = argv.findIndex((a) => a === "--log-format" || a.startsWith("--log-format="));
+    const flagged = at < 0 ? undefined : argv[at].includes("=") ? argv[at].slice(argv[at].indexOf("=") + 1) : argv[at + 1];
+    return (flagged ?? env[LOG_SETTINGS.format.env]) === "json" ? "json" : "text";
+}
 
 /** The modes --auth takes. */
 const AUTH_MODES = Object.freeze(["none", "token", "oauth"]);
@@ -118,7 +179,8 @@ export async function optionsFrom(argv, env, { flags, configEnv, program = "pivo
     if (values.auth || values["allow-unauthenticated"]) {
         options.auth = { ...options.auth, ...(values.auth ? { mode: values.auth } : {}), ...(values["allow-unauthenticated"] ? { allowUnauthenticated: true } : {}) };
     }
-    if (values.log) options.log = values.log;
+    const log = logOptionOf(options.log, values, env, program);
+    if (log !== undefined) options.log = log;
     options.baseDir ??= process.cwd();
     validateOptions(options);
     return { options, values };

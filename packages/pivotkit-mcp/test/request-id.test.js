@@ -47,3 +47,49 @@ test("tool errors: a message that ends in a parenthesis takes the request id ins
     const refused = new OperationError("INVALID_INPUT", "params.team must be one of blue, red (The team, for example blue)");
     assert.equal(errorResult(refused, { requestId: "ZZZZZZZZZZZ" }).content[0].text, "INVALID_INPUT: params.team must be one of blue, red (The team, for example blue; request id ZZZZZZZZZZZ)");
 });
+
+test("over HTTP a call's id is its request's: X-Request-Id, the call line and the error's text name one id; the call line's level follows its status", async () => {
+    const dir = workspace();
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
+    try {
+        const headers = { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-06-18", traceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01" };
+        const response = await fetch(server.url, { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "describe_source", arguments: { source: "nope" } } }) });
+        const id = response.headers.get("x-request-id");
+        assert.match(id ?? "", /^[A-Za-z0-9_-]{11}$/);
+        const body = await response.text();
+        assert.ok(body.includes(`request id ${id}`), body);
+        const line = server.log.find((l) => l.event === "call");
+        assert.deepEqual([line.requestId, line.traceId, line.level, line.severity, line.status, line.outcome, line.ok, line.code, line.service], [id, "4bf92f3577b34da6a3ce929d0e0e4736", "warn", 4, 404, "error", false, "SOURCE_NOT_FOUND", "pivotkit-mcp"]);
+        assert.equal(line.address, "127.0.0.1");
+        // a body over the cap: refused with its reason, limit and size, and the answer names its id
+        const large = await fetch(server.url, { method: "POST", headers: { ...headers, "content-length": String(3_000_000) }, body: "x".repeat(3_000_000) }).catch(() => null);
+        const refused = server.log.find((l) => l.event === "refused" && l.reason === "body_too_large");
+        assert.ok(refused, JSON.stringify(server.log));
+        assert.deepEqual([refused.limit, refused.size, refused.level], [2_097_152, 3_000_000, "warn"]);
+        if (large) {
+            assert.equal(large.headers.get("x-request-id"), refused.requestId);
+        }
+    } finally {
+        await server.close();
+    }
+    assert.equal(server.log.at(-1).msg, "stopped");
+});
+
+test("stdio: each call gets its own id and trace; started names the sources, the log's settings and no token", async () => {
+    const { stdioClient } = await import("./helpers.js");
+    const dir = workspace();
+    const { client, stderr, close } = await stdioClient(["--source", "sales=data/sales.csv", "--log-format", "json"], { cwd: dir });
+    try {
+        await call(client, "list_sources");
+        await call(client, "list_sources");
+    } finally {
+        await close();
+    }
+    const lines = stderr.join("").trim().split("\n").map((l) => JSON.parse(l));
+    const started = lines.find((l) => l.msg === "started");
+    assert.deepEqual([started.sourceIds, started.logLevel, started.logFormat, started.tokens], [["sales"], "info", "json", undefined]);
+    const calls = lines.filter((l) => l.event === "call");
+    assert.equal(calls.length, 2);
+    assert.notEqual(calls[0].requestId, calls[1].requestId);
+    assert.ok(calls.every((l) => /^[0-9a-f]{32}$/.test(l.traceId) && l.address === undefined));
+});

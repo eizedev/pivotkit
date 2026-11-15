@@ -50,6 +50,11 @@ test("options: the composed table is today's, in today's order, plus the shared 
     // the upload target (options/upload.js): a header is a text or a secret reference with a prefix
     const headers = { map: { or: ["string", { object: { prefix: "string", value: secretRef } }] } };
     expected.output.object.upload = { object: { url: "string", headers, link: "string", expiresAt: "string", presign: { object: { url: "string", headers, uploadUrl: "string", uploadHeaders: "string", link: "string", expiresAt: "string", allowOrigins: "strings" } }, linkOrigins: "strings", method: { enum: ["PUT", "POST"] }, timeMs: "integer", maxBytes: "integer", keepLocal: "boolean", bind: { enum: ["none", "once", "signIn"] }, intranet: "boolean" } };
+    // the log (options/log.js): a level alone, as before, or its level, format and addresses; the
+    // key moves from config.js to its fragment, so it comes last
+    delete expected.log;
+    const levels = { enum: ["debug", "info", "warn", "error", "off"] };
+    expected.log = { or: [levels, { object: { level: levels, format: { enum: ["auto", "text", "json"] }, address: { enum: ["on", "off"] } } }] };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -162,7 +167,9 @@ test("check-config: today's configurations print exactly what they printed befor
         "  - Reports and schedule drafts older than 30 days are deleted from output.dir at start and every hour (output.maxAgeDays; 0 keeps them with no age limit)",
         "  - Code sources: load gets (params, { caller, signal }) and is aborted after timeMs (default 30000 ms); a failing load answers SOURCE_UNAVAILABLE (502), not INTERNAL; data is kept per caller unless cacheShared; after a transient failure last good data up to maxStale (default 3600 s) stands in"
     ];
-    const expected = golden.replace(ageLine[0], ageLine[1]).replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...delivery, ...retention, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
+    // the log's settings (check/log.js), last of the sections
+    const log = ["", "Log: level info, format auto (text on a terminal, JSON otherwise), addresses on (the socket's peer)"];
+    const expected = golden.replace(ageLine[0], ageLine[1]).replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...delivery, ...retention, ...code, ...log].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
     assert.notEqual(expected, golden);
     assert.equal(result.text.split(dir).join("<dir>"), expected);
     assert.equal(result.problems, 1);

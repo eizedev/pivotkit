@@ -29,8 +29,8 @@ import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData } 
 import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
 import { SAFE_HEADERS, json, problem, problemOf, withRequestIdMember } from "./problem.js";
-import { callerFields } from "../log.js";
-import { requestId, requestIdFor, withRequestId } from "../request-id.js";
+import { callerFields, refusalReason } from "../log.js";
+import { requestId, requestScopeFor, withRequestIdHeader, withRequestScope } from "../request-id.js";
 import { offeredScopes } from "../scopes.js";
 import { REST_ROUTES } from "./routes.js";
 
@@ -38,7 +38,7 @@ import { REST_ROUTES } from "./routes.js";
 export const REST_BODY_BYTES = BODY_BYTES;
 
 /** The headers a browser may read from an answer (CORS). */
-const EXPOSED = "content-disposition, retry-after, www-authenticate";
+const EXPOSED = "content-disposition, retry-after, www-authenticate, x-request-id";
 
 /** A route's path as a pattern: "{id}" is one path segment. */
 const patternOf = (path) => new RegExp(`^${path.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{(\w+)\}/g, "(?<$1>[^/]+)")}$`);
@@ -165,7 +165,7 @@ export async function createRestHandler(context, runtime = {}) {
 
     /**
      * The verified caller of a request, or the refusal to send.
-     * @returns {Promise<{ caller: import("../registry.js").Caller } | { refused: Response, client?: string }>}  client: the app of a verified token refused for its person's groups, for the log
+     * @returns {Promise<{ caller: import("../registry.js").Caller } | { refused: Response, reason: string, client?: string }>}  reason: the refused line's (log.js refusalReason); client: the app of a verified token refused for its person's groups, for the log
      */
     async function authenticate(request, address) {
         if (mode === "none") {
@@ -191,12 +191,12 @@ export async function createRestHandler(context, runtime = {}) {
                 }
                 authInfo = await core.verify(bearer.token, { audience, resource });
                 if (!requiredScopes.every((s) => authInfo.scopes.includes(s))) {
-                    return { refused: problem("INSUFFICIENT_SCOPE", `this service needs the scopes ${requiredScopes.join(" ")}`, { headers: { "www-authenticate": challenge("insufficient_scope", "insufficient scope") } }) };
+                    return { reason: refusalReason("INSUFFICIENT_SCOPE"), refused: problem("INSUFFICIENT_SCOPE", `this service needs the scopes ${requiredScopes.join(" ")}`, { headers: { "www-authenticate": challenge("insufficient_scope", "insufficient scope") } }) };
                 }
                 // a person whose groups the token does not carry (auth.groupProfiles): not a bad token
                 const refusedGroups = groupRefusal(authOptions, authInfo);
                 if (refusedGroups) {
-                    return { refused: problem("NOT_ALLOWED", refusedGroups), client: String(authInfo.clientId) };
+                    return { reason: refusalReason("NOT_ALLOWED"), refused: problem("NOT_ALLOWED", refusedGroups), client: String(authInfo.clientId) };
                 }
             }
             return { caller: callerOf(mode, authInfo, authOptions) };
@@ -205,15 +205,15 @@ export async function createRestHandler(context, runtime = {}) {
                 throw e;
             }
             if (e.status === 503) {
-                return { refused: problem("AUTH_NOT_READY", e.message, { headers: { "retry-after": "10" } }) };
+                return { reason: refusalReason("AUTH_NOT_READY"), refused: problem("AUTH_NOT_READY", e.message, { headers: { "retry-after": "10" } }) };
             }
             if (wait) {
-                return { refused: problem("RATE_LIMITED", "too many refused tokens from this address; wait before you try again", { headers: { "retry-after": String(wait) } }) };
+                return { reason: refusalReason("RATE_LIMITED"), refused: problem("RATE_LIMITED", "too many refused tokens from this address; wait before you try again", { headers: { "retry-after": String(wait) } }) };
             }
             if (address) {
                 limits.failed(address);
             }
-            return { refused: problem("INVALID_TOKEN", e.message, { headers: { "www-authenticate": challenge("invalid_token", e.message) } }) };
+            return { reason: refusalReason("INVALID_TOKEN", request), refused: problem("INVALID_TOKEN", e.message, { headers: { "www-authenticate": challenge("invalid_token", e.message) } }) };
         }
     }
 
@@ -325,12 +325,12 @@ export async function createRestHandler(context, runtime = {}) {
         const url = new URL(request.url);
         const refusedHost = hostRefusal(request, hosts);
         if (refusedHost) {
-            context.log.refused({ status: 403, host: String(request.headers.get("host") ?? "").slice(0, 100) });
+            context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
             return problem("FORBIDDEN_HOST", refusedHost);
         }
         const origin = request.headers.get("origin");
         if (origin && !origins.has(origin)) {
-            context.log.refused({ status: 403, origin: origin.slice(0, 100) });
+            context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_ORIGIN"), origin: origin.slice(0, 100) });
             return problem("FORBIDDEN_ORIGIN", "this origin may not call the service (rest.cors.origins)");
         }
         if (request.method === "OPTIONS" && origin) {
@@ -356,6 +356,7 @@ export async function createRestHandler(context, runtime = {}) {
             if ((rest.openapi ?? "auth") === "auth") {
                 const who = await authenticate(request, address);
                 if ("refused" in who) {
+                    context.log.refused({ status: who.refused.status, path: "/openapi.json", reason: who.reason, ...("client" in who ? { client: who.client } : {}) });
                     return who.refused;
                 }
             }
@@ -375,21 +376,23 @@ export async function createRestHandler(context, runtime = {}) {
         // the precheck of a POST signed it in already (serveFetch hands it the same info)
         const who = takeSignIn(info) ?? (await authenticate(request, address));
         if ("refused" in who) {
-            context.log.refused({ status: who.refused.status, path: REST_BASE, ...("client" in who ? { client: who.client } : {}) });
+            context.log.refused({ status: who.refused.status, path: REST_BASE, reason: who.reason, ...("client" in who ? { client: who.client } : {}) });
             return who.refused;
         }
         const { caller } = who;
         const wait = limits.take(caller.client);
         if (wait) {
+            context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: "rate", ...callerFields(caller) });
             return problem("RATE_LIMITED", "too many requests; wait before the next", { headers: { "retry-after": String(wait) } });
         }
         if (!limits.enter(caller.client)) {
+            context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: "concurrency", ...callerFields(caller) });
             return problem("RATE_LIMITED", "too many requests at once; wait for one to finish", { headers: { "retry-after": "1" } });
         }
         const started = Date.now();
         const id = /** @type {string} */ (requestId());
         /** @type {Record<string, unknown>} */
-        const entry = { operation: match.route.operation, route: `${match.route.method} ${match.route.path}`, ...callerFields(caller), requestId: id, ...(trustProxy ? { address } : {}) };
+        const entry = { operation: match.route.operation, route: `${match.route.method} ${match.route.path}`, ...callerFields(caller), requestId: id };
         let response;
         try {
             response = await run(match, request, caller, entry);
@@ -421,10 +424,11 @@ export async function createRestHandler(context, runtime = {}) {
          * @param {{ address?: string, [SIGNED_IN]?: any }} [info]  serveFetch hands the same object to fetch: the sign-in is kept there
          */
         async precheck(request, info = {}) {
-            // the request's id, made here and kept in info for the route: its refusals name it too
-            const id = requestIdFor(info);
-            const answer = await withRequestId(id, () => check(request, info));
-            return answer && withRequestIdMember(answer, id);
+            // the request's scope (its id, trace and addresses), made here or by serveFetch and kept in
+            // info for the route: its refusals name it too
+            const scope = requestScopeFor(request, info, { trustProxy });
+            const answer = await withRequestScope(scope, () => check(request, info));
+            return answer && withRequestIdHeader(await withRequestIdMember(answer, scope.id), scope.id);
         },
         /**
          * @param {Request} request
@@ -433,9 +437,9 @@ export async function createRestHandler(context, runtime = {}) {
         async fetch(request, info = {}) {
             // the request's id (the precheck's, when it ran): on every log line of the request, in its
             // work (a source's code, an error's details) and in an error's answer
-            const id = requestIdFor(info);
+            const scope = requestScopeFor(request, info, { trustProxy });
             try {
-                return withRequestIdMember(await withRequestId(id, () => answer(request, info)), id);
+                return withRequestIdHeader(await withRequestIdMember(await withRequestScope(scope, () => answer(request, info)), scope.id), scope.id);
             } finally {
                 // a place for a large body, held since the precheck: given back once the request ran
                 info[LARGE_PLACE]?.();
@@ -449,12 +453,12 @@ export async function createRestHandler(context, runtime = {}) {
          * @param {Record<string | symbol, any>} [info]
          */
         problem(status, path, info = {}) {
-            const id = requestIdFor(info);
+            const scope = requestScopeFor(null, info, { trustProxy });
             // the body was not read (too large, or the client left): its place is free again
             info[LARGE_PLACE]?.();
-            context.log.refused({ status, path: REST_BASE, requestId: id });
             const cap = restBodyBytesAt(options, peekSignIn(info)?.caller, new URL(path, "http://localhost").pathname);
-            return problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? bodyTooLargeText(options, cap) : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: id } });
+            withRequestScope(scope, () => context.log.refused({ status, path: REST_BASE, reason: refusalReason(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT"), ...(status === 413 ? { limit: cap } : {}) }));
+            return withRequestIdHeader(problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? bodyTooLargeText(options, cap) : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: scope.id } }), scope.id);
         },
         async close() {
             limits.close();
@@ -469,12 +473,12 @@ export async function createRestHandler(context, runtime = {}) {
     async function check(request, info) {
         const refusedHost = hostRefusal(request, hosts);
         if (refusedHost) {
-            context.log.refused({ status: 403, host: String(request.headers.get("host") ?? "").slice(0, 100) });
+            context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
             return problem("FORBIDDEN_HOST", refusedHost);
         }
         const origin = request.headers.get("origin");
         if (origin && !origins.has(origin)) {
-            context.log.refused({ status: 403, origin: origin.slice(0, 100) });
+            context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_ORIGIN"), origin: origin.slice(0, 100) });
             return problem("FORBIDDEN_ORIGIN", "this origin may not call the service (rest.cors.origins)");
         }
         // the declared size: over what anyone may send, refused before the token is checked; over what
@@ -482,7 +486,7 @@ export async function createRestHandler(context, runtime = {}) {
         const length = request.headers.get("content-length");
         const declared = Number(length ?? 0);
         const tooLarge = (cap) => {
-            context.log.refused({ status: 413, path: REST_BASE });
+            context.log.refused({ status: 413, path: REST_BASE, reason: refusalReason("BODY_TOO_LARGE"), limit: cap, size: declared });
             return withCors(problem("BODY_TOO_LARGE", bodyTooLargeText(options, cap)), origin);
         };
         if (declared > ceiling) {
@@ -493,7 +497,7 @@ export async function createRestHandler(context, runtime = {}) {
         }
         const who = await authenticate(request, clientAddress(request, info.address ?? "", trustProxy));
         if ("refused" in who) {
-            context.log.refused({ status: who.refused.status, path: REST_BASE, ...("client" in who ? { client: who.client } : {}) });
+            context.log.refused({ status: who.refused.status, path: REST_BASE, reason: who.reason, ...("client" in who ? { client: who.client } : {}) });
             return withCors(who.refused, origin);
         }
         info[SIGNED_IN] = who;
@@ -506,7 +510,7 @@ export async function createRestHandler(context, runtime = {}) {
         if (cap > BODY_BYTES && (length === null || declared > BODY_BYTES)) {
             const give = largeBodies.take(who.caller.client);
             if (!give) {
-                context.log.refused({ status: 503, path: REST_BASE });
+                context.log.refused({ status: 503, path: REST_BASE, reason: refusalReason("BUSY") });
                 return withCors(problem("BUSY", "", { headers: { "retry-after": "2" }, extra: { retryable: true } }), origin);
             }
             info[LARGE_PLACE] = give;

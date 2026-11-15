@@ -401,7 +401,7 @@ export function createLoadRunner(parts = {}) {
                 throw new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: true }));
             }
             if (read(e, TIMED_OUT)) {
-                how.log.warn(`the source ${how.label} took longer than ${how.timeMs} ms (timeMs); its load was aborted`, { source: how.label });
+                how.log.warn(`the source ${how.label} took longer than ${how.timeMs} ms (timeMs); its load was aborted`, { source: how.label, cause: "timeout", upstreamMs: how.timeMs });
                 // a late result is kept for the next call, unless the key was refused meanwhile or a
                 // later load is kept already
                 loading.then(

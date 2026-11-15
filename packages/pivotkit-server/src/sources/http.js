@@ -191,11 +191,53 @@ export const certificateHint = (env, failure) =>
 /** The guardedFetch codes that mean the source's settings are wrong (an address it may not reach, a redirect). */
 const SETUP_CODES = new Set(["BAD_URL", "NOT_HTTPS", "USERINFO", "BAD_HEADER", "BAD_METHOD", "BAD_BODY", "IP_LITERAL", "REFUSED_ADDRESS", "REDIRECT"]);
 
+/** The guardedFetch codes of an address the source may not reach. */
+const BLOCKED_CODES = new Set(["REFUSED_ADDRESS", "IP_LITERAL", "NOT_HTTPS"]);
+
+/** The system error codes of a name that has no address. */
+const DNS_CODES = /\b(?:ENOTFOUND|EAI_AGAIN|EAI_NONAME|EAI_FAIL)\b|the name has no address/;
+
+/**
+ * Why a backend failed, as a stable word for the log (`cause` of an upstream warning): timeout,
+ * connection, tls, dns, blocked_address, http_status, bad_body, or setup (the source's request cannot
+ * be sent as configured).
+ * @param {GuardedFetchError} error
+ */
+export function upstreamCauseOf(error) {
+    const said = `${error.message} ${/** @type {any} */ (error.cause)?.code ?? ""}`;
+    if (error.code === "TIMEOUT") {
+        return "timeout";
+    }
+    if (BLOCKED_CODES.has(error.code)) {
+        return "blocked_address";
+    }
+    if (error.code === "REDIRECT") {
+        return "http_status";
+    }
+    if (error.code === "TOO_LARGE" || error.code === "BAD_ENCODING") {
+        return "bad_body";
+    }
+    if (error.code === "NETWORK") {
+        return CERTIFICATE.test(said) ? "tls" : DNS_CODES.test(said) ? "dns" : "connection";
+    }
+    return "setup";
+}
+
+/**
+ * The fields of an upstream warning: why (upstreamCauseOf's words), the backend's name (never its
+ * address), its status where it answered, and the time since the source's request started.
+ * @param {import("../options/http.js").HttpSettings} settings
+ * @param {number} started
+ * @param {string} cause
+ * @param {number} [status]
+ */
+const upstreamFields = (settings, started, cause, status) => ({ cause, ...(settings.backend ? { backend: settings.backend } : {}), ...(status ? { upstreamStatus: status } : {}), upstreamMs: Date.now() - started });
+
 /**
  * A GuardedFetchError as the source's failure: never with its message (it can name a host or a
- * system error code), which goes to the log at debug with the request's id.
+ * system error code), which goes to the log at debug with the request's id; at warn its cause.
  * @param {GuardedFetchError} error
- * @param {{ id: string, log: any, maxBytes: number, settings: import("../options/http.js").HttpSettings }} how
+ * @param {{ id: string, log: any, maxBytes: number, settings: import("../options/http.js").HttpSettings, started: number }} how
  */
 function fetchFailure(error, how) {
     // what the operator does about it, for the debug log and check-source
@@ -206,6 +248,10 @@ function fetchFailure(error, how) {
               ? `; ${certificateHint(process.env, `${error.message} ${/** @type {any} */ (error.cause)?.code ?? ""}`)}`
               : "";
     how.log.debug(`the source ${how.id}: the request failed (${error.code}): ${String(error.message).slice(0, 300)}${hint}`, { source: how.id, requestId: requestId() });
+    if (error.code !== "ABORTED") {
+        const fields = upstreamFields(how.settings, how.started, upstreamCauseOf(error), error.status);
+        how.log.warn(`the source ${how.id}: the backend failed (${fields.cause})`, { source: how.id, ...fields });
+    }
     if (error.code === "TOO_LARGE") {
         return ownError(new OperationError("LIMIT_EXCEEDED", `the source ${how.id} answered more than ${how.maxBytes.toLocaleString("en-US")} bytes (http.maxBytes)`));
     }
@@ -219,9 +265,15 @@ function fetchFailure(error, how) {
     return new SourceError("SOURCE_UNAVAILABLE", { transient: error.code === "TIMEOUT" || error.transient === true });
 }
 
-/** A failure of the answer's shape: the settings do not fit the backend's answer. */
-const shapeFailure = (id, log, what) => {
+/**
+ * A failure of the answer's shape: the settings do not fit the backend's answer. With `upstream`
+ * (upstreamFields' of a body that cannot be read) a warning says so; else only the debug line.
+ */
+const shapeFailure = (id, log, what, upstream = null) => {
     log.debug(`the source ${id}: ${what}`, { source: id, requestId: requestId() });
+    if (upstream) {
+        log.warn(`the source ${id}: the backend's answer cannot be read (bad_body)`, { source: id, ...upstream });
+    }
     return new SourceError("SOURCE_UNAVAILABLE", { transient: false, reason: "setup" });
 };
 
@@ -368,7 +420,7 @@ export async function loadHttp(settings, values, how) {
         try {
             answer = await fetch(url, { headers, signal: how.signal, maxBytes: maxBytes - bytes, timeMs: Math.max(settings.timeMs - (Date.now() - started), 1), allowPrivate: settings.intranet, allowIpLiterals: settings.allowIpLiterals });
         } catch (e) {
-            throw e instanceof GuardedFetchError ? fetchFailure(e, { id, log: how.log, maxBytes, settings }) : e;
+            throw e instanceof GuardedFetchError ? fetchFailure(e, { id, log: how.log, maxBytes, settings, started }) : e;
         }
         if (answer.status === 401 && !retried && dropToken(settings.auth, how.caller, headers)) {
             // the backend no longer takes the kept token: once more with a new one
@@ -382,7 +434,7 @@ export async function loadHttp(settings, values, how) {
         how.trace?.pages.push({ status: answer.status, type: String(answer.headers["content-type"] ?? "").slice(0, 100), bytes: answer.body.length });
         how.log.debug(`the source ${id}: GET ${loggedPath(template, extra)} answered ${answer.status}`, { source: id, status: answer.status, requestId: requestId() });
         if (answer.status < 200 || answer.status > 299) {
-            how.log.warn(`the source ${id}: the backend answered ${answer.status}`, { source: id, status: answer.status, template: template.text });
+            how.log.warn(`the source ${id}: the backend answered ${answer.status}`, { source: id, status: answer.status, template: template.text, ...upstreamFields(settings, started, "http_status", answer.status) });
             if (answer.status === 401 && settings.auth?.kind === "header") {
                 // a caller of a source with params reads DATA_NOT_AVAILABLE: this line says where to look
                 how.log.warn(`the source ${id}: the backend answered 401 to the header from ${settings.auth.at}.value: check the secret behind it`, { source: id, requestId: requestId() });
@@ -392,7 +444,7 @@ export async function loadHttp(settings, values, how) {
         if (settings.format === "csv") {
             return { table: null, upload: { bytes: answer.body, format: "csv" }, asOf: asOfText(new Date()) ?? "", pages, bytes };
         }
-        const body = parsed(answer.body, { id, log: how.log });
+        const body = parsed(answer.body, { id, log: how.log, upstream: () => upstreamFields(settings, started, "bad_body", answer.status) });
         if (pages === 1 && settings.asOf) {
             asOfValue = pointerValue(body, settings.asOf);
         }
@@ -405,7 +457,7 @@ export async function loadHttp(settings, values, how) {
                 how.trace.found = found === undefined ? "nothing" : Array.isArray(found) ? "a list" : found === null ? "null" : typeof found === "object" ? "an object" : `a ${typeof found}`;
             }
             const what = found === undefined ? "has no rows at" : `has ${found === null ? "null" : typeof found === "object" ? "an object" : `a ${typeof found}`}, not a list of rows, at`;
-            how.log.warn(`the source ${id}: the answer ${what} ${settings.rowsText || '"" (the whole body)'} (http.rows)`, { source: id });
+            how.log.warn(`the source ${id}: the answer ${what} ${settings.rowsText || '"" (the whole body)'} (http.rows)`, { source: id, ...upstreamFields(settings, started, "bad_body", answer.status) });
             throw shapeFailure(id, how.log, `the rows' pointer ${settings.rowsText || '""'} matched ${found === undefined ? "nothing" : "no list"}`);
         }
         if (probing) {
@@ -449,22 +501,22 @@ export async function loadHttp(settings, values, how) {
  * A JSON answer parsed; a body that is no UTF-8 text, no JSON or nested too deeply is the source's
  * failure (its words never reach a caller).
  * @param {Uint8Array} bytes
- * @param {{ id: string, log: any }} how
+ * @param {{ id: string, log: any, upstream: () => Record<string, unknown> }} how  upstream: the fields of the warning for a body that cannot be read
  */
 function parsed(bytes, how) {
     let text;
     try {
         text = new TextDecoder("utf-8", { fatal: true }).decode(bytes).replace(/^\uFEFF/, "");
     } catch {
-        throw shapeFailure(how.id, how.log, "the answer is no UTF-8 text");
+        throw shapeFailure(how.id, how.log, "the answer is no UTF-8 text", how.upstream());
     }
     if (jsonDepth(text, MAX_DEPTH) > MAX_DEPTH) {
-        throw shapeFailure(how.id, how.log, `the answer is nested deeper than ${MAX_DEPTH} levels`);
+        throw shapeFailure(how.id, how.log, `the answer is nested deeper than ${MAX_DEPTH} levels`, how.upstream());
     }
     try {
         return JSON.parse(text);
     } catch {
-        throw shapeFailure(how.id, how.log, "the answer is no JSON");
+        throw shapeFailure(how.id, how.log, "the answer is no JSON", how.upstream());
     }
 }
 

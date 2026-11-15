@@ -20,6 +20,8 @@ import { bodyBytesOf } from "./limits.js";
 import { DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { problem } from "./rest/problem.js";
+import { refusalReason, startFields } from "./log.js";
+import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 
 /** The default port. */
 export const DEFAULT_PORT = 3333;
@@ -102,7 +104,8 @@ export async function createServerHandler(options, runtime) {
     }
     const enable = asked ?? ["rest", ...(mcpModule ? ["mcp"] : [])];
     /** @type {any} */
-    const context = mcpModule ? await mcpModule.createMcpContext(options, { showPaths: false, stderr: runtime.stderr, tokenEnv: TOKEN_ENV }) : await createContext(options, { showPaths: false, stderr: runtime.stderr, tokenEnv: TOKEN_ENV });
+    const own = { showPaths: false, stderr: runtime.stderr, tokenEnv: TOKEN_ENV, env: runtime.env, service: { name: "pivotkit-server", version: VERSION } };
+    const context = mcpModule ? await mcpModule.createMcpContext(options, own) : await createContext(options, own);
     // what is made so far, closed again when a later step fails (their timers would run on)
     /** @type {ReturnType<typeof createDownloadHandler> | null} */
     let made = null;
@@ -117,6 +120,7 @@ export async function createServerHandler(options, runtime) {
         rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         const mcp = enable.includes("mcp") && mcpModule ? await mcpModule.createHttpHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         const hosts = allowedHosts(options);
+        const trustProxy = options.http?.trustProxy ?? false;
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
 
         /** /healthz and /readyz, after the Host check. */
@@ -127,7 +131,7 @@ export async function createServerHandler(options, runtime) {
             }
             const refused = hostRefusal(request, hosts);
             if (refused) {
-                context.log.refused({ status: 403, host: String(request.headers.get("host") ?? "").slice(0, 100) });
+                context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
                 return problem("FORBIDDEN_HOST", refused);
             }
             if (path === "/healthz") {
@@ -137,11 +141,8 @@ export async function createServerHandler(options, runtime) {
             return Response.json(ready, { status: ready.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
         }
 
-        return {
-            context,
-            enable,
-            downloads,
-            /** @type {import("./listen.js").FetchHandler["precheck"]} */
+        /** The routes, in order: health, download links, REST, MCP. */
+        const routes = {
             async precheck(request, info) {
                 if (isDownload(request)) {
                     return downloads.precheck(request);
@@ -158,7 +159,6 @@ export async function createServerHandler(options, runtime) {
                 }
                 return mcp.precheck(request, info);
             },
-            /** @type {import("./listen.js").FetchHandler["fetch"]} */
             async fetch(request, info) {
                 const early = await health(request);
                 if (early) {
@@ -175,8 +175,26 @@ export async function createServerHandler(options, runtime) {
                 }
                 const refused = hostRefusal(request, hosts);
                 return refused ? problem("FORBIDDEN_HOST", refused) : problem("NOT_FOUND", "no such route; the REST service is at /api/v1 (GET /openapi.json)");
+            }
+        };
+
+        return {
+            context,
+            enable,
+            downloads,
+            /** @type {import("./listen.js").FetchHandler["precheck"]} */
+            async precheck(request, info) {
+                // the request's scope: serveFetch's, or made here for a host that serves the handler itself
+                const scope = requestScopeFor(request, info, { trustProxy });
+                const answer = await withRequestScope(scope, () => routes.precheck(request, info));
+                return answer && withRequestIdHeader(answer, scope.id);
             },
-            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than 2 MiB, the most this service takes" : "the request cannot be read")),
+            /** @type {import("./listen.js").FetchHandler["fetch"]} */
+            async fetch(request, info) {
+                const scope = requestScopeFor(request, info, { trustProxy });
+                return withRequestIdHeader(await withRequestScope(scope, () => routes.fetch(request, info)), scope.id);
+            },
+            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than 2 MiB, the most this service takes" : "the request cannot be read")),
             async close() {
                 downloads.close();
                 await rest?.close();
@@ -209,7 +227,7 @@ export async function serve(options, runtime) {
     try {
         const bodyBytes = bodyBytesOf(options);
         // a download takes no body: the form of a one-time link sends none
-        listening = await serveFetch(handler, { host, port, bodyBytes: (request, info) => (handler.downloads.handles(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : bodyBytes(request, info)), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
+        listening = await serveFetch(handler, { host, port, bodyBytes: (request, info) => (handler.downloads.handles(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : bodyBytes(request, info)), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler.close();
         throw e;
@@ -225,7 +243,7 @@ export async function serve(options, runtime) {
     if (options.auth?.mode === "oauth" && options.auth.allowInsecureIssuer) {
         handler.context.log.warn("auth.allowInsecureIssuer: an http:// issuer is accepted; for a test issuer on this machine only");
     }
-    handler.context.log.info("started", { version: VERSION, transport: "http", url, serves: handler.enable, auth: options.auth?.mode ?? "none", sources: handler.context.registry.ids().length, output: Boolean(handler.context.output) });
+    handler.context.log.started({ version: VERSION, transport: "http", url, serves: handler.enable, auth: options.auth?.mode ?? "none", sources: handler.context.registry.ids().length, output: Boolean(handler.context.output), ...startFields(options, handler.context.registry, handler.context.log) });
     void handler.context.countAutoValues();
     return {
         port: listening.port,
@@ -233,8 +251,10 @@ export async function serve(options, runtime) {
         context: handler.context,
         enable: handler.enable,
         async close() {
+            const started = Date.now();
             await listening.close();
             await handler.close();
+            handler.context.log.stopped({ ms: Date.now() - started });
         }
     };
 }

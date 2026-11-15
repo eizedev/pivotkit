@@ -9,6 +9,7 @@
 import { createServer } from "node:http";
 import { isLoopback } from "pivotkit-cli/rest";
 import { HOST_SYNTAX } from "./checks.js";
+import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 
 /** Whether an address is loopback (pivotkit-cli/rest's: the CLI decides with it where http is allowed). */
 export { isLoopback } from "pivotkit-cli/rest";
@@ -239,12 +240,13 @@ export function bodyCapOf(bodyBytes, request, info) {
 const defaultProblem = (status) => Response.json({ error: status === 413 ? "request body too large" : "bad request" }, { status, headers: { connection: "close" } });
 
 /**
- * Serves a fetch handler on node:http.
+ * Serves a fetch handler on node:http. Every request runs in its scope (request-id.js requestScopeFor: its id, trace id and addresses, on
+ * every log line written for it), and every answer names its id in X-Request-Id.
  * @param {FetchHandler} handler
- * @param {{ host: string, port: number, bodyBytes: number | BodyBytes, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close)
+ * @param {{ host: string, port: number, bodyBytes: number | BodyBytes, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void, trustProxy?: boolean }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close); trustProxy: the scope names the forwarded client (http.trustProxy)
  * @returns {Promise<{ port: number, server: import("node:http").Server, close(): Promise<void> }>}
  */
-export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused }) {
+export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused, trustProxy = false }) {
     const problem = handler.problem ?? defaultProblem;
     const limits = { ...CONNECTION_LIMITS, ...given };
     const gate = connectionGate(limits);
@@ -253,9 +255,11 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
     let idle = [];
     const server = createServer({ maxHeaderSize: 16_384, requestTimeout: limits.requestMs, headersTimeout: limits.headersMs, connectionsCheckingInterval: limits.checkMs }, async (req, res) => {
         const path = pathOfTarget(req.url);
+        const info = { address: String(req.socket.remoteAddress ?? "") };
         if (path === null) {
             // "OPTIONS *", "CONNECT host:443": no resource of this server
-            const answer = problem(400, "/");
+            const scope = requestScopeFor(null, info, { trustProxy });
+            const answer = withRequestIdHeader(withRequestScope(scope, () => problem(400, "/", info)), scope.id);
             res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close" });
             res.end(Buffer.from(await answer.arrayBuffer()));
             return;
@@ -263,7 +267,8 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         running++;
         const abort = new AbortController();
         res.on("close", () => abort.abort());
-        const info = { address: String(req.socket.remoteAddress ?? "") };
+        /** @type {import("./request-id.js").RequestScope | null} the request's, once its headers are read */
+        let scope = null;
         try {
             // every value of a repeated header: node:http keeps only the first Authorization (and drops
             // the others) in req.headers, so two tokens would pass as one; joined, the auth check sees both
@@ -280,7 +285,9 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const url = `http://${HOST_SYNTAX.test(host) ? host : "invalid.invalid"}${path}`;
             // what the headers tell is checked before a byte of the body is read
             const head = new Request(url, { method: req.method, headers });
-            const early = handler.precheck ? await handler.precheck(head, info) : null;
+            const inScope = requestScopeFor(head, info, { trustProxy });
+            scope = inScope;
+            const early = handler.precheck ? await withRequestScope(inScope, () => /** @type {any} */ (handler.precheck)(head, info)) : null;
             // the body's cap, decided once the precheck has signed the caller in (it is in info)
             const cap = bodyCapOf(bodyBytes, head, info);
             if (early) {
@@ -293,14 +300,14 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                         req.destroy();
                     }
                 });
-                res.writeHead(early.status, Object.fromEntries(early.headers));
+                res.writeHead(early.status, { ...Object.fromEntries(early.headers), "x-request-id": inScope.id });
                 res.end(Buffer.from(await early.arrayBuffer()));
                 return;
             }
             const body = req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req, cap);
             const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
-            const response = await handler.fetch(request, info);
-            res.writeHead(response.status, Object.fromEntries(response.headers));
+            const response = await withRequestScope(inScope, () => handler.fetch(request, info));
+            res.writeHead(response.status, { ...Object.fromEntries(response.headers), "x-request-id": inScope.id });
             if (response.body && req.method === "HEAD") {
                 // the body is not sent: given up, so whatever waits for its end (a caller's slot) is freed
                 await response.body.cancel().catch(() => undefined);
@@ -352,8 +359,9 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                     setTimeout(resolve, 5000).unref();
                 });
             }
-            const answer = problem(e?.status === 413 ? 413 : 400, req.url ?? "/", info);
-            res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close" });
+            const failed = scope ?? requestScopeFor(null, info, { trustProxy });
+            const answer = withRequestScope(failed, () => problem(e?.status === 413 ? 413 : 400, req.url ?? "/", info));
+            res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close", "x-request-id": failed.id });
             res.end(Buffer.from(await answer.arrayBuffer()));
         } finally {
             running--;

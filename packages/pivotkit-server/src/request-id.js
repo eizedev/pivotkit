@@ -6,14 +6,33 @@
  * carry the id, and a problem or tool error of an error with details names it. Outside a request,
  * errorDetails makes a fresh id per error.
  *
+ * Besides its id, a request's scope holds what correlates it with the systems around it: a trace id
+ * (W3C Trace Context: the one of a strictly parsed incoming `traceparent`, else a new one), an
+ * incoming `X-Request-Id` after a length and character check (upstreamRequestId: a proxy's id, never
+ * the server's own), and the socket's address with, behind a trusted proxy, the forwarded one. The
+ * HTTP edge (listen.js serveFetch, and each front end's handler for hosts that serve it themselves)
+ * makes the scope once per request (requestScopeFor); the log adds its fields to every line written
+ * inside it.
+ *
  *   await withRequestId(newRequestId(), () => present(...));
  *   throw new OperationError("SOURCE_UNAVAILABLE", "...", errorDetails({ retryable: true }));
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomBytes } from "node:crypto";
+import { clientAddress } from "./checks.js";
 
-/** The request id of the work running now. */
+/**
+ * What the work running now belongs to.
+ * @typedef {object} RequestScope
+ * @property {string} id  the request's id (REQUEST_ID)
+ * @property {string} traceId  32 lower-case hex characters
+ * @property {string} [upstreamRequestId]  an incoming X-Request-Id that passed UPSTREAM_REQUEST_ID
+ * @property {string} [address]  the socket's peer
+ * @property {string} [clientAddress]  the forwarded client (X-Forwarded-For), only with http.trustProxy
+ */
+
+/** The scope of the work running now. */
 const current = new AsyncLocalStorage();
 
 /** A new request id: 8 random bytes, base64url (11 characters). */
@@ -29,7 +48,117 @@ export const REQUEST_ID = /^[A-Za-z0-9_-]{11}$/;
  * @param {() => T} fn
  * @returns {T}
  */
-export const withRequestId = (id, fn) => current.run(id, fn);
+export const withRequestId = (id, fn) => current.run({ ...(current.getStore() ?? { traceId: newTraceId() }), id }, fn);
+
+/**
+ * Runs fn inside a request's scope (requestScopeFor's): requestId() and requestScope() read it.
+ * @template T
+ * @param {RequestScope} scope
+ * @param {() => T} fn
+ * @returns {T}
+ */
+export const withRequestScope = (scope, fn) => current.run(scope, fn);
+
+/** The scope of the work running now, or null outside one. */
+export const requestScope = () => /** @type {RequestScope | undefined} */ (current.getStore()) ?? null;
+
+/** A new trace id: 16 random bytes in lower-case hex, as W3C Trace Context writes one. */
+export const newTraceId = () => randomBytes(16).toString("hex");
+
+/** A traceparent of version 00: version, trace id, parent id and flags, lower-case hex, nothing else. */
+const TRACEPARENT_00 = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/;
+
+/** A traceparent of a later version: the same four fields first; what follows starts with "-". */
+const TRACEPARENT_LATER = /^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}(?:-.*)?$/;
+
+/**
+ * The trace id of a traceparent header, or null for one that does not parse (W3C Trace Context,
+ * level 1): lower-case hex only, version ff and the all-zero trace or parent id refused, version 00
+ * exactly 55 characters, a later version its four fields first. A header sent twice (joined with a
+ * comma) does not parse.
+ * @param {string | null | undefined} header
+ * @returns {string | null}
+ */
+export function traceIdOf(header) {
+    if (typeof header !== "string" || header.length < 55 || header.length > 512) {
+        return null;
+    }
+    const value = header.trim();
+    const zero = (hex) => /^0+$/.test(hex);
+    const v00 = TRACEPARENT_00.exec(value);
+    if (v00) {
+        return zero(v00[1]) || zero(v00[2]) ? null : v00[1];
+    }
+    const later = TRACEPARENT_LATER.exec(value);
+    if (!later || later[1] === "00" || later[1] === "ff" || zero(later[2]) || zero(later[3])) {
+        return null;
+    }
+    return later[2];
+}
+
+/**
+ * An incoming X-Request-Id as it may be logged: 1 to 128 characters of letters, digits and
+ * `_ . : + / = -` (UUIDs, hex ids, the ids proxies make); anything else is not logged.
+ */
+export const UPSTREAM_REQUEST_ID = /^[A-Za-z0-9_.:+/=-]{1,128}$/;
+
+/**
+ * An incoming X-Request-Id that passes UPSTREAM_REQUEST_ID, or undefined.
+ * @param {string | null | undefined} header
+ */
+export const upstreamRequestIdOf = (header) => (typeof header === "string" && UPSTREAM_REQUEST_ID.test(header) ? header : undefined);
+
+/** A socket's address as it is logged ("::ffff:192.0.2.10" is 192.0.2.10). */
+const plainAddress = (address) => String(address ?? "").replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, "");
+
+/** Where requestScopeFor keeps a request's scope in serveFetch's `info`. */
+const SCOPE_KEY = Symbol("pivotkit.requestScope");
+
+/**
+ * The scope of the request `info` belongs to: made on first use (its id requestIdFor's), then the
+ * same, so the HTTP edge and the front end's handler name one id and one trace.
+ * @param {Request | null} request  its headers are read (null: none, for an answer made without the request)
+ * @param {Record<string | symbol, any>} info  serveFetch's: `address` is the socket's peer
+ * @param {{ trustProxy?: boolean }} [how]  trustProxy: the forwarded address is logged as clientAddress
+ * @returns {RequestScope}
+ */
+export function requestScopeFor(request, info, { trustProxy = false } = {}) {
+    if (!Object.hasOwn(info, SCOPE_KEY)) {
+        const headers = request?.headers ?? new Headers();
+        const upstream = upstreamRequestIdOf(headers.get("x-request-id"));
+        const address = plainAddress(info.address);
+        const forwarded = trustProxy && request && headers.has("x-forwarded-for") ? clientAddress(request, "", true) : "";
+        info[SCOPE_KEY] = Object.freeze({
+            id: requestIdFor(info),
+            traceId: traceIdOf(headers.get("traceparent")) ?? newTraceId(),
+            ...(upstream ? { upstreamRequestId: upstream } : {}),
+            ...(address ? { address } : {}),
+            ...(forwarded ? { clientAddress: plainAddress(forwarded) } : {})
+        });
+    }
+    return info[SCOPE_KEY];
+}
+
+/**
+ * A response with the request's id as X-Request-Id (a copy when its headers are immutable): every
+ * answer names the id the log lines of its request carry.
+ * @param {Response} response
+ * @param {string} id
+ * @returns {Response}
+ */
+export function withRequestIdHeader(response, id) {
+    if (response.headers.get("x-request-id") === id) {
+        return response;
+    }
+    try {
+        response.headers.set("x-request-id", id);
+        return response;
+    } catch {
+        const headers = new Headers(response.headers);
+        headers.set("x-request-id", id);
+        return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    }
+}
 
 /**
  * Where a front end keeps a request's id in serveFetch's `info`, so the precheck, the route and an
@@ -53,7 +182,7 @@ export function requestIdFor(info) {
 export const isRequestId = (value) => typeof value === "string" && REQUEST_ID.test(value);
 
 /** The request id of the work running now, or null outside withRequestId. */
-export const requestId = () => /** @type {string | undefined} */ (current.getStore()) ?? null;
+export const requestId = () => /** @type {RequestScope | undefined} */ (current.getStore())?.id ?? null;
 
 /**
  * The details of an OperationError a person can act on: the running request's id (a new one when
