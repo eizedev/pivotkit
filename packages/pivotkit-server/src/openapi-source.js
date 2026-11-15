@@ -48,9 +48,11 @@ const UNSAFE_NAMES = new Set(["__proto__", "constructor", "prototype"]);
 // eslint-disable-next-line no-control-regex
 const ESCAPES = /\u001b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)?)/g;
 
-/** Characters a text from the document loses: control characters (C0, C1) and line or paragraph separators (as a space), bidi controls. */
+/** Characters a text from the document loses: control characters (C0, C1) and line or paragraph separators (as a space). */
 const BREAKS = /[\p{Cc}\p{Zl}\p{Zp}]+/gu;
-const BIDI = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
+
+/** And the invisible format characters (bidi controls, zero-width spaces, Unicode tags), but the joiners ZWNJ and ZWJ a word or an emoji may need. */
+const INVISIBLE = /(?![\u200c\u200d])\p{Cf}/gu;
 
 /** An OAuth scope token (RFC 6749, 3.3). */
 const SCOPE_TOKEN = /^[\x21\x23-\x5b\x5d-\x7e]{1,128}$/;
@@ -78,7 +80,7 @@ export class OpenApiError extends Error {
 
 /**
  * A text of the document as it may be shown: no terminal escape sequences, control characters and
- * separators as one space, no bidi controls, trimmed, at most `max` characters.
+ * separators as one space, no bidi controls or other invisible format characters, trimmed, at most `max` characters.
  * @param {unknown} text
  * @param {number} [max]
  */
@@ -86,7 +88,7 @@ export const cleanText = (text, max = FIELD_DESCRIPTION_MAX) =>
     String(text)
         .replace(ESCAPES, "")
         .replace(BREAKS, " ")
-        .replace(BIDI, "")
+        .replace(INVISIBLE, "")
         .replace(/ {2,}/g, " ")
         .trim()
         .slice(0, max)
@@ -607,7 +609,7 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames) {
         const schema = refs.schema(own(parameter, "schema"), label);
         const type = typeOf(schema);
         if (!schema || !PARAM_TYPES.includes(/** @type {string} */ (type))) {
-            if (where === "path") fatal(`is ${type ? `of type ${type}` : "of no single type"}`);
+            if (where === "path") fatal(`is ${type === "array" || type === "object" ? `of type ${type}` : "of no type a parameter has"}`);
             note(`Skipped the ${label}: ${type === "array" || type === "object" ? `an ${type} value` : "a value of no single type"} is not a parameter of an HTTP source (string, integer, number, boolean).`);
             continue;
         }
@@ -651,6 +653,9 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames) {
                 const n = own(schema, key);
                 if (Number.isSafeInteger(n) && n >= 0) {
                     declaration[key] = Math.min(n, PARAM_LIMITS.length);
+                    if (n > PARAM_LIMITS.length) {
+                        note(`The ${label}'s ${key} ${n} is ${PARAM_LIMITS.length}, the most a parameter's value has.`);
+                    }
                 }
             }
         } else if (type === "integer" || type === "number") {
@@ -679,6 +684,9 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames) {
     const kept = ordered.slice(0, PARAM_LIMITS.count);
     for (const p of ordered.slice(PARAM_LIMITS.count)) {
         note(`Skipped the query parameter ${shown(p.original)}: a source has at most ${PARAM_LIMITS.count} parameters.`);
+    }
+    if (!path.startsWith("/") || /[?#]/.test(path)) {
+        throw new OpenApiError(`the path ${shown(path)} is no path an HTTP source can use (it starts with "/" and has no "?" or "#")`);
     }
     // the path with each {original} as {name}
     let httpPath = path;
@@ -1046,7 +1054,7 @@ export async function sourceFromOpenApiCommand(argv, io, means = {}) {
         return 0;
     } catch (e) {
         if (e instanceof OpenApiError) {
-            io.stderr.write(`pivotkit-server source-from-openapi: ${e.message}\n`);
+            io.stderr.write(`pivotkit-server source-from-openapi: ${cleanText(e.message, 2000)}\n`);
             return 2;
         }
         throw e;

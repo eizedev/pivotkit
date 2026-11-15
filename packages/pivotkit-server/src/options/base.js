@@ -31,12 +31,14 @@ export const FIELD_DESCRIPTION_MAX = 500;
 
 /**
  * The one placeholder a generated block leaves for the operator to fill in (pivotkit-server
- * source-from-openapi): a value under httpSources or a source's http that starts with it is refused.
+ * source-from-openapi), always written "TODO: " and what to fill in: a value under httpSources or a
+ * source's http that starts with it is refused. A value that is just "TODO" (a ticket API's status)
+ * is an ordinary value.
  */
 export const TODO_MARK = "TODO";
 
 /** A value that is still the placeholder. */
-const STILL_TODO = new RegExp(`^${TODO_MARK}\\b`);
+const STILL_TODO = new RegExp(`^${TODO_MARK}: `);
 
 /**
  * The paths of the values under httpSources and each source's http that still say TODO, in order.

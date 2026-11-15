@@ -735,10 +735,11 @@ Review these as text the model will read:
 - **OpenAPI 3.0 or 3.1 in JSON**, at most 5 MiB and 128 levels deep. A YAML document is refused
   with how to convert it, for example `npx js-yaml openapi.yaml > openapi.json` (js-yaml's command
   writes a YAML file as JSON). Swagger 2.0 is refused; convert it to OpenAPI 3 first.
-- **A file, or an `https://` URL.** A URL is fetched once with the same guarded fetch as HTTP sources
-  (no redirects, no cloud metadata addresses, the size limit while it streams), within 10 seconds and
-  without credentials. For a document behind a sign-in or on plain `http://`, download it and pass
-  the file.
+- **A file, or an `https://` URL.** A URL is fetched once with the guarded fetch HTTP sources use
+  (no redirects, no cloud metadata or link-local addresses, the size limit while it streams), within
+  10 seconds and without credentials. Since you name the address yourself, a private address is
+  allowed here without `intranet`. For a document behind a sign-in or on plain `http://`, download it
+  and pass the file.
 - **Local references only.** `$ref` values that start with `#/` are followed, with own properties
   only, at most 32 in a chain, `allOf` at most 8 deep, and one budget of 100,000 nodes for the whole
   run. A reference to another file or address (`file:`, `https:`, `http://169.254.169.254/...`) is
@@ -765,8 +766,8 @@ Review these as text the model will read:
 | The operation's `summary` and `description` | The source's `title` and `description` |
 | The security scheme | A skeleton of the backend's [sign-in](#http-auth), see below |
 
-Descriptions and other texts lose control characters, terminal escape sequences and bidi controls,
-line breaks become spaces, and they are cut at 500 characters (a title at 200). The model reads them
+Descriptions and other texts lose control characters, terminal escape sequences, bidi controls and
+other invisible characters (the joiners an emoji needs stay), line breaks become spaces, and they are cut at 500 characters (a title at 200). The model reads them
 through `list_sources` and `describe_source`, so the command prints each one under "Review these as
 text the model will read": an API's documentation can hold instructions meant for a model.
 
@@ -787,9 +788,10 @@ scheme that maps:
 
 ### TODO values { #openapi-todo }
 
-Every value you must decide says `TODO`, the same word everywhere, so `grep TODO` finds them. The
-server refuses a configuration with a value under `httpSources` or a source's `http` that still
-starts with `TODO`, before any other rule:
+Every value you must decide starts with `TODO: `, the same word everywhere, so `grep TODO` finds
+them. The server refuses a configuration with a value under `httpSources` or a source's `http` that
+still starts with `TODO: `, right after the check of the keys and their types and before the other
+rules:
 
 ```text
 pivotkit-server: 4 values still say TODO: httpSources.backends.platform.url, httpSources.backends.platform.auth.clientCredentials.tokenUrl, httpSources.backends.platform.auth.clientCredentials.clientId, httpSources.backends.platform.auth.clientCredentials.clientSecret.env; replace each with the real value
@@ -797,8 +799,8 @@ pivotkit-server: 4 values still say TODO: httpSources.backends.platform.url, htt
 
 No address from the document becomes a value by itself: a document could name an attacker's host as
 the API or the token endpoint, which would then receive your credentials. Check the host, write it
-into `url` and `tokenUrl`, then add the credentials. Other texts (a title, a description) may say
-TODO as ordinary words.
+into `url` and `tokenUrl`, then add the credentials. Other texts (a title, a description) and a
+value that is just `TODO` (a query value a ticket API takes) are ordinary values.
 
 Then decide which fields a caller may see (`policy.fields`), and test the source with
 `pivotkit-server check-config` and [`check-source`](#check-source), which also prints the fields the

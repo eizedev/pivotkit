@@ -10,7 +10,6 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateOptions } from "../src/config.js";
-import { KEYS as HTTP_KEYS } from "../src/options/http.js";
 import { todoPaths } from "../src/options/base.js";
 import { CHECK_FIRST, OPENAPI_LIMITS, OpenApiError, loadDocumentText, operatorText, readDocument, sourceFromOpenApi, sourceFromOpenApiCommand } from "../src/openapi-source.js";
 import { createGuardedFetch } from "../src/sources/fetch.js";
@@ -31,39 +30,20 @@ const FILLED = Object.freeze({ url: "https://api.example.com/v1", tokenUrl: "htt
 /** A copy of the block with every TODO value filled in as an operator would. */
 function filled(config) {
     return JSON.parse(JSON.stringify(config), function (key, value) {
-        return typeof value === "string" && value.startsWith("TODO") ? FILLED[key] ?? assert.fail(`no filled value for ${key}`) : value;
+        return typeof value === "string" && value.startsWith("TODO: ") ? FILLED[key] ?? assert.fail(`no filled value for ${key}`) : value;
     });
-}
-
-/** Whether this version of the server knows a backend's auth (#329; until then the key is unknown). */
-const AUTH_KNOWN = Boolean(HTTP_KEYS.top?.httpSources?.object?.backends?.map?.object?.auth);
-
-/**
- * A block as this server version can read it: while it has no backend auth yet (#329), the only
- * refusal of a block with auth must be the unknown key, and the block goes on without it.
- */
-function forThisServer(config) {
-    const copy = structuredClone(config);
-    for (const backend of Object.values(copy.httpSources.backends)) {
-        if (backend.auth && !AUTH_KNOWN) {
-            assert.throws(() => validateOptions(structuredClone(copy)), /httpSources\.backends\.[\w.-]+: unknown key "auth"/);
-            delete backend.auth;
-        }
-    }
-    return copy;
 }
 
 /** Checks a generated block with validateOptions: refused with the TODO paths as printed, accepted once filled in. */
 function assertValidates(generated) {
     assert.ok(generated.todos.length > 0, "the backend's url is always a TODO");
     assert.deepEqual(generated.todos, todoPaths(generated.config));
-    const raw = forThisServer(generated.config);
-    const todos = todoPaths(raw);
+    const { todos } = generated;
     assert.throws(
-        () => validateOptions(raw),
+        () => validateOptions(structuredClone(generated.config)),
         (e) => e.name === "ConfigError" && e.message.startsWith(`${todos.length} ${todos.length === 1 ? "value still says" : "values still say"} TODO: ${todos.slice(0, 10).join(", ")}`)
     );
-    assert.doesNotThrow(() => validateOptions(forThisServer(filled(generated.config))));
+    assert.doesNotThrow(() => validateOptions(filled(generated.config)));
 }
 
 /** Every text in a value, with its path. */
@@ -182,6 +162,8 @@ test("source-from-openapi: operations that cannot be a source are refused with t
     refused(doc({ "/a": { get: { operationId: "x", requestBody: { content: {} }, responses: ok } } }), "x", /^HTTP sources read with GET; this operation needs a request body, so it cannot be a source\.$/);
     refused(doc({ "/a": { get: { operationId: "x", responses: ok } }, "/b": { get: { operationId: "x", responses: ok } } }), "x", /2 operations with the id "x"/);
     refused(doc({ "/a/{p}": { get: { operationId: "x", parameters: [{ name: "p", in: "path", required: true, schema: { type: "array" } }], responses: ok } } }), "x", /the path parameter "p" is of type array/);
+    refused(doc({ "a/{p}": { get: { operationId: "x", parameters: [{ name: "p", in: "path", required: true, schema: { type: "string" } }], responses: ok } } }), "x", /the path "a\/\{p\}" is no path an HTTP source can use/);
+    refused(doc({ "@evil.example/x": { get: { operationId: "x", responses: ok } } }), "x", /is no path an HTTP source can use/);
     const many = Array.from({ length: 17 }, (_, i) => ({ name: `r${i}`, in: "query", required: true, schema: { type: "string" } }));
     refused(doc({ "/a": { get: { operationId: "x", parameters: many, responses: ok } } }), "x", /more than 16 parameters/);
 });
@@ -237,7 +219,7 @@ test("source-from-openapi: the hostile document neither steers addresses or cred
     assert.equal(g.config.sources.listThings.title, "Things evil second line");
     for (const text of [out, err]) {
         // eslint-disable-next-line no-control-regex
-        assert.doesNotMatch(text, /[\u0000-\u0008\u000b-\u001f\u007f-\u009f؜‎‏‪-‮⁦-⁩]/u);
+        assert.doesNotMatch(text, /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u);
         assert.ok(!text.includes("\\u001b") && !text.includes("\\u202e"), "not even escaped in the JSON");
     }
     assert.ok(err.startsWith(`${CHECK_FIRST}\n`));
@@ -359,6 +341,25 @@ test("source-from-openapi: the server never loads the generator (only the runner
     assert.deepEqual(importers, ["runner.js"]);
 });
 
+test("source-from-openapi: a refusal prints no terminal escape from the document", () => {
+    const text = JSON.stringify({ openapi: "3.0.3", info: { title: "T", version: "1" }, paths: { "/a/{p}": { get: { operationId: "x\u001b]0;owned\u0007", parameters: [{ name: "p", in: "path", required: true, schema: { type: "\u001b[31marray\u202e" } }], responses: {} } } } });
+    const dir = tempDir();
+    writeFileSync(join(dir, "escape.json"), text);
+    const res = run(["source-from-openapi", join(dir, "escape.json"), "--operation", "x\u001b]0;owned\u0007"]);
+    assert.equal(res.status, 2);
+    assert.match(res.stderr, /the path parameter "p" is of no type a parameter has/);
+    // eslint-disable-next-line no-control-regex
+    assert.doesNotMatch(res.stderr.slice(0, -1), /[\u0000-\u001f\u007f-\u009f\u202e]/u);
+});
+
+test("source-from-openapi: invisible characters leave a description, the joiners stay", () => {
+    const doc = readDocument(JSON.stringify({ openapi: "3.1.0", info: { title: "T", version: "1" }, paths: { "/a": { get: { operationId: "x", parameters: [{ name: "code", in: "query", schema: { type: "string", maxLength: 4096 } }], responses: { 200: { description: "x", content: { "application/json": { schema: { type: "array", items: { type: "object", properties: { n: { type: "string", description: "Na\u200bme\u{e0041}\u{e0042} \u{1f468}\u200d\u{1f4bb} team" } } } } } } } } } } } }));
+    const g = generate(doc, "x");
+    assert.equal(g.config.sources.x.fields.n.description, "Name \u{1f468}\u200d\u{1f4bb} team");
+    assert.equal(g.config.sources.x.params.code.maxLength, 256);
+    assert.ok(g.notes.some((n) => n.includes("maxLength 4096 is 256")));
+});
+
 test("options: a value under httpSources or a source's http that still says TODO is refused with its path; a title may say TODO", () => {
     const config = {
         httpSources: { backends: { api: { url: "TODO: https://..." } } },
@@ -367,5 +368,7 @@ test("options: a value under httpSources or a source's http that still says TODO
     assert.throws(() => validateOptions(structuredClone(config)), /^ConfigError: 2 values still say TODO: httpSources\.backends\.api\.url, sources\.s\.http\.rows; replace each with the real value$/);
     config.httpSources.backends.api.url = "https://api.example.com";
     config.sources.s.http.rows = "/items";
+    // a value that is just the word (a ticket API's status) is an ordinary value
+    config.sources.s.http.query = { status: "TODO", note: "TODO later" };
     assert.doesNotThrow(() => validateOptions(config));
 });
