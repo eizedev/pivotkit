@@ -291,7 +291,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   PROBLEM, then every WARNING named by its heading, then the sections, one fact per line wrapped at `WIDTH` 78 (a path alone on its line); a PROBLEM
   that stops the start must be one createContext or serve refuses (test/check-config.test.js runs
   both); tests read wrapped text through test/helpers.js `factsOf`), `src/limits.js` (`createLimits`: rate and concurrency
-  limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`, `rest.data.maxBytes` for a signed-in REST caller that may send data), `src/log.js`
+  limits in one process, one set per front end: `rest.*`, `mcp.*`, counted per person (`limitKeyOf`, both front ends), a client's people under `REQUEST_LIMITS.clientShare`; `bodyBytesOf`, `rest.data.maxBytes` for a signed-in REST caller that may send data), `src/log.js`
   (`createLog`: one line per event as JSON or logfmt text (`log.format`, auto by the stream's TTY),
   `level`, `severity`, `msg`, `service`, `version` and the request scope on every line, the level of
   call/request/download/refused lines by status, `started`/`stopped` at every level; `refusalReason`,
