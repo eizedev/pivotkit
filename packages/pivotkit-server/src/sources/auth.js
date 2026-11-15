@@ -325,9 +325,10 @@ function requestFailure(error, how) {
  * The token endpoint of the configured issuer: its metadata's token_endpoint, which must be https://
  * on the issuer's own origin (else the operator names it in tokenExchange.tokenUrl).
  * @param {string} issuer
+ * @param {import("../issuer.js").IssuerRules} rules  auth.issuer's (auth.intranet)
  * @param {{ id: string, log: any }} how
  */
-async function issuerTokenUrl(issuer, how) {
+async function issuerTokenUrl(issuer, rules, how) {
     const hit = endpoints.get(issuer);
     if (hit && hit.until > Date.now()) {
         if ("error" in hit) {
@@ -338,7 +339,7 @@ async function issuerTokenUrl(issuer, how) {
     // one read for the callers that come at once
     let pending = reading.get(issuer);
     if (!pending) {
-        pending = readTokenUrl(issuer, how).finally(() => reading.delete(issuer));
+        pending = readTokenUrl(issuer, rules, how).finally(() => reading.delete(issuer));
         reading.set(issuer, pending);
     }
     return pending;
@@ -347,11 +348,12 @@ async function issuerTokenUrl(issuer, how) {
 /**
  * Reads the issuer's metadata for its token endpoint and keeps the answer (or the failure).
  * @param {string} issuer
+ * @param {import("../issuer.js").IssuerRules} rules
  * @param {{ id: string, log: any }} how
  */
-async function readTokenUrl(issuer, how) {
+async function readTokenUrl(issuer, rules, how) {
     try {
-        const metadata = await authMeans.discover(issuer);
+        const metadata = await authMeans.discover(issuer, rules);
         const url = typeof metadata?.token_endpoint === "string" && URL.canParse(metadata.token_endpoint) ? new URL(metadata.token_endpoint) : null;
         if (!url || url.protocol !== "https:" || url.origin !== new URL(issuer).origin) {
             warn(how, `the issuer's metadata names no https:// token_endpoint on the issuer's origin; set tokenExchange.tokenUrl`, {}, { once: true });
@@ -412,7 +414,7 @@ async function clientCredentials(auth, how) {
  * @returns {Promise<{ token: string, until: number }>}
  */
 async function tokenExchange(auth, caller, how) {
-    const url = auth.tokenUrl ?? (await issuerTokenUrl(/** @type {string} */ (auth.issuer), how));
+    const url = auth.tokenUrl ?? (await issuerTokenUrl(/** @type {string} */ (auth.issuer), auth.issuerRules, how));
     if (how.trace) {
         how.trace.tokenUrl = url;
     }
@@ -544,7 +546,7 @@ export const isPerson = (caller) => typeof caller.subject === "string" && caller
 export async function probeExchange(auth, how) {
     const means = { id: how.id, log: how.log, fetch: how.fetch ?? guardedFetch, trace: how.trace };
     how.trace.kind = auth.kind;
-    const url = auth.tokenUrl ?? (await issuerTokenUrl(/** @type {string} */ (auth.issuer), means));
+    const url = auth.tokenUrl ?? (await issuerTokenUrl(/** @type {string} */ (auth.issuer), auth.issuerRules, means));
     how.trace.tokenUrl = url;
     const secret = await secretOf(auth.clientSecret, auth, means, "clientSecret");
     const form = new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", subject_token_type: ACCESS_TOKEN_TYPE, requested_token_type: ACCESS_TOKEN_TYPE });

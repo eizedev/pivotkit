@@ -411,7 +411,9 @@ cluster, on port 443. Add the rule to the policy's `egress`:
 ```
 
 When Authentik runs in the same cluster and its host name resolves to the ingress controller, allow
-the controller's namespace instead of an `ipBlock`.
+the controller's namespace instead of an `ipBlock`. An issuer whose name resolves to a cluster or
+other private address also needs `"intranet": true` in `auth`: the server refuses loopback and
+private addresses for the issuer without it (`check-config` names it).
 
 What these settings are based on: Authentik's
 [OAuth2 provider documentation](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)

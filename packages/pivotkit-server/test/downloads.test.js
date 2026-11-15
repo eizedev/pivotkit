@@ -32,6 +32,10 @@ let otherKey;
 let jwk;
 /** Codes the provider gave out: what the token endpoint checks and puts in the ID token. */
 const codes = new Map();
+/** What the issuer's metadata says besides its own addresses (a hostile issuer's tests); reset after each. */
+let metadataMore = {};
+/** The paths the issuer was asked for. */
+const issuerAsked = [];
 
 before(async () => {
     key = await generateKeyPair("RS256");
@@ -39,9 +43,10 @@ before(async () => {
     jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
     issuerServer = createServer((req, res) => {
         const url = new URL(req.url, issuer);
+        issuerAsked.push(url.pathname);
         if (url.pathname === "/.well-known/openid-configuration") {
             res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"], id_token_signing_alg_values_supported: ["RS256"] }));
+            res.end(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"], id_token_signing_alg_values_supported: ["RS256"], ...metadataMore }));
         } else if (url.pathname === "/jwks") {
             res.writeHead(200, { "content-type": "application/json" });
             res.end(JSON.stringify({ keys: [jwk] }));
@@ -1060,6 +1065,57 @@ test("a sign-in callback without its cookie is on the debug log only", async () 
         assert.equal(r.status, 400);
         assert.ok(!server.log.some((l) => l.event === "download" && l.code === "SIGN_IN_FAILED"), JSON.stringify(server.log));
     } finally {
+        await server.close();
+    }
+});
+
+test("signIn: the issuer's metadata cannot send the key request elsewhere; with auth.jwksUri the sign-in reads the keys there, as the access tokens do", async () => {
+    // the metadata names a key set at a cloud metadata address; the operator pinned the real one
+    metadataMore = { jwks_uri: "http://169.254.169.254/latest/meta-data/jwks" };
+    issuerAsked.length = 0;
+    const { server, render, open, callback } = await signInServer({ more: { auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"], jwksUri: `${issuer}/jwks` } } });
+    try {
+        const output = await render("alice");
+        const redirect = await open(output.url);
+        const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        const got = await callback(code, state, cookieOf(redirect));
+        assert.equal(got.status, 200, logText(server));
+        assert.ok(issuerAsked.includes("/jwks"));
+    } finally {
+        metadataMore = {};
+        await server.close();
+    }
+    // without auth.jwksUri the sign-in issuer is refused, as the access tokens' is (the issuer's origin only)
+    metadataMore = { jwks_uri: "http://169.254.169.254/latest/meta-data/jwks" };
+    try {
+        const dir = workspace({ "sales.csv": SALES_CSV });
+        const server2 = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true }, http: { publicUrl: PUBLIC }, baseDir: dir }, { env: { DL_KEY }, enable: ["rest", "mcp"] });
+        try {
+            for (let i = 0; i < 100 && !/download links: the sign-in issuer's metadata could not be loaded/.test(logText(server2)); i++) {
+                await new Promise((r) => setTimeout(r, 30));
+            }
+            assert.match(logText(server2), /download links: the sign-in issuer's metadata could not be loaded.*jwks_uri is on another origin \(http:\/\/169\.254\.169\.254\)/);
+        } finally {
+            await server2.close();
+        }
+    } finally {
+        metadataMore = {};
+    }
+});
+
+test("signIn: a token endpoint the metadata puts on a metadata address is refused before a request; the person gets SIGN_IN_FAILED, the operator a warning", async () => {
+    metadataMore = { token_endpoint: "http://169.254.169.254/token" };
+    const { server, render, open, callback } = await signInServer();
+    try {
+        const output = await render("alice");
+        const redirect = await open(output.url);
+        const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        const got = await callback(code, state, cookieOf(redirect));
+        assert.equal(got.status, 400);
+        assert.match(await got.text(), /The sign-in did not complete/);
+        assert.match(logText(server), /download links: the issuer's token endpoint could not be reached: IP_LITERAL/);
+    } finally {
+        metadataMore = {};
         await server.close();
     }
 });

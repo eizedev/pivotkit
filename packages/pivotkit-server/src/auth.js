@@ -10,6 +10,8 @@
  *   discovery), access tokens as JWTs checked against the issuer's JWKS with jose (signature, issuer,
  *   audience, expiry, algorithms; no "none", no HMAC). Each endpoint checks its own audience. The
  *   metadata is fetched in the background with retries; until it is there, `ready()` is false.
+ *   Every request to the issuer goes through issuer.js (guardedFetch's rules; a loopback or private
+ *   issuer only with auth.intranet).
  *
  * The token itself is never logged, never passed on, never part of a message. A caller (callerOf)
  * never holds it: this module keeps an OAuth caller's token in a module-private WeakMap, and the one
@@ -28,14 +30,12 @@ import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
 import { AUDIT_KEY_MIN, auditText, noteAudit } from "./log.js";
 import { readSecret } from "./secrets.js";
+import { discover, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
 import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
 import { claimNamesOf, claimsOf } from "./sources/params.js";
 
 /** The fewest characters of a static token. */
 export const TOKEN_MIN = 32;
-
-/** The most bytes of the issuer's metadata document. */
-const METADATA_BYTES = 262_144;
 
 /** What a bearer token may hold and why another one does not work: pivotkit-cli/rest's, which the CLI checks a token against before it sends it. */
 export { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
@@ -119,52 +119,8 @@ async function staticTokens(auth, env, options, tokenEnv) {
     return out;
 }
 
-/**
- * Fetches a JSON document of the issuer: a time limit, no redirect, a size cap.
- * @param {string} url
- */
-async function fetchJson(url) {
-    const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(10_000), headers: { accept: "application/json" } });
-    if (!response.ok) {
-        throw new Error(`${response.status} from ${url}`);
-    }
-    // read while it streams, never more than the cap
-    const chunks = [];
-    let size = 0;
-    for await (const chunk of /** @type {any} */ (response.body ?? [])) {
-        size += chunk.length;
-        if (size > METADATA_BYTES) {
-            await response.body?.cancel().catch(() => undefined);
-            throw new Error(`the document at ${url} is larger than ${METADATA_BYTES} bytes`);
-        }
-        chunks.push(chunk);
-    }
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-}
-
-/**
- * The issuer's metadata: RFC 8414 first (the well-known part before the issuer's path), then OpenID
- * Connect discovery (after it). Its issuer must equal the configured one exactly.
- * @param {string} issuer
- */
-export async function discover(issuer) {
-    const url = new URL(issuer);
-    const path = url.pathname.replace(/\/$/, "");
-    const tries = [`${url.origin}/.well-known/oauth-authorization-server${path}`, `${url.origin}${path}/.well-known/openid-configuration`];
-    const errors = [];
-    for (const at of tries) {
-        try {
-            const doc = await fetchJson(at);
-            if (doc.issuer !== issuer) {
-                throw new Error(`the metadata at ${at} names the issuer ${JSON.stringify(String(doc.issuer).slice(0, 200))}, not ${issuer}`);
-            }
-            return doc;
-        } catch (e) {
-            errors.push(`${String(e?.message ?? e)}${e?.cause?.code ? ` (${e.cause.code})` : ""}`);
-        }
-    }
-    throw new Error(errors.join("; "));
-}
+/** The issuer's metadata (issuer.js), for the token exchange's default token endpoint and the download sign-in. */
+export { discover } from "./issuer.js";
 
 /** The scopes of a token's claims: "scope" (space-separated), else "scp" (a list or a text). */
 export function scopesOf(payload, claim) {
@@ -367,7 +323,8 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
     const audit = await auditOf(options, { env, log });
     // the claims a caller holds: only those the sources' params name (sources/params.js claimsOf)
     const claimNames = claimNamesOf(options.sources);
-    const { createRemoteJWKSet, jwtVerify } = await import("jose");
+    const { jwtVerify } = await import("jose");
+    const rules = issuerRulesOf(options);
     /** @type {any} */
     let state = { metadata: null, jwks: null, jwksUri: null };
     // when a token with an unknown key last made the metadata be read again
@@ -377,20 +334,14 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
 
     /** Reads the issuer's metadata; a new key set only when its jwks_uri changed, so keys stay cached. Whether the key set changed. */
     async function load() {
-        const metadata = await discover(issuer);
-        const jwksUri = auth.jwksUri ?? metadata.jwks_uri;
-        if (!jwksUri) {
-            throw new Error("the issuer's metadata has no jwks_uri (set auth.jwksUri)");
-        }
-        if (!auth.jwksUri && new URL(jwksUri).origin !== new URL(issuer).origin) {
-            throw new Error(`the issuer's jwks_uri is on another origin (${new URL(jwksUri).origin}); set auth.jwksUri to accept it`);
-        }
+        const metadata = await discover(issuer, rules);
+        const jwksUri = jwksUriOf(metadata, issuer, auth.jwksUri);
         if (jwksUri === state.jwksUri) {
             state = { ...state, metadata };
             return false;
         }
         const first = !state.jwks;
-        state = { metadata, jwksUri, jwks: createRemoteJWKSet(new URL(jwksUri), { timeoutDuration: 5000, cooldownDuration: 30_000, cacheMaxAge: 600_000 }) };
+        state = { metadata, jwksUri, jwks: await remoteKeySet(jwksUri, rules, log) };
         log.info(first ? "oauth: issuer metadata loaded" : "oauth: the issuer's jwks_uri changed; keys are read from the new one", { issuer });
         return true;
     }
@@ -398,7 +349,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
     /** Reads the metadata again (the hourly refresh, a token with an unknown key); a failure keeps what is loaded. */
     const refresh = () =>
         load().catch((e) => {
-            log.warn(`oauth: the issuer's metadata could not be read again, keeping the loaded one: ${String(e?.message ?? e).slice(0, 300)}`);
+            log.warn(`oauth: the issuer's metadata could not be read again, keeping the loaded one: ${String(e?.message ?? e).slice(0, 600)}`);
             return false;
         });
     let delay = 2000;
@@ -409,7 +360,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             if (closed) {
                 return;
             }
-            log.warn(`oauth: the issuer's metadata could not be loaded, trying again in ${delay / 1000} s: ${String(e?.message ?? e).slice(0, 300)}`);
+            log.warn(`oauth: the issuer's metadata could not be loaded, trying again in ${delay / 1000} s: ${String(e?.message ?? e).slice(0, 600)}`);
             timer = setTimeout(attempt, delay);
             timer.unref?.();
             delay = Math.min(delay * 2, 60_000);

@@ -17,6 +17,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   [download links](https://pivotkit.eize.dev/reference/delivery/) under `/downloads/`: route that path
   to the server, or set `output.downloads.enabled: false`. With `output.baseUrl`, reports over a
   source with a field that is not `show` carry no `url` any more.
+- With OAuth, the issuer's metadata, its keys and the download sign-in's token endpoint are requested
+  through the server's guarded requests: an issuer on a loopback or private address needs
+  `auth.intranet: true`, the environment's proxy is not used, and a key set over 256 KiB is refused
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#issuer-requests)).
 
 ### Added
 

@@ -99,8 +99,11 @@ several audiences must name this client as `azp`). Register at the provider:
 The link holds the person only as a keyed digest of the link's own random part, the issuer and the
 subject: it does not tell who it is for, and two links of one person cannot be tied to each other.
 
-ID tokens must be signed with a key from the issuer's `jwks_uri` (RS256, ES256 and the like); tokens
-signed with the client secret (HS256) are not accepted. Someone signed in as another account gets
+ID tokens must be signed with a key from the issuer's key set (`auth.jwksUri`, else the metadata's
+`jwks_uri` on the issuer's origin, as for access tokens; RS256, ES256 and the like); tokens signed
+with the client secret (HS256) are not accepted. The issuer's metadata, keys and token endpoint are
+requested under the rules of [the server's issuer](mcp.md#oauth): an issuer on a private address
+needs `auth.intranet: true`. Someone signed in as another account gets
 403 "You are signed in as a different account than the one that asked for this report." No session
 outlives the download: the short cookie that holds the sign-in under way is cleared with the answer.
 
