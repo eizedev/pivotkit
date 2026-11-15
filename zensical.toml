@@ -81,6 +81,7 @@ nav = [
     { "Localisation" = "reference/localisation.md" },
   ] },
   { "Security" = "security.md" },
+  { "What reaches an AI model" = "model-data.md" },
   { "Privacy for operators" = "privacy.md" },
   { "Browser support" = "browser-support.md" },
   { "FAQ" = "faq.md" },
@@ -180,7 +181,7 @@ listed here in one file.
 """
 
 [project.plugins.llmstxt.sections]
-"Start" = ["index.md", "compare.md", "features.md", "faq.md", "security.md", "privacy.md", "browser-support.md", "demo.md"]
+"Start" = ["index.md", "compare.md", "features.md", "faq.md", "security.md", "model-data.md", "privacy.md", "browser-support.md", "demo.md"]
 "Use a report (for the people who build reports)" = ["use/*.md", "learn.md"]
 "Embed pivotkit (for developers)" = ["embed/*.md", "getting-started/*.md"]
 "Concepts" = ["concepts/*.md"]

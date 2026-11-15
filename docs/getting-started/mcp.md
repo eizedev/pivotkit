@@ -81,7 +81,7 @@ whose values you did not let the model see, it says that it has not seen the con
 By default every field is `summary`: name, type and counts. Mark fields whose values may reach the
 model as `show` (the model can then answer questions about them and get small results inline),
 category fields as `values` (the model sees their values as a complete list, so it filters on the
-exact name of a status or a team, but no result over them), and fields it must not know about as
+exact name of a channel or a team, but no result over them), and fields it must not know about as
 `hide` (dropped when the data is read). `"policy": { "autoValues": true }` gives `values` to text
 fields that look like categories by itself ([the rule](../reference/mcp.md#auto-values));
 `--check-config` lists them. In a configuration file:
@@ -92,7 +92,7 @@ fields that look like categories by itself ([the rule](../reference/mcp.md#auto-
     "sales": {
       "file": "/Users/you/reports/sales.csv",
       "title": "Sales",
-      "policy": { "fields": { "Region": "show", "Product": "show", "Status": "values", "Discount": "hide" } }
+      "policy": { "fields": { "Region": "show", "Product": "show", "Channel": "values", "Discount": "hide" } }
     }
   },
   "output": { "dir": "/Users/you/reports/out" }
@@ -105,7 +105,9 @@ claude mcp add pivotkit -- npx -y pivotkit-mcp --config /Users/you/reports/pivot
 
 To let the model open any data file in a folder by path ("file:q3.csv"), add
 `--allow-dir /Users/you/reports` (and `--list-files` to have it listed). Every file in that folder
-can then be read: put only data there that the model may use. [Exposure policy](../reference/mcp.md#policy).
+can then be read: put only data there that the model may use. [Exposure policy](../reference/mcp.md#policy);
+[what reaches the model](../model-data.md) shows the answers a model gets at each level, and how to
+give each client its own rules.
 
 ## 4. For a team: HTTP
 
@@ -128,7 +130,8 @@ claude mcp add --transport http pivotkit https://reports.example.com/mcp --heade
 
 For sign-in with your identity provider (Authentik, Keycloak, Microsoft Entra ID, any OAuth 2.1 /
 OpenID Connect provider), see [OAuth](../reference/mcp.md#oauth); scopes then decide who sees which
-source and may use which tool.
+source and may use which tool. A policy profile per token, OAuth client, group or scope gives a
+cloud assistant less than a model on your own hardware ([per client](../model-data.md#per-client)).
 
 To serve programs too, run `pivotkit-server serve --config pivotkit-mcp.json --auth token` (with
 `pivotkit-mcp` installed beside it) instead: the same `/mcp` endpoint and the

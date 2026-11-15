@@ -104,6 +104,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   `unknown`, never the model's text; a request the protocol layer refuses is logged at warn with its
   error's class and the SDK's name for the refusal, its message (which can quote the body) only with
   `--log debug` ([#422](https://github.com/eizedev/pivotkit/issues/422)).
+- The README links the page on what reaches an AI model at each level of the exposure policy, and
+  how to give each client its own profile ([#338](https://github.com/eizedev/pivotkit/issues/338)).
 
 ## [0.1.1] - 2026-11-14
 

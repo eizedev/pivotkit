@@ -226,7 +226,8 @@ is not hidden: keep it out of an environment an AI agent controls
 
 [pivotkit-mcp](reference/mcp.md) lets an AI model build reports over data the operator names. It
 treats the model as a caller that may have been steered by text it read, and the data as text that
-may try to steer it:
+may try to steer it ([what reaches an AI model](model-data.md) shows the answers a model gets at
+each level and how to set them per client):
 
 - **The model never gets the data.** It gets what the [exposure policy](reference/mcp.md#policy)
   allows per field: by default names, types and counts; a field's values as a complete list for
@@ -346,8 +347,9 @@ and the sign-in above hold for it too. What differs:
 - **A caller gets what its policy allows, never more.** A program is not a model, but a field at
   `summary` keeps its values out of every answer, one at `values` lists its values but no result
   over them, and `hide` drops it. A **profile** can give one
-  caller more (values, downloads): it is bound to a token or an OAuth client or scope in the
-  configuration, never chosen by the caller, and a field the source hides stays hidden in every
+  caller more (values, downloads): it is bound to a token, an OAuth client, a group or a scope, or
+  given to every other signed-in caller (`auth.defaultProfile`), in the configuration, never chosen
+  by the caller, and a field the source hides stays hidden in every
   profile. A token without a profile gets the server's policy.
 - **Downloads** (`POST /api/v1/views/render/file`) need a policy with `results: true`; whether one is
   allowed never depends on the view's fields. The file comes as an attachment with

@@ -112,7 +112,8 @@ already has (one a user pasted, the result of another tool). The tools that take
 ## Exposure policy { #policy }
 
 The operator sets, per field, how much of it the model may see. A source's `policy` goes over the
-server's `policy`; field names are matched without regard to case.
+server's `policy`; field names are matched without regard to case. [What reaches an AI
+model](../model-data.md) shows a model's answers at each level and a profile per client.
 
 Levels from open to closed: `show`, `values`, `summary`, `hide`. A source's rule for a field
 replaces the server's, and a profile's replaces the source's, except that a field the source's policy
@@ -241,7 +242,7 @@ error that names the key and the one probably meant.
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |
 | `files.hardLinks` | - | false | Read files that have a second name |
 | `files.scopes`, `files.policy` | - | none, the server's | Scopes and policy of `file:` sources |
-| `output.dir` | `--output dir` | none | Where reports and drafts are written; made at start when missing (with its parents, mode 0700: reports may hold what a model may not see; 0755 narrowed by the umask when `output.baseUrl` is set, so the web server can read it), a warning in the log; a missing directory was an error before, now only with `output.create: false` |
+| `output.dir` | `--output dir` | none | Where reports and drafts are written; made at start when missing (with its parents, mode 0700: reports may hold what a model may not see; 0755 narrowed by the umask when `output.baseUrl` is set, so the web server can read it), a warning in the log; with `output.create: false` a missing directory is an error |
 | `output.create` | - | true | `false`: a missing `output.dir` is an error at start instead |
 | `output.baseUrl` | - | none | The address the directory is served at: file names start with 22 random characters, and results over sources whose fields are all `show` carry a `url` (others none: anyone with it could open what the model was not shown) |
 | `output.downloads` | - | on over HTTP | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` (`clientId`, `clientSecret`, `issuer`, `scopes`) |

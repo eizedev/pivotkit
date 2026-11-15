@@ -116,7 +116,7 @@ The exposure policy is the [MCP server's](mcp.md#policy): per field `show`, `val
 (default) or `hide`, per source over the server's, with the opt-in [automatic values
 rule](mcp.md#auto-values). A REST caller is a program, not a model, but the same rules hold: a field
 at `summary` keeps its values out of every answer, and one at `values` lists its values but no result
-over them.
+over them ([what reaches an AI model](../model-data.md#rest) shows the answers per token).
 
 | Level | `GET /sources/{id}` | Findings | Results |
 | --- | --- | --- | --- |
@@ -717,7 +717,8 @@ instead of running Node on the PSU server: keep the token in a PSU secret, call
 the user, or `POST /api/v1/views/render` to save it in the service's output directory. See
 [Getting started: REST service](../getting-started/rest.md#powershell) for the calls in PowerShell,
 and [Getting started: MCP server](../getting-started/mcp.md#psu) for running the service next to PSU.
-The links of the PSU module's reports open as before.
+The PSU module's report pages load their data from the PSU app, with the person's own rights; the
+REST service's policy does not apply to them.
 
 ## Security { #security }
 

@@ -180,6 +180,12 @@ callers notice:
 | [The log](#log) | you read the log on a terminal, parse it, alert on it, or ship it to a log server | JSON lines gain fields and the client's address is logged by default (`log.address: "off"` keeps it out); levels and `msg` are new, and more refusals get a line; on a terminal the log is text unless `log.format` is `json`; a start error is a JSON line where stderr is no terminal |
 | [check-config's layout](#check-config-layout) | you read `check-config`'s output in a script | use its exit code, or its first line, which says whether the server starts |
 | [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
+| [HTML reports on a dark screen](#dark-mid-colour) | your reports or print templates set a colour scale's middle colour (`--pk-scale-mid`) | pass the middle colour in `darkTokens` to keep one on a dark screen |
+| [Command line](#cli-next) | a script reads the names of files `pivotkit render` writes, or its error text | name the output with `-o`; read the exit code or `--json` |
+
+Before you connect a cloud model to a server you upgraded, read [what reaches an AI
+model](../model-data.md): it shows the answers a model gets at each level and how to give each
+client its own profile.
 
 ### Data as of in files { #data-as-of-files }
 
@@ -325,6 +331,9 @@ installation notices:
   connection's own address, which was not logged before. `peerAddress` is the connection's own
   address where it differs (the proxy). `log.address: "off"` keeps both out
   ([privacy](../privacy.md#logs)).
+- A log line names a source by its configured id, `inline:` or `file:`; anything else a caller
+  typed is `unknown`, never the caller's text. An alert on a misspelt source id reads `unknown`;
+  no setting brings the text back.
 - More refusals get a `refused` line: the per-caller 429s, `/openapi.json` with a refused token, an
   MCP body over the cap, and requests the HTTP parser refuses (`warn`); a GET of the MCP endpoint and
   a path nobody serves at `debug` only. An alert on refused lines counts them too.
@@ -337,6 +346,22 @@ installation notices:
   `--log-format text`. A script that reads that line from a pipe reads JSON now. Only `serve` (and
   `pivotkit-mcp`) write start errors as JSON; check-config and the other commands of
   `pivotkit-server` stay plain text.
+
+### HTML reports on a dark screen { #dark-mid-colour }
+
+On a dark screen an html report no longer takes a colour scale's middle colour from the light
+colours (`tokens` or a print template's light rules): its cells run halfway between the dark low and
+high colours, and a view's own colours are mixed fainter (30 %), as on the page. Paper and print stay
+light. To keep a middle colour on a dark screen, pass it in pivotkit-report's `darkTokens`
+(`--pk-scale-mid`, [options](../reference/report.md#options)) or a print template's dark rule
+([theming](../reference/theming.md)).
+
+### Command line { #cli-next }
+
+- File names keep parentheses: a report named "Orders (fake backend)" is written as
+  `Orders (fake backend).xlsx`, not `Orders -fake backend.xlsx`. Give `-o` to choose the name.
+- Usage errors end with `run "pivotkit <command> --help"`, and unknown options and commands read
+  `unknown option "--bogus"`. Scripts read the exit code or `--json`, not the text.
 
 ### Code sources { #code-sources }
 
@@ -353,6 +378,13 @@ they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next re
 - Loaded data is kept per caller (and per values and policy levels), not per source: a `load` that
   gives every caller the same data sets `cacheShared: true` (it then gets `caller: null`). Without
   `version` and `ttl` nothing is reused, as before; parallel calls for the same data share one load.
+- The process keeps at most `sourceCache.maxMb` of loaded data (256 MiB), a quarter of it per
+  person or shared source: a table over 64 MiB is loaded again on every call, and the log warns once
+  an hour. Raise `sourceCache.maxMb` to keep it ([bounds](../reference/sources.md#code-cache)).
+- A `load` whose data differs per caller (each person sees their own rows) sets `perPerson: true`:
+  its reports then get only links the person who asked can open, or none. Without it, the server's
+  [download links](#download-links) treat the source by its fields, and a source whose fields are all
+  `show` gets plain links anyone with the link can open.
 - A load that fails transiently (the time limit, a network error, a `SourceError` with `transient`)
   answers with the data last loaded for that caller, up to an hour old, and `stale: { since }` in
   the result; `maxStale: 0` turns it off.

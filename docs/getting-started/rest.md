@@ -100,9 +100,13 @@ With the name fixed, render the report into the output folder:
     Get-ChildItem reports
     ```
 
-The answer's `message` says where the file is. Check `ok` in a script: a view with errors also
-answers 200, with `ok: false`, its `findings` and no file. The answer also says `withheld`: Region
-and Revenue are `summary` fields, so the numbers stay in the file and are not part of the answer.
+The answer names the file (`output.filename`, here `sales.xlsx`); it is in the `reports` folder as
+`sales.pivotkit-out.xlsx`. Its `message` says "The report is saved on the server; ask the operator
+how to open it.": a program does not get the server's path; it takes the file itself through the
+file route ([step 5](#policy)). Check
+`ok` in a script: a view with errors also answers 200, with `ok: false`, its `findings` and no file.
+The answer also says `withheld`: Region and Revenue are `summary` fields, so the numbers stay in the
+file and are not part of the answer.
 
 ## 5. Tokens, a profile and downloads { #policy }
 
@@ -209,3 +213,5 @@ try {
 - [Update an installation](upgrading.md#update): a new release of the service, the image or the CLI.
 - The command line against this service: [pivotkit-cli with a server](../reference/cli.md#with-a-server).
 - [Getting started: MCP server](mcp.md): the same sources for an AI client.
+- [What reaches an AI model](../model-data.md): what a program and a model see at each level, and
+  a profile per client.

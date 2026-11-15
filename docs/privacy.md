@@ -262,7 +262,8 @@ holds the person only as a digest with its own random part.
 ## The AI client { #ai-client }
 
 An MCP client sends what the model sees (descriptions, findings, inline results) to the model's
-provider. What the policy shows a model is what that provider receives. See
+provider. What the policy shows a model is what that provider receives:
+[what reaches an AI model](model-data.md) shows it per level and per client. See also
 [Security: the MCP server](security.md#mcp).
 
 ## What to tell your users { #tell-users }
