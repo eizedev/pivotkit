@@ -8,7 +8,8 @@ import { existsSync, readdirSync, utimesSync, writeFileSync } from "node:fs";
 import { prune } from "../src/output.js";
 import { join } from "node:path";
 import { placeMarker, signToken, subkeysOf, sweepMarkers } from "../src/downloads.js";
-import { call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
+import { createAuthCore } from "../src/auth.js";
+import { TOKEN, call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
 
 // --- F2: columns the file gives no header never take a "show" default --------------------------------
 
@@ -173,4 +174,24 @@ test("output.maxAgeDays: a sweep that deletes old reports and drafts writes one 
     const empty = tempDir();
     await prune({ output: { dir: empty, maxAgeDays: 1, cleanUp: true }, log });
     assert.equal(lines.length, 1, "nothing deleted, nothing said");
+});
+
+// --- a static token's file that went missing, empty or short says so on the log ---------------------
+
+test("auth token: a token file emptied or removed after the start refuses with 401 and writes one warning per minute naming the token, never a value", async () => {
+    const dir = tempDir();
+    const file = join(dir, "bot.token");
+    writeFileSync(file, `${TOKEN}\n`);
+    const warnings = [];
+    const log = { warn: (msg, fields) => warnings.push({ msg, ...fields }), info() {}, debug() {} };
+    const core = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log, loopback: true });
+    const ask = () => core.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } }));
+    assert.equal((await ask()).clientId, "bot");
+    writeFileSync(file, "");
+    await assert.rejects(ask(), (e) => e.status === 401);
+    await assert.rejects(ask(), (e) => e.status === 401);
+    assert.equal(warnings.length, 1, JSON.stringify(warnings));
+    assert.match(warnings[0].msg, /auth: the token "bot" \(its file\) is missing, empty or shorter than 32 characters/);
+    assert.ok(!JSON.stringify(warnings).includes(TOKEN.slice(0, 12)), "never the token");
+    assert.ok(!JSON.stringify(warnings).includes(dir), "never the file's path either");
 });

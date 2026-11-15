@@ -114,10 +114,13 @@ async function staticTokens(auth, env, options, tokenEnv) {
         if (!TOKEN_SYNTAX.test(value)) {
             throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) ${TOKEN_SYNTAX_TEXT}; make one with: ${MAKE_TOKEN}`);
         }
-        out.push({ name: t.name, scopes: t.scopes ?? null, profile: t.profile ?? null, read: t.file ? read : async () => value });
+        out.push({ name: t.name, which, scopes: t.scopes ?? null, profile: t.profile ?? null, read: t.file ? read : async () => value });
     }
     return out;
 }
+
+/** How often a static token's file that cannot be used is said on the log, at most: once a minute. */
+const SHORT_TOKEN_WARN_MS = 60_000;
 
 /** The issuer's metadata (issuer.js), for the token exchange's default token endpoint and the download sign-in. */
 export { discover } from "./issuer.js";
@@ -283,6 +286,17 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
 
     if (mode === "token") {
         const tokens = await staticTokens(auth, env, options, tokenEnv);
+        /** @type {Map<string, number>} when each token's unusable file was last said on the log */
+        const warned = new Map();
+        // a file emptied, removed or cut after the start (a rotation gone wrong): every request with
+        // that token gets 401, so the operator is told which entry, never its value
+        const unusable = (t) => {
+            const now = Date.now();
+            if (now - (warned.get(t.name) ?? -Infinity) >= SHORT_TOKEN_WARN_MS) {
+                warned.set(t.name, now);
+                log.warn(`auth: ${t.which} (its file) is missing, empty or shorter than ${TOKEN_MIN} characters, so requests with it are refused; write the token to the file again (write it whole, then rename it into place)`);
+            }
+        };
         return {
             mode,
             ready: () => true,
@@ -301,7 +315,9 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                 // every token compared, so the time does not tell which one is close
                 for (const t of tokens) {
                     const value = await t.read();
-                    if (value.length >= TOKEN_MIN && timingSafeEqual(given, digest(value)) && !match) {
+                    if (value.length < TOKEN_MIN) {
+                        unusable(t);
+                    } else if (timingSafeEqual(given, digest(value)) && !match) {
                         match = t;
                     }
                 }
