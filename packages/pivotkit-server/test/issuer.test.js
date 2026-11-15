@@ -12,7 +12,7 @@ import { createServer as createTlsServer } from "node:https";
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig } from "pivotkit-server";
-import { ISSUER_LIMITS, issuerMeans } from "../src/issuer.js";
+import { ISSUER_LIMITS, discover, issuerMeans } from "../src/issuer.js";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
 
@@ -346,4 +346,41 @@ test("a key-set answer jose would refuse (500, or 200 without a keys list) count
             await server.close();
         }
     }
+});
+
+test("check-config: an issuer on a metadata address is a PROBLEM the server starts with, never one that stops it", async () => {
+    const result = await checkConfig({ sources: SOURCES, baseDir: workspace(), auth: { mode: "oauth", issuer: "https://169.254.169.254/", resource: REST_RESOURCE, intranet: true } }, { http: true, env: {} });
+    const text = factsOf(result.text);
+    assert.match(text, /^PROBLEM: auth\.issuer: 169\.254\.169\.254, which is never connected to \(link-local, metadata, multicast or unspecified\) -> the server starts; callers get 503 until the issuer can be reached$/m);
+    assert.equal(result.stops, 0);
+    assert.match(text.split("\n")[0], /the server starts, but not everything will work\.$/);
+    assert.doesNotMatch(text, /does not start/);
+});
+
+test("check-config: a private issuer without auth.intranet is one PROBLEM, and its metadata is not asked for a second line", async () => {
+    const issuer = `https://127.0.0.1:${tlsPort}`;
+    routes = { "/.well-known/openid-configuration": metadataOf(issuer), "/jwks": { keys: [jwk] } };
+    asked = [];
+    await withLookup(["127.0.0.1"], async () => {
+        const result = await checkConfig({ sources: SOURCES, baseDir: workspace(), auth: { mode: "oauth", issuer, resource: REST_RESOURCE } }, { http: true, env: {}, discover });
+        const lines = factsOf(result.text).split("\n");
+        assert.deepEqual(lines.filter((l) => l.startsWith("PROBLEM: auth.issuer")), [`PROBLEM: auth.issuer: 127.0.0.1, a loopback or private address, which the server refuses without auth.intranet: true -> the server starts; callers get 503 until the issuer can be reached`]);
+        assert.deepEqual(lines.filter((l) => l.startsWith("WARNING") && l.includes("auth.issuer")), [], result.text);
+        assert.equal(result.problems, 1, result.text);
+    });
+    assert.deepEqual(asked, [], "the metadata was not asked for");
+});
+
+test("check-config: an https issuer in the LAN with auth.intranet that answers gives no warning", async () => {
+    const issuer = `https://127.0.0.1:${tlsPort}`;
+    routes = { "/.well-known/openid-configuration": metadataOf(issuer), "/jwks": { keys: [jwk] } };
+    asked = [];
+    await withLookup(["127.0.0.1"], async () => {
+        const result = await checkConfig({ sources: SOURCES, baseDir: workspace(), auth: { mode: "oauth", issuer, resource: REST_RESOURCE, intranet: true } }, { http: true, env: {}, discover });
+        assert.equal(result.problems, 0, result.text);
+        assert.doesNotMatch(result.text, /auth\.issuer|WARNING \(Auth\)/, result.text);
+        assert.match(factsOf(result.text), /\n {2}loopback and private addresses: allowed \(auth\.intranet\)\n/);
+    });
+    // it was asked, and it answered
+    assert.ok(asked.includes("/.well-known/openid-configuration"), asked.join(" "));
 });
