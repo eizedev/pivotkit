@@ -78,7 +78,9 @@ export async function checkConfig(options, { http = false, env = {}, name = "piv
         // the print template, read and parsed as the start does: what it refuses, the start refuses
         const template = templates.get(s.id);
         if (template) {
-            lines.push(`    template: ${template.file}`);
+            // not there: like a missing source file (the server starts, its html reports fail)
+            problems += template.missing ? 1 : 0;
+            lines.push(`    template: ${template.file}${template.missing ? `  (NOT FOUND: ${template.missing})` : ""}`);
             if (template.problem) {
                 other += 1;
                 lines.push(`    PROBLEM: sources.${s.id}.template: ${template.problem}`);

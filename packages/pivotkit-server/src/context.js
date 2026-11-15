@@ -76,10 +76,14 @@ export async function createContext(options, runtime = {}) {
     const registry = await createRegistry(options, { log }).catch((e) => {
         throw e?.code === "ALLOW_DIR_NOT_FOUND" || e?.code === "ALLOW_DIR_NOT_DIRECTORY" ? new ConfigError(`files.allowDirs: ${e.message.replace(/^--allow-dir /, "")}`) : e;
     });
-    // a source's print template the parser refuses: refused now, not first on an html report
-    for (const { id, problem } of await checkTemplates(options)) {
+    // a source's print template the parser refuses: refused now, not first on an html report; one
+    // that is not there yet (a deploy that copies it later) is a warning, as a missing source file
+    for (const { id, missing, problem } of await checkTemplates(options)) {
         if (problem) {
             throw new ConfigError(`sources.${id}.template: ${problem}`);
+        }
+        if (missing) {
+            log.warn(`sources.${id}.template: ${missing}; html reports of ${id} fail until it can be read`);
         }
     }
     // a backend's sign-in whose secret cannot be read: said at start, not first to a caller

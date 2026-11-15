@@ -187,7 +187,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   logged; `secretFileWarning` for check-config), `src/print-template.js` (a source's print template:
   `readTemplateFile`, the one safe reader for a request, the start and check-config;
   `checkTemplates`, each source's template read and parsed, the start refuses and check-config
-  reports what parseTemplate refuses), `src/flags.js` (`optionsFrom`, the
+  reports what parseTemplate refuses; a missing file is NOT FOUND and a warning at start, as a
+  missing source file), `src/flags.js` (`optionsFrom`, the
   runners' flags into options; `SERVER_FLAGS`), `src/context.js` (`createContext(options)`: registry,
   workers, output, log, the sign-in both front ends share, `ready()`, `offers`: the extra inputs each
   surface offers, fixed at start; `callerOf` and `identityKey` from auth.js), `src/policy.js`

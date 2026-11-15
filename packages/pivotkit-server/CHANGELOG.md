@@ -27,10 +27,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   the file".
 - `check-config` prints more lines: each field's level and why, and each profile's levels.
 - Behaviour change: a source's print template (`sources.<id>.template`) is read and checked at
-  start; one that cannot be read or that the parser refuses (an unknown placeholder, more than
-  1 MiB) keeps the server from starting, where before every html report of that source failed with
-  `INVALID_TEMPLATE`. `check-config` lists the template per source and reports the parser's message
-  as a PROBLEM line ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-at-start)).
+  start; one the parser refuses (an unknown placeholder), over 1 MiB or not a regular file keeps
+  the server from starting, where before every html report of that source failed with
+  `INVALID_TEMPLATE` (a parse error) or `LIMIT_EXCEEDED`. `check-config` lists the template per
+  source and reports that message as a PROBLEM line; a template file that is not there is NOT
+  FOUND, and the start only warns, as for a missing source file ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-at-start)).
 - Log lines written inside a request (`call`, `request`, `download`, `refused`, `error`) carry
   `requestId`; every REST problem document carries it too. A body over the cap gets a `refused` line.
 - `check-config` warns of a static token's file that other users of the machine can read.

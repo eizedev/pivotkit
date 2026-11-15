@@ -1,10 +1,11 @@
 // A source's print template (sources.<id>.template): check-config lists it and reports what the
 // parser refuses as a PROBLEM line; the start refuses it like any other configuration error, so a typo
-// such as {{titel}} is found before the first html report fails with INVALID_TEMPLATE.
+// such as {{titel}} is found before the first html report fails with INVALID_TEMPLATE. A template
+// file that is not there is like a missing source file: NOT FOUND in check-config, a warning at start.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ConfigError, checkConfig, createContext } from "pivotkit-server";
 import { BIN, workspace } from "./helpers.js";
@@ -32,7 +33,7 @@ test("check-config lists each source's print template and reports the parser's m
     assert.equal(result.problems, 1);
 });
 
-test("check-config: a template the parser accepts is listed with no PROBLEM; a missing or oversized one is a PROBLEM", async () => {
+test("check-config: a template the parser accepts is listed with no PROBLEM; a missing one is NOT FOUND, an oversized one a PROBLEM", async () => {
     const good = withTemplate(BRAND.replace("{{titel}}", "{{title}}"));
     const ok = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: good }, { http: false });
     assert.match(ok.text, /^ {4}template: data\/brand\.html$/m);
@@ -41,7 +42,11 @@ test("check-config: a template the parser accepts is listed with no PROBLEM; a m
 
     const missing = withTemplate(undefined);
     const gone = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: missing }, { http: false });
-    assert.match(gone.text, /^ {4}PROBLEM: sources\.sales\.template: brand\.html: not found$/m);
+    // like a missing source file: the server starts, the source's html reports fail until it is there
+    assert.match(gone.text, /^ {4}template: data\/brand\.html {2}\(NOT FOUND: brand\.html: not found\)$/m);
+    assert.doesNotMatch(gone.text, /PROBLEM/);
+    assert.match(gone.text, /^pivotkit-mcp: the configuration is valid, but not everything it names is there\./);
+    assert.match(gone.text, /1 problem: see NOT FOUND above\./);
     assert.equal(gone.problems, 1);
 
     // the same byte limit as on a request (1 MiB): the reader's limit message, no path
@@ -57,12 +62,31 @@ test("the start refuses a source's broken print template like any other configur
         createContext({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: dir }),
         (e) => e instanceof ConfigError && e.message === `sources.sales.template: ${TYPO}`
     );
+    // a template that is not there yet (a deploy copies it later): the start warns and goes on
     const missing = withTemplate(undefined);
-    await assert.rejects(createContext({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: missing }), (e) => e instanceof ConfigError && e.message === "sources.sales.template: brand.html: not found");
+    const said = [];
+    const started = await createContext({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: missing }, { stderr: { write: (t) => said.push(String(t)) } });
+    await started.close();
+    assert.ok(
+        said.some((t) => t.includes("sources.sales.template: brand.html: not found; html reports of sales fail until it can be read")),
+        said.join("")
+    );
     // a good template starts
     const good = withTemplate(BRAND.replace("{{titel}}", "{{title}}"));
     const context = await createContext({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: good });
     await context.close();
+});
+
+test("the start reads the template through the safe reader: a FIFO and a directory are not a regular file, and refused", { skip: process.platform === "win32" && "no FIFOs" }, async () => {
+    const dir = withTemplate(undefined);
+    const fifo = join(dir, "data", "brand.html");
+    execFileSync("mkfifo", [fifo]);
+    await assert.rejects(createContext({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: dir }), (e) => e instanceof ConfigError && e.message === "sources.sales.template: brand.html: not a regular file");
+    const other = withTemplate(undefined);
+    mkdirSync(join(other, "data", "brand.html"));
+    await assert.rejects(createContext({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: other }), (e) => e instanceof ConfigError && e.message === "sources.sales.template: brand.html: not a regular file");
+    const checked = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: other }, { http: false });
+    assert.match(checked.text, /^ {4}PROBLEM: sources\.sales\.template: brand\.html: not a regular file$/m);
 });
 
 test("pivotkit-server serve and check-config from the command line: the template's message, exit 2 and 1", () => {
