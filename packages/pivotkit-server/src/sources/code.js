@@ -42,7 +42,7 @@ import { codeTable } from "../data.js";
 import { CODE_DEFAULTS } from "../options/code.js";
 import { packedBytes } from "../packed.js";
 import { OWNER_SHARE } from "./cache.js";
-import { canonicalJson, tableKeyOf } from "./keys.js";
+import { canonicalJson, privatePart, tableKeyOf } from "./keys.js";
 import { loadRunner } from "./run.js";
 
 /** What a source without params gets as its params. */
@@ -59,8 +59,8 @@ const nameOf = (source) => {
 
 /**
  * The identity a code source's kept data is bound to: the person with the client, its scopes, the
- * groups and the claims (a code source may answer differently for each of them); "*" for a source
- * shared by all callers; null without an identity (nothing is kept).
+ * groups and the claims (a code source may answer differently for each of them), as a keyed digest;
+ * "*" for a source shared by all callers; null without an identity (nothing is kept).
  * @param {import("../registry.js").Caller} caller
  * @param {boolean} shared
  */
@@ -69,7 +69,7 @@ function ownerOf(caller, shared) {
         return "*";
     }
     const person = identityKey(caller, { client: true });
-    return person === null ? null : canonicalJson([person, [...(caller.groups ?? [])].sort(), caller.claims ?? {}]);
+    return person === null ? null : privatePart([person, [...(caller.groups ?? [])].sort(), caller.claims ?? {}]);
 }
 
 /**
@@ -95,7 +95,8 @@ export async function loadCode(resolved, caller, log, signal = undefined) {
     // the load limits and the cache's bound count per person (any client), or per client for a
     // caller without an identity
     const person = identityKey(caller) ?? `client:${caller.client}`;
-    const key = owner === null ? null : canonicalJson(["code", name, spec.id, params, owner, spec.levels, spec.timeZone ?? null, spec.limits]);
+    // the values and the owner only as a keyed digest: a key holds no group, claim or value in clear text
+    const key = owner === null ? null : canonicalJson(["code", name, spec.id, privatePart([params, owner]), spec.levels, spec.timeZone ?? null, spec.limits]);
     /** @type {unknown} */
     let given = null;
     const ran = await loadRunner.runLoad(key, (signal) => source.load(params, { caller: view, signal }), {

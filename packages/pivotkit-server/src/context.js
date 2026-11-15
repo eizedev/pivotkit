@@ -12,7 +12,7 @@ import { createRequire } from "node:module";
 import { access, constants, lstat, mkdir, realpath, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { isInside } from "pivotkit-cli/files";
-import { ConfigError, OUTPUT_DEFAULTS, pathOf, validateOptions } from "./config.js";
+import { ConfigError, OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf, validateOptions } from "./config.js";
 import { createComputer } from "./compute.js";
 import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
@@ -140,7 +140,9 @@ export async function createContext(options, runtime = {}) {
         if (!(await writable(dir))) {
             log.warn("output.dir is not writable by the server's user: every report will fail with NO_OUTPUT until its owner or mode is fixed");
         }
-        output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles, maxMb: options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb, maxAgeDays: options.output.maxAgeDays ?? 0, cleanUp: !shared, showPath: runtime.showPaths ?? false };
+        // the default age limit only where the reports have a directory of their own: a default the
+        // operator did not set never keeps the server from starting
+        output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles, maxMb: options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb, maxAgeDays: maxAgeDaysOf(options, shared), cleanUp: !shared, showPath: runtime.showPaths ?? false };
     }
     const computer = createComputer(options.compute);
     /** Gives back this context's sourceCache.maxMb (set once the context is made, below). */

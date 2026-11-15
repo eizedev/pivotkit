@@ -487,6 +487,8 @@ test("options: cacheShared only for a code source; timeMs at most ten minutes; t
     assert.match(text, /New in this version[^\n]*\n(?: {2}- [^\n]*\n)* {2}- Code sources: load gets \(params, \{ caller, signal \}\)/);
     // without MCP, where data sent in the request adds no note, a file source alone gives none
     assert.doesNotMatch((await checkConfig({ sources: { f: { file: "x.csv" } } }, { http: false, mcp: false })).text, /Code sources|New in this version/);
+    // with MCP on (the default) a file source alone gets no code-source line or note either
+    assert.doesNotMatch((await checkConfig({ sources: { f: { file: "x.csv" } } }, { http: false })).text, /Code sources/);
 });
 
 test("the load cache: least recently used out, at most 8 entries and a quarter of the bytes per owner, its own entries first; encoded data measured", () => {

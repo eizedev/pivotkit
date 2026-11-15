@@ -27,9 +27,10 @@ pivotkit --version
 
 Update pivotkit-server and pivotkit-mcp in one command, to the same release: `pivotkit-server serve`
 loads the pivotkit-mcp installed beside it, and a pivotkit-server changed alone afterwards can make
-it stop at start with an error that a module "does not provide an export named ...". The sure sign
-is `npm ls -g --all` marking pivotkit-server under pivotkit-mcp `invalid`; install both again in one
-command. pivotkit-cli updates on its own. `npm update --global` updates every global package
+it stop at start with "pivotkit-mcp <x> does not fit pivotkit-server <y>" (pivotkit-server 0.1.1
+and earlier: a module "does not provide an export named ..."). The sure sign is `npm ls -g --all`
+marking pivotkit-server under pivotkit-mcp `invalid`; install both again in one command.
+pivotkit-cli updates on its own. `npm update --global` updates every global package
 to its newest release, across minor versions too. Install global packages into a folder you own
 (npm's `prefix`), not with `sudo`. `npm audit signatures` checks the registry's signatures in a
 project only, not for global packages: to check a release first, install it into an empty folder,
@@ -72,8 +73,8 @@ A running process keeps the version it started with. Restart it right after the 
   session.
 - `pivotkit-server serve` and `pivotkit-mcp --http`: restart the process; a Windows service by its
   name (`nssm restart pivotkit` for [the service under NSSM](mcp.md#psu-service)). If `serve` stops
-  at start with "does not provide an export named", pivotkit-server and pivotkit-mcp do not fit
-  together ([above](#update-global)).
+  at start with "does not fit" or "does not provide an export named", pivotkit-server and
+  pivotkit-mcp do not fit together ([above](#update-global)).
 
 ### The container image { #update-image }
 
@@ -172,6 +173,7 @@ with code sources check [Code sources](#code-sources). Over HTTP with an output 
 | [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
+| [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
 
 ### Data as of in files { #data-as-of-files }
 
@@ -189,8 +191,8 @@ All of them are off until you set them ([profiles](../reference/rest.md#profiles
 
 - `auth.groupProfiles` maps an OAuth token's groups to policy profiles (first match wins, after a
   client's profile); a token whose group list is cut or missing gets `auth.defaultProfile`, or 403
-  without one. Set `auth.defaultProfile` with it: a person in none of the groups otherwise gets the
-  sources' own policy.
+  without one. A person in none of the groups (and no client or scope profile) is refused
+  with 403 as well, unless `auth.defaultProfile` gives them a profile.
 - `auth.defaultProfile` is the profile of every signed-in caller that no token, client, group or
   scope names, a static token without a profile included.
 - `auth.offerSourceScopes: true` lists the sources' scopes in the OAuth metadata
@@ -255,6 +257,16 @@ anyone, in any profile) carries no `url` any more, on MCP and REST: anyone with 
 a report whose fields were withheld from the model. The file is still written. Reports over sources
 whose fields are all `show` keep their address. For the others, leave out `output.baseUrl` and use
 sign-in links, or give REST programs `results: true` and the [file route](../reference/rest.md#downloads).
+
+### Reports deleted after 30 days { #max-age-default }
+
+`output.maxAgeDays` is 30 by default: reports and schedule drafts (drafts waiting for approval too)
+older than 30 days are deleted from the output directory at start and every hour. Before, they stayed
+until `output.maxFiles` or `output.maxMb` pushed them out. Set `output.maxAgeDays` to another number
+of days, or to `0` for no age limit, the old behaviour. The default applies only to a directory of the
+reports' own: where `output.dir` holds the configuration or a source, template or token file, nothing
+is deleted by age and the server starts as before (`check-config` says "no age limit: the directory
+holds other files"). Copy the reports you want to keep elsewhere before you upgrade.
 
 ### Request ids { #request-ids }
 

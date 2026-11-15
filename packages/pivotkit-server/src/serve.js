@@ -6,6 +6,10 @@
  * directory writable).
  */
 
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ConfigError } from "./config.js";
 import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 
@@ -25,7 +29,9 @@ export const DEFAULT_PORT = 3333;
 export const MCP_PACKAGE = "pivotkit-mcp";
 
 /**
- * pivotkit-mcp, when it is installed beside this package; null when not.
+ * pivotkit-mcp, when it is installed beside this package; null when not. A pivotkit-mcp of another
+ * release, which imports a name the pivotkit-server it finds does not export, is a ConfigError that
+ * names both versions (releaseMismatch).
  * @returns {Promise<any>}
  */
 export async function loadMcp() {
@@ -36,8 +42,50 @@ export async function loadMcp() {
         if (e?.code === "ERR_MODULE_NOT_FOUND" && String(e.message).includes(`Cannot find package '${MCP_PACKAGE}'`)) {
             return null;
         }
+        // a missing export is a SyntaxError of the import, before any of pivotkit-mcp runs; only one
+        // of pivotkit-server's (or a subpath's, pivotkit-server/policy) is a mismatch of the two
+        if (e instanceof SyntaxError && /requested module 'pivotkit-server(?:\/[^']*)?'/.test(String(e.message))) {
+            throw await releaseMismatch(e);
+        }
         throw e;
     }
+}
+
+/** The package.json nearest above a file, or null. */
+function packageOf(file) {
+    for (let dir = dirname(file); ; dir = dirname(dir)) {
+        const path = join(dir, "package.json");
+        if (existsSync(path)) {
+            return JSON.parse(readFileSync(path, "utf8"));
+        }
+        if (dirname(dir) === dir) {
+            return null;
+        }
+    }
+}
+
+/**
+ * The error for a pivotkit-mcp that does not fit the pivotkit-server it finds: its version, that
+ * pivotkit-server's version, the range pivotkit-mcp declares, and the update guide. A version it
+ * cannot read is left out, the import's own message kept.
+ * @param {SyntaxError} e
+ */
+async function releaseMismatch(e) {
+    let mcp = null;
+    let server = null;
+    try {
+        const entry = fileURLToPath(import.meta.resolve(MCP_PACKAGE));
+        mcp = packageOf(entry);
+        server = packageOf(createRequire(entry).resolve("pivotkit-server"));
+    } catch {
+        // the versions it could read
+    }
+    const needs = mcp?.dependencies?.["pivotkit-server"];
+    const { UPGRADING_URL } = await import("./check/index.js");
+    return new ConfigError(
+        `pivotkit-mcp ${mcp?.version ?? "(version unknown)"} does not fit pivotkit-server ${server?.version ?? VERSION} (${needs ? `it needs pivotkit-server ${needs}; ` : ""}${e.message}). ` +
+            `Install pivotkit-server and pivotkit-mcp of one release in one command: ${UPGRADING_URL}#update`
+    );
 }
 
 /**
@@ -55,12 +103,18 @@ export async function createServerHandler(options, runtime) {
     const enable = asked ?? ["rest", ...(mcpModule ? ["mcp"] : [])];
     /** @type {any} */
     const context = mcpModule ? await mcpModule.createMcpContext(options, { showPaths: false, stderr: runtime.stderr, tokenEnv: TOKEN_ENV }) : await createContext(options, { showPaths: false, stderr: runtime.stderr, tokenEnv: TOKEN_ENV });
+    // what is made so far, closed again when a later step fails (their timers would run on)
+    /** @type {ReturnType<typeof createDownloadHandler> | null} */
+    let made = null;
+    /** @type {any} */
+    let rest = null;
     try {
         // the download links' route: before REST and MCP (a browser's form POST carries an Origin
         // that is not an MCP client's), shared with pivotkit-mcp's handler on this context
         const downloads = createDownloadHandler(context, { env: runtime.env, loopback: runtime.loopback });
+        made = downloads;
         const isDownload = (request) => downloads.handles(new URL(request.url).pathname);
-        const rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
+        rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         const mcp = enable.includes("mcp") && mcpModule ? await mcpModule.createHttpHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         const hosts = allowedHosts(options);
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
@@ -131,6 +185,8 @@ export async function createServerHandler(options, runtime) {
             }
         };
     } catch (e) {
+        made?.close();
+        await rest?.close().catch(() => undefined);
         await context.close();
         throw e;
     }

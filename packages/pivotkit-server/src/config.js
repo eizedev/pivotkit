@@ -57,8 +57,9 @@ export { ConfigError } from "./options/shared.js";
  * A source: a file, or a library host's code source (load instead of file; sources/code.js), whose
  * load gets the caller unless cacheShared is true (then null: one copy of the data for all callers).
  * version is called at once on every call (never awaited) and must be cheap; kept data is reused
- * while it gives the same value.
- * @typedef {SourceOptionsBase & ({ load?: import("./sources/code.js").SourceLoad, version?: import("./sources/code.js").SourceVersion, cacheShared?: false } | { load: import("./sources/code.js").SharedSourceLoad, version?: import("./sources/code.js").SharedSourceVersion, cacheShared: true })} SourceOptions
+ * while it gives the same value. perPerson: true says its data differs per caller, so its reports
+ * get only links the person who asked can open (delivery.js).
+ * @typedef {SourceOptionsBase & ({ load?: import("./sources/code.js").SourceLoad, version?: import("./sources/code.js").SourceVersion, cacheShared?: false, perPerson?: boolean } | { load: import("./sources/code.js").SharedSourceLoad, version?: import("./sources/code.js").SharedSourceVersion, cacheShared: true })} SourceOptions
  */
 
 /**
@@ -121,7 +122,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {string} [groupsSeparator]  also accept a text groups claim, split by this separator
  * @property {Array<{ group: string, profile: string }>} [groupProfiles]  a person's group to policy profile; the first matching entry wins
  * @property {string} [defaultProfile]  the profile of a signed-in caller no token, client, group or scope entry names
- * @property {boolean} [offerSourceScopes]  offer the sources' scopes in the OAuth metadata (default true)
+ * @property {boolean} [offerSourceScopes]  offer the sources' scopes in the OAuth metadata (default false)
  */
 
 /** The import limits a server uses unless the operator sets them: lower than a command line's. */
@@ -139,7 +140,12 @@ export const serverLimitsOf = (options) => ({ ...SERVER_LIMITS, ...(options.limi
 export const COMPUTE_DEFAULTS = Object.freeze({ workers: 2, timeMs: 30_000, memoryMb: 1024, queueMs: 10_000 });
 
 /** How many reports and drafts the output directory holds, and how many megabytes, before its oldest go. */
-export const OUTPUT_DEFAULTS = Object.freeze({ maxFiles: 1000, maxMb: 1024 });
+/**
+ * The output directory's defaults: at most 1000 files and 1024 MB of pivotkit's, and reports and
+ * drafts older than 30 days deleted (maxAgeDays; 0: no age limit). The age limit applies by default
+ * only to a directory of the reports' own (context.js), never where the operator's files lie.
+ */
+export const OUTPUT_DEFAULTS = Object.freeze({ maxFiles: 1000, maxMb: 1024, maxAgeDays: 30 });
 
 /** The JWT signature algorithms accepted by default: asymmetric only. */
 export const DEFAULT_ALGORITHMS = Object.freeze(["RS256", "PS256", "ES256", "EdDSA"]);
@@ -386,10 +392,14 @@ export function validateOptions(options) {
     if (options.compute?.workers !== undefined && options.compute.workers > 16) {
         throw new ConfigError("compute.workers: at most 16");
     }
-    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxMb", options.output?.maxMb], ["output.maxAgeDays", options.output?.maxAgeDays], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["rest.rateLimit.failedAuthPerMinute", options.rest?.rateLimit?.failedAuthPerMinute], ["mcp.concurrency", options.mcp?.concurrency], ["mcp.rateLimit.perMinute", options.mcp?.rateLimit?.perMinute], ["mcp.rateLimit.burst", options.mcp?.rateLimit?.burst], ["mcp.rateLimit.failedAuthPerMinute", options.mcp?.rateLimit?.failedAuthPerMinute], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
+    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxMb", options.output?.maxMb], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["rest.rateLimit.failedAuthPerMinute", options.rest?.rateLimit?.failedAuthPerMinute], ["mcp.concurrency", options.mcp?.concurrency], ["mcp.rateLimit.perMinute", options.mcp?.rateLimit?.perMinute], ["mcp.rateLimit.burst", options.mcp?.rateLimit?.burst], ["mcp.rateLimit.failedAuthPerMinute", options.mcp?.rateLimit?.failedAuthPerMinute], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
         if (value !== undefined && value < 1) {
             throw new ConfigError(`${path}: must be 1 or more`);
         }
+    }
+    // 0 switches the age limit off (the default is OUTPUT_DEFAULTS.maxAgeDays)
+    if (options.output?.maxAgeDays !== undefined && options.output.maxAgeDays < 0) {
+        throw new ConfigError("output.maxAgeDays: 0 (no age limit) or more");
     }
     // each feature's own rules, in the fragments' order
     for (const fragment of FRAGMENTS) {
@@ -447,3 +457,12 @@ export const restResourceOf = (options) => options.rest?.resource ?? new URL(RES
 
 /** A path of the options, relative to `baseDir` (or the working directory). */
 export const pathOf = (options, path) => (isAbsolute(path) ? path : resolve(options.baseDir ?? process.cwd(), path));
+
+/**
+ * The age limit of reports and drafts in days (0: none): output.maxAgeDays as written, else
+ * OUTPUT_DEFAULTS.maxAgeDays, except in a directory that holds the operator's own files (shared),
+ * where only a written value applies (and createContext refuses it).
+ * @param {ServerOptions} options
+ * @param {boolean} shared
+ */
+export const maxAgeDaysOf = (options, shared) => options.output?.maxAgeDays ?? (shared ? 0 : OUTPUT_DEFAULTS.maxAgeDays);

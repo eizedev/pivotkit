@@ -15,7 +15,7 @@ export const NAME = "code";
 /** @type {Readonly<Partial<Record<import("./shared.js").Slot, Record<string, any>>>>} */
 export const KEYS = Object.freeze({
     top: { sourceCache: { object: { maxMb: "integer" } } },
-    source: { cacheShared: "boolean" }
+    source: { cacheShared: "boolean", perPerson: "boolean" }
 });
 
 /** The megabytes (MiB) the process keeps of loaded code and HTTP source data by default: sources/cache.js LOAD_CACHE. */
@@ -37,7 +37,9 @@ export function sourceCacheOf(options) {
 /**
  * A code source's defaults: the longest load (ms), how long a load is reused (seconds; null: only
  * while version() gives the same), how long last good data may stand in after a transient failure
- * (seconds; 0: never), and whether one copy of the data serves all callers.
+ * (seconds; 0: never), and whether one copy of the data serves all callers. A source with perPerson
+ * (its data differs per caller) counts as closed for links (delivery.js): only the person who asked
+ * can open its reports.
  */
 export const CODE_DEFAULTS = Object.freeze({ timeMs: 30_000, ttl: /** @type {number | null} */ (null), maxStale: 3600, cacheShared: false });
 
@@ -56,6 +58,12 @@ export function validate(options) {
     for (const [id, source] of Object.entries(options.sources ?? {})) {
         if (/** @type {any} */ (source).cacheShared !== undefined && !source.load) {
             throw new ConfigError(`sources.${id}.cacheShared: only a code source (load) takes cacheShared`);
+        }
+        if (/** @type {any} */ (source).perPerson !== undefined && !source.load) {
+            throw new ConfigError(`sources.${id}.perPerson: only a code source (load) takes perPerson`);
+        }
+        if (/** @type {any} */ (source).perPerson === true && /** @type {any} */ (source).cacheShared === true) {
+            throw new ConfigError(`sources.${id}.perPerson: a source with cacheShared serves one copy to all callers, so its data is not per person; leave out one of them`);
         }
         if (!source.load) {
             continue;

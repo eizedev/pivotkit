@@ -139,7 +139,9 @@ A **profile** gives one caller more (or less) than the default: a named policy o
    profiles name none;
 5. `auth.defaultProfile`, for every signed-in caller (a static token without a profile too).
 
-Without any, a caller gets the sources' own policy. Profiles are never merged. The profile is laid
+Without any, a caller gets the sources' own policy; with `auth.groupProfiles` set, a signed-in
+person whom none of these names is refused (403) instead ([groups](mcp.md#groups)). Profiles are
+never merged. The profile is laid
 over each source's policy:
 
 - a field the source's policy hides stays hidden in every profile (it is dropped when the data is
@@ -217,8 +219,8 @@ Groups to profiles, with a narrow profile for everyone else:
 
 A person in both groups gets `finance`, since it comes first; `check-config` warns when a later
 entry shows a field an earlier one holds back. Without `defaultProfile`, a person in none of the
-groups gets the sources' own policy: set it to a narrow profile whenever you use `groupProfiles`
-(`check-config` warns when it is missing).
+groups (and whose client or scopes name no profile) is refused with 403 `access_denied`; set it to a
+narrow profile to let such people in (`check-config` warns when it is missing).
 
 ## Data in the request { #data }
 
@@ -268,6 +270,8 @@ curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
   a 413 says which cap applied. The larger cap applies only once the token is checked: a body
   declared larger than any caller may send is refused before that. At most two bodies over 2 MiB are
   read at once over all callers, one per caller; another gets 503 `BUSY` with `Retry-After` and `retryable: true`.
+  A caller here is a token (by its name) or an OAuth client: programs that share one token, or people
+  who sign in through one OAuth client, send one such body at a time between them.
   A JSON body nested deeper than 64 levels is refused before it is parsed, a multipart body with more
   than two parts before its parts are read. A JSON body is parsed in the server's main thread: a
   `data: true` token is trusted with that time and memory ([security](../security.md#rest)). The server's import limits (`limits.rows`, `limits.importCells`, `limits.fileBytes`)
@@ -348,18 +352,18 @@ pivotkit wrote. When it is full, a new report deletes the oldest reports, whoeve
 token that may render can push other callers' older reports out, and a link to one of them
 (`output.baseUrl`) then answers 404, one of the server's own links 410 `LINK_EXPIRED`. Schedule drafts are never deleted this way; they may take at
 most half of `output.maxFiles` (none at 1), and a draft over that answers 409 `NO_OUTPUT` while
-reports keep working, so give `draft_schedule` a scope of its own too and set
-`output.maxAgeDays`. A file you name with `.pivotkit-out.` yourself counts as pivotkit's and may be
+reports keep working, so give `draft_schedule` a scope of its own too and keep
+`output.maxAgeDays` (30 days by default) on. A file you name with `.pivotkit-out.` yourself counts as pivotkit's and may be
 deleted. A quota per caller
 was the other choice; it was not taken because a caller is no stable owner (with auth `none` every
 caller is the same, files written before a restart have none) and the directory would still need a
 total that, once reached, refuses everyone again. So set `output.maxFiles` well above what your
 callers render between two clean-ups, give `render_view` a scope of its own (`auth.toolScopes`) when
-not every caller needs it, keep the per-caller rate limit ([limits](#limits)), set
-`output.maxAgeDays`, and run one server process per output directory (the count is kept within a
+not every caller needs it, keep the per-caller rate limit ([limits](#limits)), keep
+`output.maxAgeDays` on (30 days by default), and run one server process per output directory (the count is kept within a
 process). A write the server is killed in leaves its temporary file
 (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`): it is neither counted nor deleted to make
-room, and without `output.maxAgeDays` it stays until you remove it. The server
+room, and with `output.maxAgeDays: 0` it stays until you remove it. The server
 holds at most 256 connections and keeps 16 of them for loopback clients such as the health check or
 a proxy on the same host, and a client has 5 seconds to send its headers ([MCP](mcp.md#http) has the
 details); `http.maxConnectionsPerAddress` bounds the connections of one address. On a network you do
@@ -517,7 +521,7 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
 | `output.create` | true | Make a missing `output.dir` at start (with its parents, mode 0700, or 0755 narrowed by the umask when `output.baseUrl` is set; a warning in the log); `false` makes it an error, as a missing directory was before. A relative `output.dir` without a configuration file is relative to the working directory. `check-config` says whether the directory exists, will be made, or cannot be, and why (a parent the server's user may not write, a name too long, a symbolic link loop) |
 | `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`), at its top level. A new report deletes the oldest reports until it fits, one write at a time; drafts are counted but never deleted, and may take at most half of `output.maxFiles` (a draft over that answers 409 `NO_OUTPUT`). Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories; a file named with the mark by hand counts as pivotkit's. Where the output directory is the configuration file's directory or holds a source, print template or token file, nothing is deleted: a full directory answers 409 `NO_OUTPUT`, and the start warns (with `output.maxAgeDays` it does not start) |
-| `output.maxAgeDays` | none | Delete reports and drafts (the files marked `.pivotkit-out.`) older than this from the top level of the output directory, at start and every hour, and the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour); other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
+| `output.maxAgeDays` | 30 | `0`: no age limit. Delete reports and drafts (the files marked `.pivotkit-out.`) older than this many days from the top level of the output directory, at start and every hour, and the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour); other files and subdirectories stay. Use a directory of its own: the server refuses to start with a limit you write when the output directory is the configuration file's directory or holds a source, print template or token file; there the default does not apply (no age limit) |
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
 
