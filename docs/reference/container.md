@@ -14,7 +14,7 @@ versions of one release, on a distroless Node 22 image (no shell, no package man
 | --- | --- |
 | `<version>`, e.g. the release `pivotkit-server@0.1.0` as `0.1.0` | That release, unchanged |
 | `<major>.<minor>` | The latest release of that minor version |
-| `latest` | The latest release, a new minor version with breaking changes too |
+| `latest` | The image of the pivotkit-server release published last: a new minor version too, or an older version when a patch of an older minor version comes out later; not for production |
 
 To update a running container, see [Update an installation](../getting-started/upgrading.md#update-image).
 

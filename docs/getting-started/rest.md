@@ -26,7 +26,8 @@ npx -y pivotkit-server serve --source sales=sales.csv --output reports
 ```
 
 The log says `started` with the address. Leave it running and open a second terminal in the same
-folder.
+folder. `npx -y` takes the newest release at each start; for a service others use, install a version
+you name and update it as in [Update an installation](upgrading.md#update).
 
 ## 2. Look at the data { #describe }
 

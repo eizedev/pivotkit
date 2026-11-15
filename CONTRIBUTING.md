@@ -202,9 +202,7 @@ For each release:
    in the official plugins table of `docs/reference/plugins.md`. Docs and READMEs name no other
    version of their own. Two files carry a package's version and are checked by its tests:
    `docs/openapi.json` (pivotkit-server's, made again with `node scripts/openapi.js`) and
-   `packages/pivotkit-mcp/.claude-plugin/plugin.json` (pivotkit-mcp's). The release's section in
-   `docs/getting-started/upgrading.md` gets its row in the table of "Update an installation" (the
-   versions of pivotkit-cli, pivotkit-server and pivotkit-mcp it ships).
+   `packages/pivotkit-mcp/.claude-plugin/plugin.json` (pivotkit-mcp's).
    Merge that pull request.
 2. Wait for CI on main, then tag the merge commit `<package>@<version>` and push the tags one at a
    time in the publish order, each after the previous one is published: the `build` job runs

@@ -40,6 +40,7 @@ limit or template error.
 | Commands, options, exit codes, `--json`, completion, file safety | [pivotkit-cli reference](https://pivotkit.eize.dev/reference/cli/) |
 | `--suggest`, layout flags, `--map`, `--save-view` | [A view from the data's fields](https://pivotkit.eize.dev/reference/cli/#a-view-from-the-datas-fields) |
 | The print template of `--template` | [Print template](https://pivotkit.eize.dev/reference/print-template/) |
+| Update it, and what changes between releases | [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#update) |
 | The library it runs on | [pivotkit-report reference](https://pivotkit.eize.dev/reference/report/) |
 | Changes | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-cli/CHANGELOG.md) |
 

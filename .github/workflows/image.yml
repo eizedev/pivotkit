@@ -4,9 +4,8 @@ name: Container image
 # and the command line. Every pull request that touches what goes into it builds it for linux/amd64
 # and runs it as an operator would (read-only, non-root, no capabilities, a token from a secret file);
 # nothing is pushed. A tag pivotkit-server@<version> builds it for linux/amd64 and linux/arm64, pushes
-# it as <version>, <major>.<minor> and latest (metadata-action's default flavor for type=match) with
-# a provenance and an SBOM attestation, and signs it with cosign (keyless, the workflow's OIDC
-# identity), but only after the maintainer has
+# it as <version> and <major>.<minor> with a provenance and an SBOM attestation, and signs it with
+# cosign (keyless, the workflow's OIDC identity), but only after the maintainer has
 #   1. checked, after the first publishing run created ghcr.io/eizedev/pivotkit, that the package is
 #      public and this repository has write access to it (CONTRIBUTING.md),
 #   2. set the repository variable IMAGE_RELEASE_ENABLED to "true".
