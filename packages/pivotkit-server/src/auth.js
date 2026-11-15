@@ -467,8 +467,8 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             const subject = subjectOf(payload[auth.subjectClaim ?? "sub"]);
             const iss = typeof payload.iss === "string" ? payload.iss : null;
             const groups = groupsOf(payload, auth);
-            /** @type {AuthInfo} */
             const claims = claimsOf(payload, claimNames);
+            /** @type {AuthInfo} */
             const info = {
                 token,
                 clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80),
