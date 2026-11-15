@@ -5,8 +5,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, rmSync } from "node:fs";
-import { basename, relative } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { leftovers } from "../scripts/test-run.js";
 import { root, sourceFiles } from "./source-files.js";
@@ -41,7 +42,8 @@ const runMaker = (then, run) => spawnSync(process.execPath, ["--input-type=modul
  * @param {string} source
  */
 function makesTempDir(source) {
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/.*$/gm, "$1");
+    // strings first, kept as they are, so a "/*" or "//" inside one starts no comment
+    const code = source.replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (match, literal) => literal ?? "");
     return /\bmkdtemp(Sync)?\b|\btmpdir\b|\bTMPDIR\b|\benv\s*(\.\s*|\[\s*["'`])(TEMP|TMP)\b|["'`]\/tmp\b/.test(code);
 }
 
@@ -57,6 +59,9 @@ test("the check finds every way to make or find a temporary directory, and not a
         'const base = process.env["TMP"] ?? process.env.TEMP;',
         'const dir = "/tmp/pivotkit-x";',
         "const dir = `/tmp/${name}`;",
+        // a "/*" inside a string starts no comment
+        'const glob = "tests/*.test.js";\nmkdtempSync(prefix);\n/** a doc comment */',
+        "const url = 'http://example.org'; const dir = tmpdir();",
     ];
     for (const source of found) assert.equal(makesTempDir(source), true, source);
     const clean = [
@@ -209,9 +214,17 @@ test("a test run whose command ends on a signal fails, and a command it cannot s
     kill(pid);
     await closed;
     assert.deepEqual(result, { code: 1, signal: null }, output());
-    const missing = spawnSync(process.execPath, [TEST_RUN, "pivotkit-no-such-command"], { encoding: "utf8", env: { ...process.env, [RUN_ENV]: run } });
-    assert.notEqual(missing.status, 0);
-    assert.match(missing.stderr, /ENOENT/);
+    // a directory of the run from before the command, which the check still names and removes
+    const early = mkdtempSync(join(tmpdir(), `pivotkit-${run}-early-`));
+    try {
+        const missing = spawnSync(process.execPath, [TEST_RUN, "pivotkit-no-such-command"], { encoding: "utf8", env: { ...process.env, [RUN_ENV]: run } });
+        assert.notEqual(missing.status, 0);
+        assert.match(missing.stderr, /ENOENT/);
+        assert.match(missing.stderr, new RegExp(`left 1 temporary directory of run ${run} behind`));
+        assert.equal(existsSync(early), false);
+    } finally {
+        rmSync(early, { recursive: true, force: true });
+    }
 });
 
 test("a test run fails when it leaves a directory of its own behind, names and removes it, and counts no other run's", () => {
