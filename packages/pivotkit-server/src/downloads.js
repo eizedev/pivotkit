@@ -522,11 +522,16 @@ export function createDownloadHandler(context, runtime = {}) {
         return { report };
     }
 
-    /** Whether a POST comes from the link's own page: Origin equal to the link's, or no Origin and same-origin fetch metadata. */
+    /**
+     * Whether a POST comes from the link's own page: Origin equal to the link's (http.publicUrl's, not
+     * the address behind a proxy), or no usable Origin and same-origin fetch metadata. A browser
+     * posts the page's form with `Origin: null`, since the page's Referrer-Policy is no-referrer
+     * (Fetch, "append a request Origin header"); Sec-Fetch-Site then says it came from the page.
+     */
     function sameOriginPost(request) {
         const origin = request.headers.get("origin");
         const linkOrigin = new URL(/** @type {string} */ (state.base)).origin;
-        if (origin !== null) {
+        if (origin !== null && origin !== "null") {
             return origin === linkOrigin;
         }
         return request.headers.get("sec-fetch-site") === "same-origin";

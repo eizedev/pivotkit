@@ -76,6 +76,20 @@ export function errorResult(error, { requestId, source }) {
  */
 const okResult = (summary, structured, link) => ({ content: [{ type: "text", text: `${summary}\n${JSON.stringify(structured)}` }, ...(link ? [link] : [])], structuredContent: structured });
 
+/** The first protocol revision with resource_link in tool results. */
+export const RESOURCE_LINK_SINCE = "2025-06-18";
+
+/**
+ * Whether a request's client takes a resource_link: its MCP-Protocol-Version (sent by every client
+ * from 2025-06-18 on, and on 2026-07-28 requests) names that revision or a later one. An older client,
+ * or one that names none, gets the link in the text only, so it cannot refuse the whole result.
+ * @param {{ http?: { req?: Request } } | undefined} ctx  the tool callback's context
+ */
+export function takesResourceLink(ctx) {
+    const version = ctx?.http?.req?.headers.get("mcp-protocol-version") ?? "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(version) && version >= RESOURCE_LINK_SINCE;
+}
+
 /** A source as a log line names it: an id, or a file by its base name. */
 const logSource = (source) => (typeof source !== "string" ? undefined : source.startsWith("file:") ? `file:${source.split(/[\\/]/).pop()?.slice(0, 80)}` : source.slice(0, 80));
 
@@ -107,7 +121,7 @@ export function registerTools(server, context, caller) {
                       }
                     : {})
             },
-            async (/** @type {any} */ args) => {
+            async (/** @type {any} */ args, /** @type {any} */ ctx) => {
                 const started = Date.now();
                 // the call's id: on its log lines, and inside its work (a source's code, an error's details)
                 const id = newRequestId();
@@ -121,7 +135,7 @@ export function registerTools(server, context, caller) {
                     }
                     const { text, result, link } = await withRequestId(id, () => present(context, name, args ?? {}, caller));
                     context.log.call({ ...entry, ok: true, ms: Date.now() - started });
-                    return /** @type {any} */ (okResult(text, result, link));
+                    return /** @type {any} */ (okResult(text, result, takesResourceLink(ctx) ? link : undefined));
                 } catch (e) {
                     const error = e instanceof OperationError ? e : null;
                     if (!error || (error.code === "INTERNAL" && error.cause)) {
