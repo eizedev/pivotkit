@@ -4,7 +4,7 @@ import { render, RENDER_FORMATS, REPORT_LIMITS, cleanSvg, type RenderResult } fr
 import { parseTemplate, fillTemplate, PLACEHOLDERS } from "pivotkit-report/template";
 
 export async function report(rows: Array<Record<string, unknown>>, echarts: { init: Function }): Promise<number> {
-    const result: RenderResult = await render({ rows: ["Region"] }, rows, { format: "html", echarts, now: "2026-11-13", locale: "de-DE", strict: true, size: { width: 640 } });
+    const result: RenderResult = await render({ rows: ["Region"] }, rows, { format: "html", echarts, now: "2026-11-13", locale: "de-DE", strict: true, size: { width: 640 }, tokens: { "--pk-chart-1": "#c00000" }, darkTokens: { "--pk-chart-1": "#ff7a7a" } });
     const bytes: Uint8Array | null = result.body;
     const text: string | undefined = result.text;
     const svg = await render({ rows: ["Region"] }, encode(rows), { format: "svg", echarts, tokens: { "--pk-chart-1": "#123456" } });

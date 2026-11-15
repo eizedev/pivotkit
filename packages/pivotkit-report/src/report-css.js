@@ -31,16 +31,24 @@ const SCALE_MID = "var(--pk-scale-mid,color-mix(in srgb,var(--pk-scale-low),var(
 const darkScreen = (rules) => `@media screen and (prefers-color-scheme:dark){${rules(':root:not([data-pk-theme="light"])')}}
 @media screen{${rules(':root[data-pk-theme="dark"]')}}`;
 
+/**
+ * The tokens of a dark screen: the dark theme's, and no middle colour of a colour scale (`initial`,
+ * so the cells take the halfway point between the dark low and high colours): a host's or a
+ * template's middle colour is a light one. A host's dark colours (`darkTokens`) come over these.
+ */
+const DARK_SCREEN = Object.freeze({ ...DARK_TOKENS, "--pk-scale-mid": "initial" });
+
 /** Columns from which a printed table is turned to landscape, and from which its font gets smaller. */
 export const PRINT_WIDE = Object.freeze({ landscape: 8, small: 16 });
 
 /**
- * @param {{ columns: number, tokens?: Record<string, string>, chartSurface?: string, extra?: string }} options
- *   columns: the table's; tokens: the host's (cleaned), over the light ones; chartSurface: the light
+ * @param {{ columns: number, tokens?: Record<string, string>, darkTokens?: Record<string, string>, chartSurface?: string, extra?: string }} options
+ *   columns: the table's; tokens: the host's (cleaned), over the light ones; darkTokens: the host's
+ *   (cleaned), over the dark ones (DARK_SCREEN); chartSurface: the light
  *   surface the chart's image is drawn on (tokens.js reportTokens, a template's own included); extra:
  *   the cells' colour rules
  */
-export function reportCss({ columns, tokens = {}, chartSurface = { ...LIGHT_TOKENS, ...tokens }["--pk-surface"], extra = "" }) {
+export function reportCss({ columns, tokens = {}, darkTokens = {}, chartSurface = { ...LIGHT_TOKENS, ...tokens }["--pk-surface"], extra = "" }) {
     const font = tokens["font-family"] ?? REPORT_FONT;
     const light = declarations({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, ...tokens });
     // the chart is drawn in the light colours, on a screen in dark mode too: its card keeps the light
@@ -48,7 +56,7 @@ export function reportCss({ columns, tokens = {}, chartSurface = { ...LIGHT_TOKE
     const page = columns > PRINT_WIDE.landscape ? "size:landscape;" : "";
     return `:root{${light};color-scheme:light dark}
 :root[data-pk-theme="light"]{color-scheme:light}
-${darkScreen((root) => `${root}{${declarations(DARK_TOKENS)};color-scheme:dark}`)}
+${darkScreen((root) => `${root}{${declarations({ ...DARK_SCREEN, ...darkTokens })};color-scheme:dark}`)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--pk-surface);color:var(--pk-text);font:var(--pk-font-size)/1.45 ${font}}
 .pk-report{padding:24px}

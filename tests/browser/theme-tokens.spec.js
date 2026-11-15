@@ -1,7 +1,8 @@
 // A host matches every visual value to its design through --pk-* tokens (docs/reference/theming.md):
 // corners, the code font, the focus ring and the chart's title, text and marks (#216, #221); and the
 // files a person exports (workbook, HTML report) take the host's light colours and font sizes, from a
-// dark report too, in React and inside pivotkit-element (#217, #220).
+// dark report too, in React and inside pivotkit-element (#217, #220); the HTML report also takes the
+// host's dark colours for a dark screen (#385).
 import { readFile } from "node:fs/promises";
 import { strFromU8, unzipSync } from "fflate";
 import { chipMenu, expect, test, toolbar } from "./fixtures.js";
@@ -35,6 +36,12 @@ async function focusRing(page, browserName) {
 
 /** The :root rule of an HTML report: the tokens it was written with. */
 const rootRule = (html) => html.match(/<style>:root\{([^}]*)\}/)[1];
+
+/**
+ * An HTML report without its rules of a dark screen's tokens (the host's dark colours, #385): what
+ * paper and a light screen are drawn with.
+ */
+const withoutDarkScreen = (html) => html.replace(/^@media screen[^{]*\{:root(?::not\(\[data-pk-theme="light"\]\)|\[data-pk-theme="dark"\])\{.*$/gm, "");
 
 test.describe("a host's tokens for corners, the code font, the focus ring and the chart (#216)", () => {
     test("the default look: the corners, the code font and the ring widths of before", async ({ page, browserName }) => {
@@ -158,7 +165,8 @@ test.describe("exports from a dark report carry the host's light colours (#217)"
         expect(tokens).toContain("--pk-small:14px");
         expect(tokens).toContain("--pk-report-title-size:24px");
         expect(tokens).toContain("--pk-chart-text-size:14px");
-        expect(html).not.toMatch(/#331a00|#ff9933|#553300|#c58cf2/);
+        // the dark colours only in the rules of a dark screen's tokens
+        expect(withoutDarkScreen(html)).not.toMatch(/#331a00|#ff9933|#553300|#c58cf2/);
         // the table's cells in the report: the lowest value the host's low colour, the highest its high one
         // (a colour scale of three, so a value in the middle is the host's middle colour)
         expect(html).toMatch(/--pk-cell-bg:#fff5e6/);
@@ -198,10 +206,55 @@ test.describe("exports from a dark report carry the host's light colours (#217)"
         expect(tokens).toContain("--pk-scale-mid:#ffcc00");
         expect(tokens).toContain("--pk-font-size:15px");
         expect(tokens).toContain("--pk-report-title-size:24px");
-        expect(html).not.toMatch(/#331a00|#ff9933|#553300|#c58cf2/);
+        // the dark colours only in the rules of a dark screen's tokens
+        expect(withoutDarkScreen(html)).not.toMatch(/#331a00|#ff9933|#553300|#c58cf2/);
 
         expect(await tickets.getAttribute("data-pk-theme")).toBe("dark");
         expect(await shown()).toBe("#331a00");
         expect(await page.evaluate(() => window.__runs)).toBe(0);
     });
+
+});
+
+test.describe("the HTML report carries the host's dark colours too (#385)", () => {
+    // for a reader whose screen is dark, read from the report whichever theme it shows
+    for (const theme of ["light", "dark"]) {
+        test(`React: the HTML report from a ${theme} report shows the host's dark colours on a dark screen, its light ones on a light screen and on paper (#385)`, async ({ page, context }) => {
+            await page.goto(`?data=sales&theme=${theme}`);
+            await page.addStyleTag({ content: HOST_THEME(".pk-root") });
+            await chipMenu(page, "Sum of Revenue");
+            await page.locator(".pk-chip-menu").getByTestId("cond-colorScale").click();
+            await expect(page.locator(".pk-td.pk-has-scale").first()).toBeVisible();
+            await page.keyboard.press("Escape");
+            await expect.poll(() => page.evaluate(() => document.getAnimations().length)).toBe(0);
+            const root = page.locator(".pk-root");
+            const shown = () => root.evaluate((el) => ({ theme: el.getAttribute("data-pk-theme"), low: getComputedStyle(el).getPropertyValue("--pk-heat-low").trim() }));
+            const before = await shown();
+            expect(before.theme).toBe(theme);
+            await page.evaluate(() => {
+                window.__runs = 0;
+                document.querySelector(".pk-root [data-testid='pivot-table']").addEventListener("transitionrun", () => window.__runs++, true);
+            });
+
+            await toolbar(page, "export");
+            const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-html").click()]);
+            const html = await readFile(await download.path(), "utf8");
+            // the screen kept its theme, and nothing on it animated while the other theme was read
+            expect(await shown()).toEqual(before);
+            expect(await page.evaluate(() => window.__runs)).toBe(0);
+
+            const report = await context.newPage();
+            const NAMES = ["--pk-heat-low", "--pk-heat-high", "--pk-scale-mid", "--pk-chart-1"];
+            const tokensOf = async (colorScheme, media) => {
+                await report.emulateMedia({ colorScheme, media });
+                await report.setContent(html);
+                return report.evaluate((names) => names.map((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim()), NAMES);
+            };
+            const LIGHT = ["#fff5e6", "#b34700", "#ffcc00", "#6b2fa0"];
+            expect(await tokensOf("dark", "screen")).toEqual(["#331a00", "#ff9933", "#553300", "#c58cf2"]);
+            expect(await tokensOf("light", "screen")).toEqual(LIGHT);
+            expect(await tokensOf("dark", "print")).toEqual(LIGHT);
+            await report.close();
+        });
+    }
 });

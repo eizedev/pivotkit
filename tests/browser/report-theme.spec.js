@@ -59,3 +59,50 @@ for (const [templateName, { template, own, ownDark = {}, theme }] of Object.entr
         }
     }
 }
+
+// #385: a host's colours for a dark screen (darkTokens) over the dark theme's, as its light ones
+// (tokens) over the light theme's; paper and a root that pins light keep the light ones, and a
+// template's own dark rule wins over the host's. The colour scale's middle colour has no dark value
+// of the theme's: a light one stays out of a dark screen.
+test.describe("a host's dark colours (#385)", () => {
+    const HOST = { "--pk-surface": "#fffaf0", "--pk-chart-1": "#c00000", "--pk-heat-high": "#b34700" };
+    const HOST_DARK = { "--pk-surface": "#101418", "--pk-chart-1": "#ff7a7a", "--pk-heat-high": "#ff9933" };
+    const CASES = [
+        { name: "a dark screen", scheme: "dark", media: "screen", template: DEFAULT_TEMPLATE, expected: HOST_DARK },
+        { name: "a light screen", scheme: "light", media: "screen", template: DEFAULT_TEMPLATE, expected: HOST },
+        { name: "paper from a dark screen", scheme: "dark", media: "print", template: DEFAULT_TEMPLATE, expected: HOST },
+        { name: 'a dark screen, root pins light (data-pk-theme="light")', scheme: "dark", media: "screen", template: TEMPLATES['data-pk-theme="light"'].template, expected: HOST },
+        { name: "a dark screen, a template with its own dark surface", scheme: "dark", media: "screen", template: TEMPLATES["its own dark colours"].template, expected: { ...HOST_DARK, "--pk-surface": "#1b1712" } }
+    ];
+    for (const { name, scheme, media, template, expected } of CASES) {
+        test(`${name}: the page takes ${expected === HOST ? "the host's light colours" : "the host's dark colours"}, every text 4.5:1`, async ({ page }) => {
+            await page.emulateMedia({ colorScheme: scheme, media });
+            for (const [viewName, view] of Object.entries(VIEWS)) {
+                const report = await render(view, ROWS, { format: "html", echarts, template, tokens: HOST, darkTokens: HOST_DARK, now: "2026-11-13T10:00:00Z" });
+                await page.setContent(report.text);
+                const seen = await page.evaluate(measure);
+                expect(seen.body, `${viewName}: the page's surface`).toBe(rgb(expected["--pk-surface"]));
+                const tokens = await page.evaluate((names) => Object.fromEntries(names.map((n) => [n, getComputedStyle(document.documentElement).getPropertyValue(n).trim()])), Object.keys(expected));
+                expect(tokens, viewName).toEqual(expected);
+                const low = seen.texts.filter((t) => t.ratio < 4.5).map((t) => `${t.text} on its ${t.on}: ${t.ratio.toFixed(2)}`);
+                expect(low, `${viewName}: texts below 4.5:1`).toEqual([]);
+            }
+        });
+    }
+
+    test("the scale's middle colour: a host's light one stays out of a dark screen, its dark one is taken there", async ({ page }) => {
+        const cells = async (options, scheme) => {
+            await page.emulateMedia({ colorScheme: scheme, media: "screen" });
+            const report = await render(VIEWS.scale, ROWS, { format: "html", now: "2026-11-13T10:00:00Z", ...options });
+            await page.setContent(report.text);
+            return page.evaluate(() => [...document.querySelectorAll(".pk-has-scale")].map((el) => getComputedStyle(el).backgroundColor));
+        };
+        const mid = { "--pk-scale-mid": "#ff00ff" };
+        // light: the host's middle colour is drawn
+        expect(await cells({ tokens: mid }, "light")).not.toEqual(await cells({}, "light"));
+        // dark: a light middle colour changes nothing, a dark one does
+        const plainDark = await cells({}, "dark");
+        expect(await cells({ tokens: mid }, "dark")).toEqual(plainDark);
+        expect(await cells({ tokens: mid, darkTokens: { "--pk-scale-mid": "#00aa00" } }, "dark")).not.toEqual(plainDark);
+    });
+});

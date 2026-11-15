@@ -8,6 +8,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- The element bundles pivotkit-react's Export → HTML report with the dark colours set on the element
+  (`pivot-report[data-pk-theme="dark"]`), for a reader on a dark screen
+  ([#385](https://github.com/eizedev/pivotkit/issues/385)).
 - The element bundles pivotkit-react's fix of Print or save as PDF: the print dialog opens in the
   click itself (Safari asked "This webpage is trying to print" from the second print on while it
   came an animation frame later) ([#210](https://github.com/eizedev/pivotkit/issues/210)).

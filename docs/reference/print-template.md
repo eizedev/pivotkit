@@ -164,7 +164,10 @@ For a root with `data-pk-theme="dark"`, write the same colours for `:root[data-p
 inside `@media screen` as well. A rule on `body` or `.pk-report` applies in both schemes: set colours there only when they read on
 both. A colour scale whose view names no colours runs through the theme's heat colours
 (`--pk-scale-low`, `--pk-scale-high`) on a dark screen too, so set its dark ends with your other dark
-colours. The chart is drawn in the light colours and keeps its light card on a dark screen.
+colours; a middle colour (`--pk-scale-mid`) of your `:root` rule is a light one and stays out of a
+dark screen unless you set one there too. The chart is drawn in the light colours and keeps its light card on a dark screen.
+Your dark rules win over the colours a host passes for a dark screen (`darkTokens`), as your `:root`
+rule wins over its light ones.
 
 To see both before you share a template: open the report in a browser and switch the system's
 appearance, or use the developer tools' rendering settings (`prefers-color-scheme`, and the `print`

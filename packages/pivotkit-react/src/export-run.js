@@ -14,7 +14,7 @@ import { chartThemeFrom, toGrid } from "pivotkit-core";
 import { dataExportFor } from "./export-scope.js";
 import { copyText, dataUrlToBlob, safeFileName, saveBlob } from "./files.js";
 import { dropPrintFrame, preparePrintFrame, printHtml, releasePrintFrame, takePrintFrame } from "./print-frame.js";
-import { lightTokens } from "./light-tokens.js";
+import { themeTokens } from "./theme-tokens.js";
 import { fill, messageOf } from "./labels.js";
 import { menuLabels } from "./menu-labels.js";
 
@@ -180,26 +180,30 @@ function xlsxTheme(root) {
     if (!root) {
         return undefined;
     }
-    const tokens = lightTokens(root, XLSX_TOKENS);
+    const tokens = themeTokens(root, "light", XLSX_TOKENS);
     const ctx = root.ownerDocument.createElement("canvas").getContext("2d");
     return xlsxThemeOf({ getPropertyValue: (name) => tokens[name] ?? "" }, (text) => hexColor(text, ctx));
 }
 
 /**
- * The tokens of an HTML report and an SVG from the report's root: the light theme's (report-run.js's
- * REPORT_TOKENS) in either theme, and the chart's lengths and the report's font sizes in px (the
- * chart's module resolves them: LENGTH_TOKENS, report-run.js's REPORT_LENGTHS).
+ * The tokens of an HTML report and an SVG from the report's root, in either theme it shows: the light
+ * theme's (report-run.js's REPORT_TOKENS) with the chart's lengths and the report's font sizes in px
+ * (the chart's module resolves them: LENGTH_TOKENS, report-run.js's REPORT_LENGTHS) as `tokens`, and
+ * for an HTML report the dark theme's colours (REPORT_DARK_TOKENS) as `darkTokens`, for a reader
+ * whose screen is dark (paper, a print and the SVG are light).
  * @param {HTMLElement | null} root
- * @param {{ REPORT_TOKENS: readonly string[], REPORT_LENGTHS: readonly string[] }} report
+ * @param {{ REPORT_TOKENS: readonly string[], REPORT_DARK_TOKENS: readonly string[], REPORT_LENGTHS: readonly string[] }} report
  * @param {{ LENGTH_TOKENS: readonly string[], tokenLengths: (root: HTMLElement, names: readonly string[]) => Record<string, string> }} chart
- * @returns {Record<string, string> | undefined}
+ * @param {boolean} dark  whether the file is shown on a screen (the HTML report)
+ * @returns {{ tokens?: Record<string, string>, darkTokens?: Record<string, string> }}
  */
-function reportTokens(root, report, chart) {
+function reportTokens(root, report, chart, dark) {
     if (!root) {
-        return undefined;
+        return {};
     }
-    const tokens = lightTokens(root, report.REPORT_TOKENS, () => chart.tokenLengths(root, [...chart.LENGTH_TOKENS, ...report.REPORT_LENGTHS]));
-    return Object.keys(tokens).length ? tokens : undefined;
+    const tokens = themeTokens(root, "light", report.REPORT_TOKENS, () => chart.tokenLengths(root, [...chart.LENGTH_TOKENS, ...report.REPORT_LENGTHS]));
+    const darkTokens = dark ? themeTokens(root, "dark", report.REPORT_DARK_TOKENS) : {};
+    return { ...(Object.keys(tokens).length ? { tokens } : {}), ...(Object.keys(darkTokens).length ? { darkTokens } : {}) };
 }
 
 /**
@@ -284,7 +288,7 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
                     ...(title ? { title } : {}),
                     ...(source ? { source } : {}),
                     ...(size ? { size } : {}),
-                    tokens: reportTokens(root.current, report, echarts),
+                    ...reportTokens(root.current, report, echarts, kind === "html"),
                     chartEmbed: kind === "print" ? "inline" : "image"
                 });
                 const file = `${base}.${kind === "svg" ? "svg" : "html"}`;

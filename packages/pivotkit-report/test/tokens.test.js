@@ -93,6 +93,44 @@ test("a host's tokens go into the report only as --pk-* names with plain values"
     assert.ok(!sized.text.includes("/* x") && !sized.text.includes("*/"), "no comment, also after a line break");
 });
 
+// #385: a host's colours for a dark screen go into the rules of a dark screen only, over the dark
+// theme's, cleaned as its light ones; the scale's middle colour has no dark value of the theme's
+test("darkTokens: in the rules of a dark screen over the dark theme's, cleaned as tokens; paper and a light screen keep the light ones", async () => {
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
+    const r = await render(view, SALES, { format: "html", tokens: { "--pk-chart-1": "#c00000" }, darkTokens: { "--pk-chart-1": "#ff7a7a", "--pk-scale-mid": "#553300" } });
+    const style = r.text.match(/<style>([\s\S]*?)<\/style>/)[1];
+    const root = style.match(/^:root\{([^}]*)\}/)[1];
+    assert.match(root, /--pk-chart-1:#c00000/);
+    assert.ok(!root.includes("#ff7a7a") && !root.includes("#553300"), "the light :root has no dark colour");
+    // both rules of a dark screen (the system's dark theme, and a root that asks for dark): the host's
+    // values in place of the dark theme's, the others the theme's
+    const dark = [...style.matchAll(/^@media screen[^{]*\{:root(?::not\(\[data-pk-theme="light"\]\)|\[data-pk-theme="dark"\])\{([^}]*)\}/gm)].map((m) => m[1]);
+    assert.equal(dark.length, 2);
+    for (const rule of dark) {
+        const decls = Object.fromEntries(rule.split(";").map((d) => [d.slice(0, d.indexOf(":")), d.slice(d.indexOf(":") + 1)]));
+        assert.equal(decls["--pk-chart-1"], "#ff7a7a");
+        assert.equal(decls["--pk-scale-mid"], "#553300");
+        assert.equal(decls["--pk-chart-2"], DARK_TOKENS["--pk-chart-2"]);
+        assert.equal(decls["--pk-surface"], DARK_TOKENS["--pk-surface"]);
+        assert.equal((rule.match(/--pk-chart-1:/g) ?? []).length, 1);
+    }
+    // no darkTokens: the theme's dark colours and no middle colour
+    const plain = (await render(view, SALES, { format: "html", tokens: { "--pk-scale-mid": "#ffcc00" } })).text;
+    assert.match(plain, /\{:root:not\(\[data-pk-theme="light"\]\)\{[^}]*--pk-scale-mid:initial;color-scheme:dark\}/);
+});
+
+test("darkTokens: what could end the rule or load something is left out, and an object that is no map of tokens adds nothing", async () => {
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
+    const hostile = { "--pk-text": "red}body{display:none", "--pk-border": "url(https://x)", "--pk-muted": 'image-set("a.png" 1x)', "--pk-total": "#abc\n/* x", color: "blue", dark: { "--pk-surface": "#000000" } };
+    const r = await render(view, SALES, { format: "html", darkTokens: { ...hostile, "--pk-grid": "#123456" } });
+    assert.ok(!r.text.includes("red}body") && !/url\(|image-set/i.test(r.text) && !r.text.includes("/* x") && !r.text.includes("color:blue") && !r.text.includes("#000000"));
+    assert.match(r.text, /--pk-grid:#123456/);
+    const base = (await render(view, SALES, { format: "html" })).text;
+    for (const darkTokens of [null, "--pk-surface:#000", 42, ["#000"]]) {
+        assert.equal((await render(view, SALES, { format: "html", darkTokens: /** @type {any} */ (darkTokens) })).text, base, JSON.stringify(darkTokens));
+    }
+});
+
 test("a token calls no function that loads something: url(), image-set() and the like are left out", async () => {
     const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
     const loading = { "--pk-surface": 'url("https://example.invalid/p.png")', "--pk-header-bg": "url(//example.invalid/p.png)", "--pk-border": 'image-set("a.png" 1x)', "--pk-total": 'src("a.png")', "--pk-text": "URL(x)", "--pk-muted": "rgb(1 2 3) url( 'x')" };

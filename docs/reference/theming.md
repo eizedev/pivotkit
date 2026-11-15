@@ -23,7 +23,9 @@ then the system's `prefers-color-scheme`, and changes with them. The theme the r
 Write your dark colours for `[data-pk-theme="dark"]`, as in the examples below, not for an attribute
 of the page such as `html[data-theme="dark"]`: the exports read the light theme
 ([below](#the-excel-export)) by showing it on the report for that moment, so rules on the page's
-attribute would put your dark colours into a workbook or an HTML report.
+attribute would put your dark colours into a workbook or an HTML report. The HTML report reads your
+dark colours the same way, from `[data-pk-theme="dark"]`, for a reader whose screen is dark
+([below](#the-html-report-on-a-dark-screen)).
 
 ## In React
 
@@ -147,7 +149,8 @@ follows, the chart's title and group labels too (the chart reads `--pk-weight-st
 
 The same declarations go on `pivot-report` for the web component. The HTML report and print
 (Export) take the report's weights along, in either theme, with the light theme's colours (also from a
-dark report, as the [Excel export](#the-excel-export) does), the chart card's corner, the chart's
+dark report, as the [Excel export](#the-excel-export) does; the HTML report also the [dark
+ones](#the-html-report-on-a-dark-screen)), the chart card's corner, the chart's
 sizes and the [font sizes](#report-font-sizes). A weight the font has no face for
 is drawn with another face: above 500 the browser takes the next heavier one, so with a font of only
 400 and 700 a weight of 550 is drawn at 700. Pick weights the font has, or use a variable font.
@@ -225,3 +228,12 @@ cannot write as an sRGB colour (`oklch()` outside sRGB, say) keeps pivotkit-core
 scale lighter than the workbook (mixed with the background, so the numbers stay readable); the
 workbook has Excel's full colours. With pivotkit-core alone, pass the colours as `theme` to
 [`toXlsx`](core.md#output).
+
+## The HTML report on a dark screen { #the-html-report-on-a-dark-screen }
+
+Export → HTML report also carries your dark colours (the `--pk-*` colours of `DARK_TOKENS` and
+`--pk-scale-mid`, as your dark theme resolves them), so a reader whose screen is dark sees your dark
+design: the page, the table, its totals, the colour scale and the data bars. The report shows its dark
+theme for the moment it reads them, as it does the light one for the workbook, whichever theme it
+shows. Paper and a print are light, and the chart keeps the light colours on its light card. With
+pivotkit-report alone, pass them as [`darkTokens`](report.md#options).
