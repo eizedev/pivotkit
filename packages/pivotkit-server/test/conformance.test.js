@@ -20,6 +20,9 @@ const CALLS = [
     { tool: "render_view", args: { source: "sales", view: BY_REGION, format: "csv" }, route: "POST /views/render" },
     { tool: "render_view", args: { source: "open", view: BY_REGION, format: "csv" }, route: "POST /views/render" },
     { tool: "create_link", args: { source: "sales", view: BY_REGION }, route: "POST /views/link" },
+    { tool: "describe_source", args: { source: "listed" }, route: "GET /sources/listed" },
+    { tool: "validate_view", args: { source: "listed", view: { rows: ["Region"], filters: [{ field: "Region", type: "in", items: ["north", "Nort"], blanks: "exclude" }] } }, route: "POST /views/validate" },
+    { tool: "render_view", args: { source: "listed", view: BY_REGION, format: "csv" }, route: "POST /views/render" },
     { tool: "draft_schedule", args: { source: "sales", view: BY_REGION, name: "Weekly", formats: ["csv"], every: { unit: "day", at: "06:00" }, recipients: ["Team"] }, route: "POST /schedules/draft" }
 ];
 
@@ -30,7 +33,7 @@ test("every operation: the MCP tool's structured content and the REST answer are
     const dir = workspace();
     const server = await restServer(
         {
-            sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales", policy: { fields: { Region: "show", Customer: "hide" } } }, open: { file: "data/sales.csv", policy: { default: "show" } } },
+            sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales", policy: { fields: { Region: "show", Customer: "hide" } } }, open: { file: "data/sales.csv", policy: { default: "show" } }, listed: { file: "data/sales.csv", policy: { fields: { Region: "values", Customer: "hide" } } } },
             output: { dir: "out" },
             rest: { inline: true },
             baseDir: dir
@@ -39,6 +42,7 @@ test("every operation: the MCP tool's structured content and the REST answer are
     );
     const client = new Client({ name: "conformance", version: "1.0.0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`)));
+    const seen = [];
     try {
         for (const c of CALLS) {
             const tool = await client.callTool({ name: c.tool, arguments: c.args });
@@ -47,7 +51,13 @@ test("every operation: the MCP tool's structured content and the REST answer are
             const rest = await call(`${server.api}${path}`, method === "POST" ? { body: c.args } : {});
             assert.equal(rest.status, 200, `${c.route}: ${JSON.stringify(rest.data).slice(0, 200)}`);
             assert.deepEqual(comparable(rest.data), comparable(tool.structuredContent), `${c.tool} over ${c.route}`);
+            seen.push({ call: c, body: rest.data });
         }
+        // the values level answered alike, and as it should: the list, the findings, the content withheld
+        const listed = seen.filter((s) => s.call.args.source === "listed").map((s) => s.body);
+        assert.deepEqual(listed[0].fields.find((f) => f.name === "Region"), { ...listed[0].fields.find((f) => f.name === "Region"), level: "values", items: ["North", "South", "West"], complete: true });
+        assert.deepEqual(listed[1].findings.map((f) => [f.code, f.field, f.suggestion]), [["itemCase", "Region", "North"], ["itemUnknown", "Region", "North"]]);
+        assert.deepEqual(listed[2].withheld, ["rows", "columns", "bytes", "content"]);
     } finally {
         await client.close();
         await server.close();

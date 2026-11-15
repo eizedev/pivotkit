@@ -1,5 +1,6 @@
 /*
- * The report's stylesheet ({{style}}): the tokens (light, dark on a dark screen, always light on
+ * The report's stylesheet ({{style}}): the tokens (light, dark on a dark screen unless the root pins
+ * light with data-pk-theme="light", dark on any screen with data-pk-theme="dark", always light on
  * paper), the table as the screen's report draws it (pivotkit-react's styles.css: totals shaded and
  * bold, colour scales and data bars from --pk-cell-bg, --pk-bar and --pk-bar-color) and the print
  * rules: margins, the header row on every page, rows not split, the chart kept whole, landscape for a
@@ -9,22 +10,45 @@
 
 import { DARK_TOKENS, LIGHT_TOKENS, REPORT_FONT, SHAPE_TOKENS, SIZE_TOKENS, WEIGHT_TOKENS, declarations } from "./tokens.js";
 
+/**
+ * How much of a colour scale's colour a cell takes over the surface, in % (as pivotkit-react's table):
+ * on a light surface, and on a dark screen, where the text is light and needs a darker cell.
+ */
+export const SCALE_MIX = Object.freeze({ light: 48, dark: 30 });
+
+/** How much of a data bar's colour is drawn over its cell, in %. */
+export const BAR_MIX = 32;
+
+/** The middle of the theme's colour scale: --pk-scale-mid where it is set, else halfway from low to high (as pivotkit-react's table). */
+const SCALE_MID = "var(--pk-scale-mid,color-mix(in srgb,var(--pk-scale-low),var(--pk-scale-high)))";
+
+/**
+ * Rules for a dark screen: the system's dark theme unless the page's root pins light
+ * (`data-pk-theme="light"`), and a root that asks for dark (`data-pk-theme="dark"`) on any screen;
+ * never on paper. The root's attribute makes them win over a template's own plain `:root` rule.
+ * @param {(root: string) => string} rules  the rules for a root selector
+ */
+const darkScreen = (rules) => `@media screen and (prefers-color-scheme:dark){${rules(':root:not([data-pk-theme="light"])')}}
+@media screen{${rules(':root[data-pk-theme="dark"]')}}`;
+
 /** Columns from which a printed table is turned to landscape, and from which its font gets smaller. */
 export const PRINT_WIDE = Object.freeze({ landscape: 8, small: 16 });
 
 /**
- * @param {{ columns: number, tokens?: Record<string, string>, extra?: string }} options
- *   columns: the table's; tokens: the host's (cleaned), over the light ones; extra: the cells' colour rules
+ * @param {{ columns: number, tokens?: Record<string, string>, chartSurface?: string, extra?: string }} options
+ *   columns: the table's; tokens: the host's (cleaned), over the light ones; chartSurface: the light
+ *   surface the chart's image is drawn on (tokens.js reportTokens, a template's own included); extra:
+ *   the cells' colour rules
  */
-export function reportCss({ columns, tokens = {}, extra = "" }) {
+export function reportCss({ columns, tokens = {}, chartSurface = { ...LIGHT_TOKENS, ...tokens }["--pk-surface"], extra = "" }) {
     const font = tokens["font-family"] ?? REPORT_FONT;
     const light = declarations({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, ...tokens });
-    // the chart is drawn in the light colours (the host's), on a screen in dark mode too: its card keeps
-    // the light surface the chart's image is drawn on
-    const chartSurface = { ...LIGHT_TOKENS, ...tokens }["--pk-surface"];
+    // the chart is drawn in the light colours, on a screen in dark mode too: its card keeps the light
+    // surface the chart's image is drawn on
     const page = columns > PRINT_WIDE.landscape ? "size:landscape;" : "";
     return `:root{${light};color-scheme:light dark}
-@media screen and (prefers-color-scheme:dark){:root{${declarations(DARK_TOKENS)}}}
+:root[data-pk-theme="light"]{color-scheme:light}
+${darkScreen((root) => `${root}{${declarations(DARK_TOKENS)};color-scheme:dark}`)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--pk-surface);color:var(--pk-text);font:var(--pk-font-size)/1.45 ${font}}
 .pk-report{padding:24px}
@@ -41,8 +65,11 @@ body{margin:0;background:var(--pk-surface);color:var(--pk-text);font:var(--pk-fo
 .pk-table .pk-sub{background:var(--pk-total);font-weight:var(--pk-weight-strong)}
 .pk-table .pk-grand{background:var(--pk-total-strong);font-weight:var(--pk-weight-bold)}
 .pk-collapsed::before{content:"+ ";color:var(--pk-muted)}
-.pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-bg) 48%,var(--pk-surface))}
-.pk-td.pk-has-bar{background-image:linear-gradient(90deg,color-mix(in srgb,var(--pk-bar-color,var(--pk-chart-1)) 32%,transparent) var(--pk-bar),transparent var(--pk-bar));background-repeat:no-repeat;background-size:100% 64%;background-position:left center}
+.pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-bg) ${SCALE_MIX.light}%,var(--pk-surface))}
+.pk-scale-lo{--pk-cell-dark:color-mix(in srgb,${SCALE_MID} var(--pk-p),var(--pk-scale-low))}
+.pk-scale-hi{--pk-cell-dark:color-mix(in srgb,var(--pk-scale-high) var(--pk-p),${SCALE_MID})}
+${darkScreen((root) => `${root} .pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-dark,var(--pk-cell-bg)) ${SCALE_MIX.dark}%,var(--pk-surface))}`)}
+.pk-td.pk-has-bar{background-image:linear-gradient(90deg,color-mix(in srgb,var(--pk-bar-color,var(--pk-chart-1)) ${BAR_MIX}%,transparent) var(--pk-bar),transparent var(--pk-bar));background-repeat:no-repeat;background-size:100% 64%;background-position:left center}
 .pk-report-note{color:var(--pk-muted);margin:8px 0}
 .pk-report-details{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:16px 0 0;color:var(--pk-muted);font-size:var(--pk-small)}
 .pk-report-details dt{font-weight:var(--pk-weight-strong)}

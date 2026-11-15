@@ -46,8 +46,16 @@ you name and update it as in [Update an installation](upgrading.md#update).
     (Invoke-RestMethod "$api/sources/sales").fields | Format-Table name, type, level, distinct
     ```
 
+=== "pivotkit"
+
+    ```bash
+    npx -y pivotkit-cli sources --url http://127.0.0.1:3333/api/v1
+    npx -y pivotkit-cli sources sales --url http://127.0.0.1:3333/api/v1
+    ```
+
 Each field has a `level`. By default every field is `summary`: you get its name, type and counts, not
-its values. The operator decides more per field ([step 5](#policy)).
+its values. At `values` you get every value as a complete list, at `show` values and results. The
+operator decides per field ([step 5](#policy)).
 
 ## 3. Check a view { #validate }
 
@@ -154,6 +162,17 @@ set), a call without a token is now 401, and only the export token may download 
     Invoke-RestMethod "$api/views/render/file" -Method Post -ContentType "application/json" -Body $view -Headers $headers -OutFile revenue.xlsx
     ```
 
+=== "pivotkit"
+
+    ```bash
+    export PIVOTKIT_URL=http://127.0.0.1:3333/api/v1
+    PIVOTKIT_TOKEN=$SCRIPTS_TOKEN npx -y pivotkit-cli validate sales.pivotkit.json --source sales
+    PIVOTKIT_TOKEN=$SCRIPTS_TOKEN npx -y pivotkit-cli render sales.pivotkit.json --source sales -o revenue.xlsx   # exit 2, NOT_ALLOWED
+    PIVOTKIT_TOKEN=$EXPORT_TOKEN npx -y pivotkit-cli render sales.pivotkit.json --source sales -o revenue.xlsx
+    ```
+
+    The command line runs on the server's source instead of a file ([With a server](../reference/cli.md#with-a-server)).
+
 An error is a problem document with a stable `code` and a `detail` that says what to do; with
 PowerShell 7, `Invoke-RestMethod` throws and the document is in `$_.ErrorDetails.Message`.
 
@@ -178,6 +197,7 @@ try {
 
 - [pivotkit-server (REST)](../reference/rest.md): every route, profiles, sign-in with OAuth, CORS, limits, errors.
 - The OpenAPI document of your service: `GET /openapi.json` with a token.
-- [Container image](../reference/container.md): the same service in Docker or Kubernetes.
+- [Container image](../reference/container.md): the same service in Docker; [Kubernetes](kubernetes.md): with the MCP server, an Ingress and sign-in.
 - [Update an installation](upgrading.md#update): a new release of the service, the image or the CLI.
+- The command line against this service: [pivotkit-cli with a server](../reference/cli.md#with-a-server).
 - [Getting started: MCP server](mcp.md): the same sources for an AI client.

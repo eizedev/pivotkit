@@ -14,7 +14,7 @@ import { reportCss } from "./report-css.js";
 import { chartSvg } from "./svg.js";
 import { TEMPLATE_LIMIT, escapeHtml, fillTemplate, parseTemplate } from "./template.js";
 import { fill, textsFor } from "./texts.js";
-import { cleanTokens, conditionalColors, tokenStyle } from "./tokens.js";
+import { BASE_TOKENS, REPORT_FONT, TOKEN_LENGTH, cleanTokens, conditionalColors, reportTokens, tokenStyle } from "./tokens.js";
 
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -54,7 +54,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {boolean} [strict]  no body when the view has an error (default false: the normalized view is rendered)
  * @property {Partial<import("pivotkit-core").Labels>} [labels]  pivotkit-core's texts (totals, value names)
  * @property {Partial<import("./texts.js").ReportTexts>} [texts]  the report's words around the table
- * @property {Record<string, string>} [tokens]  --pk-* colours over the light ones (the chart and the report)
+ * @property {Record<string, string>} [tokens]  --pk-* colours over the light ones (the chart and the report); html: a template's own CSS over them
  * @property {string} [title]  the report's title; default the view file's name, the chart's title, "Report"
  * @property {string} [description]  default the view file's description
  * @property {string} [source]  where the data comes from, for the report's details (a file name)
@@ -197,10 +197,15 @@ export async function render(view, data, options = {}) {
     const summary = { rows: grid.bodyRows.length, columns: grid.columnCount, sourceRows: data2.length, keptRows: result.rows.length, truncated: false };
     const texts = textsFor(grid.locale, options.texts);
     const title = (options.title ?? (read.name || normalized.view.chart.title || texts.untitled)).trim() || texts.untitled;
+    // the light values the chart and the cells' colours are drawn with: the host's tokens, and over
+    // them the template's own (its CSS is the one place of its design; template-style.js)
+    // (template-style.js is loaded only for a template of the host's: a page that renders with the
+    // default one, as pivotkit-react's Export menu, never loads it)
+    const theme = template && options.template !== undefined ? (await import("./template-style.js")).templateTheme(template, options.tokens ?? {}, { base: BASE_TOKENS, font: REPORT_FONT, maxLength: TOKEN_LENGTH, clean: cleanTokens }) : reportTokens(options.tokens);
     const chartOf = () =>
         chartSvg(result, {
             echarts: /** @type {any} */ (options.echarts),
-            style: tokenStyle(options.tokens),
+            style: tokenStyle(theme),
             // set for the formats that draw a chart (svg, html), the only callers of chartOf
             .../** @type {{ width: number, height: number }} */ (size),
             locale: grid.locale,
@@ -222,14 +227,14 @@ export async function render(view, data, options = {}) {
     } else if (format === "csv") {
         body = toCsvBytes(grid, { bom: options.bom !== false });
     } else if (format === "xlsx") {
-        body = toXlsx(grid, { sheetName: title, theme: conditionalColors(options.tokens) });
+        body = toXlsx(grid, { sheetName: title, theme: conditionalColors(theme) });
     } else if (format === "svg") {
         const chart = chartOf();
         chartCut(chart);
         body = new TextEncoder().encode(chart.svg);
     } else {
         const number = new Intl.NumberFormat(grid.locale);
-        const table = htmlTable(grid, { maxCells: options.tableCells ?? REPORT_LIMITS.tableCells, ...conditionalColors(options.tokens) });
+        const table = htmlTable(grid, { maxCells: options.tableCells ?? REPORT_LIMITS.tableCells, ...conditionalColors(theme) });
         let tableNote = "";
         if (table.cut) {
             summary.truncated = true;
@@ -262,7 +267,7 @@ export async function render(view, data, options = {}) {
         };
         const detail = (label, value) => (value ? `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>` : "");
         const markup = {
-            style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), extra: table.css })}</style>`,
+            style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), chartSurface: theme["--pk-surface"], extra: table.css })}</style>`,
             chart: chartHtml,
             table: table.html + tableNote,
             details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.rows, number.format(data2.length))}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`

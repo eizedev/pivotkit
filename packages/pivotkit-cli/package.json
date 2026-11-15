@@ -36,6 +36,10 @@
       "types": "./types/files.d.ts",
       "default": "./src/files.js"
     },
+    "./rest": {
+      "types": "./types/rest-contract.d.ts",
+      "default": "./src/rest-contract.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

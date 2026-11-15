@@ -9,7 +9,9 @@ description: The pivotkit REST service - routes, the OpenAPI 3.1 document, sign-
 Universal endpoint, a scheduler or a web app lists data sources, checks a [view](view-file.md),
 renders it into a file and makes links. It runs the same operations as the
 [MCP server](mcp.md) and the [command line](cli.md), with the same exposure policy, so a program sees
-of a source what the operator allows. The package also holds what the MCP server is built on, so
+of a source what the operator allows. The command line is also its client: `pivotkit render`,
+`validate`, `describe` and `sources` with `--url` and `--source` run on the server's sources
+([With a server](cli.md#with-a-server)). The package also holds what the MCP server is built on, so
 `pivotkit-server serve` runs the REST service and, when `pivotkit-mcp` is installed beside it, the MCP
 endpoint on the same port.
 
@@ -66,7 +68,7 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   "withheld": ["rows", "columns", "bytes", "content"],
   "dataAsOf": "2026-11-15T08:00:00Z",
   "output": { "name": "sales.pivotkit-out.xlsx", "format": "xlsx", "mediaType": "..." },
-  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer, since the operator does not show the values of Sales. Data as of 2026-11-15 08:00 UTC." }
+  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer: results over fields that are not fully shown (Sales) stay in the file. Data as of 2026-11-15 08:00 UTC." }
 ```
 
 Every answer over a source's data (all routes but `GET /sources` and `GET /views/guide`) carries
@@ -92,18 +94,29 @@ column field, a row of labels, then a row per group with a total row and column;
 UTF-8 byte order mark, so a spreadsheet opens it as UTF-8.
 
 A csv or json result comes back inline (`inline.text`) only when the operator sets
-`rest.inline: true` and every field the view uses is shown. `withheld` lists what is left out of the
-answer because the view uses a field whose values the policy does not show. For such a view, the
-findings that would tell what the data holds (an item spelt differently, a filter that keeps nothing,
-`noRowsKept`) are left out too: a filter on an item that does not exist validates and renders an
-empty report, and nothing says why, since saying so would tell that the item does not exist. For a
-view of shown fields only, a render whose filters keep no rows has the warning `noRowsKept`.
+`rest.inline: true` and every field the view uses is `show`. `withheld` lists what is left out of the
+answer because the view uses a field that is not `show` (`values` included). Findings are decided per
+field (a finding about a field's items carries it in `field`): an item spelt differently (`itemCase`)
+is named for a `show` or `values` field, an item that is none of a field's values (`itemUnknown`,
+with the closest one) where its list is complete. A filter on an item of a `summary` field that does
+not exist validates and renders an empty report, and nothing says why, since saying so would tell
+that the item does not exist. Only for a view of `show` fields does a render whose filters keep no
+rows have the warning `noRowsKept`.
 
 ## Exposure policy and profiles { #profiles }
 
-The exposure policy is the [MCP server's](mcp.md#policy): per field `show`, `summary` (default) or
-`hide`, per source over the server's. A REST caller is a program, not a model, but the same rules
-hold: a field at `summary` keeps its values out of every answer.
+The exposure policy is the [MCP server's](mcp.md#policy): per field `show`, `values`, `summary`
+(default) or `hide`, per source over the server's, with the opt-in [automatic values
+rule](mcp.md#auto-values). A REST caller is a program, not a model, but the same rules hold: a field
+at `summary` keeps its values out of every answer, and one at `values` lists its values but no result
+over them.
+
+| Level | `GET /sources/{id}` | Findings | Results |
+| --- | --- | --- | --- |
+| `show` | values up to `items`, `complete`, smallest and largest | `itemCase`; `itemUnknown` where the list is complete; `noRowsKept`, `filterEmpty`, `tableCut`, `chartCut` when every field of the view is `show` | inline where `rest.inline` and `inline` allow |
+| `values` | every value, sorted, `complete: true` (`auto: true` from the automatic rule) | `itemCase`, `itemUnknown` | file only, `withheld` |
+| `summary` | name, type, counts | none about items | file only, `withheld` |
+| `hide` | not listed | none | dropped |
 
 A **profile** gives one caller more (or less) than the default: a named policy of the same shape in
 `policy.profiles`, bound to a static token (`auth.tokens[].profile`), an OAuth client
@@ -117,6 +130,29 @@ policy:
 - `items`, `rows`, `counts`, `inline` and `results` are the profile's where it sets them (a profile with `results: true` may download from a source whose own policy says `results: false`);
 - a caller without a profile gets the server's policy, never more. An OAuth token whose scopes name
   two different profiles gets none.
+
+A caller bound to a profile never gets the automatic values rule: what its profile and the source
+say is what it gets. With `policy.autoValues: true`, a profile that only adds `results: true` (the
+`export` profile below) therefore sees less than a plain token: a field the rule lists for the plain
+token is `summary` for it. Give such a profile `values` where it needs them, in its `fields` or as
+its `default`; `check-config` prints each profile's levels per source. To give a group more, bind a
+profile to its OAuth scope. Here a plain token
+sees `Status` as a complete list and nothing else, and a token with the scope `pivotkit:analyst`
+sees every value but `Customer`:
+
+```json
+{
+  "sources": { "tickets": { "file": "data/tickets.csv", "policy": { "fields": { "Status": "values", "Customer": "hide" } } } },
+  "policy": { "profiles": { "analyst": { "default": "show" } } },
+  "auth": { "mode": "oauth", "issuer": "https://login.example.com", "resource": "https://reports.example.com/mcp",
+    "scopeProfiles": { "pivotkit:analyst": "analyst" } }
+}
+```
+
+| Caller | `Status` | `Priority` (no rule) | `Customer` |
+| --- | --- | --- | --- |
+| plain token | `values` | `summary` | hidden |
+| token with `pivotkit:analyst` | `show` | `show` | hidden |
 
 ```json
 {
@@ -141,7 +177,7 @@ field that is not hidden, in a file, whatever level the field has; give it only 
 
 | Key | Default | What it is |
 | --- | --- | --- |
-| `policy.profiles.<name>` | none | A profile: `default` (show or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results` |
+| `policy.profiles.<name>` | none | A profile: `default` (show, values or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results` |
 | `policy.results`, `sources.<id>.policy.results` | false | Downloads through the file route for callers without a profile, per source |
 | `auth.tokens[].profile` | none | A static token's profile |
 | `auth.clientProfiles` | none | OAuth client id (`azp` or `client_id`) to profile: `{ "report-bot": "export" }` |
@@ -169,6 +205,12 @@ A view with errors answers 422 `VIEW_HAS_ERRORS` with its `findings`.
 curl -s -o report.xlsx -H "Authorization: Bearer $EXPORT_TOKEN" -H "Content-Type: application/json" \
   -d '{"source":"sales","view":{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]}}' \
   http://127.0.0.1:3333/api/v1/views/render/file
+```
+
+The [command line](cli.md#with-a-server) does the same with a view file, and checks the view first:
+
+```bash
+PIVOTKIT_TOKEN=$EXPORT_TOKEN pivotkit render sales.pivotkit.json --url http://127.0.0.1:3333/api/v1 --source sales -o report.xlsx
 ```
 
 ## Sign-in { #auth }
@@ -292,7 +334,7 @@ carry `Retry-After`.
 | 409 | <a id="error-no-link"></a>`NO_LINK`, <a id="error-not-schedulable"></a>`NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a source that cannot have one |
 | 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB; a file, a view or the work over a limit |
 | 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form); a source file in no data format |
-| 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file or print template cannot be used |
+| 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file or print template (`sources.<id>.template`, a [print template](print-template.md) whose `--pk-*` colours reach the chart, [options](mcp.md)) cannot be used |
 | 422 | <a id="error-view-has-errors"></a>`VIEW_HAS_ERRORS` | The file route for a view with errors (with `findings`) |
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else; the details only in the log with `--log debug` |
@@ -318,12 +360,12 @@ pivotkit-server's.
 ## Running it { #running }
 
 `pivotkit-server` is one command for the REST service, the MCP server and the command line, as the
-[container image](container.md) runs them:
+[container image](container.md) runs them ([on Kubernetes](../getting-started/kubernetes.md)):
 
 | Command | What it does |
 | --- | --- |
 | `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json`, and with pivotkit-mcp installed `/mcp` and its quick-start page; `/healthz` and `/readyz` |
-| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, fields by level, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant |
+| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant |
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit` |
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |

@@ -19,8 +19,9 @@ some callers may use gets `scopes`; a source no caller needs is not configured a
 
 ## Start from little { #defaults }
 
-The defaults show little: every field is `summary` (name, type and counts, no values), inline results
-are off for REST, downloads need `results: true`, files by path are off. Open up field by field
+The defaults show little: every field is `summary` (name, type and counts, no values), the automatic
+`values` rule is off, inline results are off for REST, downloads need `results: true`, files by path
+are off. Open up field by field
 (`show`) for what a purpose needs, and `hide` what no caller needs: a hidden column is dropped when
 the data is read. Leaving a column out of the data file is safer still.
 

@@ -101,7 +101,7 @@ test("render: the file is saved in the output directory; a summary field withhol
         assert.deepEqual(res.data.withheld, ["rows", "columns", "bytes", "content"]);
         assert.equal(res.data.summary, undefined);
         assert.equal(res.data.inline, undefined);
-        assert.match(res.data.message, /Its content is not part of this answer, since the operator does not show the values of Sales\./);
+        assert.match(res.data.message, /Its content is not part of this answer: results over fields that are not fully shown \(Sales\) stay in the file\./);
         assert.ok(!/assistant/.test(res.data.message), "words for a program, not a model");
         assert.deepEqual(readdirSync(join(dir, "out")), [res.data.output.name]);
         assert.equal(res.data.output.path, undefined, "no server path");

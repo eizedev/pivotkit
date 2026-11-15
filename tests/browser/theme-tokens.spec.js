@@ -4,7 +4,7 @@
 // dark report too, in React and inside pivotkit-element (#217, #220).
 import { readFile } from "node:fs/promises";
 import { strFromU8, unzipSync } from "fflate";
-import { TRACE_IN_PRINT_FRAME, chipMenu, expect, test, toolbar } from "./fixtures.js";
+import { chipMenu, expect, test, toolbar } from "./fixtures.js";
 
 /** A host's theme keyed on the theme the report shows: light colours, and dark ones for the dark theme. */
 const HOST_THEME = (selector) => `
@@ -118,8 +118,6 @@ test.describe("a host's tokens for corners, the code font, the focus ring and th
 });
 
 test.describe("exports from a dark report carry the host's light colours (#217)", () => {
-    test.use({ ignoreConsole: [TRACE_IN_PRINT_FRAME] });
-
     test("React: the workbook and the HTML report get the light colours and --pk-scale-mid; the screen stays dark, nothing animates", async ({ page }) => {
         await page.goto("?data=sales&theme=dark");
         await page.addStyleTag({ content: HOST_THEME(".pk-root") });

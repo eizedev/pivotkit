@@ -55,7 +55,7 @@ export async function createRegistry(options) {
     const files = options.files ?? {};
     const allow = await allowedDirs((files.allowDirs ?? []).map((d) => pathOf(options, d)), options.baseDir ?? process.cwd());
     const sources = new Map(Object.entries(options.sources ?? {}));
-    const filePolicy = resolvePolicy(options.policy, files.policy);
+    const filePolicy = resolvePolicy(options.policy, files.policy, undefined, { file: true });
     /** The profile a caller's policy takes, if any. */
     const profileOf = (caller) => (caller.profile && Object.hasOwn(options.policy?.profiles ?? {}, caller.profile) ? options.policy?.profiles?.[caller.profile] : undefined);
     // the operator's sources by their files' real paths: a file: path to one of them is that source
@@ -88,10 +88,10 @@ export async function createRegistry(options) {
     /**
      * Whether a field of a source, under the server's, the source's or any profile's policy, is not
      * "show". A policy the automatic "values" rule may apply to (`auto`, decided by the data at run
-     * time) counts as closed: that rule only ever lowers a field from "show"'s reach.
+     * time) counts as closed, whatever its written levels say.
      */
     const closedUnder = (sourcePolicy) => [undefined, ...Object.values(options.policy?.profiles ?? {})].some((profile) => {
-        const p = /** @type {any} */ (resolvePolicy(options.policy, sourcePolicy, profile));
+        const p = resolvePolicy(options.policy, sourcePolicy, profile);
         return p.default !== "show" || [...p.fields.values()].some((l) => l !== "show") || Boolean(p.auto);
     });
     const closedSources = new Map([...sources.entries()].map(([id, s]) => [id, closedUnder(s.policy)]));
@@ -114,7 +114,7 @@ export async function createRegistry(options) {
         notFound,
         levelsOf,
         fileClosed: closedUnder(files.policy),
-        filePolicyOf: (caller) => (profileOf(caller) ? resolvePolicy(options.policy, files.policy, profileOf(caller)) : filePolicy)
+        filePolicyOf: (caller) => (profileOf(caller) ? resolvePolicy(options.policy, files.policy, profileOf(caller), { file: true }) : filePolicy)
     };
 
     return {
@@ -193,7 +193,7 @@ export async function createRegistry(options) {
                 const policy = resolvePolicy(options.policy, s.policy);
                 const file = s.file ? pathOf(options, s.file) : null;
                 const exists = file ? await stat(file).then((i) => i.isFile()).catch(() => false) : true;
-                out.push({ id, file, exists, policy: { default: policy.default, fields: Object.fromEntries(policy.fields), items: policy.items, inline: policy.inline }, scopes: s.scopes ?? [], link: s.link ?? null });
+                out.push({ id, file, exists, policy: { default: policy.default, fields: Object.fromEntries(policy.fields), items: policy.items, inline: policy.inline }, resolved: policy, scopes: s.scopes ?? [], link: s.link ?? null });
             }
             return out;
         }

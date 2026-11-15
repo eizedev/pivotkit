@@ -13,6 +13,7 @@ import { PivotkitError, encode } from "pivotkit-core";
 import { asCliError, readSafe, readTable } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
+import { sourceStats } from "./stats.js";
 import { asOfText } from "./sources/as-of.js";
 
 /**
@@ -115,7 +116,7 @@ export async function fileData(spec) {
         const { table, notes } = await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
         const hide = hiddenOf(spec.levels, table.columns);
         const data = encode(withoutHidden(table, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length, asOf: asOfText(info.mtime) }));
+        return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data), asOf: asOfText(info.mtime) }));
     } catch (e) {
         const error = asOperationError(e, spec.path);
         if (spec.kind !== "source") {
@@ -168,7 +169,7 @@ export async function codeData(spec, source) {
     }
     // when the host says the data is from (columnar data's asOf), else when load() gave it
     const asOf = (columnar && !Array.isArray(columnar) && columnar.asOf !== undefined ? asOfText(columnar.asOf) : null) ?? asOfText(new Date());
-    const out = { data, notes: [], hidden: hide.length, asOf };
+    const out = { data, notes: [], hidden: hide.length, asOf, stats: sourceStats(data) };
     return of(key ? remember(key, out) : out);
 }
 
@@ -194,7 +195,7 @@ export function tableData(spec, table, key, asOf = null, notes = []) {
     const hide = hiddenOf(spec.levels, columns);
     try {
         const data = encode(/** @type {any} */ (withoutHidden(/** @type {any} */ (columnar), hide)), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        const out = { data, notes: cleanNotes(notes, hide), hidden: hide.length, asOf: asOf ?? asOfText(new Date()) };
+        const out = { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data), asOf: asOf ?? asOfText(new Date()) };
         return of(key !== null ? remember(key, out) : out);
     } catch (e) {
         throw asOperationError(e, spec.name);

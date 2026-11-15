@@ -24,6 +24,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { OperationError } from "pivotkit-report/operations";
+import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
 import { guardedFetch } from "./sources/fetch.js";
 
@@ -33,11 +34,8 @@ export const TOKEN_MIN = 32;
 /** The most bytes of the issuer's metadata document. */
 const METADATA_BYTES = 262_144;
 
-/** What a bearer token may hold (RFC 6750's b64token): a token with other characters never matches a request. */
-export const TOKEN_SYNTAX = /^[A-Za-z0-9\-._~+/]+=*$/;
-
-/** Why a token outside TOKEN_SYNTAX does not work. */
-export const TOKEN_SYNTAX_TEXT = "has characters a bearer token cannot carry (letters, digits and - . _ ~ + / only, = at the end), so no request could send it";
+/** What a bearer token may hold and why another one does not work: pivotkit-cli/rest's, which the CLI checks a token against before it sends it. */
+export { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 
 /** The command that makes a token, for the messages. */
 export const MAKE_TOKEN = `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`;

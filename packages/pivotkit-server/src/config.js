@@ -10,8 +10,10 @@ import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { LIMITS, closest } from "pivotkit-core";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
+import { REST_BASE, SOURCE_ID } from "pivotkit-cli/rest";
 import { POLICY_LEVELS } from "./policy.js";
 import { declaredProblems } from "./sources/params.js";
+import { STATS_DISTINCT } from "./stats.js";
 
 export class ConfigError extends Error {
     /** @param {string} message */
@@ -24,9 +26,11 @@ export class ConfigError extends Error {
 
 /**
  * @typedef {object} PolicyOptions
- * @property {"show" | "summary" | "hide"} [default]  the level of a field without its own (default "summary")
- * @property {Record<string, "show" | "summary" | "hide">} [fields]  levels by field name (case-insensitive)
+ * @property {"show" | "values" | "summary" | "hide"} [default]  the level of a field without its own (default "summary")
+ * @property {Record<string, "show" | "values" | "summary" | "hide">} [fields]  levels by field name (case-insensitive)
  * @property {number} [items]  values listed per "show" field (default 20)
+ * @property {number} [valuesMax]  server and source only: the most distinct values a "values" field may have (default 50, at most 1000)
+ * @property {boolean | { maxDistinct?: number, minRowsPerValue?: number, minRows?: number, deny?: string[] }} [autoValues]  server and source only: the automatic "values" level for text fields that look like categories, where no default is written (default false)
  * @property {boolean} [rows]  show the row count (default true)
  * @property {boolean} [counts]  show distinct and blank counts (default true)
  * @property {{ cells?: number, bytes?: number } | false} [inline]  results that may come back in the tool result (default 500 cells, 32 KiB)
@@ -119,17 +123,23 @@ export const DEFAULT_ALGORITHMS = Object.freeze(["RS256", "PS256", "ES256", "EdD
 
 // A small schema language for the options: "string", "boolean", "integer", "strings" (array of
 // strings), "function", { enum: [...] }, { object: {...} } (known keys), { map: <schema> } (any keys),
-// { custom: (value) => problems } (a check of its own, each problem "<key path>: <what>")
+// { custom: (value) => problems } (a check of its own, each problem "<key path>: <what>").
+// POLICY holds a profile's and files.policy's keys; a source's and the server's add the "values"
+// settings, which belong to the data, not to a caller (a profile never gets the automatic rule) or a
+// file: path
 const POLICY = { object: { default: { enum: POLICY_LEVELS }, fields: { map: { enum: POLICY_LEVELS } }, items: "integer", rows: "boolean", counts: "boolean", inline: { or: [{ const: false }, { object: { cells: "integer", bytes: "integer" } }] }, results: "boolean" } };
+const AUTO_VALUES_OPTION = { or: ["boolean", { object: { maxDistinct: "integer", minRowsPerValue: "integer", minRows: "integer", deny: "strings" } }] };
+/** A source's policy. */
+const SOURCE_POLICY = { object: { ...POLICY.object, valuesMax: "integer", autoValues: AUTO_VALUES_OPTION } };
 /** The server's policy: a source's, plus the named profiles. */
-const SERVER_POLICY = { object: { ...POLICY.object, profiles: { map: POLICY } } };
+const SERVER_POLICY = { object: { ...SOURCE_POLICY.object, profiles: { map: POLICY } } };
 
 /** The parts of the HTTP server the runner of pivotkit-server can serve. */
 export const ENDPOINTS = Object.freeze(["mcp", "rest"]);
 
 /** Every option, nested as the options object is. */
 export const OPTION_KEYS = Object.freeze({
-    sources: { map: { object: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: POLICY, params: { custom: declaredProblems }, fields: { map: { object: { description: "string" } } } } } },
+    sources: { map: { object: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: SOURCE_POLICY, params: { custom: declaredProblems }, fields: { map: { object: { description: "string" } } } } } },
     files: { object: { allowDirs: "strings", list: "boolean", hardLinks: "boolean", scopes: "strings", policy: POLICY } },
     output: { object: { dir: "string", create: "boolean", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer" } },
     policy: SERVER_POLICY,
@@ -177,8 +187,8 @@ export const OPTION_KEYS = Object.freeze({
     baseDir: "string"
 });
 
-/** A source id: letters, digits, "_", "-", "." (no "file:", no path). */
-export const SOURCE_ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
+/** A source id: letters, digits, "_", "-", "." (no "file:", no path); pivotkit-cli/rest's, which the CLI checks an id against. */
+export { SOURCE_ID } from "pivotkit-cli/rest";
 
 /** Checks a value against a schema of the small language above; throws ConfigError with the key's path. */
 function check(value, schema, path) {
@@ -318,6 +328,18 @@ export function validateOptions(options) {
             throw new ConfigError(`policy.profiles.${name}.default: "hide" would drop every field; list the fields to hide in fields`);
         }
     }
+    for (const [path, policy] of /** @type {Array<[string, any]>} */ ([["policy", options.policy], ...Object.entries(options.sources ?? {}).map(([id, source]) => [`sources.${id}.policy`, source.policy])])) {
+        for (const [key, value] of /** @type {Array<[string, number | undefined]>} */ ([["valuesMax", policy?.valuesMax], ["autoValues.maxDistinct", policy?.autoValues?.maxDistinct]])) {
+            if (value !== undefined && (value < 1 || value > STATS_DISTINCT)) {
+                throw new ConfigError(`${path}.${key}: 1 to ${STATS_DISTINCT}`);
+            }
+        }
+        for (const key of ["minRows", "minRowsPerValue"]) {
+            if (policy?.autoValues?.[key] !== undefined && policy.autoValues[key] < 1) {
+                throw new ConfigError(`${path}.autoValues.${key}: must be 1 or more`);
+            }
+        }
+    }
     if (options.rest?.resource) {
         urlOf(options.rest.resource, "rest.resource");
     }
@@ -389,8 +411,8 @@ export async function loadConfig(file) {
     return { ...options, baseDir: options.baseDir ? resolve(dirname(resolve(file)), options.baseDir) : dirname(resolve(file)) };
 }
 
-/** The REST service's path. */
-export const REST_BASE = "/api/v1";
+/** The REST service's path (pivotkit-cli/rest's, the CLI's remote mode names it). */
+export { REST_BASE } from "pivotkit-cli/rest";
 
 /**
  * The REST service's OAuth resource: rest.resource, else the origin of auth.resource with /api/v1

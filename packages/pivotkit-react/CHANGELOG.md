@@ -6,6 +6,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- Print or save as PDF opens the print dialog in the click itself: the Export menu makes the print
+  frame ready when it opens, and the report's modules load when Print is pointed at or focused.
+  Safari asked "This webpage is trying to print" from the second print on while the dialog came an
+  animation frame after the click; a page hidden while it printed (it gets no animation frame) did
+  not print at all ([#210](https://github.com/eizedev/pivotkit/issues/210)).
+
 ## [0.6.1] - 2026-11-14
 
 ### Added

@@ -31,7 +31,7 @@ export const kindOf = (source) => (source.http ? "http" : source.load ? "code" :
  * @param {Record<string, any>} input
  * @param {any} resolved
  * @param {import("../registry.js").Caller} caller
- * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, asOf?: string | null, stale?: { since: string } | null }>}
+ * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("../stats.js").SourceStats | null, asOf?: string | null, stale?: { since: string } | null }>}
  */
 export function runResolved(context, op, input, resolved, caller) {
     const base = { link: resolved.link, template: resolved.template, locale: context.options.locale, timeZone: context.options.timeZone };

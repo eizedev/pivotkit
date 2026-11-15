@@ -7,10 +7,11 @@
  */
 
 import { createServer } from "node:http";
+import { isLoopback } from "pivotkit-cli/rest";
 import { HOST_SYNTAX } from "./checks.js";
 
-/** Whether an address is loopback. */
-export const isLoopback = (host) => host === "127.0.0.1" || host === "::1" || host === "localhost" || /^127\./.test(host);
+/** Whether an address is loopback (pivotkit-cli/rest's: the CLI decides with it where http is allowed). */
+export { isLoopback } from "pivotkit-cli/rest";
 
 /**
  * Where a front end's precheck keeps a request's sign-in in the `info` object serveFetch hands to

@@ -54,10 +54,19 @@ export function htmlTable(grid, { maxCells, caption, colorScale = [...DEFAULT_TH
         }
         if (style.scale !== undefined) {
             const t = Math.max(0, Math.min(1, style.scale));
-            const color = style.color && HEX.test(style.color) ? style.color : scaleColor(colorScale.filter((c) => HEX.test(c)).length >= 2 ? colorScale.filter((c) => HEX.test(c)) : [...DEFAULT_THEME.colorScale], t);
+            const own = Boolean(style.color && HEX.test(style.color));
+            const color = own ? style.color : scaleColor(colorScale.filter((c) => HEX.test(c)).length >= 2 ? colorScale.filter((c) => HEX.test(c)) : [...DEFAULT_THEME.colorScale], t);
             const name = `pk-c${ruleId++}`;
-            rules.push(`.${name}{--pk-cell-bg:${color}}`);
-            return ` pk-has-scale ${name}`;
+            // the light colour (paper, a light screen, the workbook's); a scale of the theme also its
+            // place between the page's tokens, for a dark screen (report-css.js mixes it there once:
+            // a light colour would turn into a bright grey under the light text)
+            if (own) {
+                rules.push(`.${name}{--pk-cell-bg:${color}}`);
+                return ` pk-has-scale ${name}`;
+            }
+            const half = t < 0.5 ? "lo" : "hi";
+            rules.push(`.${name}{--pk-cell-bg:${color};--pk-p:${Math.round((t < 0.5 ? t * 2 : (t - 0.5) * 2) * 100)}%}`);
+            return ` pk-has-scale pk-scale-${half} ${name}`;
         }
         return "";
     };

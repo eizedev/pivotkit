@@ -40,7 +40,7 @@ import { Unused } from "./unused.jsx";
 import { FormNameContext, activeIn } from "./dom.js";
 import { stillApplies } from "./unused-keep.js";
 import { Toolbar } from "./toolbar.jsx";
-import { prepareExporters, useExport } from "./use-export.js";
+import { useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
 import { schemaKeyOf, useViewHistory } from "./use-view-history.js";
 import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
@@ -979,7 +979,7 @@ function Report(props) {
         [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
 
-    const doExport = useExport({ fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts });
+    const { run: doExport, prepare: prepareExport } = useExport({ fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts });
 
     // loading data (allowImport): the import UI (import-host.jsx) loads on first use (the Data menu, a
     // file dragged over the report, the empty report's button) and renders the file input, the drop
@@ -1483,7 +1483,7 @@ function Report(props) {
                                 onLoadTemplate={openTemplate}
                                 templateActions={templateActions}
                                 onExport={doExport}
-                                prepareExport={prepareExporters}
+                                prepareExport={prepareExport}
                                 dataExport={{ exportData, encoded }}
                                 chartReady={view.display === "chart" && chartReady}
                                 empty={empty}

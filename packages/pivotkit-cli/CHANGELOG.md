@@ -6,6 +6,20 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- `render`, `validate` and `describe` run on a pivotkit-server's source with `--url` (or
+  `PIVOTKIT_URL`) and `--source`; `pivotkit sources [id]` lists a server's sources or describes one.
+  The token comes from `--token-file` or `PIVOTKIT_TOKEN` and is never printed; https only (http for
+  loopback), no redirects, a time limit (`--timeout`) and size caps; a rendered file is written with
+  mode 0600. Options that act on local files are a usage error with a server, and `pivotkit help`
+  marks them "local only" ([#306](https://github.com/eizedev/pivotkit/issues/306)).
+- `--json`: a new error `kind`, `remote` (a server's problem, an answer that is none of a
+  pivotkit-server's, or a network error), with `status` and `retryAfter`.
+- `pivotkit-cli/rest`: what the REST service and its client agree on (`REST_BASE`, `SOURCE_ID`,
+  `TOKEN_SYNTAX`, `REST_ERRORS`, `PROBLEM_CODES`, `isLoopback`); `writeSafe` takes `mode`.
+- `pivotkit serve` says to use `pivotkit-server serve`.
+
 ## [0.2.1] - 2026-11-14
 
 ### Upgrading from 0.2.0

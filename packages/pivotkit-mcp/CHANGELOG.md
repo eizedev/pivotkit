@@ -8,6 +8,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- The exposure policy's level `values` and the opt-in automatic rule (`policy.autoValues`) of
+  pivotkit-server ([#362](https://github.com/eizedev/pivotkit/issues/362)); `--check-config` prints
+  each field's level and why.
+- The instructions and the skill explain the levels once per conversation, `values` included, and
+  `itemUnknown`.
 - Every tool result over a source's data has `dataAsOf` (when the data is from); render_view's
   message ends with it in words. The tools that take a source take `params` when a configured code
   source declares parameters ([pivotkit-server](https://pivotkit.eize.dev/reference/mcp/#configuration)).

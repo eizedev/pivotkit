@@ -2437,6 +2437,18 @@
                 },
                 "text": {
                   "type": "string"
+                },
+                "level": {
+                  "type": "string",
+                  "description": "What the operator shows of the field: show, values, summary (more may come: treat an unknown level as summary)."
+                },
+                "complete": {
+                  "type": "boolean",
+                  "description": "items holds every distinct value of the field."
+                },
+                "auto": {
+                  "type": "boolean",
+                  "description": "The level values was given by the server's automatic rule."
                 }
               }
             }
@@ -2489,6 +2501,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -2511,6 +2527,17 @@
           },
           "hiddenFields": {
             "type": "integer"
+          },
+          "withheld": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What is not shown of this source: values (of the fields at summary), rows, counts."
+          },
+          "hint": {
+            "type": "string",
+            "description": "What to do about what is withheld."
           }
         },
         "required": [
@@ -2675,6 +2702,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -2962,6 +2993,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -3139,6 +3174,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -3374,6 +3413,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -3483,7 +3526,7 @@
             "items": {
               "type": "string"
             },
-            "description": "What is not shown because the view uses a field whose values the operator does not show."
+            "description": "What is not shown because the view uses a field that is not fully shown (values or summary): results over it stay in the file."
           },
           "message": {
             "type": "string",
@@ -3575,6 +3618,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }
@@ -3763,6 +3810,10 @@
                 "suggestion": {
                   "type": "string",
                   "description": "The name or item meant"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The data field the finding is about, where it is about one"
                 }
               }
             }

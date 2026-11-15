@@ -412,3 +412,28 @@ test("canonicalJson: keys sorted at every level, __proto__ a plain key", () => {
     assert.equal(canonicalJson({ b: 1, a: 2 }), canonicalJson({ a: 2, b: 1 }));
     assert.equal(canonicalJson(JSON.parse('{"__proto__":{"x":1},"a":1}')), '{"__proto__":{"x":1},"a":1}');
 });
+
+test("delivery: a source the automatic values rule may apply to counts as closed; a file: path never gets that rule", async () => {
+    const dir = workspace({ "sales.csv": "Region,Sales\nNorth,1\n", "open.csv": "Region,Sales\nNorth,1\n" });
+    const context = await contextOf({
+        sources: { auto: { file: "data/sales.csv" }, open: { file: "data/open.csv", policy: { default: "show" } } },
+        policy: { autoValues: true },
+        files: { allowDirs: ["data"], policy: {} },
+        baseDir: dir
+    });
+    try {
+        const auto = await context.registry.resolve("auto", LOCAL);
+        assert.ok(auto.policy.auto, "the rule applies to this source");
+        assert.equal(auto.sourceClosed, true);
+        assert.equal((await context.registry.resolve("open", LOCAL)).sourceClosed, false);
+        const byPath = await context.registry.resolve("file:sales.csv", LOCAL);
+        // the path is the operator's source: its policy, not files.policy
+        assert.equal(byPath.spec.id, "auto");
+        writeFileSync(join(dir, "data", "other.csv"), "Region,Sales\nNorth,1\n");
+        const other = await context.registry.resolve("file:other.csv", LOCAL);
+        assert.equal(other.spec.kind, "file");
+        assert.equal(other.policy.auto, false, "file: paths never get the automatic rule");
+    } finally {
+        await context.close();
+    }
+});

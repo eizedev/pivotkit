@@ -21,7 +21,9 @@
 // sets importLimits rows 1,000 and cells 100 and limits columns 4: the host's 2,000 rows and its grid of more
 // than 100 cells stay, a file gets all three. ?exportcolumns=A,B sets exportData to { columns: ["A", "B"] },
 // ?exportcolumnstext=A to { columns: "A" };
-// without it exportData is off, as by default.
+// without it exportData is off, as by default. ?printself has onExport take the report's print
+// (returns false; window.__hostPrinted keeps the file name); ?strict renders the page in React's
+// StrictMode (effects mounted, cleaned up and mounted again).
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PivotReport } from "pivotkit-react";
@@ -104,6 +106,8 @@ function Host() {
         ...(query.has("exportcolumns") ? { exportData: { columns: query.get("exportcolumns").split(",") } } : {}),
         // a host's mistake: columns as a text, not a list
         ...(query.has("exportcolumnstext") ? { exportData: { columns: query.get("exportcolumnstext") } } : {}),
+        // a host that prints the report its own way
+        ...(query.has("printself") ? { onExport: (f) => (f.kind === "print" ? ((window.__hostPrinted = f.fileName), false) : undefined) } : {}),
         // a host that keeps uploads small without capping its own 2,000 rows (new objects on every render)
         ...(query.has("importlimits") ? { importLimits: { rows: 1000, cells: 100 }, limits: { columns: 4 } } : {})
     };
@@ -154,4 +158,12 @@ window.__chartOption = async () => {
     const chart = getInstanceByDom(document.querySelector('[data-testid="pivot-chart"]'));
     return chart ? JSON.parse(JSON.stringify(chart.getOption(), (k, v) => (typeof v === "function" ? "[function]" : v))) : null;
 };
-createRoot(document.getElementById("app")).render(<Host />);
+createRoot(document.getElementById("app")).render(
+    query.has("strict") ? (
+        <React.StrictMode>
+            <Host />
+        </React.StrictMode>
+    ) : (
+        <Host />
+    )
+);

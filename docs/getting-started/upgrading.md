@@ -120,7 +120,9 @@ new image before you restart. Pulling a tag does not change a running container;
     Write the exact version or the digest into the manifest, never `latest` or `<major>.<minor>`:
     with `latest` Kubernetes pulls on every start (`imagePullPolicy` defaults to `Always`), and with
     another tag a node that pulled it once keeps that image (`IfNotPresent`). To update, change the
-    tag and apply the manifest again (or `kubectl set image`).
+    tag and apply the manifest again (or `kubectl set image`). The example of
+    [Kubernetes](kubernetes.md) replaces the pod (`strategy: Recreate`), as one output directory
+    takes one server process.
 
 Check the versions inside the image:
 
@@ -141,6 +143,47 @@ claude plugin update pivotkit-mcp@pivotkit
 ```
 
 Then restart Claude Code.
+
+## From 0.6.1 to the next release { #from-0-6-1 }
+
+Operators of pivotkit-server and pivotkit-mcp need not act: every field keeps its level, and the
+automatic values rule is off. What callers notice:
+
+- a filter item that is none of a `show` field's values gets the warning `itemUnknown` where
+  `describe_source` lists all of them, and `itemCase` comes for a `show` field also when the view
+  uses other fields;
+- `describe_source` adds `complete` to `show` fields and `withheld` with a `hint`;
+- a withheld render's `message` reads "results over fields that are not fully shown (...) stay in
+  the file".
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
+| [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
+
+### The values level { #values-level }
+
+A field at `values` lists every distinct value as a complete list in `describe_source`
+(`complete: true`); a result over it stays withheld, as for `summary`. To use it:
+
+1. Give category fields the level in `fields` (`"Status": "values"`), or switch on the automatic
+   rule with `"policy": { "autoValues": true }`: text fields that look like categories get `values`
+   where no `default` is written ([the rule](../reference/mcp.md#auto-values)). It never applies to
+   a caller bound to a profile or to a `file:` path.
+2. Run `check-config` (`pivotkit-server check-config` or `pivotkit-mcp --check-config`): it prints
+   each field's level and why, and with the rule off the fields it would list.
+3. To give one group more, bind a profile to its OAuth scope (`auth.scopeProfiles`,
+   [example](../reference/rest.md#profiles)).
+
+`"autoValues": false` or a written `default` keeps every field as it is.
+
+### Findings carry their field { #findings-field }
+
+A finding about a field's items has `field`. `itemCase` is sent for a `show` or `values` field,
+the new `itemUnknown` (an item that is none of a field's values, with the closest one as the
+`suggestion`) where its values are listed completely. `noRowsKept`, `filterEmpty`, `tableCut` and
+`chartCut` stay for views whose fields are all `show`. `describe_source` may add `withheld`, `hint`,
+`complete` and `auto`; a client reads a `level` it does not know as `summary`.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 

@@ -13,4 +13,4 @@ export { DrillPanel } from "./drill-panel.jsx";
 export { DataMenu } from "./data-menu.jsx";
 export { addMenuTexts, hasMenuTexts, menuLabels } from "./menu-labels.js";
 export { storedViews } from "./view-store.js";
-export { prepareExporters, runExport } from "./export-run.js";
+export { prepareExport, runExport } from "./export-run.js";

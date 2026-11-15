@@ -108,8 +108,10 @@ test("conditional colours: a colour scale per cell and data bars, as rules witho
 test("conditional colours without the view's own: the host's tokens in the HTML table and the workbook", async () => {
     const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum", conditional: { type: "colorScale" } }, { field: "Price", agg: "sum", conditional: { type: "dataBar" } }] };
     const ends = (text) => {
-        const scale = [...text.matchAll(/class="pk-td pk-num pk-has-scale (pk-c\d+)">(\d+)</g)].map((m) => [m[2], m[1]]);
-        const ruleOf = (cls) => new RegExp(`\\.${cls}\\{--pk-cell-bg:(#[0-9a-f]{6})\\}`).exec(text)?.[1];
+        // a theme's scale also marks its half (pk-scale-lo, pk-scale-hi) for a dark screen (#370)
+        const scale = [...text.matchAll(/class="pk-td pk-num pk-has-scale (?:pk-scale-(?:lo|hi) )?(pk-c\d+)">(\d+)</g)].map((m) => [m[2], m[1]]);
+        // the light colour; a theme's scale also writes its colour for a dark screen after it (#370)
+        const ruleOf = (cls) => new RegExp(`\\.${cls}\\{--pk-cell-bg:(#[0-9a-f]{6})[;}]`).exec(text)?.[1];
         return [ruleOf(scale.find(([v]) => v === "4")[1]), ruleOf(scale.find(([v]) => v === "12")[1])];
     };
     const workbook = async (options) => {

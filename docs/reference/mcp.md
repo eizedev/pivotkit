@@ -81,21 +81,77 @@ file that is missing, outside the directories or replaced while it is read gets 
 The operator sets, per field, how much of it the model may see. A source's `policy` goes over the
 server's `policy`; field names are matched without regard to case.
 
+Levels from open to closed: `show`, `values`, `summary`, `hide`. A source's rule for a field
+replaces the server's, and a profile's replaces the source's, except that a field the source's policy
+hides stays hidden in every profile. Only two rules of one part for one field (two spellings of its
+name) keep the stricter of the two.
+
 | Level | describe_source shows | Findings | Results |
 | --- | --- | --- | --- |
-| `show` | name, type, counts, up to `items` values, the smallest and largest value | names and values: an item in another case or with other spaces gets the data's spelling (`itemCase`), and a render whose filters keep no rows says so (`noRowsKept`); another misspelling gets no suggestion, only the empty result | csv and json come back inline when they fit `inline` |
-| `summary` (default) | name, type, counts | names; no check of an item against the data, and no word when a filter keeps no rows (it would tell whether an item exists): a misspelt item renders an empty report | written to a file only; rows, columns and size withheld |
+| `show` | name, type, counts, up to `items` values (`complete: true` when that is all of them; no `complete` with `counts: false`), the smallest and largest value | an item in another case or with other spaces gets the data's spelling (`itemCase`; the item is not corrected, so the report stays empty until the view uses that spelling); where the list is complete, an item that is none of the values gets `itemUnknown` with the closest one; a render whose fields are all `show` says when its filters keep no rows (`noRowsKept`) or a table or chart was cut | csv and json come back inline when they fit `inline` |
+| `values` | name, type, counts and every distinct value, sorted (`items`, `complete: true`; `auto: true` where the [automatic rule](#auto-values) gave the level) | `itemCase` and `itemUnknown` for this field; no `noRowsKept`, `filterEmpty`, `tableCut` or `chartCut`, which would tell whether a combination of listed values exists | as `summary`: written to a file only; rows, columns and size withheld |
+| `summary` (default) | name, type, counts | names; no check of an item against the data: a misspelt item renders an empty report | written to a file only; rows, columns and size withheld |
 | `hide` | not listed; `hiddenFields` counts them | never named | the column is dropped when the data is read |
+
+A field asked for `values` is `summary` where a list would not be complete and exact: a number or
+date field, more distinct values than `valuesMax`, a value longer than 80 characters, a source with
+`counts: false` or `rows: false` (a list's length is the distinct count), or data whose statistics
+could not be read. `check-config` names each such field and why. `describe_source` says what it keeps
+back in `withheld` (fixed words: `values`, `rows`, `counts`) with one sentence in `hint`. A client
+reads an unknown `level` as `summary`: more levels may come.
 
 | Key | Default | What it does |
 | --- | --- | --- |
 | `default` | `"summary"` | The level of a field without its own |
-| `fields` | `{}` | Levels by field name: `{ "Region": "show", "Customer": "hide" }` |
+| `fields` | `{}` | Levels by field name: `{ "Region": "show", "Status": "values", "Customer": "hide" }` |
 | `items` | `20` | Values listed per `show` field |
+| `valuesMax` | `50` | Server and source: the most distinct values a `values` field may have (at most 1000) |
+| `autoValues` | `false` | Server and source: the [automatic rule](#auto-values): `true`, `false` or `{ "maxDistinct", "minRowsPerValue", "minRows", "deny" }` |
 | `rows` | `true` | Show the number of rows (`false` also keeps a render's `sourceRows` and `keptRows` back) |
 | `counts` | `true` | Show distinct and blank counts per field |
 | `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline; `false`: never |
 | `results` | `false` | The REST service's file route may hand out the rendered file ([downloads](rest.md#downloads)) |
+
+### The automatic values rule { #auto-values }
+
+With `policy.autoValues: true` (off by default), a text field that looks like a category gets
+`values` without a rule of its own, so a model can find the exact name of a status or a team. It is
+meant for sources whose text fields are non-personal categories: `check-config` lists what it would
+list, so review that before you switch it on, and give a field its own rule or the source a
+`default` where it must not apply. Listed values are data from the source, never instructions; they
+are cleaned of control and direction characters like every value. It
+applies only to the operator's sources (never to a `file:` path), only where no `default` is written
+at server, source or profile level, and never to a caller bound to a profile. A field's own rule
+always wins. A field qualifies when all of these hold:
+
+- at most 12 distinct values (`maxDistinct`), each in at least 5 rows (`minRowsPerValue`);
+- at least 100 rows in the source (`minRows`), and at least 20 rows per distinct value;
+- values of at most 40 characters, none looking like an e-mail address, a phone number (seven
+  digits or more anywhere), an address on the web, an IBAN, an IP address or a run of 6 or more
+  digits;
+- a field name without a word of the deny list, in English and German: people and their roles
+  (name, customer, employee, owner, contact, manager, user, created by, assigned to, Kunde,
+  Ansprechpartner, ...), personal traits and beliefs (gender, age, birth, religion, nationality,
+  party, union, ...), health, money (salary, payroll, income, credit, bank, ...), places (address,
+  street, city, postcode, PLZ, ...), family and free text (comment, note, reason, ...). Names are
+  read with compatibility forms folded, invisible characters and accents removed, German umlauts and
+  ß written out (and also without their dots), Latin small capitals, Cyrillic and Greek look-alike
+  letters and the digits 0, 1 (as i and as l), 3, 4 and 5 read as letters, and runs of one- and
+  two-letter words glued ("D.o.B."). Short or everyday words (name, age, city, note, union, ...)
+  match only as a word of their own, with a plural or German ending; others anywhere in a word
+  ("Kundenname") and, from five letters, across spaces ("Ow ner"); `deny` adds words.
+
+The deny list is a second layer, not the safeguard. It is English and German only: a header in
+another language ("Propriétaire") or a column of person names under a neutral header ("Team") is not
+caught, so read what `check-config` would list before you switch the rule on. It also fails closed
+the other way: a neutral header that holds a listed word ("Bank holiday", "Member tier") stays
+`summary`; give such a field `values` in `fields` (`"Member tier": "values"`), since a field's own
+rule always wins. The level is decided from statistics counted
+when the data is read (numbers, never values) and kept with the data; when they are missing the
+field is `summary`. A change after the data is read again is logged, and the start log says how many
+fields the rule puts at `values`. `check-config` prints every field's level and why, for example
+`values (auto: 3 distinct, min 410 rows)` or `summary (13 distinct > 12)`; with the rule off, the
+fields it would list.
 
 A **profile** (`policy.profiles.<name>`, a policy of the same shape) gives one caller more or less
 than this: bound to a static token (`auth.tokens[].profile`), an OAuth client
@@ -103,19 +159,19 @@ than this: bound to a static token (`auth.tokens[].profile`), an OAuth client
 source hides stays hidden in every profile, and a caller without a profile gets the server's policy.
 See [profiles](rest.md#profiles).
 
-A view that uses a field the model may not see in full (rows, columns, values, filters, sorting, a
-date grouping's source field) has its result **withheld**: `render_view` writes the file and returns
+A view that uses a field that is not `show` (rows, columns, values, filters, sorting, a date
+grouping's source field; `values` included) has its result **withheld**: `render_view` writes the file and returns
 its name, `withheld: ["rows", "columns", "bytes", "content"]` and a `message` for the user, but no
 count, size or content, since even a row count could answer "is this person in the data?".
 
 `suggest_view` reads what `describe_source` shows. Its draft and `picks` name fields, never values
-or counts; the one thing they tell about a shown field's values is the date grouping its span gives
+(not those of a `values` field either) or counts; the one thing they tell about a shown field's values is the date grouping its span gives
 (a span of up to two years is grouped by month), as a `layout` with a date on an axis does. A date
 field that is not shown is grouped by quarter whatever its span, and with `counts: false` the draft
 does not read counts (a shown date's grouping still follows its span).
 
 !!! warning "summary is not confidentiality"
-    `summary` keeps values out of what the model reads directly. A model that writes filters over
+    `summary` keeps values out of what the model reads directly, and `values` lists them on purpose. A model that writes filters over
     other fields and looks at what comes back inline can still learn about the data, and every
     number in a report is real: a small group can identify a person. For a field the model must not
     learn anything about, use `hide`, or leave the column out of the data. Field names are data too.
@@ -137,7 +193,7 @@ error that names the key and the one probably meant.
 | `sources.<id>.sheet` | - | first visible | A workbook's sheet |
 | `sources.<id>.policy` | - | the server's | The source's exposure policy |
 | `sources.<id>.link`, `.linkKey` | - | none | The page that shows this source's reports, for create_link; the report's key there |
-| `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html |
+| `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html; its `--pk-*` colours reach the chart ([details](print-template.md#template-design)) |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
 | `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`; control and direction characters are removed |
 | `sources.<id>.params` | - | none | A code source's parameters: values a caller passes with the source (see below) |
@@ -171,7 +227,7 @@ error that names the key and the one probably meant.
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
-| - | `--check-config` | - | Print what would be exposed (sources, fields by level, files, output, auth) and exit; 1 when a file or directory it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0) |
+| - | `--check-config` | - | Print what would be exposed (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output, auth) and exit; 1 when a file or directory it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0) |
 
 A write the server is killed in leaves its temporary file
 (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). It is not a report: neither counted toward
@@ -244,8 +300,9 @@ takes letters, digits and `. _ ~ -` only, and no string value may hold `..` or a
 when a configured source declares any. A missing required value, an unknown name or a value of the
 wrong form is `INVALID_INPUT` naming the parameter. `createHttpHandler(context, { env })`
 reads static tokens from `env` (default `process.env`). `pivotkit-mcp/policy` exports the exposure
-policy (`resolvePolicy`, `levelOf`, `exposeSource`, `exposeFindings`, `touchesClosed`) for another
-front end over the same sources; it is `pivotkit-server/policy` under another name.
+policy (`resolvePolicy`, `withStats`, `levelOf`, `levelInfo`, `autoLevel`, `deniedWord`, `listsAll`,
+`stricter`, `exposeSource`, `exposeFindings`, `touchesClosed`) for another front end over the same
+sources; it is `pivotkit-server/policy` under another name.
 
 ## Limits and errors { #errors }
 
@@ -433,6 +490,9 @@ your provider's documentation and in a decoded access token of your own):
         "audience": ["<the provider's client id>"],
         "requiredScopes": ["pivotkit"] } }
     ```
+
+    The provider's settings in Authentik (signing key, scope mapping, client type):
+    [Sign-in with Authentik](../getting-started/kubernetes.md#oauth).
 
 === "Keycloak"
 

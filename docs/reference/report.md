@@ -62,8 +62,8 @@ The whole body is built in memory; the [limits](../concepts/limits.md) keep it b
 | `strict` | `false` | No body when the view has an error. Without it the normalized view is rendered, as the report on screen does. |
 | `labels`, `texts` | the locale's language | pivotkit-core's texts (totals, value names; by default [`reportLabels`](core.md) of the view's or `locale`'s language: "Gesamtergebnis", "Summe von Units" for `de-DE`, the words the report on a page shows) and the report's words around the table (`REPORT_TEXTS`, English and German). |
 | `title`, `description`, `source` | the view file's name and description | The report's heading, its line below, and the data's name in the details. |
-| `tokens` | the light theme | `--pk-*` colours, font weights, font sizes and corners over [`LIGHT_TOKENS`](theming.md), `WEIGHT_TOKENS` (`--pk-weight-normal` to `--pk-weight-bold`, the chart's title and group labels too), `SIZE_TOKENS` (the HTML report's font sizes: `--pk-font-size` 14 px, `--pk-small`, `--pk-report-title-size`, `--pk-print-size` and `--pk-print-small`, [theming](theming.md#report-font-sizes)) and `SHAPE_TOKENS` (`--pk-radius-card`, the chart card), and the chart's `--pk-chart-title-size`, `--pk-chart-text-size` and `--pk-radius-chart` in px (else 16 px, 14 px and 4 px): names and plain values only (a comment, a line break and `url(` anywhere, also in a quoted string, leave the token out), and no function but colours, `calc()`, `min()`, `max()`, `clamp()` and `var()`, so a token loads nothing (`url()` and `image-set()` are left out). A colour scale or data bars whose view names no colours take `--pk-scale-low`, `--pk-scale-mid` (when set) and `--pk-scale-high` (by default the heat tokens) and `--pk-chart-1` in the HTML report's table and in the workbook, when they are `#rgb` or `#rrggbb`. |
-| `template` | `DEFAULT_TEMPLATE` | `html`: a [print template](print-template.md). |
+| `tokens` | the light theme | `--pk-*` colours, font weights, font sizes and corners over [`LIGHT_TOKENS`](theming.md), `WEIGHT_TOKENS` (`--pk-weight-normal` to `--pk-weight-bold`, the chart's title and group labels too), `SIZE_TOKENS` (the HTML report's font sizes: `--pk-font-size` 14 px, `--pk-small`, `--pk-report-title-size`, `--pk-print-size` and `--pk-print-small`, [theming](theming.md#report-font-sizes)) and `SHAPE_TOKENS` (`--pk-radius-card`, the chart card), and the chart's `--pk-chart-title-size`, `--pk-chart-text-size` and `--pk-radius-chart` in px (else 16 px, 14 px and 4 px): names and plain values only (a comment, a line break and `url(` anywhere, also in a quoted string, leave the token out), and no function but colours, `calc()`, `min()`, `max()`, `clamp()` and `var()`, so a token loads nothing (`url()` and `image-set()` are left out). A colour scale or data bars whose view names no colours take `--pk-scale-low`, `--pk-scale-mid` (when set) and `--pk-scale-high` (by default the heat tokens) and `--pk-chart-1` in the HTML report's table and in the workbook, when they are `#rgb` or `#rrggbb`. `html`: the template's own `--pk-*` values win over these ([colours and font of your template](print-template.md#template-design)). |
+| `template` | `DEFAULT_TEMPLATE` | `html`: a [print template](print-template.md); the chart and the table's colours take the `--pk-*` values its own CSS sets ([details](print-template.md#template-design)). |
 | `chart` | `"auto"` | `html`: the chart above the table: `"auto"` when the view shows the chart, `true`, `false`. |
 | `chartEmbed` | `"image"` | `html`: the chart as a `data:` image, or `"inline"` SVG. |
 | `echarts` | | The ECharts module with its SVG renderer: `svg`, and `html` with a chart. |
@@ -117,7 +117,12 @@ first element of `<head>` (`default-src 'none'; style-src 'unsafe-inline'; img-s
 - **The chart** above the table when the view shows the chart (`chart: "auto"`), kept whole on a
   page.
 - **The details**: the source, the data's rows, the filters in words and the time it was generated.
-- **On screen** light or dark after the reader's system; **on paper** always light, with 12 mm
+- **On screen** light or dark after the reader's system (a template's root can pin light or ask for
+  dark, [dark mode](print-template.md#dark-mode)): in dark, the page, the table and its totals
+  take the dark theme's tokens, a colour scale whose view names no colours runs through the dark
+  heat colours (a view's own colours are mixed fainter, so the light text stays readable), and the
+  chart keeps its light card, as it is drawn in the light colours. Every text meets WCAG AA in both.
+  **On paper** always light, also from a dark screen and in a PDF, with 12 mm
   margins, the header row on every page, rows never split, landscape from 9 columns and a smaller
   font (7 pt) from 17. A table wider than a landscape page is cut by the browser: split the view, or
   export Excel.

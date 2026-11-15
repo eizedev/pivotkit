@@ -26,12 +26,15 @@ parentPort?.on("message", async (job) => {
             echarts ??= await import("echarts");
         }
         let hidden = 0;
+        /** @type {import("./stats.js").SourceStats | null} */
+        let stats = null;
         /** @type {string | null} */
         let asOf = null;
         const env = {
             data: async () => {
                 const data = table ? tableData(spec, table, tableKey ?? null, given ?? null) : upload ? await uploadData(spec, upload, tableKey ?? null, given ?? null) : await fileData(spec);
                 hidden = /** @type {any} */ (data).hidden ?? 0;
+                stats = /** @type {any} */ (data).stats ?? null;
                 asOf = /** @type {any} */ (data).asOf ?? null;
                 return data;
             },
@@ -40,6 +43,7 @@ parentPort?.on("message", async (job) => {
             ...(echarts ? { echarts } : {}),
             limits: spec.limits,
             drafting: draftingOf(spec.levels),
+            unknownItems: true,
             ...(locale ? { locale } : {}),
             ...(timeZone ? { timeZone } : {}),
             ...(now !== undefined ? { now } : {})
@@ -50,7 +54,7 @@ parentPort?.on("message", async (job) => {
             outcome.file.bytes = outcome.file.bytes.slice();
         }
         const transfer = /** @type {any[]} */ (outcome.file ? [outcome.file.bytes.buffer] : []);
-        parentPort.postMessage({ id, outcome, hidden, asOf }, transfer);
+        parentPort.postMessage({ id, outcome, hidden, stats, asOf }, transfer);
     } catch (e) {
         const error = asOperationError(e, spec?.path);
         parentPort.postMessage({ id, error: { code: error.code, message: error.message } });
