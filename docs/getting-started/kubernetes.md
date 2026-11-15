@@ -334,7 +334,8 @@ needs the issuer too ([below](#oauth-egress)), and an [HTTP source](../reference
 needs the addresses of its backend (port 443) as the issuer does, and of its token endpoint when it
 signs in with client credentials or a token exchange ([backend sign-in](../reference/sources.md#http-auth));
 a backend inside the cluster also needs `intranet: true` on it, since cluster addresses are private
-ones, and a token endpoint inside the cluster `intranet: true` in its sign-in's settings.
+ones, and a token endpoint inside the cluster `intranet: true` in its sign-in's settings (an issuer
+inside the cluster `auth.intranet: true`, see [below](#oauth-egress)).
 
 ## Sign-in with Authentik { #oauth }
 

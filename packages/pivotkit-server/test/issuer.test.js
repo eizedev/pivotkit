@@ -288,3 +288,24 @@ test("check-config: the issuer's rules, and a PROBLEM for an issuer on a private
     const token = await checkConfig({ sources: SOURCES, baseDir: workspace(), auth: { mode: "token", intranet: true } }, { env: { PIVOTKIT_MCP_TOKEN: "x".repeat(40) } });
     assert.match(token.text, /warning: auth\.intranet has no effect without an OAuth issuer/);
 });
+
+test("a key set that cannot be read: tokens right after the failure do not ask the issuer again, and the warning is written once", async () => {
+    routes = {
+        "/.well-known/openid-configuration": metadataOf(plainIssuer),
+        "/jwks": (req, res) => {
+            res.writeHead(302, { location: "http://169.254.169.254/" });
+            res.end();
+        }
+    };
+    const server = await oauthServer(plainIssuer, { allowInsecureIssuer: true });
+    try {
+        asked = [];
+        for (let i = 0; i < 5; i++) {
+            assert.equal(await signedIn(server, plainIssuer), 401);
+        }
+        assert.equal(asked.filter((p) => p === "/jwks").length, 1);
+        assert.equal(warnings(server).match(/the issuer's keys could not be read/g)?.length, 1);
+    } finally {
+        await server.close();
+    }
+});

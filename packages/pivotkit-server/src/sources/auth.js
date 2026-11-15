@@ -364,7 +364,8 @@ async function readTokenUrl(issuer, rules, how) {
     } catch (e) {
         const error = e instanceof SourceError ? e : signInFailure(undefined);
         if (!(e instanceof SourceError)) {
-            warn(how, `the issuer's metadata could not be read for the token endpoint`);
+            // the one hint that is the operator's to act on (discover's message can name a host: not repeated)
+            warn(how, `the issuer's metadata could not be read for the token endpoint${/auth\.intranet/.test(String(/** @type {any} */ (e)?.message)) ? "; for an issuer on an internal address set auth.intranet: true" : ""}`);
         }
         endpoints.set(issuer, { error, until: Date.now() + TOKEN_LIMITS.errorMs });
         throw error;

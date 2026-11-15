@@ -29,6 +29,13 @@ export const ISSUER_LIMITS = Object.freeze({ metadataBytes: 262_144, metadataMs:
 const JWKS_CACHE = Object.freeze({ cooldownDuration: 30_000, cacheMaxAge: 600_000 });
 
 /**
+ * After a failed read of the key set: how long the next requests fail at once without asking the
+ * issuer (jose reads again on every token while it holds no keys), and how long until the warning
+ * is written again.
+ */
+export const JWKS_FAILURE = Object.freeze({ retryMs: 5000, warnMs: 60_000 });
+
+/**
  * The fetches this module uses; tests put stand-ins here (a lookup, a certificate authority).
  * `fetch` for https, `loopback` for a test issuer on plain http (auth.allowInsecureIssuer).
  */
@@ -164,21 +171,33 @@ export function jwksUriOf(metadata, issuer, configured) {
 
 /**
  * The issuer's key set for jose's jwtVerify, read through issuerFetch (jose's customFetch): at most
- * ISSUER_LIMITS.jwksBytes, no redirect. A read that fails is logged as a warning (with the hint), so
- * a key set that cannot be read does not show only as refused tokens.
+ * ISSUER_LIMITS.jwksBytes, no redirect. A read that fails is logged as a warning (with the hint, at
+ * most once a minute), so a key set that cannot be read does not show only as refused tokens; for
+ * JWKS_FAILURE.retryMs after it, tokens are refused without asking the issuer again.
  * @param {string} jwksUri
  * @param {IssuerRules} rules
  * @param {{ warn(text: string): void }} log
  */
 export async function remoteKeySet(jwksUri, rules, log) {
     const { createRemoteJWKSet, customFetch } = await import("jose");
+    /** The last failed read: its time and error; when the warning was last written. */
+    let failed = { at: 0, error: /** @type {unknown} */ (null) };
+    let warnedAt = 0;
     /** @type {import("jose").FetchImplementation} */
     const fetchKeys = async (url, request) => {
+        if (failed.error && Date.now() - failed.at < JWKS_FAILURE.retryMs) {
+            throw failed.error;
+        }
         try {
             const answer = await issuerFetch(url, rules, { headers: Object.fromEntries(request.headers), signal: request.signal, maxBytes: ISSUER_LIMITS.jwksBytes, timeMs: ISSUER_LIMITS.jwksMs });
+            failed = { at: 0, error: null };
             return new Response(/** @type {any} */ (answer.body), { status: answer.status, headers: { "content-type": answer.headers["content-type"] ?? "application/json" } });
         } catch (e) {
-            log.warn(`oauth: the issuer's keys could not be read from ${url}: ${e instanceof GuardedFetchError ? `${e.code}, ${e.message}` : String(/** @type {any} */ (e)?.message ?? e).slice(0, 200)}${issuerHint(e, rules)}`);
+            failed = { at: Date.now(), error: e };
+            if (Date.now() - warnedAt >= JWKS_FAILURE.warnMs) {
+                warnedAt = Date.now();
+                log.warn(`oauth: the issuer's keys could not be read from ${url}: ${e instanceof GuardedFetchError ? `${e.code}, ${e.message}` : String(/** @type {any} */ (e)?.message ?? e).slice(0, 200)}${issuerHint(e, rules)}`);
+            }
             throw e;
         }
     };

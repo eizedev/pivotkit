@@ -247,7 +247,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   256 KiB. The download sign-in reads the keys where the access tokens' are read (`auth.jwksUri`, or
   a `jwks_uri` on the issuer's origin). A refused request is a warning that names the setting;
   `check-config` prints the rules and a PROBLEM for an issuer on such an address
-  ([#420](https://github.com/eizedev/pivotkit/issues/420)).
+  ([#420](https://github.com/eizedev/pivotkit/issues/420)). The exported `discover(issuer)` follows
+  the same rules and refuses a loopback or private issuer unless its second argument allows it
+  (`{ intranet: true, insecure: false, origins: [] }`). After a failed read of the key set, tokens
+  are refused for 5 seconds without asking the issuer again, and the warning comes at most once a
+  minute.
 - A code source's operation is computed in a worker as a table job, as an HTTP source's: `load` and
   the reading of its rows stay in the host's thread, the encoding and the report are bounded by
   `compute.timeMs` and `compute.memoryMb` ([#414](https://github.com/eizedev/pivotkit/issues/414)).
