@@ -10,8 +10,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - Export → HTML report carries the host's dark colours too (pivotkit-report's `darkTokens`), read
   from the report's dark theme whichever theme it shows: a reader on a dark screen sees the host's
-  dark design, not pivotkit's default dark colours. Paper and a print stay light
-  ([#385](https://github.com/eizedev/pivotkit/issues/385)).
+  dark design, not pivotkit's default dark colours. Paper and a print stay light. The report's
+  `--pk-scale-mid` on a dark screen is the one your dark theme resolves (pivotkit-report no longer
+  takes the light one there) ([#385](https://github.com/eizedev/pivotkit/issues/385)).
 - Print or save as PDF opens the print dialog in the click itself: the Export menu makes the print
   frame ready when it opens, and the report's modules load when Print is pointed at or focused.
   Safari asked "This webpage is trying to print" from the second print on while the dialog came an

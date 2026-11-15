@@ -34,10 +34,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Fixed
 
-- HTML report on a dark screen: the colour scale's middle colour (`--pk-scale-mid` of `tokens` or of
-  a template's light rule) stays out, as it is a light colour; the cells run halfway between the
-  dark low and high colours, or through `darkTokens`' middle colour
-  ([#385](https://github.com/eizedev/pivotkit/issues/385)).
+- HTML report on a dark screen: `--pk-scale-mid` is `initial` unless `darkTokens` sets it, so a
+  host's light middle colour (of `tokens` or of a template's light rule) no longer shows in dark
+  mode; the cells run halfway between the dark low and high colours. This changes how an existing
+  report with a middle colour looks on a dark screen: pass the middle colour in `darkTokens` to keep
+  one there ([#385](https://github.com/eizedev/pivotkit/issues/385)).
 - HTML report on a dark screen: a colour scale whose view names no colours runs through the dark
   theme's heat colours, as the report on a page does; the light ones made its low end a bright grey
   under light text (3.3:1). A view's own colours are mixed fainter there (30 %, as on the page).
