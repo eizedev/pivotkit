@@ -78,7 +78,7 @@ const ISSUER_OF_ITS_OWN = "https://github.com/eizedev/pivotkit/issues/441";
 /**
  * Whether two issuer addresses name the same issuer once normalised: the scheme and host in lower
  * case, a default port left out (both as URL parses them), a trailing slash of the path left out.
- * The path's case and the query count. Tokens name an issuer exactly, so this only tells a spelling
+ * The path's case, the port, the query, the fragment and a user name or password count. Tokens name an issuer exactly, so this only tells a spelling
  * difference from another issuer, for the message.
  * @param {string} a
  * @param {string | undefined} b
@@ -89,7 +89,8 @@ export function sameIssuer(a, b) {
     }
     const norm = (text) => {
         const url = new URL(text);
-        return `${url.origin}${url.pathname.replace(/\/+$/, "")}${url.search}`;
+        // a user name or password is part of the address (and refused elsewhere): never a spelling difference
+        return JSON.stringify([url.protocol, url.username, url.password, url.host, url.pathname.replace(/\/+$/, ""), url.search, url.hash]);
     };
     return norm(a) === norm(b);
 }

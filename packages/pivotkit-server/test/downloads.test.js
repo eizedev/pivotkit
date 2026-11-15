@@ -231,15 +231,26 @@ test("options: expiry from 1 to 1440 minutes; enabled next to output.baseUrl, a 
 
 test("signIn.issuer: compared with auth.issuer after normalising; a spelling difference and another issuer are refused at start and by check-config, with what to do", async () => {
     const oauth = { mode: "oauth", issuer: "https://auth.example.com/application/o/pivotkit/", resource: MCP_RESOURCE };
-    const options = (issuer) => ({ sources: { sales: { file: "data/sales.csv" } }, baseDir: workspace(), output: { dir: "out", downloads: { signIn: { clientId: CLIENT_ID, issuer } } }, auth: oauth, http: { publicUrl: PUBLIC } });
+    const options = (issuer, auth = oauth) => ({ sources: { sales: { file: "data/sales.csv" } }, baseDir: workspace(), output: { dir: "out", downloads: { signIn: { clientId: CLIENT_ID, issuer } } }, auth, http: { publicUrl: PUBLIC } });
     // the same issuer, written another way: the tokens name it exactly as auth.issuer, so one of the two would never match
     for (const spelling of ["https://auth.example.com/application/o/pivotkit", "https://AUTH.example.com/application/o/pivotkit/", "HTTPS://auth.example.com/application/o/pivotkit/", "https://auth.example.com:443/application/o/pivotkit/"]) {
         assert.throws(() => validateOptions(options(spelling)), /^ConfigError: output\.downloads\.signIn\.issuer: must be auth\.issuer exactly; it differs only in its spelling \(a trailing slash, upper-case letters in the scheme or host, a default port\), and tokens name the issuer as auth\.issuer does: leave signIn\.issuer out$/, spelling);
     }
     // another issuer (another Authentik application, another realm, a path in other case): the per-application case points to the follow-up
     const another = /^ConfigError: output\.downloads\.signIn\.issuer: must be auth\.issuer \("https:\/\/auth\.example\.com\/application\/o\/pivotkit\/"\), not "[^"]+": a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did; leave it out\. A download sign-in with an issuer of its own \(a provider with one issuer per application, such as Authentik\) is https:\/\/github\.com\/eizedev\/pivotkit\/issues\/441$/;
-    for (const other of ["https://auth.example.com/application/o/pivotkit-downloads/", "https://auth.example.com/application/o/Pivotkit/", "https://login.example.com/application/o/pivotkit/"]) {
-        assert.throws(() => validateOptions(options(other)), another, other);
+    for (const other of [
+        "https://auth.example.com/application/o/pivotkit-downloads/",
+        "https://auth.example.com/application/o/Pivotkit/",
+        "https://login.example.com/application/o/pivotkit/",
+        "http://auth.example.com/application/o/pivotkit/",
+        "https://auth.example.com:8443/application/o/pivotkit/",
+        "https://auth.example.com/application/o/pivotkit/?tenant=b",
+        "https://auth.example.com/application/o/pivotkit/#b",
+        "https://someone@auth.example.com/application/o/pivotkit/",
+        "https://someone:secret@auth.example.com/application/o/pivotkit/"
+    ]) {
+        // allowInsecureIssuer lets an http:// address reach the comparison
+        assert.throws(() => validateOptions(options(other, { ...oauth, allowInsecureIssuer: true })), another, other);
     }
     // check-config refuses the same configuration with the same words (exit 1 in the command)
     await assert.rejects(checkConfig(options("https://auth.example.com/application/o/pivotkit-downloads/"), { http: true }), another);

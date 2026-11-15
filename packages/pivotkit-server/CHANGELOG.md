@@ -250,7 +250,6 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   slash, case of the scheme and host, a default port): a spelling difference says to leave the key
   out, another issuer points to the planned sign-in with an issuer of its own
   ([#434](https://github.com/eizedev/pivotkit/issues/434)).
-
 - The requests to the OAuth issuer (metadata, keys, the download sign-in's token endpoint) go through
   guardedFetch, with its rules: no redirects, the address checked where the connection goes,
   link-local and cloud metadata addresses never, loopback and private addresses only with the new
