@@ -422,7 +422,10 @@ more); at most 4 loads of one source and 2 of one person run at once; last good 
 after a transient failure, with `stale: { since }`, and a refusal drops it. A load aborted because
 every caller went away keeps nothing: the next call loads again. A caller without an identity (an
 OAuth token without a usable subject) gets nothing kept and shares no load. For a source with a
-token exchange or a claim, the data is kept per person, client and scopes, as its token is.
+token exchange or a claim, the data is kept per person, client and scopes, as its token is. A JSON
+answer is kept without the columns the caller's policy hides (so a caller whose profile shows more
+gets its own copy); a CSV answer is kept as it came and read per call, its hidden columns dropped
+then. The key holds the values and the caller only as a keyed digest.
 
 ### check-config and check-source { #check-source }
 
@@ -532,6 +535,7 @@ The example compiles with strict TypeScript: pivotkit-server's types give `load`
 | `sources.<id>.ttl` | none (only `version` decides) | Seconds a load is reused; `0` only shares loads that run at the same time |
 | `sources.<id>.maxStale` | 3600 s | How old the last good data may be to stand in after a transient failure; `0` turns it off |
 | `sources.<id>.cacheShared` | `false` | The data is the same for every caller: one copy for all, and `load` gets `caller: null` |
+| `sources.<id>.perPerson` | `false` | The data differs per caller (each person sees their own): its reports count as closed for [download links](delivery.md), so only the person who asked can open them (a sign-in link) or no link is given. Not with `cacheShared` |
 
 `checkConfig` lists each code source: its time limit, how its data is kept, and whether last good
 data may stand in. It checks the options first as `createContext` does, so it throws the same
@@ -604,7 +608,9 @@ cells are written as JSON text, and every text is cut at `limits.textLength`.
   static token's name, or `local`), with the client, its scopes, the groups and the claims, the
   values of `params` and the caller's policy levels. A caller without an identity (an OAuth token
   without a usable subject) gets nothing kept, shares no load and gets no last good data. With
-  `cacheShared: true` all callers share one copy per set of values and policy levels.
+  `cacheShared: true` all callers share one copy per set of values and policy levels. The key of
+  kept data holds the values, groups and claims only as a keyed digest (random per process), not in
+  clear text.
 - **Reuse.** Kept data is reused while `version` gives the same value (and within `ttl` when both
   are set), or for `ttl` seconds without `version`. Without either, every call loads. `ttl` counts
   from when the load ended.

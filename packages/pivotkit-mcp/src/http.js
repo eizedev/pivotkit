@@ -89,6 +89,24 @@ function isBrowser(request) {
     return request.method === "GET" && accept.includes("text/html") && !accept.includes("text/event-stream") && !mcp;
 }
 
+/** How the SDK names a refusal of its own ("Rejected inbound request (name-header-mismatch): ..."): lower-case words and dashes. */
+const SDK_REFUSAL = /^Rejected inbound request \(([a-z0-9-]{1,60})\)/;
+
+/**
+ * Logs a request the protocol layer refused: at warn its error's class and the SDK's fixed name for
+ * the refusal, never the message, which can quote the body (a parameter's value, a cell of data sent
+ * in the request); the message only at debug, for the operator who sets the server up.
+ * @param {any} log
+ * @param {unknown} error
+ */
+function protocolRefusal(log, error) {
+    const message = String(/** @type {any} */ (error)?.message ?? error);
+    const kind = error instanceof Error ? error.name : "Error";
+    const named = SDK_REFUSAL.exec(message)?.[1];
+    log.warn(`request refused by the protocol layer: ${kind.slice(0, 60)}${named ? ` (${named})` : ""}`);
+    log.debug("request refused by the protocol layer", { error: message.slice(0, 500) });
+}
+
 /**
  * The fetch handler of a context.
  * @param {any} context  createMcpContext's
@@ -101,8 +119,9 @@ export async function createHttpHandler(context, runtime = {}) {
     const hosts = allowedHosts(context.options);
     const origins = http.allowOrigins ?? [];
     const auth = await createAuth(context, { env: runtime.env ?? process.env, loopback: runtime.loopback ?? isLoopback(http.host ?? "127.0.0.1") });
-    // the SDK reports requests it refused (no JSON, a wrong protocol header) here: a client's mistake, a warning
-    const handler = createMcpHandler((ctx) => context.server(ctx), { legacy: "stateless", maxRequestBodySize: BODY_BYTES, onerror: (e) => context.log.warn(`request refused by the protocol layer: ${String(e?.message ?? e).slice(0, 200)}`) });
+    // the SDK reports requests it refused (a wrong protocol header, headers and body that disagree)
+    // here: a client's mistake, a warning
+    const handler = createMcpHandler((ctx) => context.server(ctx), { legacy: "stateless", maxRequestBodySize: BODY_BYTES, onerror: (e) => protocolRefusal(context.log, e) });
     const limits = createLimits(context.options.mcp);
     const trustProxy = http.trustProxy ?? false;
     const downloads = createDownloadHandler(context, { env: runtime.env ?? process.env, loopback: runtime.loopback ?? isLoopback(http.host ?? "127.0.0.1") });
@@ -235,6 +254,7 @@ export async function createHttpHandler(context, runtime = {}) {
         },
         async close() {
             downloads.close();
+            limits.close();
             auth.close?.();
             await handler.close();
         }

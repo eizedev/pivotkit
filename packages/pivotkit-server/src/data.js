@@ -58,6 +58,23 @@ function withoutHidden(table, hide) {
     return { columns: keep.map((i) => table.columns[i]), types: table.types ? keep.map((i) => table.types[i]) : undefined, data: keep.map((i) => table.data[i]) };
 }
 
+/**
+ * A table loaded in the main thread (columns, rows as lists) without the columns the levels hide,
+ * before it is kept (an HTTP source's answer): `dropped` says how many went, so tableData still
+ * counts them as hidden.
+ * @param {{ default: string, fields: Record<string, string> }} levels
+ * @param {{ columns: string[], rows: unknown[][] }} table
+ * @returns {{ columns: string[], rows: unknown[][], dropped: number }}
+ */
+export function withoutHiddenRows(levels, table) {
+    const hide = hiddenOf(levels, table.columns);
+    if (!hide.length) {
+        return { columns: table.columns, rows: table.rows, dropped: 0 };
+    }
+    const keep = table.columns.map((c, i) => (hide.includes(fieldKey(c)) ? -1 : i)).filter((i) => i >= 0);
+    return { columns: keep.map((i) => table.columns[i]), rows: table.rows.map((row) => keep.map((i) => row[i])), dropped: hide.length };
+}
+
 /** Reader notes without those about a hidden column: nothing about it reaches the model. */
 const cleanNotes = (notes, hide) => notes.filter((n) => !hide.some((h) => fieldKey(n.message).includes(h)));
 
@@ -277,7 +294,9 @@ export function tableData(spec, table, key, asOf = null, notes = []) {
     const hide = hiddenOf(spec.levels, columns);
     try {
         const data = encode(/** @type {any} */ (withoutHidden(/** @type {any} */ (columnar), hide)), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        const out = { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data), asOf: asOf ?? asOfText(new Date()) };
+        // columns dropped before the table was kept (withoutHiddenRows) count as hidden too
+        const dropped = Number(/** @type {any} */ (table).dropped) || 0;
+        const out = { data, notes: cleanNotes(notes, hide), hidden: hide.length + dropped, stats: sourceStats(data), asOf: asOf ?? asOfText(new Date()) };
         return of(key !== null ? remember(key, out) : out);
     } catch (e) {
         throw asOperationError(e, spec.name);

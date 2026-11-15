@@ -15,8 +15,12 @@ Which report gets which link depends on the source. A source is **open** when it
 `"default": "show"` and no field below `show`, for the server's policy, the source's and every
 profile; listing every column as `show` is not enough, since a column the data gains later would
 take the default. A source with a field at `values`, `summary` or `hide` for anyone, or whose default
-is not `show`, is **closed**, since its report may hold what the model was not shown. `check-config`
-names, for each closed source, what makes it closed.
+is not `show`, is **closed**, since its report may hold what the model was not shown. Data that
+belongs to one person counts as closed too, whatever its fields' levels: data sent in the request
+(`inline:`), a source bound to a person (a [parameter bound to a claim](sources.md#http-claims) or a
+backend's [token exchange](sources.md#http-auth)), and a code source you mark with
+[`perPerson: true`](sources.md#code-options). `check-config` names, for each closed source, what
+makes it closed.
 
 | Source | Caller | Link |
 | --- | --- | --- |
@@ -88,6 +92,9 @@ several audiences must name this client as `azp`). Register at the provider:
    documentation). A claim such as `email` binds a link only as strongly as the provider checks
    that the address belongs to the person (and keeps it from moving to another account).
 
+The link holds the person only as a keyed digest of the link's own random part, the issuer and the
+subject: it does not tell who it is for, and two links of one person cannot be tied to each other.
+
 ID tokens must be signed with a key from the issuer's `jwks_uri` (RS256, ES256 and the like); tokens
 signed with the client secret (HS256) are not accepted. Someone signed in as another account gets
 403 "You are signed in as a different account than the one that asked for this report." No session
@@ -108,7 +115,8 @@ Anyone who sees a one-time link can use it once, and an assistant with a browser
 use it before the person does. `check-config` warns of that; use `signIn` where it matters.
 
 Which links were used is kept in `.pivotkit-downloads/` in the output directory, a file per link
-made exclusively, so replicas sharing the directory agree; the files go once their link expired. Each
+made exclusively, so replicas sharing the directory agree; the files go once their link expired
+(swept every ten minutes, and on a one-time download). Each
 file is written whole and then hard-linked to its name, so the output directory's file system must
 support hard links (local disks and NFS do; some network or object-store mounts do not, and a
 one-time download there answers 500).
@@ -171,14 +179,24 @@ proxy's name to `http.allowHosts`), and set `http.publicUrl` to the address peop
 in the link's path: proxies and browsers keep paths in their logs and history. That is why plain
 links go only to reports over open sources; keep proxy logs of `/downloads/` short or leave the path
 out of them. The server's own log names a download's binding, outcome and request id, never its
-token; a link that does not exist is on the debug log only (`--log debug`), so a scan does not fill
+token; with [`audit.subject`](mcp.md#logging) on, a sign-in link's line also names the person who
+signed in (who got the file, or who was refused with `LINK_NOT_YOURS`), as a call's line does; a link that does not exist is on the debug log only (`--log debug`), so a scan does not fill
 the log. With more than one replica, set `output.downloads.key` (the same on every replica) and give
 them one output directory (a ReadWriteMany volume), or run one replica; see
 [the container](container.md) and [Kubernetes](../getting-started/kubernetes.md).
 
 `output.baseUrl` (your own web server for the directory) still works instead of these links. It gives
-an address only to reports over open sources: a report over a closed source carries no `url`, since
-anyone with the address could open a report whose fields were withheld from the model.
+an address only to reports over open sources: a report over a closed source (data per person
+included) carries no `url`, since anyone with the address could open a report whose fields were
+withheld from the model, or another person's data. Such an address works as long as the file is
+there, 30 days by default (`output.maxAgeDays`).
+
+Reports stay in the output directory after their link expired, until `output.maxFiles`,
+`output.maxMb` or `output.maxAgeDays` remove them. `output.maxAgeDays` is 30 by default: reports and
+schedule drafts older than 30 days are deleted at start and every hour; `output.maxAgeDays: 0` keeps
+them with no age limit, and the default does not apply where the output directory holds the
+configuration or a source, template or token file. `check-config` warns under `Retention:` when you
+set 0 while closed sources or data sent in requests are on.
 
 `check-config` prints a `Delivery:` section: where links point, which sources get which link, the
 redirect URI to register and the warnings.
