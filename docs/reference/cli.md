@@ -154,7 +154,7 @@ and `pivotkit help <command>` lists the ones that act in it.
 | `render --lenient` wrote despite errors | the errors, then `wrote out.html despite 2 errors (--lenient)` |
 | the view has errors | the errors, then `nothing written: the view has errors.` |
 | `validate` found nothing | `valid: no errors, no warnings (with sales.csv)`, or without `--data`: `valid against the fields the view file lists (source.fields), not against data: give --data to check it with the data` |
-| a usage error | `pivotkit: ...; see "pivotkit help render"` |
+| a usage error | `pivotkit: ...; run "pivotkit render --help"`; an unknown option `pivotkit: unknown option "--bogus"; run "pivotkit render --help"`, an option before the command `"--json" comes after the command: pivotkit sources --json` (run as `pivotkit-server cli`, the pointers say `pivotkit-server cli`) |
 | `-o` into a directory that does not exist | below the working directory `the directory "out" does not exist: create it first (mkdir -p out)`, elsewhere `its directory does not exist` |
 | `-o report.html -f csv` | a usage error: the name says HTML, `-f` CSV (an extension that is no format of pivotkit's, `-o out.txt -f csv`, is written as asked) |
 | an HTML report to the terminal (no `-o`) | the report on stdout, and `an HTML report was written to the terminal: add -o report.html to save it` |
@@ -456,8 +456,11 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
   characters), never headers, the answer's body, the full address or the text of a network error.
   A 401 is one line: "the server needs a token: set PIVOTKIT_TOKEN or give --token-file <file>" when
   none was sent, "the server refused the token from --token-file token.txt: ..." with the server's
-  reason when one was. Fixed hints: 403 `NOT_ALLOWED` "this token's profile has no results: true",
-  429 and 503 "retry in N s" (a `Retry-After` over a day is left out).
+  reason when one was. A missing parameter ends with "re-run with --param customer=acme", a refused
+  value with "fix it with --param customer=<value>". A render the token may not make says to ask
+  the operator for a token whose profile has `results: true`, and that validate, describe and
+  sources still work with it. Other hints follow the server's words after a semicolon, never in a
+  second parenthesis: 429 and 503 "retry in N s" (a `Retry-After` over a day is left out).
 
 ## The sheet of a workbook
 

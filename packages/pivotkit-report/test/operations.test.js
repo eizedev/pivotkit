@@ -249,3 +249,7 @@ test("env.unknownItems: an item of an in filter that is none of a text field's v
     const rendered = await OPERATIONS.render_view.run({ source: "sales", view, format: "csv" }, { ...env, unknownItems: true });
     assert.equal(rendered.result.findings.filter((f) => f.code === "itemUnknown").length, 2);
 });
+
+test("checkInput: a text over its length says the limit, its own length and to shorten it", () => {
+    assert.throws(() => checkInput(OPERATIONS.render_view.input, { source: "s", view: "{}", format: "csv", name: "n".repeat(81) }), (e) => e.code === "INVALID_INPUT" && e.message === "input.name must have at most 80 characters, not 81; shorten it");
+});

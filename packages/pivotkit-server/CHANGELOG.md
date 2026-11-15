@@ -95,11 +95,14 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   for an id that names no HTTP source; `OK with customer=acme` on success; the `--param` to re-run
   with for a missing value; on a backend's 401 or 403 the secret behind `http.auth` (its variable or
   file) or where to set one ([#424](https://github.com/eizedev/pivotkit/issues/424)).
-- `pivotkit-server --help` names `--version`; an unknown flag points to `--help` (pivotkit-mcp's
-  too).
+- `pivotkit-server --help` names `--version` and lists it before `--help`, as pivotkit-mcp's help
+  does. Unknown options and commands read `unknown option "--bogus"; run "pivotkit-server --help"`
+  (pivotkit-mcp's alike); `--auth` with another value says `--auth must be none, token or oauth`.
 - Parameters: a refused value's `INVALID_INPUT` names the parameter's description, example and short
-  pattern after "; expected:" (no parentheses, which a pattern may hold); `GET /sources/{id}` of a
-  source that needs params says to use `POST /sources/describe`; a value must have the parameter's type (a number for a `string` parameter is refused) and
+  pattern in one parenthesis ("params.customer is not in the expected form (The customer's short
+  name, for example acme; pattern ...)"); a missing one ends with "re-run with
+  params.customer=acme"; `GET /sources/{id}` of a source that needs params says to use `POST
+  /sources/describe`; render without `results: true` says to ask the operator for such a token; a value must have the parameter's type (a number for a `string` parameter is refused) and
   a text must be well-formed Unicode; `list_sources` adds each parameter's `pattern`, `format`,
   `minLength`, `maxLength`, `minimum` and `maximum`. The descriptions of `list_sources`,
   `describe_source`, `render_view` and the `params` input say that required params go into every

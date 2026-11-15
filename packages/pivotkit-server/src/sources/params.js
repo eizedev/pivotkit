@@ -321,7 +321,8 @@ export function normalizeParams(declared, given, caller, id) {
         }
         if (value === undefined) {
             if (p.required) {
-                throw new OperationError("INVALID_INPUT", `the source ${id} needs params.${p.name} (${p.type})${p.description ? `: ${p.description}` : ""}${p.enum ? `, one of ${p.enum.join(", ")}` : p.example !== undefined ? `, for example ${p.example}` : ""}`);
+                const about = [p.description, p.example !== undefined ? `for example ${p.example}` : p.enum ? `one of ${p.enum.join(", ")}` : null].filter(Boolean).join(", ") || `a ${p.type}`;
+                throw new OperationError("INVALID_INPUT", `the source ${id} needs params.${p.name} (${about}); ${rerunText(p)}`);
             }
             continue;
         }
@@ -344,14 +345,24 @@ const HINT_PATTERN = 40;
 
 /**
  * What a refusal of a caller's value adds about the parameter: its description, an example, a short
- * pattern ("" when it has none of them). Not in parentheses: a pattern or a description may hold
- * some, and a front end adds its own after the message (MCP's request id, the CLI's hint).
+ * pattern ("" when it has none of them), in one parenthesis at the end of the message (MCP puts its
+ * request id inside it, so no two stand in a row).
  * @param {any} p  a declaration
  */
 function hintOf(p) {
-    const parts = [p.description, p.example !== undefined ? `for example ${p.example}` : null, typeof p.pattern === "string" && p.pattern.length <= HINT_PATTERN ? `pattern ${p.pattern}` : null].filter(Boolean);
-    return parts.length ? `; expected: ${parts.join("; ")}` : "";
+    const about = [p.description, p.example !== undefined ? `for example ${p.example}` : null].filter(Boolean).join(", ");
+    const pattern = typeof p.pattern === "string" && p.pattern.length <= HINT_PATTERN ? `pattern ${p.pattern}` : "";
+    const parts = [about, pattern].filter(Boolean);
+    return parts.length ? ` (${parts.join("; ")})` : "";
 }
+
+/**
+ * How a caller gives a missing parameter, in the one form every surface uses: "re-run with
+ * params.customer=acme" (the CLI and check-source say --param customer=acme), the declared example
+ * where there is one.
+ * @param {any} p  a declaration
+ */
+export const rerunText = (p) => `re-run with params.${p.name}=${p.example ?? p.enum?.[0] ?? "<value>"}`;
 
 /**
  * One value of a parameter, checked and written again.
@@ -396,7 +407,7 @@ function valueOf(name, p, value) {
             // an operator's pattern, anchored, runs on at most PARAM_LIMITS.length characters (maxLength holds)
             const matched = matchWithin(p.regex, text);
             if (matched === null) fail("could not be checked in time; send a shorter or simpler value");
-            if (!matched) fail("is not in the form the source takes");
+            if (!matched) fail("is not in the expected form");
         } else if (!p.enum && !SAFE_TEXT.test(text)) {
             fail('may hold letters, digits and . _ ~ - only (the operator sets a pattern for other values)');
         }

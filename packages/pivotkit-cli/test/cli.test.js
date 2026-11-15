@@ -29,10 +29,24 @@ test("help: pivotkit, a command's help and help <command>; an unknown command is
     const wrong = await run(["rendr"]);
     assert.equal(wrong.code, 2);
     assert.equal(wrong.stdout, "");
-    assert.match(wrong.stderr, /unknown command "rendr"; did you mean render\?/);
+    assert.equal(wrong.stderr, 'pivotkit: unknown command "rendr"; did you mean render? run "pivotkit --help"\n');
     const flag = await run(["render", "--formt", "csv"]);
     assert.equal(flag.code, 2);
-    assert.match(flag.stderr, /unknown option --formt for "render"; did you mean --format\?/);
+    assert.equal(flag.stderr, 'pivotkit: unknown option "--formt"; did you mean --format? run "pivotkit render --help"\n');
+    // an option before the command: where it goes; the JSON names the command, not the option
+    const early = await run(["--json", "sources"]);
+    assert.equal(early.code, 2);
+    const envelope = JSON.parse(early.stdout);
+    assert.equal(envelope.command, "sources");
+    assert.equal(envelope.error.message, '"--json" comes after the command: pivotkit sources --json; run "pivotkit help"');
+    assert.equal((await run(["--bogus"])).stderr, 'pivotkit: unknown option "--bogus"; run "pivotkit --help"\n');
+    // run as "pivotkit-server cli", the pointers name that
+    const { main } = await import("../src/cli.js");
+    const err = [];
+    const io = { stdin: process.stdin, stdout: { write() {} }, stderr: { write: (t) => err.push(t) }, env: {}, cwd: process.cwd(), program: "pivotkit-server cli" };
+    assert.equal(await main(["render", "--bogus"], io), 2);
+    assert.equal(await main(["bogus"], io), 2);
+    assert.deepEqual(err, ['pivotkit: unknown option "--bogus"; run "pivotkit-server cli render --help"\n', 'pivotkit: unknown command "bogus"; run "pivotkit-server cli --help"\n']);
 });
 
 test("--version names the CLI, pivotkit-report and pivotkit-core", async () => {

@@ -173,7 +173,9 @@ export async function checkSource(options, id, params, means = {}) {
         values = normalizeParams(source.params, given, { claims }, id);
     } catch (e) {
         const missing = missingParams(source.params, params);
-        lines.push(`  params: ${/** @type {Error} */ (e).message}`, ...(missing.length ? [`  re-run with ${missing.join(" ")}`] : []), "FAILED");
+        // the message's "; re-run with params.x=..." said once, for every missing one, as flags
+        const message = /** @type {Error} */ (e).message.replace(/; re-run with params\..*$/, "");
+        lines.push(`  params: ${message}`, ...(missing.length ? [`  re-run with ${missing.join(" ")}`] : []), "FAILED");
         return { text: `${lines.join("\n")}\n`, ok: false };
     }
     /** @type {string[]} */

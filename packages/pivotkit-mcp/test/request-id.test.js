@@ -42,3 +42,8 @@ test("tool calls: each call's log line has its own id", async () => {
         await server.close();
     }
 });
+
+test("tool errors: a message that ends in a parenthesis takes the request id inside it, never a second one after it", () => {
+    const refused = new OperationError("INVALID_INPUT", "params.team must be one of blue, red (The team, for example blue)");
+    assert.equal(errorResult(refused, { requestId: "ZZZZZZZZZZZ" }).content[0].text, "INVALID_INPUT: params.team must be one of blue, red (The team, for example blue; request id ZZZZZZZZZZZ)");
+});

@@ -468,7 +468,7 @@ export async function renderFile(context, input, caller, how = {}) {
     checkDepth(input);
     const resolved = await resolveFor(context, input, caller, { files: false, surface: "rest", ...(how.upload ? { upload: how.upload } : {}) });
     if (!resolved.policy.results) {
-        throw new OperationError("NOT_ALLOWED", "your token may not download files (the operator allows it per profile: results: true)");
+        throw new OperationError("NOT_ALLOWED", "your token may not download files; ask the operator for a token whose profile has results: true");
     }
     const format = input.format ?? "xlsx";
     const ran = await compute(context, "render_view", { ...input, format }, resolved, caller, how.signal);

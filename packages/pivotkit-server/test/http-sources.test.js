@@ -222,7 +222,7 @@ test("a caller's values are checked before any request: a missing one names the 
     try {
         const missing = await failure(describe(context, undefined));
         assert.equal(missing.code, "INVALID_INPUT");
-        assert.equal(missing.message, "the source vms needs params.customer (string): The customer's short name, for example acme");
+        assert.equal(missing.message, "the source vms needs params.customer (The customer's short name, for example acme); re-run with params.customer=acme");
         for (const customer of ["../admin", "acme/../../admin", "ACME", "acme%2F..", "a".repeat(41)]) {
             assert.equal((await failure(describe(context, { customer }))).code, "INVALID_INPUT", customer);
         }
@@ -592,7 +592,13 @@ test("check-source for the operator: options in any order, exit 2 for an id that
     assert.match(err.join(""), /check-source takes one source's id, not 2 \(vms, other\)/);
     err.length = 0;
     assert.equal(await run(["check-source", "vms", "--config", file, "--bogus"], io), 2);
-    assert.match(err.join(""), /Unknown option '--bogus'; --help lists the options/);
+    assert.equal(err.join(""), 'pivotkit-server: unknown option "--bogus"; run "pivotkit-server --help"\n');
+    err.length = 0;
+    assert.equal(await run(["serve", "--auth", "bogus"], io), 2);
+    assert.equal(err.join(""), 'pivotkit-server: --auth must be none, token or oauth; run "pivotkit-server --help"\n');
+    err.length = 0;
+    assert.equal(await run(["bogus"], io), 2);
+    assert.equal(err.join(""), 'pivotkit-server: unknown command "bogus"; run "pivotkit-server --help"\n');
 
     // a missing required value: the flag to re-run with, the declared example
     const missing = await checkSource(optionsOf(), "vms", {});
@@ -631,7 +637,7 @@ test("REST: GET /sources/{id} of a source that needs params points to POST /sour
         const got = await call(`${s.api}/sources/vms?customer=acme`);
         assert.equal(got.status, 400);
         assert.equal(got.data.code, "INVALID_INPUT");
-        assert.equal(got.data.detail, 'the source vms needs params.customer (string): The customer\'s short name, for example acme. GET /sources/{id} takes no params: send them with POST /sources/describe, {"source": "vms", "params": {...}}');
+        assert.equal(got.data.detail, 'the source vms needs params.customer (The customer\'s short name, for example acme); re-run with params.customer=acme. GET /sources/{id} takes no params: send them with POST /sources/describe, {"source": "vms", "params": {...}}');
         const posted = await call(`${s.api}/sources/describe`, { body: { source: "vms", params: { customer: "acme" } } });
         assert.equal(posted.status, 200, JSON.stringify(posted.data));
         // POST names no route to go to: only the GET does
@@ -647,7 +653,7 @@ test("pivotkit-server --help names --version", async () => {
     const io = { env: {}, stdout: { write: (t) => out.push(t) }, stderr: { write: (t) => out.push(t) } };
     assert.equal(await run(["--help"], io), 0);
     assert.match(out.join(""), /\n {7}pivotkit-server --version\n/);
-    assert.match(out.join(""), /\n {2}--version +Print the version and exit\.\n/);
+    assert.match(out.join(""), /\n {2}--version +Print the version and exit\.\n {2}--help +Print this help and exit\.\n/, "--version before --help, as pivotkit-mcp's");
 });
 
 test("an answer without rows is an empty table: describe_source says no rows and render_view a report without them, not an error", async () => {
@@ -765,7 +771,7 @@ test("a caller's value of the wrong form: refused with the parameter's descripti
     const context = await contextOf(optionsOf());
     try {
         const upper = await failure(describe(context, { customer: "ACME" }));
-        assert.equal(upper.message, "params.customer is not in the form the source takes; expected: The customer's short name; for example acme; pattern ^[a-z0-9-]{1,40}$");
+        assert.equal(upper.message, "params.customer is not in the expected form (The customer's short name, for example acme; pattern ^[a-z0-9-]{1,40}$)");
         assert.match((await failure(describe(context, { customer: 42 }))).message, /^params\.customer must be a text/);
         assert.equal(asked.length, 0);
     } finally {

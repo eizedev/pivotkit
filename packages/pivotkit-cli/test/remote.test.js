@@ -218,14 +218,19 @@ test("params: sources names what a source needs; --param goes with the source as
         assert.deepEqual(server.requests.map((r) => [r.url.slice(PATH_MARK.length), JSON.parse(r.body).source, JSON.parse(r.body).params]), [["/views/validate", "vms", { customer: "acme" }], ["/views/render/file", "vms", { customer: "acme" }]]);
 
         // a required value left out: the server's words and the flag that gives it, not the REST route's pointer
-        const without = await fakeServer((req, res) => problem(res, req, 400, "INVALID_INPUT", { detail: 'the source vms needs params.customer (string): The customer\'s short name, for example acme. GET /sources/{id} takes no params: send them with POST /sources/describe, {"source": "vms", "params": {...}}' }));
+        const without = await fakeServer((req, res) => problem(res, req, 400, "INVALID_INPUT", { detail: 'the source vms needs params.customer (The customer\'s short name, for example acme); re-run with params.customer=acme. GET /sources/{id} takes no params: send them with POST /sources/describe, {"source": "vms", "params": {...}}' }));
         try {
             const r = await remote(without, ["sources", "vms"]);
             assert.equal(r.code, 2);
-            assert.match(r.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: the source vms needs params\.customer \(string\): The customer's short name, for example acme \(give it with --param customer=<value>\)\n$/);
+            assert.match(r.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: the source vms needs params\.customer \(The customer's short name, for example acme\); re-run with --param customer=acme\n$/);
         } finally {
             await without.close();
         }
+
+        // a token file that is not there: named after the flag
+        const gone = await remote(server, ["sources", "--token-file", "missing.txt"]);
+        assert.equal(gone.code, 2);
+        assert.match(gone.stderr, /^pivotkit: --token-file missing\.txt: not found\n$/);
 
         // usage: name=value, once each, with a source; and only with a server
         const malformed = await remote(server, ["sources", "vms", "--param", "customer"]);
@@ -283,7 +288,7 @@ test("403 NOT_ALLOWED on render: the profile has no results: true; nothing is wr
         const { error } = jsonOf(r);
         assert.equal(error.code, "NOT_ALLOWED");
         assert.equal(error.status, 403);
-        assert.match(error.message, /this token's profile has no results: true; validate, describe and sources work with it/);
+        assert.match(error.message, /; this token's profile has no results: true; validate, describe and sources still work with this token$/);
         assert.equal(readFileSync(join(cwd, "out.xlsx"), "utf8"), "old");
         assertClean(r, server.url);
     } finally {
@@ -301,7 +306,7 @@ test("404: an unknown source by its code; an unknown route says the address shou
         assertClean(r, server.url);
         const root = await run(["sources", "--url", `${server.origin}/pk-mark-9f2`], { cwd: workdir(), env: { PIVOTKIT_TOKEN: TOKEN } });
         assert.equal(root.code, 2);
-        assert.match(root.stderr, /404 NOT_FOUND: no such route \(the address should end in \/api\/v1\)/);
+        assert.match(root.stderr, /404 NOT_FOUND: no such route; the address should end in \/api\/v1\n/);
         assertClean(root, `${server.origin}/pk-mark-9f2`);
     } finally {
         await server.close();

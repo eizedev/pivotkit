@@ -60,6 +60,7 @@ test("pivotkit --url: a plain token validates, describes and lists; render needs
         assert.equal(refused.code, 2);
         const { error } = JSON.parse(refused.stdout);
         assert.deepEqual([error.kind, error.code, error.status], ["remote", "NOT_ALLOWED", 403]);
+        assert.equal(error.message, "the server answered 403 NOT_ALLOWED: your token may not download files; ask the operator for a token whose profile has results: true. validate, describe and sources still work with this token.");
         for (const r of [sources, fields, valid, typo, described, refused]) {
             assert.ok(!r.stdout.includes(TOKEN) && !r.stderr.includes(TOKEN));
         }
@@ -126,7 +127,9 @@ test("pivotkit --param against the service: a text, a whole number and a true/fa
         assert.match(wrong.stderr, /params\.year must be a whole number/);
         // left out: the flag that gives it
         const missing = await pivotkit(["sources", "team", "--url", server.api], as);
-        assert.match(missing.stderr, /needs params\.team .*\(give it with --param team=<value>\)\n$/);
+        assert.match(missing.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: the source team needs params\.team \(a string\); re-run with --param team=<value>\n$/);
+        // a refused value: the server's words in one parenthesis, then the flag that fixes it
+        assert.match(wrong.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: params\.year must be a whole number; fix it with --param year=<value>\n$/);
     } finally {
         await server.close();
     }

@@ -120,6 +120,14 @@ export function sourceId(id, what = "--source") {
 /** Text without one trailing line end (what an editor or `echo` adds to a file). */
 const withoutLineEnd = (text) => text.replace(/\r?\n$/, "");
 
+/** An error of reading --token-file, named after the flag ("--token-file x.txt: not found"). */
+function tokenFileError(error) {
+    if (!error.message.startsWith("--token-file")) {
+        error.message = `--token-file ${error.message}`;
+    }
+    return error;
+}
+
 /**
  * The token: --token-file, else PIVOTKIT_TOKEN, else none. Read again on every call.
  * @param {Record<string, any>} values
@@ -139,7 +147,7 @@ export async function readToken(values, ctx) {
     try {
         info = await lstat(resolve(ctx.io.cwd, path));
     } catch (e) {
-        throw asCliError(e, path);
+        throw tokenFileError(asCliError(e, path));
     }
     if (info.isSymbolicLink()) {
         throw new CliError("io", "NOT_REGULAR_FILE", `--token-file ${shortName(path)}: is a symbolic link; give the token file itself`);
@@ -149,7 +157,7 @@ export async function readToken(values, ctx) {
         bytes = await readSafe(path, { cwd: ctx.io.cwd, allow: ctx.allow, maxBytes: TOKEN_FILE_BYTES });
     } catch (e) {
         const error = asCliError(e, path);
-        throw error.code === "LIMIT_EXCEEDED" ? new CliError("io", "TOKEN_FILE_TOO_LARGE", `--token-file ${shortName(path)}: larger than ${TOKEN_FILE_BYTES} bytes, so no token file`) : error;
+        throw error.code === "LIMIT_EXCEEDED" ? new CliError("io", "TOKEN_FILE_TOO_LARGE", `--token-file ${shortName(path)}: larger than ${TOKEN_FILE_BYTES} bytes, so no token file`) : tokenFileError(error);
     }
     const token = withoutLineEnd(new TextDecoder("utf-8").decode(bytes));
     if (!token) {
@@ -328,19 +336,26 @@ export function createClient({ server, values, ctx, userAgent }) {
             const text = lastToken ? `the server refused the token from ${from}${detail ? `: ${detail}` : ""} (${status} ${code})` : `the server needs a token: set PIVOTKIT_TOKEN or give --token-file <file> (${status} ${code})`;
             return new RemoteError(code, text, { status, retryAfter });
         }
-        // a source's parameter missing: the flag that gives it (the REST route's own pointer is for programs)
-        const needs = code === "INVALID_INPUT" ? /\bneeds params\.([A-Za-z0-9_-]{1,64})\b/.exec(detail)?.[1] : undefined;
-        if (needs) {
-            const text = detail.replace(/\. GET \/sources\/.*$/, "");
-            return new RemoteError(code, `the server answered ${status} ${code}: ${text} (give it with --param ${needs}=<value>)`, { status, retryAfter });
+        if (code === "INVALID_INPUT") {
+            // a source's parameter: the server's "re-run with params.x=..." as the flag that gives it (the
+            // REST route's pointer is for programs), and a refused value with the flag that fixes it
+            const rerun = detail.replace(/\. GET \/sources\/.*$/, "").replace(/\bre-run with params\.([A-Za-z0-9_-]{1,64})=/, "re-run with --param $1=");
+            const refused = /^params\.([A-Za-z0-9_-]{1,64}) /.exec(rerun)?.[1];
+            if (rerun !== detail || refused) {
+                return new RemoteError(code, `the server answered ${status} ${code}: ${rerun}${refused ? `; fix it with --param ${refused}=<value>` : ""}`, { status, retryAfter });
+            }
+        }
+        if (code === "NOT_ALLOWED" && detail.includes("results: true")) {
+            return new RemoteError(code, `the server answered ${status} ${code}: ${detail}. validate, describe and sources still work with this token.`, { status, retryAfter });
         }
         const hints = {
-            NOT_ALLOWED: detail.includes("results: true") ? "validate, describe and sources work with this token" : "this token's profile has no results: true; validate, describe and sources work with it",
+            NOT_ALLOWED: "this token's profile has no results: true; validate, describe and sources still work with this token",
             NOT_FOUND: server.apiPath ? "" : `the address should end in ${REST_BASE}`
         };
         const wait = retryAfter !== null ? `retry in ${retryAfter} s` : "";
+        // the hints after a semicolon, never a parenthesis after the server's words (which may end in one)
         const hint = [hints[code] ?? "", wait].filter(Boolean).join("; ");
-        return new RemoteError(code, `the server answered ${status} ${code}${detail ? `: ${detail}` : ""}${hint ? ` (${hint})` : ""}`, { status, retryAfter });
+        return new RemoteError(code, `the server answered ${status} ${code}${detail ? `: ${detail}` : ""}${hint ? `; ${hint}` : ""}`, { status, retryAfter });
     }
 
     /**

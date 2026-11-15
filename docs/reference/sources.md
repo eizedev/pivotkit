@@ -64,9 +64,11 @@ A call with `"params": { "customer": "acme", "state": "running" }` requests
 `https://api.example.com/v1/customers/acme/vms?state=running&limit=500`, follows the `next` pages,
 and reads the rows at `/items` of each answer. `list_sources` names the parameters with their type,
 description, example, list of values, pattern, format, lengths and range; a call without a required one answers `INVALID_INPUT`
-naming it ("the source vms needs params.customer (string): The customer's short name, for example
-acme"), and a value of the wrong form is refused with the parameter's description, example and
-(when short) pattern. A value must have the parameter's type: a number for a `string` parameter is
+naming it and how to call again ("the source vms needs params.customer (The customer's short name,
+for example acme); re-run with params.customer=acme"; the command line says `--param
+customer=acme`), and a value of the wrong form is refused with the parameter's description, example
+and (when short) pattern in one parenthesis ("params.customer is not in the expected form (The
+customer's short name, for example acme; pattern ^[a-z0-9-]{1,40}$)"). A value must have the parameter's type: a number for a `string` parameter is
 refused, as is a text with lone surrogates. The fields of a source with required parameters are known only after a load with values, so
 `describe_source` needs them too.
 

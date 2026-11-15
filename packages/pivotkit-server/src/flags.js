@@ -56,6 +56,12 @@ export const SERVER_FLAGS = Object.freeze({
     help: SHARED_FLAGS.help
 });
 
+/** The modes --auth takes. */
+const AUTH_MODES = Object.freeze(["none", "token", "oauth"]);
+
+/** The end of a usage error, the same in every program: where its help is. */
+export const helpPointer = (program) => `run "${program} --help"`;
+
 /** A flag table as help lines. */
 export const flagLines = (flags) => Object.entries(flags).map(([name, f]) => `  --${name}${f.value ? ` <${f.value}>` : ""}`.padEnd(32) + f.text);
 
@@ -63,18 +69,23 @@ export const flagLines = (flags) => Object.entries(flags).map(([name, f]) => `  
  * The options from the configuration file and the flags (a flag wins; lists add to the file's).
  * @param {string[]} argv
  * @param {Record<string, string | undefined>} env
- * @param {{ flags: FlagTable, configEnv: string }} runner  its flags and the variable that names its configuration file
+ * @param {{ flags: FlagTable, configEnv: string, program?: string }} runner  its flags, the variable that names its configuration file, its name for the pointer to --help
  */
-export async function optionsFrom(argv, env, { flags, configEnv }) {
+export async function optionsFrom(argv, env, { flags, configEnv, program = "pivotkit-server" }) {
     let parsed;
     try {
         parsed = parseArgs({ args: argv, options: /** @type {any} */ (flags), allowPositionals: false, strict: true });
     } catch (e) {
         const flag = /'(-{1,2}[^'\s]+)'/.exec(String(e.message))?.[1] ?? "";
         const near = closest(flag.replace(/^-+/, ""), Object.keys(flags));
-        throw new ConfigError(`${String(e.message).split("\n")[0]}; ${near ? `did you mean --${near}? ` : ""}--help lists the options`);
+        const what = e.code === "ERR_PARSE_ARGS_UNKNOWN_OPTION" ? `unknown option ${JSON.stringify(flag.slice(0, 40))}` : String(e.message).split("\n")[0].replace(/^./, (c) => c.toLowerCase());
+        throw new ConfigError(`${what}; ${near ? `did you mean --${near}? ` : ""}${helpPointer(program)}`);
     }
     const values = /** @type {Record<string, any>} */ (parsed.values);
+    // the flag's own words (auth.mode's, from a file, name the key)
+    if (values.auth !== undefined && !AUTH_MODES.includes(values.auth)) {
+        throw new ConfigError(`--auth must be ${AUTH_MODES.slice(0, -1).join(", ")} or ${AUTH_MODES.at(-1)}; ${helpPointer(program)}`);
+    }
     const file = values.config ?? env[configEnv];
     /** @type {any} */
     const options = file ? await loadConfig(file) : {};

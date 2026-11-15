@@ -12,7 +12,7 @@
 
 import { ConfigError, loadConfig } from "./config.js";
 import { VERSION } from "./context.js";
-import { SERVER_FLAGS, flagLines, optionsFrom } from "./flags.js";
+import { SERVER_FLAGS, flagLines, helpPointer, optionsFrom } from "./flags.js";
 import { DEFAULT_PORT, TOKEN_ENV, loadMcp } from "./serve.js";
 
 /** The variable that names the configuration file. */
@@ -31,10 +31,13 @@ const COMMANDS = Object.freeze({
 /** --version, which the runner takes in place of a command (not one of serve's flags). */
 const VERSION_FLAG = Object.freeze({ type: "boolean", text: "Print the version and exit." });
 
+/** The flags as the help lists them: --version before --help, as pivotkit-mcp's. */
+const FLAG_ORDER = (({ help, ...rest }) => ({ ...rest, version: VERSION_FLAG, help }))(SERVER_FLAGS);
+
 /** The help text. */
 export function helpText() {
     const commands = Object.entries(COMMANDS).map(([name, text]) => `  ${name.padEnd(30)}${text}`);
-    return `pivotkit-server ${VERSION}: pivotkit's REST service, its MCP server and its command line in one.\n\nUsage: pivotkit-server <command> [options]\n       pivotkit-server --version\n\nCommands:\n${commands.join("\n")}\n\nOptions of serve, check-config and check-source:\n${flagLines(SERVER_FLAGS).join("\n")}\n${flagLines({ version: VERSION_FLAG }).join("\n")}\n\nThe static token, when the configuration names none: $${TOKEN_ENV}.\nDocs: https://pivotkit.eize.dev/reference/rest/\n`;
+    return `pivotkit-server ${VERSION}: pivotkit's REST service, its MCP server and its command line in one.\n\nUsage: pivotkit-server <command> [options]\n       pivotkit-server --version\n\nCommands:\n${commands.join("\n")}\n\nOptions of serve, check-config and check-source:\n${flagLines(FLAG_ORDER).join("\n")}\n\nThe static token, when the configuration names none: $${TOKEN_ENV}.\nDocs: https://pivotkit.eize.dev/reference/rest/\n`;
 }
 
 /**
@@ -114,7 +117,7 @@ export async function run(argv, io) {
         }
         if (command === "cli") {
             const { main } = await import("pivotkit-cli");
-            return main(rest, { stdin: io.stdin ?? process.stdin, stdout: io.stdout, stderr: io.stderr, env: io.env, cwd: io.cwd ?? process.cwd() });
+            return main(rest, { stdin: io.stdin ?? process.stdin, stdout: io.stdout, stderr: io.stderr, env: io.env, cwd: io.cwd ?? process.cwd(), program: "pivotkit-server cli" });
         }
         if (command === "mcp") {
             return runMcp(rest, io);
@@ -129,7 +132,7 @@ export async function run(argv, io) {
             return await checkSourceCommand(rest, io);
         }
         if (command !== "serve" && command !== "check-config") {
-            throw new ConfigError(`unknown command "${command.slice(0, 40)}"; the commands are ${Object.keys(COMMANDS).map((c) => c.split(" ")[0]).join(", ")}`);
+            throw new ConfigError(`unknown ${command.startsWith("-") ? "option" : "command"} ${JSON.stringify(command.slice(0, 40))}; ${helpPointer("pivotkit-server")}`);
         }
         if (rest.includes("--help") || rest.includes("-h")) {
             io.stdout.write(helpText());
