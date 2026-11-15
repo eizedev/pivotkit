@@ -185,7 +185,8 @@ const autoSeen = new WeakMap();
 
 /**
  * Logs a source's automatic "values" fields the first time they are known and whenever a read of
- * the data changes them (a new file, a new version of a code source). Field names, never a value.
+ * the data changes them (a new file, a new version of a code source). Counts only: no field name,
+ * no value (check-config names the fields).
  * @param {any} context
  * @param {{ id: string, kind: string }} spec
  * @param {import("./policy.js").Policy} policy  with statistics
@@ -203,10 +204,10 @@ export function noteAutoValues(context, spec, policy) {
     seen.set(spec.id, now);
     if (before === undefined) {
         if (now.length) {
-            context.log.info(`the source ${spec.id}: ${now.length} field${now.length === 1 ? "" : "s"} at values by the automatic rule (policy.autoValues)`, { source: spec.id, fields: now });
+            context.log.info(`the source ${spec.id}: ${now.length} field${now.length === 1 ? "" : "s"} at values by the automatic rule (policy.autoValues)`, { source: spec.id, fields: now.length });
         }
     } else if (before.join("\n") !== now.join("\n")) {
-        context.log.info(`the source ${spec.id}: the data changed which fields the automatic rule puts at values`, { source: spec.id, added: now.filter((f) => !before.includes(f)), removed: before.filter((f) => !now.includes(f)) });
+        context.log.info(`the source ${spec.id}: the data changed which fields the automatic rule puts at values (check-config names them)`, { source: spec.id, added: now.filter((f) => !before.includes(f)).length, removed: before.filter((f) => !now.includes(f)).length });
     }
 }
 

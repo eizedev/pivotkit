@@ -342,8 +342,8 @@ test("a reload that changes the data changes the level, and the log says so; the
         assert.equal(await level(), "summary");
         const changed = server.log.find((l) => /changed which fields the automatic rule puts at values/.test(l.message ?? ""));
         assert.ok(changed, JSON.stringify(server.log));
-        assert.deepEqual([changed.source, changed.added, changed.removed], ["tickets", [], ["status"]]);
-        assert.doesNotMatch(JSON.stringify(server.log), /Open|Waiting/, "no value in the log");
+        assert.deepEqual([changed.source, changed.added, changed.removed], ["tickets", 0, 1]);
+        assert.doesNotMatch(JSON.stringify(server.log), /Open|Waiting|Status|Team|"team"/, "no value and no field name in the log");
     } finally {
         await server.close();
     }

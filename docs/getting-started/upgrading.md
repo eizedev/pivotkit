@@ -8,7 +8,7 @@ description: What a host or a script checks when it moves to the next release of
 Each section lists what changes between two releases and whom it concerns; **Breaking** marks a
 change that needs your action when it applies.
 
-## From 0.6.1 to the next release { #next }
+## From 0.6.1 to the next release { #from-0-6-1 }
 
 Operators of pivotkit-server and pivotkit-mcp change nothing: no default changes, and every field
 keeps its level.

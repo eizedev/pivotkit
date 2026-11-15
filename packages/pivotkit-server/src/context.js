@@ -189,9 +189,9 @@ export async function createContext(options, runtime = {}) {
             if (!ids.length) {
                 return;
             }
-            counting = createComputer({ ...options.compute, workers: 1 });
             let fields = 0;
             try {
+                counting = createComputer({ ...options.compute, workers: 1 });
                 for (const resolved of ids) {
                     const ran = await counting.run("describe_source", { source: resolved.spec.id, items: 0 }, { spec: resolved.spec }).catch(() => null);
                     if (ran?.stats) {
@@ -204,7 +204,7 @@ export async function createContext(options, runtime = {}) {
             } catch {
                 // the count is a note for the operator, never a reason to stop
             } finally {
-                await counting.close();
+                await counting?.close();
                 counting = null;
             }
         },

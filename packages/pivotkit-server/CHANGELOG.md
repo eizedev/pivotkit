@@ -8,7 +8,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Upgrading from 0.1.1
 
-Nothing changes unless the operator sets it; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#next) has the details.
+Nothing changes unless the operator sets it; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
 
 - A client reads the optional `field` of a finding, the code `itemUnknown`, `withheld`, `hint`,
   `complete` and `auto` in `describe_source`, and treats a `level` it does not know as `summary`.
