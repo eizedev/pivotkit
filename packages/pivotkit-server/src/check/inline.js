@@ -1,6 +1,7 @@
 /*
- * check-config's section for #326 (data in the request) (check/index.js says what a section returns). Says nothing
- * until that work fills it.
+ * check-config's section for data sent in a request.
+ *
+ * check/index.js says what a section returns. Says nothing until the feature fills it.
  */
 
 /** @type {import("./index.js").Section} */

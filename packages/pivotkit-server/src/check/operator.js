@@ -1,6 +1,7 @@
 /*
- * check-config's section for #331 (operator controls) (check/index.js says what a section returns). Says nothing
- * until that work fills it.
+ * check-config's section for the operator's controls.
+ *
+ * check/index.js says what a section returns. Says nothing until the feature fills it.
  */
 
 /** @type {import("./index.js").Section} */

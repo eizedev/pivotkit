@@ -17,25 +17,28 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - A withheld render's `message` reads "results over fields that are not fully shown (...) stay in
   the file".
 - `check-config` prints more lines: each field's level and why, and each profile's levels.
-- The `call`, `request` and `download` log lines carry `requestId`.
+- Log lines written inside a request (`call`, `request`, `download`, `refused`, `error`) carry
+  `requestId`; every REST problem document carries it too. A body over the cap gets a `refused` line.
+- `check-config` warns of a static token's file that other users of the machine can read.
 
 ### Added
 
-- A request id on every REST request and MCP tool call (`requestId` on its log lines, and inside the
-  work, so a source's code and an error's details name the same id). A problem document of an error
-  with details (a source or a store that failed) carries `requestId` and `retryable`, and
-  `Retry-After` where known; the 5xx text of `SOURCE_UNAVAILABLE` and `UPLOAD_FAILED` is fixed.
+- A request id on every REST request and MCP tool call: on every log line written inside it, inside
+  its work (a source's code, an error's details), in every REST problem document and at the end of
+  every MCP tool error. A problem of a source or a store that failed adds `retryable` and
+  `Retry-After` where known; a details' `requestId` not of pivotkit's form is replaced by the
+  request's. The 5xx texts of `SOURCE_UNAVAILABLE` and `UPLOAD_FAILED` are fixed (`serverTextOf`).
 - The options table is composed from per-feature fragments (`src/options/`); a key declared twice is
   an error when it is composed. `check-config` runs one section per feature and closes with "New in
   this version" where a change applies to the configuration.
 - `readSecret` and the secret reference `{ "env": "NAME" }` or `{ "file": "path" }`: read on every
   use, one trailing newline trimmed, a line break or NUL inside refused, never logged.
 - `serveFetch`'s `bodyBytes` may be a function of the request and the precheck's `info`, decided
-  after the sign-in (`bodyBytesOf`, `peekSignIn`); `offeredScopes`, `callerFields` (the caller's
-  fields a log line may hold: the client only).
+  after the sign-in (`bodyBytesOf`, `peekSignIn`, `bodyCapOf`): at most `BODY_BYTES` for a caller
+  who is not signed in, at most `MAX_BODY_BYTES` (64 MiB) for one who is. `offeredScopes`,
+  `callerFields` (the caller's fields a log line may hold: the client only), `secretFileWarning`.
 - `sources.<id>.ttl`, `maxStale` and `timeMs` are taken by code sources (refused on file sources);
   they do nothing yet.
-
 - The level `values` between `show` and `summary`: a field's distinct values as a complete, sorted
   list (`items`, `complete: true`), never a result over them. A number or date field, more values
   than `policy.valuesMax` (default 50), a value over 80 characters, `counts: false` or `rows: false`

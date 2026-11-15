@@ -1,6 +1,7 @@
 /*
- * check-config's section for #330 (code sources) (check/index.js says what a section returns). Says nothing
- * until that work fills it.
+ * check-config's section for code sources.
+ *
+ * check/index.js says what a section returns. Says nothing until the feature fills it.
  */
 
 /** @type {import("./index.js").Section} */

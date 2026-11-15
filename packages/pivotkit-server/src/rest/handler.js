@@ -24,9 +24,9 @@ import { BODY_BYTES, SIGNED_IN, isLoopback, takeSignIn } from "../listen.js";
 import { present, presentedInput, renderFile } from "../present.js";
 import { createLimits } from "../limits.js";
 import { openApiDocument } from "./openapi.js";
-import { SAFE_HEADERS, json, problem, problemOf } from "./problem.js";
+import { SAFE_HEADERS, json, problem, problemOf, withRequestIdMember } from "./problem.js";
 import { callerFields } from "../log.js";
-import { newRequestId, withRequestId } from "../request-id.js";
+import { requestId, requestIdFor, withRequestId } from "../request-id.js";
 import { offeredScopes } from "../scopes.js";
 import { REST_ROUTES } from "./routes.js";
 
@@ -103,7 +103,7 @@ async function readJson(request, max) {
  * The REST service of a context.
  * @param {any} context  createContext's
  * @param {{ env?: Record<string, string | undefined>, loopback?: boolean }} [runtime]  env: where static tokens are read (default process.env); loopback: whether the server listens on loopback only
- * @returns {Promise<{ fetch(request: Request, info?: { address?: string }): Promise<Response>, precheck(request: Request, info?: { address?: string }): Promise<Response | null>, handles(path: string): boolean, close(): Promise<void>, openapi(): Record<string, unknown> }>}
+ * @returns {Promise<{ fetch(request: Request, info?: { address?: string }): Promise<Response>, precheck(request: Request, info?: { address?: string }): Promise<Response | null>, problem(status: 400 | 413, path: string, info?: Record<string | symbol, any>): Response, handles(path: string): boolean, close(): Promise<void>, openapi(): Record<string, unknown> }>}
  */
 export async function createRestHandler(context, runtime = {}) {
     const options = context.options;
@@ -320,13 +320,12 @@ export async function createRestHandler(context, runtime = {}) {
             return problem("RATE_LIMITED", "too many requests at once; wait for one to finish", { headers: { "retry-after": "1" } });
         }
         const started = Date.now();
-        // the request's id: on its log lines, and inside its work (a source's code, an error's details)
-        const id = newRequestId();
+        const id = /** @type {string} */ (requestId());
         /** @type {Record<string, unknown>} */
         const entry = { operation: match.route.operation, route: `${match.route.method} ${match.route.path}`, ...callerFields(caller), requestId: id, ...(trustProxy ? { address } : {}) };
         let response;
         try {
-            response = await withRequestId(id, () => run(match, request, caller, entry));
+            response = await run(match, request, caller, entry);
         } catch (e) {
             const error = e instanceof OperationError ? e : null;
             if (e?.problem) {
@@ -355,43 +354,80 @@ export async function createRestHandler(context, runtime = {}) {
          * @param {{ address?: string, [SIGNED_IN]?: any }} [info]  serveFetch hands the same object to fetch: the sign-in is kept there
          */
         async precheck(request, info = {}) {
-            const refusedHost = hostRefusal(request, hosts);
-            if (refusedHost) {
-                context.log.refused({ status: 403, host: String(request.headers.get("host") ?? "").slice(0, 100) });
-                return problem("FORBIDDEN_HOST", refusedHost);
-            }
-            const origin = request.headers.get("origin");
-            if (origin && !origins.has(origin)) {
-                context.log.refused({ status: 403, origin: origin.slice(0, 100) });
-                return problem("FORBIDDEN_ORIGIN", "this origin may not call the service (rest.cors.origins)");
-            }
-            if (Number(request.headers.get("content-length") ?? 0) > REST_BODY_BYTES) {
-                return withCors(problem("BODY_TOO_LARGE", "the body is larger than the service takes"), origin);
-            }
-            if (request.method === "POST" && new URL(request.url).pathname.startsWith(`${REST_BASE}/`)) {
-                const who = await authenticate(request, clientAddress(request, info.address ?? "", trustProxy));
-                if ("refused" in who) {
-                    context.log.refused({ status: who.refused.status, path: REST_BASE });
-                    return withCors(who.refused, origin);
-                }
-                info[SIGNED_IN] = who;
-            }
-            return null;
+            // the request's id, made here and kept in info for the route: its refusals name it too
+            const id = requestIdFor(info);
+            const answer = await withRequestId(id, () => check(request, info));
+            return answer && withRequestIdMember(answer, id);
         },
         /**
          * @param {Request} request
          * @param {{ address?: string, [SIGNED_IN]?: any }} [info]  the client's address (listen() gives it), for the limits
          */
         async fetch(request, info = {}) {
-            const origin = request.headers.get("origin");
-            try {
-                const response = await route(request, info);
-                return origin && origins.has(origin) ? withCors(response, origin) : response;
-            } catch (e) {
-                context.log.error(e, { where: "rest" });
-                return problem("INTERNAL", "internal error");
-            }
+            // the request's id (the precheck's, when it ran): on every log line of the request, in its
+            // work (a source's code, an error's details) and in an error's answer
+            const id = requestIdFor(info);
+            return withRequestIdMember(await withRequestId(id, () => answer(request, info)), id);
+        },
+        /**
+         * The answer to a body that cannot be read (serveFetch's problem): 413 or 400, with the
+         * request's id, also on a log line.
+         * @param {400 | 413} status
+         * @param {string} _path
+         * @param {Record<string | symbol, any>} [info]
+         */
+        problem(status, _path, info = {}) {
+            const id = requestIdFor(info);
+            context.log.refused({ status, path: REST_BASE, requestId: id });
+            return problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than the service takes" : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: id } });
         },
         async close() {}
     };
+
+    /**
+     * The checks a request's headers allow (precheck's work).
+     * @param {Request} request
+     * @param {{ address?: string, [SIGNED_IN]?: any }} info
+     */
+    async function check(request, info) {
+        const refusedHost = hostRefusal(request, hosts);
+        if (refusedHost) {
+            context.log.refused({ status: 403, host: String(request.headers.get("host") ?? "").slice(0, 100) });
+            return problem("FORBIDDEN_HOST", refusedHost);
+        }
+        const origin = request.headers.get("origin");
+        if (origin && !origins.has(origin)) {
+            context.log.refused({ status: 403, origin: origin.slice(0, 100) });
+            return problem("FORBIDDEN_ORIGIN", "this origin may not call the service (rest.cors.origins)");
+        }
+        if (Number(request.headers.get("content-length") ?? 0) > REST_BODY_BYTES) {
+            context.log.refused({ status: 413, path: REST_BASE });
+            return withCors(problem("BODY_TOO_LARGE", "the body is larger than the service takes"), origin);
+        }
+        if (request.method === "POST" && new URL(request.url).pathname.startsWith(`${REST_BASE}/`)) {
+            const who = await authenticate(request, clientAddress(request, info.address ?? "", trustProxy));
+            if ("refused" in who) {
+                context.log.refused({ status: who.refused.status, path: REST_BASE });
+                return withCors(who.refused, origin);
+            }
+            info[SIGNED_IN] = who;
+        }
+        return null;
+    }
+
+    /**
+     * The answer to a request (fetch's work).
+     * @param {Request} request
+     * @param {{ address?: string, [SIGNED_IN]?: any }} info
+     */
+    async function answer(request, info) {
+        const origin = request.headers.get("origin");
+        try {
+            const response = await route(request, info);
+            return origin && origins.has(origin) ? withCors(response, origin) : response;
+        } catch (e) {
+            context.log.error(e, { where: "rest" });
+            return problem("INTERNAL", "internal error");
+        }
+    }
 }

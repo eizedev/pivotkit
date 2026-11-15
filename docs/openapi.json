@@ -1178,7 +1178,7 @@
           },
           "requestId": {
             "type": "string",
-            "description": "The request's id, for an error of a source or a store that failed: give it to the operator, who finds the request's log line by it."
+            "description": "The request's id: give it to the operator, who finds the request's log lines by it."
           },
           "retryable": {
             "type": "boolean",

@@ -1,6 +1,8 @@
 /*
- * The options of #327 (download links): its keys by slot (options/shared.js SLOTS) and the rules between them.
- * Empty until that work fills it; a key is declared here once, never also in config.js or another
+ * The options of download links.
+ *
+ * The keys this feature adds, by slot (options/shared.js SLOTS), and the rules between them. Empty
+ * until the feature fills it. A key is declared here once, never also in config.js or another
  * fragment (options/index.js refuses a second declaration).
  */
 

@@ -16,8 +16,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - Every tool result over a source's data has `dataAsOf` (when the data is from); render_view's
   message ends with it in words. The tools that take a source take `params` when a configured code
   source declares parameters ([pivotkit-server](https://pivotkit.eize.dev/reference/mcp/#configuration)).
-- Each tool call has a request id on its `call` line; a tool error of a source or a store that
-  failed ends with `(id ...)`, for the person to give the operator.
+- Each tool call has a request id on its log lines, and every tool error ends with `(id ...)`, for
+  the person to give the operator. An error of status 500 or more says pivotkit-server's fixed text
+  (`INTERNAL`: "internal error"), with the source and whether trying again may work; `BUSY`,
+  `NOT_READY` and `TIMEOUT` keep their own words. Release pivotkit-server first: this version needs
+  its new exports (`serverTextOf`, `withRequestId`, `callerFields`, `offeredScopes`).
 
 ## [0.1.1] - 2026-11-14
 

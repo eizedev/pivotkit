@@ -3,26 +3,23 @@
 // an unknown key is still refused, today's table and check-config text stay as they were.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ConfigError, OPTION_KEYS, checkConfig, validateOptions } from "pivotkit-server";
 import { FRAGMENTS, composeSlots } from "../src/options/index.js";
 import { SLOTS, SECRET_REF } from "../src/options/shared.js";
 import { SECTIONS, runSections } from "../src/check/index.js";
-import { readSecret, SecretError } from "../src/secrets.js";
+import { readSecret, secretFileWarning, SecretError } from "../src/secrets.js";
 import { tempDir, workspace } from "./helpers.js";
 
 /** An options table as a plain tree: a function (a custom check) as "fn". */
 const treeOf = (schema) =>
     schema === null || typeof schema !== "object" ? (typeof schema === "function" ? "fn" : schema) : Array.isArray(schema) ? schema.map(treeOf) : Object.fromEntries(Object.entries(schema).map(([k, v]) => [k, typeof v === "function" ? "fn" : treeOf(v)]));
 
-test("options: the composed table is today's, plus the shared source keys; auth.subjectClaim moves to the end of auth", () => {
+test("options: the composed table is today's, in today's order, plus the shared source keys", () => {
     const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
     const expected = structuredClone(before);
     Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer" });
-    const auth = expected.auth.object;
-    delete auth.subjectClaim;
-    auth.subjectClaim = "string";
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -165,4 +162,22 @@ test("secrets: read on every use (rotation), one trailing newline trimmed, CR, L
     const noFile = await readSecret({ file: "nope" }, options).catch((e) => e);
     assert.match(noFile.message, /the file nope cannot be read \(no such file\)/);
     assert.ok(!noFile.message.includes(dir), "no full path");
+});
+
+test("secrets: check-config warns of a secret file other users can read (a static token's file too), never of one only the owner reads", { skip: process.platform === "win32" && "file modes" }, async () => {
+    const dir = workspace();
+    const open = join(dir, "open-token");
+    const closed = join(dir, "closed-token");
+    writeFileSync(open, `${"o".repeat(40)}\n`);
+    writeFileSync(closed, `${"c".repeat(40)}\n`);
+    chmodSync(open, 0o644);
+    chmodSync(closed, 0o600);
+    assert.equal(await secretFileWarning({ file: "open-token" }, { baseDir: dir }), "warning: the file open-token can be read by other users of this machine (mode 644); make it readable by the server's user only (chmod 600)");
+    assert.equal(await secretFileWarning({ file: "closed-token" }, { baseDir: dir }), null);
+    assert.equal(await secretFileWarning({ env: "X" }, { baseDir: dir }), null);
+    assert.equal(await secretFileWarning({ file: "missing" }, { baseDir: dir }), null, "a missing file is said elsewhere");
+    const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "open", file: "open-token" }, { name: "closed", file: "closed-token" }] }, baseDir: dir }, { http: true });
+    assert.match(result.text, /\n {2}warning: the token open's file open-token can be read by other users of this machine \(mode 644\)/);
+    assert.doesNotMatch(result.text, /closed-token can be read/);
+    assert.equal(result.problems, 0, "a warning, not a problem");
 });

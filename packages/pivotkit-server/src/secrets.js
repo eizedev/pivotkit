@@ -3,10 +3,11 @@
  * on every use, so a rotated file or variable works without a restart. One trailing newline (LF or
  * CR LF) is trimmed; a value with another line break or a NUL, or an empty one, is refused. A
  * SecretError names the reference (the variable, the file as configured), never the value or a full
- * path; nothing here logs.
+ * path; nothing here logs. check-config warns of a secret file other users can read
+ * (secretFileWarning).
  */
 
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { pathOf } from "./config.js";
 
 export class SecretError extends Error {
@@ -54,4 +55,24 @@ export async function readSecret(ref, options, env = process.env) {
         throw new SecretError(`${where} holds a NUL character`);
     }
     return value;
+}
+
+/**
+ * check-config's warning for a secret file other users of the machine can read (group or world
+ * bits), or null: for an environment variable, a file only its owner reads, a missing file (said
+ * elsewhere) and on Windows (no such modes).
+ * @param {{ env?: string, file?: string }} ref
+ * @param {{ baseDir?: string }} options
+ * @param {string} [label]  how the line names the file
+ * @returns {Promise<string | null>}
+ */
+export async function secretFileWarning(ref, options, label = `the file ${ref.file}`) {
+    if (!ref.file || process.platform === "win32") {
+        return null;
+    }
+    const info = await stat(pathOf(options, ref.file)).catch(() => null);
+    if (!info || (info.mode & 0o077) === 0) {
+        return null;
+    }
+    return `warning: ${label} can be read by other users of this machine (mode ${(info.mode & 0o777).toString(8)}); make it readable by the server's user only (chmod 600)`;
 }

@@ -12,3 +12,19 @@ export async function start(): Promise<Response> {
     const doc = openApiDocument({ auth: { mode: "token" } });
     return rest.fetch(new Request(`http://localhost/api/v1${REST_ROUTES[0].path}?${level}${String(doc.openapi)}${Object.keys(result).length}`));
 }
+
+// the request's seams: an id inside the work, the caller fields a log line holds, a body cap decided
+// after the sign-in, the metadata's scopes and a secret read on every use
+import { bodyBytesOf, bodyCapOf, callerFields, errorDetails, offeredScopes, peekSignIn, readSecret, requestId, serveFetch, withRequestId, BODY_BYTES, MAX_BODY_BYTES, type Caller } from "pivotkit-server";
+
+export async function seams(caller: Caller): Promise<number> {
+    const fields: { client?: string } = callerFields(caller);
+    const id: string | null = await withRequestId("AAAAAAAAAAA", async () => requestId());
+    const details = errorDetails({ retryable: true, retryAfter: 30 });
+    const scopes: string[] | null = offeredScopes({ auth: { requiredScopes: ["pivotkit"] } }, "rest");
+    const secret: string = await readSecret({ env: "PIVOTKIT_KEY" }, {}, { PIVOTKIT_KEY: "x" });
+    const cap = (request: Request, info: Record<string | symbol, any>): number => (peekSignIn(info)?.caller.client === "etl" ? 20_971_520 : BODY_BYTES);
+    const server = await serveFetch({ fetch: async () => new Response("ok") }, { host: "127.0.0.1", port: 0, bodyBytes: cap });
+    await server.close();
+    return bodyCapOf(bodyBytesOf({}), new Request("http://localhost/"), {}) + MAX_BODY_BYTES + String(fields.client ?? id ?? details.requestId ?? scopes ?? secret).length;
+}

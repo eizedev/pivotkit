@@ -19,6 +19,7 @@ import { findingText } from "pivotkit-report/operations";
 import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "./policy.js";
 import { sourceStats } from "./stats.js";
 import { SECTIONS, UPGRADING_URL, runSections } from "./check/index.js";
+import { secretFileWarning } from "./secrets.js";
 
 /**
  * @param {import("./config.js").ServerOptions} options
@@ -125,6 +126,10 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     if (mode === "token") {
         for (const t of auth.tokens?.length ? auth.tokens : [{ name: "token", env: tokenEnv }]) {
             lines.push(`  token ${t.name} from ${t.env ? `$${t.env}` : t.file}: scopes ${t.scopes ? t.scopes.join(" ") || "none" : "all"}${t.profile ? `, profile ${t.profile}` : ""}`);
+            const readable = await secretFileWarning(t, options, `the token ${t.name}'s file ${t.file}`);
+            if (readable) {
+                lines.push(`  ${readable}`);
+            }
             if (http) {
                 const why = await tokenProblem(t, env, options);
                 if (why) {

@@ -317,13 +317,14 @@ Every error is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem doc
 most, never its content. A 5xx answer carries a fixed text, never an error's message. 429 and 503
 carry `Retry-After`.
 
-An error of a source or a store that failed (`SOURCE_UNAVAILABLE`, `UPLOAD_FAILED`) also carries
-`requestId`, the id on the request's [log line](#logging) to give the operator, and `retryable`,
-whether the same request may work when tried again; `Retry-After` says when, where it is known:
+Every problem also carries `requestId`, the id on the request's [log lines](#logging): a person
+gives it to the operator. An error of a source or a store that failed (`SOURCE_UNAVAILABLE`,
+`UPLOAD_FAILED`) adds `retryable`, whether the same request may work when tried again;
+`Retry-After` says when, where it is known:
 
 ```json
 { "type": "https://pivotkit.eize.dev/reference/rest/#error-source-unavailable", "title": "Source unavailable",
-  "status": 502, "code": "SOURCE_UNAVAILABLE", "detail": "the source is not available right now; try again later, or give the operator the request id",
+  "status": 502, "code": "SOURCE_UNAVAILABLE", "detail": "the source is not available right now; if it stays so, give the operator the request id",
   "requestId": "Ab3_xY9-k2Q", "retryable": true }
 ```
 
@@ -437,8 +438,9 @@ and hard links on Windows).
 One JSON line per event on stderr, as the [MCP server's](mcp.md#logging): `started` (version,
 address, what it serves, auth mode), `request` (operation, route, client, `requestId`, source id,
 status, error code, time in ms), `download` (operation, client, `requestId`, source, format, bytes),
-`refused` (a request refused by the Host, Origin or token check) and `warning`. `requestId` is random
-(11 characters) and the same on every line of one request, and in a problem that carries it. The
+`refused` (a request refused by the Host, Origin or token check, or a body over the cap, with its
+`requestId`) and `warning`. `requestId` is random (11 characters) and the same on every line of one
+request and in its error answer. The
 client is the static token's name or the OAuth client id, never the person's id: a line takes only
 these fields of the caller, never the person's subject, groups or other claims; no line holds a
 view, a value, a token, a path or, unless `http.trustProxy` is set, a client address.
@@ -464,6 +466,19 @@ const rest = await createRestHandler(context, { env: process.env, loopback: true
 const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes: 2_097_152 });
 // or in a framework: return rest.fetch(request, { address });
 ```
+
+- `bodyBytes` is a number, or `(request, info) => number`: decided once per request after the
+  precheck, where `peekSignIn(info)` gives the sign-in the precheck kept (`{ caller }`, or undefined).
+  A function gives a caller who is not signed in at most `BODY_BYTES` (2 MiB) and a signed-in one at
+  most `MAX_BODY_BYTES` (64 MiB); `bodyBytesOf(options)` is the server's own.
+- Each request runs inside `withRequestId(id, fn)`: `requestId()` gives its id anywhere in its work,
+  a code source's `load` included (for the host's own log lines), and every log line written inside
+  it names it. `errorDetails({ retryable, retryAfter })` builds an `OperationError`'s details with
+  that id. `callerFields(caller)` is what a log line may hold of a caller: the client only.
+- A secret in your options is a reference, `{ "env": "NAME" }` or `{ "file": "path" }` (`SECRET_REF`);
+  `readSecret(ref, options, env)` reads it on every use (a rotated file works without a restart),
+  trims one trailing newline and refuses a value with another line break or a NUL; its error names
+  the reference, never the value.
 
 A source may be `load: async () => rows` instead of `file`: an array of row objects, or columnar data
 `{ columns, types, data }` with one array per column (not `encode()`'s result, so hidden fields can

@@ -8,6 +8,7 @@
  */
 
 import { OPERATION_ERRORS, OperationError } from "pivotkit-report/operations";
+import { isRequestId, requestId } from "../request-id.js";
 import { REST_ERRORS } from "pivotkit-cli/rest";
 
 /** The codes the REST layer adds to the operations', with their status, and every code a problem can carry: pivotkit-cli/rest's, which the CLI's remote mode checks answers against. */
@@ -23,7 +24,14 @@ const titleOf = (code) => code.toLowerCase().replace(/_/g, " ").replace(/^./, (c
 export const typeOf = (code) => `https://pivotkit.eize.dev/reference/rest/#error-${code.toLowerCase().replace(/_/g, "-")}`;
 
 /** What a 5xx says instead of the error's message. */
-const SERVER_TEXT = { BUSY: "the server is busy with other reports; try again in a moment", NOT_READY: "the server is starting or shutting down; try again in a moment", AUTH_NOT_READY: "the server is waiting for its authorization server; try again in a moment", TIMEOUT: "the report took longer than the server allows; make the view smaller or filter more", SOURCE_UNAVAILABLE: "the source is not available right now; try again later, or give the operator the request id", UPLOAD_FAILED: "the report was made but could not be stored; give the operator the request id", INTERNAL: "internal error" };
+const SERVER_TEXT = { BUSY: "the server is busy with other reports; try again in a moment", NOT_READY: "the server is starting or shutting down; try again in a moment", AUTH_NOT_READY: "the server is waiting for its authorization server; try again in a moment", TIMEOUT: "the report took longer than the server allows; make the view smaller or filter more", SOURCE_UNAVAILABLE: "the source is not available right now; if it stays so, give the operator the request id", UPLOAD_FAILED: "the report was made but could not be stored; give the operator the request id", INTERNAL: "internal error" };
+
+/**
+ * The fixed text of a code of status 500 or more, for REST and MCP alike: an error's own message of
+ * such a code can hold an address or a system error code and never reaches a caller.
+ * @param {string} code
+ */
+export const serverTextOf = (code) => SERVER_TEXT[/** @type {keyof typeof SERVER_TEXT} */ (code)] ?? SERVER_TEXT.INTERNAL;
 
 /** The headers every answer of the REST service carries. */
 export const SAFE_HEADERS = Object.freeze({ "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "cache-control": "no-store" });
@@ -36,7 +44,7 @@ export const SAFE_HEADERS = Object.freeze({ "x-content-type-options": "nosniff",
  */
 export function problem(code, detail, more = {}) {
     const status = statusOf(code);
-    const body = { type: typeOf(code), title: titleOf(code), status, code, detail: status >= 500 ? (SERVER_TEXT[code] ?? SERVER_TEXT.INTERNAL) : String(detail).slice(0, 1000), ...(more.extra ?? {}) };
+    const body = { type: typeOf(code), title: titleOf(code), status, code, detail: status >= 500 ? serverTextOf(code) : String(detail).slice(0, 1000), ...(more.extra ?? {}) };
     return new Response(JSON.stringify(body), { status, headers: { ...SAFE_HEADERS, "content-type": "application/problem+json", ...(more.headers ?? {}) } });
 }
 
@@ -45,21 +53,42 @@ const RETRY_AFTER = Object.freeze({ BUSY: "5", NOT_READY: "5" });
 
 /**
  * An error of an operation (or anything else, as INTERNAL) as a problem: the code's status and text,
- * and from an OperationError's details the members `requestId` and `retryable` and the header
- * `Retry-After`. An error without details gives exactly what problem() gives.
+ * from an OperationError's details `retryable` and the header `Retry-After`, and `requestId`: the
+ * details' when it has pivotkit's form, else the running request's (none outside a request).
  * @param {unknown} error
  * @param {{ headers?: Record<string, string>, extra?: Record<string, unknown> }} [more]
  */
 export function problemOf(error, more = {}) {
     if (!(error instanceof OperationError)) {
-        return problem("INTERNAL", "internal error", more);
+        return problem("INTERNAL", "internal error", { ...more, extra: { ...idMember(requestId()), ...(more.extra ?? {}) } });
     }
     const details = error.details ?? {};
     const retryAfter = details.retryAfter !== undefined ? String(details.retryAfter) : RETRY_AFTER[/** @type {keyof typeof RETRY_AFTER} */ (error.code)];
     return problem(error.code, error.message, {
         headers: { ...(retryAfter !== undefined ? { "retry-after": retryAfter } : {}), ...(more.headers ?? {}) },
-        extra: { ...(details.requestId !== undefined ? { requestId: details.requestId } : {}), ...(details.retryable !== undefined ? { retryable: details.retryable } : {}), ...(more.extra ?? {}) }
+        extra: { ...idMember(isRequestId(details.requestId) ? details.requestId : requestId()), ...(details.retryable !== undefined ? { retryable: details.retryable } : {}), ...(more.extra ?? {}) }
     });
+}
+
+/** The member `requestId`, or none without an id. */
+const idMember = (id) => (id ? { requestId: id } : {});
+
+/**
+ * A problem answer with the member `requestId` added (when it has none), so a person can quote it; any
+ * other answer as it is.
+ * @param {Response} response
+ * @param {string} id
+ */
+export async function withRequestIdMember(response, id) {
+    if (!response.headers.get("content-type")?.includes("application/problem+json")) {
+        return response;
+    }
+    const body = await response.json();
+    if (body.requestId !== undefined) {
+        return new Response(JSON.stringify(body), { status: response.status, headers: response.headers });
+    }
+    const { type, title, status, code, detail, ...rest } = body;
+    return new Response(JSON.stringify({ type, title, status, code, detail, requestId: id, ...rest }), { status: response.status, headers: response.headers });
 }
 
 /** A JSON answer. */

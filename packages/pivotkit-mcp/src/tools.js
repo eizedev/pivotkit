@@ -8,7 +8,7 @@
 
 import { fromJsonSchema } from "@modelcontextprotocol/server";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
-import { callerFields, newRequestId, present, presentedInput, presentedOutput, withRequestId } from "pivotkit-server";
+import { callerFields, isRequestId, newRequestId, present, presentedInput, presentedOutput, serverTextOf, withRequestId } from "pivotkit-server";
 
 /** The tool's description: the operation's, plus what the model must know about this server. */
 function descriptionOf(name) {
@@ -44,13 +44,28 @@ function inputSchemaOf(name, offers) {
 const annotationsOf = (op) => ({ title: op.title, readOnlyHint: op.annotations.readOnly, destructiveHint: false, idempotentHint: op.annotations.idempotent, openWorldHint: false });
 
 /**
- * A tool error as the model gets it: its code and message, and for an error with details (a source or
- * a store that failed) the request's id to give the operator.
- * @param {OperationError | null} error  null: an unexpected error (INTERNAL)
+ * The codes of status 500 or more whose message pivotkit writes itself from its own settings (no
+ * source's or store's words), kept for the model: the limit a report ran over, a busy or stopping
+ * server.
  */
-export function errorResult(error) {
-    const id = error?.details?.requestId;
-    return { isError: true, content: [{ type: "text", text: `${error?.code ?? "INTERNAL"}: ${error ? error.message : "internal error"}${id ? ` (id ${id})` : ""}` }] };
+const OWN_TEXT = new Set(["BUSY", "NOT_READY", "TIMEOUT"]);
+
+/**
+ * A tool error as the model gets it: its code; its message, or for any other code of status 500 or
+ * more the fixed text REST answers too (such an error's own words can hold an address or a system
+ * error code), with the source and whether trying again may work; and always the call's id, to give
+ * the operator.
+ * @param {OperationError | null} error  null: an unexpected error (INTERNAL)
+ * @param {{ requestId: string, source?: string }} call  the call's id; source: a configured source's id
+ */
+export function errorResult(error, { requestId, source }) {
+    const code = error?.code ?? "INTERNAL";
+    const server = !error || (error.status >= 500 && !OWN_TEXT.has(error.code));
+    const retryable = error?.details?.retryable;
+    const notes = server ? [...(source ? [`source ${source}`] : []), ...(retryable === true ? ["trying again later may work"] : retryable === false ? ["trying again will not help"] : [])] : [];
+    const id = isRequestId(error?.details?.requestId) ? error?.details?.requestId : requestId;
+    const text = `${code}: ${server ? serverTextOf(code) : /** @type {OperationError} */ (error).message}${notes.length ? ` (${notes.join("; ")})` : ""} (id ${id})`;
+    return { isError: true, content: [{ type: "text", text }] };
 }
 
 /** A tool's result: a short text without data, the JSON, and the structured content. */
@@ -108,7 +123,7 @@ export function registerTools(server, context, caller) {
                         context.log.error(error?.cause ?? e, entry);
                     }
                     context.log.call({ ...entry, ok: false, code: error?.code ?? "INTERNAL", ms: Date.now() - started });
-                    return errorResult(error);
+                    return errorResult(error, { requestId: id, source: typeof args?.source === "string" && context.registry.ids().includes(args.source) ? args.source : undefined });
                 }
             }
         );

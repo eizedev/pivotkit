@@ -1,6 +1,7 @@
 /*
- * check-config's section for #332 (the upload target) (check/index.js says what a section returns). Says nothing
- * until that work fills it.
+ * check-config's section for the upload target.
+ *
+ * check/index.js says what a section returns. Says nothing until the feature fills it.
  */
 
 /** @type {import("./index.js").Section} */

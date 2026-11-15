@@ -315,9 +315,13 @@ a JSON-RPC error; the counts live in the memory of one process.
 
 A tool error is a result with `isError` and the text `CODE: message` (an input the tool's schema
 refuses is answered by the SDK before the tool runs, as `Input validation error: ...`); the message names a file by its
-base name only and holds no file content. An error of a source or a store that failed ends with the
-call's id, `CODE: message (id Ab3_xY9-k2Q)`: the person gives it to the operator, who finds the
-call's [log line](#logging) by it.
+base name only and holds no file content. Every tool error ends with the call's id,
+`CODE: message (id Ab3_xY9-k2Q)`: the person gives it to the operator, who finds the call's
+[log line](#logging) by it. An error of status 500 or more says the same fixed text as the REST
+service, never its own words, with the source and whether trying again may work
+(`SOURCE_UNAVAILABLE: the source is not available right now; if it stays so, give the operator the
+request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BUSY`, `NOT_READY` and
+`TIMEOUT` keep their own words, which name only the server's limits.
 
 | Code | When |
 | --- | --- |
@@ -340,7 +344,8 @@ One JSON line per event on stderr (on stdio, stdout is the protocol): `started` 
 address, auth mode, the number of sources, whether files and an output directory are on), `call`
 (tool, source id or the base name of a file, client, `requestId`, `ok`, error code, time in ms),
 `refused` (an HTTP request refused by the Host, Origin or token check, with its status) and
-`warning`. `requestId` is random (11 characters) and the same on every line of one call. The client
+`warning`. `requestId` is random (11 characters), the same on every line of one call and at the end of
+its error. The client
 is the static token's name or the OAuth token's client id, never the person's id: a line takes only
 these fields of the caller, never the person's subject, groups or other claims. No line holds a
 view, a value, a token or a full path. The log is the supervisor's to keep and rotate.

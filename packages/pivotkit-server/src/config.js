@@ -156,6 +156,7 @@ const BASE_SLOTS = {
         requiredScopes: "strings",
         toolScopes: { map: "strings" },
         scopeClaim: "string",
+        subjectClaim: "string",
         clockTolerance: "integer",
         requireTyp: "string",
         allowInsecureIssuer: "boolean",

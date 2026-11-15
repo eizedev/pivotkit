@@ -6,12 +6,12 @@ import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { OperationError } from "pivotkit-report/operations";
 import { SIGNED_IN, serveFetch } from "pivotkit-server";
-import { BODY_BYTES, peekSignIn } from "../src/listen.js";
+import { BODY_BYTES, MAX_BODY_BYTES, bodyCapOf, peekSignIn } from "../src/listen.js";
 import { bodyBytesOf } from "../src/limits.js";
 import { CALLER_LOG_FIELDS, callerFields } from "../src/log.js";
 import { REQUEST_ID, errorDetails, requestId, withRequestId } from "../src/request-id.js";
 import { offeredScopes } from "../src/scopes.js";
-import { problem, problemOf } from "../src/rest/problem.js";
+import { problem, problemOf, serverTextOf } from "../src/rest/problem.js";
 import { slowOn } from "../src/sources/params.js";
 import { BY_REGION, TOKEN, call, raw, restServer, workspace } from "./helpers.js";
 
@@ -97,7 +97,7 @@ test("problems: an error with details carries requestId, retryable and Retry-Aft
     assert.equal(body.requestId, "AAAAAAAAAAA");
     assert.equal(body.retryable, true);
     // a 5xx never carries the error's own words (an address, an errno): a fixed text
-    assert.equal(body.detail, "the source is not available right now; try again later, or give the operator the request id");
+    assert.equal(body.detail, "the source is not available right now; if it stays so, give the operator the request id");
     const upload = await problemOf(new OperationError("UPLOAD_FAILED", "PUT https://store.internal/x: 403", { requestId: "BBBBBBBBBBB", retryable: false })).json();
     assert.deepEqual([upload.detail, upload.requestId, upload.retryable], ["the report was made but could not be stored; give the operator the request id", "BBBBBBBBBBB", false]);
     const noRetryAfter = problemOf(new OperationError("SOURCE_UNAVAILABLE", "x", { requestId: "CCCCCCCCCCC", retryable: false }));
@@ -107,6 +107,67 @@ test("problems: an error with details carries requestId, retryable and Retry-Aft
     assert.equal(await plain.text(), await problem("SOURCE_NOT_FOUND", 'no source "x"').text());
     assert.equal(problemOf(new OperationError("BUSY", "busy")).headers.get("retry-after"), "5");
     assert.equal((await problemOf(new Error("secret at /etc/x")).json()).detail, "internal error");
+    // a requestId that is not one of ours (a source's own text) is not passed on: the request's own id is
+    const forged = await withRequestId("DDDDDDDDDDD", () => problemOf(new OperationError("SOURCE_UNAVAILABLE", "x", { requestId: "<script>alert(1)</script>", retryable: true })).json());
+    assert.equal(forged.requestId, "DDDDDDDDDDD");
+    const outside = await problemOf(new OperationError("SOURCE_UNAVAILABLE", "x", { requestId: "not an id", retryable: true })).json();
+    assert.equal(outside.requestId, undefined);
+    // inside a request every problem names its id, with or without details
+    const inRequest = await withRequestId("EEEEEEEEEEE", () => problemOf(new OperationError("FILE_NOT_AVAILABLE", "the source sales is not available now")).json());
+    assert.equal(inRequest.requestId, "EEEEEEEEEEE");
+    // the fixed texts are one table, MCP uses it too
+    assert.equal(serverTextOf("SOURCE_UNAVAILABLE"), body.detail);
+    assert.equal(serverTextOf("TIMEOUT"), "the report took longer than the server allows; make the view smaller or filter more");
+    assert.equal(serverTextOf("SOMETHING_NEW"), "internal error");
+});
+
+test("request ids: every REST error answer carries its request's id, the same as on its log line", async () => {
+    const dir = workspace();
+    const broken = async () => {
+        throw new Error("db at 10.1.2.3 refused");
+    };
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" }, gone: { file: "data/missing.csv" }, broken: { load: broken } }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] }, baseDir: dir }, { env: { BOT: TOKEN } });
+    try {
+        const answers = {
+            internal: await call(`${server.api}/sources/broken`, { token: TOKEN }),
+            gone: await call(`${server.api}/sources/gone`, { token: TOKEN }),
+            unknown: await call(`${server.api}/sources/nope`, { token: TOKEN }),
+            noToken: await call(`${server.api}/sources`),
+            refusedPost: await call(`${server.api}/views/validate`, { body: { source: "sales", view: BY_REGION } }),
+            badJson: await call(`${server.api}/views/validate`, { body: "{", token: TOKEN })
+        };
+        assert.deepEqual(Object.values(answers).map((a) => a.status), [500, 404, 404, 401, 401, 400]);
+        for (const [name, answer] of Object.entries(answers)) {
+            assert.match(answer.data.requestId ?? "", REQUEST_ID, name);
+            const line = server.log.find((l) => l.requestId === answer.data.requestId && (l.event === "request" || l.event === "refused"));
+            assert.ok(line, `${name}: a log line with ${answer.data.requestId}: ${JSON.stringify(server.log)}`);
+        }
+        assert.equal(answers.internal.data.detail, "internal error");
+        assert.equal(server.log.find((l) => l.event === "error").requestId, answers.internal.data.requestId);
+        // a successful answer has no id in its body (it is not a problem)
+        const ok = await call(`${server.api}/sources`, { token: TOKEN });
+        assert.equal(ok.data.requestId, undefined);
+    } finally {
+        await server.close();
+    }
+});
+
+test("body size: a 413 names its request's id, in the answer and on a log line, declared or found while the body streams", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] }, baseDir: dir }, { env: { BOT: TOKEN } });
+    try {
+        const big = JSON.stringify({ source: "sales", view: BY_REGION, pad: "x".repeat(BODY_BYTES) });
+        const declared = await raw(`${server.api}/views/validate`, { method: "POST", headers: { "content-type": "application/json", "content-length": String(Buffer.byteLength(big)) }, body: big });
+        const streamed = await raw(`${server.api}/views/validate`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}` }, body: big });
+        for (const answer of [declared, streamed]) {
+            assert.equal(answer.status, 413);
+            assert.equal(answer.data.code, "BODY_TOO_LARGE");
+            assert.match(answer.data.requestId ?? "", REQUEST_ID);
+            assert.ok(server.log.some((l) => l.event === "refused" && l.status === 413 && l.requestId === answer.data.requestId), JSON.stringify(server.log));
+        }
+    } finally {
+        await server.close();
+    }
 });
 
 test("log: only the allowlisted caller fields reach a line, never groups, claims, subject, issuer, scopes or a token", () => {
@@ -168,6 +229,18 @@ test("body size: a function that gives no usable number falls back to BODY_BYTES
         }
     }
     assert.equal(bodyBytesOf({})(new Request("http://x/"), {}), BODY_BYTES);
+});
+
+test("body size: a cap function gives a stranger at most BODY_BYTES, a signed-in caller at most MAX_BODY_BYTES", () => {
+    const head = new Request("http://x/", { method: "POST" });
+    const huge = () => 10 * MAX_BODY_BYTES;
+    assert.equal(bodyCapOf(huge, head, {}), BODY_BYTES, "not signed in: never more than the default");
+    assert.equal(bodyCapOf(() => BODY_BYTES * 5, head, {}), BODY_BYTES);
+    assert.equal(bodyCapOf(huge, head, { [SIGNED_IN]: { caller: {} } }), MAX_BODY_BYTES);
+    assert.equal(bodyCapOf(() => 20_971_520, head, { [SIGNED_IN]: { caller: {} } }), 20_971_520);
+    // smaller caps pass as given; the number form is the host's own
+    assert.equal(bodyCapOf(() => 10, head, {}), 10);
+    assert.equal(bodyCapOf(1024, head, {}), 1024);
 });
 
 test("body size: the REST service refuses a body over 2 MiB with and without a token, as before", async () => {

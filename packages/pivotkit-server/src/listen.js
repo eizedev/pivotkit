@@ -164,7 +164,7 @@ export function pathOfTarget(target) {
  * @typedef {object} FetchHandler
  * @property {(request: Request, info: { address: string }) => Promise<Response>} fetch
  * @property {(request: Request, info: { address: string }) => Promise<Response | null>} [precheck]  checks before the body is read: a Response to send, or null to go on
- * @property {(status: 400 | 413, path: string) => Response} [problem]  the answer for a body that cannot be read (path: the request's)
+ * @property {(status: 400 | 413, path: string, info?: Record<string | symbol, any>) => Response} [problem]  the answer for a body that cannot be read (path: the request's; info: the one the precheck had)
  */
 
 /**
@@ -208,13 +208,31 @@ function readBody(req, max) {
 /**
  * The sign-in a precheck kept for this request, left in `info` for the route (takeSignIn takes it).
  * @param {Record<string | symbol, any>} info
+ * @returns {{ caller: import("./registry.js").Caller } | undefined}
  */
 export const peekSignIn = (info) => (Object.hasOwn(info, SIGNED_IN) ? info[SIGNED_IN] : undefined);
 
-/** A request's body cap: the number, or what the function says; BODY_BYTES for anything but a whole number of 1 or more. */
-function capOf(bodyBytes, request, info) {
-    const cap = typeof bodyBytes === "function" ? bodyBytes(request, info) : bodyBytes;
-    return Number.isSafeInteger(cap) && cap >= 1 ? cap : BODY_BYTES;
+/** The most a cap function may give a signed-in caller: a larger cap is cut to it. */
+export const MAX_BODY_BYTES = 67_108_864;
+
+/**
+ * A request's body cap: the number (the host's own), or what the function says, at most BODY_BYTES
+ * for a caller the precheck did not sign in and at most MAX_BODY_BYTES for one it did; BODY_BYTES
+ * for anything but a whole number of 1 or more.
+ * @param {number | BodyBytes} bodyBytes
+ * @param {Request} request  without its body
+ * @param {Record<string | symbol, any>} info
+ * @returns {number}
+ */
+export function bodyCapOf(bodyBytes, request, info) {
+    if (typeof bodyBytes !== "function") {
+        return Number.isSafeInteger(bodyBytes) && bodyBytes >= 1 ? bodyBytes : BODY_BYTES;
+    }
+    const cap = bodyBytes(request, info);
+    if (!Number.isSafeInteger(cap) || cap < 1) {
+        return BODY_BYTES;
+    }
+    return Math.min(cap, peekSignIn(info) === undefined ? BODY_BYTES : MAX_BODY_BYTES);
 }
 
 /** The default answer for a body that cannot be read. */
@@ -264,7 +282,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const head = new Request(url, { method: req.method, headers });
             const early = handler.precheck ? await handler.precheck(head, info) : null;
             // the body's cap, decided once the precheck has signed the caller in (it is in info)
-            const cap = capOf(bodyBytes, head, info);
+            const cap = bodyCapOf(bodyBytes, head, info);
             if (early) {
                 // the body that follows is drained, not read, so the client gets the answer rather than a
                 // reset connection; one that keeps sending past 4 x the cap is cut off
@@ -334,7 +352,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                     setTimeout(resolve, 5000).unref();
                 });
             }
-            const answer = problem(e?.status === 413 ? 413 : 400, req.url ?? "/");
+            const answer = problem(e?.status === 413 ? 413 : 400, req.url ?? "/", info);
             res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close" });
             res.end(Buffer.from(await answer.arrayBuffer()));
         } finally {

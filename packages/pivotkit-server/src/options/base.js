@@ -1,11 +1,11 @@
 /*
  * The keys several features share (the foundation of 0.7.0): a source's params and its fields'
- * descriptions, how long a source's data is kept and how long a load may take, and the claim that
- * names a person. A feature that uses one of them never declares it again; it relaxes or adds rules
+ * descriptions, how long a source's data is kept and how long a load may take (auth.subjectClaim, the
+ * claim that names a person, stays in config.js's auth keys, where it was first). A feature that uses one of them never declares it again; it relaxes or adds rules
  * in its own fragment.
  *
- * ttl, maxStale and timeMs are taken by code sources only and do nothing yet: the work on code
- * sources (#330) gives them their defaults and behaviour, HTTP sources (#328) take them too.
+ * ttl, maxStale and timeMs are taken by code sources only and do nothing yet: the code sources'
+ * fragment gives them their defaults and behaviour, HTTP sources take them too.
  */
 
 import { declaredProblems } from "../sources/params.js";
@@ -20,8 +20,7 @@ export const KEYS = Object.freeze({
         ttl: "integer",
         maxStale: "integer",
         timeMs: "integer"
-    },
-    auth: { subjectClaim: "string" }
+    }
 });
 
 /** The keys of a source only a code source (load) takes. */

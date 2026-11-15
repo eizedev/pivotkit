@@ -31,6 +31,27 @@ export const REQUEST_ID = /^[A-Za-z0-9_-]{11}$/;
  */
 export const withRequestId = (id, fn) => current.run(id, fn);
 
+/**
+ * Where a front end keeps a request's id in serveFetch's `info`, so the precheck, the route and an
+ * answer to a body that cannot be read name the same id.
+ */
+const INFO_KEY = Symbol("pivotkit.requestId");
+
+/**
+ * The id of the request `info` belongs to: made on first use, then the same.
+ * @param {Record<string | symbol, any>} info
+ * @returns {string}
+ */
+export function requestIdFor(info) {
+    if (!Object.hasOwn(info, INFO_KEY)) {
+        info[INFO_KEY] = newRequestId();
+    }
+    return info[INFO_KEY];
+}
+
+/** Whether a value is a request id of pivotkit's form (an error's details may come from a source's code). */
+export const isRequestId = (value) => typeof value === "string" && REQUEST_ID.test(value);
+
 /** The request id of the work running now, or null outside withRequestId. */
 export const requestId = () => /** @type {string | undefined} */ (current.getStore()) ?? null;
 
