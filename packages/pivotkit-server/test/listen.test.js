@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { connect } from "node:net";
-import { createServer } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -301,6 +301,35 @@ test("a body that fails in the middle of an answer ends the connection, never a 
         assert.match(ended.text, /part/);
         // chunked transfer: a clean end is the zero-length chunk; a failed body must not send it
         assert.doesNotMatch(ended.text, /\r\n0\r\n\r\n$/, "no terminating chunk: the client sees the answer was cut");
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a client that leaves while the answer streams cancels it", async () => {
+    let cancelled = 0;
+    const listening = await serveFetch(
+        {
+            fetch: async () =>
+                // an answer that would stream for ever: only a cancel ends it
+                new Response(new ReadableStream({ start: (controller) => controller.enqueue(new TextEncoder().encode(": open\n\n")), pull: () => new Promise((resolve) => setTimeout(resolve, 60_000).unref()), cancel: () => void cancelled++ }), { headers: { "content-type": "text/event-stream" } })
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024 }
+    );
+    try {
+        await new Promise((resolve) => {
+            const req = httpRequest({ host: "127.0.0.1", port: listening.port, path: "/", method: "GET" });
+            req.on("error", () => resolve(undefined));
+            req.on("response", () => {
+                req.destroy();
+                resolve(undefined);
+            });
+            req.end();
+        });
+        for (let i = 0; i < 50 && !cancelled; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        assert.equal(cancelled, 1);
     } finally {
         await listening.close();
     }

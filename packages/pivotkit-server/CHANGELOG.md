@@ -36,6 +36,18 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   and `chartCut` only for views whose fields are all `show`.
 - `pivotkit-server/policy`: `withStats`, `levelInfo`, `autoLevel`, `AUTO_VALUES`,
   `AUTO_VALUES_DEFAULT`.
+- `dataAsOf` in every result over a source's data (describe, suggest, validate, describe view, render,
+  link, schedule draft): when the data is from, in UTC to the second (a file's modification time, a
+  code source's `asOf` or when `load()` gave the data), parsed and written again by the server;
+  render_view's message says it in words.
+- Code sources can declare `params` (`sources.<id>.params`): values a caller passes with the source,
+  checked, typed and written again before `load(params, { caller })` sees them, with a frozen copy of
+  the caller and the data kept per caller and values. `list_sources` lists them; the tools and routes
+  take `params` only when a source declares any. A source without `params` is called as before.
+- `sources.<id>.fields.<name>.description`: the operator's words about a field, shown by
+  describe_source.
+- `auth.subjectClaim` (default `sub`): the claim that names the person behind an OAuth token, the
+  identity data is kept for. A token without a usable subject gets nothing kept.
 
 ### Changed
 
@@ -45,6 +57,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   ([#306](https://github.com/eizedev/pivotkit/issues/306)); the exports keep their names.
   pivotkit-server needs the pivotkit-cli release that has `pivotkit-cli/rest` (its release raises
   the `pivotkit-cli` range).
+- The sources sit behind one dispatch by kind (`src/sources/`); file sources read as before. The
+  output directory's code moved to `src/output.js`.
 
 ### Fixed
 

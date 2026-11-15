@@ -179,7 +179,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   (Node only, no MCP SDK): `src/config.js` (`OPTION_KEYS`, the one table of options for both, `rest.*`
   included; `validateOptions` with "did you mean"; `loadConfig`), `src/flags.js` (`optionsFrom`, the
   runners' flags into options; `SERVER_FLAGS`), `src/context.js` (`createContext(options)`: registry,
-  workers, output, log, the sign-in both front ends share, `ready()`; `callerOf`), `src/policy.js`
+  workers, output, log, the sign-in both front ends share, `ready()`, `offers`: the extra inputs each
+  surface offers, fixed at start; `callerOf` and `identityKey` from auth.js), `src/policy.js`
   (show, values, summary, hide in `POLICY_LEVELS`, the order of strictness; profiles laid over a
   source's policy, `results`; the automatic values rule `autoLevel` with `AUTO_VALUES` and the one
   default `AUTO_VALUES_DEFAULT`; `withStats` binds the data's statistics, `levelInfo`/`levelOf` (own
@@ -187,13 +188,34 @@ root `package.json`: `npm run types` and the builds depend on it.
   `touchesClosed`), `src/stats.js` (`sourceStats`: per field the counts the "values" level is decided
   by, never a value; counted in data.js when the data is read, cached with it, returned by the worker
   with every outcome), `src/registry.js` (source ids and `file:` paths, scopes, "not
-  found" for a source the caller may not use; `files: false` for REST), `src/data.js`,
+  found" for a source the caller may not use; `files: false` for REST; `resolve(ref, caller, how,
+  params)` dispatches by kind and checks params), `src/sources/` (the kinds of source:
+  `index.js` `kindOf`, `KINDS` and `runResolved`, the one way present() runs an operation over a
+  source; `file.js` configured files and `file:` paths, read in a worker; `code.js` a library host's
+  `load()`, with `load(params, { caller })` when it declares params; `http.js` and `inline.js` (the
+  reserved id `inline:`) not offered yet; `params.js` a source's parameters: `declaredProblems`,
+  `paramSchemaOf`, `normalizeParams`, `paramsList`; `input.js` the extra inputs (`params`) a surface
+  offers (`offersOf`, `extraInputs`, `withoutExtras`) and `listExtras` of list_sources; `as-of.js`
+  `dataAsOf`, every source's time parsed and written in one form (`asOfText`, `asOfMembers`); `keys.js`
+  canonical JSON cache keys (`tableKeyOf`: null without an identity); `fetch.js` `guardedFetch`, the
+  one way the server requests another server: https only, no redirects, the address checked on the
+  connection's own lookup, bodies counted after decompression, one time limit), `src/data.js`
+  (`fileData`, `codeData`, and `tableData`/`uploadData` for a table job: data loaded in the main
+  thread or a file handed in, computed in a worker),
   `src/compute.js` and `src/worker.js` (worker threads with memory and time limits; an input the
   structured clone cannot copy is `INVALID_INPUT` and frees the worker), `src/present.js` (`present()`:
   run an operation for a caller and apply the policy, output files, inline results and the one
   sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are
-  made from; `renderFile` for the download route), `src/auth.js` (`createAuthCore`: static tokens, the
-  OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`), `src/checks.js` (Host
+  made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
+  `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: how a written report
+  reaches the caller, `output.note`), `src/scopes.js` (`listHint` of list_sources), `src/request-id.js`
+  (a request's id: `newRequestId`, `withRequestId`, `requestId`, `errorDetails` for an
+  `OperationError`'s `details`), `src/auth.js` (`createAuthCore`: static tokens, the
+  OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`; `callerOf`, a caller's
+  identity (`auth.subjectClaim`) and `identityKey`, the only identity a cache or binding uses, null
+  without a usable subject; `callerView`, the frozen caller a code source gets; `exchangeTokenFor`,
+  the one use of a caller's access token, which an ESLint rule lets only `src/sources/auth.js`
+  import), `src/checks.js` (Host
   check, client address), `src/listen.js` (`serveFetch`: a fetch handler on node:http, headers checked
   before the body, every value of a repeated header, connections bounded in all and per address
   with slots kept for loopback (`connectionGate`), request targets read by their path, a graceful

@@ -30,7 +30,7 @@ holds what it shares with the REST service (sources, policy, workers, output, si
 
 | Tool | What it does | Writes |
 | --- | --- | --- |
-| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works | - |
+| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes | - |
 | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views from its own fields | - |
 | `suggest_view` | A draft view from a source's fields (marked `Draft:`), with what each part took and could take instead (`picks`); a `layout` replaces parts of it | - |
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
@@ -43,7 +43,15 @@ holds what it shares with the REST service (sources, policy, workers, output, si
 Every tool has an input and an output JSON Schema (draft 2020-12) and returns its result as
 structured content and as one text block: a short sentence with counts and ids (never a name or value
 from the data), then the JSON. A view with errors is not a tool error: `ok` or `valid` is false and
-`findings` say what to fix. The tools are one table shared with the command line
+`findings` say what to fix. Every result over a source's data (all tools but `list_sources` and
+`get_view_guide`) has `dataAsOf`, when the data is from, in UTC to the second
+(`"2026-11-15T08:00:00Z"`): a file's modification time, or for a library host's code source its own
+`asOf` (see below), else when `load()` gave the data. pivotkit parses every such time and writes it
+again in this one form, so no text of a source reaches the model through it; a time that does not
+parse is left out for when the data arrived, one in the future becomes now. `render_view`'s message and
+summary line end with it in words ("Data as of 2026-11-15 08:00 UTC."). A result may also carry
+`stale: { since }` when last good data stands in for a load that failed; no source of this version
+does that yet. The tools are one table shared with the command line
 ([`pivotkit-report/operations`](report.md#operations)); the [REST service](rest.md) offers the
 same operations with the same policy to programs.
 
@@ -187,6 +195,8 @@ error that names the key and the one probably meant.
 | `sources.<id>.link`, `.linkKey` | - | none | The page that shows this source's reports, for create_link; the report's key there |
 | `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html, its path relative to the configuration file; its `--pk-*` colours reach the chart ([details](print-template.md#template-design)) |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
+| `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`; control and direction characters are removed |
+| `sources.<id>.params` | - | none | A code source's parameters: values a caller passes with the source (see below) |
 | `files.allowDirs` | `--allow-dir dir` | none | Directories the model may name files in (`file:`) |
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |
 | `files.hardLinks` | - | false | Read files that have a second name |
@@ -260,7 +270,35 @@ directories and starts the workers; `context.server(ctx)` builds a fresh McpServ
 `serveStdio` or `createMcpHandler`; `await createHttpHandler(context)` gives `{ fetch, close }` with every
 check of this page; `loadConfig(file)` reads a configuration file into options. A library host may
 give a source `load: async () => rows` (rows or columnar data) and `version: () => key` instead of
-`file`; such sources run in the host's thread, not in a worker. `createHttpHandler(context, { env })`
+`file`; such sources run in the host's thread, not in a worker. The data may say when it is from:
+columnar data with `asOf` (a `Date`, an ISO 8601 text or epoch milliseconds) gives the results'
+`dataAsOf`.
+
+A code source may declare **parameters**: values a caller passes as `params` with the source's id,
+checked and written again by pivotkit before `load` sees them. With `params` declared, pivotkit calls
+`load(params, { caller })` and `version(params, { caller })`, where `caller` is a frozen copy of who
+calls (`client`, `profile`, `scopes`, `groups`, and with OAuth `subject` and `issuer`, else null;
+never a token), and keeps the data
+per caller (with its client, scopes, groups and claims) and values; a caller without an identity (an OAuth token without a usable subject) gets
+no kept data. A source without `params` is called as `load()` and `version()`.
+
+```js
+sources: {
+  tickets: {
+    load: async ({ team }, { caller }) => fetchTickets(team, caller.subject),
+    params: { team: { type: "string", required: true, enum: ["blue", "red"], description: "The team" } }
+  }
+}
+```
+
+A parameter has a `type` (`string`, `integer`, `number`, `boolean`) and may have `required`,
+`default`, `description`, `example`, `enum`, `pattern`, `minLength`, `maxLength` (strings: 64 unless
+set, at most 256), `minimum`, `maximum` and `format: "date"`; at most 16 per source, names letters,
+digits and `_`. A `pattern` is matched against the whole value (as if written `^(?:...)$`) and may
+not repeat a group (`(a|b)*`, `(ab)+`, `(ab){1,3}`; repeat a character or a class, `[ab]*`, or make the group optional, `(-x)?`). Every match runs with a time limit of 25 ms: a pattern that takes longer on values made to be slow is refused at start, and a value it cannot check in time is `INVALID_INPUT`; a string without `pattern` or `enum`
+takes letters, digits and `. _ ~ -` only, and no string value may hold `..` or a control character. `list_sources` lists a source's parameters, and the tools that take a source take `params` only
+when a configured source declares any. A missing required value, an unknown name or a value of the
+wrong form is `INVALID_INPUT` naming the parameter. `createHttpHandler(context, { env })`
 reads static tokens from `env` (default `process.env`). `pivotkit-mcp/policy` exports the exposure
 policy (`resolvePolicy`, `withStats`, `levelOf`, `levelInfo`, `autoLevel`, `deniedWord`, `listsAll`,
 `stricter`, `exposeSource`, `exposeFindings`, `touchesClosed`) for another front end over the same
@@ -291,6 +329,7 @@ base name only and holds no file content.
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a `file:` source |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
+| `DATA_MISMATCH`, `DATA_NOT_AVAILABLE`, `SOURCE_UNAVAILABLE`, `UPLOAD_FAILED` | Reserved for sources and delivery that load data or store reports elsewhere; this version does not answer them |
 | `INTERNAL` | Anything else: "internal error", the details only in the log with `--log debug` |
 
 ## Logging { #logging }
@@ -419,6 +458,7 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `sources.<id>.scopes`, `files.scopes` | none | Scopes a caller needs to see a source (without them it is not listed and is `SOURCE_NOT_FOUND`) |
 | `auth.scopesSupported` | `requiredScopes` | What the metadata lists |
 | `auth.scopeClaim` | `scope`, else `scp` | The claim the scopes are read from |
+| `auth.subjectClaim` | `sub` | The claim that names the person: the identity a code source's kept data is bound to. A token without it (or with an empty one, or one over 256 characters) has no identity, and nothing is kept for it. Some providers give a different `sub` per application; for those name another claim (for Microsoft Entra ID, for example, `oid`; check your provider's documentation) |
 | `auth.algorithms` | RS256, PS256, ES256, EdDSA | Accepted signature algorithms |
 | `auth.jwksUri` | the issuer's | Another place for the keys |
 | `auth.requireTyp` | none | Require a token type, e.g. `at+jwt` (rejects ID tokens where the provider marks access tokens) |

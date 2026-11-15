@@ -1,10 +1,10 @@
 /*
  * The data of a source for an operation: read a file the safe way (pivotkit-cli/files), drop the
- * columns the policy hides, encode, count the statistics the policy's "values" level is decided by
- * (stats.js), and keep the last few data sets (by the file's identity, size and
- * time, or a code source's version), so a model's run of describe, validate and render reads a file
- * once. Used inside a compute worker (file sources) and in the main thread (code sources of a
- * library host).
+ * columns the policy hides, encode, and keep the last few data sets (by the file's identity, size and
+ * time, a code source's version, or a table job's key), so a model's run of describe, validate and
+ * render reads a file once. Each data set says when it is from (asOf, sources/as-of.js). Used inside
+ * a compute worker (file sources, tables loaded in the main thread, uploaded files) and in the main
+ * thread (code sources of a library host).
  */
 
 import { stat } from "node:fs/promises";
@@ -14,6 +14,7 @@ import { asCliError, readSafe, readTable } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
 import { sourceStats } from "./stats.js";
+import { asOfText } from "./sources/as-of.js";
 
 /**
  * What a worker or the main thread needs to read a source.
@@ -52,7 +53,7 @@ function withoutHidden(table, hide) {
         return { columns: table.columns, types: table.types, data: table.data };
     }
     const keep = table.columns.map((c, i) => (hide.includes(fieldKey(c)) ? -1 : i)).filter((i) => i >= 0);
-    return { columns: keep.map((i) => table.columns[i]), types: keep.map((i) => table.types[i]), data: keep.map((i) => table.data[i]) };
+    return { columns: keep.map((i) => table.columns[i]), types: table.types ? keep.map((i) => table.types[i]) : undefined, data: keep.map((i) => table.data[i]) };
 }
 
 /** Reader notes without those about a hidden column: nothing about it reaches the model. */
@@ -115,7 +116,7 @@ export async function fileData(spec) {
         const { table, notes } = await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
         const hide = hiddenOf(spec.levels, table.columns);
         const data = encode(withoutHidden(table, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data) }));
+        return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data), asOf: asOfText(info.mtime) }));
     } catch (e) {
         const error = asOperationError(e, spec.path);
         if (spec.kind !== "source") {
@@ -166,6 +167,65 @@ export async function codeData(spec, source) {
         hide = hiddenOf(spec.levels, columnar.columns ?? []);
         data = encode(withoutHidden(columnar, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
     }
-    const out = { data, notes: [], hidden: hide.length, stats: sourceStats(data) };
+    // when the host says the data is from (columnar data's asOf), else when load() gave it
+    const asOf = (columnar && !Array.isArray(columnar) && columnar.asOf !== undefined ? asOfText(columnar.asOf) : null) ?? asOfText(new Date());
+    const out = { data, notes: [], hidden: hide.length, asOf, stats: sourceStats(data) };
     return of(key ? remember(key, out) : out);
+}
+
+/**
+ * A table loaded in the main thread (an HTTP source's rows, data sent in a request), in a worker:
+ * hidden columns dropped, encoded, kept by its key (a key of null: never kept).
+ * @param {SourceSpec} spec
+ * @param {{ columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] }} table  rows as lists in the columns' order, or columnar
+ * @param {string | null} key  sources/keys.js tableKeyOf
+ * @param {string | null} [asOf]  when the data is from (sources/as-of.js asOfText)
+ * @param {import("pivotkit-report/operations").Finding[]} [notes]
+ */
+export function tableData(spec, table, key, asOf = null, notes = []) {
+    const of = (read) => ({ ...read, name: spec.name, schedulable: spec.schedulable });
+    if (key !== null && cache.has(key)) {
+        return of(remember(key, cache.get(key)));
+    }
+    const columns = Array.isArray(table?.columns) ? table.columns.map(String) : null;
+    if (!columns) {
+        throw new OperationError("INTERNAL", "a table has columns and rows (or columnar data)");
+    }
+    const columnar = "data" in table && Array.isArray(table.data) ? { columns, types: table.types, data: table.data } : { columns, data: columns.map((_, i) => /** @type {unknown[][]} */ (/** @type {any} */ (table).rows ?? []).map((row) => (Array.isArray(row) ? row[i] : undefined))) };
+    const hide = hiddenOf(spec.levels, columns);
+    try {
+        const data = encode(/** @type {any} */ (withoutHidden(/** @type {any} */ (columnar), hide)), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
+        const out = { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data), asOf: asOf ?? asOfText(new Date()) };
+        return of(key !== null ? remember(key, out) : out);
+    } catch (e) {
+        throw asOperationError(e, spec.name);
+    }
+}
+
+/**
+ * A file's bytes handed in (an upload), read in a worker with the server's import limits, then as
+ * tableData.
+ * @param {SourceSpec} spec
+ * @param {{ bytes: Uint8Array, format: string, sheet?: string }} upload
+ * @param {string | null} key
+ * @param {string | null} [asOf]
+ */
+export async function uploadData(spec, upload, key, asOf = null) {
+    if (key !== null && cache.has(key)) {
+        return { ...remember(key, cache.get(key)), name: spec.name, schedulable: spec.schedulable };
+    }
+    const format = String(upload.format ?? "").toLowerCase();
+    if (!FORMATS.has(format)) {
+        throw new OperationError("UNSUPPORTED_FORMAT", `${spec.name}: pivotkit reads csv, tsv, txt, json and xlsx files`);
+    }
+    if (upload.bytes.length > (spec.limits.fileBytes ?? 52_428_800)) {
+        throw new OperationError("LIMIT_EXCEEDED", `${spec.name}: the file is larger than the server reads (limits.fileBytes)`);
+    }
+    let read;
+    try {
+        read = await readTable(upload.bytes, `${spec.name}.${format}`, { format, ...(upload.sheet ? { sheet: upload.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
+    } catch (e) {
+        throw asOperationError(e, spec.name);
+    }
+    return tableData(spec, read.table, key, asOf, read.notes);
 }

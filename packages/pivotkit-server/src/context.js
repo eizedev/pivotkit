@@ -16,8 +16,10 @@ import { ConfigError, OUTPUT_DEFAULTS, pathOf, validateOptions } from "./config.
 import { createComputer } from "./compute.js";
 import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
-import { createAuthCore, profileOf } from "./auth.js";
-import { autoValuesFields, noteAutoValues, prune } from "./present.js";
+import { callerOf, createAuthCore, identityKey } from "./auth.js";
+import { offersOf } from "./sources/input.js";
+import { prune } from "./output.js";
+import { autoValuesFields, noteAutoValues } from "./present.js";
 import { resolvePolicy, withStats } from "./policy.js";
 
 /**
@@ -25,6 +27,8 @@ import { resolvePolicy, withStats } from "./policy.js";
  * which the start's ConfigError and check-config's PROBLEM line each put their own prefix before.
  */
 export const OUTPUT_INSIDE_ALLOWED = "lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them";
+
+export { callerOf, identityKey };
 
 /** The variable of the one static token when auth.tokens is empty. */
 export const TOKEN_ENV = "PIVOTKIT_TOKEN";
@@ -46,6 +50,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {any} computer  the compute pool (compute.js)
  * @property {{ dir: string, baseUrl: string | null, maxFiles: number, maxMb: number, maxAgeDays: number, cleanUp: boolean, showPath: boolean } | null} output  cleanUp: the oldest reports may be deleted to make room (not where the operator's own files lie)
  * @property {any} log  the log (log.js)
+ * @property {import("./sources/input.js").Offers} offers  the extra inputs each surface offers (fixed at start)
  * @property {string} authMode
  * @property {string} version
  * @property {(how: { env?: Record<string, string | undefined>, loopback: boolean }) => Promise<any>} auth
@@ -144,6 +149,7 @@ export async function createContext(options, runtime = {}) {
         computer,
         output,
         log,
+        offers: offersOf(options),
         authMode: options.auth?.mode ?? "none",
         version: VERSION,
 
@@ -228,29 +234,6 @@ export async function createContext(options, runtime = {}) {
         pruning.unref();
     }
     return context;
-}
-
-/**
- * Who calls, from the request's verified token: its scopes, how the log names it and its policy
- * profile.
- * @param {string} mode
- * @param {any} authInfo
- * @param {import("./config.js").AuthOptions} [authOptions]  for the OAuth client's and scopes' profiles
- * @returns {import("./registry.js").Caller}
- */
-export function callerOf(mode, authInfo, authOptions = undefined) {
-    if (mode === "none") {
-        return { scopes: null, client: "local", profile: null };
-    }
-    if (!authInfo) {
-        // a request that reached an operation without a verified token holds no scope: closed, not open
-        return { scopes: new Set(), client: "unknown", profile: null };
-    }
-    const profile = profileOf(authOptions, authInfo);
-    if (authInfo.extra?.allScopes) {
-        return { scopes: null, client: String(authInfo.clientId ?? "token"), profile };
-    }
-    return { scopes: new Set(authInfo.scopes ?? []), client: String(authInfo.clientId ?? "client").slice(0, 80), profile };
 }
 
 /** The words for the file system error codes a directory made at start meets (permissions apart). */

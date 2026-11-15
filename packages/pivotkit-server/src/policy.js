@@ -568,14 +568,19 @@ export const DESCRIBE_HINT = "A field at summary lists no values: ask the user f
  * @param {any} result  describe_source's result (asked with items = max(policy.items, policy.valuesMax))
  * @param {Policy} policy  with the data's statistics (withStats)
  * @param {number} hidden  the number of columns dropped
+ * @param {Map<string, string>} [descriptions]  the operator's words about fields, by fieldKey (sources.<id>.fields.<name>.description), shown at every level
  */
-export function exposeSource(result, policy, hidden) {
+export function exposeSource(result, policy, hidden, descriptions = undefined) {
     const fields = result.fields.map((f) => {
         const info = levelInfo(policy, f.name);
         const level = info.level;
         const name = nameText(f.name);
         /** @type {Record<string, unknown>} */
         const out = { name, type: f.type, level, ...(info.auto ? { auto: true } : {}) };
+        const description = descriptions?.get(fieldKey(f.name));
+        if (description) {
+            out.description = description;
+        }
         if (policy.counts && f.distinct !== undefined) {
             out.distinct = f.distinct;
             out.blanks = f.blanks;

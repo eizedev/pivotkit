@@ -71,6 +71,7 @@ The whole body is built in memory; the [limits](../concepts/limits.md) keep it b
 | `size` | `{ width: 800, height: 480 }` | The chart's size in px, 100 to 8,000. |
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
+| `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form is refused. The REST service and the MCP server pass it; the report does not print it in this version. |
 
 Any other option name is refused (`INVALID_OPTION`, with the closest name), so a misspelt one is not
 ignored.
@@ -88,7 +89,7 @@ ignored.
 
 A bad view never throws: its issues come back. `PivotkitError` is thrown for a wrong argument
 (`INVALID_ARGUMENT`), a wrong option (`INVALID_OPTION` with `details.option`: an unknown `format`, a
-`size` out of range, an unknown option, a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take, an SVG or `chart: true` without `echarts`, a `now` that is no date), a limit (`LIMIT_EXCEEDED`) and
+`size` out of range, an unknown option, a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take, an SVG or `chart: true` without `echarts`, a `now` that is no date, a `dataAsOf` in another form), a limit (`LIMIT_EXCEEDED`) and
 a refused template (`INVALID_TEMPLATE`, see [print template](print-template.md)). The report's own
 issues are warnings: `chartUnavailable` (a view that shows the chart, rendered as HTML with `chart`
 `"auto"` and without `echarts`: the table is there, the chart is not; pass `strict` and check `ok`, or
@@ -180,7 +181,10 @@ neither, is `INVALID_INPUT`.
 for validate and describe), `sources()`, `link(source)`, `template(source)`, `echarts`, `limits`,
 `locale`, `timeZone`, `now`, and `renderOptions` for a front end's own render options. A view with
 errors is no error (`ok` or `valid` false, with `findings`); what a front end must handle is
-`OperationError` with a `code` of `OPERATION_ERRORS` and its HTTP `status`. `findingOf` turns a
+`OperationError` with a `code` of `OPERATION_ERRORS` and its HTTP `status`, and for some codes
+`details` (`requestId` to quote to the operator, `retryable`, `retryAfter` in seconds). When
+`data(source)` gives `asOf` (when the data is from, in UTC to the second), `render_view` passes it to
+`render` as `dataAsOf`. `findingOf` turns a
 pivotkit-core issue into a finding (cleaned, cut at 200 characters); `exampleViews(fields)` builds
 views from a data set's fields.
 

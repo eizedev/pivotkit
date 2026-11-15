@@ -1163,7 +1163,7 @@
           },
           "code": {
             "type": "string",
-            "description": "A stable code; new ones may come. Today: INVALID_INPUT, FILES_NOT_ALLOWED, NOT_ALLOWED, SOURCE_NOT_FOUND, FILE_NOT_AVAILABLE, NO_OUTPUT, NO_LINK, NOT_SCHEDULABLE, LIMIT_EXCEEDED, UNSUPPORTED_FORMAT, INVALID_FILE, NOT_REGULAR_FILE, HARD_LINK, INVALID_TEMPLATE, BUSY, NOT_READY, TIMEOUT, INTERNAL, INVALID_TOKEN, INSUFFICIENT_SCOPE, FORBIDDEN_HOST, FORBIDDEN_ORIGIN, NOT_FOUND, METHOD_NOT_ALLOWED, BODY_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, VIEW_HAS_ERRORS, RATE_LIMITED, AUTH_NOT_READY."
+            "description": "A stable code; new ones may come. Today: INVALID_INPUT, FILES_NOT_ALLOWED, NOT_ALLOWED, SOURCE_NOT_FOUND, FILE_NOT_AVAILABLE, NO_OUTPUT, NO_LINK, NOT_SCHEDULABLE, LIMIT_EXCEEDED, UNSUPPORTED_FORMAT, INVALID_FILE, NOT_REGULAR_FILE, HARD_LINK, INVALID_TEMPLATE, DATA_MISMATCH, DATA_NOT_AVAILABLE, SOURCE_UNAVAILABLE, UPLOAD_FAILED, BUSY, NOT_READY, TIMEOUT, INTERNAL, INVALID_TOKEN, INSUFFICIENT_SCOPE, FORBIDDEN_HOST, FORBIDDEN_ORIGIN, NOT_FOUND, METHOD_NOT_ALLOWED, BODY_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, VIEW_HAS_ERRORS, RATE_LIMITED, AUTH_NOT_READY."
           },
           "detail": {
             "type": "string",
@@ -2306,6 +2306,48 @@
                 },
                 "schedulable": {
                   "type": "boolean"
+                },
+                "params": {
+                  "type": "array",
+                  "description": "The values the source takes: pass them as params with its id.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "type",
+                      "required"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "required": {
+                        "type": "boolean"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "example": {
+                        "type": [
+                          "string",
+                          "number",
+                          "boolean"
+                        ]
+                      },
+                      "enum": {
+                        "type": "array",
+                        "items": {
+                          "type": [
+                            "string",
+                            "number"
+                          ]
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2355,6 +2397,10 @@
                 },
                 "type": {
                   "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "The operator's words about the field."
                 },
                 "distinct": {
                   "type": "integer"
@@ -2462,6 +2508,22 @@
                 }
               }
             }
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
           },
           "hiddenFields": {
             "type": "integer"
@@ -2704,6 +2766,22 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
           }
         },
         "required": [
@@ -2933,6 +3011,22 @@
           "view": {
             "type": "object",
             "description": "With a layout: the view it makes (normalized)."
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
           }
         },
         "required": [
@@ -3094,6 +3188,22 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
           }
         },
         "required": [
@@ -3357,6 +3467,22 @@
               }
             }
           },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
           "output": {
             "type": [
               "object",
@@ -3377,6 +3503,10 @@
               },
               "mediaType": {
                 "type": "string"
+              },
+              "note": {
+                "type": "string",
+                "description": "How to open the link, in one sentence."
               }
             }
           },
@@ -3502,6 +3632,22 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
           }
         },
         "required": [
@@ -3685,6 +3831,22 @@
               "null"
             ]
           },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
           "output": {
             "type": [
               "object",
@@ -3705,6 +3867,10 @@
               },
               "mediaType": {
                 "type": "string"
+              },
+              "note": {
+                "type": "string",
+                "description": "How to open the link, in one sentence."
               }
             }
           },

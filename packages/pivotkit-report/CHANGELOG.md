@@ -20,6 +20,12 @@ All notable changes to `pivotkit-report` are documented in this file. The format
   every screen) and `data-pk-theme="dark"` (dark on every screen, light on paper). On a dark screen
   the report's dark tokens win over a template's plain `:root` colours
   ([#370](https://github.com/eizedev/pivotkit/issues/370)).
+- `OPERATION_ERRORS` has `DATA_MISMATCH` (422), `DATA_NOT_AVAILABLE` (404), `SOURCE_UNAVAILABLE` (502)
+  and `UPLOAD_FAILED` (502); `OperationError` takes `details` (`requestId`, `retryable`,
+  `retryAfter`).
+- A front end's `data(source)` may give `asOf` (and `stale`); `render_view` passes it to `render` as
+  the option `dataAsOf`, which `render` checks (UTC to the second) and does not print yet.
+- list_sources' output schema has `params` per source; describe_source's a field's `description`.
 
 - `darkTokens`: a host's `--pk-*` colours for an HTML report on a dark screen, over the dark theme's,
   as `tokens` are over the light ones (cleaned the same way); paper, a root that pins light and the

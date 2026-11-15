@@ -121,7 +121,7 @@ export async function createRestHandler(context, runtime = {}) {
     let warnedAddress = false;
     const trustProxy = options.http?.trustProxy ?? false;
     let document = null;
-    const openapi = () => (document ??= openApiDocument({ auth: authOptions, publicUrl: options.http?.publicUrl, issuer: core.metadata?.() ?? null, resource: resource.href, requiredScopes }));
+    const openapi = () => (document ??= openApiDocument({ auth: authOptions, publicUrl: options.http?.publicUrl, issuer: core.metadata?.() ?? null, resource: resource.href, requiredScopes, offers: context.offers?.rest }));
 
     /** The WWW-Authenticate challenge of a refusal. */
     function challenge(error, description, scopes = requiredScopes) {
@@ -232,7 +232,7 @@ export async function createRestHandler(context, runtime = {}) {
         if (typeof input.source === "string" && input.source.startsWith("file:")) {
             throw new OperationError("FILES_NOT_ALLOWED", "this service reads no files by path: use a source id from GET /sources");
         }
-        checkInput(presentedInput(route.operation, { files: false }), input);
+        checkInput(presentedInput(route.operation, { files: false, offers: context.offers?.rest }), input);
         if (route.answer === "file") {
             const { result, file } = await renderFile(context, input, caller);
             if (!file) {

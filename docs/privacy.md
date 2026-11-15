@@ -53,6 +53,12 @@ written for it are in the output directory. Treat token holders as recipients of
 tokens to people and systems, not to groups that change, rotate them (token files are read on every
 request), and keep OAuth access tokens short-lived, since a token stays valid until it expires.
 
+With OAuth the server reads who the person is from the token (`auth.subjectClaim`, default `sub`)
+and its issuer. It keeps them in memory only, to keep a code source's data per person (as a keyed
+hash that means nothing outside the process), and does not log them. A library host's code source
+that declares `params` receives them as `caller.subject` and `caller.issuer`: what it does with them
+is the host's decision. The access token itself goes to no source.
+
 ## Logs and retention { #retention }
 
 The log holds the operation, the source id, the client (a token's name or an OAuth client id, never a

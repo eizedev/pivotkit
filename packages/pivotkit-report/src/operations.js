@@ -34,23 +34,46 @@ export const OPERATION_ERRORS = Object.freeze({
     NOT_REGULAR_FILE: 422,
     HARD_LINK: 422,
     INVALID_TEMPLATE: 422,
+    DATA_MISMATCH: 422,
+    DATA_NOT_AVAILABLE: 404,
+    SOURCE_UNAVAILABLE: 502,
+    UPLOAD_FAILED: 502,
     BUSY: 503,
     NOT_READY: 503,
     TIMEOUT: 504,
     INTERNAL: 500
 });
 
+/**
+ * What an error may say beyond its code and message, for a person to act on: the request's id (to
+ * quote to the operator), whether the same call may work when tried again, and after how many
+ * seconds.
+ * @typedef {object} OperationErrorDetails
+ * @property {string} [requestId]
+ * @property {boolean} [retryable]
+ * @property {number} [retryAfter]  seconds
+ */
+
 /** An error of an operation a front end shows as it is: a stable code and a message without file content. */
 export class OperationError extends Error {
     /**
      * @param {keyof typeof OPERATION_ERRORS} code
      * @param {string} message
+     * @param {OperationErrorDetails} [details]
      */
-    constructor(code, message) {
+    constructor(code, message, details = undefined) {
         super(message);
         this.name = "OperationError";
         this.code = code;
         this.status = OPERATION_ERRORS[code] ?? 500;
+        if (details) {
+            /** @type {OperationErrorDetails | undefined} */
+            this.details = {
+                ...(typeof details.requestId === "string" ? { requestId: details.requestId } : {}),
+                ...(typeof details.retryable === "boolean" ? { retryable: details.retryable } : {}),
+                ...(Number.isSafeInteger(details.retryAfter) && /** @type {number} */ (details.retryAfter) >= 0 ? { retryAfter: details.retryAfter } : {})
+            };
+        }
     }
 }
 
@@ -114,6 +137,8 @@ export function findingOf(issue) {
  * @property {string} name  how a report names the data (a file's base name, a source's title)
  * @property {Finding[]} [notes]  what reading it noticed
  * @property {boolean} [schedulable]  a schedule may run over it (false for a file a person handed in)
+ * @property {string} [asOf]  when the data is from: ISO 8601 in UTC to the second ("2026-11-15T08:00:00Z"), made by the front end, never a source's own text
+ * @property {{ since: string }} [stale]  the data is the last good one, kept since then, because a fresh load failed
  */
 
 /**
@@ -124,6 +149,7 @@ export function findingOf(issue) {
  * @property {"source" | "file"} kind
  * @property {boolean} link  create_link works for it
  * @property {boolean} schedulable
+ * @property {Array<{ name: string, type: string, required: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number> }>} [params]  the values the source takes (params)
  */
 
 /**
@@ -499,7 +525,19 @@ export const OPERATIONS = Object.freeze({
                     items: {
                         type: "object",
                         required: ["id", "title", "kind", "link", "schedulable"],
-                        properties: { id: { type: "string" }, title: { type: "string" }, description: { type: "string" }, kind: { enum: ["source", "file"] }, link: { type: "boolean" }, schedulable: { type: "boolean" } }
+                        properties: {
+                            id: { type: "string" },
+                            title: { type: "string" },
+                            description: { type: "string" },
+                            kind: { enum: ["source", "file"] },
+                            link: { type: "boolean" },
+                            schedulable: { type: "boolean" },
+                            params: {
+                                type: "array",
+                                description: "The values the source takes: pass them as params with its id.",
+                                items: { type: "object", required: ["name", "type", "required"], properties: { name: { type: "string" }, type: { type: "string" }, required: { type: "boolean" }, description: { type: "string" }, example: { type: ["string", "number", "boolean"] }, enum: { type: "array", items: { type: ["string", "number"] } } } }
+                            }
+                        }
                     }
                 }
             },
@@ -528,6 +566,7 @@ export const OPERATIONS = Object.freeze({
                         properties: {
                             name: { type: "string" },
                             type: { type: "string" },
+                            description: { type: "string", description: "The operator's words about the field." },
                             distinct: { type: "integer" },
                             blanks: { type: "integer" },
                             items: { type: "array" },
@@ -722,6 +761,7 @@ export const OPERATIONS = Object.freeze({
                 ...(template !== undefined ? { template } : {}),
                 ...(input.title !== undefined ? { title: input.title } : {}),
                 ...(input.chart ? { chart: input.chart === "auto" ? "auto" : input.chart === "on" } : {}),
+                ...(typeof source.asOf === "string" ? { dataAsOf: source.asOf } : {}),
                 ...extra
             });
             const findings = [...(source.notes ?? []), ...given.notes, ...result.issues.map(findingOf), ...(read.failed ? [] : unknownItems(read.view, source.data, env))];

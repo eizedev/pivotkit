@@ -71,8 +71,8 @@ const VIEW_INPUT = {
 };
 
 /** An operation's input schema with the view referenced. */
-function inputSchema(name) {
-    const schema = structuredClone(presentedInput(name, { files: false }));
+function inputSchema(name, offers) {
+    const schema = structuredClone(presentedInput(name, { files: false, offers }));
     if (schema.properties?.view) {
         schema.properties.view = VIEW_INPUT;
     }
@@ -86,6 +86,7 @@ function inputSchema(name) {
  * @property {any} [issuer]  OAuth: the issuer's metadata (its endpoints)
  * @property {string} [resource]  OAuth: the REST resource
  * @property {string[]} [requiredScopes]  OAuth: the scopes every call needs
+ * @property {import("../sources/input.js").SurfaceOffers} [offers]  the extra inputs the service offers (context.offers.rest; none by default)
  */
 
 /**
@@ -128,7 +129,7 @@ export function openApiDocument(options = {}) {
         ...viewComponents()
     };
     for (const name of Object.keys(OPERATIONS)) {
-        schemas[`${pascal(name)}Input`] = inputSchema(name);
+        schemas[`${pascal(name)}Input`] = inputSchema(name, options.offers);
         schemas[`${pascal(name)}Output`] = presentedOutput(name);
     }
     /** @type {Record<string, any>} */

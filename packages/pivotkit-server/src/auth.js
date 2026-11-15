@@ -11,13 +11,22 @@
  *   audience, expiry, algorithms; no "none", no HMAC). Each endpoint checks its own audience. The
  *   metadata is fetched in the background with retries; until it is there, `ready()` is false.
  *
- * The token itself is never logged, never passed on, never part of a message.
+ * The token itself is never logged, never passed on, never part of a message. A caller (callerOf)
+ * never holds it: this module keeps an OAuth caller's token in a module-private WeakMap, and the one
+ * way to use it is exchangeTokenFor, the RFC 8693 token exchange at a token endpoint (an ESLint rule
+ * and a test keep other modules from importing it).
+ *
+ * Who a caller is (its identity, for caches and bindings) is the issuer and the subject of its token
+ * (auth.subjectClaim, default "sub"), a static token's name, or "local" without sign-in; a verified
+ * token without a usable subject has none, and `client` alone never is one.
  */
 
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { OperationError } from "pivotkit-report/operations";
 import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
+import { guardedFetch } from "./sources/fetch.js";
 
 /** The fewest characters of a static token. */
 export const TOKEN_MIN = 32;
@@ -177,8 +186,14 @@ export function resourceMetadataUrlOf(resource) {
  * @property {string[]} scopes
  * @property {number} expiresAt
  * @property {URL} [resource]
- * @property {{ allScopes?: boolean, profile?: string | null }} [extra]
+ * @property {{ allScopes?: boolean, profile?: string | null, subject?: string | null, issuer?: string | null }} [extra]  subject: the token's auth.subjectClaim when usable, issuer: its iss (OAuth)
  */
+
+/** The longest subject taken as an identity. */
+export const SUBJECT_MAX = 256;
+
+/** A claim's value as a subject: a non-empty text of at most SUBJECT_MAX characters, else null. */
+export const subjectOf = (value) => (typeof value === "string" && value.length > 0 && value.length <= SUBJECT_MAX ? value : null);
 
 /**
  * Builds the authentication both front ends share (one per process: one issuer to fetch).
@@ -336,7 +351,8 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             }
             try {
                 const { payload } = await verifyJwt(token, audience);
-                return { token, clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80), scopes: scopesOf(payload, auth.scopeClaim), expiresAt: /** @type {number} */ (payload.exp), resource, extra: {} };
+                const subject = subjectOf(payload[auth.subjectClaim ?? "sub"]);
+                return { token, clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80), scopes: scopesOf(payload, auth.scopeClaim), expiresAt: /** @type {number} */ (payload.exp), resource, extra: { subject, issuer: typeof payload.iss === "string" ? payload.iss : null } };
             } catch (e) {
                 // why a token failed stays here (a message would help someone who tries tokens); the
                 // operator sees it with --log debug: jose's code and the claim, never the token
@@ -378,4 +394,129 @@ export function profileOf(auth, authInfo) {
     }
     const named = new Set((authInfo.scopes ?? []).filter((s) => auth?.scopeProfiles && Object.hasOwn(auth.scopeProfiles, s)).map((s) => auth?.scopeProfiles?.[s]));
     return named.size === 1 ? /** @type {string} */ ([...named][0]) : null;
+}
+
+/**
+ * What this module knows of each caller callerOf made: the parts of its identity, and an OAuth
+ * caller's access token. Module-private: nothing outside reads the token.
+ * @type {WeakMap<object, { basis: string[] | null, token: string | null, expiresAt?: number | null }>}
+ */
+const known = new WeakMap();
+
+/**
+ * Who calls, from the request's verified token: its scopes, how the log names it, its policy
+ * profile and, for an OAuth token, its subject and issuer.
+ * @param {string} mode
+ * @param {any} authInfo
+ * @param {import("./config.js").AuthOptions} [authOptions]  for the OAuth client's and scopes' profiles
+ * @returns {import("./registry.js").Caller}
+ */
+export function callerOf(mode, authInfo, authOptions = undefined) {
+    if (mode === "none") {
+        const caller = { scopes: null, client: "local", profile: null };
+        known.set(caller, { basis: ["local"], token: null });
+        return caller;
+    }
+    if (!authInfo) {
+        // a request that reached an operation without a verified token holds no scope: closed, not open
+        return { scopes: new Set(), client: "unknown", profile: null };
+    }
+    const profile = profileOf(authOptions, authInfo);
+    const scopes = authInfo.extra?.allScopes ? null : new Set(authInfo.scopes ?? []);
+    const client = authInfo.extra?.allScopes ? String(authInfo.clientId ?? "token") : String(authInfo.clientId ?? "client").slice(0, 80);
+    if (authInfo.token === "" || mode === "token") {
+        // a static token: its name is who calls
+        const caller = { scopes, client, profile };
+        known.set(caller, { basis: ["token", String(authInfo.clientId ?? "token")], token: null });
+        return caller;
+    }
+    const subject = subjectOf(authInfo.extra?.subject);
+    const issuer = typeof authInfo.extra?.issuer === "string" ? authInfo.extra.issuer : null;
+    const caller = { scopes, client, profile, subject, issuer };
+    known.set(caller, { basis: subject && issuer ? [issuer, subject] : null, token: typeof authInfo.token === "string" && authInfo.token ? authInfo.token : null, expiresAt: Number.isSafeInteger(authInfo.expiresAt) ? authInfo.expiresAt : null });
+    return caller;
+}
+
+/**
+ * The parts of a caller's identity ([issuer, subject], ["token", name] or ["local"]), or null: a
+ * caller callerOf did not make, or an OAuth token without a usable subject.
+ * @param {import("./registry.js").Caller} caller
+ * @returns {readonly string[] | null}
+ */
+export function identityBasisOf(caller) {
+    const basis = caller && typeof caller === "object" ? known.get(caller)?.basis : null;
+    return basis ? Object.freeze([...basis]) : null;
+}
+
+/** The key identities are made with: random per process, so an identity key means nothing outside it. */
+const IDENTITY_KEY = randomBytes(32);
+
+/**
+ * The identity of a caller, the only one a cache, the coalescing of loads or a binding uses: base64url
+ * of HMAC-SHA256 over the parts of its identity (the issuer and subject of an OAuth token, a static
+ * token's name, "local" without sign-in), with the client and the sorted scopes appended when asked.
+ * Null for a caller without one (an OAuth token without a usable subject, a caller callerOf did not
+ * make): no cache, no coalescing across requests, no binding. The client alone is never an identity.
+ * @param {import("./registry.js").Caller} caller
+ * @param {{ client?: boolean }} [how]
+ * @returns {string | null}
+ */
+export function identityKey(caller, { client = false } = {}) {
+    const basis = identityBasisOf(caller);
+    if (!basis) {
+        return null;
+    }
+    const parts = client ? [...basis, caller.client, caller.scopes === null ? null : [...caller.scopes].sort()] : basis;
+    return createHmac("sha256", IDENTITY_KEY).update(JSON.stringify(parts)).digest("base64url");
+}
+
+/**
+ * A caller as a library host's code source sees it: a frozen copy built field by field (scopes as a
+ * list), without any token.
+ * @param {import("./registry.js").Caller} caller
+ */
+export function callerView(caller) {
+    const claims = caller.claims ? Object.freeze(Object.fromEntries(Object.entries(caller.claims).filter(([, v]) => ["string", "number", "boolean"].includes(typeof v)))) : undefined;
+    return Object.freeze({
+        subject: caller.subject ?? null,
+        issuer: caller.issuer ?? null,
+        client: caller.client,
+        profile: caller.profile ?? null,
+        scopes: caller.scopes === null ? null : Object.freeze([...caller.scopes].sort()),
+        groups: Object.freeze([...(caller.groups ?? [])]),
+        ...(claims ? { claims } : {})
+    });
+}
+
+/**
+ * The RFC 8693 token exchange for a signed-in person: the caller's own access token goes as the
+ * subject_token to the token endpoint named here, and nowhere else. Needs an OAuth caller with a
+ * subject (NOT_ALLOWED otherwise). The answer is the token endpoint's, unread, with when the
+ * caller's own token expires (subjectExpiresAt, seconds since 1970), which an exchanged token must
+ * not outlive.
+ * @param {import("./registry.js").Caller} caller
+ * @param {{ url: string, clientId: string, clientSecret?: string, audience?: string, resource?: string, scope?: string, signal?: AbortSignal, timeMs?: number, maxBytes?: number, allowPrivate?: boolean, allowIpLiterals?: boolean }} request
+ * @returns {Promise<import("./sources/fetch.js").GuardedResponse & { subjectExpiresAt: number | null }>}
+ */
+export async function exchangeTokenFor(caller, request) {
+    const entry = caller && typeof caller === "object" ? known.get(caller) : undefined;
+    if (!entry?.token || !entry.basis || entry.basis[0] === "token" || entry.basis[0] === "local") {
+        throw new OperationError("NOT_ALLOWED", "this source needs a signed-in person (an OAuth token with a subject)");
+    }
+    const form = new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", subject_token: entry.token, subject_token_type: "urn:ietf:params:oauth:token-type:access_token", requested_token_type: "urn:ietf:params:oauth:token-type:access_token" });
+    for (const key of /** @type {const} */ (["audience", "resource", "scope"])) {
+        if (request[key]) {
+            form.set(key, request[key]);
+        }
+    }
+    /** @type {Record<string, string>} */
+    const headers = { "content-type": "application/x-www-form-urlencoded", accept: "application/json" };
+    if (request.clientSecret !== undefined) {
+        // RFC 6749 2.3.1: both parts form-encoded before the Basic credentials are made
+        headers.authorization = `Basic ${Buffer.from(`${encodeURIComponent(request.clientId)}:${encodeURIComponent(request.clientSecret)}`).toString("base64")}`;
+    } else {
+        form.set("client_id", request.clientId);
+    }
+    const answer = await guardedFetch(request.url, { method: "POST", headers, body: form.toString(), ...(request.signal ? { signal: request.signal } : {}), ...(request.timeMs ? { timeMs: request.timeMs } : {}), ...(request.maxBytes ? { maxBytes: request.maxBytes } : {}), ...(request.allowPrivate !== undefined ? { allowPrivate: request.allowPrivate } : {}), ...(request.allowIpLiterals ? { allowIpLiterals: true } : {}) });
+    return { ...answer, subjectExpiresAt: entry.expiresAt ?? null };
 }

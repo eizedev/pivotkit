@@ -1,5 +1,6 @@
 /*
- * Where operations run. File sources run in a pool of worker threads: each with a memory limit
+ * Where operations run. File sources, and tables loaded in the main thread or files handed in (a
+ * table job: job.table or job.upload with job.tableKey), run in a pool of worker threads: each with a memory limit
  * (resourceLimits) and a wall-clock limit (a run over it terminates the worker, which is replaced),
  * so a large file or a heavy view cannot stall the server or take the other callers' time. At most
  * `workers` runs at once; a further call waits up to `queueMs` for a free worker, then is BUSY.
@@ -98,7 +99,7 @@ export function createComputer(options = {}) {
 
     /**
      * Runs an operation in a worker.
-     * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("./stats.js").SourceStats | null }>}
+     * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("./stats.js").SourceStats | null, asOf: string | null, stale: { since: string } | null }>}
      */
     async function inWorker(op, input, job) {
         if (closed) {
@@ -133,7 +134,7 @@ export function createComputer(options = {}) {
                     if (msg.outcome.file) {
                         msg.outcome.file.bytes = msg.outcome.file.bytes instanceof Uint8Array ? msg.outcome.file.bytes : new Uint8Array(msg.outcome.file.bytes);
                     }
-                    resolve({ outcome: msg.outcome, hidden: msg.hidden, stats: msg.stats ?? null });
+                    resolve({ outcome: msg.outcome, hidden: msg.hidden, stats: msg.stats ?? null, asOf: msg.asOf ?? null, stale: msg.stale ?? null });
                 }
             };
             const onError = (e) => {
@@ -173,11 +174,14 @@ export function createComputer(options = {}) {
         let hidden = 0;
         /** @type {import("./stats.js").SourceStats | null} */
         let stats = null;
+        /** @type {string | null} */
+        let asOf = null;
         const env = {
             data: async () => {
                 const data = await codeData(job.spec, source);
                 hidden = data.hidden;
                 stats = data.stats;
+                asOf = data.asOf;
                 return data;
             },
             link: async () => job.link ?? null,
@@ -191,14 +195,15 @@ export function createComputer(options = {}) {
             ...(op === "render_view" && (input.format === "svg" || input.format === "html") ? { echarts: await import("echarts") } : {})
         };
         const outcome = await OPERATIONS[op].run(input, env);
-        return { outcome, hidden, stats };
+        return { outcome, hidden, stats, asOf, stale: null };
     }
 
     return {
         /**
          * @param {string} op
          * @param {any} input
-         * @param {{ spec: import("./data.js").SourceSpec, link?: any, template?: string, locale?: string, timeZone?: string, now?: any }} job
+         * @param {{ spec: import("./data.js").SourceSpec, link?: any, template?: string, locale?: string, timeZone?: string, now?: any, table?: { columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] }, upload?: { bytes: Uint8Array, format: string, sheet?: string }, tableKey?: string | null, asOf?: string | null }} job
+         *   a table job (data loaded in this thread, computed in a worker): table or upload, with tableKey (sources/keys.js; null: not kept) and asOf
          * @param {{ load: () => Promise<any>, version?: () => unknown }} [source]  a code source
          */
         run: (op, input, job, source) => (source ? inThread(op, input, job, source) : inWorker(op, input, job)),

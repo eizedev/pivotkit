@@ -1,23 +1,23 @@
 /*
- * A compute worker: runs one operation of pivotkit-report's table over a file source at a time, with
- * its own cache of data sets (data.js). The main thread gives it the operation, its input and what it
- * needs (the source's spec, the link target, the template text) and gets back the outcome with the
- * data's statistics (stats.js: counts, never a value), or an error's code and message; the policy is
- * applied in the main thread. A run over its time is ended by
+ * A compute worker: runs one operation of pivotkit-report's table over a file source, a table the
+ * main thread loaded or a file handed in (a table job) at a time, with its own cache of data sets
+ * (data.js). The main thread gives it the operation, its input and what it needs (the source's spec,
+ * the link target, the template text, the table) and gets back the outcome with when the data is
+ * from, or an error's code and message; the policy is applied in the main thread. A run over its time is ended by
  * terminating the worker (compute.js).
  */
 
 import { parentPort } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { readTable } from "pivotkit-cli/files";
-import { asOperationError, fileData } from "./data.js";
+import { asOperationError, fileData, tableData, uploadData } from "./data.js";
 import { draftingOf } from "./policy.js";
 
 /** ECharts, loaded on the first SVG or HTML report. */
 let echarts = null;
 
 parentPort?.on("message", async (job) => {
-    const { id, op, input, spec, link, template, locale, timeZone, now } = job;
+    const { id, op, input, spec, link, template, locale, timeZone, now, table, upload, tableKey, asOf: given } = job;
     try {
         if (!Object.hasOwn(OPERATIONS, op)) {
             throw new OperationError("INTERNAL", "unknown operation");
@@ -28,11 +28,14 @@ parentPort?.on("message", async (job) => {
         let hidden = 0;
         /** @type {import("./stats.js").SourceStats | null} */
         let stats = null;
+        /** @type {string | null} */
+        let asOf = null;
         const env = {
             data: async () => {
-                const data = await fileData(spec);
+                const data = table ? tableData(spec, table, tableKey ?? null, given ?? null) : upload ? await uploadData(spec, upload, tableKey ?? null, given ?? null) : await fileData(spec);
                 hidden = /** @type {any} */ (data).hidden ?? 0;
                 stats = /** @type {any} */ (data).stats ?? null;
+                asOf = /** @type {any} */ (data).asOf ?? null;
                 return data;
             },
             link: async () => link ?? null,
@@ -51,7 +54,7 @@ parentPort?.on("message", async (job) => {
             outcome.file.bytes = outcome.file.bytes.slice();
         }
         const transfer = /** @type {any[]} */ (outcome.file ? [outcome.file.bytes.buffer] : []);
-        parentPort.postMessage({ id, outcome, hidden, stats }, transfer);
+        parentPort.postMessage({ id, outcome, hidden, stats, asOf }, transfer);
     } catch (e) {
         const error = asOperationError(e, spec?.path);
         parentPort.postMessage({ id, error: { code: error.code, message: error.message } });
