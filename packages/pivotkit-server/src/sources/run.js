@@ -331,12 +331,13 @@ export function createLoadRunner(parts = {}) {
             shared.work.then(
                 (value) => {
                     signal.removeEventListener("abort", leave);
-                    shared.waiting--;
+                    // a caller that left was counted out by leave already
+                    shared.waiting -= signal.aborted ? 0 : 1;
                     resolve(value);
                 },
                 (e) => {
                     signal.removeEventListener("abort", leave);
-                    shared.waiting--;
+                    shared.waiting -= signal.aborted ? 0 : 1;
                     reject(e);
                 }
             );

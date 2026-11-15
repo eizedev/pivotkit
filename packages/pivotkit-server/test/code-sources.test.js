@@ -859,3 +859,67 @@ test("checkConfig(options) refuses what createContext refuses, and needs no seco
     assert.match(text, /^pivotkit-mcp: the configuration is valid\./);
     assert.match((await checkConfig({ sources: { s: { load } } }, { name: "my-app" })).text, /^my-app: the configuration is valid\./);
 });
+
+test("a caller that leaves a shared load as its only caller: the next caller starts a fresh load, not the aborted one", async () => {
+    const runner = createLoadRunner();
+    const { how } = unitHow();
+    const signals = [];
+    let release = gate();
+    const load = (signal) => {
+        signals.push(signal);
+        const mine = release;
+        return new Promise((resolve, reject) => {
+            mine.opened.then(resolve);
+            signal.addEventListener("abort", () => reject(signal.reason));
+        });
+    };
+    const a = new AbortController();
+    const first = runner.runLoad("k", load, { ...how, signal: a.signal });
+    a.abort();
+    await assert.rejects(first);
+    release = gate();
+    const second = runner.runLoad("k", load, how);
+    release.open("fresh");
+    assert.equal((await second).value, "fresh");
+    assert.equal(signals.length, 2, "a load of its own");
+    assert.equal(signals[0].aborted, true);
+    assert.equal(signals[1].aborted, false);
+});
+
+test("a call whose signal is already aborted never starts a load", async () => {
+    const runner = createLoadRunner();
+    const { how } = unitHow();
+    const gone = new AbortController();
+    gone.abort();
+    let loads = 0;
+    await assert.rejects(runner.runLoad("k", async () => ++loads, { ...how, signal: gone.signal }));
+    await assert.rejects(runner.runLoad(null, async () => ++loads, { ...how, signal: gone.signal }));
+    assert.equal(loads, 0);
+    assert.equal(runner.running("s"), 0);
+});
+
+test("the load cache's bound on all bytes: with many owners each within its share, the least recently used go, and the bytes are counted down", () => {
+    const cache = createLoadCache({ entries: 64, bytes: 100, perIdentity: 8 });
+    for (const owner of ["a", "b", "c", "d", "e"]) {
+        cache.set(owner, owner, { identity: owner, bytes: 20 });
+    }
+    assert.deepEqual(cache.size(), { entries: 5, bytes: 100 });
+    cache.get("a");
+    cache.set("f", "f", { identity: "f", bytes: 20 });
+    assert.equal(cache.get("b"), undefined, "the least recently used of all went");
+    assert.equal(cache.get("a"), "a");
+    assert.deepEqual(cache.size(), { entries: 5, bytes: 100 });
+    cache.set("f", "f2", { identity: "f", bytes: 10 });
+    assert.deepEqual(cache.size(), { entries: 5, bytes: 90 }, "a replaced entry counts once");
+    cache.delete("c");
+    assert.deepEqual(cache.size(), { entries: 4, bytes: 70 });
+});
+
+test("the warning about a hung load is not given for a slow load that ended in the meantime", async () => {
+    const runner = createLoadRunner();
+    const { how, lines } = unitHow({ timeMs: 20 });
+    await failure(runner.runLoad("k", () => new Promise((resolve) => setTimeout(() => resolve(1), 30)), how));
+    await wait(80);
+    assert.ok(!lines.some(([, m]) => /still holds a load slot/.test(m)), JSON.stringify(lines));
+    assert.equal(runner.running("s"), 0);
+});
