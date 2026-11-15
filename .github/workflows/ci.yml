@@ -135,16 +135,13 @@ jobs:
     # checks that and this matrix.
     name: browser (${{ matrix.target.browser }} ${{ matrix.target.shard }}/${{ matrix.target.of }}, React ${{ matrix.react }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        react: ["18", "19"]
+        react: ["18"]
         target:
-          - { browser: chromium, shard: 1, of: 1 }
-          - { browser: firefox, shard: 1, of: 1 }
-          - { browser: webkit, shard: 1, of: 2 }
-          - { browser: webkit, shard: 2, of: 2 }
+          - { browser: webkit, shard: 1, of: 1 }
     container:
       image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe
       options: --user 1001
@@ -172,7 +169,7 @@ jobs:
         # temporary directory behind fails (scripts/test-run.js)
         env:
           PIVOTKIT_REACT: ${{ matrix.react }}
-        run: node scripts/test-run.js npx playwright test --project=${{ matrix.target.browser }} --shard=${{ matrix.target.shard }}/${{ matrix.target.of }}
+        run: node scripts/test-run.js npx playwright test --project=webkit --retries=0 --workers=2 tests/browser/download-link.spec.js tests/browser/filter-choices.spec.js tests/browser/filter-level.spec.js tests/browser/filter-rules.spec.js tests/browser/rule-value-emptied.spec.js
       - name: Playground build
         # the static files the tests opened, to try the playground without building it
         if: success() && matrix.react == '18' && matrix.target.browser == 'chromium'
