@@ -31,18 +31,23 @@ test("a one-time link: the page's Download button saves the file once; the link 
         if (!box) {
             throw new Error("no button");
         }
-        // what the browser did instead of a download, should none come: the POST's answer and the page
-        const events = [];
-        page.on("response", (r) => events.push(`${r.request().method()} ${r.status()} ${JSON.stringify(r.headers())} req ${JSON.stringify(r.request().headers())}`));
-        page.on("requestfailed", (r) => events.push(`failed ${r.method()} ${r.failure()?.errorText}`));
+        // the POST's answer is the file as an attachment. Chromium, Firefox and WebKit on macOS save it
+        // (a download); Playwright's WebKit on Linux shows a text attachment in the page instead, so
+        // there the answer itself is checked
+        const stored = readFileSync(join(dir, "out", output.name));
+        const posted = page.waitForResponse((r) => r.request().method() === "POST");
         const downloading = page.waitForEvent("download", { timeout: 15_000 }).catch(() => null);
         await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        const answer = await posted;
+        expect(answer.status()).toBe(200);
+        expect(answer.headers()["content-disposition"]).toBe(`attachment; filename="Sales once.csv"; filename*=UTF-8''Sales%20once.csv`);
         const download = await downloading;
-        if (!download) {
-            throw new Error(`no download: ${events.join(" | ")} | page ${page.url()} ${(await page.content().catch(() => "")).slice(0, 300)}`);
+        if (download) {
+            expect(download.suggestedFilename()).toBe("Sales once.csv");
+            expect(readFileSync(await download.path())).toEqual(stored);
+        } else {
+            expect(Buffer.from(await answer.body())).toEqual(stored);
         }
-        expect(download.suggestedFilename()).toBe("Sales once.csv");
-        expect(readFileSync(await download.path())).toEqual(readFileSync(join(dir, "out", output.name)));
         // another browser (no cookie of the first download) finds the link used
         const other = await browser.newContext();
         try {
