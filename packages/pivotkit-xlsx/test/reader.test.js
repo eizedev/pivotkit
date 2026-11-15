@@ -36,8 +36,9 @@ const PADDED_READ_PER_SCAN = 5;
  * Other test workspaces running in parallel slow the phases of one measurement unevenly (a read 1.8
  * times its scan was seen that way). The used-range test therefore measures unpack, scan and read in
  * interleaved rounds and bounds the fastest of each, with a new round only while a bound fails, up to
- * this many. A filter that passes the empty rows on fails in every round: its parse alone is several
- * times the unpacking, so the fastest of five stays far above the bound.
+ * this many. A filter that passes the empty rows on fails in every round; measured as the fastest of
+ * five, plain, under coverage and beside the other workspaces: the parse 3.9-6.7 times the unpacking
+ * (bound 3), the read 1.7-2.4 times the scan (bound 1.6).
  */
 const USED_RANGE_ROUNDS = 5;
 
