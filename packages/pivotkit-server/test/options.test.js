@@ -39,6 +39,9 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.mcp.object.data = { or: [{ const: false }, { object: { rows: "integer", cells: "integer", bytes: "integer" } }] };
     expected.rest.object.data = { object: { maxBytes: "integer" } };
     expected.httpSources = { object: { enabled: "boolean", allowIpLiterals: "boolean", backends: { map: { object: { url: "string", intranet: "boolean", headers: { map: "string" }, auth, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } } } };
+    // download links (options/downloads.js)
+    const secretRef = { custom: "fn" };
+    expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings" } } } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -82,7 +85,7 @@ test("options: an unknown key is still refused with the name meant, also for key
     // (httpSources is options/http.js's now: a misspelling of it is still refused with the name meant)
     assert.throws(() => validateOptions({ httpSource: { enabled: true } }), /unknown key "httpSource"; did you mean "httpSources"\?/);
     assert.throws(() => validateOptions({ httpSources: { allowPrivate: true } }), /httpSources: unknown key "allowPrivate"/);
-    assert.throws(() => validateOptions({ output: { downloads: { enabled: true } } }), /output: unknown key "downloads"/);
+    assert.throws(() => validateOptions({ output: { downloads: { enabeld: true } } }), /output\.downloads: unknown key "enabeld"; did you mean "enabled"\?/);
     assert.throws(() => validateOptions({ sources: { s: { load, ttl: -1 } } }), /sources\.s\.ttl: must be a whole number/);
 });
 
@@ -130,7 +133,10 @@ test("check-config: today's configurations print exactly what they printed befor
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: "x".repeat(40) }, name: "pivotkit-server", rest: true });
     const golden = readFileSync(new URL("./fixtures/check-config-before-fragments.txt", import.meta.url), "utf8");
     // what this version adds for this configuration, each said once and nothing else: data sent in the
-    // request (check/inline.js), and the code sources' section, since the configuration has one
+    // request (check/inline.js), the download links, and the code sources' section, since the configuration has one
+    // download links (check/downloads.js): where links would point, and that these closed sources
+    // (a hidden field, the default summary) get none with static tokens
+    const delivery = ["Delivery:", "  downloads: on, links http://127.0.0.1:3333/downloads/<token>, expire after 60 minutes", "  closed (a field not shown for someone): sales (Customer hide), gone (fields summary by default), code (fields summary by default)", "  reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open"];
     const inline = ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"];
     const code = [
         "Code sources (1):",
@@ -142,7 +148,7 @@ test("check-config: today's configurations print exactly what they printed befor
         '  - MCP clients may send a small table of their own with source "inline:" (up to 500 rows / 5000 cells / 256 KiB); no exposure policy applies to it; mcp.data: false switches it off',
         "  - Code sources: load gets (params, { caller, signal }) and is aborted after timeMs (default 30000 ms); a failing load answers SOURCE_UNAVAILABLE (502), not INTERNAL; data is kept per caller unless cacheShared; after a transient failure last good data up to maxStale (default 3600 s) stands in"
     ];
-    const expected = golden.replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
+    const expected = golden.replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...delivery, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
     assert.notEqual(expected, golden);
     assert.equal(result.text.split(dir).join("<dir>"), expected);
     assert.equal(result.problems, 1);

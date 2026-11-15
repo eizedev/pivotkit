@@ -146,8 +146,11 @@ Then restart Claude Code.
 
 ## From 0.6.1 to the next release { #from-0-6-1 }
 
-Operators of pivotkit-server and pivotkit-mcp need not act: every field keeps its level, and the
-automatic values rule is off. Library hosts with code sources check [Code sources](#code-sources). What callers notice:
+Operators of pivotkit-server and pivotkit-mcp need not act for the exposure policy: every field
+keeps its level, and the automatic values rule is off. Library hosts with code sources check
+[Code sources](#code-sources). Over HTTP with an output directory, check the
+[download links](#download-links): reports may get links of the server under `/downloads/`, and
+`output.baseUrl` no longer gives an address to reports over closed sources. What callers notice:
 
 - a filter item that is none of a `show` field's values gets the warning `itemUnknown` where
   `describe_source` lists all of them, and `itemCase` comes for a `show` field also when the view
@@ -165,6 +168,8 @@ automatic values rule is off. Library hosts with code sources check [Code source
 | [HTTP sources](../reference/sources.md#http) | you want an API's data as a source without writing code | add `sources.<id>.http` with typed `params`, test it with `pivotkit-server check-source` |
 | [Backend sign-in](../reference/sources.md#http-auth) | the API needs credentials, or each person should see only their own rows | add `http.auth` (a secret header, client credentials or a token exchange) or a parameter with `claim`; for a token exchange, restrict the exchange at your provider |
 | [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
+| [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
+| [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
 
 ### The values level { #values-level }
 
@@ -189,6 +194,36 @@ the new `itemUnknown` (an item that is none of a field's values, with the closes
 `suggestion`) where its values are listed completely. `noRowsKept`, `filterEmpty`, `tableCut` and
 `chartCut` stay for views whose fields are all `show`. `describe_source` may add `withheld`, `hint`,
 `complete` and `auto`; a client reads a `level` it does not know as `summary`.
+
+### Download links { #download-links }
+
+A server that serves HTTP and has an output directory, without `output.baseUrl`, serves reports
+itself under `/downloads/<token>` for 60 minutes ([download links](../reference/delivery.md)):
+
+- Reports over open sources (`"default": "show"` and no field below `show`, in every profile; listing
+  every column as `show` is not enough) get a plain link; reports over other sources get
+  one only with a sign-in client (`output.downloads.signIn`, with OAuth) or one-time links you switch
+  on (`output.downloads.bind: "once"`). With static tokens and the default `summary`, such reports
+  get no link, as before, and their result says to ask you for the file.
+- A report that gets a link is stored with 22 random characters before its name: `output.name` is
+  that stored name, the new `output.filename` the plain one. Reports without a link keep their names.
+- Results with a link carry `url`, `expiresAt`, `bound`, `note` and `filename`, and MCP results for
+  clients of protocol 2025-06-18 or later a `resource_link`; the `message` names the file and leaves
+  the address to `output.url`.
+- Off loopback the links need `http.publicUrl`; route `/downloads/` to the server at the proxy or
+  ingress. Set `output.downloads.key` (a secret of at least 32 bytes), or links stop working on a
+  restart and differ between replicas.
+
+`"output": { "downloads": { "enabled": false } }` keeps the old behaviour. `check-config` prints a
+`Delivery:` section with what applies.
+
+### `output.baseUrl` and closed sources { #base-url-closed }
+
+With `output.baseUrl`, a report over a source with a field at `values`, `summary` or `hide` (for
+anyone, in any profile) carries no `url` any more, on MCP and REST: anyone with the address could open
+a report whose fields were withheld from the model. The file is still written. Reports over sources
+whose fields are all `show` keep their address. For the others, leave out `output.baseUrl` and use
+sign-in links, or give REST programs `results: true` and the [file route](../reference/rest.md#downloads).
 
 ### Request ids { #request-ids }
 

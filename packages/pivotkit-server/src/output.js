@@ -19,7 +19,7 @@ const pruned = new Map();
 
 /**
  * The part of a written file's name that marks it as pivotkit's: "Sales by region.pivotkit-out.xlsx",
- * "Weekly.pivotkit-out.report.json" (a schedule draft; ".pivotkit.json" is a view file), with output.baseUrl after 22 random characters.
+ * "Weekly.pivotkit-out.report.json" (a schedule draft; ".pivotkit.json" is a view file), after 22 random characters with output.baseUrl or a download link.
  * Only such files are counted, cleaned up and deleted to make room; an operator's own files are not.
  */
 export const OUTPUT_MARK = "pivotkit-out";
@@ -164,15 +164,16 @@ export const draftCap = (maxFiles) => Math.floor(maxFiles / 2);
 /**
  * Writes a file an operation made into the output directory; its name, path and address.
  * @param {boolean} [draft]  a schedule draft (draftCap holds), not a report
+ * @param {{ prefix?: string }} [how]  prefix: the start of the stored name (delivery.js: a link's nonce); default 22 random characters under output.baseUrl, else none
  */
-export async function writeOutput(context, file, draft = false) {
+export async function writeOutput(context, file, draft = false, how = {}) {
     const dir = outputDir(context);
     if (!dir) {
         return null;
     }
     await prune(context);
     // a directory a web server serves gets names nobody can guess
-    const prefix = context.output.baseUrl ? `${randomBytes(16).toString("base64url")}-` : "";
+    const prefix = how.prefix ?? (context.output.baseUrl ? `${randomBytes(16).toString("base64url")}-` : "");
     const name = await oneAtATime(dir, async () => {
         const deleted = await makeRoom(context, dir, file.bytes.length, draft);
         if (deleted) {

@@ -98,9 +98,10 @@ for (const era of ["legacy", "modern"]) {
     });
 }
 
-test("render_view never replaces a file: the same name twice gives -2; a served directory gets names nobody can guess", async () => {
+test("render_view never replaces a file: the same name twice gives -2; a served directory gets names nobody can guess, and an address only for an open source", async () => {
     const dir = workspace();
-    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", baseUrl: "https://files.example.com/reports" }, baseDir: dir });
+    // sales: every field shown (open); closed: the default summary
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } }, closed: { file: "data/sales.csv" } }, output: { dir: "out", baseUrl: "https://files.example.com/reports" }, baseDir: dir });
     try {
         const { client, close } = await httpClient(server.url);
         const a = await call(client, "render_view", { source: "sales", view: BY_REGION, format: "csv", name: "by region" });
@@ -108,7 +109,14 @@ test("render_view never replaces a file: the same name twice gives -2; a served 
         assert.match(a.data.output.name, /^[A-Za-z0-9_-]{22}-by region\.pivotkit-out\.csv$/);
         assert.notEqual(a.data.output.name, b.data.output.name);
         assert.equal(a.data.output.url, `https://files.example.com/reports/${encodeURIComponent(a.data.output.name)}`);
-        assert.equal(readdirSync(join(dir, "out")).length, 2);
+        assert.equal(a.data.output.filename, "by region.csv");
+        // a report over a closed source: written under a name nobody can guess, but no address anyone could open
+        const c = await call(client, "render_view", { source: "closed", view: BY_REGION, format: "csv", name: "by region" });
+        assert.match(c.data.output.name, /^[A-Za-z0-9_-]{22}-by region\.pivotkit-out\.csv$/);
+        assert.equal(c.data.output.url, undefined);
+        assert.doesNotMatch(c.text, /files\.example\.com/);
+        assert.match(c.data.message, /The report is saved on the server; ask the operator how to open it\./);
+        assert.equal(readdirSync(join(dir, "out")).length, 3);
         await close();
     } finally {
         await server.close();

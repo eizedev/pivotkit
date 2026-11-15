@@ -261,14 +261,14 @@ test("a values filter with a summary filter: the same answer whether the combina
         const answer = async (customer) => {
             const r = await call(`${server.api}/views/render`, { body: { source: "tickets", view: { rows: ["Status"], values: [{ field: "Sales", agg: "sum" }], filters: [{ field: "Status", type: "in", items: ["Open"], blanks: "exclude" }, { field: "Kundenname", type: "in", items: [customer], blanks: "exclude" }] }, format: "csv", name: "combination" } });
             assert.equal(r.status, 200, JSON.stringify(r.data));
-            return JSON.parse(JSON.stringify({ ...r.data, output: { ...r.data.output, name: undefined }, message: r.data.message.replace(/saved as \S+/, "") }));
+            return JSON.parse(JSON.stringify({ ...r.data, output: { ...r.data.output, name: undefined, filename: undefined }, message: r.data.message.replace(/saved as \S+/, "") }));
         };
         assert.deepEqual(await answer("K1"), await answer("K0"));
         // two values fields: Open with T0 exists, Open with T1 does not; values does not unlock noRowsKept
         const twoListed = async (team) => {
             const r = await call(`${server.api}/views/render`, { body: { source: "tickets", view: { rows: ["Status"], filters: [{ field: "Status", type: "in", items: ["Open"], blanks: "exclude" }, { field: "Team", type: "in", items: [team], blanks: "exclude" }] }, format: "csv", name: "combination" } });
             assert.equal(r.status, 200, JSON.stringify(r.data));
-            return JSON.parse(JSON.stringify({ ...r.data, output: { ...r.data.output, name: undefined }, message: r.data.message.replace(/saved as \S+/, "") }));
+            return JSON.parse(JSON.stringify({ ...r.data, output: { ...r.data.output, name: undefined, filename: undefined }, message: r.data.message.replace(/saved as \S+/, "") }));
         };
         const empty = await twoListed("T1");
         assert.deepEqual(empty, await twoListed("T0"));

@@ -262,12 +262,13 @@ may try to steer it:
   becomes field names the model sees, so keep only data files there.
 - **Output** goes only to the operator's output directory, as new files that never replace one,
   with names cleaned to letters, digits, spaces, dots and dashes. A directory a web server serves
-  gets names that start with 22 random characters; protect that server as you would the data. The
+  gets names that start with 22 random characters; protect that server as you would the data, and
+  note that it gets an address only for reports over sources whose fields are all `show`. The
   directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's (its
   reports and drafts carry `.pivotkit-out.` in their names; other files are neither counted nor
   deleted). When it is full, a new report deletes the oldest reports, so one caller cannot stop
   rendering for everyone, but any token that may render can push other callers' reports out (a link
-  to one then answers 404); drafts awaiting approval are never deleted this way and may take at most
+  to one then answers 404, or 410 for the server's own links); drafts awaiting approval are never deleted this way and may take at most
   half of `maxFiles`, a draft over that is refused. A file named with `.pivotkit-out.` by hand counts
   as pivotkit's. Set `maxFiles` high, give `render_view` and `draft_schedule` scopes of their own,
   set `output.maxAgeDays` and keep the rate limits ([REST](reference/rest.md#auth)).
@@ -279,6 +280,17 @@ may try to steer it:
   thread first), never cached, and cannot be linked or scheduled. Formulas in its cells are written
   safe like any other text. A report over it lands in the output directory like any other and counts
   against its quota: the oldest reports go first when it is full.
+- **Download links** ([details](reference/delivery.md)): over HTTP the server serves a report under
+  a link that expires (60 minutes by default). The link is an HMAC-signed token with 128 random
+  bits, checked in constant time (a forged and an unknown link get the same 404); it names no file.
+  A report over a source with a field that is not `show` for someone gets a link only where the
+  link is bound: to the person's sign-in (OpenID Connect code flow with PKCE, `state` and `nonce`;
+  the file only for the issuer and subject that asked, which the token holds as an HMAC), or, as the operator's
+  explicit choice, used once (a GET never uses it, so a link preview cannot). Otherwise no link: a
+  link anyone can open would let the client or the model fetch what was withheld from it. Over REST
+  such a link also needs `results: true`. Links carry no internal address (none off loopback without
+  `http.publicUrl`); the log never holds a token. The token is in the link's path, so proxy logs and
+  browser history hold it: keep proxy logs of `/downloads/` short.
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
 - **Connections**: at most 256 at once, 16 kept for loopback clients (the health check), 5 seconds

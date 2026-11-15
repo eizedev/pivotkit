@@ -3,6 +3,8 @@
  * `listen()`, the runner's node:http server for it. Every request passes, in this order:
  *
  * 1. the Host check (localhost names, the public URL's host, --allow-host): DNS rebinding;
+ *    the server's own download links (/downloads, pivotkit-server's createDownloadHandler) are
+ *    answered right after it, before the Origin check and the body cap, which are the MCP clients';
  * 2. the Origin check: a present Origin must be allowed (none by default), else 403;
  * 3. the routes without authentication: /healthz, the OAuth discovery documents, the quick-start page
  *    at / (a browser that opens /mcp is sent there);
@@ -15,7 +17,7 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
-import { BODY_BYTES, ConfigError, DEFAULT_PORT, SIGNED_IN, allowedHosts, clientAddress, connectionLimitsOf, createLimits, isLoopback, refusedText, serveFetch, takeSignIn } from "pivotkit-server";
+import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, SIGNED_IN, allowedHosts, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, refusedText, serveFetch, takeSignIn } from "pivotkit-server";
 import { createMcpContext } from "./context.js";
 import { createAuth } from "./auth.js";
 import { quickStartPage } from "./page.js";
@@ -91,7 +93,7 @@ function isBrowser(request) {
  * The fetch handler of a context.
  * @param {any} context  createMcpContext's
  * @param {{ env?: Record<string, string | undefined>, loopback?: boolean }} [runtime]
- * @returns {Promise<{ fetch(request: Request): Promise<Response>, precheck(request: Request): Promise<Response | null>, problem(status: number): Response, close(): Promise<void>, auth: any }>}
+ * @returns {Promise<{ fetch(request: Request): Promise<Response>, precheck(request: Request): Promise<Response | null>, problem(status: number): Response, close(): Promise<void>, auth: any, downloads: any }>}
  */
 export async function createHttpHandler(context, runtime = {}) {
     const http = context.options.http ?? {};
@@ -103,6 +105,7 @@ export async function createHttpHandler(context, runtime = {}) {
     const handler = createMcpHandler((ctx) => context.server(ctx), { legacy: "stateless", maxRequestBodySize: BODY_BYTES, onerror: (e) => context.log.warn(`request refused by the protocol layer: ${String(e?.message ?? e).slice(0, 200)}`) });
     const limits = createLimits(context.options.mcp);
     const trustProxy = http.trustProxy ?? false;
+    const downloads = createDownloadHandler(context, { env: runtime.env ?? process.env, loopback: runtime.loopback ?? isLoopback(http.host ?? "127.0.0.1") });
     const page = http.page === false ? null : { sources: typeof http.page === "object" && http.page.sources !== undefined ? http.page.sources : auth.mode === "none" };
 
     /**
@@ -130,6 +133,9 @@ export async function createHttpHandler(context, runtime = {}) {
     /** @param {Request} request @param {{ address?: string, [SIGNED_IN]?: any }} info */
     async function route(request, info) {
         const url = new URL(request.url);
+        if (downloads.handles(url.pathname)) {
+            return downloads.fetch(request);
+        }
         const refused = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins);
         if (refused) {
             context.log.refused({ status: refused.status, host: String(request.headers.get("host") ?? "").slice(0, 100), origin: String(request.headers.get("origin") ?? "").slice(0, 100) });
@@ -183,6 +189,7 @@ export async function createHttpHandler(context, runtime = {}) {
 
     return {
         auth,
+        downloads,
         /** The answer for a body that cannot be read, as JSON-RPC. */
         problem: (status) => bodyProblem(status),
         /**
@@ -193,6 +200,9 @@ export async function createHttpHandler(context, runtime = {}) {
          * @param {{ address?: string, [SIGNED_IN]?: any }} [info]  the client's address; serveFetch hands the same object to fetch
          */
         async precheck(request, info = {}) {
+            if (downloads.handles(new URL(request.url).pathname)) {
+                return downloads.precheck(request);
+            }
             const refused = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins);
             if (refused) {
                 context.log.refused({ status: refused.status, host: String(request.headers.get("host") ?? "").slice(0, 100), origin: String(request.headers.get("origin") ?? "").slice(0, 100) });
@@ -223,6 +233,7 @@ export async function createHttpHandler(context, runtime = {}) {
             }
         },
         async close() {
+            downloads.close();
             auth.close?.();
             await handler.close();
         }
@@ -249,13 +260,16 @@ export async function listen(options, runtime) {
     let listening;
     try {
         handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
-        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: bodyProblem }, { host, port, bodyBytes: BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => context.log.warn(refusedText(entry), entry) });
+        const downloads = handler.downloads;
+        const isDownload = (path) => downloads.handles(path.split("?")[0]);
+        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: (status, path) => (isDownload(path) ? downloads.problem(status) : bodyProblem(status)) }, { host, port, bodyBytes: (request) => (isDownload(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : BODY_BYTES), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler?.close();
         await context.close();
         throw e;
     }
     const url = `http://${host.includes(":") ? `[${host}]` : host}:${listening.port}${ENDPOINT}`;
+    handler.downloads.listening(url);
     context.log.info("started", { version: context.version, transport: "http", url, auth: handler.auth.mode, sources: context.registry.ids().length, files: context.registry.allow.length > 0, output: Boolean(context.output) });
     void context.countAutoValues();
     return {

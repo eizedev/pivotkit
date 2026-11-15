@@ -68,8 +68,27 @@ export function errorResult(error, { requestId, source }) {
     return { isError: true, content: [{ type: "text", text }] };
 }
 
-/** A tool's result: a short text without data, the JSON, and the structured content. */
-const okResult = (summary, structured) => ({ content: [{ type: "text", text: `${summary}\n${JSON.stringify(structured)}` }], structuredContent: structured });
+/**
+ * A tool's result: a short text without data, the JSON, and the structured content; after the text,
+ * a resource_link to a written file where it has an address (MCP 2026-07-28, Tools > Tool Result >
+ * Resource Links: the client shows or opens it for the user; its audience is a hint, not a protection:
+ * the link's binding is).
+ */
+const okResult = (summary, structured, link) => ({ content: [{ type: "text", text: `${summary}\n${JSON.stringify(structured)}` }, ...(link ? [link] : [])], structuredContent: structured });
+
+/** The first protocol revision with resource_link in tool results. */
+export const RESOURCE_LINK_SINCE = "2025-06-18";
+
+/**
+ * Whether a request's client takes a resource_link: its MCP-Protocol-Version (sent by every client
+ * from 2025-06-18 on, and on 2026-07-28 requests) names that revision or a later one. An older client,
+ * or one that names none, gets the link in the text only, so it cannot refuse the whole result.
+ * @param {{ http?: { req?: Request } } | undefined} ctx  the tool callback's context
+ */
+export function takesResourceLink(ctx) {
+    const version = ctx?.http?.req?.headers.get("mcp-protocol-version") ?? "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(version) && version >= RESOURCE_LINK_SINCE;
+}
 
 /** A source as a log line names it: an id, or a file by its base name. */
 const logSource = (source) => (typeof source !== "string" ? undefined : source.startsWith("file:") ? `file:${source.split(/[\\/]/).pop()?.slice(0, 80)}` : source.slice(0, 80));
@@ -115,9 +134,9 @@ export function registerTools(server, context, caller) {
                     if (VIEW_ONLY.has(name) && args?.layout !== undefined) {
                         throw new OperationError("INVALID_INPUT", `${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here`);
                     }
-                    const { text, result } = await withRequestId(id, () => present(context, name, args ?? {}, caller, { signal: ctx?.mcpReq?.signal }));
+                    const { text, result, link } = await withRequestId(id, () => present(context, name, args ?? {}, caller, { signal: ctx?.mcpReq?.signal }));
                     context.log.call({ ...entry, ok: true, ms: Date.now() - started });
-                    return /** @type {any} */ (okResult(text, result));
+                    return /** @type {any} */ (okResult(text, result, takesResourceLink(ctx) ? link : undefined));
                 } catch (e) {
                     const error = e instanceof OperationError ? e : null;
                     if (!error || (error.code === "INTERNAL" && error.cause)) {

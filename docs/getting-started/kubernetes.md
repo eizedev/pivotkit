@@ -117,7 +117,11 @@ The limits on callers (`rest.rateLimit`, `mcp.rateLimit`, the refused tokens per
 in the memory of one process. With more than one replica, each counts on its own, and each needs an
 output directory of its own (a StatefulSet with a volume claim template, or an `emptyDir` when the
 reports need not survive a restart). The MCP endpoint keeps no sessions, so any replica can answer
-any request.
+any request. A [download link](../reference/delivery.md) only works on the replica that wrote its
+report unless the replicas share one output directory (a ReadWriteMany volume) and one link key: put
+`output.downloads.key` in a Secret and pass it as an environment variable
+(`"key": { "env": "PIVOTKIT_DOWNLOAD_KEY" }`). With one replica, set the key all the same, so links
+survive a restart.
 
 ## Memory and workers { #sizing }
 
@@ -277,8 +281,9 @@ The images of the CronJob and the sidecar are third-party images pinned by tag; 
 --8<-- "kubernetes.example.yaml:ingress"
 ```
 
-The Ingress sends everything on the host to the Service: `/mcp`, `/api/v1`, `/openapi.json` and the
-`/.well-known/` addresses of [OAuth](../reference/mcp.md#oauth) are all served by the one process.
+The Ingress sends everything on the host to the Service: `/mcp`, `/api/v1`, `/openapi.json`, the
+`/.well-known/` addresses of [OAuth](../reference/mcp.md#oauth) and the [download links](../reference/delivery.md)
+under `/downloads/` are all served by the one process.
 Without a token it answers the quick-start page at `/` (`http.page: false` turns it off), `/healthz`
 and `/readyz`; everything else needs one. It
 needs an ingress controller in the cluster (and `ingressClassName` where the cluster has no default
@@ -287,7 +292,7 @@ controller must pass the request's `Host` on unchanged and write `X-Forwarded-Fo
 for an answer must be longer than `compute.queueMs` + `compute.timeMs` (40 seconds with the
 defaults): check your controller's default.
 
-To publish less, give the Ingress the paths `/mcp` and `/api/v1` (and with OAuth the prefix
+To publish less, give the Ingress the paths `/mcp`, `/api/v1` and `/downloads` (and with OAuth the prefix
 `/.well-known/oauth-protected-resource`) instead of `/`. When the ingress controller sits behind a
 LoadBalancer Service, the client's address reaches it only with `externalTrafficPolicy: Local` (or the
 PROXY protocol, by controller); otherwise `X-Forwarded-For` and so the server's limits per address

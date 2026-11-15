@@ -26,6 +26,7 @@ export { INLINE_ID, MCP_DATA_CAP, REST_DATA_BYTES, inlineLogFields } from "./sou
 export { readSecret, secretFileWarning, SecretError } from "./secrets.js";
 export { SECRET_REF } from "./options/shared.js";
 export { checkConfig } from "./check.js";
+export { createDownloadHandler, linksOf, DOWNLOADS_PATH, CALLBACK_PATH, DOWNLOAD_BODY_BYTES } from "./downloads.js";
 export { OperationError } from "pivotkit-report/operations";
 export { SourceError, SOURCE_ERROR_CODES } from "./sources/run.js";
 export { CODE_DEFAULTS } from "./options/code.js";
