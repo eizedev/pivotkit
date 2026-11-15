@@ -65,7 +65,7 @@ const NONCE_SYNTAX = /^[A-Za-z0-9_-]{22}$/;
 const DIGEST_SYNTAX = /^[A-Za-z0-9_-]{43}$/;
 
 /** The purposes of the subkeys of output.downloads.key. */
-const PURPOSES = Object.freeze({ token: "pivotkit downloads: token v1", subject: "pivotkit downloads: subject v1", cookie: "pivotkit downloads: cookie v1" });
+const PURPOSES = Object.freeze({ token: "pivotkit downloads: token v1", subject: "pivotkit downloads: subject v1", cookie: "pivotkit downloads: cookie v1", upload: "pivotkit downloads: upload binding v1" });
 
 /** The headers every answer of the route carries. */
 const BASE_HEADERS = Object.freeze({ "cache-control": "no-store", "referrer-policy": "no-referrer", "x-robots-tag": "noindex", "x-content-type-options": "nosniff", "cross-origin-resource-policy": "same-origin" });
@@ -113,13 +113,13 @@ function sameText(a, b) {
 }
 
 /**
- * The subkeys of a link key.
+ * The subkeys of a link key: one per purpose (HKDF), the upload target's person binding among them.
  * @param {Buffer} key
- * @returns {{ token: Buffer, subject: Buffer, cookie: Buffer }}
+ * @returns {{ token: Buffer, subject: Buffer, cookie: Buffer, upload: Buffer }}
  */
 export function subkeysOf(key) {
     const derive = (purpose) => Buffer.from(hkdfSync("sha256", key, Buffer.alloc(0), purpose, 32));
-    return { token: derive(PURPOSES.token), subject: derive(PURPOSES.subject), cookie: derive(PURPOSES.cookie) };
+    return { token: derive(PURPOSES.token), subject: derive(PURPOSES.subject), cookie: derive(PURPOSES.cookie), upload: derive(PURPOSES.upload) };
 }
 
 /**
@@ -292,14 +292,11 @@ export function linksOf(context) {
     };
 }
 
-/** Where a link's token has its nonce (22 characters), an upload target's binding has this label. */
-export const UPLOAD_BINDING_LABEL = "upload";
-
 /**
- * The subject binding of a caller for an upload target that scopes a report to the person:
- * subjectDigest under output.downloads.key with the fixed label "upload" where a link's token has its
- * nonce, so it stays the same for one person across reports and is never a link token's value; null
- * without the route's state (no HTTP) or a readable key.
+ * The subject binding of a caller for an upload target that scopes a report to the person: an HMAC
+ * of [issuer, subject] under a subkey of output.downloads.key of its own ("upload binding"), so it is
+ * the same for one person across reports and never a value a link's token holds; null without the
+ * route's state (no HTTP) or a readable key.
  * @param {any} context
  * @param {string} issuer
  * @param {string} subject
@@ -307,7 +304,7 @@ export const UPLOAD_BINDING_LABEL = "upload";
  */
 export async function subjectBindingOf(context, issuer, subject) {
     const keys = await states.get(context)?.keys().catch(() => null);
-    return keys ? subjectDigest(keys, UPLOAD_BINDING_LABEL, issuer, subject) : null;
+    return keys ? mac(keys.upload, JSON.stringify([issuer, subject])) : null;
 }
 
 /**

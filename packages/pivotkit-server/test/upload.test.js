@@ -10,7 +10,7 @@
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, createHmac, hkdfSync } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { platform } from "node:process";
 import { createServer } from "node:https";
@@ -21,7 +21,7 @@ import { callerOf, checkConfig, present, serverTextOf, validateOptions } from "p
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { checkedAddress, expiryOf, fillTemplate, nameSlug, uploadMeans } from "../src/upload.js";
 import { deliver, NO_LINK_NOTE, storeFor } from "../src/delivery.js";
-import { createDownloadHandler, subjectDigest, subkeysOf } from "../src/downloads.js";
+import { createDownloadHandler, subkeysOf } from "../src/downloads.js";
 import { createContext } from "../src/context.js";
 import { withRequestId } from "../src/request-id.js";
 import { BY_REGION, SALES_CSV, call, restServer, tempDir, workspace } from "./helpers.js";
@@ -317,17 +317,24 @@ test("bound store links (signIn): a report over a closed source goes there for a
         assert.match(String(out?.note), /^Open the link in your browser and sign in at the store; it works until /);
         assert.equal(asked.length, 2);
         const sent = JSON.parse(asked[0].body.toString("utf8"));
-        assert.equal(sent.subject, subjectDigest(subkeysOf(Buffer.from(DL_KEY, "utf8")), "upload", "https://auth.example.com/", "alice-1234"));
+        // HMAC of [issuer, subject] under the key's own HKDF subkey for this purpose, separate from the links' keys
+        const uploadKey = Buffer.from(hkdfSync("sha256", Buffer.from(DL_KEY, "utf8"), Buffer.alloc(0), "pivotkit downloads: upload binding v1", 32));
+        assert.equal(sent.subject, createHmac("sha256", uploadKey).update(JSON.stringify(["https://auth.example.com/", "alice-1234"])).digest("base64url"));
+        const keys = subkeysOf(Buffer.from(DL_KEY, "utf8"));
+        assert.notDeepEqual(keys.upload, keys.subject);
+        // the same person's next report carries the same binding
+        await deliver(context, FILE, { ...person, sourceClosed: true });
+        assert.equal(JSON.parse(asked[2].body.toString("utf8")).subject, sent.subject);
         assert.ok(!asked[0].body.toString("utf8").includes("alice-1234"));
         const rest = await deliver(context, FILE, { ...person, surface: "rest", policy: /** @type {any} */ ({ results: false }), sourceClosed: true });
         assert.equal(rest?.url, undefined);
-        assert.equal(asked.length, 2);
+        assert.equal(asked.length, 4);
         const program = await deliver(context, FILE, { ...person, surface: "rest", policy: /** @type {any} */ ({ results: true }), sourceClosed: true });
         assert.equal(program?.bound, "signIn");
-        assert.equal(asked.length, 4);
+        assert.equal(asked.length, 6);
         const draft = await deliver(context, { ...FILE, extension: "report.json", mediaType: "application/json" }, { ...MCP_HOW, sourceClosed: false, draft: true });
         assert.equal(draft?.url, undefined);
-        assert.equal(asked.length, 4);
+        assert.equal(asked.length, 6);
     } finally {
         await context.close();
     }

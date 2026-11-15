@@ -268,13 +268,12 @@ Which reports go to the store:
 Schedule drafts are not uploaded: the host approves them in `output.dir`.
 
 With `bind: "signIn"` the presign request carries `subject`: an HMAC of the caller's issuer and
-subject under `output.downloads.key` (never the subject itself), the same for one person across
-reports and never the value a sign-in link's token holds, so your presign service can scope the
-object to the person and check it when they open the link.
-Set `output.downloads.key` for a binding that stays the same across restarts and replicas; over
-stdio, or when the key cannot be read, no `subject` is sent. Without `output.downloads.key` the server
-uses a random key per process, so the binding changes on every restart and differs between replicas
-(`check-config` warns of it). A `signIn` link is only as strong as the
+subject under a key derived from `output.downloads.key` for this purpose alone (never the subject
+itself, and never a value a sign-in link holds), so your presign service can scope the object to the
+person and check it when they open the link. The value is the same for one person across reports, so
+the store can tell which reports belong to the same person. Over stdio, or when the key cannot be
+read, no `subject` is sent. Without `output.downloads.key` the server uses a random key per process,
+so the value changes on every restart and differs between replicas (`check-config` warns of it). A `signIn` link is only as strong as the
 store's own access control: pivotkit declares the binding, it does not verify it.
 
 What is checked: every request goes through the same guarded fetch as [HTTP sources](sources.md#http)
