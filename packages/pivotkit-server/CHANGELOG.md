@@ -123,9 +123,15 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   over sources whose fields are all `show` get a plain link; reports over other sources only a link
   bound to the person's sign-in (OpenID Connect code flow with PKCE against `output.downloads.signIn`,
   the issuer and subject compared with the caller's token's) or, where the operator chooses `bind: "once"`, a one-time
-  link (GET shows a page, one POST sends the file). REST callers get links to such reports only with
+  link (GET shows a page with the file's name, kind, size and expiry and a Download button, one POST
+  sends the file; the same browser may repeat it for two minutes, and for any other browser the GET
+  already answers 409 `LINK_USED`). REST callers get links to such reports only with
   `results: true`. Results carry `output.filename`, `url`, `expiresAt`, `bound` and `note`;
   `present()` returns the file's MCP `resource_link`. `check-config` prints a `Delivery:` section.
+  Each answer of the route has a page with its own title and heading (a sign-in that was cancelled,
+  one whose page is out of date and one that failed say so apart, each with the link to open again)
+  and a problem document with `requestId`, the id of the request's log line. The pages meet 4.5:1
+  contrast in both colour schemes and show a focus ring.
   `createDownloadHandler`, `linksOf` and the route's constants are exported.
 
 - A request id on every REST request and MCP tool call: on every log line written inside it, inside
