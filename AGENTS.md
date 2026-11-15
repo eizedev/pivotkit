@@ -407,8 +407,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   rendered to XLSX by the CLI (`pivotkit render weather.pivotkit.json --data weather.csv -o
   weather.xlsx`), opened in Microsoft Excel for Mac at 100 % on a Retina screen and captured as
   Excel's window only (`screencapture -o -l <window id>`), cropped to cells A1:N16; the sheet stays
-  white in Excel's dark mode; Excel formats the numbers by the system's region, so the picture
-  is taken with a region that writes a decimal point. Taken again by hand when the export's look changes. `docs/playground/` (the live demo),
+  white in Excel's dark mode; Excel formats the numbers by its region (the system's unless
+  Excel's own `AppleLocale` is set), so the picture is taken with Excel's region set to one that
+  writes a decimal point (`en_US`). Taken again by hand when the export's look changes. `docs/playground/` (the live demo),
   `docs/schema/`, `docs/assets/social-preview.png` and `docs/robots.txt` (all written by
   `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. The theme's
   repository link in the header asks api.github.com for the repository's stars, forks and latest
