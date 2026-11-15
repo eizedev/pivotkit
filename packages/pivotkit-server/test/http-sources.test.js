@@ -963,3 +963,154 @@ test("the kept answer: hidden columns dropped before it is kept, the values only
         await context.close();
     }
 });
+
+/** Every text a kept value holds, its byte arrays read as UTF-8 too (a CSV answer kept as it came). */
+function keptTexts(value, out = [], seen = new Set()) {
+    if (typeof value === "string") {
+        out.push(value);
+    } else if (value instanceof Uint8Array) {
+        // a copy: a packed column's bytes sit on a SharedArrayBuffer, which TextDecoder does not read
+        out.push(new TextDecoder().decode(new Uint8Array(value)));
+    } else if (value !== null && typeof value === "object" && !seen.has(value) && !ArrayBuffer.isView(value)) {
+        seen.add(value);
+        for (const v of Object.values(value)) {
+            keptTexts(v, out, seen);
+        }
+    }
+    return out.join("\n");
+}
+
+test("a CSV answer is kept without the columns the caller's levels hide; a profile that shows more gets its own copy", async () => {
+    routes.set("/v1/export.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,state,owner,secret\nweb-1,4,running,alice@example.com,s3cr3t-a\nweb-2,2,stopped,bob@example.com,s3cr3t-b\ndb-1,8,running,carol@example.com,s3cr3t-c\n");
+    });
+    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp", clientProfiles: { "narrow-bot": "narrow" } };
+    const shown = { default: "hide", fields: { name: "show", cpu: "show", state: "show", owner: "show" } };
+    const options = { ...optionsOf({}, {}, { policy: { results: true, profiles: { narrow: { fields: { owner: "hide" } } } }, auth }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: shown } } };
+    const context = await contextOf(options);
+    const through = (client) => callerOf("oauth", { token: "jwt", clientId: client, scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+    const kept = [];
+    const original = loadRunner.runLoad;
+    loadRunner.runLoad = async (key, ...rest) => {
+        const ran = await original(key, ...rest);
+        kept.push({ key, value: ran.value });
+        return ran;
+    };
+    try {
+        const narrow = (await describe(context, undefined, through("narrow-bot"), "csv")).result;
+        assert.deepEqual(narrow.fields.map((f) => f.name).sort(), ["cpu", "name", "state"]);
+        assert.equal(narrow.hiddenFields, 2, "owner and secret, dropped before the answer was kept, still count as hidden");
+        assert.match(await csvOf(context, { source: "csv" }, through("narrow-bot")), /running,12/);
+        const wide = (await describe(context, undefined, through("claude"), "csv")).result;
+        assert.deepEqual(wide.fields.map((f) => f.name).sort(), ["cpu", "name", "owner", "state"]);
+        assert.equal(wide.hiddenFields, 1);
+        assert.equal(asked.length, 2, "the narrow profile's second call reads what was kept; the wide one loads its own");
+        // what is kept for the narrow profile holds neither hidden column, the wide one only its own
+        const narrowKept = keptTexts(kept[0].value);
+        assert.doesNotMatch(narrowKept, /alice@example\.com|s3cr3t/);
+        assert.match(narrowKept, /web-1/, "the shown values are kept");
+        const wideKept = keptTexts(kept.at(-1).value);
+        assert.match(wideKept, /alice@example\.com/);
+        assert.doesNotMatch(wideKept, /s3cr3t/);
+        assert.equal(kept[0].key, kept[1].key);
+        assert.notEqual(kept[0].key, kept.at(-1).key, "a narrower and a wider profile never share a kept answer");
+    } finally {
+        loadRunner.runLoad = original;
+        await context.close();
+    }
+});
+
+test("a CSV answer kept packed: the reader's notes without a hidden column's, warm calls without the table, the reader's limits as before", async () => {
+    routes.set("/v1/export.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,day,born\nweb-1,4,03/04/2026,05/06/1990\nweb-2,2,04/05/2026,07/08/1991\ndb-1,8,05/06/2026,09/10/1992\n");
+    });
+    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" };
+    const ana = callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+    const policy = { default: "hide", fields: { name: "show", cpu: "show", day: "show" } };
+    const options = { ...optionsOf({}, {}, { policy: { results: true }, auth }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy } } };
+    const context = await contextOf(options);
+    try {
+        const described = (await describe(context, undefined, ana, "csv")).result;
+        assert.equal(described.rows, 3);
+        const notes = described.notes.map((n) => n.message).join("\n");
+        assert.match(notes, /Dates in "day" were read as month\/day\/year/, "the reader's notes reach the caller");
+        assert.doesNotMatch(notes, /born/, "nothing about a hidden column");
+        for (let i = 0; i < 3; i++) {
+            assert.match(await csvOf(context, { source: "csv", view: { rows: ["name"], values: [{ field: "cpu", agg: "sum" }] } }, ana), /db-1,8/);
+        }
+        assert.equal(asked.length, 1);
+        assert.deepEqual(context.computer.sent(), { tables: 1, cached: 4 }, "the bytes go once, to the worker that reads them; the operations go without the table");
+    } finally {
+        await context.close();
+    }
+    // a limit of the reader: its own code and words, as when the operation's worker read the bytes
+    const limited = await contextOf({ ...options, limits: { rows: 2 } });
+    try {
+        const error = await failure(describe(limited, undefined, ana, "csv"));
+        assert.equal(error.code, "LIMIT_EXCEEDED");
+        assert.match(error.message, /limits\.rows/);
+    } finally {
+        await limited.close();
+    }
+    // every column hidden: the rows still counted
+    const none = await contextOf({ ...options, sources: { csv: { ...options.sources.csv, policy: { default: "hide" } } } });
+    try {
+        const described = (await describe(none, undefined, ana, "csv")).result;
+        assert.deepEqual([described.rows, described.fields, described.hiddenFields], [3, [], 4]);
+    } finally {
+        await none.close();
+    }
+});
+
+test("a kept CSV answer is read under the limits and time zone it was read with: other ones load their own", async () => {
+    routes.set("/v1/export.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,state\nweb-1,4,running\nweb-2,2,stopped\ndb-1,8,running\n");
+    });
+    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" };
+    const ana = callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+    // one configured source object in two servers (a host that builds its contexts from one options object)
+    const base = optionsOf({}, {}, { auth });
+    const sources = { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: POLICY } };
+    const wide = await contextOf({ ...base, sources });
+    const narrow = await contextOf({ ...base, sources, limits: { rows: 2 } });
+    const zoned = await contextOf({ ...base, sources, timeZone: "Asia/Tokyo" });
+    try {
+        assert.equal((await describe(wide, undefined, ana, "csv")).result.rows, 3);
+        assert.equal((await failure(describe(narrow, undefined, ana, "csv"))).code, "LIMIT_EXCEEDED", "not the other server's kept table");
+        assert.equal((await describe(zoned, undefined, ana, "csv")).result.rows, 3);
+        assert.equal(asked.length, 3, "each reads the answer under its own limits and time zone");
+    } finally {
+        await Promise.all([wide.close(), narrow.close(), zoned.close()]);
+    }
+});
+
+test("a CSV answer for a caller without an identity: read by the operation's worker, nothing kept", async () => {
+    routes.set("/v1/export.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,state,owner\nweb-1,4,running,alice@example.com\nweb-2,2,stopped,bob@example.com\n");
+    });
+    const options = { ...optionsOf({}, {}, { policy: { results: true } }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: POLICY } } };
+    const context = await contextOf(options);
+    const kept = [];
+    const original = loadRunner.runLoad;
+    loadRunner.runLoad = async (key, ...rest) => {
+        const ran = await original(key, ...rest);
+        kept.push(key);
+        return ran;
+    };
+    try {
+        for (let i = 0; i < 2; i++) {
+            const described = (await describe(context, undefined, nobody(), "csv")).result;
+            assert.deepEqual([described.fields.map((f) => f.name).sort(), described.hiddenFields], [["cpu", "name", "state"], 1]);
+        }
+        assert.deepEqual(kept, [null, null], "no key: nothing kept or shared");
+        assert.equal(asked.length, 2);
+        assert.deepEqual(context.computer.sent(), { tables: 0, cached: 0 }, "no read job: the bytes go to the operation's worker");
+    } finally {
+        loadRunner.runLoad = original;
+        await context.close();
+    }
+});

@@ -153,9 +153,7 @@ The server keeps in its memory, never on disk:
   64 loads and `sourceCache.maxMb` in all (default 256 MiB, a quarter per person or shared
   source), until newer loads push it out or the process restarts, also after
   `maxStale` passed or the person lost access (it is not given to anyone then). An HTTP source's
-  JSON answer is kept without the columns the caller's policy hides; a CSV answer is kept as it came
-  for its `ttl` and read per call, its hidden columns in memory too
-  ([#433](https://github.com/eizedev/pivotkit/issues/433));
+  answer, JSON or CSV, is kept without the columns the caller's policy hides;
 - in each compute worker, the data sets of its last four runs without hidden fields, at most a
   quarter of `compute.memoryMb`, until newer ones push them out or the worker is replaced;
 - exchanged backend tokens, per person, at most until the person's own token expires;

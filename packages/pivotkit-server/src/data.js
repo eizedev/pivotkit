@@ -5,7 +5,8 @@
  * (a code source's data is kept by sources/run.js). Each data set says when it is from (asOf, sources/as-of.js). Encoding
  * and the operation run inside a compute worker (file sources, tables loaded in the main thread,
  * uploaded files); in the main thread only a code source's rows are read once into a plain table
- * (codeTable), so the host's code stays in its process.
+ * (codeTable), so the host's code stays in its process. An HTTP source's CSV answer is read in a
+ * worker into a packed table without the hidden columns (packedUpload), which the main thread keeps.
  */
 
 import { stat } from "node:fs/promises";
@@ -404,6 +405,30 @@ export function tableData(spec, table, key, asOf = null, notes = []) {
     }
 }
 
+/** A table job that only reads a CSV answer into a packed table (packedUpload), no operation's name. */
+export const READ_JOB = "pivotkit:read";
+
+/**
+ * A file's bytes read in a worker with the server's import limits: the reader's table and notes.
+ * @param {SourceSpec} spec
+ * @param {{ bytes: Uint8Array, format: string, sheet?: string }} upload
+ */
+async function readUpload(spec, upload) {
+    const format = String(upload.format ?? "").toLowerCase();
+    if (!FORMATS.has(format)) {
+        throw new OperationError("UNSUPPORTED_FORMAT", `${spec.name}: pivotkit reads csv, tsv, txt, json and xlsx files`);
+    }
+    if (upload.bytes.length > (spec.limits.fileBytes ?? 52_428_800)) {
+        throw new OperationError("LIMIT_EXCEEDED", `${spec.name}: the file is larger than the server reads (limits.fileBytes)`);
+    }
+    try {
+        return await readTable(upload.bytes, `${spec.name}.${format}`, { format, ...(upload.sheet ? { sheet: upload.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
+    } catch (e) {
+        // the caller's own file (inline:): its reader's sentence, not only a code (sources/inline.js)
+        throw spec.kind === "inline" ? await uploadError(e, upload, spec.limits) : asOperationError(e, spec.name);
+    }
+}
+
 /**
  * A file's bytes handed in (an upload), read in a worker with the server's import limits, then as
  * tableData.
@@ -416,19 +441,33 @@ export async function uploadData(spec, upload, key, asOf = null) {
     if (key !== null && cache.has(key)) {
         return { ...remember(key, cache.get(key)), name: spec.name, schedulable: spec.schedulable };
     }
-    const format = String(upload.format ?? "").toLowerCase();
-    if (!FORMATS.has(format)) {
-        throw new OperationError("UNSUPPORTED_FORMAT", `${spec.name}: pivotkit reads csv, tsv, txt, json and xlsx files`);
-    }
-    if (upload.bytes.length > (spec.limits.fileBytes ?? 52_428_800)) {
-        throw new OperationError("LIMIT_EXCEEDED", `${spec.name}: the file is larger than the server reads (limits.fileBytes)`);
-    }
-    let read;
-    try {
-        read = await readTable(upload.bytes, `${spec.name}.${format}`, { format, ...(upload.sheet ? { sheet: upload.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
-    } catch (e) {
-        // the caller's own file (inline:): its reader's sentence, not only a code (sources/inline.js)
-        throw spec.kind === "inline" ? await uploadError(e, upload, spec.limits) : asOperationError(e, spec.name);
-    }
+    const read = await readUpload(spec, upload);
     return tableData(spec, read.table, key, asOf, read.notes);
+}
+
+/**
+ * An HTTP source's CSV answer read in a worker into a packed table (packed.js) for the main thread to
+ * keep: the columns the levels hide left out before it leaves the worker (the table's `dropped`
+ * counts them), the reader's notes about them too; the rows counted, also when no column is left.
+ * Its data set is kept in this worker by its key too, as uploadData keeps it, so the operation's job
+ * that follows goes without the table.
+ * @param {SourceSpec} spec
+ * @param {{ bytes: Uint8Array, format: string }} upload
+ * @param {string | null} key  sources/keys.js tableKeyOf
+ * @param {string | null} asOf
+ * @returns {Promise<{ table: import("./packed.js").PackedTable, notes: import("pivotkit-report/operations").Finding[] }>}
+ */
+export async function packedUpload(spec, upload, key, asOf) {
+    const read = await readUpload(spec, upload);
+    const { table } = read;
+    const hide = hiddenOf(spec.levels, table.columns);
+    const notes = cleanNotes(read.notes, hide);
+    const columnar = withoutHidden(table, hide);
+    const packed = packTable(columnar, table.data[0]?.length ?? 0, hide.length);
+    if (key !== null) {
+        // encoded from the reader's values (unpackTable gives a worker that gets the table later the
+        // same ones); without any column left from the packed table, which keeps the row count
+        tableData(spec, columnar.columns.length ? { ...columnar, dropped: hide.length } : packed, key, asOf, notes);
+    }
+    return { table: packed, notes };
 }

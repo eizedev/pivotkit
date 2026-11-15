@@ -1,11 +1,16 @@
 /*
- * A table packed for a compute worker (a code source's data, kept in the main thread and computed in
- * a worker): text columns dictionary-coded (codes in a typed array and each distinct text once),
- * number, date and true/false columns as typed arrays, any other column as it is. The typed arrays
- * sit on SharedArrayBuffers, so posting a packed table to a worker copies its dictionaries and mixed
- * columns only, never a value per cell; neither side writes them after packing. Its size
- * (`packedBytes`) is exact for everything but mixed columns, so the load cache counts what it holds.
+ * A table packed for a compute worker (a code source's data or an HTTP source's CSV answer, kept in
+ * the main thread and computed in a worker): text columns dictionary-coded (codes in the narrowest
+ * typed array their count fits, each distinct text once, all of them as one UTF-8 buffer with their
+ * ends), whole-number columns in the narrowest integer array their range fits, other number, date
+ * and true/false columns as typed arrays, any other column as it is. The typed arrays and the
+ * dictionaries' bytes sit on SharedArrayBuffers, so posting a packed table to a worker (or back)
+ * copies its mixed columns only, never a value per cell or a text; neither side writes them after
+ * packing. Its size (`packedBytes`) is exact for everything but mixed columns, so the load cache
+ * counts what it holds.
  */
+
+import { Buffer } from "node:buffer";
 
 /** A text column's code of a blank (null or undefined); a text's code is its place in the dictionary plus one. */
 const BLANK = 0;
@@ -18,8 +23,24 @@ const NONE = 2;
 const textBytes = (text) => 16 + 2 * text.length;
 
 /**
- * @typedef {{ name: string, type?: string, kind: "text", codes: Uint32Array, dict: string[] }
- *   | { name: string, type?: string, kind: "number" | "date", values: Float64Array, blank: Uint8Array | null }
+ * The most characters a column's dictionary may have as one buffer (a JS string holds about 2^29);
+ * a larger one, or one with a lone surrogate (UTF-8 cannot carry it), stays a list of strings.
+ */
+const DICT_CHARS = 2 ** 28;
+
+/** The integer arrays a whole-number column may take, narrowest first, with their range. */
+const INTEGERS = /** @type {const} */ ([
+    [Uint8Array, 0, 255],
+    [Int8Array, -128, 127],
+    [Uint16Array, 0, 65_535],
+    [Int16Array, -32_768, 32_767],
+    [Int32Array, -2_147_483_648, 2_147_483_647]
+]);
+
+/**
+ * @typedef {Uint8Array | Uint16Array | Uint32Array} Codes
+ * @typedef {{ name: string, type?: string, kind: "text", codes: Codes, text: Uint8Array, ends: Uint32Array } | { name: string, type?: string, kind: "text", codes: Codes, dict: string[] }
+ *   | { name: string, type?: string, kind: "number" | "date", values: Float64Array | Uint8Array | Int8Array | Uint16Array | Int16Array | Int32Array, blank: Uint8Array | null }
  *   | { name: string, type?: string, kind: "boolean", values: Uint8Array }
  *   | { name: string, type?: string, kind: "any", values: unknown[], bytes: number }} PackedColumn
  */
@@ -86,7 +107,7 @@ function packColumn(name, type, values) {
     const n = values.length;
     const base = type ? { name, type } : { name };
     if (kind === "text") {
-        const codes = shared(Uint32Array, n);
+        const all = new Uint32Array(n);
         /** @type {Map<string, number>} */
         const index = new Map();
         /** @type {string[]} */
@@ -94,7 +115,7 @@ function packColumn(name, type, values) {
         for (let i = 0; i < n; i++) {
             const v = /** @type {string | null | undefined} */ (values[i]);
             if (v === null || v === undefined) {
-                codes[i] = BLANK;
+                all[i] = BLANK;
                 continue;
             }
             let code = index.get(v);
@@ -103,9 +124,29 @@ function packColumn(name, type, values) {
                 code = dict.length;
                 index.set(v, code);
             }
-            codes[i] = code;
+            all[i] = code;
         }
-        return /** @type {PackedColumn} */ ({ ...base, kind, codes, dict });
+        const codes = shared(dict.length < 256 ? Uint8Array : dict.length < 65_536 ? Uint16Array : Uint32Array, n);
+        codes.set(all);
+        return /** @type {PackedColumn} */ ({ ...base, kind, codes, ...dictionaryOf(dict) });
+    }
+    if (kind === "number") {
+        const Kind = integerArrayOf(values);
+        if (Kind) {
+            const out = shared(Kind, n);
+            /** @type {Uint8Array | null} */
+            let blank = null;
+            for (let i = 0; i < n; i++) {
+                const v = values[i];
+                if (v === null || v === undefined) {
+                    blank ??= shared(Uint8Array, n);
+                    blank[i] = 1;
+                } else {
+                    out[i] = /** @type {number} */ (v);
+                }
+            }
+            return /** @type {PackedColumn} */ ({ ...base, kind, values: out, blank });
+        }
     }
     if (kind === "number" || kind === "date") {
         const out = shared(Float64Array, n);
@@ -134,6 +175,74 @@ function packColumn(name, type, values) {
 }
 
 /**
+ * A dictionary as one UTF-8 buffer and each text's end (in UTF-16 units of the joined text) on
+ * SharedArrayBuffers; a list of strings when it is too large for one string or holds a lone
+ * surrogate (UTF-8 would change it).
+ * @param {string[]} dict
+ * @returns {{ text: Uint8Array, ends: Uint32Array } | { dict: string[] }}
+ */
+function dictionaryOf(dict) {
+    let chars = 0;
+    for (const t of dict) {
+        chars += t.length;
+    }
+    if (chars > DICT_CHARS) {
+        return { dict };
+    }
+    const joined = dict.join("");
+    // String.prototype.isWellFormed: Node 20 and later (the type library does not name it yet)
+    if (!/** @type {any} */ (joined).isWellFormed()) {
+        return { dict };
+    }
+    const ends = shared(Uint32Array, dict.length);
+    let end = 0;
+    for (let i = 0; i < dict.length; i++) {
+        end += dict[i].length;
+        ends[i] = end;
+    }
+    const text = shared(Uint8Array, Buffer.byteLength(joined, "utf8"));
+    Buffer.from(text.buffer, text.byteOffset, text.length).write(joined, "utf8");
+    return { text, ends };
+}
+
+/** A dictionary's texts back (in a worker). */
+function textsOf(column) {
+    if ("dict" in column) {
+        return column.dict;
+    }
+    const joined = Buffer.from(column.text.buffer, column.text.byteOffset, column.text.length).toString("utf8");
+    const out = new Array(column.ends.length);
+    let start = 0;
+    for (let i = 0; i < out.length; i++) {
+        out[i] = joined.slice(start, column.ends[i]);
+        start = column.ends[i];
+    }
+    return out;
+}
+
+/**
+ * The narrowest integer array a number column fits: every value a whole number (not -0) within
+ * Int32's range; null when one is not (it stays Float64).
+ * @param {unknown[]} values
+ */
+function integerArrayOf(values) {
+    let min = 0;
+    let max = 0;
+    for (let i = 0; i < values.length; i++) {
+        const v = /** @type {number | null | undefined} */ (values[i]);
+        if (v === null || v === undefined) {
+            continue;
+        }
+        if (!Number.isInteger(v) || Object.is(v, -0) || v < -2_147_483_648 || v > 2_147_483_647) {
+            return null;
+        }
+        min = v < min ? v : min;
+        max = v > max ? v : max;
+    }
+    return INTEGERS.find(([, lo, hi]) => min >= lo && max <= hi)?.[0] ?? null;
+}
+
+/**
  * Packs plain columnar data (sources/code.js, after data.js codeTable).
  * @param {{ columns: string[], types?: Array<string | undefined>, data: unknown[][] }} table
  * @param {number} length  the rows, also when no column is left
@@ -158,8 +267,12 @@ export function packedBytes(table) {
         bytes += textBytes(column.name);
         if (column.kind === "text") {
             bytes += column.codes.byteLength;
-            for (const text of column.dict) {
-                bytes += 8 + textBytes(text);
+            if ("dict" in column) {
+                for (const text of column.dict) {
+                    bytes += 8 + textBytes(text);
+                }
+            } else {
+                bytes += column.text.byteLength + column.ends.byteLength;
             }
         } else if (column.kind === "any") {
             bytes += column.bytes;
@@ -183,7 +296,8 @@ export function unpackTable(table) {
     }
     const data = table.columns.map((column) => {
         if (column.kind === "text") {
-            const { codes, dict } = column;
+            const { codes } = column;
+            const dict = textsOf(column);
             const out = new Array(n);
             for (let i = 0; i < n; i++) {
                 out[i] = codes[i] === BLANK ? null : dict[codes[i] - 1];

@@ -13,7 +13,7 @@ is one of these kinds:
 | Kind | Configured with | Where it is read |
 | --- | --- | --- |
 | File | `file`: a CSV, TSV, TXT, JSON or XLSX file | In a worker thread, with the file limits ([options](mcp.md#configuration)) |
-| HTTP | `http`: an operator's backend, its address with typed parameters | Requested and parsed in the server's thread, computed in a worker; see [HTTP sources](#http) |
+| HTTP | `http`: an operator's backend, its address with typed parameters | Requested in the server's thread, a JSON answer parsed there, a CSV answer in a worker; computed in a worker; see [HTTP sources](#http) |
 | Code | `load`: a function of a library host | Loaded in the host's thread, computed in a worker; see [Code sources](#code) |
 
 Every kind has the same exposure policy, scopes, field descriptions and `dataAsOf` in its results
@@ -425,10 +425,29 @@ more); at most 4 loads of one source and 2 of one person run at once; last good 
 after a transient failure, with `stale: { since }`, and a refusal drops it. A load aborted because
 every caller went away keeps nothing: the next call loads again. A caller without an identity (an
 OAuth token without a usable subject) gets nothing kept and shares no load. For a source with a
-token exchange or a claim, the data is kept per person, client and scopes, as its token is. A JSON
-answer is kept without the columns the caller's policy hides (so a caller whose profile shows more
-gets its own copy); a CSV answer is kept as it came and read per call, its hidden columns dropped
-then. The key holds the values and the caller only as a keyed digest.
+token exchange or a claim, the data is kept per person, client and scopes, as its token is. An
+answer is kept without the columns the caller's policy hides, so a caller whose profile shows more
+gets its own copy: a JSON answer's rows, a CSV answer read once in a worker (within
+`compute.timeMs` and `compute.memoryMb`, after the source's `timeMs`) into a compact table, as a
+[code source's](#code-thread) is kept. A kept answer goes to a worker once; later calls send its key
+only. The key holds the values and the caller only as a keyed digest.
+
+What a CSV answer takes in memory:
+
+- The compact table holds each distinct text of a column once, as UTF-8, a code of one, two or
+  four bytes per row, and whole numbers in one, two or four bytes; other numbers and dates take 8
+  bytes. It is about the size of the answer or smaller: a million rows of four columns with a
+  distinct text in one (27.5 MB of CSV) take about 28 MB, a million rows of eight small whole
+  numbers (19 MB) 8 MB. Packing costs the first call some time: for that million rows with a
+  distinct text about 1.2 s instead of 1.1 s (measured on a laptop); later calls are as fast.
+- It counts against `sourceCache.maxMb` as a code source's table does (see
+  [code sources](#code-cache)): a table over a quarter of it is not kept, every call asks the
+  backend again, and the log says so once an hour per source, naming `sourceCache.maxMb`.
+- When reading the answer fails or waits too long (`BUSY`, `TIMEOUT`, `LIMIT_EXCEEDED`), the
+  answer is dropped and the next call asks the backend again; the raw answer, hidden columns
+  included, is never kept.
+- For a caller without an identity nothing is kept: the answer goes straight to the worker that
+  computes the call, which drops the hidden columns there.
 
 ### check-config and check-source { #check-source }
 
@@ -658,26 +677,27 @@ cells are written as JSON text, and every text is cut at `limits.textLength`.
   answers at once and drops what was kept for that caller and values, so a withdrawn access is never
   covered by the cache.
 - **Bounds.** The process keeps at most 64 loads and `sourceCache.maxMb` of loaded tables (256 MiB
-  by default), each counted as pivotkit holds it (each distinct text of a column once, numbers,
-  dates and true/false values as typed arrays); one person (a shared source counts as one) at most
+  by default), each counted as pivotkit holds it (each distinct text of a column once as UTF-8,
+  whole numbers in one, two or four bytes, other numbers, dates and true/false values as typed
+  arrays); one person (a shared source counts as one) at most
   8 loads and a quarter of the bytes, and a person's new load pushes out that person's oldest
   first, so one caller cannot push out everyone else's data. Otherwise the least recently used go
   first. Kept data stays in the process's memory until it is pushed out, also after `maxStale` has
   passed. `check-config` prints both limits.
 - **Tables up to a quarter of `sourceCache.maxMb`** (64 MiB by default) are kept. A larger table is
-  never kept: every call loads it again, reads it and sends it to a worker, as without `ttl`. A
-  million rows with a distinct text of 30 characters in each row take about 84 MiB, over the
-  default share: every call then takes about 0.6 to 1 s, 0.2 to 0.5 s of it in the host's thread
-  (measured on a laptop). With `"sourceCache": { "maxMb": 512 }` (tables up to 128 MiB) it is kept,
-  and a later call takes a few milliseconds; give the process the memory for it. The process
+  never kept: every call loads it again, reads it and sends it to a worker, as without `ttl`, and
+  the log warns once an hour per source with the table's size. A million rows of eight columns
+  with a distinct text of about 36 characters in each row take about 65 MiB, just over the default
+  share. With `"sourceCache": { "maxMb": 512 }` (tables up to 128 MiB) it is kept, and a later call
+  takes a few milliseconds; give the process the memory for it. The process
   keeps one load cache: with several contexts in one process, the largest `sourceCache.maxMb` of
   those open applies, and when a context closes the cache shrinks to the largest left.
 
 ### Where it runs { #code-thread }
 
 `load` runs in the host's thread, and pivotkit reads its rows there once into a compact table (the
-run limits above, hidden fields left out; each distinct text of a column once, numbers, dates and
-true/false values in shared memory). The operation over that table runs in a worker, as for a file
+run limits above, hidden fields left out; each distinct text of a column once, its texts and codes,
+numbers, dates and true/false values in shared memory, so sending it to a worker copies no value). The operation over that table runs in a worker, as for a file
 or an HTTP source: `timeMs` bounds `load`, `compute.timeMs` the computation (`TIMEOUT`),
 `compute.memoryMb` its memory (`LIMIT_EXCEEDED`), and it waits up to `compute.queueMs` for a free
 worker (`BUSY`). A load that is kept (`ttl` or `version`) goes to a worker once; later calls go to

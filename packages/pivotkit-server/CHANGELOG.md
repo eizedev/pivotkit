@@ -294,7 +294,19 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   - A sign-in link's subject digest holds the link's nonce: two links of one person cannot be tied
     together.
   - Cache keys hold a caller's values, groups and claims only as a keyed digest; an HTTP source's
-    JSON answer is kept without the columns the caller's policy hides.
+    answer is kept without the columns the caller's policy hides. A CSV answer is read once in a
+    worker into a packed table without them, as a code source's rows are, and that table is kept
+    ([#433](https://github.com/eizedev/pivotkit/issues/433)): reading it counts against
+    `compute.timeMs` and `compute.memoryMb`, not the source's `timeMs`. A CSV answer whose every
+    column is hidden reports its real row count (it said 0). If the reading fails (`BUSY`,
+    `TIMEOUT`, a limit), the answer is dropped and the next call asks the backend again. For a
+    caller without an identity nothing is kept, and the answer goes to the operation's worker as
+    before.
+  - Packed tables (code sources and CSV answers) keep a text column's dictionary as one UTF-8
+    buffer in shared memory, its codes and whole-number columns in one, two or four bytes: a
+    million rows of eight small whole numbers take 8 MB instead of 64 MB, and sending a table to
+    a worker copies no text. A table over a quarter of `sourceCache.maxMb`, which is loaded on every
+    call, gets one warning an hour per source in the log.
   - With `audit.subject` on, a sign-in link's `download` line names the person who signed in.
   - The markers of used one-time links are swept every ten minutes, not only on the next one-time
     download.

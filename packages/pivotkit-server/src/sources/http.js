@@ -8,14 +8,15 @@
  * MAX_DEPTH deep; one answer of at most maxBytes, parsed synchronously) and finding the rows (a JSON
  * Pointer, own properties only) in the main thread, where a backend's credentials would stay; the rows as plain values (a
  * nested value as JSON text) go to a worker, which encodes them and runs the operation as a table
- * job (a CSV answer goes as its bytes and is read there).
+ * job. A CSV answer's bytes are read in a worker (compute.js read), which gives back a packed table
+ * (packed.js) without the hidden columns; that table is kept and goes to the operation's worker.
  *
  * Loading goes through sources/run.js like a code source's: the source's timeMs for all pages, one
  * load in flight per key, the load limits, kept data for ttl seconds per caller (the identity is
  * part of the key; a caller without one keeps and shares nothing; for a token exchange or a claim
- * the client and its scopes too; the caller's values and identity only as a keyed digest), a JSON
- * answer kept without the columns the caller's levels hide (a CSV answer is kept as its bytes until
- * it expires), last good data after a transient failure only.
+ * the client and its scopes too; the caller's values and identity only as a keyed digest), an
+ * answer kept without the columns the caller's levels hide (JSON and CSV alike), last good data
+ * after a transient failure only.
  *
  * The backend's sign-in (http.auth) is sources/auth.js's: its headers go on every page, after the
  * static ones; a 401 drops the token it was sent and the page is asked once more with a new one.
@@ -31,6 +32,7 @@ import { LIMITS } from "pivotkit-core";
 import { OperationError } from "pivotkit-report/operations";
 import { identityKey } from "../auth.js";
 import { overLimit, withoutHiddenRows } from "../data.js";
+import { isPacked, packedBytes } from "../packed.js";
 import { httpSettingsOf } from "../options/http.js";
 import { fieldKey } from "../policy.js";
 import { requestId } from "../request-id.js";
@@ -511,6 +513,20 @@ function nextPage(settings, body, headers, current, count, seen, log) {
     return seen.has(next.href) ? null : next;
 }
 
+/**
+ * A CSV answer read in a worker into a packed table without the hidden columns: the reader's and the
+ * pool's errors (a limit, a body that is no CSV, BUSY, TIMEOUT) reach the caller as they are, as they
+ * did when the operation's worker read the bytes. The worker keeps the data set by `tableKey`, so
+ * the operation's job goes to it without the table.
+ */
+async function readCsv(computer, spec, upload, tableKey, asOf, signal) {
+    try {
+        return await computer.read(spec, upload, tableKey, asOf, signal);
+    } catch (e) {
+        throw e instanceof OperationError ? ownError(e) : e;
+    }
+}
+
 /** A random name per configured source object, so two servers' sources of the same id never share data. */
 const names = new WeakMap();
 const nameOf = (source) => {
@@ -520,10 +536,17 @@ const nameOf = (source) => {
     return names.get(source);
 };
 
-/** About the bytes a table takes in the main thread's cache: texts by their length, other values as 8. */
+/**
+ * About the bytes a kept table takes in the main thread's cache: a packed one (a CSV answer's) as
+ * packed.js counts it; rows by their texts' length, other values as 8.
+ */
 function tableBytes(loaded) {
     if (loaded.upload) {
+        // never kept (a caller without an identity), measured all the same
         return loaded.upload.bytes.byteLength;
+    }
+    if (isPacked(loaded.table)) {
+        return packedBytes(loaded.table);
     }
     let bytes = 0;
     for (const c of loaded.table.columns) {
@@ -540,15 +563,19 @@ function tableBytes(loaded) {
 /**
  * An HTTP source's data for a caller (or what is kept of it): sources/run.js with the source's
  * settings. The key holds the source, its settings' hash, the caller's values and identity (as a
- * keyed digest) and the levels that decide the hidden columns; without an identity nothing is kept
- * or shared. `tableKey` names this load's table for the worker (a new load
- * has a new one, so a worker never answers from an older table).
+ * keyed digest), the levels that decide the hidden columns, and the time zone and limits a CSV
+ * answer is read with; without an identity nothing is kept or shared. What is kept never holds a
+ * hidden column: a JSON answer's rows without them, a CSV answer read in a worker into a packed
+ * table without them (for a caller without an identity, whose load is never kept, the bytes go to
+ * the operation's worker as they are). `tableKey` names this load's table for the worker (a new load has a new one,
+ * so a worker never answers from an older table).
+ * @param {{ read: (spec: any, upload: { bytes: Uint8Array, format: "csv" }, tableKey: string | null, asOf: string | null, signal?: AbortSignal) => Promise<{ table: import("../packed.js").PackedTable, notes: any[] }> }} computer  compute.js's pool
  * @param {any} resolved  registry.resolve's
  * @param {import("../registry.js").Caller} caller
  * @param {any} log
  * @param {AbortSignal} [signal]
  */
-export async function loadFor(resolved, caller, log, signal = undefined) {
+export async function loadFor(computer, resolved, caller, log, signal = undefined) {
     const source = resolved.source;
     const settings = httpSettingsOf(source);
     const spec = resolved.spec;
@@ -564,12 +591,23 @@ export async function loadFor(resolved, caller, log, signal = undefined) {
     const configHash = configHashOf({ http: source.http, settings });
     // the values and the identity only as a keyed digest; the levels that decide which columns are
     // dropped before the answer is kept (a caller whose profile shows more gets its own copy)
-    const key = identity === null ? null : canonicalJson(["http", name, configHash, privatePart([values ?? {}, identity]), { default: spec.levels.default, fields: spec.levels.fields }]);
+    const key = identity === null ? null : canonicalJson(["http", name, configHash, privatePart([values ?? {}, identity]), { default: spec.levels.default, fields: spec.levels.fields }, spec.timeZone ?? null, spec.limits]);
     const limits = { ...LIMITS, ...spec.limits };
+    // a load's table (its serial: a new load is a new key) under the caller's levels and limits
+    const tableKeyFor = (serial) => tableKeyOf({ kind: "http", id: `${name}:${spec.id}`, configHash: canonicalJson([configHash, serial, spec.timeZone ?? null]), params: values, identity, levels: spec.levels, limits: spec.limits });
     const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, declared: source.params, caller }), {
-        // hidden columns never kept: a JSON answer's table without them (a CSV answer is kept as its
-        // bytes and read in a worker, which drops them there)
-        prepare: (loaded) => ({ ...loaded, ...(loaded.table ? { table: withoutHiddenRows(spec.levels, loaded.table) } : {}), serial: randomBytes(9).toString("base64url") }),
+        // hidden columns never kept: a JSON answer's rows without them, a CSV answer read in a worker
+        // (outside the source's timeMs, within compute.timeMs) into a packed table without them
+        prepare: async ({ table, upload, asOf, pages, bytes }, readSignal) => {
+            const serial = randomBytes(9).toString("base64url");
+            if (upload && key === null) {
+                // a caller without an identity: nothing is kept (runLoad keeps nothing under a null
+                // key), so the bytes go straight to the operation's worker, which drops the hidden columns
+                return { table: null, upload, notes: [], asOf, pages, bytes, serial };
+            }
+            const read = upload ? await readCsv(computer, spec, upload, tableKeyFor(serial), asOf, readSignal) : { table: withoutHiddenRows(spec.levels, /** @type {any} */ (table)), notes: [] };
+            return { ...read, asOf, pages, bytes, serial };
+        },
         source: name,
         label: spec.id,
         bucket: person,
@@ -582,9 +620,7 @@ export async function loadFor(resolved, caller, log, signal = undefined) {
         log,
         ...(signal ? { signal } : {})
     });
-    // this load's table (its serial: a new load is a new key) under the caller's levels and limits
-    const tableKey = tableKeyOf({ kind: "http", id: `${name}:${spec.id}`, configHash: canonicalJson([configHash, ran.value.serial, spec.timeZone ?? null]), params: values, identity, levels: spec.levels, limits: spec.limits });
-    return { value: ran.value, stale: ran.stale, tableKey };
+    return { value: ran.value, stale: ran.stale, tableKey: tableKeyFor(ran.value.serial) };
 }
 
 export const httpKind = Object.freeze({
@@ -604,8 +640,8 @@ export const httpKind = Object.freeze({
      * @param {{ signal?: AbortSignal }} [how]
      */
     async run(computer, op, input, resolved, base, caller, log, how = {}) {
-        const { value, stale, tableKey } = await loadFor(resolved, caller, log, how.signal);
-        const job = { ...base, spec: resolved.spec, tableKey, asOf: value.asOf, ...(value.upload ? { upload: value.upload } : { table: value.table }) };
+        const { value, stale, tableKey } = await loadFor(computer, resolved, caller, log, how.signal);
+        const job = { ...base, spec: resolved.spec, tableKey, asOf: value.asOf, ...(value.upload ? { upload: value.upload } : { table: value.table }), ...(value.notes.length ? { notes: value.notes } : {}) };
         const ran = await computer.run(op, input, job);
         return { ...ran, asOf: ran.asOf ?? value.asOf, stale };
     }
