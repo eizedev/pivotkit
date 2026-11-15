@@ -28,3 +28,31 @@ export async function seams(caller: Caller): Promise<number> {
     await server.close();
     return bodyCapOf(bodyBytesOf({}), new Request("http://localhost/"), {}) + MAX_BODY_BYTES + String(fields.client ?? id ?? details.requestId ?? scopes ?? secret).length;
 }
+
+// a code source: load(params, { caller, signal }) with its own errors as SourceError, and its limits
+import { SourceError, CODE_DEFAULTS, SOURCE_ERROR_CODES } from "pivotkit-server";
+
+export function codeSource(): ServerOptions {
+    const denied = new SourceError("NOT_ALLOWED", { publicMessage: "You may not see this team's tickets." });
+    const transient: boolean = new SourceError("SOURCE_UNAVAILABLE", { status: 503 }).transient;
+    const timeMs: number = CODE_DEFAULTS.timeMs;
+    return validateOptions({
+        sources: {
+            tickets: {
+                load: async (params, { caller, signal }) => {
+                    if (signal.aborted || caller === null || !transient) {
+                        throw denied;
+                    }
+                    return { rows: [{ Team: params.team, Open: 1 }], asOf: new Date() };
+                },
+                params: { team: { type: "string", required: true } },
+                timeMs,
+                ttl: 120,
+                maxStale: 3600,
+                cacheShared: false
+            }
+        }
+    });
+}
+
+export const sourceCodes: readonly string[] = SOURCE_ERROR_CODES;

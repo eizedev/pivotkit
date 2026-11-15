@@ -333,7 +333,7 @@ gives it to the operator. An error of a source or a store that failed (`SOURCE_U
 | 400 | <a id="error-invalid-input"></a>`INVALID_INPUT` | The body is not valid JSON, is no JSON object, or does not fit the route's schema (an unknown key, a wrong type, nested deeper than 64 levels, also inside a view given as JSON text) |
 | 401 | <a id="error-invalid-token"></a>`INVALID_TOKEN` | No token, an unknown or expired one, another scheme, a token in the address |
 | 403 | <a id="error-insufficient-scope"></a>`INSUFFICIENT_SCOPE` | The token lacks a scope the service or the operation needs |
-| 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true` |
+| 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true`; a code source that refuses the caller (its `SourceError`) |
 | 403 | <a id="error-files-not-allowed"></a>`FILES_NOT_ALLOWED` | A `file:` source |
 | 403 | <a id="error-forbidden-host"></a>`FORBIDDEN_HOST` | A `Host` the server does not answer to (DNS rebinding protection; `http.allowHosts`, `http.publicUrl`) |
 | 403 | <a id="error-forbidden-origin"></a>`FORBIDDEN_ORIGIN` | A browser origin not in `rest.cors.origins` |
@@ -350,7 +350,9 @@ gives it to the operator. An error of a source or a store that failed (`SOURCE_U
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else; the details only in the log with `--log debug` |
 | 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free; starting or stopping; the OAuth issuer not loaded yet |
-| 404, 422, 502 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE`, <a id="error-data-mismatch"></a>`DATA_MISMATCH`, <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE`, <a id="error-upload-failed"></a>`UPLOAD_FAILED` | Reserved for sources and delivery that load data or store reports elsewhere; this version does not answer them |
+| 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](sources.md#code-errors)) |
+| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code source's load failed, took longer than its `timeMs` or has too many loads running; `retryable` says whether trying again may work |
+| 422, 502 | <a id="error-data-mismatch"></a>`DATA_MISMATCH`, <a id="error-upload-failed"></a>`UPLOAD_FAILED` | Reserved for data sent in a request and delivery that stores reports elsewhere; this version does not answer them |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 
 ## The OpenAPI document { #openapi }
@@ -480,12 +482,16 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
   trims one trailing newline and refuses a value with another line break or a NUL; its error names
   the reference, never the value.
 
-A source may be `load: async () => rows` instead of `file`: an array of row objects, or columnar data
+A source may be a function instead of a file, a [code source](sources.md#code):
+`load(params, { caller, signal })` returns an array of row objects, `{ rows, asOf }` or columnar data
 `{ columns, types, data }` with one array per column (not `encode()`'s result, so hidden fields can
-be dropped). It runs in the host's thread, not in a worker. With `version: () => key` the encoded data
-is kept until the key changes (per process, by source id and key); without it, every request loads
-again. An error thrown by `load` answers 500 with a fixed text; its class is logged, its message with
-`log: "debug"`.
+be dropped). It runs in the host's thread, not in a worker; its `signal` is aborted after `timeMs`
+(30 s by default). The data is kept per caller, values and policy levels while `version(params,
+{ caller })` gives the same value or for `ttl` seconds (`cacheShared: true`: one copy for all
+callers), parallel calls share one load, and after a transient failure the last good data stands in
+for up to `maxStale` seconds, with `stale` in the result. A `SourceError` answers its code with its
+`publicMessage`; anything else `load` throws answers 502 `SOURCE_UNAVAILABLE` with a fixed text, its
+class in the log, its message with `log: "debug"`.
 
 - The one static token without `auth.tokens` is `$PIVOTKIT_TOKEN` (`createContext(options,
   { tokenEnv })` names another); tokens are read from `env` of `createRestHandler`.

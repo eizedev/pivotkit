@@ -26,6 +26,8 @@ export { readSecret, secretFileWarning, SecretError } from "./secrets.js";
 export { SECRET_REF } from "./options/shared.js";
 export { checkConfig } from "./check.js";
 export { OperationError } from "pivotkit-report/operations";
+export { SourceError, SOURCE_ERROR_CODES } from "./sources/run.js";
+export { CODE_DEFAULTS } from "./options/code.js";
 export { optionsFrom, flagLines, httpFlags, SERVER_FLAGS, SHARED_FLAGS } from "./flags.js";
 export { serve, createServerHandler, DEFAULT_PORT } from "./serve.js";
 

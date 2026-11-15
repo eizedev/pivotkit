@@ -20,6 +20,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - Log lines written inside a request (`call`, `request`, `download`, `refused`, `error`) carry
   `requestId`; every REST problem document carries it too. A body over the cap gets a `refused` line.
 - `check-config` warns of a static token's file that other users of the machine can read.
+- Library hosts with code sources (`load`): `load(params, { caller, signal })` also without declared
+  params (`{}`), aborted after 30 s (`timeMs`); data kept per caller unless `cacheShared: true`; last
+  good data up to an hour old after a transient failure, with `stale` (`maxStale: 0` turns it off);
+  an error thrown by `load` answers `SOURCE_UNAVAILABLE` (502) instead of `INTERNAL` (500); the data
+  has a file's limits ([code sources](https://pivotkit.eize.dev/getting-started/upgrading/#code-sources)).
 
 ### Added
 
@@ -37,8 +42,18 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   after the sign-in (`bodyBytesOf`, `peekSignIn`, `bodyCapOf`): at most `BODY_BYTES` for a caller
   who is not signed in, at most `MAX_BODY_BYTES` (64 MiB) for one who is. `offeredScopes`,
   `callerFields` (the caller's fields a log line may hold: the client only), `secretFileWarning`.
-- `sources.<id>.ttl`, `maxStale` and `timeMs` are taken by code sources (refused on file sources);
-  they do nothing yet.
+- Code sources are hardened ([#330](https://github.com/eizedev/pivotkit/issues/330)):
+  `load(params, { caller, signal })` with a time limit (`sources.<id>.timeMs`, default 30000 ms, at
+  most ten minutes) that aborts the signal; parallel calls for the same data share one load; at most
+  4 loads per source and 2 per person at once; data kept per caller, values and policy levels while
+  `version` is the same or for `ttl` seconds, one copy for all with `cacheShared: true` (`caller`
+  null); last good data with `stale` after a transient failure only, for up to `maxStale` seconds
+  (default 3600), dropped by any other failure; a file's run limits (`limits.rows`, `columns`,
+  `importCells`, `textLength`). `SourceError` (exported, with `SOURCE_ERROR_CODES`) answers
+  `NOT_ALLOWED`, `INVALID_INPUT` or `DATA_NOT_AVAILABLE` with its `publicMessage`, or
+  `SOURCE_UNAVAILABLE`; anything else a load throws is `SOURCE_UNAVAILABLE` with the fixed text.
+  `CODE_DEFAULTS`; `check-config` lists each code source. `ttl`, `maxStale` and `timeMs` are refused
+  on file sources.
 - The level `values` between `show` and `summary`: a field's distinct values as a complete, sorted
   list (`items`, `complete: true`), never a result over them. A number or date field, more values
   than `policy.valuesMax` (default 50), a value over 80 characters, `counts: false` or `rows: false`

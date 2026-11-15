@@ -4,8 +4,8 @@
  * claim that names a person, stays in config.js's auth keys, where it was first). A feature that uses one of them never declares it again; it relaxes or adds rules
  * in its own fragment.
  *
- * ttl, maxStale and timeMs are taken by code sources only and do nothing yet: the code sources'
- * fragment gives them their defaults and behaviour, HTTP sources take them too.
+ * ttl, maxStale and timeMs are taken by code sources only; options/code.js gives them their defaults
+ * and sources/run.js their behaviour. HTTP sources take them too.
  */
 
 import { declaredProblems } from "../sources/params.js";

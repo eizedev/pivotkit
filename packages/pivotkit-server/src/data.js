@@ -1,15 +1,15 @@
 /*
  * The data of a source for an operation: read a file the safe way (pivotkit-cli/files), drop the
  * columns the policy hides, encode, and keep the last few data sets (by the file's identity, size and
- * time, a code source's version, or a table job's key), so a model's run of describe, validate and
- * render reads a file once. Each data set says when it is from (asOf, sources/as-of.js). Used inside
+ * time, or a table job's key), so a model's run of describe, validate and render reads a file once
+ * (a code source's data is kept by sources/run.js). Each data set says when it is from (asOf, sources/as-of.js). Used inside
  * a compute worker (file sources, tables loaded in the main thread, uploaded files) and in the main
  * thread (code sources of a library host).
  */
 
 import { stat } from "node:fs/promises";
 import { basename, extname } from "node:path";
-import { PivotkitError, encode } from "pivotkit-core";
+import { LIMITS, PivotkitError, encode } from "pivotkit-core";
 import { asCliError, readSafe, readTable } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
@@ -127,50 +127,95 @@ export async function fileData(spec) {
     }
 }
 
+/** A loaded table over a limit (limits.rows, limits.columns, limits.importCells), as pivotkit-core words it. */
+const overLimit = (limit, value, max, what) => new OperationError("LIMIT_EXCEEDED", `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (limits.${limit})`);
+
+/** A value cut to the longest text a loaded table may hold. */
+const cut = (value, max) => (typeof value === "string" && value.length > max ? value.slice(0, max) : value);
+
 /**
- * The data of a code source (a library host's load()), encoded, with hidden fields dropped.
- * @param {SourceSpec} spec
- * @param {{ load: () => Promise<any>, version?: () => unknown }} source
+ * What a code source's load() gave, checked against the run limits a file has (rows, columns, cells)
+ * and its texts cut at limits.textLength, on a copy: rows (`[{...}]` or `{ rows, asOf }`) or
+ * columnar data (`{ columns, types?, data, asOf? }`), with its asOf.
+ * @param {unknown} loaded
+ * @param {Partial<import("pivotkit-core").Limits>} given  the server's limits
+ * @returns {{ rows: Array<Record<string, unknown>> | null, columnar: { columns: string[], types?: string[], data: unknown[][] } | null, asOf: unknown }}
  */
-export async function codeData(spec, source) {
-    const version = source.version ? source.version() : null;
-    const key = version === null ? null : JSON.stringify(["code", spec.id, version, spec.levels, spec.timeZone ?? null, spec.limits]);
-    const of = (read) => ({ ...read, name: spec.name, schedulable: spec.schedulable });
-    if (key && cache.has(key)) {
-        return of(remember(key, cache.get(key)));
-    }
-    let loaded;
-    try {
-        loaded = await source.load();
-    } catch (e) {
-        // the host's own error stays in the log (its message with --log debug), never in the answer
-        throw Object.assign(new OperationError("INTERNAL", "the host could not load this source"), { cause: e });
-    }
-    const columnar = Array.isArray(loaded) ? loaded : loaded && typeof loaded.column === "function" ? null : loaded;
-    if (columnar === null) {
-        throw new OperationError("INTERNAL", "a code source returns rows or columnar data ({ columns, types, data }), not encoded data, so hidden fields can be dropped");
-    }
-    let data;
-    let hide;
-    if (Array.isArray(columnar)) {
-        // rows: the hidden keys dropped from a copy of each row
+function loadedTable(loaded, given) {
+    const limits = { ...LIMITS, ...given };
+    const shape = /** @type {any} */ (loaded);
+    const rows = Array.isArray(shape) ? shape : shape && typeof shape === "object" && Array.isArray(shape.rows) && !Array.isArray(shape.columns) ? shape.rows : null;
+    if (rows) {
+        if (rows.length > limits.rows) {
+            throw overLimit("rows", rows.length, limits.rows, "rows");
+        }
         const keys = new Set();
-        for (const row of columnar) {
-            for (const k of Object.keys(row ?? {})) {
+        let long = false;
+        for (const row of rows) {
+            for (const [k, v] of Object.entries(row ?? {})) {
                 keys.add(k);
+                long ||= typeof v === "string" && v.length > limits.textLength;
+            }
+            if (keys.size > limits.columns) {
+                throw overLimit("columns", keys.size, limits.columns, "columns");
             }
         }
-        hide = hiddenOf(spec.levels, [...keys]);
-        const rows = hide.length ? columnar.map((r) => Object.fromEntries(Object.entries(r ?? {}).filter(([k]) => !hide.includes(fieldKey(k))))) : columnar;
-        data = encode(rows, { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-    } else {
-        hide = hiddenOf(spec.levels, columnar.columns ?? []);
-        data = encode(withoutHidden(columnar, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
+        if (rows.length * keys.size > limits.importCells) {
+            throw overLimit("importCells", rows.length * keys.size, limits.importCells, "cells");
+        }
+        const copy = long ? rows.map((r) => Object.fromEntries(Object.entries(r ?? {}).map(([k, v]) => [k, cut(v, limits.textLength)]))) : rows;
+        return { rows: copy, columnar: null, asOf: Array.isArray(shape) ? undefined : shape.asOf };
     }
-    // when the host says the data is from (columnar data's asOf), else when load() gave it
-    const asOf = (columnar && !Array.isArray(columnar) && columnar.asOf !== undefined ? asOfText(columnar.asOf) : null) ?? asOfText(new Date());
-    const out = { data, notes: [], hidden: hide.length, asOf, stats: sourceStats(data) };
-    return of(key ? remember(key, out) : out);
+    if (!shape || typeof shape !== "object" || typeof shape.column === "function" || !Array.isArray(shape.columns) || !Array.isArray(shape.data)) {
+        throw new OperationError("INTERNAL", "a code source returns rows, { rows, asOf } or columnar data ({ columns, types, data, asOf }), not encoded data, so hidden fields can be dropped");
+    }
+    const count = shape.data.reduce((n, column) => Math.max(n, Array.isArray(column) ? column.length : 0), 0);
+    if (count > limits.rows) {
+        throw overLimit("rows", count, limits.rows, "rows");
+    }
+    if (shape.columns.length > limits.columns) {
+        throw overLimit("columns", shape.columns.length, limits.columns, "columns");
+    }
+    if (count * shape.columns.length > limits.importCells) {
+        throw overLimit("importCells", count * shape.columns.length, limits.importCells, "cells");
+    }
+    const data = shape.data.map((column) => (Array.isArray(column) && column.some((v) => typeof v === "string" && v.length > limits.textLength) ? column.map((v) => cut(v, limits.textLength)) : column));
+    return { rows: null, columnar: { columns: shape.columns, types: shape.types, data }, asOf: shape.asOf };
+}
+
+/**
+ * A code source's loaded data (what its load() gave), checked against the run limits, hidden fields
+ * dropped and encoded; asOf the source's own (parsed, sources/as-of.js), else now. Keeping and
+ * reusing it is sources/run.js's.
+ * @param {SourceSpec} spec
+ * @param {unknown} loaded
+ */
+export function codeTable(spec, loaded) {
+    const { rows, columnar, asOf } = loadedTable(loaded, spec.limits);
+    let data;
+    let hide;
+    try {
+        if (rows) {
+            // rows: the hidden keys dropped from a copy of each row
+            const keys = new Set();
+            for (const row of rows) {
+                for (const k of Object.keys(row ?? {})) {
+                    keys.add(k);
+                }
+            }
+            hide = hiddenOf(spec.levels, [...keys]);
+            const kept = hide.length ? rows.map((r) => Object.fromEntries(Object.entries(r ?? {}).filter(([k]) => !hide.includes(fieldKey(k))))) : rows;
+            data = encode(kept, { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
+        } else {
+            const table = /** @type {{ columns: string[], types?: string[], data: unknown[][] }} */ (columnar);
+            hide = hiddenOf(spec.levels, table.columns);
+            data = encode(/** @type {any} */ (withoutHidden(table, hide)), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
+        }
+    } catch (e) {
+        throw asOperationError(e, spec.name);
+    }
+    // when the host says the data is from, else when load() gave it
+    return { data, notes: [], hidden: hide.length, asOf: (asOf !== undefined ? asOfText(asOf) : null) ?? asOfText(new Date()), stats: sourceStats(data), name: spec.name, schedulable: spec.schedulable };
 }
 
 /**
