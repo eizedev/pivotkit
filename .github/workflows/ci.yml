@@ -43,8 +43,9 @@ jobs:
       - name: Unit tests with coverage
         run: npm run coverage
       - name: Repository checks
-        # the Playwright image matches the locked @playwright/test, every dependency is pinned
-        run: node --test "tests/*.test.js"
+        # the Playwright image matches the locked @playwright/test, every dependency is pinned; a run
+        # that leaves a temporary directory behind fails (scripts/test-run.js)
+        run: node scripts/test-run.js node --test "tests/*.test.js"
       - name: Package contents
         # npm pack --dry-run: LICENSE, docs, sources and types in the tarball; publishes nothing
         run: npm run pack:check
@@ -167,10 +168,11 @@ jobs:
         # tests/react19 via tsconfig paths, never from the React 18 workspace install.
         run: npm run types && npm run types --prefix tests/react19
       - name: Browser tests
-        # tests/browser against the build, in the job's engine and shard only
+        # tests/browser against the build, in the job's engine and shard only; a run that leaves a
+        # temporary directory behind fails (scripts/test-run.js)
         env:
           PIVOTKIT_REACT: ${{ matrix.react }}
-        run: npx playwright test --project=${{ matrix.target.browser }} --shard=${{ matrix.target.shard }}/${{ matrix.target.of }}
+        run: node scripts/test-run.js npx playwright test --project=${{ matrix.target.browser }} --shard=${{ matrix.target.shard }}/${{ matrix.target.of }}
       - name: Playground build
         # the static files the tests opened, to try the playground without building it
         if: success() && matrix.react == '18' && matrix.target.browser == 'chromium'

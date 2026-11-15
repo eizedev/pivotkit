@@ -6,8 +6,8 @@
 //   npm run bench -w pivotkit-xlsx -- --browser    # also Chromium (Playwright), the bundle of dist/
 import { readFile as readBytes } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
+import { tempDir } from "../../../tests/temp-dir.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { makeXlsx, ticketRows } from "./make-xlsx.js";
@@ -80,23 +80,19 @@ async function measureInChromium(file) {
     return { ...result, consoleErrors: errors.length };
 }
 
-const dir = mkdtempSync(join(tmpdir(), "pivotkit-xlsx-bench-"));
-try {
-    const files = {
-        plain: join(dir, "tickets.xlsx"),
-        "used range to row 900,000": join(dir, "tickets-used-range.xlsx")
-    };
-    writeFileSync(files.plain, makeXlsx({ sheets: [{ name: "Tickets", rows: () => ticketRows(ROWS) }] }));
-    writeFileSync(files["used range to row 900,000"], makeXlsx({ sheets: [{ name: "Tickets", rows: () => ticketRows(ROWS), usedRangeTo: 900_000, emptyCells: 20 }] }));
-    const browser = process.argv.includes("--browser");
-    if (browser) spawnSync("node", ["build.js"], { cwd: join(here, ".."), stdio: "inherit" });
-    for (const [label, file] of Object.entries(files)) {
-        const size = (await readBytes(file)).length;
-        console.log(`\n${label}: ${ROWS.toLocaleString("en-US")} rows x 20 columns, ${(size / 1e6).toFixed(1)} MB`);
-        console.log("  Node, pivotkit-xlsx          ", JSON.stringify(measureInNode(file, "pivotkit-xlsx")));
-        console.log("  Node, read-excel-file alone  ", JSON.stringify(measureInNode(file, "read-excel-file")));
-        if (browser) console.log("  Chromium, pivotkit-xlsx (CSP)", JSON.stringify(await measureInChromium(file)));
-    }
-} finally {
-    rmSync(dir, { recursive: true, force: true });
+const dir = tempDir("xlsx-bench");
+const files = {
+    plain: join(dir, "tickets.xlsx"),
+    "used range to row 900,000": join(dir, "tickets-used-range.xlsx")
+};
+writeFileSync(files.plain, makeXlsx({ sheets: [{ name: "Tickets", rows: () => ticketRows(ROWS) }] }));
+writeFileSync(files["used range to row 900,000"], makeXlsx({ sheets: [{ name: "Tickets", rows: () => ticketRows(ROWS), usedRangeTo: 900_000, emptyCells: 20 }] }));
+const browser = process.argv.includes("--browser");
+if (browser) spawnSync("node", ["build.js"], { cwd: join(here, ".."), stdio: "inherit" });
+for (const [label, file] of Object.entries(files)) {
+    const size = (await readBytes(file)).length;
+    console.log(`\n${label}: ${ROWS.toLocaleString("en-US")} rows x 20 columns, ${(size / 1e6).toFixed(1)} MB`);
+    console.log("  Node, pivotkit-xlsx          ", JSON.stringify(measureInNode(file, "pivotkit-xlsx")));
+    console.log("  Node, read-excel-file alone  ", JSON.stringify(measureInNode(file, "read-excel-file")));
+    if (browser) console.log("  Chromium, pivotkit-xlsx (CSP)", JSON.stringify(await measureInChromium(file)));
 }

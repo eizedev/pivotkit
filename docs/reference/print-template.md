@@ -168,7 +168,11 @@ inside `@media screen` as well. A rule on `body` or `.pk-report` applies in both
 both. A colour scale whose view names no colours runs through the theme's heat colours
 (`--pk-scale-low`, `--pk-scale-high`) on a dark screen too, so set its dark ends with your other dark
 colours; a middle colour (`--pk-scale-mid`) of your `:root` rule is a light one and stays out of a
-dark screen unless you set one there too. The chart is drawn in the light colours and keeps its light card on a dark screen.
+dark screen unless you set one there too. The chart is drawn in the light colours and keeps its light card on a dark screen, the note under a cut chart on it in your light `--pk-muted`.
+Set the card's colour through `--pk-surface` in your `:root` rule, not with a background on
+`.pk-report-chart`: the chart's image, its card and the note on it all take the light tokens, so a
+background of its own would leave them on another colour. Your own `.pk-report-note` rule colours
+that note too.
 Your dark rules win over the colours a host passes for a dark screen (`darkTokens`), as your `:root`
 rule wins over its light ones.
 

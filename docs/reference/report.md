@@ -123,7 +123,8 @@ first element of `<head>` (`default-src 'none'; style-src 'unsafe-inline'; img-s
   take the dark theme's tokens with the host's `darkTokens` over them, a colour scale whose view
   names no colours runs through the dark heat colours (halfway between them in the middle, unless
   `darkTokens` sets `--pk-scale-mid`; a view's own colours are mixed fainter, so the light text stays readable), and the
-  chart keeps its light card, as it is drawn in the light colours. Every text meets WCAG AA in both with the default colours.
+  chart keeps its light card, as it is drawn in the light colours (the note under a cut chart on it
+  in the light muted text). Every text meets WCAG AA in both with the default colours.
   **On paper** always light, also from a dark screen and in a PDF, with 12 mm
   margins, the header row on every page, rows never split, landscape from 9 columns and a smaller
   font (7 pt) from 17. A table wider than a landscape page is cut by the browser: split the view, or

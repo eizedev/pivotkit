@@ -2,12 +2,14 @@
 // (data-pk-theme), in a light and a dark system theme, on screen and in print. Rendered by
 // pivotkit-report in the test process with a table, a colour scale, data bars and a chart, then
 // opened as a page of its own: every text meets WCAG AA (4.5:1) against what is drawn behind it (a
-// data bar blended over its cell), the screen takes the theme's tokens, paper is light, and a colour
-// scale runs from the surface towards its strong end in both themes.
+// data bar blended over its cell, a chart's texts on its card), each part of the page (body, header,
+// row header, totals, text, the chart's card) takes the theme's colour with no light and dark mixed,
+// paper is light on white, and a colour scale runs from the surface towards its strong end in both
+// themes (expectReportColours in report-contrast.js).
 import * as echarts from "echarts";
 import { DARK_TOKENS, DEFAULT_TEMPLATE, LIGHT_TOKENS, render } from "pivotkit-report";
 import { expect, test } from "./fixtures.js";
-import { ROWS, VIEWS, measure, rgb } from "./report-contrast.js";
+import { CASES, ROWS, VIEWS, expectReportColours, measure, rgb } from "./report-contrast.js";
 
 /**
  * Templates that set colours of their own: a plain :root rule after {{style}} (a page colour without
@@ -31,34 +33,43 @@ const TEMPLATES = {
 for (const [templateName, { template, own, ownDark = {}, theme }] of Object.entries(TEMPLATES)) {
     for (const scheme of ["light", "dark"]) {
         for (const media of ["screen", "print"]) {
-            test(`${templateName === "default" ? "the default report" : `a template with ${templateName}`}, ${scheme} system theme, ${media}: the theme's tokens, every text 4.5:1 on what is behind it, a scale from the surface outwards`, async ({ page }) => {
+            test(`${templateName === "default" ? "the default report" : `a template with ${templateName}`}, ${scheme} system theme, ${media}: each part in the theme's colour, every text 4.5:1 on what is behind it, a scale from the surface outwards`, async ({ page }) => {
                 await page.emulateMedia({ colorScheme: scheme, media });
                 // paper is light whatever the system's theme; the screen follows it unless the root says
                 const dark = media === "screen" && (theme ?? scheme) === "dark";
-                const tokens = dark ? { ...DARK_TOKENS, ...ownDark } : { ...LIGHT_TOKENS, ...own };
-                for (const [name, view] of Object.entries(VIEWS)) {
-                    const report = await render(view, ROWS, { format: "html", echarts, template, now: "2026-11-13T10:00:00Z" });
+                const light = { ...LIGHT_TOKENS, ...own };
+                const tokens = dark ? { ...DARK_TOKENS, ...ownDark } : light;
+                for (const [name, { view, rows, options, shows }] of Object.entries(CASES)) {
+                    const report = await render(view, rows, { format: "html", echarts, template, now: "2026-11-13T10:00:00Z", ...options });
                     await page.setContent(report.text);
                     const seen = await page.evaluate(measure);
                     expect(seen.body, `${name}: the page's surface`).toBe(rgb(tokens["--pk-surface"]));
                     expect(seen.text, `${name}: the page's text`).toBe(rgb(tokens["--pk-text"]));
+                    // paper: dark text on white, unless the template sets a surface of its own
+                    if (media === "print" && !own["--pk-surface"]) expect(seen.body, `${name}: paper`).toBe("rgb(255, 255, 255)");
                     if (theme && media === "screen") {
                         expect(seen.colorScheme, `${name}: the root's colour scheme`).toBe(theme);
                     }
-                    expect(seen.texts.length, name).toBeGreaterThan(10);
-                    const low = seen.texts.filter((t) => t.ratio < 4.5).map((t) => `${t.text} on its ${t.on}: ${t.ratio.toFixed(2)}`);
-                    expect(low, `${name}: texts below 4.5:1`).toEqual([]);
-                    if (name === "scale") {
-                        // the smallest value is the cell nearest the surface, the largest the one furthest from it
-                        const distances = seen.scale.map((c) => c.distance);
-                        expect(distances[0], "the low end").toBeLessThan(distances.at(-1));
-                        expect(Math.min(...distances), "the low end is the nearest to the surface").toBe(distances[0]);
-                    }
+                    expectReportColours(seen, { name, tokens, light, dark, media, shows });
                 }
             });
         }
     }
 }
+
+// a template's own colour for the notes wins over the report's, the note on the chart's card too: the
+// report's rule for that note only keeps the dark screen's muted grey off the light card
+test("a template's own .pk-report-note colour colours the note under a cut chart and under a cut table, on screen and on paper", async ({ page }) => {
+    const template = DEFAULT_TEMPLATE.replace("{{style}}", "{{style}}<style>.pk-report-note{color:#7a1f1f}</style>");
+    const { view, rows, options } = CASES.notes;
+    for (const media of ["screen", "print"]) {
+        await page.emulateMedia({ colorScheme: "light", media });
+        const report = await render(view, rows, { format: "html", echarts, template, now: "2026-11-13T10:00:00Z", ...options });
+        await page.setContent(report.text);
+        const notes = await page.locator(".pk-report-note").evaluateAll((els) => els.map((e) => `${e.tagName.toLowerCase()}: ${getComputedStyle(e).color}`));
+        expect(notes, media).toEqual(["figcaption: rgb(122, 31, 31)", "p: rgb(122, 31, 31)"]);
+    }
+});
 
 // #385: a host's colours for a dark screen (darkTokens) over the dark theme's, as its light ones
 // (tokens) over the light theme's; paper and a root that pins light keep the light ones, and a

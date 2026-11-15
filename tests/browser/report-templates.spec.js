@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import * as echarts from "echarts";
 import { DARK_TOKENS, LIGHT_TOKENS, render } from "pivotkit-report";
 import { expect, test } from "./fixtures.js";
-import { ROWS, VIEWS, measure, rgb } from "./report-contrast.js";
+import { CASES, ROWS, VIEWS, expectReportColours, measure, rgb } from "./report-contrast.js";
 
 const read = (name) => readFileSync(new URL(`../../examples/report-templates/${name}`, import.meta.url), "utf8");
 const corporate = read("corporate.template.html");
@@ -37,27 +37,23 @@ test("Corporate sets every colour token the report uses, and pins light", () => 
 for (const [name, { template, own, theme }] of Object.entries(TEMPLATES)) {
     for (const scheme of ["light", "dark"]) {
         for (const media of ["screen", "print"]) {
-            test(`${name}, ${scheme} system theme, ${media}: its theme, every text 4.5:1 on what is behind it`, async ({ page }) => {
+            test(`${name}, ${scheme} system theme, ${media}: each part in its theme's colour, every text 4.5:1 on what is behind it`, async ({ page }) => {
                 await page.emulateMedia({ colorScheme: scheme, media });
                 const dark = media === "screen" && (theme ?? scheme) === "dark";
                 // light: the template's own tokens over the report's; dark: the report's dark ones
-                const tokens = dark ? DARK_TOKENS : { ...LIGHT_TOKENS, ...own };
-                for (const [viewName, view] of Object.entries(VIEWS)) {
-                    const report = await render(view, ROWS, { format: "html", echarts, template, source: "sales.csv", now: "2026-11-13T10:00:00Z" });
+                const light = { ...LIGHT_TOKENS, ...own };
+                const tokens = dark ? DARK_TOKENS : light;
+                for (const [viewName, { view, rows, options, shows }] of Object.entries(CASES)) {
+                    const report = await render(view, rows, { format: "html", echarts, template, source: "sales.csv", now: "2026-11-13T10:00:00Z", ...options });
                     expect(report.ok).toBe(true);
                     await page.setContent(report.text);
                     const seen = await page.evaluate(measure);
                     expect(seen.body, `${viewName}: the page's surface`).toBe(rgb(tokens["--pk-surface"]));
                     expect(seen.text, `${viewName}: the page's text`).toBe(rgb(tokens["--pk-text"]));
+                    // paper: dark text on white (Corporate's surface is white too)
+                    if (media === "print") expect(seen.body, `${viewName}: paper`).toBe("rgb(255, 255, 255)");
                     if (media === "screen") expect(seen.colorScheme, `${viewName}: colour scheme`).toBe(theme ?? (scheme === "dark" ? "dark" : "light dark"));
-                    const low = seen.texts.filter((t) => t.ratio < 4.5).map((t) => `${t.text.slice(0, 40)} on its ${t.on}: ${t.ratio.toFixed(2)}`);
-                    expect(low, `${viewName}: texts below 4.5:1`).toEqual([]);
-                    expect(seen.texts.length).toBeGreaterThan(10);
-                    if (viewName === "scale") {
-                        const distances = seen.scale.map((c) => c.distance);
-                        expect(Math.min(...distances), "the low end is the nearest to the surface").toBe(distances[0]);
-                        expect(distances[0]).toBeLessThan(distances.at(-1));
-                    }
+                    expectReportColours(seen, { name: `${name}, ${viewName}`, tokens, light, dark, media, shows });
                 }
             });
         }
