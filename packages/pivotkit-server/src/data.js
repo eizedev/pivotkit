@@ -61,6 +61,9 @@ export function setCacheBytes(bytes) {
     cacheBytes = bytes;
 }
 
+/** The bytes of encoded data this process keeps (a worker reports it when it is ready). */
+export const cacheBytesNow = () => cacheBytes;
+
 /** Whether a data set is kept under a table job's key (a worker that holds it needs no table). */
 export const holds = (key) => key !== null && cache.has(key);
 
