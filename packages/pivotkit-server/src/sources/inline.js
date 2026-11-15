@@ -88,11 +88,16 @@ export function maySendData(options, caller, surface) {
 export const restDataOffered = (options) => options.policy?.data === true || Object.values(options.policy?.profiles ?? {}).some((p) => p?.data === true);
 
 /**
- * The refusal of a caller that may not send data.
+ * The refusal of a caller that may not send data. On REST a server that offers data to no caller
+ * says so in MCP's words; one that offers it to other profiles says that this token may not.
  * @param {"mcp" | "rest"} surface
+ * @param {{ offered?: boolean }} [how]  REST: whether any policy or profile has data: true (restDataOffered)
  */
-export function dataRefusal(surface) {
-    return new OperationError("NOT_ALLOWED", surface === "rest" ? "your token may not send data (the operator allows it per profile: data: true)" : "this server takes no data sent in the request (the operator switched it off); use a source from list_sources");
+export function dataRefusal(surface, { offered = true } = {}) {
+    if (surface === "rest") {
+        return new OperationError("NOT_ALLOWED", offered ? "your token may not send data (the operator allows it per profile: data: true)" : "this server takes no data sent in the request (the operator allows it per profile: data: true); use a source from GET /sources");
+    }
+    return new OperationError("NOT_ALLOWED", "this server takes no data sent in the request (the operator switched it off); use a source from list_sources");
 }
 
 /**
@@ -245,7 +250,7 @@ function inlinePolicy(options, caller) {
 export function resolveInline(reg, _ref, caller, how, params) {
     const surface = how.surface ?? "mcp";
     if (!maySendData(reg.options, caller, surface)) {
-        throw dataRefusal(surface);
+        throw dataRefusal(surface, { offered: restDataOffered(reg.options) });
     }
     if (params !== undefined && params !== null && Object.keys(params).length) {
         throw new OperationError("INVALID_INPUT", `source "${INLINE_ID}" takes no params`);

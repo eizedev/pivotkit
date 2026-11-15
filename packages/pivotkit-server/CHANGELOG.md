@@ -369,6 +369,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- REST: `inline:` from a caller without `data: true` is 403 `NOT_ALLOWED` on every route that takes
+  a source, on a server that offers data to no profile in MCP's words ("this server takes no data
+  sent in the request ..."), instead of 400 `INVALID_INPUT` "input has no key \"data\""
+  ([#453](https://github.com/eizedev/pivotkit/issues/453)).
 - Findings of a live review ([#448](https://github.com/eizedev/pivotkit/issues/448)): a presign
   answer that is a JSON array (or any other non-object) is `PRESIGN_ANSWER`, as documented, not
   `UPLOAD_URL_MISSING`; HEAD on a sign-in download link answers 200 with a short page and starts no

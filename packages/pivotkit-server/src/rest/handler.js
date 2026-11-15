@@ -25,7 +25,7 @@ import { callerOf } from "../context.js";
 import { BODY_BYTES, SIGNED_IN, isLoopback, peekSignIn, takeSignIn } from "../listen.js";
 import { INPUT_DEPTH, jsonDepth, present, presentedInput, renderFile } from "../present.js";
 import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, isRestPost, restBodyBytesAt, restBodyBytesFor, restBodyCeilingOf } from "../limits.js";
-import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData } from "../sources/inline.js";
+import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData, restDataOffered } from "../sources/inline.js";
 import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
 import { SAFE_HEADERS, json, problem, problemOf, withRequestIdMember } from "./problem.js";
@@ -266,7 +266,7 @@ export async function createRestHandler(context, runtime = {}) {
             const detail = bodyTooLargeText(options, cap);
             if (type === "multipart/form-data" && takesSource) {
                 if (!maySendData(options, caller, "rest")) {
-                    throw dataRefusal("rest");
+                    throw dataRefusal("rest", { offered: restDataOffered(options) });
                 }
                 ({ input, upload } = await readMultipart(await readBytes(request, cap, detail), request.headers.get("content-type") ?? "", route.operation, context.offers?.rest));
             } else if (type !== "application/json") {
@@ -293,6 +293,11 @@ export async function createRestHandler(context, runtime = {}) {
         // before the schema's pattern says the same in fewer words
         if (typeof input.source === "string" && input.source.startsWith("file:")) {
             throw new OperationError("FILES_NOT_ALLOWED", "this service reads no files by path: use a source id from GET /sources");
+        }
+        // a caller that may not send data is refused as such, before the schema (which offers no
+        // data on a server that offers it to nobody) answers with a key it does not know
+        if (input.source === INLINE_ID && !maySendData(options, caller, "rest")) {
+            throw dataRefusal("rest", { offered: restDataOffered(options) });
         }
         if (!upload) {
             // a table too large is refused by its size, before the schema goes through its cells

@@ -228,7 +228,10 @@ A program that has the data already (a script, a scheduled job) can send it with
 instead of the operator configuring a source for it. It is off by default and the operator turns it
 on per profile with `data: true` (or for every caller with `policy.data: true`). The source id is
 then `inline:`, on every route that takes a source: describe, suggest, validate, describe a view,
-render and the file route.
+render and the file route. A caller without `data: true` that sends `inline:` gets 403
+`NOT_ALLOWED`: "this server takes no data sent in the request (the operator allows it per profile:
+data: true); use a source from GET /sources" where no profile has it, "your token may not send data
+(the operator allows it per profile: data: true)" where other profiles have it.
 
 As JSON, the table goes into `data`: the column names, the rows as lists in the columns' order, and
 `rowCount`, the number of rows of the whole table, which must match the rows sent (else 422

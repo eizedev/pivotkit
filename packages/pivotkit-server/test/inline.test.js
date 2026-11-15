@@ -278,8 +278,10 @@ test("REST: off unless a profile says data: true; then JSON data works and the l
     const plain = await restServer(restOptions(workspace(), { policy: undefined, auth: { mode: "token" } }), { env: { PIVOTKIT_TOKEN: TOKEN } });
     try {
         const refused = await call(`${plain.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: TICKETS } });
-        assert.equal(refused.status, 400, "no data in the schema of a server that offers none");
-        assert.match(refused.data.detail, /has no key "data"/);
+        // refused as MCP refuses it, not by the schema of a server that offers no data (#453)
+        assert.equal(refused.status, 403);
+        assert.equal(refused.data.code, "NOT_ALLOWED");
+        assert.match(refused.data.detail, /^this server takes no data sent in the request \(the operator allows it per profile: data: true\); use a source from GET \/sources$/);
         const empty = await call(`${plain.api}/sources/describe`, { token: TOKEN, body: { source: "inline:" } });
         assert.equal(empty.status, 403);
         assert.equal(empty.data.code, "NOT_ALLOWED");
@@ -311,6 +313,26 @@ test("REST: off unless a profile says data: true; then JSON data works and the l
         assert.doesNotMatch(JSON.stringify(server.log), /Alice Example|North/);
     } finally {
         await server.close();
+    }
+});
+
+test("REST: inline: without data: true is NOT_ALLOWED on every route that takes a source, whatever the body holds", async () => {
+    const plain = await restServer(restOptions(workspace(), { policy: undefined, auth: { mode: "token" } }), { env: { PIVOTKIT_TOKEN: TOKEN } });
+    try {
+        for (const [route, extra] of [["/sources/describe", {}], ["/views/validate", { view: BY_REGION }], ["/views/render", { view: BY_REGION, format: "csv" }], ["/views/render/file", { view: BY_REGION, format: "csv" }]]) {
+            for (const body of [{ source: "inline:", data: TICKETS, ...extra }, { source: "inline:", ...extra }, { source: "inline:", data: "not a table", ...extra }]) {
+                const answer = await call(`${plain.api}${route}`, { token: TOKEN, body });
+                assert.equal(answer.status, 403, `${route} ${JSON.stringify(answer.data)}`);
+                assert.equal(answer.data.code, "NOT_ALLOWED");
+                assert.match(answer.data.detail, /this server takes no data sent in the request/);
+            }
+        }
+        // data beside a configured source stays an input error, not a refusal of data
+        const beside = await call(`${plain.api}/sources/describe`, { token: TOKEN, body: { source: "sales", data: TICKETS } });
+        assert.equal(beside.status, 400);
+        assert.doesNotMatch(plain.log.map((l) => JSON.stringify(l)).join("\n"), /Alice Example/);
+    } finally {
+        await plain.close();
     }
 });
 
