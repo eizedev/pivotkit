@@ -65,8 +65,10 @@ npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output ~/reports/ou
 
 Use absolute paths: a client may start the server in another directory (a missing output
 directory is made at start). VS Code also reads the newer `.mcp.json` with `mcpServers`, as
-under "Other clients". Pin a version for a setup others rely on (`pivotkit-mcp@<version>`): `npx`
-without one takes the newest at each start.
+under "Other clients". `npx` without a version takes the newest release at each start, unless
+pivotkit-mcp is installed globally or in the folder the client starts it in: then it runs that copy.
+Write `pivotkit-mcp@latest`, or pin a version for a setup others rely on (`pivotkit-mcp@<version>`);
+see [Update an installation](upgrading.md#update), also for restarting the client after an update.
 
 Then ask: "Which sources does pivotkit have?", "Make an Excel report of sales by region per quarter",
 "Make a link to that report". The server answers with the file's place; when the report uses fields
@@ -143,7 +145,8 @@ npm install pivotkit-server@<version> pivotkit-mcp@<version>
 ```
 
 On a machine without internet, install from the packages' tarballs (`npm pack` on a machine with
-it). The configuration, `D:\pivotkit\pivotkit.json`:
+it). To update, run the same command with the new versions and restart the service
+([Update an installation](upgrading.md#update-project)). The configuration, `D:\pivotkit\pivotkit.json`:
 
 ```json
 {
@@ -320,7 +323,8 @@ that read skills:
     /plugin install pivotkit-mcp@pivotkit
     ```
 
-    The plugin holds the skill only; add the server with `claude mcp add` as above.
+    The plugin holds the skill only; add the server with `claude mcp add` as above. Plugin and server
+    update separately ([Update an installation](upgrading.md#update-plugin)).
 
 === "A skill folder"
 

@@ -1,12 +1,125 @@
 ---
 title: Upgrading
-description: What a host or a script checks when it moves to the next release of pivotkit - from 0.6.0 to 0.6.1 (the services' output files and request limits, checks at start, years before 1 AD and the command line), from 0.5 to 0.6 (Table as CSV, Source data, the report's words and the command line) and from 0.4 to 0.5 (view and file format 2, dark theme selectors, the colour scale, labels, font weights, chart text and column subtotals).
+description: How to update the command line, the REST service, the MCP server, the container image and the Claude Code plugin, and what a host or a script checks when it moves to the next release of pivotkit - from 0.6.0 to 0.6.1 (the services' output files and request limits, checks at start, years before 1 AD and the command line), from 0.5 to 0.6 (Table as CSV, Source data, the report's words and the command line) and from 0.4 to 0.5 (view and file format 2, dark theme selectors, the colour scale, labels, font weights, chart text and column subtotals).
 ---
 
 # Upgrading
 
-Each section lists what changes between two releases and whom it concerns; **Breaking** marks a
-change that needs your action when it applies.
+The first section says how to update the command line, the REST service, the MCP server, the
+container image and the Claude Code plugin. Each section after it lists what changes between two
+releases and whom it concerns; **Breaking** marks a change that needs your action when it applies.
+
+## Update an installation { #update }
+
+A web page updates pivotkit-react or pivotkit-element in its own project like any other dependency
+(see [In a project](#update-project)). The command line, the services and the image come out with
+the releases below; read the sections from your version to the new one before you update:
+
+| Release | pivotkit-cli | pivotkit-server and the image | pivotkit-mcp |
+| --- | --- | --- | --- |
+| [0.6.1](#from-0-6-0) | 0.2.1 | 0.1.1 | 0.1.1 |
+| [0.6.0](#from-0-5) | 0.2.0 | 0.1.0 | 0.1.0 |
+| [0.5.0](#from-0-4) | 0.1.0 | | |
+
+From pivotkit-server and pivotkit-mcp 0.1.1 on, for example, the services name their
+[output files](#output-0-6-1) differently. Each package's `CHANGELOG.md` has the full list.
+
+### Installed with `npm install --global` { #update-global }
+
+```bash
+npm outdated --global       # which global packages have a newer release
+npm install --global pivotkit-cli@latest pivotkit-server@latest pivotkit-mcp@latest
+pivotkit --version
+pivotkit-server --version
+pivotkit-mcp --version
+```
+
+Name only the packages you use: the command installs every one it names. `npm update --global`
+updates every global package to its latest release, across minor versions too.
+
+### In a project or an app folder { #update-project }
+
+A project's `package.json` keeps a range: `npm update` stays inside it, and in 0.x a caret range
+spans patch releases only (`^0.y.z` takes the later 0.y patches, never 0.(y+1)). For the next
+minor version, name it:
+
+```bash
+npm install pivotkit-server@<version> pivotkit-mcp@<version>
+npx pivotkit-server --version
+```
+
+Update pivotkit-server and pivotkit-mcp in one command, to the versions of one release (the table
+above), as for [PowerShell Universal](mcp.md#psu-install).
+
+### Started with `npx` { #update-npx }
+
+`npx pivotkit-mcp` without a version asks the registry at each start and takes the newest release,
+unless the package is installed in the folder `npx` runs in (or a folder above it) or globally: then
+it runs that copy, whatever its version, without asking. Write the version into the command:
+
+- `npx -y pivotkit-mcp@latest`: always the newest release;
+- `npx -y pivotkit-mcp@<version>`: one release, for a setup others rely on; change it to update.
+
+The same holds for `npx pivotkit-cli` and `npx pivotkit-server`.
+
+### Restart what runs { #update-restart }
+
+A running process keeps the version it started with. Restart it right after the update:
+
+- An MCP client over stdio starts the server for a session: restart the client, or start a new
+  session.
+- `pivotkit-server serve` and `pivotkit-mcp --http`: restart the process (a Windows service:
+  `Restart-Service pivotkit`, see [PowerShell Universal](mcp.md#psu-service)).
+
+### The container image { #update-image }
+
+The image's tags are pivotkit-server's versions ([tags](../reference/container.md)): `<version>`
+(`0.1.1`) never moves; `<major>.<minor>` (`0.1`) moves to each patch release of that minor version,
+never to `0.2`; `latest` moves to every release, a new minor version with breaking changes too.
+Pulling a tag does not change a running container; make it again:
+
+=== "docker run"
+
+    ```bash
+    docker pull ghcr.io/eizedev/pivotkit:0.1
+    docker rm -f pivotkit
+    # then the same docker run as before
+    ```
+
+=== "Docker Compose"
+
+    Set `PIVOTKIT_VERSION` to the new release (`0.1` takes its patches), then:
+
+    ```bash
+    docker compose pull
+    docker compose up -d
+    ```
+
+=== "Kubernetes"
+
+    Write the exact version (`ghcr.io/eizedev/pivotkit:0.1.1`) and change it to update. With a tag
+    other than `latest` and no `imagePullPolicy`, Kubernetes sets `IfNotPresent`: a node that has
+    pulled `0.1` once keeps that image.
+
+Check the versions inside the image:
+
+```bash
+docker run --rm ghcr.io/eizedev/pivotkit:0.1 --version
+docker run --rm ghcr.io/eizedev/pivotkit:0.1 mcp --version
+docker run --rm ghcr.io/eizedev/pivotkit:0.1 cli --version
+```
+
+### The Claude Code plugin { #update-plugin }
+
+The plugin `pivotkit-mcp@pivotkit` holds [the skill](mcp.md#skill) only: updating it does not update
+the server, and updating the server does not update the skill. Update both:
+
+```bash
+claude plugin marketplace update pivotkit
+claude plugin update pivotkit-mcp@pivotkit
+```
+
+Then restart Claude Code.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 

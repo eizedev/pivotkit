@@ -202,7 +202,9 @@ For each release:
    in the official plugins table of `docs/reference/plugins.md`. Docs and READMEs name no other
    version of their own. Two files carry a package's version and are checked by its tests:
    `docs/openapi.json` (pivotkit-server's, made again with `node scripts/openapi.js`) and
-   `packages/pivotkit-mcp/.claude-plugin/plugin.json` (pivotkit-mcp's).
+   `packages/pivotkit-mcp/.claude-plugin/plugin.json` (pivotkit-mcp's). The release's section in
+   `docs/getting-started/upgrading.md` gets its row in the table of "Update an installation" (the
+   versions of pivotkit-cli, pivotkit-server and pivotkit-mcp it ships).
    Merge that pull request.
 2. Wait for CI on main, then tag the merge commit `<package>@<version>` and push the tags one at a
    time in the publish order, each after the previous one is published: the `build` job runs
@@ -232,8 +234,9 @@ that depends on it.
 
 `.github/workflows/image.yml` builds the image `ghcr.io/eizedev/pivotkit` on each tag
 `pivotkit-server@<version>` from that commit (pivotkit-server, pivotkit-mcp and pivotkit-cli of the
-same commit, from the lock file), for linux/amd64 and linux/arm64, pushes it as `<version>` and
-`<major>.<minor>`, attaches a provenance and an SBOM attestation and signs it with cosign (keyless).
+same commit, from the lock file), for linux/amd64 and linux/arm64, pushes it as `<version>`,
+`<major>.<minor>` and `latest` (docker/metadata-action's default for a tag pattern), attaches a
+provenance and an SBOM attestation and signs it with cosign (keyless).
 Pull requests that touch it build and smoke-test it without pushing. It was set up once with:
 
 1. The package on GHCR: the first publishing run creates `ghcr.io/eizedev/pivotkit` with the

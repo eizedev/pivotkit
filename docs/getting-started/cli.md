@@ -37,7 +37,7 @@ render a report from the files the report downloads, then put it into CI.
 The package is named `pivotkit-cli`, its command `pivotkit`. Without an install, `npx pivotkit-cli`
 runs the command once; it does not put `pivotkit` on your `PATH`, so each line starts with
 `npx pivotkit-cli` (`npx pivotkit` alone asks npm for another package). The rest of this page writes
-`pivotkit`.
+`pivotkit`. To update it later, see [Update an installation](upgrading.md#update).
 
 ## 2. Try it on the example files { #try-it }
 
