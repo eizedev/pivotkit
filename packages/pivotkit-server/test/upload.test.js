@@ -24,7 +24,7 @@ import { deliver, NO_LINK_NOTE, storeFor } from "../src/delivery.js";
 import { createDownloadHandler, subkeysOf } from "../src/downloads.js";
 import { createContext } from "../src/context.js";
 import { withRequestId } from "../src/request-id.js";
-import { BY_REGION, SALES_CSV, call, restServer, tempDir, workspace } from "./helpers.js";
+import { BY_REGION, SALES_CSV, call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
 
 /** The store's credential: an environment variable, as an operator gives it. */
 const STORE_TOKEN = "STORE-TOKEN-must-never-leave-the-presign-request";
@@ -603,28 +603,30 @@ test("REST and MCP over a closed source with bind none: nothing goes to the stor
 
 test("check-config: where reports go and which go there", async () => {
     const dir = workspace();
-    const result = await checkConfig({ ...presignOptions(), baseDir: dir }, { http: true, env: {} });
-    assert.match(result.text, new RegExp(`Upload:\\n  target: presigned via ${origin("store")}/presign \\(uploads to ${origin("bucket")}\\), PUT, up to 1024 MiB, 30 s, may reach loopback and private addresses \\(intranet\\)`));
-    assert.match(result.text, new RegExp(`  reports over open sources \\(open\\): store links \\(bind none, as you declared it; pivotkit does not check the store\\), from ${origin("files")}`));
-    assert.match(result.text, / {2}reports over closed sources \(closed\) and reports over data sent in requests \(inline:\): not uploaded \(the store's links work for anyone who has them\); no link/);
+    const checked = await checkConfig({ ...presignOptions(), baseDir: dir }, { http: true, env: {} });
+    const result = { ...checked, text: factsOf(checked.text) };
+    assert.ok(result.text.includes(`Upload:\n  target: presigned via ${origin("store")}/presign\n    uploads to ${origin("bucket")}\n    PUT, up to 1024 MiB, 30 s\n    may reach loopback and private addresses (intranet)\n`), result.text);
+    assert.ok(result.text.includes(`  reports over open sources (open): store links from ${origin("files")}\n    bind none, as you declared it; pivotkit does not check the store\n`), result.text);
+    assert.match(result.text, / {2}reports over closed sources \(closed\) and over data sent in requests \(inline:\): not uploaded \(the store's links work for anyone who has them\)\n {4}they get no link/);
     assert.match(result.text, / {2}schedule drafts are not uploaded/);
     // the downloads section leaves open sources to the upload section
     assert.doesNotMatch(result.text, /reports over open sources \(open\): plain links/);
-    assert.match(result.text, /PROBLEM: output\.upload\.presign\.headers\.authorization: \$PIVOTKIT_TEST_STORE_TOKEN is not set/);
+    assert.match(result.text, /PROBLEM: output\.upload\.presign\.headers\.authorization: \$PIVOTKIT_TEST_STORE_TOKEN is not set -> the server starts; every upload fails \(UPLOAD_FAILED\)/);
+    assert.equal(result.stops, 0);
     const once = await checkConfig({ ...presignOptions({ bind: "once", maxBytes: 52_428_800, timeMs: 30_000 }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x" }, rest: true });
     assert.match(once.text, /up to 50 MiB, 30 s/);
-    assert.match(once.text, /reports over closed sources \(closed\) and reports over data sent in requests \(inline:\): store links \(bind once: you declared that each link works once\).*; REST programs get them only with results: true/);
-    assert.match(once.text, /warning: one-time store links/);
+    assert.match(factsOf(once.text), /reports over closed sources \(closed\) and over data sent in requests \(inline:\): store links from \S+\n {4}bind once: you declared that each link works once\n {4}REST programs get them only with results: true/);
+    assert.match(once.text, /WARNING: one-time store links/);
     assert.doesNotMatch(once.text, /subject binding/);
     const signIn = await checkConfig({ ...presignOptions({ bind: "signIn" }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x" } });
-    assert.match(signIn.text, /warning: output\.downloads\.key is not set: the subject binding the presign service receives changes on every restart and differs between replicas; set output\.downloads\.key/);
+    assert.match(factsOf(signIn.text), /WARNING: output\.downloads\.key is not set: the subject binding the presign service receives changes on every restart and differs between replicas; set output\.downloads\.key/);
     const keyed = await checkConfig({ ...presignOptions({ bind: "signIn" }, { downloads: { key: { env: "K" } } }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x", K: DL_KEY } });
     assert.doesNotMatch(keyed.text, /subject binding/);
     assert.doesNotMatch(once.text, /PROBLEM/);
     assert.ok(existsSync(join(dir, "data", "sales.csv")));
     // an address's query is not printed: it may hold a signature
     const sas = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://acct.blob.core.example.com/reports/{id}.{format}?sv=2026-01-01&sig=SAS-SECRET", link: "header:location" } }, baseDir: dir }, { http: true, env: {} });
-    assert.match(sas.text, /target: https:\/\/acct\.blob\.core\.example\.com\/reports\/\{id\}\.\{format\}\?\.\.\., PUT/);
+    assert.match(sas.text, /target: https:\/\/acct\.blob\.core\.example\.com\/reports\/\{id\}\.\{format\}\?\.\.\.\n {4}PUT/);
     assert.ok(!sas.text.includes("SAS-SECRET"));
 });
 
@@ -742,9 +744,9 @@ test("keepLocal false: a 2xx with a link that is not shown keeps the local copy 
 test("check-config: a target on a loopback, private or IP address without intranet is a problem, as the upload would refuse it", async () => {
     const dir = workspace();
     const local = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://localhost:8443/r/{id}" } }, baseDir: dir }, { http: true, env: {} });
-    assert.match(local.text, /PROBLEM: output\.upload\.url: localhost resolves to (127\.0\.0\.1|::1), a loopback or private address, which uploads refuse without output\.upload\.intranet: true/);
+    assert.match(factsOf(local.text), /PROBLEM: output\.upload\.url: localhost resolves to (127\.0\.0\.1|::1), a loopback or private address, which uploads refuse without output\.upload\.intranet: true -> the server starts; every upload fails/);
     const literal = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://10.1.2.3/r/{id}" } }, baseDir: dir }, { http: true, env: {} });
-    assert.match(literal.text, /PROBLEM: output\.upload\.url: 10\.1\.2\.3 is an IP address, which uploads refuse; name the server/);
+    assert.match(factsOf(literal.text), /PROBLEM: output\.upload\.url: 10\.1\.2\.3 is an IP address, which uploads refuse; name the server/);
     const intranet = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://localhost:8443/r/{id}", intranet: true } }, baseDir: dir }, { http: true, env: {} });
     assert.doesNotMatch(intranet.text, /PROBLEM/);
     // {id} is part of every template: refused at start, and so by check-config
@@ -786,11 +788,11 @@ test("bind none: one person's data never goes to the store: data sent in the req
 test("check-config's Upload section names per-person sources and data sent in requests as the Delivery section does", async () => {
     const dir = workspace();
     const options = { sources: { ...PERSONAL, sales: { file: "data/sales.csv" } }, auth: OAUTH, output: { dir: "out", upload: { url: "https://store.example.com/reports/{id}/{name}.{format}" } }, baseDir: dir };
-    const text = (await checkConfig(options, { http: true, env: {} })).text;
+    const text = factsOf((await checkConfig(options, { http: true, env: {} })).text);
     const upload = text.slice(text.indexOf("Upload:"));
     assert.match(upload, /^ {2}per person \(counted as closed\): team \(a parameter bound to a claim\), data sent in requests \(inline:\)$/m);
-    assert.match(upload, /^ {2}reports over closed sources \(team, sales\) and reports over data sent in requests \(inline:\): not uploaded \(the store's links work for anyone who has them\)/m);
+    assert.match(upload, /^ {2}reports over closed sources \(team, sales\) and over data sent in requests \(inline:\): not uploaded \(the store's links work for anyone who has them\)/m);
     assert.match(upload, /^ {2}reports over open sources \(shown\): store links/m);
-    const bound = (await checkConfig({ ...options, output: { dir: "out", upload: { ...options.output.upload, bind: "once" } } }, { http: true, env: {} })).text;
-    assert.match(bound.slice(bound.indexOf("Upload:")), /^ {2}reports over closed sources \(team, sales\) and reports over data sent in requests \(inline:\): store links \(bind once/m);
+    const bound = factsOf((await checkConfig({ ...options, output: { dir: "out", upload: { ...options.output.upload, bind: "once" } } }, { http: true, env: {} })).text);
+    assert.match(bound.slice(bound.indexOf("Upload:")), /^ {2}reports over closed sources \(team, sales\) and over data sent in requests \(inline:\): store links from \S+\n {4}bind once/m);
 });

@@ -13,7 +13,7 @@ import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { dispositionOf, filenameOf, placeMarker, readToken, signToken, sizeText, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
 import { NO_LINK_NOTE, linkFor, resourceLinkOf } from "../src/delivery.js";
-import { BY_REGION, SALES_CSV, TOKEN, call, raw, restServer, tempDir, workspace } from "./helpers.js";
+import { BY_REGION, SALES_CSV, TOKEN, call, factsOf, raw, restServer, tempDir, workspace } from "./helpers.js";
 import { createContext } from "../src/context.js";
 import { deliver } from "../src/delivery.js";
 
@@ -902,32 +902,36 @@ test("the log of every kind of download names its binding and outcome, never a t
 test("check-config: where links point, which sources get which link, the redirect address to register, and the warnings", async () => {
     const dir = workspace();
     const sources = { sales: { file: "data/sales.csv" }, open: { file: "data/sales.csv", policy: { default: "show" } } };
-    const signIn = await checkConfig({ sources, output: { dir: "out", downloads: { signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: MCP_RESOURCE }, http: { publicUrl: PUBLIC }, baseDir: dir }, { http: true, env: {}, rest: true });
-    assert.match(signIn.text, /^Delivery:\n {2}downloads: on, links https:\/\/reports\.example\.com\/downloads\/<token> \(route \/downloads to this service\), expire after 60 minutes$/m);
-    assert.match(signIn.text, /^ {2}reports over closed sources \(sales\): sign-in links; register https:\/\/reports\.example\.com\/downloads\/callback at the provider for client pivotkit-downloads; it must resolve the same subject \(sub\) as the MCP client; REST programs get them only with results: true$/m);
+    const signedIn = await checkConfig({ sources, output: { dir: "out", downloads: { signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: MCP_RESOURCE }, http: { publicUrl: PUBLIC }, baseDir: dir }, { http: true, env: {}, rest: true });
+    const signIn = { text: factsOf(signedIn.text) };
+    assert.match(signIn.text, /^Delivery:\n {2}download links: https:\/\/reports\.example\.com\/downloads\/<token>\n {4}route \/downloads to this service\n {4}expire after 60 minutes$/m);
+    // "sign-in" only for people: the links are "download links (signed in)"
+    assert.match(signIn.text, /^ {2}reports over closed sources \(sales\): download links \(signed in\)\n {4}register https:\/\/reports\.example\.com\/downloads\/callback at the provider for the client pivotkit-downloads\n {4}it must give the same subject \(claim sub\) as the MCP client\n {4}REST programs get them only with results: true$/m);
     assert.match(signIn.text, /^ {2}reports over open sources \(open\): plain links$/m);
     // why a source counts as closed: open needs default "show" and no field below it
     assert.match(signIn.text, /^ {2}closed \(a field not shown for someone\): sales \(fields summary by default\)$/m);
     const why = await checkConfig({ sources: { listed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "values" } } }, profiled: { file: "data/sales.csv", policy: { default: "show" } } }, policy: { profiles: { reader: { default: "summary" } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
-    assert.match(why.text, /closed \(a field not shown for someone\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
-    assert.match(signIn.text, /^ {2}warning: output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
-    assert.match(signIn.text, /New in this version[\s\S]*download links under \/downloads/);
+    assert.match(factsOf(why.text), /closed \(a field not shown for someone\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
+    assert.match(signIn.text, /^ {2}WARNING: output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
+    assert.match(signIn.text, /\nNew in this version: [^\n]*download links under \/downloads/);
 
     const once = await checkConfig({ sources, output: { dir: "out", downloads: { bind: "once", key: { env: "DL_KEY" } } }, baseDir: dir }, { http: true, env: { DL_KEY: "short" } });
     assert.match(once.text, /reports over closed sources \(sales\): one-time links/);
-    assert.match(once.text, /warning: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters/);
-    assert.match(once.text, /PROBLEM: output\.downloads\.key is shorter than 32 bytes/);
+    assert.match(factsOf(once.text), /WARNING: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters/);
+    // the server starts with a short key (it logs it), and reports get no links until it is fixed
+    assert.match(factsOf(once.text), /PROBLEM: output\.downloads\.key is shorter than 32 bytes; make one with: openssl rand -base64 48 -> the server starts; reports get no download links until it can be read/);
     assert.equal(once.problems, 1);
+    assert.equal(once.stops, 0);
 
     const baseUrl = await checkConfig({ sources, output: { dir: "out", baseUrl: "https://files.example.com/" }, baseDir: dir }, { http: false, env: {} });
     assert.match(baseUrl.text, /reports over closed sources \(sales\): no address under output\.baseUrl/);
-    assert.match(baseUrl.text, /New in this version[\s\S]*no longer carry a url under output\.baseUrl/);
+    assert.match(factsOf(baseUrl.text), /\nNew in this version: [^\n]*no output\.baseUrl address for closed sources/);
 
     const stdio = await checkConfig({ sources, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} });
     assert.doesNotMatch(stdio.text, /Delivery:/);
 
     const wide = await checkConfig({ sources, output: { dir: "out" }, auth: { mode: "token" }, http: { host: "0.0.0.0" }, baseDir: dir }, { http: true, env: {} });
-    assert.match(wide.text, /downloads: on, but no links: the server listens on 0\.0\.0\.0 and http\.publicUrl is not set/);
+    assert.match(factsOf(wide.text), /download links: none, the server listens on 0\.0\.0\.0 and http\.publicUrl is not set/);
 });
 
 test("deliver: a source whose state is not known counts as closed (no output.baseUrl address); an open one keeps it", async () => {

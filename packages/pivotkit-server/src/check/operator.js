@@ -1,10 +1,10 @@
 /*
- * check-config's section for the operator's controls: how a signed-in person gets a profile (groups,
- * the default profile), which scopes the OAuth metadata offers and which source no caller can reach,
- * and how the log names a person (audit).
+ * check-config's section for the operator's controls: how the log names a person (Audit:). How a
+ * signed-in person gets a profile (groups, the default profile), which scopes the OAuth metadata
+ * offers and which source no caller can reach are said under Auth: (signInItems, used by
+ * check/access.js), next to the sign-in they belong to.
  *
- * check/index.js says what a section returns. A configuration without these settings and without
- * OAuth prints nothing here.
+ * check/index.js says what a section returns. Without audit the section prints nothing.
  */
 
 import { GROUPS_REFUSED, NOT_IN_GROUP } from "../auth.js";
@@ -19,13 +19,13 @@ const COMPARED_ENTRIES = 50;
 
 /** @type {import("./index.js").Section} */
 export async function section(options, _registry, runtime) {
-    // how a person gets a profile is said under Auth: (check/auth.js signInItems); here the audit
+    // how a person gets a profile is said under Auth: (check/access.js signInItems); here the audit
     return options.audit ? auditItems(options, runtime, (options.auth?.mode ?? "none") === "oauth") : { items: [], upgrade: [] };
 }
 
 /**
  * How a signed-in person gets a profile, the scopes the metadata offers, and the warnings about
- * them: the lines under Auth: (check/auth.js).
+ * them: the lines under Auth: (check/access.js).
  * @param {import("../config.js").ServerOptions} options
  * @param {import("./index.js").SectionRuntime} runtime
  * @returns {Promise<import("./format.js").Item[]>}

@@ -8,6 +8,8 @@ import { join } from "node:path";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
 import { ConfigError, SKILLS_DIR, loadConfig, validateOptions } from "pivotkit-mcp";
 import { BIN, httpServer, workspace } from "./helpers.js";
+// check-config's wrapped lines joined back, as pivotkit-server's tests read them
+import { factsOf } from "../../pivotkit-server/test/helpers.js";
 
 const runner = (args, cwd, env = {}) => spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: "utf8", env: { PATH: process.env.PATH, ...env }, timeout: 30_000 });
 
@@ -40,22 +42,23 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     const other = workspace();
     const check = runner(["--config", join(dir, "pivotkit-mcp.json"), "--source", "more=data/none.csv", "--allow-dir", "data", "--check-config"], other);
     assert.equal(check.status, 1, "a missing file is a problem: exit 1");
-    assert.match(check.stdout, /1 problem: see NOT FOUND above/);
-    assert.match(check.stdout, /sales: .*data\/sales\.csv\n {4}fields: summary by default; Region show, Customer hide/);
-    assert.match(check.stdout, /more: .*none\.csv {2}\(NOT FOUND\)/);
-    assert.match(check.stdout, /Files by path: allowed in .*data/);
-    assert.match(check.stdout, /Output: out\n/);
+    const said = factsOf(check.stdout);
+    assert.match(said, /^pivotkit-mcp: the configuration is valid; the server starts, but not everything will work\.\n1 problem, 0 warnings\./);
+    assert.match(said, /sales: .*data\/sales\.csv\n {4}policy: summary by default; Region show, Customer hide/);
+    assert.match(said, /PROBLEM: sources\.more\.file: data\/none\.csv is not there -> the server starts; more answers FILE_NOT_AVAILABLE/);
+    assert.match(said, /Files by path: allowed in .*data/);
+    assert.match(said, /\nOutput: out\n/);
     const ok = runner(["--config", join(dir, "pivotkit-mcp.json"), "--check-config"], other);
     assert.equal(ok.status, 0, ok.stdout);
     writeFileSync(join(dir, "bad-out.json"), JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "nope" } }));
     // a missing output directory is made at start; with output.create off it is a problem
     const noOut = runner(["--config", join(dir, "bad-out.json"), "--check-config"], other);
     assert.equal(noOut.status, 0, noOut.stdout);
-    assert.match(noOut.stdout, /Output: nope {2}\(does not exist yet: will be created at start; check the path\)/);
+    assert.match(factsOf(noOut.stdout), /\nOutput: nope\n {2}at \S+nope \(will be created at start\)\n/);
     writeFileSync(join(dir, "off-out.json"), JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "nope", create: false } }));
     const off = runner(["--config", join(dir, "off-out.json"), "--check-config"], other);
     assert.equal(off.status, 1);
-    assert.match(off.stdout, /Output: nope {2}\(NOT FOUND: create the directory first, or leave output\.create on\)/);
+    assert.match(factsOf(off.stdout), /PROBLEM: output\.dir: not found \(create it first, or leave output\.create on\) -> the server does not start/);
 });
 
 test("the runner's usage errors exit 2 with a hint; --help and --version exit 0", () => {

@@ -30,6 +30,7 @@ const vms = { http: { url: "https://platform.example.com/v1/vms", rows: "/items"
 /** Each case: options, and whether serve refuses it. */
 const CASES = [
     // starts: the PROBLEM says what does not work
+    { name: "a print template that is not there", options: { sources: { sales: { ...sales, template: "data/brand.html" } } }, stops: false, says: /sources\.sales\.template: brand\.html: not found -> the server starts; html reports of sales fail until it can be read/ },
     { name: "a source file that is not there", options: { sources: { sales, gone: { file: "data/gone.csv" } } }, stops: false, says: /sources\.gone\.file: data\/gone\.csv is not there -> the server starts; gone answers FILE_NOT_AVAILABLE/ },
     { name: "a backend secret that is not set", options: { sources: { vms } }, stops: false, says: /sources\.vms\.http\.auth\.header\.value: \$PLATFORM_TOKEN is not set -> the server starts; vms answers SOURCE_UNAVAILABLE/ },
     { name: "a download key that is not set", options: { sources: { sales }, output: { dir: "out", downloads: { key: { env: "DOWNLOADS_KEY" } } } }, stops: false, says: /output\.downloads\.key: \$DOWNLOADS_KEY is not set -> the server starts; reports get no download links until it can be read/ },
@@ -39,12 +40,16 @@ const CASES = [
     { name: "a static token that is not set", options: { sources: { sales }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT_TOKEN" }] } }, stops: true, says: /the token bot \(\$BOT_TOKEN\) is not set or shorter than 32 characters -> the server does not start/ },
     { name: "an output.dir that is a file", options: { sources: { sales }, output: { dir: "data/sales.csv" } }, stops: true, says: /output\.dir: not a directory -> the server does not start/ },
     { name: "a short audit key with OAuth", options: { sources: { sales }, auth: OAUTH, audit: { subject: "hash", key: { env: "AUDIT_KEY" } } }, env: { AUDIT_KEY: "short" }, stops: true, says: /audit\.key: at least \d+ characters -> the server does not start/ },
+    { name: "a print template with an unknown placeholder", options: { sources: { sales: { ...sales, template: "data/brand.html" } } }, files: { "data/brand.html": "<h1>{{titel}}</h1>{{table}}" }, stops: true, says: /sources\.sales\.template: unknown placeholder \{\{titel\}\} \(line 1\); did you mean \{\{title\}\}\? -> the server does not start/ },
     { name: "an address off loopback without auth", options: { sources: { sales }, http: { host: "0.0.0.0" } }, stops: true, says: /0\.0\.0\.0 is not loopback: it needs auth token or oauth \(or auth\.allowUnauthenticated\) -> the server does not start/ }
 ];
 
 for (const c of CASES) {
     test(`check-config's verdict is what serve does: ${c.name} ${c.stops ? "stops the start" : "starts"}`, async () => {
         const dir = workspace();
+        for (const [name, text] of Object.entries(c.files ?? {})) {
+            writeFileSync(join(dir, name), text);
+        }
         const options = { ...c.options, baseDir: dir };
         const env = { PATH: process.env.PATH ?? "", ...c.env };
         const result = await checkConfig(options, { http: true, env, name: "pivotkit-server", rest: true });
