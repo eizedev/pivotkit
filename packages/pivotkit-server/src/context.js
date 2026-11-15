@@ -71,7 +71,7 @@ export async function createContext(options, runtime = {}) {
         // loop) is refused with its reason, as check-config reports it
         const found = await entryOf(wanted);
         if (found.code) {
-            throw new ConfigError(`output.dir: cannot be created: ${whyNot(found.code)}`);
+            throw new ConfigError(`output.dir: ${outputRefusal(found.code, options.output.create !== false)}`);
         }
         const missing = !found.info;
         if (missing && (await entryOf(wanted, lstat)).info) {
@@ -105,7 +105,10 @@ export async function createContext(options, runtime = {}) {
             });
             log.warn(`the output directory did not exist and was created (${options.output.baseUrl ? "mode 0755 narrowed by the umask: output.baseUrl is served" : "mode 0700"}); check output.dir if that was not meant`);
         }
-        const dir = await realpath(wanted);
+        // a link changed between mkdir and here leaves no real path: refused with its reason
+        const dir = await realpath(wanted).catch((e) => {
+            throw new ConfigError(`output.dir: ${outputRefusal(e?.code, missing)}`);
+        });
         // what was made may have come out elsewhere (a link changed in between): checked again. The
         // directories just made stay: deleting them here could hit something that is not ours (the
         // same link may have moved again), and empty directories hold nothing the model could read
@@ -208,8 +211,7 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
 /** The words for the file system error codes a directory made at start meets (permissions apart). */
 const WHY_NOT = new Map([
     ["ENOTDIR", "a part of the path is a file"],
-    // also what a second mkdir of the same path at the same moment gets
-    ["EEXIST", "something already exists at the path (a file, or a directory made at the same moment)"],
+    ["EEXIST", "something that is not a directory already exists at the path"],
     ["EROFS", "the file system is read-only"],
     ["ENOENT", "a symbolic link in the path points to nothing"],
     ["ELOOP", "a symbolic link in the path leads in a loop"],
@@ -222,6 +224,15 @@ const WHY_NOT = new Map([
  * @param {string | null | undefined} code
  */
 export const whyNot = (code) => (code === "EACCES" || code === "EPERM" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : (WHY_NOT.get(String(code)) ?? `the file system refused it (${code ?? "unknown error"})`));
+
+/**
+ * Why output.dir cannot be used, the same at start and in check-config: "cannot be created" where
+ * the start would make it, "cannot be examined" where it would not (output.create false, or it
+ * exists), with the reason in words.
+ * @param {string | null | undefined} code
+ * @param {boolean} creating
+ */
+export const outputRefusal = (code, creating) => `${creating ? "cannot be created" : "cannot be examined"}: ${whyNot(code)}`;
 
 /**
  * A path's entry in the file system: its stats, or why there are none. Only ENOENT means nothing is

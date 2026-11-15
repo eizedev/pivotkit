@@ -10,7 +10,7 @@ import { closest } from "pivotkit-core";
 import { isInside, readSafe, readTable } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf } from "./config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
-import { OUTPUT_INSIDE_ALLOWED, cannotCreate, entryOf, ownFileDirs, plannedPath, whyNot, writable } from "./context.js";
+import { OUTPUT_INSIDE_ALLOWED, cannotCreate, entryOf, outputRefusal, ownFileDirs, plannedPath, writable } from "./context.js";
 import { draftCap } from "./present.js";
 import { isLoopback } from "./listen.js";
 import { createRegistry } from "./registry.js";
@@ -83,7 +83,7 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     // a missing directory is made at start (output.create), when its nearest existing parent lets it be
     const dangling = Boolean(outputDir && !outputInfo && !outputEntry.code && (await entryOf(outputDir, lstat)).info);
     const notMade = outputDir && !outputInfo ? (outputEntry.code ?? (dangling ? "dangling" : options.output?.create === false ? "off" : await cannotCreate(outputDir))) : null;
-    const outputState = outputFound ? "" : outputInfo ? "  (NOT FOUND: not a directory)" : notMade === "dangling" ? "  (NOT FOUND: a symbolic link to nothing)" : notMade === "off" ? "  (NOT FOUND: create the directory first, or leave output.create on)" : notMade ? `  (NOT FOUND: cannot be created: ${whyNot(notMade)})` : "  (does not exist yet: will be created at start; check the path)";
+    const outputState = outputFound ? "" : outputInfo ? "  (NOT FOUND: not a directory)" : notMade === "dangling" ? "  (NOT FOUND: a symbolic link to nothing)" : notMade === "off" ? "  (NOT FOUND: create the directory first, or leave output.create on)" : notMade ? `  (NOT FOUND: ${outputRefusal(notMade, options.output?.create !== false)})` : "  (does not exist yet: will be created at start; check the path)";
     const outputWritable = outputDir && outputFound ? await writable(outputDir) : true;
     problems += outputFound || (!outputInfo && !notMade) ? 0 : 1;
     unwritable += outputWritable ? 0 : 1;
