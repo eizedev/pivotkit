@@ -170,6 +170,9 @@ test("options: one way to the store, https:// origins, credentials only as secre
     refused({ url: "http://store.example.com/r/{id}" }, /an https:\/\/ address/);
     refused({ url: "https://store.example.com/r/{id}#x" }, /without a fragment/);
     refused({ url: "https://store.example.com/r/{id}", method: "POST" }, /output\.upload\.link: a POST names the stored report/);
+    refused({ url: "https://store.example.com/r/{id}", headers: { authorization: { prefix: "Bearer " } } }, /headers\.authorization\.value: the secret reference is missing/);
+    // a query may hold a signature (an Azure SAS token): such an address is never shown as the link
+    refused({ url: "https://acct.blob.core.example.com/reports/{id}.{format}?sv=2026-01-01&sig=SAS-SECRET" }, /output\.upload\.link: an address with a query is not shown as the link/);
     refused({ url: "https://store.example.com/r/{id}", method: "PATCH" }, /method: must be one of PUT, POST/);
     refused({ url: "https://store.example.com/r/{id}", timeMs: 500 }, /timeMs: from 1000 to 600000/);
     refused({ url: "https://store.example.com/r/{id}", bind: "anyone" }, /bind: must be one of none, once, signIn/);
@@ -529,6 +532,33 @@ test("UPLOAD_FAILED on REST and MCP: a fixed text with the request id; no presig
     }
 });
 
+test("REST and MCP over a closed source with bind none: nothing goes to the store; a template store's link through MCP, without an expiry", async () => {
+    routes.set("PUT *", bucket(201));
+    const dir = workspace({ "sales.csv": SALES_CSV });
+    const s = await restServer({ sources: SOURCES, output: { dir: "out", upload: { url: `${origin("store")}/reports/{id}/{name}.{format}`, intranet: true } }, baseDir: dir }, { enable: ["rest", "mcp"] });
+    const client = new Client({ name: "upload-closed", version: "1.0.0" });
+    try {
+        await client.connect(new StreamableHTTPClientTransport(new URL(`${s.url}/mcp`)));
+        const rest = await call(`${s.api}/views/render`, { body: { source: "closed", view: BY_REGION, format: "csv" } });
+        assert.equal(rest.status, 200);
+        assert.equal(rest.data.output.url, undefined);
+        const mcp = await client.callTool({ name: "render_view", arguments: { source: "closed", view: BY_REGION, format: "csv" } });
+        assert.ok(!(/** @type {any[]} */ (mcp.content)).some((c) => c.type === "resource_link"));
+        assert.equal(/** @type {any} */ (mcp.structuredContent)?.output?.url, undefined);
+        assert.equal(asked.length, 0, "a closed report never reaches a store whose links anyone can open");
+        const open = await client.callTool({ name: "render_view", arguments: { source: "open", view: BY_REGION, format: "csv" } });
+        const output = /** @type {any} */ (open.structuredContent)?.output;
+        assert.match(String(output?.url), new RegExp(`^${origin("store")}/reports/[A-Za-z0-9_-]{22}/`));
+        assert.deepEqual([output?.bound, output?.expiresAt, output?.note], ["none", undefined, "Open the link in your browser."]);
+        const link = /** @type {any[]} */ (open.content).find((c) => c.type === "resource_link");
+        assert.equal(link?.uri, output?.url);
+        assert.equal(asked.length, 1);
+    } finally {
+        await client.close();
+        await s.close();
+    }
+});
+
 test("check-config: where reports go and which go there", async () => {
     const dir = workspace();
     const result = await checkConfig({ ...presignOptions(), baseDir: dir }, { http: true, env: {} });
@@ -545,4 +575,8 @@ test("check-config: where reports go and which go there", async () => {
     assert.match(once.text, /warning: one-time store links/);
     assert.doesNotMatch(once.text, /PROBLEM/);
     assert.ok(existsSync(join(dir, "data", "sales.csv")));
+    // an address's query is not printed: it may hold a signature
+    const sas = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://acct.blob.core.example.com/reports/{id}.{format}?sv=2026-01-01&sig=SAS-SECRET", link: "header:location" } }, baseDir: dir }, { http: true, env: {} });
+    assert.match(sas.text, /target: https:\/\/acct\.blob\.core\.example\.com\/reports\/\{id\}\.\{format\}\?\.\.\., PUT/);
+    assert.ok(!sas.text.includes("SAS-SECRET"));
 });

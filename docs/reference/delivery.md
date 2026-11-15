@@ -221,14 +221,14 @@ as letters, digits, `.`, `_` and `-` (at most 80 characters), `{format}` its for
 }
 ```
 
-A `PUT` there makes the address itself the link. With `"method": "POST"`, `link` says where the
+A `PUT` there makes the address itself the link, unless the address has a query: then `link` is required, since a query may hold a signature. With `"method": "POST"`, `link` says where the
 answer names the stored report: a JSON Pointer (`"/url"`) or `"header:location"`.
 
 | Key | Default | What it is |
 | --- | --- | --- |
 | `output.upload.url` | none | An `https://` address template with `{id}`, `{name}` and `{format}` in its path or query; or `presign` |
 | `output.upload.headers` | none | With `url`: headers sent to the store. A value is a text, or `{ "prefix": "Bearer ", "value": <secret reference> }`; `authorization`, `cookie` and names with `key`, `token`, `secret`, `auth` or `pass` take a secret reference only |
-| `output.upload.link` | the address (`PUT`) | With `url`: a JSON Pointer into the store's answer, or `"header:location"`; required for `POST` |
+| `output.upload.link` | the address (`PUT` to an address without a query) | With `url`: a JSON Pointer into the store's answer, or `"header:location"`; required for `POST` and for an address with a query (a query may hold a signature, such as a SAS token, which is never shown) |
 | `output.upload.expiresAt` | none | With `url`: a JSON Pointer to the link's expiry in the store's answer |
 | `output.upload.presign.url` | none | The `https://` address of your presign service |
 | `output.upload.presign.headers` | none | Headers sent to the presign service only, as `output.upload.headers` |
@@ -272,7 +272,7 @@ request id and a code (`PRESIGN_403`, `UPLOAD_URL`, `LINK`, `STORE_503`, `TIMEOU
 never an address, a header or what the store answered: presigned addresses and links are
 credentials.
 
-`check-config` prints an `Upload:` section: the target, which sources' reports go there, and a
+`check-config` prints an `Upload:` section: the target (without its query), which sources' reports go there, and a
 `PROBLEM:` line for a header secret it cannot read.
 
 ## Behind a proxy { #proxy }

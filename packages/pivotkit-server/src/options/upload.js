@@ -20,7 +20,6 @@
  * second declaration).
  */
 
-import { OUTPUT_DEFAULTS } from "../config.js";
 import { HEADER_NAME, HEADER_VALUE, SECRET_NAME, pointerKeys, pointerProblem } from "./http.js";
 import { ConfigError, SECRET_REF } from "./shared.js";
 
@@ -103,7 +102,7 @@ export const KEYS = Object.freeze({
  * @property {string[]} linkOrigins
  * @property {"PUT" | "POST"} method
  * @property {number} timeMs  presign and upload together
- * @property {number} maxBytes
+ * @property {number | null} maxBytes  null: output.maxMb (uploadMaxBytes)
  * @property {boolean} keepLocal
  * @property {"none" | "once" | "signIn"} bind
  * @property {boolean} intranet  loopback and private addresses may be reached
@@ -182,6 +181,8 @@ function headersOf(headers, path) {
             if (!HEADER_VALUE.test(value)) {
                 throw new ConfigError(`${path}.${name}: a value without line breaks, NUL or characters outside Latin-1, at most 1000 characters`);
             }
+        } else if (!value.value) {
+            throw new ConfigError(`${path}.${name}.value: the secret reference is missing ({ "env": "NAME" } or { "file": "path" })`);
         } else if (value.prefix !== undefined && !HEADER_VALUE.test(value.prefix)) {
             throw new ConfigError(`${path}.${name}.prefix: a text without line breaks, NUL or characters outside Latin-1`);
         }
@@ -265,6 +266,10 @@ function compile(options) {
         if (method === "POST" && u.link === undefined) {
             throw new ConfigError('output.upload.link: a POST names the stored report in its answer: give the JSON Pointer to the link ("/url") or "header:location"');
         }
+        // the address itself is the link only without a query, which may hold a signature (a SAS token)
+        if (u.link === undefined && u.url.includes("?")) {
+            throw new ConfigError('output.upload.link: an address with a query is not shown as the link (a query may hold a signature); give the JSON Pointer to the link in the store\'s answer ("/url") or "header:location"');
+        }
     }
     let link = null;
     if (u.link !== undefined) {
@@ -287,12 +292,28 @@ function compile(options) {
         linkOrigins: u.linkOrigins === undefined ? [origin] : originsOf(u.linkOrigins, "output.upload.linkOrigins"),
         method,
         timeMs,
-        maxBytes: u.maxBytes ?? (options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb) * 1_048_576,
+        maxBytes: u.maxBytes ?? null,
         keepLocal: u.keepLocal ?? UPLOAD_DEFAULTS.keepLocal,
         bind: u.bind ?? UPLOAD_DEFAULTS.bind,
         intranet: u.intranet === true,
         target: presign ? presign.url : u.url
     };
+}
+
+/**
+ * The largest report uploaded, in bytes: output.upload.maxBytes, else output.maxMb.
+ * @param {UploadSettings} settings
+ * @param {number} maxMb  output.maxMb with its default
+ */
+export const uploadMaxBytes = (settings, maxMb) => settings.maxBytes ?? maxMb * 1_048_576;
+
+/**
+ * An address as check-config prints it: without its query, which may hold a signature.
+ * @param {string} address
+ */
+export function addressText(address) {
+    const at = address.indexOf("?");
+    return at === -1 ? address : `${address.slice(0, at)}?...`;
 }
 
 /**

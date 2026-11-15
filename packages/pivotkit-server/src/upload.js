@@ -28,7 +28,7 @@ import { readSecret } from "./secrets.js";
 import { GuardedFetchError, guardedFetch } from "./sources/fetch.js";
 import { pointerValue } from "./sources/http.js";
 import { HEADER_NAME } from "./options/http.js";
-import { uploadSettingsOf } from "./options/upload.js";
+import { uploadMaxBytes, uploadSettingsOf } from "./options/upload.js";
 
 /**
  * Which guardedFetch uploads: the server's, or a test's own (createGuardedFetch with a certificate and
@@ -285,7 +285,7 @@ function uploadHeadersOf(value) {
  */
 export async function upload(context, file, meta) {
     const settings = /** @type {import("./options/upload.js").UploadSettings} */ (uploadSettingsOf(context.options));
-    if (file.bytes > settings.maxBytes) {
+    if (file.bytes > uploadMaxBytes(settings, context.output.maxMb)) {
         throw new UploadFailure("TOO_LARGE", false);
     }
     const deadline = Date.now() + settings.timeMs;

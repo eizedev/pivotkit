@@ -12,7 +12,8 @@
  */
 
 import { settingsOf as downloadSettingsOf } from "../options/downloads.js";
-import { uploadSettingsOf } from "../options/upload.js";
+import { OUTPUT_DEFAULTS } from "../config.js";
+import { addressText, uploadMaxBytes, uploadSettingsOf } from "../options/upload.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
 
 /** Up to six ids, then how many more. */
@@ -44,8 +45,8 @@ export async function section(options, registry, runtime) {
     const open = sources.filter((s) => !s.closed).map((s) => s.id);
     const lines = ["Upload:"];
     let problems = 0;
-    const how = `${settings.method}, up to ${sizeText(settings.maxBytes)}, ${+(settings.timeMs / 1000).toFixed(1)} s${settings.intranet ? ", may reach loopback and private addresses (intranet)" : ""}`;
-    lines.push(settings.presign ? `  target: presigned via ${settings.presign.url} (uploads to ${settings.presign.allowOrigins.join(", ")}), ${how}` : `  target: ${settings.template}, ${how}`);
+    const how = `${settings.method}, up to ${sizeText(uploadMaxBytes(settings, options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb))}, ${+(settings.timeMs / 1000).toFixed(1)} s${settings.intranet ? ", may reach loopback and private addresses (intranet)" : ""}`;
+    lines.push(settings.presign ? `  target: presigned via ${addressText(settings.presign.url)} (uploads to ${settings.presign.allowOrigins.join(", ")}), ${how}` : `  target: ${addressText(/** @type {string} */ (settings.template))}, ${how}`);
     const from = `from ${settings.linkOrigins.join(", ")}`;
     if (open.length) {
         lines.push(`  reports over open sources (${idsText(open)}): store links (bind ${settings.bind}), ${from}`);
