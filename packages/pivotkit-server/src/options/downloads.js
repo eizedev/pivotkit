@@ -72,6 +72,28 @@ export function settingsOf(options) {
     };
 }
 
+/** Where a download sign-in with an issuer of its own is planned. */
+const ISSUER_OF_ITS_OWN = "https://github.com/eizedev/pivotkit/issues/441";
+
+/**
+ * Whether two issuer addresses name the same issuer once normalised: the scheme and host in lower
+ * case, a default port left out (both as URL parses them), a trailing slash of the path left out.
+ * The path's case and the query count. Tokens name an issuer exactly, so this only tells a spelling
+ * difference from another issuer, for the message.
+ * @param {string} a
+ * @param {string | undefined} b
+ */
+export function sameIssuer(a, b) {
+    if (!b || !URL.canParse(a) || !URL.canParse(b)) {
+        return false;
+    }
+    const norm = (text) => {
+        const url = new URL(text);
+        return `${url.origin}${url.pathname.replace(/\/+$/, "")}${url.search}`;
+    };
+    return norm(a) === norm(b);
+}
+
 /** Whether a text is an https:// address (an http:// one where the operator allows a test issuer). */
 const httpsOrAllowed = (text, insecure) => {
     try {
@@ -110,7 +132,11 @@ export function validate(options) {
         }
         // links are bound to the issuer and subject the MCP or REST token named: the person must sign in at the same issuer
         if (d.signIn.issuer !== undefined && d.signIn.issuer !== options.auth?.issuer) {
-            throw new ConfigError("output.downloads.signIn.issuer: must be auth.issuer (a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did); leave it out");
+            throw new ConfigError(
+                sameIssuer(d.signIn.issuer, options.auth?.issuer)
+                    ? "output.downloads.signIn.issuer: must be auth.issuer exactly; it differs only in its spelling (a trailing slash, upper-case letters in the scheme or host, a default port), and tokens name the issuer as auth.issuer does: leave signIn.issuer out"
+                    : `output.downloads.signIn.issuer: must be auth.issuer (${JSON.stringify(String(options.auth?.issuer))}), not ${JSON.stringify(d.signIn.issuer.slice(0, 200))}: a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did; leave it out. A download sign-in with an issuer of its own (a provider with one issuer per application, such as Authentik) is ${ISSUER_OF_ITS_OWN}`
+            );
         }
         if (d.signIn.tokenUrl !== undefined && !httpsOrAllowed(d.signIn.tokenUrl, options.auth?.allowInsecureIssuer === true)) {
             throw new ConfigError("output.downloads.signIn.tokenUrl: must be an https:// address (the provider's token endpoint)");
