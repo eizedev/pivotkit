@@ -271,7 +271,7 @@ may try to steer it:
   to one then answers 404, or 410 for the server's own links); drafts awaiting approval are never deleted this way and may take at most
   half of `maxFiles`, a draft over that is refused. A file named with `.pivotkit-out.` by hand counts
   as pivotkit's. Set `maxFiles` high, give `render_view` and `draft_schedule` scopes of their own,
-  set `output.maxAgeDays` and keep the rate limits ([REST](reference/rest.md#auth)).
+  keep `output.maxAgeDays` on (30 days by default) and keep the rate limits ([REST](reference/rest.md#auth)).
 - **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) is the model's,
   not the operator's: no exposure policy applies to it, and a report over it is no proof that its
   content came from the operator's data. It is capped (500 rows, 5,000 cells, 256 KiB; the operator

@@ -4,7 +4,11 @@
  * balancer counts on its own): a token bucket per caller (rest.rateLimit.perMinute, .burst), a count
  * of refused tokens per address over the last minute (.failedAuthPerMinute: someone trying tokens is
  * stopped before the next one is checked), and the requests of one caller at once
- * (rest.concurrency). Every map is bounded: the oldest key goes first. And the cap of a request's
+ * (rest.concurrency). Every map is bounded: the oldest key goes first; and every minute (an unref'd
+ * timer, cleared by close()) the entries that no longer count are dropped: an address whose refused
+ * tokens are all older than a minute, a caller whose bucket has filled up again (a full bucket is the
+ * same as none). So an address is kept at most two minutes after its last refused token, a caller's
+ * name at most until its bucket is full again plus a minute. And the cap of a request's
  * body (bodyBytesOf): larger only for a REST caller, signed in, that may send data.
  */
 
@@ -133,11 +137,15 @@ function bound(map) {
     }
 }
 
+/** How often the entries that no longer count are dropped: a minute. */
+const PRUNE_MS = 60_000;
+
 /**
  * @param {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number }} [rest]  rest.* or mcp.*
  * @param {() => number} [now]  milliseconds (tests)
+ * @param {{ pruneEveryMs?: number }} [how]  pruneEveryMs: how often entries that no longer count are dropped (tests)
  */
-export function createLimits(rest = {}, now = Date.now) {
+export function createLimits(rest = {}, now = Date.now, how = {}) {
     const perMinute = rest.rateLimit?.perMinute ?? REQUEST_LIMITS.perMinute;
     const burst = rest.rateLimit?.burst ?? REQUEST_LIMITS.burst;
     const failedPerMinute = rest.rateLimit?.failedAuthPerMinute ?? REQUEST_LIMITS.failedAuthPerMinute;
@@ -148,6 +156,23 @@ export function createLimits(rest = {}, now = Date.now) {
     const failures = new Map();
     /** @type {Map<string, number>} */
     const running = new Map();
+
+    /** Drops the addresses without a refused token in the last minute and the buckets that are full again. */
+    function prune() {
+        const t = now();
+        for (const [address, list] of failures) {
+            if (!list.some((at) => t - at < 60_000)) {
+                failures.delete(address);
+            }
+        }
+        for (const [key, bucket] of buckets) {
+            if (bucket.tokens + ((t - bucket.at) / 60_000) * perMinute >= burst) {
+                buckets.delete(key);
+            }
+        }
+    }
+    const pruning = setInterval(prune, how.pruneEveryMs ?? PRUNE_MS);
+    pruning.unref?.();
 
     return {
         /**
@@ -210,6 +235,12 @@ export function createLimits(rest = {}, now = Date.now) {
             } else {
                 running.delete(key);
             }
+        },
+        /** How many addresses and callers are kept (tests). */
+        size: () => ({ addresses: failures.size, callers: buckets.size }),
+        /** Stops dropping entries on a timer (the server closes). */
+        close() {
+            clearInterval(pruning);
         }
     };
 }

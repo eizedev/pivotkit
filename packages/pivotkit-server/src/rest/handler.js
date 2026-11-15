@@ -441,7 +441,9 @@ export async function createRestHandler(context, runtime = {}) {
             const cap = restBodyBytesAt(options, peekSignIn(info)?.caller, new URL(path, "http://localhost").pathname);
             return problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? bodyTooLargeText(options, cap) : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: id } });
         },
-        async close() {}
+        async close() {
+            limits.close();
+        }
     };
 
     /**

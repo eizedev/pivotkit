@@ -7,6 +7,7 @@
  */
 
 import { CODE_DEFAULTS } from "../options/code.js";
+import { isClosedForDelivery } from "../registry.js";
 
 /**
  * How a code source's data is kept, in words.
@@ -16,7 +17,7 @@ function keptOf(source) {
     const ttl = source.ttl ?? CODE_DEFAULTS.ttl;
     const shared = source.cacheShared ?? CODE_DEFAULTS.cacheShared;
     const how = ttl ? `reused for ${ttl} s${source.version ? " while version() is the same" : ""}` : source.version ? "reused while version() is the same" : "loaded on every call";
-    return `${how}; ${shared ? "shared by all callers (load gets caller null)" : /** @type {any} */ (source).perPerson ? "data per caller, per person (perPerson: reports get only links the person can open)" : "data per caller"}`;
+    return `${how}; ${shared ? "shared by all callers (load gets caller null)" : /** @type {any} */ (source).perPerson ? "data per caller, per person (perPerson: no plain links to its reports)" : "data per caller"}`;
 }
 
 /** @type {import("./index.js").Section} */
@@ -29,6 +30,11 @@ export async function section(options, _registry, _runtime) {
     for (const [id, source] of code) {
         const maxStale = source.maxStale ?? CODE_DEFAULTS.maxStale;
         lines.push(`  ${id}: load up to ${source.timeMs ?? CODE_DEFAULTS.timeMs} ms, ${keptOf(source)}; last good data ${maxStale > 0 ? `up to ${maxStale} s after a transient failure` : "off"}`);
+        // an open source's reports get plain links: whether load answers each caller differently is
+        // the host's to say (pivotkit cannot see it)
+        if (!source.cacheShared && !isClosedForDelivery(options, id)) {
+            lines.push(`    reports over it get plain links (every field is shown); if load answers each caller differently, set perPerson: true, so only the person who asked can open them (pivotkit cannot tell)`);
+        }
     }
     const upgrade = [
         `Code sources: load gets (params, { caller, signal }) and is aborted after timeMs (default ${CODE_DEFAULTS.timeMs} ms); a failing load answers SOURCE_UNAVAILABLE (502), not INTERNAL; data is kept per caller unless cacheShared; after a transient failure last good data up to maxStale (default ${CODE_DEFAULTS.maxStale} s) stands in`

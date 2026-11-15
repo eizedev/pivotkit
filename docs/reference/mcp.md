@@ -246,7 +246,7 @@ error that names the key and the one probably meant.
 | `output.downloads` | - | on over HTTP | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` (`clientId`, `clientSecret`, `issuer`, `scopes`) |
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold; a new report deletes the oldest reports, whoever made them; drafts are never deleted this way (see [REST](rest.md#running) for the trade-off) |
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |
-| `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
+| `output.maxAgeDays` | - | 30 | Delete reports and drafts older than this many days (`0`: no age limit; the default applies only to a directory of the reports' own) from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `policy.data`, `policy.profiles.<name>.data` | - | MCP: on | `false`: the caller may not send [its own data](#data) (`inline:`); REST needs `true` |
 | `mcp.data` | - | 500 rows, 5000 cells, 262144 bytes | `false` switches [data in the request](#data) off; `{ "rows", "cells", "bytes" }` lowers the cap (a value above the built-in one is an error) |
@@ -275,7 +275,7 @@ error that names the key and the one probably meant.
 
 A write the server is killed in leaves its temporary file
 (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). It is not a report: neither counted toward
-`output.maxFiles` and `output.maxMb` nor deleted to make room. Without `output.maxAgeDays` it stays
+`output.maxFiles` and `output.maxMb` nor deleted to make room. With `output.maxAgeDays: 0` it stays
 until you remove it.
 
 The same file configures [pivotkit-server](rest.md#running), which reads `rest.*` and `http.enable`

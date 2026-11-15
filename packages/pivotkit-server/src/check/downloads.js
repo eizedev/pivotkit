@@ -85,12 +85,9 @@ export async function section(options, registry, runtime) {
     return { lines: [...said.lines, ...kept.lines], problems: said.problems + kept.problems, upgrade: [...said.upgrade, ...kept.upgrade] };
 }
 
-/** The age limit check-config suggests, in days. */
-const SUGGESTED_MAX_AGE_DAYS = 30;
-
 /**
- * How long reports stay on disk: a warning when they have no age limit (output.maxAgeDays not set
- * or 0) while some report can hold data about people, one over a closed source (registry.js, closed
+ * How long reports stay on disk: a warning when the operator switched the age limit off
+ * (output.maxAgeDays: 0; the default is 30 days) while some report can hold data about people, one over a closed source (registry.js, closed
  * for delivery) or over data sent in a request. Such reports stay in output.dir until
  * output.maxFiles or output.maxMb push them out, also after their link expired (an expired link does
  * not remove its file). Said whatever the links are (stdio, output.baseUrl, the server's own).
@@ -98,7 +95,17 @@ const SUGGESTED_MAX_AGE_DAYS = 30;
  */
 async function retention(options, registry, runtime) {
     const none = { lines: [], problems: 0, upgrade: [] };
-    if (!options.output?.dir || (options.output.maxAgeDays ?? 0) > 0) {
+    if (!options.output?.dir) {
+        return none;
+    }
+    if (options.output.maxAgeDays === undefined) {
+        // the default age limit, new in this version: only in a directory of the reports' own
+        const dir = pathOf(options, options.output.dir);
+        const real = await realpath(dir).catch(() => dir);
+        const shared = (await ownFileDirs(options)).includes(real);
+        return shared ? none : { ...none, upgrade: [`Reports and schedule drafts older than ${OUTPUT_DEFAULTS.maxAgeDays} days are deleted from output.dir at start and every hour (output.maxAgeDays; 0 keeps them with no age limit)`] };
+    }
+    if (options.output.maxAgeDays !== 0) {
         return none;
     }
     const closed = (await registry.check()).filter((s) => s.closed).map((s) => s.id);
@@ -111,11 +118,12 @@ async function retention(options, registry, runtime) {
     const dir = pathOf(options, options.output.dir);
     const real = await realpath(dir).catch(() => dir);
     const shared = (await ownFileDirs(options)).includes(real);
-    const fix = shared ? `give the reports a directory of their own and set output.maxAgeDays (for example ${SUGGESTED_MAX_AGE_DAYS})` : `set output.maxAgeDays (for example ${SUGGESTED_MAX_AGE_DAYS})`;
+    const limit = `leave out output.maxAgeDays (the default deletes reports after ${OUTPUT_DEFAULTS.maxAgeDays} days) or set a number of days`;
+    const fix = shared ? `give the reports a directory of their own and ${limit}` : limit;
     const maxFiles = options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles;
     const maxMb = options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb;
     return {
-        lines: ["Retention:", `  warning: output.maxAgeDays is ${options.output.maxAgeDays === 0 ? "0" : "not set"}: reports stay in output.dir until output.maxFiles (${maxFiles}) or output.maxMb (${maxMb} MB) push them out, also after their link expired; ${what} can hold data about people; ${fix}`],
+        lines: ["Retention:", `  warning: output.maxAgeDays is 0 (no age limit): reports stay in output.dir until output.maxFiles (${maxFiles}) or output.maxMb (${maxMb} MB) push them out, also after their link expired; ${what} can hold data about people; ${fix}`],
         problems: 0,
         upgrade: []
     };

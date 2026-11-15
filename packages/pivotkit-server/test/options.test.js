@@ -140,8 +140,10 @@ test("check-config: today's configurations print exactly what they printed befor
     // download links (check/downloads.js): where links would point, and that these closed sources
     // (a hidden field, the default summary) get none with static tokens
     const delivery = ["Delivery:", "  downloads: on, links http://127.0.0.1:3333/downloads/<token>, expire after 60 minutes", "  closed (a field not shown for someone): sales (Customer hide), gone (fields summary by default), code (fields summary by default)", "  per person (counted as closed): data sent in requests (inline:)", "  reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open"];
-    // reports without an age limit while closed sources and data in requests are on (check/downloads.js retention)
-    const retention = ["Retention:", "  warning: output.maxAgeDays is not set: reports stay in output.dir until output.maxFiles (1000) or output.maxMb (1024 MB) push them out, also after their link expired; reports over closed sources (sales, gone, code) and data sent in requests can hold data about people; set output.maxAgeDays (for example 30)"];
+    // the default age limit of 30 days (output.maxAgeDays not set): said on the output line and as
+    // an upgrade note; no Retention warning, which is only for an explicit 0
+    const retention = [];
+    const ageLine = ["drafts are kept\n", "drafts are kept; reports and drafts older than 30 days are deleted (the default)\n"];
     const inline = ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"];
     const code = [
         "Code sources (1):",
@@ -151,9 +153,10 @@ test("check-config: today's configurations print exactly what they printed befor
         "",
         "New in this version (what changes with this configuration; https://pivotkit.eize.dev/getting-started/upgrading/):",
         '  - MCP clients may send a small table of their own with source "inline:" (up to 500 rows / 5000 cells / 256 KiB); no exposure policy applies to it; mcp.data: false switches it off',
+        "  - Reports and schedule drafts older than 30 days are deleted from output.dir at start and every hour (output.maxAgeDays; 0 keeps them with no age limit)",
         "  - Code sources: load gets (params, { caller, signal }) and is aborted after timeMs (default 30000 ms); a failing load answers SOURCE_UNAVAILABLE (502), not INTERNAL; data is kept per caller unless cacheShared; after a transient failure last good data up to maxStale (default 3600 s) stands in"
     ];
-    const expected = golden.replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...delivery, ...retention, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
+    const expected = golden.replace(ageLine[0], ageLine[1]).replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...delivery, ...retention, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
     assert.notEqual(expected, golden);
     assert.equal(result.text.split(dir).join("<dir>"), expected);
     assert.equal(result.problems, 1);

@@ -67,7 +67,8 @@ function closedUnder(options, sourcePolicy) {
  * upload target): a field is not "show" for someone (closedUnder), or the data belongs to one person:
  * data sent in the request ("inline:"), a source bound to a person (a claim parameter or a token
  * exchange, sources/auth.js personBound), a code source the operator marked perPerson. Such a report
- * gets only a link the person who asked can open, or none. A "file:" path counts by files.policy; an
+ * gets a link bound to the person (signIn), a one-time link (once, the operator's explicit opt-in),
+ * or none; never a plain link or an output.baseUrl address. A "file:" path counts by files.policy; an
  * id the options do not name counts as closed.
  * @param {import("./config.js").ServerOptions} options
  * @param {string} ref  a source id, "inline:" or "file:<path>"

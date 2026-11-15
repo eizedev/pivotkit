@@ -254,6 +254,7 @@ export async function createHttpHandler(context, runtime = {}) {
         },
         async close() {
             downloads.close();
+            limits.close();
             auth.close?.();
             await handler.close();
         }

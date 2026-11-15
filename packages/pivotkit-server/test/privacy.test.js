@@ -13,6 +13,7 @@ import { loadRunner } from "../src/sources/run.js";
 import { tableKeyOf } from "../src/sources/keys.js";
 import { isClosedForDelivery } from "../src/registry.js";
 import { createDownloadHandler } from "../src/downloads.js";
+import { createLimits } from "../src/limits.js";
 import { NO_LINK_NOTE } from "../src/delivery.js";
 import { BY_REGION, call, restServer, workspace } from "./helpers.js";
 
@@ -116,21 +117,60 @@ test("check-config: per-person sources and data sent in requests are named with 
     assert.match(text, /^ {2}per person \(counted as closed\): team \(a parameter bound to a claim\), mine \(perPerson\), data sent in requests \(inline:\)$/m);
     assert.match(text, /^ {2}reports over closed sources \(team, mine, sales\): no links/m);
     assert.match(text, /^ {2}reports over open sources \(open\): plain links$/m);
+    // a code source open by its fields: pivotkit cannot see whether load answers per caller
+    assert.match(text, /^ {2}open: load up to 30000 ms[^\n]*\n {4}reports over it get plain links \(every field is shown\); if load answers each caller differently, set perPerson: true/m);
+    assert.match(text, /^ {2}mine: load up to 30000 ms, loaded on every call; data per caller, per person \(perPerson: no plain links to its reports\)/m);
+    assert.doesNotMatch(text, /^ {2}(team|mine): load[^\n]*\n {4}reports over it get plain links/m);
 });
 
 // --- F2: reports without an age limit --------------------------------------------------------------
 
-test("check-config: warns when reports stay without an age limit while closed sources or data sent in requests are on; not with output.maxAgeDays", async () => {
+test("check-config: warns only when output.maxAgeDays is 0 while closed sources or data sent in requests are on; the default limit is said on the output line", async () => {
     const dir = workspace();
-    const warned = (await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text;
-    assert.match(warned, /^Retention:\n {2}warning: output\.maxAgeDays is not set: reports stay in output\.dir until output\.maxFiles \(1000\) or output\.maxMb \(1024 MB\) push them out, also after their link expired; reports over closed sources \(sales\) and data sent in requests can hold data about people; set output\.maxAgeDays \(for example 30\)$/m);
+    const warned = (await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text;
+    assert.match(warned, /^Retention:\n {2}warning: output\.maxAgeDays is 0 \(no age limit\): reports stay in output\.dir until output\.maxFiles \(1000\) or output\.maxMb \(1024 MB\) push them out, also after their link expired; reports over closed sources \(sales\) and data sent in requests can hold data about people; leave out output\.maxAgeDays \(the default deletes reports after 30 days\) or set a number of days$/m);
+    assert.match(warned, /drafts are kept; no age limit \(output\.maxAgeDays 0\)$/m);
     // data sent in requests alone: an open source, MCP on
-    const inlineOnly = (await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text;
-    assert.match(inlineOnly, /warning: output\.maxAgeDays is not set: .*; data sent in requests can hold/);
-    // with an age limit, without output.dir, or with nothing closed and no data in requests: no warning
-    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 30 }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
+    const inlineOnly = (await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text;
+    assert.match(inlineOnly, /warning: output\.maxAgeDays is 0 \(no age limit\): .*; data sent in requests can hold/);
+    // the default (30 days), a written limit, no output.dir, or nothing closed and no data in requests: no warning
+    const byDefault = (await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text;
+    assert.doesNotMatch(byDefault, /Retention:/);
+    assert.match(byDefault, /drafts are kept; reports and drafts older than 30 days are deleted \(the default\)$/m);
+    assert.match(byDefault, /New in this version[\s\S]*Reports and schedule drafts older than 30 days are deleted from output\.dir at start and every hour \(output\.maxAgeDays; 0 keeps them with no age limit\)/);
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 7 }, baseDir: dir }, { http: false, env: {} })).text, /Retention:|New in this version[\s\S]*older than 30 days/);
     assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
-    assert.doesNotMatch((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, mcp: { data: false }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
+    assert.doesNotMatch((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, mcp: { data: false }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
+});
+
+test("output.maxAgeDays: 30 days by default in a directory of the reports' own; a directory with the operator's files starts without an age limit unless one is written", async () => {
+    const dir = workspace();
+    const own = await contextOf({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir });
+    try {
+        assert.equal(own.output?.maxAgeDays, 30);
+    } finally {
+        await own.close();
+    }
+    const off = await contextOf({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir });
+    try {
+        assert.equal(off.output?.maxAgeDays, 0, "0: no age limit");
+    } finally {
+        await off.close();
+    }
+    // the reports beside the source file: the default does not apply, and the server starts
+    const shared = await contextOf({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data" }, baseDir: dir });
+    try {
+        assert.equal(shared.output?.maxAgeDays, 0);
+        assert.equal(shared.output?.cleanUp, false);
+    } finally {
+        await shared.close();
+    }
+    const text = (await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data" }, baseDir: dir }, { http: false, env: {} })).text;
+    assert.match(text, /; no age limit: the directory holds other files$/m);
+    assert.doesNotMatch(text, /PROBLEM: output\.maxAgeDays/);
+    assert.doesNotMatch(text, /New in this version[\s\S]*older than 30 days/);
+    // a limit written for such a directory still stops the start, as before
+    await assert.rejects(contextOf({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", maxAgeDays: 30 }, baseDir: dir }), /output\.maxAgeDays could delete/);
 });
 
 // --- F6: cache keys hold no group, claim or value in clear text --------------------------------------
@@ -219,4 +259,49 @@ test("downloads: the markers of expired one-time links are swept on a timer, wit
         handler.close();
         await context.close?.();
     }
+});
+
+test("downloads: after close() the sweep timer no longer runs", async () => {
+    const dir = workspace();
+    const context = await contextOf({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", downloads: { bind: "once" } }, baseDir: dir });
+    const handler = createDownloadHandler(context, { env: {}, loopback: true, sweepEveryMs: 20 });
+    handler.close();
+    const markers = join(dir, "out", ".pivotkit-downloads");
+    mkdirSync(markers, { recursive: true });
+    const old = join(markers, `${randomBytes(16).toString("base64url")}.used`);
+    writeFileSync(old, `${Math.floor(Date.now() / 1000) - 60}\n`);
+    try {
+        await new Promise((r) => setTimeout(r, 150));
+        assert.equal(existsSync(old), true, "no sweep after close()");
+    } finally {
+        await context.close?.();
+    }
+});
+
+// --- the limiter keeps addresses and callers only while they count -----------------------------------
+
+test("limits: an address without a refused token in the last minute and a caller whose bucket is full again are dropped on a timer; not after close()", async () => {
+    let t = 1_000_000;
+    const wait = () => new Promise((r) => setTimeout(r, 80));
+    const limits = createLimits({}, () => t, { pruneEveryMs: 20 });
+    try {
+        limits.failed("192.0.2.7");
+        limits.take("report-bot");
+        await wait();
+        assert.deepEqual(limits.size(), { addresses: 1, callers: 1 }, "both still count");
+        t += 61_000;
+        limits.failed("192.0.2.8");
+        await wait();
+        // the old address and the full bucket are gone; the address refused just now stays
+        assert.deepEqual(limits.size(), { addresses: 1, callers: 0 });
+        assert.equal(limits.blocked("192.0.2.8"), 0);
+    } finally {
+        limits.close();
+    }
+    const closed = createLimits({}, () => t, { pruneEveryMs: 20 });
+    closed.close();
+    closed.failed("192.0.2.9");
+    t += 61_000;
+    await wait();
+    assert.deepEqual(closed.size(), { addresses: 1, callers: 0 }, "no prune after close()");
 });

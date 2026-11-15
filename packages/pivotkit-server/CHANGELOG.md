@@ -8,6 +8,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Upgrading from 0.1.1
 
+- Behaviour change: `output.maxAgeDays` is 30 by default, so reports and schedule drafts older than
+  30 days are deleted from `output.dir` at start and every hour. `output.maxAgeDays: 0` keeps them
+  with no age limit, as before. The default does not apply where `output.dir` holds the
+  configuration or a source, template or token file ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
+
 Every field keeps its level and the automatic rule is off; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
 
 - html reports print "Data as of" in their details; xlsx files carry the document property
@@ -207,8 +212,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
     download.
   - A REST and MCP log line names a source by a configured id, `inline:` or `file:`, else
     `unknown`, never the caller's text.
-  - `check-config` warns under `Retention:` when `output.maxAgeDays` is off while closed sources or
-    data sent in requests are on, and lists the per-person sources under `Delivery:`.
+  - `check-config` warns under `Retention:` when `output.maxAgeDays` is 0 while closed sources or
+    data sent in requests are on, lists the per-person sources under `Delivery:`, and says of a code
+    source open by its fields that `perPerson: true` is for data that differs per caller.
+  - The limiter drops an address within two minutes of its last refused token and a caller once its
+    bucket is full again, on a timer, instead of keeping them until the 10,000-key cap.
 - `ConfigError` is defined in `src/options/shared.js`; `pivotkit-server` exports it as before.
 - A pattern of a source's parameter that runs out of time on a test value is tried once more before
   it is refused at start, so a busy host does not refuse a fast pattern.

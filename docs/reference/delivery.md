@@ -189,12 +189,14 @@ them one output directory (a ReadWriteMany volume), or run one replica; see
 an address only to reports over open sources: a report over a closed source (data per person
 included) carries no `url`, since anyone with the address could open a report whose fields were
 withheld from the model, or another person's data. Such an address works as long as the file is
-there: set `output.maxAgeDays` to bound it.
+there, 30 days by default (`output.maxAgeDays`).
 
 Reports stay in the output directory after their link expired, until `output.maxFiles`,
-`output.maxMb` or `output.maxAgeDays` remove them; `output.maxAgeDays` is off (0) unless you set it.
-`check-config` warns under `Retention:` when it is off while closed sources or data sent in requests
-are on.
+`output.maxMb` or `output.maxAgeDays` remove them. `output.maxAgeDays` is 30 by default: reports and
+schedule drafts older than 30 days are deleted at start and every hour; `output.maxAgeDays: 0` keeps
+them with no age limit, and the default does not apply where the output directory holds the
+configuration or a source, template or token file. `check-config` warns under `Retention:` when you
+set 0 while closed sources or data sent in requests are on.
 
 `check-config` prints a `Delivery:` section: where links point, which sources get which link, the
 redirect URI to register and the warnings.

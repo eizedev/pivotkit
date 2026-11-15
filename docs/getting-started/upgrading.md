@@ -172,6 +172,7 @@ with code sources check [Code sources](#code-sources). Over HTTP with an output 
 | [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
+| [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
 
 ### Data as of in files { #data-as-of-files }
 
@@ -255,6 +256,16 @@ anyone, in any profile) carries no `url` any more, on MCP and REST: anyone with 
 a report whose fields were withheld from the model. The file is still written. Reports over sources
 whose fields are all `show` keep their address. For the others, leave out `output.baseUrl` and use
 sign-in links, or give REST programs `results: true` and the [file route](../reference/rest.md#downloads).
+
+### Reports deleted after 30 days { #max-age-default }
+
+`output.maxAgeDays` is 30 by default: reports and schedule drafts (drafts waiting for approval too)
+older than 30 days are deleted from the output directory at start and every hour. Before, they stayed
+until `output.maxFiles` or `output.maxMb` pushed them out. Set `output.maxAgeDays` to another number
+of days, or to `0` for no age limit, the old behaviour. The default applies only to a directory of the
+reports' own: where `output.dir` holds the configuration or a source, template or token file, nothing
+is deleted by age and the server starts as before (`check-config` says "no age limit: the directory
+holds other files"). Copy the reports you want to keep elsewhere before you upgrade.
 
 ### Request ids { #request-ids }
 
