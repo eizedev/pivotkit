@@ -463,7 +463,9 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         const id = newRequestId();
         socket.on("error", () => undefined);
         onClientError?.({ status: 400, requestId: id, address: plainAddress(/** @type {import("node:net").Socket} */ (socket).remoteAddress) });
-        socket.end(`HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\nX-Request-Id: ${id}\r\n\r\n`);
+        // node:http has let go of the socket: destroyed once the answer is out, also when the client
+        // never closes its side (a half-open socket would keep its connection slot and stop close())
+        socket.end(`HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\nX-Request-Id: ${id}\r\n\r\n`, () => socket.destroy());
     });
     // a request the HTTP parser refuses (a broken request line, headers too large, too slow) never
     // reaches the handler: it is answered as node:http would, with an id, and told to onClientError
@@ -540,7 +542,13 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             // no new connections; idle ones go now, running requests get graceMs to finish
             server.closeIdleConnections();
             if (running > 0) {
-                await Promise.race([new Promise((resolve) => idle.push(() => resolve(undefined))), new Promise((resolve) => setTimeout(resolve, graceMs).unref())]);
+                // a ref'd timer, cleared when the requests finish first
+                let timer;
+                try {
+                    await Promise.race([new Promise((resolve) => idle.push(() => resolve(undefined))), new Promise((resolve) => (timer = setTimeout(resolve, graceMs)))]);
+                } finally {
+                    clearTimeout(timer);
+                }
             }
             server.closeAllConnections();
             await closed;

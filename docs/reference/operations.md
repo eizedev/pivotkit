@@ -103,7 +103,8 @@ The level of a `call`, `request`, `download` or `refused` line follows its statu
 `warn` for 4xx, `error` for 5xx. A refused request is `warn` or `error`, except the two routine ones
 above, which are `debug`. Every error answer (4xx and 5xx) has one line under the `requestId` of its
 `X-Request-Id`: its own `call`, `request` or `download` line, or a `refused` line; a 404 or 405 only
-at `log.level` `debug`. A log line names the route family; the path, query and body a request sent
+at `log.level` `debug`. A request that fails unexpectedly after it logged a line below 500 gets an
+`internal` `refused` line at `error` besides it. A log line names the route family; the path, query and body a request sent
 are never logged. A host or origin refusal names the refused Host or Origin value, cut to 100
 characters.
 

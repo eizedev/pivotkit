@@ -531,3 +531,35 @@ test("serveFetch: CONNECT gets a 400 with an id and one line, never a closed soc
         await listening.close();
     }
 });
+
+test("serveFetch: a CONNECT client that never closes its side does not keep its socket: the slot is free again and the server stops", async () => {
+    const { connect } = await import("node:net");
+    // one connection in all: a socket left open would refuse the next one
+    const listening = await serveFetch({ fetch: async () => Response.json({ ok: true }) }, { host: "127.0.0.1", port: 0, bodyBytes: 1024, limits: { total: 1 } });
+    const socket = connect({ port: listening.port, host: "127.0.0.1", allowHalfOpen: true });
+    let timer;
+    try {
+        // the server's side ends (the client's stays open: allowHalfOpen)
+        const ended = new Promise((resolve) => socket.on("end", resolve));
+        socket.resume();
+        socket.on("error", () => undefined);
+        await new Promise((resolve) => socket.once("connect", resolve));
+        socket.write("CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n");
+        // the client never ends its side: whether the server let go of its socket shows in the
+        // connection slot and in close()
+        assert.equal(await Promise.race([ended.then(() => "answered"), new Promise((resolve) => (timer = setTimeout(() => resolve("no answer"), 1000)))]), "answered");
+        clearTimeout(timer);
+        const next = await raw(`http://127.0.0.1:${listening.port}/`);
+        assert.equal(next.status, 200, "the connection slot is free again");
+        const stopped = await Promise.race([listening.close().then(() => "stopped"), new Promise((resolve) => (timer = setTimeout(() => resolve("hangs"), 2000)))]);
+        clearTimeout(timer);
+        assert.equal(stopped, "stopped");
+    } finally {
+        clearTimeout(timer);
+        socket.destroy();
+        // a failed run: the server is stopped here (its socket goes with the client's)
+        if (listening.server.listening) {
+            await listening.close();
+        }
+    }
+});
