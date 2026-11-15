@@ -236,8 +236,12 @@ root `package.json`: `npm run types` and the builds depend on it.
   sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are
   made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
   `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: which link a
-  report gets, decided before it is written (`linkFor`), the write, `output.filename`/`url`/`note`;
-  `resourceLinkOf`, the MCP `resource_link`), `src/downloads.js` (the server's own download links:
+  report gets, decided before it is written (`linkFor`; `storeFor` for the upload target), the write, `output.filename`/`url`/`note`;
+  `resourceLinkOf`, the MCP `resource_link`), `src/upload.js` (the operator's store, `output.upload`:
+  `upload()` after the local write, presign or address template, guardedFetch, two slots, one time
+  budget, links checked against `linkOrigins`, `UploadFailure` codes that delivery.js answers as
+  `UPLOAD_FAILED`; `uploadMeans` lets tests use their own guardedFetch; `options/upload.js` and
+  `check/upload.js` are its options and check-config section), `src/downloads.js` (the server's own download links:
   `createDownloadHandler`, the route `/downloads/` and its sign-in callback, one state per context;
   the HMAC-signed token, one-time markers in the output directory's `.pivotkit-downloads/`, the OpenID
   Connect sign-in; `linksOf` for delivery.js; `options/downloads.js` and `check/downloads.js` are its
@@ -271,9 +275,12 @@ root `package.json`: `npm run types` and the builds depend on it.
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
   auth.js), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency; one of another release that imports what this pivotkit-server lacks is refused with both versions), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
-  `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source, mcp, cli,
-  healthcheck), `src/check-source.js` (`check-source`: one load of an HTTP source, never a value
-  printed). What
+  `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source,
+  source-from-openapi, mcp, cli, healthcheck), `src/check-source.js` (`check-source`: one load of an
+  HTTP source, never a value printed), `src/openapi-source.js` (`source-from-openapi`: an HTTP source
+  block from one GET operation of an operator's OpenAPI document, read as hostile input; imported by
+  the runner's command only, never by the server; its `TODO` values are refused by
+  `options/base.js todoPaths`). What
   the REST service and the CLI's remote mode agree on (base path, source ids, token syntax, problem
   codes, loopback) is pivotkit-cli/rest's, re-exported here; `test/cli-remote.test.js` runs the CLI
   against the service.

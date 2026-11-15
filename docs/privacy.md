@@ -23,6 +23,7 @@ it. It makes no compliance claim.
 | [The limiter](#memory) | the server's memory | about two minutes after an address's last refused token; a caller until its rate bucket is full again (checked every minute) | nobody |
 | [Backends of HTTP sources](#recipients) | the backend and its own logs | as the backend keeps them | the backend's operator |
 | [The sign-in provider](#recipients) | the provider's sign-in log | as the provider keeps it | the provider's administrators |
+| [An upload store](#recipients) (`output.upload`) | your store, and the presign service's log | as the store keeps them | whoever holds a store link (as `bind` says); the store's operator |
 | [The model's provider](#ai-client) | the provider of the AI client's model | as that provider keeps it | that provider |
 
 ## Purpose per source and caller { #purpose }
@@ -132,6 +133,16 @@ What reaches other services, in short:
 - **The sign-in provider** sees a sign-in each time a person opens a [sign-in
   link](reference/delivery.md#sign-in): its own log then has an event for that person and the
   download client (`output.downloads.signIn.clientId`), as for any application they sign in to.
+- **An [upload store](reference/delivery.md#upload)** receives the whole report file, under a name
+  taken from the report's name (a source's title, or a name the caller gave); in presign mode the
+  presign service also gets the file's size and SHA-256, and with `bind: "signIn"` an HMAC of the
+  person's sign-in (never the name itself), the same for one person across reports. The presign
+  service sees one request per report, so it knows when and how often reports are made. With
+  `bind: "none"` anyone holding a link can open the file until the link expires; in template mode the
+  store does not have to say when that is (`expiresAt` is optional), so the store's own settings
+  decide. `bind` is your declaration of what the store does; pivotkit does not check it. How long
+  reports stay there is the store's setting; `keepLocal: false` removes only the copy in
+  `output.dir` after a successful upload, and a failed upload keeps it there until it is cleaned up.
 - **The model's provider** receives what the model sees (see [the AI client](#ai-client)).
 
 ## Memory { #memory }

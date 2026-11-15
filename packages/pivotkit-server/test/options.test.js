@@ -47,6 +47,9 @@ test("options: the composed table is today's, in today's order, plus the shared 
     // the operator's controls (options/operator.js): after the base's keys, in the fragment's order
     Object.assign(expected.auth.object, { groupsClaim: "string", groupsSeparator: "string", groupProfiles: { list: { object: { group: "string", profile: "string" } } }, defaultProfile: "string", offerSourceScopes: "boolean" });
     expected.audit = { object: { subject: { enum: ["off", "hash", "plain"] }, key: { custom: "fn" } } };
+    // the upload target (options/upload.js): a header is a text or a secret reference with a prefix
+    const headers = { map: { or: ["string", { object: { prefix: "string", value: secretRef } }] } };
+    expected.output.object.upload = { object: { url: "string", headers, link: "string", expiresAt: "string", presign: { object: { url: "string", headers, uploadUrl: "string", uploadHeaders: "string", link: "string", expiresAt: "string", allowOrigins: "strings" } }, linkOrigins: "strings", method: { enum: ["PUT", "POST"] }, timeMs: "integer", maxBytes: "integer", keepLocal: "boolean", bind: { enum: ["none", "once", "signIn"] }, intranet: "boolean" } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });

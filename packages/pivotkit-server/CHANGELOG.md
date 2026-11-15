@@ -103,6 +103,14 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   server would make it, with each page's status, the rows, the fields and their types (no cell
   value; literal query values as `...`), what a caller would get when it fails, and the operator's
   hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`).
+- `pivotkit-server source-from-openapi <file or https URL> --operation <operationId or "GET /path">`: proposes an
+  HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (path and query
+  parameters with their types, where the rows are, the fields' descriptions, a skeleton of the
+  backend's sign-in). The document is read as untrusted input: local references only, size and
+  node budgets, no `pattern` copied, descriptions cleaned and listed for review, and no address
+  copied as a value. What the operator must decide says `TODO`, and the server refuses a value under
+  `httpSources` or a source's `http` that still does
+  ([data sources](https://pivotkit.eize.dev/reference/sources/#openapi)).
 - Parameters: a refused value's `INVALID_INPUT` names the parameter's description, example and short
   pattern; a value must have the parameter's type (a number for a `string` parameter is refused) and
   a text must be well-formed Unicode; `list_sources` adds each parameter's `pattern`, `format`,
@@ -145,6 +153,17 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   and a problem document with `requestId`, the id of the request's log line. The pages meet 4.5:1
   contrast in both colour schemes and show a focus ring.
   `createDownloadHandler`, `linksOf` and the route's constants are exported.
+- Upload to the operator's store ([#332](https://github.com/eizedev/pivotkit/issues/332)):
+  `output.upload` sends a written report to a store the operator names, either through a presign
+  service (`presign`: a POST with the operator's credentials, which names the address to upload to,
+  its headers, the link and its expiry) or an address template (`url` with `{id}`, `{name}`,
+  `{format}`), and the result shows the store's link (`url`, `expiresAt`, `bound`, `note`, and the
+  MCP `resource_link`). Reports over closed sources go there only where `bind` is `once` or
+  `signIn`; schedule drafts never. Requests go through guardedFetch (private addresses only with
+  `intranet`), the upload address must be on `presign.allowOrigins` and the link on `linkOrigins`;
+  at most two uploads at once within one `timeMs` (30 s). A failure answers `UPLOAD_FAILED` (502)
+  with a fixed text, the request id and `retryable`; the report stays in `output.dir`.
+  `check-config` prints an `Upload:` section.
 
 - A request id on every REST request and MCP tool call: on every log line written inside it, inside
   its work (a source's code, an error's details), in every REST problem document and at the end of

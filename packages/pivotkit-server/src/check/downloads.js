@@ -10,6 +10,7 @@
 
 import { CALLBACK_PATH, DOWNLOADS_PATH, KEY_MIN_BYTES } from "../downloads.js";
 import { settingsOf } from "../options/downloads.js";
+import { uploadSettingsOf } from "../options/upload.js";
 import { isLoopback } from "../listen.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
 import { resolvePolicy } from "../policy.js";
@@ -57,6 +58,17 @@ export function whyClosed(options, id) {
     return NO_FIELD_REASON;
 }
 
+/** Whether callers may send data of their own (inline:), whose reports count as closed: over MCP unless off, over REST where a profile allows it. */
+export const inlineOffered = (options, runtime) => Boolean((runtime.mcp !== false && mcpCapOf(options)) || (runtime.rest && restDataOffered(options)));
+
+/**
+ * check-config's line of what counts as closed for being one person's data (the Delivery and the
+ * Upload section say it alike).
+ * @param {Map<string, string>} personal  perPersonOf
+ * @param {boolean} inline  inlineOffered
+ */
+export const perPersonLine = (personal, inline) => `  per person (counted as closed): ${[...[...personal].map(([id, why]) => `${id} (${why})`), ...(inline ? ["data sent in requests (inline:)"] : [])].join(", ")}`;
+
 /** whyClosed's answer where no field says why. */
 const NO_FIELD_REASON = "a field is not shown";
 
@@ -66,7 +78,7 @@ const NO_FIELD_REASON = "a field is not shown";
  * @param {import("../config.js").ServerOptions} options
  * @returns {Map<string, string>}
  */
-function perPersonOf(options) {
+export function perPersonOf(options) {
     const out = new Map();
     for (const [id, source] of Object.entries(options.sources ?? {})) {
         if (personBound(options, source)) {
@@ -109,7 +121,7 @@ async function retention(options, registry, runtime) {
         return none;
     }
     const closed = (await registry.check()).filter((s) => s.closed).map((s) => s.id);
-    const inline = Boolean((runtime.mcp !== false && mcpCapOf(options)) || (runtime.rest && restDataOffered(options)));
+    const inline = inlineOffered(options, runtime);
     if (!closed.length && !inline) {
         return none;
     }
@@ -162,33 +174,38 @@ async function links(options, registry, runtime) {
     }
     const base = publicUrl ?? `http://${host.includes(":") ? `[${host}]` : host}:${options.http?.port ?? 3333}`;
     lines.push(`  downloads: on, links ${base}${DOWNLOADS_PATH}/<token>${publicUrl ? ` (route ${DOWNLOADS_PATH} to this service)` : ""}, expire after ${settings.expiresMinutes} minute${settings.expiresMinutes === 1 ? "" : "s"}`);
+    // with an upload target whose links are bound, the store takes reports over closed sources: check/upload.js describes them
+    const upload = uploadSettingsOf(options);
+    const storeTakesClosed = Boolean(upload && upload.bind !== "none");
+    const ownClosed = storeTakesClosed ? [] : closed;
     // closed by a field, and closed for being data of one person (some sources both)
-    const personal = perPersonOf(options);
-    const byField = closed.filter((id) => !personal.has(id) || whyClosed(options, id) !== NO_FIELD_REASON);
-    const inline = (runtime.mcp !== false && mcpCapOf(options)) || (runtime.rest && restDataOffered(options));
+    const personal = storeTakesClosed ? new Map() : perPersonOf(options);
+    const byField = ownClosed.filter((id) => !personal.has(id) || whyClosed(options, id) !== NO_FIELD_REASON);
+    const inline = !storeTakesClosed && inlineOffered(options, runtime);
     if (byField.length) {
         // why: open needs default "show" and no field below it, for the server, the source and every profile
         lines.push(`  closed (a field not shown for someone): ${idsText(byField.map((id) => `${id} (${whyClosed(options, id)})`))}`);
     }
     if (personal.size || inline) {
-        lines.push(`  per person (counted as closed): ${[...[...personal].map(([id, why]) => `${id} (${why})`), ...(inline ? ["data sent in requests (inline:)"] : [])].join(", ")}`);
+        lines.push(perPersonLine(personal, inline));
     }
-    if (closed.length) {
+    if (ownClosed.length) {
         const rest = runtime.rest ? "; REST programs get them only with results: true" : "";
         if (settings.bind === "signIn" && settings.signIn) {
             const claim = options.auth?.subjectClaim ?? "sub";
-            lines.push(`  reports over closed sources (${idsText(closed)}): sign-in links; register ${base}${CALLBACK_PATH} at the provider for client ${settings.signIn.clientId}; it must resolve the same subject (${claim}) as the MCP client${rest}`);
+            lines.push(`  reports over closed sources (${idsText(ownClosed)}): sign-in links; register ${base}${CALLBACK_PATH} at the provider for client ${settings.signIn.clientId}; it must resolve the same subject (${claim}) as the MCP client${rest}`);
         } else if (settings.bind === "once") {
-            lines.push(`  reports over closed sources (${idsText(closed)}): one-time links${rest}`, '  warning: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters');
+            lines.push(`  reports over closed sources (${idsText(ownClosed)}): one-time links${rest}`, '  warning: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters');
         } else {
-            lines.push(`  reports over closed sources (${idsText(closed)}): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open`);
+            lines.push(`  reports over closed sources (${idsText(ownClosed)}): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open`);
         }
     }
-    if (open.length) {
-        lines.push(`  reports over open sources (${idsText(open)}): plain links`);
+    const ownOpen = upload ? [] : open;
+    if (ownOpen.length) {
+        lines.push(`  reports over open sources (${idsText(ownOpen)}): plain links`);
     }
     // whether any report gets a link: the key and the stored names matter only then
-    const linking = open.length > 0 || (closed.length > 0 && settings.bind !== "none");
+    const linking = ownOpen.length > 0 || (ownClosed.length > 0 && settings.bind !== "none");
     if (settings.key) {
         try {
             const value = await readSecret(settings.key, options, runtime.env);

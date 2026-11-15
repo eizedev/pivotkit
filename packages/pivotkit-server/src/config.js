@@ -66,7 +66,7 @@ export { ConfigError } from "./options/shared.js";
  * @typedef {object} ServerOptions
  * @property {Record<string, SourceOptions>} [sources]
  * @property {{ allowDirs?: string[], list?: boolean, hardLinks?: boolean, scopes?: string[], policy?: PolicyOptions }} [files]
- * @property {{ dir?: string, create?: boolean, baseUrl?: string, maxFiles?: number, maxMb?: number, maxAgeDays?: number, downloads?: import("./options/downloads.js").DownloadOptions }} [output]  create: make a missing dir at start (default true); downloads: the server's own download links
+ * @property {{ dir?: string, create?: boolean, baseUrl?: string, maxFiles?: number, maxMb?: number, maxAgeDays?: number, downloads?: import("./options/downloads.js").DownloadOptions, upload?: import("./options/upload.js").UploadOptions }} [output]  create: make a missing dir at start (default true); downloads: the server's own download links; upload: the operator's store
  * @property {PolicyOptions} [policy]
  * @property {Partial<import("pivotkit-core").Limits>} [limits]
  * @property {string} [locale]
