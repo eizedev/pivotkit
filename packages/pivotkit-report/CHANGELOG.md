@@ -28,7 +28,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
   and `UPLOAD_FAILED` (502); `OperationError` takes `details` (`requestId`, `retryable`,
   `retryAfter`).
 - A front end's `data(source)` may give `asOf` (and `stale`); `render_view` passes it to `render` as
-  the option `dataAsOf`, which `render` checks (UTC to the second) and does not print yet.
+  the option `dataAsOf`, which `render` checks (UTC to the second, a time that exists).
+- `dataAsOf` in files ([#331](https://github.com/eizedev/pivotkit/issues/331)): an html report's
+  details say "Data as of" (German "Datenstand"), in the locale and time zone with the zone named;
+  the print template's `{{dataAsOf}}` placeholder; an xlsx file's custom document property
+  `DataAsOf` (needs pivotkit-core's `toXlsx` option `dataAsOf`).
 - list_sources' output schema has `params` per source; describe_source's a field's `description`.
 
 - `darkTokens`: a host's `--pk-*` colours for an HTML report on a dark screen, over the dark theme's,

@@ -21,6 +21,7 @@ markup, a link or code.
 | `{{description}}` | text | The view file's description, or `description`. |
 | `{{source}}` | text | The data's name (the CLI: the data file's name). |
 | `{{generated}}` | text | When it was made, in the locale and time zone ("Nov 13, 2026, 10:00 AM"; fixed with `now`). |
+| `{{dataAsOf}}` | text | When the data is from, in the locale and time zone with the zone named ("Nov 15, 2026, 8:00 AM UTC"), from `dataAsOf`; empty without it. The REST service and the MCP server pass it. |
 | `{{rows}}` | text | The data's rows ("8 rows"). |
 | `{{filters}}` | text | The view's filters in words, or "None". |
 | `{{summary}}` | text | The view in one sentence ("sum of Units by Region"). |
@@ -28,7 +29,7 @@ markup, a link or code.
 | `{{style}}` | markup | The report's `<style>`: tokens, table, print rules. |
 | `{{chart}}` | markup | The chart in a `<figure>`, or nothing. |
 | `{{table}}` | markup | The table, and a note when it was cut. |
-| `{{details}}` | markup | A `<dl>` of source, rows, filters and generated, in the report's language. |
+| `{{details}}` | markup | A `<dl>` of source, data as of (when known), rows, filters and generated, in the report's language. |
 
 Spaces inside the braces are fine (`{{ title }}`); braces that are no placeholder stay text.
 

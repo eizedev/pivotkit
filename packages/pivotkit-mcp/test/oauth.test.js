@@ -62,6 +62,7 @@ test("Protected Resource Metadata (RFC 9728) names the resource and the issuer; 
         const prm = await (await fetch(server.url.replace("/mcp", "/.well-known/oauth-protected-resource/mcp"))).json();
         assert.equal(prm.resource, RESOURCE);
         assert.deepEqual(prm.authorization_servers, [issuer]);
+        // the required scope; a source's scope only with auth.offerSourceScopes (off by default)
         assert.deepEqual(prm.scopes_supported, ["pivotkit"]);
         const res = await post(server.url);
         assert.equal(res.status, 401);
@@ -70,6 +71,8 @@ test("Protected Resource Metadata (RFC 9728) names the resource and the issuer; 
         assert.match(challenge, /resource_metadata="https:\/\/mcp\.example\.com\/\.well-known\/oauth-protected-resource\/mcp"/);
         // the spec's "SHOULD": the scopes to ask for, in the first challenge
         assert.match(challenge, /scope="pivotkit"/);
+        // a source's scope is offered in the metadata only, never asked for in the challenge
+        assert.doesNotMatch(challenge, /pivotkit:hr/);
     } finally {
         await server.close();
     }

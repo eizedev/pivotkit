@@ -31,7 +31,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {{ cells?: number, bytes?: number } | false} [inline]  results that may come back in the tool result (default 500 cells, 32 KiB)
  * @property {boolean} [results]  REST: the caller may download a rendered file (POST /api/v1/views/render/file; default false)
  * @property {boolean} [data]  server and profiles only: the caller may send its own data (source "inline:"); REST only with true, MCP unless false
- * @property {Record<string, PolicyOptions>} [profiles]  server level only: named policies bound to tokens or OAuth clients (auth.tokens[].profile, auth.clientProfiles, auth.scopeProfiles)
+ * @property {Record<string, PolicyOptions>} [profiles]  server level only: named policies bound to tokens, OAuth clients, groups or scopes (auth.tokens[].profile, auth.clientProfiles, auth.groupProfiles, auth.scopeProfiles, auth.defaultProfile)
  */
 
 /**
@@ -77,6 +77,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number, data?: false | { rows?: number, cells?: number, bytes?: number } }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens; data: inline data off, or a lower cap
  * @property {import("./options/http.js").HttpSourcesOptions} [httpSources]  HTTP sources on or off, IP addresses as hosts, backends defined once
  * @property {"info" | "debug" | "off"} [log]
+ * @property {{ subject?: "off" | "hash" | "plain", key?: { env?: string, file?: string } }} [audit]  the person in the log lines of calls, requests and downloads (default off)
  * @property {string} [baseDir]  where relative paths start (loadConfig sets the config file's directory; default the working directory)
  */
 
@@ -115,6 +116,11 @@ export { ConfigError } from "./options/shared.js";
  * @property {boolean} [allowInsecureIssuer]
  * @property {Record<string, string>} [clientProfiles]  OAuth client id to policy profile
  * @property {Record<string, string>} [scopeProfiles]  OAuth scope to policy profile
+ * @property {string} [groupsClaim]  the claim with a person's groups, a list (default "groups")
+ * @property {string} [groupsSeparator]  also accept a text groups claim, split by this separator
+ * @property {Array<{ group: string, profile: string }>} [groupProfiles]  a person's group to policy profile; the first matching entry wins
+ * @property {string} [defaultProfile]  the profile of a signed-in caller no token, client, group or scope entry names
+ * @property {boolean} [offerSourceScopes]  offer the sources' scopes in the OAuth metadata (default true)
  */
 
 /** The import limits a server uses unless the operator sets them: lower than a command line's. */
