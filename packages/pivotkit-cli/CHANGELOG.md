@@ -12,7 +12,6 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   header with a logo slot, your colours as `--pk-*` tokens, a footer with the details, always light)
   and Minimal (title, chart, table and details, light or dark after the system), and says how to
   render them over the `sales` example ([#368](https://github.com/eizedev/pivotkit/issues/368)).
-
 - `render`, `validate` and `describe` run on a pivotkit-server's source with `--url` (or
   `PIVOTKIT_URL`) and `--source`; `pivotkit sources [id]` lists a server's sources or describes one.
   The token comes from `--token-file` or `PIVOTKIT_TOKEN` and is never printed; https only (http for

@@ -12,12 +12,18 @@ import { ROWS, VIEWS, measure, rgb } from "./report-contrast.js";
 const read = (name) => readFileSync(new URL(`../../examples/report-templates/${name}`, import.meta.url), "utf8");
 const corporate = read("corporate.template.html");
 
-/** The colour tokens a template sets on its :root (Corporate sets every one the report uses). */
-const ownTokens = (template) => Object.fromEntries([.../:root \{([^}]*)\}/.exec(template)[1].matchAll(/(--pk-[\w-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1], m[2]]));
+/** The colour tokens a template sets on its :root (Corporate sets every one the report uses), a var() of another followed. */
+const ownTokens = (template) => {
+    const declared = Object.fromEntries([.../:root \{([^}]*)\}/.exec(template)[1].matchAll(/(--pk-[\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
+    const resolve = (value) => /^var\((--pk-[\w-]+)\)$/.exec(value)?.[1] ?? null;
+    return Object.fromEntries(Object.entries(declared).map(([name, value]) => [name, resolve(value) ? declared[resolve(value)] : value]).filter(([, value]) => /^#[0-9a-f]{6}$/i.test(value)));
+};
 
 const TEMPLATES = {
     Corporate: { template: corporate, own: ownTokens(corporate), theme: "light" },
     'Corporate with data-pk-theme="dark"': { template: corporate.replace('data-pk-theme="light"', 'data-pk-theme="dark"'), own: ownTokens(corporate), theme: "dark" },
+    // the attribute taken out, as the template's docs offer: light or dark after the system
+    "Corporate without data-pk-theme": { template: corporate.replace(' data-pk-theme="light"', ""), own: ownTokens(corporate) },
     Minimal: { template: read("minimal.template.html"), own: {} }
 };
 
@@ -25,7 +31,7 @@ test("Corporate sets every colour token the report uses, and pins light", () => 
     const own = ownTokens(corporate);
     for (const name of Object.keys(LIGHT_TOKENS).filter((n) => LIGHT_TOKENS[n].startsWith("#"))) expect(own[name], name).toBeTruthy();
     expect(corporate).toMatch(/<html [^>]*data-pk-theme="light"/);
-    expect(corporate).toMatch(/:root \{\s*color-scheme: light;/);
+    expect(corporate).toMatch(/:root\[data-pk-theme="light"\] \{\s*color-scheme: light;/);
 });
 
 for (const [name, { template, own, theme }] of Object.entries(TEMPLATES)) {

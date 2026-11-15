@@ -73,8 +73,8 @@ pivotkit render sales.pivotkit.json --data sales.csv -o sales.xlsx            # 
 `pivotkit example weather` writes the live demo's start (daily weather of 14 cities, with its
 licence in `weather-SOURCE.txt`); `pivotkit example templates` writes two print templates for the
 HTML report ([your own corporate design](../reference/corporate-design.md)); `pivotkit example
---list` names the examples. It never writes over a
-file: in a directory that has one of its files it writes nothing.
+--list` names the examples. It never writes over a file: in a directory that has one of its files
+it writes nothing.
 
 Without the command, the same files are on this site:
 

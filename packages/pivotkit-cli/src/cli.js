@@ -1133,18 +1133,19 @@ async function exampleCommand(positionals, values, ctx) {
     const written = await writeExample(example, { cwd: ctx.io.cwd, allow: ctx.allow });
     const width = Math.max(...written.map((f) => f.length));
     const views = example.files.filter((f) => f.endsWith(".pivotkit.json"));
-    // an example of print templates renders another one's data: that one first, then each template
-    const next = example.templates?.length
-        ? [...(example.uses ? [`pivotkit example ${example.uses}`] : []), ...example.templates.map((t) => templateLine(example, t))]
-        : [tryLine(example), ...views.slice(1).map((v) => `pivotkit validate ${v} --data ${example.data} --strict`), `pivotkit describe ${example.data}`];
+    const report = (/** @type {string} */ line, /** @type {string} */ what) => ({ line, note: `(${what}: open it in a browser)` });
+    /** @type {Array<{ line: string, note?: string }>} what to run next, each with what it gives */
+    const steps = example.templates?.length
+        ? // an example of print templates renders another one's data: that one first, then each template
+          [...(example.uses ? [{ line: `pivotkit example ${example.uses}`, note: "(its data and views, if they are not here yet)" }] : []), ...example.templates.map((t) => report(templateLine(example, t), "an HTML report in that design"))]
+        : [report(tryLine(example), "an HTML report"), ...views.slice(1).map((v) => ({ line: `pivotkit validate ${v} --data ${example.data} --strict` })), { line: `pivotkit describe ${example.data}` }];
+    const next = steps.map((s) => s.line);
     const others = all.filter((e) => e !== example).map((e) => e.name);
     const note = [
         `Wrote ${written.length} files into this directory:`,
         ...written.map((f) => `  ${f.padEnd(width)}  ${example.about?.[f] ?? ""}`.trimEnd()),
         "Next:",
-        ...(example.templates?.length
-            ? next.map((line, i) => `  ${line}${i === 0 && example.uses ? "    (its data and views, if they are not here yet)" : line.includes("--template") ? "    (an HTML report in that design: open it in a browser)" : ""}`)
-            : [`  ${next[0]}    (an HTML report: open it in a browser)`, ...next.slice(1).map((line) => `  ${line}`)]),
+        ...steps.map((s) => `  ${s.line}${s.note ? `    ${s.note}` : ""}`),
         ...(example.credit ? [`Data: ${example.credit}`] : []),
         ...(others.length ? [`Other examples: ${others.map((n) => `pivotkit example ${n}`).join(", ")}`] : [])
     ].join("\n");

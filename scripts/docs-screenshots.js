@@ -12,7 +12,7 @@
 // the same on every run.
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink as encodeLink } from "pivotkit-core/link";
 import { fileURLToPath } from "node:url";
@@ -600,11 +600,12 @@ const SHOTS = [
 /**
  * The print templates of `pivotkit example templates` (examples/report-templates/) over the sales
  * example's data, rendered by pivotkit-report as the command line renders them, in the system's light
- * and dark theme (Corporate stays light in both): the shots of "Your own corporate design".
+ * and dark theme: the shots of "Your own corporate design". Corporate is light on every screen
+ * (`light: true`): one picture, written as both names.
  */
 const REPORT_SHOTS = [
-    { name: "template-corporate", template: "corporate.template.html", view: "sales.pivotkit.json", size: { width: 1000, height: 760 } },
-    { name: "template-corporate-chart", template: "corporate.template.html", view: "sales-chart.pivotkit.json", size: { width: 1000, height: 760 } },
+    { name: "template-corporate", template: "corporate.template.html", view: "sales.pivotkit.json", size: { width: 1000, height: 760 }, light: true },
+    { name: "template-corporate-chart", template: "corporate.template.html", view: "sales-chart.pivotkit.json", size: { width: 1000, height: 760 }, light: true },
     { name: "template-minimal", template: "minimal.template.html", view: "sales-chart.pivotkit.json", size: { width: 1000, height: 760 } }
 ];
 
@@ -618,13 +619,15 @@ async function reportShots(browser, only) {
     const data = encode(await readTable(new File([built.files.get("sales.csv")], "sales.csv")));
     for (const shot of shots) {
         const report = await render(built.files.get(shot.view), data, { format: "html", echarts, template: built.files.get(shot.template), source: "sales.csv", now: "2026-11-13T10:00:00Z" });
-        for (const theme of THEMES) {
+        for (const theme of shot.light ? ["light"] : THEMES) {
             const page = await browser.newPage({ viewport: shot.size, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: theme });
             await page.setContent(report.text);
-            const name = `${shot.name}-${theme}.png`;
-            await page.screenshot({ path: `${out}${name}` });
+            const picture = await page.screenshot();
             await page.close();
-            console.log(name);
+            for (const name of shot.light ? THEMES.map((t) => `${shot.name}-${t}.png`) : [`${shot.name}-${theme}.png`]) {
+                await writeFile(`${out}${name}`, picture);
+                console.log(name);
+            }
         }
     }
 }

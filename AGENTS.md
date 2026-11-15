@@ -287,7 +287,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   of eizedev/brand (`docs-site/`), built and published by `.github/workflows/docs.yml`. Pages in
   Markdown, `docs/assets/icon.svg` from eizedev/brand, `docs/assets/screenshots/` taken by
   `scripts/docs-screenshots.js` from the playground (the print templates' shots, `REPORT_SHOTS`, from
-  HTML reports pivotkit-report renders), except `xlsx-result-light.png` and
+  HTML reports pivotkit-report renders; Corporate's are one image twice, as it is light on every
+  screen), except `xlsx-result-light.png` and
   `xlsx-result-dark.png` (one image twice: a workbook has no dark theme), the weather example's view
   rendered to XLSX by the CLI (`pivotkit render weather.pivotkit.json --data weather.csv -o
   weather.xlsx`), opened in Microsoft Excel for Mac at 100 % on a Retina screen and captured as

@@ -8,9 +8,10 @@ description: The HTML print template of pivotkit-report and pivotkit render --te
 An HTML report is a template with placeholders, `{{name}}`, that pivotkit fills in. The default one
 ships with [pivotkit-report](report.md) (`DEFAULT_TEMPLATE`); a host passes its own as `template`, the
 command line as `--template <file>`. Two templates to copy and adapt, Corporate and Minimal, come
-with `pivotkit example templates`: [your own corporate design](corporate-design.md). A template is trusted like code: its own markup is used as it is.
-What pivotkit fills in is not: every value is escaped, and the template is checked before anything is
-rendered, so a value can never become markup, a link or code.
+with `pivotkit example templates`: [your own corporate design](corporate-design.md). A template is
+trusted like code: its own markup is used as it is. What pivotkit fills in is not: every value is
+escaped, and the template is checked before anything is rendered, so a value can never become
+markup, a link or code.
 
 ## Placeholders
 

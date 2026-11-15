@@ -43,24 +43,32 @@ Minimal follows the theme of the site you read this in (the chart keeps its ligh
 
 ## Make it yours
 
-1. **Logo.** Replace the `src` of `<img class="co-logo">` with your logo as a `data:` address
-   (`data:image/svg+xml;base64,...` or `data:image/png;base64,...`): the report's
-   Content-Security-Policy loads nothing from an address ([a logo](print-template.md#a-logo)). Keep
-   `width`, `height` and `alt` (your company's name).
+1. **Logo.** Replace the `src` of `<img class="co-logo">` with your logo as a `data:` address: the
+   report's Content-Security-Policy loads nothing from an address ([a logo](print-template.md#a-logo)).
+   Turn the file into one with `base64 -i logo.svg` (macOS), `base64 -w0 logo.svg` (Linux) or
+   `[Convert]::ToBase64String([IO.File]::ReadAllBytes("logo.svg"))` (PowerShell), and write
+   `data:image/svg+xml;base64,` (a PNG: `data:image/png;base64,`) before it. The slot is 40 x 40 px:
+   change `width`, `height` and the size in `.co-logo` for another shape. Its `alt` stays empty while
+   the company's name stands next to it as text.
 2. **Company name and texts.** "Your company", "Internal" and the footer's labels ("Source", "Data",
-   "Filters", "Generated") are text of the template: write them in your language. The values next to
-   them are placeholders the report fills in its locale.
+   "Filters", "Generated") are text of the template: write your own, in your language. Left as they
+   are, every report says "Your company" and "Internal". The values next to the labels are
+   placeholders the report fills in its locale.
 3. **Colours.** Change the tokens in the template's `:root` rule. `--pk-accent` is the company
-   colour (the header's line, the "Internal" note); the others are the report's tokens:
+   colour, a token of this template only (the header's line, the "Internal" note; the first series
+   and the colour scale's strong end take it with `var(--pk-accent)`); the others are the report's
+   tokens:
 
     | Token | Where |
     | --- | --- |
     | `--pk-surface`, `--pk-text` | The page and its text |
     | `--pk-surface-2`, `--pk-muted` | Header cells; secondary text (the company name, the footer) |
+    | `--pk-surface-raised` | Not drawn by the HTML report (the report on a page draws its menus and the chart's tooltip with it); set so the block works there too |
     | `--pk-border`, `--pk-border-strong`, `--pk-grid` | The table's lines, the chart's axis and grid |
     | `--pk-total`, `--pk-total-strong` | Subtotal and grand total rows |
     | `--pk-chart-1` ... `--pk-chart-8` | The chart's series, and data bars (`--pk-chart-1`) |
-    | `--pk-heat-low`, `--pk-heat-high` | The heatmap, and a colour scale in the table (through `--pk-scale-low` and `--pk-scale-high`) |
+    | `--pk-heat-low`, `--pk-heat-high` | The heatmap |
+    | `--pk-scale-low`, `--pk-scale-high` (and `--pk-scale-mid`, not set) | A colour scale in the table whose view names no colours; Corporate takes the heat colours for them |
 
     Keep text at 4.5:1 against what is behind it and lines and marks at 3:1
     ([theming](theming.md#tokens)). How the chart reads these values, and which colour forms it
@@ -72,6 +80,8 @@ Minimal follows the theme of the site you read this in (the chart keeps its ligh
    page. Corporate's footer shows source, rows, filters and when the report was made, so it leaves out
    `{{details}}` (the same as a list); a part without a value (a report without a source) is left out.
    Keep the Content-Security-Policy first in `<head>` and `{{style}}` before your own `<style>`.
+   The policy is what keeps a copied template safe to open: without it, a template that loads a
+   font, an image or a script from an address would load it in every reader's browser.
 
 ## Light or dark
 
@@ -82,9 +92,29 @@ offer dark on a screen, change `data-pk-theme="light"` on its `<html>`:
 - no `data-pk-theme`: light or dark after the reader's system, light on paper.
 
 The report's dark tokens then win over the template's `:root` colours on a dark screen; Corporate
-sets its company colour for it in `@media screen { :root[data-pk-theme="dark"] { ... } }`. Your own
+sets its company colour for a dark screen in the same two rules the report uses
+(`:root:not([data-pk-theme="light"])` on a dark system, `:root[data-pk-theme="dark"]` on any screen). Your own
 dark colours go into a rule for the dark screen as described in [dark mode](print-template.md#dark-mode).
-A logo drawn for a light background may need a version for dark.
+A logo drawn for a light background may not read on a dark one. Either draw it so it reads on both
+(the placeholder is a white mark on a tile of the company colour), or give it a second `<img>` for a
+dark screen and show one of them, with these rules after the template's own:
+
+```html
+<img class="co-logo co-light" alt="" width="40" height="40" src="data:image/svg+xml;base64,...">
+<img class="co-logo co-dark" alt="" width="40" height="40" src="data:image/svg+xml;base64,...">
+```
+
+```css
+.co-dark { display: none; }
+@media screen and (prefers-color-scheme: dark) {
+    :root:not([data-pk-theme="light"]) .co-light { display: none; }
+    :root:not([data-pk-theme="light"]) .co-dark { display: block; }
+}
+@media screen {
+    :root[data-pk-theme="dark"] .co-light { display: none; }
+    :root[data-pk-theme="dark"] .co-dark { display: block; }
+}
+```
 
 ## Check it
 
@@ -104,4 +134,4 @@ theme, on screen and in print, over a table with a colour scale, data bars and a
 | --- | --- |
 | Command line | `pivotkit render <view> --data <file> --template corporate.template.html -o report.html` ([pivotkit-cli](cli.md)) |
 | Code | `render(view, rows, { format: "html", template: await readFile("corporate.template.html", "utf8"), echarts })` ([pivotkit-report](report.md)) |
-| Server | `sources.<id>.template` in its configuration: every HTML report of that source ([pivotkit-mcp options](mcp.md)) |
+| Server | `sources.<id>.template` in its configuration, a path relative to the configuration file: every HTML report of that source ([pivotkit-mcp options](mcp.md)) |

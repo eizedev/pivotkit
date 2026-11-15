@@ -13,13 +13,16 @@
  * Corporate: a pivotkit print template to copy and adapt (https://pivotkit.eize.dev/reference/corporate-design/).
  * A document, so it is always light: data-pk-theme="light" on <html> and color-scheme: light, on
  * every screen and on paper. For a dark screen, set data-pk-theme="dark" on <html> (dark on every
- * screen, light on paper), or drop data-pk-theme to follow the reader's system; the rule for
- * :root[data-pk-theme="dark"] below holds the company colour for a dark screen.
+ * screen, light on paper), or drop data-pk-theme to follow the reader's system; the rules for a dark
+ * screen below hold the company colour there.
  * Colours only through --pk-* tokens: change them here, and the chart, the table and the page follow.
  */
-:root {
+:root[data-pk-theme="light"] {
     color-scheme: light;
-    /* the company colour: the header's line, the "Internal" note, the first series, the colour scale */
+}
+:root {
+    /* the company colour (this template's own token): the header's line, the "Internal" note, the
+       first series, the colour scale's strong end */
     --pk-accent: #1f4e79;
     --pk-surface: #ffffff;
     --pk-surface-2: #f4f6f9;
@@ -32,10 +35,10 @@
     --pk-total: #edf1f6;
     --pk-total-strong: #e3e9f1;
     --pk-heat-low: #e8eef6;
-    --pk-heat-high: #1f4e79;
+    --pk-heat-high: var(--pk-accent);
     --pk-scale-low: var(--pk-heat-low);
     --pk-scale-high: var(--pk-heat-high);
-    --pk-chart-1: #1f4e79;
+    --pk-chart-1: var(--pk-accent);
     --pk-chart-2: #d1793f;
     --pk-chart-3: #2a8c6f;
     --pk-chart-4: #b88a00;
@@ -43,6 +46,12 @@
     --pk-chart-6: #4f8cc9;
     --pk-chart-7: #6b7a8c;
     --pk-chart-8: #c2474a;
+}
+/* a dark screen: the system's dark theme without data-pk-theme="light", or data-pk-theme="dark" */
+@media screen and (prefers-color-scheme: dark) {
+    :root:not([data-pk-theme="light"]) {
+        --pk-accent: #8fb4dc;
+    }
 }
 @media screen {
     :root[data-pk-theme="dark"] {
@@ -106,7 +115,7 @@
 <body>
 <main class="pk-report">
 <header class="co-header">
-<img class="co-logo" alt="Your company" width="40" height="40" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHJ4PSI4IiBmaWxsPSIjMWY0ZTc5Ii8+PHBhdGggZD0iTTEwIDI5VjExaDZsNCA5IDQtOWg2djE4aC01di05bC01IDEwLTUtMTB2OXoiIGZpbGw9IiNmZmZmZmYiLz48L3N2Zz4=">
+<img class="co-logo" alt="" width="40" height="40" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHJ4PSI4IiBmaWxsPSIjMWY0ZTc5Ii8+PHBhdGggZD0iTTEwIDI5VjExaDZsNCA5IDQtOWg2djE4aC01di05bC01IDEwLTUtMTB2OXoiIGZpbGw9IiNmZmZmZmYiLz48L3N2Zz4=">
 <div class="co-heading">
 <p class="co-company">Your company</p>
 <h1>{{title}}</h1>

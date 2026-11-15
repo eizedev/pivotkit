@@ -28,10 +28,10 @@ Node 22 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotki
 ## Try it { #try-it }
 
 `pivotkit example` writes the default example, `sales`, into the current directory, says what each
-file is and what to run next; `pivotkit example weather` and `pivotkit example templates` write the
-others, `pivotkit example --list` names them all and writes nothing. It never writes over a file: when one of its files is
-there, it writes nothing (exit 2, `EXISTS`); each file is linked into place, so one that appears
-while it writes is not replaced either.
+file is and what to run next; `pivotkit example weather` and `pivotkit example templates` write
+the others, `pivotkit example --list` names them all and writes nothing. It never writes over a
+file: when one of its files is there, it writes nothing (exit 2, `EXISTS`); each file is linked into
+place, so one that appears while it writes is not replaced either.
 
 ```text
 $ pivotkit example
@@ -50,19 +50,19 @@ Other examples: pivotkit example weather, pivotkit example templates
 | Example | Files | What |
 | --- | --- | --- |
 | `sales` | `sales.csv`, `sales.pivotkit.json`, `sales-chart.pivotkit.json` | Generated sales, 2,000 rows: revenue by region and category, and a monthly chart. |
-| `templates` | `corporate.template.html`, `minimal.template.html` | Two print templates for the HTML report, to render with `--template` over the `sales` example: Corporate (your company's design, always light) and Minimal (follows the system's theme); [your own corporate design](corporate-design.md). |
 | `weather` | `weather.csv`, `weather.pivotkit.json`, `weather-SOURCE.txt` | Daily weather of 14 cities, 2023-2025, 15,344 rows: the mean temperature per city and month, the live demo's start. Weather data by [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0: `weather-SOURCE.txt` holds the attribution and the changes made; keep it with the data. |
+| `templates` | `corporate.template.html`, `minimal.template.html` | Two print templates for the HTML report, to render with `--template` over the `sales` example: Corporate (your company's design, always light) and Minimal (follows the system's theme); [your own corporate design](corporate-design.md). |
 
 The same files are on this site: [sales.csv](../assets/examples/sales.csv),
 [sales.pivotkit.json](../assets/examples/sales.pivotkit.json),
 [sales-chart.pivotkit.json](../assets/examples/sales-chart.pivotkit.json),
 [weather.csv](../assets/examples/weather.csv),
 [weather.pivotkit.json](../assets/examples/weather.pivotkit.json),
-[weather-SOURCE.txt](../assets/examples/weather-SOURCE.txt),
-[corporate.template.html](../assets/examples/corporate.template.html),
-[minimal.template.html](../assets/examples/minimal.template.html). They are the playground's data and
+[weather-SOURCE.txt](../assets/examples/weather-SOURCE.txt). They are the playground's data and
 its start views as the report downloads them, so the HTML report shows what the
-[playground](../demo.md) shows.
+[playground](../demo.md) shows. The print templates are there too:
+[corporate.template.html](../assets/examples/corporate.template.html),
+[minimal.template.html](../assets/examples/minimal.template.html).
 
 Your own report: in the report, **Views**, **Download view** gives the view file, and **Export**,
 **Source data**, **All rows as CSV** the data it was made on (where the application turns it on; the
