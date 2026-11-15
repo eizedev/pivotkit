@@ -2,7 +2,7 @@
 // review): each test fails on the code before its fix.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkConfig } from "pivotkit-server";
+import { checkConfig, validateOptions } from "pivotkit-server";
 import { call, factsOf, restServer, workspace } from "./helpers.js";
 
 // --- F2: columns the file gives no header never take a "show" default --------------------------------
@@ -53,4 +53,38 @@ test("F2: check-config prints such a column as hidden and warns of a default sho
     assert.doesNotMatch(closed, /deny list/);
     const open = factsOf((await checkConfig({ sources: { staff: { file: "data/staff.csv", policy: { default: "show" } } }, baseDir: dir }, { http: false, env: {} })).text);
     assert.doesNotMatch(open, /deny list/);
+});
+
+// --- F1: download links over plain http on another machine need an explicit opt-in ------------------
+
+test("F1: an http:// http.publicUrl off loopback with download links on is refused unless output.downloads.allowInsecureUrl is set", () => {
+    const base = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" } };
+    assert.throws(() => validateOptions({ ...base, http: { publicUrl: "http://reports.example.com" } }), /http\.publicUrl: an http:\/\/ address .*output\.downloads\.allowInsecureUrl/);
+    assert.throws(() => validateOptions({ ...base, output: { dir: "out", downloads: { bind: "once" } }, http: { publicUrl: "http://10.1.2.3:3333" } }), /allowInsecureUrl/);
+    // allowed: https, loopback, links off, or the opt-in
+    for (const options of [
+        { ...base, http: { publicUrl: "https://reports.example.com" } },
+        { ...base, http: { publicUrl: "http://localhost:3333" } },
+        { ...base, http: { publicUrl: "http://[::1]:3333" } },
+        { ...base, http: { publicUrl: "http://127.0.0.1:3333" } },
+        { ...base, output: { dir: "out", downloads: { enabled: false } }, http: { publicUrl: "http://reports.example.com" } },
+        { ...base, output: { dir: "out", downloads: { allowInsecureUrl: true } }, http: { publicUrl: "http://reports.example.com" } }
+    ]) {
+        assert.doesNotThrow(() => validateOptions(options), JSON.stringify(options));
+    }
+});
+
+test("F1: with the opt-in, check-config and the start warn of links in clear text", async () => {
+    const dir = workspace();
+    const options = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", downloads: { allowInsecureUrl: true } }, http: { publicUrl: "http://reports.example.com" }, baseDir: dir };
+    const text = factsOf((await checkConfig(options, { http: true, env: {} })).text);
+    assert.match(text, /^WARNING \(Delivery\): http\.publicUrl is http:\/\/ on reports\.example\.com \(output\.downloads\.allowInsecureUrl\): download links and their cookies cross the network in clear text/m);
+    const server = await restServer(options);
+    try {
+        assert.ok(server.log.some((l) => l.level === "warn" && /http\.publicUrl is http:\/\/ on reports\.example\.com/.test(l.msg)), JSON.stringify(server.log));
+    } finally {
+        await server.close();
+    }
+    // https: no such warning
+    assert.doesNotMatch((await checkConfig({ ...options, output: { dir: "out" }, http: { publicUrl: "https://reports.example.com" } }, { http: true, env: {} })).text, /clear text/);
 });

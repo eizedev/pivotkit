@@ -8,6 +8,7 @@
  * a second declaration).
  */
 
+import { isLoopback } from "pivotkit-cli/rest";
 import { ConfigError, SECRET_REF } from "./shared.js";
 
 export const NAME = "downloads";
@@ -30,6 +31,7 @@ export const KEYS = Object.freeze({
                 expiresMinutes: "integer",
                 bind: { enum: BINDINGS },
                 key: SECRET_REF,
+                allowInsecureUrl: "boolean",
                 signIn: { object: { clientId: "string", clientSecret: SECRET_REF, issuer: "string", scopes: "strings", tokenUrl: "string" } }
             }
         }
@@ -42,6 +44,7 @@ export const KEYS = Object.freeze({
  * @property {number} [expiresMinutes]  how long a link works, 1 to 1440 (default 60)
  * @property {"signIn" | "once" | "none"} [bind]  how links to reports over closed sources are bound (default "signIn" with OAuth and signIn.clientId, else "none")
  * @property {{ env?: string, file?: string }} [key]  the link key, at least 32 bytes (default a random key per process)
+ * @property {boolean} [allowInsecureUrl]  links under an http:// http.publicUrl on a host other than loopback (default false: refused)
  * @property {{ clientId: string, clientSecret?: { env?: string, file?: string }, issuer?: string, scopes?: string[], tokenUrl?: string }} [signIn]  the browser client of the sign-in; tokenUrl: its token endpoint when the metadata names one on another origin
  */
 
@@ -106,10 +109,40 @@ const httpsOrAllowed = (text, insecure) => {
 };
 
 /**
+ * The host of an http:// http.publicUrl other than loopback while the download links are on, else
+ * null: a link (bound "once" or "none") is the credential, and it and the one-time cookie (not
+ * Secure without https) would cross the network in clear text. The start refuses it without
+ * output.downloads.allowInsecureUrl, and warns with it (downloads.js, check/downloads.js).
+ * @param {import("../config.js").ServerOptions} options
+ * @returns {string | null}
+ */
+export function insecurePublicHost(options) {
+    const text = options.http?.publicUrl;
+    if (!text || !URL.canParse(text) || !settingsOf(options).enabled) {
+        return null;
+    }
+    const url = new URL(text);
+    return url.protocol === "http:" && !isLoopback(url.hostname) ? url.hostname : null;
+}
+
+/** What the start and check-config say of links in clear text that the operator allowed. */
+export const insecureUrlText = (host) => `http.publicUrl is http:// on ${host} (output.downloads.allowInsecureUrl): download links and their cookies cross the network in clear text, and anyone who reads one can download the report; use https:// on any network you do not fully trust`;
+
+/**
  * Checks the rules between these keys; throws ConfigError.
  * @param {import("../config.js").ServerOptions} options
  */
 export function validate(options) {
+    validateKeys(options);
+    // after the sign-in's rules, which need https:// whatever allowInsecureUrl says
+    const insecure = insecurePublicHost(options);
+    if (insecure && options.output?.downloads?.allowInsecureUrl !== true) {
+        throw new ConfigError(`http.publicUrl: an http:// address on ${insecure} while download links are on: a link is the credential and would cross the network in clear text; use https://, set output.downloads.enabled: false, or set output.downloads.allowInsecureUrl: true for a network you trust`);
+    }
+}
+
+/** The rules between the keys of output.downloads (validate). */
+function validateKeys(options) {
     const d = options.output?.downloads;
     if (!d) {
         return;

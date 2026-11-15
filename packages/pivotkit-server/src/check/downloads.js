@@ -9,7 +9,7 @@
  */
 
 import { CALLBACK_PATH, DOWNLOADS_PATH, KEY_MIN_BYTES } from "../downloads.js";
-import { settingsOf } from "../options/downloads.js";
+import { insecurePublicHost, insecureUrlText, settingsOf } from "../options/downloads.js";
 import { uploadSettingsOf } from "../options/upload.js";
 import { isLoopback } from "../listen.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
@@ -179,6 +179,8 @@ async function links(options, registry, runtime) {
     const base = publicUrl ?? `http://${host.includes(":") ? `[${host}]` : host}:${options.http?.port ?? 3333}`;
     items.push(plain(`download links: ${base}${DOWNLOADS_PATH}/<token>`));
     if (publicUrl) items.push(plain(`route ${DOWNLOADS_PATH} to this service`, 2));
+    const insecure = insecurePublicHost(options);
+    if (insecure) items.push(warning(insecureUrlText(insecure)));
     items.push(plain(`expire after ${settings.expiresMinutes} minute${settings.expiresMinutes === 1 ? "" : "s"}`, 2));
     // with an upload target whose links are bound, the store takes reports over closed sources: check/upload.js describes them
     const upload = uploadSettingsOf(options);

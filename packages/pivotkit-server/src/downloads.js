@@ -25,7 +25,7 @@ import { access, link as hardLink, mkdir, open, readFile, readdir, stat, unlink,
 import { join } from "node:path";
 import { ConfigError } from "./options/shared.js";
 import { DEFAULT_ALGORITHMS } from "./config.js";
-import { settingsOf } from "./options/downloads.js";
+import { insecurePublicHost, insecureUrlText, settingsOf } from "./options/downloads.js";
 import { subjectOf } from "./auth.js";
 import { discover, ISSUER_LIMITS, issuerFetch, issuerHint, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
 import { allowedHosts, hostRefusal } from "./checks.js";
@@ -562,6 +562,10 @@ export function createDownloadHandler(context, runtime = {}) {
                 await keys().catch((e) => context.log.warn(`download links: the key cannot be read, so reports get no links until it can: ${String(e?.message ?? e).slice(0, 200)}`));
             })
             .catch(() => undefined);
+        const insecure = insecurePublicHost(options);
+        if (insecure) {
+            context.log.warn(insecureUrlText(insecure));
+        }
         if (!publicUrl && !loopback) {
             context.log.warn("download links: http.publicUrl is not set and the server listens on an address other than loopback, so reports get no links (they would show an internal address); set http.publicUrl");
         }
