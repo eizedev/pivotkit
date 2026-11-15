@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, readdirSync, unlinkSync, utimesSync, writeFile
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
-import { dispositionOf, filenameOf, placeMarker, readToken, signToken, sizeText, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
+import { KEY_READ_MS, dispositionOf, filenameOf, placeMarker, readToken, signToken, sizeText, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
 import { NO_LINK_NOTE, linkFor, resourceLinkOf } from "../src/delivery.js";
 import { BY_REGION, SALES_CSV, TOKEN, call, factsOf, raw, restServer, tempDir, workspace } from "./helpers.js";
 import { createContext } from "../src/context.js";
@@ -1018,7 +1018,7 @@ test("markers: written whole and exclusive; the sweep deletes an expired one, ke
     assert.deepEqual(readdirSync(dir).filter((n) => n.endsWith(".tmp")).length, 1);
 });
 
-test("a rotated key takes effect without a restart: links of the old key answer 404, new links work", async () => {
+test("a rotated key takes effect without a restart, within KEY_READ_MS: links of the old key answer 404, new links work", async () => {
     const dir = workspace();
     const env = { DL_KEY };
     const server = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" } } }, baseDir: dir }, { env });
@@ -1027,6 +1027,8 @@ test("a rotated key takes effect without a restart: links of the old key answer 
         const before = await render("Before");
         assert.equal((await fetch(before.url)).status, 200);
         env.DL_KEY = "another-download-key-for-tests-that-is-long-enough-9876543210";
+        // the key is read again at most every KEY_READ_MS
+        await new Promise((resolve) => setTimeout(resolve, KEY_READ_MS + 50));
         assert.equal((await fetch(before.url)).status, 404);
         const after = await render("After");
         assert.equal((await fetch(after.url)).status, 200);

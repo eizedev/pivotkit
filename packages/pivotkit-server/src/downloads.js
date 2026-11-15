@@ -339,9 +339,14 @@ export async function subjectBindingOf(context, issuer, subject) {
     return keys ? mac(keys.upload, JSON.stringify([issuer, subject])) : null;
 }
 
+/** How long a read of output.downloads.key is used before it is read again, in milliseconds. */
+export const KEY_READ_MS = 1000;
+
 /**
- * The keys of output.downloads.key, read on every use (a rotated secret works without a restart;
- * links of the old key stop working) and derived once per value; a random key without one.
+ * The keys of output.downloads.key, read again at most every KEY_READ_MS (a rotated secret works
+ * without a restart, within a second; links of the old key stop working) and derived once per value;
+ * a random key without one. A read, and a failed one, is shared by the requests in that time, so a
+ * flood of links (forged ones too) does not read the file for each.
  * @param {import("./options/downloads.js").DownloadSettings} settings
  * @param {{ baseDir?: string }} options
  * @param {Record<string, string | undefined>} env
@@ -353,7 +358,7 @@ function keySource(settings, options, env) {
     }
     let last = { value: "", keys: /** @type {any} */ (null) };
     const ref = settings.key;
-    return async () => {
+    const read = async () => {
         const value = await readSecret(ref, options, env);
         if (Buffer.byteLength(value) < KEY_MIN_BYTES) {
             throw new ConfigError(`output.downloads.key (${ref.env ? `$${ref.env}` : `the file ${ref.file}`}) is shorter than ${KEY_MIN_BYTES} bytes; make one with: openssl rand -base64 48`);
@@ -362,6 +367,15 @@ function keySource(settings, options, env) {
             last = { value, keys: subkeysOf(Buffer.from(value, "utf8")) };
         }
         return last.keys;
+    };
+    /** @type {{ at: number, keys: Promise<any> } | null} */
+    let held = null;
+    return () => {
+        const now = Date.now();
+        if (!held || now - held.at >= KEY_READ_MS) {
+            held = { at: now, keys: read() };
+        }
+        return held.keys;
     };
 }
 

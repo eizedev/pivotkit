@@ -3,6 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { REQUEST_LIMITS, callerOf, checkConfig, createLimits, limitKeyOf, validateOptions } from "pivotkit-server";
+import { randomBytes } from "node:crypto";
+import { signToken, subkeysOf } from "../src/downloads.js";
 import { call, factsOf, restServer, workspace } from "./helpers.js";
 
 // --- F2: columns the file gives no header never take a "show" default --------------------------------
@@ -110,5 +112,26 @@ test("F3: limitKeyOf names the person, else the client; a client's people togeth
         assert.equal(limits.enter("person:one-more", "claude"), true, "a place given back");
     } finally {
         limits.close();
+    }
+});
+
+// --- F4: the download key is read at most about once a second, not on every request ------------------
+
+test("F4: requests with forged tokens do not read the key file or variable each time", async () => {
+    const dir = workspace();
+    let reads = 0;
+    const env = new Proxy({ DL_KEY: "a-download-key-for-tests-that-is-long-enough-0123456789" }, { get: (t, k) => (k === "DL_KEY" && reads++, Reflect.get(t, k)) });
+    const server = await restServer({ sources: { open: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out", downloads: { key: { env: "DL_KEY" } } }, baseDir: dir }, { env });
+    try {
+        const forged = signToken(subkeysOf(randomBytes(32)), { n: randomBytes(16).toString("base64url"), e: Math.floor(Date.now() / 1000) + 600, b: "none" });
+        const before = reads;
+        const statuses = [];
+        for (let i = 0; i < 20; i++) {
+            statuses.push((await fetch(`${server.url}/downloads/${forged}`)).status);
+        }
+        assert.ok(statuses.every((s) => s === 404), String(statuses));
+        assert.ok(reads - before <= 2, `the key was read ${reads - before} times for 20 requests`);
+    } finally {
+        await server.close();
     }
 });
