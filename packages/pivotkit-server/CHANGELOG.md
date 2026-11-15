@@ -270,6 +270,12 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- An HTTP source's CSV answer is kept without the columns the caller's policy hides: it is read once
+  in a worker into a packed table, as a code source's rows are, and that table is kept, so hidden
+  values no longer stay in memory for the source's `ttl` and `maxStale`
+  ([#433](https://github.com/eizedev/pivotkit/issues/433)). Reading the answer counts against
+  `compute.timeMs` and `compute.memoryMb`, not the source's `timeMs`; the reader's errors and limits
+  reach the caller as before. A CSV answer whose every column is hidden keeps its row count.
 - `PIVOTKIT_PORT` set to `tcp://<address>:<port>`, as Kubernetes' service links do for a Service
   named pivotkit: `serve`, `check-config` and `healthcheck` say so and name `enableServiceLinks:
   false`, instead of "http.port: must be a whole number of 0 or more" (`healthcheck`: a failed

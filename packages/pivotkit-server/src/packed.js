@@ -1,7 +1,8 @@
 /*
- * A table packed for a compute worker (a code source's data, kept in the main thread and computed in
- * a worker): text columns dictionary-coded (codes in a typed array and each distinct text once),
- * number, date and true/false columns as typed arrays, any other column as it is. The typed arrays
+ * A table packed for a compute worker (a code source's data or an HTTP source's CSV answer, kept in
+ * the main thread and computed in a worker): text columns dictionary-coded (codes in a typed array
+ * and each distinct text once), number, date and true/false columns as typed arrays, any other
+ * column as it is. The typed arrays
  * sit on SharedArrayBuffers, so posting a packed table to a worker copies its dictionaries and mixed
  * columns only, never a value per cell; neither side writes them after packing. Its size
  * (`packedBytes`) is exact for everything but mixed columns, so the load cache counts what it holds.

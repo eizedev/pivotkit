@@ -13,7 +13,7 @@ is one of these kinds:
 | Kind | Configured with | Where it is read |
 | --- | --- | --- |
 | File | `file`: a CSV, TSV, TXT, JSON or XLSX file | In a worker thread, with the file limits ([options](mcp.md#configuration)) |
-| HTTP | `http`: an operator's backend, its address with typed parameters | Requested and parsed in the server's thread, computed in a worker; see [HTTP sources](#http) |
+| HTTP | `http`: an operator's backend, its address with typed parameters | Requested in the server's thread, a JSON answer parsed there, a CSV answer in a worker; computed in a worker; see [HTTP sources](#http) |
 | Code | `load`: a function of a library host | Loaded in the host's thread, computed in a worker; see [Code sources](#code) |
 
 Every kind has the same exposure policy, scopes, field descriptions and `dataAsOf` in its results
@@ -422,10 +422,12 @@ more); at most 4 loads of one source and 2 of one person run at once; last good 
 after a transient failure, with `stale: { since }`, and a refusal drops it. A load aborted because
 every caller went away keeps nothing: the next call loads again. A caller without an identity (an
 OAuth token without a usable subject) gets nothing kept and shares no load. For a source with a
-token exchange or a claim, the data is kept per person, client and scopes, as its token is. A JSON
-answer is kept without the columns the caller's policy hides (so a caller whose profile shows more
-gets its own copy); a CSV answer is kept as it came and read per call, its hidden columns dropped
-then. The key holds the values and the caller only as a keyed digest.
+token exchange or a claim, the data is kept per person, client and scopes, as its token is. An
+answer is kept without the columns the caller's policy hides, so a caller whose profile shows more
+gets its own copy: a JSON answer's rows, a CSV answer read once in a worker (within
+`compute.timeMs` and `compute.memoryMb`, after the source's `timeMs`) into a compact table, as a
+[code source's](#code-thread) is kept. A kept answer goes to a worker once; later calls send its key
+only. The key holds the values and the caller only as a keyed digest.
 
 ### check-config and check-source { #check-source }
 

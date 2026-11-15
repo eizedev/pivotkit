@@ -906,3 +906,46 @@ test("a CSV answer is kept without the columns the caller's levels hide; a profi
         await context.close();
     }
 });
+
+test("a CSV answer kept packed: the reader's notes without a hidden column's, warm calls without the table, the reader's limits as before", async () => {
+    routes.set("/v1/export.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,day,born\nweb-1,4,03/04/2026,05/06/1990\nweb-2,2,04/05/2026,07/08/1991\ndb-1,8,05/06/2026,09/10/1992\n");
+    });
+    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" };
+    const ana = callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+    const policy = { default: "hide", fields: { name: "show", cpu: "show", day: "show" } };
+    const options = { ...optionsOf({}, {}, { policy: { results: true }, auth }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy } } };
+    const context = await contextOf(options);
+    try {
+        const described = (await describe(context, undefined, ana, "csv")).result;
+        assert.equal(described.rows, 3);
+        const notes = described.notes.map((n) => n.message).join("\n");
+        assert.match(notes, /Dates in "day" were read as month\/day\/year/, "the reader's notes reach the caller");
+        assert.doesNotMatch(notes, /born/, "nothing about a hidden column");
+        for (let i = 0; i < 3; i++) {
+            assert.match(await csvOf(context, { source: "csv", view: { rows: ["name"], values: [{ field: "cpu", agg: "sum" }] } }, ana), /db-1,8/);
+        }
+        assert.equal(asked.length, 1);
+        assert.deepEqual(context.computer.sent(), { tables: 1, cached: 4 }, "the bytes go once, to the worker that reads them; the operations go without the table");
+    } finally {
+        await context.close();
+    }
+    // a limit of the reader: its own code and words, as when the operation's worker read the bytes
+    const limited = await contextOf({ ...options, limits: { rows: 2 } });
+    try {
+        const error = await failure(describe(limited, undefined, ana, "csv"));
+        assert.equal(error.code, "LIMIT_EXCEEDED");
+        assert.match(error.message, /limits\.rows/);
+    } finally {
+        await limited.close();
+    }
+    // every column hidden: the rows still counted
+    const none = await contextOf({ ...options, sources: { csv: { ...options.sources.csv, policy: { default: "hide" } } } });
+    try {
+        const described = (await describe(none, undefined, ana, "csv")).result;
+        assert.deepEqual([described.rows, described.fields, described.hiddenFields], [3, [], 4]);
+    } finally {
+        await none.close();
+    }
+});

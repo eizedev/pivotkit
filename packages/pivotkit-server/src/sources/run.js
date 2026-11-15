@@ -254,7 +254,7 @@ export function createLoadRunner(parts = {}) {
      * @param {string | null} key  canonical JSON of what decides the data (sources/keys.js); null: nothing is kept or shared
      * @param {(signal: AbortSignal) => Promise<R>} load  the source's load; its errors are the source's own
      * @param {object} how
-     * @param {(raw: R) => V} how.prepare  pivotkit's work on what the load gave (limits, encoding); errors it marks with ownError pass as they are, any other is the source's failure
+     * @param {(raw: R) => V | Promise<V>} how.prepare  pivotkit's work on what the load gave (limits, encoding, reading a CSV answer in a worker), outside the source's timeMs; errors it marks with ownError pass as they are, any other is the source's failure
      * @param {string} how.source  the source (its load limits); unique per configured source
      * @param {string} how.label  how the log names the source (its id)
      * @param {string} how.bucket  whose load it is, for the load limits (an identity, or the client's name without one)
@@ -419,7 +419,7 @@ export function createLoadRunner(parts = {}) {
         }
         let value;
         try {
-            value = how.prepare(raw);
+            value = await how.prepare(raw);
         } catch (e) {
             if (isOwnError(e)) {
                 throw e;
@@ -434,9 +434,9 @@ export function createLoadRunner(parts = {}) {
     }
 
     /** Prepares a late load's result and keeps it; a result that cannot be prepared is not kept. */
-    function keep(key, raw, how, version) {
+    async function keep(key, raw, how, version) {
         try {
-            remember(key, how.prepare(raw), how, version, Date.now());
+            remember(key, await how.prepare(raw), how, version, Date.now());
         } catch {
             // the next call loads again and says why
         }

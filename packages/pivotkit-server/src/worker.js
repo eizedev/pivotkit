@@ -6,13 +6,15 @@
  * from, or an error's code and message; the policy is applied in the main thread. A run over its time is ended by
  * terminating the worker (compute.js). A table job may come without its table (`cached`) when this
  * worker kept its data under the job's key; a worker that no longer holds it answers `need`, and the
- * main thread sends the table.
+ * main thread sends the table. A read job (data.js READ_JOB) only reads an HTTP source's CSV answer
+ * into a packed table without the hidden columns and gives it back, for the main thread to keep; it
+ * keeps the data set by the job's key, as an operation's job would.
  */
 
 import { parentPort, workerData } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { readTable } from "pivotkit-cli/files";
-import { asOperationError, fileData, holds, setCacheBytes, tableData, uploadData } from "./data.js";
+import { READ_JOB, asOperationError, fileData, holds, packedUpload, setCacheBytes, tableData, uploadData } from "./data.js";
 import { draftingOf } from "./policy.js";
 
 if (typeof workerData?.cacheBytes === "number") {
@@ -23,13 +25,18 @@ if (typeof workerData?.cacheBytes === "number") {
 let echarts = null;
 
 parentPort?.on("message", async (job) => {
-    const { id, op, input, spec, link, template, locale, timeZone, now, table, upload, tableKey, asOf: given, cached } = job;
+    const { id, op, input, spec, link, template, locale, timeZone, now, table, upload, tableKey, asOf: given, cached, notes } = job;
     if (cached && !holds(tableKey ?? null)) {
         // pushed out since: the main thread sends the table
         parentPort.postMessage({ id, need: true });
         return;
     }
     try {
+        if (op === READ_JOB) {
+            // an HTTP source's CSV answer, read for the main thread to keep: no operation runs
+            parentPort.postMessage({ id, outcome: await packedUpload(spec, upload, tableKey ?? null, given ?? null), hidden: 0, stats: null, asOf: null, kept: holds(tableKey ?? null) });
+            return;
+        }
         if (!Object.hasOwn(OPERATIONS, op)) {
             throw new OperationError("INTERNAL", "unknown operation");
         }
@@ -43,7 +50,7 @@ parentPort?.on("message", async (job) => {
         let asOf = null;
         const env = {
             data: async () => {
-                const data = table || cached ? tableData(spec, table ?? null, tableKey ?? null, given ?? null) : upload ? await uploadData(spec, upload, tableKey ?? null, given ?? null) : await fileData(spec);
+                const data = table || cached ? tableData(spec, table ?? null, tableKey ?? null, given ?? null, notes ?? []) : upload ? await uploadData(spec, upload, tableKey ?? null, given ?? null) : await fileData(spec);
                 hidden = /** @type {any} */ (data).hidden ?? 0;
                 stats = /** @type {any} */ (data).stats ?? null;
                 asOf = /** @type {any} */ (data).asOf ?? null;

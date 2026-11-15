@@ -7,13 +7,14 @@
  * A code source of a library host is loaded in the main thread (the host's code stays in its
  * process) and computed in a worker as a table job, as an HTTP source is. A table job with a key
  * goes to the worker that kept its data where that one is free, and then without its table; a
- * worker that pushed the data out since answers `need` and gets the table once.
+ * worker that pushed the data out since answers `need` and gets the table once. An HTTP source's CSV
+ * answer is read in a worker too (`read`), which gives back a packed table to keep.
  */
 
 import { Worker } from "node:worker_threads";
 import { OperationError } from "pivotkit-report/operations";
 import { COMPUTE_DEFAULTS } from "./config.js";
-import { CACHE_ENTRIES, codeTable } from "./data.js";
+import { CACHE_ENTRIES, READ_JOB, codeTable } from "./data.js";
 import { isOwnError, sourceFailure } from "./sources/run.js";
 
 /**
@@ -240,11 +241,23 @@ export function createComputer(options = {}, internal = {}) {
         /**
          * @param {string} op
          * @param {any} input
-         * @param {{ spec: import("./data.js").SourceSpec, link?: any, template?: string, locale?: string, timeZone?: string, now?: any, table?: { columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] } | import("./packed.js").PackedTable, upload?: { bytes: Uint8Array, format: string, sheet?: string }, tableKey?: string | null, asOf?: string | null }} job
+         * @param {{ spec: import("./data.js").SourceSpec, link?: any, template?: string, locale?: string, timeZone?: string, now?: any, notes?: import("pivotkit-report/operations").Finding[], table?: { columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] } | import("./packed.js").PackedTable, upload?: { bytes: Uint8Array, format: string, sheet?: string }, tableKey?: string | null, asOf?: string | null }} job
          *   a table job (data loaded in this thread, computed in a worker): table (a code source's packed, packed.js) or upload, with tableKey (sources/keys.js; null: not kept) and asOf
          * @param {{ load: () => unknown }} [source]  a code source's own load, called once in this thread
          */
         run: (op, input, job, source) => (source ? loadOnce(op, input, job, source) : inWorker(op, input, job)),
+        /**
+         * An HTTP source's CSV answer read in a worker (within compute.timeMs and compute.memoryMb)
+         * into a packed table without the columns the levels hide, and the reader's notes (data.js
+         * packedUpload): what sources/http.js keeps. The worker keeps the data set by `tableKey`, so
+         * the operation's job that follows goes to it without the table.
+         * @param {import("./data.js").SourceSpec} spec
+         * @param {{ bytes: Uint8Array, format: "csv" }} upload
+         * @param {string | null} tableKey
+         * @param {string | null} asOf
+         * @returns {Promise<{ table: import("./packed.js").PackedTable, notes: import("pivotkit-report/operations").Finding[] }>}
+         */
+        read: async (spec, upload, tableKey, asOf) => /** @type {any} */ ((await inWorker(READ_JOB, null, { spec, upload, tableKey, asOf })).outcome),
         /** How many table jobs with a key went with their table and how many without it (tests). */
         sent: () => ({ ...sent }),
         /** The workers alive (0 once closed). */
