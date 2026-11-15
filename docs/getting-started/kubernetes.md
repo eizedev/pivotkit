@@ -94,16 +94,18 @@ Reports over a file are computed in a pool of worker threads (`compute.*` in
 | `limits.fileBytes` | 50 MB | The largest file the server reads |
 
 `compute.memoryMb` bounds a worker's JavaScript heap (old generation; the young generation adds up
-to 64 MB), not all of its memory: the bytes of the file it reads and the typed arrays of the encoded
-data lie outside it. Each worker also keeps the last four data sets it read, so its memory stays up
-after a report instead of going back down. Plan the container's memory limit as:
+to 64 MB), not all of its memory: the bytes of the file it reads and the encoded columns (typed
+arrays, up to 12 bytes per row and column) lie outside it. Each worker also keeps the last four data
+sets it read, so its memory stays up after a report instead of going back down, and the encoded
+columns of all four count. As a starting point for the container's memory limit:
 
 ```text
-memory limit  >=  main process  +  compute.workers x (compute.memoryMb + 64 MB + limits.fileBytes)
+memory limit  =  main process  +  compute.workers x (compute.memoryMb + 64 MB + limits.fileBytes)
 ```
 
 With the defaults that is about 150 MB + 2 x (1024 + 64 + 50) MB, about 2.4 GB: the example sets
-2560Mi. A limit below the sum turns a report that would fail alone with `LIMIT_EXCEEDED` into an OOM
+2560Mi. Large files with many columns need more than this for the encoded columns kept; watch the
+pod's memory with your own data. A limit below the sum turns a report that would fail alone with `LIMIT_EXCEEDED` into an OOM
 kill of the whole pod, with every report running in it. For a smaller pod lower `compute.memoryMb`
 (with 512 and 2 workers, about 1.4 GB) or the workers, not the limit alone.
 
@@ -185,9 +187,10 @@ and add the container.
 
 The source's file is then `/data/git/current/sales.csv`. Mount the volume at the same path in both
 containers, so the link resolves the same way in each. The server follows the link on every call: a
-flip to a new commit is read by the next report. `files.allowDirs` is resolved once at start, so
-name the volume's directory there (`/data/git`), not the link (`/data/git/current`), and it must exist
-at start. A private repository needs credentials (git-sync's `--password-file` or
+flip to a new commit is read by the next report. `files.allowDirs`, if you use it, is resolved once at
+start and the server does not start while a directory named there is missing: name the volume's
+mount (`/data`), which exists from the start, not a directory git-sync makes later (`/data/git`) or the
+link (`/data/git/current`). A private repository needs credentials (git-sync's `--password-file` or
 `--ssh-key-file`, from a Secret), and the NetworkPolicy then needs egress to the Git server (as for
 [the issuer](#oauth-egress)). Check the flags against git-sync's documentation of the version you
 run. Any other sidecar works the same way when it renames or flips a link.
@@ -203,7 +206,9 @@ run. Any other sidecar works the same way when it renames or flips a link.
 ```
 
 The Ingress sends everything on the host to the Service: `/mcp`, `/api/v1`, `/openapi.json` and the
-`/.well-known/` addresses of [OAuth](../reference/mcp.md#oauth) are all served by the one process. It
+`/.well-known/` addresses of [OAuth](../reference/mcp.md#oauth) are all served by the one process.
+Without a token it answers the quick-start page at `/` (`http.page: false` turns it off), `/healthz`
+and `/readyz`; everything else needs one. It
 needs an ingress controller in the cluster (and `ingressClassName` where the cluster has no default
 class); `pivotkit-tls` is the certificate's Secret, by hand or from a tool such as cert-manager. The
 controller must pass the request's `Host` on unchanged and write `X-Forwarded-For`. Its time limit
@@ -242,8 +247,10 @@ access tokens). With [Authentik](https://goauthentik.io/):
      - **Client Type**: **Public** (an MCP client keeps no secret; it signs in with PKCE).
      - **Redirect URIs/Origins (RegEx)**: the callback addresses of the MCP clients you allow, from
        their documentation.
-     - **Signing Key**: a certificate's key (RSA or EC). Without one, Authentik signs with HS256 and
-       the client secret, which the server refuses.
+     - **Signing Key**: a certificate with an RSA key (RS256), an EC P-256 key (ES256) or an Ed25519
+       key (EdDSA), the algorithms the server accepts by default (`auth.algorithms`; Authentik signs
+       with ES384 or ES512 for the other EC curves). Without a signing key, Authentik signs with HS256
+       and the client secret, which the server refuses.
      - **Encryption Key**: none. With one the access token is encrypted (JWE), which the server cannot
        read.
      - **Access Token Validity**: minutes, e.g. `minutes=10`; the default is one hour, and a token
@@ -314,6 +321,7 @@ pod stops before the new one starts.
 
 [docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/main/docker/kubernetes.example.yaml)
 holds the Namespace, the ConfigMap, the two volume claims, the Deployment, the Service, the Ingress,
-the NetworkPolicy and the CronJob, in this order. It is checked against the Kubernetes API schemas
-with [kubeconform](https://github.com/yannh/kubeconform)
-(`kubeconform -strict -summary docker/kubernetes.example.yaml`).
+the NetworkPolicy and the CronJob, in this order. To check your changed copy against the Kubernetes
+API schemas without a cluster, use [kubeconform](https://github.com/yannh/kubeconform)
+(`kubeconform -strict -summary kubernetes.example.yaml`), or `kubectl apply --dry-run=server` with
+one.
