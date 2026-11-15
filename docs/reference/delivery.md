@@ -66,6 +66,7 @@ same rules for closed sources.
 | `output.downloads.signIn.clientSecret` | none (a public client with PKCE) | Its secret, a secret reference, sent as HTTP Basic (or in the form where the provider only takes `client_secret_post`) |
 | `output.downloads.signIn.issuer` | `auth.issuer` | May be left out; when given, it must equal `auth.issuer` (a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did) |
 | `output.downloads.signIn.scopes` | `["openid"]` | What the sign-in asks for; must hold `openid` |
+| `output.downloads.signIn.tokenUrl` | the metadata's `token_endpoint` | The token endpoint the code (and the client secret) goes to, `https://`. Without it the metadata's endpoint must be on the issuer's own origin; set it for a provider that keeps it on another host |
 
 `bind: "signIn"` needs `auth.mode: "oauth"`, `http.publicUrl` with `https://` and
 `signIn.clientId`; the server does not start without them. Without `http.publicUrl`, a server on

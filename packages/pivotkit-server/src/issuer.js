@@ -190,8 +190,21 @@ export async function remoteKeySet(jwksUri, rules, log) {
         }
         try {
             const answer = await issuerFetch(url, rules, { headers: Object.fromEntries(request.headers), signal: request.signal, maxBytes: ISSUER_LIMITS.jwksBytes, timeMs: ISSUER_LIMITS.jwksMs });
+            // an answer jose would refuse later counts as a failed read here, so it is not asked again on every token
+            if (answer.status !== 200) {
+                throw new Error(`the issuer answered ${answer.status}`);
+            }
+            let keys;
+            try {
+                keys = JSON.parse(new TextDecoder().decode(answer.body))?.keys;
+            } catch {
+                keys = undefined;
+            }
+            if (!Array.isArray(keys)) {
+                throw new Error("the answer is no key set (JSON with a keys list)");
+            }
             failed = { at: 0, error: null };
-            return new Response(/** @type {any} */ (answer.body), { status: answer.status, headers: { "content-type": answer.headers["content-type"] ?? "application/json" } });
+            return new Response(/** @type {any} */ (answer.body), { status: 200, headers: { "content-type": "application/json" } });
         } catch (e) {
             failed = { at: Date.now(), error: e };
             if (Date.now() - warnedAt >= JWKS_FAILURE.warnMs) {

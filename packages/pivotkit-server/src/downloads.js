@@ -366,6 +366,27 @@ function keySource(settings, options, env) {
 }
 
 /**
+ * The sign-in's token endpoint: output.downloads.signIn.tokenUrl, else the metadata's
+ * token_endpoint, which must be on the issuer's origin (the client secret goes there), as for a
+ * token exchange (sources/auth.js). Throws Error.
+ * @param {any} metadata
+ * @param {{ issuer: string, tokenUrl: string | null }} signIn
+ */
+function tokenUrlOf(metadata, signIn) {
+    if (signIn.tokenUrl) {
+        return signIn.tokenUrl;
+    }
+    const given = metadata?.token_endpoint;
+    if (typeof given !== "string" || !URL.canParse(given)) {
+        throw new Error("the issuer's metadata names no token_endpoint (set output.downloads.signIn.tokenUrl)");
+    }
+    if (new URL(given).origin !== new URL(signIn.issuer).origin) {
+        throw new Error(`the issuer's token_endpoint is on another origin (${new URL(given).origin}); set output.downloads.signIn.tokenUrl to accept it`);
+    }
+    return given;
+}
+
+/**
  * The sign-in issuer: its metadata and keys, loaded in the background with retries (until then a
  * sign-in link answers 503).
  * @param {NonNullable<import("./options/downloads.js").DownloadSettings["signIn"]>} signIn
@@ -374,7 +395,7 @@ function keySource(settings, options, env) {
  * @param {any} log
  */
 function signInIssuer(signIn, rules, jwksUri, log) {
-    /** @type {{ metadata: any, jwks: any } | null} */
+    /** @type {{ metadata: any, tokenUrl: string, jwks: any } | null} */
     let loaded = null;
     let timer = null;
     let closed = false;
@@ -382,10 +403,10 @@ function signInIssuer(signIn, rules, jwksUri, log) {
     const attempt = async () => {
         try {
             const metadata = await discover(signIn.issuer, rules);
-            if (typeof metadata.authorization_endpoint !== "string" || typeof metadata.token_endpoint !== "string") {
-                throw new Error("the issuer's metadata names no authorization_endpoint or token_endpoint");
+            if (typeof metadata.authorization_endpoint !== "string") {
+                throw new Error("the issuer's metadata names no authorization_endpoint");
             }
-            loaded = { metadata, jwks: await remoteKeySet(jwksUriOf(metadata, signIn.issuer, jwksUri), rules, log) };
+            loaded = { metadata, tokenUrl: tokenUrlOf(metadata, signIn), jwks: await remoteKeySet(jwksUriOf(metadata, signIn.issuer, jwksUri), rules, log) };
             log.info("download links: the sign-in issuer's metadata loaded", { issuer: signIn.issuer });
         } catch (e) {
             if (closed) {
@@ -515,6 +536,8 @@ export function createDownloadHandler(context, runtime = {}) {
     const keys = keySource(settings, options, env);
     const active = settings.enabled;
     const issuerRules = issuerRulesOf(options);
+    // the operator's tokenUrl is an origin the operator wrote, like auth.issuer's
+    const signInRules = settings.signIn?.tokenUrl ? Object.freeze({ ...issuerRules, origins: [...issuerRules.origins, new URL(settings.signIn.tokenUrl).origin] }) : issuerRules;
     const issuer = active && settings.bind === "signIn" && settings.signIn ? signInIssuer(settings.signIn, issuerRules, options.auth?.jwksUri, context.log) : null;
     const subjectClaim = options.auth?.subjectClaim ?? "sub";
     /** @type {any} */
@@ -816,10 +839,10 @@ export function createDownloadHandler(context, runtime = {}) {
         }
         let response;
         try {
-            response = await issuerFetch(loaded.metadata.token_endpoint, issuerRules, { method: "POST", headers, body: form.toString(), maxBytes: ISSUER_LIMITS.tokenBytes, timeMs: ISSUER_LIMITS.tokenMs });
+            response = await issuerFetch(loaded.tokenUrl, signInRules, { method: "POST", headers, body: form.toString(), maxBytes: ISSUER_LIMITS.tokenBytes, timeMs: ISSUER_LIMITS.tokenMs });
         } catch (e) {
             // the operator's part of a refused request (an address, a redirect) as a warning; the person gets SIGN_IN_FAILED
-            context.log.warn(`download links: the issuer's token endpoint could not be reached: ${/** @type {any} */ (e)?.code ?? "error"}, ${String(/** @type {any} */ (e)?.message ?? e).slice(0, 200)}${issuerHint(e, issuerRules)}`);
+            context.log.warn(`download links: the issuer's token endpoint could not be reached: ${/** @type {any} */ (e)?.code ?? "error"}, ${String(/** @type {any} */ (e)?.message ?? e).slice(0, 200)}${issuerHint(e, signInRules)}`);
             throw e;
         }
         if (response.status < 200 || response.status > 299) {

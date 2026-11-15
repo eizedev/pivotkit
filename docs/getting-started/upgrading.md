@@ -347,6 +347,8 @@ OAuth installation notices:
 - The proxy of the environment (`NODE_USE_ENV_PROXY` with `HTTPS_PROXY`) is not used for the issuer.
 - A key set over 256 KiB is refused; no token verifies against it.
 - `auth.allowInsecureIssuer` accepts an `http://` issuer on a loopback address only.
+- A download sign-in whose provider keeps its token endpoint on another host than the issuer needs
+  `output.downloads.signIn.tokenUrl`.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 

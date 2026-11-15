@@ -123,7 +123,11 @@ test("an issuer in the LAN: refused without auth.intranet (a warning names the s
     await withLookup(["127.0.0.1"], async () => {
         const refused = await oauthServer(issuer, {}, 600);
         try {
-            assert.equal((await call(`${refused.url}/readyz`)).status, 503);
+            const ready = await call(`${refused.url}/readyz`);
+            assert.equal(ready.status, 503);
+            // the reason in fixed words, without the issuer's address
+            assert.equal(ready.data.reason, "the OAuth issuer's metadata is not loaded; see the log");
+            assert.doesNotMatch(JSON.stringify(ready.data), /example\.test|127\.0\.0\.1/);
             assert.equal(await signedIn(refused, issuer), 503);
             assert.match(warnings(refused), /REFUSED_ADDRESS, the address is a loopback or private one.*set auth\.intranet: true/);
         } finally {
@@ -284,6 +288,12 @@ test("check-config: the issuer's rules, and a PROBLEM for an issuer on a private
     assert.match(metadata.text, /PROBLEM: auth\.issuer: 169\.254\.169\.254, which is never connected to/);
     const jwks = await checkConfig(options({ intranet: true, jwksUri: "https://[fd00:ec2::254]/keys" }));
     assert.match(jwks.text, /PROBLEM: auth\.jwksUri: fd00:ec2::254, which is never connected to/);
+    // the download sign-in's token endpoint: the issuer's host, or the operator's tokenUrl, checked like the issuer
+    const signInOptions = (signIn) => ({ ...options({ intranet: true }), output: { dir: "out", downloads: { signIn: { clientId: "pivotkit-downloads", ...signIn } } }, http: { publicUrl: "https://pk.example.com/" } });
+    assert.match((await checkConfig(signInOptions({}), { http: true })).text, /; sign-in token endpoint on the issuer's host only/);
+    const google = await checkConfig(signInOptions({ tokenUrl: "https://169.254.169.254/token" }), { http: true });
+    assert.match(google.text, /; sign-in token endpoint on 169\.254\.169\.254 \(output\.downloads\.signIn\.tokenUrl\)/);
+    assert.match(google.text, /PROBLEM: output\.downloads\.signIn\.tokenUrl: 169\.254\.169\.254, which is never connected to/);
     // without OAuth the setting does nothing, and check-config says so
     const token = await checkConfig({ sources: SOURCES, baseDir: workspace(), auth: { mode: "token", intranet: true } }, { env: { PIVOTKIT_MCP_TOKEN: "x".repeat(40) } });
     assert.match(token.text, /warning: auth\.intranet has no effect without an OAuth issuer/);
@@ -307,5 +317,30 @@ test("a key set that cannot be read: tokens right after the failure do not ask t
         assert.equal(warnings(server).match(/the issuer's keys could not be read/g)?.length, 1);
     } finally {
         await server.close();
+    }
+});
+
+test("a key-set answer jose would refuse (500, or 200 without a keys list) counts as a failed read: no request per token", async () => {
+    const down = (req, res) => {
+        res.writeHead(500);
+        res.end("down");
+    };
+    const html = (req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end("<html>");
+    };
+    for (const [what, route] of [["500", down], ["{}", {}], ["not JSON", html]]) {
+        routes = { "/.well-known/openid-configuration": metadataOf(plainIssuer), "/jwks": route };
+        const server = await oauthServer(plainIssuer, { allowInsecureIssuer: true });
+        try {
+            asked = [];
+            for (let i = 0; i < 30; i++) {
+                assert.equal(await signedIn(server, plainIssuer), 401, what);
+            }
+            assert.equal(asked.filter((p) => p === "/jwks").length, 1, what);
+            assert.equal(warnings(server).match(/the issuer's keys could not be read/g)?.length, 1, what);
+        } finally {
+            await server.close();
+        }
     }
 });

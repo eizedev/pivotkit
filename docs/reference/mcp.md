@@ -544,7 +544,8 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 - At start the server reads the issuer's metadata (RFC 8414, then OpenID Connect discovery; its
   `issuer` must match exactly, its `jwks_uri` must be on the issuer's origin unless `jwksUri` is set),
   with a time limit and no redirects. Until it has it, `/mcp` answers 503 and the server keeps trying.
-- Every request to the issuer (metadata, keys, a download link's sign-in) follows the rules of the
+- Every request to the issuer (metadata, keys, a download link's sign-in, whose token endpoint must
+  be on the issuer's origin unless `output.downloads.signIn.tokenUrl` names it) follows the rules of the
   server's other outbound requests: `https://` only, no redirects, no proxy from the environment, the
   address checked where the connection goes, at most 256 KiB of metadata and 256 KiB of keys (a
   larger key set is refused, and no token verifies against it). Link-local and cloud metadata

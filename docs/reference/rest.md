@@ -512,7 +512,8 @@ the REST service only, `http.page` and `http.allowOrigins` by the MCP endpoint o
 
 `/healthz` answers `{ "ok": true }` while the process runs; `/readyz` answers 200 when it can take
 work (`{ "ok": true, "checks": { "auth": true, "workers": true, "output": true } }`: the OAuth issuer
-loaded, workers up, the output directory writable) and 503 otherwise; both answer `HEAD` too. An
+loaded, workers up, the output directory writable) and 503 otherwise, with `reason` in fixed words
+(`"the OAuth issuer's metadata is not loaded; see the log"`); both answer `HEAD` too. An
 output directory the
 server's user cannot write is also a warning at start, a problem in `check-config`, and 409
 `NO_OUTPUT` for a report. On SIGTERM the server takes no

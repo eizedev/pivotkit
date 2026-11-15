@@ -1103,9 +1103,41 @@ test("signIn: the issuer's metadata cannot send the key request elsewhere; with 
     }
 });
 
-test("signIn: a token endpoint the metadata puts on a metadata address is refused before a request; the person gets SIGN_IN_FAILED, the operator a warning", async () => {
-    metadataMore = { token_endpoint: "http://169.254.169.254/token" };
-    const { server, render, open, callback } = await signInServer();
+test("signIn: the metadata's token endpoint must be on the issuer's origin; output.downloads.signIn.tokenUrl names another one", async () => {
+    // the same token endpoint under another origin (localhost instead of 127.0.0.1)
+    const elsewhere = `${issuer.replace("127.0.0.1", "localhost")}/token`;
+    metadataMore = { token_endpoint: elsewhere };
+    try {
+        const dir = workspace({ "sales.csv": SALES_CSV });
+        const refused = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true }, http: { publicUrl: PUBLIC }, baseDir: dir }, { env: { DL_KEY }, enable: ["rest", "mcp"] });
+        try {
+            for (let i = 0; i < 100 && !/the sign-in issuer's metadata could not be loaded/.test(logText(refused)); i++) {
+                await new Promise((r) => setTimeout(r, 30));
+            }
+            assert.match(logText(refused), /token_endpoint is on another origin \(http:\/\/localhost:\d+\); set output\.downloads\.signIn\.tokenUrl to accept it/);
+        } finally {
+            await refused.close();
+        }
+        // the operator names it: the sign-in works and the code goes there
+        issuerAsked.length = 0;
+        const { server, render, open, callback } = await signInServer({ signIn: { tokenUrl: elsewhere } });
+        try {
+            const output = await render("alice");
+            const redirect = await open(output.url);
+            const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+            const got = await callback(code, state, cookieOf(redirect));
+            assert.equal(got.status, 200, logText(server));
+            assert.ok(issuerAsked.includes("/token"));
+        } finally {
+            await server.close();
+        }
+    } finally {
+        metadataMore = {};
+    }
+});
+
+test("signIn: a token endpoint on a metadata address is refused before a request, even when the operator names it; the person gets SIGN_IN_FAILED, the operator a warning", async () => {
+    const { server, render, open, callback } = await signInServer({ signIn: { tokenUrl: "https://169.254.169.254/token" } });
     try {
         const output = await render("alice");
         const redirect = await open(output.url);
@@ -1113,9 +1145,8 @@ test("signIn: a token endpoint the metadata puts on a metadata address is refuse
         const got = await callback(code, state, cookieOf(redirect));
         assert.equal(got.status, 400);
         assert.match(await got.text(), /The sign-in did not complete/);
-        assert.match(logText(server), /download links: the issuer's token endpoint could not be reached: IP_LITERAL/);
+        assert.match(logText(server), /download links: the issuer's token endpoint could not be reached: REFUSED_ADDRESS, the address is never connected to/);
     } finally {
-        metadataMore = {};
         await server.close();
     }
 });

@@ -255,9 +255,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `check-config` prints the rules and a PROBLEM for an issuer on such an address
   ([#420](https://github.com/eizedev/pivotkit/issues/420)). The exported `discover(issuer)` follows
   the same rules and refuses a loopback or private issuer unless its second argument allows it
-  (`{ intranet: true, insecure: false, origins: [] }`). After a failed read of the key set, tokens
-  are refused for 5 seconds without asking the issuer again, and the warning comes at most once a
-  minute.
+  (`{ intranet: true, insecure: false, origins: [] }`). After a failed read of the key set (also a
+  non-200 answer or one without a `keys` list), tokens are refused for 5 seconds without asking the
+  issuer again, and the warning comes at most once a minute. The download sign-in's token endpoint
+  from the metadata must be on the issuer's origin; `output.downloads.signIn.tokenUrl` names another.
+  `/readyz` answers 503 with `reason` in fixed words.
 - A code source's operation is computed in a worker as a table job, as an HTTP source's: `load` and
   the reading of its rows stay in the host's thread, the encoding and the report are bounded by
   `compute.timeMs` and `compute.memoryMb` ([#414](https://github.com/eizedev/pivotkit/issues/414)).
