@@ -49,7 +49,9 @@ Minimal follows the theme of the site you read this in (the chart keeps its ligh
    `[Convert]::ToBase64String([IO.File]::ReadAllBytes("logo.svg"))` (PowerShell), and write
    `data:image/svg+xml;base64,` (a PNG: `data:image/png;base64,`) before it. The slot is 40 x 40 px:
    change `width`, `height` and the size in `.co-logo` for another shape. Its `alt` stays empty while
-   the company's name stands next to it as text.
+   the company's name stands next to it as text. Keep the logo an `<img>`, not an inline `<svg>`
+   copied into the template: an image is drawn on its own, while the `<style>` of an inline SVG
+   applies to the whole report, its table and chart included.
 2. **Company name and texts.** "Your company", "Internal" and the footer's labels ("Source", "Data",
    "Filters", "Generated") are text of the template: write your own, in your language. Left as they
    are, every report says "Your company" and "Internal". The values next to the labels are

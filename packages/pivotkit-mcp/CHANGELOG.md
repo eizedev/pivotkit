@@ -8,6 +8,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Upgrading from 0.1.1
 
+- Behaviour change: pivotkit-server's `output.maxAgeDays` is 30 by default, so reports and schedule
+  drafts older than 30 days are deleted from `output.dir` at start and every hour, including drafts
+  still waiting for approval; set
+  `output.maxAgeDays: 0` for no age limit ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
+
 - Over HTTP with `output.dir` and without `output.baseUrl`, reports come with pivotkit-server's
   [download links](https://pivotkit.eize.dev/reference/delivery/) under `/downloads/`: route that path
   to the server, or set `output.downloads.enabled: false`. With `output.baseUrl`, reports over a
@@ -58,6 +63,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - Code sources of a library host have a time limit, share parallel loads, keep data per caller and
   give last good data with `stale` after a transient failure; a failing load is `SOURCE_UNAVAILABLE`
   ([code sources](https://pivotkit.eize.dev/reference/sources/#code)).
+
+### Changed
+
+- The log names a tool call's source by a configured id, `inline:` or `file:` (no file name), else
+  `unknown`, never the model's text; a request the protocol layer refuses is logged at warn with its
+  error's class and the SDK's name for the refusal, its message (which can quote the body) only with
+  `--log debug` ([#422](https://github.com/eizedev/pivotkit/issues/422)).
 
 ## [0.1.1] - 2026-11-14
 

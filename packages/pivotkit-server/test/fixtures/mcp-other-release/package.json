@@ -1,0 +1,10 @@
+{
+  "name": "pivotkit-mcp",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "pivotkit-server": "^0.0.1"
+  }
+}

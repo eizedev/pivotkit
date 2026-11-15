@@ -251,17 +251,26 @@ export function groupsOf(payload, auth) {
 /** What a caller is told when its groups are unknown and nothing else names its profile. */
 export const GROUPS_REFUSED = "your sign-in does not carry your groups; ask the operator";
 
+/** What a person is told who is in none of the groups of auth.groupProfiles, when nothing else names a profile either. */
+export const NOT_IN_GROUP = "your sign-in gives you no access to this server's data; ask the operator";
+
 /**
- * Why a verified caller is refused (403) for its groups, or null: auth.groupProfiles is set, its
- * token's groups are unknown, and no token profile, client profile or auth.defaultProfile decides
- * its profile instead. A cut or missing group list never falls through to a wider policy.
+ * Why a verified OAuth caller is refused (403) for its groups, or null. With auth.groupProfiles set:
+ * a token whose groups are unknown, when no token profile, client profile or auth.defaultProfile
+ * decides its profile instead (GROUPS_REFUSED); a person in none of the groups, when nothing else
+ * names a profile either (no client, scope or default profile; NOT_IN_GROUP). A cut or missing group
+ * list, or a group the operator did not list, never falls through to the sources' own policy, which
+ * may show more than any profile.
  * @param {import("./config.js").AuthOptions | undefined} auth
- * @param {{ token?: string, clientId?: string, extra?: Record<string, any> } | undefined} authInfo  a verified token's (AuthInfo, or the SDK's copy of it)
+ * @param {{ token?: string, clientId?: string, scopes?: string[], extra?: Record<string, any> } | undefined} authInfo  a verified token's (AuthInfo, or the SDK's copy of it)
  * @returns {string | null}
  */
 export function groupRefusal(auth, authInfo) {
-    if (!authInfo || authInfo.token === "" || !authInfo.extra?.groupsUnknown || !auth?.groupProfiles?.length) {
+    if (!authInfo || authInfo.token === "" || !auth?.groupProfiles?.length) {
         return null;
+    }
+    if (!authInfo.extra?.groupsUnknown) {
+        return profileOf(auth, /** @type {AuthInfo} */ (authInfo)) === null ? NOT_IN_GROUP : null;
     }
     if (authInfo.extra.profile || (auth.clientProfiles && Object.hasOwn(auth.clientProfiles, String(authInfo.clientId))) || auth.defaultProfile) {
         return null;
@@ -441,6 +450,13 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
     return {
         mode,
         issuer,
+        /**
+         * How the log names a person signed in elsewhere (a download link's sign-in), as a call's log
+         * line names them: auditText with the operator's audit setting and key; null with audit off.
+         * @param {string | null | undefined} iss
+         * @param {string | null | undefined} subject
+         */
+        auditName: (iss, subject) => auditText(audit, iss, subject),
         /** Whether the issuer's metadata and keys are loaded. */
         ready: () => Boolean(state.jwks),
         /** The issuer's metadata document, once loaded. */
@@ -481,7 +497,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             // the profile they gave
             if (log.level === "debug") {
                 const refused = groupRefusal(auth, info);
-                log.debug("oauth: signed in", { groups: "groups" in groups ? groups.groups.length : `unknown (${UNKNOWN_GROUPS[groups.unknown]})`, profile: refused ? "refused (403)" : (profileOf(auth, info) ?? "none (the sources' policy)") });
+                log.debug("oauth: signed in", { groups: "groups" in groups ? groups.groups.length : `unknown (${UNKNOWN_GROUPS[groups.unknown]})`, profile: refused ? `refused (403: ${refused === GROUPS_REFUSED ? "groups unknown" : "in none of the groups"})` : (profileOf(auth, info) ?? "none (the sources' policy)") });
             }
             return info;
         },
@@ -508,7 +524,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
  *    name none;
  * 5. auth.defaultProfile, for every signed-in caller (a static token without a profile too).
  *
- * Null: the sources' own policy.
+ * Null: the sources' own policy (with auth.groupProfiles, groupRefusal refuses such a person).
  * @param {import("./config.js").AuthOptions | undefined} auth
  * @param {AuthInfo | undefined} authInfo
  * @returns {string | null}
