@@ -379,4 +379,14 @@ export function refusalReason(code, request = null) {
  * @param {{ write(text: string, done?: () => void): unknown }} stream
  * @returns {Promise<void>}
  */
-export const flushed = (stream) => Promise.race([new Promise((resolve) => stream.write("", () => resolve(undefined))), new Promise((resolve) => setTimeout(resolve, 1000).unref())]).then(() => undefined);
+export function flushed(stream) {
+    return new Promise((resolve) => {
+        // a timer that holds the process while it waits (an unref'd one would let it end before the
+        // line is out), cleared as soon as the stream says the write is done
+        const fallback = setTimeout(resolve, 1000);
+        stream.write("", () => {
+            clearTimeout(fallback);
+            resolve(undefined);
+        });
+    });
+}
