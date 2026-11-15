@@ -802,7 +802,7 @@ token exchange or another backend auth is yours to configure.
 | From the document | In the block |
 | --- | --- |
 | The server address (`servers`, the operation's or path's first) | The backend's `url`, as a `TODO` that names the address without a user name, password, query or fragment; an address with variables as written with their defaults (`https://{region}.example.com (region=eu)`); a relative address with what it is relative to the document's URL |
-| A server on a private address (a loopback or private IP address, `localhost`, a name of one label or ending in `.local`, `.lan`, `.internal`, `.intranet`, `.corp`, `.home`, `.home.arpa`, `.localdomain`) | A note that the backend needs `intranet: true`; the block does not set it (no name is looked up) |
+| A server on a private address (a loopback or private IP address, `localhost`, a name of one label or ending in `.local`, `.lan`, `.internal`, `.intranet`, `.corp`, `.home`, `.home.arpa`, `.localdomain`) | A note that the backend needs `intranet: true`; the block does not set it (no name is looked up). A link-local, unspecified or metadata IP address (169.254.0.0/16, fe80::/10, 0.0.0.0, a cloud's metadata address) gets a note that the server refuses it even with `intranet` |
 | The operation's path | `http.path`, with each path parameter as `{name}`; a path over 2,000 characters or with an empty segment refuses the operation |
 | Path parameters | Required `params` |
 | Query parameters | `params` and `http.query`; `required` is kept |

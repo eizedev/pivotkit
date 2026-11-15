@@ -633,6 +633,11 @@ test("source-from-openapi: a server on a private address suggests intranet (a no
     for (const url of ["https://10.1.2.3/api", "https://192.168.1.20:8443/v1", "https://[fd12::1]/v1", "https://localhost:8080/v1", "https://platform.internal/v1", "https://vms.lan/api", "https://idp.home.arpa/x", "https://printer.local/", "https://platform/v1"]) {
         assert.match(noteOf(url) ?? "", /The document's server is a private address: a backend there needs intranet: true \(httpSources\.backends\.t\.intranet\); without it the server refuses it/, url);
     }
+    // an address the server never connects to: no intranet advice, the refusal instead
+    for (const url of ["https://169.254.169.254/latest", "https://[fe80::1]/v1", "https://0.0.0.0/v1", "https://[fd00:ec2::254]/v1", "https://100.100.100.200/v1"]) {
+        assert.match(noteOf(url) ?? "", /the server refuses a link-local, unspecified or metadata address even with intranet/, url);
+        assert.doesNotMatch(noteOf(url) ?? "", /needs intranet: true/, url);
+    }
     for (const url of ["https://api.example.com/v1", "https://8.8.8.8/x", "/relative/v1", "https://{region}.example.com/v1"]) {
         assert.equal(noteOf(url), undefined, url);
     }
@@ -658,6 +663,9 @@ test("source-from-openapi: a timestamp field of the answer's body becomes the as
     assert.equal(two.config.sources.op.http.asOf, undefined);
     assert.ok(two.notes.some((n) => /generatedAt, updatedAt/.test(n)));
     assert.equal(withBody({ count: { type: "integer" } }).config.sources.op.http.asOf, undefined);
+    // a list with a time-like name is rows, not the answer's time (also as a list of date-times)
+    assert.equal(withBody({ updated: { type: "array", items: { type: "string", format: "date-time" } } }).config.sources.op.http.asOf, undefined);
+    assert.equal(withBody({ updated: { type: "array", items: { type: "string" } }, generatedAt: { type: "string" } }).config.sources.op.http.asOf, "/generatedAt");
     // a row's own date is no time of the answer
     const doc = minimal({ type: "object", properties: { createdAt: { type: "string", format: "date-time" } } });
     assert.equal(generate(readDocument(JSON.stringify(doc)), "op").config.sources.op.http.asOf, undefined);

@@ -531,8 +531,11 @@ export function sourceFromOpenApi(doc, how) {
     const { params, query, httpPath } = parametersOf(path, pathItem, operation, refs, note, security.queryNames);
     const answer = answerOf(operation, refs, note, id);
     const server = serverOf(doc, pathItem, operation, note, how.documentUrl);
-    if (server.host && privateHost(server.host)) {
+    const kind = server.host ? hostKind(server.host) : null;
+    if (kind === "private") {
         note(`The document's server is a private address: a backend there needs intranet: true (httpSources.backends.${backend}.intranet); without it the server refuses it.`);
+    } else if (kind === "always") {
+        note("The document's server is a link-local, unspecified or metadata address: the server refuses a link-local, unspecified or metadata address even with intranet.");
     }
 
     /** @type {Array<{ path: string, text: string }>} */
@@ -843,7 +846,7 @@ function answerOf(operation, refs, note, id) {
     } else if (typeOf(body) === "object") {
         const properties = Object.fromEntries(refs.entriesOf(ownObject(body, "properties"), OPENAPI_LIMITS.merged));
         const lists = Object.keys(properties).filter((name) => plainName(name) && typeOf(refs.schema(properties[name], `the answer's property ${shown(name)}`)) === "array");
-        asOf = asOfOf(properties, lists, refs, note, id);
+        asOf = asOfOf(properties, refs, note, id);
         if (lists.length === 1) {
             rows = pointerTo(lists[0]);
             row = refs.schema(own(refs.schema(properties[lists[0]], "the rows' schema"), "items"), "the rows' schema");
@@ -884,20 +887,20 @@ const TIME_NAME = /^(generated|updated|modified|created|last_?modified|last_?upd
 
 /**
  * The asOf pointer of an answer's body: its one property in date-time format, else its one
- * property whose name reads as a time (a text, or a number: epoch seconds); the lists are rows, not
- * the answer's time. Two of a kind: none, and a note names them.
+ * property whose name reads as a time (a text, or a number: epoch seconds); a list is rows, not the
+ * answer's time. Two of a kind: none, and a note names them.
  * @param {Record<string, any>} properties  the body's
- * @param {string[]} lists  the body's list properties
  * @param {Resolver} refs
  * @param {(note: string) => void} note
  * @param {string} id
  * @returns {string | undefined}
  */
-function asOfOf(properties, lists, refs, note, id) {
+function asOfOf(properties, refs, note, id) {
     const dated = [];
     const named = [];
     for (const [name, value] of Object.entries(properties)) {
-        if (!plainName(name) || lists.includes(name)) {
+        // a list (the rows) has the type "array", which the checks below never take
+        if (!plainName(name)) {
             continue;
         }
         const schema = refs.schema(value, `the answer's property ${shown(name)}`);
@@ -923,16 +926,19 @@ function asOfOf(properties, lists, refs, note, id) {
 const PRIVATE_SUFFIX = /(^|\.)(localhost|local|lan|internal|intranet|corp|home|home\.arpa|localdomain)$/i;
 
 /**
- * Whether a server's host is a private address: a loopback or private IP address, a name that is
- * private by convention, or a name of one label. No name is looked up.
+ * What a server's host is to the server's address rule: "private" (a loopback or private IP
+ * address, a name that is private by convention, or a name of one label), "always" (an IP address
+ * never connected to: link-local, unspecified, metadata), or null. No name is looked up.
  * @param {string} host  a URL's hostname
+ * @returns {"private" | "always" | null}
  */
-function privateHost(host) {
+function hostKind(host) {
     const bare = host.replace(/^\[|\]$/g, "").replace(/\.$/, "");
     if (ipBytes(bare)) {
-        return addressRefusal(bare, { allowPrivate: false }) === "private";
+        const rule = addressRefusal(bare, { allowPrivate: false });
+        return rule === "always" || rule === "private" ? rule : null;
     }
-    return PRIVATE_SUFFIX.test(bare) || !bare.includes(".");
+    return PRIVATE_SUFFIX.test(bare) || !bare.includes(".") ? "private" : null;
 }
 
 /**
