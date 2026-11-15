@@ -506,15 +506,16 @@ pivotkit-server's.
 `check-config`'s first line says whether the server starts ("the server does not start with this
 configuration", "the server starts, but not everything will work", or "the configuration is
 valid"); the second counts problems and warnings. Then come every `PROBLEM` line, every `WARNING`
-line named by the section it belongs to, and the sections. A `PROBLEM` ends with what it does: `->
+line named by the section it belongs to (the issuer's under `Auth`, where the sign-in is), and the
+sections. A `PROBLEM` ends with what it does: `->
 the server does not start` (what `serve` refuses: an output directory it cannot use, a static token
 that is missing or too short, an address off loopback without auth, an issuer that is not https, an
 audit key, a print template the parser refuses), or what does not work while the server runs (a
 source file that is not there, a backend secret, the download key, an upload header's secret, the
 download links' client secret, an issuer or upload target on an address the server refuses, an
 output directory the server cannot write). Any `PROBLEM` exits with 1. A `WARNING` does not change
-the exit code; an issuer whose metadata cannot be loaded from where you run it is one, since the
-server starts and keeps trying.
+the exit code; an issuer whose metadata cannot be loaded from where you run it is one, with the
+connection's error (for example `ENOTFOUND`), since the server starts and keeps trying.
 
 ```text
 pivotkit-server: the server starts, but not everything will work.

@@ -106,10 +106,16 @@ test("check-config: an issuer whose metadata cannot be loaded is a WARNING; the 
     const dir = workspace();
     const options = { sources: { sales }, auth: { mode: "oauth", issuer: "https://auth.example.com/application/o/pivotkit/", resource: "https://reports.example.com/mcp" }, output: { dir: "out", downloads: { signIn: { clientId: "pivotkit-downloads" } } }, http: { publicUrl: "https://reports.example.com" }, baseDir: dir };
     const asked = [];
-    const down = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", discover: async (issuer) => (asked.push(issuer), Promise.reject(new Error("fetch failed (ENOTFOUND); fetch failed (ENOTFOUND)"))) });
+    const down = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", discover: async (issuer) => (asked.push(issuer), Promise.reject(new Error("https://auth.example.com/.well-known/oauth-authorization-server/application/o/pivotkit: NETWORK, the connection failed (ENOTFOUND); https://auth.example.com/application/o/pivotkit/.well-known/openid-configuration: NETWORK, the connection failed (ENOTFOUND)"))) });
     assert.deepEqual(asked, ["https://auth.example.com/application/o/pivotkit/"]);
-    assert.match(factsOf(down.text), /WARNING \(Issuer requests\): auth\.issuer: the metadata of https:\/\/auth\.example\.com\/application\/o\/pivotkit\/ cannot be loaded from here \(fetch failed \(ENOTFOUND\)\); the server starts and keeps trying; callers get 503 until it loads; download links \(signed in\) answer 503 too/);
+    assert.match(factsOf(down.text), /WARNING \(Auth\): auth\.issuer: the metadata of https:\/\/auth\.example\.com\/application\/o\/pivotkit\/ cannot be loaded from here \(the connection failed: ENOTFOUND\); the server starts and keeps trying; callers get 503 until it loads; download links \(signed in\) answer 503 too/);
     assert.equal(down.problems, 0);
+    // one cause, one warning: a name that cannot be looked up is not said a second time; the tried
+    // addresses are not printed
+    assert.deepEqual(factsOf(down.text).split("\n").filter((l) => l.startsWith("WARNING (Auth): auth.issuer")).length, 1, down.text);
+    assert.doesNotMatch(down.text, /well-known/);
+    const missing = await checkConfig(options, { http: true, env: {}, discover: async () => Promise.reject(new Error("404 from https://auth.example.com/.well-known/openid-configuration")) });
+    assert.match(factsOf(missing.text), /cannot be loaded from here \(the issuer answered 404\); the server starts/);
     const up = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", discover: async () => ({}) });
     assert.doesNotMatch(factsOf(up.text), /cannot be loaded/);
     // without discover (a library host's call) no issuer is asked
@@ -134,7 +140,7 @@ test("check-config: an issuer that accepts and never answers is a WARNING after 
             child.on("close", (status) => resolve({ status, stdout }));
         });
         const took = Date.now() - started;
-        assert.match(factsOf(run.stdout), /WARNING \(Issuer requests\): auth\.issuer: the metadata of http:\/\/127\.0\.0\.1:\d+\/issuer cannot be loaded from here \(no answer within 3 s\); the server starts and keeps trying; callers get 503 until it loads/);
+        assert.match(factsOf(run.stdout), /WARNING \(Auth\): auth\.issuer: the metadata of http:\/\/127\.0\.0\.1:\d+\/issuer cannot be loaded from here \(no answer within 3 s\); the server starts and keeps trying; callers get 503 until it loads/);
         assert.equal(run.status, 0, run.stdout);
         assert.ok(took < 8000, `check-config took ${took} ms`);
     } finally {

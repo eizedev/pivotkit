@@ -60,6 +60,30 @@ async function hostItem(text, key, rules) {
 }
 
 /**
+ * Why the metadata could not be loaded, in a few words and whole: the connection's error code, the
+ * status the issuer answered, or that the answer was not its metadata. The addresses discover tried
+ * are left out (the start's log names them).
+ * @param {unknown} error  discover's Error, its cause the first try's
+ */
+function reasonOf(error) {
+    const text = String(/** @type {any} */ (error)?.message ?? error);
+    const code = /\b(E[A-Z]{3,}|ERR_[A-Z_]+|CERT_[A-Z_]+|UNABLE_TO_[A-Z_]+|SELF_SIGNED_[A-Z_]+)\b/.exec(`${text} ${/** @type {any} */ (error)?.cause?.cause?.code ?? ""}`)?.[1];
+    if (code) {
+        return `the connection failed: ${code}`;
+    }
+    const status = /\b([1-5]\d\d) from /.exec(text)?.[1];
+    if (status) {
+        return `the issuer answered ${status}`;
+    }
+    for (const refusal of ["REFUSED_ADDRESS", "IP_LITERAL", "NOT_HTTPS", "TOO_LARGE", "TIMEOUT"]) {
+        if (text.includes(refusal)) {
+            return `refused: ${refusal}`;
+        }
+    }
+    return /names the issuer/.test(text) ? "its metadata names another issuer" : "the answer is not the issuer's metadata";
+}
+
+/**
  * A WARNING per issuer whose metadata cannot be loaded now (the sign-in for MCP and REST, and the
  * download links' own): the server starts anyway and keeps trying.
  */
@@ -85,8 +109,7 @@ async function reachItems(options, runtime) {
                 .then(() => runtime.discover(issuer, issuerRulesOf(options), { signal }))
                 .then(
                     () => null,
-                    // discover tries two addresses: a reason said twice is said once
-                    (e) => (signal.aborted ? late : [...new Set(String(e?.message ?? e).split("; "))].join("; ").slice(0, 200))
+                    (e) => (signal.aborted ? late : reasonOf(e))
                 ),
             new Promise((resolve) => setTimeout(() => resolve(late), ISSUER_MS + 100).unref())
         ]);
@@ -106,14 +129,15 @@ export async function section(options, _registry, runtime) {
     const upgrade = [];
     if (auth.mode !== "oauth") {
         if (auth.intranet !== undefined) {
-            items.push(heading('Issuer requests: none (auth.mode is not "oauth")'), warning("auth.intranet has no effect without an OAuth issuer; leave it out"));
+            items.push(heading('Issuer requests: none (auth.mode is not "oauth")', "Auth"), warning("auth.intranet has no effect without an OAuth issuer; leave it out"));
         }
         return { items, upgrade };
     }
     const rules = issuerRulesOf(options);
     const signIn = downloadSettingsOf(options).signIn;
     items.push(
-        heading("Issuer requests:"),
+        // its warnings are about the sign-in: they carry Auth's name, where the operator looks
+        heading("Issuer requests:", "Auth"),
         plain(`https only, no redirects, metadata up to ${kib(ISSUER_LIMITS.metadataBytes)}, keys up to ${kib(ISSUER_LIMITS.jwksBytes)}`),
         plain(rules.intranet ? "loopback and private addresses: allowed (auth.intranet)" : "loopback and private addresses: refused (set auth.intranet: true for an issuer in your LAN or cluster)")
     );
@@ -123,7 +147,9 @@ export async function section(options, _registry, runtime) {
     }
     for (const [key, text] of /** @type {Array<[string, string | undefined]>} */ ([["auth.issuer", auth.issuer], ["auth.jwksUri", auth.jwksUri], ["output.downloads.signIn.tokenUrl", signIn?.tokenUrl ?? undefined]])) {
         const said = text ? await hostItem(text, key, rules) : null;
-        if (said) {
+        // one cause, one warning: an issuer that cannot be looked up is said by the metadata check
+        // below, with the connection's error, where the commands ask it
+        if (said && !(said.kind === "warning" && key === "auth.issuer" && typeof runtime.discover === "function")) {
             items.push(said);
         }
     }

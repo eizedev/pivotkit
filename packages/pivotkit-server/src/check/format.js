@@ -36,14 +36,19 @@ import { pathOf } from "../config.js";
 export const WIDTH = 78;
 
 /**
- * @typedef {{ kind: "heading", text: string }
+ * @typedef {{ kind: "heading", text: string, label?: string }
  *   | { kind: "plain", text: string, depth: number }
  *   | { kind: "warning", text: string }
  *   | { kind: "problem", text: string, stops: boolean, effect: string | null }} Item
  */
 
-/** A section's heading ("Sources (2):", "Auth: oauth"), at the left margin. */
-export const heading = (text) => /** @type {Item} */ ({ kind: "heading", text });
+/**
+ * A section's heading ("Sources (2):", "Auth: oauth"), at the left margin. `label`: the name its
+ * warnings carry when it is not the heading's own (where the operator looks for them).
+ * @param {string} text
+ * @param {string} [label]
+ */
+export const heading = (text, label) => /** @type {Item} */ ({ kind: "heading", text, ...(label ? { label } : {}) });
 
 /** A fact, under its heading (depth 1) or under another fact (depth 2, 3). */
 export const plain = (text, depth = 1) => /** @type {Item} */ ({ kind: "plain", text, depth });
@@ -122,7 +127,7 @@ export const secretText = (options, ref) => (ref.env ? `$${ref.env}` : `the file
 export const idsText = (ids) => (ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", "));
 
 /** A block's heading as a warning names it: "Sources (2):" -> Sources, "Auth: oauth" -> Auth. */
-const headingName = (item) => (item?.kind === "heading" ? (/^([^:(]+?)\s*[:(]/.exec(item.text)?.[1] ?? item.text) : "check-config");
+const headingName = (item) => (item?.kind === "heading" ? (item.label ?? /^([^:(]+?)\s*[:(]/.exec(item.text)?.[1] ?? item.text) : "check-config");
 
 /** "1 problem", "2 warnings". */
 const count = (n, what) => `${n} ${what}${n === 1 ? "" : "s"}`;

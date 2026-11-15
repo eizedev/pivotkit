@@ -299,7 +299,7 @@ test("check-config: the issuer's rules, and a PROBLEM for an issuer on a private
     assert.match(google, /PROBLEM: output\.downloads\.signIn\.tokenUrl: 169\.254\.169\.254, which is never connected to/);
     // without OAuth the setting does nothing, and check-config says so
     const token = await checkConfig({ sources: SOURCES, baseDir: workspace(), auth: { mode: "token", intranet: true } }, { env: { PIVOTKIT_MCP_TOKEN: "x".repeat(40) } });
-    assert.match(factsOf(token.text), /WARNING \(Issuer requests\): auth\.intranet has no effect without an OAuth issuer/);
+    assert.match(factsOf(token.text), /WARNING \(Auth\): auth\.intranet has no effect without an OAuth issuer/);
 });
 
 test("a key set that cannot be read: tokens right after the failure do not ask the issuer again, and the warning is written once", async () => {
