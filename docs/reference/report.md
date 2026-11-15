@@ -116,7 +116,8 @@ first element of `<head>` (`default-src 'none'; style-src 'unsafe-inline'; img-s
 - **The chart** above the table when the view shows the chart (`chart: "auto"`), kept whole on a
   page.
 - **The details**: the source, the data's rows, the filters in words and the time it was generated.
-- **On screen** light or dark after the reader's system: in dark, the page, the table and its totals
+- **On screen** light or dark after the reader's system (a template's root can pin light or ask for
+  dark, [dark mode](print-template.md#dark-mode)): in dark, the page, the table and its totals
   take the dark theme's tokens, a colour scale whose view names no colours runs through the dark
   heat colours (a view's own colours are mixed fainter, so the light text stays readable), and the
   chart keeps its light card, as it is drawn in the light colours. Every text meets WCAG AA in both.

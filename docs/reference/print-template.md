@@ -86,6 +86,43 @@ Keep the Content-Security-Policy first in `<head>` in your own template: it then
 after it. The classes of `{{style}}` (`pk-report`, `pk-table`, `pk-sub`, `pk-grand`, …) can be styled
 by a `<style>` of the template after `{{style}}`.
 
+## Dark mode { #dark-mode }
+
+The report follows the reader's system: light, or dark on a dark screen, and always light on paper
+and in a PDF. The root element (`<html>`) of your template decides otherwise:
+
+| `<html>` | On a light screen | On a dark screen | On paper |
+| --- | --- | --- | --- |
+| no `data-pk-theme` | light | dark | light |
+| `data-pk-theme="light"` | light | light | light |
+| `data-pk-theme="dark"` | dark | dark | light |
+
+On a dark screen the report's dark tokens win over a plain `:root` rule of your template, so a page
+colour you set there (`--pk-surface`, `--pk-text`) is your light design and the dark one stays
+readable. For dark colours of your own, scope them to a dark screen, with the same selector the
+report uses, and keep print light by writing your other dark rules for `screen` too:
+
+```html
+{{style}}
+<style>
+:root { --pk-surface: #fffaf0; --pk-chart-1: #7a1f5c; }
+@media screen and (prefers-color-scheme: dark) {
+    :root:not([data-pk-theme="light"]) { --pk-surface: #1b1712; }
+    .pk-report h1 { color: #f3e3c3; }
+}
+</style>
+```
+
+For a root with `data-pk-theme="dark"`, write the same colours for `:root[data-pk-theme="dark"]`
+inside `@media screen` as well. A rule on `body` or `.pk-report` applies in both schemes: set colours there only when they read on
+both. A colour scale whose view names no colours runs through the theme's heat colours
+(`--pk-scale-low`, `--pk-scale-high`) on a dark screen too, so set its dark ends with your other dark
+colours. The chart is drawn in the light colours and keeps its light card on a dark screen.
+
+To see both before you share a template: open the report in a browser and switch the system's
+appearance, or use the developer tools' rendering settings (`prefers-color-scheme`, and the `print`
+media type for paper); the browser's print preview shows the printed page.
+
 ## A logo
 
 The policy loads nothing from an address, so a logo goes into the template as a `data:` image:

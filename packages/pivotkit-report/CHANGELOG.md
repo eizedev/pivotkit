@@ -6,11 +6,19 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- The HTML report's root (`<html>` of a print template) takes `data-pk-theme="light"` (light on
+  every screen) and `data-pk-theme="dark"` (dark on every screen, light on paper). On a dark screen
+  the report's dark tokens win over a template's plain `:root` colours
+  ([#370](https://github.com/eizedev/pivotkit/issues/370)).
+
 ### Fixed
 
 - HTML report on a dark screen: a colour scale whose view names no colours runs through the dark
   theme's heat colours, as the report on a page does; the light ones made its low end a bright grey
-  under light text (3.3:1). A view's own colours are mixed fainter there (30 %, as on the page)
+  under light text (3.3:1). A view's own colours are mixed fainter there (30 %, as on the page).
+  Each cell carries only its place on the scale; the colour is mixed by one rule per half
   ([#370](https://github.com/eizedev/pivotkit/issues/370)).
 
 ## [0.2.1] - 2026-11-14
