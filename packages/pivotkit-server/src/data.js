@@ -338,6 +338,31 @@ export function codeTable(spec, loaded) {
 }
 
 /**
+ * What encode() reads of a table job's table, and its hidden fields: a packed table (packed.js)
+ * unpacked, rows as lists turned into columns, columnar data as it is; the columns the levels hide
+ * left out (`hide`, their field keys) and those left out before the table was kept (`dropped`). A
+ * packed table without any column comes as that many empty rows, so its row count stays.
+ * @param {SourceSpec} spec
+ * @param {any} table
+ * @returns {{ input: unknown, hide: string[], dropped: number }}
+ */
+function columnarOf(spec, table) {
+    // columns dropped before the table was kept count as hidden too
+    const dropped = Number(table?.dropped) || 0;
+    const plain = isPacked(table) ? unpackTable(table) : table;
+    if (Array.isArray(plain)) {
+        return { input: plain, hide: [], dropped };
+    }
+    if (!Array.isArray(plain?.columns)) {
+        throw new OperationError("INTERNAL", "a table has columns and rows (or columnar data)");
+    }
+    const columns = plain.columns.map(String);
+    const hide = hiddenOf(spec.levels, columns);
+    const columnar = Array.isArray(plain.data) ? { columns, types: plain.types, data: plain.data } : { columns, data: columns.map((_, i) => /** @type {unknown[][]} */ (plain.rows ?? []).map((row) => (Array.isArray(row) ? row[i] : undefined))) };
+    return { input: withoutHidden(columnar, hide), hide, dropped };
+}
+
+/**
  * A table loaded in the main thread (an HTTP or code source's rows, data sent in a request), in a
  * worker: hidden columns dropped, encoded, kept by its key (a key of null: never kept). A code
  * source's table comes packed (packed.js), its hidden fields left out already.
@@ -352,21 +377,9 @@ export function tableData(spec, table, key, asOf = null, notes = []) {
     if (key !== null && cache.has(key)) {
         return of(remember(key, cache.get(key)));
     }
-    const unpacked = isPacked(table) ? unpackTable(/** @type {any} */ (table)) : null;
-    const plain = /** @type {any} */ (unpacked && !Array.isArray(unpacked) ? unpacked : table);
-    const columns = Array.isArray(unpacked) ? [] : Array.isArray(plain?.columns) ? plain.columns.map(String) : null;
-    if (!columns) {
-        throw new OperationError("INTERNAL", "a table has columns and rows (or columnar data)");
-    }
-    const hide = hiddenOf(spec.levels, columns);
+    const { input, hide, dropped } = columnarOf(spec, table);
     try {
-        // a packed table without any column: its rows as empty rows, so their count stays
-        const input = Array.isArray(unpacked)
-            ? unpacked
-            : withoutHidden("data" in plain && Array.isArray(plain.data) ? { columns, types: plain.types, data: plain.data } : { columns, data: columns.map((_, i) => /** @type {unknown[][]} */ (plain.rows ?? []).map((row) => (Array.isArray(row) ? row[i] : undefined))) }, hide);
         const data = encode(/** @type {any} */ (input), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        // columns dropped before the table was kept count as hidden too
-        const dropped = Number(/** @type {any} */ (table).dropped) || 0;
         const out = { data, notes: cleanNotes(notes, hide), hidden: hide.length + dropped, stats: sourceStats(data), asOf: asOf ?? asOfText(new Date()) };
         return of(key !== null ? remember(key, out) : out);
     } catch (e) {

@@ -1,7 +1,8 @@
 /*
  * The process cache of loaded data (code and HTTP sources): their tables by a key (sources/keys.js
  * canonical JSON), least recently used out, bounded three ways so one source or one person cannot
- * push everyone else's data out or fill the memory: at most 64 entries, at most 256 MiB (each entry
+ * push everyone else's data out or fill the memory: at most 64 entries, at most 256 MiB by default
+ * (sourceCache.maxMb, set by createContext through sources/run.js setCacheBytes; each entry
  * measured by its kind: a code source's packed table by packed.js packedBytes), at most 8 entries and a quarter of the bytes per owner
  * (a person, or a shared source). A new entry pushes out its own owner's oldest entries first; an
  * entry larger than an owner's share is not kept.
@@ -43,7 +44,10 @@ export function encodedBytes(data) {
  * @param {Partial<typeof LOAD_CACHE>} [bounds]
  */
 export function createLoadCache(bounds = {}) {
-    const { entries, bytes, perIdentity } = { ...LOAD_CACHE, ...bounds };
+    const { entries, perIdentity } = { ...LOAD_CACHE, ...bounds };
+    // the bytes may be set again (sourceCache.maxMb): createContext sets them for the process
+    /** @type {number} */
+    let bytes = bounds.bytes ?? LOAD_CACHE.bytes;
     /** @type {Map<string, CacheEntry<T>>} least recently used first */
     const map = new Map();
     let total = 0;
@@ -106,6 +110,18 @@ export function createLoadCache(bounds = {}) {
 
         /** @param {string} key */
         delete: (key) => drop(key),
+
+        /** The bytes it may hold in all; one owner a quarter of them. */
+        limit: () => bytes,
+
+        /**
+         * Sets the bytes it may hold, pushing out the least recently used entries over the new bound.
+         * @param {number} next
+         */
+        resize(next) {
+            bytes = next;
+            trim(() => total > bytes);
+        },
 
         /** How many entries and bytes it holds (tests, check-config). */
         size: () => ({ entries: map.size, bytes: total })

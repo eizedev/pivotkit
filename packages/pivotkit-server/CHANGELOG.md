@@ -45,6 +45,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Added
 
+- `sourceCache.maxMb` (default 256): the loaded data of code and HTTP sources the process keeps.
+  One person or shared source keeps tables up to a quarter of it (64 MiB by default); a larger
+  table loads on every call. `check-config` prints both limits
+  ([#414](https://github.com/eizedev/pivotkit/issues/414)).
 - Backend sign-in for HTTP sources ([#329](https://github.com/eizedev/pivotkit/issues/329)):
   `sources.<id>.http.auth` or `httpSources.backends.<name>.auth` is a header from a secret reference,
   OAuth client credentials (a client secret, or a JWT client assertion such as a Kubernetes service
@@ -194,8 +198,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   the reading of its rows stay in the host's thread, the encoding and the report are bounded by
   `compute.timeMs` and `compute.memoryMb` ([#414](https://github.com/eizedev/pivotkit/issues/414)).
   Its rows are kept packed (texts dictionary-coded, numbers, dates and true/false values in shared
-  typed arrays) and measured exactly; a kept load goes to a worker once, later calls send its key
-  only. Each worker keeps at most a quarter of `compute.memoryMb` of data sets. A source whose
+  typed arrays) and measured exactly; a kept load (tables up to 64 MiB per person by default) goes to a
+  worker once, later calls send its key only. Each worker keeps at most a quarter of `compute.memoryMb` of data sets. A source whose
   every field is hidden keeps its row count.
 - `ConfigError` is defined in `src/options/shared.js`; `pivotkit-server` exports it as before.
 - A pattern of a source's parameter that runs out of time on a test value is tried once more before

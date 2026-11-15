@@ -76,6 +76,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {RestOptions} [rest]
  * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number, data?: false | { rows?: number, cells?: number, bytes?: number } }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens; data: inline data off, or a lower cap
  * @property {import("./options/http.js").HttpSourcesOptions} [httpSources]  HTTP sources on or off, IP addresses as hosts, backends defined once
+ * @property {{ maxMb?: number }} [sourceCache]  the loaded data of code and HTTP sources the process keeps (default 256 MiB; one owner a quarter)
  * @property {"info" | "debug" | "off"} [log]
  * @property {{ subject?: "off" | "hash" | "plain", key?: { env?: string, file?: string } }} [audit]  the person in the log lines of calls, requests and downloads (default off)
  * @property {string} [baseDir]  where relative paths start (loadConfig sets the config file's directory; default the working directory)

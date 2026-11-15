@@ -1109,3 +1109,96 @@ test("packed tables: each kind of column back as it was; their size counted exac
     assert.deepEqual(/** @type {any} */ (two.columns[0]).dict, ["ab"]);
     assert.deepEqual(unpackTable(packTable({ columns: [], data: [] }, 3, 1)), [{}, {}, {}]);
 });
+
+/** A packed table of `n` rows: a text of three values and a number, about 15 bytes a row once encoded. */
+const smallKinds = (n) => packTable({ columns: ["A", "B"], data: [Array.from({ length: n }, (_, i) => ["x", "y", "z"][i % 3]), Array.from({ length: n }, (_, i) => i % 7)] }, n, 0);
+const JOB_SPEC = { id: "t", kind: "source", name: "T", levels: { default: "show", fields: {}, counts: true, rows: true }, limits: { rows: 5_000_000, importCells: 100_000_000 }, schedulable: true };
+
+test("the pool: a worker that asks again for a table it was just sent is a fault, not a loop", async () => {
+    const computer = createComputer({ workers: 1, timeMs: 5000 }, { worker: new URL("./fixtures/need-worker.js", import.meta.url) });
+    try {
+        const error = await computer.run("describe_source", { source: "t" }, { spec: JOB_SPEC, table: smallKinds(3), tableKey: "k", asOf: null }).then(
+            () => null,
+            (e) => e
+        );
+        assert.equal(error?.code, "INTERNAL");
+        assert.deepEqual(computer.sent(), { tables: 2, cached: 0 }, "the table once more, then no more");
+    } finally {
+        await computer.close();
+    }
+});
+
+test("the pool: a worker keeps at most a quarter of compute.memoryMb; a table over it goes with every call", async () => {
+    // 300,000 rows encode to about 4.6 MiB: over the 4 MiB of 16 MB, within the 8 MiB of 32 MB
+    const job = (key) => ({ spec: JOB_SPEC, table: smallKinds(300_000), tableKey: key, asOf: null });
+    const describeJob = (computer, key) => computer.run("describe_source", { source: "t" }, job(key)).then((r) => r.outcome.result.rows);
+    const small = createComputer({ workers: 1, memoryMb: 16 });
+    try {
+        for (let i = 0; i < 3; i++) {
+            assert.equal(await describeJob(small, "a"), 300_000);
+        }
+        assert.deepEqual(small.sent(), { tables: 3, cached: 0 }, "never kept, never sent without its table");
+    } finally {
+        await small.close();
+    }
+    const larger = createComputer({ workers: 1, memoryMb: 32 });
+    try {
+        await describeJob(larger, "a");
+        await describeJob(larger, "a");
+        assert.deepEqual(larger.sent(), { tables: 1, cached: 1 });
+        // a second table pushes the first out by its bytes (two entries of four)
+        await describeJob(larger, "b");
+        assert.equal(await describeJob(larger, "a"), 300_000);
+        assert.deepEqual(larger.sent(), { tables: 3, cached: 2 }, "a went without its table, was asked for and sent");
+    } finally {
+        await larger.close();
+    }
+});
+
+test("the pool: a table job goes to the worker that kept its data while that one is free", async () => {
+    const computer = createComputer({ workers: 2 });
+    const run = (key) => computer.run("describe_source", { source: "t" }, { spec: JOB_SPEC, table: smallKinds(10), tableKey: key, asOf: null });
+    try {
+        // at once: a goes to the first worker, b to the second
+        await Promise.all([run("a"), run("b")]);
+        await run("b");
+        assert.deepEqual(computer.sent(), { tables: 2, cached: 1 }, "b went to the second worker, without its table");
+    } finally {
+        await computer.close();
+    }
+});
+
+test("where it runs: a table key only for a load that is kept and reused", async () => {
+    const loads = { plain: 0, nullVersion: 0, timed: 0, large: 0 };
+    const sources = {
+        plain: { load: async () => (loads.plain++, ROWS) },
+        nullVersion: { load: async () => (loads.nullVersion++, ROWS), version: () => null },
+        timed: { load: async () => (loads.timed++, ROWS), ttl: 60 },
+        // over the owner's share of 1 MiB: 256 KiB; 100,000 numbers take 800 KB packed
+        large: { load: async () => (loads.large++, { columns: ["N"], data: [Array.from({ length: 100_000 }, (_, i) => i + 0.5)] }), ttl: 60 }
+    };
+    const context = await contextOf({ compute: { workers: 1 }, sourceCache: { maxMb: 1 }, sources });
+    try {
+        const sentFor = async (id) => {
+            const before = context.computer.sent();
+            await describe(context, LOCAL, undefined, id);
+            await describe(context, LOCAL, undefined, id);
+            const after = context.computer.sent();
+            return { tables: after.tables - before.tables, cached: after.cached - before.cached };
+        };
+        assert.deepEqual(await sentFor("plain"), { tables: 0, cached: 0 }, "no ttl and no version: no key");
+        assert.deepEqual(await sentFor("nullVersion"), { tables: 0, cached: 0 }, "a version of null is no version");
+        assert.deepEqual(await sentFor("timed"), { tables: 1, cached: 1 });
+        assert.deepEqual(await sentFor("large"), { tables: 0, cached: 0 }, "over the owner's share: not kept, no key");
+        assert.deepEqual(loads, { plain: 2, nullVersion: 2, timed: 1, large: 2 });
+    } finally {
+        await context.close();
+    }
+    assert.throws(() => validateOptions({ sourceCache: { maxMb: 0 } }), /sourceCache\.maxMb: from 1 to 65536/);
+    assert.ok(validateOptions({ sourceCache: { maxMb: 1024 } }));
+    assert.match((await checkConfig({ sources: { a: { load: async () => [] } }, sourceCache: { maxMb: 1024 } }, { http: false })).text, /at most 1024 MiB in all, tables up to 256 MiB per person or shared source \(sourceCache\.maxMb\)/);
+    // the next context without the key sets the default again
+    const plain = await contextOf({ sources: {} });
+    await plain.close();
+    assert.match((await checkConfig({ sources: { a: { load: async () => [] } } }, { http: false })).text, /at most 256 MiB in all, tables up to 64 MiB/);
+});

@@ -19,6 +19,8 @@ import { createRegistry } from "./registry.js";
 import { callerOf, createAuthCore, identityKey } from "./auth.js";
 import { offersOf } from "./sources/input.js";
 import { httpSettingsOf } from "./options/http.js";
+import { sourceCacheOf } from "./options/code.js";
+import { loadRunner } from "./sources/run.js";
 import { warnUnreadableSecrets } from "./sources/auth.js";
 import { prune } from "./output.js";
 import { autoValuesFields, noteAutoValues } from "./present.js";
@@ -141,6 +143,8 @@ export async function createContext(options, runtime = {}) {
         output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles, maxMb: options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb, maxAgeDays: options.output.maxAgeDays ?? 0, cleanUp: !shared, showPath: runtime.showPaths ?? false };
     }
     const computer = createComputer(options.compute);
+    // one load cache per process: the context created last sets its size
+    loadRunner.setCacheBytes(sourceCacheOf(options).bytes);
     /** @type {Promise<any> | null} */
     let auth = null;
     /** @type {any} */

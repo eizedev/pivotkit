@@ -7,14 +7,32 @@
  * declaration).
  */
 
+import { LOAD_CACHE, OWNER_SHARE } from "../sources/cache.js";
 import { ConfigError } from "./shared.js";
 
 export const NAME = "code";
 
 /** @type {Readonly<Partial<Record<import("./shared.js").Slot, Record<string, any>>>>} */
 export const KEYS = Object.freeze({
+    top: { sourceCache: { object: { maxMb: "integer" } } },
     source: { cacheShared: "boolean" }
 });
+
+/** The megabytes (MiB) the process keeps of loaded code and HTTP source data by default: sources/cache.js LOAD_CACHE. */
+export const SOURCE_CACHE_MB = LOAD_CACHE.bytes / 1_048_576;
+
+/** The largest sourceCache.maxMb: 64 GiB. */
+export const SOURCE_CACHE_MAX_MB = 65_536;
+
+/**
+ * The bytes the process keeps of loaded code and HTTP source data (sourceCache.maxMb), and the
+ * largest table one owner (a person, or a shared source) may have kept: a quarter of them.
+ * @param {import("../config.js").ServerOptions} options
+ */
+export function sourceCacheOf(options) {
+    const bytes = (options.sourceCache?.maxMb ?? SOURCE_CACHE_MB) * 1_048_576;
+    return { bytes, share: Math.floor(bytes * OWNER_SHARE) };
+}
 
 /**
  * A code source's defaults: the longest load (ms), how long a load is reused (seconds; null: only
@@ -31,6 +49,10 @@ export const CODE_TIME_MAX = 600_000;
  * @param {import("../config.js").ServerOptions} options
  */
 export function validate(options) {
+    const maxMb = options.sourceCache?.maxMb;
+    if (maxMb !== undefined && (maxMb < 1 || maxMb > SOURCE_CACHE_MAX_MB)) {
+        throw new ConfigError(`sourceCache.maxMb: from 1 to ${SOURCE_CACHE_MAX_MB}`);
+    }
     for (const [id, source] of Object.entries(options.sources ?? {})) {
         if (/** @type {any} */ (source).cacheShared !== undefined && !source.load) {
             throw new ConfigError(`sources.${id}.cacheShared: only a code source (load) takes cacheShared`);

@@ -234,6 +234,7 @@ error that names the key and the one probably meant.
 | `sources.<id>.params` | - | none | An HTTP or code source's parameters: values a caller passes with the source (see below) |
 | `sources.<id>.timeMs`, `.ttl`, `.maxStale` | - | code: 30000 ms, none, 3600 s; HTTP: 15000 ms, 60 s, 3600 s | An HTTP or code source's time limit, reuse and last good data ([HTTP](sources.md#http-options), [code](sources.md#code-options)) |
 | `sources.<id>.cacheShared` | - | false | A code source's one copy for all callers ([code sources](sources.md#code-options)) |
+| `sourceCache.maxMb` | - | 256 | The loaded data of code and HTTP sources the process keeps, in MiB (1 to 65536); one person or shared source keeps tables up to a quarter of it (64 MiB by default), a larger table loads on every call ([bounds](sources.md#code-cache)) |
 | `httpSources.enabled`, `.allowIpLiterals`, `.backends` | - | true, false, none | HTTP sources on or off, an IP address as a host, backends many sources share (with `intranet` for loopback and private addresses) ([HTTP sources](sources.md#http-options)) |
 | `files.allowDirs` | `--allow-dir dir` | none | Directories the model may name files in (`file:`) |
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |

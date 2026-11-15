@@ -18,8 +18,9 @@ import { isOwnError, sourceFailure } from "./sources/run.js";
 
 /**
  * @param {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [options]
+ * @param {{ worker?: URL }} [internal]  worker: another worker script (tests that need a worker which misbehaves)
  */
-export function createComputer(options = {}) {
+export function createComputer(options = {}, internal = {}) {
     const { workers: size, timeMs, memoryMb, queueMs } = { ...COMPUTE_DEFAULTS, ...options };
     /** @type {Array<{ worker: Worker, busy: boolean, exited: boolean, ready: Promise<unknown>, keys: string[] }>} */
     const pool = [];
@@ -32,7 +33,7 @@ export function createComputer(options = {}) {
 
     const spawn = () => {
         // the data sets a worker keeps take at most a quarter of its memory
-        const worker = new Worker(new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: Math.floor((memoryMb * 1_048_576) / 4) } });
+        const worker = new Worker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: Math.floor((memoryMb * 1_048_576) / 4) } });
         worker.unref();
         /** @type {string[]} the table keys it said it kept, oldest first (its cache may have pushed them out since) */
         const keys = [];
@@ -171,8 +172,8 @@ export function createComputer(options = {}) {
                     return;
                 }
                 if (msg.need) {
-                    // the worker pushed the data out: the table once, within the same time
-                    note(slot, /** @type {string} */ (key), false);
+                    // the worker pushed the data out: the table once, within the same time (its answer
+                    // then says whether it kept it, and note() records that)
                     if (resent) {
                         done();
                         release(slot);

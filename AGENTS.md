@@ -203,7 +203,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   one copy, caller null) as a packed table and computed in a worker as a table job (a key only for a load that is kept and reused); `run.js` how data loaded in the main thread is loaded (`runLoad`: time
   limit with the signal aborted, coalescing, load limits per source and identity, kept data, last good
   data after a transient failure only; `SourceError` and `sourceFailure`, what a caller gets of a
-  source's error, its `reason` picking the fixed text, `serverTextOf`); `cache.js` the process cache of loaded data (64 entries, 256 MiB, a code source's packed table measured by `packedBytes`; per owner 8 entries and a quarter of the bytes, its own oldest out first);
+  source's error, its `reason` picking the fixed text, `serverTextOf`); `cache.js` the process cache of loaded data (64 entries, 256 MiB or `sourceCache.maxMb` (options/code.js `sourceCacheOf`, set by createContext through `loadRunner.setCacheBytes`), a code source's packed table measured by `packedBytes`; per owner 8 entries and a quarter of the bytes, its own oldest out first);
   `http.js` HTTP sources, an operator's backend (`loadHttp`: the requests with guardedFetch,
   `intranet` for private addresses, paging on the same host and path, JSON nested at most `MAX_DEPTH`,
   the rows at a JSON Pointer as a table the worker encodes; `backendAnswer`, a backend's

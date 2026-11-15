@@ -41,7 +41,7 @@ import { callerView, identityKey } from "../auth.js";
 import { codeTable } from "../data.js";
 import { CODE_DEFAULTS } from "../options/code.js";
 import { packedBytes } from "../packed.js";
-import { LOAD_CACHE, OWNER_SHARE } from "./cache.js";
+import { OWNER_SHARE } from "./cache.js";
 import { canonicalJson, tableKeyOf } from "./keys.js";
 import { loadRunner } from "./run.js";
 
@@ -76,8 +76,8 @@ function ownerOf(caller, shared) {
  * Loads a code source's data for a caller (or reuses it): sources/run.js with the source's limits.
  * `tableKey` names this load's table for the worker (a new load has a new one, so a worker never
  * answers from an older table): null without an identity, for a load that is not reused (no `ttl`
- * and no `version`: every call loads, and a key per call would only push other data out of the
- * workers), and for a load larger than the load cache keeps.
+ * and no value from `version`: every call loads, and a key per call would only push other data out
+ * of the workers), and for a load larger than one owner's share of the load cache (sourceCache.maxMb).
  * @param {any} resolved  registry.resolve's
  * @param {import("../registry.js").Caller} caller
  * @param {any} log
@@ -96,6 +96,8 @@ export async function loadCode(resolved, caller, log, signal = undefined) {
     // caller without an identity
     const person = identityKey(caller) ?? `client:${caller.client}`;
     const key = owner === null ? null : canonicalJson(["code", name, spec.id, params, owner, spec.levels, spec.timeZone ?? null, spec.limits]);
+    /** @type {unknown} */
+    let given = null;
     const ran = await loadRunner.runLoad(key, (signal) => source.load(params, { caller: view, signal }), {
         prepare: (loaded) => {
             const read = codeTable(spec, loaded);
@@ -108,15 +110,16 @@ export async function loadCode(resolved, caller, log, signal = undefined) {
         timeMs: source.timeMs ?? CODE_DEFAULTS.timeMs,
         ttl: source.ttl ?? CODE_DEFAULTS.ttl,
         maxStale: source.maxStale ?? CODE_DEFAULTS.maxStale,
-        version: source.version ? () => source.version(params, { caller: view }) : null,
+        // what version() gave this call: only a value (not null) lets the load be reused
+        version: source.version ? () => (given = source.version(params, { caller: view })) : null,
         sizeOf: (read) => read.bytes,
         log,
         ...(signal ? { signal } : {})
     });
     // this load's table (its serial) for the same owner as the load's key, only for a load the
     // load cache keeps and reuses; a caller without an identity gets no key either
-    const reused = (source.ttl ?? CODE_DEFAULTS.ttl ?? 0) > 0 || typeof source.version === "function";
-    const kept = reused && ran.value.bytes <= LOAD_CACHE.bytes * OWNER_SHARE;
+    const reused = (source.ttl ?? CODE_DEFAULTS.ttl ?? 0) > 0 || (given !== null && given !== undefined);
+    const kept = reused && ran.value.bytes <= Math.floor(loadRunner.cacheBytes() * OWNER_SHARE);
     const tableKey = !kept ? null : tableKeyOf({ kind: "code", id: `${name}:${spec.id}`, configHash: canonicalJson([ran.value.serial, spec.timeZone ?? null]), params, identity: owner, levels: spec.levels, limits: spec.limits });
     return { value: ran.value, stale: ran.stale, tableKey };
 }

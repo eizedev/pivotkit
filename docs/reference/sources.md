@@ -624,13 +624,20 @@ cells are written as JSON text, and every text is cut at `limits.textLength`.
   source could not be refreshed.", and the log has a warning with the source's id. Any other failure
   answers at once and drops what was kept for that caller and values, so a withdrawn access is never
   covered by the cache.
-- **Bounds.** The process keeps at most 64 loads and 256 MiB of loaded tables, each counted as
-  pivotkit holds it (each distinct text of a column once, numbers, dates and true/false values as
-  typed arrays); one person (a shared
-  source counts as one) at most 8 loads and a quarter of the bytes, and a person's new load pushes
-  out that person's oldest first, so one caller cannot push out everyone else's data. Otherwise the
-  least recently used go first. Kept data stays in the process's memory until it is pushed out,
-  also after `maxStale` has passed.
+- **Bounds.** The process keeps at most 64 loads and `sourceCache.maxMb` of loaded tables (256 MiB
+  by default), each counted as pivotkit holds it (each distinct text of a column once, numbers,
+  dates and true/false values as typed arrays); one person (a shared source counts as one) at most
+  8 loads and a quarter of the bytes, and a person's new load pushes out that person's oldest
+  first, so one caller cannot push out everyone else's data. Otherwise the least recently used go
+  first. Kept data stays in the process's memory until it is pushed out, also after `maxStale` has
+  passed. `check-config` prints both limits.
+- **Tables up to a quarter of `sourceCache.maxMb`** (64 MiB by default) are kept. A larger table is
+  never kept: every call loads it again, reads it and sends it to a worker, as without `ttl`. A
+  million rows with a distinct text of 30 characters in each row take about 84 MiB, over the
+  default share: every call then takes about 0.6 to 1 s, 0.2 to 0.5 s of it in the host's thread
+  (measured on a laptop). With `"sourceCache": { "maxMb": 512 }` (tables up to 128 MiB) it is kept,
+  and a later call takes a few milliseconds; give the process the memory for it. The process
+  keeps one load cache; when a host creates several contexts, the last one sets its size.
 
 ### Where it runs { #code-thread }
 

@@ -65,7 +65,7 @@ person (at most 64 loads and 256 MiB in all) until newer loads push it out, also
 memory until it is pushed out or the process restarts. Each compute worker (`compute.workers`) keeps
 the data sets of its last four runs, of any source, without hidden fields, at most a quarter of
 `compute.memoryMb`, in memory until newer ones push them out or the worker is replaced. Only this
-process can ask for them again, for the same load and the same person.
+process can ask for them again, for the same load and the same owner (the person, or all callers for a shared source).
 
 An [HTTP source](reference/sources.md#http) sends the values a caller passes for its parameters to
 the operator's backend, in the address the operator configured, and nothing else of the caller: no

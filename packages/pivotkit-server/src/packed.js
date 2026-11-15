@@ -34,7 +34,13 @@ function shared(Kind, length) {
     return new Kind(new SharedArrayBuffer(Math.max(1, length) * Kind.BYTES_PER_ELEMENT), 0, length);
 }
 
-/** What a column holds: one kind for all its values that are not blank, else "any". */
+/**
+ * What a column holds: one kind for all its values that are not blank, else "any". This decides
+ * only how a column travels, not its type: encode() still infers the type from the unpacked values
+ * in the worker (or takes the host's `types`), as it does for any other table. Packing has to pick a
+ * typed array before encode runs, and unpackTable gives encode back the very values it would have
+ * read, so the two never disagree.
+ */
 function kindOf(values) {
     let kind = null;
     for (let i = 0; i < values.length; i++) {

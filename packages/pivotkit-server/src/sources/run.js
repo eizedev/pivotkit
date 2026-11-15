@@ -201,7 +201,7 @@ const REFUSALS = 1024;
  * @param {{ cache?: ReturnType<typeof createLoadCache>, limits?: Partial<typeof LOAD_LIMITS> }} [parts]
  */
 export function createLoadRunner(parts = {}) {
-    /** @type {{ get(key: string): Kept | undefined, set(key: string, value: Kept, about: { identity: string, bytes: number }): void, delete(key: string): void, size(): { entries: number, bytes: number } }} */
+    /** @type {{ get(key: string): Kept | undefined, set(key: string, value: Kept, about: { identity: string, bytes: number }): void, delete(key: string): void, size(): { entries: number, bytes: number }, limit(): number, resize(bytes: number): void }} */
     const cache = /** @type {any} */ (parts.cache ?? createLoadCache());
     const limits = { ...LOAD_LIMITS, ...(parts.limits ?? {}) };
     /** @typedef {{ controller: AbortController, waiting: number, cancelled: boolean, work: Promise<any> }} Shared  a load in flight with the callers waiting for it */
@@ -476,7 +476,15 @@ export function createLoadRunner(parts = {}) {
         throw answer;
     }
 
-    return { runLoad, size: () => cache.size(), running: (source) => running.get(source)?.total ?? 0 };
+    return {
+        runLoad,
+        size: () => cache.size(),
+        running: (source) => running.get(source)?.total ?? 0,
+        /** The bytes the load cache may hold (sourceCache.maxMb); one owner's share is OWNER_SHARE of them. */
+        cacheBytes: () => cache.limit(),
+        /** @param {number} bytes */
+        setCacheBytes: (bytes) => cache.resize(bytes)
+    };
 }
 
 /**

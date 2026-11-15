@@ -39,6 +39,8 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.mcp.object.data = { or: [{ const: false }, { object: { rows: "integer", cells: "integer", bytes: "integer" } }] };
     expected.rest.object.data = { object: { maxBytes: "integer" } };
     expected.httpSources = { object: { enabled: "boolean", allowIpLiterals: "boolean", backends: { map: { object: { url: "string", intranet: "boolean", headers: { map: "string" }, auth, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } } } };
+    // the load cache's size (options/code.js), after httpSources (the fragments' order)
+    expected.sourceCache = { object: { maxMb: "integer" } };
     // download links (options/downloads.js)
     const secretRef = { custom: "fn" };
     expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings" } } } };
@@ -143,7 +145,8 @@ test("check-config: today's configurations print exactly what they printed befor
     const inline = ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"];
     const code = [
         "Code sources (1):",
-        "  code: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure"
+        "  code: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure",
+        "  Kept loads of code and HTTP sources: at most 256 MiB in all, tables up to 64 MiB per person or shared source (sourceCache.maxMb); a larger table loads on every call"
     ];
     const upgrade = [
         "",
