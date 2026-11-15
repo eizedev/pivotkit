@@ -237,7 +237,7 @@ const collect = () => {
 };
 
 // a backend over https on loopback, with a certificate made for this run
-const dir = tempDir("pivotkit-memory-");
+const dir = tempDir("memory");
 execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"), "-days", "1", "-subj", "/CN=backend.example.test", "-addext", "subjectAltName=DNS:backend.example.test"], { stdio: "ignore" });
 const cert = readFileSync(join(dir, "cert.pem"));
 /** The requests and loads per source, and the size of the smallest answer. */

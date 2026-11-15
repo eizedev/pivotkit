@@ -43,7 +43,7 @@ function csvText() {
     return `${lines.join("\n")}\n`;
 }
 
-const dir = tempDir("pivotkit-read-");
+const dir = tempDir("read");
 const path = join(dir, "orders.csv");
 writeFileSync(path, csvText());
 const levels = { default: "show", fields: { internal_memo_text: "hide" } };
