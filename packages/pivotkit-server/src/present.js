@@ -291,9 +291,10 @@ function withEmptyFilter(findings, result, closed) {
 
 /**
  * Where the user finds a written file, in words, or null where the note says it (a report over a
- * closed source without a link).
+ * closed source without a link). A link of the server's own is named by the file's name: its
+ * address is output.url (and the MCP resource_link), not repeated in the words.
  */
-const whereText = (output) => (output.url ? output.url : output.path ? output.path : output.note ? null : `${output.name} in the output directory`);
+const whereText = (output) => (output.bound ? `"${output.filename}"` : output.url ? output.url : output.path ? output.path : output.note ? null : `${output.name} in the output directory`);
 
 /** "The report is saved as <where>." with the note, or the note alone where it says where. */
 const savedText = (what, output) => {

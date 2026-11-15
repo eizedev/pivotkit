@@ -19,7 +19,7 @@
 
 import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
 import { constants } from "node:fs";
-import { mkdir, open, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import { link as hardLink, mkdir, open, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ConfigError } from "./options/shared.js";
 import { DEFAULT_ALGORITHMS } from "./config.js";
@@ -70,7 +70,11 @@ const PURPOSES = Object.freeze({ token: "pivotkit downloads: token v1", subject:
 const BASE_HEADERS = Object.freeze({ "cache-control": "no-store", "referrer-policy": "no-referrer", "x-robots-tag": "noindex", "x-content-type-options": "nosniff", "cross-origin-resource-policy": "same-origin" });
 
 /** A page's own policy, and a file's. */
-const PAGE_CSP = "default-src 'none'; form-action 'self'; frame-ancestors 'none'";
+/** The pages' own style and script (the button's feedback), allowed by their hashes and nothing else. */
+const PAGE_STYLE = ":root{color-scheme:light dark;--fg:#1f2328;--bg:#fff;--muted:#59636e;--accent:#0969da}@media (prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--muted:#9198a1;--accent:#4493f8}}body{font:16px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg);max-width:36rem;margin:3rem auto;padding:0 1rem}.brand{color:var(--muted);font-size:.875rem;margin:0}h1{font-size:1.5rem;margin:.25rem 0 1rem}button{font:inherit;padding:.5rem 1.25rem;border:0;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer}[role=status]{color:var(--muted);min-height:1.5em}";
+const PAGE_SCRIPT = "document.querySelector('form')?.addEventListener('submit',()=>{document.getElementById('status').textContent='The download has started: look in your browser\\'s downloads.'});";
+const hashOf = (text) => `'sha256-${createHash("sha256").update(text).digest("base64")}'`;
+const PAGE_CSP = `default-src 'none'; style-src ${hashOf(PAGE_STYLE)}; script-src ${hashOf(PAGE_SCRIPT)}; form-action 'self'; frame-ancestors 'none'`;
 const FILE_CSP = "sandbox; default-src 'none'";
 
 /** The media types of the files pivotkit writes, by extension. */
@@ -82,9 +86,9 @@ const LINKED_NAME = new RegExp(`^([A-Za-z0-9_-]{22})-(.+)\\.${OUTPUT_MARK}\\.((?
 /** The answers of the route that are not a file, their status and words (a page's and a problem's). */
 const ANSWERS = Object.freeze({
     NOT_FOUND: { status: 404, text: "There is no such link. Check that the whole link was copied." },
-    LINK_EXPIRED: { status: 410, text: "This link has expired. Ask the assistant to make the report again." },
-    REPORT_REMOVED: { status: 410, code: "LINK_EXPIRED", text: "The report was removed from the server before the link expired. Ask the assistant to make the report again." },
-    LINK_USED: { status: 409, text: "This link was already used. Ask the assistant to make the report again." },
+    LINK_EXPIRED: { status: 410, text: "This link has expired. Ask whoever made the report to make it again." },
+    REPORT_REMOVED: { status: 410, code: "LINK_EXPIRED", text: "The report was removed from the server before the link expired. Ask whoever made the report to make it again." },
+    LINK_USED: { status: 409, text: "This link was already used. Ask whoever made the report to make it again." },
     LINK_NOT_YOURS: { status: 403, text: "You are signed in as a different account than the one that asked for this report." },
     SIGN_IN_FAILED: { status: 400, text: "The sign-in did not complete. Open the link again to try once more." },
     SIGN_IN_NOT_READY: { status: 503, text: "The server is waiting for its sign-in service. Try again in a moment." },
@@ -157,8 +161,15 @@ export function readToken(keys, token) {
     return { n, e, b, ...(b === "signIn" ? { s } : {}) };
 }
 
-/** A subject as the token holds it: an HMAC, so a token tells nothing about who it is for. */
-export const subjectDigest = (keys, subject) => mac(keys.subject, subject);
+/**
+ * A person as the token holds them: an HMAC of the issuer and the subject, so a token tells nothing
+ * about who it is for, and the same subject of another issuer is another person.
+ * @param {{ subject: Buffer }} keys
+ * @param {string} issuer
+ * @param {string} subject
+ */
+// JSON of the pair, not a separator: no issuer and subject can be cut differently to the same text
+export const subjectDigest = (keys, issuer, subject) => mac(keys.subject, JSON.stringify([issuer, subject]));
 
 /** The name a person sees for a stored name: without the link's prefix and pivotkit's mark. */
 export function filenameOf(stored) {
@@ -180,15 +191,72 @@ export function dispositionOf(name) {
     return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
+/** A marker of a used one-time link: its nonce. */
+const MARKER_NAME = /^[A-Za-z0-9_-]{22}\.used$/;
+
+/** A marker being written: its name before it is linked into place. */
+const MARKER_TEMP = /^\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]+\.tmp$/;
+
+/**
+ * Marks a one-time link used: the expiry is written whole to a file of its own, then linked to the
+ * marker's name, which fails when the marker exists (on a shared directory too), so of two requests
+ * one wins and a marker never exists without its content. Throws EEXIST for a used link.
+ * @param {string} marker
+ * @param {number} expiry  seconds
+ */
+export async function placeMarker(marker, expiry) {
+    const name = marker.split(/[\\/]/).pop() ?? "";
+    const temp = join(marker, "..", `.${name.replace(/\.used$/, "")}.${randomBytes(6).toString("base64url")}.tmp`);
+    await writeFile(temp, `${expiry}\n`, { flag: "wx", mode: 0o600 });
+    try {
+        await hardLink(temp, marker);
+    } finally {
+        await unlink(temp).catch(() => undefined);
+    }
+}
+
+/**
+ * Deletes the markers whose link has expired. A marker whose content is not a time (another
+ * writer's, damaged) is never deleted: a used link stays used. Temporary files of a write that
+ * died are deleted after an hour.
+ * @param {string} dir  the markers' directory
+ * @param {number} [now]  seconds
+ */
+export async function sweepMarkers(dir, now = Math.floor(Date.now() / 1000)) {
+    for (const name of await readdir(dir).catch(() => [])) {
+        const path = join(dir, name);
+        if (MARKER_NAME.test(name)) {
+            const text = (await readFile(path, "utf8").catch(() => "")).trim();
+            if (/^\d{1,12}$/.test(text) && Number(text) < now) {
+                await unlink(path).catch(() => undefined);
+            }
+        } else if (MARKER_TEMP.test(name)) {
+            const info = await stat(path).catch(() => null);
+            if (info && info.mtimeMs < now * 1000 - 3_600_000) {
+                await unlink(path).catch(() => undefined);
+            }
+        }
+    }
+}
+
+/**
+ * Whether any report can get a link: a source whose fields are all shown, or a binding for closed ones.
+ * @param {{ bind: string }} settings
+ * @param {Array<{ closed?: boolean }>} sources  registry.check()'s
+ */
+export const linkingFor = (settings, sources) => sources.some((s) => s.closed === false) || settings.bind !== "none";
+
 /** The state of each context's links. */
 const states = new WeakMap();
 
 /**
  * The links of a context, for delivery.js: null where no link can be given (no route mounted, the
- * links off, no address to put in them yet); otherwise how closed sources are bound and a function
- * that mints a link for a stored file's nonce.
+ * links off, no address to put in them yet); otherwise how closed sources are bound and `signer()`,
+ * which reads the key and gives a function that mints a link for a stored file's nonce (null, with a
+ * warning on the log, when the key cannot be read: then the report gets no link, decided before the
+ * file is written).
  * @param {any} context
- * @returns {{ bind: "signIn" | "once" | "none", expiresMinutes: number, mint(how: { n: string, bound: "none" | "once" | "signIn", subject?: string | null }): Promise<{ url: string, expiresAt: string } | null> } | null}
+ * @returns {{ bind: "signIn" | "once" | "none", expiresMinutes: number, signer(): Promise<((how: { n: string, bound: "none" | "once" | "signIn", subject?: string | null, issuer?: string | null }) => { url: string, expiresAt: string } | null) | null> } | null}
  */
 export function linksOf(context) {
     const state = states.get(context);
@@ -198,17 +266,22 @@ export function linksOf(context) {
     return {
         bind: state.settings.bind,
         expiresMinutes: state.settings.expiresMinutes,
-        async mint({ n, bound, subject }) {
+        async signer() {
             const keys = await state.keys().catch((e) => {
                 context.log.warn(`download links: the key cannot be read, so the report gets no link: ${String(e?.message ?? e).slice(0, 200)}`);
                 return null;
             });
-            if (!keys || (bound === "signIn" && !subject)) {
+            if (!keys) {
                 return null;
             }
-            const e = Math.floor(Date.now() / 1000) + state.settings.expiresMinutes * 60;
-            const token = signToken(keys, { n, e, b: bound, ...(bound === "signIn" ? { s: subjectDigest(keys, /** @type {string} */ (subject)) } : {}) });
-            return { url: `${state.base}${DOWNLOADS_PATH}/${token}`, expiresAt: new Date(e * 1000).toISOString().replace(/\.\d{3}Z$/, "Z") };
+            return ({ n, bound, subject, issuer }) => {
+                if (bound === "signIn" && (!subject || !issuer)) {
+                    return null;
+                }
+                const e = Math.floor(Date.now() / 1000) + state.settings.expiresMinutes * 60;
+                const token = signToken(keys, { n, e, b: bound, ...(bound === "signIn" ? { s: subjectDigest(keys, /** @type {string} */ (issuer), /** @type {string} */ (subject)) } : {}) });
+                return { url: `${state.base}${DOWNLOADS_PATH}/${token}`, expiresAt: new Date(e * 1000).toISOString().replace(/\.\d{3}Z$/, "Z") };
+            };
         }
     };
 }
@@ -335,7 +408,7 @@ const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => `&#${c.char
 
 /** A short page: a heading, a sentence and, for a one-time link, its button. */
 function page(title, text, { status = 200, form = false, headers = {} } = {}) {
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)}</title></head><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(text)}</p>${form ? '<form method="post"><button type="submit">Download</button></form>' : ""}</body></html>`;
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)}</title><style>${PAGE_STYLE}</style></head><body><p class="brand">pivotkit report</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(text)}</p>${form ? `<form method="post"><button type="submit">Download</button></form><p id="status" role="status"></p><script>${PAGE_SCRIPT}</script>` : ""}</body></html>`;
     return new Response(html, { status, headers: { ...BASE_HEADERS, "content-security-policy": PAGE_CSP, "content-type": "text/html; charset=utf-8", ...headers } });
 }
 
@@ -390,9 +463,20 @@ export function createDownloadHandler(context, runtime = {}) {
     let swept = 0;
 
     if (active) {
-        if (!settings.key) {
-            context.log.warn("download links use a random key: links stop working on restart and on other replicas; set output.downloads.key");
-        }
+        // said where some report can get a link (as check-config's): one over an open source, or a binding for closed ones
+        void Promise.resolve(context.registry.check?.() ?? [])
+            .then((sources) => linkingFor(settings, sources))
+            .then(async (linking) => {
+                if (!linking) {
+                    return;
+                }
+                if (!settings.key) {
+                    context.log.warn("download links use a random key: links stop working on restart and on other replicas; set output.downloads.key");
+                    return;
+                }
+                await keys().catch((e) => context.log.warn(`download links: the key cannot be read, so reports get no links until it can: ${String(e?.message ?? e).slice(0, 200)}`));
+            })
+            .catch(() => undefined);
         if (!publicUrl && !loopback) {
             context.log.warn("download links: http.publicUrl is not set and the server listens on an address other than loopback, so reports get no links (they would show an internal address); set http.publicUrl");
         }
@@ -400,21 +484,13 @@ export function createDownloadHandler(context, runtime = {}) {
 
     const markersDir = () => join(/** @type {string} */ (outputDir(context)), ".pivotkit-downloads");
 
-    /** Deletes the markers of one-time links whose token has expired, at most every ten minutes. */
+    /** Deletes the markers of expired one-time links (sweepMarkers), at most every ten minutes. */
     async function sweep() {
         if (Date.now() - swept < 600_000) {
             return;
         }
         swept = Date.now();
-        const now = Math.floor(Date.now() / 1000);
-        const names = await readdir(markersDir()).catch(() => []);
-        for (const name of names.filter((n) => /^[A-Za-z0-9_-]{22}\.used$/.test(n))) {
-            const path = join(markersDir(), name);
-            const expiry = Number((await readFile(path, "utf8").catch(() => "")).trim());
-            if (!Number.isSafeInteger(expiry) || expiry < now) {
-                await unlink(path).catch(() => undefined);
-            }
-        }
+        await sweepMarkers(markersDir());
     }
 
     /** The stored file of a nonce, opened without following a link, or null when it is gone. */
@@ -503,7 +579,7 @@ export function createDownloadHandler(context, runtime = {}) {
         }
         const payload = readToken(k, token);
         if (!payload) {
-            log({ ok: false, code: "NOT_FOUND" });
+            context.log.debug("download links: no such link", { via: "link", code: "NOT_FOUND" });
             return { response: answer(request, "NOT_FOUND") };
         }
         if (payload.e < Math.floor(Date.now() / 1000)) {
@@ -603,8 +679,7 @@ export function createDownloadHandler(context, runtime = {}) {
         if (!repeat) {
             try {
                 await mkdir(markersDir(), { recursive: true, mode: 0o700 });
-                // exclusive: of two requests (on two replicas of a shared directory too) one wins
-                await writeFile(marker, `${payload.e}\n`, { flag: "wx", mode: 0o600 });
+                await placeMarker(marker, payload.e);
             } catch (e) {
                 await found.report.handle.close();
                 if (/** @type {any} */ (e)?.code === "EEXIST") {
@@ -727,8 +802,13 @@ export function createDownloadHandler(context, runtime = {}) {
         if (typeof claims.nonce !== "string" || !sameText(claims.nonce, entry.nn)) {
             return fail("SIGN_IN_FAILED", { reason: "nonce" });
         }
+        // OpenID Connect Core 3.1.3.7: a token for several audiences names this client as its azp
+        const severalAudiences = Array.isArray(claims.aud) && claims.aud.length > 1;
+        if ((severalAudiences || claims.azp !== undefined) && claims.azp !== settings.signIn.clientId) {
+            return fail("SIGN_IN_FAILED", { reason: "azp" });
+        }
         const subject = subjectOf(claims[subjectClaim]);
-        if (!subject || !sameText(subjectDigest(k, subject), /** @type {string} */ (payload.s))) {
+        if (!subject || typeof claims.iss !== "string" || !sameText(subjectDigest(k, claims.iss, subject), /** @type {string} */ (payload.s))) {
             return fail("LINK_NOT_YOURS");
         }
         const found = await reportOf(request, payload);
@@ -772,7 +852,7 @@ export function createDownloadHandler(context, runtime = {}) {
                 }
                 const token = path.slice(DOWNLOADS_PATH.length + 1);
                 if (!TOKEN_SYNTAX.test(token)) {
-                    log({ ok: false, code: "NOT_FOUND" });
+                    context.log.debug("download links: no such link", { via: "link", code: "NOT_FOUND" });
                     return answer(request, "NOT_FOUND");
                 }
                 return await link(request, token);

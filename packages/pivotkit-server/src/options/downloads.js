@@ -108,6 +108,10 @@ export function validate(options) {
         if (!settings.signIn?.issuer || !httpsOrAllowed(settings.signIn.issuer, options.auth?.allowInsecureIssuer === true)) {
             throw new ConfigError("output.downloads.signIn.issuer: must be an https:// address (auth.allowInsecureIssuer is for tests only)");
         }
+        // links are bound to the issuer and subject the MCP or REST token named: the person must sign in at the same issuer
+        if (d.signIn.issuer !== undefined && d.signIn.issuer !== options.auth?.issuer) {
+            throw new ConfigError("output.downloads.signIn.issuer: must be auth.issuer (a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did); leave it out");
+        }
         if (!settings.signIn.scopes.includes("openid")) {
             throw new ConfigError('output.downloads.signIn.scopes: must hold "openid" (the sign-in reads the person from the ID token)');
         }

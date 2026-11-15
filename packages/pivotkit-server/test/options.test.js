@@ -123,7 +123,7 @@ test("check-config: today's configurations print exactly what they printed befor
     // request (check/inline.js), the download links, and the code sources' section, since the configuration has one
     // download links (check/downloads.js): where links would point, and that these closed sources
     // (a hidden field, the default summary) get none with static tokens
-    const delivery = ["Delivery:", "  downloads: on, links http://127.0.0.1:3333/downloads/<token>, expire after 60 minutes", "  reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open"];
+    const delivery = ["Delivery:", "  downloads: on, links http://127.0.0.1:3333/downloads/<token>, expire after 60 minutes", "  closed (a field not shown for someone): sales (Customer hide), gone (fields summary by default), code (fields summary by default)", "  reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open"];
     const inline = ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"];
     const code = [
         "Code sources (1):",

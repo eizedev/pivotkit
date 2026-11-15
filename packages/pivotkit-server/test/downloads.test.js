@@ -7,12 +7,12 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { createHash, createHmac, randomBytes } from "node:crypto";
-import { readFileSync, readdirSync, unlinkSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, unlinkSync, utimesSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
-import { dispositionOf, filenameOf, readToken, signToken, subjectDigest, subkeysOf } from "../src/downloads.js";
-import { NO_LINK_NOTE, linkFor } from "../src/delivery.js";
+import { dispositionOf, filenameOf, placeMarker, readToken, signToken, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
+import { NO_LINK_NOTE, linkFor, resourceLinkOf } from "../src/delivery.js";
 import { BY_REGION, SALES_CSV, TOKEN, call, raw, restServer, tempDir, workspace } from "./helpers.js";
 import { createContext } from "../src/context.js";
 import { deliver } from "../src/delivery.js";
@@ -28,13 +28,15 @@ let issuer;
 let issuerServer;
 let key;
 let otherKey;
+/** The provider's public key as a JWK (also served by the half provider of the 503 test). */
+let jwk;
 /** Codes the provider gave out: what the token endpoint checks and puts in the ID token. */
 const codes = new Map();
 
 before(async () => {
     key = await generateKeyPair("RS256");
     otherKey = await generateKeyPair("RS256");
-    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
+    jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
     issuerServer = createServer((req, res) => {
         const url = new URL(req.url, issuer);
         if (url.pathname === "/.well-known/openid-configuration") {
@@ -98,8 +100,8 @@ function signInAt(location, sub, grant = {}) {
 }
 
 /** A signed access token of the provider for one of the server's resources. */
-async function accessToken(sub, aud = REST_RESOURCE, client = "claude") {
-    return new SignJWT({ scope: "pivotkit", client_id: client }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(aud).setSubject(sub).setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
+async function accessToken(sub, aud = REST_RESOURCE, client = "claude", iss = issuer) {
+    return new SignJWT({ scope: "pivotkit", client_id: client }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(iss).setAudience(aud).setSubject(sub).setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
 }
 
 /** The cookie a Set-Cookie header sets, as a Cookie header sends it. */
@@ -115,6 +117,23 @@ function assertBaseHeaders(headers) {
     assert.equal(headers.get("x-robots-tag"), "noindex");
     assert.equal(headers.get("x-content-type-options"), "nosniff");
     assert.equal(headers.get("cross-origin-resource-policy"), "same-origin");
+}
+
+/**
+ * A page's policy: nothing but its own style and script, by their hashes, a form to itself, no frames.
+ * @param {string | null} csp
+ * @param {string} html
+ */
+function assertPageCsp(csp, html) {
+    const hash = (text) => `'sha256-${createHash("sha256").update(text).digest("base64")}'`;
+    const style = /<style>([\s\S]*?)<\/style>/.exec(html)?.[1] ?? "";
+    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
+    assert.match(style, /prefers-color-scheme:dark/);
+    assert.match(String(csp), /^default-src 'none'; style-src '[^']+'; script-src '[^']+'; form-action 'self'; frame-ancestors 'none'$/);
+    assert.ok(String(csp).includes(`style-src ${hash(style)};`), "the style's hash");
+    if (script !== undefined) {
+        assert.ok(String(csp).includes(`script-src ${hash(script)};`), "the script's hash");
+    }
 }
 
 /** Sales: Customer is a person's name (closed: summary by default); weather: every field shown (open). */
@@ -146,10 +165,14 @@ test("token: a signed token reads back; a changed payload or signature, another 
     for (const bad of ["", ".", token.replace(".", ""), `${token}.x`, `${body}.${sig}=`, `${body}%2E${sig}`, `${"A".repeat(700)}.${sig}`, `${body} .${sig}`, null, 42]) {
         assert.equal(readToken(KEYS, /** @type {any} */ (bad)), null, String(bad));
     }
-    // a subject is an HMAC under its own key: not the subject, not a plain hash of it
-    const s = subjectDigest(KEYS, "alice");
+    // a person is an HMAC of issuer and subject under its own key: not the subject, not a plain hash
+    // of it, and the same subject of another issuer is another person
+    const s = subjectDigest(KEYS, "https://auth.example.com/", "alice");
     assert.notEqual(s, createHash("sha256").update("alice").digest("base64url"));
     assert.notEqual(s, createHmacB64(KEYS.token, "alice"));
+    assert.notEqual(s, subjectDigest(KEYS, "https://other.example.com/", "alice"));
+    // issuer and subject cannot be cut differently to the same person: "a" + "b\0c" is not "a\0b" + "c"
+    assert.notEqual(subjectDigest(KEYS, "a", "b\u0000c"), subjectDigest(KEYS, "a\u0000b", "c"));
 });
 
 /** HMAC-SHA256 in base64url (a signature under a key the test holds). */
@@ -195,6 +218,9 @@ test("options: expiry from 1 to 1440 minutes; enabled next to output.baseUrl, a 
     assert.throws(() => validateOptions({ output: { dir: "out", downloads: { key: "the-key-itself" } } }), /output\.downloads\.key: must be a reference to a secret/);
     validateOptions({ output: { dir: "out", downloads: { signIn, key: { env: "DL_KEY" }, expiresMinutes: 1440 } }, auth: oauth, http: { publicUrl: PUBLIC } });
     validateOptions({ output: { dir: "out", downloads: { bind: "once" } } });
+    // the person signs in where the caller's token came from: another issuer is refused
+    assert.throws(() => validateOptions({ output: { dir: "out", downloads: { signIn: { ...signIn, issuer: "https://other.example.com/" } } }, auth: oauth, http: { publicUrl: PUBLIC } }), /signIn\.issuer: must be auth\.issuer/);
+    validateOptions({ output: { dir: "out", downloads: { signIn: { ...signIn, issuer: oauth.issuer } } }, auth: oauth, http: { publicUrl: PUBLIC } });
     validateOptions({ output: { dir: "out", baseUrl: "https://files.example.com/", downloads: { enabled: false } } });
 });
 
@@ -214,7 +240,9 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
         assert.match(output.expiresAt, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
         assert.ok(Math.abs(Date.parse(output.expiresAt) - Date.now() - 3_600_000) < 5000);
         assert.equal(output.note, "Open the link in your browser; it works for 60 minutes.");
-        assert.match(r.data.message, /saved as http:\/\/127\.0\.0\.1:\d+\/downloads\//);
+        // the address is output.url (and the resource_link), named once: the message names the file
+        assert.equal(r.data.message.split(output.url).length, 1, r.data.message);
+        assert.match(r.data.message, /^The report is saved as "Sales by region\.csv"\. Open the link in your browser; it works for 60 minutes\./);
         // the token names no file: only the nonce of the stored name
         const token = output.url.split("/downloads/")[1];
         const payload = readToken(KEYS, token);
@@ -262,7 +290,7 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
         const pageAnswer = await fetch(`${server.url}/downloads/${forged}`, { headers: { accept: "text/html" } });
         assert.equal(pageAnswer.status, 404);
         assert.match(await pageAnswer.text(), /There is no such link/);
-        assert.equal(pageAnswer.headers.get("content-security-policy"), "default-src 'none'; form-action 'self'; frame-ancestors 'none'");
+        assertPageCsp(pageAnswer.headers.get("content-security-policy"), await fetch(`${server.url}/downloads/${forged}`, { headers: { accept: "text/html" } }).then((a) => a.text()));
         assertBaseHeaders(pageAnswer.headers);
 
         // the report removed to make room (output.maxFiles) before the link expires
@@ -367,7 +395,9 @@ test("once: GET and HEAD answer a page and never use the link; one POST from the
             const html = await page.text();
             assert.match(html, /<form method="post"><button type="submit">Download<\/button><\/form>/);
             assert.doesNotMatch(html, /North|Sales,/);
-            assert.equal(page.headers.get("content-security-policy"), "default-src 'none'; form-action 'self'; frame-ancestors 'none'");
+            assertPageCsp(page.headers.get("content-security-policy"), html);
+            assert.match(html, /<p class="brand">pivotkit report<\/p>/);
+            assert.match(html, /<p id="status" role="status"><\/p>/);
             // the form's POST names the page's origin (under no-referrer a browser sends Origin: null)
             assert.equal(page.headers.get("referrer-policy"), "same-origin");
             assert.equal((await fetch(url, { method: "HEAD" })).status, 200);
@@ -388,7 +418,7 @@ test("once: GET and HEAD answer a page and never use the link; one POST from the
         const again = await call(url, { method: "POST", headers: { origin: PUBLIC, accept: "application/json" } });
         assert.equal(again.status, 409);
         assert.equal(again.data.code, "LINK_USED");
-        assert.match(again.data.detail, /This link was already used\. Ask the assistant to make the report again\./);
+        assert.match(again.data.detail, /This link was already used\. Ask whoever made the report to make it again\./);
         const repeat = await fetch(url, { method: "POST", headers: { "sec-fetch-site": "same-origin", cookie: cookieOf(first) } });
         assert.equal(repeat.status, 200, "the same browser within two minutes");
         // a cookie whose signature does not hold is no cookie
@@ -533,6 +563,9 @@ test("signIn: a wrong nonce, audience, issuer, key or verifier, a missing or for
         const bad = [
             await attempt({ nonce: "another-nonce-value-0000" }),
             await attempt({ aud: "another-client" }),
+            // several audiences without this client as azp, and with another azp (OpenID Connect Core 3.1.3.7)
+            await attempt({ aud: [CLIENT_ID, "another-client"] }),
+            await attempt({ aud: [CLIENT_ID, "another-client"], claims: { azp: "another-client" } }),
             await attempt({ iss: "https://elsewhere.example.com" }),
             await attempt({ signWith: otherKey.privateKey }),
             await attempt({ challenge: "not-the-challenge" }),
@@ -543,6 +576,8 @@ test("signIn: a wrong nonce, audience, issuer, key or verifier, a missing or for
             assert.equal(r.status, 400);
             assert.match(await r.text(), /The sign-in did not complete\. Open the link again to try once more\./);
         }
+        // several audiences with this client as azp: the person gets the file
+        assert.equal((await attempt({ aud: [CLIENT_ID, "another-client"], claims: { azp: CLIENT_ID } })).status, 200);
         // the provider's own words are not shown
         const redirect = await open(output.url);
         const { state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
@@ -564,7 +599,7 @@ test("signIn: the callback checks the link's expiry again; reports over open sou
         const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
         // the token in the cookie is the link's: an expired one of the same nonce is not let through
         const payload = /** @type {any} */ (readToken(KEYS, output.url.split("/downloads/")[1]));
-        assert.equal(payload.s, subjectDigest(KEYS, "alice"));
+        assert.equal(payload.s, subjectDigest(KEYS, issuer, "alice"));
         const ok = await callback(code, state, cookieOf(redirect));
         assert.equal(ok.status, 200);
         const expired = signToken(KEYS, { ...payload, e: Math.floor(Date.now() / 1000) - 1 });
@@ -580,13 +615,22 @@ test("signIn: the callback checks the link's expiry again; reports over open sou
 });
 
 test("signIn: while the sign-in issuer is not loaded a link answers 503; REST callers without results get no link to a closed report", async () => {
+    // a provider whose metadata serves access tokens (keys) but names no sign-in endpoints: the
+    // server takes calls, its sign-in links wait for metadata they can use
+    const half = createServer((req, res) => {
+        res.writeHead(req.url === "/jwks" || req.url === "/.well-known/openid-configuration" ? 200 : 404, { "content-type": "application/json" });
+        res.end(req.url === "/jwks" ? JSON.stringify({ keys: [jwk] }) : JSON.stringify({ issuer: halfIssuer, jwks_uri: `${halfIssuer}/jwks` }));
+    });
+    await new Promise((resolve) => half.listen(0, "127.0.0.1", resolve));
+    const halfIssuer = `http://127.0.0.1:${/** @type {any} */ (half.address()).port}`;
+    after(() => new Promise((resolve) => half.close(resolve)));
     const dir = workspace();
     const server = await restServer(
         {
             sources: SOURCES,
-            output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID, issuer: "http://127.0.0.1:9/nobody" } } },
+            output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID } } },
             policy: { profiles: { reader: { results: false } }, results: true },
-            auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, clientProfiles: { "report-bot": "reader" } },
+            auth: { mode: "oauth", issuer: halfIssuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, clientProfiles: { "report-bot": "reader" } },
             http: { publicUrl: PUBLIC },
             baseDir: dir
         },
@@ -596,18 +640,18 @@ test("signIn: while the sign-in issuer is not loaded a link answers 503; REST ca
         for (let i = 0; i < 100 && (await call(`${server.url}/readyz`)).status !== 200; i++) {
             await new Promise((r) => setTimeout(r, 30));
         }
-        const r = await call(`${server.api}/views/render`, { token: await accessToken("alice"), body: { source: "sales", view: BY_REGION, format: "csv", name: "Waiting" } });
+        const r = await call(`${server.api}/views/render`, { token: await accessToken("alice", REST_RESOURCE, "claude", halfIssuer), body: { source: "sales", view: BY_REGION, format: "csv", name: "Waiting" } });
         assert.equal(r.data.output.bound, "signIn");
         const waiting = await call(r.data.output.url.replace(PUBLIC, server.url), { headers: { accept: "application/json" } });
         assert.equal(waiting.status, 503);
         assert.equal(waiting.headers.get("retry-after"), "5");
         // a REST program whose profile may not take files (results false) gets no link to a closed report
-        const bot = await call(`${server.api}/views/render`, { token: await accessToken("alice", REST_RESOURCE, "report-bot"), body: { source: "sales", view: BY_REGION, format: "csv", name: "Bot" } });
+        const bot = await call(`${server.api}/views/render`, { token: await accessToken("alice", REST_RESOURCE, "report-bot", halfIssuer), body: { source: "sales", view: BY_REGION, format: "csv", name: "Bot" } });
         assert.equal(bot.status, 200, JSON.stringify(bot.data));
         assert.equal(bot.data.output.url, undefined);
         assert.equal(bot.data.output.note, NO_LINK_NOTE);
         // its link to an open report stays
-        const openBot = await call(`${server.api}/views/render`, { token: await accessToken("alice", REST_RESOURCE, "report-bot"), body: { source: "open", view: BY_REGION, format: "csv", name: "Bot" } });
+        const openBot = await call(`${server.api}/views/render`, { token: await accessToken("alice", REST_RESOURCE, "report-bot", halfIssuer), body: { source: "open", view: BY_REGION, format: "csv", name: "Bot" } });
         assert.equal(openBot.data.output.bound, "none");
     } finally {
         await server.close();
@@ -631,7 +675,8 @@ test("the log of every kind of download names its binding and outcome, never a t
         }
         const downloads = server.log.filter((l) => l.event === "download" && l.via === "link");
         assert.ok(downloads.some((l) => l.bound === "signIn" && l.ok === true));
-        assert.ok(downloads.some((l) => l.ok === false && l.code === "NOT_FOUND"));
+        // a link that does not exist is on the debug log only (a scan would fill the log)
+        assert.ok(!downloads.some((l) => l.code === "NOT_FOUND"));
         assert.ok(downloads.every((l) => /^[A-Za-z0-9_-]{11}$/.test(l.requestId)));
     } finally {
         await server.close();
@@ -647,6 +692,10 @@ test("check-config: where links point, which sources get which link, the redirec
     assert.match(signIn.text, /^Delivery:\n {2}downloads: on, links https:\/\/reports\.example\.com\/downloads\/<token> \(route \/downloads to this service\), expire after 60 minutes$/m);
     assert.match(signIn.text, /^ {2}reports over closed sources \(sales\): sign-in links; register https:\/\/reports\.example\.com\/downloads\/callback at the provider for client pivotkit-downloads; it must resolve the same subject \(sub\) as the MCP client; REST programs get them only with results: true$/m);
     assert.match(signIn.text, /^ {2}reports over open sources \(open\): plain links$/m);
+    // why a source counts as closed: open needs default "show" and no field below it
+    assert.match(signIn.text, /^ {2}closed \(a field not shown for someone\): sales \(fields summary by default\)$/m);
+    const why = await checkConfig({ sources: { listed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "values" } } }, profiled: { file: "data/sales.csv", policy: { default: "show" } } }, policy: { profiles: { reader: { default: "summary" } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
+    assert.match(why.text, /closed \(a field not shown for someone\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
     assert.match(signIn.text, /^ {2}warning: output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
     assert.match(signIn.text, /New in this version[\s\S]*download links under \/downloads/);
 
@@ -682,4 +731,91 @@ test("deliver: a source whose state is not known counts as closed (no output.bas
     } finally {
         await context.close();
     }
+});
+
+test("markers: written whole and exclusive; the sweep deletes an expired one, keeps a live, an empty and a damaged one, and a fresh temporary file", async () => {
+    const dir = join(tempDir(), ".pivotkit-downloads");
+    mkdirSync(dir);
+    const now = Math.floor(Date.now() / 1000);
+    const nonce = () => randomBytes(16).toString("base64url");
+    const [expired, live, empty, damaged] = [nonce(), nonce(), nonce(), nonce()];
+    await placeMarker(join(dir, `${expired}.used`), now - 1);
+    await placeMarker(join(dir, `${live}.used`), now + 3600);
+    // a second writer of the same link loses, and the marker keeps the first writer's whole content
+    await assert.rejects(placeMarker(join(dir, `${live}.used`), now + 1), { code: "EEXIST" });
+    assert.equal(readFileSync(join(dir, `${live}.used`), "utf8"), `${now + 3600}\n`);
+    writeFileSync(join(dir, `${empty}.used`), "");
+    writeFileSync(join(dir, `${damaged}.used`), "soon");
+    const freshTemp = join(dir, `.${nonce()}.abcdefgh.tmp`);
+    const oldTemp = join(dir, `.${nonce()}.ijklmnop.tmp`);
+    writeFileSync(freshTemp, "1");
+    writeFileSync(oldTemp, "1");
+    utimesSync(oldTemp, new Date(Date.now() - 7_200_000), new Date(Date.now() - 7_200_000));
+    await sweepMarkers(dir, now);
+    assert.equal(existsSync(join(dir, `${expired}.used`)), false);
+    assert.equal(existsSync(join(dir, `${live}.used`)), true);
+    assert.equal(existsSync(join(dir, `${empty}.used`)), true, "a marker being written (or empty) stays: a used link stays used");
+    assert.equal(existsSync(join(dir, `${damaged}.used`)), true);
+    assert.equal(existsSync(freshTemp), true);
+    assert.equal(existsSync(oldTemp), false);
+    // no temporary file is left by a write
+    assert.deepEqual(readdirSync(dir).filter((n) => n.endsWith(".tmp")).length, 1);
+});
+
+test("a rotated key takes effect without a restart: links of the old key answer 404, new links work", async () => {
+    const dir = workspace();
+    const env = { DL_KEY };
+    const server = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" } } }, baseDir: dir }, { env });
+    try {
+        const render = async (name) => (await call(`${server.api}/views/render`, { body: { source: "open", view: BY_REGION, format: "csv", name } })).data.output;
+        const before = await render("Before");
+        assert.equal((await fetch(before.url)).status, 200);
+        env.DL_KEY = "another-download-key-for-tests-that-is-long-enough-9876543210";
+        assert.equal((await fetch(before.url)).status, 404);
+        const after = await render("After");
+        assert.equal((await fetch(after.url)).status, 200);
+        assert.equal(readToken(KEYS, after.url.split("/downloads/")[1]), null);
+    } finally {
+        await server.close();
+    }
+});
+
+test("a key that cannot be read: a warning at start, and reports get no link, their plain name and the operator's note", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" } } }, baseDir: dir }, { env: { DL_KEY: "too-short" } });
+    try {
+        for (let i = 0; i < 50 && !server.log.some((l) => /key cannot be read/.test(l.message ?? "")); i++) {
+            await new Promise((r) => setTimeout(r, 20));
+        }
+        assert.ok(server.log.some((l) => l.event === "warning" && /download links: the key cannot be read, so reports get no links/.test(l.message)), JSON.stringify(server.log));
+        const r = await call(`${server.api}/views/render`, { body: { source: "open", view: BY_REGION, format: "csv", name: "Keyless" } });
+        assert.equal(r.status, 200, JSON.stringify(r.data));
+        assert.equal(r.data.output.name, "Keyless.pivotkit-out.csv");
+        assert.equal(r.data.output.url, undefined);
+        assert.equal(r.data.output.note, NO_LINK_NOTE);
+        assert.match(r.data.message, /^The report is saved on the server; ask the operator how to open it\./);
+        assert.doesNotMatch(r.data.message, /Keyless\.pivotkit-out/);
+        // the key never reaches the log
+        assert.ok(!JSON.stringify(server.log).includes("too-short"));
+    } finally {
+        await server.close();
+    }
+});
+
+test("no random-key warning where no report can get a link (only closed sources, no binding)", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir });
+    try {
+        await new Promise((r) => setTimeout(r, 100));
+        assert.ok(!server.log.some((l) => /random key/.test(l.message ?? "")), JSON.stringify(server.log));
+    } finally {
+        await server.close();
+    }
+});
+
+test("resource_link: the title loses only the output's own extension", () => {
+    const base = { name: "x", mediaType: "text/csv", url: "https://reports.example.com/downloads/t" };
+    assert.equal(resourceLinkOf({ ...base, filename: "Q3.2026.csv" }, { bytes: 10, closed: false })?.title, "Q3.2026");
+    assert.equal(resourceLinkOf({ ...base, filename: "Weekly.report.json" }, { bytes: 10, closed: false })?.title, "Weekly");
+    assert.equal(resourceLinkOf({ ...base, filename: "v1.2" }, { bytes: 10, closed: false })?.title, "v1.2");
 });

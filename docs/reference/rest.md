@@ -493,7 +493,7 @@ a client that reaches the server directly can write any `X-Forwarded-For`. With 
 client's address. Let the proxy take bodies of 2 MiB (nginx's default is 1 MiB), or `rest.data.maxBytes` where callers [send data](#data). For nginx:
 
 ```nginx
-location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|healthz$|readyz$|$) {
+location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|readyz$|$) {
     proxy_pass http://127.0.0.1:3333;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -84,7 +84,11 @@ function noteOf(bound, minutes) {
 export async function deliver(context, file, how) {
     const closed = how.sourceClosed !== false;
     const links = linksOf(context);
-    const bound = linkFor(links, { closed, surface: how.surface, results: how.policy?.results === true, subject: how.caller?.subject });
+    const caller = how.caller;
+    const wanted = linkFor(links, { closed, surface: how.surface, results: how.policy?.results === true, subject: caller?.subject && caller?.issuer ? caller.subject : null });
+    // the key is read before the file is written: a report whose link cannot be made keeps its plain name
+    const sign = wanted && links ? await links.signer() : null;
+    const bound = sign ? wanted : null;
     const n = bound ? randomBytes(16).toString("base64url") : null;
     const written = await writeOutput(context, file, how.draft === true, n ? { prefix: `${n}-` } : {});
     if (!written) {
@@ -93,17 +97,16 @@ export async function deliver(context, file, how) {
     const { url: baseUrlAddress, ...kept } = written;
     /** @type {Delivered} */
     const out = { ...kept, filename: filenameOf(written.name) };
-    if (bound && links && n) {
-        const link = await links.mint({ n, bound, subject: how.caller?.subject });
-        if (link) {
-            return { ...out, url: link.url, expiresAt: link.expiresAt, bound, note: noteOf(bound, links.expiresMinutes) };
-        }
+    const link = sign && bound && n ? sign({ n, bound, subject: caller?.subject, issuer: caller?.issuer }) : null;
+    if (link && links) {
+        return { ...out, url: link.url, expiresAt: link.expiresAt, bound: /** @type {"none" | "once" | "signIn"} */ (bound), note: noteOf(/** @type {string} */ (bound), links.expiresMinutes) };
     }
     if (baseUrlAddress && !closed) {
         return { ...out, url: baseUrlAddress };
     }
-    // a report over a closed source without a link: the person asks the operator (a local server shows the path)
-    return closed && !out.path ? { ...out, note: NO_LINK_NOTE } : out;
+    // no link: over a closed source, or one that could not be made (its key unreadable), the person
+    // asks the operator (a local server shows the path)
+    return (closed || wanted) && !out.path ? { ...out, note: NO_LINK_NOTE } : out;
 }
 
 /**
@@ -116,6 +119,7 @@ export function resourceLinkOf(output, { bytes, closed }) {
     if (!output?.url) {
         return null;
     }
-    const title = output.filename.replace(/\.[^.]+$/, "");
+    // only the output's own extension comes off ("Q3.2026.xlsx" keeps "Q3.2026")
+    const title = output.filename.replace(/\.(report\.json|xlsx|html|csv|json|svg)$/i, "");
     return { type: "resource_link", uri: output.url, name: output.filename, title, mimeType: output.mediaType, ...(closed ? {} : { size: bytes }), annotations: { audience: ["user"] } };
 }

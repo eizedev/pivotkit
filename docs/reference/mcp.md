@@ -442,7 +442,7 @@ header: client addresses are in the proxy's log. For IIS with ARR, see
 [PowerShell Universal](../getting-started/mcp.md#psu-iis). For nginx:
 
 ```nginx
-location ~ ^/(mcp|\.well-known/|healthz$|$) {
+location ~ ^/(mcp|\.well-known/|downloads/|healthz$|$) {
     proxy_pass http://127.0.0.1:3333;
     proxy_set_header Host $host;
     proxy_buffering off;

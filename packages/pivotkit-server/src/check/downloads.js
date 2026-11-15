@@ -12,9 +12,45 @@ import { CALLBACK_PATH, DOWNLOADS_PATH, KEY_MIN_BYTES } from "../downloads.js";
 import { settingsOf } from "../options/downloads.js";
 import { isLoopback } from "../listen.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
+import { resolvePolicy } from "../policy.js";
 
 /** Up to six ids, then how many more. */
 const idsText = (ids) => (ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", "));
+
+/** What makes a policy closed, in words, or null where every field is shown; a field by its written name. */
+function closedBy(policy, written = []) {
+    if (policy.default !== "show") {
+        return `fields ${policy.default} by default`;
+    }
+    const field = [...policy.fields.entries()].find(([, level]) => level !== "show");
+    if (field) {
+        const name = written.find((w) => w.toLowerCase() === field[0].toLowerCase()) ?? field[0];
+        return `${name.slice(0, 60)} ${field[1]}`;
+    }
+    return policy.auto ? "the automatic values rule" : null;
+}
+
+/**
+ * Why a source counts as closed: the first field that is not shown under its policy (with the
+ * server's), else under a profile. Open needs `default: "show"` and no field below it, everywhere.
+ * @param {import("../config.js").ServerOptions} options
+ * @param {string} id
+ */
+export function whyClosed(options, id) {
+    const source = options.sources?.[id]?.policy;
+    const written = [options.policy, source, ...Object.values(options.policy?.profiles ?? {})].flatMap((p) => Object.keys(p?.fields ?? {}));
+    const own = closedBy(resolvePolicy(options.policy, source), written);
+    if (own) {
+        return own;
+    }
+    for (const [name, profile] of Object.entries(options.policy?.profiles ?? {})) {
+        const by = closedBy(resolvePolicy(options.policy, source, profile), written);
+        if (by) {
+            return `profile ${name.slice(0, 40)}: ${by}`;
+        }
+    }
+    return "a field is not shown";
+}
 
 /** @type {import("./index.js").Section} */
 export async function section(options, registry, runtime) {
@@ -50,6 +86,8 @@ export async function section(options, registry, runtime) {
     const base = publicUrl ?? `http://${host.includes(":") ? `[${host}]` : host}:${options.http?.port ?? 3333}`;
     lines.push(`  downloads: on, links ${base}${DOWNLOADS_PATH}/<token>${publicUrl ? ` (route ${DOWNLOADS_PATH} to this service)` : ""}, expire after ${settings.expiresMinutes} minute${settings.expiresMinutes === 1 ? "" : "s"}`);
     if (closed.length) {
+        // why: open needs default "show" and no field below it, for the server, the source and every profile
+        lines.push(`  closed (a field not shown for someone): ${idsText(closed.map((id) => `${id} (${whyClosed(options, id)})`))}`);
         const rest = runtime.rest ? "; REST programs get them only with results: true" : "";
         if (settings.bind === "signIn" && settings.signIn) {
             const claim = options.auth?.subjectClaim ?? "sub";

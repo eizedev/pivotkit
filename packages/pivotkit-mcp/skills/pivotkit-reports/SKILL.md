@@ -27,7 +27,7 @@ file or a link.
    `chart: "on"` for a chart above the table; `csv` or `json` for data; `svg` for the chart alone).
    Give it a `name` that says what it is (`sales-by-region-per-quarter`). Or `create_link`, but only
    for a source whose `list_sources` entry says `link: true`.
-6. Tell the user the `message` of the result as it is: where the file is, or the link. Only csv and json
+6. Tell the user the `message` of the result as it is: where the file is, or the link (give `output.url` whole when there is one). Only csv and json
    can come back to you inline; xlsx, html and svg are files for the user, and you have not seen them.
 7. When the user wants the report regularly ("every Monday to the sales team"): `draft_schedule` with
    when, the formats and the recipients by name (never addresses). It only writes a draft; tell the
