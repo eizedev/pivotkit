@@ -46,7 +46,8 @@ folder.
     ```
 
 Each field has a `level`. By default every field is `summary`: you get its name, type and counts, not
-its values. The operator decides more per field ([step 5](#policy)).
+its values. At `values` you get every value as a complete list, at `show` values and results. The
+operator decides per field ([step 5](#policy)).
 
 ## 3. Check a view { #validate }
 

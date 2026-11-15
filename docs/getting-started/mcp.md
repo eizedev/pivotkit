@@ -75,8 +75,12 @@ whose values you did not let the model see, it says that it has not seen the con
 ## 3. Choose what the model may see
 
 By default every field is `summary`: name, type and counts. Mark fields whose values may reach the
-model as `show` (the model can then answer questions about them and get small results inline), and
-fields it must not know about as `hide` (dropped when the data is read). In a configuration file:
+model as `show` (the model can then answer questions about them and get small results inline),
+category fields as `values` (the model sees their values as a complete list, so it filters on the
+exact name of a status or a team, but no result over them), and fields it must not know about as
+`hide` (dropped when the data is read). `"policy": { "autoValues": true }` gives `values` to text
+fields that look like categories by itself ([the rule](../reference/mcp.md#auto-values));
+`--check-config` lists them. In a configuration file:
 
 ```json
 {
@@ -84,7 +88,7 @@ fields it must not know about as `hide` (dropped when the data is read). In a co
     "sales": {
       "file": "/Users/you/reports/sales.csv",
       "title": "Sales",
-      "policy": { "fields": { "Region": "show", "Product": "show", "Discount": "hide" } }
+      "policy": { "fields": { "Region": "show", "Product": "show", "Status": "values", "Discount": "hide" } }
     }
   },
   "output": { "dir": "/Users/you/reports/out" }

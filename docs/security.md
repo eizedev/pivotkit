@@ -222,14 +222,24 @@ treats the model as a caller that may have been steered by text it read, and the
 may try to steer it:
 
 - **The model never gets the data.** It gets what the [exposure policy](reference/mcp.md#policy)
-  allows per field: by default names, types and counts; values only of fields marked `show`; nothing
-  of fields marked `hide`, which are dropped when the data is read. A view that touches a field whose
-  values are not shown has its result written to a file, and its row count, size and content are
-  withheld from the model. Findings that would tell whether an item exists are left out for such
-  fields. A draft (`suggest_view`, a layout) reads no counts or span of a field that is not shown, nor
+  allows per field: by default names, types and counts; a field's values as a complete list for
+  fields at `values`; values and results only of fields marked `show`; nothing of fields marked
+  `hide`, which are dropped when the data is read. A view that touches a field that is not `show`
+  (`values` included) has its result written to a file, and its row count, size and content are
+  withheld from the model. Findings are decided per field: a finding about a field's items only for
+  a field whose values are listed, a finding that would tell whether rows exist (a filter keeps
+  nothing, a table was cut) only for a view of `show` fields, so an empty combination of two listed
+  values says nothing.
+- **The automatic values rule is off by default.** With `policy.autoValues: true` a text field that
+  looks like a category (few values, each in many rows, short, nothing that looks like an e-mail
+  address, a phone number, an IBAN, an address on the web or an IP address, a name off a deny list)
+  lists its values without a rule of its own. It decides from counts taken when the data is read,
+  never from a person's judgement: run `check-config` and read what it lists before switching it on
+  for personal data, and set an explicit `default` or a field rule where it must not apply. It never
+  applies to a `file:` path, where a `default` is written, or to a caller bound to a profile. A draft (`suggest_view`, a layout) reads no counts or span of a field that is not shown, nor
   counts where `counts` is false: a date field there is grouped by quarter, whatever its span.
 - **The policy is not confidentiality.** A model can still learn from what it may see (results over
-  `show` fields, counts), every number in a report is real (a small group can identify a person), and
+  `show` fields, the lists of `values` fields, counts), every number in a report is real (a small group can identify a person), and
   field names are data too. Leave out of the data, or `hide`, what the model must not learn about.
 - **Data values are text, never instructions**: names and values reach the model only inside the
   result's JSON, cleaned of control and direction characters and cut at 80 characters, never in the
@@ -282,7 +292,8 @@ MCP server: the exposure policy, the workers and their limits, the output direct
 and the sign-in above hold for it too. What differs:
 
 - **A caller gets what its policy allows, never more.** A program is not a model, but a field at
-  `summary` keeps its values out of every answer and `hide` drops it. A **profile** can give one
+  `summary` keeps its values out of every answer, one at `values` lists its values but no result
+  over them, and `hide` drops it. A **profile** can give one
   caller more (values, downloads): it is bound to a token or an OAuth client or scope in the
   configuration, never chosen by the caller, and a field the source hides stays hidden in every
   profile. A token without a profile gets the server's policy.

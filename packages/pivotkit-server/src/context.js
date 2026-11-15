@@ -18,7 +18,7 @@ import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
 import { createAuthCore, profileOf } from "./auth.js";
 import { autoValuesFields, noteAutoValues, prune } from "./present.js";
-import { withStats } from "./policy.js";
+import { resolvePolicy, withStats } from "./policy.js";
 
 /** Why an output directory inside (or holding) an allowed directory is refused. */
 export const OUTPUT_INSIDE_ALLOWED = "output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them";
@@ -163,10 +163,12 @@ export async function createContext(options, runtime = {}) {
          * A source that cannot be read is skipped: its calls say why. Never rejects.
          */
         async countAutoValues() {
+            // file sources the rule applies to, decided from the options before anything is resolved
+            const wanted = Object.entries(options.sources ?? {}).filter(([, s]) => s.file && resolvePolicy(options.policy, s.policy).auto);
             const ids = [];
-            for (const id of registry.ids()) {
+            for (const [id] of wanted) {
                 const resolved = await registry.resolve(id, { scopes: null, client: "start", profile: null }).catch(() => null);
-                if (resolved && !resolved.source && resolved.policy.auto) {
+                if (resolved) {
                     ids.push(resolved);
                 }
             }

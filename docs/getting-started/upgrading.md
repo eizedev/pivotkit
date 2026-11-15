@@ -1,12 +1,46 @@
 ---
 title: Upgrading
-description: What a host or a script checks when it moves to the next release of pivotkit - from 0.6.0 to 0.6.1 (the services' output files and request limits, checks at start, years before 1 AD and the command line), from 0.5 to 0.6 (Table as CSV, Source data, the report's words and the command line) and from 0.4 to 0.5 (view and file format 2, dark theme selectors, the colour scale, labels, font weights, chart text and column subtotals).
+description: What a host or a script checks when it moves to the next release of pivotkit - from 0.6.1 to the next release (the values level of the services), from 0.6.0 to 0.6.1 (the services' output files and request limits, checks at start, years before 1 AD and the command line), from 0.5 to 0.6 (Table as CSV, Source data, the report's words and the command line) and from 0.4 to 0.5 (view and file format 2, dark theme selectors, the colour scale, labels, font weights, chart text and column subtotals).
 ---
 
 # Upgrading
 
 Each section lists what changes between two releases and whom it concerns; **Breaking** marks a
 change that needs your action when it applies.
+
+## From 0.6.1 to the next release { #next }
+
+Operators of pivotkit-server and pivotkit-mcp change nothing: no default changes, and every field
+keeps its level.
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
+| [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
+
+### The values level { #values-level }
+
+A field at `values` lists every distinct value as a complete list in `describe_source`
+(`complete: true`); a result over it stays withheld, as for `summary`. To use it:
+
+1. Give category fields the level in `fields` (`"Status": "values"`), or switch on the automatic
+   rule with `"policy": { "autoValues": true }`: text fields that look like categories get `values`
+   where no `default` is written ([the rule](../reference/mcp.md#auto-values)). It never applies to
+   a caller bound to a profile or to a `file:` path.
+2. Run `check-config` (`pivotkit-server check-config` or `pivotkit-mcp --check-config`): it prints
+   each field's level and why, and with the rule off the fields it would list.
+3. To give one group more, bind a profile to its OAuth scope (`auth.scopeProfiles`,
+   [example](../reference/rest.md#profiles)).
+
+`"autoValues": false` or a written `default` keeps every field as it is.
+
+### Findings carry their field { #findings-field }
+
+A finding about a field's items has `field`. `itemCase` is sent for a `show` or `values` field,
+the new `itemUnknown` (an item that is none of a field's values, with the closest one as the
+`suggestion`) where its values are listed completely. `noRowsKept`, `filterEmpty`, `tableCut` and
+`chartCut` stay for views whose fields are all `show`. `describe_source` may add `withheld`, `hint`,
+`complete` and `auto`; a client reads a `level` it does not know as `summary`.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 

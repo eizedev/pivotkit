@@ -6,6 +6,14 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- The exposure policy's level `values` and the opt-in automatic rule (`policy.autoValues`) of
+  pivotkit-server ([#362](https://github.com/eizedev/pivotkit/issues/362)); `--check-config` prints
+  each field's level and why.
+- The instructions and the skill explain the levels once per conversation, `values` included, and
+  `itemUnknown`.
+
 ## [0.1.1] - 2026-11-14
 
 ### Upgrading from 0.1.0

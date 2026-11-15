@@ -156,8 +156,13 @@ root `package.json`: `npm run types` and the builds depend on it.
   included; `validateOptions` with "did you mean"; `loadConfig`), `src/flags.js` (`optionsFrom`, the
   runners' flags into options; `SERVER_FLAGS`), `src/context.js` (`createContext(options)`: registry,
   workers, output, log, the sign-in both front ends share, `ready()`; `callerOf`), `src/policy.js`
-  (show, summary, hide; profiles laid over a source's policy, `results`; `exposeSource`,
-  `exposeFindings`, `touchesClosed`), `src/registry.js` (source ids and `file:` paths, scopes, "not
+  (show, values, summary, hide in `POLICY_LEVELS`, the order of strictness; profiles laid over a
+  source's policy, `results`; the automatic values rule `autoLevel` with `AUTO_VALUES` and the one
+  default `AUTO_VALUES_DEFAULT`; `withStats` binds the data's statistics, `levelInfo`/`levelOf` (own
+  rule, repeated hidden header, automatic rule, default); `exposeSource`, `exposeFindings` per field,
+  `touchesClosed`), `src/stats.js` (`sourceStats`: per field the counts the "values" level is decided
+  by, never a value; counted in data.js when the data is read, cached with it, returned by the worker
+  with every outcome), `src/registry.js` (source ids and `file:` paths, scopes, "not
   found" for a source the caller may not use; `files: false` for REST), `src/data.js`,
   `src/compute.js` and `src/worker.js` (worker threads with memory and time limits; an input the
   structured clone cannot copy is `INVALID_INPUT` and frees the worker), `src/present.js` (`present()`:

@@ -81,18 +81,29 @@ column field, a row of labels, then a row per group with a total row and column;
 UTF-8 byte order mark, so a spreadsheet opens it as UTF-8.
 
 A csv or json result comes back inline (`inline.text`) only when the operator sets
-`rest.inline: true` and every field the view uses is shown. `withheld` lists what is left out of the
-answer because the view uses a field whose values the policy does not show. For such a view, the
-findings that would tell what the data holds (an item spelt differently, a filter that keeps nothing,
-`noRowsKept`) are left out too: a filter on an item that does not exist validates and renders an
-empty report, and nothing says why, since saying so would tell that the item does not exist. For a
-view of shown fields only, a render whose filters keep no rows has the warning `noRowsKept`.
+`rest.inline: true` and every field the view uses is `show`. `withheld` lists what is left out of the
+answer because the view uses a field that is not `show` (`values` included). Findings are decided per
+field (a finding about a field's items carries it in `field`): an item spelt differently (`itemCase`)
+is named for a `show` or `values` field, an item that is none of a field's values (`itemUnknown`,
+with the closest one) where its list is complete. A filter on an item of a `summary` field that does
+not exist validates and renders an empty report, and nothing says why, since saying so would tell
+that the item does not exist. Only for a view of `show` fields does a render whose filters keep no
+rows have the warning `noRowsKept`.
 
 ## Exposure policy and profiles { #profiles }
 
-The exposure policy is the [MCP server's](mcp.md#policy): per field `show`, `summary` (default) or
-`hide`, per source over the server's. A REST caller is a program, not a model, but the same rules
-hold: a field at `summary` keeps its values out of every answer.
+The exposure policy is the [MCP server's](mcp.md#policy): per field `show`, `values`, `summary`
+(default) or `hide`, per source over the server's, with the opt-in [automatic values
+rule](mcp.md#auto-values). A REST caller is a program, not a model, but the same rules hold: a field
+at `summary` keeps its values out of every answer, and one at `values` lists its values but no result
+over them.
+
+| Level | `GET /sources/{id}` | Findings | Results |
+| --- | --- | --- | --- |
+| `show` | values up to `items`, `complete`, smallest and largest | `itemCase`; `itemUnknown` where the list is complete; `noRowsKept`, `filterEmpty`, `tableCut`, `chartCut` when every field of the view is `show` | inline where `rest.inline` and `inline` allow |
+| `values` | every value, sorted, `complete: true` (`auto: true` from the automatic rule) | `itemCase`, `itemUnknown` | file only, `withheld` |
+| `summary` | name, type, counts | none about items | file only, `withheld` |
+| `hide` | not listed | none | dropped |
 
 A **profile** gives one caller more (or less) than the default: a named policy of the same shape in
 `policy.profiles`, bound to a static token (`auth.tokens[].profile`), an OAuth client
@@ -106,6 +117,25 @@ policy:
 - `items`, `rows`, `counts`, `inline` and `results` are the profile's where it sets them (a profile with `results: true` may download from a source whose own policy says `results: false`);
 - a caller without a profile gets the server's policy, never more. An OAuth token whose scopes name
   two different profiles gets none.
+
+A caller bound to a profile never gets the automatic values rule: what its profile and the source
+say is what it gets. To give a group more, bind a profile to its OAuth scope. Here a plain token
+sees `Status` as a complete list and nothing else, and a token with the scope `pivotkit:analyst`
+sees every value but `Customer`:
+
+```json
+{
+  "sources": { "tickets": { "file": "data/tickets.csv", "policy": { "fields": { "Status": "values", "Customer": "hide" } } } },
+  "policy": { "profiles": { "analyst": { "default": "show" } } },
+  "auth": { "mode": "oauth", "issuer": "https://login.example.com", "resource": "https://reports.example.com/mcp",
+    "scopeProfiles": { "pivotkit:analyst": "analyst" } }
+}
+```
+
+| Caller | `Status` | `Priority` (no rule) | `Customer` |
+| --- | --- | --- | --- |
+| plain token | `values` | `summary` | hidden |
+| token with `pivotkit:analyst` | `show` | `show` | hidden |
 
 ```json
 {
@@ -130,7 +160,7 @@ field that is not hidden, in a file, whatever level the field has; give it only 
 
 | Key | Default | What it is |
 | --- | --- | --- |
-| `policy.profiles.<name>` | none | A profile: `default` (show or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results` |
+| `policy.profiles.<name>` | none | A profile: `default` (show, values or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results` |
 | `policy.results`, `sources.<id>.policy.results` | false | Downloads through the file route for callers without a profile, per source |
 | `auth.tokens[].profile` | none | A static token's profile |
 | `auth.clientProfiles` | none | OAuth client id (`azp` or `client_id`) to profile: `{ "report-bot": "export" }` |
@@ -311,7 +341,7 @@ pivotkit-server's.
 | Command | What it does |
 | --- | --- |
 | `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json`, and with pivotkit-mcp installed `/mcp` and its quick-start page; `/healthz` and `/readyz` |
-| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, fields by level, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant |
+| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant |
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit` |
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |

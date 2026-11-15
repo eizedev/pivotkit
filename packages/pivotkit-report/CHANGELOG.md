@@ -6,6 +6,13 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- A finding about a field carries it in `field` (from pivotkit-core's issue, such as `itemCase`).
+- `env.unknownItems`: the finding `itemUnknown` for an item of an `in` filter that is none of its
+  text field's values, with the closest one as the `suggestion`
+  ([#362](https://github.com/eizedev/pivotkit/issues/362)).
+
 ## [0.2.1] - 2026-11-14
 
 ### Added
