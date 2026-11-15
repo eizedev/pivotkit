@@ -145,6 +145,46 @@ function forget(key) {
     cache.delete(key);
 }
 
+/**
+ * The texts a reader cuts from a file are slices: V8 keeps a slice of 13 characters or more as a
+ * pointer into the whole text it was cut from, so a kept value would keep the whole file alive, the
+ * columns the policy hides included (a CSV answer's decoded text in a worker). A copy made from a
+ * text of its own (" " + text, then cut) points into that one only.
+ */
+const SLICED_FROM = 13;
+
+/**
+ * A data set's texts (names, dictionaries, notes: every string in its plain objects and arrays) as
+ * copies of their own, in place, before it is kept, so the data set holds nothing of the text it was
+ * read from. Typed arrays and functions are left as they are.
+ * @param {unknown} value
+ * @param {Set<object>} [seen]
+ */
+function ownTexts(value, seen = new Set()) {
+    if (value === null || typeof value !== "object" || seen.has(value) || ArrayBuffer.isView(value) || Object.isFrozen(value)) {
+        return;
+    }
+    seen.add(value);
+    const own = (v) => (typeof v === "string" && v.length >= SLICED_FROM ? ` ${v}`.slice(1) : v);
+    if (Array.isArray(value)) {
+        for (let i = 0; i < value.length; i++) {
+            value[i] = own(value[i]);
+            ownTexts(value[i], seen);
+        }
+        return;
+    }
+    if (Object.getPrototypeOf(value) !== Object.prototype) {
+        return;
+    }
+    for (const [k, v] of Object.entries(value)) {
+        if (typeof v === "string") {
+            value[k] = own(v);
+        } else {
+            ownTexts(v, seen);
+        }
+    }
+}
+
 /** Keeps a data set, the oldest going first, at most CACHE_ENTRIES and cacheBytes; one larger than all of it is not kept. */
 function remember(key, value) {
     if (cache.has(key)) {
@@ -160,6 +200,7 @@ function remember(key, value) {
     while (cache.size && (cache.size >= CACHE_ENTRIES || keptBytes + bytes > cacheBytes)) {
         forget(cache.keys().next().value);
     }
+    ownTexts(value);
     cache.set(key, value);
     sizes.set(key, bytes);
     keptBytes += bytes;
