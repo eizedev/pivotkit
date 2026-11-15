@@ -482,7 +482,7 @@ export async function createRestHandler(context, runtime = {}) {
         // a body that may be larger than everyone's (declared so, or of no declared size) holds one of
         // the few places for large bodies while it is read and its request runs
         if (cap > BODY_BYTES && (length === null || declared > BODY_BYTES)) {
-            const give = largeBodies.take();
+            const give = largeBodies.take(who.caller.client);
             if (!give) {
                 context.log.refused({ status: 503, path: REST_BASE });
                 return withCors(problem("BUSY", "", { headers: { "retry-after": "2" }, extra: { retryable: true } }), origin);

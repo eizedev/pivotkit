@@ -124,22 +124,26 @@ export function presentedInput(name, how = {}) {
  */
 export const INPUT_DEPTH = 64;
 
-/** The deepest nesting of a value (counted without recursion), or of the JSON text a string holds. */
+/**
+ * The deepest nesting of an input (counted without recursion), and of the JSON text a string holds
+ * (a view or a layout given as text). The strings of `data` (a table sent in the request) are values,
+ * never JSON: a cell of brackets is data, so only its structure counts.
+ */
 function depthOf(value) {
     let deepest = 0;
-    /** @type {Array<[unknown, number]>} */
-    const stack = [[value, 0]];
+    /** @type {Array<[unknown, number, boolean]>} the node, its depth, whether its strings may be JSON text */
+    const stack = [[value, 0, true]];
     while (stack.length) {
-        const [node, depth] = /** @type {[unknown, number]} */ (stack.pop());
+        const [node, depth, text] = /** @type {[unknown, number, boolean]} */ (stack.pop());
         if (typeof node === "string") {
-            deepest = Math.max(deepest, depth + jsonDepth(node, INPUT_DEPTH));
+            deepest = text ? Math.max(deepest, depth + jsonDepth(node, INPUT_DEPTH)) : deepest;
         } else if (node && typeof node === "object") {
             deepest = Math.max(deepest, depth + 1);
             if (deepest > INPUT_DEPTH) {
                 return deepest;
             }
-            for (const child of Object.values(node)) {
-                stack.push([child, depth + 1]);
+            for (const [key, child] of Object.entries(node)) {
+                stack.push([child, depth + 1, text && !(depth === 0 && key === "data")]);
             }
         }
     }

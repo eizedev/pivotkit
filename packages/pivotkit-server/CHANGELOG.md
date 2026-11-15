@@ -20,6 +20,13 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - Log lines written inside a request (`call`, `request`, `download`, `refused`, `error`) carry
   `requestId`; every REST problem document carries it too. A body over the cap gets a `refused` line.
 - `check-config` warns of a static token's file that other users of the machine can read.
+- Library hosts with code sources (`load`): `load(params, { caller, signal })` also without declared
+  params (`{}`), aborted after 30 s (`timeMs`); data kept per caller unless `cacheShared: true`; last
+  good data up to an hour old after a transient failure, with `stale` (`maxStale: 0` turns it off);
+  an error thrown by `load` answers `SOURCE_UNAVAILABLE` (502) instead of `INTERNAL` (500); the data
+  has a file's limits ([code sources](https://pivotkit.eize.dev/getting-started/upgrading/#code-sources)).
+- `checkConfig(options)` checks the options as `createContext` does first and throws the same
+  `ConfigError`; its second argument is optional.
 - MCP clients may send a small table of their own (`inline:`, below); `"mcp": { "data": false }`
   switches it off. `check-config` prints a "Data in the request" line.
 
@@ -36,7 +43,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   never cached, and cannot be linked or scheduled; the file route takes it with `data: true` alone.
   Results carry the caller's time as `suppliedAsOf`; `list_sources` adds `data` with the cap; the
   log counts rows and columns. `bodyBytesOf` gives the larger cap, only on the routes that take a
-  source; at most two bodies over 2 MiB are read at once (else 503 `BUSY`, retryable). A JSON body
+  source; at most two bodies over 2 MiB are read at once, one per caller (else 503 `BUSY`, retryable). A JSON body
   nested deeper than 64 levels is refused before it is parsed, a multipart body with more than two
   parts before its parts are read; a 413 names the cap that applied; a file sent that cannot be read
   says why in words. Exported: `INLINE_ID`, `MCP_DATA_CAP`, `REST_DATA_BYTES`, `inlineLogFields`.
@@ -55,8 +62,22 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   after the sign-in (`bodyBytesOf`, `peekSignIn`, `bodyCapOf`): at most `BODY_BYTES` for a caller
   who is not signed in, at most `MAX_BODY_BYTES` (64 MiB) for one who is. `offeredScopes`,
   `callerFields` (the caller's fields a log line may hold: the client only), `secretFileWarning`.
-- `sources.<id>.ttl`, `maxStale` and `timeMs` are taken by code sources (refused on file sources);
-  they do nothing yet.
+- Code sources are hardened ([#330](https://github.com/eizedev/pivotkit/issues/330)):
+  `load(params, { caller, signal })` with a time limit (`sources.<id>.timeMs`, default 30000 ms, at
+  most ten minutes) that aborts the signal; parallel calls for the same data share one load; at most
+  4 loads per source and 2 per person at once; data kept per caller, values and policy levels while
+  `version` is the same or for `ttl` seconds, one copy for all with `cacheShared: true` (`caller`
+  null); last good data with `stale` after a transient failure only, for up to `maxStale` seconds
+  (default 3600), dropped by any other failure; a file's run limits (`limits.rows`, `columns`,
+  `importCells`, `textLength`). `SourceError` (exported, with `SOURCE_ERROR_CODES`) answers
+  `NOT_ALLOWED`, `INVALID_INPUT` or `DATA_NOT_AVAILABLE` with its `publicMessage`, or
+  `SOURCE_UNAVAILABLE`; anything else a load throws is `SOURCE_UNAVAILABLE` with the fixed text.
+  `CODE_DEFAULTS`; `check-config` lists each code source. `ttl`, `maxStale` and `timeMs` are refused
+  on file sources. A shared load is aborted only when every caller waiting for it went away; a
+  person's kept data is at most 8 loads and a quarter of the cache's bytes; `SourceError` takes
+  `retryAfter`; a load still running after twice its `timeMs` is logged. Types: `SourceCaller`,
+  `SourceLoad`, `SharedSourceLoad`, `SourceVersion`, `LoadResult`, `SourceParams`; `load`'s caller is
+  typed non-null unless `cacheShared: true`.
 - The level `values` between `show` and `summary`: a field's distinct values as a complete, sorted
   list (`items`, `complete: true`), never a result over them. A number or date field, more values
   than `policy.valuesMax` (default 50), a value over 80 characters, `counts: false` or `rows: false`

@@ -199,17 +199,21 @@ root `package.json`: `npm run types` and the builds depend on it.
   params)` dispatches by kind and checks params), `src/sources/` (the kinds of source:
   `index.js` `kindOf`, `KINDS` and `runResolved`, the one way present() runs an operation over a
   source; `file.js` configured files and `file:` paths, read in a worker; `code.js` a library host's
-  `load()`, with `load(params, { caller })` when it declares params; `http.js` not offered yet;
-  `inline.js` data sent in the request (the reserved id `inline:`, the kind "inline": `checkTable`,
-  the MCP cap `MCP_DATA_CAP` and `mcp.data`, who may send it `maySendData`, a table or upload job
-  never kept, `NO_LINK`/`NOT_SCHEDULABLE`); `params.js` a source's parameters: `declaredProblems`,
+  `load(params, { caller, signal })`, its data kept per identity, values and levels (`cacheShared`:
+  one copy, caller null); `run.js` how data loaded in the main thread is loaded (`runLoad`: time
+  limit with the signal aborted, coalescing, load limits per source and identity, kept data, last good
+  data after a transient failure only; `SourceError` and `sourceFailure`, what a caller gets of a
+  source's error); `cache.js` the process cache of loaded data (64 entries, 256 MiB; per owner 8 entries and a quarter of the bytes, its own oldest out first);
+  `http.js` not offered yet; `inline.js` data sent in the request (the reserved id `inline:`, the
+  kind "inline": `checkTable`, the MCP cap `MCP_DATA_CAP` and `mcp.data`, who may send it
+  `maySendData`, a table or upload job never kept, `NO_LINK`/`NOT_SCHEDULABLE`); `params.js` a source's parameters: `declaredProblems`,
   `paramSchemaOf`, `normalizeParams`, `paramsList`; `input.js` the extra inputs (`params`, `data`) a surface
   offers (`offersOf`, `extraInputs`, `withoutExtras`) and `listExtras` of list_sources; `as-of.js`
   `dataAsOf`, every source's time parsed and written in one form (`asOfText`, `asOfMembers`); `keys.js`
   canonical JSON cache keys (`tableKeyOf`: null without an identity); `fetch.js` `guardedFetch`, the
   one way the server requests another server: https only, no redirects, the address checked on the
   connection's own lookup, bodies counted after decompression, one time limit), `src/data.js`
-  (`fileData`, `codeData`, and `tableData`/`uploadData` for a table job: data loaded in the main
+  (`fileData`, `codeTable` (a code source's data with a file's run limits, encoded), and `tableData`/`uploadData` for a table job: data loaded in the main
   thread or a file handed in, computed in a worker),
   `src/compute.js` and `src/worker.js` (worker threads with memory and time limits; an input the
   structured clone cannot copy is `INVALID_INPUT` and frees the worker), `src/present.js` (`present()`:

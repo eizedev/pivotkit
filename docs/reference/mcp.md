@@ -50,8 +50,8 @@ from the data), then the JSON. A view with errors is not a tool error: `ok` or `
 again in this one form, so no text of a source reaches the model through it; a time that does not
 parse is left out for when the data arrived, one in the future becomes now. `render_view`'s message and
 summary line end with it in words ("Data as of 2026-11-15 08:00 UTC."). A result may also carry
-`stale: { since }` when last good data stands in for a load that failed; no source of this version
-does that yet. The tools are one table shared with the command line
+`stale: { since }` when last good data stands in for a code source's load that failed
+([last good data](sources.md#code-cache)). The tools are one table shared with the command line
 ([`pivotkit-report/operations`](report.md#operations)); the [REST service](rest.md) offers the
 same operations with the same policy to programs.
 
@@ -230,6 +230,7 @@ error that names the key and the one probably meant.
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
 | `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`; control and direction characters are removed |
 | `sources.<id>.params` | - | none | A code source's parameters: values a caller passes with the source (see below) |
+| `sources.<id>.timeMs`, `.ttl`, `.maxStale`, `.cacheShared` | - | 30000 ms, none, 3600 s, false | A code source's time limit, reuse, last good data and one copy for all callers ([code sources](sources.md#code-options)) |
 | `files.allowDirs` | `--allow-dir dir` | none | Directories the model may name files in (`file:`) |
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |
 | `files.hardLinks` | - | false | Read files that have a second name |
@@ -304,18 +305,21 @@ const server = await listen({ sources: { sales: { file: "/srv/data/sales.csv" } 
 directories and starts the workers; `context.server(ctx)` builds a fresh McpServer for the SDK's
 `serveStdio` or `createMcpHandler`; `await createHttpHandler(context)` gives `{ fetch, close }` with every
 check of this page; `loadConfig(file)` reads a configuration file into options. A library host may
-give a source `load: async () => rows` (rows or columnar data) and `version: () => key` instead of
-`file`; such sources run in the host's thread, not in a worker. The data may say when it is from:
-columnar data with `asOf` (a `Date`, an ISO 8601 text or epoch milliseconds) gives the results'
-`dataAsOf`.
+give a source a function instead of a file, a [code source](sources.md#code):
+`load(params, { caller, signal })` returns rows, `{ rows, asOf }` or columnar data, and
+`version(params, { caller })` says when the data changed. `caller` is a frozen copy of who calls
+(`client`, `profile`, `scopes`, `groups`, and with OAuth `subject` and `issuer`, else null; never a
+token); `signal` is aborted after the source's `timeMs` (30 s by default). Such sources run in the
+host's thread, not in a worker. pivotkit keeps their data per caller (with its client, scopes, groups
+and claims), values and policy levels, unless `cacheShared: true` makes one copy for all callers
+(`caller` is then null); a caller without an identity (an OAuth token without a usable subject) gets
+no kept data. Calls that need the same data while it loads share one load; after a transient failure
+the last good data stands in for up to `maxStale` seconds (3600 by default), with `stale` in the
+result. A `SourceError` (exported by pivotkit-server) says what went wrong in words a caller may read;
+anything else a load throws is `SOURCE_UNAVAILABLE` with a fixed text ([errors](sources.md#code-errors)).
 
 A code source may declare **parameters**: values a caller passes as `params` with the source's id,
-checked and written again by pivotkit before `load` sees them. With `params` declared, pivotkit calls
-`load(params, { caller })` and `version(params, { caller })`, where `caller` is a frozen copy of who
-calls (`client`, `profile`, `scopes`, `groups`, and with OAuth `subject` and `issuer`, else null;
-never a token), and keeps the data
-per caller (with its client, scopes, groups and claims) and values; a caller without an identity (an OAuth token without a usable subject) gets
-no kept data. A source without `params` is called as `load()` and `version()`.
+checked and written again by pivotkit before `load` sees them (a source without `params` gets `{}`).
 
 ```js
 sources: {
@@ -366,12 +370,14 @@ request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BU
 | `FILE_NOT_AVAILABLE` | A file missing, outside the allowed directories, or changed while read |
 | `NOT_REGULAR_FILE`, `HARD_LINK`, `UNSUPPORTED_FORMAT`, `INVALID_FILE` | The file is a directory or special file, has a second name, is no data format, or cannot be read |
 | `LIMIT_EXCEEDED` | A file, a view, the [data sent](#data) or the work over a limit; the worker's memory |
-| `NOT_ALLOWED` | A tool the caller's token has no scope for; [data sent](#data) where it is switched off |
+| `NOT_ALLOWED` | A tool the caller's token has no scope for; [data sent](#data) where it is switched off; a code source that refuses the caller (its `SourceError`) |
 | `DATA_MISMATCH` | [Data sent](#data) whose `rowCount` differs from the rows sent |
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source or data sent in the request |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
-| `DATA_NOT_AVAILABLE`, `SOURCE_UNAVAILABLE`, `UPLOAD_FAILED` | Reserved for sources and delivery that load data or store reports elsewhere; this version does not answer them |
+| `SOURCE_UNAVAILABLE` | A code source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors)); the text is fixed, with whether trying again may work |
+| `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`) |
+| `UPLOAD_FAILED` | Reserved for delivery that stores reports elsewhere; this version does not answer it |
 | `INTERNAL` | Anything else: "internal error", the details only in the log with `--log debug` |
 
 ## Logging { #logging }

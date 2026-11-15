@@ -65,28 +65,34 @@ export const LARGE_BODIES = 2;
 
 /**
  * The places for large bodies: a caller that may send data holds one while its body is read and its
- * request runs, so a few such callers cannot fill the memory together.
+ * request runs, so a few such callers cannot fill the memory together, and one caller holds at most
+ * one, so it cannot take every place itself.
  * @param {number} [size]
  */
 export function createLargeBodies(size = LARGE_BODIES) {
-    let held = 0;
+    /** @type {Set<string>} the callers holding a place */
+    const holders = new Set();
     return {
-        /** A place, or null when all are held: a function that gives it back (once). */
-        take() {
-            if (held >= size) {
+        /**
+         * A place for a caller, or null when all are held or the caller holds one: a function that gives
+         * it back (once).
+         * @param {string} caller  its client (a token's name, an OAuth client id)
+         */
+        take(caller) {
+            if (holders.size >= size || holders.has(caller)) {
                 return null;
             }
-            held++;
+            holders.add(caller);
             let given = false;
             return () => {
                 if (!given) {
                     given = true;
-                    held--;
+                    holders.delete(caller);
                 }
             };
         },
         /** The places held (tests). */
-        held: () => held
+        held: () => holders.size
     };
 }
 

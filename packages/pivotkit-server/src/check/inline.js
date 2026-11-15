@@ -30,7 +30,9 @@ export async function section(options, _registry, runtime) {
     const restWho = options.policy?.data === true ? `for every caller${off.length ? ` but profiles ${off.join(", ")}` : ""}` : `for profiles ${on.join(", ")}`;
     const rest = runtime.rest === false ? "" : `; ${restOn ? `REST ${restWho}, up to ${bytesText(restDataBytesOf(options))} (${options.rest?.data?.maxBytes !== undefined ? "rest.data.maxBytes" : "default"})` : "REST off (no policy or profile has data: true)"}`;
     const parts = [...(runtime.mcp === false ? [] : [mcp]), ...(rest ? [rest.slice(2)] : [])];
-    lines.push("", `Data in the request: ${parts.join("; ")}`);
+    if (parts.length) {
+        lines.push("", `Data in the request: ${parts.join("; ")}`);
+    }
     if (restOn && options.policy?.data === true) {
         lines.push(`  warning: policy.data: true lets every REST caller send its own data, in bodies of up to ${bytesText(restDataBytesOf(options))}; give data: true to the profiles that need it instead`);
     }

@@ -19,7 +19,7 @@ const treeOf = (schema) =>
 test("options: the composed table is today's, in today's order, plus the shared source keys", () => {
     const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
     const expected = structuredClone(before);
-    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer" });
+    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer", cacheShared: "boolean" });
     // data sent in the request (options/inline.js): a policy's data, after results; mcp.data; rest.data
     const withData = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "results" ? [[k, v], ["data", "boolean"]] : [[k, v]])));
     expected.sources.map.object.policy.object = withData(expected.sources.map.object.policy.object);
@@ -105,7 +105,7 @@ test("check sections: problems are counted, warnings are not, and New in this ve
     assert.deepEqual(none, { lines: [], problems: 0, upgrade: [] });
 });
 
-test("check-config: today's configurations print what they printed before, plus each feature's own line and upgrade note", async () => {
+test("check-config: today's configurations print exactly what they printed before, plus each feature's own section and its note in New in this version", async () => {
     const dir = workspace({ "sales.csv": "Region,Product,Customer,Sales\nNorth,A,Alice,10\nSouth,B,Bob,20\n" });
     const options = {
         sources: { sales: { file: "data/sales.csv", title: "Sales", scopes: ["sales:read"], policy: { default: "show", fields: { Customer: "hide" } } }, gone: { file: "data/missing.csv" }, code: { load: async () => [] } },
@@ -116,13 +116,21 @@ test("check-config: today's configurations print what they printed before, plus 
     };
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: "x".repeat(40) }, name: "pivotkit-server", rest: true });
     const golden = readFileSync(new URL("./fixtures/check-config-before-fragments.txt", import.meta.url), "utf8");
-    // what the features of this version add, each said once: data sent in the request (check/inline.js)
-    const added = {
-        lines: ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"],
-        upgrade: ['MCP clients may send a small table of their own with source "inline:" (up to 500 rows / 5000 cells / 256 KiB); no exposure policy applies to it; mcp.data: false switches it off']
-    };
-    const [before, total] = golden.split("\n\n1 problem:");
-    const expected = `${before}\n${added.lines.join("\n")}\n\n1 problem:${total.trimEnd()}\n\nNew in this version (what changes with this configuration; https://pivotkit.eize.dev/getting-started/upgrading/):\n${added.upgrade.map((l) => `  - ${l}`).join("\n")}\n`;
+    // what this version adds for this configuration, each said once and nothing else: data sent in the
+    // request (check/inline.js), and the code sources' section, since the configuration has one
+    const inline = ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"];
+    const code = [
+        "Code sources (1):",
+        "  code: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure"
+    ];
+    const upgrade = [
+        "",
+        "New in this version (what changes with this configuration; https://pivotkit.eize.dev/getting-started/upgrading/):",
+        '  - MCP clients may send a small table of their own with source "inline:" (up to 500 rows / 5000 cells / 256 KiB); no exposure policy applies to it; mcp.data: false switches it off',
+        "  - Code sources: load gets (params, { caller, signal }) and is aborted after timeMs (default 30000 ms); a failing load answers SOURCE_UNAVAILABLE (502), not INTERNAL; data is kept per caller unless cacheShared; after a transient failure last good data up to maxStale (default 3600 s) stands in"
+    ];
+    const expected = golden.replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
+    assert.notEqual(expected, golden);
     assert.equal(result.text.split(dir).join("<dir>"), expected);
     assert.equal(result.problems, 1);
 });

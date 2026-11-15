@@ -48,7 +48,7 @@ test("request ids: a code source's load runs inside its request's id, on REST an
         if (params.team === "a") {
             await gate;
         }
-        // the second call fails, so its log line (status 500) tells the two apart
+        // the second call fails, so its log line (status 502, SOURCE_UNAVAILABLE) tells the two apart
         if (params.team === "b") {
             throw new Error("the backend is down");
         }
@@ -68,14 +68,14 @@ test("request ids: a code source's load runs inside its request's id, on REST an
         }
         release();
         assert.equal((await first).status, 200);
-        assert.equal((await second).status, 500);
+        assert.equal((await second).status, 502);
         await client.connect(new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`)));
         const tool = await client.callTool({ name: "validate_view", arguments: { source: "tickets", params: { team: "c" }, view } });
         assert.ok(!tool.isError, JSON.stringify(tool.content));
         const byTeam = Object.fromEntries(seen.map((s) => [s.team, s.id]));
         const requests = server.log.filter((l) => l.event === "request");
         assert.equal(byTeam.a, requests.find((l) => l.status === 200).requestId);
-        assert.equal(byTeam.b, requests.find((l) => l.status === 500).requestId);
+        assert.equal(byTeam.b, requests.find((l) => l.status === 502).requestId);
         assert.notEqual(byTeam.a, byTeam.b);
         // the error line of the failed call names the same request
         assert.equal(server.log.find((l) => l.event === "error").requestId, byTeam.b);
@@ -129,21 +129,24 @@ test("request ids: every REST error answer carries its request's id, the same as
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" }, gone: { file: "data/missing.csv" }, broken: { load: broken } }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] }, baseDir: dir }, { env: { BOT: TOKEN } });
     try {
         const answers = {
-            internal: await call(`${server.api}/sources/broken`, { token: TOKEN }),
+            unavailable: await call(`${server.api}/sources/broken`, { token: TOKEN }),
             gone: await call(`${server.api}/sources/gone`, { token: TOKEN }),
             unknown: await call(`${server.api}/sources/nope`, { token: TOKEN }),
             noToken: await call(`${server.api}/sources`),
             refusedPost: await call(`${server.api}/views/validate`, { body: { source: "sales", view: BY_REGION } }),
             badJson: await call(`${server.api}/views/validate`, { body: "{", token: TOKEN })
         };
-        assert.deepEqual(Object.values(answers).map((a) => a.status), [500, 404, 404, 401, 401, 400]);
+        assert.deepEqual(Object.values(answers).map((a) => a.status), [502, 404, 404, 401, 401, 400]);
         for (const [name, answer] of Object.entries(answers)) {
             assert.match(answer.data.requestId ?? "", REQUEST_ID, name);
             const line = server.log.find((l) => l.requestId === answer.data.requestId && (l.event === "request" || l.event === "refused"));
             assert.ok(line, `${name}: a log line with ${answer.data.requestId}: ${JSON.stringify(server.log)}`);
         }
-        assert.equal(answers.internal.data.detail, "internal error");
-        assert.equal(server.log.find((l) => l.event === "error").requestId, answers.internal.data.requestId);
+        // a code source's own failure: SOURCE_UNAVAILABLE with the fixed text, never its words
+        assert.equal(answers.unavailable.data.detail, serverTextOf("SOURCE_UNAVAILABLE"));
+        assert.equal(answers.unavailable.data.retryable, false);
+        assert.doesNotMatch(JSON.stringify(answers.unavailable.data), /10\.1\.2\.3/);
+        assert.equal(server.log.find((l) => l.event === "error").requestId, answers.unavailable.data.requestId);
         // a successful answer has no id in its body (it is not a problem)
         const ok = await call(`${server.api}/sources`, { token: TOKEN });
         assert.equal(ok.data.requestId, undefined);

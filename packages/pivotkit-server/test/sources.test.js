@@ -120,7 +120,7 @@ test("params end to end: offered only when a source declares them; the code sour
                 params: { team: { type: "string", required: true, enum: ["blue", "red"] } },
                 policy: { default: "show" }
             },
-            plain: { load: async (...args) => (seen.push({ args: args.length }), ROWS) }
+            plain: { load: async (...args) => (seen.push({ args }), ROWS) }
         }
     };
     const context = await contextOf(options);
@@ -140,9 +140,14 @@ test("params end to end: offered only when a source declares them; the code sour
         const error = await present(context, "describe_source", { source: "tickets" }, LOCAL).catch((e) => e);
         assert.equal(error.code, "INVALID_INPUT");
         assert.match(error.message, /needs params\.team \(string\), one of blue, red/);
-        // a source without params is called as always, without arguments; params for it are refused
+        // a source without params gets no values, the caller and the signal of its time limit; params for it are refused
         await present(context, "describe_source", { source: "plain" }, LOCAL);
-        assert.deepEqual(seen.at(-1), { args: 0 });
+        const [values, how] = seen.at(-1).args;
+        assert.deepEqual(values, {});
+        assert.ok(Object.isFrozen(values));
+        assert.equal(how.caller.client, "local");
+        assert.ok(how.signal instanceof AbortSignal);
+        assert.equal(how.signal.aborted, false);
         assert.equal((await present(context, "describe_source", { source: "plain", params: { a: "1" } }, LOCAL).catch((e) => e)).code, "INVALID_INPUT");
         const rendered = await present(context, "render_view", { source: "tickets", params: { team: "blue" }, view: { rows: ["Team"], values: [{ field: "Open", agg: "sum" }] }, format: "csv" }, LOCAL);
         assert.match(rendered.result.inline.text, /blue/);

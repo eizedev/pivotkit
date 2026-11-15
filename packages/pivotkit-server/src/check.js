@@ -9,7 +9,7 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { basename } from "node:path";
 import { closest, encode } from "pivotkit-core";
 import { isInside, readSafe, readTable } from "pivotkit-cli/files";
-import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf } from "./config.js";
+import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf, validateOptions } from "./config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
 import { OUTPUT_INSIDE_ALLOWED, cannotCreate, entryOf, outputRefusal, ownFileDirs, plannedPath, writable } from "./context.js";
 import { draftCap } from "./present.js";
@@ -22,11 +22,14 @@ import { SECTIONS, UPGRADING_URL, runSections } from "./check/index.js";
 import { secretFileWarning } from "./secrets.js";
 
 /**
+ * What the server would expose with these options. The options are checked first as createContext
+ * checks them (validateOptions): what it refuses throws the same ConfigError here.
  * @param {import("./config.js").ServerOptions} options
- * @param {{ http: boolean, env?: Record<string, string | undefined>, name?: string, tokenEnv?: string, rest?: boolean, mcp?: boolean, sections?: ReadonlyArray<{ name: string, section: import("./check/index.js").Section }> }} runtime  name: the runner's; rest: the REST service is served too; mcp: the MCP server is (default true); sections: the features' sections (default check/index.js SECTIONS; tests)
+ * @param {{ http?: boolean, env?: Record<string, string | undefined>, name?: string, tokenEnv?: string, rest?: boolean, mcp?: boolean, sections?: ReadonlyArray<{ name: string, section: import("./check/index.js").Section }> }} [runtime]  http: an HTTP server is planned (default false); env: the environment tokens are read from; name: the name the first line starts with (default "pivotkit-mcp"); tokenEnv: the one static token's variable; rest: the REST service is served too; mcp: the MCP server is (default true); sections: the features' sections (default check/index.js SECTIONS; tests)
  * @returns {Promise<{ text: string, problems: number }>}  problems: what would keep the server from starting or a source from working
  */
-export async function checkConfig(options, { http, env = {}, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false, mcp = true, sections = SECTIONS }) {
+export async function checkConfig(options, { http = false, env = {}, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false, mcp = true, sections = SECTIONS } = {}) {
+    validateOptions(options);
     let problems = 0;
     let unwritable = 0;
     let other = 0;
