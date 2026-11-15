@@ -224,6 +224,7 @@ class Resolver {
     /**
      * @param {Record<string, any>} doc
      * @param {(note: string) => void} note
+     * @param {number} [budget]  the nodes this resolver may visit
      */
     constructor(doc, note, budget = OPENAPI_LIMITS.nodes) {
         this.doc = doc;
