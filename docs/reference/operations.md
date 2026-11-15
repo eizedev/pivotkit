@@ -263,15 +263,16 @@ SyslogIdentifier=pivotkit
 journalctl -u pivotkit -o cat | jq 'select(.level != "info")'   # every warning and error
 ```
 
-rsyslog reads the journal through its `imjournal` module (many distributions load it already; the
-line below does it where yours does not) and can pass the lines on over TCP. The template
+rsyslog reads the journal through its `imjournal` module and can pass the lines on over TCP. Many
+distributions load the module already in `/etc/rsyslog.conf`; keep the `module` line only where yours
+does not, since loading it twice is an error. The template
 `RSYSLOG_SyslogProtocol23Format` is rsyslog's IETF draft form (syslog-protocol-23), close to
 RFC 5424; `RSYSLOG_SyslogRFC5424Format` is the strict one, but it ends a message without a line
 feed, which a receiver reading lines over TCP may not split:
 
 ```text
 # /etc/rsyslog.d/pivotkit.conf
-module(load="imjournal")
+module(load="imjournal")   # only where /etc/rsyslog.conf does not load it
 if $programname == 'pivotkit' then @@logs.example.com:514;RSYSLOG_SyslogProtocol23Format
 ```
 
