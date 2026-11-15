@@ -696,4 +696,37 @@ test.describe("a press on a menu's button that never ends in a click", () => {
         await page.getByTestId("views").focus();
         await expect(button).toHaveAttribute("aria-expanded", "false");
     });
+
+    // a press keeps the menu open while the focus moves to the report around its button (WebKit's
+    // click), but only for PRESS_MS (1 s, popover.jsx): a press that never ends in a click does not
+    // keep it open for longer
+    test("the focus moving to the report around the button keeps the menu open right after a press, not a second later", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await openZones(page);
+        const button = page.getByTestId("export");
+        // the focus to an element around the button, as WebKit moves it at a press
+        const focusAround = () => button.evaluate((el) => {
+            const around = /** @type {HTMLElement} */ (el.parentElement);
+            around.tabIndex = -1;
+            around.focus();
+        });
+        const pressWithoutClick = () => button.evaluate((el) => el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "mouse", button: 0 })));
+        const menuHasFocus = () => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover")));
+        for (const [wait, open] of [[0, "true"], [1_500, "false"]]) {
+            await button.click();
+            await expect(button).toHaveAttribute("aria-expanded", "true");
+            await expect.poll(menuHasFocus).toBe(true);
+            await pressWithoutClick();
+            await page.waitForTimeout(wait);
+            await focusAround();
+            await expect(button, `${wait} ms after the press`).toHaveAttribute("aria-expanded", open);
+            if (open === "true") {
+                // still open a moment later: the blur was taken for the press
+                await page.waitForTimeout(200);
+                await expect(button).toHaveAttribute("aria-expanded", "true");
+                await page.keyboard.press("Escape");
+                await expect(button).toHaveAttribute("aria-expanded", "false");
+            }
+        }
+    });
 });
