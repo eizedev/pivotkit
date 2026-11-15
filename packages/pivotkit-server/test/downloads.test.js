@@ -195,7 +195,6 @@ test("options: expiry from 1 to 1440 minutes; enabled next to output.baseUrl, a 
     assert.throws(() => validateOptions({ output: { dir: "out", downloads: { key: "the-key-itself" } } }), /output\.downloads\.key: must be a reference to a secret/);
     validateOptions({ output: { dir: "out", downloads: { signIn, key: { env: "DL_KEY" }, expiresMinutes: 1440 } }, auth: oauth, http: { publicUrl: PUBLIC } });
     validateOptions({ output: { dir: "out", downloads: { bind: "once" } } });
-    assert.throws(() => validateOptions({ output: { dir: "out", downloads: { bind: "once" } }, http: { publicUrl: "http://reports.example.com" } }), /bind "once": needs http\.publicUrl with https/);
     validateOptions({ output: { dir: "out", baseUrl: "https://files.example.com/", downloads: { enabled: false } } });
 });
 
@@ -369,6 +368,8 @@ test("once: GET and HEAD answer a page and never use the link; one POST from the
             assert.match(html, /<form method="post"><button type="submit">Download<\/button><\/form>/);
             assert.doesNotMatch(html, /North|Sales,/);
             assert.equal(page.headers.get("content-security-policy"), "default-src 'none'; form-action 'self'; frame-ancestors 'none'");
+            // the form's POST names the page's origin (under no-referrer a browser sends Origin: null)
+            assert.equal(page.headers.get("referrer-policy"), "same-origin");
             assert.equal((await fetch(url, { method: "HEAD" })).status, 200);
         }
         // not from the link's page: another site's Origin, or none without same-origin fetch metadata
@@ -376,7 +377,7 @@ test("once: GET and HEAD answer a page and never use the link; one POST from the
         assert.equal((await fetch(url, { method: "POST", headers: { origin: server.url } })).status, 403, "the address behind the proxy is not the link's origin");
         assert.equal((await fetch(url, { method: "POST" })).status, 403);
         assert.equal((await fetch(url, { method: "POST", headers: { "sec-fetch-site": "cross-site" } })).status, 403);
-        // a browser posts the page's form with Origin "null" (the page's Referrer-Policy is no-referrer): only with same-origin fetch metadata
+        // Origin "null" (a page under no-referrer) counts only with same-origin fetch metadata
         assert.equal((await fetch(url, { method: "POST", headers: { origin: "null" } })).status, 403);
         assert.equal((await fetch(url, { method: "POST", headers: { origin: "null", "sec-fetch-site": "same-site" } })).status, 403);
         const first = await fetch(url, { method: "POST", headers: { origin: PUBLIC } });

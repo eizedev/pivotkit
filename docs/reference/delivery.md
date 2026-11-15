@@ -94,9 +94,9 @@ outlives the download: the short cookie that holds the sign-in under way is clea
 link answers a page with a Download button and never uses the link, so a chat client's link preview
 does not use it up; the button's POST sends the file once. The same browser may repeat the download
 for two minutes; anyone else gets 409 "This link was already used." The POST must come from the
-link's own page: its `Origin` is `http.publicUrl`'s origin, or the browser sends `Origin: null` (the
-page's `Referrer-Policy` is `no-referrer`) with `Sec-Fetch-Site: same-origin`. Browsers send that
-only over https and on loopback, so `bind: "once"` needs an https `http.publicUrl`.
+link's own page: its `Origin` is `http.publicUrl`'s origin (the page is served with
+`Referrer-Policy: same-origin`, so the browser names it), or `Origin: null` with
+`Sec-Fetch-Site: same-origin`.
 
 Anyone who sees a one-time link can use it once, and an assistant with a browser or a code tool can
 use it before the person does. `check-config` warns of that; use `signIn` where it matters.
@@ -144,7 +144,8 @@ document like the [REST service's](rest.md#errors).
 | 400 | <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED` | The sign-in did not complete: refused at the provider, the browser's sign-in cookie missing or used, or the ID token not valid |
 | 503 | <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | The server has not loaded the sign-in issuer's metadata yet (`Retry-After`) |
 
-Every answer carries `Cache-Control: no-store`, `Referrer-Policy: no-referrer`,
+Every answer carries `Cache-Control: no-store`, `Referrer-Policy: no-referrer` (`same-origin` on a
+one-time link's page),
 `X-Robots-Tag: noindex`, `X-Content-Type-Options: nosniff` and `Cross-Origin-Resource-Policy:
 same-origin`; a file `Content-Security-Policy: sandbox; default-src 'none'` and
 `Content-Disposition: attachment`, a page `default-src 'none'; form-action 'self'; frame-ancestors

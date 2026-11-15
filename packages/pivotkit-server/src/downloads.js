@@ -525,9 +525,9 @@ export function createDownloadHandler(context, runtime = {}) {
 
     /**
      * Whether a POST comes from the link's own page: Origin equal to the link's (http.publicUrl's, not
-     * the address behind a proxy), or no usable Origin and same-origin fetch metadata. A browser
-     * posts the page's form with `Origin: null`, since the page's Referrer-Policy is no-referrer
-     * (Fetch, "append a request Origin header"); Sec-Fetch-Site then says it came from the page.
+     * the address behind a proxy), or no usable Origin (`null`: a page under Referrer-Policy
+     * no-referrer, Fetch "append a request Origin header") and same-origin fetch metadata. The
+     * one-time page is served with Referrer-Policy same-origin, so its form's POST names its origin.
      */
     function sameOriginPost(request) {
         const origin = request.headers.get("origin");
@@ -565,7 +565,9 @@ export function createDownloadHandler(context, runtime = {}) {
                     return found.response;
                 }
                 await found.report.handle.close();
-                return page("Download the report", `${found.report.filename} can be downloaded once.`, { form: true });
+                // same-origin, not no-referrer: so the browser names the page's origin when it posts the
+                // form (under no-referrer it sends Origin: null); nothing leaves for another site
+                return page("Download the report", `${found.report.filename} can be downloaded once.`, { form: true, headers: { "referrer-policy": "same-origin" } });
             }
             if (method !== "POST") {
                 return answer(request, "METHOD_NOT_ALLOWED", { allow: "GET, HEAD, POST" });
