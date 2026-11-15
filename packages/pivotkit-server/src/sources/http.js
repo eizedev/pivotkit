@@ -13,7 +13,9 @@
  * Loading goes through sources/run.js like a code source's: the source's timeMs for all pages, one
  * load in flight per key, the load limits, kept data for ttl seconds per caller (the identity is
  * part of the key; a caller without one keeps and shares nothing; for a token exchange or a claim
- * the client and its scopes too), last good data after a transient failure only.
+ * the client and its scopes too; the caller's values and identity only as a keyed digest), a JSON
+ * answer kept without the columns the caller's levels hide (a CSV answer is kept as its bytes until
+ * it expires), last good data after a transient failure only.
  *
  * The backend's sign-in (http.auth) is sources/auth.js's: its headers go on every page, after the
  * static ones; a 401 drops the token it was sent and the page is asked once more with a new one.
@@ -28,14 +30,14 @@ import { cleanText } from "pivotkit-core/import";
 import { LIMITS } from "pivotkit-core";
 import { OperationError } from "pivotkit-report/operations";
 import { identityKey } from "../auth.js";
-import { overLimit } from "../data.js";
+import { overLimit, withoutHiddenRows } from "../data.js";
 import { httpSettingsOf } from "../options/http.js";
 import { fieldKey } from "../policy.js";
 import { requestId } from "../request-id.js";
 import { asOfText } from "./as-of.js";
 import { backendHeaders, dropToken } from "./auth.js";
 import { GuardedFetchError, guardedFetch } from "./fetch.js";
-import { canonicalJson, configHashOf, tableKeyOf } from "./keys.js";
+import { canonicalJson, configHashOf, privatePart, tableKeyOf } from "./keys.js";
 import { SourceError, loadRunner, ownError } from "./run.js";
 import { expandUrl, loggedPath } from "./template.js";
 
@@ -537,8 +539,9 @@ function tableBytes(loaded) {
 
 /**
  * An HTTP source's data for a caller (or what is kept of it): sources/run.js with the source's
- * settings. The key holds the source, its settings' hash, the caller's values and identity; without
- * an identity nothing is kept or shared. `tableKey` names this load's table for the worker (a new load
+ * settings. The key holds the source, its settings' hash, the caller's values and identity (as a
+ * keyed digest) and the levels that decide the hidden columns; without an identity nothing is kept
+ * or shared. `tableKey` names this load's table for the worker (a new load
  * has a new one, so a worker never answers from an older table).
  * @param {any} resolved  registry.resolve's
  * @param {import("../registry.js").Caller} caller
@@ -559,10 +562,14 @@ export async function loadFor(resolved, caller, log, signal = undefined) {
     const person = identity ?? `client:${caller.client}`;
     const name = nameOf(source);
     const configHash = configHashOf({ http: source.http, settings });
-    const key = identity === null ? null : canonicalJson(["http", name, configHash, values ?? {}, identity]);
+    // the values and the identity only as a keyed digest; the levels that decide which columns are
+    // dropped before the answer is kept (a caller whose profile shows more gets its own copy)
+    const key = identity === null ? null : canonicalJson(["http", name, configHash, privatePart([values ?? {}, identity]), { default: spec.levels.default, fields: spec.levels.fields }]);
     const limits = { ...LIMITS, ...spec.limits };
     const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, declared: source.params, caller }), {
-        prepare: (loaded) => ({ ...loaded, serial: randomBytes(9).toString("base64url") }),
+        // hidden columns never kept: a JSON answer's table without them (a CSV answer is kept as its
+        // bytes and read in a worker, which drops them there)
+        prepare: (loaded) => ({ ...loaded, ...(loaded.table ? { table: withoutHiddenRows(spec.levels, loaded.table) } : {}), serial: randomBytes(9).toString("base64url") }),
         source: name,
         label: spec.id,
         bucket: person,

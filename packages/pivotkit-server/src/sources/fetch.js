@@ -500,32 +500,51 @@ const isStream = (body) => Boolean(body) && typeof body !== "string" && !(body i
 
 /**
  * Sends a streamed body, waiting for the socket to drain, and ends the request; a body that is longer
- * or shorter than the length it stated is not sent whole (BAD_BODY).
+ * or shorter than the length it stated is not sent whole (BAD_BODY). It stops once the request is
+ * destroyed or ended (refused, timed out, answered), and the source stream is destroyed in every
+ * case, so its file is closed.
  * @param {import("node:http").ClientRequest} req
  * @param {AsyncIterable<Uint8Array>} stream
  * @param {number} length
  */
 async function sendStream(req, stream, length) {
-    let sent = 0;
-    for await (const chunk of stream) {
-        sent += chunk.length;
-        if (sent > length) {
-            throw new GuardedFetchError("BAD_BODY", "the body is longer than its content-length");
-        }
-        if (!req.write(chunk)) {
-            await new Promise((resolve) => {
-                req.once("drain", resolve);
-                req.once("close", resolve);
-            });
-            if (req.destroyed) {
+    const gone = () => req.destroyed || req.writableEnded;
+    try {
+        let sent = 0;
+        for await (const chunk of stream) {
+            if (gone()) {
                 return;
             }
+            sent += chunk.length;
+            if (sent > length) {
+                throw new GuardedFetchError("BAD_BODY", "the body is longer than its content-length");
+            }
+            if (!req.write(chunk)) {
+                // one pair of listeners per wait, both removed again: no listener piles up over many drains
+                await new Promise((resolve) => {
+                    const done = () => {
+                        req.off("drain", done);
+                        req.off("close", done);
+                        resolve(undefined);
+                    };
+                    req.on("drain", done);
+                    req.on("close", done);
+                });
+                if (gone()) {
+                    return;
+                }
+            }
         }
+        if (gone()) {
+            return;
+        }
+        if (sent !== length) {
+            throw new GuardedFetchError("BAD_BODY", "the body is shorter than its content-length");
+        }
+        req.end();
+    } finally {
+        /** @type {any} */ (stream).destroy?.();
     }
-    if (sent !== length) {
-        throw new GuardedFetchError("BAD_BODY", "the body is shorter than its content-length");
-    }
-    req.end();
 }
 
 /** A network error as a GuardedFetchError (its code only, never an address). */

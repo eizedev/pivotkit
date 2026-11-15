@@ -8,6 +8,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Upgrading from 0.1.1
 
+- Behaviour change: `output.maxAgeDays` is 30 by default, so reports and schedule drafts older than
+  30 days are deleted from `output.dir` at start and every hour, including drafts still waiting for
+  approval. `output.maxAgeDays: 0` keeps them
+  with no age limit, as before. The default does not apply where `output.dir` holds the
+  configuration or a source, template or token file ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
+
 Every field keeps its level and the automatic rule is off; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
 
 - html reports print "Data as of" in their details; xlsx files carry the document property
@@ -27,7 +33,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   params (`{}`), aborted after 30 s (`timeMs`); data kept per caller unless `cacheShared: true`; last
   good data up to an hour old after a transient failure, with `stale` (`maxStale: 0` turns it off);
   an error thrown by `load` answers `SOURCE_UNAVAILABLE` (502) instead of `INTERNAL` (500); the data
-  has a file's limits ([code sources](https://pivotkit.eize.dev/getting-started/upgrading/#code-sources)).
+  has a file's limits; the report over it is computed in a worker under `compute.timeMs`,
+  `compute.memoryMb` and `compute.queueMs` ([code sources](https://pivotkit.eize.dev/getting-started/upgrading/#code-sources)).
 - `checkConfig(options)` checks the options as `createContext` does first and throws the same
   `ConfigError`; its second argument is optional.
 - MCP clients may send a small table of their own (`inline:`, below); `"mcp": { "data": false }`
@@ -44,6 +51,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Added
 
+- `sourceCache.maxMb` (default 256): the loaded data of code and HTTP sources the process keeps.
+  The largest table that can be kept is a quarter of it (64 MiB by default); a larger table loads
+  on every call. With several contexts in one process the largest setting applies. `check-config`
+  prints both limits
+  ([#414](https://github.com/eizedev/pivotkit/issues/414)).
 - Backend sign-in for HTTP sources ([#329](https://github.com/eizedev/pivotkit/issues/329)):
   `sources.<id>.http.auth` or `httpSources.backends.<name>.auth` is a header from a secret reference,
   OAuth client credentials (a client secret, or a JWT client assertion such as a Kubernetes service
@@ -98,6 +110,14 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - `pivotkit-server --help` names `--version` and lists it before `--help`, as pivotkit-mcp's help
   does. Unknown options and commands read `unknown option "--bogus"; run "pivotkit-server --help"`
   (pivotkit-mcp's alike); `--auth` with another value says `--auth must be none, token or oauth`.
+- `pivotkit-server source-from-openapi <file or https URL> --operation <operationId or "GET /path">`: proposes an
+  HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (path and query
+  parameters with their types, where the rows are, the fields' descriptions, a skeleton of the
+  backend's sign-in). The document is read as untrusted input: local references only, size and
+  node budgets, no `pattern` copied, descriptions cleaned and listed for review, and no address
+  copied as a value. What the operator must decide says `TODO`, and the server refuses a value under
+  `httpSources` or a source's `http` that still does
+  ([data sources](https://pivotkit.eize.dev/reference/sources/#openapi)).
 - Parameters: a refused value's `INVALID_INPUT` names the parameter's description, example and short
   pattern in one parenthesis ("params.customer is not in the expected form (The customer's short
   name, for example acme; pattern ...)"); a missing one ends with "re-run with
@@ -133,10 +153,27 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   over sources whose fields are all `show` get a plain link; reports over other sources only a link
   bound to the person's sign-in (OpenID Connect code flow with PKCE against `output.downloads.signIn`,
   the issuer and subject compared with the caller's token's) or, where the operator chooses `bind: "once"`, a one-time
-  link (GET shows a page, one POST sends the file). REST callers get links to such reports only with
+  link (GET shows a page with the file's name, kind, size and expiry and a Download button, one POST
+  sends the file; the same browser may repeat it for two minutes, and for any other browser the GET
+  already answers 409 `LINK_USED`). REST callers get links to such reports only with
   `results: true`. Results carry `output.filename`, `url`, `expiresAt`, `bound` and `note`;
   `present()` returns the file's MCP `resource_link`. `check-config` prints a `Delivery:` section.
+  Each answer of the route has a page with its own title and heading (a sign-in that was cancelled,
+  one whose page is out of date and one that failed say so apart, each with the link to open again)
+  and a problem document with `requestId`, the id of the request's log line. The pages meet 4.5:1
+  contrast in both colour schemes and show a focus ring.
   `createDownloadHandler`, `linksOf` and the route's constants are exported.
+- Upload to the operator's store ([#332](https://github.com/eizedev/pivotkit/issues/332)):
+  `output.upload` sends a written report to a store the operator names, either through a presign
+  service (`presign`: a POST with the operator's credentials, which names the address to upload to,
+  its headers, the link and its expiry) or an address template (`url` with `{id}`, `{name}`,
+  `{format}`), and the result shows the store's link (`url`, `expiresAt`, `bound`, `note`, and the
+  MCP `resource_link`). Reports over closed sources go there only where `bind` is `once` or
+  `signIn`; schedule drafts never. Requests go through guardedFetch (private addresses only with
+  `intranet`), the upload address must be on `presign.allowOrigins` and the link on `linkOrigins`;
+  at most two uploads at once within one `timeMs` (30 s). A failure answers `UPLOAD_FAILED` (502)
+  with a fixed text, the request id and `retryable`; the report stays in `output.dir`.
+  `check-config` prints an `Upload:` section.
 
 - A request id on every REST request and MCP tool call: on every log line written inside it, inside
   its work (a source's code, an error's details), in every REST problem document and at the end of
@@ -199,6 +236,36 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Changed
 
+- A code source's operation is computed in a worker as a table job, as an HTTP source's: `load` and
+  the reading of its rows stay in the host's thread, the encoding and the report are bounded by
+  `compute.timeMs` and `compute.memoryMb` ([#414](https://github.com/eizedev/pivotkit/issues/414)).
+  Its rows are kept packed (texts dictionary-coded, numbers, dates and true/false values in shared
+  typed arrays) and measured exactly; a kept load (tables up to 64 MiB per person by default) goes to a
+  worker once, later calls send its key only. Each worker keeps at most a quarter of `compute.memoryMb` of data sets. A source whose
+  every field is hidden keeps its row count.
+- Privacy ([#422](https://github.com/eizedev/pivotkit/issues/422)):
+  - Data that belongs to one person counts as closed for download links and `output.baseUrl`: data
+    sent in the request (`inline:`), a source with a parameter bound to a claim or a token exchange,
+    and a code source with the new `sources.<id>.perPerson: true`. Their reports get a sign-in link
+    for a caller with a subject, or no link. `isClosedForDelivery(options, ref)` (`src/registry.js`)
+    is the one rule.
+  - With `auth.groupProfiles` and no `auth.defaultProfile`, a person in none of the groups whom no
+    client or scope profile names is refused with 403 ("your sign-in gives you no access to this
+    server's data; ask the operator", `NOT_IN_GROUP`) instead of getting the sources' own policy.
+  - A sign-in link's subject digest holds the link's nonce: two links of one person cannot be tied
+    together.
+  - Cache keys hold a caller's values, groups and claims only as a keyed digest; an HTTP source's
+    JSON answer is kept without the columns the caller's policy hides.
+  - With `audit.subject` on, a sign-in link's `download` line names the person who signed in.
+  - The markers of used one-time links are swept every ten minutes, not only on the next one-time
+    download.
+  - A REST and MCP log line names a source by a configured id, `inline:` or `file:`, else
+    `unknown`, never the caller's text.
+  - `check-config` warns under `Retention:` when `output.maxAgeDays` is 0 while closed sources or
+    data sent in requests are on, lists the per-person sources under `Delivery:`, and says of a code
+    source open by its fields that `perPerson: true` is for data that differs per caller.
+  - The limiter drops an address within two minutes of its last refused token and a caller once its
+    bucket is full again, on a timer, instead of keeping them until the 10,000-key cap.
 - `ConfigError` is defined in `src/options/shared.js`; `pivotkit-server` exports it as before.
 - A pattern of a source's parameter that runs out of time on a test value is tried once more before
   it is refused at start, so a busy host does not refuse a fast pattern.
@@ -213,6 +280,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- `PIVOTKIT_PORT` set to `tcp://<address>:<port>`, as Kubernetes' service links do for a Service
+  named pivotkit: `serve`, `check-config` and `healthcheck` say so and name `enableServiceLinks:
+  false`, instead of "http.port: must be a whole number of 0 or more" (`healthcheck`: a failed
+  request; it still exits 1). An empty `PIVOTKIT_PORT` counts as not set for `healthcheck`, as it
+  does for `serve`.
 - A client that leaves while a streamed answer waits (an MCP call over a slow source) frees its
   caller's slot at once, also when it left before the answer started: the stream was only given up
   when the socket was written to, so the slot stayed taken until the call ended.
@@ -226,6 +298,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   (`127.example.com`) is no longer loopback, and `[::1]` as a URL writes it is. A listen host
   written short, `127.1` or `127.0.1`, no longer counts as loopback either: on it the server needs
   `auth` (or `--allow-unauthenticated`); write `127.0.0.1`.
+- A pivotkit-mcp of another release beside pivotkit-server: `serve` and `mcp` stop with "pivotkit-mcp
+  <x> does not fit pivotkit-server <y> (it needs pivotkit-server <range>; ...)" and a link to the
+  update guide, instead of "could not start: The requested module ... does not provide an export
+  named ...". `pivotkit-server mcp` no longer says "needs the package pivotkit-mcp" when
+  pivotkit-mcp is installed but cannot be loaded; it names the error.
 
 ## [0.1.1] - 2026-11-14
 

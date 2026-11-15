@@ -2,17 +2,23 @@
  * check-config's section for download links: whether the server gives its own links, where they
  * point, which sources' reports get which link (delivery.js linkFor), what to register at the
  * sign-in provider, and the warnings (a random key, one-time links, output.baseUrl with closed
- * sources, no public address off loopback).
+ * sources, no public address off loopback); and how long reports stay on disk (retention).
  *
  * check/index.js says what a section returns. Over stdio (no --http) and without output.baseUrl it
- * says nothing: no links there.
+ * says nothing about links (there are none); the retention warning holds there too.
  */
 
 import { CALLBACK_PATH, DOWNLOADS_PATH, KEY_MIN_BYTES } from "../downloads.js";
 import { settingsOf } from "../options/downloads.js";
+import { uploadSettingsOf } from "../options/upload.js";
 import { isLoopback } from "../listen.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
 import { resolvePolicy } from "../policy.js";
+import { realpath } from "node:fs/promises";
+import { OUTPUT_DEFAULTS, pathOf } from "../config.js";
+import { ownFileDirs } from "../context.js";
+import { personBound } from "../sources/auth.js";
+import { mcpCapOf, restDataOffered } from "../sources/inline.js";
 
 /** Up to six ids, then how many more. */
 const idsText = (ids) => (ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", "));
@@ -49,11 +55,94 @@ export function whyClosed(options, id) {
             return `profile ${name.slice(0, 40)}: ${by}`;
         }
     }
-    return "a field is not shown";
+    return NO_FIELD_REASON;
+}
+
+/** Whether callers may send data of their own (inline:), whose reports count as closed: over MCP unless off, over REST where a profile allows it. */
+export const inlineOffered = (options, runtime) => Boolean((runtime.mcp !== false && mcpCapOf(options)) || (runtime.rest && restDataOffered(options)));
+
+/**
+ * check-config's line of what counts as closed for being one person's data (the Delivery and the
+ * Upload section say it alike).
+ * @param {Map<string, string>} personal  perPersonOf
+ * @param {boolean} inline  inlineOffered
+ */
+export const perPersonLine = (personal, inline) => `  per person (counted as closed): ${[...[...personal].map(([id, why]) => `${id} (${why})`), ...(inline ? ["data sent in requests (inline:)"] : [])].join(", ")}`;
+
+/** whyClosed's answer where no field says why. */
+const NO_FIELD_REASON = "a field is not shown";
+
+/**
+ * The sources whose data belongs to one person, by id with why (registry.js counts them as closed
+ * for links).
+ * @param {import("../config.js").ServerOptions} options
+ * @returns {Map<string, string>}
+ */
+export function perPersonOf(options) {
+    const out = new Map();
+    for (const [id, source] of Object.entries(options.sources ?? {})) {
+        if (personBound(options, source)) {
+            out.set(id, Object.values(source.params ?? {}).some((p) => p?.claim !== undefined) ? "a parameter bound to a claim" : "a token exchange");
+        } else if (/** @type {any} */ (source).perPerson === true) {
+            out.set(id, "perPerson");
+        }
+    }
+    return out;
 }
 
 /** @type {import("./index.js").Section} */
 export async function section(options, registry, runtime) {
+    const said = await links(options, registry, runtime);
+    const kept = await retention(options, registry, runtime);
+    return { lines: [...said.lines, ...kept.lines], problems: said.problems + kept.problems, upgrade: [...said.upgrade, ...kept.upgrade] };
+}
+
+/**
+ * How long reports stay on disk: a warning when the operator switched the age limit off
+ * (output.maxAgeDays: 0; the default is 30 days) while some report can hold data about people, one over a closed source (registry.js, closed
+ * for delivery) or over data sent in a request. Such reports stay in output.dir until
+ * output.maxFiles or output.maxMb push them out, also after their link expired (an expired link does
+ * not remove its file). Said whatever the links are (stdio, output.baseUrl, the server's own).
+ * @type {import("./index.js").Section}
+ */
+async function retention(options, registry, runtime) {
+    const none = { lines: [], problems: 0, upgrade: [] };
+    if (!options.output?.dir) {
+        return none;
+    }
+    if (options.output.maxAgeDays === undefined) {
+        // the default age limit, new in this version: only in a directory of the reports' own
+        const dir = pathOf(options, options.output.dir);
+        const real = await realpath(dir).catch(() => dir);
+        const shared = (await ownFileDirs(options)).includes(real);
+        return shared ? none : { ...none, upgrade: [`Reports and schedule drafts older than ${OUTPUT_DEFAULTS.maxAgeDays} days are deleted from output.dir at start and every hour (output.maxAgeDays; 0 keeps them with no age limit)`] };
+    }
+    if (options.output.maxAgeDays !== 0) {
+        return none;
+    }
+    const closed = (await registry.check()).filter((s) => s.closed).map((s) => s.id);
+    const inline = inlineOffered(options, runtime);
+    if (!closed.length && !inline) {
+        return none;
+    }
+    const what = [closed.length ? `reports over closed sources (${idsText(closed)})` : "", inline ? "data sent in requests" : ""].filter(Boolean).join(" and ");
+    // a directory that holds the configuration or a source file refuses maxAgeDays (check.js): reports need their own first
+    const dir = pathOf(options, options.output.dir);
+    const real = await realpath(dir).catch(() => dir);
+    const shared = (await ownFileDirs(options)).includes(real);
+    const limit = `leave out output.maxAgeDays (the default deletes reports after ${OUTPUT_DEFAULTS.maxAgeDays} days) or set a number of days`;
+    const fix = shared ? `give the reports a directory of their own and ${limit}` : limit;
+    const maxFiles = options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles;
+    const maxMb = options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb;
+    return {
+        lines: ["Retention:", `  warning: output.maxAgeDays is 0 (no age limit): reports stay in output.dir until output.maxFiles (${maxFiles}) or output.maxMb (${maxMb} MB) push them out, also after their link expired; ${what} can hold data about people; ${fix}`],
+        problems: 0,
+        upgrade: []
+    };
+}
+
+/** @type {import("./index.js").Section} */
+async function links(options, registry, runtime) {
     const settings = settingsOf(options);
     const sources = await registry.check();
     const closed = sources.filter((s) => s.closed).map((s) => s.id);
@@ -85,24 +174,38 @@ export async function section(options, registry, runtime) {
     }
     const base = publicUrl ?? `http://${host.includes(":") ? `[${host}]` : host}:${options.http?.port ?? 3333}`;
     lines.push(`  downloads: on, links ${base}${DOWNLOADS_PATH}/<token>${publicUrl ? ` (route ${DOWNLOADS_PATH} to this service)` : ""}, expire after ${settings.expiresMinutes} minute${settings.expiresMinutes === 1 ? "" : "s"}`);
-    if (closed.length) {
+    // with an upload target whose links are bound, the store takes reports over closed sources: check/upload.js describes them
+    const upload = uploadSettingsOf(options);
+    const storeTakesClosed = Boolean(upload && upload.bind !== "none");
+    const ownClosed = storeTakesClosed ? [] : closed;
+    // closed by a field, and closed for being data of one person (some sources both)
+    const personal = storeTakesClosed ? new Map() : perPersonOf(options);
+    const byField = ownClosed.filter((id) => !personal.has(id) || whyClosed(options, id) !== NO_FIELD_REASON);
+    const inline = !storeTakesClosed && inlineOffered(options, runtime);
+    if (byField.length) {
         // why: open needs default "show" and no field below it, for the server, the source and every profile
-        lines.push(`  closed (a field not shown for someone): ${idsText(closed.map((id) => `${id} (${whyClosed(options, id)})`))}`);
+        lines.push(`  closed (a field not shown for someone): ${idsText(byField.map((id) => `${id} (${whyClosed(options, id)})`))}`);
+    }
+    if (personal.size || inline) {
+        lines.push(perPersonLine(personal, inline));
+    }
+    if (ownClosed.length) {
         const rest = runtime.rest ? "; REST programs get them only with results: true" : "";
         if (settings.bind === "signIn" && settings.signIn) {
             const claim = options.auth?.subjectClaim ?? "sub";
-            lines.push(`  reports over closed sources (${idsText(closed)}): sign-in links; register ${base}${CALLBACK_PATH} at the provider for client ${settings.signIn.clientId}; it must resolve the same subject (${claim}) as the MCP client${rest}`);
+            lines.push(`  reports over closed sources (${idsText(ownClosed)}): sign-in links; register ${base}${CALLBACK_PATH} at the provider for client ${settings.signIn.clientId}; it must resolve the same subject (${claim}) as the MCP client${rest}`);
         } else if (settings.bind === "once") {
-            lines.push(`  reports over closed sources (${idsText(closed)}): one-time links${rest}`, '  warning: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters');
+            lines.push(`  reports over closed sources (${idsText(ownClosed)}): one-time links${rest}`, '  warning: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters');
         } else {
-            lines.push(`  reports over closed sources (${idsText(closed)}): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open`);
+            lines.push(`  reports over closed sources (${idsText(ownClosed)}): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open`);
         }
     }
-    if (open.length) {
-        lines.push(`  reports over open sources (${idsText(open)}): plain links`);
+    const ownOpen = upload ? [] : open;
+    if (ownOpen.length) {
+        lines.push(`  reports over open sources (${idsText(ownOpen)}): plain links`);
     }
     // whether any report gets a link: the key and the stored names matter only then
-    const linking = open.length > 0 || (closed.length > 0 && settings.bind !== "none");
+    const linking = ownOpen.length > 0 || (ownClosed.length > 0 && settings.bind !== "none");
     if (settings.key) {
         try {
             const value = await readSecret(settings.key, options, runtime.env);

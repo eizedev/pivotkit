@@ -196,14 +196,16 @@ root `package.json`: `npm run types` and the builds depend on it.
   by, never a value; counted in data.js when the data is read, cached with it, returned by the worker
   with every outcome), `src/registry.js` (source ids and `file:` paths, scopes, "not
   found" for a source the caller may not use; `files: false` for REST; `resolve(ref, caller, how,
-  params)` dispatches by kind and checks params), `src/sources/` (the kinds of source:
+  params)` dispatches by kind and checks params; `isClosedForDelivery(options, ref)`, the one rule
+  for which reports get only bound links: a field not shown for someone, or data per person;
+  `logName`, a source as a log line names it), `src/sources/` (the kinds of source:
   `index.js` `kindOf`, `KINDS` and `runResolved`, the one way present() runs an operation over a
   source; `file.js` configured files and `file:` paths, read in a worker; `code.js` a library host's
-  `load(params, { caller, signal })`, its data kept per identity, values and levels (`cacheShared`:
-  one copy, caller null); `run.js` how data loaded in the main thread is loaded (`runLoad`: time
+  `load(params, { caller, signal })` in the main thread, its data kept per identity, values and levels (`cacheShared`:
+  one copy, caller null) as a packed table and computed in a worker as a table job (a key only for a load that is kept and reused); `run.js` how data loaded in the main thread is loaded (`runLoad`: time
   limit with the signal aborted, coalescing, load limits per source and identity, kept data, last good
   data after a transient failure only; `SourceError` and `sourceFailure`, what a caller gets of a
-  source's error, its `reason` picking the fixed text, `serverTextOf`); `cache.js` the process cache of loaded data (64 entries, 256 MiB; per owner 8 entries and a quarter of the bytes, its own oldest out first);
+  source's error, its `reason` picking the fixed text, `serverTextOf`); `cache.js` the process cache of loaded data (64 entries, 256 MiB or `sourceCache.maxMb` (options/code.js `sourceCacheOf`; the largest of the open contexts, `loadRunner.claimCacheBytes` at create, released at close), a code source's packed table measured by `packedBytes`; per owner 8 entries and a quarter of the bytes, its own oldest out first);
   `http.js` HTTP sources, an operator's backend (`loadHttp`: the requests with guardedFetch,
   `intranet` for private addresses, paging on the same host and path, JSON nested at most `MAX_DEPTH`,
   the rows at a JSON Pointer as a table the worker encodes; `backendAnswer`, a backend's
@@ -219,19 +221,27 @@ root `package.json`: `npm run types` and the builds depend on it.
   `paramSchemaOf`, `normalizeParams`, `paramsList`; `input.js` the extra inputs (`params`, `data`) a surface
   offers (`offersOf`, `extraInputs`, `withoutExtras`) and `listExtras` of list_sources; `as-of.js`
   `dataAsOf`, every source's time parsed and written in one form (`asOfText`, `asOfMembers`); `keys.js`
-  canonical JSON cache keys (`tableKeyOf`: null without an identity); `fetch.js` `guardedFetch`, the
+  canonical JSON cache keys (`tableKeyOf`: null without an identity; `privatePart`: a caller's values,
+  groups and claims only as a keyed digest); `fetch.js` `guardedFetch`, the
   one way the server requests another server: https only, no redirects, the address checked on the
   connection's own lookup, bodies counted after decompression, one time limit), `src/data.js`
-  (`fileData`, `codeTable` (a code source's data with a file's run limits, encoded), and `tableData`/`uploadData` for a table job: data loaded in the main
-  thread or a file handed in, computed in a worker),
+  (`fileData`, `codeTable` (a code source's rows read once into a packed table with a file's run limits, hidden fields left out; encoded in the worker), and `tableData`/`uploadData` for a table job: data loaded in the main
+  thread (an HTTP or code source's) or a file handed in, computed in a worker; the data sets a process keeps, `CACHE_ENTRIES` and a byte bound, `holds`),
+  `src/packed.js` (`packTable`, `unpackTable`, `packedBytes`: a code source's table with text columns dictionary-coded and numbers, dates and true/false values in typed arrays on SharedArrayBuffers, so posting it to a worker copies no value per cell; its exact size),
   `src/compute.js` and `src/worker.js` (worker threads with memory and time limits; an input the
-  structured clone cannot copy is `INVALID_INPUT` and frees the worker), `src/present.js` (`present()`:
+  structured clone cannot copy is `INVALID_INPUT` and frees the worker; a table job with a key goes
+  to the worker that kept its data, without the table, and a worker that pushed it out answers
+  `need` and gets the table once; `sent()` counts both), `src/present.js` (`present()`:
   run an operation for a caller and apply the policy, output files, inline results and the one
   sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are
   made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
   `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: which link a
-  report gets, decided before it is written (`linkFor`), the write, `output.filename`/`url`/`note`;
-  `resourceLinkOf`, the MCP `resource_link`), `src/downloads.js` (the server's own download links:
+  report gets, decided before it is written (`linkFor`; `storeFor` for the upload target), the write, `output.filename`/`url`/`note`;
+  `resourceLinkOf`, the MCP `resource_link`), `src/upload.js` (the operator's store, `output.upload`:
+  `upload()` after the local write, presign or address template, guardedFetch, two slots, one time
+  budget, links checked against `linkOrigins`, `UploadFailure` codes that delivery.js answers as
+  `UPLOAD_FAILED`; `uploadMeans` lets tests use their own guardedFetch; `options/upload.js` and
+  `check/upload.js` are its options and check-config section), `src/downloads.js` (the server's own download links:
   `createDownloadHandler`, the route `/downloads/` and its sign-in callback, one state per context;
   the HMAC-signed token, one-time markers in the output directory's `.pivotkit-downloads/`, the OpenID
   Connect sign-in; `linksOf` for delivery.js; `options/downloads.js` and `check/downloads.js` are its
@@ -264,10 +274,13 @@ root `package.json`: `npm run types` and the builds depend on it.
   (`callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
   auth.js), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
-  pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
-  `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source, mcp, cli,
-  healthcheck), `src/check-source.js` (`check-source`: one load of an HTTP source, never a value
-  printed). What
+  pivotkit-mcp installed (imported by name, no dependency; one of another release that imports what this pivotkit-server lacks is refused with both versions), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
+  `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source,
+  source-from-openapi, mcp, cli, healthcheck), `src/check-source.js` (`check-source`: one load of an
+  HTTP source, never a value printed), `src/openapi-source.js` (`source-from-openapi`: an HTTP source
+  block from one GET operation of an operator's OpenAPI document, read as hostile input; imported by
+  the runner's command only, never by the server; its `TODO` values are refused by
+  `options/base.js todoPaths`). What
   the REST service and the CLI's remote mode agree on (base path, source ids, token syntax, problem
   codes, loopback) is pivotkit-cli/rest's, re-exported here; `test/cli-remote.test.js` runs the CLI
   against the service.

@@ -93,9 +93,6 @@ export function takesResourceLink(ctx) {
     return /^\d{4}-\d{2}-\d{2}$/.test(version) && version >= RESOURCE_LINK_SINCE;
 }
 
-/** A source as a log line names it: an id, or a file by its base name. */
-const logSource = (source) => (typeof source !== "string" ? undefined : source.startsWith("file:") ? `file:${source.split(/[\\/]/).pop()?.slice(0, 80)}` : source.slice(0, 80));
-
 /**
  * Registers the tools on a server for one caller.
  * @param {import("@modelcontextprotocol/server").McpServer} server
@@ -129,7 +126,7 @@ export function registerTools(server, context, caller) {
                 // the call's id: on its log lines, and inside its work (a source's code, an error's details)
                 const id = newRequestId();
                 // data sent with source "inline:": how many rows and columns, never a value
-                const entry = { tool: name, ...callerFields(caller), requestId: id, source: logSource(args?.source), ...inlineLogFields(args) };
+                const entry = { tool: name, ...callerFields(caller), requestId: id, source: context.registry.logName(args?.source), ...inlineLogFields(args) };
                 try {
                     if (caller.scopes !== null && !scopes.every((s) => caller.scopes?.has(s))) {
                         throw new OperationError("NOT_ALLOWED", `your token may not use ${name}`);

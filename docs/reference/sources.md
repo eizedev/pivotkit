@@ -14,7 +14,7 @@ is one of these kinds:
 | --- | --- | --- |
 | File | `file`: a CSV, TSV, TXT, JSON or XLSX file | In a worker thread, with the file limits ([options](mcp.md#configuration)) |
 | HTTP | `http`: an operator's backend, its address with typed parameters | Requested and parsed in the server's thread, computed in a worker; see [HTTP sources](#http) |
-| Code | `load`: a function of a library host | In the host's thread; see [Code sources](#code) |
+| Code | `load`: a function of a library host | Loaded in the host's thread, computed in a worker; see [Code sources](#code) |
 
 Every kind has the same exposure policy, scopes, field descriptions and `dataAsOf` in its results
 ([pivotkit-mcp](mcp.md), [REST](rest.md)).
@@ -24,7 +24,8 @@ Every kind has the same exposure policy, scopes, field descriptions and `dataAsO
 An HTTP source asks an operator's backend for its rows. You write the address once in the
 configuration, with a parameter in braces where a caller's value goes; a caller (a model or a
 program) passes only the values, which pivotkit checks against their declared type, pattern or list
-before anything is sent. A caller never gives an address.
+before anything is sent. A caller never gives an address. When the API has an OpenAPI document,
+[`source-from-openapi`](#openapi) proposes the block for one of its operations.
 
 ```json
 {
@@ -424,7 +425,10 @@ more); at most 4 loads of one source and 2 of one person run at once; last good 
 after a transient failure, with `stale: { since }`, and a refusal drops it. A load aborted because
 every caller went away keeps nothing: the next call loads again. A caller without an identity (an
 OAuth token without a usable subject) gets nothing kept and shares no load. For a source with a
-token exchange or a claim, the data is kept per person, client and scopes, as its token is.
+token exchange or a claim, the data is kept per person, client and scopes, as its token is. A JSON
+answer is kept without the columns the caller's policy hides (so a caller whose profile shows more
+gets its own copy); a CSV answer is kept as it came and read per call, its hidden columns dropped
+then. The key holds the values and the caller only as a keyed digest.
 
 ### check-config and check-source { #check-source }
 
@@ -541,6 +545,7 @@ The example compiles with strict TypeScript: pivotkit-server's types give `load`
 | `sources.<id>.ttl` | none (only `version` decides) | Seconds a load is reused; `0` only shares loads that run at the same time |
 | `sources.<id>.maxStale` | 3600 s | How old the last good data may be to stand in after a transient failure; `0` turns it off |
 | `sources.<id>.cacheShared` | `false` | The data is the same for every caller: one copy for all, and `load` gets `caller: null` |
+| `sources.<id>.perPerson` | `false` | The data differs per caller (each person sees their own): its reports count as closed for [download links](delivery.md), so only the person who asked can open them (a sign-in link) or no link is given. Not with `cacheShared` |
 
 `checkConfig` lists each code source: its time limit, how its data is kept, and whether last good
 data may stand in. It checks the options first as `createContext` does, so it throws the same
@@ -613,7 +618,9 @@ cells are written as JSON text, and every text is cut at `limits.textLength`.
   static token's name, or `local`), with the client, its scopes, the groups and the claims, the
   values of `params` and the caller's policy levels. A caller without an identity (an OAuth token
   without a usable subject) gets nothing kept, shares no load and gets no last good data. With
-  `cacheShared: true` all callers share one copy per set of values and policy levels.
+  `cacheShared: true` all callers share one copy per set of values and policy levels. The key of
+  kept data holds the values, groups and claims only as a keyed digest (random per process), not in
+  clear text.
 - **Reuse.** Kept data is reused while `version` gives the same value (and within `ttl` when both
   are set), or for `ttl` seconds without `version`. Without either, every call loads. `ttl` counts
   from when the load ended.
@@ -634,17 +641,221 @@ cells are written as JSON text, and every text is cut at `limits.textLength`.
   source could not be refreshed.", and the log has a warning with the source's id. Any other failure
   answers at once and drops what was kept for that caller and values, so a withdrawn access is never
   covered by the cache.
-- **Bounds.** The process keeps at most 64 loads and 256 MiB of encoded data; one person (a shared
-  source counts as one) at most 8 loads and a quarter of the bytes, and a person's new load pushes
-  out that person's oldest first, so one caller cannot push out everyone else's data. Otherwise the
-  least recently used go first. Kept data stays in the process's memory until it is pushed out,
-  also after `maxStale` has passed.
+- **Bounds.** The process keeps at most 64 loads and `sourceCache.maxMb` of loaded tables (256 MiB
+  by default), each counted as pivotkit holds it (each distinct text of a column once, numbers,
+  dates and true/false values as typed arrays); one person (a shared source counts as one) at most
+  8 loads and a quarter of the bytes, and a person's new load pushes out that person's oldest
+  first, so one caller cannot push out everyone else's data. Otherwise the least recently used go
+  first. Kept data stays in the process's memory until it is pushed out, also after `maxStale` has
+  passed. `check-config` prints both limits.
+- **Tables up to a quarter of `sourceCache.maxMb`** (64 MiB by default) are kept. A larger table is
+  never kept: every call loads it again, reads it and sends it to a worker, as without `ttl`. A
+  million rows with a distinct text of 30 characters in each row take about 84 MiB, over the
+  default share: every call then takes about 0.6 to 1 s, 0.2 to 0.5 s of it in the host's thread
+  (measured on a laptop). With `"sourceCache": { "maxMb": 512 }` (tables up to 128 MiB) it is kept,
+  and a later call takes a few milliseconds; give the process the memory for it. The process
+  keeps one load cache: with several contexts in one process, the largest `sourceCache.maxMb` of
+  those open applies, and when a context closes the cache shrinks to the largest left.
 
 ### Where it runs { #code-thread }
 
-`load` and the operation over its data run in the host's thread, not in a worker. `timeMs` bounds
-`load`; the computation after it is not bounded by `compute.timeMs`, so keep the data a code source
-returns to what a report needs.
+`load` runs in the host's thread, and pivotkit reads its rows there once into a compact table (the
+run limits above, hidden fields left out; each distinct text of a column once, numbers, dates and
+true/false values in shared memory). The operation over that table runs in a worker, as for a file
+or an HTTP source: `timeMs` bounds `load`, `compute.timeMs` the computation (`TIMEOUT`),
+`compute.memoryMb` its memory (`LIMIT_EXCEEDED`), and it waits up to `compute.queueMs` for a free
+worker (`BUSY`). A load that is kept (`ttl` or `version`) goes to a worker once; later calls go to
+that worker without the table while it keeps it (each worker keeps the data of its last four runs,
+at most a quarter of `compute.memoryMb`). Reading a million rows of eight columns takes about 0.5 s
+of the host's thread on a laptop, a call over kept data a few milliseconds, so keep the data a code
+source returns to what a report needs.
 
 A code source is your code: pivotkit hands it a frozen copy of the caller and never a token, which
 guards against mistakes, not against code that means harm.
+
+## HTTP sources from an OpenAPI document { #openapi }
+
+`pivotkit-server source-from-openapi` reads an API's OpenAPI document and proposes the
+configuration of an HTTP source for one of its GET operations: the address with its parameters, the
+parameters' types and descriptions, where the rows are and the fields' descriptions. You review the
+result, fill in what it leaves to you and add it to your configuration. The command is for you at
+the command line; the server never reads the document.
+
+```text
+pivotkit-server source-from-openapi <file or https URL> --operation <operationId | "GET /path"> [--id <source id>] [--backend <name>]
+```
+
+`--operation` names the operation by its `operationId`, or, for a document without them, by its
+method and path as the document writes it (`--operation "GET /pet/{petId}"`); an unknown name lists
+the document's GET operations in both forms. It prints the block as JSON on stdout and, on stderr,
+what you must still check and decide. Exit 0 when it wrote a block, 2 on a usage error, a document it
+does not read or an operation that cannot be a source. `--id` names the source (default: the
+`operationId`, else the path: `pet-petId`), `--backend` the backend (default: the document's
+`info.title` in lower case with `-`, else `api`). `pivotkit-server source-from-openapi --help` lists
+the options.
+
+With the public Swagger Petstore (OpenAPI 3) document:
+
+```text
+$ pivotkit-server source-from-openapi https://petstore3.swagger.io/api/v3/openapi.json --operation findPetsByStatus --backend petstore > petstore.json
+```
+
+```json
+{
+  "httpSources": {
+    "backends": {
+      "petstore": {
+        "url": "TODO: https://... (the document names the relative address /api/v3, which is https://petstore3.swagger.io/api/v3 from the document's address; check it)"
+      }
+    }
+  },
+  "sources": {
+    "findPetsByStatus": {
+      "title": "Finds Pets by status.",
+      "description": "Multiple status values can be provided with comma separated strings.",
+      "http": {
+        "backend": "petstore",
+        "path": "/pet/findByStatus",
+        "query": {
+          "status": "{status}"
+        },
+        "rows": ""
+      },
+      "params": {
+        "status": {
+          "type": "string",
+          "required": true,
+          "description": "Status values that need to be considered for filter",
+          "enum": [
+            "available",
+            "pending",
+            "sold"
+          ]
+        }
+      },
+      "fields": {
+        "status": {
+          "description": "pet status in the store"
+        }
+      },
+      "policy": {
+        "default": "hide",
+        "fields": {
+          "id": "hide",
+          "name": "hide",
+          "category": "hide",
+          "photoUrls": "hide",
+          "tags": "hide",
+          "status": "hide"
+        }
+      }
+    }
+  }
+}
+```
+
+```text
+The API host comes from the document; check it before adding credentials.
+
+Still to decide: 1 value says TODO, and the server refuses the configuration until none does:
+  httpSources.backends.petstore.url: TODO: https://... (the document names the relative address /api/v3, which is https://petstore3.swagger.io/api/v3 from the document's address; check it)
+
+Notes:
+  - The document's sign-in is not one pivotkit writes for you (petstore_auth: OAuth for people, not client credentials): configure the backend's auth by hand (https://pivotkit.eize.dev/reference/sources/#http-auth); for each person's own access, use tokenExchange.
+  - The query parameter "status"'s explode is left out: it makes no difference for a single value.
+  - Every field is hidden (sources.findPetsByStatus.policy): set the ones a caller may see to "show", "values" or "summary".
+
+Review these as text the model will read:
+  sources.findPetsByStatus.title: "Finds Pets by status."
+  sources.findPetsByStatus.description: "Multiple status values can be provided with comma separated strings."
+  sources.findPetsByStatus.params.status.description: "Status values that need to be considered for filter"
+  sources.findPetsByStatus.params.status.enum: "available, pending, sold"
+  sources.findPetsByStatus.fields.status.description: "pet status in the store"
+
+Add the block to your configuration, fill in every TODO, then run pivotkit-server check-config and check-source findPetsByStatus. Docs: https://pivotkit.eize.dev/reference/sources/#openapi
+```
+
+The document names its server as `/api/v3`, an address relative to the document's own, so the TODO
+names both. Its sign-in is OAuth for people (an implicit flow), which the command does not write: a
+token exchange or another backend auth is yours to configure.
+
+### What it reads { #openapi-input }
+
+- **OpenAPI 3.0 or 3.1 in JSON** (`"openapi": "3.1.0"`, also `"3.1"`), at most 5 MiB and 128 levels deep. A YAML document is refused
+  with how to convert it, for example `npx js-yaml openapi.yaml > openapi.json` (js-yaml's command
+  writes a YAML file as JSON). Swagger 2.0 is refused; convert it to OpenAPI 3 first.
+- **A file, or an `https://` URL.** A URL is fetched once with the guarded fetch HTTP sources use
+  (no redirects, no cloud metadata or link-local addresses, the size limit while it streams), within
+  10 seconds and without credentials. Since you name the address yourself, a private address is
+  allowed here without `intranet`. For a document behind a sign-in or on plain `http://`, download it
+  and pass the file.
+- **Local references only.** `$ref` values that start with `#/` are followed, with own properties
+  only, at most 32 in a chain, `allOf` at most 8 deep and merging at most 1,000 properties (each
+  schema merged once per depth, however often it is referenced), and one budget of 100,000 nodes for the whole
+  run, which every property read counts against; finding the operation has a budget of its own
+  (about 200,000 paths). A document over a limit is refused or shortened with a note, quickly. A reference to another file or address (`file:`, `https:`, `http://169.254.169.254/...`) is
+  never fetched: the command names it in a note and goes on without it. A circular reference is
+  named the same way.
+
+### What it writes { #openapi-output }
+
+| From the document | In the block |
+| --- | --- |
+| The server address (`servers`, the operation's or path's first) | The backend's `url`, as a `TODO` that names the address without a user name, password, query or fragment; an address with variables as written with their defaults (`https://{region}.example.com (region=eu)`); a relative address with what it is relative to the document's URL |
+| The operation's path | `http.path`, with each path parameter as `{name}`; a path over 2,000 characters or with an empty segment refuses the operation |
+| Path parameters | Required `params` |
+| Query parameters | `params` and `http.query`; `required` is kept |
+| A parameter's `type`, `enum`, `minLength`, `maxLength`, `minimum`, `maximum`, `format: date`, `description`, `example` | The same keys of the parameter, as far as the server accepts them (an `example` outside the safe characters, a `maxLength` over 256 or an `enum` of more than 100 values is left out or capped, with a note) |
+| A parameter's `pattern` | Never copied: a document's regular expression could take very long on a caller's value; a text parameter without a pattern takes letters, digits and `. _ ~ -` only. Write your own pattern where values need more |
+| A name that is no parameter's name (`created-after`, `filter[name]`) | The parameter `created_after`, `filter_name`; the query keeps the document's name |
+| Header and cookie parameters, array and object values, a `style` or `allowReserved` | Left out, with a note (a path parameter like that refuses the operation) |
+| A JSON answer (the first 2xx) that is a list | `http.rows: ""` |
+| An object with exactly one list | `http.rows` pointing at it (`/items`) |
+| Any other answer | `http.rows` as a `TODO` |
+| A `text/csv` answer | `http.format: "csv"` |
+| The row's properties | `fields.<name>.description` where the document describes them, and every property in `policy.fields` as `hide`, under `policy.default: "hide"` |
+| The operation's `summary` and `description` | The source's `title` and `description` |
+| The security scheme | A skeleton of the backend's [sign-in](#http-auth), see below |
+
+Descriptions and other texts lose control characters, terminal escape sequences, bidi controls and
+other invisible characters (the joiners an emoji needs stay), line breaks become spaces, and they are cut at 500 characters (a title at 200). The model reads them
+through `list_sources` and `describe_source`, so the command prints each one under "Review these as
+text the model will read": an API's documentation can hold instructions meant for a model.
+
+A parameter whose name looks like a credential's (`key`, `token`, `secret`, `auth`, `pass`) keeps
+no example and no list of values, nor does a parameter whose example or values look like one (a
+known token prefix such as `sk-`, `ghp_`, `hf_`, `xoxb-`, `AKIA`, `AIza`, `ya29.` or `SG.` followed by at least 16 token characters,
+a JWT, or 32 or more token characters with letters and digits that are no UUID); a note names each
+one. A query parameter in which the document's own security scheme sends an API key is
+left out: a credential never comes from a caller.
+
+The sign-in, from the operation's `security` (else the document's), the first alternative of one
+scheme that maps:
+
+| Security scheme | Backend auth |
+| --- | --- |
+| `apiKey` in a header | `header` with the header's name (listed for review; `Cookie`, `Authorization`, `Origin`, `Referer` or a header of the connection becomes a `TODO`) and `value: { "env": "TODO: ..." }` |
+| `http` with `bearer` | `header` with `prefix: "Bearer "` |
+| `http` with `basic` | `header` with `prefix: "Basic "`; the secret holds the base64 of `user:password` |
+| `oauth2` with a `clientCredentials` flow | `clientCredentials` with `tokenUrl`, `clientId` and `clientSecret` as `TODO`s and the operation's scopes (a scope starting with `TODO` is left out) |
+| An API key in the query or a cookie, OAuth for people, OpenID Connect, mutual TLS, two schemes together | No auth, with a note: configure it by hand; for each person's own access use `tokenExchange` |
+
+### TODO values { #openapi-todo }
+
+Every value you must decide starts with `TODO: `, the same word everywhere, so `grep TODO` finds
+them. The server refuses a configuration with a value under `httpSources` or a source's `http` that
+still starts with `TODO: `, right after the check of the keys and their types and before the other
+rules; `pivotkit-server check-config` and `serve` exit 2 while one is left:
+
+```text
+pivotkit-server: 1 value still says TODO: httpSources.backends.petstore.url; replace each with the real value
+```
+
+No address from the document becomes a value by itself: a document could name an attacker's host as
+the API or the token endpoint, which would then receive your credentials. Check the host, write it
+into `url` and `tokenUrl`, then add the credentials. Other texts (a title, a description) and a
+value that is just `TODO` (a query value a ticket API takes) are ordinary values.
+
+Then decide which fields a caller may see (`policy.fields`), and test the source with
+`pivotkit-server check-config` and [`check-source`](#check-source), which also prints the fields the
+backend really sends.

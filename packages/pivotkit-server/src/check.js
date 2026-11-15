@@ -10,7 +10,7 @@ import { basename } from "node:path";
 import { closest, encode } from "pivotkit-core";
 import { isInside, readSafe, readTable } from "pivotkit-cli/files";
 import { HTTP_HEADING } from "./check/http.js";
-import { OUTPUT_DEFAULTS, pathOf, restResourceOf, serverLimitsOf, validateOptions } from "./config.js";
+import { OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf, restResourceOf, serverLimitsOf, validateOptions } from "./config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
 import { OUTPUT_INSIDE_ALLOWED, cannotCreate, entryOf, outputRefusal, ownFileDirs, plannedPath, writable } from "./context.js";
 import { draftCap } from "./present.js";
@@ -21,6 +21,19 @@ import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, wit
 import { sourceStats } from "./stats.js";
 import { SECTIONS, UPGRADING_URL, runSections } from "./check/index.js";
 import { secretFileWarning } from "./secrets.js";
+
+/** How long reports and drafts stay, in words: the age limit, or why there is none. */
+function ageText(options, shared) {
+    if (shared) {
+        // nothing there is deleted by age (a written limit is a problem below)
+        return "no age limit: the directory holds other files";
+    }
+    const days = maxAgeDaysOf(options, shared);
+    if (days > 0) {
+        return `reports and drafts older than ${days} days are deleted${options.output?.maxAgeDays === undefined ? " (the default)" : ""}`;
+    }
+    return "no age limit (output.maxAgeDays 0)";
+}
 
 /**
  * What the server would expose with these options. The options are checked first as createContext
@@ -113,7 +126,7 @@ export async function checkConfig(options, { http = false, env = {}, name = "piv
         const real = await realpath(outputDir).catch(() => outputDir);
         const shared = (await ownFileDirs(options)).includes(real);
         const maxFiles = options.output?.maxFiles ?? OUTPUT_DEFAULTS.maxFiles;
-        lines.push(`  at most ${maxFiles} files of pivotkit's (of them ${draftCap(maxFiles)} schedule drafts) and ${options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb} MB; ${shared ? "it holds the configuration or a source, template or token file, so nothing there is deleted and a full directory refuses new reports" : "when full, the oldest reports are deleted to make room, drafts are kept"}${options.output?.maxAgeDays && !shared ? `; reports and drafts older than ${options.output.maxAgeDays} days are deleted` : ""}`);
+        lines.push(`  at most ${maxFiles} files of pivotkit's (of them ${draftCap(maxFiles)} schedule drafts) and ${options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb} MB; ${shared ? "it holds the configuration or a source, template or token file, so nothing there is deleted and a full directory refuses new reports" : "when full, the oldest reports are deleted to make room, drafts are kept"}; ${ageText(options, shared)}`);
         if (options.output?.maxAgeDays && shared) {
             other += 1;
             lines.push("  PROBLEM: output.maxAgeDays in a directory that holds the configuration or a source, template or token file: the server will not start; give the reports a directory of their own");

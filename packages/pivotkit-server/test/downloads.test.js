@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, readdirSync, unlinkSync, utimesSync, writeFile
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
-import { dispositionOf, filenameOf, placeMarker, readToken, signToken, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
+import { dispositionOf, filenameOf, placeMarker, readToken, signToken, sizeText, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
 import { NO_LINK_NOTE, linkFor, resourceLinkOf } from "../src/delivery.js";
 import { BY_REGION, SALES_CSV, TOKEN, call, raw, restServer, tempDir, workspace } from "./helpers.js";
 import { createContext } from "../src/context.js";
@@ -415,10 +415,13 @@ test("once: GET and HEAD answer a page and never use the link; one POST from the
         assert.deepEqual(Buffer.from(await first.arrayBuffer()), readFileSync(join(dir, "out", output.name)));
         const cookie = first.headers.get("set-cookie") ?? "";
         assert.match(cookie, /^__Host-pivotkit-dl=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}; Max-Age=\d+; Path=\/; HttpOnly; SameSite=Lax; Secure$/);
+        // the cookie lives as long as the repeat window, not the sign-in's ten minutes
+        const maxAge = Number(/Max-Age=(\d+)/.exec(cookie)?.[1]);
+        assert.ok(maxAge > 110 && maxAge <= 120, String(maxAge));
         const again = await call(url, { method: "POST", headers: { origin: PUBLIC, accept: "application/json" } });
         assert.equal(again.status, 409);
         assert.equal(again.data.code, "LINK_USED");
-        assert.match(again.data.detail, /This link was already used\. Ask whoever made the report to make it again\./);
+        assert.match(again.data.detail, /This link was already used\. If you downloaded the report earlier, look in the downloads of the browser you used\. Otherwise ask whoever made the report to make it again\./);
         const repeat = await fetch(url, { method: "POST", headers: { "sec-fetch-site": "same-origin", cookie: cookieOf(first) } });
         assert.equal(repeat.status, 200, "the same browser within two minutes");
         // a cookie whose signature does not hold is no cookie
@@ -443,6 +446,140 @@ test("once: of twenty POSTs at the same time exactly one gets the file", async (
     } finally {
         await server.close();
     }
+});
+
+test("once: the page names the file, its kind, size and expiry; after the download a used link says so at GET to every other browser, while the browser that took it sees when its repeat ends", async () => {
+    const { dir, server, local, render } = await onceServer();
+    try {
+        const output = await render("Q3 sales by region");
+        const url = local(output.url);
+        const size = readFileSync(join(dir, "out", output.name)).length;
+        const page = await fetch(url, { headers: { accept: "text/html" } });
+        const html = await page.text();
+        assert.match(html, /<title>Download the report - pivotkit report<\/title>/);
+        assert.match(html, /<p class="file">Q3 sales by region\.csv<\/p>/);
+        const expiry = new Date(Date.parse(/** @type {string} */ (output.expiresAt))).toISOString();
+        assert.match(html, new RegExp(`<p>CSV file, ${size} bytes\\. <span id="until">It can be downloaded once, until <time datetime="${expiry}">${expiry.slice(0, 10)} ${expiry.slice(11, 16)} UTC</time>\\.</span></p>`));
+        // shown after the click, by the page's script; the time the browser's own zone
+        // after the click the page's script says it, in the repeat window's minutes
+        assert.match(html, /textContent='Downloaded once\. You can repeat it for 2 minutes, in this browser\.'/);
+        assert.match(html, /timeZoneName:'short'/);
+        assert.match(html, /document\.getElementById\('until'\)\?\.remove\(\)/, "the click takes the sentence about when away");
+        assertPageCsp(page.headers.get("content-security-policy"), html);
+
+        const first = await fetch(url, { method: "POST", headers: { origin: PUBLIC } });
+        assert.equal(first.status, 200);
+        await first.arrayBuffer();
+        // another browser: the used state at once, as a page and as a problem, without a button
+        const other = await fetch(url, { headers: { accept: "text/html" } });
+        assert.equal(other.status, 409);
+        const otherHtml = await other.text();
+        assert.match(otherHtml, /<title>Link already used - pivotkit report<\/title>/);
+        assert.match(otherHtml, /<h1>Link already used<\/h1><p>This link was already used\. If you downloaded the report earlier, look in the downloads of the browser you used\. Otherwise ask whoever made the report to make it again\.<\/p>/);
+        assert.doesNotMatch(otherHtml, /<form|<button/);
+        assertPageCsp(other.headers.get("content-security-policy"), otherHtml);
+        assert.equal((await fetch(url, { method: "HEAD" })).status, 409);
+        const problem = await call(url, { headers: { accept: "application/json" } });
+        assert.equal(problem.status, 409);
+        assert.equal(problem.data.code, "LINK_USED");
+        // the browser that took it: the page with its button, and until when it may repeat
+        const mine = await fetch(url, { headers: { accept: "text/html", cookie: cookieOf(first) } });
+        assert.equal(mine.status, 200);
+        const mineHtml = await mine.text();
+        assert.match(mineHtml, /<form method="post"><button type="submit">Download<\/button><\/form>/);
+        const until = /<span id="until">You downloaded it in this browser a moment ago and can download it again until <time datetime="([^"]+)">/.exec(mineHtml)?.[1];
+        assert.ok(until && Math.abs(Date.parse(until) - Date.now() - 120_000) < 5000, String(until));
+        // a GET never uses a link: an unused one stays unused after many
+        const fresh = local((await render("Fresh")).url);
+        for (let i = 0; i < 3; i++) {
+            assert.equal((await fetch(fresh, { headers: { accept: "text/html" } })).status, 200);
+        }
+        assert.equal((await fetch(fresh, { method: "POST", headers: { origin: PUBLIC } })).status, 200);
+    } finally {
+        await server.close();
+    }
+});
+
+test("once: a repeat entry whose two minutes are over is no repeat: 409 at GET and at POST", async () => {
+    const { server, local, render } = await onceServer();
+    try {
+        const output = await render("Late");
+        const url = local(output.url);
+        const first = await fetch(url, { method: "POST", headers: { origin: PUBLIC } });
+        assert.equal(first.status, 200);
+        await first.arrayBuffer();
+        // the same browser's cookie as the server signs it, its entry past its time
+        const n = /** @type {any} */ (readToken(KEYS, output.url.split("/downloads/")[1])).n;
+        const body = Buffer.from(JSON.stringify({ [`o:${n}`]: { x: Math.floor(Date.now() / 1000) - 1 } })).toString("base64url");
+        const late = `__Host-pivotkit-dl=${body}.${createHmac("sha256", KEYS.cookie).update(body).digest("base64url")}`;
+        const page = await fetch(url, { headers: { accept: "text/html", cookie: late } });
+        assert.equal(page.status, 409);
+        assert.doesNotMatch(await page.text(), /<button/);
+        assert.equal((await fetch(url, { method: "POST", headers: { origin: PUBLIC, cookie: late } })).status, 409);
+        // the same cookie with its entry still in time repeats: the check is the time, not the cookie
+        const inTime = Buffer.from(JSON.stringify({ [`o:${n}`]: { x: Math.floor(Date.now() / 1000) + 60 } })).toString("base64url");
+        assert.equal((await fetch(url, { method: "POST", headers: { origin: PUBLIC, cookie: `__Host-pivotkit-dl=${inTime}.${createHmac("sha256", KEYS.cookie).update(inTime).digest("base64url")}` } })).status, 200);
+    } finally {
+        await server.close();
+    }
+});
+
+test("pages: a failure of the server's own names the request id on the page", async () => {
+    const dir = workspace();
+    // a key file that cannot be read: the route answers 500
+    const server = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { bind: "once", key: { file: "no-such-key.txt" } } }, http: { publicUrl: PUBLIC }, baseDir: dir });
+    try {
+        const token = signToken(KEYS, { n: randomBytes(16).toString("base64url"), e: Math.floor(Date.now() / 1000) + 60, b: "once" });
+        const page = await fetch(`${server.url}/downloads/${token}`, { headers: { accept: "text/html" } });
+        assert.equal(page.status, 500);
+        assert.match(await page.text(), /<p class="ref">Request id: [A-Za-z0-9_-]{11}<\/p>/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("pages: every answer has its own title and heading; an error page and a problem name the request id the log line carries", async () => {
+    const { dir, server, local, render } = await onceServer();
+    try {
+        const output = await render("Titles");
+        const payload = /** @type {any} */ (readToken(KEYS, output.url.split("/downloads/")[1]));
+        const expired = `${server.url}/downloads/${signToken(KEYS, { ...payload, e: Math.floor(Date.now() / 1000) - 1 })}`;
+        const removed = `${server.url}/downloads/${signToken(KEYS, { ...payload, n: randomBytes(16).toString("base64url") })}`;
+        const pages = {
+            "Link not found": `${server.url}/downloads/not-a-token`,
+            "Link expired": expired,
+            "Report removed": removed
+        };
+        const titles = new Set();
+        for (const [heading, url] of Object.entries(pages)) {
+            const html = await (await fetch(url, { headers: { accept: "text/html" } })).text();
+            assert.match(html, new RegExp(`<title>${heading} - pivotkit report</title>`));
+            assert.match(html, new RegExp(`<h1>${heading}</h1>`));
+            // the request id on a page only where the server failed (500 or more); the problem names it always
+            assert.doesNotMatch(html, /Request id/);
+            titles.add(/<title>([^<]*)<\/title>/.exec(html)?.[1]);
+        }
+        const forbidden = await (await fetch(local(output.url), { method: "POST", headers: { origin: "https://evil.example.com" } })).text();
+        assert.match(forbidden, /<title>Download not started from its page - pivotkit report<\/title>/);
+        assert.equal(titles.size, 3);
+
+        // the 404 problem names a request id (it has a debug line only); a 410 names the id of its download line
+        const missing = await call(`${server.url}/downloads/not-a-token`, { headers: { accept: "application/json" } });
+        assert.equal(missing.status, 404);
+        assert.deepEqual(Object.keys(missing.data), ["type", "title", "status", "code", "detail", "requestId"]);
+        assert.match(missing.data.requestId, /^[A-Za-z0-9_-]{11}$/);
+        const gone = await call(expired, { headers: { accept: "application/json" } });
+        assert.equal(gone.status, 410);
+        const line = server.log.findLast((l) => l.event === "download" && l.code === "LINK_EXPIRED");
+        assert.equal(gone.data.requestId, line?.requestId);
+        assert.ok(readdirSync(join(dir, "out")).some((n) => n.endsWith("Titles.pivotkit-out.csv")));
+    } finally {
+        await server.close();
+    }
+});
+
+test("sizeText: bytes, then KB and MB of 1024 with one decimal below 10", () => {
+    assert.deepEqual([0, 1, 1023, 1024, 1536, 10_240, 1_048_575, 1_048_576, 5_452_595, 734_003_200].map(sizeText), ["0 bytes", "1 byte", "1023 bytes", "1 KB", "1.5 KB", "10 KB", "1024 KB", "1 MB", "5.2 MB", "700 MB"]);
 });
 
 test("once on REST and MCP on one port (serve): a browser's form POST with its Origin reaches the link (http.allowOrigins is for MCP clients); the tool result carries a resource_link without the size", async () => {
@@ -476,7 +613,7 @@ test("once on REST and MCP on one port (serve): a browser's form POST with its O
 // --- sign-in links ---------------------------------------------------------------------------------
 
 /** A server whose closed sources get sign-in links, its issuer loaded. */
-async function signInServer({ signIn = {}, downloads = {} } = {}) {
+async function signInServer({ signIn = {}, downloads = {}, more = {} } = {}) {
     const dir = workspace({ "sales.csv": SALES_CSV });
     const server = await restServer(
         {
@@ -485,7 +622,8 @@ async function signInServer({ signIn = {}, downloads = {} } = {}) {
             policy: { results: true },
             auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] },
             http: { publicUrl: PUBLIC },
-            baseDir: dir
+            baseDir: dir,
+            ...more
         },
         { env: { DL_KEY }, enable: ["rest", "mcp"] }
     );
@@ -549,7 +687,68 @@ test("signIn: the person who asked opens the report after signing in; PKCE, stat
     }
 });
 
-test("signIn: a wrong nonce, audience, issuer, key or verifier, a missing or foreign cookie and the provider's error all fail with a fixed text", async () => {
+test("signIn: the subject digest holds the link's nonce: two links of one person cannot be tied together, and a digest moved to another link is refused", async () => {
+    const { server, render, open, callback } = await signInServer();
+    try {
+        const first = /** @type {any} */ (readToken(KEYS, (await render("alice")).url.split("/downloads/")[1]));
+        const second = /** @type {any} */ (readToken(KEYS, (await render("alice")).url.split("/downloads/")[1]));
+        assert.notEqual(first.s, second.s, "the same person's links carry different digests");
+        // the first link's digest on the second link's nonce, signed with the right key: alice is still refused
+        const moved = signToken(KEYS, { ...second, s: first.s });
+        const redirect = await open(`${PUBLIC}/downloads/${moved}`);
+        const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        const got = await callback(code, state, cookieOf(redirect));
+        assert.equal(got.status, 403);
+    } finally {
+        await server.close();
+    }
+});
+
+test("signIn: a report over data sent in the request gets a link only its sender can open; a caller without a usable subject gets none", async () => {
+    const { server } = await signInServer({ more: { policy: { results: true, data: true } } });
+    try {
+        const data = { columns: ["Region", "Sales"], rows: [["North", 10], ["South", 20]], rowCount: 2 };
+        const mine = await call(`${server.api}/views/render`, { token: await accessToken("alice"), body: { source: "inline:", data, view: BY_REGION, format: "csv", name: "Mine" } });
+        assert.equal(mine.status, 200, JSON.stringify(mine.data));
+        assert.equal(mine.data.output.bound, "signIn");
+        const nobody = await call(`${server.api}/views/render`, { token: await accessToken("x".repeat(300)), body: { source: "inline:", data, view: BY_REGION, format: "csv", name: "Nobody" } });
+        assert.equal(nobody.status, 200, JSON.stringify(nobody.data));
+        assert.equal(nobody.data.output.url, undefined);
+        assert.equal(nobody.data.output.note, NO_LINK_NOTE);
+    } finally {
+        await server.close();
+    }
+});
+
+test("signIn: with audit.subject a link's download names the person who signed in, the refused one too; without it no one", async () => {
+    const audited = await signInServer({ more: { audit: { subject: "plain" } } });
+    try {
+        const output = await audited.render("alice");
+        const redirect = await audited.open(output.url);
+        const alice = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        assert.equal((await audited.callback(alice.code, alice.state, cookieOf(redirect))).status, 200);
+        const again = await audited.open(output.url);
+        const bob = signInAt(/** @type {string} */ (again.headers.get("location")), "bob");
+        assert.equal((await audited.callback(bob.code, bob.state, cookieOf(again))).status, 403);
+        const downloads = audited.server.log.filter((l) => l.event === "download" && l.via === "link");
+        assert.ok(downloads.some((l) => l.ok === true && l.subject === "alice"), JSON.stringify(downloads));
+        assert.ok(downloads.some((l) => l.code === "LINK_NOT_YOURS" && l.subject === "bob"), JSON.stringify(downloads));
+    } finally {
+        await audited.server.close();
+    }
+    const plain = await signInServer();
+    try {
+        const output = await plain.render("alice");
+        const redirect = await plain.open(output.url);
+        const alice = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        assert.equal((await plain.callback(alice.code, alice.state, cookieOf(redirect))).status, 200);
+        assert.ok(plain.server.log.filter((l) => l.event === "download").every((l) => l.subject === undefined));
+    } finally {
+        await plain.server.close();
+    }
+});
+
+test("signIn: a wrong nonce, audience, issuer, key or verifier fail with a fixed text; a missing or foreign cookie says the sign-in page is out of date; the provider's error says the sign-in was cancelled", async () => {
     const { server, render, open, callback } = await signInServer();
     try {
         const output = await render("alice");
@@ -568,13 +767,20 @@ test("signIn: a wrong nonce, audience, issuer, key or verifier, a missing or for
             await attempt({ aud: [CLIENT_ID, "another-client"], claims: { azp: "another-client" } }),
             await attempt({ iss: "https://elsewhere.example.com" }),
             await attempt({ signWith: otherKey.privateKey }),
-            await attempt({ challenge: "not-the-challenge" }),
-            await attempt({}, { cookie: () => "" }),
-            await attempt({}, { cookie: (c) => c.replace(/\.[A-Za-z0-9_-]{43}$/, `.${"A".repeat(43)}`) })
+            await attempt({ challenge: "not-the-challenge" })
         ];
         for (const r of bad) {
             assert.equal(r.status, 400);
-            assert.match(await r.text(), /The sign-in did not complete\. Open the link again to try once more\./);
+            const html = await r.text();
+            assert.match(html, /<title>Sign-in failed - pivotkit report<\/title>/);
+            assert.match(html, /The sign-in did not complete\. Open the download link you were sent once more \(not this page\) to try again\./);
+        }
+        // no sign-in of this browser under way (no cookie, a foreign one): a tab left open, a reload, another browser
+        for (const r of [await attempt({}, { cookie: () => "" }), await attempt({}, { cookie: (c) => c.replace(/\.[A-Za-z0-9_-]{43}$/, `.${"A".repeat(43)}`) })]) {
+            assert.equal(r.status, 400);
+            const html = await r.text();
+            assert.match(html, /<title>Sign-in page out of date - pivotkit report<\/title>/);
+            assert.match(html, /This sign-in was already used, is older than 10 minutes, or was started in another browser\. Open the download link you were sent once more, in this browser\./);
         }
         // several audiences with this client as azp: the person gets the file
         assert.equal((await attempt({ aud: [CLIENT_ID, "another-client"], claims: { azp: CLIENT_ID } })).status, 200);
@@ -583,8 +789,16 @@ test("signIn: a wrong nonce, audience, issuer, key or verifier, a missing or for
         const { state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
         const denied = await fetch(`${server.url}/downloads/callback?error=access_denied&error_description=${encodeURIComponent("<script>alert(1)</script>")}&state=${state}`, { headers: { cookie: cookieOf(redirect) } });
         assert.equal(denied.status, 400);
-        assert.doesNotMatch(await denied.text(), /script|access_denied/);
+        const deniedPage = await denied.text();
+        assert.doesNotMatch(deniedPage, /script|access_denied/);
+        assert.match(deniedPage, /<h1>Not signed in<\/h1><p>You were not signed in\. The sign-in was cancelled or the sign-in service refused it\. To get the report, open the download link you were sent once more and sign in\.<\/p>/);
         assert.match(denied.headers.get("set-cookie") ?? "", /Max-Age=0/);
+        assert.ok(server.log.some((l) => l.event === "download" && l.code === "SIGN_IN_FAILED" && l.reason === "issuer"), "logged under its code");
+        // the same error without this browser's sign-in (a crafted address) cannot pick the text: out of date
+        const crafted = await call(`${server.url}/downloads/callback?error=access_denied&state=${state}`, { headers: { accept: "application/json" } });
+        assert.equal(crafted.status, 400);
+        assert.equal(crafted.data.code, "SIGN_IN_FAILED");
+        assert.match(crafted.data.detail, /^This sign-in was already used/);
     } finally {
         await server.close();
     }
@@ -599,7 +813,7 @@ test("signIn: the callback checks the link's expiry again; reports over open sou
         const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
         // the token in the cookie is the link's: an expired one of the same nonce is not let through
         const payload = /** @type {any} */ (readToken(KEYS, output.url.split("/downloads/")[1]));
-        assert.equal(payload.s, subjectDigest(KEYS, issuer, "alice"));
+        assert.equal(payload.s, subjectDigest(KEYS, payload.n, issuer, "alice"));
         const ok = await callback(code, state, cookieOf(redirect));
         assert.equal(ok.status, 200);
         const expired = signToken(KEYS, { ...payload, e: Math.floor(Date.now() / 1000) - 1 });

@@ -288,7 +288,7 @@ export async function createRestHandler(context, runtime = {}) {
         }
         // the log names a configured source or data sent in the request (how much, never a value);
         // anything else a caller typed (a name, a path) is not kept
-        entry.source = typeof input.source !== "string" ? undefined : input.source === INLINE_ID || context.registry.ids().includes(input.source) ? input.source : "unknown";
+        entry.source = context.registry.logName(input.source);
         Object.assign(entry, inlineLogFields(input, upload));
         // before the schema's pattern says the same in fewer words
         if (typeof input.source === "string" && input.source.startsWith("file:")) {
@@ -456,7 +456,9 @@ export async function createRestHandler(context, runtime = {}) {
             const cap = restBodyBytesAt(options, peekSignIn(info)?.caller, new URL(path, "http://localhost").pathname);
             return problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? bodyTooLargeText(options, cap) : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: id } });
         },
-        async close() {}
+        async close() {
+            limits.close();
+        }
     };
 
     /**

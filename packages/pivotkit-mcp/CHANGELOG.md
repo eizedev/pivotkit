@@ -8,6 +8,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Upgrading from 0.1.1
 
+- Behaviour change: pivotkit-server's `output.maxAgeDays` is 30 by default, so reports and schedule
+  drafts older than 30 days are deleted from `output.dir` at start and every hour, including drafts
+  still waiting for approval; set
+  `output.maxAgeDays: 0` for no age limit ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
+
 - Over HTTP with `output.dir` and without `output.baseUrl`, reports come with pivotkit-server's
   [download links](https://pivotkit.eize.dev/reference/delivery/) under `/downloads/`: route that path
   to the server, or set `output.downloads.enabled: false`. With `output.baseUrl`, reports over a
@@ -15,12 +20,18 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- Reports can go to the operator's store (pivotkit-server's `output.upload`,
+  [#332](https://github.com/eizedev/pivotkit/issues/332)): render_view then carries the store's link
+  in its text and as a `resource_link`; a failed upload is the tool error `UPLOAD_FAILED` with a
+  fixed text and the request id. Needs the pivotkit-server release of the same round.
+
 - pivotkit-server's operator controls ([#331](https://github.com/eizedev/pivotkit/issues/331)):
   groups to profiles (`auth.groupProfiles`), `auth.defaultProfile`, the person on `call` lines
   (`audit.subject`), the sources' scopes in the Protected Resource Metadata with
   `auth.offerSourceScopes: true` (off by default), the hint of an empty `list_sources`. A token whose groups are unknown, with
   `auth.groupProfiles` and no default profile, gets 403 `access_denied` without a scope challenge.
   Needs pivotkit-server's `groupRefusal`.
+
 - HTTP sources of pivotkit-server ([#328](https://github.com/eizedev/pivotkit/issues/328)) in
   `sources.<id>.http`, with their parameters in `list_sources`. A `SOURCE_UNAVAILABLE` tool error says
   the fixed text its reason picks (not available right now, the backend refused pivotkit's access,
@@ -59,8 +70,16 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   `NOT_READY` and `TIMEOUT` keep their own words. Release pivotkit-server first: this version needs
   its new exports (`serverTextOf`, `withRequestId`, `callerFields`, `offeredScopes`).
 - Code sources of a library host have a time limit, share parallel loads, keep data per caller and
-  give last good data with `stale` after a transient failure; a failing load is `SOURCE_UNAVAILABLE`
+  give last good data with `stale` after a transient failure; a failing load is `SOURCE_UNAVAILABLE`;
+  the report over their data is computed in a worker under `compute.timeMs` and `compute.memoryMb`
   ([code sources](https://pivotkit.eize.dev/reference/sources/#code)).
+
+### Changed
+
+- The log names a tool call's source by a configured id, `inline:` or `file:` (no file name), else
+  `unknown`, never the model's text; a request the protocol layer refuses is logged at warn with its
+  error's class and the SDK's name for the refusal, its message (which can quote the body) only with
+  `--log debug` ([#422](https://github.com/eizedev/pivotkit/issues/422)).
 
 ## [0.1.1] - 2026-11-14
 

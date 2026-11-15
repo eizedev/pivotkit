@@ -22,7 +22,7 @@
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
 import { errorDetails } from "../request-id.js";
-import { createLoadCache } from "./cache.js";
+import { LOAD_CACHE, createLoadCache } from "./cache.js";
 
 /** How many loads run at once per source, and per identity within a source. */
 export const LOAD_LIMITS = Object.freeze({ perSource: 4, perIdentity: 2 });
@@ -201,9 +201,11 @@ const REFUSALS = 1024;
  * @param {{ cache?: ReturnType<typeof createLoadCache>, limits?: Partial<typeof LOAD_LIMITS> }} [parts]
  */
 export function createLoadRunner(parts = {}) {
-    /** @type {{ get(key: string): Kept | undefined, set(key: string, value: Kept, about: { identity: string, bytes: number }): void, delete(key: string): void, size(): { entries: number, bytes: number } }} */
+    /** @type {{ get(key: string): Kept | undefined, set(key: string, value: Kept, about: { identity: string, bytes: number }): void, delete(key: string): void, size(): { entries: number, bytes: number }, limit(): number, resize(bytes: number): void }} */
     const cache = /** @type {any} */ (parts.cache ?? createLoadCache());
     const limits = { ...LOAD_LIMITS, ...(parts.limits ?? {}) };
+    /** @type {Set<{ bytes: number }>} the sizes the open contexts asked for */
+    const claims = new Set();
     /** @typedef {{ controller: AbortController, waiting: number, cancelled: boolean, work: Promise<any> }} Shared  a load in flight with the callers waiting for it */
     /** @type {Map<string, Shared>} loads in flight by key */
     const inflight = new Map();
@@ -476,7 +478,36 @@ export function createLoadRunner(parts = {}) {
         throw answer;
     }
 
-    return { runLoad, size: () => cache.size(), running: (source) => running.get(source)?.total ?? 0 };
+    return {
+        runLoad,
+        size: () => cache.size(),
+        running: (source) => running.get(source)?.total ?? 0,
+        /** The bytes the load cache may hold (sourceCache.maxMb); one owner's share is OWNER_SHARE of them. */
+        cacheBytes: () => cache.limit(),
+        claimCacheBytes
+    };
+
+    /**
+     * A context's size for the load cache (sourceCache.maxMb): the cache takes the largest of the
+     * contexts open, or LOAD_CACHE's without any. Returns the release for the context's close, which
+     * sizes it again (trimming to the largest still open, never below it).
+     * @param {number} bytes
+     * @returns {() => void}
+     */
+    function claimCacheBytes(bytes) {
+        const claim = { bytes };
+        claims.add(claim);
+        resize();
+        return () => {
+            claims.delete(claim);
+            resize();
+        };
+    }
+
+    /** Sizes the load cache to the largest claim. */
+    function resize() {
+        cache.resize(Math.max(0, ...[...claims].map((c) => c.bytes)) || LOAD_CACHE.bytes);
+    }
 }
 
 /**

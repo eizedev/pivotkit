@@ -29,7 +29,7 @@ test("options: the composed table is today's, in today's order, plus the shared 
         }
     };
     const http = { object: { backend: "string", path: "string", url: "string", intranet: "boolean", query: { map: "string" }, headers: { map: "string" }, auth, rows: "string", format: { enum: ["json", "csv"] }, asOf: "string", paging: { custom: "fn" }, maxPages: "integer", maxBytes: "integer" } };
-    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer", http, cacheShared: "boolean" });
+    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer", http, cacheShared: "boolean", perPerson: "boolean" });
     // data sent in the request (options/inline.js): a policy's data, after results; mcp.data; rest.data
     const withData = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "results" ? [[k, v], ["data", "boolean"]] : [[k, v]])));
     expected.sources.map.object.policy.object = withData(expected.sources.map.object.policy.object);
@@ -39,12 +39,17 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.mcp.object.data = { or: [{ const: false }, { object: { rows: "integer", cells: "integer", bytes: "integer" } }] };
     expected.rest.object.data = { object: { maxBytes: "integer" } };
     expected.httpSources = { object: { enabled: "boolean", allowIpLiterals: "boolean", backends: { map: { object: { url: "string", intranet: "boolean", headers: { map: "string" }, auth, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } } } };
+    // the load cache's size (options/code.js), after httpSources (the fragments' order)
+    expected.sourceCache = { object: { maxMb: "integer" } };
     // download links (options/downloads.js)
     const secretRef = { custom: "fn" };
     expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings" } } } };
     // the operator's controls (options/operator.js): after the base's keys, in the fragment's order
     Object.assign(expected.auth.object, { groupsClaim: "string", groupsSeparator: "string", groupProfiles: { list: { object: { group: "string", profile: "string" } } }, defaultProfile: "string", offerSourceScopes: "boolean" });
     expected.audit = { object: { subject: { enum: ["off", "hash", "plain"] }, key: { custom: "fn" } } };
+    // the upload target (options/upload.js): a header is a text or a secret reference with a prefix
+    const headers = { map: { or: ["string", { object: { prefix: "string", value: secretRef } }] } };
+    expected.output.object.upload = { object: { url: "string", headers, link: "string", expiresAt: "string", presign: { object: { url: "string", headers, uploadUrl: "string", uploadHeaders: "string", link: "string", expiresAt: "string", allowOrigins: "strings" } }, linkOrigins: "strings", method: { enum: ["PUT", "POST"] }, timeMs: "integer", maxBytes: "integer", keepLocal: "boolean", bind: { enum: ["none", "once", "signIn"] }, intranet: "boolean" } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -139,19 +144,25 @@ test("check-config: today's configurations print exactly what they printed befor
     // request (check/inline.js), the download links, and the code sources' section, since the configuration has one
     // download links (check/downloads.js): where links would point, and that these closed sources
     // (a hidden field, the default summary) get none with static tokens
-    const delivery = ["Delivery:", "  downloads: on, links http://127.0.0.1:3333/downloads/<token>, expire after 60 minutes", "  closed (a field not shown for someone): sales (Customer hide), gone (fields summary by default), code (fields summary by default)", "  reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open"];
+    const delivery = ["Delivery:", "  downloads: on, links http://127.0.0.1:3333/downloads/<token>, expire after 60 minutes", "  closed (a field not shown for someone): sales (Customer hide), gone (fields summary by default), code (fields summary by default)", "  per person (counted as closed): data sent in requests (inline:)", "  reports over closed sources (sales, gone, code): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open"];
+    // the default age limit of 30 days (output.maxAgeDays not set): said on the output line and as
+    // an upgrade note; no Retention warning, which is only for an explicit 0
+    const retention = [];
+    const ageLine = ["drafts are kept\n", "drafts are kept; reports and drafts older than 30 days are deleted (the default)\n"];
     const inline = ["", "Data in the request: MCP on, up to 500 rows / 5000 cells / 256 KiB (built-in cap); REST off (no policy or profile has data: true)"];
     const code = [
         "Code sources (1):",
-        "  code: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure"
+        "  code: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure",
+        "  Kept loads of code and HTTP sources: at most 256 MiB in all; the largest table that can be kept is a quarter of it, 64 MiB per person or shared source (sourceCache.maxMb; with several contexts in one process the largest setting applies); a larger table loads on every call"
     ];
     const upgrade = [
         "",
         "New in this version (what changes with this configuration; https://pivotkit.eize.dev/getting-started/upgrading/):",
         '  - MCP clients may send a small table of their own with source "inline:" (up to 500 rows / 5000 cells / 256 KiB); no exposure policy applies to it; mcp.data: false switches it off',
+        "  - Reports and schedule drafts older than 30 days are deleted from output.dir at start and every hour (output.maxAgeDays; 0 keeps them with no age limit)",
         "  - Code sources: load gets (params, { caller, signal }) and is aborted after timeMs (default 30000 ms); a failing load answers SOURCE_UNAVAILABLE (502), not INTERNAL; data is kept per caller unless cacheShared; after a transient failure last good data up to maxStale (default 3600 s) stands in"
     ];
-    const expected = golden.replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...delivery, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
+    const expected = golden.replace(ageLine[0], ageLine[1]).replace("\n\n1 problem: see NOT FOUND above.\n", `\n${[...inline, ...delivery, ...retention, ...code].join("\n")}\n\n1 problem: see NOT FOUND above.\n${upgrade.join("\n")}\n`);
     assert.notEqual(expected, golden);
     assert.equal(result.text.split(dir).join("<dir>"), expected);
     assert.equal(result.problems, 1);

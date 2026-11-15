@@ -7,19 +7,39 @@
  * declaration).
  */
 
+import { LOAD_CACHE, OWNER_SHARE } from "../sources/cache.js";
 import { ConfigError } from "./shared.js";
 
 export const NAME = "code";
 
 /** @type {Readonly<Partial<Record<import("./shared.js").Slot, Record<string, any>>>>} */
 export const KEYS = Object.freeze({
-    source: { cacheShared: "boolean" }
+    top: { sourceCache: { object: { maxMb: "integer" } } },
+    source: { cacheShared: "boolean", perPerson: "boolean" }
 });
+
+/** The megabytes (MiB) the process keeps of loaded code and HTTP source data by default: sources/cache.js LOAD_CACHE. */
+export const SOURCE_CACHE_MB = LOAD_CACHE.bytes / 1_048_576;
+
+/** The largest sourceCache.maxMb: 64 GiB. */
+export const SOURCE_CACHE_MAX_MB = 65_536;
+
+/**
+ * The bytes the process keeps of loaded code and HTTP source data (sourceCache.maxMb), and the
+ * largest table one owner (a person, or a shared source) may have kept: a quarter of them.
+ * @param {import("../config.js").ServerOptions} options
+ */
+export function sourceCacheOf(options) {
+    const bytes = (options.sourceCache?.maxMb ?? SOURCE_CACHE_MB) * 1_048_576;
+    return { bytes, share: Math.floor(bytes * OWNER_SHARE) };
+}
 
 /**
  * A code source's defaults: the longest load (ms), how long a load is reused (seconds; null: only
  * while version() gives the same), how long last good data may stand in after a transient failure
- * (seconds; 0: never), and whether one copy of the data serves all callers.
+ * (seconds; 0: never), and whether one copy of the data serves all callers. A source with perPerson
+ * (its data differs per caller) counts as closed for links (delivery.js): only the person who asked
+ * can open its reports.
  */
 export const CODE_DEFAULTS = Object.freeze({ timeMs: 30_000, ttl: /** @type {number | null} */ (null), maxStale: 3600, cacheShared: false });
 
@@ -31,9 +51,19 @@ export const CODE_TIME_MAX = 600_000;
  * @param {import("../config.js").ServerOptions} options
  */
 export function validate(options) {
+    const maxMb = options.sourceCache?.maxMb;
+    if (maxMb !== undefined && (maxMb < 1 || maxMb > SOURCE_CACHE_MAX_MB)) {
+        throw new ConfigError(`sourceCache.maxMb: from 1 to ${SOURCE_CACHE_MAX_MB}`);
+    }
     for (const [id, source] of Object.entries(options.sources ?? {})) {
         if (/** @type {any} */ (source).cacheShared !== undefined && !source.load) {
             throw new ConfigError(`sources.${id}.cacheShared: only a code source (load) takes cacheShared`);
+        }
+        if (/** @type {any} */ (source).perPerson !== undefined && !source.load) {
+            throw new ConfigError(`sources.${id}.perPerson: only a code source (load) takes perPerson`);
+        }
+        if (/** @type {any} */ (source).perPerson === true && /** @type {any} */ (source).cacheShared === true) {
+            throw new ConfigError(`sources.${id}.perPerson: a source with cacheShared serves one copy to all callers, so its data is not per person; leave out one of them`);
         }
         if (!source.load) {
             continue;

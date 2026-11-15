@@ -16,6 +16,7 @@ import { createGuardedFetch } from "../src/sources/fetch.js";
 import { httpMeans, jsonDepth, pointerValue, tableOf } from "../src/sources/http.js";
 import { compileTemplate, expandUrl } from "../src/sources/template.js";
 import { checkSource, paramFlags } from "../src/check-source.js";
+import { loadRunner } from "../src/sources/run.js";
 import { run } from "../src/runner.js";
 import { call, restServer, tempDir } from "./helpers.js";
 
@@ -906,4 +907,39 @@ test("operator hints: intranet for a private address, NODE_EXTRA_CA_CERTS for a 
 test("options: a query's problem is reported under http.query", () => {
     assert.throws(() => validateOptions(optionsOf({ query: { State: "{state}", state: "x" } })), /sources\.vms\.http\.query: state is given twice/);
     assert.throws(() => validateOptions(optionsOf({ query: { x: "{nope}" } })), /sources\.vms\.http\.query\.x: names \{nope\}, which is no declared parameter/);
+});
+
+test("the kept answer: hidden columns dropped before it is kept, the values only as a keyed digest; a profile that shows more gets its own copy", async () => {
+    routes.set("/v1/customers/acme-secret/vms", json({ items: VMS }));
+    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp", clientProfiles: { "narrow-bot": "narrow" } };
+    const shown = { default: "hide", fields: { name: "show", cpu: "show", state: "show", owner: "show" } };
+    const context = await contextOf(optionsOf({}, { policy: shown }, { policy: { profiles: { narrow: { fields: { owner: "hide" } } } }, auth }));
+    // one person through two clients: the same identity, a narrower profile through one of them
+    const through = (client) => callerOf("oauth", { token: "jwt", clientId: client, scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+    const kept = [];
+    const original = loadRunner.runLoad;
+    loadRunner.runLoad = async (key, ...rest) => {
+        const ran = await original(key, ...rest);
+        kept.push({ key, value: ran.value });
+        return ran;
+    };
+    try {
+        const narrow = (await describe(context, { customer: "acme-secret" }, through("narrow-bot"))).result;
+        assert.deepEqual(narrow.fields.map((f) => f.name).sort(), ["cpu", "name", "state"]);
+        assert.equal(narrow.hiddenFields, 2, "owner and tags, dropped before the answer was kept, still count as hidden");
+        const wide = (await describe(context, { customer: "acme-secret" }, through("claude"))).result;
+        assert.deepEqual(wide.fields.map((f) => f.name).sort(), ["cpu", "name", "owner", "state"]);
+        assert.equal(kept.length, 2);
+        // what is kept holds no hidden column, and the key no value in clear text
+        assert.deepEqual(kept[0].value.table.columns.sort(), ["cpu", "name", "state"]);
+        assert.doesNotMatch(JSON.stringify(kept[0].value.table), /alice@example\.com|prod/);
+        assert.ok(kept[1].value.table.columns.includes("owner"));
+        for (const { key } of kept) {
+            assert.doesNotMatch(String(key), /acme-secret/);
+        }
+        assert.notEqual(kept[0].key, kept[1].key);
+    } finally {
+        loadRunner.runLoad = original;
+        await context.close();
+    }
 });

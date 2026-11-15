@@ -27,9 +27,10 @@ pivotkit --version
 
 Update pivotkit-server and pivotkit-mcp in one command, to the same release: `pivotkit-server serve`
 loads the pivotkit-mcp installed beside it, and a pivotkit-server changed alone afterwards can make
-it stop at start with an error that a module "does not provide an export named ...". The sure sign
-is `npm ls -g --all` marking pivotkit-server under pivotkit-mcp `invalid`; install both again in one
-command. pivotkit-cli updates on its own. `npm update --global` updates every global package
+it stop at start with "pivotkit-mcp <x> does not fit pivotkit-server <y>" (pivotkit-server 0.1.1
+and earlier: a module "does not provide an export named ..."). The sure sign is `npm ls -g --all`
+marking pivotkit-server under pivotkit-mcp `invalid`; install both again in one command.
+pivotkit-cli updates on its own. `npm update --global` updates every global package
 to its newest release, across minor versions too. Install global packages into a folder you own
 (npm's `prefix`), not with `sudo`. `npm audit signatures` checks the registry's signatures in a
 project only, not for global packages: to check a release first, install it into an empty folder,
@@ -72,8 +73,8 @@ A running process keeps the version it started with. Restart it right after the 
   session.
 - `pivotkit-server serve` and `pivotkit-mcp --http`: restart the process; a Windows service by its
   name (`nssm restart pivotkit` for [the service under NSSM](mcp.md#psu-service)). If `serve` stops
-  at start with "does not provide an export named", pivotkit-server and pivotkit-mcp do not fit
-  together ([above](#update-global)).
+  at start with "does not fit" or "does not provide an export named", pivotkit-server and
+  pivotkit-mcp do not fit together ([above](#update-global)).
 
 ### The container image { #update-image }
 
@@ -166,12 +167,13 @@ with code sources check [Code sources](#code-sources). Over HTTP with an output 
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
 | [Request ids](#request-ids) | you parse the log or MCP tool errors, or a program reads problem documents | accept the new members and the id at the end of a tool error |
-| [Code sources](#code-sources) | you embed pivotkit-server or pivotkit-mcp with a source that has `load` | check the time limit, the per-caller cache and `cacheShared`; read `stale` |
-| [HTTP sources](../reference/sources.md#http) | you want an API's data as a source without writing code | add `sources.<id>.http` with typed `params`, test it with `pivotkit-server check-source` |
+| [Code sources](#code-sources) | you embed pivotkit-server or pivotkit-mcp with a source that has `load` | check the time limit, the per-caller cache and `cacheShared`; read `stale`; reports are computed in a worker under `compute.*` |
+| [HTTP sources](../reference/sources.md#http) | you want an API's data as a source without writing code | add `sources.<id>.http` with typed `params` (or let `pivotkit-server source-from-openapi` propose them from the API's OpenAPI document), test it with `pivotkit-server check-source` |
 | [Backend sign-in](../reference/sources.md#http-auth) | the API needs credentials, or each person should see only their own rows | add `http.auth` (a secret header, client credentials or a token exchange) or a parameter with `claim`; for a token exchange, restrict the exchange at your provider |
 | [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
+| [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
 
 ### Data as of in files { #data-as-of-files }
 
@@ -189,8 +191,8 @@ All of them are off until you set them ([profiles](../reference/rest.md#profiles
 
 - `auth.groupProfiles` maps an OAuth token's groups to policy profiles (first match wins, after a
   client's profile); a token whose group list is cut or missing gets `auth.defaultProfile`, or 403
-  without one. Set `auth.defaultProfile` with it: a person in none of the groups otherwise gets the
-  sources' own policy.
+  without one. A person in none of the groups (and no client or scope profile) is refused
+  with 403 as well, unless `auth.defaultProfile` gives them a profile.
 - `auth.defaultProfile` is the profile of every signed-in caller that no token, client, group or
   scope names, a static token without a profile included.
 - `auth.offerSourceScopes: true` lists the sources' scopes in the OAuth metadata
@@ -256,6 +258,16 @@ a report whose fields were withheld from the model. The file is still written. R
 whose fields are all `show` keep their address. For the others, leave out `output.baseUrl` and use
 sign-in links, or give REST programs `results: true` and the [file route](../reference/rest.md#downloads).
 
+### Reports deleted after 30 days { #max-age-default }
+
+`output.maxAgeDays` is 30 by default: reports and schedule drafts (drafts waiting for approval too)
+older than 30 days are deleted from the output directory at start and every hour. Before, they stayed
+until `output.maxFiles` or `output.maxMb` pushed them out. Set `output.maxAgeDays` to another number
+of days, or to `0` for no age limit, the old behaviour. The default applies only to a directory of the
+reports' own: where `output.dir` holds the configuration or a source, template or token file, nothing
+is deleted by age and the server starts as before (`check-config` says "no age limit: the directory
+holds other files"). Copy the reports you want to keep elsewhere before you upgrade.
+
 ### Request ids { #request-ids }
 
 The `call`, `request`, `download`, `refused` and `error` log lines carry `requestId`. Every REST
@@ -288,6 +300,11 @@ they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next re
   your own words.
 - The data has a file's limits: `limits.rows`, `limits.columns`, `limits.importCells`
   (`LIMIT_EXCEEDED`), and texts are cut at `limits.textLength`.
+- The report over a code source's data is computed in a worker, as for a file
+  ([where it runs](../reference/sources.md#code-thread)): it answers `TIMEOUT` after `compute.timeMs`
+  (30 s), `LIMIT_EXCEEDED` over `compute.memoryMb` (1024 MB), and `BUSY` when no worker is free
+  within `compute.queueMs`. A host that computed long reports over its own data raises these, or
+  `compute.workers`.
 
 `check-config` given these options lists each code source with its time limit and how its data is
 kept.

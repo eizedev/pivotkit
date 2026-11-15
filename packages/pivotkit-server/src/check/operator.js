@@ -7,7 +7,7 @@
  * OAuth prints nothing here.
  */
 
-import { GROUPS_REFUSED } from "../auth.js";
+import { GROUPS_REFUSED, NOT_IN_GROUP } from "../auth.js";
 import { POLICY_LEVELS, levelOf, resolvePolicy } from "../policy.js";
 import { AUDIT_KEY_MIN } from "../log.js";
 import { offeredScopes } from "../scopes.js";
@@ -47,7 +47,7 @@ export async function section(options, _registry, runtime) {
             }
         }
         if (auth.groupProfiles?.length && !auth.defaultProfile) {
-            lines.push("  warning: auth.groupProfiles without auth.defaultProfile: a person in none of the groups gets the sources' own policy; set auth.defaultProfile to a narrow profile");
+            lines.push("  warning: auth.groupProfiles without auth.defaultProfile: a person in none of the groups is refused (403); set auth.defaultProfile to a narrow profile to let them in");
         }
     } else if (mode === "token") {
         // a scope no static token holds: nobody reaches the source
@@ -88,8 +88,8 @@ function signInText(auth, mode) {
     if (auth.defaultProfile) {
         parts.push(`otherwise profile ${auth.defaultProfile}`);
     } else if (auth.groupProfiles?.length && mode === "oauth") {
-        parts.push("a person in none of these groups gets the sources' own policy");
-        parts.push(`a person whose token does not carry the groups is refused ("${GROUPS_REFUSED}"); set auth.defaultProfile to give them a profile instead`);
+        parts.push(`a person in none of these groups${auth.scopeProfiles || auth.clientProfiles ? " whose client or scopes name no profile" : ""} is refused ("${NOT_IN_GROUP}"); set auth.defaultProfile to give them a profile instead`);
+        parts.push(`a person whose token does not carry the groups is refused ("${GROUPS_REFUSED}"); auth.defaultProfile gives them a profile too`);
     }
     return parts.join("; ") || "each static token's own profile, else the sources' policy";
 }

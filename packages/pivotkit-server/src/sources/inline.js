@@ -267,7 +267,9 @@ export function resolveInline(reg, _ref, caller, how, params) {
         template: undefined,
         params: null,
         descriptions: null,
-        sourceClosed: false,
+        // the caller's own data, which may be about a person: closed for delivery (registry.js
+        // isClosedForDelivery), so a report over it gets only a link its sender can open, or none
+        sourceClosed: true,
         table,
         upload: upload ? { bytes: upload.bytes, format: upload.format, ...(upload.sheet ? { sheet: upload.sheet } : {}) } : null,
         // when the data arrived: what dataAsOf says
