@@ -271,6 +271,14 @@ may try to steer it:
   half of `maxFiles`, a draft over that is refused. A file named with `.pivotkit-out.` by hand counts
   as pivotkit's. Set `maxFiles` high, give `render_view` and `draft_schedule` scopes of their own,
   set `output.maxAgeDays` and keep the rate limits ([REST](reference/rest.md#auth)).
+- **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) is the model's,
+  not the operator's: no exposure policy applies to it, and a report over it is no proof that its
+  content came from the operator's data. It is capped (500 rows, 5,000 cells, 256 KiB; the operator
+  may lower it or switch it off with `mcp.data`, never raise it), `rowCount` must match the rows
+  sent; the report is computed in a worker like one over a file (the table is checked in the main
+  thread first), never cached, and cannot be linked or scheduled. Formulas in its cells are written
+  safe like any other text. A report over it lands in the output directory like any other and counts
+  against its quota: the oldest reports go first when it is full.
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
 - **Connections**: at most 256 at once, 16 kept for loopback clients (the health check), 5 seconds
@@ -316,6 +324,22 @@ and the sign-in above hold for it too. What differs:
   `X-Content-Type-Options: nosniff`, `Cache-Control: no-store` and
   `Content-Security-Policy: sandbox; default-src 'none'`, so an HTML or SVG report runs nothing when
   a browser opens it.
+- **Data in the request** ([details](reference/rest.md#data)) is off unless a profile has
+  `data: true`. Only such a caller, once its token is checked, may send a body of up to
+  `rest.data.maxBytes` (default 10 MiB, 2 to 64 MiB), and only to a route that takes a source;
+  everyone else keeps 2 MiB, and a body declared larger than any caller may send is refused before
+  the token is read. At most two such large bodies are read at once over all callers, one per
+  caller; another gets 503 `BUSY` with `Retry-After`. A file is parsed in a worker under the time, memory and import
+  limits; a `sha256` of its bytes catches a file altered on the way, `rowCount` a cut JSON table.
+  The data is never cached and no exposure policy applies to it.
+- **What runs in the main thread.** Reading a body, the check of its nesting (counted on the bytes,
+  so a body of millions of brackets is refused at 64 levels before it is parsed), `JSON.parse` of a
+  JSON body and the check of its table run in the server's main thread, outside `compute.timeMs` and
+  `compute.memoryMb`; only the report itself and the parsing of a file sent as multipart run in a
+  worker. Measured on a laptop: a 7 MiB JSON table about 0.4 s and 46 MiB about 1.7 s for the whole
+  request, the body held in memory a few times over while it is parsed. A token with `data: true` is
+  trusted with that much of the server's time and memory: give it to programs you run, keep
+  `rest.data.maxBytes` as small as they need, and keep the rate limits.
 - **No files by path**: `file:` sources are refused, whatever the MCP server's `files.allowDirs` says.
   Inline results are off unless the operator turns them on, since a program can enumerate through
   them.

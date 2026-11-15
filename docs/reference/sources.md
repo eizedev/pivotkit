@@ -5,8 +5,10 @@ description: The kinds of data source pivotkit-server and pivotkit-mcp read - fi
 
 # Data sources
 
-A source is what a caller names with `source`: an id the operator configured under `sources`, or a
-`file:` path inside `files.allowDirs`. A configured source is one of these kinds:
+A source is what a caller names with `source`: an id the operator configured under `sources`, a
+`file:` path inside `files.allowDirs`, or `inline:`, a table the caller sends with the request
+([MCP](mcp.md#data), [REST](rest.md#data)), to which no exposure policy applies. A configured source
+is one of these kinds:
 
 | Kind | Configured with | Where it is read |
 | --- | --- | --- |

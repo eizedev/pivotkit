@@ -18,7 +18,8 @@ import { deliver } from "./delivery.js";
 import { listHint } from "./scopes.js";
 import { asOfMembers, asOfSentence } from "./sources/as-of.js";
 import { runResolved } from "./sources/index.js";
-import { extraInputs, listExtras } from "./sources/input.js";
+import { INLINE_SOURCE_TEXT, extraInputs, listExtras } from "./sources/input.js";
+import { inlineHow } from "./sources/inline.js";
 
 export { OUTPUT_MARK, draftCap, prune } from "./output.js";
 
@@ -31,7 +32,8 @@ const OUTPUT_FILE = {
 /** What every result over a source's data says about when the data is from. */
 const AS_OF_OUTPUT = {
     dataAsOf: { type: "string", description: "When the data is from: ISO 8601 in UTC, to the second." },
-    stale: { type: "object", properties: { since: { type: "string" } }, required: ["since"], description: "The source could not be refreshed: this is the last good data, kept since then." }
+    stale: { type: "object", properties: { since: { type: "string" } }, required: ["since"], description: "The source could not be refreshed: this is the last good data, kept since then." },
+    suppliedAsOf: { type: "string", description: 'Data sent with the request (source "inline:"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived.' }
 };
 
 /** The operations whose results carry dataAsOf. */
@@ -61,6 +63,15 @@ export function presentedOutput(name) {
     }
     if (name === "draft_schedule") {
         Object.assign(extra, { output: OUTPUT_FILE, message: { type: "string" } });
+    }
+    if (name === "list_sources") {
+        Object.assign(extra, {
+            data: {
+                type: "object",
+                properties: { rows: { type: "integer" }, cells: { type: "integer" }, bytes: { type: "integer" }, maxBytes: { type: "integer" } },
+                description: 'You may send a table of your own with source "inline:": at most rows, cells and bytes (MCP), or a body of at most maxBytes (REST). Absent: you may not.'
+            }
+        });
     }
     if (name === "describe_source") {
         const field = base.properties.fields.items;
@@ -103,6 +114,9 @@ export function presentedInput(name, how = {}) {
     if (how.files === false && properties.source) {
         properties.source = { ...properties.source, pattern: SOURCE_ID_ONLY, description: "A source id from GET /sources." };
     }
+    if (how.offers?.data && properties.source) {
+        properties.source = { ...properties.source, description: `${properties.source.description.replace(/\.$/, "")}, ${INLINE_SOURCE_TEXT}` };
+    }
     return { ...input, properties };
 }
 
@@ -113,46 +127,67 @@ export function presentedInput(name, how = {}) {
  */
 export const INPUT_DEPTH = 64;
 
-/** The deepest nesting of a value (counted without recursion), or of the JSON text a string holds. */
+/**
+ * The deepest nesting of an input (counted without recursion), and of the JSON text a string holds
+ * (a view or a layout given as text). The strings of `data` (a table sent in the request) are values,
+ * never JSON: a cell of brackets is data, so only its structure counts.
+ */
 function depthOf(value) {
     let deepest = 0;
-    /** @type {Array<[unknown, number]>} */
-    const stack = [[value, 0]];
+    /** @type {Array<[unknown, number, boolean]>} the node, its depth, whether its strings may be JSON text */
+    const stack = [[value, 0, true]];
     while (stack.length) {
-        const [node, depth] = /** @type {[unknown, number]} */ (stack.pop());
+        const [node, depth, text] = /** @type {[unknown, number, boolean]} */ (stack.pop());
         if (typeof node === "string") {
-            deepest = Math.max(deepest, depth + textDepth(node));
+            deepest = text ? Math.max(deepest, depth + jsonDepth(node, INPUT_DEPTH)) : deepest;
         } else if (node && typeof node === "object") {
             deepest = Math.max(deepest, depth + 1);
             if (deepest > INPUT_DEPTH) {
                 return deepest;
             }
-            for (const child of Object.values(node)) {
-                stack.push([child, depth + 1]);
+            for (const [key, child] of Object.entries(node)) {
+                stack.push([child, depth + 1, text && !(depth === 0 && key === "data")]);
             }
         }
     }
     return deepest;
 }
 
-/** The deepest bracket nesting of a JSON text, outside its strings. */
-function textDepth(text) {
+/** The character codes of a JSON text's quote, backslash and brackets (one byte each in UTF-8). */
+const QUOTE = 34;
+const BACKSLASH = 92;
+const OPEN = new Set([91, 123]);
+const CLOSE = new Set([93, 125]);
+
+/**
+ * The deepest bracket nesting of a JSON text, outside its strings, counted without parsing it: a text
+ * or its UTF-8 bytes (a request's body, before JSON.parse is given it), linear, no allocation. Stops at
+ * the first level over `max` and says that level.
+ * @param {string | Uint8Array} text
+ * @param {number} [max]
+ * @returns {number}
+ */
+export function jsonDepth(text, max = Infinity) {
+    const code = typeof text === "string" ? (i) => text.charCodeAt(i) : (i) => text[i];
     let depth = 0;
     let deepest = 0;
     let inString = false;
     for (let i = 0; i < text.length; i++) {
-        const c = text[i];
+        const c = code(i);
         if (inString) {
-            if (c === "\\") {
+            if (c === BACKSLASH) {
                 i++;
-            } else if (c === '"') {
+            } else if (c === QUOTE) {
                 inString = false;
             }
-        } else if (c === '"') {
+        } else if (c === QUOTE) {
             inString = true;
-        } else if (c === "{" || c === "[") {
+        } else if (OPEN.has(c)) {
             deepest = Math.max(deepest, ++depth);
-        } else if (c === "}" || c === "]") {
+            if (deepest > max) {
+                return deepest;
+            }
+        } else if (CLOSE.has(c)) {
             depth--;
         }
     }
@@ -221,8 +256,8 @@ export function noteAutoValues(context, spec, policy) {
     }
 }
 
-/** A source for a caller, with the values it passed for the source's parameters. */
-const resolveFor = (context, input, caller, how) => context.registry.resolve(input.source, caller, how, input.params);
+/** A source for a caller, with the values it passed for the source's parameters (and, for "inline:", the data it sent). */
+const resolveFor = (context, input, caller, how) => context.registry.resolve(input.source, caller, inlineHow(input, how), input.params);
 
 /** Runs an operation over a source. */
 async function runOver(context, name, input, caller, how) {
@@ -262,6 +297,7 @@ export function findingsText(valid, findings) {
  * @property {"mcp" | "rest"} [surface]  whose words: a model's (the default) or a program's
  * @property {boolean} [inline]  csv and json may come back inline where the policy allows (default true)
  * @property {boolean} [files]  false: "file:" sources are refused and not listed (REST)
+ * @property {{ bytes: Uint8Array, format: string, sheet?: string, name?: string, asOf?: string }} [upload]  a file sent in a multipart body: what source "inline:" stands for (REST)
  */
 
 /** Each operation's work after (or instead of) its run. */
@@ -393,16 +429,18 @@ export async function present(context, name, input, caller, how = {}) {
 
 /**
  * render_view for a caller that takes the file itself (REST's file route): allowed only when the
- * caller's policy has `results: true`, whatever fields the view uses. A view with errors gives no
+ * caller's policy has `results: true`, whatever fields the view uses (over data the caller sent, its
+ * policy is open: sending it needs `data: true`, which resolving checked). A view with errors gives no
  * file: `file` is null and `result` holds the findings.
  * @param {any} context
  * @param {Record<string, any>} input
  * @param {import("./registry.js").Caller} caller
+ * @param {{ upload?: PresentOptions["upload"] }} [how]  upload: a file sent in a multipart body
  * @returns {Promise<{ result: Record<string, any>, file: { bytes: Uint8Array, mediaType: string, extension: string, name: string } | null }>}
  */
-export async function renderFile(context, input, caller) {
+export async function renderFile(context, input, caller, how = {}) {
     checkDepth(input);
-    const resolved = await context.registry.resolve(input.source, caller, { files: false, surface: "rest" }, input.params);
+    const resolved = await resolveFor(context, input, caller, { files: false, surface: "rest", ...(how.upload ? { upload: how.upload } : {}) });
     if (!resolved.policy.results) {
         throw new OperationError("NOT_ALLOWED", "your token may not download files (the operator allows it per profile: results: true)");
     }

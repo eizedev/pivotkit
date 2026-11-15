@@ -15,13 +15,14 @@ import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
 import { sourceStats } from "./stats.js";
 import { asOfText } from "./sources/as-of.js";
+import { uploadError } from "./sources/inline.js";
 import { ownError } from "./sources/run.js";
 
 /**
  * What a worker or the main thread needs to read a source.
  * @typedef {object} SourceSpec
  * @property {string} id
- * @property {"source" | "file"} kind
+ * @property {"source" | "file" | "inline"} kind
  * @property {string} [path]  a file's real path
  * @property {string[]} [allow]  the allowed directories (file: sources)
  * @property {boolean} [hardLinks]
@@ -306,7 +307,8 @@ export async function uploadData(spec, upload, key, asOf = null) {
     try {
         read = await readTable(upload.bytes, `${spec.name}.${format}`, { format, ...(upload.sheet ? { sheet: upload.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
     } catch (e) {
-        throw asOperationError(e, spec.name);
+        // the caller's own file (inline:): its reader's sentence, not only a code (sources/inline.js)
+        throw spec.kind === "inline" ? await uploadError(e, upload, spec.limits) : asOperationError(e, spec.name);
     }
     return tableData(spec, read.table, key, asOf, read.notes);
 }

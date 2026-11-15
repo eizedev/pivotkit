@@ -22,17 +22,19 @@ const ROWS = [{ Region: "North", Sales: 10, Secret: "x" }, { Region: "South", Sa
 /** A context without a log. */
 const contextOf = (options) => createContext({ log: "off", ...options });
 
-test("the kinds of source; inline: is reserved and answers as an unknown source does", async () => {
+test("the kinds of source; inline: is reserved for data sent in the request, never a configured id", async () => {
     assert.equal(kindOf({ file: "a.csv" }), "file");
     assert.equal(kindOf({ load: async () => [] }), "code");
     assert.equal(kindOf({ http: {} }), "http");
     const context = await contextOf({ sources: { sales: { load: async () => ROWS } } });
     try {
-        for (const id of [INLINE_ID, "nothing"]) {
-            const error = await present(context, "describe_source", { source: id }, LOCAL).catch((e) => e);
-            assert.equal(error.code, "SOURCE_NOT_FOUND");
-            assert.match(error.message, new RegExp(`^no source "${id}"; list_sources lists them$`));
-        }
+        const unknown = await present(context, "describe_source", { source: "nothing" }, LOCAL).catch((e) => e);
+        assert.equal(unknown.code, "SOURCE_NOT_FOUND");
+        assert.match(unknown.message, /^no source "nothing"; list_sources lists them$/);
+        // inline: without data is no source to look up: the table is missing (inline.test.js has the rest)
+        const empty = await present(context, "describe_source", { source: INLINE_ID }, LOCAL).catch((e) => e);
+        assert.equal(empty.code, "INVALID_INPUT");
+        assert.match(empty.message, /give data with columns, rows and rowCount/);
         assert.throws(() => validateOptions({ sources: { "inline:": { load: async () => [] } } }), ConfigError, "no configured id holds a colon");
     } finally {
         await context.close();
@@ -123,7 +125,8 @@ test("params end to end: offered only when a source declares them; the code sour
     };
     const context = await contextOf(options);
     try {
-        assert.deepEqual(context.offers, { mcp: { params: true }, rest: { params: true } });
+        // data sent in the request is offered on MCP by default, on REST only with a policy's data: true
+        assert.deepEqual(context.offers, { mcp: { params: true, data: true }, rest: { params: true, data: false } });
         assert.ok(presentedInput("render_view", { offers: context.offers.mcp }).properties.params);
         assert.equal(presentedInput("list_sources", { offers: context.offers.mcp }).properties.params, undefined);
         const listed = await present(context, "list_sources", {}, LOCAL);
@@ -154,8 +157,10 @@ test("params end to end: offered only when a source declares them; the code sour
     // without a source that declares params, nothing is offered and the schemas are as they were
     const plain = await contextOf({ sources: { plain: options.sources.plain } });
     try {
-        assert.deepEqual(plain.offers, { mcp: { params: false }, rest: { params: false } });
-        assert.deepEqual(presentedInput("render_view", { offers: plain.offers.mcp }), presentedInput("render_view"));
+        assert.deepEqual(plain.offers, { mcp: { params: false, data: true }, rest: { params: false, data: false } });
+        // no params, no params input: REST's schema is as it was; MCP's adds only data (inline.test.js)
+        assert.deepEqual(presentedInput("render_view", { offers: plain.offers.rest }), presentedInput("render_view"));
+        assert.deepEqual(Object.keys(presentedInput("render_view", { offers: plain.offers.mcp }).properties), [...Object.keys(presentedInput("render_view").properties), "data"]);
     } finally {
         await plain.close();
     }

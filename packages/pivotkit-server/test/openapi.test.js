@@ -37,7 +37,7 @@ function unresolved(doc) {
 
 test("the document is OpenAPI 3.1 for each sign-in, and every $ref resolves inside it", () => {
     const issuer = { issuer: "https://id.example.com", authorization_endpoint: "https://id.example.com/authorize", token_endpoint: "https://id.example.com/token" };
-    for (const options of [{}, { auth: { mode: "none" } }, { auth: { mode: "oauth", issuer: "https://id.example.com", toolScopes: { render_view: ["pivotkit:render"] } }, issuer, requiredScopes: ["pivotkit"], publicUrl: "https://pk.example.com/" }, { auth: { mode: "oauth", issuer: "https://id.example.com" } }]) {
+    for (const options of [{}, { auth: { mode: "none" } }, { auth: { mode: "oauth", issuer: "https://id.example.com", toolScopes: { render_view: ["pivotkit:render"] } }, issuer, requiredScopes: ["pivotkit"], publicUrl: "https://pk.example.com/" }, { auth: { mode: "oauth", issuer: "https://id.example.com" } }, { offers: { params: true, data: true } }]) {
         const doc = openApiDocument(options);
         const result = new Validator(META, "2020-12", false).validate(doc);
         assert.ok(result.valid, JSON.stringify(result.errors.slice(0, 5)));

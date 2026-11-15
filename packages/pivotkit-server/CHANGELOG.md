@@ -30,6 +30,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   has a file's limits ([code sources](https://pivotkit.eize.dev/getting-started/upgrading/#code-sources)).
 - `checkConfig(options)` checks the options as `createContext` does first and throws the same
   `ConfigError`; its second argument is optional.
+- MCP clients may send a small table of their own (`inline:`, below); `"mcp": { "data": false }`
+  switches it off. `check-config` prints a "Data in the request" line.
 
 ### Added
 
@@ -46,6 +48,21 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `hint` naming the scopes the server offers. `check-config` prints how a person gets a profile, the
   scopes offered, sources no scope reaches, a later `groupProfiles` entry wider than an earlier one, groupProfiles without a default profile, and the
   audit setting. `groupsOf`, `groupRefusal` and `GROUPS_REFUSED` are exported.
+- Data in the request ([#326](https://github.com/eizedev/pivotkit/issues/326)): `source` `inline:`
+  with `data` (`columns`, `rows`, `rowCount`, optional `name` and `asOf`) on every operation that
+  takes a source. MCP: on by default under a built-in cap of 500 rows, 5,000 cells and 256 KiB that
+  `mcp.data` can lower or switch off, never raise. REST: only for callers whose policy says
+  `data: true` (`policy.data`, `policy.profiles.<name>.data`), as JSON or a csv, tsv, json or xlsx
+  file in a `multipart/form-data` body with an optional `sha256`, in a body of up to
+  `rest.data.maxBytes` (default 10 MiB, 2 to 64 MiB) once the token is checked. `rowCount` and
+  `sha256` must match (`DATA_MISMATCH`); no exposure policy applies; the data is computed in a worker,
+  never cached, and cannot be linked or scheduled; the file route takes it with `data: true` alone.
+  Results carry the caller's time as `suppliedAsOf`; `list_sources` adds `data` with the cap; the
+  log counts rows and columns. `bodyBytesOf` gives the larger cap, only on the routes that take a
+  source; at most two bodies over 2 MiB are read at once, one per caller (else 503 `BUSY`, retryable). A JSON body
+  nested deeper than 64 levels is refused before it is parsed, a multipart body with more than two
+  parts before its parts are read; a 413 names the cap that applied; a file sent that cannot be read
+  says why in words. Exported: `INLINE_ID`, `MCP_DATA_CAP`, `REST_DATA_BYTES`, `inlineLogFields`.
 
 - A request id on every REST request and MCP tool call: on every log line written inside it, inside
   its work (a source's code, an error's details), in every REST problem document and at the end of

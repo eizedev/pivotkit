@@ -10,7 +10,9 @@
  * 4. the refused-token limit of the address, then authentication (bearer only: a cookie, Basic or a
  *    token in the address is never read), the REST audience and required scopes (OAuth);
  * 5. the caller's rate limit and concurrency, the operation's scopes (auth.toolScopes);
- * 6. the body: JSON only, capped, checked against the operation's input schema;
+ * 6. the body: JSON (or, for a caller that may send data, multipart/form-data with a file:
+ *    rest/multipart.js), capped (2 MiB; rest.data.maxBytes for a caller that may send data,
+ *    limits.js), checked against the operation's input schema;
  * 7. present() (policy, output, inline) or, for the file route, the file itself.
  */
 
@@ -20,9 +22,11 @@ import { REST_BASE, restResourceOf } from "../config.js";
 import { AuthRefusal, bearerOf, groupRefusal, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
-import { BODY_BYTES, SIGNED_IN, isLoopback, takeSignIn } from "../listen.js";
-import { present, presentedInput, renderFile } from "../present.js";
-import { createLimits } from "../limits.js";
+import { BODY_BYTES, SIGNED_IN, isLoopback, peekSignIn, takeSignIn } from "../listen.js";
+import { INPUT_DEPTH, jsonDepth, present, presentedInput, renderFile } from "../present.js";
+import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, isRestPost, restBodyBytesAt, restBodyBytesFor, restBodyCeilingOf } from "../limits.js";
+import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData } from "../sources/inline.js";
+import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
 import { SAFE_HEADERS, json, problem, problemOf, withRequestIdMember } from "./problem.js";
 import { callerFields } from "../log.js";
@@ -30,7 +34,7 @@ import { requestId, requestIdFor, withRequestId } from "../request-id.js";
 import { offeredScopes } from "../scopes.js";
 import { REST_ROUTES } from "./routes.js";
 
-/** The most bytes of a request body (the server's, MCP's too). */
+/** The most bytes of a request body (the server's, MCP's too); larger only for a caller that may send data (limits.js restBodyBytesFor). */
 export const REST_BODY_BYTES = BODY_BYTES;
 
 /** The headers a browser may read from an answer (CORS). */
@@ -62,14 +66,19 @@ function disposition(name) {
     return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
+/** Where a request keeps its place for a large body (createLargeBodies): the function that gives it back. */
+const LARGE_PLACE = Symbol("large body place");
+
 /**
- * Reads a JSON body, at most `max` bytes, while it streams.
+ * Reads a body, at most `max` bytes, while it streams.
  * @param {Request} request
  * @param {number} max
+ * @param {string} [detail]  what a body over it is told
  */
-async function readJson(request, max) {
+export async function readBytes(request, max, detail) {
+    const tooLarge = () => Object.assign(new Error("too large"), { problem: "BODY_TOO_LARGE", ...(detail ? { detail } : {}) });
     if (Number(request.headers.get("content-length") ?? 0) > max) {
-        throw Object.assign(new Error("too large"), { problem: "BODY_TOO_LARGE" });
+        throw tooLarge();
     }
     const chunks = [];
     let size = 0;
@@ -83,12 +92,27 @@ async function readJson(request, max) {
             size += value.length;
             if (size > max) {
                 await reader.cancel().catch(() => undefined);
-                throw Object.assign(new Error("too large"), { problem: "BODY_TOO_LARGE" });
+                throw tooLarge();
             }
             chunks.push(value);
         }
     }
-    const text = new TextDecoder("utf-8", { fatal: false }).decode(Buffer.concat(chunks));
+    return Buffer.concat(chunks);
+}
+
+/**
+ * Reads a JSON body, at most `max` bytes, while it streams. Its nesting is counted on the bytes before
+ * it is parsed: JSON.parse of a body of millions of brackets would hold the thread and gigabytes.
+ * @param {Request} request
+ * @param {number} max
+ * @param {string} [detail]  what a body over `max` is told
+ */
+async function readJson(request, max, detail) {
+    const bytes = await readBytes(request, max, detail);
+    if (jsonDepth(bytes, INPUT_DEPTH) > INPUT_DEPTH) {
+        throw new OperationError("INVALID_INPUT", `the input is nested deeper than ${INPUT_DEPTH} levels`);
+    }
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
     if (!text.trim()) {
         return {};
     }
@@ -121,6 +145,10 @@ export async function createRestHandler(context, runtime = {}) {
         context.log.warn("REST: no required scopes (rest.requiredScopes, auth.requiredScopes) and no auth.toolScopes: any token of the issuer for the REST audience gets everything its profile allows");
     }
     const limits = createLimits(rest);
+    // the largest body anyone may send: a larger declared size is refused before the token is checked
+    const ceiling = restBodyCeilingOf(options);
+    // the large bodies read at once, over all callers (limits.js)
+    const largeBodies = createLargeBodies(LARGE_BODIES);
     let warnedAddress = false;
     const trustProxy = options.http?.trustProxy ?? false;
     let document = null;
@@ -216,12 +244,23 @@ export async function createRestHandler(context, runtime = {}) {
         }
         /** @type {any} */
         let input = {};
+        /** @type {Awaited<ReturnType<typeof readMultipart>>["upload"] | null} a file sent in a multipart body */
+        let upload = null;
+        const takesSource = route.takesSource;
         if (route.method === "POST") {
             const type = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-            if (type !== "application/json") {
-                return problem("UNSUPPORTED_MEDIA_TYPE", "send the input as JSON (Content-Type: application/json)");
+            const cap = takesSource ? restBodyBytesFor(options, caller) : BODY_BYTES;
+            const detail = bodyTooLargeText(options, cap);
+            if (type === "multipart/form-data" && takesSource) {
+                if (!maySendData(options, caller, "rest")) {
+                    throw dataRefusal("rest");
+                }
+                ({ input, upload } = await readMultipart(await readBytes(request, cap, detail), request.headers.get("content-type") ?? "", route.operation, context.offers?.rest));
+            } else if (type !== "application/json") {
+                return problem("UNSUPPORTED_MEDIA_TYPE", `send the input as JSON (Content-Type: application/json)${takesSource && maySendData(options, caller, "rest") ? ", or a file with it as multipart/form-data" : ""}`);
+            } else {
+                input = await readJson(request, cap, detail);
             }
-            input = await readJson(request, REST_BODY_BYTES);
         } else if (match.params?.id !== undefined) {
             let id;
             try {
@@ -234,15 +273,23 @@ export async function createRestHandler(context, runtime = {}) {
         if (input === null || typeof input !== "object" || Array.isArray(input)) {
             throw new OperationError("INVALID_INPUT", "the body must be a JSON object");
         }
-        // the log names a configured source; anything else a caller typed (a name, a path) is not kept
-        entry.source = typeof input.source !== "string" ? undefined : context.registry.ids().includes(input.source) ? input.source : "unknown";
+        // the log names a configured source or data sent in the request (how much, never a value);
+        // anything else a caller typed (a name, a path) is not kept
+        entry.source = typeof input.source !== "string" ? undefined : input.source === INLINE_ID || context.registry.ids().includes(input.source) ? input.source : "unknown";
+        Object.assign(entry, inlineLogFields(input, upload));
         // before the schema's pattern says the same in fewer words
         if (typeof input.source === "string" && input.source.startsWith("file:")) {
             throw new OperationError("FILES_NOT_ALLOWED", "this service reads no files by path: use a source id from GET /sources");
         }
-        checkInput(presentedInput(route.operation, { files: false, offers: context.offers?.rest }), input);
+        if (!upload) {
+            // a table too large is refused by its size, before the schema goes through its cells
+            if (input.source === INLINE_ID && maySendData(options, caller, "rest")) {
+                checkTableSize(input.data, { limits: context.registry.limits });
+            }
+            checkInput(presentedInput(route.operation, { files: false, offers: context.offers?.rest }), input);
+        }
         if (route.answer === "file") {
-            const { result, file } = await renderFile(context, input, caller);
+            const { result, file } = await renderFile(context, input, caller, upload ? { upload } : {});
             if (!file) {
                 return problem("VIEW_HAS_ERRORS", "the view has errors; fix them (see findings) and render again", { extra: { findings: result.findings } });
             }
@@ -254,7 +301,7 @@ export async function createRestHandler(context, runtime = {}) {
                 headers: { ...SAFE_HEADERS, "content-type": format.mediaType, "content-disposition": disposition(name), "content-security-policy": "sandbox; default-src 'none'", "content-length": String(file.bytes.length) }
             });
         }
-        const { result } = await present(context, route.operation, input, caller, { surface: "rest", inline: rest.inline === true, files: false });
+        const { result } = await present(context, route.operation, input, caller, { surface: "rest", inline: rest.inline === true, files: false, ...(upload ? { upload } : {}) });
         return json(result);
     }
 
@@ -334,7 +381,7 @@ export async function createRestHandler(context, runtime = {}) {
         } catch (e) {
             const error = e instanceof OperationError ? e : null;
             if (e?.problem) {
-                response = problem(e.problem, "the body is larger than the service takes");
+                response = problem(e.problem, e.detail ?? "the body is larger than the service takes");
             } else {
                 if (!error || (error.code === "INTERNAL" && error.cause)) {
                     context.log.error(error?.cause ?? e, { where: "rest", operation: match.route.operation, requestId: id });
@@ -372,19 +419,27 @@ export async function createRestHandler(context, runtime = {}) {
             // the request's id (the precheck's, when it ran): on every log line of the request, in its
             // work (a source's code, an error's details) and in an error's answer
             const id = requestIdFor(info);
-            return withRequestIdMember(await withRequestId(id, () => answer(request, info)), id);
+            try {
+                return withRequestIdMember(await withRequestId(id, () => answer(request, info)), id);
+            } finally {
+                // a place for a large body, held since the precheck: given back once the request ran
+                info[LARGE_PLACE]?.();
+            }
         },
         /**
          * The answer to a body that cannot be read (serveFetch's problem): 413 or 400, with the
          * request's id, also on a log line.
          * @param {400 | 413} status
-         * @param {string} _path
+         * @param {string} path  the request's
          * @param {Record<string | symbol, any>} [info]
          */
-        problem(status, _path, info = {}) {
+        problem(status, path, info = {}) {
             const id = requestIdFor(info);
+            // the body was not read (too large, or the client left): its place is free again
+            info[LARGE_PLACE]?.();
             context.log.refused({ status, path: REST_BASE, requestId: id });
-            return problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than the service takes" : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: id } });
+            const cap = restBodyBytesAt(options, peekSignIn(info)?.caller, new URL(path, "http://localhost").pathname);
+            return problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? bodyTooLargeText(options, cap) : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: id } });
         },
         async close() {}
     };
@@ -405,17 +460,39 @@ export async function createRestHandler(context, runtime = {}) {
             context.log.refused({ status: 403, origin: origin.slice(0, 100) });
             return problem("FORBIDDEN_ORIGIN", "this origin may not call the service (rest.cors.origins)");
         }
-        if (Number(request.headers.get("content-length") ?? 0) > REST_BODY_BYTES) {
+        // the declared size: over what anyone may send, refused before the token is checked; over what
+        // this caller may send (rest.data.maxBytes only for one that may send data), once it is known
+        const length = request.headers.get("content-length");
+        const declared = Number(length ?? 0);
+        const tooLarge = (cap) => {
             context.log.refused({ status: 413, path: REST_BASE });
-            return withCors(problem("BODY_TOO_LARGE", "the body is larger than the service takes"), origin);
+            return withCors(problem("BODY_TOO_LARGE", bodyTooLargeText(options, cap)), origin);
+        };
+        if (declared > ceiling) {
+            return tooLarge(ceiling);
         }
-        if (request.method === "POST" && new URL(request.url).pathname.startsWith(`${REST_BASE}/`)) {
-            const who = await authenticate(request, clientAddress(request, info.address ?? "", trustProxy));
-            if ("refused" in who) {
-                context.log.refused({ status: who.refused.status, path: REST_BASE, ...("client" in who ? { client: who.client } : {}) });
-                return withCors(who.refused, origin);
+        if (!isRestPost(request)) {
+            return declared > BODY_BYTES ? tooLarge(BODY_BYTES) : null;
+        }
+        const who = await authenticate(request, clientAddress(request, info.address ?? "", trustProxy));
+        if ("refused" in who) {
+            context.log.refused({ status: who.refused.status, path: REST_BASE, ...("client" in who ? { client: who.client } : {}) });
+            return withCors(who.refused, origin);
+        }
+        info[SIGNED_IN] = who;
+        const cap = restBodyBytesAt(options, who.caller, new URL(request.url).pathname);
+        if (declared > cap) {
+            return tooLarge(cap);
+        }
+        // a body that may be larger than everyone's (declared so, or of no declared size) holds one of
+        // the few places for large bodies while it is read and its request runs
+        if (cap > BODY_BYTES && (length === null || declared > BODY_BYTES)) {
+            const give = largeBodies.take(who.caller.client);
+            if (!give) {
+                context.log.refused({ status: 503, path: REST_BASE });
+                return withCors(problem("BUSY", "", { headers: { "retry-after": "2" }, extra: { retryable: true } }), origin);
             }
-            info[SIGNED_IN] = who;
+            info[LARGE_PLACE] = give;
         }
         return null;
     }

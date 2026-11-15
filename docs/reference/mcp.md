@@ -76,6 +76,39 @@ open file. A file with a second name (a hard link) is refused unless `files.hard
 file that is missing, outside the directories or replaced while it is read gets the same answer,
 `FILE_NOT_AVAILABLE`, so a model cannot probe which files exist elsewhere.
 
+### Data in the request { #data }
+
+`source` may also be **`inline:`**: a small table the model sends itself in `data`, for a table it
+already has (one a user pasted, the result of another tool). The tools that take a source offer
+`data` unless the operator switched it off (`mcp.data: false`):
+
+```json
+{ "source": "inline:", "data": { "name": "Open tickets", "columns": ["Team", "Open"],
+  "rows": [["Blue", 4], ["Red", 7]], "rowCount": 2, "asOf": "2026-11-15T06:00:00Z" },
+  "view": { "rows": ["Team"], "values": [{ "field": "Open", "agg": "sum" }] }, "format": "xlsx" }
+```
+
+- **The model wrote these rows.** They are not the operator's data, and the operator's exposure
+  policy does not apply to them: every field is `show` to the caller who sent them. A report over
+  them is no proof that its content came from the operator's data. The profile's `inline` limits
+  still apply.
+- **The whole table.** `rowCount` is required and must equal the rows sent, else `DATA_MISMATCH`
+  ("you sent 180 rows but rowCount says 200: send the whole table"); every row has one value per
+  column; column names are unique (without case), without control or direction characters.
+- **A fixed cap.** At most 500 rows, 5,000 cells and 256 KiB (the `data` object as JSON); the
+  operator may lower each (`mcp.data`) but never raise it. Over it the answer is `LIMIT_EXCEEDED`
+  with the cap in force ("the limit is 500 rows / 5000 cells / 256 KiB; send fewer, or ask the
+  operator to configure a source for this data"). `list_sources` says it as
+  `"data": { "rows": 500, "cells": 5000, "bytes": 262144 }`. For more data the operator configures a
+  source. A call far over the cap may hit the SDK's limit of 10,000 input elements first, whose
+  error the client gets instead.
+- **Not kept.** The data is never cached and is gone after the call. `create_link` answers
+  `NO_LINK` and `draft_schedule` `NOT_SCHEDULABLE`. `dataAsOf` is when the data arrived; the
+  caller's own `asOf` comes back as `suppliedAsOf`, parsed and written again, as the caller states it.
+- A profile with `data: false` (or `policy.data: false` for callers without a profile) switches it
+  off for those callers (`NOT_ALLOWED`). The same works over stdio. Programs send larger tables and
+  files to the [REST service](rest.md#data).
+
 ## Exposure policy { #policy }
 
 The operator sets, per field, how much of it the model may see. A source's `policy` goes over the
@@ -210,6 +243,8 @@ error that names the key and the one probably meant.
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
+| `policy.data`, `policy.profiles.<name>.data` | - | MCP: on | `false`: the caller may not send [its own data](#data) (`inline:`); REST needs `true` |
+| `mcp.data` | - | 500 rows, 5000 cells, 262144 bytes | `false` switches [data in the request](#data) off; `{ "rows", "cells", "bytes" }` lowers the cap (a value above the built-in one is an error) |
 | `limits` | - | pivotkit-core's, files 50 MiB | pivotkit-core's [limits](../concepts/limits.md) (`rows`, `fileBytes`, `unpackedBytes`, ...) |
 | `locale`, `timeZone` | - | en-US, UTC | Numbers and dates of reports; the time zone of dates in the data |
 | `compute.workers` | - | 2 | Reports computed at once (worker threads) |
@@ -337,21 +372,23 @@ request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BU
 | `FILES_NOT_ALLOWED` | `file:` without allowed directories, or without the scopes for files |
 | `FILE_NOT_AVAILABLE` | A file missing, outside the allowed directories, or changed while read |
 | `NOT_REGULAR_FILE`, `HARD_LINK`, `UNSUPPORTED_FORMAT`, `INVALID_FILE` | The file is a directory or special file, has a second name, is no data format, or cannot be read |
-| `LIMIT_EXCEEDED` | A file, a view or the work over a limit; the worker's memory |
-| `NOT_ALLOWED` | A tool the caller's token has no scope for; a code source that refuses the caller (its `SourceError`) |
+| `LIMIT_EXCEEDED` | A file, a view, the [data sent](#data) or the work over a limit; the worker's memory |
+| `NOT_ALLOWED` | A tool the caller's token has no scope for; [data sent](#data) where it is switched off; a code source that refuses the caller (its `SourceError`) |
+| `DATA_MISMATCH` | [Data sent](#data) whose `rowCount` differs from the rows sent |
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
-| `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a `file:` source |
+| `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source or data sent in the request |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
 | `SOURCE_UNAVAILABLE` | A code source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors)); the text is fixed, with whether trying again may work |
 | `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`) |
-| `DATA_MISMATCH`, `UPLOAD_FAILED` | Reserved for data sent in a request and delivery that stores reports elsewhere; this version does not answer them |
+| `UPLOAD_FAILED` | Reserved for delivery that stores reports elsewhere; this version does not answer it |
 | `INTERNAL` | Anything else: "internal error", the details only in the log with `--log debug` |
 
 ## Logging { #logging }
 
 One JSON line per event on stderr (on stdio, stdout is the protocol): `started` (version, transport,
 address, auth mode, the number of sources, whether files and an output directory are on), `call`
-(tool, source id or the base name of a file, client, `requestId`, `ok`, error code, time in ms),
+(tool, source id or the base name of a file, client, `requestId`, `ok`, error code, time in ms; for
+`inline:` data the number of rows and columns),
 `refused` (an HTTP request refused by the Host, Origin or token check, with its status) and
 `warning`. `requestId` is random (11 characters), the same on every line of one call and at the end of
 its error. The client

@@ -173,6 +173,14 @@ set), a call without a token is now 401, and only the export token may download 
 
     The command line runs on the server's source instead of a file ([With a server](../reference/cli.md#with-a-server)).
 
+A program that has the data itself can send it with the request, as JSON or a file, when its profile
+has `data: true` ([Data in the request](../reference/rest.md#data)):
+
+```bash
+curl -s -o revenue.xlsx -H "Authorization: Bearer $ETL_TOKEN" -F data=@sales.csv \
+  -F 'input={"view":{"rows":["Region"],"values":[{"field":"Revenue","agg":"sum"}]}}' http://127.0.0.1:3333/api/v1/views/render/file
+```
+
 An error is a problem document with a stable `code` and a `detail` that says what to do; with
 PowerShell 7, `Invoke-RestMethod` throws and the document is in `$_.ErrorDetails.Message`.
 

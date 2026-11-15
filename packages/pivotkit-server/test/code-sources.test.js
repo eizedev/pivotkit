@@ -480,8 +480,10 @@ test("options: cacheShared only for a code source; timeMs at most ten minutes; t
     assert.match(text, /^Code sources \(2\):$/m);
     assert.match(text, /^ {2}a: load up to 20000 ms, reused while version\(\) is the same; data per caller; last good data off$/m);
     assert.match(text, /^ {2}b: load up to 30000 ms, loaded on every call; data per caller; last good data up to 3600 s after a transient failure$/m);
-    assert.match(text, /New in this version[^\n]*\n {2}- Code sources: load gets \(params, \{ caller, signal \}\)/);
-    assert.doesNotMatch((await checkConfig({ sources: { f: { file: "x.csv" } } }, { http: false })).text, /Code sources|New in this version/);
+    // among the notes of this version (data sent in the request has one on an MCP server too)
+    assert.match(text, /New in this version[^\n]*\n(?: {2}- [^\n]*\n)* {2}- Code sources: load gets \(params, \{ caller, signal \}\)/);
+    // without MCP, where data sent in the request adds no note, a file source alone gives none
+    assert.doesNotMatch((await checkConfig({ sources: { f: { file: "x.csv" } } }, { http: false, mcp: false })).text, /Code sources|New in this version/);
 });
 
 test("the load cache: least recently used out, at most 8 entries and a quarter of the bytes per owner, its own entries first; encoded data measured", () => {

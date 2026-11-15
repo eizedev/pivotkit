@@ -388,7 +388,8 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     assert.ok(lines.includes("  key from audit.key"), result.text);
     assert.ok(lines.some((l) => /the audit key's file audit\.key can be read by other users/.test(l)), result.text);
     // offering the sources' scopes is opt-in: no change for an existing installation
-    assert.doesNotMatch(result.text, /New in this version/);
+    // (the block may hold other features' lines: none of this section's)
+    assert.doesNotMatch(result.text, /New in this version[\s\S]*(scope|group|audit|profile)/i);
     assert.equal(result.problems, 0, result.text);
 
     // a wider profile after a narrower one: a warning; the default (scopes not offered): every source scope is unreachable
@@ -401,7 +402,7 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     assert.match(quiet.text, /warning: auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups gets the sources' own policy; set auth\.defaultProfile to a narrow profile/);
     assert.match(quiet.text, /PROBLEM: audit\.key: \$NOT_SET is not set; the server will not start/);
     assert.equal(quiet.problems, 1);
-    assert.doesNotMatch(quiet.text, /New in this version/);
+    assert.doesNotMatch(quiet.text, /New in this version[\s\S]*(scope|group|audit|profile)/i);
 
     // a static token: the scope no token holds, groups that take no effect, a person never named
     const token = await checkConfig({ sources: options.sources, policy: options.policy, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT", scopes: ["pivotkit:sales"] }], groupProfiles: GROUP_PROFILES }, audit: { subject: "plain" }, baseDir: dir }, { http: false, env: { BOT: "x".repeat(40) }, name: "pivotkit-server" });
