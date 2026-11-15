@@ -28,7 +28,8 @@ import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
 import { AUDIT_KEY_MIN, auditText, noteAudit } from "./log.js";
 import { readSecret } from "./secrets.js";
-import { guardedFetch } from "./sources/fetch.js";
+import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
+import { claimNamesOf, claimsOf } from "./sources/params.js";
 
 /** The fewest characters of a static token. */
 export const TOKEN_MIN = 32;
@@ -188,7 +189,7 @@ export function resourceMetadataUrlOf(resource) {
  * @property {string[]} scopes
  * @property {number} expiresAt
  * @property {URL} [resource]
- * @property {{ allScopes?: boolean, profile?: string | null, subject?: string | null, issuer?: string | null, groups?: string[], groupsUnknown?: boolean, audit?: string | null }} [extra]  subject: the token's auth.subjectClaim when usable, issuer: its iss, groups: the person's groups when the token carries a usable list, groupsUnknown: it does not (cut, too long, an overage marker, missing), audit: how the log names the person (OAuth)
+ * @property {{ allScopes?: boolean, profile?: string | null, subject?: string | null, issuer?: string | null, groups?: string[], groupsUnknown?: boolean, audit?: string | null, claims?: Readonly<Record<string, string | number | boolean>> }} [extra]  subject: the token's auth.subjectClaim when usable, issuer: its iss, groups: the person's groups when the token carries a usable list, groupsUnknown: it does not (cut, too long, an overage marker, missing), audit: how the log names the person, claims: the ones sources' params are bound to (OAuth)
  */
 
 /** The longest subject taken as an identity. */
@@ -355,6 +356,8 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
     }
     const algorithms = auth.algorithms?.length ? auth.algorithms : [...DEFAULT_ALGORITHMS];
     const audit = await auditOf(options, { env, log });
+    // the claims a caller holds: only those the sources' params name (sources/params.js claimsOf)
+    const claimNames = claimNamesOf(options.sources);
     const { createRemoteJWKSet, jwtVerify } = await import("jose");
     /** @type {any} */
     let state = { metadata: null, jwks: null, jwksUri: null };
@@ -464,6 +467,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             const subject = subjectOf(payload[auth.subjectClaim ?? "sub"]);
             const iss = typeof payload.iss === "string" ? payload.iss : null;
             const groups = groupsOf(payload, auth);
+            const claims = claimsOf(payload, claimNames);
             /** @type {AuthInfo} */
             const info = {
                 token,
@@ -471,7 +475,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                 scopes: scopesOf(payload, auth.scopeClaim),
                 expiresAt: /** @type {number} */ (payload.exp),
                 resource,
-                extra: { subject, issuer: iss, ...("groups" in groups ? { groups: groups.groups } : { groupsUnknown: true }), audit: auditText(audit, iss, subject) }
+                extra: { subject, issuer: iss, ...("groups" in groups ? { groups: groups.groups } : { groupsUnknown: true }), audit: auditText(audit, iss, subject), ...(claims ? { claims } : {}) }
             };
             // what the operator needs to set groupProfiles up: how many groups (never which), and
             // the profile they gave
@@ -582,9 +586,10 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
     const subject = subjectOf(authInfo.extra?.subject);
     const issuer = typeof authInfo.extra?.issuer === "string" ? authInfo.extra.issuer : null;
     const groups = Array.isArray(authInfo.extra?.groups) ? authInfo.extra.groups.filter((g) => typeof g === "string") : [];
-    const caller = { scopes, client, profile, subject, issuer, ...(groups.length ? { groups: [...groups] } : {}) };
+    const claims = authInfo.extra?.claims && typeof authInfo.extra.claims === "object" ? claimsOf(authInfo.extra.claims, new Set(Object.keys(authInfo.extra.claims)), { verified: true }) : undefined;
+    const caller = { scopes, client, profile, subject, issuer, ...(groups.length ? { groups: [...groups] } : {}), ...(claims ? { claims } : {}) };
     noteAudit(caller, authInfo.extra?.audit);
-    known.set(caller, { basis: subject && issuer ? [issuer, subject] : null, token: typeof authInfo.token === "string" && authInfo.token ? authInfo.token : null, expiresAt: Number.isSafeInteger(authInfo.expiresAt) ? authInfo.expiresAt : null });
+    known.set(caller, { basis: subject && issuer ? [issuer, subject] : null, token: typeof authInfo.token === "string" && authInfo.token ? authInfo.token : null, expiresAt: typeof authInfo.expiresAt === "number" && Number.isFinite(authInfo.expiresAt) ? Math.floor(authInfo.expiresAt) : null });
     return caller;
 }
 
@@ -646,7 +651,7 @@ export function callerView(caller) {
  * caller's own token expires (subjectExpiresAt, seconds since 1970), which an exchanged token must
  * not outlive.
  * @param {import("./registry.js").Caller} caller
- * @param {{ url: string, clientId: string, clientSecret?: string, audience?: string, resource?: string, scope?: string, signal?: AbortSignal, timeMs?: number, maxBytes?: number, allowPrivate?: boolean, allowIpLiterals?: boolean }} request
+ * @param {{ url: string, clientId: string, clientSecret?: string, audience?: string, resource?: string, scope?: string, signal?: AbortSignal, timeMs?: number, maxBytes?: number, allowPrivate?: boolean, allowIpLiterals?: boolean, fetch?: typeof guardedFetch }} request  fetch: a guardedFetch (createGuardedFetch's: sources/auth.js passes httpMeans.fetch, which the tests replace with one trusting their certificate); anything else is refused
  * @returns {Promise<import("./sources/fetch.js").GuardedResponse & { subjectExpiresAt: number | null }>}
  */
 export async function exchangeTokenFor(caller, request) {
@@ -668,6 +673,9 @@ export async function exchangeTokenFor(caller, request) {
     } else {
         form.set("client_id", request.clientId);
     }
-    const answer = await guardedFetch(request.url, { method: "POST", headers, body: form.toString(), ...(request.signal ? { signal: request.signal } : {}), ...(request.timeMs ? { timeMs: request.timeMs } : {}), ...(request.maxBytes ? { maxBytes: request.maxBytes } : {}), ...(request.allowPrivate !== undefined ? { allowPrivate: request.allowPrivate } : {}), ...(request.allowIpLiterals ? { allowIpLiterals: true } : {}) });
+    if (request.fetch !== undefined && !isGuardedFetch(request.fetch)) {
+        throw new TypeError("exchangeTokenFor sends a person's token through a guardedFetch only");
+    }
+    const answer = await (request.fetch ?? guardedFetch)(request.url, { method: "POST", headers, body: form.toString(), ...(request.signal ? { signal: request.signal } : {}), ...(request.timeMs ? { timeMs: request.timeMs } : {}), ...(request.maxBytes ? { maxBytes: request.maxBytes } : {}), ...(request.allowPrivate !== undefined ? { allowPrivate: request.allowPrivate } : {}), ...(request.allowIpLiterals ? { allowIpLiterals: true } : {}) });
     return { ...answer, subjectExpiresAt: entry.expiresAt ?? null };
 }
