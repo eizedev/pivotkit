@@ -56,8 +56,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.js\"",
-    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "test": "node ../../scripts/test-run.js node --test \"test/*.test.js\"",
+    "coverage": "node ../../scripts/test-run.js node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
     "types": "tsc -p .",
     "test:types": "tsc -p test/types",
     "prepack": "npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""

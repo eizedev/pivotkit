@@ -1,10 +1,8 @@
 // Runs the CLI as a user would: a spawned process with its arguments, stdin, working directory and
 // environment, giving the exit code, stdout and stderr.
 import { spawn } from "node:child_process";
-import { mkdtempSync, realpathSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
 
 export const BIN = fileURLToPath(new URL("../bin/pivotkit.js", import.meta.url));
 
@@ -34,10 +32,8 @@ export function run(args, { cwd, input, env = {}, timeout = 30_000 } = {}) {
     });
 }
 
-/** A new empty directory (its real path: the system's temporary directory may be a link). */
-// the real path as the system resolves it (realpathSync.native): on Windows realpathSync keeps a short
-// 8.3 name of the temporary directory (C:\Users\RUNNER~1), the file handling the long one
-export const tempDir = (prefix = "pivotkit-cli-") => realpathSync.native(mkdtempSync(join(tmpdir(), prefix)));
+/** A new empty directory (its real path), removed when the test file ends (tests/temp-dir.js). */
+export const tempDir = (prefix = "pivotkit-cli-") => sharedTempDir(prefix);
 
 export const SALES_CSV = "Region,Product,Units,Date\nNorth,A,3,2026-01-05\nSouth,B,4,2026-09-01\nNorth,B,2,2026-10-01\nWest,A,5,2025-06-30\n";
 

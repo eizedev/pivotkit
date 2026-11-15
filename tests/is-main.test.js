@@ -6,22 +6,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const root = fileURLToPath(new URL("../", import.meta.url));
-
-/** The JavaScript files of this repository outside node_modules and build output. */
-function sourceFiles(dir = root) {
-    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-        if (["node_modules", "dist", "coverage", "site", ".git", "test-results", "playwright-report"].includes(entry.name)) return [];
-        const path = join(dir, entry.name);
-        if (entry.isDirectory()) return sourceFiles(path);
-        return /\.(js|mjs)$/.test(entry.name) ? [path] : [];
-    });
-}
+import { root, sourceFiles } from "./source-files.js";
+import { tempDir } from "./temp-dir.js";
 
 test("no script compares process.argv[1] itself to tell whether it was run: it uses isMain", () => {
     const own = [];
@@ -43,17 +31,10 @@ test("no script takes a file URL's pathname as a path: it is percent-encoded (a 
     assert.deepEqual(own, [], "use fileURLToPath(new URL(..., import.meta.url)) instead");
 });
 
-/** A new directory under the real temporary directory, removed after the test. */
-function scratch(t) {
-    const dir = mkdtempSync(join(realpathSync(tmpdir()), "pivotkit-is-main-"));
-    t.after(() => rmSync(dir, { recursive: true, force: true }));
-    return dir;
-}
-
-test("scripts run when started through a symbolic link whose name has a space", { skip: process.platform === "win32" && "symlinks need extra rights on Windows" }, (t) => {
+test("scripts run when started through a symbolic link whose name has a space", { skip: process.platform === "win32" && "symlinks need extra rights on Windows" }, () => {
     // the repository reached as "<tmp>/a b/...": process.argv[1] has the link and the space,
     // import.meta.url neither
-    const dir = scratch(t);
+    const dir = tempDir("is-main");
     const link = join(dir, "a b");
     symlinkSync(root, link, "dir");
     // pivotkit-xlsx's workbook generator writes the file it is given
@@ -68,7 +49,7 @@ test("scripts run when started through a symbolic link whose name has a space", 
 });
 
 test("the playground's server serves its files from a directory whose real path has a space", async (t) => {
-    const dir = join(scratch(t), "a b");
+    const dir = join(tempDir("is-main"), "a b");
     mkdirSync(join(dir, "dist"), { recursive: true });
     copyFileSync(join(root, "examples", "playground", "serve.js"), join(dir, "serve.js"));
     writeFileSync(join(dir, "package.json"), JSON.stringify({ type: "module" }));

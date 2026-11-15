@@ -132,6 +132,9 @@ pages: they link to the site and repeat none of it.
   the pull request says which.
 - Behaviour that depends on the machine (time zone, locale) is tested in child processes with `TZ` and
   `LANG` set, as in `test/time-zones.test.js`.
+- A test that needs files on disk makes its directory with `tempDir()` (`tests/temp-dir.js`, or the
+  `tempDir` of the package's `test/helpers.js`); it is removed when the test file ends, and a test
+  run that leaves one behind fails.
 - A type change: `test/types/consumer.ts` compiles against the generated declarations
   (`npm run types`).
 - UI logic of `pivotkit-react` (view changes, the history, keyboard moves, names, the chart's text)

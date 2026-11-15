@@ -395,6 +395,17 @@ root `package.json`: `npm run types` and the builds depend on it.
 - `scripts/is-main.js` - `isMain(import.meta.url)`: whether a script that can also be imported was
   run (`node <script>`), comparing real paths so a checkout under a path with a space or behind a
   symlink works; every such script of this repository uses it (`tests/is-main.test.js`).
+- `tests/temp-dir.js` - `tempDir(label)`: the one way a test, probe, benchmark or browser spec makes a
+  temporary directory (`pivotkit-<run>-<label>-…` under the system's temporary directory, its real
+  path), removed when the process ends, also after a failure, `exit()` or SIGINT/SIGTERM;
+  `removeTempDirs()` for a Playwright spec's `test.afterAll`. The `tempDir` of pivotkit-server's,
+  pivotkit-mcp's and pivotkit-cli's `test/helpers.js` is this one with the package's label.
+  `scripts/test-run.js` runs a test command as one run (`PIVOTKIT_TEST_RUN`, kept from an outer run)
+  and fails when it leaves a directory with its id behind; the root's `test`, `coverage` and
+  `test:browser`, those three packages' `test` and `coverage`, and CI's repository checks and browser
+  jobs go through it. `tests/temp-dirs.test.js` fails on `mkdtemp` or `tmpdir()` outside the helper
+  (the packages' `src/` and `bin/` aside). `tests/source-files.js` lists the repository's
+  JavaScript files for such checks.
 - `scripts/openapi.js` - writes `docs/openapi.json`, the REST service's OpenAPI document as
   pivotkit-server generates it (committed; served by the site; pivotkit-server's `test/openapi.test.js`
   fails until it is what the script writes).
@@ -442,7 +453,7 @@ root `package.json`: `npm run types` and the builds depend on it.
 npm ci                              # install all workspaces from the lock file
 npm run lint                        # ESLint recommended rules and React's hook rules (as CI)
 npm run types                       # tsc with checkJs, generated .d.ts, TypeScript consumer (as CI)
-npm test                            # node --test in every workspace (as CI; pivotkit-cli's also on Windows)
+npm test                            # node --test in every workspace (as CI; pivotkit-cli's also on Windows); fails on a temporary directory left behind
 npm run coverage                    # the tests with a coverage report (as CI); pivotkit-react: its .js modules only
 npm run pack:check                  # npm pack --dry-run of every package, checked (as CI)
 npm run size -w pivotkit-element    # build the element and print what a page loads, gzip (with the group "report": HTML report, SVG, print)
