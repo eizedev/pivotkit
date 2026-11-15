@@ -317,9 +317,27 @@ export function normalizeParams(declared, given, caller, id) {
             }
             continue;
         }
-        out[p.name] = valueOf(p.name, p, value);
+        try {
+            out[p.name] = valueOf(p.name, p, value);
+        } catch (e) {
+            // a value the caller sent: what the parameter is and takes, so the next try can fit
+            throw p.claim === undefined && e instanceof OperationError ? new OperationError("INVALID_INPUT", `${e.message}${hintOf(p)}`) : e;
+        }
     }
     return out;
+}
+
+/** The longest pattern a refusal names. */
+const HINT_PATTERN = 40;
+
+/**
+ * What a refusal of a caller's value adds about the parameter: its description, an example, a short
+ * pattern ("" when it has none of them).
+ * @param {any} p  a declaration
+ */
+function hintOf(p) {
+    const parts = [p.description, p.example !== undefined ? `for example ${p.example}` : null, typeof p.pattern === "string" && p.pattern.length <= HINT_PATTERN ? `pattern ${p.pattern}` : null].filter(Boolean);
+    return parts.length ? ` (${parts.join("; ")})` : "";
 }
 
 /**
@@ -345,7 +363,12 @@ function valueOf(name, p, value) {
         if (p.maximum !== undefined && n > p.maximum) fail(`must be at most ${p.maximum}`);
         out = n;
     } else {
-        const text = typeof value === "string" ? value : typeof value === "number" && Number.isFinite(value) ? String(value) : typeof value === "boolean" ? String(value) : fail("must be a text");
+        // a text as text: a number or a boolean is a caller's mistake about the type, not a value
+        const text = typeof value === "string" ? value : fail("must be a text");
+        // String.prototype.isWellFormed (Node 20 and later; this package needs Node 22)
+        if (!(/** @type {any} */ (text).isWellFormed())) {
+            fail("must be a text without lone surrogates (not well-formed Unicode)");
+        }
         const max = p.maxLength ?? PARAM_LIMITS.defaultLength;
         if (text.length > max) fail(`must have at most ${max} characters`);
         if (p.minLength !== undefined && text.length < p.minLength) fail(`must have at least ${p.minLength} characters`);
@@ -375,7 +398,7 @@ function valueOf(name, p, value) {
 /**
  * What list_sources says about a source's parameters (those bound to a claim left out).
  * @param {Record<string, any> | undefined} declared
- * @returns {Array<{ name: string, type: string, required: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number> }>}
+ * @returns {Array<{ name: string, type: string, required: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, format?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number }>}
  */
 export function paramsList(declared) {
     if (!declared) {
@@ -383,5 +406,15 @@ export function paramsList(declared) {
     }
     return entriesOf(declared)
         .filter((p) => p.claim === undefined)
-        .map((p) => ({ name: p.name, type: p.type, required: Boolean(p.required) && p.default === undefined, ...(p.description ? { description: p.description } : {}), ...(p.example !== undefined ? { example: p.example } : {}), ...(p.enum ? { enum: p.enum } : {}) }));
+        .map((p) => ({
+            name: p.name,
+            type: p.type,
+            required: Boolean(p.required) && p.default === undefined,
+            ...(p.description ? { description: p.description } : {}),
+            ...(p.example !== undefined ? { example: p.example } : {}),
+            ...(p.enum ? { enum: p.enum } : {}),
+            ...(p.pattern !== undefined ? { pattern: p.pattern } : {}),
+            ...(p.format !== undefined ? { format: p.format } : {}),
+            ...Object.fromEntries(["minLength", "maxLength", "minimum", "maximum"].filter((k) => p[k] !== undefined).map((k) => [k, p[k]]))
+        }));
 }

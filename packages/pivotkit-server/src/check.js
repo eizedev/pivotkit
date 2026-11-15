@@ -9,7 +9,8 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { basename } from "node:path";
 import { closest, encode } from "pivotkit-core";
 import { isInside, readSafe, readTable } from "pivotkit-cli/files";
-import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf, validateOptions } from "./config.js";
+import { HTTP_HEADING } from "./check/http.js";
+import { OUTPUT_DEFAULTS, pathOf, restResourceOf, serverLimitsOf, validateOptions } from "./config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
 import { OUTPUT_INSIDE_ALLOWED, cannotCreate, entryOf, outputRefusal, ownFileDirs, plannedPath, writable } from "./context.js";
 import { draftCap } from "./present.js";
@@ -55,7 +56,7 @@ export async function checkConfig(options, { http = false, env = {}, name = "piv
         if (!columns.names) {
             everyColumn = null;
         }
-        lines.push(`  ${s.id}: ${s.file ? `${s.file}${s.exists ? "" : "  (NOT FOUND)"}` : "a code source"}`);
+        lines.push(`  ${s.id}: ${s.file ? `${s.file}${s.exists ? "" : "  (NOT FOUND)"}` : options.sources?.[s.id]?.http ? `an HTTP source (see ${HTTP_HEADING})` : "a code source"}`);
         lines.push(`    fields: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}; values listed per shown field: ${s.policy.items}; inline results: ${s.policy.inline ? `up to ${s.policy.inline.cells} cells` : "off"}`);
         if (s.scopes.length) lines.push(`    scopes: ${s.scopes.join(" ")}`);
         if (s.link) lines.push(`    link: ${s.link}`);
@@ -254,7 +255,7 @@ const nameText = (name) => findingText(name).slice(0, 80);
  * @returns {Promise<{ names: string[] | null, stats: import("./stats.js").SourceStats | null, why: string | null }>}
  */
 async function columnsOf(path, sheet, options) {
-    const limits = { ...SERVER_LIMITS, ...(options.limits ?? {}) };
+    const limits = serverLimitsOf(options);
     try {
         const bytes = await readSafe(path, { cwd: "/", allow: [], maxBytes: limits.fileBytes, hardLinks: true });
         const { table } = await readTable(bytes, basename(path), { ...(sheet ? { sheet } : {}), ...(options.timeZone ? { timeZone: options.timeZone } : {}), limits });

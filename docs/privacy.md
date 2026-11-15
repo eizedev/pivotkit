@@ -64,6 +64,12 @@ person (at most 64 loads and 256 MiB in all) until newer loads push it out, also
 `maxStale` has passed or the person lost access: it is not given to anyone then, but it stays in
 memory until it is pushed out or the process restarts.
 
+An [HTTP source](reference/sources.md#http) sends the values a caller passes for its parameters to
+the operator's backend, in the address the operator configured, and nothing else of the caller: no
+token, no identity. Its data is kept per person in the same way (`ttl`, 60 seconds by default). The
+log holds the backend's status, the address template and the source's id, never a value; with
+`log: "debug"` also each request's path with the values written as `{name}`.
+
 ## Logs and retention { #retention }
 
 The log holds the operation, the source id, the client (a token's name or an OAuth client id), a

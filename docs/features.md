@@ -166,6 +166,9 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   when the operator asks for it; CORS off by default; limits per caller
   ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
   [security](security.md#rest), [privacy](privacy.md)).
+- Sources for both: data files, an operator's API as an HTTP source (its address written once with
+  typed parameters a caller fills, paging, data kept per caller, `pivotkit-server check-source` to
+  test it) and a library host's code sources ([data sources](reference/sources.md)).
 - One container image for the REST service, the MCP server and the command line: distroless Node 22,
   non-root, read-only, health checks, signed with provenance and an SBOM
   ([container image](reference/container.md), [Kubernetes](getting-started/kubernetes.md)).

@@ -365,6 +365,29 @@ without install scripts. Run it with a read-only root file system, no capabiliti
 signed with cosign (keyless) and has provenance and SBOM attestations; [check them](reference/container.md#verify)
 before you run it.
 
+## HTTP sources { #http-sources }
+
+An [HTTP source](reference/sources.md#http) makes the server request an operator's backend, so the
+address is the operator's, never a caller's:
+
+- The address is written in the configuration; a caller passes only values for its declared
+  parameters, checked against their type, pattern or list before anything is sent. A value is
+  percent-encoded into its own path segment or query value and cannot change the host, add a path
+  segment or another query parameter; a string without a pattern takes letters, digits and `. _ ~ -`
+  only, and no value holds `..`.
+- Requests are `https://` only and follow no redirect. The address is checked on the connection's
+  own name lookup: link-local and cloud metadata addresses are refused always, loopback and private
+  ones unless the backend is marked `intranet` (`check-config` lists each such backend). Further
+  pages must be on the same host and path. The bytes of all pages, the pages, the rows and the time
+  are bounded.
+- A backend's body, and the words of a failed request, never reach a caller or the log; its 401,
+  403 and 404 for a source with parameters give one answer, so a caller cannot probe which other
+  customers exist. pivotkit sends no credentials of its own to a backend, and a header that carries
+  a sign-in cannot be configured.
+- The policy of an HTTP source must hide fields by default, so a field the backend adds later is not
+  shown without anyone deciding; its data is kept per caller and values, never shared between
+  callers.
+
 ## Content-Security-Policy
 
 The web component was measured in the browser tests (`tests/browser/element.spec.js`) in Chromium,

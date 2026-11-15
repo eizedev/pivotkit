@@ -8,6 +8,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Added
 
+- `list_sources`' output schema takes a parameter's `pattern`, `format`, `minLength`, `maxLength`,
+  `minimum` and `maximum`; `list_sources`, `describe_source` and `render_view` say that a source's
+  required params go into every call ([#328](https://github.com/eizedev/pivotkit/issues/328)).
+
 - A finding about a field carries it in `field` (from pivotkit-core's issue, such as `itemCase`).
 - `env.unknownItems`: the finding `itemUnknown` for an item of an `in` filter that is none of its
   text field's values, with the closest one as the `suggestion`

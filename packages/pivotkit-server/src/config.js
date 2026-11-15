@@ -47,9 +47,10 @@ export { ConfigError } from "./options/shared.js";
  * @property {PolicyOptions} [policy]
  * @property {Record<string, { type: "string" | "integer" | "number" | "boolean", required?: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number, format?: "date", default?: string | number | boolean }>} [params]  values a caller passes with the source (a code source gets them: load(params, { caller }))
  * @property {Record<string, { description?: string }>} [fields]  the operator's words about fields, shown by describe_source (at most 500 characters each)
- * @property {number} [ttl]  code sources: seconds a load is reused (default: only while version() gives the same)
- * @property {number} [maxStale]  code sources: seconds the last good data stands in after a transient failure (default 3600; 0: never)
- * @property {number} [timeMs]  code sources: the longest load, in ms (default 30000; the signal is aborted then)
+ * @property {import("./options/http.js").HttpSourceOptions} [http]  an HTTP source: the backend's address and how to read its answer (instead of file or load)
+ * @property {number} [ttl]  code and HTTP sources: seconds a load is reused (code: default only while version() gives the same; HTTP: 60)
+ * @property {number} [maxStale]  code and HTTP sources: seconds the last good data stands in after a transient failure (default 3600; 0: never)
+ * @property {number} [timeMs]  code and HTTP sources: the longest load, in ms (code: default 30000, HTTP: 15000; the signal is aborted then)
  */
 
 /**
@@ -74,6 +75,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {AuthOptions} [auth]
  * @property {RestOptions} [rest]
  * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number, data?: false | { rows?: number, cells?: number, bytes?: number } }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens; data: inline data off, or a lower cap
+ * @property {import("./options/http.js").HttpSourcesOptions} [httpSources]  HTTP sources on or off, IP addresses as hosts, backends defined once
  * @property {"info" | "debug" | "off"} [log]
  * @property {{ subject?: "off" | "hash" | "plain", key?: { env?: string, file?: string } }} [audit]  the person in the log lines of calls, requests and downloads (default off)
  * @property {string} [baseDir]  where relative paths start (loadConfig sets the config file's directory; default the working directory)
@@ -123,6 +125,14 @@ export { ConfigError } from "./options/shared.js";
 
 /** The import limits a server uses unless the operator sets them: lower than a command line's. */
 export const SERVER_LIMITS = Object.freeze({ fileBytes: 52_428_800, unpackedBytes: 52_428_800 });
+
+/**
+ * The limits a server's sources are read with: SERVER_LIMITS under the operator's `limits` (the
+ * registry's, check-config's and check-source's alike).
+ * @param {ServerOptions} options
+ * @returns {{ fileBytes: number, unpackedBytes: number, [limit: string]: number }}
+ */
+export const serverLimitsOf = (options) => ({ ...SERVER_LIMITS, ...(options.limits ?? {}) });
 
 /** The defaults of the compute pool. */
 export const COMPUTE_DEFAULTS = Object.freeze({ workers: 2, timeMs: 30_000, memoryMb: 1024, queueMs: 10_000 });
@@ -283,8 +293,8 @@ export function validateOptions(options) {
         if (!SOURCE_ID.test(id)) {
             throw new ConfigError(`sources.${id.slice(0, 60)}: an id is letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit`);
         }
-        if (Boolean(source.file) === Boolean(source.load)) {
-            throw new ConfigError(`sources.${id}: give either file or load`);
+        if ([source.file, source.load, /** @type {any} */ (source).http].filter(Boolean).length !== 1) {
+            throw new ConfigError(`sources.${id}: give either file or load, or http (exactly one of them)`);
         }
         if (source.link !== undefined) {
             urlOf(source.link, `sources.${id}.link`);

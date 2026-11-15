@@ -26,12 +26,22 @@ export const typeOf = (code) => `https://pivotkit.eize.dev/reference/rest/#error
 /** What a 5xx says instead of the error's message. */
 const SERVER_TEXT = { BUSY: "the server is busy with other reports; try again in a moment", NOT_READY: "the server is starting or shutting down; try again in a moment", AUTH_NOT_READY: "the server is waiting for its authorization server; try again in a moment", TIMEOUT: "the report took longer than the server allows; make the view smaller or filter more", SOURCE_UNAVAILABLE: "the source is not available right now; if it stays so, give the operator the request id", UPLOAD_FAILED: "the report was made but could not be stored; give the operator the request id", INTERNAL: "internal error" };
 
+/** Other fixed texts of a code, picked by the error's `reason` (a SourceError's, sources/run.js SOURCE_REASONS). */
+const SERVER_TEXT_BY_REASON = Object.freeze({
+    SOURCE_UNAVAILABLE: Object.freeze({ refused: "the source's backend refused pivotkit's access; ask the operator and give the request id", setup: "the source is not set up correctly; ask the operator and give the request id" })
+});
+
 /**
  * The fixed text of a code of status 500 or more, for REST and MCP alike: an error's own message of
- * such a code can hold an address or a system error code and never reaches a caller.
+ * such a code can hold an address or a system error code and never reaches a caller. `reason` picks
+ * another of pivotkit's fixed texts of the code; an unknown one is the code's text.
  * @param {string} code
+ * @param {unknown} [reason]  the error's reason (OperationError's `reason`, set by sources/run.js sourceFailure)
  */
-export const serverTextOf = (code) => SERVER_TEXT[/** @type {keyof typeof SERVER_TEXT} */ (code)] ?? SERVER_TEXT.INTERNAL;
+export const serverTextOf = (code, reason = undefined) => {
+    const variants = /** @type {Record<string, string> | undefined} */ (SERVER_TEXT_BY_REASON[/** @type {keyof typeof SERVER_TEXT_BY_REASON} */ (code)]);
+    return (typeof reason === "string" && variants && Object.hasOwn(variants, reason) ? variants[reason] : undefined) ?? SERVER_TEXT[/** @type {keyof typeof SERVER_TEXT} */ (code)] ?? SERVER_TEXT.INTERNAL;
+};
 
 /** The headers every answer of the REST service carries. */
 export const SAFE_HEADERS = Object.freeze({ "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "cache-control": "no-store" });
@@ -40,11 +50,11 @@ export const SAFE_HEADERS = Object.freeze({ "x-content-type-options": "nosniff",
  * A problem document as a Response.
  * @param {string} code
  * @param {string} detail
- * @param {{ headers?: Record<string, string>, extra?: Record<string, unknown> }} [more]  extra: further members (a view's findings)
+ * @param {{ headers?: Record<string, string>, extra?: Record<string, unknown>, reason?: string }} [more]  extra: further members (a view's findings); reason: which fixed text a 5xx says (serverTextOf)
  */
 export function problem(code, detail, more = {}) {
     const status = statusOf(code);
-    const body = { type: typeOf(code), title: titleOf(code), status, code, detail: status >= 500 ? serverTextOf(code) : String(detail).slice(0, 1000), ...(more.extra ?? {}) };
+    const body = { type: typeOf(code), title: titleOf(code), status, code, detail: status >= 500 ? serverTextOf(code, more.reason) : String(detail).slice(0, 1000), ...(more.extra ?? {}) };
     return new Response(JSON.stringify(body), { status, headers: { ...SAFE_HEADERS, "content-type": "application/problem+json", ...(more.headers ?? {}) } });
 }
 
@@ -65,6 +75,7 @@ export function problemOf(error, more = {}) {
     const details = error.details ?? {};
     const retryAfter = details.retryAfter !== undefined ? String(details.retryAfter) : RETRY_AFTER[/** @type {keyof typeof RETRY_AFTER} */ (error.code)];
     return problem(error.code, error.message, {
+        reason: /** @type {any} */ (error).reason,
         headers: { ...(retryAfter !== undefined ? { "retry-after": retryAfter } : {}), ...(more.headers ?? {}) },
         extra: { ...idMember(isRequestId(details.requestId) ? details.requestId : requestId()), ...(details.retryable !== undefined ? { retryable: details.retryable } : {}), ...(more.extra ?? {}) }
     });

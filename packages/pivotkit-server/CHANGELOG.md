@@ -32,6 +32,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `ConfigError`; its second argument is optional.
 - MCP clients may send a small table of their own (`inline:`, below); `"mcp": { "data": false }`
   switches it off. `check-config` prints a "Data in the request" line.
+- A code source's `signal` is also aborted when every request waiting for its load went away (a REST
+  client that closed its connection, an MCP call over HTTP whose connection closed).
 
 ### Added
 
@@ -48,6 +50,34 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `hint` naming the scopes the server offers. `check-config` prints how a person gets a profile, the
   scopes offered, sources no scope reaches, a later `groupProfiles` entry wider than an earlier one, groupProfiles without a default profile, and the
   audit setting. `groupsOf`, `groupRefusal` and `GROUPS_REFUSED` are exported.
+- HTTP sources ([#328](https://github.com/eizedev/pivotkit/issues/328)): `sources.<id>.http` asks an
+  operator's backend at an address written once in the configuration (`backend` and `path` of
+  `httpSources.backends`, or a whole `url`), with `{name}` for a declared parameter in the path and
+  `query`; a caller passes only the values, checked against their type, pattern or list and encoded
+  as RFC 6570 simple expansion, and never an address. The rows at a JSON Pointer (or a CSV body),
+  `asOf` from the body, paging by a `next` pointer, the `Link` header, page numbers or offsets on the
+  same host and path, `maxPages` and `maxBytes`; kept per caller and values for `ttl` (default 60 s),
+  coalesced, last good data after a transient failure. Requests go through the guarded fetch with
+  loopback and private addresses refused unless the backend is marked `intranet`; a backend's body
+  never reaches a caller or the log, and its 401, 403 and 404 on a source with parameters give one
+  answer (`DATA_NOT_AVAILABLE`). An HTTP source whose policy shows fields by default is refused at
+  start. `httpSources.enabled: false` leaves them all out; `check-config` lists each source, the
+  intranet backends and warnings ([data sources](https://pivotkit.eize.dev/reference/sources/#http)).
+- `pivotkit-server check-source <id> [--param name=value ...]`: one load of an HTTP source as the
+  server would make it, with each page's status, the rows, the fields and their types (no cell
+  value; literal query values as `...`), what a caller would get when it fails, and the operator's
+  hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`).
+- Parameters: a refused value's `INVALID_INPUT` names the parameter's description, example and short
+  pattern; a value must have the parameter's type (a number for a `string` parameter is refused) and
+  a text must be well-formed Unicode; `list_sources` adds each parameter's `pattern`, `format`,
+  `minLength`, `maxLength`, `minimum` and `maximum`. The descriptions of `list_sources`,
+  `describe_source`, `render_view` and the `params` input say that required params go into every
+  call.
+- `SourceError`'s `reason` (`"refused"`, `"setup"`) picks which of pivotkit's fixed texts a
+  `SOURCE_UNAVAILABLE` says ("the source's backend refused pivotkit's access; ask the operator ...",
+  "the source is not set up correctly; ask the operator ..."), on REST and MCP alike; `serverTextOf`
+  takes the reason as its second argument.
+
 - Data in the request ([#326](https://github.com/eizedev/pivotkit/issues/326)): `source` `inline:`
   with `data` (`columns`, `rows`, `rowCount`, optional `name` and `asOf`) on every operation that
   takes a source. MCP: on by default under a built-in cap of 500 rows, 5,000 cells and 256 KiB that

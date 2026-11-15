@@ -130,7 +130,7 @@ export async function fileData(spec) {
 }
 
 /** A loaded table over a limit (limits.rows, limits.columns, limits.importCells), as pivotkit-core words it. */
-const overLimit = (limit, value, max, what) => ownError(new OperationError("LIMIT_EXCEEDED", `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (limits.${limit})`));
+export const overLimit = (limit, value, max, what) => ownError(new OperationError("LIMIT_EXCEEDED", `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (limits.${limit})`));
 
 /**
  * A host's value as a plain value encode() reads without running the host's code: text cut at the

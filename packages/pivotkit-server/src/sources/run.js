@@ -30,6 +30,9 @@ export const LOAD_LIMITS = Object.freeze({ perSource: 4, perIdentity: 2 });
 /** The codes a source may answer with a SourceError. */
 export const SOURCE_ERROR_CODES = Object.freeze(["NOT_ALLOWED", "INVALID_INPUT", "DATA_NOT_AVAILABLE", "SOURCE_UNAVAILABLE"]);
 
+/** Why a source is unavailable, when it is not "right now": each picks a fixed text (rest/problem.js serverTextOf). */
+export const SOURCE_REASONS = Object.freeze(["refused", "setup"]);
+
 /** A backend's HTTP statuses that mean "try again later". */
 export const TRANSIENT_STATUSES = Object.freeze([429, 502, 503, 504]);
 
@@ -57,15 +60,18 @@ const DEFAULT_TEXT = Object.freeze({
  *   throw new SourceError("SOURCE_UNAVAILABLE", { transient: true });   // last good data may stand in
  *
  * `code` is one of SOURCE_ERROR_CODES; `publicMessage` is the only text of the source that reaches a
- * caller (for the codes below 500; SOURCE_UNAVAILABLE always says a fixed text). For
+ * caller (for the codes below 500; SOURCE_UNAVAILABLE always says a fixed text of pivotkit's). For
  * SOURCE_UNAVAILABLE only: `transient: true` allows last good data, `status` (a backend's HTTP status,
- * also for the log) of 429, 502, 503 or 504 makes it transient when `transient` is not given, and
- * `retryAfter` (seconds) is passed on as Retry-After. A refusal (the other codes) is never transient.
+ * also for the log) of 429, 502, 503 or 504 makes it transient when `transient` is not given,
+ * `retryAfter` (seconds) is passed on as Retry-After, and `reason` picks which of pivotkit's fixed
+ * texts the caller reads (SOURCE_REASONS: "refused", the backend refused pivotkit's access;
+ * "setup", the source is not set up correctly; none: not available right now). A refusal (the other
+ * codes) is never transient.
  */
 export class SourceError extends Error {
     /**
      * @param {"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE"} code
-     * @param {{ transient?: boolean, publicMessage?: string, status?: number, retryAfter?: number }} [how]
+     * @param {{ transient?: boolean, publicMessage?: string, status?: number, retryAfter?: number, reason?: "refused" | "setup" }} [how]
      */
     constructor(code, how = {}) {
         if (!SOURCE_ERROR_CODES.includes(code)) {
@@ -84,6 +90,8 @@ export class SourceError extends Error {
         this.status = status;
         /** @type {number | undefined} seconds, as OperationError's details take them */
         this.retryAfter = Number.isSafeInteger(how.retryAfter) && /** @type {number} */ (how.retryAfter) >= 0 ? how.retryAfter : undefined;
+        /** @type {"refused" | "setup" | undefined} */
+        this.reason = code === "SOURCE_UNAVAILABLE" && SOURCE_REASONS.includes(/** @type {any} */ (how.reason)) ? how.reason : undefined;
     }
 }
 
@@ -153,13 +161,18 @@ export function isTransient(error) {
 
 /**
  * What a caller gets for a source's failure: a SourceError's code with its publicMessage (cleaned,
- * capped) or the code's own words; anything else (whatever it is, an OperationError of the source's
- * own too) SOURCE_UNAVAILABLE, retryable when the failure is transient. The source's error is the
- * cause, for the log.
+ * capped) or the code's own words; pivotkit's own error (ownError: a limit of the source's settings)
+ * as it is; anything else (whatever it is, an OperationError of the source's own too)
+ * SOURCE_UNAVAILABLE, retryable when the failure is transient, with the SourceError's `reason` (which
+ * fixed text the caller reads). The source's error is the cause, for the log.
  * @param {unknown} error
  * @returns {OperationError}
  */
 export function sourceFailure(error) {
+    if (isOwnError(error)) {
+        // pivotkit's own (a limit of the source's settings): as it is
+        return /** @type {OperationError} */ (error);
+    }
     const transient = isTransient(error);
     if (error instanceof SourceError && SOURCE_ERROR_CODES.includes(error.code) && error.code !== "SOURCE_UNAVAILABLE") {
         // cut without leaving half of a character outside the Basic Multilingual Plane
@@ -167,7 +180,8 @@ export function sourceFailure(error) {
         return Object.assign(new OperationError(error.code, text || DEFAULT_TEXT[error.code], errorDetails({ retryable: false })), { cause: error });
     }
     const retryAfter = error instanceof SourceError && transient ? error.retryAfter : undefined;
-    return Object.assign(new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: transient, ...(retryAfter !== undefined ? { retryAfter } : {}) })), { cause: error });
+    const reason = error instanceof SourceError ? error.reason : undefined;
+    return Object.assign(new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: transient, ...(retryAfter !== undefined ? { retryAfter } : {}) })), { cause: error, ...(reason ? { reason } : {}) });
 }
 
 /** How a log line names a failure, never with the source's words. */
@@ -445,7 +459,7 @@ export function createLoadRunner(parts = {}) {
             if (key !== null) {
                 refuse(key);
             }
-            if (error instanceof SourceError) {
+            if (error instanceof SourceError || isOwnError(error)) {
                 how.log.debug(`the source ${how.label} refused: ${kindOf(error)}`, { source: how.label });
             } else {
                 // the source's own message only with --log debug (log.error)

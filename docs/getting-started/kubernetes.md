@@ -325,7 +325,9 @@ With static tokens the server opens no connection of its own: the policy allows 
 cluster DNS, `k8s-app: kube-dns` in `kube-system` on most clusters) and nothing else. Clusters
 whose DNS is elsewhere need another rule for it: NodeLocal DNSCache answers on an address of the
 node, and OpenShift runs its DNS in the namespace `openshift-dns`. With OAuth it
-needs the issuer too ([below](#oauth-egress)).
+needs the issuer too ([below](#oauth-egress)), and an [HTTP source](../reference/sources.md#http)
+needs the addresses of its backend (port 443) as the issuer does; a backend inside the cluster also
+needs `intranet: true` on it, since cluster addresses are private ones.
 
 ## Sign-in with Authentik { #oauth }
 
