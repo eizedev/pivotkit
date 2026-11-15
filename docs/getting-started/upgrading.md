@@ -208,7 +208,7 @@ they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next re
   as it is; one whose first parameter has a default of its own now gets `{}` there. A `version`
   that returns a promise is refused (`SOURCE_UNAVAILABLE`): return the value itself.
 - A load is aborted after 30 s (`timeMs`, at most ten minutes), and when every request waiting for
-  it went away (a REST client that closed its connection, an MCP call its client cancelled); pass
+  it went away (a REST client that closed its connection, an MCP call over HTTP whose connection closed); pass
   `signal` on to `fetch` or your database client.
 - Loaded data is kept per caller (and per values and policy levels), not per source: a `load` that
   gives every caller the same data sets `cacheShared: true` (it then gets `caller: null`). Without

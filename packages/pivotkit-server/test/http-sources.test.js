@@ -517,6 +517,10 @@ test("check-config: where each HTTP source asks (never a value), its limits and 
     assert.match(text, /warning: sources\.vms: the query token has a literal value/);
     assert.match(text, /intranet: backend platform may reach loopback and private addresses \(source vms\)/);
     assert.doesNotMatch(text, /abc-not-printed|tok-not-printed/);
+    // maxBytes over the server's limits.fileBytes (50 MiB unless set): what a load reads, and why
+    const big = await checkConfig(optionsOf({ maxBytes: 104_857_600 }), { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
+    assert.match(big.text, /up to 50 MiB \/ 15 s/);
+    assert.match(big.text, /warning: sources\.vms: maxBytes \(100 MiB\) is over limits\.fileBytes \(50 MiB\); a load reads at most 50 MiB/);
 });
 
 test("check-source: one load with the operator's values, pages, rows and fields with types (never a value); a wrong pointer names the body's keys; exit 1 on failure", async () => {
@@ -558,3 +562,84 @@ test("check-source as a command: the configuration file, --param, exit codes", a
     assert.equal(await run(["check-source", "--config", file], io), 2);
     assert.match(out.join(""), /check-source takes a source's id/);
 });
+
+test("an answer without rows is an empty table: describe_source says no rows and render_view a report without them, not an error", async () => {
+    routes.set("/v1/customers/acme/vms", json({ items: [], generatedAt: "2026-11-14T07:30:00Z" }));
+    const context = await contextOf(optionsOf({}, {}, { policy: { results: true } }));
+    try {
+        const described = (await describe(context, { customer: "acme" })).result;
+        assert.deepEqual([described.rows, described.fields], [0, []]);
+        assert.equal(described.dataAsOf, "2026-11-14T07:30:00Z");
+        const rendered = (await present(context, "render_view", { source: "vms", params: { customer: "acme" }, view: VIEW, format: "csv" }, LOCAL)).result;
+        assert.equal(typeof rendered.ok, "boolean");
+        assert.ok(rendered.findings.length > 0, "the view's fields are not in the empty data: findings, not an error");
+    } finally {
+        await context.close();
+    }
+});
+
+test("a CSV answer: read in a worker as a file is, its fields under the policy; check-source says its size", async () => {
+    routes.set("/v1/export.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,state,owner\nweb-1,4,running,alice@example.com\nweb-2,2,stopped,bob@example.com\ndb-1,8,running,carol@example.com\n");
+    });
+    const options = { ...optionsOf({}, {}, { policy: { results: true } }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: POLICY } } };
+    const context = await contextOf(options);
+    try {
+        const described = (await describe(context, undefined, LOCAL, "csv")).result;
+        assert.deepEqual(described.fields.map((f) => f.name).sort(), ["cpu", "name", "state"]);
+        assert.match(await csvOf(context, { source: "csv" }), /running,12/);
+        assert.equal(asked[0].headers.accept, "application/json", "the backend's own accept header wins over pivotkit's");
+    } finally {
+        await context.close();
+    }
+    const checked = await checkSource(options, "csv", {});
+    assert.equal(checked.ok, true);
+    assert.match(checked.text, /a CSV body of \d+ bytes/);
+});
+
+/** A backend route that answers slowly and says when its connection closed. */
+function slowRoute(path) {
+    const state = { closed: false };
+    routes.set(path, (req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.write('{"items":[');
+        req.socket.on("close", () => (state.closed = true));
+    });
+    return state;
+}
+
+/** Waits until a condition holds (at most about a second). */
+async function until(condition) {
+    for (let i = 0; i < 100 && !condition(); i++) {
+        await new Promise((r) => setTimeout(r, 10));
+    }
+    return condition();
+}
+
+test("a REST client that closes its connection and an MCP client that closes its call's: the backend's request is cancelled", async () => {
+    const s = await restServer({ ...optionsOf(), sources: { slow: { http: { backend: "platform", path: "/slow", rows: "/items" }, policy: POLICY } } }, { enable: ["rest", "mcp"] });
+    const client = new Client({ name: "cancels", version: "1.0.0" });
+    try {
+        const rest = slowRoute("/v1/slow");
+        const gone = new AbortController();
+        const answer = fetch(`${s.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: "slow" }), signal: gone.signal });
+        assert.ok(await until(() => asked.length === 1), "the backend was asked");
+        gone.abort();
+        await assert.rejects(answer);
+        assert.ok(await until(() => rest.closed), "REST: the backend's connection was closed");
+        // MCP over Streamable HTTP: a call ends when its HTTP request does (the client closes)
+        await client.connect(new StreamableHTTPClientTransport(new URL(`${s.url}/mcp`)));
+        const mcp = slowRoute("/v1/slow");
+        const tool = client.callTool({ name: "describe_source", arguments: { source: "slow" } });
+        tool.catch(() => undefined);
+        assert.ok(await until(() => asked.length === 2), "the backend was asked again");
+        await client.close();
+        await assert.rejects(tool);
+        assert.ok(await until(() => mcp.closed), "MCP: the backend's connection was closed");
+    } finally {
+        await client.close();
+        await s.close();
+    }
+});
+

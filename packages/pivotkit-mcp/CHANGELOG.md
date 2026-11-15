@@ -11,7 +11,7 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - HTTP sources of pivotkit-server ([#328](https://github.com/eizedev/pivotkit/issues/328)) in
   `sources.<id>.http`, with their parameters in `list_sources`. A `SOURCE_UNAVAILABLE` tool error says
   the fixed text its reason picks (not available right now, the backend refused pivotkit's access,
-  the source is not set up correctly). A call its client cancels stops waiting for a source's load,
+  the source is not set up correctly). A call over HTTP whose connection closed stops waiting for a source's load,
   and the load is aborted when no other call waits for it. Needs the pivotkit-server release of the
   same round (`serverTextOf` with a reason).
 

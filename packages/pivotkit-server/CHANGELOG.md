@@ -30,7 +30,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - MCP clients may send a small table of their own (`inline:`, below); `"mcp": { "data": false }`
   switches it off. `check-config` prints a "Data in the request" line.
 - A code source's `signal` is also aborted when every request waiting for its load went away (a REST
-  client that closed its connection, an MCP call its client cancelled).
+  client that closed its connection, an MCP call over HTTP whose connection closed).
 
 ### Added
 

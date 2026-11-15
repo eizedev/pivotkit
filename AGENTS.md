@@ -205,8 +205,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   data after a transient failure only; `SourceError` and `sourceFailure`, what a caller gets of a
   source's error, its `reason` picking the fixed text, `serverTextOf`); `cache.js` the process cache of loaded data (64 entries, 256 MiB; per owner 8 entries and a quarter of the bytes, its own oldest out first);
   `http.js` HTTP sources, an operator's backend (`loadHttp`: the requests with guardedFetch,
-  `intranet` for private addresses, paging on the same host and path, JSON parsed at most `PARSES`
-  at once, the rows at a JSON Pointer as a table the worker encodes; `backendAnswer`, a backend's
+  `intranet` for private addresses, paging on the same host and path, JSON nested at most `MAX_DEPTH`,
+  the rows at a JSON Pointer as a table the worker encodes; `backendAnswer`, a backend's
   status as a `SourceError`; `httpMeans`, the tests' fetch); `template.js` an HTTP source's address
   (`compileTemplate` at start, `expandUrl`: RFC 6570 simple expansion, the template's origin and
   shape kept); `inline.js` data sent in the request (the reserved id `inline:`, the

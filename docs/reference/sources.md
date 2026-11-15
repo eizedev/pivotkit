@@ -86,7 +86,7 @@ acme"). The fields of a source with required parameters are known only after a l
 | `.http.asOf` | none | A JSON Pointer to the body's own time (ISO 8601 text or epoch seconds): the results' `dataAsOf`; else the time the last page arrived |
 | `.http.paging` | none | How further pages are found (see [Paging](#http-paging)) |
 | `.http.maxPages` | 10 | 1 to 100; a source with more pages answers `LIMIT_EXCEEDED` |
-| `.http.maxBytes` | 20 MiB | All pages together, after decompression; at most `limits.fileBytes`; over it `LIMIT_EXCEEDED` |
+| `.http.maxBytes` | 20 MiB | All pages together, after decompression; over it `LIMIT_EXCEEDED`. A load reads at most `limits.fileBytes` (50 MiB unless set): a larger value is refused when `limits.fileBytes` is set, and a `check-config` warning otherwise |
 | `sources.<id>.params` | none | The values a caller passes: `type` (`string`, `integer`, `number`, `boolean`), `required`, `description`, `example`, `enum`, `pattern`, `minLength`, `maxLength` (strings: default 64, at most 256), `minimum`, `maximum`, `format: "date"`, `default` |
 | `sources.<id>.timeMs` | 15000 ms | All pages of one load, at most 600000 |
 | `sources.<id>.ttl` | 60 s | Seconds a load is reused for the same caller and values; `0` only shares loads that run at the same time |
@@ -123,8 +123,8 @@ configuration file reads it too.
 
 ### Reading the answer { #http-rows }
 
-- The body is parsed as JSON in the server's thread (at most two answers at once in the process; one
-  nested deeper than 64 levels or that is no JSON answers `SOURCE_UNAVAILABLE`). The rows' pointer
+- The body is parsed as JSON in the server's thread, each page at most `maxBytes`; one nested deeper
+  than 64 levels or that is no JSON answers `SOURCE_UNAVAILABLE`. The rows' pointer
   reads the body's own keys only.
 - Rows are objects (their keys are the fields, in the order first seen) or lists (the first is the
   header). A value that is an object or a list becomes its JSON text; texts are cut at
@@ -299,8 +299,8 @@ console.log(text);                                                           // 
   `cacheShared: true` it is `null`, so a source that reads it there fails at once instead of
   serving one person's rows to everyone.
 - `signal`: an `AbortSignal` that is aborted after `timeMs` (with a `TimeoutError`), or when every
-  caller waiting for this load went away (a REST request whose connection closed, an MCP call the
-  client cancelled). Pass it to `fetch` and your database client. A load that
+  caller waiting for this load went away (a REST request or an MCP call over HTTP whose connection
+  closed). Pass it to `fetch` and your database client. A load that
   ignores it runs on in the background and keeps its slot (see the load limits) until it ends; after
   twice `timeMs` the log warns once. A load that never ends holds its slot until the process
   restarts.

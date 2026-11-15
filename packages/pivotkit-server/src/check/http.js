@@ -13,6 +13,7 @@
  * check/index.js says what a section returns.
  */
 
+import { SERVER_LIMITS } from "../config.js";
 import { httpSettingsOf } from "../options/http.js";
 import { bytesText } from "../sources/inline.js";
 import { paramsList } from "../sources/params.js";
@@ -42,7 +43,13 @@ export async function section(options, _registry, _runtime) {
         const query = s.template.query.length ? `?${s.template.query.map((q) => `${q.name}=${q.param ? `{${q.param}}` : "..."}`).join("&")}` : "";
         const reads = s.format === "csv" ? "a CSV body" : `rows at ${s.rowsText || "the body"}`;
         const kept = `${s.ttl > 0 ? `kept ${s.ttl} s per caller` : "loaded on every call (shared while in flight)"}, last good data ${s.maxStale > 0 ? `up to ${s.maxStale} s` : "off"}`;
-        lines.push(`  ${id}: ${where}${query}, ${reads}${s.pagingText ? `, ${s.pagingText}` : ""}, up to ${s.paging ? `${s.maxPages} pages / ` : ""}${bytesText(s.maxBytes)} / ${s.timeMs / 1000} s, ${kept}; links: ${source.link ? "via the source's page only" : "none"}; schedules: yes`);
+        // what a load reads at most: maxBytes, within limits.fileBytes
+        const fileBytes = options.limits?.fileBytes ?? SERVER_LIMITS.fileBytes;
+        const bytes = Math.min(s.maxBytes, fileBytes);
+        lines.push(`  ${id}: ${where}${query}, ${reads}${s.pagingText ? `, ${s.pagingText}` : ""}, up to ${s.paging ? `${s.maxPages} pages / ` : ""}${bytesText(bytes)} / ${s.timeMs / 1000} s, ${kept}; links: ${source.link ? "via the source's page only" : "none"}; schedules: yes`);
+        if (s.maxBytes > fileBytes) {
+            lines.push(`    warning: sources.${id}: maxBytes (${bytesText(s.maxBytes)}) is over limits.fileBytes (${bytesText(fileBytes)}); a load reads at most ${bytesText(fileBytes)}`);
+        }
         const listed = paramsList(source.params);
         if (listed.length) {
             lines.push(`    params: ${listed.map((p) => paramText(p, source.params ?? {})).join(", ")}`);

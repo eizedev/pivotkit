@@ -4,9 +4,9 @@
  * template (sources/template.js) fixes the host and the path's shape, a value only fills its segment
  * or query value.
  *
- * Where it runs: the requests (guardedFetch, sources/fetch.js), parsing JSON (at most PARSES at once
- * in the process, nested at most MAX_DEPTH deep) and finding the rows (a JSON Pointer, own properties
- * only) in the main thread, where a backend's credentials would stay; the rows as plain values (a
+ * Where it runs: the requests (guardedFetch, sources/fetch.js), parsing JSON (nested at most
+ * MAX_DEPTH deep; one answer of at most maxBytes, parsed synchronously) and finding the rows (a JSON
+ * Pointer, own properties only) in the main thread, where a backend's credentials would stay; the rows as plain values (a
  * nested value as JSON text) go to a worker, which encodes them and runs the operation as a table
  * job (a CSV answer goes as its bytes and is read there).
  *
@@ -35,9 +35,6 @@ import { canonicalJson, configHashOf } from "./keys.js";
 import { SourceError, loadRunner, ownError } from "./run.js";
 import { expandUrl, loggedPath } from "./template.js";
 
-/** How many JSON answers are parsed at once in the process (the main thread's time is everyone's). */
-export const PARSES = 2;
-
 /** The deepest a JSON answer may be nested. */
 export const MAX_DEPTH = 64;
 
@@ -58,47 +55,6 @@ export const BACKEND_TEXT = Object.freeze({
  * lookup of its own). Not part of the package's API; no option reaches it.
  */
 export const httpMeans = { fetch: guardedFetch };
-
-/** The parses running and those waiting for a turn. */
-let parsing = 0;
-/** @type {Array<() => void>} */
-const waiting = [];
-
-/**
- * Waits for a turn to parse; resolves with the function that gives it back.
- * @param {AbortSignal} signal
- * @returns {Promise<() => void>}
- */
-async function parseTurn(signal) {
-    const done = () => {
-        const next = waiting.shift();
-        if (next) {
-            next();
-        } else {
-            parsing--;
-        }
-    };
-    if (parsing < PARSES) {
-        parsing++;
-        return done;
-    }
-    await new Promise((resolve, reject) => {
-        const go = () => {
-            signal.removeEventListener("abort", leave);
-            resolve(undefined);
-        };
-        const leave = () => {
-            const at = waiting.indexOf(go);
-            if (at >= 0) {
-                waiting.splice(at, 1);
-            }
-            reject(signal.reason);
-        };
-        waiting.push(go);
-        signal.addEventListener("abort", leave, { once: true });
-    });
-    return done;
-}
 
 /**
  * How deeply a JSON text is nested, counted until it passes `max` (strings skipped).
@@ -374,7 +330,7 @@ export async function loadHttp(settings, values, how) {
         if (settings.format === "csv") {
             return { table: null, upload: { bytes: answer.body, format: "csv" }, asOf: asOfText(new Date()) ?? "", pages, bytes };
         }
-        const body = await parsed(answer.body, { id, log: how.log, signal: how.signal });
+        const body = parsed(answer.body, { id, log: how.log });
         if (pages === 1 && settings.asOf) {
             asOfValue = pointerValue(body, settings.asOf);
         }
@@ -418,12 +374,12 @@ export async function loadHttp(settings, values, how) {
 }
 
 /**
- * A JSON answer parsed, in turn with the process's other parses; a body that is no JSON or nested
- * too deeply is the source's failure (its words never reach a caller).
+ * A JSON answer parsed; a body that is no UTF-8 text, no JSON or nested too deeply is the source's
+ * failure (its words never reach a caller).
  * @param {Uint8Array} bytes
- * @param {{ id: string, log: any, signal: AbortSignal }} how
+ * @param {{ id: string, log: any }} how
  */
-async function parsed(bytes, how) {
+function parsed(bytes, how) {
     let text;
     try {
         text = new TextDecoder("utf-8", { fatal: true }).decode(bytes).replace(/^\uFEFF/, "");
@@ -433,13 +389,10 @@ async function parsed(bytes, how) {
     if (jsonDepth(text, MAX_DEPTH) > MAX_DEPTH) {
         throw shapeFailure(how.id, how.log, `the answer is nested deeper than ${MAX_DEPTH} levels`);
     }
-    const done = await parseTurn(how.signal);
     try {
         return JSON.parse(text);
     } catch {
         throw shapeFailure(how.id, how.log, "the answer is no JSON");
-    } finally {
-        done();
     }
 }
 
