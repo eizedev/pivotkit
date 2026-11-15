@@ -54,6 +54,7 @@ export function reportCss({ columns, tokens = {}, darkTokens = {}, chartSurface 
     const light = declarations({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, ...tokens });
     // the chart is drawn in the light colours, on a screen in dark mode too: its card keeps the light
     // surface the chart's image is drawn on, and the note under a cut chart on it the light muted text
+    // (:where() keeps that rule at one class, so a template's own .pk-report-note after {{style}} wins)
     const page = columns > PRINT_WIDE.landscape ? "size:landscape;" : "";
     return `:root{${light};color-scheme:light dark}
 :root[data-pk-theme="light"]{color-scheme:light}
@@ -80,7 +81,7 @@ body{margin:0;background:var(--pk-surface);color:var(--pk-text);font:var(--pk-fo
 ${darkScreen((root) => `${root} .pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-dark,var(--pk-cell-bg)) ${SCALE_MIX.dark}%,var(--pk-surface))}`)}
 .pk-td.pk-has-bar{background-image:linear-gradient(90deg,color-mix(in srgb,var(--pk-bar-color,var(--pk-chart-1)) ${BAR_MIX}%,transparent) var(--pk-bar),transparent var(--pk-bar));background-repeat:no-repeat;background-size:100% 64%;background-position:left center}
 .pk-report-note{color:var(--pk-muted);margin:8px 0}
-.pk-report-chart .pk-report-note{color:${chartMuted}}
+:where(.pk-report-chart) .pk-report-note{color:${chartMuted}}
 .pk-report-details{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:16px 0 0;color:var(--pk-muted);font-size:var(--pk-small)}
 .pk-report-details dt{font-weight:var(--pk-weight-strong)}
 .pk-report-details dd{margin:0}

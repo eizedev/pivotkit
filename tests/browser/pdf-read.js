@@ -1,8 +1,10 @@
 // A minimal reader of the PDFs Chromium writes (page.pdf, Skia), for report-pdf.spec.js: the pages in
 // order, each with its text (through each font's ToUnicode map, codes of one or two bytes, Tj and TJ,
 // hex and literal strings, forms drawn with Do) and the fill colours it sets (`r g b rg`). Enough to
-// check what a printed report holds; not a general PDF parser (no object streams, no encryption, no
-// other filter than FlateDecode).
+// check what a printed report holds; not a general PDF parser (a classic xref table only: no object
+// streams or xref streams, no incremental updates, no encryption, no other filter than FlateDecode).
+// A glyph its font's ToUnicode map does not name decodes to "": use the text only to check that
+// something is there, never that a text is absent.
 import { inflateSync } from "node:zlib";
 
 /**
@@ -14,12 +16,23 @@ export function readPdf(pdf) {
     const raw = pdf.toString("latin1");
     /** @type {Map<number, { dict: string, stream: Buffer | null }>} */
     const objects = new Map();
-    for (const m of raw.matchAll(/(\d+) 0 obj\s*/g)) {
-        const start = m.index + m[0].length;
-        const end = raw.indexOf("endobj", start);
-        const body = raw.slice(start, end);
-        const at = body.search(/stream\r?\n/);
-        objects.set(Number(m[1]), at === -1 ? { dict: body, stream: null } : { dict: body.slice(0, at), stream: Buffer.from(body.slice(at).replace(/^stream\r?\n/, ""), "latin1") });
+    // each object where the cross-reference table puts it (Chromium writes a classic `xref` table),
+    // so an "n 0 obj" or "endobj" inside a stream's bytes is never taken for an object's bounds; a
+    // stream is kept to its end here and cut at its /Length by streamOf
+    const xref = Number(/startxref\s+(\d+)\s+%%EOF\s*$/.exec(raw)?.[1]);
+    const table = /^xref\s+(\d+)\s+(\d+)\s+/.exec(raw.slice(xref));
+    if (!table) throw new Error("pdf-read: no classic xref table");
+    const first = Number(table[1]);
+    const entries = raw.slice(xref + table[0].length).match(/(\d{10}) (\d{5}) ([nf])/g).slice(0, Number(table[2]));
+    for (const [i, entry] of entries.entries()) {
+        const [offset, , kind] = entry.split(" ");
+        if (kind !== "n") continue;
+        const header = /^\d+ \d+ obj\s*/.exec(raw.slice(Number(offset), Number(offset) + 32));
+        const start = Number(offset) + header[0].length;
+        const streamAt = raw.slice(start).search(/stream\r?\n|endobj/);
+        const dict = raw.slice(start, start + streamAt);
+        const isStream = raw.startsWith("stream", start + streamAt);
+        objects.set(first + i, { dict, stream: isStream ? Buffer.from(raw.slice(start + streamAt).replace(/^stream\r?\n/, ""), "latin1") : null });
     }
     const ref = (text, key) => {
         const m = new RegExp(`/${key}\\s+(\\d+) 0 R`).exec(text);

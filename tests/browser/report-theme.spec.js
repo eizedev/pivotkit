@@ -57,6 +57,20 @@ for (const [templateName, { template, own, ownDark = {}, theme }] of Object.entr
     }
 }
 
+// a template's own colour for the notes wins over the report's, the note on the chart's card too: the
+// report's rule for that note only keeps the dark screen's muted grey off the light card
+test("a template's own .pk-report-note colour colours the note under a cut chart and under a cut table, on screen and on paper", async ({ page }) => {
+    const template = DEFAULT_TEMPLATE.replace("{{style}}", "{{style}}<style>.pk-report-note{color:#7a1f1f}</style>");
+    const { view, rows, options } = CASES.notes;
+    for (const media of ["screen", "print"]) {
+        await page.emulateMedia({ colorScheme: "light", media });
+        const report = await render(view, rows, { format: "html", echarts, template, now: "2026-11-13T10:00:00Z", ...options });
+        await page.setContent(report.text);
+        const notes = await page.locator(".pk-report-note").evaluateAll((els) => els.map((e) => `${e.tagName.toLowerCase()}: ${getComputedStyle(e).color}`));
+        expect(notes, media).toEqual(["figcaption: rgb(122, 31, 31)", "p: rgb(122, 31, 31)"]);
+    }
+});
+
 // #385: a host's colours for a dark screen (darkTokens) over the dark theme's, as its light ones
 // (tokens) over the light theme's; paper and a root that pins light keep the light ones, and a
 // template's own dark rule wins over the host's. The colour scale's middle colour has no dark value

@@ -126,6 +126,8 @@ export const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i 
  * dark screen and dark text on light ones otherwise, the chart's card light with its own texts dark,
  * every text 4.5:1 on what is behind it (WCAG AA), a scale's low, middle and high cells and a data
  * bar's shortest and longest among them, and a colour scale running from the surface outwards.
+ * This checks that the page is wired to its tokens; whether the token values themselves meet WCAG AA
+ * on every surface, scale step and bar is held by pivotkit-report's test/contrast.test.js.
  * @param {ReturnType<typeof measure>} seen
  * @param {{ name: string, tokens: Record<string, string>, light: Record<string, string>, dark: boolean, media: "screen" | "print", shows: string[] }} expected
  *   tokens: the theme the page shows; light: the light theme the chart is drawn in (its card's
