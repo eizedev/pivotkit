@@ -161,11 +161,11 @@ its first release.
    the CI's OIDC token.
 3. Configure trusted publishing for each package on npm (`pivotkit-core`, `pivotkit-xlsx`,
    `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`, `pivotkit-server`, `pivotkit-mcp`): owner `eizedev`,
-   repository `pivotkit`, workflow file `release.yml`, environment `npm`, and under "Allowed
-   actions" neither `npm publish` nor `npm dist-tag`: the publisher may only stage (`npm stage
-   publish` is always allowed), so a misused workflow run cannot publish a version by itself (npm's
-   documentation, "Trusted publishers" and "Staged publishing"). An existing trusted publisher
-   cannot be changed: add the staging-only one, then delete the one that allows `npm publish`.
+   repository `pivotkit`, workflow file `release.yml`, environment `npm`, with "Allow npm publish"
+   unchecked and no dist-tag action allowed: the publisher may only stage (`npm stage publish` is
+   always allowed), so a misused workflow run cannot publish a version by itself (npm's
+   documentation, "Trusted publishers" and "Staged publishing"). "Allow npm publish" is a checkbox
+   on the connection and can be changed later by editing it in the package's settings.
    No npm token is stored in GitHub. A new trusted
    publisher expires unless it publishes successfully within two days (npm's documentation,
    "Trusted publishers"); the documentation does not say whether staging counts, so create it when
@@ -179,6 +179,13 @@ its first release.
    from tags only (deployment branch and tag rule `*@*`).
 5. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.
 6. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
+
+The eight packages' trusted publishers were created when the workflow ran `npm publish`, so they
+allow it. Switch each of them to staging once, after the workflow that runs `npm stage publish` is
+on main (#87): edit the trusted publisher of `pivotkit-core`, `pivotkit-xlsx`, `pivotkit-report`,
+`pivotkit-react`, `pivotkit-element`, `pivotkit-cli`, `pivotkit-server` and `pivotkit-mcp`, uncheck
+"Allow npm publish" and save. Unchecked before that workflow is on main, the release's `npm publish`
+fails; left checked, a misused workflow run can still publish directly instead of staging.
 
 The publish order follows the run-time dependencies in each `package.json`: `pivotkit-core` (no own
 dependency), `pivotkit-xlsx` (core), `pivotkit-report` (core), `pivotkit-react` (core, report),
@@ -221,11 +228,15 @@ For each release:
    it has no publishing right. The `publish` job waits for an environment reviewer, then stages
    only that tarball with an npm provenance attestation (`npm stage publish`), with npm 11.21.1
    (staged publishing needs 11.15.0 or later, trusted publishing Node 22.14.0 or later).
-   Approve the staged version with two-factor authentication: in the package's Staged Packages tab
-   on npmjs.com, or `npm stage approve <stage-id>` (the job summary shows the id if npm prints one). No token of the
-   workflow can approve or reject it; until it is approved, the version is not on npm and the next
-   tag's `check-release.js --published` fails for it.
-4. Once the version is approved and on npm, publish a GitHub release for each tag, with a short
+   The step and the job summary say where to approve.
+4. Approve the staged version with two-factor authentication, after checking that the name, version
+   and publisher are the ones the workflow run staged: sign in on npmjs.com, open the Staged Packages
+   tab in the account settings and click Approve, or run `npm stage approve <stage-id>` (the job
+   summary shows the id when npm prints one; `npm stage list <package>` lists it). No token of the
+   workflow can approve or reject it. If nobody approves it, the version never goes live: the next
+   tag's `check-release.js --published` fails for it and the GitHub release waits. To drop a staged
+   version instead, click Reject or run `npm stage reject <stage-id>`.
+5. Once the version is approved and on npm, publish a GitHub release for each tag, with a short
    text and a link to the package's CHANGELOG.
    Publishing a release also publishes the documentation site (`.github/workflows/docs.yml`), not a
    push to main, so the site describes what is on npm. Every release builds the newest release tag

@@ -7,7 +7,7 @@ name: Release
 # maintainer has
 #   1. made the repository public (npm provenance is not available for private repositories),
 #   2. created the package on npm and set up trusted publishing for this repository, the workflow
-#      release.yml and the environment "npm", without "npm publish" (staging only),
+#      release.yml and the environment "npm", with "Allow npm publish" unchecked (staging only),
 #   3. created the GitHub environment "npm" with required reviewers, deployable from tags only,
 #   4. set the repository variable NPM_RELEASE_ENABLED to "true".
 # Until then every run is skipped. See CONTRIBUTING.md, "Releasing".
@@ -134,27 +134,36 @@ jobs:
         run: |
           actual="$(tar -xOzf "pack/$TARBALL" package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s);console.log(p.name+"@"+p.version)})')"
           test "$actual" = "$TAG" || { echo "tarball holds $actual, tag is $TAG"; exit 1; }
-      - name: Stage on npm (approve it on npmjs.com)
+      - name: Stage on npm (not live until a maintainer approves it in the Staged Packages tab on npmjs.com)
         env:
           TAG: ${{ github.ref_name }}
           TARBALL: ${{ needs.build.outputs.tarball }}
         # the tarball only: nothing of the repository is installed or run in this job, and no
         # lifecycle script of the tarball runs while the OIDC token is available. The path starts
         # with ./ : npm reads "pack/<file>" as the GitHub repository <owner>/<repo>. The trusted
-        # publisher allows staging only: the version goes live when a maintainer approves it with
-        # two-factor authentication, which no token of this workflow can do
+        # publisher allows staging only ("Allow npm publish" unchecked): the version goes live when a
+        # maintainer approves it with two-factor authentication, which no token of this workflow can do
         run: |
           set -o pipefail
           npm stage publish "./pack/$TARBALL" --provenance --access public --ignore-scripts 2>&1 | tee stage.log
-          # npm prints "(staged with id <id>)" when the registry returns one; the summary does not rely on it
+          # npm 11.21.1 prints "+ <name>@<version> (staged with id <id>)" when the registry returns an
+          # id; the summary does not rely on it
           id="$(grep -o 'staged with id [^)]*' stage.log | head -n 1 | sed 's/^staged with id //' || true)"
           {
             echo "## $TAG is staged on npm, not published"
             echo
-            echo "Approve it with two-factor authentication in the Staged Packages tab of ${TAG%@*} on npmjs.com."
+            echo "Nobody can install it until a maintainer approves it with two-factor authentication:"
+            echo
+            echo "- on npmjs.com: sign in, open the Staged Packages tab in the account settings, review ${TAG%@*} and click Approve"
             if [ -n "$id" ]; then
-              echo "Or from the command line: \`npm stage approve $id\`."
+              echo "- or from the command line: \`npm stage approve $id\`"
+            else
+              echo "- or from the command line: \`npm stage list ${TAG%@*}\` shows the stage id, then \`npm stage approve <stage-id>\`"
             fi
+            echo
+            echo "If nobody approves it, the version never goes live on npm: the next tag that depends"
+            echo "on it fails in its build job, and the GitHub release for $TAG waits. To drop it instead,"
+            echo "click Reject on npmjs.com or run \`npm stage reject <stage-id>\`."
             echo
             echo '```'
             cat stage.log

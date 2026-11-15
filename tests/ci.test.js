@@ -365,8 +365,18 @@ test("the release workflow publishes the tarball by a path npm reads as a file",
 test("the release workflow stages on npm and never publishes directly", () => {
     const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
     const commands = release.split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
-    assert.match(commands, /npm stage publish /, "release.yml does not run npm stage publish");
+    const stages = commands.split("\n").filter((line) => /npm stage publish /.test(line));
+    assert.ok(stages.length > 0, "release.yml does not run npm stage publish");
+    // --provenance asks for the attestation explicitly, so a run that cannot make one fails instead of
+    // staging an unattested version; --ignore-scripts keeps lifecycle scripts away from the OIDC token
+    for (const line of stages) {
+        assert.match(line, /\s--provenance(\s|$)/, `npm stage publish without --provenance: ${line.trim()}`);
+        assert.match(line, /\s--ignore-scripts(\s|$)/, `npm stage publish without --ignore-scripts: ${line.trim()}`);
+        assert.match(line, /\s--access public(\s|$)/, `npm stage publish without --access public: ${line.trim()}`);
+    }
     assert.doesNotMatch(commands.replaceAll("npm stage publish", ""), /npm publish/, "release.yml runs npm publish: stage it instead");
+    // the publishing job holds the OIDC token the provenance attestation needs
+    assert.match(release, /\n {2}publish:[\s\S]*?id-token: write/, "the publish job has no id-token: write");
 });
 
 // Docs and READMEs name no version of pivotkit as a fact about the present, so a release cannot leave
