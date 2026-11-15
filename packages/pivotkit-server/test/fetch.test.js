@@ -3,7 +3,8 @@
 // IPv4-mapped IPv6), bodies counted after decompression while they stream, one time limit for all.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createServer as createTlsServer } from "node:https";
@@ -268,5 +269,60 @@ test("https: a server whose certificate is trusted answers; a redirect over http
         assert.equal(await codeOf(guardedFetch(`https://localhost:${port}/`)), "NETWORK");
     } finally {
         await new Promise((resolve) => tls.close(resolve));
+    }
+});
+
+test("the environment's proxy is not used: a request goes straight to the address that was checked", async () => {
+    let proxied = 0;
+    const proxy = createServer((_req, res) => {
+        proxied++;
+        res.end("proxy");
+    });
+    proxy.on("connect", (_req, socket) => {
+        proxied++;
+        socket.destroy();
+    });
+    await new Promise((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    try {
+        const module = new URL("../src/sources/fetch.js", import.meta.url).href;
+        const script = `const { createGuardedFetch } = await import(${JSON.stringify(module)}); const answer = await createGuardedFetch({ allowHttpLoopback: true })(${JSON.stringify(`${base}/ok`)}); console.log(new TextDecoder().decode(answer.body));`;
+        const proxyUrl = `http://127.0.0.1:${proxy.address().port}`;
+        const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, NODE_USE_ENV_PROXY: "1", HTTP_PROXY: proxyUrl, HTTPS_PROXY: proxyUrl, NO_PROXY: "" }, encoding: "utf8" });
+        assert.deepEqual(JSON.parse(stdout), { ok: true });
+        assert.equal(proxied, 0);
+    } finally {
+        await new Promise((resolve) => proxy.close(resolve));
+    }
+});
+
+test("a streamed body (a file's read stream) is sent with its stated length; a length that does not match is refused", async () => {
+    const received = [];
+    const sink = createServer((req, res) => {
+        let bytes = 0;
+        req.on("data", (c) => (bytes += c.length));
+        req.on("end", () => {
+            received.push({ length: req.headers["content-length"], bytes });
+            res.end("stored");
+        });
+        req.on("error", () => undefined);
+    });
+    await new Promise((resolve) => sink.listen(0, "127.0.0.1", resolve));
+    const url = `http://127.0.0.1:${sink.address().port}/upload`;
+    async function* chunks(n) {
+        for (let i = 0; i < n; i++) {
+            yield new Uint8Array(1000).fill(65);
+        }
+    }
+    try {
+        const answer = await local(url, { method: "PUT", body: chunks(5), headers: { "content-type": "text/plain", "content-length": "5000" } });
+        assert.equal(new TextDecoder().decode(answer.body), "stored");
+        assert.deepEqual(received, [{ length: "5000", bytes: 5000 }]);
+        assert.equal(await codeOf(local(url, { method: "PUT", body: chunks(5) })), "BAD_BODY", "no length");
+        assert.equal(await codeOf(local(url, { method: "PUT", body: chunks(6), headers: { "content-length": "5000" }, timeMs: 2000 })), "BAD_BODY", "longer");
+        assert.equal(await codeOf(local(url, { method: "PUT", body: chunks(4), headers: { "content-length": "5000" }, timeMs: 2000 })), "BAD_BODY", "shorter");
+        // a body of bytes states its own length; a caller's content-length is refused there
+        assert.equal(await codeOf(local(url, { method: "PUT", body: "x", headers: { "content-length": "1" } })), "BAD_HEADER");
+    } finally {
+        await new Promise((resolve) => sink.close(resolve));
     }
 });

@@ -155,3 +155,45 @@ test("an issuer that cannot be reached: /mcp answers 503 and the server keeps tr
         await server.close();
     }
 });
+
+for (const era of ["legacy", "modern"]) {
+    test(`a code source with params over MCP (${era}): the tools offer params, load gets the values and the person's subject, never the token`, async () => {
+        const seen = [];
+        const server = await httpServer({
+            sources: {
+                tickets: {
+                    load: async (params, { caller }) => {
+                        seen.push({ params: { ...params }, caller });
+                        return [{ Team: params.team, Open: 2 }];
+                    },
+                    params: { team: { type: "string", required: true, enum: ["blue", "red"] } },
+                    policy: { default: "show" }
+                }
+            },
+            auth: { mode: "oauth", issuer, resource: RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }
+        });
+        const bearer = await token();
+        const { client, close } = await httpClient(server.url, { era, token: bearer });
+        try {
+            const tools = (await client.listTools()).tools;
+            assert.ok(tools.find((t) => t.name === "describe_source").inputSchema.properties.params, "offered where a source declares params");
+            assert.equal(tools.find((t) => t.name === "list_sources").inputSchema.properties?.params, undefined);
+            const listed = await call(client, "list_sources");
+            assert.deepEqual(listed.data.sources[0].params, [{ name: "team", type: "string", required: true, enum: ["blue", "red"] }]);
+            const described = await call(client, "describe_source", { source: "tickets", params: { team: "red" } });
+            assert.equal(described.isError, false, described.text);
+            assert.match(described.data.dataAsOf, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+            assert.deepEqual(seen[0].params, { team: "red" });
+            assert.equal(seen[0].caller.subject, "someone");
+            assert.equal(seen[0].caller.issuer, issuer);
+            assert.ok(Object.isFrozen(seen[0].caller));
+            assert.ok(!JSON.stringify(seen[0].caller).includes(bearer.slice(20, 60)));
+            const missing = await call(client, "describe_source", { source: "tickets" });
+            assert.equal(missing.isError, true);
+            assert.match(missing.text, /^INVALID_INPUT: the source tickets needs params\.team/);
+        } finally {
+            await close();
+            await server.close();
+        }
+    });
+}

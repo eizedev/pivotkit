@@ -4,7 +4,11 @@
 // access token; only exchangeTokenFor sends it, and only sources/auth.js may import it.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { execFile, execFileSync } from "node:child_process";
 import { createServer } from "node:http";
+import { createServer as createTlsServer } from "node:https";
+import { promisify } from "node:util";
+import { tempDir } from "./helpers.js";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -143,4 +147,44 @@ test("exchangeTokenFor refuses a caller without a signed-in person, and only sou
 test("auth.subjectClaim is an option of the configuration", async () => {
     const context = await createContext({ auth: { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp", subjectClaim: "oid" } });
     await context.close();
+});
+
+test("exchangeTokenFor sends the caller's token as the subject_token to the token endpoint only, with the client's credentials", async () => {
+    // a token endpoint over https with a certificate made for this run; the child process trusts it
+    // through NODE_EXTRA_CA_CERTS, so the module's own guardedFetch is used as it is
+    const dir = tempDir();
+    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"), "-days", "2", "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1"], { stdio: "ignore" });
+    const seen = [];
+    const endpoint = createTlsServer({ key: readFileSync(join(dir, "key.pem")), cert: readFileSync(join(dir, "cert.pem")) }, (req, res) => {
+        let body = "";
+        req.on("data", (c) => (body += c));
+        req.on("end", () => {
+            seen.push({ method: req.method, url: req.url, authorization: req.headers.authorization, type: req.headers["content-type"], form: Object.fromEntries(new URLSearchParams(body)) });
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify({ access_token: "exchanged", token_type: "Bearer", expires_in: 300 }));
+        });
+    });
+    await new Promise((resolve) => endpoint.listen(0, "127.0.0.1", resolve));
+    try {
+        const auth = new URL("../src/auth.js", import.meta.url).href;
+        const url = `https://localhost:${endpoint.address().port}/token`;
+        const script = `const { callerOf, exchangeTokenFor } = await import(${JSON.stringify(auth)});
+const caller = callerOf("oauth", { token: "the-callers-own-token", clientId: "bot", scopes: ["pivotkit"], expiresAt: 1900000000, extra: { subject: "ana", issuer: "https://issuer.example" } });
+const answer = await exchangeTokenFor(caller, { url: ${JSON.stringify(url)}, clientId: "pivotkit backend", clientSecret: "s3cret:x", audience: "platform-api", scope: "platform:read" });
+console.log(JSON.stringify({ status: answer.status, body: new TextDecoder().decode(answer.body), subjectExpiresAt: answer.subjectExpiresAt, callerKeys: Object.keys(caller) }));`;
+        const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, NODE_EXTRA_CA_CERTS: join(dir, "cert.pem") }, encoding: "utf8" });
+        const out = JSON.parse(stdout);
+        assert.equal(out.status, 200);
+        assert.equal(JSON.parse(out.body).access_token, "exchanged");
+        assert.equal(out.subjectExpiresAt, 1900000000);
+        assert.deepEqual(out.callerKeys.sort(), ["client", "issuer", "profile", "scopes", "subject"], "no token on the caller");
+        assert.equal(seen.length, 1);
+        assert.equal(seen[0].method, "POST");
+        assert.equal(seen[0].type, "application/x-www-form-urlencoded");
+        assert.deepEqual(seen[0].form, { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", subject_token: "the-callers-own-token", subject_token_type: "urn:ietf:params:oauth:token-type:access_token", requested_token_type: "urn:ietf:params:oauth:token-type:access_token", audience: "platform-api", scope: "platform:read" });
+        // client_secret_basic: both parts form-encoded first (RFC 6749 2.3.1)
+        assert.equal(seen[0].authorization, `Basic ${Buffer.from("pivotkit%20backend:s3cret%3Ax").toString("base64")}`);
+    } finally {
+        await new Promise((resolve) => endpoint.close(resolve));
+    }
 });

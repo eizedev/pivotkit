@@ -201,7 +201,11 @@ export function normalizeParams(declared, given, caller, id) {
         if (p.claim !== undefined) {
             value = caller?.claims && Object.hasOwn(caller.claims, p.claim) ? caller.claims[p.claim] : undefined;
             if (value === undefined) {
-                throw new OperationError("NOT_ALLOWED", `the source ${id} needs a sign-in that names your ${p.name}`);
+                throw new OperationError("NOT_ALLOWED", `your sign-in has no ${p.claim} claim, which the source ${id} needs; ask the operator`);
+            }
+            // a claim's value goes into a backend's address: nothing that could change its path or query
+            if (typeof value === "string" && /[/\\%?\r\n\0]|\.\./.test(value)) {
+                throw new OperationError("NOT_ALLOWED", `your sign-in's ${p.claim} claim holds characters the source ${id} cannot take; ask the operator`);
             }
         } else {
             value = Object.hasOwn(values, p.name) && values[p.name] !== undefined && values[p.name] !== null ? values[p.name] : p.default;

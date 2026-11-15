@@ -82,7 +82,10 @@ test("params: values are checked, typed and written again; defaults filled; unkn
     for (const [given, code, message] of refused) {
         assert.throws(() => normalizeParams(declared, given, caller, "vms"), (e) => e.code === code && message.test(e.message), JSON.stringify(given));
     }
-    assert.throws(() => normalizeParams(declared, { customer: "acme" }, {}, "vms"), (e) => e.code === "NOT_ALLOWED", "a missing claim fails closed");
+    assert.throws(() => normalizeParams(declared, { customer: "acme" }, {}, "vms"), (e) => e.code === "NOT_ALLOWED" && /no tid claim/.test(e.message), "a missing claim fails closed");
+    for (const tid of ["a/b", "..", "x%2F", "a?b", "a\nb", "a\\b"]) {
+        assert.throws(() => normalizeParams(declared, { customer: "acme" }, { claims: { tid } }, "vms"), (e) => e.code === "NOT_ALLOWED", tid);
+    }
     assert.equal(normalizeParams(undefined, undefined, null, "sales"), null);
     assert.equal(normalizeParams(undefined, {}, null, "sales"), null);
     assert.throws(() => normalizeParams(undefined, { a: "1" }, null, "sales"), /the source sales takes no params/);
@@ -195,6 +198,16 @@ test("a code source with params keeps its data per identity and values, and not 
         assert.equal(loads, 5, "no identity: never kept");
     } finally {
         await context.close();
+    }
+    // a version of null keeps nothing, as it does for a source without params
+    let unversioned = 0;
+    const nulls = await contextOf({ sources: { t: { load: async (params) => (unversioned++, [{ Team: params.team }]), version: () => null, params: { team: { type: "string" } } } } });
+    try {
+        await present(nulls, "describe_source", { source: "t", params: { team: "a" } }, LOCAL);
+        await present(nulls, "describe_source", { source: "t", params: { team: "a" } }, LOCAL);
+        assert.equal(unversioned, 2);
+    } finally {
+        await nulls.close();
     }
 });
 

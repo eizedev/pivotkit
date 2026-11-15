@@ -401,7 +401,7 @@ export function profileOf(auth, authInfo) {
 /**
  * What this module knows of each caller callerOf made: the parts of its identity, and an OAuth
  * caller's access token. Module-private: nothing outside reads the token.
- * @type {WeakMap<object, { basis: string[] | null, token: string | null }>}
+ * @type {WeakMap<object, { basis: string[] | null, token: string | null, expiresAt?: number | null }>}
  */
 const known = new WeakMap();
 
@@ -435,7 +435,7 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
     const subject = subjectOf(authInfo.extra?.subject);
     const issuer = typeof authInfo.extra?.issuer === "string" ? authInfo.extra.issuer : null;
     const caller = { scopes, client, profile, subject, issuer };
-    known.set(caller, { basis: subject && issuer ? [issuer, subject] : null, token: typeof authInfo.token === "string" && authInfo.token ? authInfo.token : null });
+    known.set(caller, { basis: subject && issuer ? [issuer, subject] : null, token: typeof authInfo.token === "string" && authInfo.token ? authInfo.token : null, expiresAt: Number.isSafeInteger(authInfo.expiresAt) ? authInfo.expiresAt : null });
     return caller;
 }
 
@@ -493,10 +493,12 @@ export function callerView(caller) {
 /**
  * The RFC 8693 token exchange for a signed-in person: the caller's own access token goes as the
  * subject_token to the token endpoint named here, and nowhere else. Needs an OAuth caller with a
- * subject (NOT_ALLOWED otherwise). The answer is the token endpoint's, unread.
+ * subject (NOT_ALLOWED otherwise). The answer is the token endpoint's, unread, with when the
+ * caller's own token expires (subjectExpiresAt, seconds since 1970), which an exchanged token must
+ * not outlive.
  * @param {import("./registry.js").Caller} caller
  * @param {{ url: string, clientId: string, clientSecret?: string, audience?: string, resource?: string, scope?: string, signal?: AbortSignal, timeMs?: number, maxBytes?: number, allowPrivate?: boolean }} request
- * @returns {Promise<import("./sources/fetch.js").GuardedResponse>}
+ * @returns {Promise<import("./sources/fetch.js").GuardedResponse & { subjectExpiresAt: number | null }>}
  */
 export async function exchangeTokenFor(caller, request) {
     const entry = caller && typeof caller === "object" ? known.get(caller) : undefined;
@@ -517,5 +519,6 @@ export async function exchangeTokenFor(caller, request) {
     } else {
         form.set("client_id", request.clientId);
     }
-    return guardedFetch(request.url, { method: "POST", headers, body: form.toString(), ...(request.signal ? { signal: request.signal } : {}), ...(request.timeMs ? { timeMs: request.timeMs } : {}), ...(request.maxBytes ? { maxBytes: request.maxBytes } : {}), ...(request.allowPrivate !== undefined ? { allowPrivate: request.allowPrivate } : {}) });
+    const answer = await guardedFetch(request.url, { method: "POST", headers, body: form.toString(), ...(request.signal ? { signal: request.signal } : {}), ...(request.timeMs ? { timeMs: request.timeMs } : {}), ...(request.maxBytes ? { maxBytes: request.maxBytes } : {}), ...(request.allowPrivate !== undefined ? { allowPrivate: request.allowPrivate } : {}) });
+    return { ...answer, subjectExpiresAt: entry.expiresAt ?? null };
 }

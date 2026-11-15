@@ -17,7 +17,15 @@ function bound(source, params, caller) {
     return {
         load: () => source.load(params, { caller: view }),
         // the cache's key: the host's version with the values and the identity; none without an identity
-        ...(source.version && identity !== null ? { version: () => [source.version(params, { caller: view }), canonicalJson(params), identity] } : {})
+        ...(source.version && identity !== null
+            ? {
+                  version: () => {
+                      // null from the host keeps nothing, as for a source without params
+                      const version = source.version(params, { caller: view });
+                      return version === null ? null : [version, canonicalJson(params), identity];
+                  }
+              }
+            : {})
     };
 }
 

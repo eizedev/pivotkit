@@ -15,14 +15,20 @@
  *   as IPv4-mapped, IPv4-compatible and NAT64 (64:ff9b::/96) IPv6 addresses. Loopback, private and
  *   shared ranges are refused only with allowPrivate: false.
  * - Every request has its own connection (agent: false): no socket is shared between requests with
- *   different rules. Proxy variables of the environment are not used.
+ *   different rules, and the proxy of the environment (NODE_USE_ENV_PROXY with HTTP(S)_PROXY, which
+ *   node:http's global agent follows) is not used, so no proxy connects past the address check
+ *   (test/fetch.test.js).
  * - The body is counted while it streams, after decompression: over maxBytes the request is ended
  *   (TOO_LARGE); the whole request, body included, ends after timeMs (TIMEOUT).
  *
- * Built on node:http and node:https rather than the global fetch: Node documents `lookup` for
- * http.request and net's socket.connect, while a lookup for the global fetch needs an undici
- * Agent (`connect.lookup`) from the npm package undici, whose dispatcher must match the undici
- * version bundled with each Node release.
+ * Built on node:http and node:https rather than the global fetch. Node documents `lookup` as an
+ * option of http.request ("Custom lookup function. Default: dns.lookup()") and of net's
+ * socket.connect, which calls it with `all: true` under autoSelectFamily (Node 22 docs: http.html,
+ * net.html). The global fetch takes a lookup only through a custom `dispatcher`, which "must be
+ * compatible with undici's Dispatcher class" (globals.html, fetch, "Custom dispatcher"); Node
+ * exports no such class, so it would take the npm package undici as a new dependency, kept
+ * compatible with the undici each Node release bundles (process.versions.undici), for which the
+ * docs give no rule.
  */
 
 import { lookup as dnsLookup } from "node:dns";
@@ -42,7 +48,7 @@ const TRANSIENT = new Set(["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND
 
 /**
  * A request guardedFetch refused or could not finish. `code` is one of BAD_URL, NOT_HTTPS, USERINFO,
- * BAD_HEADER, REFUSED_ADDRESS, REDIRECT, TOO_LARGE, TIMEOUT, ABORTED, BAD_ENCODING, NETWORK;
+ * BAD_HEADER, BAD_BODY, REFUSED_ADDRESS, REDIRECT, TOO_LARGE, TIMEOUT, ABORTED, BAD_ENCODING, NETWORK;
  * `transient` says whether the same request may work later. The message never holds the address's
  * path or query.
  */
@@ -238,7 +244,7 @@ function decoderOf(encoding) {
  * @typedef {object} GuardedRequest
  * @property {string} [method]  default GET
  * @property {Record<string, string>} [headers]
- * @property {string | Uint8Array} [body]
+ * @property {string | Uint8Array | AsyncIterable<Uint8Array>} [body]  a stream (a file's read stream) needs a content-length header
  * @property {AbortSignal} [signal]
  * @property {number} [maxBytes]  the most bytes of the body, decoded (default 20 MiB)
  * @property {number} [timeMs]  the whole request's time (default 15 s)
@@ -285,18 +291,33 @@ export function createGuardedFetch(means = {}) {
                 throw new GuardedFetchError("NOT_HTTPS", "plain http goes to a loopback address only");
             }
         }
+        const streamed = isStream(request.body);
         /** @type {Record<string, string>} */
         const headers = {};
         for (const [name, value] of Object.entries(request.headers ?? {})) {
+            // a streamed body states its length (an upload of a file): the one header of the connection a caller gives
+            if (streamed && name.toLowerCase() === "content-length") {
+                if (!/^\d{1,15}$/.test(String(value))) {
+                    throw new GuardedFetchError("BAD_HEADER", "content-length is a number of bytes");
+                }
+                continue;
+            }
             if (OWN_HEADERS.test(name) || /[\r\n\0]/.test(String(value))) {
                 throw new GuardedFetchError("BAD_HEADER", `the header ${JSON.stringify(name.slice(0, 40))} is guardedFetch's own or holds a line break`);
             }
             headers[name.toLowerCase()] = String(value);
         }
         headers["accept-encoding"] = "gzip, deflate, br";
-        const body = typeof request.body === "string" ? Buffer.from(request.body, "utf8") : request.body ? Buffer.from(request.body.buffer, request.body.byteOffset, request.body.byteLength) : null;
+        const length = streamed ? Object.entries(request.headers ?? {}).find(([name]) => name.toLowerCase() === "content-length")?.[1] : undefined;
+        if (streamed && length === undefined) {
+            throw new GuardedFetchError("BAD_BODY", "a streamed body needs its content-length");
+        }
+        const given = /** @type {any} */ (request.body);
+        const body = streamed ? null : typeof given === "string" ? Buffer.from(given, "utf8") : given ? Buffer.from(given.buffer, given.byteOffset, given.byteLength) : null;
         if (body) {
             headers["content-length"] = String(body.length);
+        } else if (streamed) {
+            headers["content-length"] = String(length);
         }
         const maxBytes = request.maxBytes ?? FETCH_DEFAULTS.maxBytes;
         const timeMs = request.timeMs ?? FETCH_DEFAULTS.timeMs;
@@ -395,9 +416,46 @@ export function createGuardedFetch(means = {}) {
                 }
             });
             req.on("error", (e) => fail(e instanceof GuardedFetchError ? e : networkError(e)));
-            req.end(body ?? undefined);
+            if (streamed) {
+                sendStream(req, /** @type {AsyncIterable<Uint8Array>} */ (given), Number(length)).catch((e) => fail(e instanceof GuardedFetchError ? e : new GuardedFetchError("BAD_BODY", "the body could not be read", { cause: e })));
+            } else {
+                req.end(body ?? undefined);
+            }
         });
     };
+}
+
+/** Whether a body is a stream (an async iterable of bytes, such as a file's read stream). */
+const isStream = (body) => Boolean(body) && typeof body !== "string" && !(body instanceof Uint8Array) && typeof body[Symbol.asyncIterator] === "function";
+
+/**
+ * Sends a streamed body, waiting for the socket to drain, and ends the request; a body that is longer
+ * or shorter than the length it stated is not sent whole (BAD_BODY).
+ * @param {import("node:http").ClientRequest} req
+ * @param {AsyncIterable<Uint8Array>} stream
+ * @param {number} length
+ */
+async function sendStream(req, stream, length) {
+    let sent = 0;
+    for await (const chunk of stream) {
+        sent += chunk.length;
+        if (sent > length) {
+            throw new GuardedFetchError("BAD_BODY", "the body is longer than its content-length");
+        }
+        if (!req.write(chunk)) {
+            await new Promise((resolve) => {
+                req.once("drain", resolve);
+                req.once("close", resolve);
+            });
+            if (req.destroyed) {
+                return;
+            }
+        }
+    }
+    if (sent !== length) {
+        throw new GuardedFetchError("BAD_BODY", "the body is shorter than its content-length");
+    }
+    req.end();
 }
 
 /** A network error as a GuardedFetchError (its code only, never an address). */
