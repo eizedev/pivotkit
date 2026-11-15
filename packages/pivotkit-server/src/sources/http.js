@@ -519,9 +519,9 @@ function nextPage(settings, body, headers, current, count, seen, log) {
  * did when the operation's worker read the bytes. The worker keeps the data set by `tableKey`, so
  * the operation's job goes to it without the table.
  */
-async function readCsv(computer, spec, upload, tableKey, asOf) {
+async function readCsv(computer, spec, upload, tableKey, asOf, signal) {
     try {
-        return await computer.read(spec, upload, tableKey, asOf);
+        return await computer.read(spec, upload, tableKey, asOf, signal);
     } catch (e) {
         throw e instanceof OperationError ? ownError(e) : e;
     }
@@ -541,6 +541,10 @@ const nameOf = (source) => {
  * packed.js counts it; rows by their texts' length, other values as 8.
  */
 function tableBytes(loaded) {
+    if (loaded.upload) {
+        // never kept (a caller without an identity), measured all the same
+        return loaded.upload.bytes.byteLength;
+    }
     if (isPacked(loaded.table)) {
         return packedBytes(loaded.table);
     }
@@ -562,9 +566,10 @@ function tableBytes(loaded) {
  * keyed digest), the levels that decide the hidden columns, and the time zone and limits a CSV
  * answer is read with; without an identity nothing is kept or shared. What is kept never holds a
  * hidden column: a JSON answer's rows without them, a CSV answer read in a worker into a packed
- * table without them. `tableKey` names this load's table for the worker (a new load has a new one,
+ * table without them (for a caller without an identity, whose load is never kept, the bytes go to
+ * the operation's worker as they are). `tableKey` names this load's table for the worker (a new load has a new one,
  * so a worker never answers from an older table).
- * @param {{ read: (spec: any, upload: { bytes: Uint8Array, format: "csv" }, tableKey: string | null, asOf: string | null) => Promise<{ table: import("../packed.js").PackedTable, notes: any[] }> }} computer  compute.js's pool
+ * @param {{ read: (spec: any, upload: { bytes: Uint8Array, format: "csv" }, tableKey: string | null, asOf: string | null, signal?: AbortSignal) => Promise<{ table: import("../packed.js").PackedTable, notes: any[] }> }} computer  compute.js's pool
  * @param {any} resolved  registry.resolve's
  * @param {import("../registry.js").Caller} caller
  * @param {any} log
@@ -593,9 +598,14 @@ export async function loadFor(computer, resolved, caller, log, signal = undefine
     const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, declared: source.params, caller }), {
         // hidden columns never kept: a JSON answer's rows without them, a CSV answer read in a worker
         // (outside the source's timeMs, within compute.timeMs) into a packed table without them
-        prepare: async ({ table, upload, asOf, pages, bytes }) => {
+        prepare: async ({ table, upload, asOf, pages, bytes }, readSignal) => {
             const serial = randomBytes(9).toString("base64url");
-            const read = upload ? await readCsv(computer, spec, upload, tableKeyFor(serial), asOf) : { table: withoutHiddenRows(spec.levels, /** @type {any} */ (table)), notes: [] };
+            if (upload && key === null) {
+                // a caller without an identity: nothing is kept (runLoad keeps nothing under a null
+                // key), so the bytes go straight to the operation's worker, which drops the hidden columns
+                return { table: null, upload, notes: [], asOf, pages, bytes, serial };
+            }
+            const read = upload ? await readCsv(computer, spec, upload, tableKeyFor(serial), asOf, readSignal) : { table: withoutHiddenRows(spec.levels, /** @type {any} */ (table)), notes: [] };
             return { ...read, asOf, pages, bytes, serial };
         },
         source: name,
@@ -631,7 +641,7 @@ export const httpKind = Object.freeze({
      */
     async run(computer, op, input, resolved, base, caller, log, how = {}) {
         const { value, stale, tableKey } = await loadFor(computer, resolved, caller, log, how.signal);
-        const job = { ...base, spec: resolved.spec, tableKey, asOf: value.asOf, table: value.table, ...(value.notes.length ? { notes: value.notes } : {}) };
+        const job = { ...base, spec: resolved.spec, tableKey, asOf: value.asOf, ...(value.upload ? { upload: value.upload } : { table: value.table }), ...(value.notes.length ? { notes: value.notes } : {}) };
         const ran = await computer.run(op, input, job);
         return { ...ran, asOf: ran.asOf ?? value.asOf, stale };
     }

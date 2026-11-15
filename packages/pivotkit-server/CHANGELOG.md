@@ -264,10 +264,16 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
     answer is kept without the columns the caller's policy hides. A CSV answer is read once in a
     worker into a packed table without them, as a code source's rows are, and that table is kept
     ([#433](https://github.com/eizedev/pivotkit/issues/433)): reading it counts against
-    `compute.timeMs` and `compute.memoryMb`, not the source's `timeMs`, and a CSV answer whose every
-    column is hidden keeps its row count. A packed table of many number columns can take up to four
-    times the answer's bytes (8 bytes a number); one larger than a quarter of `sourceCache.maxMb` is
-    loaded on every call.
+    `compute.timeMs` and `compute.memoryMb`, not the source's `timeMs`. A CSV answer whose every
+    column is hidden reports its real row count (it said 0). If the reading fails (`BUSY`,
+    `TIMEOUT`, a limit), the answer is dropped and the next call asks the backend again. For a
+    caller without an identity nothing is kept, and the answer goes to the operation's worker as
+    before.
+  - Packed tables (code sources and CSV answers) keep a text column's dictionary as one UTF-8
+    buffer in shared memory, its codes and whole-number columns in one, two or four bytes: a
+    million rows of eight small whole numbers take 8 MB instead of 64 MB, and sending a table to
+    a worker copies no text. A table over a quarter of `sourceCache.maxMb`, which is loaded on every
+    call, gets one warning an hour per source in the log.
   - With `audit.subject` on, a sign-in link's `download` line names the person who signed in.
   - The markers of used one-time links are swept every ten minutes, not only on the next one-time
     download.

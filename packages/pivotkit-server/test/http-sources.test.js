@@ -1043,3 +1043,54 @@ test("a CSV answer kept packed: the reader's notes without a hidden column's, wa
         await none.close();
     }
 });
+
+test("a kept CSV answer is read under the limits and time zone it was read with: other ones load their own", async () => {
+    routes.set("/v1/export.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,state\nweb-1,4,running\nweb-2,2,stopped\ndb-1,8,running\n");
+    });
+    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" };
+    const ana = callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+    // one configured source object in two servers (a host that builds its contexts from one options object)
+    const base = optionsOf({}, {}, { auth });
+    const sources = { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: POLICY } };
+    const wide = await contextOf({ ...base, sources });
+    const narrow = await contextOf({ ...base, sources, limits: { rows: 2 } });
+    const zoned = await contextOf({ ...base, sources, timeZone: "Asia/Tokyo" });
+    try {
+        assert.equal((await describe(wide, undefined, ana, "csv")).result.rows, 3);
+        assert.equal((await failure(describe(narrow, undefined, ana, "csv"))).code, "LIMIT_EXCEEDED", "not the other server's kept table");
+        assert.equal((await describe(zoned, undefined, ana, "csv")).result.rows, 3);
+        assert.equal(asked.length, 3, "each reads the answer under its own limits and time zone");
+    } finally {
+        await Promise.all([wide.close(), narrow.close(), zoned.close()]);
+    }
+});
+
+test("a CSV answer for a caller without an identity: read by the operation's worker, nothing kept", async () => {
+    routes.set("/v1/export.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,state,owner\nweb-1,4,running,alice@example.com\nweb-2,2,stopped,bob@example.com\n");
+    });
+    const options = { ...optionsOf({}, {}, { policy: { results: true } }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: POLICY } } };
+    const context = await contextOf(options);
+    const kept = [];
+    const original = loadRunner.runLoad;
+    loadRunner.runLoad = async (key, ...rest) => {
+        const ran = await original(key, ...rest);
+        kept.push(key);
+        return ran;
+    };
+    try {
+        for (let i = 0; i < 2; i++) {
+            const described = (await describe(context, undefined, nobody(), "csv")).result;
+            assert.deepEqual([described.fields.map((f) => f.name).sort(), described.hiddenFields], [["cpu", "name", "state"], 1]);
+        }
+        assert.deepEqual(kept, [null, null], "no key: nothing kept or shared");
+        assert.equal(asked.length, 2);
+        assert.deepEqual(context.computer.sent(), { tables: 0, cached: 0 }, "no read job: the bytes go to the operation's worker");
+    } finally {
+        loadRunner.runLoad = original;
+        await context.close();
+    }
+});

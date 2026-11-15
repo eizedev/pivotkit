@@ -462,10 +462,12 @@ export async function packedUpload(spec, upload, key, asOf) {
     const { table } = read;
     const hide = hiddenOf(spec.levels, table.columns);
     const notes = cleanNotes(read.notes, hide);
-    const packed = packTable(withoutHidden(table, hide), table.data[0]?.length ?? 0, hide.length);
+    const columnar = withoutHidden(table, hide);
+    const packed = packTable(columnar, table.data[0]?.length ?? 0, hide.length);
     if (key !== null) {
-        // encoded from the packed table, as any worker that gets it later encodes it
-        tableData(spec, packed, key, asOf, notes);
+        // encoded from the reader's values (unpackTable gives a worker that gets the table later the
+        // same ones); without any column left from the packed table, which keeps the row count
+        tableData(spec, columnar.columns.length ? { ...columnar, dropped: hide.length } : packed, key, asOf, notes);
     }
     return { table: packed, notes };
 }
