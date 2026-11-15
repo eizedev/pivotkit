@@ -187,8 +187,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   logged; `secretFileWarning` for check-config), `src/print-template.js` (a source's print template:
   `readTemplateFile`, the one safe reader for a request, the start and check-config;
   `checkTemplates`, each source's template read and parsed, the start refuses and check-config
-  reports what parseTemplate refuses; a missing file is NOT FOUND and a warning at start, as a
-  missing source file), `src/flags.js` (`optionsFrom`, the
+  reports what parseTemplate refuses; a missing file is a warning at start and a PROBLEM the server
+  starts with, as a missing source file), `src/flags.js` (`optionsFrom`, the
   runners' flags into options; `SERVER_FLAGS`), `src/context.js` (`createContext(options)`: registry,
   workers, output, log, the sign-in both front ends share, `ready()`, `offers`: the extra inputs each
   surface offers, fixed at start; `callerOf` and `identityKey` from auth.js), `src/policy.js`
@@ -272,8 +272,14 @@ root `package.json`: `npm run types` and the builds depend on it.
   cap a number or `(request, info) => number` decided after the precheck signed the caller in
   (`peekSignIn`, `bodyCapOf`: a function's cap is clamped to `BODY_BYTES` for a stranger and
   `MAX_BODY_BYTES` for a signed-in caller), a graceful stop), `src/check.js` (`--check-config`
-  of both runners, then `src/check/`: one section per feature with its lines, problems and the
-  "New in this version" lines, `runSections`), `src/limits.js` (`createLimits`: rate and concurrency
+  of both runners: `src/check/` has one section per concern (`sources`, `http`, `code`, `inline`,
+  `output`, `downloads`, `upload`, `access` with the operator's sign-in lines, `operator` for the
+  audit, `profiles`, `rest`; check/index.js `SECTIONS`, `runSections`), each returning items
+  (`check/format.js` `heading`, `plain`, `warning`, `problem` with `stops` or its `effect`) and the
+  short names of this version's changes; `format.js` `render` prints the verdict, the counts, every
+  PROBLEM first, the sections (warnings last), one fact per line wrapped at `WIDTH` 78; a PROBLEM
+  that stops the start must be one createContext or serve refuses (test/check-config.test.js runs
+  both); tests read wrapped text through test/helpers.js `factsOf`), `src/limits.js` (`createLimits`: rate and concurrency
   limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`, `rest.data.maxBytes` for a signed-in REST caller that may send data), `src/log.js`
   (`callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by

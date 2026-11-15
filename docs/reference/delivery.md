@@ -325,10 +325,11 @@ code, since it would describe your store's setup.
 link given out for it. pivotkit does not delete it there (it may not have the right to); let the
 store's own retention remove such objects.
 
-`check-config` prints an `Upload:` section: the target (without its query), which sources' reports go there, a
-`PROBLEM:` line for a header secret it cannot read, and a `PROBLEM:` line for a target that resolves
-to an address uploads refuse (an IP address, a metadata address, or a loopback or private one
-without `intranet`).
+`check-config` prints an `Upload:` section: the target (without its query), which sources' reports
+go there, and where each header's secret comes from. A header secret it cannot read and a target
+that resolves to an address uploads refuse (an IP address, a metadata address, or a loopback or
+private one without `intranet`) are each a `PROBLEM` the server starts with: every upload fails
+until it is fixed ([reading check-config](rest.md#check-config)).
 
 ## Behind a proxy { #proxy }
 
@@ -357,4 +358,6 @@ configuration or a source, template or token file. `check-config` warns under `R
 set 0 while closed sources or data sent in requests are on.
 
 `check-config` prints a `Delivery:` section: where links point, which sources get which link, the
-redirect URI to register and the warnings.
+redirect URI to register, where the key and the sign-in client's secret come from, and the
+warnings. A key or client secret it cannot read is a `PROBLEM` the server starts with: reports get
+no links, or download links (signed in) fail after the person signs in, until it is fixed.

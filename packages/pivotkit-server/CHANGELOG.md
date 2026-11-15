@@ -25,7 +25,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   complete; `itemCase` comes for a `show` field also in a view that uses other fields.
 - A withheld render's `message` reads "results over fields that are not fully shown (...) stay in
   the file".
-- `check-config` prints more lines: each field's level and why, and each profile's levels.
+- `check-config` prints more lines (each field's level and why, each profile's levels) in a new
+  layout: a script that reads its text uses the exit code or the first line instead
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#check-config-layout)).
 - Behaviour change: a source's print template (`sources.<id>.template`) is read and checked at
   start; one the parser refuses (an unknown placeholder), over 1 MiB or not a regular file keeps
   the server from starting, where before every html report of that source failed with
@@ -242,6 +244,18 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Changed
 
+- `check-config` says first whether the server starts and how many problems and warnings it found,
+  then every `PROBLEM` with what it does (`-> the server does not start`, or what fails while the
+  server runs), then the sections: one fact per line wrapped at 78 columns, three markers (PROBLEM,
+  WARNING, plain), warnings last in each section, settings only where they differ from the default,
+  ASCII `->`. "Would not start" is said only for what `serve` refuses: a missing source file,
+  backend secret, download key or upload secret starts the server and is a PROBLEM it starts with.
+  How a person gets a profile stands under `Auth:`; over stdio a `Transport:` section says there are
+  no links and no signed-in person. It checks the download links' client secret, warns of an issuer
+  whose metadata cannot be loaded (3 s, from the command only) and of a backend's `auth` no source
+  uses, says when there are no sources, names a secret file with its full path, and closes with "New
+  in this version" in one line and the upgrading link. `checkConfig()` returns `warnings` and
+  `stops` too ([#424](https://github.com/eizedev/pivotkit/issues/424)).
 - A code source's operation is computed in a worker as a table job, as an HTTP source's: `load` and
   the reading of its rows stay in the host's thread, the encoding and the report are bounded by
   `compute.timeMs` and `compute.memoryMb` ([#414](https://github.com/eizedev/pivotkit/issues/414)).

@@ -174,7 +174,8 @@ with code sources check [Code sources](#code-sources). Over HTTP with an output 
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
 | [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
-| [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM or NOT FOUND |
+| [check-config's layout](#check-config-layout) | you read `check-config`'s output in a script | use its exit code, or its first line, which says whether the server starts |
+| [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
 
 ### Data as of in files { #data-as-of-files }
 
@@ -185,6 +186,16 @@ custom document property `DataAsOf`. A print template of your own shows it only 
 its own footer without it (add `{{dataAsOf}}` there where your reports always come from a service).
 csv, json and svg carry it in the result only.
 
+### check-config's layout { #check-config-layout }
+
+`check-config` starts with whether the server starts and how many problems and warnings it found,
+then lists every `PROBLEM` with what it does (`-> the server does not start`, or what fails while
+the server runs), then the sections, one fact per line wrapped at 78 columns, with `WARNING` lines
+last in each section. What was `NOT FOUND` or `NOT WRITABLE` is a `PROBLEM` line, and "would not start"
+is said only for what `serve` refuses: a missing source file, backend secret, download key or
+upload secret starts the server. The exit code is as before: 1 for any problem
+([reading check-config](../reference/rest.md#check-config)).
+
 ### Print templates checked at start { #template-at-start }
 
 The server reads and checks each source's print template (`sources.<id>.template`) at start, as an
@@ -192,7 +203,7 @@ html report reads it. A template the parser refuses (for example
 `sources.sales.template: unknown placeholder {{titel}} (line 7); did you mean {{title}}?`), one over
 1 MiB or one that is not a regular file keeps the server from starting; `check-config` reports the
 same message as a PROBLEM line. A template file that is not there or cannot be read is treated like
-a missing source file: the server starts with a warning, `check-config` marks it NOT FOUND, and that
+a missing source file: the server starts with a warning, `check-config` reports a PROBLEM the server starts with, and that
 source's html reports fail until the file is there. A template changed after the start is checked
 again on every html report, as before.
 
@@ -278,7 +289,7 @@ until `output.maxFiles` or `output.maxMb` pushed them out. Set `output.maxAgeDay
 of days, or to `0` for no age limit, the old behaviour. The default applies only to a directory of the
 reports' own: where `output.dir` holds the configuration or a source, template or token file, nothing
 is deleted by age and the server starts as before (`check-config` says "no age limit: the directory
-holds other files"). Copy the reports you want to keep elsewhere before you upgrade.
+holds other files" under `Output:`). Copy the reports you want to keep elsewhere before you upgrade.
 
 ### Request ids { #request-ids }
 
