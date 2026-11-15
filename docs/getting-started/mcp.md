@@ -66,7 +66,8 @@ npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output ~/reports/ou
 Use absolute paths: a client may start the server in another directory (a missing output
 directory is made at start). VS Code also reads the newer `.mcp.json` with `mcpServers`, as
 under "Other clients". `npx` without a version takes the newest release at each start, unless
-pivotkit-mcp is installed globally or in the folder the client starts it in: then it runs that copy.
+pivotkit-mcp is installed globally or in the folder the client starts it in (or a folder above it):
+then it runs that copy.
 Write `pivotkit-mcp@latest`, or pin a version for a setup others rely on (`pivotkit-mcp@<version>`);
 see [Update an installation](upgrading.md#update), also for restarting the client after an update.
 

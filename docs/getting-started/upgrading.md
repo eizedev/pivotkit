@@ -74,21 +74,21 @@ A running process keeps the version it started with. Restart it right after the 
 ### The container image { #update-image }
 
 The image's tags are pivotkit-server's versions ([tags](../reference/container.md)): `<version>`
-(`0.1.1`) never moves; `<major>.<minor>` (`0.1`) moves to each patch release of that minor version,
-never to `0.2`; `latest` moves to every release, a new minor version with breaking changes too.
+never moves; `<major>.<minor>` moves to each patch release of that minor version, never to the next
+minor version; `latest` moves to every release, a new minor version with breaking changes too.
 Pulling a tag does not change a running container; make it again:
 
 === "docker run"
 
     ```bash
-    docker pull ghcr.io/eizedev/pivotkit:0.1
+    docker pull ghcr.io/eizedev/pivotkit:<major>.<minor>
     docker rm -f pivotkit
     # then the same docker run as before
     ```
 
 === "Docker Compose"
 
-    Set `PIVOTKIT_VERSION` to the new release (`0.1` takes its patches), then:
+    Set `PIVOTKIT_VERSION` to the new release (`<major>.<minor>` takes its patches), then:
 
     ```bash
     docker compose pull
@@ -97,16 +97,16 @@ Pulling a tag does not change a running container; make it again:
 
 === "Kubernetes"
 
-    Write the exact version (`ghcr.io/eizedev/pivotkit:0.1.1`) and change it to update. With a tag
-    other than `latest` and no `imagePullPolicy`, Kubernetes sets `IfNotPresent`: a node that has
-    pulled `0.1` once keeps that image.
+    Write the exact version (`ghcr.io/eizedev/pivotkit:<version>`) and change it to update. With a
+    tag other than `latest` and no `imagePullPolicy`, Kubernetes sets `IfNotPresent`: a node that has
+    pulled `<major>.<minor>` once keeps that image.
 
 Check the versions inside the image:
 
 ```bash
-docker run --rm ghcr.io/eizedev/pivotkit:0.1 --version
-docker run --rm ghcr.io/eizedev/pivotkit:0.1 mcp --version
-docker run --rm ghcr.io/eizedev/pivotkit:0.1 cli --version
+docker run --rm ghcr.io/eizedev/pivotkit:<version> --version
+docker run --rm ghcr.io/eizedev/pivotkit:<version> mcp --version
+docker run --rm ghcr.io/eizedev/pivotkit:<version> cli --version
 ```
 
 ### The Claude Code plugin { #update-plugin }
