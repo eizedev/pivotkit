@@ -79,6 +79,10 @@ export async function section(options, registry, runtime) {
         }
         const configured = spelt(options.policy?.fields, written.policy?.fields);
         items.push(plain(`policy: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}`, 2));
+        // a hint, not a warning: list_sources gives a model the description to choose a source by
+        if (!String(written.description ?? "").trim()) {
+            items.push(plain(`no description: a model chooses and reads sources by sources.${s.id}.description; say what the data is in a sentence`, 2));
+        }
         if (s.policy.default === "show" && fields.some(([, l]) => l === "hide")) {
             items.push(warning(denyListText(`sources.${s.id}.policy`)));
         }

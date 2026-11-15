@@ -17,6 +17,8 @@ Sources (3):
   sales: a file
     <dir>/data/sales.csv
     policy: show by default; Customer hide
+    no description: a model chooses and reads sources by
+        sources.sales.description; say what the data is in a sentence
     scopes: sales:read
     field levels (automatic values: not applied, a default is written):
       Region: show (the default)
@@ -26,8 +28,12 @@ Sources (3):
   gone: a file
     <dir>/data/missing.csv
     policy: summary by default
+    no description: a model chooses and reads sources by
+        sources.gone.description; say what the data is in a sentence
   code: a code source, described under Code sources
     policy: summary by default
+    no description: a model chooses and reads sources by
+        sources.code.description; say what the data is in a sentence
     fields: known only after a load
 
 Files by path: off

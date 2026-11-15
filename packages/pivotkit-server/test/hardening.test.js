@@ -279,3 +279,24 @@ test("#473: a declared body over rest.data.maxBytes from a caller that may send 
         await server.close();
     }
 });
+
+// --- #468: download links that expire too fast for a person ------------------------------------------
+
+test("#468: check-config warns of download links that expire in under 5 minutes; 5 and more say nothing more", async () => {
+    const dir = workspace();
+    const at = async (expiresMinutes) => factsOf((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out", downloads: { expiresMinutes } }, baseDir: dir }, { http: true, env: {} })).text);
+    assert.match(await at(1), /^WARNING \(Delivery\): output\.downloads\.expiresMinutes is 1: a person must read the answer, open the link and sign in within this time; 5 minutes or more is safer$/m);
+    assert.match(await at(4), /expiresMinutes is 4: a person must read the answer/);
+    assert.doesNotMatch(await at(5), /expiresMinutes is/);
+});
+
+// --- #471: a model chooses sources by their description ----------------------------------------------
+
+test("#471: check-config gives a hint (not a warning) for a source without a description", async () => {
+    const dir = workspace();
+    const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" }, described: { file: "data/sales.csv", description: "Orders by region and product, one row per order" } }, baseDir: dir }, { http: false, env: {} });
+    const text = factsOf(result.text);
+    assert.match(text, /^ {4}no description: a model chooses and reads sources by sources\.sales\.description; say what the data is in a sentence$/m);
+    assert.equal(text.match(/no description:/g)?.length, 1, "the described source gets none");
+    assert.doesNotMatch(text, /WARNING[^\n]*description/);
+});
