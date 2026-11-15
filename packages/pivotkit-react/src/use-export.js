@@ -8,9 +8,9 @@
  * await. Only when a module is still loading is there a wait first; if the browser then refuses the
  * copy, the note says so ("This page does not allow copying. Download a file instead.").
  *
- * A print runs in the click the same way (Safari asks before a print it does not take as the
- * person's): the Export menu makes the print frame ready when it opens, and pointing at Print (or
- * focusing it) starts loading the report's modules (export-run.js's prepareExport).
+ * A print runs in the click the same way, so it waits for no load or animation frame (see
+ * print-frame.js): the Export menu makes the print frame ready when it opens, and pointing at Print
+ * (or focusing it) starts loading the report's modules (export-run.js's prepareExport).
  */
 
 import { useCallback } from "react";
