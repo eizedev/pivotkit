@@ -48,8 +48,15 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   start. `httpSources.enabled: false` leaves them all out; `check-config` lists each source, the
   intranet backends and warnings ([data sources](https://pivotkit.eize.dev/reference/sources/#http)).
 - `pivotkit-server check-source <id> [--param name=value ...]`: one load of an HTTP source as the
-  server would make it, with each page's status, the rows, the fields and their types (never a
-  value), and what a caller would get when it fails.
+  server would make it, with each page's status, the rows, the fields and their types (no cell
+  value; literal query values as `...`), what a caller would get when it fails, and the operator's
+  hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`).
+- Parameters: a refused value's `INVALID_INPUT` names the parameter's description, example and short
+  pattern; a value must have the parameter's type (a number for a `string` parameter is refused) and
+  a text must be well-formed Unicode; `list_sources` adds each parameter's `pattern`, `format`,
+  `minLength`, `maxLength`, `minimum` and `maximum`. The descriptions of `list_sources`,
+  `describe_source`, `render_view` and the `params` input say that required params go into every
+  call.
 - `SourceError`'s `reason` (`"refused"`, `"setup"`) picks which of pivotkit's fixed texts a
   `SOURCE_UNAVAILABLE` says ("the source's backend refused pivotkit's access; ask the operator ...",
   "the source is not set up correctly; ask the operator ..."), on REST and MCP alike; `serverTextOf`

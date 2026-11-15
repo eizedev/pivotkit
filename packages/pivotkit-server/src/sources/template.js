@@ -156,7 +156,11 @@ export function compileTemplate(template, query, declared, how = {}) {
         }
         const whole = /^\{([A-Za-z_][A-Za-z0-9_]{0,63})\}$/.exec(value);
         if (whole) {
-            useParam(whole[1]);
+            try {
+                useParam(whole[1]);
+            } catch (e) {
+                throw new Error(`query.${name}: ${/** @type {Error} */ (e).message}`, { cause: e });
+            }
             entries.push({ name, value: null, param: whole[1] });
         } else if (/[{}]/.test(value)) {
             throw new Error(`query.${name}: a value is a literal or exactly one {name}`);
@@ -210,13 +214,18 @@ export function expandUrl(compiled, values, extra = {}) {
     return url;
 }
 
+/** How a log line or check-source writes a literal query value: never the value, which may be a secret. */
+export const LITERAL = "...";
+
 /**
- * The path and query of a request as the log may write it: each value replaced by {name}.
+ * The path and query of a request as the log and check-source may write them: each value replaced
+ * by {name}, each literal query value by "..." (an operator may put a key there); paging's own
+ * numbers as they are.
  * @param {CompiledTemplate} compiled
  * @param {Record<string, string | number>} [extra]
  */
 export function loggedPath(compiled, extra = {}) {
     const path = compiled.segments.map((s) => (s.name ? `${s.prefix}{${s.name}}${s.suffix}` : s.prefix)).join("/");
-    const query = [...compiled.query.map((q) => `${q.name}=${q.param ? `{${q.param}}` : q.value}`), ...Object.entries(extra).map(([k, v]) => `${k}=${v}`)];
+    const query = [...compiled.query.map((q) => `${q.name}=${q.param ? `{${q.param}}` : LITERAL}`), ...Object.entries(extra).map(([k, v]) => `${k}=${v}`)];
     return `/${path}${query.length ? `?${query.join("&")}` : ""}`;
 }

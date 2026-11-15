@@ -6,17 +6,33 @@
  * backend: `pivotkit-server check-source <id>` does that.
  *
  *   HTTP sources (1):
- *     vms: backend platform (https://api.example.com/v1) /customers/{customer}/vms, rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: none; schedules: yes
+ *     vms: backend platform (https://api.example.com/v1) /customers/{customer}/vms?state={state}, rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: create_link makes none (no sources.<id>.link); schedules: draft_schedule drafts them with the caller's params
  *       params: customer (string, pattern), state (running|stopped)
  *     intranet: backend platform may reach loopback and private addresses (sources vms)
  *
  * check/index.js says what a section returns.
  */
 
-import { SERVER_LIMITS } from "../config.js";
+import { isIP } from "node:net";
+import { callerOf } from "../auth.js";
+import { serverLimitsOf } from "../config.js";
 import { httpSettingsOf } from "../options/http.js";
+import { addressRefusal } from "../sources/fetch.js";
 import { bytesText } from "../sources/inline.js";
 import { paramsList } from "../sources/params.js";
+
+/** The section's heading, which check.js's list of sources points to. */
+export const HTTP_HEADING = "HTTP sources";
+
+/**
+ * Whether a host is sure to be a loopback or private address: "localhost" and its names, or such an
+ * IP address written as the host (a name's address is known only when it is looked up).
+ * @param {string} host
+ */
+const localHost = (host) => {
+    const bare = host.replace(/^\[|\]$/g, "").toLowerCase();
+    return bare === "localhost" || bare.endsWith(".localhost") || (isIP(bare) !== 0 && addressRefusal(bare, { allowPrivate: false }) === "private");
+};
 
 /** A parameter as the section lists it: its name, and its type, enum, pattern or format. */
 function paramText(p, declared) {
@@ -26,15 +42,17 @@ function paramText(p, declared) {
 }
 
 /** @type {import("./index.js").Section} */
-export async function section(options, _registry, _runtime) {
+export async function section(options, registry, _runtime) {
     const http = Object.entries(options.sources ?? {}).filter(([, s]) => s.http);
     if (!http.length) {
         return { lines: [], problems: 0, upgrade: [] };
     }
     if (options.httpSources?.enabled === false) {
-        return { lines: ["", `HTTP sources: off (httpSources.enabled: false); ${http.length} configured source${http.length === 1 ? " is" : "s are"} ignored`], problems: 0, upgrade: [] };
+        return { lines: ["", `${HTTP_HEADING}: off (httpSources.enabled: false); ${http.length} configured source${http.length === 1 ? " is" : "s are"} ignored`], problems: 0, upgrade: [] };
     }
-    const lines = ["", `HTTP sources (${http.length}):`];
+    const lines = ["", `${HTTP_HEADING} (${http.length}):`];
+    // links and schedules as list_sources says them (a caller holding every scope)
+    const sourcesListed = new Map(registry ? (await registry.list(callerOf("none", undefined))).map((e) => [e.id, e]) : []);
     /** @type {Map<string, string[]>} the sources that may reach private addresses, by backend (or source) */
     const intranet = new Map();
     for (const [id, source] of http) {
@@ -44,9 +62,16 @@ export async function section(options, _registry, _runtime) {
         const reads = s.format === "csv" ? "a CSV body" : `rows at ${s.rowsText || "the body"}`;
         const kept = `${s.ttl > 0 ? `kept ${s.ttl} s per caller` : "loaded on every call (shared while in flight)"}, last good data ${s.maxStale > 0 ? `up to ${s.maxStale} s` : "off"}`;
         // what a load reads at most: maxBytes, within limits.fileBytes
-        const fileBytes = options.limits?.fileBytes ?? SERVER_LIMITS.fileBytes;
+        const fileBytes = /** @type {number} */ (serverLimitsOf(options).fileBytes);
         const bytes = Math.min(s.maxBytes, fileBytes);
-        lines.push(`  ${id}: ${where}${query}, ${reads}${s.pagingText ? `, ${s.pagingText}` : ""}, up to ${s.paging ? `${s.maxPages} pages / ` : ""}${bytesText(bytes)} / ${s.timeMs / 1000} s, ${kept}; links: ${source.link ? "via the source's page only" : "none"}; schedules: yes`);
+        const entry = sourcesListed.get(id);
+        const links = entry?.link ? "create_link links to the source's page (sources.<id>.link)" : "create_link makes none (no sources.<id>.link)";
+        const schedules = entry?.schedulable === false ? "draft_schedule makes none" : "draft_schedule drafts them with the caller's params";
+        lines.push(`  ${id}: ${where}${query}, ${reads}${s.pagingText ? `, ${s.pagingText}` : ""}, up to ${s.paging ? `${s.maxPages} pages / ` : ""}${bytesText(bytes)} / ${s.timeMs / 1000} s, ${kept}; links: ${links}; schedules: ${schedules}`);
+        const host = new URL(s.template.origin).hostname;
+        if (!s.intranet && localHost(host)) {
+            lines.push(`    warning: sources.${id}: ${host} is a loopback or private address, which is refused unless ${s.backend ? `the backend has intranet: true (httpSources.backends.${s.backend}.intranet)` : `the source has http.intranet: true`}`);
+        }
         if (s.maxBytes > fileBytes) {
             lines.push(`    warning: sources.${id}: maxBytes (${bytesText(s.maxBytes)}) is over limits.fileBytes (${bytesText(fileBytes)}); a load reads at most ${bytesText(fileBytes)}`);
         }

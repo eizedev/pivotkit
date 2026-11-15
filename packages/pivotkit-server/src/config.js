@@ -120,6 +120,14 @@ export { ConfigError } from "./options/shared.js";
 /** The import limits a server uses unless the operator sets them: lower than a command line's. */
 export const SERVER_LIMITS = Object.freeze({ fileBytes: 52_428_800, unpackedBytes: 52_428_800 });
 
+/**
+ * The limits a server's sources are read with: SERVER_LIMITS under the operator's `limits` (the
+ * registry's, check-config's and check-source's alike).
+ * @param {ServerOptions} options
+ * @returns {{ fileBytes: number, unpackedBytes: number, [limit: string]: number }}
+ */
+export const serverLimitsOf = (options) => ({ ...SERVER_LIMITS, ...(options.limits ?? {}) });
+
 /** The defaults of the compute pool. */
 export const COMPUTE_DEFAULTS = Object.freeze({ workers: 2, timeMs: 30_000, memoryMb: 1024, queueMs: 10_000 });
 

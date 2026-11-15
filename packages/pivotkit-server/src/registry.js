@@ -10,7 +10,7 @@ import { allowedDirs, readSafe } from "pivotkit-cli/files";
 import { closest } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
-import { SERVER_LIMITS, pathOf } from "./config.js";
+import { pathOf, serverLimitsOf } from "./config.js";
 import { asOperationError } from "./data.js";
 import { fieldKey, resolvePolicy } from "./policy.js";
 import { FILE_PREFIX, INLINE_ID, KINDS, kindOf } from "./sources/index.js";
@@ -51,7 +51,7 @@ export const holds = (caller, scopes) => caller.scopes === null || (scopes ?? []
  * @param {import("./config.js").ServerOptions} options
  */
 export async function createRegistry(options) {
-    const limits = { ...SERVER_LIMITS, ...(options.limits ?? {}) };
+    const limits = serverLimitsOf(options);
     const files = options.files ?? {};
     const allow = await allowedDirs((files.allowDirs ?? []).map((d) => pathOf(options, d)), options.baseDir ?? process.cwd());
     // httpSources.enabled: false leaves every HTTP source out, as if it were not configured

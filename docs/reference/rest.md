@@ -76,9 +76,11 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
 Every answer over a source's data (all routes but `GET /sources` and `GET /views/guide`) carries
 `dataAsOf`: when the data is from, in UTC to the second (a file's modification time, a code source's
 own time or when it gave the data), parsed and written again by the server in this one form.
-A source a library host configured with parameters takes their values as `params` with its id in a
-POST body (`{ "source": "tickets", "params": { "team": "blue" } }`; describe such a source with
-`POST /sources/describe`, since `GET /sources/{id}` carries no params); `GET /sources` lists them,
+A source with parameters (an [HTTP source](sources.md#http) in the configuration, or a library
+host's code source) takes their values as `params` with its id in a POST body
+(`{ "source": "vms", "params": { "customer": "acme" } }`). Describe such a source with
+`POST /sources/describe`: `GET /sources/{id}` carries no params, so it answers `INVALID_INPUT` for a
+source with required ones; `GET /sources` lists them,
 and the routes take `params` only when a configured source declares any
 ([parameters](mcp.md#configuration)).
 

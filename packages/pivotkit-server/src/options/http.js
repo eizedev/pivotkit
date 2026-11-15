@@ -293,7 +293,9 @@ function compileSource(options, id, source) {
     try {
         template = compileTemplate(templateText, http.query, source.params, { allowIpLiterals, reserved });
     } catch (e) {
-        throw new ConfigError(`${at}.${hasBackend ? "path" : "url"}: ${/** @type {Error} */ (e).message}`);
+        // a query's problem under http.query ("query.state: ..."), the address's under path or url
+        const message = /** @type {Error} */ (e).message;
+        throw new ConfigError(/^query[.:]/.test(message) ? `${at}.${message}` : `${at}.${hasBackend ? "path" : "url"}: ${message}`);
     }
     if (http.maxPages !== undefined && (http.maxPages < 1 || http.maxPages > HTTP_MAX.pages)) {
         throw new ConfigError(`${at}.maxPages: 1 to ${HTTP_MAX.pages}`);

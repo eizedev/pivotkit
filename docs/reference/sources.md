@@ -63,9 +63,11 @@ before anything is sent. A caller never gives an address.
 A call with `"params": { "customer": "acme", "state": "running" }` requests
 `https://api.example.com/v1/customers/acme/vms?state=running&limit=500`, follows the `next` pages,
 and reads the rows at `/items` of each answer. `list_sources` names the parameters with their type,
-description, example and list of values; a call without a required one answers `INVALID_INPUT`
+description, example, list of values, pattern, format, lengths and range; a call without a required one answers `INVALID_INPUT`
 naming it ("the source vms needs params.customer (string): The customer's short name, for example
-acme"). The fields of a source with required parameters are known only after a load with values, so
+acme"), and a value of the wrong form is refused with the parameter's description, example and
+(when short) pattern. A value must have the parameter's type: a number for a `string` parameter is
+refused, as is a text with lone surrogates. The fields of a source with required parameters are known only after a load with values, so
 `describe_source` needs them too.
 
 ### Options { #http-options }
@@ -118,6 +120,9 @@ configuration file reads it too.
   backends decode `%2F` before they route); no value may hold `..` or a control character. A
   `pattern` is the whole value (anchored), and one that can take long on some values is refused at
   start.
+- Write no secret into the address or `query`: the configuration file holds it in plain text, and a
+  backend's sign-in is not configured there. The log and `check-source` write each literal query
+  value as `...`, but the path as it is.
 - A query name is given once (without regard to case); a name the paging fills cannot also be a
   parameter or a query value. `check-config` warns about a parameter no part of the address uses.
 
@@ -174,14 +179,24 @@ the backend is marked `intranet`; link-local and cloud metadata addresses (169.2
 `fd00:ec2::254`, `100.100.100.200` and others) are refused always. A request has its own connection
 and no proxy of the environment.
 
+A backend whose certificate comes from an internal certificate authority needs that authority's
+certificate in `NODE_EXTRA_CA_CERTS` (a file of PEM certificates, read when the server starts); the
+container image takes it as an environment variable too. `check-source` says so on a certificate
+error.
+
+Each page's body is held in memory while it is read and parsed, up to `maxBytes` per load, and the
+rows of a kept load stay in memory for `ttl` (bounded as for code sources); keep `maxBytes` near what
+a source needs.
+
 ### Kept data { #http-cache }
 
 As for [code sources](#code-cache): data is kept per caller (the person, a static token's name, or
 `local`) and set of values for `ttl` seconds; calls that need the same data while it loads share one
 load, and a caller that goes away stops waiting (the requests are cancelled when nobody waits any
 more); at most 4 loads of one source and 2 of one person run at once; last good data stands in only
-after a transient failure, with `stale: { since }`, and a refusal drops it. A caller without an
-identity (an OAuth token without a usable subject) gets nothing kept and shares no load.
+after a transient failure, with `stale: { since }`, and a refusal drops it. A load aborted because
+every caller went away keeps nothing: the next call loads again. A caller without an identity (an
+OAuth token without a usable subject) gets nothing kept and shares no load.
 
 ### check-config and check-source { #check-source }
 
@@ -189,19 +204,22 @@ identity (an OAuth token without a usable subject) gets nothing kept and shares 
 
 ```text
 HTTP sources (1):
-  vms: backend platform (https://api.example.com/v1) /customers/{customer}/vms?state={state}&limit=..., rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: none; schedules: yes
+  vms: backend platform (https://api.example.com/v1) /customers/{customer}/vms?state={state}&limit=..., rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: create_link makes none (no sources.<id>.link); schedules: draft_schedule drafts them with the caller's params
     params: customer (string, pattern, required), state (running|stopped)
 ```
 
 `pivotkit-server check-source <id> [--param name=value ...] [--config file]` loads a source once as
 the server would, without an AI client, and prints each page's status, content type and size, the
-rows, the fields with their types (never a value), when the data is from and what a caller would get
-when it fails; exit 1 when it fails. A pointer that matches nothing names the body's top-level keys.
-It uses the same configuration, address rules and limits as the server:
+rows, the fields with their types, when the data is from and what a caller would get when it fails,
+with the operator's hint where there is one (`intranet`, a certificate); exit 1 when it fails. It
+prints no cell value and no secret: each value in the address is `{name}` and each literal query
+value `...`. Field names, and the keys where the rows' pointer finds no list, are printed: they can
+be data of the backend's, so treat the output as you treat the backend's answers. A load without
+rows prints a warning. It uses the same configuration, address rules and limits as the server:
 
 ```text
 $ pivotkit-server check-source vms --param customer=acme --config pivotkit.json
-source vms: GET https://api.example.com/v1/customers/{customer}/vms?state={state}&limit=500
+source vms: GET https://api.example.com/v1/customers/{customer}/vms?state={state}&limit=...
   page 1: 200 application/json, 18342 bytes
   1 page, 18342 bytes, 42 rows, 180 ms
   fields: name (text), cpu (number), state (text), owner (text), tags (text)
@@ -212,7 +230,7 @@ OK
 With a pointer that matches nothing:
 
 ```text
-source vms: GET https://api.example.com/v1/customers/{customer}/vms?state={state}&limit=500
+source vms: GET https://api.example.com/v1/customers/{customer}/vms?state={state}&limit=...
   page 1: 200 application/json, 18342 bytes
   pointer /items matched nothing; the body has the keys: results, next
   a caller gets: SOURCE_UNAVAILABLE: the source is not set up correctly; ask the operator and give the request id

@@ -344,7 +344,10 @@ digits and `_`. A `pattern` is matched against the whole value (as if written `^
 not repeat a group (`(a|b)*`, `(ab)+`, `(ab){1,3}`; repeat a character or a class, `[ab]*`, or make the group optional, `(-x)?`). Every match runs with a time limit of 25 ms: a pattern that takes longer on values made to be slow is refused at start, and a value it cannot check in time is `INVALID_INPUT`; a string without `pattern` or `enum`
 takes letters, digits and `. _ ~ -` only, and no string value may hold `..` or a control character. `list_sources` lists a source's parameters, and the tools that take a source take `params` only
 when a configured source declares any. A missing required value, an unknown name or a value of the
-wrong form is `INVALID_INPUT` naming the parameter. `createHttpHandler(context, { env })`
+wrong form is `INVALID_INPUT` naming the parameter, with its description, example and (when short)
+pattern; a value must have the parameter's type (a number for a `string` parameter is refused), and
+a text with lone surrogates is refused. `list_sources` gives each parameter's type, description,
+example, list of values, pattern, format, lengths and range. `createHttpHandler(context, { env })`
 reads static tokens from `env` (default `process.env`). `pivotkit-mcp/policy` exports the exposure
 policy (`resolvePolicy`, `withStats`, `levelOf`, `levelInfo`, `autoLevel`, `deniedWord`, `listsAll`,
 `stricter`, `exposeSource`, `exposeFindings`, `touchesClosed`) for another front end over the same

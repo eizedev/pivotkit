@@ -31,7 +31,7 @@ import { fieldKey } from "../policy.js";
 import { requestId } from "../request-id.js";
 import { asOfText } from "./as-of.js";
 import { GuardedFetchError, guardedFetch } from "./fetch.js";
-import { canonicalJson, configHashOf } from "./keys.js";
+import { canonicalJson, configHashOf, tableKeyOf } from "./keys.js";
 import { SourceError, loadRunner, ownError } from "./run.js";
 import { expandUrl, loggedPath } from "./template.js";
 
@@ -124,24 +124,28 @@ function retryAfterOf(value) {
  *
  *   400, 422                        INVALID_INPUT "the backend did not accept these parameters"
  *   401, 403, 404 with params       DATA_NOT_AVAILABLE "nothing you may see for customer=xyz: check the value"
- *                                   (one answer for the three, so other tenants' names cannot be probed)
+ *                                   (one answer for the three, so other tenants' names cannot be probed;
+ *                                   it names only parameters a caller sets: none with a default or a claim)
  *   401, 403 without params         SOURCE_UNAVAILABLE, reason "refused"
  *   404 without params              SOURCE_UNAVAILABLE, reason "setup" (the address is wrong)
  *   429, 502, 503, 504              SOURCE_UNAVAILABLE, transient, Retry-After passed on
  *   anything else                   SOURCE_UNAVAILABLE
  *
  * @param {number} status
- * @param {boolean} hasParams  the source declares params
+ * @param {Record<string, any> | undefined} declared  the source's params
  * @param {Record<string, string | number | boolean> | null} values  the caller's checked values
  * @param {Record<string, string>} headers
  * @returns {SourceError}
  */
-export function backendAnswer(status, hasParams, values, headers) {
+export function backendAnswer(status, declared, values, headers) {
     if (status === 400 || status === 422) {
         return new SourceError("INVALID_INPUT", { publicMessage: BACKEND_TEXT.rejected, status });
     }
-    if ((status === 401 || status === 403 || status === 404) && hasParams) {
-        const given = Object.entries(values ?? {}).map(([k, v]) => `${k}=${v}`);
+    if ((status === 401 || status === 403 || status === 404) && declaresParams(declared)) {
+        // a default is the operator's and a claim's value the sign-in's: neither is said back
+        const given = Object.entries(values ?? {})
+            .filter(([k]) => declared?.[k]?.default === undefined && declared?.[k]?.claim === undefined)
+            .map(([k, v]) => `${k}=${v}`);
         return new SourceError("DATA_NOT_AVAILABLE", { publicMessage: BACKEND_TEXT.nothing(given.length ? given.join(", ") : "these parameters"), status });
     }
     if (status === 401 || status === 403) {
@@ -154,6 +158,15 @@ export function backendAnswer(status, hasParams, values, headers) {
     return new SourceError("SOURCE_UNAVAILABLE", { status, ...(retryAfter !== undefined ? { retryAfter } : {}) });
 }
 
+/**
+ * Whether a source declares parameters.
+ * @param {Record<string, any> | undefined} declared  sources.<id>.params
+ */
+export const declaresParams = (declared) => Boolean(declared && Object.keys(declared).length);
+
+/** A system error code of a certificate that the server's trusted authorities do not cover. */
+const CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_VERIFY|ALTNAME|UNABLE_TO_GET_ISSUER/;
+
 /** The guardedFetch codes that mean the source's settings are wrong (an address it may not reach, a redirect). */
 const SETUP_CODES = new Set(["BAD_URL", "NOT_HTTPS", "USERINFO", "BAD_HEADER", "BAD_METHOD", "BAD_BODY", "IP_LITERAL", "REFUSED_ADDRESS", "REDIRECT"]);
 
@@ -161,10 +174,17 @@ const SETUP_CODES = new Set(["BAD_URL", "NOT_HTTPS", "USERINFO", "BAD_HEADER", "
  * A GuardedFetchError as the source's failure: never with its message (it can name a host or a
  * system error code), which goes to the log at debug with the request's id.
  * @param {GuardedFetchError} error
- * @param {{ id: string, log: any, maxBytes: number }} how
+ * @param {{ id: string, log: any, maxBytes: number, settings: import("../options/http.js").HttpSettings }} how
  */
 function fetchFailure(error, how) {
-    how.log.debug(`the source ${how.id}: the request failed (${error.code}): ${String(error.message).slice(0, 300)}`, { source: how.id, requestId: requestId() });
+    // what the operator does about it, for the debug log and check-source
+    const hint =
+        error.code === "REFUSED_ADDRESS" && !how.settings.intranet && /private/.test(error.message)
+            ? `; for an internal API set intranet: true on ${how.settings.backend ? `the backend (httpSources.backends.${how.settings.backend}.intranet)` : `the source (sources.${how.id}.http.intranet)`}`
+            : error.code === "NETWORK" && CERTIFICATE.test(`${error.message} ${/** @type {any} */ (error.cause)?.code ?? ""}`)
+              ? "; a certificate error: for an internal certificate authority start the server with NODE_EXTRA_CA_CERTS set to its certificate file"
+              : "";
+    how.log.debug(`the source ${how.id}: the request failed (${error.code}): ${String(error.message).slice(0, 300)}${hint}`, { source: how.id, requestId: requestId() });
     if (error.code === "TOO_LARGE") {
         return ownError(new OperationError("LIMIT_EXCEEDED", `the source ${how.id} answered more than ${how.maxBytes.toLocaleString("en-US")} bytes (http.maxBytes)`));
     }
@@ -284,14 +304,14 @@ function linkNext(value) {
 /**
  * What a load saw, for check-source (never values): each page's status, content type and bytes, the
  * body's top-level keys when the rows' pointer matched nothing.
- * @typedef {{ pages: Array<{ status: number, type: string, bytes: number }>, keys?: string[], asOfRaw?: boolean }} LoadTrace
+ * @typedef {{ pages: Array<{ status: number, type: string, bytes: number }>, keys?: string[], found?: string, asOfRaw?: boolean }} LoadTrace
  */
 
 /**
  * Loads an HTTP source's data: every page, its rows as a table, when the data is from.
  * @param {import("../options/http.js").HttpSettings} settings
  * @param {Record<string, string | number | boolean> | null} values  the caller's checked values
- * @param {{ signal: AbortSignal, limits: import("pivotkit-core").Limits, log: any, hasParams: boolean, fetch?: typeof guardedFetch, trace?: LoadTrace }} how
+ * @param {{ signal: AbortSignal, limits: import("pivotkit-core").Limits, log: any, declared: Record<string, any> | undefined, fetch?: typeof guardedFetch, trace?: LoadTrace }} how
  * @returns {Promise<{ table: { columns: string[], rows: unknown[][] } | null, upload: { bytes: Uint8Array, format: "csv" } | null, asOf: string, pages: number, bytes: number }>}
  */
 export async function loadHttp(settings, values, how) {
@@ -311,13 +331,16 @@ export async function loadHttp(settings, values, how) {
     let extra = settings.paging && "page" in settings.paging ? { [settings.paging.page]: settings.paging.start } : settings.paging && "offset" in settings.paging ? { [settings.paging.offset]: 0, [settings.paging.limit]: settings.paging.size } : {};
     /** @type {URL | null} */
     let url = expandUrl(template, values, extra);
+    // page and offset paging cannot know a page is the last until the next one is empty: after
+    // maxPages pages one more is asked for, which must have no rows
+    let probing = false;
     while (url) {
         seen.add(url.href);
         let answer;
         try {
             answer = await fetch(url, { headers, signal: how.signal, maxBytes: maxBytes - bytes, timeMs: Math.max(settings.timeMs - (Date.now() - started), 1), allowPrivate: settings.intranet, allowIpLiterals: settings.allowIpLiterals });
         } catch (e) {
-            throw e instanceof GuardedFetchError ? fetchFailure(e, { id, log: how.log, maxBytes }) : e;
+            throw e instanceof GuardedFetchError ? fetchFailure(e, { id, log: how.log, maxBytes, settings }) : e;
         }
         pages++;
         bytes += answer.body.length;
@@ -325,7 +348,7 @@ export async function loadHttp(settings, values, how) {
         how.log.debug(`the source ${id}: GET ${loggedPath(template, extra)} answered ${answer.status}`, { source: id, status: answer.status, requestId: requestId() });
         if (answer.status < 200 || answer.status > 299) {
             how.log.warn(`the source ${id}: the backend answered ${answer.status}`, { source: id, status: answer.status, template: template.text });
-            throw backendAnswer(answer.status, how.hasParams, values, answer.headers);
+            throw backendAnswer(answer.status, how.declared, values, answer.headers);
         }
         if (settings.format === "csv") {
             return { table: null, upload: { bytes: answer.body, format: "csv" }, asOf: asOfText(new Date()) ?? "", pages, bytes };
@@ -336,10 +359,21 @@ export async function loadHttp(settings, values, how) {
         }
         const found = pointerValue(body, settings.rows);
         if (!Array.isArray(found)) {
-            if (how.trace && body !== null && typeof body === "object") {
-                how.trace.keys = Object.keys(body).slice(0, 30).map((k) => cleanText(k).slice(0, 60));
+            // the keys of what was found (or of the body), so check-source can say where the rows are
+            const shown = found !== null && typeof found === "object" ? found : body;
+            if (how.trace && shown !== null && typeof shown === "object") {
+                how.trace.keys = Object.keys(shown).slice(0, 30).map((k) => cleanText(k).slice(0, 60));
+                how.trace.found = found === undefined ? "nothing" : Array.isArray(found) ? "a list" : found === null ? "null" : typeof found === "object" ? "an object" : `a ${typeof found}`;
             }
+            const what = found === undefined ? "has no rows at" : `has ${found === null ? "null" : typeof found === "object" ? "an object" : `a ${typeof found}`}, not a list of rows, at`;
+            how.log.warn(`the source ${id}: the answer ${what} ${settings.rowsText || '"" (the whole body)'} (http.rows)`, { source: id });
             throw shapeFailure(id, how.log, `the rows' pointer ${settings.rowsText || '""'} matched ${found === undefined ? "nothing" : "no list"}`);
+        }
+        if (probing) {
+            if (found.length) {
+                throw ownError(new OperationError("LIMIT_EXCEEDED", `the source ${id} has more than ${settings.maxPages} pages (http.maxPages)`));
+            }
+            break;
         }
         if (rows.length + found.length > how.limits.rows) {
             throw overLimit("rows", rows.length + found.length, how.limits.rows, "rows");
@@ -355,12 +389,11 @@ export async function loadHttp(settings, values, how) {
             extra = { [settings.paging.offset]: Number(extra[settings.paging.offset]) + settings.paging.size, [settings.paging.limit]: settings.paging.size };
             url = expandUrl(template, values, extra);
         }
-        if (url && seen.has(url.href)) {
-            // a backend that names the same page again: the pages so far are all there is
-            url = null;
-        }
         if (url && pages >= settings.maxPages) {
-            throw ownError(new OperationError("LIMIT_EXCEEDED", `the source ${id} has more than ${settings.maxPages} pages (http.maxPages)`));
+            if (settings.paging && ("next" in settings.paging || "link" in settings.paging)) {
+                throw ownError(new OperationError("LIMIT_EXCEEDED", `the source ${id} has more than ${settings.maxPages} pages (http.maxPages)`));
+            }
+            probing = true;
         }
     }
     const asOf = (asOfValue !== undefined ? asOfText(typeof asOfValue === "string" || typeof asOfValue === "number" ? asOfValue : null, { epoch: "s" }) : null) ?? asOfText(new Date()) ?? "";
@@ -493,9 +526,10 @@ export async function loadFor(resolved, caller, log, signal = undefined) {
     const identity = identityKey(caller);
     const person = identity ?? `client:${caller.client}`;
     const name = nameOf(source);
-    const key = identity === null ? null : canonicalJson(["http", name, configHashOf({ http: source.http, settings }), values ?? {}, identity]);
+    const configHash = configHashOf({ http: source.http, settings });
+    const key = identity === null ? null : canonicalJson(["http", name, configHash, values ?? {}, identity]);
     const limits = { ...LIMITS, ...spec.limits };
-    const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, hasParams: Boolean(source.params && Object.keys(source.params).length) }), {
+    const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, declared: source.params }), {
         prepare: (loaded) => ({ ...loaded, serial: randomBytes(9).toString("base64url") }),
         source: name,
         label: spec.id,
@@ -509,7 +543,8 @@ export async function loadFor(resolved, caller, log, signal = undefined) {
         log,
         ...(signal ? { signal } : {})
     });
-    const tableKey = key === null ? null : canonicalJson([key, ran.value.serial, spec.levels, spec.limits, spec.timeZone ?? null]);
+    // this load's table (its serial: a new load is a new key) under the caller's levels and limits
+    const tableKey = tableKeyOf({ kind: "http", id: `${name}:${spec.id}`, configHash: canonicalJson([configHash, ran.value.serial, spec.timeZone ?? null]), params: values, identity, levels: spec.levels, limits: spec.limits });
     return { value: ran.value, stale: ran.stale, tableKey };
 }
 

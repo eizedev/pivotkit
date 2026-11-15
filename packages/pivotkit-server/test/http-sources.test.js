@@ -230,7 +230,7 @@ test("a caller's values are checked before any request: a missing one names the 
         // list_sources names the params
         const listed = (await present(context, "list_sources", {}, LOCAL)).result.sources.find((s) => s.id === "vms");
         assert.deepEqual(listed.params, [
-            { name: "customer", type: "string", required: true, description: "The customer's short name", example: "acme" },
+            { name: "customer", type: "string", required: true, description: "The customer's short name", example: "acme", pattern: "^[a-z0-9-]{1,40}$" },
             { name: "state", type: "string", required: false, enum: ["running", "stopped"] }
         ]);
     } finally {
@@ -510,7 +510,7 @@ test("check-config: where each HTTP source asks (never a value), its limits and 
     const { text, problems } = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
     assert.equal(problems, 0);
     assert.match(text, /vms: an HTTP source \(see HTTP sources\)/);
-    assert.match(text, new RegExp(`HTTP sources \\(1\\):\\n  vms: backend platform \\(https://api\\.example\\.test:${port}/v1\\) /customers/\\{customer\\}/vms\\?state=\\{state\\}&token=\\.\\.\\., rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: none; schedules: yes`));
+    assert.match(text, new RegExp(`HTTP sources \\(1\\):\\n  vms: backend platform \\(https://api\\.example\\.test:${port}/v1\\) /customers/\\{customer\\}/vms\\?state=\\{state\\}&token=\\.\\.\\., rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: create_link makes none \\(no sources\\.<id>\\.link\\); schedules: draft_schedule drafts them with the caller's params`));
     assert.match(text, /params: customer \(string, pattern, required\), state \(running\|stopped\), unused \(string\)/);
     assert.match(text, /warning: sources\.vms\.params\.unused: no part of the address uses it/);
     assert.match(text, /warning: sources\.vms: the header x-api-key has a literal value and its name looks like a secret's/);
@@ -527,7 +527,7 @@ test("check-source: one load with the operator's values, pages, rows and fields 
     routes.set("/v1/customers/acme/vms", json({ items: VMS, generatedAt: "2026-11-14T07:30:00Z", next: null }));
     const ok = await checkSource(optionsOf(), "vms", { customer: "acme" });
     assert.equal(ok.ok, true);
-    assert.match(ok.text, new RegExp(`^source vms: GET https://api\\.example\\.test:${port}/v1/customers/\\{customer\\}/vms\\?state=\\{state\\}&limit=500\\n  page 1: 200 application/json, \\d+ bytes\\n  1 page, \\d+ bytes, 3 rows, \\d+ ms\\n  fields: name \\(text\\), cpu \\(number\\), state \\(text\\), owner \\(text\\), tags \\(text\\)\\n  data as of 2026-11-14T07:30:00Z \\(from the body\\)\\nOK\\n$`));
+    assert.match(ok.text, new RegExp(`^source vms: GET https://api\\.example\\.test:${port}/v1/customers/\\{customer\\}/vms\\?state=\\{state\\}&limit=\\.\\.\\.\\n  page 1: 200 application/json, \\d+ bytes\\n  1 page, \\d+ bytes, 3 rows, \\d+ ms\\n  fields: name \\(text\\), cpu \\(number\\), state \\(text\\), owner \\(text\\), tags \\(text\\)\\n  data as of 2026-11-14T07:30:00Z \\(from the body\\)\\nOK\\n$`));
     assert.doesNotMatch(ok.text, /web-1|alice/);
     const wrong = await checkSource(optionsOf({ rows: "/results" }), "vms", { customer: "acme" });
     assert.equal(wrong.ok, false);
@@ -542,6 +542,7 @@ test("check-source: one load with the operator's values, pages, rows and fields 
     assert.match((await checkSource(optionsOf(), "nope", {})).text, /no source "nope"; the HTTP sources are vms/);
     assert.deepEqual(paramFlags(["vms", "--param", "customer=acme", "--param=state=a=b", "--config", "x.json"]), { params: { customer: "acme", state: "a=b" }, rest: ["vms", "--config", "x.json"] });
     assert.throws(() => paramFlags(["--param", "novalue"]), /--param takes name=value/);
+    assert.throws(() => paramFlags(["--param", "customer=a", "--param=customer=b"]), /--param customer is given twice/);
 });
 
 test("check-source as a command: the configuration file, --param, exit codes", async () => {
@@ -643,3 +644,165 @@ test("a REST client that closes its connection and an MCP client that closes its
     }
 });
 
+
+test("secrets in literal query values: never in check-source's text or the debug log", async () => {
+    routes.set("/v1/customers/acme/vms", json({ items: VMS }));
+    const options = optionsOf({ query: { state: "{state}", api_key: "tok-secret-1" } });
+    const checked = await checkSource(options, "vms", { customer: "acme" });
+    assert.equal(checked.ok, true);
+    assert.match(checked.text, /api_key=\.\.\./);
+    assert.doesNotMatch(checked.text, /tok-secret-1/);
+    const context = await contextOf(options, "debug");
+    try {
+        await describe(context, { customer: "acme" });
+        assert.ok(context.lines.some((l) => /api_key=\.\.\./.test(l.message ?? "")));
+        assert.doesNotMatch(JSON.stringify(context.lines), /tok-secret-1/);
+    } finally {
+        await context.close();
+    }
+});
+
+test("DATA_NOT_AVAILABLE names only the values a caller sets: never a default", async () => {
+    routes.set("/v1/customers/acme/vms", json({ error: "no" }, 403));
+    const options = optionsOf({ query: { state: "{state}", region: "{region}" } }, { params: { ...optionsOf().sources.vms.params, region: { type: "string", enum: ["eu", "us"], default: "eu" } } });
+    const context = await contextOf(options);
+    try {
+        const e = await failure(describe(context, { customer: "acme", region: "us" }));
+        assert.deepEqual([e.code, e.message], ["DATA_NOT_AVAILABLE", "nothing you may see for customer=acme: check the value"]);
+        assert.equal(asked[0].query, "?region=us", "the value was sent; it is not said back because the parameter has a default");
+    } finally {
+        await context.close();
+    }
+});
+
+test("a caller's value of the wrong form: refused with the parameter's description, example and pattern; a number for a text, a lone surrogate refused", async () => {
+    const context = await contextOf(optionsOf());
+    try {
+        const upper = await failure(describe(context, { customer: "ACME" }));
+        assert.equal(upper.message, "params.customer is not in the form the source takes (The customer's short name; for example acme; pattern ^[a-z0-9-]{1,40}$)");
+        assert.match((await failure(describe(context, { customer: 42 }))).message, /^params\.customer must be a text/);
+        assert.equal(asked.length, 0);
+    } finally {
+        await context.close();
+    }
+    const { normalizeParams } = await import("../src/sources/params.js");
+    assert.throws(() => normalizeParams({ x: { type: "string", pattern: ".{1,10}" } }, { x: "a\uD800" }, null, "s"), /lone surrogates/);
+    assert.deepEqual({ ...normalizeParams({ x: { type: "string", pattern: ".{1,10}" } }, { x: "a😀" }, null, "s") }, { x: "a😀" });
+});
+
+test("page and offset paging: exactly maxPages full pages and an empty one after them is no error; more is", async () => {
+    const pages = (count, size) => (req, res, url) => {
+        const page = Number(url.searchParams.get("page") ?? Math.floor(Number(url.searchParams.get("from")) / size) + 1);
+        json({ items: page <= count ? Array.from({ length: size }, (_, i) => ({ name: `vm-${page}-${i}`, cpu: 1, state: "running" })) : [] })(req, res);
+    };
+    routes.set("/v1/two", pages(2, 3));
+    routes.set("/v1/three", pages(3, 3));
+    routes.set("/v1/offsets", pages(2, 2));
+    const src = (path, paging) => ({ http: { backend: "platform", path, rows: "/items", paging, maxPages: 2 }, policy: POLICY });
+    const context = await contextOf({ ...optionsOf(), sources: { two: src("/two", { page: "page" }), three: src("/three", { page: "page" }), offsets: src("/offsets", { offset: "from", limit: "size", size: 2 }) } });
+    try {
+        assert.equal((await describe(context, undefined, LOCAL, "two")).result.rows, 6);
+        assert.deepEqual(asked.map((a) => a.query), ["?page=1", "?page=2", "?page=3"]);
+        asked = [];
+        assert.equal((await describe(context, undefined, LOCAL, "offsets")).result.rows, 4);
+        assert.deepEqual(asked.map((a) => a.query), ["?from=0&size=2", "?from=2&size=2", "?from=4&size=2"]);
+        const over = await failure(describe(context, undefined, LOCAL, "three"));
+        assert.deepEqual([over.code, over.message], ["LIMIT_EXCEEDED", "the source three has more than 2 pages (http.maxPages)"]);
+    } finally {
+        await context.close();
+    }
+});
+
+test("a new load is a new table: after ttl the worker computes the backend's new rows, not the ones it kept", async () => {
+    let items = VMS;
+    routes.set("/v1/customers/acme/vms", (req, res) => json({ items })(req, res));
+    const context = await contextOf(optionsOf({}, { ttl: 1 }));
+    try {
+        assert.equal((await describe(context, { customer: "acme" })).result.rows, 3);
+        items = VMS.slice(0, 1);
+        assert.equal((await describe(context, { customer: "acme" })).result.rows, 3, "within ttl: kept data");
+        await new Promise((r) => setTimeout(r, 1100));
+        assert.equal((await describe(context, { customer: "acme" })).result.rows, 1);
+        assert.equal(asked.length, 2);
+    } finally {
+        await context.close();
+    }
+});
+
+test("the request's signal reaches every operation over a source (suggest, validate, describe a view, the file route) and a code source over REST", async () => {
+    const context = await contextOf({ ...optionsOf({}, {}, { policy: { results: true } }), sources: { slow: { http: { backend: "platform", path: "/slow", rows: "/items" }, policy: POLICY } } });
+    const runs = {
+        suggest_view: (signal) => present(context, "suggest_view", { source: "slow" }, LOCAL, { signal }),
+        validate_view: (signal) => present(context, "validate_view", { source: "slow", view: VIEW }, LOCAL, { signal }),
+        describe_view: (signal) => present(context, "describe_view", { source: "slow", view: VIEW }, LOCAL, { signal }),
+        renderFile: (signal) => renderFile(context, { source: "slow", view: VIEW, format: "csv" }, LOCAL, { signal })
+    };
+    try {
+        for (const [name, start] of Object.entries(runs)) {
+            asked = [];
+            const state = slowRoute("/v1/slow");
+            const gone = new AbortController();
+            const call = start(gone.signal);
+            call.catch(() => undefined);
+            assert.ok(await until(() => asked.length === 1), `${name}: the backend was asked`);
+            gone.abort();
+            await assert.rejects(call);
+            assert.ok(await until(() => state.closed), `${name}: the backend's connection was closed`);
+        }
+    } finally {
+        await context.close();
+    }
+    let started = false;
+    let aborted = false;
+    const s = await restServer({
+        sources: {
+            code: {
+                load: (_params, { signal }) =>
+                    new Promise((resolve) => {
+                        started = true;
+                        signal.addEventListener("abort", () => ((aborted = true), resolve([])), { once: true });
+                    }),
+                timeMs: 60_000
+            }
+        }
+    });
+    try {
+        const gone = new AbortController();
+        const answer = fetch(`${s.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: "code" }), signal: gone.signal });
+        answer.catch(() => undefined);
+        assert.ok(await until(() => started), "the load started");
+        gone.abort();
+        assert.ok(await until(() => aborted), "the code source's signal was aborted when its only caller went away");
+    } finally {
+        await s.close();
+    }
+});
+
+test("operator hints: intranet for a private address, NODE_EXTRA_CA_CERTS for a certificate, a warning for no rows; check-config warns of a local host without intranet", async () => {
+    routes.set("/v1/all", json({ items: VMS, meta: { total: 3 } }));
+    routes.set("/v1/none", json({ items: [] }));
+    const sources = { all: { http: { backend: "platform", path: "/all", rows: "/items" }, policy: POLICY }, meta: { http: { backend: "platform", path: "/all", rows: "/meta" }, policy: POLICY }, none: { http: { backend: "platform", path: "/none", rows: "/items" }, policy: POLICY }, nothing: { http: { backend: "platform", path: "/all", rows: "/results" }, policy: POLICY } };
+    const closed = { httpSources: { backends: { platform: { url: `https://api.example.test:${port}/v1` } } }, sources };
+    assert.match((await checkSource(closed, "all", {})).text, /REFUSED_ADDRESS.*set intranet: true on the backend \(httpSources\.backends\.platform\.intranet\)/);
+    const open = { httpSources: { backends: { platform: { url: `https://api.example.test:${port}/v1`, intranet: true } } }, sources };
+    const noCa = createGuardedFetch({ lookup: (_h, o, cb) => cb(null, o?.all ? [{ address: "127.0.0.1", family: 4 }] : "127.0.0.1", 4) });
+    assert.match((await checkSource(open, "all", {}, { fetch: noCa })).text, /a certificate error: for an internal certificate authority start the server with NODE_EXTRA_CA_CERTS/);
+    assert.match((await checkSource(open, "meta", {})).text, /pointer \/meta points to an object, not a list of rows; its keys: total/);
+    const none = await checkSource(open, "none", {});
+    assert.equal(none.ok, true);
+    assert.match(none.text, /warning: the answer has no rows at \/items/);
+    const context = await contextOf(open);
+    try {
+        await failure(describe(context, undefined, LOCAL, "nothing"));
+        assert.ok(context.lines.some((l) => l.event === "warning" && l.message === "the source nothing: the answer has no rows at /results (http.rows)"));
+    } finally {
+        await context.close();
+    }
+    const local = await checkConfig({ httpSources: { backends: { platform: { url: "https://localhost:8443/v1" } } }, sources: { all: sources.all } }, { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true });
+    assert.match(local.text, /warning: sources\.all: localhost is a loopback or private address, which is refused unless the backend has intranet: true/);
+});
+
+test("options: a query's problem is reported under http.query", () => {
+    assert.throws(() => validateOptions(optionsOf({ query: { State: "{state}", state: "x" } })), /sources\.vms\.http\.query: state is given twice/);
+    assert.throws(() => validateOptions(optionsOf({ query: { x: "{nope}" } })), /sources\.vms\.http\.query\.x: names \{nope\}, which is no declared parameter/);
+});
