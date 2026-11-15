@@ -33,7 +33,7 @@ test("a one-time link: the page's Download button saves the file once; the link 
         }
         // the POST's answer is the file as an attachment. Chromium, Firefox and WebKit on macOS save it
         // (a download); Playwright's WebKit on Linux shows a text attachment in the page instead, so
-        // there the answer itself is checked
+        // there the answer's headers and the text shown are checked
         const stored = readFileSync(join(dir, "out", output.name));
         const posted = page.waitForResponse((r) => r.request().method() === "POST");
         const downloading = page.waitForEvent("download", { timeout: 15_000 }).catch(() => null);
@@ -46,7 +46,9 @@ test("a one-time link: the page's Download button saves the file once; the link 
             expect(download.suggestedFilename()).toBe("Sales once.csv");
             expect(readFileSync(await download.path())).toEqual(stored);
         } else {
-            expect(Buffer.from(await answer.body())).toEqual(stored);
+            // the text the page shows (its body is not kept for such an answer): the file without its byte order mark
+            const shown = await page.locator("pre").textContent();
+            expect(String(shown).replace(/\r\n/g, "\n")).toBe(stored.toString("utf8").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n"));
         }
         // another browser (no cookie of the first download) finds the link used
         const other = await browser.newContext();
