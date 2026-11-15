@@ -17,6 +17,19 @@ import { escapeHtml } from "./template.js";
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
+/** The middle of the theme's colour scale: --pk-scale-mid where it is set, else halfway from low to high (as pivotkit-react's table). */
+const SCALE_MID = "var(--pk-scale-mid, color-mix(in srgb, var(--pk-scale-low), var(--pk-scale-high)))";
+
+/**
+ * A theme scale's colour at t (0 to 1) from the page's tokens, as pivotkit-react's table draws it: what
+ * a dark screen shows (report-css.js), where the tokens are the dark theme's.
+ * @param {number} t
+ */
+function themeScale(t) {
+    const [from, to, part] = t < 0.5 ? ["var(--pk-scale-low)", SCALE_MID, t * 2] : [SCALE_MID, "var(--pk-scale-high)", (t - 0.5) * 2];
+    return `color-mix(in srgb, ${to} ${Math.round(part * 100)}%, ${from})`;
+}
+
 /** The class of a total: subtotal or grand total. */
 const totalClass = (total) => (total === 2 ? " pk-grand" : total === 1 ? " pk-sub" : "");
 
@@ -54,9 +67,12 @@ export function htmlTable(grid, { maxCells, caption, colorScale = [...DEFAULT_TH
         }
         if (style.scale !== undefined) {
             const t = Math.max(0, Math.min(1, style.scale));
-            const color = style.color && HEX.test(style.color) ? style.color : scaleColor(colorScale.filter((c) => HEX.test(c)).length >= 2 ? colorScale.filter((c) => HEX.test(c)) : [...DEFAULT_THEME.colorScale], t);
+            const own = Boolean(style.color && HEX.test(style.color));
+            const color = own ? style.color : scaleColor(colorScale.filter((c) => HEX.test(c)).length >= 2 ? colorScale.filter((c) => HEX.test(c)) : [...DEFAULT_THEME.colorScale], t);
             const name = `pk-c${ruleId++}`;
-            rules.push(`.${name}{--pk-cell-bg:${color}}`);
+            // the light colour (paper, a light screen, the workbook's); a scale of the theme also the
+            // page's tokens for a dark screen, which a light colour would turn into a bright grey there
+            rules.push(`.${name}{--pk-cell-bg:${color}${own ? "" : `;--pk-cell-dark:${themeScale(t)}`}}`);
             return ` pk-has-scale ${name}`;
         }
         return "";

@@ -26,6 +26,7 @@ body{margin:0;background:var(--pk-surface);color:var(--pk-text);font:var(--pk-fo
 .pk-table .pk-grand{background:var(--pk-total-strong);font-weight:var(--pk-weight-bold)}
 .pk-collapsed::before{content:"+ ";color:var(--pk-muted)}
 .pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-bg) 48%,var(--pk-surface))}
+@media screen and (prefers-color-scheme:dark){.pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-dark,var(--pk-cell-bg)) 30%,var(--pk-surface))}}
 .pk-td.pk-has-bar{background-image:linear-gradient(90deg,color-mix(in srgb,var(--pk-bar-color,var(--pk-chart-1)) 32%,transparent) var(--pk-bar),transparent var(--pk-bar));background-repeat:no-repeat;background-size:100% 64%;background-position:left center}
 .pk-report-note{color:var(--pk-muted);margin:8px 0}
 .pk-report-details{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:16px 0 0;color:var(--pk-muted);font-size:var(--pk-small)}

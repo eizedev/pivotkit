@@ -9,6 +9,15 @@
 
 import { DARK_TOKENS, LIGHT_TOKENS, REPORT_FONT, SHAPE_TOKENS, SIZE_TOKENS, WEIGHT_TOKENS, declarations } from "./tokens.js";
 
+/**
+ * How much of a colour scale's colour a cell takes over the surface, in % (as pivotkit-react's table):
+ * on a light surface, and on a dark screen, where the text is light and needs a darker cell.
+ */
+export const SCALE_MIX = Object.freeze({ light: 48, dark: 30 });
+
+/** How much of a data bar's colour is drawn over its cell, in %. */
+export const BAR_MIX = 32;
+
 /** Columns from which a printed table is turned to landscape, and from which its font gets smaller. */
 export const PRINT_WIDE = Object.freeze({ landscape: 8, small: 16 });
 
@@ -41,8 +50,9 @@ body{margin:0;background:var(--pk-surface);color:var(--pk-text);font:var(--pk-fo
 .pk-table .pk-sub{background:var(--pk-total);font-weight:var(--pk-weight-strong)}
 .pk-table .pk-grand{background:var(--pk-total-strong);font-weight:var(--pk-weight-bold)}
 .pk-collapsed::before{content:"+ ";color:var(--pk-muted)}
-.pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-bg) 48%,var(--pk-surface))}
-.pk-td.pk-has-bar{background-image:linear-gradient(90deg,color-mix(in srgb,var(--pk-bar-color,var(--pk-chart-1)) 32%,transparent) var(--pk-bar),transparent var(--pk-bar));background-repeat:no-repeat;background-size:100% 64%;background-position:left center}
+.pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-bg) ${SCALE_MIX.light}%,var(--pk-surface))}
+@media screen and (prefers-color-scheme:dark){.pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-dark,var(--pk-cell-bg)) ${SCALE_MIX.dark}%,var(--pk-surface))}}
+.pk-td.pk-has-bar{background-image:linear-gradient(90deg,color-mix(in srgb,var(--pk-bar-color,var(--pk-chart-1)) ${BAR_MIX}%,transparent) var(--pk-bar),transparent var(--pk-bar));background-repeat:no-repeat;background-size:100% 64%;background-position:left center}
 .pk-report-note{color:var(--pk-muted);margin:8px 0}
 .pk-report-details{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:16px 0 0;color:var(--pk-muted);font-size:var(--pk-small)}
 .pk-report-details dt{font-weight:var(--pk-weight-strong)}

@@ -6,6 +6,13 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- HTML report on a dark screen: a colour scale whose view names no colours runs through the dark
+  theme's heat colours, as the report on a page does; the light ones made its low end a bright grey
+  under light text (3.3:1). A view's own colours are mixed fainter there (30 %, as on the page)
+  ([#370](https://github.com/eizedev/pivotkit/issues/370)).
+
 ## [0.2.1] - 2026-11-14
 
 ### Added
