@@ -86,9 +86,15 @@ const SERVER_OPTIONS = Object.freeze({
     timeout: { type: "string", value: "s", where: "remote", text: `Give up when the server has not answered within this many seconds (default ${REMOTE_TIMEOUT}).` }
 });
 
+/** @type {Readonly<Record<string, OptionSpec>>} A value of a server's source's parameter (pivotkit sources names what a source needs). */
+const PARAM_OPTION = Object.freeze({
+    param: { type: "string", multiple: true, value: "name=value", where: "remote", text: "A value of the source's parameter (pivotkit sources says which it needs); may be given more than once." }
+});
+
 /** @type {Readonly<Record<string, OptionSpec>>} The server's options of render, validate and describe: with the source to run on. */
 const REMOTE_OPTIONS = Object.freeze({
     source: { type: "string", value: "id", where: "remote", text: "Run on this source of the server (pivotkit sources lists them) instead of a data file; needs --url or PIVOTKIT_URL." },
+    ...PARAM_OPTION,
     ...SERVER_OPTIONS
 });
 
@@ -153,8 +159,8 @@ export const COMMANDS = Object.freeze({
         usage: "pivotkit sources [id] --url <https://host/api/v1> [options]",
         text: "List the sources of a pivotkit-server, or describe one: its fields, types and counts.",
         args: [{ name: "id", text: "A source's id (pivotkit sources lists them); left out: the list.", optional: true }],
-        options: SERVER_OPTIONS,
-        examples: ["PIVOTKIT_URL=https://reports.example.com/api/v1 pivotkit sources", "pivotkit sources sales --url https://reports.example.com/api/v1 --token-file token.txt --json"]
+        options: { ...PARAM_OPTION, ...SERVER_OPTIONS },
+        examples: ["PIVOTKIT_URL=https://reports.example.com/api/v1 pivotkit sources", "pivotkit sources sales --url https://reports.example.com/api/v1 --token-file token.txt --json", "pivotkit sources vms --param customer=acme"]
     },
     example: {
         usage: "pivotkit example [name] [--list]",

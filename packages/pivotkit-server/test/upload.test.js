@@ -551,7 +551,7 @@ test("UPLOAD_FAILED on REST and MCP: a fixed text with the request id; no presig
         const mcp = await client.callTool({ name: "render_view", arguments: { source: "open", view: BY_REGION, format: "xlsx" } });
         assert.equal(mcp.isError, true);
         const text = String(/** @type {any} */ (mcp.content)[0].text);
-        assert.match(text, /^UPLOAD_FAILED: the report was made but could not be stored; give the operator the request id \(source open; trying again will not help\) \(id [A-Za-z0-9_-]{11}\)$/);
+        assert.match(text, /^UPLOAD_FAILED: the report was made but could not be stored; give the operator the request id \(source open; trying again will not help; request id [A-Za-z0-9_-]{11}\)$/);
         // the log names the same id as the answer
         assert.ok(s.log.some((l) => l.upload === "STORE_507" && l.requestId === rest.data.requestId));
         const everything = JSON.stringify([rest.data, mcp, s.log]);

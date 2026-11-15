@@ -143,9 +143,9 @@ test("a view that is not JSON: where it stops being JSON", async () => {
 test("a usage error ends with the way to the command's help", async () => {
     const r = await run(["render", "--formt", "csv"]);
     assert.equal(r.code, 2);
-    assert.match(r.stderr.trimEnd(), /; see "pivotkit help render"$/);
+    assert.match(r.stderr.trimEnd(), / run "pivotkit render --help"$/);
     const missing = await run(["render", '{"rows":["Region"]}'], { cwd: tempDir() });
-    assert.match(missing.stderr.trimEnd(), /see "pivotkit help render"$/);
+    assert.match(missing.stderr.trimEnd(), /; run "pivotkit render --help"$/);
 });
 
 test("a command's help lists only the options it uses", async () => {

@@ -132,7 +132,7 @@ test("hostile: a load that throws pivotkit's own codes with an address never sho
         const rest = await call(`${server.api}/sources/describe`, { body: { source: "denied" } });
         assert.deepEqual([rest.status, rest.data.code, rest.data.detail], [403, "NOT_ALLOWED", "You may not see this team's tickets."]);
         const tool = await client.callTool({ name: "describe_source", arguments: { source: "denied" } });
-        assert.match(String(/** @type {any} */ (tool.content)[0].text), /^NOT_ALLOWED: You may not see this team's tickets\. \(id [A-Za-z0-9_-]{11}\)$/);
+        assert.match(String(/** @type {any} */ (tool.content)[0].text), /^NOT_ALLOWED: You may not see this team's tickets\. \(request id [A-Za-z0-9_-]{11}\)$/);
         // the host's own words only in the log, and only with --log debug
         assert.ok(!JSON.stringify(server.log).includes("10.1.2.3"));
         assert.ok(server.log.some((l) => l.event === "error" && l.source === "s1" && l.error === "OperationError"));

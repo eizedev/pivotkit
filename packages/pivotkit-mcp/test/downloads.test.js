@@ -41,6 +41,11 @@ for (const era of Object.keys(ERAS)) {
             assert.equal(output.filename, "Sales by region.csv");
             assert.ok(output.url.startsWith(`${new URL(server.url).origin}/downloads/`), output.url);
             assert.match(r.raw.content[0].text, /Open the link in your browser; it works for 60 minutes\./);
+            // the sentence once in words: in the message, not again in the summary line before it
+            const [summary] = r.raw.content[0].text.split("\n");
+            assert.match(summary, /^Done: csv, saved as Sales by region\.csv\. /);
+            assert.doesNotMatch(summary, /Open the link/);
+            assert.equal(r.data.message.split("Open the link in your browser").length, 2, r.data.message);
             const link = r.raw.content[1];
             assert.deepEqual(link, { type: "resource_link", uri: output.url, name: "Sales by region.csv", title: "Sales by region", mimeType: "text/csv;charset=utf-8", size: readFileSync(join(dir, "out", output.name)).length, annotations: { audience: ["user"] } });
             const got = await fetch(output.url);

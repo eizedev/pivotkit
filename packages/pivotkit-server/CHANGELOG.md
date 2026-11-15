@@ -102,7 +102,14 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - `pivotkit-server check-source <id> [--param name=value ...]`: one load of an HTTP source as the
   server would make it, with each page's status, the rows, the fields and their types (no cell
   value; literal query values as `...`), what a caller would get when it fails, and the operator's
-  hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`).
+  hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`, and when it is
+  set, that its file does not cover the certificate). The id and the options in any order; exit 2
+  for an id that names no HTTP source; `OK with customer=acme` on success; the `--param` to re-run
+  with for a missing value; on a backend's 401 or 403 the secret behind `http.auth` (its variable or
+  file) or where to set one ([#424](https://github.com/eizedev/pivotkit/issues/424)).
+- `pivotkit-server --help` names `--version` and lists it before `--help`, as pivotkit-mcp's help
+  does. Unknown options and commands read `unknown option "--bogus"; run "pivotkit-server --help"`
+  (pivotkit-mcp's alike); `--auth` with another value says `--auth must be none, token or oauth`.
 - `pivotkit-server source-from-openapi <file or https URL> --operation <operationId or "GET /path">`: proposes an
   HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (path and query
   parameters with their types, where the rows are, the fields' descriptions, a skeleton of the
@@ -112,7 +119,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `httpSources` or a source's `http` that still does
   ([data sources](https://pivotkit.eize.dev/reference/sources/#openapi)).
 - Parameters: a refused value's `INVALID_INPUT` names the parameter's description, example and short
-  pattern; a value must have the parameter's type (a number for a `string` parameter is refused) and
+  pattern in one parenthesis ("params.customer is not in the expected form (The customer's short
+  name, for example acme; pattern ...)"); a missing one ends with "re-run with
+  params.customer=acme"; `GET /sources/{id}` of a source that needs params says to use `POST
+  /sources/describe`; render without `results: true` says to ask the operator for such a token; a value must have the parameter's type (a number for a `string` parameter is refused) and
   a text must be well-formed Unicode; `list_sources` adds each parameter's `pattern`, `format`,
   `minLength`, `maxLength`, `minimum` and `maximum`. The descriptions of `list_sources`,
   `describe_source`, `render_view` and the `params` input say that required params go into every

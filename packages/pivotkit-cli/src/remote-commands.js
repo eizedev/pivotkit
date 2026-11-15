@@ -6,7 +6,9 @@
  *
  * Routes: validate POST /views/validate, describe <view> POST /views/describe, describe --suggest
  * POST /views/suggest, render POST /views/validate and then POST /views/render/file (render --suggest:
- * POST /views/suggest, then the file), sources GET /sources and GET /sources/{id}.
+ * POST /views/suggest, then the file), sources GET /sources and GET /sources/{id} (with --param
+ * POST /sources/describe, since the GET takes no params). --param's values go with the source as
+ * `params`, as typed: the server reads a number or true/false from a text where the parameter is one.
  */
 
 import { viewFileText } from "pivotkit-core";
@@ -50,6 +52,7 @@ export async function remoteCommand(command, positionals, values, ctx, helpers) 
     }
     // every option and the token are checked before the first line and the first request
     timeoutOf(values);
+    const sourceParams = paramsOf(values.param);
     checkTls(server, ctx.io.env);
     const first = await readToken(values, ctx);
     // where the requests go and with which token, so a wrong target shows (the origin only, never the path)
@@ -62,8 +65,36 @@ export async function remoteCommand(command, positionals, values, ctx, helpers) 
     }
     const client = createClient({ server, values, ctx, userAgent: `pivotkit-cli/${helpers.version}` });
     const run = { render: renderRemote, validate: validateRemote, describe: describeRemote, sources: sourcesRemote }[command];
-    return run(positionals, values, ctx, client, helpers);
+    return run(positionals, { ...values, sourceParams }, ctx, client, helpers);
 }
+
+/**
+ * The values of --param name=value as the source's `params`, or none without the flag.
+ * @param {string[] | undefined} given
+ * @returns {Record<string, string> | undefined}
+ */
+export function paramsOf(given) {
+    if (!given?.length) {
+        return undefined;
+    }
+    /** @type {Record<string, string>} */
+    const params = Object.create(null);
+    for (const text of given) {
+        const at = text.indexOf("=");
+        if (at < 1) {
+            throw new CliError("usage", "BAD_VALUE", `--param takes name=value, not ${JSON.stringify(text.slice(0, 80))}`);
+        }
+        const name = text.slice(0, at);
+        if (Object.hasOwn(params, name)) {
+            throw new CliError("usage", "BAD_VALUE", `--param ${name.slice(0, 64)} is given twice; a parameter takes one value`);
+        }
+        params[name] = text.slice(at + 1);
+    }
+    return { ...params };
+}
+
+/** The source of a request: its id, and its params when --param gave some. */
+const sourceOf = (values) => ({ source: values.source, ...(values.sourceParams ? { params: values.sourceParams } : {}) });
 
 /**
  * Every string of a server's answer with the token taken out, for a file or --json (uncut: a view
@@ -116,7 +147,7 @@ async function validateRemote(positionals, values, ctx, client, helpers) {
         throw new CliError("usage", "EXTRA_ARGUMENT", `validate takes one view, not ${positionals.length}`);
     }
     const view = helpers.withMap(await helpers.readView(positionals, values, ctx), values);
-    const { data } = await jsonOf(client.json("POST", "views/validate", { source: values.source, view: view.view }));
+    const { data } = await jsonOf(client.json("POST", "views/validate", { ...sourceOf(values), view: view.view }));
     const findings = [...(view.findings ?? []), ...client.cleanFindings(data.findings)];
     const valid = data.valid === true && !findings.some((f) => f.severity === "error");
     const warnings = findings.filter((f) => f.severity === "warning").length;
@@ -146,7 +177,7 @@ async function describeRemote(positionals, values, ctx, client, helpers) {
         const arg = positionals[0];
         throw e instanceof CliError && e.code === "NOT_FOUND" && SOURCE_ID.test(arg) ? new CliError(e.kind, e.code, `${e.message}; the fields of a source: pivotkit sources ${arg}`) : e;
     }
-    const { data } = await jsonOf(client.json("POST", "views/describe", { source: values.source, view: view.view }));
+    const { data } = await jsonOf(client.json("POST", "views/describe", { ...sourceOf(values), view: view.view }));
     const text = data.description && typeof data.description.text === "string" ? client.clean(data.description.text) : "";
     if (!values.json && text) {
         ctx.io.stdout.write(`${client.clean(data.name) || "view"}: ${text}\n`);
@@ -167,7 +198,7 @@ async function suggestRemote(positionals, values, ctx, client, helpers) {
         }
         await helpers.checkNotInput(ctx, "-o", values.output, [[values["token-file"], "token"]], "draft");
     }
-    const { data } = await jsonOf(client.json("POST", "views/suggest", { source: values.source, layout: await layoutFor(values, ctx) }));
+    const { data } = await jsonOf(client.json("POST", "views/suggest", { ...sourceOf(values), layout: await layoutFor(values, ctx) }));
     const findings = client.cleanFindings(data.findings);
     const picks = deepClean(Array.isArray(data.picks) ? data.picks : [], client.strip);
     const lines = picks.filter((p) => typeof p?.text === "string").map((p) => `picked: ${client.clean(p.text)}`);
@@ -212,7 +243,7 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
     let what;
     if (layoutMode && values.suggest) {
         // a draft first (the server's suggest_view); the file of that view next
-        const { data } = await jsonOf(client.json("POST", "views/suggest", { source: values.source, layout: await layoutFor(values, ctx) }));
+        const { data } = await jsonOf(client.json("POST", "views/suggest", { ...sourceOf(values), layout: await layoutFor(values, ctx) }));
         findings.push(...client.cleanFindings(data.findings));
         what = { view: data.view };
     } else {
@@ -224,7 +255,7 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
         // the view's findings first, so warnings (and --strict) are known before the file is made; a
         // token scoped for render_view but not validate_view (auth.toolScopes) renders without them
         try {
-            const { data } = await jsonOf(client.json("POST", "views/validate", { source: values.source, ...given }));
+            const { data } = await jsonOf(client.json("POST", "views/validate", { ...sourceOf(values), ...given }));
             findings.push(...client.cleanFindings(data.findings));
         } catch (e) {
             if (!(e instanceof RemoteError && e.code === "INSUFFICIENT_SCOPE")) {
@@ -240,7 +271,7 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
     if (failing(findings, values) || (!what.view && !what.layout)) {
         return { findings, extra: { ...extra, output: null }, note: "nothing written: the view has errors.", noteIsError: true };
     }
-    const answer = await client.file({ source: values.source, ...what, format, ...(values.title !== undefined ? { title: values.title } : {}), ...(values.chart ? { chart: values.chart } : {}) });
+    const answer = await client.file({ ...sourceOf(values), ...what, format, ...(values.title !== undefined ? { title: values.title } : {}), ...(values.chart ? { chart: values.chart } : {}) });
     if ("viewErrors" in answer) {
         findings.push(...answer.viewErrors);
         return { findings, extra: { ...extra, output: null }, note: "nothing written: the view has errors.", noteIsError: true };
@@ -260,6 +291,9 @@ async function sourcesRemote(positionals, values, ctx, client) {
     }
     const id = positionals[0];
     if (id === undefined) {
+        if (values.sourceParams) {
+            throw new CliError("usage", "BAD_VALUE", "--param goes with a source: pivotkit sources <id> --param name=value");
+        }
         const { data } = await jsonOf(client.json("GET", "sources"));
         const list = deepClean(Array.isArray(data.sources) ? data.sources : [], client.strip).filter((s) => s && typeof s.id === "string");
         if (!values.json) {
@@ -267,7 +301,9 @@ async function sourcesRemote(positionals, values, ctx, client) {
             let width = 0;
             for (const s of list) width = Math.min(30, Math.max(width, s.id.length));
             for (const s of list) {
-                const line = `${client.clean(s.id).padEnd(width)}  ${client.clean(s.title ?? "")}${s.description ? ` - ${client.clean(s.description)}` : ""}`;
+                // the params every call needs (--param), by name
+                const needs = Array.isArray(s.params) ? s.params.filter((p) => p?.required === true && typeof p.name === "string").map((p) => client.clean(p.name)) : [];
+                const line = `${client.clean(s.id).padEnd(width)}  ${client.clean(s.title ?? "")}${s.description ? ` - ${client.clean(s.description)}` : ""}${needs.length ? ` (needs: ${needs.join(", ")})` : ""}`;
                 ctx.io.stdout.write(`${line.trimEnd()}\n`);
             }
         }
@@ -275,7 +311,8 @@ async function sourcesRemote(positionals, values, ctx, client) {
         return { findings: [], extra: { kind: "sources", sources: list }, note };
     }
     sourceId(id, "the id");
-    const { data } = await jsonOf(client.json("GET", `sources/${encodeURIComponent(id)}`));
+    // GET /sources/{id} takes no params: with --param the POST route of describe_source
+    const { data } = await jsonOf(values.sourceParams ? client.json("POST", "sources/describe", { source: id, params: values.sourceParams }) : client.json("GET", `sources/${encodeURIComponent(id)}`));
     const description = deepClean({ rows: data.rows ?? null, fields: Array.isArray(data.fields) ? data.fields : [], text: data.text ?? "", ...(typeof data.hiddenFields === "number" ? { hiddenFields: data.hiddenFields } : {}) }, client.strip);
     if (!values.json) {
         ctx.io.stdout.write(`${client.clean(description.text)}\n`);

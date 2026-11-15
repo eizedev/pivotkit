@@ -62,7 +62,12 @@ test("the runner's usage errors exit 2 with a hint; --help and --version exit 0"
     const dir = workspace();
     const typo = runner(["--alow-dir", "x"], dir);
     assert.equal(typo.status, 2);
-    assert.match(typo.stderr, /did you mean --allow-dir\?/);
+    assert.equal(typo.stderr, 'pivotkit-mcp: unknown option "--alow-dir"; did you mean --allow-dir? run "pivotkit-mcp --help"\n');
+    assert.equal(runner(["--auth", "bogus"], dir).stderr, 'pivotkit-mcp: --auth must be none, token or oauth; run "pivotkit-mcp --help"\n');
+    // the same Usage lines and flag order as pivotkit-server's help
+    const usage = runner(["--help"], dir).stdout;
+    assert.match(usage, /\nUsage: pivotkit-mcp \[options\]\n {7}pivotkit-mcp --version\n\nOptions:\n/);
+    assert.match(usage, /\n {2}--version {2,}Print the version and exit\.\n {2}--help {2,}Print this help and exit\.\n/);
     const missing = runner(["--config", "nope.json"], dir);
     assert.equal(missing.status, 2);
     assert.match(missing.stderr, /nope\.json: not found/);
