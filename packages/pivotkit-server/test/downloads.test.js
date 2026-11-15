@@ -195,6 +195,7 @@ test("options: expiry from 1 to 1440 minutes; enabled next to output.baseUrl, a 
     assert.throws(() => validateOptions({ output: { dir: "out", downloads: { key: "the-key-itself" } } }), /output\.downloads\.key: must be a reference to a secret/);
     validateOptions({ output: { dir: "out", downloads: { signIn, key: { env: "DL_KEY" }, expiresMinutes: 1440 } }, auth: oauth, http: { publicUrl: PUBLIC } });
     validateOptions({ output: { dir: "out", downloads: { bind: "once" } } });
+    assert.throws(() => validateOptions({ output: { dir: "out", downloads: { bind: "once" } }, http: { publicUrl: "http://reports.example.com" } }), /bind "once": needs http\.publicUrl with https/);
     validateOptions({ output: { dir: "out", baseUrl: "https://files.example.com/", downloads: { enabled: false } } });
 });
 
@@ -375,6 +376,9 @@ test("once: GET and HEAD answer a page and never use the link; one POST from the
         assert.equal((await fetch(url, { method: "POST", headers: { origin: server.url } })).status, 403, "the address behind the proxy is not the link's origin");
         assert.equal((await fetch(url, { method: "POST" })).status, 403);
         assert.equal((await fetch(url, { method: "POST", headers: { "sec-fetch-site": "cross-site" } })).status, 403);
+        // a browser posts the page's form with Origin "null" (the page's Referrer-Policy is no-referrer): only with same-origin fetch metadata
+        assert.equal((await fetch(url, { method: "POST", headers: { origin: "null" } })).status, 403);
+        assert.equal((await fetch(url, { method: "POST", headers: { origin: "null", "sec-fetch-site": "same-site" } })).status, 403);
         const first = await fetch(url, { method: "POST", headers: { origin: PUBLIC } });
         assert.equal(first.status, 200);
         assert.deepEqual(Buffer.from(await first.arrayBuffer()), readFileSync(join(dir, "out", output.name)));
@@ -410,7 +414,7 @@ test("once: of twenty POSTs at the same time exactly one gets the file", async (
     }
 });
 
-test("once on the MCP endpoint's own server: a browser's form POST with its Origin reaches the link (http.allowOrigins is for MCP clients); the tool result carries a resource_link without the size", async () => {
+test("once on REST and MCP on one port (serve): a browser's form POST with its Origin reaches the link (http.allowOrigins is for MCP clients); the tool result carries a resource_link without the size", async () => {
     const { server, local } = await onceServer();
     try {
         const { Client, StreamableHTTPClientTransport } = await import("@modelcontextprotocol/client");

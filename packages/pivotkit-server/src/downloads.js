@@ -22,6 +22,7 @@ import { constants } from "node:fs";
 import { mkdir, open, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ConfigError } from "./options/shared.js";
+import { DEFAULT_ALGORITHMS } from "./config.js";
 import { settingsOf } from "./options/downloads.js";
 import { discover, subjectOf } from "./auth.js";
 import { allowedHosts, hostRefusal } from "./checks.js";
@@ -716,7 +717,7 @@ export function createDownloadHandler(context, runtime = {}) {
         try {
             const idToken = await exchange(loaded, code, entry.v);
             const { jwtVerify } = await import("jose");
-            ({ payload: claims } = await jwtVerify(idToken, loaded.jwks, { issuer: settings.signIn.issuer, audience: settings.signIn.clientId, clockTolerance: options.auth?.clockTolerance ?? 30, requiredClaims: ["exp", "nonce"] }));
+            ({ payload: claims } = await jwtVerify(idToken, loaded.jwks, { issuer: settings.signIn.issuer, audience: settings.signIn.clientId, algorithms: options.auth?.algorithms?.length ? options.auth.algorithms : [...DEFAULT_ALGORITHMS], clockTolerance: options.auth?.clockTolerance ?? 30, requiredClaims: ["exp", "nonce"] }));
         } catch (e) {
             context.log.debug("download links: the sign-in failed", { reason: String(/** @type {any} */ (e)?.code ?? /** @type {any} */ (e)?.message ?? "invalid").slice(0, 120) });
             return fail("SIGN_IN_FAILED", { reason: "token" });

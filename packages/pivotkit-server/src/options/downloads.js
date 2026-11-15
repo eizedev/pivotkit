@@ -112,6 +112,9 @@ export function validate(options) {
             throw new ConfigError('output.downloads.signIn.scopes: must hold "openid" (the sign-in reads the person from the ID token)');
         }
     }
+    if (settings.bind === "once" && options.http?.publicUrl && !httpsOrAllowed(options.http.publicUrl, false)) {
+        throw new ConfigError('output.downloads.bind "once": needs http.publicUrl with https:// (a browser says that the button was pressed on the link\'s own page only over https)');
+    }
     if (settings.bind === "signIn") {
         if (options.auth?.mode !== "oauth" || !settings.signIn) {
             throw new ConfigError('output.downloads.bind "signIn": needs auth.mode "oauth" and output.downloads.signIn.clientId');

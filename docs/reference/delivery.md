@@ -94,7 +94,9 @@ outlives the download: the short cookie that holds the sign-in under way is clea
 link answers a page with a Download button and never uses the link, so a chat client's link preview
 does not use it up; the button's POST sends the file once. The same browser may repeat the download
 for two minutes; anyone else gets 409 "This link was already used." The POST must come from the
-link's own page (its `Origin` is `http.publicUrl`'s origin).
+link's own page: its `Origin` is `http.publicUrl`'s origin, or the browser sends `Origin: null` (the
+page's `Referrer-Policy` is `no-referrer`) with `Sec-Fetch-Site: same-origin`. Browsers send that
+only over https and on loopback, so `bind: "once"` needs an https `http.publicUrl`.
 
 Anyone who sees a one-time link can use it once, and an assistant with a browser or a code tool can
 use it before the person does. `check-config` warns of that; use `signIn` where it matters.
