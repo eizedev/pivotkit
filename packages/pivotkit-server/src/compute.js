@@ -125,7 +125,7 @@ export function createComputer(options = {}, internal = {}) {
      * Runs an operation in a worker.
      * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("./stats.js").SourceStats | null, asOf: string | null, stale: { since: string } | null }>}
      */
-    async function inWorker(op, input, job) {
+    async function inWorker(op, input, job, signal = undefined) {
         if (closed) {
             throw new OperationError("NOT_READY", "the server is shutting down");
         }
@@ -138,11 +138,17 @@ export function createComputer(options = {}, internal = {}) {
             replace(slot);
             throw new OperationError("INTERNAL", "internal error");
         }
+        if (signal?.aborted) {
+            // its callers went away while it waited for a worker
+            release(slot);
+            throw signal.reason;
+        }
         const id = next++;
         return new Promise((resolve, reject) => {
             const { worker } = slot;
             const done = () => {
                 clearTimeout(timer);
+                signal?.removeEventListener("abort", onAbort);
                 worker.off("message", onMessage);
                 worker.off("error", onError);
                 worker.off("exit", onExit);
@@ -216,6 +222,14 @@ export function createComputer(options = {}, internal = {}) {
                 replace(slot);
                 reject(new OperationError("TIMEOUT", `the report took longer than ${timeMs / 1000} s (compute.timeMs); make the view smaller or filter more`));
             }, timeMs);
+            // the callers went away: the worker is stopped and replaced, as one over its time is
+            const onAbort = () => {
+                done();
+                worker.terminate().catch(() => undefined);
+                replace(slot);
+                reject(signal?.reason);
+            };
+            signal?.addEventListener("abort", onAbort, { once: true });
             worker.on("message", onMessage);
             worker.once("error", onError);
             worker.once("exit", onExit);
@@ -255,9 +269,10 @@ export function createComputer(options = {}, internal = {}) {
          * @param {{ bytes: Uint8Array, format: "csv" }} upload
          * @param {string | null} tableKey
          * @param {string | null} asOf
+         * @param {AbortSignal} [signal]  fires when every caller of the load went away: the read stops
          * @returns {Promise<{ table: import("./packed.js").PackedTable, notes: import("pivotkit-report/operations").Finding[] }>}
          */
-        read: async (spec, upload, tableKey, asOf) => /** @type {any} */ ((await inWorker(READ_JOB, null, { spec, upload, tableKey, asOf })).outcome),
+        read: async (spec, upload, tableKey, asOf, signal = undefined) => /** @type {any} */ ((await inWorker(READ_JOB, null, { spec, upload, tableKey, asOf }, signal)).outcome),
         /** How many table jobs with a key went with their table and how many without it (tests). */
         sent: () => ({ ...sent }),
         /** The workers alive (0 once closed). */

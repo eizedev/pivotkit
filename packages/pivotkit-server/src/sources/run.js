@@ -22,7 +22,7 @@
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
 import { errorDetails } from "../request-id.js";
-import { LOAD_CACHE, createLoadCache } from "./cache.js";
+import { LOAD_CACHE, OWNER_SHARE, createLoadCache } from "./cache.js";
 
 /** How many loads run at once per source, and per identity within a source. */
 export const LOAD_LIMITS = Object.freeze({ perSource: 4, perIdentity: 2 });
@@ -190,7 +190,13 @@ const kindOf = (error) => (read(error, TIMED_OUT) ? "time limit" : error instanc
 /** A time in ms as a dataAsOf-like text, for stale.since. */
 const isoOf = (ms) => new Date(Math.floor(ms / 1000) * 1000).toISOString().replace(".000Z", "Z");
 
-/** @typedef {{ value: any, version: string | null, loadedAt: number }} Kept  a kept load: its value, the version it was loaded at, when */
+/** @typedef {{ value: any, version: string | null, loadedAt: number, order: number }} Kept  a kept load: its value, the version it was loaded at, when, and its place in the order loads started */
+
+/** How often a source too large to keep is said in the log, in ms. */
+const TOO_LARGE_EVERY = 3_600_000;
+
+/** Bytes as MiB with one decimal. */
+const mib = (bytes) => (bytes / 1_048_576).toFixed(1);
 
 /** The most keys whose last refusal is remembered (for late results of loads over the time limit). */
 const REFUSALS = 1024;
@@ -211,13 +217,17 @@ export function createLoadRunner(parts = {}) {
     const inflight = new Map();
     /** @type {Map<string, number>} when each key was last refused */
     const refusedAt = new Map();
+    /** The order of loads and refusals (a counter: two in one millisecond still have an order). */
+    let ticks = 0;
     /** @type {Map<string, { total: number, by: Map<string, number> }>} loads running per source, per identity */
     const running = new Map();
+    /** @type {Map<string, number>} when each source was last said to be too large to keep */
+    const tooLargeAt = new Map();
 
     const refuse = (key) => {
         cache.delete(key);
         refusedAt.delete(key);
-        refusedAt.set(key, Date.now());
+        refusedAt.set(key, ++ticks);
         if (refusedAt.size > REFUSALS) {
             refusedAt.delete(/** @type {string} */ (refusedAt.keys().next().value));
         }
@@ -254,7 +264,7 @@ export function createLoadRunner(parts = {}) {
      * @param {string | null} key  canonical JSON of what decides the data (sources/keys.js); null: nothing is kept or shared
      * @param {(signal: AbortSignal) => Promise<R>} load  the source's load; its errors are the source's own
      * @param {object} how
-     * @param {(raw: R) => V | Promise<V>} how.prepare  pivotkit's work on what the load gave (limits, encoding, reading a CSV answer in a worker), outside the source's timeMs; errors it marks with ownError pass as they are, any other is the source's failure
+     * @param {(raw: R, signal: AbortSignal | undefined) => V | Promise<V>} how.prepare  pivotkit's work on what the load gave (limits, encoding, reading a CSV answer in a worker), outside the source's timeMs; `signal` fires when every caller went away (none for a late result); errors it marks with ownError pass as they are, any other is the source's failure
      * @param {string} how.source  the source (its load limits); unique per configured source
      * @param {string} how.label  how the log names the source (its id)
      * @param {string} how.bucket  whose load it is, for the load limits (an identity, or the client's name without one)
@@ -371,7 +381,7 @@ export function createLoadRunner(parts = {}) {
 
     /** The load itself. */
     async function run(shared, key, load, how, version) {
-        const started = Date.now();
+        const order = ++ticks;
         const { controller } = shared;
         take(how.source, how.bucket);
         const loading = Promise.resolve().then(() => load(controller.signal));
@@ -406,8 +416,8 @@ export function createLoadRunner(parts = {}) {
                 // later load is kept already
                 loading.then(
                     (late) => {
-                        if (key !== null && !((refusedAt.get(key) ?? 0) >= started) && !((cache.get(key)?.loadedAt ?? -Infinity) >= started)) {
-                            keep(key, late, how, version);
+                        if (key !== null && mayKeep(key, order)) {
+                            keep(key, late, how, version, order);
                         }
                     },
                     () => undefined
@@ -419,35 +429,62 @@ export function createLoadRunner(parts = {}) {
         }
         let value;
         try {
-            value = await how.prepare(raw);
+            // the load's signal: a read whose callers all went away stops
+            value = await how.prepare(raw, controller.signal);
         } catch (e) {
+            if (shared.cancelled) {
+                throw new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: true }));
+            }
             if (isOwnError(e)) {
                 throw e;
             }
             // the host's code ran while its data was read (a getter): the source's failure
             return failed(key, e, how);
         }
-        if (key !== null) {
-            remember(key, value, how, version, Date.now());
+        // prepare may wait (a CSV answer read in a worker): every caller may have gone, the key
+        // been refused or a later load kept meanwhile, and then this value is not kept
+        if (key !== null && !shared.cancelled && mayKeep(key, order)) {
+            remember(key, value, how, version, order);
         }
         return { value, stale: null };
     }
 
-    /** Prepares a late load's result and keeps it; a result that cannot be prepared is not kept. */
-    async function keep(key, raw, how, version) {
+    /** Whether a load (its `order`) may still be kept: no refusal since it started and no load kept that started later. */
+    function mayKeep(key, order) {
+        return !((refusedAt.get(key) ?? 0) > order) && !((cache.get(key)?.order ?? 0) > order);
+    }
+
+    /**
+     * Prepares a late load's result and keeps it, unless the key was refused or a later load kept
+     * while it was prepared; a result that cannot be prepared is not kept.
+     */
+    async function keep(key, raw, how, version, order) {
         try {
-            remember(key, await how.prepare(raw), how, version, Date.now());
+            const value = await how.prepare(raw, undefined);
+            if (mayKeep(key, order)) {
+                remember(key, value, how, version, order);
+            }
         } catch {
             // the next call loads again and says why
         }
     }
 
     /** Keeps a value with when its load ended (ttl and stale's since count from then) and its version. */
-    function remember(key, value, how, version, loadedAt) {
+    function remember(key, value, how, version, order) {
         if (version === null && !how.ttl && !(how.maxStale > 0)) {
             return;
         }
-        cache.set(key, { value, version, loadedAt }, { identity: how.owner, bytes: how.sizeOf(value) });
+        const bytes = how.sizeOf(value);
+        const share = Math.floor(cache.limit() * OWNER_SHARE);
+        if (bytes > share) {
+            // not kept: every call loads again; said once an hour per source, so the operator can size the cache
+            if (Date.now() - (tooLargeAt.get(how.source) ?? -Infinity) >= TOO_LARGE_EVERY) {
+                tooLargeAt.set(how.source, Date.now());
+                how.log.warn(`the source ${how.label}: its data (${mib(bytes)} MiB) is larger than a quarter of sourceCache.maxMb (${mib(share)} MiB), so it is not kept and every call loads it again; raise sourceCache.maxMb to keep it`, { source: how.label });
+            }
+            return;
+        }
+        cache.set(key, { value, version, loadedAt: Date.now(), order }, { identity: how.owner, bytes });
     }
 
     /**
