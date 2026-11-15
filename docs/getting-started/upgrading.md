@@ -144,8 +144,15 @@ Then restart Claude Code.
 
 ## From 0.6.1 to the next release { #from-0-6-1 }
 
-Operators of pivotkit-server and pivotkit-mcp change nothing: no default changes, and every field
-keeps its level.
+Operators of pivotkit-server and pivotkit-mcp need not act: every field keeps its level, and the
+automatic values rule is off. What callers notice:
+
+- a filter item that is none of a `show` field's values gets the warning `itemUnknown` where
+  `describe_source` lists all of them, and `itemCase` comes for a `show` field also when the view
+  uses other fields;
+- `describe_source` adds `complete` to `show` fields and `withheld` with a `hint`;
+- a withheld render's `message` reads "results over fields that are not fully shown (...) stay in
+  the file".
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |

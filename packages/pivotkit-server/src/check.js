@@ -15,7 +15,8 @@ import { OUTPUT_INSIDE_ALLOWED, cannotCreate, entryOf, outputRefusal, ownFileDir
 import { draftCap } from "./present.js";
 import { isLoopback } from "./listen.js";
 import { createRegistry } from "./registry.js";
-import { POLICY_DEFAULTS, autoValuesOf, fieldKey, levelInfo, resolvePolicy, withStats } from "./policy.js";
+import { findingText } from "pivotkit-report/operations";
+import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "./policy.js";
 import { sourceStats } from "./stats.js";
 
 /**
@@ -35,6 +36,8 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     let everyColumn = registry.allow.length ? null : new Map();
     // a rule's name as the configuration spells it, by its key: shown where no column has it
     const configured = new Map([options.policy?.fields, ...Object.values(options.sources ?? {}).map((s) => s.policy?.fields)].flatMap((f) => Object.keys(f ?? {})).map((n) => [fieldKey(n), n]));
+    /** @type {Map<string, { names: string[], stats: any }>} the sources whose columns were read */
+    const read = new Map();
     lines.push(`Sources (${sources.length}):`);
     for (const s of sources) {
         const fields = Object.entries(s.policy.fields);
@@ -55,6 +58,7 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
             lines.push(`    warning: its columns could not be read to check the policy (${columns.why})`);
         }
         if (columns.names && columns.stats) {
+            read.set(s.id, columns);
             lines.push(...fieldLevelLines(s.resolved, columns.names, columns.stats, options.sources?.[s.id]?.policy, options.policy));
         }
         if (columns.names) {
@@ -144,6 +148,12 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     for (const [profile, p] of Object.entries(options.policy?.profiles ?? {})) {
         const fields = Object.entries(p.fields ?? {});
         lines.push(`Profile ${profile}: fields ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${everyColumn?.get(fieldKey(n)) ?? n} ${l}`).join(", ")}` : ""}; a field a source hides stays hidden; no automatic values; file downloads (REST) ${p.results ? "allowed" : "off"}`);
+        // what its callers get per source: a profile never has the automatic rule, so a field a
+        // plain caller sees at values may be summary here
+        for (const [id, columns] of read) {
+            const policy = withStats(resolvePolicy(options.policy, options.sources?.[id]?.policy, p), columns.stats);
+            lines.push(`  ${id}: ${columns.names.map((n) => `${nameText(n)} ${levelInfo(policy, n).level}`).join(", ")}`);
+        }
     }
     if (rest) {
         const r = options.rest ?? {};
@@ -184,7 +194,8 @@ async function tokenProblem(token, env, options) {
 }
 
 /**
- * Each column's level and why, one line each; where the automatic rule is off but could apply (no
+ * Each column's level and why, one line each (a warning where an explicit "values" field holds values
+ * that look like personal or technical data); where the automatic rule is off but could apply (no
  * default written), the text fields it would put at "values" and how to switch it on.
  * @param {import("./policy.js").Policy} resolved  the source's policy (no profile)
  * @param {string[]} names  the columns in the data's spelling
@@ -196,7 +207,8 @@ function fieldLevelLines(resolved, names, stats, sourcePolicy, serverPolicy) {
     const policy = withStats(resolved, stats);
     const lines = names.map((name) => {
         const info = levelInfo(policy, name);
-        return `      ${name}: ${info.level} (${info.why})`;
+        const looks = info.level === "values" && !info.auto ? stats.fields[fieldKey(name)]?.looks ?? [] : [];
+        return `      ${nameText(name)}: ${info.level} (${info.why})${looks.length ? `  warning: a value looks like ${looks.join(", ")}` : ""}`;
     });
     if (policy.auto) {
         const count = names.filter((n) => levelInfo(policy, n).auto).length;
@@ -206,15 +218,18 @@ function fieldLevelLines(resolved, names, stats, sourcePolicy, serverPolicy) {
         return ["    field levels (automatic values: not applied, a default is written):", ...lines];
     }
     // off by policy.autoValues: what it would give, to decide whether to switch it on
-    const option = sourcePolicy?.autoValues ?? serverPolicy?.autoValues ?? POLICY_DEFAULTS.autoValues;
+    const option = autoValuesOption(serverPolicy, sourcePolicy);
     const trial = withStats({ ...resolved, auto: autoValuesOf(option === false ? true : option) }, stats);
-    const would = names.filter((n) => levelInfo(trial, n).auto).map((n) => `${n} (${levelInfo(trial, n).why.replace(/^auto: /, "")})`);
+    const would = names.filter((n) => levelInfo(trial, n).auto).map((n) => `${nameText(n)} (${levelInfo(trial, n).why.replace(/^auto: /, "")})`);
     return [
         "    field levels (automatic values off):",
         ...lines,
-        would.length ? `    automatic values would list: ${would.join(", ")}; switch it on with policy.autoValues: true, or give a field the level values` : "    automatic values would list no field of this source"
+        would.length ? `    automatic values would list: ${would.join(", ")}; review them before you switch it on with policy.autoValues: true, or give a field the level values` : "    automatic values would list no field of this source"
     ];
 }
+
+/** A column's name as check-config prints it: cleaned of control and direction characters, capped. */
+const nameText = (name) => findingText(name).slice(0, 80);
 
 /**
  * The column names of a source file as the server reads them and its statistics, or why they could

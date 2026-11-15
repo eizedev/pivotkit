@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { encode } from "pivotkit-core";
-import { AUTO_VALUES, AUTO_VALUES_DEFAULT, POLICY_LEVELS, autoLevel, deniedWord, levelInfo, levelOf, resolvePolicy, stricter, withStats } from "pivotkit-server/policy";
+import { AUTO_VALUES, AUTO_VALUES_DEFAULT, POLICY_LEVELS, autoLevel, deniedWord, exposeFindings, levelInfo, levelOf, resolvePolicy, stricter, withStats } from "pivotkit-server/policy";
 import { ConfigError, checkConfig, validateOptions } from "pivotkit-server";
 import { LOOKS_LIKE, sourceStats } from "../src/stats.js";
 import { OTHER_TOKEN, TOKEN, call, restServer, workspace } from "./helpers.js";
@@ -193,7 +193,7 @@ test("the shipped default (automatic rule off): every field without a rule is su
         const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv" } }, baseDir: dir }, { http: false });
         assert.match(check.text, /field levels \(automatic values off\):/);
         assert.match(check.text, /Status: summary \(the default\)/);
-        assert.match(check.text, /automatic values would list: Status \(3 distinct, min 100 rows\), Team \(12 distinct, min 25 rows\); switch it on with policy.autoValues: true/);
+        assert.match(check.text, /automatic values would list: Status \(3 distinct, min 100 rows\), Team \(12 distinct, min 25 rows\); review them before you switch it on with policy.autoValues: true/);
     } finally {
         await server.close();
     }
@@ -224,7 +224,7 @@ test("render_view over a values field: no inline result, no summary, the content
         assert.deepEqual(rendered.data.withheld, ["rows", "columns", "bytes", "content"]);
         assert.equal(rendered.data.inline, undefined);
         assert.equal(rendered.data.summary, undefined);
-        assert.match(rendered.data.message, /the operator does not show results over Status/);
+        assert.match(rendered.data.message, /results over fields that are not fully shown \(Status\) stay in the file/);
         const over = await call(`${server.api}/views/render`, { body: { source: "tickets", view, format: "csv" } });
         assert.equal(over.data.code, "LIMIT_EXCEEDED", JSON.stringify(over.data));
         assert.doesNotMatch(over.data.detail, /\d/, "no count of groups");
@@ -342,7 +342,8 @@ test("a reload that changes the data changes the level, and the log says so; the
         assert.equal(await level(), "summary");
         const changed = server.log.find((l) => /changed which fields the automatic rule puts at values/.test(l.message ?? ""));
         assert.ok(changed, JSON.stringify(server.log));
-        assert.deepEqual([changed.source, changed.added, changed.removed], ["tickets", 0, 1]);
+        assert.deepEqual([changed.event, changed.source, changed.added, changed.removed], ["warning", "tickets", 0, 1]);
+        assert.equal(server.log.filter((l) => /automatic rule/.test(l.message ?? "") && l.event === "info").length, 1, "one start line, not one per source");
         assert.doesNotMatch(JSON.stringify(server.log), /Open|Waiting|Status|Team|"team"/, "no value and no field name in the log");
     } finally {
         await server.close();
@@ -369,4 +370,100 @@ test("an explicit values field whose values read like instructions or carry cont
     } finally {
         await server.close();
     }
+});
+
+test("the deny list reads through compatibility forms, invisible characters and look-alike letters; it names roles, traits, money and places", () => {
+    const deny = AUTO_VALUES.deny;
+    for (const name of ["\uFF2F\uFF57\uFF4E\uFF45\uFF52", "Ow\u200Bner", "Cus\u00ADtomer", "\u041Ewner", "Created By", "createdBy", "Erstellt von", "Ansprechpartner", "Verantwortlich", "Sales rep", "Patient ID", "City", "PLZ", "Postcode", "Bonus", "Medikament", "Partei", "Ethnicity", "DOB", "Jahrgang", "Beruf", "Job title", "Bank"]) {
+        assert.ok(deniedWord(name, deny), `${name} is denied`);
+    }
+    for (const name of ["Segment", "Department", "Category", "Status", "Stage", "Channel", "Product line", "Country"]) {
+        assert.equal(deniedWord(name, deny), null, `${name} passes`);
+    }
+});
+
+test("stats.js: a phone number is seven digits anywhere (six are not), in any digits NFKC folds; a long value is not looked at but counted", () => {
+    const looks = (v) => sourceStats(encode([{ F: v }])).fields.f.looks;
+    assert.deepEqual(looks("Tel 030 123 456"), ["phone"]);
+    assert.deepEqual(looks("Tel 030 123"), []);
+    assert.ok(looks("\uFF10\uFF13\uFF10 \uFF11\uFF12\uFF13 \uFF14").includes("phone"), "fullwidth digits");
+    const long = sourceStats(encode([{ F: `${"x".repeat(100)}@example.com` }])).fields.f;
+    assert.deepEqual([long.maxLength, long.looks], [112, []], "a value over 64 characters is too long for the rule anyway");
+});
+
+test("a column whose values are 30,000 characters without a space: describe_source and check-config answer in time", async () => {
+    const lines = ["Id,Blob"];
+    for (let i = 0; i < 25; i++) {
+        lines.push(`${i},${String.fromCharCode(97 + i).repeat(15_000)}@${"b".repeat(15_000)}`);
+    }
+    const data = `${lines.join("\n")}\n`;
+    let start = Date.now();
+    const stats = sourceStats(encode(lines.slice(1).map((l) => ({ Blob: l.split(",")[1] }))));
+    assert.ok(Date.now() - start < 1000, `stats in ${Date.now() - start} ms`);
+    assert.equal(stats.fields.blob.maxLength, 30_001);
+    const { server, dir } = await ticketServer({ sources: { tickets: { file: "data/tickets.csv", policy: { fields: { Blob: "values" } } } }, compute: { timeMs: 10_000 } }, data);
+    try {
+        start = Date.now();
+        const described = await call(`${server.api}/sources/tickets`);
+        assert.equal(described.status, 200, JSON.stringify(described.data).slice(0, 300));
+        assert.equal(described.data.fields.find((f) => f.name === "Blob").level, "summary", "values over 80 characters are no exact list");
+        const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv" } }, policy: { autoValues: true }, baseDir: dir }, { http: false });
+        assert.match(check.text, /Blob: summary/);
+        assert.ok(Date.now() - start < 10_000, `answered in ${Date.now() - start} ms`);
+    } finally {
+        await server.close();
+    }
+});
+
+test("two columns whose names differ only in spaces or case share no statistics: neither is listed", async () => {
+    for (const [a, b] of [["Seg ment", "Seg  ment"], ["Seg ment", "Seg\u00A0ment"]]) {
+        const lines = [`${a},${b},Sales`];
+        for (let i = 0; i < 300; i++) {
+            lines.push(`P${i % 40},${["Open", "Closed", "Waiting"][i % 3]},${i}`);
+        }
+        const { server } = await ticketServer({ policy: { autoValues: true } }, `${lines.join("\n")}\n`);
+        try {
+            const { data } = await call(`${server.api}/sources/tickets`);
+            assert.deepEqual(data.fields.slice(0, 2).map((f) => [f.level, f.items]), [["summary", undefined], ["summary", undefined]], JSON.stringify(data.fields));
+        } finally {
+            await server.close();
+        }
+    }
+    const stats = sourceStats(encode({ columns: ["Seg ment", "seg  ment", "Other"], types: ["string", "string", "string"], data: [["a"], ["b"], ["c"]] }));
+    assert.deepEqual(Object.keys(stats.fields), ["other"]);
+});
+
+test("valuesMax at its boundary, and a values list longer than items: every value listed", async () => {
+    const lines = ["Code,Sales"];
+    for (let i = 0; i < 310; i++) {
+        lines.push(`C${String(i % 31).padStart(2, "0")},${i}`);
+    }
+    const data = `${lines.join("\n")}\n`;
+    for (const [valuesMax, level, count] of [[31, "values", 31], [30, "summary", undefined]]) {
+        const { server } = await ticketServer({ sources: { tickets: { file: "data/tickets.csv", policy: { valuesMax, items: 5, fields: { Code: "values" } } } } }, data);
+        try {
+            const code = (await call(`${server.api}/sources/tickets`)).data.fields.find((f) => f.name === "Code");
+            assert.deepEqual([code.level, code.items?.length, code.complete], [level, count, level === "values" ? true : undefined], `valuesMax ${valuesMax}`);
+        } finally {
+            await server.close();
+        }
+    }
+});
+
+test("a finding about items without a field counts as closed; one that names a hidden column keeps only its code", () => {
+    const policy = withStats(resolvePolicy({}, { default: "show" }), { rows: 10, fields: { region: stat() } });
+    const findings = [
+        { severity: "warning", code: "itemCase", path: "filters[0].items", message: "item \"north\" is no item", suggestion: "North" },
+        { severity: "warning", code: "itemUnknown", path: "filters[0].items", message: "item \"Nort\"", suggestion: "North", field: "Region" },
+        { severity: "warning", code: "itemCase", path: "filters[1].items", message: "item of Secret", suggestion: "x", field: "Secret" }
+    ];
+    const out = exposeFindings(findings, policy, ["Region"], ["Secret"]);
+    assert.deepEqual(out.map((f) => [f.code, f.field, f.message]), [["itemUnknown", "Region", "item \"Nort\""], ["itemCase", undefined, "itemCase"]]);
+});
+
+test("check-config prints each profile's levels per source: a profile has no automatic rule", async () => {
+    const dir = workspace({ "tickets.csv": tickets() });
+    const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv" } }, policy: { autoValues: true, profiles: { export: { results: true }, analyst: { default: "show" } } }, baseDir: dir }, { http: false });
+    assert.match(check.text, /Profile export:[^\n]*\n {2}tickets: Status summary, Team summary, Region summary/);
+    assert.match(check.text, /Profile analyst:[^\n]*\n {2}tickets: Status show, Team show/);
 });

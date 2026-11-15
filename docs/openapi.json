@@ -3396,7 +3396,7 @@
             "items": {
               "type": "string"
             },
-            "description": "What is not shown because the view uses a field whose values the operator does not show."
+            "description": "What is not shown because the view uses a field that is not fully shown (values or summary): results over it stay in the file."
           },
           "message": {
             "type": "string",

@@ -8,10 +8,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Upgrading from 0.1.1
 
-Nothing changes unless the operator sets it; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
+Every field keeps its level and the automatic rule is off; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
 
 - A client reads the optional `field` of a finding, the code `itemUnknown`, `withheld`, `hint`,
   `complete` and `auto` in `describe_source`, and treats a `level` it does not know as `summary`.
+- A filter item that is none of a `show` field's values gets `itemUnknown` where its list is
+  complete; `itemCase` comes for a `show` field also in a view that uses other fields.
+- A withheld render's `message` reads "results over fields that are not fully shown (...) stay in
+  the file".
+- `check-config` prints more lines: each field's level and why, and each profile's levels.
 
 ### Added
 
@@ -34,7 +39,7 @@ Nothing changes unless the operator sets it; the [upgrade page](https://pivotkit
 
 ### Changed
 
-- The message of a withheld render names the fields the operator does not show results over.
+- The message of a withheld render names the fields that are not fully shown.
 
 ### Fixed
 

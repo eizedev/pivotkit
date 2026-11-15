@@ -196,6 +196,7 @@ export async function createContext(options, runtime = {}) {
                     const ran = await counting.run("describe_source", { source: resolved.spec.id, items: 0 }, { spec: resolved.spec }).catch(() => null);
                     if (ran?.stats) {
                         const policy = withStats(resolved.policy, ran.stats);
+                        // kept, so a later change of the data is logged
                         noteAutoValues(context, resolved.spec, policy);
                         fields += autoValuesFields(policy).length;
                     }

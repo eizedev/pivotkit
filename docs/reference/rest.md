@@ -65,7 +65,7 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "withheld": ["rows", "columns", "bytes", "content"],
   "output": { "name": "sales.pivotkit-out.xlsx", "format": "xlsx", "mediaType": "..." },
-  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer: the operator does not show results over Sales." }
+  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer: results over fields that are not fully shown (Sales) stay in the file." }
 ```
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where
@@ -120,7 +120,11 @@ policy:
   two different profiles gets none.
 
 A caller bound to a profile never gets the automatic values rule: what its profile and the source
-say is what it gets. To give a group more, bind a profile to its OAuth scope. Here a plain token
+say is what it gets. With `policy.autoValues: true`, a profile that only adds `results: true` (the
+`export` profile below) therefore sees less than a plain token: a field the rule lists for the plain
+token is `summary` for it. Give such a profile `values` where it needs them, in its `fields` or as
+its `default`; `check-config` prints each profile's levels per source. To give a group more, bind a
+profile to its OAuth scope. Here a plain token
 sees `Status` as a complete list and nothing else, and a token with the scope `pivotkit:analyst`
 sees every value but `Customer`:
 

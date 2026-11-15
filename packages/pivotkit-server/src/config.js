@@ -314,6 +314,11 @@ export function validateOptions(options) {
                 throw new ConfigError(`${path}.${key}: 1 to ${STATS_DISTINCT}`);
             }
         }
+        for (const key of ["minRows", "minRowsPerValue"]) {
+            if (policy?.autoValues?.[key] !== undefined && policy.autoValues[key] < 1) {
+                throw new ConfigError(`${path}.autoValues.${key}: must be 1 or more`);
+            }
+        }
     }
     if (options.rest?.resource) {
         urlOf(options.rest.resource, "rest.resource");

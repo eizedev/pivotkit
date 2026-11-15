@@ -55,7 +55,7 @@ test("policy.autoValues true: a category field is at values over MCP; a result o
         assert.deepEqual(await answer("K1"), exists);
         assert.deepEqual(exists.data.withheld, ["rows", "columns", "bytes", "content"]);
         assert.equal(exists.data.inline, undefined);
-        assert.match(exists.data.message, /not shown to the assistant \(the operator does not show results over Status, Sales, Kundenname\)/);
+        assert.match(exists.data.message, /not shown to the assistant: results over fields that are not fully shown \(Status, Sales, Kundenname\) stay in the file/);
     }));
 
 test("the shipped default: no automatic level over MCP", () =>

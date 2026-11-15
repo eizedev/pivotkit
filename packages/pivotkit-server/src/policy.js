@@ -35,7 +35,11 @@
 
 import { findingText } from "pivotkit-report/operations";
 
-/** The levels, from most to least visible: the order a merge of two rules for one field goes by (the stricter wins). */
+/**
+ * The levels, from most to least visible. A source's rule for a field replaces the server's, a
+ * profile's replaces the source's, except that a field the source's policy hides stays hidden; only
+ * two rules of one part for one field (two spellings of its name) keep the stricter of the two.
+ */
 /** @type {readonly ["show", "values", "summary", "hide"]} */
 export const POLICY_LEVELS = Object.freeze(/** @type {const} */ (["show", "values", "summary", "hide"]));
 
@@ -57,15 +61,29 @@ export const NAME_TEXT = 80;
 export const AUTO_VALUES_DEFAULT = false;
 
 /**
- * Words a field name must not hold for the automatic "values" level, in English and German, matched
- * per word of the name (split at spaces, punctuation and camelCase; case does not count): a word of
- * four letters or more anywhere in a name's word ("Kundenname", "Birthdate"), a shorter one as a word
- * of its own ("Age", "age_group", not "Stage"). A second layer behind the statistics, not the
- * safeguard; policy.autoValues.deny adds words.
+ * Words a field name must not hold for the automatic "values" level, in English and German: names of
+ * people and their roles, personal traits, health, money, places and free text. Matched per word of
+ * the name (folded with NFKC, invisible characters and look-alike letters removed, split at spaces,
+ * punctuation and camelCase; case does not count): a word of four letters or more anywhere in a word
+ * of the name ("Kundenname", "Birthdate"), a shorter one as a word of its own ("Age", "age_group",
+ * not "Stage"), an entry of two words as those words in a row ("created by"). A second layer behind
+ * the statistics, not the safeguard; policy.autoValues.deny adds words.
  */
 export const AUTO_VALUES_DENY = Object.freeze([
-    "name", "customer", "client", "employee", "owner", "assignee", "gender", "religion", "nationality", "diagnosis", "health", "salary", "birth", "age", "address", "comment", "note", "reason",
-    "kunde", "mitarbeiter", "besitzer", "eigentümer", "inhaber", "bearbeiter", "zuständig", "geschlecht", "konfession", "nationalität", "staatsangehörigkeit", "diagnose", "gesundheit", "gehalt", "lohn", "geburt", "alter", "adresse", "anschrift", "kommentar", "notiz", "bemerkung", "grund"
+    // people and their roles
+    "name", "customer", "client", "employee", "owner", "assignee", "responsible", "contact", "agent", "author", "manager", "lead", "supervisor", "person", "user", "patient", "student", "teacher", "doctor", "created by", "approver", "reviewer", "driver", "applicant", "partner", "sender", "sales rep",
+    "kunde", "mitarbeiter", "besitzer", "eigentümer", "inhaber", "bearbeiter", "zuständig", "verantwortlich", "ansprechpartner", "kontakt", "autor", "leiter", "nutzer", "benutzer", "lehrer", "arzt", "erstellt von", "fahrer", "bewerber", "betreuer", "vertrieb",
+    // personal traits and beliefs
+    "gender", "sex", "race", "ethnicity", "religion", "nationality", "party", "birth", "dob", "born", "age",
+    "geschlecht", "ethnie", "konfession", "nationalität", "staatsangehörigkeit", "partei", "geburt", "jahrgang", "alter",
+    // health
+    "diagnosis", "health", "medication", "illness", "diagnose", "gesundheit", "medikament", "krankheit",
+    // money and work
+    "salary", "income", "bonus", "bank", "account", "job", "gehalt", "lohn", "einkommen", "konto", "beruf",
+    // places
+    "address", "city", "postcode", "zip", "adresse", "anschrift", "stadt", "plz", "wohnort",
+    // free text
+    "comment", "note", "reason", "kommentar", "notiz", "bemerkung", "grund"
 ]);
 
 /**
@@ -132,6 +150,14 @@ export function autoValuesOf(option) {
 }
 
 /**
+ * The policy.autoValues option that holds for a source: the source's, else the server's, else the
+ * shipped default.
+ * @param {any} server  options.policy
+ * @param {any} [source]  options.sources[id].policy
+ */
+export const autoValuesOption = (server, source) => source?.autoValues ?? server?.autoValues ?? POLICY_DEFAULTS.autoValues;
+
+/**
  * A source's policy: its own settings over the server's, fields merged (the source's win); with a
  * profile, the profile laid over that (see the top of this file). `file`: the policy of a file: path,
  * which the automatic rule never applies to.
@@ -178,7 +204,7 @@ export function resolvePolicy(server = {}, source = {}, profile = undefined, how
     const implicitDefault = profile?.default === undefined && source?.default === undefined && server?.default === undefined;
     // the automatic rule raises a field only where the operator set no default and bound no profile:
     // a profile's own levels are what its callers get, never more
-    const autoOption = source?.autoValues ?? server?.autoValues ?? POLICY_DEFAULTS.autoValues;
+    const autoOption = autoValuesOption(server, source);
     const auto = implicitDefault && !profile && !how.file ? autoValuesOf(autoOption) : false;
     return {
         default: level,
@@ -212,11 +238,17 @@ export const fieldKey = (name) => String(name).normalize("NFC").replace(/\s+/gu,
 /** A reader's name for a repeated header ("Email (2)", "email (3)"): the part before it is the first one's name. */
 const REPEATED = /^(.*\S) \(\d+\)$/;
 
+/** Look-alike letters of other scripts that a name could hide a deny word with, as the Latin letter. */
+const LOOK_ALIKES = Object.freeze({ а: "a", е: "e", о: "o", р: "p", с: "c", у: "y", х: "x", і: "i", ј: "j", ѕ: "s", к: "k", м: "m", т: "t", н: "h", в: "b", α: "a", ο: "o", ρ: "p", ε: "e", ι: "i", κ: "k", ν: "v", τ: "t", υ: "u" });
+
+/** A text as the deny list reads it: NFKC (fullwidth and other compatibility forms folded), no invisible or control characters, look-alike letters as Latin ones. */
+const denyText = (text) => String(text).normalize("NFKC").replace(/[\p{Cf}\p{Cc}]/gu, "").replace(/[\p{Script=Cyrillic}\p{Script=Greek}]/gu, (c) => LOOK_ALIKES[c.toLowerCase()] ?? c);
+
 /**
- * The words of a field name as the deny list reads them: split at camelCase, spaces and punctuation,
- * lower case.
+ * The words of a field name as the deny list reads them: denyText, split at camelCase, spaces and
+ * punctuation, lower case.
  */
-const nameWords = (name) => String(name).normalize("NFC").replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const nameWords = (name) => denyText(name).replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 
 /**
  * The word of the deny list a field name holds, or null: a word of four letters or more anywhere in a
@@ -226,9 +258,15 @@ const nameWords = (name) => String(name).normalize("NFC").replace(/(\p{Ll})(\p{L
  */
 export function deniedWord(name, deny) {
     const words = nameWords(name);
+    const joined = ` ${words.join(" ")} `;
     for (const entry of deny) {
-        const w = entry.normalize("NFC").toLowerCase();
-        if ([...w].length >= 4 ? words.some((t) => t.includes(w)) : words.some((t) => t === w || t === `${w}s`)) {
+        const parts = nameWords(entry);
+        const w = parts.join(" ");
+        if (!w) {
+            continue;
+        }
+        const hit = parts.length > 1 ? joined.includes(` ${w} `) || joined.includes(` ${w}s `) : [...w].length >= 4 ? words.some((t) => t.includes(w)) : words.some((t) => t === w || t === `${w}s`);
+        if (hit) {
             return w;
         }
     }
@@ -290,7 +328,7 @@ function listable(policy, key, level, why) {
     const stat = policy.stats?.fields?.[key];
     const no = (reason) => ({ level: /** @type {Level} */ ("summary"), why: `values asked, but ${reason}` });
     if (!stat) {
-        return no("the data's statistics are missing");
+        return no("the data's statistics are missing (or two columns share this name but for case or spaces)");
     }
     if (stat.type !== "string") {
         return no(`a ${stat.type} field lists no values`);
@@ -328,6 +366,9 @@ export function levelInfo(policy, name) {
         return { level: "hide", why: "repeats a hidden column's header" };
     }
     const stat = p.stats?.fields?.[key];
+    if (p.auto && stat && stat.type !== "string") {
+        return listable(p, key, p.default, `a ${stat.type} field (the automatic rule is for text)`);
+    }
     if (p.auto && stat?.type === "string") {
         const verdict = autoLevel(name, stat, p.stats.rows, p.auto);
         if (verdict.values) {
@@ -338,6 +379,9 @@ export function levelInfo(policy, name) {
     }
     return listable(p, key, p.default, "the default");
 }
+
+/** Whether any field of a policy can be at "values": a rule or the default names it, or the automatic rule is on. */
+export const mayList = (policy) => Boolean(policy.auto) || policy.default === "values" || [...policy.fields.values()].includes("values");
 
 /**
  * A field's level (levelInfo's, without why).

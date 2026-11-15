@@ -73,12 +73,14 @@ file that is missing, outside the directories or replaced while it is read gets 
 The operator sets, per field, how much of it the model may see. A source's `policy` goes over the
 server's `policy`; field names are matched without regard to case.
 
-Levels from open to closed: `show`, `values`, `summary`, `hide`. Where two rules meet (a source's
-and a profile's, two spellings of one name) the stricter wins, and `hide` always does.
+Levels from open to closed: `show`, `values`, `summary`, `hide`. A source's rule for a field
+replaces the server's, and a profile's replaces the source's, except that a field the source's policy
+hides stays hidden in every profile. Only two rules of one part for one field (two spellings of its
+name) keep the stricter of the two.
 
 | Level | describe_source shows | Findings | Results |
 | --- | --- | --- | --- |
-| `show` | name, type, counts, up to `items` values (`complete: true` when that is all of them), the smallest and largest value | an item in another case or with other spaces gets the data's spelling (`itemCase`); where the list is complete, an item that is none of the values gets `itemUnknown` with the closest one; a render whose fields are all `show` says when its filters keep no rows (`noRowsKept`) or a table or chart was cut | csv and json come back inline when they fit `inline` |
+| `show` | name, type, counts, up to `items` values (`complete: true` when that is all of them; no `complete` with `counts: false`), the smallest and largest value | an item in another case or with other spaces gets the data's spelling (`itemCase`; the item is not corrected, so the report stays empty until the view uses that spelling); where the list is complete, an item that is none of the values gets `itemUnknown` with the closest one; a render whose fields are all `show` says when its filters keep no rows (`noRowsKept`) or a table or chart was cut | csv and json come back inline when they fit `inline` |
 | `values` | name, type, counts and every distinct value, sorted (`items`, `complete: true`; `auto: true` where the [automatic rule](#auto-values) gave the level) | `itemCase` and `itemUnknown` for this field; no `noRowsKept`, `filterEmpty`, `tableCut` or `chartCut`, which would tell whether a combination of listed values exists | as `summary`: written to a file only; rows, columns and size withheld |
 | `summary` (default) | name, type, counts | names; no check of an item against the data: a misspelt item renders an empty report | written to a file only; rows, columns and size withheld |
 | `hide` | not listed; `hiddenFields` counts them | never named | the column is dropped when the data is read |
@@ -105,18 +107,26 @@ reads an unknown `level` as `summary`: more levels may come.
 ### The automatic values rule { #auto-values }
 
 With `policy.autoValues: true` (off by default), a text field that looks like a category gets
-`values` without a rule of its own, so a model can find the exact name of a status or a team. It
+`values` without a rule of its own, so a model can find the exact name of a status or a team. It is
+meant for sources whose text fields are non-personal categories: `check-config` lists what it would
+list, so review that before you switch it on, and give a field its own rule or the source a
+`default` where it must not apply. Listed values are data from the source, never instructions; they
+are cleaned of control and direction characters like every value. It
 applies only to the operator's sources (never to a `file:` path), only where no `default` is written
 at server, source or profile level, and never to a caller bound to a profile. A field's own rule
 always wins. A field qualifies when all of these hold:
 
 - at most 12 distinct values (`maxDistinct`), each in at least 5 rows (`minRowsPerValue`);
 - at least 100 rows in the source (`minRows`), and at least 20 rows per distinct value;
-- values of at most 40 characters, none looking like an e-mail address, a phone number, an address
-  on the web, an IBAN, an IP address or a run of 6 or more digits;
-- a field name without a word of the deny list (English and German: name, customer, employee,
-  owner, assignee, gender, religion, nationality, diagnosis, health, salary, birth, age, address,
-  comment, note, reason, Kunde, Mitarbeiter, Geburt, Alter, Adresse, ...; `deny` adds words).
+- values of at most 40 characters, none looking like an e-mail address, a phone number (seven
+  digits or more anywhere), an address on the web, an IBAN, an IP address or a run of 6 or more
+  digits;
+- a field name without a word of the deny list, in English and German: people and their roles
+  (name, customer, employee, owner, contact, manager, user, created by, Kunde, Ansprechpartner, ...),
+  personal traits (gender, age, birth, religion, nationality, party, ...), health, money (salary,
+  income, bank, ...), places (address, city, postcode, PLZ, ...) and free text (comment, note,
+  reason, ...). Names are read with compatibility forms folded, invisible characters removed and
+  look-alike letters as Latin ones; `deny` adds words.
 
 The deny list is a second layer, not the safeguard. The level is decided from statistics counted
 when the data is read (numbers, never values) and kept with the data; when they are missing the
@@ -242,8 +252,9 @@ check of this page; `loadConfig(file)` reads a configuration file into options. 
 give a source `load: async () => rows` (rows or columnar data) and `version: () => key` instead of
 `file`; such sources run in the host's thread, not in a worker. `createHttpHandler(context, { env })`
 reads static tokens from `env` (default `process.env`). `pivotkit-mcp/policy` exports the exposure
-policy (`resolvePolicy`, `withStats`, `levelOf`, `levelInfo`, `exposeSource`, `exposeFindings`,
-`touchesClosed`) for another front end over the same sources; it is `pivotkit-server/policy` under another name.
+policy (`resolvePolicy`, `withStats`, `levelOf`, `levelInfo`, `autoLevel`, `deniedWord`, `listsAll`,
+`stricter`, `exposeSource`, `exposeFindings`, `touchesClosed`) for another front end over the same
+sources; it is `pivotkit-server/policy` under another name.
 
 ## Limits and errors { #errors }
 
