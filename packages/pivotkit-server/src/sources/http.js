@@ -36,7 +36,8 @@ import { fieldKey } from "../policy.js";
 import { requestId } from "../request-id.js";
 import { asOfText } from "./as-of.js";
 import { backendHeaders, dropToken } from "./auth.js";
-import { GuardedFetchError, guardedFetch } from "./fetch.js";
+import { guardedFetch, GuardedFetchError, upstreamCauseOf } from "./fetch.js";
+export { upstreamCauseOf };
 import { canonicalJson, configHashOf, privatePart, tableKeyOf } from "./keys.js";
 import { SourceError, loadRunner, ownError } from "./run.js";
 import { expandUrl, loggedPath } from "./template.js";
@@ -190,38 +191,6 @@ export const certificateHint = (env, failure) =>
 
 /** The guardedFetch codes that mean the source's settings are wrong (an address it may not reach, a redirect). */
 const SETUP_CODES = new Set(["BAD_URL", "NOT_HTTPS", "USERINFO", "BAD_HEADER", "BAD_METHOD", "BAD_BODY", "IP_LITERAL", "REFUSED_ADDRESS", "REDIRECT"]);
-
-/** The guardedFetch codes of an address the source may not reach. */
-const BLOCKED_CODES = new Set(["REFUSED_ADDRESS", "IP_LITERAL", "NOT_HTTPS"]);
-
-/** The system error codes of a name that has no address. */
-const DNS_CODES = /\b(?:ENOTFOUND|EAI_AGAIN|EAI_NONAME|EAI_FAIL)\b|the name has no address/;
-
-/**
- * Why a backend failed, as a stable word for the log (`cause` of an upstream warning): timeout,
- * connection, tls, dns, blocked_address, http_status, bad_body, or setup (the source's request cannot
- * be sent as configured).
- * @param {GuardedFetchError} error
- */
-export function upstreamCauseOf(error) {
-    const said = `${error.message} ${/** @type {any} */ (error.cause)?.code ?? ""}`;
-    if (error.code === "TIMEOUT") {
-        return "timeout";
-    }
-    if (BLOCKED_CODES.has(error.code)) {
-        return "blocked_address";
-    }
-    if (error.code === "REDIRECT") {
-        return "http_status";
-    }
-    if (error.code === "TOO_LARGE" || error.code === "BAD_ENCODING") {
-        return "bad_body";
-    }
-    if (error.code === "NETWORK") {
-        return CERTIFICATE.test(said) ? "tls" : DNS_CODES.test(said) ? "dns" : "connection";
-    }
-    return "setup";
-}
 
 /**
  * The fields of an upstream warning: why (upstreamCauseOf's words), the backend's name (never its
@@ -393,7 +362,7 @@ export async function loadHttp(settings, values, how) {
     const started = Date.now();
     const maxBytes = Math.min(settings.maxBytes, how.limits.fileBytes ?? settings.maxBytes);
     const fixed = { accept: settings.format === "csv" ? "text/csv" : "application/json", ...settings.headers };
-    const signIn = (trace) => backendHeaders(settings.auth, how.caller, { signal: how.signal, id, log: how.log, fetch, ...(trace ? { trace } : {}) });
+    const signIn = (trace) => backendHeaders(settings.auth, how.caller, { signal: how.signal, id, log: how.log, fetch, ...(settings.backend ? { backend: settings.backend } : {}), ...(trace ? { trace } : {}) });
     // the sign-in's headers last: a static header never stands in for them
     if (how.trace && settings.auth) {
         how.trace.auth = { kind: settings.auth.kind };

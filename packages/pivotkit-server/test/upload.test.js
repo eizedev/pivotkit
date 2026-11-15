@@ -392,6 +392,9 @@ test("a presign answer that is not followed: an address off allowOrigins, http:/
         assert.equal(files.length, 1, code);
         const warned = log.find((l) => l.upload === code);
         assert.equal(warned?.requestId, "Fai1ed_Id00", code);
+        // a stable cause beside the free text: what the presign service or the store answered is bad_body
+        assert.equal(warned?.cause, "bad_body", code);
+        assert.equal(typeof warned?.upstreamMs, "number", code);
         assert.ok(!JSON.stringify(log).includes(SIGNATURE), code);
         assert.ok(!JSON.stringify(log).includes("stolen"), code);
     }

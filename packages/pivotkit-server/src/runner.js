@@ -118,7 +118,7 @@ async function checkSourceCommand(argv, io) {
 /**
  * Runs a subcommand; resolves when it has started (serve, mcp) or with the exit code.
  * @param {string[]} argv
- * @param {{ env: Record<string, string | undefined>, stdout: { write(t: string): unknown }, stderr: { write(t: string): unknown }, stdin?: any, cwd?: string }} io
+ * @param {{ env: Record<string, string | undefined>, stdout: { write(t: string): unknown }, stderr: { write(t: string): unknown, isTTY?: boolean }, stdin?: any, cwd?: string }} io
  * @returns {Promise<number | null>}  an exit code, or null while it serves
  */
 export async function run(argv, io) {
@@ -203,7 +203,7 @@ export async function run(argv, io) {
     } catch (e) {
         const text = e instanceof ConfigError ? e.message : `could not start: ${String(e?.message ?? e).slice(0, 300)}`;
         // serve's error before its log exists: a JSON line where the log is asked to be JSON
-        const line = command === "serve" ? startErrorLine(startFormatOf(rest, io.env), text, { service: "pivotkit-server", version: VERSION, code: e instanceof ConfigError ? "CONFIG" : "START" }) : null;
+        const line = command === "serve" ? startErrorLine(startFormatOf(rest, io.env, io.stderr), text, { service: "pivotkit-server", version: VERSION, code: e instanceof ConfigError ? "CONFIG" : "START" }) : null;
         io.stderr.write(line ?? `pivotkit-server: ${text}\n`);
         return 2;
     }

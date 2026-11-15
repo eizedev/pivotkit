@@ -87,7 +87,8 @@ test("stdio: each call gets its own id and trace; started names the sources, the
     }
     const lines = stderr.join("").trim().split("\n").map((l) => JSON.parse(l));
     const started = lines.find((l) => l.msg === "started");
-    assert.deepEqual([started.sourceIds, started.logLevel, started.logFormat, started.tokens], [["sales"], "info", "json", undefined]);
+    // no logAddress over stdio: there are no addresses
+    assert.deepEqual([started.sourceIds, started.logLevel, started.logFormat, started.logAddress, started.tokens], [["sales"], "info", "json", undefined, undefined]);
     const calls = lines.filter((l) => l.event === "call");
     assert.equal(calls.length, 2);
     assert.notEqual(calls[0].requestId, calls[1].requestId);

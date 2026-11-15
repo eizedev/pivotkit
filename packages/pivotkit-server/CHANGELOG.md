@@ -10,9 +10,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - The log ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#log)): on a terminal it
   is text unless `log.format` is `json` (stderr that is no terminal, and the container image, stay
-  JSON). JSON lines only gain fields. The client's address is logged by default as `address`, the
-  socket's peer; with `http.trustProxy` the forwarded client, which `address` held before, is now
-  `clientAddress`. `log.address: "off"` keeps both out.
+  JSON). JSON lines gain fields. The client's address is logged by default as `address` (with
+  `http.trustProxy` the forwarded client, as before, or `invalid` for one that is no IP address),
+  with `peerAddress` beside it where the connection's own address differs; `log.address: "off"`
+  keeps both out. More refusals get a line, and an error at the start of `serve` is a JSON line
+  where stderr is no terminal.
 
 - Behaviour change: `output.maxAgeDays` is 30 by default, so reports and schedule drafts older than
   30 days are deleted from `output.dir` at start and every hour, including drafts still waiting for
@@ -75,8 +77,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   request's lines its `traceId` (from a valid W3C `traceparent`, else new), `upstreamRequestId` (a
   checked incoming `X-Request-Id`) and the client's address; `call`, `request`, `download` and
   `refused` lines `outcome` and `status`, at `info`, `warn` (4xx) or `error` (5xx); `refused` lines a
-  `reason` (with `limit` and `size` for a body over the cap), also for the per-caller 429s and
-  `/openapi.json`; backend warnings `cause`, `backend`, `upstreamStatus` and `upstreamMs`; `started`
+  `reason` (with `limit` and `size` for a body over the cap), also for the per-caller 429s,
+  `/openapi.json` and requests the HTTP parser refuses (with `parserError`), and at `debug` for a GET
+  of the MCP endpoint and a path nobody serves; `peerAddress`, the socket's peer where it differs from
+  `address`; warnings of HTTP sources, backend sign-ins and uploads `cause`, `backend`,
+  `upstreamStatus` and `upstreamMs`; text values without C0, C1 or bidi controls in JSON too; `started`
   the source ids, the log's settings and the static tokens' names; a `stopped` line ends the log.
   The text format is logfmt, one line per event whatever a value holds, coloured only on a terminal
   without `NO_COLOR`. `source` is at most 64 characters on every line.

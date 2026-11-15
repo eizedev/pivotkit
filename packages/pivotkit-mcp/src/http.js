@@ -188,6 +188,8 @@ export async function createHttpHandler(context, runtime = {}) {
             return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'", "cache-control": "no-store" } });
         }
         if (url.pathname !== ENDPOINT) {
+            // a path nobody serves: on the debug log only, so a scan does not fill the log
+            context.log.refused({ status: 404, reason: refusalReason("NOT_FOUND") }, { level: "debug" });
             return new Response("not found", { status: 404 });
         }
         if (isBrowser(request)) {
@@ -201,6 +203,8 @@ export async function createHttpHandler(context, runtime = {}) {
         // stateless: only POST reaches the protocol layer; any other method is answered here, as the
         // SDK would, before it takes a caller's slot (a HEAD's answer is never read to its end)
         if (request.method !== "POST") {
+            // a client that opens a stream with GET: routine for a stateless server, on the debug log only
+            context.log.refused({ status: 405, path: ENDPOINT, reason: refusalReason("METHOD_NOT_ALLOWED") }, { level: "debug" });
             return rpcError(405, -32000, "Method not allowed.", { allow: "POST" });
         }
         const client = authInfo ? String(authInfo.clientId ?? "client") : "local";
@@ -341,7 +345,7 @@ export async function listen(options, runtime) {
         handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
         const downloads = handler.downloads;
         const isDownload = (path) => downloads.handles(path.split("?")[0]);
-        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: (status, path, info) => (isDownload(path) ? downloads.problem(status) : handler.problem(status, path, info)) }, { host, port, bodyBytes: (request) => (isDownload(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : BODY_BYTES), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onRefused: (entry) => context.log.warn(refusedText(entry), entry) });
+        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: (status, path, info) => (isDownload(path) ? downloads.problem(status) : handler.problem(status, path, info)) }, { host, port, bodyBytes: (request) => (isDownload(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : BODY_BYTES), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onClientError: (entry) => context.log.refused({ ...entry, reason: refusalReason("INVALID_INPUT") }), onRefused: (entry) => context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler?.close();
         await context.close();

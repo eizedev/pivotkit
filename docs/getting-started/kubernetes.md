@@ -79,7 +79,7 @@ The configuration is a ConfigMap mounted at `/config`, where the image reads
   403. Clients inside the cluster use the public address too, through the ingress controller; see
   [clients inside the cluster](#in-cluster) for the other way.
 - `http.trustProxy` makes the server read the client's address from the last entry of
-  `X-Forwarded-For`, which the ingress controller writes (the log names it `clientAddress`; the log
+  `X-Forwarded-For`, which the ingress controller writes (the log's `address`; the log
   is JSON lines for the cluster's log agent, [operations and logs](../reference/operations.md#kubernetes)). Only the controller may reach the pod then
   (the [NetworkPolicy](#networkpolicy) below), or a client could name any address.
 - The token comes from the Secret `pivotkit-tokens`, mounted as a directory at

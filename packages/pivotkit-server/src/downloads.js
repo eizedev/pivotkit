@@ -963,6 +963,7 @@ export function createDownloadHandler(context, runtime = {}) {
                 return answer(request, "FORBIDDEN_HOST");
             }
             if (Number(request.headers.get("content-length") ?? 0) > DOWNLOAD_BODY_BYTES) {
+                context.log.refused({ status: 413, path: DOWNLOADS_PATH, reason: "body_too_large", limit: DOWNLOAD_BODY_BYTES, size: Number(request.headers.get("content-length")) }, { level: "debug" });
                 return answer(request, "BODY_TOO_LARGE");
             }
             return null;

@@ -15,7 +15,7 @@ const FORMAT_TEXT = Object.freeze({ auto: "auto (text on a terminal, JSON otherw
 /** @type {import("./index.js").Section} */
 export async function section(options, _registry, runtime) {
     const log = logSettingsOf(options.log);
-    const address = log.address === "off" ? "addresses off" : runtime.http ? `addresses on (the socket's peer${options.http?.trustProxy ? "; the forwarded client as clientAddress" : ""})` : null;
+    const address = log.address === "off" ? "addresses off" : runtime.http ? `addresses on (${options.http?.trustProxy ? "the forwarded client, the proxy as peerAddress" : "the socket's peer"})` : null;
     const lines = ["", `Log: level ${log.level}, format ${FORMAT_TEXT[log.format]}${address ? `, ${address}` : ""}`];
     // no "New in this version" note: the log changes for every server, and upgrading.md says how
     return { lines, problems: 0, upgrade: [] };

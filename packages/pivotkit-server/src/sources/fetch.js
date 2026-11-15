@@ -575,3 +575,38 @@ export const guardedFetch = createGuardedFetch();
  * @param {unknown} fn
  */
 export const isGuardedFetch = (fn) => typeof fn === "function" && guardedFetches.has(/** @type {any} */ (fn));
+
+/** A system error code of a certificate the server does not trust (sources/http.js says what to do about it). */
+const CERTIFICATE_FAILURE = /CERT|SELF_SIGNED|UNABLE_TO_VERIFY|ALTNAME|UNABLE_TO_GET_ISSUER/;
+
+/** The guardedFetch codes of an address the source may not reach. */
+const BLOCKED_CODES = new Set(["REFUSED_ADDRESS", "IP_LITERAL", "NOT_HTTPS"]);
+
+/** The system error codes of a name that has no address. */
+const DNS_CODES = /\b(?:ENOTFOUND|EAI_AGAIN|EAI_NONAME|EAI_FAIL)\b|the name has no address/;
+
+/**
+ * Why a backend failed, as a stable word for the log (`cause` of an upstream warning): timeout,
+ * connection, tls, dns, blocked_address, http_status, bad_body, or setup (the source's request cannot
+ * be sent as configured).
+ * @param {GuardedFetchError} error
+ */
+export function upstreamCauseOf(error) {
+    const said = `${error.message} ${/** @type {any} */ (error.cause)?.code ?? ""}`;
+    if (error.code === "TIMEOUT") {
+        return "timeout";
+    }
+    if (BLOCKED_CODES.has(error.code)) {
+        return "blocked_address";
+    }
+    if (error.code === "REDIRECT") {
+        return "http_status";
+    }
+    if (error.code === "TOO_LARGE" || error.code === "BAD_ENCODING") {
+        return "bad_body";
+    }
+    if (error.code === "NETWORK") {
+        return CERTIFICATE_FAILURE.test(said) ? "tls" : DNS_CODES.test(said) ? "dns" : "connection";
+    }
+    return "setup";
+}

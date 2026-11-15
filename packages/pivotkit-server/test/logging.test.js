@@ -7,10 +7,11 @@
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { SEVERITY, createContext, flushed, logSettingsOf, optionsFrom, refusalReason, serve, startErrorLine, traceIdOf, upstreamRequestIdOf, validateOptions, withRequestScope, SERVER_FLAGS } from "pivotkit-server";
+import { REFUSED_REASONS, SEVERITY, createContext, flushed, logSettingsOf, optionsFrom, refusalReason, startFields, serve, startErrorLine, traceIdOf, upstreamRequestIdOf, validateOptions, withRequestScope, SERVER_FLAGS } from "pivotkit-server";
 import { createLog } from "../src/log.js";
+import { uploadCauseOf } from "../src/delivery.js";
 import { requestScopeFor } from "../src/request-id.js";
 import { GuardedFetchError } from "../src/sources/fetch.js";
 import { upstreamCauseOf } from "../src/sources/http.js";
@@ -227,7 +228,7 @@ test("X-Request-Id on every answer, the same id as its log lines; traceparent an
         const byId = (answer) => lines.filter((l) => l.requestId === answer.headers.get("x-request-id"));
         const [ok, noToken, badToken, , , tooLarge] = answers;
         const request = byId(ok).find((l) => l.event === "request");
-        assert.deepEqual([request.traceId, request.upstreamRequestId, request.address, request.clientAddress], ["4bf92f3577b34da6a3ce929d0e0e4736", "proxy-1", "127.0.0.1", "203.0.113.9"]);
+        assert.deepEqual([request.traceId, request.upstreamRequestId, request.address, request.peerAddress], ["4bf92f3577b34da6a3ce929d0e0e4736", "proxy-1", "203.0.113.9", "127.0.0.1"]);
         assert.equal(byId(noToken).find((l) => l.event === "refused").reason, "no_token");
         assert.equal(byId(badToken).find((l) => l.event === "refused").reason, "bad_token");
         const large = byId(tooLarge).find((l) => l.event === "refused");
@@ -255,7 +256,7 @@ test("log.address off: no address and no forwarded client on any line", async ()
     }
     const all = text.join("");
     assert.ok(all.includes('"event":"request"'));
-    assert.doesNotMatch(all, /"address"|"clientAddress"|203\.0\.113\.9/);
+    assert.doesNotMatch(all, /"address"|"peerAddress"|203\.0\.113\.9/);
 });
 
 test("redaction: no token, value, claim or path on any line, in JSON and in text, at info (and no token at debug)", async () => {
@@ -294,14 +295,16 @@ test("redaction: no token, value, claim or path on any line, in JSON and in text
     }
 });
 
-test("serve's start error is a JSON line when the log is asked to be JSON, text otherwise", () => {
+test("serve's start error follows the log's rule: JSON where stderr is no terminal or json is asked for, text when text is asked for", () => {
     const json = spawnSync(process.execPath, [BIN, "serve", "--config", "/nonexistent/pivotkit.json"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "", PIVOTKIT_LOG_FORMAT: "json" } });
     assert.equal(json.status, 2);
     const line = JSON.parse(json.stderr);
     assert.deepEqual([line.level, line.severity, line.event, line.service, line.code], ["error", 3, "error", "pivotkit-server", "CONFIG"]);
     assert.match(line.msg, /pivotkit\.json/);
-    const text = spawnSync(process.execPath, [BIN, "serve", "--config", "/nonexistent/pivotkit.json"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" } });
-    assert.match(text.stderr, /^pivotkit-server: /);
+    const auto = spawnSync(process.execPath, [BIN, "serve", "--config", "/nonexistent/pivotkit.json"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" } });
+    assert.equal(JSON.parse(auto.stderr).code, "CONFIG", "auto on a pipe: JSON");
+    const text = spawnSync(process.execPath, [BIN, "serve", "--log-format", "text", "--config", "/nonexistent/pivotkit.json"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "", PIVOTKIT_LOG_FORMAT: "json" } });
+    assert.match(text.stderr, /^pivotkit-server: .*pivotkit\.json/, "the flag wins over the variable");
     assert.equal(startErrorLine("text", "x", { service: "s", version: "1" }), null);
 });
 
@@ -380,10 +383,97 @@ test("a host that serves the handler itself: every answer still names its id in 
         const id = answer.headers.get("x-request-id");
         assert.match(id ?? "", /^[A-Za-z0-9_-]{11}$/);
         const line = lines.find((l) => l.event === "request");
-        assert.deepEqual([line.requestId, line.address, line.clientAddress, line.status], [id, "192.0.2.44", "203.0.113.9", 404]);
+        assert.deepEqual([line.requestId, line.address, line.peerAddress, line.status], [id, "203.0.113.9", "192.0.2.44", 404]);
         const health = await handler.fetch(new Request("http://localhost/healthz"));
         assert.match(health.headers.get("x-request-id") ?? "", /^[A-Za-z0-9_-]{11}$/);
     } finally {
         await handler.close();
+    }
+});
+
+test("addresses: behind a trusted proxy address is the forwarded client and peerAddress the proxy; a forwarded value that is no IP address is \"invalid\", never the proxy's", () => {
+    const at = (headers, trustProxy, socket = "::ffff:10.0.0.5") => requestScopeFor(new Request("http://localhost/", { headers }), { address: socket }, { trustProxy });
+    assert.deepEqual([at({}, false).address, at({}, false).peerAddress], ["10.0.0.5", undefined]);
+    assert.deepEqual([at({ "x-forwarded-for": "203.0.113.9" }, false).address, at({ "x-forwarded-for": "203.0.113.9" }, false).peerAddress], ["10.0.0.5", undefined], "no trust, no forwarded address");
+    const proxied = at({ "x-forwarded-for": "198.51.100.7, 2001:db8::7" }, true);
+    assert.deepEqual([proxied.address, proxied.peerAddress], ["2001:db8::7", "10.0.0.5"]);
+    for (const forged of ["evil\u009b31m", "not-an-ip", "203.0.113.9 level=error", "999.1.1.1"]) {
+        const scope = at({ "x-forwarded-for": `198.51.100.7, ${forged}` }, true);
+        assert.deepEqual([scope.address, scope.peerAddress], ["invalid", "10.0.0.5"], JSON.stringify(forged));
+    }
+    // the proxy itself in front of a loopback server: one address when both are the same
+    const same = at({ "x-forwarded-for": "127.0.0.1" }, true, "127.0.0.1");
+    assert.deepEqual([same.address, same.peerAddress], ["127.0.0.1", undefined]);
+});
+
+test("JSON lines: every text value without C0, C1 or bidi controls, a Host and an Origin of a refused request too", async () => {
+    const { log, lines } = keptLog({ format: "json" });
+    log.refused({ status: 403, reason: "host", host: "evil\u009b[31m.example\u202e", origin: "https://x\u0085y", nested: { list: ["a\u009bb"] } });
+    assert.equal(lines.length, 1);
+    assert.doesNotMatch(lines[0], /[\p{Cc}\u2028\u2029\u202e]/u);
+    assert.ok(!Buffer.from(lines[0]).includes(Buffer.from([0xc2, 0x9b])), "no raw C1 byte pair");
+    const line = JSON.parse(lines[0]);
+    assert.deepEqual([line.host, line.origin, line.nested.list[0]], ["evil[31m.example", "https://xy", "ab"]);
+    // the same through a real server: a Host with a C1 control is refused, and its line holds none
+    const dir = workspace();
+    const { server, text } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, log: { format: "json" }, baseDir: dir });
+    try {
+        await raw(`${server.url}/api/v1/sources`, { headers: { host: Buffer.from("evil\u009b.example", "latin1").toString("latin1"), origin: "https://o\u0085.example" } }).catch(() => undefined);
+    } finally {
+        await server.close();
+    }
+    assert.ok(text.join("").includes('"reason":"host"'), "the refused Host was logged");
+    assert.ok(!Buffer.from(text.join("")).includes(Buffer.from([0xc2, 0x9b])));
+    assert.ok(!Buffer.from(text.join("")).includes(Buffer.from([0xc2, 0x85])));
+});
+
+test("started: token names and source ids at most 64 characters, without controls; logAddress only over HTTP", () => {
+    const fields = startFields({ auth: { mode: "token", tokens: [{ name: `${"t".repeat(100)}\u009b`, env: "X" }] } }, { ids: () => ["sales"] }, { level: "info", format: "json", address: "on" });
+    assert.equal(fields.tokens[0], "t".repeat(64));
+    assert.equal(fields.logAddress, "on");
+    assert.equal(startFields({}, { ids: () => [] }, { level: "info", format: "json", address: "on" }, { http: false }).logAddress, undefined);
+});
+
+test("refusal reasons: every code the servers refuse with has a reason of its own; an unmapped one is its own name, never bad_request", () => {
+    // the codes passed to refusalReason anywhere in pivotkit-server and pivotkit-mcp
+    const sources = ["../src", "../src/rest", "../../pivotkit-mcp/src"].flatMap((dir) => readdirSync(new URL(dir, import.meta.url)).filter((f) => f.endsWith(".js")).map((f) => readFileSync(new URL(`${dir}/${f}`, import.meta.url), "utf8")));
+    const codes = new Set(sources.flatMap((text) => [...text.matchAll(/refusalReason\("([A-Z_]+)"/g)].map((m) => m[1])));
+    assert.ok(codes.size >= 10, [...codes].join(", "));
+    for (const code of codes) {
+        assert.ok(REFUSED_REASONS.includes(refusalReason(code)), `${code} has no reason of its own`);
+    }
+    assert.equal(refusalReason("SOMETHING_NEW"), "something_new");
+});
+
+test("upload causes: a store's status, its answer, the network and the rest", () => {
+    assert.deepEqual(["STORE_503", "PRESIGN_403", "STORE_ANSWER", "LINK_TOO_LONG", "TIMEOUT", "STORE_NETWORK", "PRESIGN_REFUSED_ADDRESS", "SECRET", "TOO_LARGE", "INTERNAL"].map(uploadCauseOf), ["http_status", "http_status", "bad_body", "bad_body", "timeout", "connection", "blocked_address", "setup", "upload_failed", "upload_failed"]);
+});
+
+test("debug-level refusals: a path nobody serves and a GET of the MCP endpoint are on the debug log only; a request the HTTP parser refuses is a warning with an id", async () => {
+    const dir = workspace();
+    for (const level of ["info", "debug"]) {
+        const { server, text } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, http: { enable: ["rest", "mcp"] }, log: { format: "json", level }, baseDir: dir });
+        try {
+            await call(`${server.url}/wp-admin.php`);
+            await fetch(`${server.url}/mcp`, { headers: { accept: "text/event-stream" } });
+            const broken = await new Promise((resolve) => {
+                import("node:net").then(({ connect }) => {
+                    const socket = connect(Number(new URL(server.url).port), "127.0.0.1", () => socket.write("GET / HTTP/1.1\r\nHost: localhost\r\nBad Header Line\r\n\r\n"));
+                    let answer = "";
+                    socket.on("data", (d) => (answer += d));
+                    socket.on("close", () => resolve(answer));
+                });
+            });
+            assert.match(String(broken), /^HTTP\/1\.1 400 Bad Request\r\n[\s\S]*X-Request-Id: ([A-Za-z0-9_-]{11})/);
+            const id = /X-Request-Id: ([A-Za-z0-9_-]{11})/.exec(String(broken))?.[1];
+            const lines = text.join("").trim().split("\n").map((l) => JSON.parse(l));
+            const refused = lines.filter((l) => l.event === "refused");
+            const parser = refused.find((l) => l.requestId === id);
+            assert.deepEqual([parser?.level, parser?.status, parser?.reason, parser?.address, typeof parser?.parserError], ["warn", 400, "bad_request", "127.0.0.1", "string"]);
+            const quiet = refused.filter((l) => l.level === "debug").map((l) => l.reason).sort();
+            assert.deepEqual(quiet, level === "debug" ? ["method_not_allowed", "not_found"] : []);
+        } finally {
+            await server.close();
+        }
     }
 });

@@ -9,7 +9,7 @@
 import { createServer } from "node:http";
 import { isLoopback } from "pivotkit-cli/rest";
 import { HOST_SYNTAX } from "./checks.js";
-import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
+import { newRequestId, requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 
 /** Whether an address is loopback (pivotkit-cli/rest's: the CLI decides with it where http is allowed). */
 export { isLoopback } from "pivotkit-cli/rest";
@@ -162,6 +162,12 @@ export function pathOfTarget(target) {
 }
 
 /**
+ * What serveFetch's onClientError is told of a request the HTTP parser refused: the status it was
+ * answered with, its id (X-Request-Id of that answer), the socket's address and the parser's code.
+ * @typedef {{ status: number, requestId: string, address: string, parserError: string }} ClientErrorEntry
+ */
+
+/**
  * @typedef {object} FetchHandler
  * @property {(request: Request, info: { address: string }) => Promise<Response>} fetch
  * @property {(request: Request, info: { address: string }) => Promise<Response | null>} [precheck]  checks before the body is read: a Response to send, or null to go on
@@ -243,10 +249,10 @@ const defaultProblem = (status) => Response.json({ error: status === 413 ? "requ
  * Serves a fetch handler on node:http. Every request runs in its scope (request-id.js requestScopeFor: its id, trace id and addresses, on
  * every log line written for it), and every answer names its id in X-Request-Id.
  * @param {FetchHandler} handler
- * @param {{ host: string, port: number, bodyBytes: number | BodyBytes, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void, trustProxy?: boolean }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close); trustProxy: the scope names the forwarded client (http.trustProxy)
+ * @param {{ host: string, port: number, bodyBytes: number | BodyBytes, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void, trustProxy?: boolean, onClientError?: (entry: ClientErrorEntry) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close); trustProxy: the scope names the forwarded client (http.trustProxy); onClientError: told of a request the HTTP parser refused
  * @returns {Promise<{ port: number, server: import("node:http").Server, close(): Promise<void> }>}
  */
-export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused, trustProxy = false }) {
+export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused, trustProxy = false, onClientError }) {
     const problem = handler.problem ?? defaultProblem;
     const limits = { ...CONNECTION_LIMITS, ...given };
     const gate = connectionGate(limits);
@@ -373,6 +379,19 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         }
     });
     server.keepAliveTimeout = 5_000;
+    // a request the HTTP parser refuses (a broken request line, headers too large, too slow) never
+    // reaches the handler: it is answered as node:http would, with an id, and told to onClientError
+    server.on("clientError", (error, socket) => {
+        const code = String(/** @type {any} */ (error)?.code ?? "");
+        if (code === "ECONNRESET" || !socket.writable) {
+            socket.destroy();
+            return;
+        }
+        const status = code === "HPE_HEADER_OVERFLOW" ? 431 : code === "ERR_HTTP_REQUEST_TIMEOUT" ? 408 : 400;
+        const id = newRequestId();
+        onClientError?.({ status, requestId: id, address: plainAddress(/** @type {import("node:net").Socket} */ (socket).remoteAddress), parserError: code.replace(/[^A-Z0-9_]/g, "").slice(0, 40) || "unknown" });
+        socket.end(`HTTP/1.1 ${status} ${status === 431 ? "Request Header Fields Too Large" : status === 408 ? "Request Timeout" : "Bad Request"}\r\nConnection: close\r\nContent-Length: 0\r\nX-Request-Id: ${id}\r\n\r\n`);
+    });
     // a bound on open connections, in all and per address, with slots kept for loopback
     // refused connections are told at most once a minute, so a flood does not flood the log too: the
     // first at once, those of the rest of the minute when it ends (or at close)

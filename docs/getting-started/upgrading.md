@@ -177,7 +177,7 @@ callers notice:
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
 | [Requests to the issuer](#issuer-requests) | `auth.mode` is `oauth` and the issuer resolves to a loopback or private address, is reached through a proxy, redirects, or serves a key set over 256 KiB | set `auth.intranet: true` for an issuer in your LAN or cluster; run `check-config` |
 | [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
-| [The log](#log) | you read the log on a terminal, parse it, or ship it to a log server | nothing for JSON consumers (fields are only added); on a terminal it is text unless `log.format` is `json`; with `http.trustProxy`, the client's address is in `clientAddress`; `log.address: "off"` keeps addresses out |
+| [The log](#log) | you read the log on a terminal, parse it, alert on it, or ship it to a log server | JSON lines gain fields and the client's address is logged by default (`log.address: "off"` keeps it out); levels and `msg` are new, and more refusals get a line; on a terminal the log is text unless `log.format` is `json`; a start error is a JSON line where stderr is no terminal |
 | [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM or NOT FOUND |
 
 ### Data as of in files { #data-as-of-files }
@@ -308,15 +308,21 @@ installation notices:
   `outcome` and `status`; `refused` lines `reason`; backend warnings `cause`, `backend`,
   `upstreamStatus` and `upstreamMs`. `started` adds `sourceIds`, the log's settings and the static
   tokens' names; an HTTP server ends with a `stopped` line.
-- The client's address is logged by default. `address` is the address the connection came from;
-  with `http.trustProxy` it held the forwarded client before, which is now `clientAddress`, while
-  `address` is the proxy. A log query on `address` behind a proxy reads `clientAddress` instead.
-  `log.address: "off"` keeps both out ([privacy](../privacy.md#logs)).
+- The client's address is logged by default as `address`: with `http.trustProxy` the forwarded
+  client, as before, or `invalid` for a forwarded value that is no IP address; without it the
+  connection's own address, which was not logged before. `peerAddress` is the connection's own
+  address where it differs (the proxy). `log.address: "off"` keeps both out
+  ([privacy](../privacy.md#logs)).
+- More refusals get a `refused` line: the per-caller 429s, `/openapi.json` with a refused token, an
+  MCP body over the cap, and requests the HTTP parser refuses (`warn`); a GET of the MCP endpoint and
+  a path nobody serves at `debug` only. An alert on refused lines counts them too.
 - `--log` takes `warn` and `error` too; `log` in the file may be an object of `level`, `format`
   and `address`, and `"log": "debug"` keeps working.
 - Every answer carries an `X-Request-Id` header (exposed to browsers by CORS).
-- A configuration error at start is a JSON line when `--log-format json` or `PIVOTKIT_LOG_FORMAT=json`
-  is set (so in the container image); otherwise the plain `pivotkit-server: ...` line as before.
+- An error at the start of `serve` or `pivotkit-mcp` (a configuration it cannot read, an unknown
+  flag) follows the log's format: a JSON line where stderr is no terminal (a container, a service
+  manager, a pipe) or JSON is asked for, the plain `pivotkit-server: ...` line on a terminal or with
+  `--log-format text`. A script that reads that line from a pipe reads JSON now.
 
 ### Code sources { #code-sources }
 

@@ -9,7 +9,8 @@
  * Besides its id, a request's scope holds what correlates it with the systems around it: a trace id
  * (W3C Trace Context: the one of a strictly parsed incoming `traceparent`, else a new one), an
  * incoming `X-Request-Id` after a length and character check (upstreamRequestId: a proxy's id, never
- * the server's own), and the socket's address with, behind a trusted proxy, the forwarded one. The
+ * the server's own), and the client's address: behind a trusted proxy the forwarded one, with the
+ * socket's peer (the proxy) beside it. The
  * HTTP edge (listen.js serveFetch, and each front end's handler for hosts that serve it themselves)
  * makes the scope once per request (requestScopeFor); the log adds its fields to every line written
  * inside it.
@@ -20,6 +21,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomBytes } from "node:crypto";
+import { isIP } from "node:net";
 import { clientAddress } from "./checks.js";
 
 /**
@@ -28,8 +30,8 @@ import { clientAddress } from "./checks.js";
  * @property {string} id  the request's id (REQUEST_ID)
  * @property {string} traceId  32 lower-case hex characters
  * @property {string} [upstreamRequestId]  an incoming X-Request-Id that passed UPSTREAM_REQUEST_ID
- * @property {string} [address]  the socket's peer
- * @property {string} [clientAddress]  the forwarded client (X-Forwarded-For), only with http.trustProxy
+ * @property {string} [address]  the client as best known: with http.trustProxy the forwarded one (the last entry of X-Forwarded-For), "invalid" for one that is no IP address; else the socket's peer
+ * @property {string} [peerAddress]  the socket's peer, only where it differs from address (the proxy)
  */
 
 /** The scope of the work running now. */
@@ -111,6 +113,29 @@ export const upstreamRequestIdOf = (header) => (typeof header === "string" && UP
 /** A socket's address as it is logged ("::ffff:192.0.2.10" is 192.0.2.10). */
 const plainAddress = (address) => String(address ?? "").replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, "");
 
+/** What a forwarded address is logged as when it is no IP address: never the proxy's in its place. */
+export const INVALID_ADDRESS = "invalid";
+
+/**
+ * The addresses of a request's lines: `address` the client as best known, `peerAddress` the socket's
+ * peer where that differs. With trustProxy and an X-Forwarded-For, address is its last entry when
+ * that is an IP address, else "invalid" (a header the proxy should not have passed; the request is
+ * never put on the proxy's address); without, the socket's peer alone.
+ * @param {Request | null} request
+ * @param {string | undefined} socket
+ * @param {boolean} trustProxy
+ * @returns {{ address?: string, peerAddress?: string }}
+ */
+function addressesOf(request, socket, trustProxy) {
+    const peer = plainAddress(socket);
+    if (!trustProxy || !request?.headers.has("x-forwarded-for")) {
+        return peer ? { address: peer } : {};
+    }
+    const forwarded = plainAddress(clientAddress(request, "", true).replace(/^\[|\]$/g, ""));
+    const address = isIP(forwarded) ? forwarded : INVALID_ADDRESS;
+    return { address, ...(peer && peer !== address ? { peerAddress: peer } : {}) };
+}
+
 /** Where requestScopeFor keeps a request's scope in serveFetch's `info`. */
 const SCOPE_KEY = Symbol("pivotkit.requestScope");
 
@@ -119,25 +144,22 @@ const SCOPE_KEY = Symbol("pivotkit.requestScope");
  * same, so the HTTP edge and the front end's handler name one id and one trace.
  * @param {Request | null} request  its headers are read (null: none, for an answer made without the request)
  * @param {Record<string | symbol, any>} info  serveFetch's: `address` is the socket's peer
- * @param {{ trustProxy?: boolean }} [how]  trustProxy: the forwarded address is logged as clientAddress
+ * @param {{ trustProxy?: boolean }} [how]  trustProxy: the forwarded client is the address (addressesOf)
  * @returns {RequestScope}
  */
 export function requestScopeFor(request, info, { trustProxy = false } = {}) {
     if (!Object.hasOwn(info, SCOPE_KEY)) {
         const headers = request?.headers ?? new Headers();
         const upstream = upstreamRequestIdOf(headers.get("x-request-id"));
-        const address = plainAddress(info.address);
-        const forwarded = trustProxy && request && headers.has("x-forwarded-for") ? clientAddress(request, "", true) : "";
         info[SCOPE_KEY] = Object.freeze({
             id: requestIdFor(info),
             traceId: traceIdOf(headers.get("traceparent")) ?? newTraceId(),
             ...(upstream ? { upstreamRequestId: upstream } : {}),
-            ...(address ? { address } : {}),
-            ...(forwarded ? { clientAddress: plainAddress(forwarded) } : {})
+            ...addressesOf(request, info.address, trustProxy)
         });
-    } else if (trustProxy && request?.headers.has("x-forwarded-for") && !info[SCOPE_KEY].clientAddress) {
+    } else if (trustProxy && request?.headers.has("x-forwarded-for") && !info[SCOPE_KEY].peerAddress && info[SCOPE_KEY].address === plainAddress(info.address)) {
         // made first by a host's serveFetch without trustProxy: the front end's setting wins
-        info[SCOPE_KEY] = Object.freeze({ ...info[SCOPE_KEY], clientAddress: plainAddress(clientAddress(request, "", true)) });
+        info[SCOPE_KEY] = Object.freeze({ ...info[SCOPE_KEY], ...addressesOf(request, info.address, true) });
     }
     return info[SCOPE_KEY];
 }

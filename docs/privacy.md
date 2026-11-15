@@ -20,6 +20,7 @@ it. It makes no compliance claim.
 | [Cache keys](#memory) | the server's memory | as long as their data | nobody: values, groups and claims only as a keyed digest |
 | [Exchanged backend tokens](#memory) | the server's memory | at most until the person's own token expires | the backend they are for |
 | [The log](#logs) | stderr, then your container runtime or journal | as long as you keep it | whoever reads the log |
+| [Client IP addresses in the log](#logs) (`log.address`, on by default) | the log | as long as you keep the log | whoever reads the log |
 | [The limiter](#memory) | the server's memory | about two minutes after an address's last refused token; a caller until its rate bucket is full again (checked every minute) | nobody |
 | [Backends of HTTP sources](#recipients) | the backend and its own logs | as the backend keeps them | the backend's operator |
 | [The sign-in provider](#recipients) | the provider's sign-in log | as the provider keeps it | the provider's administrators |
@@ -188,11 +189,20 @@ request id (it names nothing; it lets you find the line a person quotes from an 
 the status and the time; at the default level never a view, a value or a token.
 
 A request's lines hold the client's IP address (`log.address`, on by default): `address`, the
-address the connection came from (behind a reverse proxy, the proxy's), and with `http.trustProxy`
-`clientAddress`, the address the proxy names. An IP address can identify a person, so it is personal
-data; it is there to tell an attack or a misbehaving script from a person, and to find a request a
-person reports. Keep the log no longer than that needs, or set `log.address` to `off` (flag
-`--log-address off`) when the proxy's own log covers it. A source is named by its configured id, `inline:` or `file:`, and anything
+client as best known (with `http.trustProxy` the address the proxy names, else the address the
+connection came from), and `peerAddress`, the connection's own address where that differs (the
+proxy). An IP address can identify a person, so it is personal data; it is there to tell an attack
+or a misbehaving script from a person, and to find a request a person reports. Keep the log no
+longer than that needs, or set `log.address` to `off` (flag `--log-address off`) when the proxy's
+own log covers it.
+
+A refused request's line holds the `Host` and `Origin` it was sent with (at most 100 characters
+each), which a caller chooses. The `started` line names the configured source ids and the static
+tokens' names (never a value), at most 64 characters each. The warning of an HTTP source whose
+backend answered with an error status holds the source's address template (`template`), and with it
+the backend's host name, never a parameter's value.
+
+A source is named by its configured id, `inline:` or `file:`, and anything
 else a caller typed as `unknown`. The client of a static token is the token's name: name tokens
 after systems or roles, not after people, or the log names a person without `audit.subject`.
 `--log debug` is for setting a server up: its lines can hold more, an error's own message (which may
@@ -264,5 +274,7 @@ A short list to adapt for the people who use the server through an AI assistant 
 - That a report's link opens only after they sign in (for their own or closed data), works for a
   limited time (say how long), and should not be forwarded.
 - Whether their name or id is in the server's log (`audit.subject`), why, and for how long.
+- That the server's log holds the IP address their requests come from (`log.address`), why, and for
+  how long.
 - That the sign-in provider records each sign-in, including the one a download link asks for.
 - Whom to ask when a report is missing, a link does not work, or they want their data removed.

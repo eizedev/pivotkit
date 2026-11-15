@@ -96,7 +96,9 @@ test("pivotkit-server serve and check-config from the command line: the template
     const env = { PATH: process.env.PATH ?? "" };
     const serve = spawnSync(process.execPath, [BIN, "serve", "--config", config, "--port", "0"], { encoding: "utf8", cwd: dir, env, timeout: 30_000 });
     assert.equal(serve.status, 2, serve.stderr);
-    assert.equal(serve.stderr.split("\n")[0], `pivotkit-server: sources.sales.template: ${TYPO}`);
+    // stderr is a pipe here: serve's start error is a JSON line (the log's auto rule) with the same words
+    const said = JSON.parse(serve.stderr.split("\n")[0]);
+    assert.deepEqual([said.level, said.code, said.msg], ["error", "CONFIG", `sources.sales.template: ${TYPO}`]);
     const check = spawnSync(process.execPath, [BIN, "check-config", "--config", config], { encoding: "utf8", cwd: dir, env, timeout: 30_000 });
     assert.equal(check.status, 1, check.stderr);
     assert.match(check.stdout, new RegExp(`PROBLEM: sources\\.sales\\.template: ${TYPO.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));

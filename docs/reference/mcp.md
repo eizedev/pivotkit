@@ -420,8 +420,8 @@ quote the request's body, only with `--log debug`) and, after an HTTP server sto
 call line is `info` when it worked, `warn` for an error a REST caller would get as 4xx and `error`
 for 5xx. `requestId` is random (11 characters), the same on every line of one call, at the end of its
 error and, over HTTP, in the answer's `X-Request-Id` header. Over HTTP a request's lines name the
-client's `address` (the socket's peer; with `http.trustProxy` also `clientAddress`) unless
-`log.address` is `off`. The client is the static token's name or the OAuth token's client id. A line
+client's `address` (with `http.trustProxy` the forwarded client, else the socket's peer; the socket's
+peer as `peerAddress` where it differs) unless `log.address` is `off`. The client is the static token's name or the OAuth token's client id. A line
 holds the person only where you ask for it with `audit.subject`, as `subject`, and never their groups
 or other claims. No line holds a view, a value, a token or a full path. The log is the supervisor's
 to keep and rotate.

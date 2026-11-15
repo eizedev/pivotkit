@@ -8,7 +8,8 @@ description: Running pivotkit-server and pivotkit-mcp in production - the log's 
 pivotkit-server and pivotkit-mcp write one line per event to stderr and keep no log file (on stdio,
 stdout is the MCP protocol). What happens to the lines is your container runtime's or service
 manager's business: `docker logs`, journald, a log driver or a cluster's log agent. This page says
-what a line holds and how to get the lines where you search them.
+what a line holds and how to get the lines where you search them. Whether a server is up and can
+take work is `/healthz` and `/readyz`, not the log ([health checks](rest.md#running)).
 
 ## Settings { #settings }
 
@@ -31,7 +32,8 @@ then the file, then the variable.
   and drops successful requests and calls; `error` keeps only server errors (5xx) and unexpected
   errors. The `started` and `stopped` lines are written at every level but `off`. `debug` is for
   setting a server up: its lines hold more, an error's own message among them (which may quote a
-  value or a request's body), so do not leave it on.
+  value or a request's body), so do not leave it on. Where you only look at what went wrong (a busy
+  server, a log you pay for by volume), `warn` is the level to run with.
 - **`log.format`**: `json` writes one JSON object per line; `text` writes `key=value` pairs (logfmt,
   in the style of Go's `slog` TextHandler) for a person at a terminal; `auto` writes text when stderr
   is a terminal and JSON otherwise. Both formats carry the same fields, except that text leaves out
@@ -39,15 +41,15 @@ then the file, then the variable.
   on a terminal and only when `NO_COLOR` is not set. The [container image](container.md) sets
   `PIVOTKIT_LOG_FORMAT=json`, because `docker run -t` gives the process a terminal.
 - **`log.address`**: `on` puts the client's address on every line of a request: `address`, the
-  socket's peer (behind a proxy, the proxy), and with `http.trustProxy` also `clientAddress`, the
-  last entry of `X-Forwarded-For`. `off` leaves both out. An address is personal data
-  ([privacy](../privacy.md#logs)).
+  client as best known (with `http.trustProxy` the last entry of `X-Forwarded-For`, else the socket's
+  peer), and `peerAddress`, the socket's peer, where it differs (behind a proxy, the proxy). `off`
+  leaves both out. An address is personal data ([privacy](../privacy.md#logs)).
 
 `started` names the format it chose (`logFormat`), so a log that suddenly reads as text or JSON
-tells you why. An error in the configuration at start, before the log exists, is a JSON line when
-`--log-format json` or `PIVOTKIT_LOG_FORMAT=json` asks for JSON (the image sets it); otherwise it is
-the plain line `pivotkit-server: ...` that the command line's usage errors are. check-config prints
-the log's settings and does not log.
+tells you why. An error at start, before the log exists (a configuration that cannot be read, an
+unknown flag), follows the same rule: a JSON line (`event` `error`, `code` `CONFIG`) where stderr is
+no terminal or JSON is asked for, the plain line `pivotkit-server: ...` on a terminal or with
+`--log-format text`. check-config prints the log's settings and does not log.
 
 ## Lines { #lines }
 
@@ -70,8 +72,12 @@ A line written while a request or tool call runs adds its scope:
 | `requestId` | 11 random characters, the same on every line of the request, in its `X-Request-Id` answer header and in its error ([correlation](#correlation)) |
 | `traceId` | 32 hex characters: the trace id of a valid W3C `traceparent` header, else a new one |
 | `upstreamRequestId` | The `X-Request-Id` the request came with (a proxy's id), 1 to 128 letters, digits and `_ . : + / = -`; any other value is not logged |
-| `address` | The socket's peer, unless `log.address` is `off` |
-| `clientAddress` | With `http.trustProxy` and `log.address` on: the last entry of `X-Forwarded-For` |
+| `address` | The client as best known, unless `log.address` is `off`: with `http.trustProxy` the last entry of `X-Forwarded-For`, or `invalid` when that is no IP address (the request is never put on the proxy's address); without it the socket's peer |
+| `peerAddress` | The socket's peer, where it differs from `address` (behind a trusted proxy, the proxy) |
+
+`traceId` and `upstreamRequestId` come from the caller's headers (checked for their form, not for
+who sent them): they are hints to join lines with other systems, not proof of where a request came
+from.
 
 Lines of calls, requests, downloads and refusals add:
 
@@ -85,41 +91,50 @@ Lines of calls, requests, downloads and refusals add:
 | `status` | all four | The HTTP status; on a `call` line the status REST answers the same error with |
 | `outcome` | all four | `ok` or `error`; `ok` stays beside it on `call` lines |
 | `code` | failures | The [error code](#codes) |
-| `ms` | `call`, `request` | The time the work took |
-| `reason` | `refused` | `no_token`, `bad_token`, `rate_limited`, `body_too_large`, `host`, `origin`, `insufficient_scope`, `not_allowed` (the person's groups), `not_ready` (the issuer is not loaded yet), `busy`, `bad_request` (a body that cannot be read), `token_in_address` |
+| `ms` | `call`, `request` | The time the work took, in milliseconds |
+| `reason` | `refused` | `no_token`, `bad_token`, `rate_limited`, `body_too_large`, `host`, `origin`, `insufficient_scope`, `not_allowed` (the person's groups), `not_ready` (the issuer is not loaded yet), `busy`, `bad_request` (a body or a request the HTTP parser cannot read), `token_in_address`, and at `debug` only `method_not_allowed` (a GET of the MCP endpoint, which clients send to open a stream) and `not_found` (a path nobody serves) |
 | `limit`, `size` | `refused` | For `body_too_large`: the bytes allowed and the declared size; for `rate_limited` after sign-in, `limit` is `rate` or `concurrency` |
+| `parserError` | `refused` | For a request the HTTP parser refused (answered 400, 408 or 431 with an `X-Request-Id`): the parser's code, such as `HPE_INVALID_HEADER_TOKEN` |
 
 The level of a `call`, `request`, `download` or `refused` line follows its status: `info` below 400,
-`warn` for 4xx, `error` for 5xx. A refused request is always `warn` or `error`.
+`warn` for 4xx, `error` for 5xx. A refused request is `warn` or `error`, except the two routine ones
+above, which are `debug`.
 
-A warning about a data source's backend (an [HTTP source](sources.md)) adds:
+A warning about a backend (an [HTTP source](sources.md), its sign-in, or the
+[upload store](delivery.md#upload)) adds:
 
 | Field | What it holds |
 | --- | --- |
-| `cause` | `timeout`, `connection`, `tls`, `dns`, `blocked_address` (an address the source may not reach), `http_status`, `bad_body` (an answer that cannot be read as configured), `setup` (the request cannot be sent as configured) |
-| `backend` | The backend's name in `httpSources.backends`, never its address |
-| `upstreamStatus` | The backend's status, where it answered |
-| `upstreamMs` | The time since the source's request started |
+| `cause` | `timeout`, `connection`, `tls`, `dns`, `blocked_address` (an address it may not reach), `http_status`, `bad_body` (an answer that cannot be read as configured), `setup` (the request cannot be sent as configured), `sign_in_failed` (a backend's sign-in: the token endpoint refused or answered badly), `upload_failed` (an upload that failed otherwise) |
+| `backend` | The backend's name in `httpSources.backends`, where the source uses one |
+| `upstreamStatus` | The backend's (or the store's, the token endpoint's) status, where it answered |
+| `upstreamMs` | The time since the request to it started, in milliseconds |
+
+A warning's text (`msg`) is free text and may change between versions; query by `event`, `cause`,
+`backend` and `source`, which stay. The warning of an HTTP source's error status also holds
+`template`, the source's configured address template with the backend's host (never a value of a
+parameter).
 
 No line holds a view, a value, a token, a person's groups or other claims, or a full path. Text a
-caller or a backend controls is cut and has control characters removed, so it cannot start a line
-of its own or a field in the text format.
+caller or a backend controls is cut and has control characters (C0, C1, the bidi controls, the line
+separators) removed in both formats, so it cannot start a line of its own, a field in the text
+format, or a terminal escape in a log viewer.
 
 An example request line in each format:
 
 ```json
-{"time":"2026-11-15T11:12:45.066Z","level":"warn","severity":4,"event":"request","msg":"describe_source failed","service":"pivotkit-server","version":"0.7.0","requestId":"F0iFBi9CZjQ","traceId":"4bf92f3577b34da6a3ce929d0e0e4736","operation":"describe_source","route":"POST /sources/describe","client":"reports","address":"192.0.2.10","source":"web","status":404,"outcome":"error","code":"SOURCE_NOT_FOUND","ms":15}
+{"time":"2026-11-15T11:12:45.066Z","level":"warn","severity":4,"event":"request","msg":"describe_source failed","service":"pivotkit-server","version":"<version>","requestId":"F0iFBi9CZjQ","traceId":"4bf92f3577b34da6a3ce929d0e0e4736","operation":"describe_source","route":"POST /sources/describe","client":"reports","address":"192.0.2.10","source":"web","status":404,"outcome":"error","code":"DATA_NOT_AVAILABLE","ms":15}
 ```
 
 ```text
-time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source failed" requestId=F0iFBi9CZjQ operation=describe_source route="POST /sources/describe" client=reports address=192.0.2.10 source=web status=404 outcome=error code=SOURCE_NOT_FOUND ms=15
+time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source failed" requestId=F0iFBi9CZjQ operation=describe_source route="POST /sources/describe" client=reports address=192.0.2.10 source=web status=404 outcome=error code=DATA_NOT_AVAILABLE ms=15
 ```
 
 ## Events { #events }
 
 | `event` | When |
 | --- | --- |
-| `info` with `msg` `started` | The server listens: `version`, `transport`, `url`, what it serves, the auth mode, `sources` (how many) and `sourceIds`, `logLevel`, `logFormat`, `logAddress`, and with static tokens their names (`tokens`), never a value |
+| `info` with `msg` `started` | The server listens: `version`, `transport`, `url`, what it serves, the auth mode, `sources` (how many) and `sourceIds`, `logLevel`, `logFormat`, over HTTP `logAddress`, and with static tokens their names (`tokens`), never a value; ids and names at most 64 characters |
 | `info` with `msg` `stopped` | The HTTP server has stopped after the running requests finished or the grace time ended (`ms`); after SIGTERM, before the process ends |
 | `call` | An MCP tool call |
 | `request` | A REST request that reached an operation |
@@ -144,7 +159,7 @@ for log queries written before these fields existed.
 | `DATA_NOT_AVAILABLE` | The backend refused or did not know the data (401, 403, 404 of a parameterised source) |
 | `TIMEOUT`, `BUSY` | The compute workers or the queue are at their limit (`compute.*`) |
 | `INTERNAL` | An unexpected error: the `error` line of the same `requestId` has its class; `--log debug` its message |
-| `INVALID_TOKEN`, `RATE_LIMITED` | On `refused` lines with `reason`; many from one `address` are someone guessing |
+| `INVALID_TOKEN`, `RATE_LIMITED` | On `refused` lines with `reason`; many from one `address` are someone guessing tokens. Behind a proxy that holds only with `http.trustProxy` (else `address` is the proxy for every client), and an `address` of `invalid` is a forwarded header the proxy should not have passed |
 
 ## Correlation with a reverse proxy { #correlation }
 
@@ -162,8 +177,8 @@ To find a proxy's access log line next to pivotkit's:
   sends `traceparent`; its trace id becomes `traceId`, so lines join a trace in your tracing tool. A
   `traceparent` that does not parse strictly (version 00 with exactly four lower-case hex fields, or
   a later version) is ignored and a new trace id is made.
-- With `http.trustProxy`, `clientAddress` is the client the proxy saw; without it, `address` is the
-  proxy's own address.
+- With `http.trustProxy`, `address` is the client the proxy saw and `peerAddress` the proxy; without
+  it, `address` is the proxy's own address.
 
 ## Docker log drivers { #docker }
 
@@ -189,7 +204,7 @@ services:
 docker run --log-driver gelf --log-opt gelf-address=udp://graylog.example.com:12201 --log-opt tag=pivotkit ...
 ```
 
-syslog (rsyslog, syslog-ng, a SIEM), in RFC 5424 format:
+syslog (rsyslog, syslog-ng, a SIEM, a NAS's log center), in RFC 5424 format. Over TLS:
 
 ```yaml
 services:
@@ -203,14 +218,55 @@ services:
         tag: "pivotkit"
 ```
 
+To a plain receiver on port 514, over TCP or UDP (whichever the receiver listens on):
+
+```yaml
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp://nas.example:514"   # or "udp://nas.example:514"
+        syslog-format: "rfc5424"
+        tag: "pivotkit"
+```
+
 The receiver's format and transport must match what the driver sends: an RFC 5424 sender to a
-receiver that expects RFC 3164 (or TCP to a UDP port) gives garbled or no messages.
+receiver that expects RFC 3164 (or TCP to a UDP port) gives garbled or no messages. On a Synology NAS,
+Log Center's log receiving takes this when its rule uses the IETF format (RFC 5424) and the same
+protocol and port as `syslog-address` (the names of these settings depend on the DSM version: check
+the receiving rule there). The message text the receiver shows is pivotkit's JSON line.
 
 Both drivers put pivotkit's whole JSON line into the message (GELF `short_message`, the syslog
 message text). The driver's own level is the stream's, the same for every line of stderr, so it says
 nothing: let the log server parse the message as JSON and use pivotkit's `level` (or `severity`).
 In Graylog, add a JSON extractor on the message (or a pipeline rule that parses it as JSON) and use
-its `level` and `severity` fields instead of the GELF level the driver sets.
+its `level` and `severity` fields instead of the GELF level the driver sets. `time` stays a text
+field until you map it to a date (or use the message's own timestamp, which the driver sets when it
+receives the line).
+
+## Without a container: journald and rsyslog { #journald }
+
+Run as a systemd service, the server's stderr goes to the journal. Name it, and the log stays JSON
+(stderr is no terminal there):
+
+```ini
+# /etc/systemd/system/pivotkit.service (the parts about the log)
+[Service]
+ExecStart=/usr/bin/npx pivotkit-server serve --config /etc/pivotkit/pivotkit.json
+StandardError=journal
+SyslogIdentifier=pivotkit
+```
+
+```bash
+journalctl -u pivotkit -o cat | jq 'select(.level != "info")'   # every warning and error
+```
+
+rsyslog reads the journal and can pass the lines on, here in RFC 5424 format over TCP (the template
+is rsyslog's own; check its name in your rsyslog's documentation):
+
+```text
+# /etc/rsyslog.d/pivotkit.conf
+if $programname == 'pivotkit' then @@logs.example.com:514;RSYSLOG_SyslogProtocol23Format
+```
 
 ## Kubernetes { #kubernetes }
 

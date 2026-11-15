@@ -170,6 +170,37 @@ function storeNoteOf(bound, expiresAt) {
     return `Open the link in your browser${until}.`;
 }
 
+/** The guardedFetch codes of an upload's request and the cause each is in the log (as upstreamCauseOf's words). */
+const UPLOAD_FETCH_CAUSES = Object.freeze({ TIMEOUT: "timeout", NETWORK: "connection", REFUSED_ADDRESS: "blocked_address", IP_LITERAL: "blocked_address", NOT_HTTPS: "blocked_address", REDIRECT: "http_status", TOO_LARGE: "bad_body", BAD_ENCODING: "bad_body" });
+
+/**
+ * The `cause` of a failed upload, from its code (upload.js UploadFailure): the words of a backend's
+ * failures where they fit, upload_failed otherwise.
+ * @param {string} code
+ */
+export function uploadCauseOf(code) {
+    if (code === "TIMEOUT") {
+        return "timeout";
+    }
+    if (code === "SECRET") {
+        return "setup";
+    }
+    if (/^(?:PRESIGN|STORE)_\d{3}$/.test(code)) {
+        return "http_status";
+    }
+    if (/^(?:PRESIGN_ANSWER|STORE_ANSWER|UPLOAD_URL_|UPLOAD_HEADERS|LINK_)/.test(code)) {
+        return "bad_body";
+    }
+    const fetched = /^(?:PRESIGN|STORE)_([A-Z_]+)$/.exec(code)?.[1];
+    return (fetched && UPLOAD_FETCH_CAUSES[/** @type {keyof typeof UPLOAD_FETCH_CAUSES} */ (fetched)]) || "upload_failed";
+}
+
+/** The store's or presign service's status in a failure's code (PRESIGN_503, STORE_403), as upstreamStatus. */
+const uploadStatusOf = (code) => {
+    const status = /^(?:PRESIGN|STORE)_(\d{3})$/.exec(code)?.[1];
+    return status ? { upstreamStatus: Number(status) } : {};
+};
+
 /**
  * Writes a report into the output directory, uploads it to the operator's store and gives the
  * store's link. Throws UPLOAD_FAILED (the file stays in the output directory) with the request id.
@@ -194,7 +225,7 @@ async function toStore(context, file, store, subject) {
     } catch (e) {
         const failure = e instanceof UploadFailure ? e : new UploadFailure("INTERNAL", false);
         // the code only: never an address, a header or what the store answered
-        context.log.warn(`upload failed: ${failure.code}; the report stays in the output directory${store.keepLocal ? "" : " until it is cleaned up"}`, { ...said, upload: failure.code, retryable: failure.retryable, ms: Date.now() - started });
+        context.log.warn(`upload failed: ${failure.code}; the report stays in the output directory${store.keepLocal ? "" : " until it is cleaned up"}`, { ...said, upload: failure.code, retryable: failure.retryable, ms: Date.now() - started, cause: uploadCauseOf(failure.code), ...uploadStatusOf(failure.code), upstreamMs: Date.now() - started });
         // the caller gets a fixed text and the request id: the code would tell it about the store's setup
         throw new OperationError("UPLOAD_FAILED", "the report could not be stored", errorDetails({ retryable: failure.retryable }));
     }

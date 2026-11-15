@@ -43,7 +43,7 @@ export async function optionsFrom(argv, env) {
  * Runs the server; resolves when it has started (stdio, HTTP) or with the exit code (help, version,
  * check-config, an error).
  * @param {string[]} argv
- * @param {{ env: Record<string, string | undefined>, stdout: { write(t: string): unknown }, stderr: { write(t: string): unknown } }} io
+ * @param {{ env: Record<string, string | undefined>, stdout: { write(t: string): unknown }, stderr: { write(t: string): unknown, isTTY?: boolean } }} io
  * @returns {Promise<number | null>}  an exit code, or null while it serves
  */
 export async function run(argv, io) {
@@ -85,14 +85,14 @@ export async function run(argv, io) {
             context.log.warn("auth and http settings do nothing over stdio; add --http to serve HTTP");
         }
         const { serveStdio } = await import("@modelcontextprotocol/server/stdio");
-        context.log.started({ version: VERSION, transport: "stdio", sources: context.registry.ids().length, files: context.registry.allow.length > 0, output: Boolean(context.output), ...startFields(options, context.registry, context.log) });
+        context.log.started({ version: VERSION, transport: "stdio", sources: context.registry.ids().length, files: context.registry.allow.length > 0, output: Boolean(context.output), ...startFields(options, context.registry, context.log, { http: false }) });
         void context.countAutoValues();
         serveStdio((ctx) => context.server(ctx), { legacy: "serve", onerror: (e) => context.log.error(e, { where: "stdio" }) });
         return null;
     } catch (e) {
         const text = e instanceof ConfigError ? e.message : `could not start: ${String(e?.message ?? e).slice(0, 300)}`;
         // an error before the log exists: a JSON line where the log is asked to be JSON
-        const line = argv.includes("--check-config") ? null : startErrorLine(startFormatOf(argv, io.env), text, { service: "pivotkit-mcp", version: VERSION, code: e instanceof ConfigError ? "CONFIG" : "START" });
+        const line = argv.includes("--check-config") ? null : startErrorLine(startFormatOf(argv, io.env, io.stderr), text, { service: "pivotkit-mcp", version: VERSION, code: e instanceof ConfigError ? "CONFIG" : "START" });
         io.stderr.write(line ?? `pivotkit-mcp: ${text}\n`);
         return 2;
     }

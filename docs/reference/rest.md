@@ -522,7 +522,7 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 | Key | Default | What it is |
 | --- | --- | --- |
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
-| `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits, and log it as `clientAddress` |
+| `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log's `address` (the proxy is then `peerAddress`) |
 | `log.level`, `log.format`, `log.address` | info, auto, on | The log's level, its format (text on a terminal, JSON otherwise) and whether lines name the client's address; flags `--log`, `--log-format`, `--log-address`, variables `PIVOTKIT_LOG_LEVEL`, `PIVOTKIT_LOG_FORMAT`, `PIVOTKIT_LOG_ADDRESS` ([operations](operations.md#settings)) |
 | `http.maxConnectionsPerAddress` | 0 (no bound) | Connections one address may hold (loopback excepted); set it (e.g. 32) when clients reach the port directly with addresses of their own, not behind NAT, a published port or a proxy, where every client has one address |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
@@ -539,7 +539,7 @@ and `/downloads/` (with MCP also `/mcp`, `/.well-known/` and `/`), keep the `Hos
 address to `X-Forwarded-For`: otherwise every client has the proxy's address and shares one count of
 refused tokens (the [limit](#limits) per address). Only when the service is reachable through the proxy alone:
 a client that reaches the server directly can write any `X-Forwarded-For`. With it, the log names the
-client's address as `clientAddress` ([correlation with the proxy](operations.md#correlation)). Let the proxy take bodies of 2 MiB (nginx's default is 1 MiB), or `rest.data.maxBytes` where callers [send data](#data). For nginx:
+client's address as `address` and the proxy as `peerAddress` ([correlation with the proxy](operations.md#correlation)). Let the proxy take bodies of 2 MiB (nginx's default is 1 MiB), or `rest.data.maxBytes` where callers [send data](#data). For nginx:
 
 ```nginx
 location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|readyz$|$) {
@@ -612,7 +612,7 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
 - The handlers (`createRestHandler`, `createServerHandler`, pivotkit-mcp's `createHttpHandler`) run
   each request in its scope (`requestScopeFor(request, info, { trustProxy })`: its id, the trace id
   of a valid `traceparent`, a checked `X-Request-Id`, `info.address` and, with `http.trustProxy`, the
-  forwarded client) and set `X-Request-Id` on every answer; `serveFetch` does the same for any
+  forwarded client as `address`) and set `X-Request-Id` on every answer; `serveFetch` does the same for any
   handler (pass its `trustProxy`). The context's runtime takes `service` (`{ name, version }`, the
   program on every line) and `env` (where `NO_COLOR` is read).
 - With `auth.groupProfiles`, answer a verified token whose groups are unknown before you make its

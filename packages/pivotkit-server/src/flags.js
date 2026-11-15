@@ -7,7 +7,7 @@
 import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
 import { ConfigError, loadConfig, validateOptions } from "./config.js";
-import { LOG_ADDRESS, LOG_FORMATS, LOG_LEVELS } from "./log.js";
+import { LOG_ADDRESS, LOG_FORMATS, LOG_LEVELS, formatOf } from "./log.js";
 
 /**
  * @typedef {{ type: "string" | "boolean", multiple?: boolean, short?: string, value?: string, text: string }} Flag
@@ -105,16 +105,18 @@ function logOptionOf(fromFile, values, env, program) {
 
 /**
  * The format a runner writes a start error in (a configuration it cannot read, before the log
- * exists): JSON when --log-format or $PIVOTKIT_LOG_FORMAT says json (the container image sets it), so
- * a JSON log stays JSON; text otherwise, "auto" included, as the runner's usage errors are.
+ * exists), by the log's own rule: --log-format's, else $PIVOTKIT_LOG_FORMAT's, else auto, which is
+ * text on a terminal and JSON otherwise, so a JSON log stays JSON.
  * @param {string[]} argv
  * @param {Record<string, string | undefined>} env
+ * @param {{ isTTY?: boolean }} stream  where the error goes
  * @returns {"text" | "json"}
  */
-export function startFormatOf(argv, env) {
+export function startFormatOf(argv, env, stream) {
     const at = argv.findIndex((a) => a === "--log-format" || a.startsWith("--log-format="));
     const flagged = at < 0 ? undefined : argv[at].includes("=") ? argv[at].slice(argv[at].indexOf("=") + 1) : argv[at + 1];
-    return (flagged ?? env[LOG_SETTINGS.format.env]) === "json" ? "json" : "text";
+    const wanted = flagged ?? env[LOG_SETTINGS.format.env];
+    return wanted === "text" || wanted === "json" ? wanted : formatOf("auto", stream);
 }
 
 /** The modes --auth takes. */

@@ -27,7 +27,7 @@ import { OperationError } from "pivotkit-report/operations";
 import { discover, exchangeTokenFor, identityKey } from "../auth.js";
 import { readSecret, SecretError } from "../secrets.js";
 import { requestId } from "../request-id.js";
-import { GuardedFetchError, guardedFetch } from "./fetch.js";
+import { GuardedFetchError, guardedFetch, upstreamCauseOf } from "./fetch.js";
 import { canonicalJson } from "./keys.js";
 import { SourceError } from "./run.js";
 
@@ -84,9 +84,9 @@ const warned = new Map();
 /**
  * A warning of the sign-in: to the log, and to check-source's trace. A warning about the settings
  * (`once`) is logged once per TOKEN_LIMITS.warnEveryMs, not on every request.
- * @param {{ id: string, log: any, trace?: AuthTrace }} how
+ * @param {{ id: string, log: any, backend?: string, trace?: AuthTrace }} how
  * @param {string} text  without the source's name
- * @param {Record<string, unknown>} [fields]
+ * @param {Record<string, unknown>} [fields]  `cause` (default sign_in_failed) and `upstreamStatus` where known
  * @param {{ once?: boolean }} [more]
  */
 function warn(how, text, fields = {}, more = {}) {
@@ -105,7 +105,7 @@ function warn(how, text, fields = {}, more = {}) {
             warned.delete(/** @type {string} */ (warned.keys().next().value));
         }
     }
-    how.log.warn(line, { source: how.id, requestId: requestId(), ...fields });
+    how.log.warn(line, { source: how.id, requestId: requestId(), cause: "sign_in_failed", ...(how.backend ? { backend: how.backend } : {}), ...fields });
 }
 
 /** @typedef {{ token: string, until: number } | { error: Error, until: number }} Kept */
@@ -252,7 +252,7 @@ function tokenAnswer(answer, how) {
         if (how.trace && code) {
             how.trace.error = code;
         }
-        warn(how, `the token endpoint answered ${answer.status}${code ? ` (${code})` : ""} for ${how.at}`, { status: answer.status });
+        warn(how, `the token endpoint answered ${answer.status}${code ? ` (${code})` : ""} for ${how.at}`, { status: answer.status, upstreamStatus: answer.status });
         // a refusal (4xx) is pivotkit's access refused; the endpoint failing (5xx) is the source not available
         throw signInFailure(answer.status >= 400 && answer.status < 500 && answer.status !== 429 ? "refused" : undefined);
     }
@@ -315,7 +315,7 @@ function audienceOf(token) {
 function requestFailure(error, how) {
     if (error instanceof GuardedFetchError) {
         how.log.debug(`the source ${how.id}: the token request failed (${error.code}): ${String(error.message).slice(0, 300)}${error.code === "REFUSED_ADDRESS" && /private/.test(error.message) ? "; for a token endpoint on an internal address set intranet: true in the sign-in's settings" : ""}`, { source: how.id, requestId: requestId() });
-        warn(how, `the token endpoint could not be reached (${error.code})`);
+        warn(how, `the token endpoint could not be reached (${error.code})`, { cause: upstreamCauseOf(error), ...(error.status ? { upstreamStatus: error.status } : {}) });
         return signInFailure(SETUP_CODES.has(error.code) ? "setup" : undefined);
     }
     return error;
@@ -456,14 +456,14 @@ function keyOf(auth, caller) {
  * without a signed-in person.
  * @param {import("../options/http.js").BackendAuth | null} auth
  * @param {import("../registry.js").Caller} caller
- * @param {{ signal?: AbortSignal, id: string, log: any, fetch?: typeof guardedFetch, trace?: AuthTrace }} how
+ * @param {{ signal?: AbortSignal, id: string, log: any, fetch?: typeof guardedFetch, backend?: string, trace?: AuthTrace }} how  backend: the backend's name, on its warnings
  * @returns {Promise<Record<string, string>>}
  */
 export async function backendHeaders(auth, caller, how) {
     if (!auth) {
         return {};
     }
-    const means = { id: how.id, log: how.log, fetch: how.fetch ?? guardedFetch, ...(how.trace ? { trace: how.trace } : {}) };
+    const means = { id: how.id, log: how.log, fetch: how.fetch ?? guardedFetch, ...(how.backend ? { backend: how.backend } : {}), ...(how.trace ? { trace: how.trace } : {}) };
     if (how.trace) {
         how.trace.kind = auth.kind;
         if (auth.kind === "clientCredentials") {

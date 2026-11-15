@@ -58,12 +58,26 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     assert.match(off.stdout, /Output: nope {2}\(NOT FOUND: create the directory first, or leave output\.create on\)/);
 });
 
+/**
+ * A start error as the person reads it: serve writes it as a JSON line where stderr is no terminal
+ * (the log's auto rule), with the same words in msg; text as it is.
+ */
+const startError = (stderr, program = "pivotkit-mcp") => {
+    const first = stderr.split("\n")[0];
+    if (!first.startsWith("{")) {
+        return stderr;
+    }
+    const line = JSON.parse(first);
+    assert.deepEqual([line.level, line.event, line.service], ["error", "error", program]);
+    return `${program}: ${line.msg}\n${stderr.slice(first.length + 1)}`;
+};
+
 test("the runner's usage errors exit 2 with a hint; --help and --version exit 0", () => {
     const dir = workspace();
     const typo = runner(["--alow-dir", "x"], dir);
     assert.equal(typo.status, 2);
-    assert.equal(typo.stderr, 'pivotkit-mcp: unknown option "--alow-dir"; did you mean --allow-dir? run "pivotkit-mcp --help"\n');
-    assert.equal(runner(["--auth", "bogus"], dir).stderr, 'pivotkit-mcp: --auth must be none, token or oauth; run "pivotkit-mcp --help"\n');
+    assert.equal(startError(typo.stderr), 'pivotkit-mcp: unknown option "--alow-dir"; did you mean --allow-dir? run "pivotkit-mcp --help"\n');
+    assert.equal(startError(runner(["--auth", "bogus"], dir).stderr), 'pivotkit-mcp: --auth must be none, token or oauth; run "pivotkit-mcp --help"\n');
     // the same Usage lines and flag order as pivotkit-server's help
     const usage = runner(["--help"], dir).stdout;
     assert.match(usage, /\nUsage: pivotkit-mcp \[options\]\n {7}pivotkit-mcp --version\n\nOptions:\n/);

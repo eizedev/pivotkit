@@ -5,8 +5,8 @@
  * (debug, info, warn, error), `severity` (the RFC 5424 number: 7, 6, 4, 3), `event`, `msg`, `service`
  * and `version`; a line written inside a request adds the request's scope (request-id.js):
  * `requestId`, `traceId`, `upstreamRequestId` (a valid incoming X-Request-Id) and, unless
- * `log.address` is "off", `address` (the socket's peer) and `clientAddress` (the forwarded client,
- * only with http.trustProxy).
+ * `log.address` is "off", `address` (the client as best known: behind a trusted proxy the forwarded
+ * one, else the socket's peer) and `peerAddress` (the socket's peer where it differs: the proxy).
  *
  * A tool call (MCP) or a request (REST) logs its operation, the source (a configured id, `inline:`,
  * `file:` or `unknown`, at most SOURCE_LOG_TEXT characters), the client (a token's name or an OAuth
@@ -141,6 +141,14 @@ const textKey = (key) => key.replace(/[^A-Za-z0-9_.-]/g, "_") || "_";
 const plainText = (text) => text.replace(AUDIT_STRIPPED, "");
 
 /**
+ * The JSON format's replacer: every text value, nested ones too, through plainText, so a C1 control
+ * a caller sent (in a forwarded address, a Host or an Origin) never reaches a log shipper raw.
+ * @param {string} _key
+ * @param {unknown} value
+ */
+const jsonValue = (_key, value) => (typeof value === "string" ? plainText(value) : value);
+
+/**
  * A value as the text format writes it (slog's rules): a number or boolean as it is; a list of plain
  * values joined with ","; any other object as JSON; text quoted (with JSON's escapes) when it is
  * empty or holds a space, "=", a quote or a backslash; control and bidi characters removed first.
@@ -230,7 +238,7 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
         ];
         const keyed = new Map(pairs);
         for (const [key, value] of Object.entries(entry)) {
-            if (key === "event" || value === undefined || (address === "off" && (key === "address" || key === "clientAddress"))) {
+            if (key === "event" || value === undefined || (address === "off" && (key === "address" || key === "peerAddress"))) {
                 continue;
             }
             const shown = key === "source" && typeof value === "string" ? plainText(value).slice(0, SOURCE_LOG_TEXT) : value;
@@ -242,24 +250,26 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
             keyed.set(key, shown);
         }
         if (address === "on" && scope && !keyed.has("address")) {
-            insertAfter(pairs, ["client", "subject"], /** @type {Array<[string, unknown]>} */ ([...(scope.address ? [["address", scope.address]] : []), ...(scope.clientAddress ? [["clientAddress", scope.clientAddress]] : [])]));
+            insertAfter(pairs, ["client", "subject"], /** @type {Array<[string, unknown]>} */ ([...(scope.address ? [["address", scope.address]] : []), ...(scope.peerAddress ? [["peerAddress", scope.peerAddress]] : [])]));
         }
         if (OUTCOME_EVENTS.has(String(entry.event)) && !keyed.has("outcome")) {
             insertAfter(pairs, ["status", "ok"], [["outcome", entry.event !== "refused" && entry.ok !== false && !(Number(entry.status) >= 400) ? "ok" : "error"]]);
         }
         const fields = Object.fromEntries(pairs);
-        stream.write(`${format === "text" ? textLine(fields, colour) : JSON.stringify(fields)}\n`);
+        stream.write(`${format === "text" ? textLine(fields, colour) : JSON.stringify(fields, jsonValue)}\n`);
     };
 
     /**
      * A line of an event whose level follows its status (or `ok`): call, request, download, refused.
      * @param {string} event
      * @param {(entry: Record<string, any>, ok: boolean) => string} msgOf
+     * @returns {(entry: Record<string, any>, how?: { level?: "debug" }) => void}  how.level: a refusal kept to the debug log
      */
-    const outcomeLine = (event, msgOf) => (/** @type {Record<string, any>} */ entry) => {
+    const outcomeLine = (event, msgOf) => (/** @type {Record<string, any>} */ entry, /** @type {{ level?: "debug" }} */ how = {}) => {
         const status = Number(entry.status);
         const ok = event !== "refused" && entry.ok !== false && !(status >= 400);
-        const lineLevel = Number.isFinite(status) && status > 0 ? levelOfStatus(status) : ok ? "info" : "warn";
+        // debug: a refusal that is routine noise (a GET of a stateless MCP endpoint, a path nobody serves)
+        const lineLevel = how.level ?? (Number.isFinite(status) && status > 0 ? levelOfStatus(status) : ok ? "info" : "warn");
         write(lineLevel, msgOf(entry, ok), { event, ...entry });
     };
 
@@ -312,14 +322,17 @@ export function startErrorLine(format, message, { service, version, code = "CONF
 
 /**
  * What the `started` line adds to the version, transport and address: the configured source ids, the
- * log's own settings and, with static tokens, their names (never a value).
+ * log's own settings (logAddress only over HTTP, where there are addresses) and, with static tokens,
+ * their names (never a value); ids and names at most SOURCE_LOG_TEXT characters, control characters removed.
  * @param {import("./config.js").ServerOptions} options
  * @param {{ ids(): string[] }} registry
  * @param {{ level: string, format: string, address: string }} log
+ * @param {{ http?: boolean }} [how]  http: the server serves HTTP (default true)
  */
-export function startFields(options, registry, log) {
-    const tokens = (options.auth?.mode ?? "none") === "token" ? (options.auth?.tokens?.length ? options.auth.tokens.map((t) => t.name) : ["token"]) : null;
-    return { sourceIds: registry.ids().map((id) => id.slice(0, SOURCE_LOG_TEXT)), logLevel: log.level, logFormat: log.format, logAddress: log.address, ...(tokens ? { tokens } : {}) };
+export function startFields(options, registry, log, { http = true } = {}) {
+    const named = (text) => plainText(String(text)).slice(0, SOURCE_LOG_TEXT);
+    const tokens = (options.auth?.mode ?? "none") === "token" ? (options.auth?.tokens?.length ? options.auth.tokens.map((t) => named(t.name)) : ["token"]) : null;
+    return { sourceIds: registry.ids().map(named), logLevel: log.level, logFormat: log.format, ...(http ? { logAddress: log.address } : {}), ...(tokens ? { tokens } : {}) };
 }
 
 /**
@@ -337,7 +350,9 @@ const REFUSAL_REASONS = Object.freeze({
     AUTH_NOT_READY: "not_ready",
     BUSY: "busy",
     INVALID_INPUT: "bad_request",
-    TOKEN_IN_ADDRESS: "token_in_address"
+    TOKEN_IN_ADDRESS: "token_in_address",
+    METHOD_NOT_ALLOWED: "method_not_allowed",
+    NOT_FOUND: "not_found"
 });
 
 /** Every reason a `refused` line may give. */
@@ -345,7 +360,8 @@ export const REFUSED_REASONS = Object.freeze(["no_token", "bad_token", ...Object
 
 /**
  * The `reason` of a refusal: its answer's code (REST's problem codes; MCP's refusals use the same),
- * INVALID_TOKEN by whether the request carried a token.
+ * INVALID_TOKEN by whether the request carried a token; a code without a reason of its own is its
+ * own name in lower case (a test keeps every code the servers refuse with in REFUSED_REASONS).
  * @param {string} code
  * @param {Request | null} [request]
  * @returns {string}
@@ -354,7 +370,7 @@ export function refusalReason(code, request = null) {
     if (code === "INVALID_TOKEN") {
         return (request?.headers.get("authorization") ?? "").trim() ? "bad_token" : "no_token";
     }
-    return REFUSAL_REASONS[/** @type {keyof typeof REFUSAL_REASONS} */ (code)] ?? "bad_request";
+    return REFUSAL_REASONS[/** @type {keyof typeof REFUSAL_REASONS} */ (code)] ?? String(code).toLowerCase();
 }
 
 /**

@@ -332,9 +332,9 @@ test("the log names the route, the source and the status; never the view, a valu
         assert.equal(entry.source, "sales");
         assert.equal(entry.status, 200);
         assert.equal(entry.client, "local");
-        // log.address is on by default: the socket's peer; a forwarded address only with http.trustProxy
+        // log.address is on by default: without http.trustProxy the socket's peer, and no peerAddress beside it
         assert.equal(entry.address, "127.0.0.1");
-        assert.equal(entry.clientAddress, undefined, "no forwarded address without http.trustProxy");
+        assert.equal(entry.peerAddress, undefined, "no second address without http.trustProxy");
         const text = JSON.stringify(server.log);
         assert.ok(!text.includes("SecretRegion") && !text.includes(dir) && !text.includes("Alice"));
     } finally {
@@ -400,11 +400,11 @@ test("limits: requests of one caller at once, the client's address behind a prox
         release();
         assert.deepEqual((await Promise.all(running)).map((r) => r.status), [200, 200]);
         await call(`${server.api}/sources`, { headers: { "x-forwarded-for": "198.51.100.7, 203.0.113.9" } });
-        // the forwarded client is clientAddress (the last entry, the one the proxy added); address is
-        // the socket's peer, here the proxy on loopback
+        // address is the forwarded client (the last entry, the one the proxy added), as before;
+        // peerAddress is the socket's peer, here the proxy on loopback
         const proxied = server.log.filter((l) => l.event === "request").at(-1);
-        assert.equal(proxied.clientAddress, "203.0.113.9");
-        assert.equal(proxied.address, "127.0.0.1");
+        assert.equal(proxied.address, "203.0.113.9");
+        assert.equal(proxied.peerAddress, "127.0.0.1");
         // the 429 of a caller over its concurrency is a refused line with its reason
         assert.ok(server.log.some((l) => l.event === "refused" && l.status === 429 && l.reason === "rate_limited" && l.limit === "concurrency" && l.client === "local"));
     } finally {

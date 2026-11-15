@@ -596,7 +596,11 @@ test("check-source for the operator: options in any order, exit 2 for an id that
     assert.equal(err.join(""), 'pivotkit-server: unknown option "--bogus"; run "pivotkit-server --help"\n');
     err.length = 0;
     assert.equal(await run(["serve", "--auth", "bogus"], io), 2);
-    assert.equal(err.join(""), 'pivotkit-server: --auth must be none, token or oauth; run "pivotkit-server --help"\n');
+    // serve's error where stderr is no terminal is a JSON line (the log's auto rule), with the same words
+    assert.equal(JSON.parse(err.join("")).msg, '--auth must be none, token or oauth; run "pivotkit-server --help"');
+    err.length = 0;
+    assert.equal(await run(["serve", "--auth", "bogus"], { ...io, stderr: { isTTY: true, write: (t) => err.push(t) } }), 2);
+    assert.equal(err.join(""), 'pivotkit-server: --auth must be none, token or oauth; run "pivotkit-server --help"\n', "on a terminal: text");
     err.length = 0;
     assert.equal(await run(["bogus"], io), 2);
     assert.equal(err.join(""), 'pivotkit-server: unknown command "bogus"; run "pivotkit-server --help"\n');

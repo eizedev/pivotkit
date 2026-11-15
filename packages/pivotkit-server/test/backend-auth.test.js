@@ -309,6 +309,9 @@ test("a token endpoint's refusal: SOURCE_UNAVAILABLE that is not retryable, only
         assert.deepEqual([error.code, error.reason, error.details.retryable], ["SOURCE_UNAVAILABLE", "refused", false]);
         assert.equal(error.stale, undefined);
         assert.ok(context.lines.some((l) => l.event === "warning" && l.message === "the source vms: the token endpoint answered 401 (invalid_client) for httpSources.backends.platform.auth.clientCredentials"));
+        // the stable fields beside the free text: why, which backend, what it answered
+        const said = context.lines.find((l) => l.message === "the source vms: the token endpoint answered 401 (invalid_client) for httpSources.backends.platform.auth.clientCredentials");
+        assert.deepEqual([said.cause, said.backend, said.upstreamStatus, said.level], ["sign_in_failed", "platform", 401, "warn"]);
         // kept 5 s: no second request
         const before = asked.filter((a) => a.path === "/token").length;
         assert.equal((await failure(describe(context))).code, "SOURCE_UNAVAILABLE");
