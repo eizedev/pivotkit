@@ -83,7 +83,7 @@ export async function createContext(options, runtime = {}) {
         // where the directory is or will be, checked before anything is made, so a refused start
         // leaves nothing behind
         const planned = missing ? await plannedPath(wanted) : await realpath(wanted).catch(() => null);
-        if (!planned || (!missing && !(await stat(planned)).isDirectory())) {
+        if (!planned || (!missing && !(await stat(planned).catch(() => null))?.isDirectory())) {
             throw new ConfigError("output.dir: not a directory");
         }
         // a directory the model may read files from must not hold what it may not see: the results
