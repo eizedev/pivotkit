@@ -10,6 +10,21 @@ data you configure and hand the results to callers you sign in. Neither decides 
 appropriate for your data; that is yours. This page lists what to decide and which setting carries
 it. It makes no compliance claim.
 
+## What is processed, where, how long, who sees it { #overview }
+
+| What | Where | How long | Who sees it |
+| --- | --- | --- | --- |
+| [Source data loaded for a caller](#memory) (code and HTTP sources) | the server's memory | until newer loads push it out (at most 64 loads, 256 MiB) or a restart | the caller it was loaded for, through the policy |
+| [Reports and schedule drafts](#retention) | files in `output.dir` | 30 days by default (`output.maxAgeDays`), or until `output.maxFiles`/`output.maxMb` push them out | whoever opens their link, or can read the directory |
+| [Data sent in a request](#inline) (`inline:`) | the server's memory for one call; a report over it in `output.dir` | the call; the report as any report | the sender, through the model or program it uses |
+| [Cache keys](#memory) | the server's memory | as long as their data | nobody: values, groups and claims only as a keyed digest |
+| [Exchanged backend tokens](#memory) | the server's memory | at most until the person's own token expires | the backend they are for |
+| [The log](#logs) | stderr, then your container runtime or journal | as long as you keep it | whoever reads the log |
+| [The limiter](#memory) | the server's memory | about two minutes after an address's last refused token; a caller until its rate bucket is full again | nobody |
+| [Backends of HTTP sources](#recipients) | the backend and its own logs | as the backend keeps them | the backend's operator |
+| [The sign-in provider](#recipients) | the provider's sign-in log | as the provider keeps it | the provider's administrators |
+| [The model's provider](#ai-client) | the provider of the AI client's model | as that provider keeps it | that provider |
+
 ## Purpose per source and caller { #purpose }
 
 Write down, per source, why it is served and to whom: an analyst's dashboard, a nightly export, an
@@ -64,9 +79,10 @@ it, so the model sees every value it computes over. What the model sent may stil
 (a pasted list of names or salaries), and pivotkit handles it as such:
 
 - it is never kept in a cache; it is read for the one call and dropped;
-- a report over it counts as closed for links: only the person who asked can open it, after
-  signing in ([download links](reference/delivery.md)); a static token or a caller without a
-  subject gets no link, and `output.baseUrl` gives it no address;
+- a report over it counts as closed for links: it gets a link bound to the person who asked (a
+  sign-in link), a one-time link where you chose `bind: "once"`, or none
+  ([download links](reference/delivery.md)); a static token or a caller without a subject gets no
+  sign-in link, and `output.baseUrl` gives it no address;
 - the report file stays in the output directory like any other (see [retention](#retention));
 - the log names it `inline:` with its number of rows and columns, never a value.
 
@@ -122,13 +138,21 @@ The server keeps in its memory, never on disk:
   64 loads and 256 MiB in all, until newer loads push it out or the process restarts, also after
   `maxStale` passed or the person lost access (it is not given to anyone then). An HTTP source's
   JSON answer is kept without the columns the caller's policy hides; a CSV answer is kept as it came
-  for its `ttl` and read per call;
+  for its `ttl` and read per call, its hidden columns in memory too
+  ([#433](https://github.com/eizedev/pivotkit/issues/433));
 - exchanged backend tokens, per person, at most until the person's own token expires;
 - the keys of that data: the person, their groups, claims and values only as a keyed digest (a
   random key per process), so a memory dump does not show them in clear text, while the data
   itself is there;
-- the addresses that sent refused tokens, for one minute (the limit on trying tokens), and per
-  client the count of recent calls.
+- the limiter's state (`rest.rateLimit`, `mcp.rateLimit`): per address that sent a refused token, the
+  times of its refused tokens of the last minute (the limit on trying tokens; the address is not
+  logged unless `http.trustProxy` is set); per client (a static token's name, an OAuth client id, or
+  `local`) a rate bucket, its fill and when it was last used, and the number of its requests running.
+  Once a minute the server drops an address whose refused tokens are all older than a minute and a
+  client whose bucket is full again, so an address is kept at most about two minutes after its last
+  refused token; a running count goes when its requests end. Each map holds at most 10,000 keys.
+
+Data in memory goes with a restart.
 
 ## check-config and check-source { #check-output }
 
@@ -137,42 +161,68 @@ The server keeps in its memory, never on disk:
 (a column per person or per customer). Treat their output as you treat the data: do not paste it
 into public issues or chats without reading it.
 
-## Logs and retention { #retention }
+## Logs { #logs }
 
-The log holds the operation, the source id, the client (a token's name or an OAuth client id), a
-random request id (it names nothing; it lets the operator find the line a person
-quotes from an error), the status and the time (a source id only when it is a configured source); at the
-default level never a view, a value or a token, and no client address unless
-`http.trustProxy` is set. A source is named by its configured id, `inline:` or `file:`, and
-anything else a caller typed as `unknown`. The client of a static token is the token's name: name
-tokens after systems or roles, not after people, or the log names a person without `audit.subject`.
-`--log debug` is for setting a server up: its lines can hold more, an error's own message (which
-may quote a value or a request's body) among them; do not leave it on. It names the person only with `audit.subject`
-([logging](reference/mcp.md#logging)): `hash`, a keyed hash of issuer and subject, is still personal
-data for as long as you keep `audit.key`, since you can match it to a person again (a rotated key,
-which takes effect at a restart, changes every person's value); `plain` writes
-the subject as the token carries it (often an e-mail address or an employee id). Turn it on only for
-a purpose you can name (who used which source when), tell the people concerned, and keep that log
-no longer than the purpose needs. Reports and drafts stay in the output directory until you remove them, or,
-for reports, until the directory holds `output.maxFiles` files (1000 by default) or `output.maxMb`
-megabytes (1024 by default) of pivotkit's: then a new report deletes the oldest reports, whoever asked for them (drafts are not
-deleted this way; they may take at most half of `output.maxFiles`, and a draft over that is
-refused). By default there is no age limit (`output.maxAgeDays` is 0), and a link that expires does not remove
-its file: a report can stay for a long time on a quiet server. `check-config` warns under
-`Retention:` when that is so while closed sources or data sent in requests are on. `output.maxAgeDays` deletes older reports and drafts (drafts waiting for approval
-too) at start and every hour, and with them the temporary files of writes the server was killed
-in once they are an hour old; or clean it up on a schedule of your own; give the output directory
-to pivotkit alone. Reports are written with mode 0644 (less the umask), readable for other local
-users: restrict the directory itself where that matters. Decide how long the log and the reports
-are kept, and who can read the output directory. A web server that serves it (`output.baseUrl`)
-makes every file reachable by its name for as long as the file is there, with no expiry and no
-sign-in: pivotkit gives such an address only to reports over open sources, but the web server
-serves whatever is in the directory. The server's own [download links](reference/delivery.md)
-expire (60 minutes by default) and, for closed sources and data that belongs to one person (data
-sent in the request, a source bound to the person, a code source with `perPerson`), open only for
-the person who asked; a link is in the browser's history and a proxy's log until it expires. Two
-sign-in links of one person cannot be tied to each other: each holds the person only as a digest
-with its own random part.
+pivotkit writes one line per event to stderr and keeps no log file; retention and access are those
+of your container runtime or journal.
+
+A line holds the operation, the source, the client (a token's name or an OAuth client id), a random
+request id (it names nothing; it lets you find the line a person quotes from an error), the status
+and the time; at the default level never a view, a value or a token, and no client address unless
+`http.trustProxy` is set. A source is named by its configured id, `inline:` or `file:`, and anything
+else a caller typed as `unknown`. The client of a static token is the token's name: name tokens
+after systems or roles, not after people, or the log names a person without `audit.subject`.
+`--log debug` is for setting a server up: its lines can hold more, an error's own message (which may
+quote a value or a request's body) among them; do not leave it on.
+
+A line names the person only with `audit.subject` ([logging](reference/mcp.md#logging)): `hash`, a
+keyed hash of issuer and subject, is still personal data for as long as you keep `audit.key`, since
+you can match it to a person again (a rotated key, which takes effect at a restart, changes every
+person's value); `plain` writes the subject as the token carries it (often an e-mail address or an
+employee id). Turn it on only for a purpose you can name (who used which source when), tell the
+people concerned, and keep that log no longer than the purpose needs.
+
+## Reports and retention { #retention }
+
+Reports and drafts stay in the output directory until they are deleted:
+
+- by age: `output.maxAgeDays` is 30 by default, so reports and drafts (drafts waiting for approval
+  too) older than 30 days are deleted at start and every hour, with the temporary files of writes
+  the server was killed in once they are an hour old. `output.maxAgeDays: 0` keeps them with no age
+  limit; `check-config` warns under `Retention:` when you set 0 while closed sources or data sent in
+  requests are on. The default does not apply where the output directory holds the configuration
+  or a source, template or token file (nothing is deleted by age there): give the output directory
+  to pivotkit alone;
+- by count and size: when the directory holds `output.maxFiles` files (1000 by default) or
+  `output.maxMb` megabytes (1024 by default) of pivotkit's, a new report deletes the oldest
+  reports, whoever asked for them (drafts are not deleted this way; they may take at most half of
+  `output.maxFiles`, and a draft over that is refused);
+- by you, on a schedule of your own.
+
+A link that expires does not remove its file. Reports cannot be searched per person; to remove a
+person's reports you delete files.
+
+Who can read the output directory:
+
+- the directory the server creates is mode 0700 (only the server's user), or 0755 with
+  `output.baseUrl` (less the umask), so your web server can read it; a directory that exists keeps
+  its mode;
+- reports are written with mode 0644 (less the umask): readable for other local users wherever the
+  directory lets them in, so restrict the directory where that matters;
+- the markers of used one-time links in `.pivotkit-downloads/` hold a link's random nonce and its
+  expiry, no personal data.
+
+A web server that serves the directory (`output.baseUrl`) makes every file reachable by its name for
+as long as the file is there, with no expiry and no sign-in: pivotkit gives such an address only to
+reports over open sources, but the web server serves whatever is in the directory. The server's own
+[download links](reference/delivery.md) expire (60 minutes by default). Reports over closed sources
+and over data that belongs to one person (data sent in the request, a source bound to the person, a
+code source with `perPerson`) get a link bound to the person who asked, a one-time link where you
+chose `bind: "once"`, or none, and never an `output.baseUrl` address. pivotkit cannot see whether a
+code source answers differently per caller. If yours does, set `perPerson: true`, or reports over it
+get plain links and, with `output.baseUrl`, a permanent address. A link is in the browser's history and
+a proxy's log until it expires. Two sign-in links of one person cannot be tied to each other: each
+holds the person only as a digest with its own random part.
 
 ## The AI client { #ai-client }
 
