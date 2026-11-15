@@ -206,3 +206,19 @@ test("check-config: output.dir in the configuration's directory is a WARNING (Ou
     // a directory of the reports' own: no such warning
     assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text, /never deleted to make room/);
 });
+
+// --- a token in the address is logged as such on REST too ----------------------------------------
+
+test("REST: a token in the address is refused 401 and logged with reason token_in_address, on a GET and on a POST (its precheck)", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: TOKEN } });
+    try {
+        assert.equal((await call(`${server.api}/sources?access_token=${TOKEN}`)).status, 401);
+        assert.equal((await call(`${server.api}/views/validate?access_token=${TOKEN}`, { body: { source: "sales", view: { rows: ["Region"] } } })).status, 401);
+        const reasons = server.log.filter((l) => l.event === "refused").map((l) => l.reason);
+        assert.deepEqual(reasons, ["token_in_address", "token_in_address"]);
+        assert.ok(!JSON.stringify(server.log).includes(TOKEN), "the token is never logged");
+    } finally {
+        await server.close();
+    }
+});

@@ -415,8 +415,8 @@ export function startFields(options, registry, log, { http = true } = {}) {
 
 /**
  * Why a request was refused, by the code of its answer: the `reason` of a `refused` line. The token's
- * reasons are told apart by the request (no Authorization header: no_token; one that did not pass:
- * bad_token).
+ * reasons are told apart by the request (a token in the address, which auth.js bearerOf refuses
+ * first: token_in_address; no Authorization header: no_token; one that did not pass: bad_token).
  */
 const REFUSAL_REASONS = Object.freeze({
     RATE_LIMITED: "rate_limited",
@@ -449,6 +449,9 @@ export const REFUSED_REASONS = Object.freeze(["no_token", "bad_token", ...Object
  */
 export function refusalReason(code, request = null) {
     if (code === "INVALID_TOKEN") {
+        if (request && URL.canParse(request.url) && new URL(request.url).searchParams.has("access_token")) {
+            return REFUSAL_REASONS.TOKEN_IN_ADDRESS;
+        }
         return (request?.headers.get("authorization") ?? "").trim() ? "bad_token" : "no_token";
     }
     return REFUSAL_REASONS[/** @type {keyof typeof REFUSAL_REASONS} */ (code)] ?? String(code).toLowerCase();
