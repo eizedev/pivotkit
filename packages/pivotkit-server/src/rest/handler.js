@@ -24,7 +24,7 @@ import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
 import { BODY_BYTES, SIGNED_IN, isLoopback, peekSignIn, takeSignIn } from "../listen.js";
 import { INPUT_DEPTH, jsonDepth, present, presentedInput, renderFile } from "../present.js";
-import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, isRestPost, restBodyBytesAt, restBodyBytesFor, restBodyCeilingOf } from "../limits.js";
+import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, isRestPost, limitKeyOf, restBodyBytesAt, restBodyBytesFor, restBodyCeilingOf } from "../limits.js";
 import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData, restDataOffered } from "../sources/inline.js";
 import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
@@ -385,12 +385,14 @@ export async function createRestHandler(context, runtime = {}) {
             return who.refused;
         }
         const { caller } = who;
-        const wait = limits.take(caller.client);
+        // counted per person (a client's people do not share one bucket), the client's own cap beside it
+        const limitKey = limitKeyOf(caller);
+        const wait = limits.take(limitKey);
         if (wait) {
             context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: "rate", ...callerFields(caller) });
             return problem("RATE_LIMITED", "too many requests; wait before the next", { headers: { "retry-after": String(wait) } });
         }
-        if (!limits.enter(caller.client)) {
+        if (!limits.enter(limitKey, caller.client)) {
             context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: "concurrency", ...callerFields(caller) });
             return problem("RATE_LIMITED", "too many requests at once; wait for one to finish", { headers: { "retry-after": "1" } });
         }
@@ -412,7 +414,7 @@ export async function createRestHandler(context, runtime = {}) {
                 response = problemOf(error ?? e);
             }
         } finally {
-            limits.leave(caller.client);
+            limits.leave(limitKey, caller.client);
         }
         const body = response.headers.get("content-type")?.includes("problem") ? await response.clone().json().catch(() => null) : null;
         context.log.request({ ...entry, status: response.status, ...(body?.code ? { code: body.code } : {}), ms: Date.now() - started });

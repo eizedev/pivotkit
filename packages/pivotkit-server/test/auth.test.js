@@ -40,8 +40,8 @@ before(async () => {
 after(() => new Promise((resolve) => issuerServer.close(resolve)));
 
 /** A signed access token; `claims` and `header` change it. */
-async function jwt({ claims = {}, header = {}, signWith = key.privateKey, expires = "5m", aud = REST_RESOURCE } = {}) {
-    let token = new SignJWT({ scope: "pivotkit", client_id: "report-bot", ...claims }).setProtectedHeader({ alg: "RS256", kid: "k1", ...header }).setIssuer(claims.iss ?? issuer).setAudience(aud).setSubject("someone").setIssuedAt();
+async function jwt({ claims = {}, header = {}, signWith = key.privateKey, expires = "5m", aud = REST_RESOURCE, sub = "someone" } = {}) {
+    let token = new SignJWT({ scope: "pivotkit", client_id: "report-bot", ...claims }).setProtectedHeader({ alg: "RS256", kid: "k1", ...header }).setIssuer(claims.iss ?? issuer).setAudience(aud).setSubject(sub).setIssuedAt();
     if (expires) {
         token = token.setExpirationTime(expires);
     }
@@ -261,5 +261,26 @@ test("oauth: a person's subject, groups and other claims never reach a log line,
             await client.close();
             await server.close();
         }
+    }
+});
+
+test("F3: the request limits count per person, not per OAuth client: two people of one client each get their own bucket, on REST and MCP", async () => {
+    const dir = workspace();
+    const limited = await restServer({ sources: SOURCES, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { rateLimit: { perMinute: 1, burst: 2 } }, mcp: { rateLimit: { perMinute: 1, burst: 2 } }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir }, { enable: ["rest", "mcp"] });
+    try {
+        const ana = await jwt({ sub: "ana" });
+        const ben = await jwt({ sub: "ben" });
+        assert.equal((await call(`${limited.api}/sources`, { token: ana })).status, 200);
+        assert.equal((await call(`${limited.api}/sources`, { token: ana })).status, 200);
+        assert.equal((await call(`${limited.api}/sources`, { token: ana })).status, 429, "ana's bucket is empty");
+        assert.equal((await call(`${limited.api}/sources`, { token: ben })).status, 200, "ben of the same client has his own");
+        const init = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
+        const mcp = async (token) => (await fetch(`${limited.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${token}` }, body: init })).status;
+        const anaMcp = await jwt({ sub: "ana", aud: MCP_RESOURCE });
+        const benMcp = await jwt({ sub: "ben", aud: MCP_RESOURCE });
+        assert.deepEqual([await mcp(anaMcp), await mcp(anaMcp), await mcp(anaMcp)], [200, 200, 429]);
+        assert.equal(await mcp(benMcp), 200, "on MCP too");
+    } finally {
+        await limited.close();
     }
 });

@@ -2,7 +2,7 @@
 // review): each test fails on the code before its fix.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkConfig, validateOptions } from "pivotkit-server";
+import { REQUEST_LIMITS, callerOf, checkConfig, createLimits, limitKeyOf, validateOptions } from "pivotkit-server";
 import { call, factsOf, restServer, workspace } from "./helpers.js";
 
 // --- F2: columns the file gives no header never take a "show" default --------------------------------
@@ -87,4 +87,28 @@ test("F1: with the opt-in, check-config and the start warn of links in clear tex
     }
     // https: no such warning
     assert.doesNotMatch((await checkConfig({ ...options, output: { dir: "out" }, http: { publicUrl: "https://reports.example.com" } }, { http: true, env: {} })).text, /clear text/);
+});
+
+// --- F3: the request limits count per person, a client's people together under a cap ---------------
+
+test("F3: limitKeyOf names the person, else the client; a client's people together run at most concurrency x clientShare requests", () => {
+    const oauth = (subject) => callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject, issuer: "https://auth.example.test/" } });
+    assert.notEqual(limitKeyOf(oauth("ana")), limitKeyOf(oauth("ben")));
+    assert.equal(limitKeyOf(oauth("ana")), limitKeyOf(oauth("ana")));
+    assert.equal(limitKeyOf(oauth(undefined)), "client:claude", "a token without a person counts for its client");
+    assert.match(limitKeyOf(callerOf("none")), /^person:/);
+    const limits = createLimits({ concurrency: 1 });
+    try {
+        const cap = REQUEST_LIMITS.clientShare;
+        for (let i = 0; i < cap; i++) {
+            assert.equal(limits.enter(`person:${i}`, "claude"), true);
+        }
+        assert.equal(limits.enter("person:one-more", "claude"), false, "the client's cap");
+        assert.equal(limits.enter("person:other", "other-client"), true, "another client is not held by it");
+        assert.equal(limits.enter("person:0", "claude"), false, "a person's own concurrency");
+        limits.leave("person:0", "claude");
+        assert.equal(limits.enter("person:one-more", "claude"), true, "a place given back");
+    } finally {
+        limits.close();
+    }
 });

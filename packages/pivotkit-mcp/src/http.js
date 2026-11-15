@@ -17,7 +17,7 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
-import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, logUnanswered, noteProtocolRefusal, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
+import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, callerOf, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logUnanswered, noteProtocolRefusal, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
 import { createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
 import { quickStartPage } from "./page.js";
@@ -129,6 +129,19 @@ export async function createHttpHandler(context, runtime = {}) {
     // here: a client's mistake, a warning
     const handler = createMcpHandler((ctx) => context.server(ctx), { legacy: "stateless", maxRequestBodySize: BODY_BYTES, onerror: (e) => protocolRefusal(context.log, e) });
     const limits = createLimits(context.options.mcp);
+    /**
+     * Whom a request's limits count for (pivotkit-server's limitKeyOf): the caller its token makes;
+     * without a token (auth none) the one local caller.
+     * @param {any} authInfo
+     */
+    const limitKeyOfAuth = (authInfo) => {
+        try {
+            return limitKeyOf(callerOf(authInfo ? auth.mode : "none", authInfo, context.options.auth));
+        } catch {
+            // a caller the gate refused already (groups): never reaches here; its client then
+            return `client:${String(authInfo?.clientId ?? "client")}`;
+        }
+    };
     const trustProxy = http.trustProxy ?? false;
     const downloads = createDownloadHandler(context, { env: runtime.env ?? process.env, loopback: runtime.loopback ?? isLoopback(http.host ?? "127.0.0.1") });
     const page = http.page === false ? null : { sources: typeof http.page === "object" && http.page.sources !== undefined ? http.page.sources : auth.mode === "none" };
@@ -214,19 +227,21 @@ export async function createHttpHandler(context, runtime = {}) {
             return rpcError(405, -32000, "Method not allowed.", { allow: "POST" });
         }
         const client = authInfo ? String(authInfo.clientId ?? "client") : "local";
-        const wait = limits.take(client);
+        // counted per person (a client's people do not share one bucket), the client's own cap beside it
+        const limitKey = limitKeyOfAuth(authInfo);
+        const wait = limits.take(limitKey);
         if (wait) {
             context.log.refused({ status: 429, path: ENDPOINT, reason: refusalReason("RATE_LIMITED"), limit: "rate", client });
             return rpcError(429, -32000, "too many requests; wait before the next", { "retry-after": String(wait) });
         }
-        if (!limits.enter(client)) {
+        if (!limits.enter(limitKey, client)) {
             context.log.refused({ status: 429, path: ENDPOINT, reason: refusalReason("RATE_LIMITED"), limit: "concurrency", client });
             return rpcError(429, -32000, "too many requests at once; wait for one to finish", { "retry-after": "1" });
         }
         try {
-            return releasing(await handler.fetch(request, authInfo ? { authInfo } : {}), () => limits.leave(client));
+            return releasing(await handler.fetch(request, authInfo ? { authInfo } : {}), () => limits.leave(limitKey, client));
         } catch (e) {
-            limits.leave(client);
+            limits.leave(limitKey, client);
             throw e;
         }
     }
