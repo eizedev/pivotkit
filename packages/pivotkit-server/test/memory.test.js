@@ -91,15 +91,24 @@ test("ownTexts and the worker's look take any depth and any size: a structure ne
     assert.ok(kept.texts.length >= 150_000, String(kept.texts.length));
 });
 
-test("a kept data set of a CSV holds only its own values, not the file's text: through a file source and an HTTP source's answer, a 16 MB CSV whose hidden column is most of it", () => {
+test("a kept data set of a CSV holds only its own values, not the file's text: through a file source and an HTTP source's answer, a 16 MB CSV whose hidden column is most of it keeps what its twin without that column keeps", () => {
     const PROBE_READ = fileURLToPath(new URL("./memory/read-probe.mjs", import.meta.url));
-    for (const mode of ["file", "upload"]) {
-        const run = spawnSync(process.execPath, ["--expose-gc", PROBE_READ, mode], { encoding: "utf8", timeout: 120_000 });
+    const measure = (mode, twin) => {
+        const run = spawnSync(process.execPath, ["--expose-gc", PROBE_READ, mode, ...(twin ? ["twin"] : [])], { encoding: "utf8", timeout: 120_000 });
         assert.equal(run.status, 0, run.stderr);
-        const { fileBytes, retained, columns } = JSON.parse(run.stdout.trim().split("\n").at(-1) ?? "");
-        assert.deepEqual(columns, ["order_identifier", "sales_region_name", "customer_full_name"], mode);
-        assert.ok(fileBytes > 5_000_000, String(fileBytes));
-        // the shown values take about 5 MB; the text the data set was read from would add all of the file
-        assert.ok(retained < fileBytes / 2, `${mode}: ${(retained / 1e6).toFixed(1)} MB kept after reading ${(fileBytes / 1e6).toFixed(1)} MB`);
+        return JSON.parse(run.stdout.trim().split("\n").at(-1) ?? "");
+    };
+    for (const mode of ["file", "upload"]) {
+        const full = measure(mode, false);
+        const shown = measure(mode, true);
+        assert.deepEqual(full.columns, ["order_identifier", "sales_region_name", "customer_full_name"], mode);
+        assert.deepEqual(shown.columns, full.columns, mode);
+        assert.ok(full.fileBytes > 5_000_000 && full.fileBytes > 4 * shown.fileBytes, JSON.stringify([full.fileBytes, shown.fileBytes]));
+        // the measure counts the shown data: 40,000 rows of three columns take more than 2 MB
+        assert.ok(shown.retained > 2_000_000, `${mode}: the twin kept only ${shown.retained} bytes`);
+        // with the hidden column the same is kept, within 1 % and 128 KiB (runs differ by about 20 KB;
+        // the hidden column's text is 14 MB, 360 bytes a row)
+        const allowed = shown.retained * 1.01 + 131_072;
+        assert.ok(full.retained <= allowed, `${mode}: ${(full.retained / 1e6).toFixed(2)} MB kept with the hidden column, ${(shown.retained / 1e6).toFixed(2)} MB without it`);
     }
 });

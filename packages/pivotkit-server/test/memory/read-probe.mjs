@@ -15,6 +15,8 @@ import { tempDir } from "../helpers.js";
 
 const ROWS = 40_000;
 const mode = process.argv[2];
+/** "twin": the same file without the hidden column, whose retention is what the shown data takes. */
+const twin = process.argv[3] === "twin";
 
 /**
  * heapUsed + external after collecting what can be collected: a freed buffer's memory is given back
@@ -34,9 +36,9 @@ async function used() {
  * a name per row), and a large hidden one.
  */
 function csvText() {
-    const lines = ["order_identifier,sales_region_name,customer_full_name,internal_memo_text"];
+    const lines = [`order_identifier,sales_region_name,customer_full_name${twin ? "" : ",internal_memo_text"}`];
     for (let i = 0; i < ROWS; i++) {
-        lines.push(`${i},region-${i % 50}-north-long,customer-${String(i).padStart(8, "0")},${String(i).padStart(10, "0")} ${"hidden ".repeat(50)}`);
+        lines.push(`${i},region-${i % 50}-north-long,customer-${String(i).padStart(8, "0")}${twin ? "" : `,${String(i).padStart(10, "0")} ${"hidden ".repeat(50)}`}`);
     }
     return `${lines.join("\n")}\n`;
 }
@@ -63,4 +65,4 @@ async function read() {
 }
 const { columns } = await read();
 const retained = (await used()) - before;
-console.log(JSON.stringify({ mode, version: process.version, fileBytes: statSync(path).size, retained, columns }));
+console.log(JSON.stringify({ mode, twin, version: process.version, fileBytes: statSync(path).size, retained, columns }));
