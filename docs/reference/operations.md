@@ -92,7 +92,7 @@ Lines of calls, requests, downloads and refusals add:
 | `outcome` | all four | `ok` or `error`; `ok` stays beside it on `call` lines |
 | `code` | failures | The [error code](#codes) |
 | `ms` | `call`, `request` | The time the work took, in milliseconds |
-| `reason` | `refused` | `no_token`, `bad_token`, `rate_limited`, `body_too_large`, `host`, `origin`, `insufficient_scope`, `not_allowed` (the person's groups), `not_ready` (the issuer is not loaded yet), `busy`, `bad_request` (a body or a request the HTTP parser cannot read, a body that is not JSON or an `mcp-protocol-version` the MCP endpoint does not support), `unsupported_media_type` and `not_acceptable` (the MCP endpoint's `Content-Type` and `Accept` checks), `token_in_address`, `internal` (a 5xx without a line of its own), and at `debug` only `method_not_allowed` (a method a route does not take, such as a GET of the MCP endpoint, which clients send to open a stream) and `not_found` (a path nobody serves, also under `/api/v1`; under `/downloads` a link nobody has is at `info`, since a person asks you about it). Any other error answer without a line of its own gives its problem's code in lower case, or one of these by its status |
+| `reason` | `refused` | `no_token`, `bad_token`, `rate_limited`, `body_too_large`, `host`, `origin`, `insufficient_scope`, `not_allowed` (the person's groups), `not_ready` (the issuer is not loaded yet), `busy`, `bad_request` (a body or a request the HTTP parser cannot read, a method the server never takes such as `TRACE`, which gets 400 and a line at `warn` by design, a body that is not JSON or an `mcp-protocol-version` the MCP endpoint does not support), `unsupported_media_type` and `not_acceptable` (the MCP endpoint's `Content-Type` and `Accept` checks), `token_in_address`, `internal` (a 5xx without a line of its own), and at `debug` only `method_not_allowed` (a method a route does not take, such as a GET of the MCP endpoint, which clients send to open a stream) and `not_found` (a path nobody serves, also under `/api/v1`; under `/downloads` a link nobody has is at `info`, since a person asks you about it). Any other error answer without a line of its own gives its problem's code in lower case, or one of these by its status |
 | `limit`, `size` | `refused` | For `body_too_large`: the bytes allowed and the declared size; for `rate_limited` after sign-in, `limit` is `rate` or `concurrency` |
 | `path` | `refused` | The route family that refused it (`/api/v1`, `/openapi.json`, `/mcp`, `/downloads`), never the path the request asked for |
 | `error`, `refusal`, `detail` | `refused` | For a request the MCP protocol layer refused: its error's class, the SDK's fixed name for the refusal (such as `name-header-mismatch`) and, only at `debug`, its message, which can quote the request's body |
@@ -157,8 +157,8 @@ time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source fail
 | `request` | A REST request that reached an operation |
 | `download` | A file handed out: by the REST file route or a [download link](delivery.md) (`via: "link"`) |
 | `refused` | A request refused before it reached an operation, with its `reason` |
-| `warning` | Something the operator should look at: a backend that failed, refused connections, a setting that does not fit |
-| `info` | Something that changed: the issuer's metadata loaded, old reports deleted |
+| `warning` | Something the operator should look at: a backend that failed, refused connections, a setting that does not fit, a static token's file that cannot be used (at most once a minute per token) |
+| `info` | Something that changed: the issuer's metadata loaded, old reports deleted (to make room, or by `output.maxAgeDays`: one line per sweep with the counts `reports` and `drafts`) |
 | `error` | An unexpected error: its class, its message only at `debug`, never its stack |
 | `debug` | Only at `debug`: why a token was refused, what a backend answered |
 

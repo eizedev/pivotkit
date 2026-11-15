@@ -124,7 +124,9 @@ any request. A [download link](../reference/delivery.md) only works on the repli
 report unless the replicas share one output directory (a ReadWriteMany volume) and one link key: put
 `output.downloads.key` in a Secret and pass it as an environment variable
 (`"key": { "env": "PIVOTKIT_DOWNLOAD_KEY" }`). With one replica, set the key all the same, so links
-survive a restart.
+survive a restart. A key from a variable changes only with a restart of the pod; to rotate it without
+one, mount the Secret as a file (`"key": { "file": "/run/secrets/download-key" }`), which the server
+reads again within a second of a change.
 
 ## Memory and workers { #sizing }
 

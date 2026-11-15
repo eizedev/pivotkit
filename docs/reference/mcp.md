@@ -127,6 +127,13 @@ name) keep the stricter of the two.
 | `summary` (default) | name, type, counts | names; no check of an item against the data: a misspelt item renders an empty report | written to a file only; rows, columns and size withheld |
 | `hide` | not listed; `hiddenFields` counts them | never named | the column is dropped when the data is read |
 
+A column the file gives no name (a blank header cell, or a row with more values than the header,
+which a separator inside a value can cause: the reader names it `Column 7`) is `hide` whatever the
+default, since its values may belong to another column; a rule of `fields` that names it holds.
+`"default": "show"` with fields set to `hide` is a deny list: a column the data gains later is shown
+unless someone hides it, and `check-config` warns of it. Prefer `summary` by default and name the
+fields to show.
+
 A field asked for `values` is `summary` where a list would not be complete and exact: a number or
 date field, more distinct values than `valuesMax`, a value longer than 80 characters, a source with
 `counts: false` or `rows: false` (a list's length is the distinct count), or data whose statistics
@@ -214,6 +221,11 @@ does not read counts (a shown date's grouping still follows its span).
 
 ## Configuration { #configuration }
 
+A model chooses a source and reads its fields by the words you give them: `list_sources` hands it
+`sources.<id>.description`, and `describe_source` each field's `fields.<name>.description`. Say in a
+sentence what a source holds (one row per what, since when) and explain field names that are short
+or coded; `check-config` names every source without a description.
+
 The runner reads a configuration file (JSON) and its flags; a flag wins, and a list given as flags
 adds to the file's. Paths in the file are relative to the file; a relative path given without a
 configuration file (`--output reports`) is relative to the working directory, for a stdio client the
@@ -266,9 +278,9 @@ error that names the key and the one probably meant.
 | `http.page` | - | on | The quick-start page; `{ "sources": true }` lists source ids on it; `false` turns it off |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
 | `http.maxConnectionsPerAddress` | - | 0 (no bound) | Connections one address may hold, loopback excepted ([Streamable HTTP](#http)) |
-| `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller (a token's name, an OAuth client id, or `local` without sign-in), with up to `burst` at once after a pause |
+| `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller (the person an OAuth token names, a static token's name, or `local` without sign-in; an OAuth token without a subject counts for its client), with up to `burst` at once after a pause |
 | `mcp.rateLimit.failedAuthPerMinute` | - | 30 | HTTP: refused tokens per address and minute; beyond, a wrong token from that address gets 429 instead of 401 (a right one still works) |
-| `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once (an answer that streams holds its place until it ends) |
+| `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once (an answer that streams holds its place until it ends); the people of one OAuth client together at most eight times this |
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log.level` | `--log level` | info | `debug`, `info`, `warn`, `error` or `off`; `"log": "debug"` is short for the level; `$PIVOTKIT_LOG_LEVEL` ([operations](operations.md#settings)) |
 | `log.format` | `--log-format format` | auto | `auto` (text on a terminal, JSON otherwise), `text` or `json`; `$PIVOTKIT_LOG_FORMAT` |
@@ -528,13 +540,24 @@ start refuses another); make one with
 `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Tokens are compared
 as SHA-256 digests in constant time, never logged, and refused in the address (`?access_token=`) and
 when a request carries two `Authorization` headers.
-The token's name is the client in the log.
+The token's name is the client in the log. A token file that is missing, empty or shorter than 32
+characters while the server runs refuses every request with that token (401) and writes a warning
+naming the token, at most once a minute.
 
 ```json
 { "auth": { "mode": "token", "tokens": [
     { "name": "analysts", "env": "PIVOTKIT_TOKEN_ANALYSTS", "scopes": ["sales", "hr"] },
     { "name": "viewers", "file": "/run/secrets/pivotkit-viewers", "scopes": ["sales"] } ] } }
 ```
+
+Rotating a token without a break:
+
+1. Add a second entry to `auth.tokens` for the new token, with the same `scopes` and `profile`, from
+   a file of its own, and restart once (the list of tokens is read at start).
+2. Give the clients the new token, one after the other; both work meanwhile.
+3. Remove the old entry and restart, or, to rotate in place without a restart, write the new value
+   into the old entry's file: write it to a temporary file in the same directory, then rename it over
+   the old one (`mv`), so the server never reads a file that is half written.
 
 ### OAuth 2.1 { #oauth }
 
@@ -595,6 +618,22 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `auth.groupsClaim` | `groups` | The claim with the person's groups, a list of texts |
 | `auth.groupsSeparator` | none | Also take a text claim, split by this separator (`","`); without it a text claim counts as unknown. A group name that holds the separator is split in two |
 | `auth.defaultProfile` | none | The profile of a signed-in caller that no token, client, group or scope names; without it, a signed-in person whom no client, group or scope gives a profile is refused while `groupProfiles` is set |
+
+#### A client registered in advance { #preregistered-client }
+
+An MCP client registers itself at the issuer when the issuer offers dynamic client registration.
+Where it does not (Authentik, for example, and many company setups), create the client at the
+provider yourself and give the client its id. Claude Code otherwise stops with "does not support
+dynamic client registration":
+
+```bash
+claude mcp add --transport http --client-id <client-id> --callback-port 8080 pivotkit https://reports.example.com/mcp
+```
+
+Register `http://localhost:8080/callback` (the port of `--callback-port`) as the client's redirect
+URI. For a confidential client add `--client-secret`, which asks for the secret (or reads
+`MCP_CLIENT_SECRET`); a public client with PKCE needs none. Claude Code's own
+[MCP documentation](https://code.claude.com/docs/en/mcp) has the current flags.
 
 #### Which scopes the metadata offers { #scopes }
 

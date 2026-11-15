@@ -59,9 +59,10 @@ same rules for closed sources.
 | Key | Default | What it is |
 | --- | --- | --- |
 | `output.downloads.enabled` | true | The server's own links. They need HTTP and `output.dir`, and are off while `output.baseUrl` is set (`true` next to `output.baseUrl` is refused at start: choose one) |
-| `output.downloads.expiresMinutes` | 60 | How long a link works, 1 to 1440 minutes |
+| `output.downloads.expiresMinutes` | 60 | How long a link works, 1 to 1440 minutes. A person reads the answer, opens the link and signs in within this time, so give them minutes, not seconds: `check-config` warns below 5 |
 | `output.downloads.bind` | `"signIn"` with `auth.mode: "oauth"` and `signIn.clientId`, else `"none"` | How links to reports over closed sources are bound: `signIn`, `once`, or `none` (such reports get no link) |
-| `output.downloads.key` | a random key per process | The link key, a secret reference (`{ "env": "NAME" }` or `{ "file": "path" }`) of at least 32 bytes; set it for more than one replica and for links that survive a restart. Make one with `openssl rand -base64 48`. It is read on every use, so a rotated key works without a restart (links made with the old key stop working) |
+| `output.downloads.key` | a random key per process | The link key, a secret reference (`{ "env": "NAME" }` or `{ "file": "path" }`) of at least 32 bytes; set it for more than one replica and for links that survive a restart. Make one with `openssl rand -base64 48`. It is read again at most once a second, so a rotated key works without a restart, within a second (links made with the old key stop working); that needs the `{ "file": "path" }` form, since a process's environment variables do not change while it runs |
+| `output.downloads.allowInsecureUrl` | false | Links under an `http://` `http.publicUrl` on a host other than loopback. Without it the server does not start with such an address while links are on: a link is the credential, and it and its cookie would cross the network in clear text. With it the start and `check-config` warn; use it only on a network you trust |
 | `output.downloads.signIn.clientId` | none | The browser client the person signs in with |
 | `output.downloads.signIn.clientSecret` | none (a public client with PKCE) | Its secret, a secret reference, sent as HTTP Basic (or in the form where the provider only takes `client_secret_post`) |
 | `output.downloads.signIn.issuer` | `auth.issuer` | May be left out; when given, it must be `auth.issuer` exactly (a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did). The server does not start otherwise, and `check-config` stops with the same message: one that differs only in spelling (a trailing slash, case in the scheme or host, a default port) says to leave it out; another issuer points to [#441](https://github.com/eizedev/pivotkit/issues/441), a sign-in with an issuer of its own for providers with one issuer per application |
@@ -133,8 +134,10 @@ link's own page: its `Origin` is `http.publicUrl`'s origin (the page is served w
 Anyone who sees a one-time link can use it once, and an assistant with a browser or a code tool can
 use it before the person does. `check-config` warns of that; use `signIn` where it matters.
 
-Which links were used is kept in `.pivotkit-downloads/` in the output directory, a file per link
-made exclusively, so replicas sharing the directory agree; the files go once their link expired
+Which links were used, and which sign-ins came back (their `state`, so a callback replayed with the
+cookie from before it is refused), is kept in `.pivotkit-downloads/` in the output directory, a file
+per link or sign-in made exclusively, so replicas sharing the directory agree; the files go once
+their link or sign-in expired
 (swept every ten minutes, and on a one-time download). Each
 file is written whole and then hard-linked to its name, so the output directory's file system must
 support hard links (local disks and NFS do; some network or object-store mounts do not, and a

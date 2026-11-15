@@ -147,6 +147,11 @@ Then restart Claude Code.
 
 ## From 0.6.1 to the next release { #from-0-6-1 }
 
+!!! warning "Copy schedule drafts out of `output.dir` first"
+    The new release deletes reports **and schedule drafts still waiting for approval** older than 30
+    days from `output.dir` at its first start ([why](#max-age-default)). Copy the drafts and reports
+    you want to keep elsewhere before you update, or set `output.maxAgeDays: 0`.
+
 Operators of pivotkit-server and pivotkit-mcp need not act for the exposure policy: every field
 keeps its level, and the automatic values rule and the new operator controls are off. Library hosts
 with code sources check [Code sources](#code-sources). Over HTTP with an output directory, check the
@@ -176,7 +181,10 @@ callers notice:
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
 | [Requests to the issuer](#issuer-requests) | `auth.mode` is `oauth` and the issuer resolves to a loopback or private address, is reached through a proxy, redirects, or serves a key set over 256 KiB | set `auth.intranet: true` for an issuer in your LAN or cluster; run `check-config` |
-| [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
+| [Reports and drafts deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | copy the schedule drafts and reports you want to keep out of `output.dir` before you update, or set `output.maxAgeDays: 0` |
+| **Breaking:** [download links over plain http](#download-links-http) | `http.publicUrl` is `http://` on a host other than loopback, with `output.dir` | use `https://`, or set `output.downloads.allowInsecureUrl: true` for a network you trust, or `output.downloads.enabled: false` |
+| [Columns without a header](#columns-without-header) | a file source has rows longer than its header, or a blank header cell, under `"default": "show"` | name such a column in `fields` if it should be shown; run `check-config` |
+| [Request limits per person](#limits-per-person) | people sign in through one OAuth client | nothing; each person gets `rateLimit` and `concurrency` of their own |
 | [The log](#log) | you read the log on a terminal, parse it, alert on it, or ship it to a log server | JSON lines gain fields and the client's address is logged by default (`log.address: "off"` keeps it out); levels and `msg` are new, and more refusals get a line; on a terminal the log is text unless `log.format` is `json`; a start error is a JSON line where stderr is no terminal |
 | [check-config's layout](#check-config-layout) | you read `check-config`'s output in a script | use its exit code, or its first line, which says whether the server starts |
 | [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
@@ -296,15 +304,42 @@ a report whose fields were withheld from the model. The file is still written. R
 whose fields are all `show` keep their address. For the others, leave out `output.baseUrl` and use
 sign-in links, or give REST programs `results: true` and the [file route](../reference/rest.md#downloads).
 
-### Reports deleted after 30 days { #max-age-default }
+### Reports and drafts deleted after 30 days { #max-age-default }
 
-`output.maxAgeDays` is 30 by default: reports and schedule drafts (drafts waiting for approval too)
+Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still waiting
+for approval are deleted with the old reports. `output.maxAgeDays` is 30 by default: reports and schedule drafts (drafts waiting for approval too)
 older than 30 days are deleted from the output directory at start and every hour. Before, they stayed
 until `output.maxFiles` or `output.maxMb` pushed them out. Set `output.maxAgeDays` to another number
 of days, or to `0` for no age limit, the old behaviour. The default applies only to a directory of the
 reports' own: where `output.dir` holds the configuration or a source, template or token file, nothing
 is deleted by age and the server starts as before (`check-config` says "no age limit: the directory
-holds other files" under `Output:`). Copy the reports you want to keep elsewhere before you upgrade.
+holds other files" under `Output:`, and warns that a full directory there refuses new reports).
+Each sweep that deletes something writes an `info` line with the counts of `reports` and `drafts`.
+
+### Download links over plain http { #download-links-http }
+
+With download links on (HTTP and `output.dir`, without `output.baseUrl`), the server no longer starts
+with an `http://` `http.publicUrl` on a host other than loopback: a link is the credential, and it and
+its cookie would cross the network in clear text. Put the server behind TLS and write `https://`; or
+set `output.downloads.allowInsecureUrl: true` for a network you trust (the start and `check-config`
+then warn); or switch the links off with `output.downloads.enabled: false`. `http://localhost` and
+`http://127.0.0.1` work as before.
+
+### Columns without a header { #columns-without-header }
+
+A column the file gives no name (a blank header cell, or a row with more values than the header,
+which an unquoted separator inside a value causes) is `hide` whatever the policy's default, since its
+values may be another column's, shifted. Before, it took the default, so under `"default": "show"` a
+hidden column's value could be shown there. A rule that names it (`"Column 7": "show"`) still holds.
+`check-config` prints such a column as `hide` and warns of `"default": "show"` with hidden fields.
+
+### Request limits per person { #limits-per-person }
+
+`rest.rateLimit`, `rest.concurrency`, `mcp.rateLimit` and `mcp.concurrency` count per person (the
+issuer and subject of an OAuth token, a static token's name), no longer per OAuth client: people who
+sign in through one client no longer share 120 requests a minute and 4 at once. An OAuth token
+without a subject counts for its client. The people of one client together run at most eight times
+`concurrency` requests at once.
 
 ### Request ids { #request-ids }
 

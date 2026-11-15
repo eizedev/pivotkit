@@ -8,6 +8,19 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Upgrading from 0.1.1
 
+- Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still
+  waiting for approval are deleted with reports older than `output.maxAgeDays` (30 by default) at the
+  first start ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
+- Breaking: with download links on, an `http://` `http.publicUrl` on a host other than loopback
+  keeps the server from starting; use `https://`, or set `output.downloads.allowInsecureUrl: true`
+  for a network you trust ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#download-links-http)).
+- Behaviour change: a column a file gives no header (a blank header cell, a row longer than the
+  header) is `hide` whatever the policy's default; a rule that names it still holds
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#columns-without-header)).
+- Behaviour change: the request limits (`rest.*`, `mcp.*` `rateLimit` and `concurrency`) count per
+  person, no longer per OAuth client; one client's people together run at most eight times
+  `concurrency` at once ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#limits-per-person)).
+
 - The log ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#log)): on a terminal it
   is text unless `log.format` is `json` (stderr that is no terminal, and the container image, stay
   JSON). JSON lines gain fields. The client's address is logged by default as `address` (with
@@ -70,6 +83,19 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#issuer-requests)).
 
 ### Added
+
+- `output.downloads.allowInsecureUrl`: download links under an `http://` `http.publicUrl` off
+  loopback, refused without it; with it the start and `check-config` warn.
+- `check-config` warns of `"default": "show"` with hidden fields (a deny list), of
+  `output.downloads.expiresMinutes` under 5 ([#468](https://github.com/eizedev/pivotkit/issues/468)),
+  and of an `output.dir` that holds the configuration or a source, template or token file (as the
+  start does); it names every source without a `description`, which a model chooses sources by
+  ([#471](https://github.com/eizedev/pivotkit/issues/471)).
+- An `info` line for each `output.maxAgeDays` sweep that deleted something, with the counts of
+  `reports` and `drafts`.
+- A `warning` when a static token's file is missing, empty or shorter than 32 characters while the
+  server runs, naming the token (never its value), at most once a minute.
+- `limitKeyOf(caller)`: whom a caller's request limits count for (pivotkit-mcp uses it).
 
 - Operations log ([operations](https://pivotkit.eize.dev/reference/operations/)): `log.level`
   (`debug`, `info`, `warn`, `error`, `off`), `log.format` (`auto`, `text`, `json`) and `log.address`
@@ -373,6 +399,18 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   output directory's code moved to `src/output.js`.
 
 ### Fixed
+
+- A row with more cells than the header put a hidden column's value into a shown `Column N` under
+  `"default": "show"`; such columns are now hidden.
+- The download key (`output.downloads.key`) was read on every request to `/downloads/`, forged links
+  included; a read is now shared for a second.
+- A download sign-in's `state` was used once only because the browser drops its cookie; a callback
+  replayed with the cookie from before it is now refused (a marker in `.pivotkit-downloads/`).
+- A body over `rest.data.maxBytes` from a caller that may send data reset the connection after about
+  8 MB instead of answering 413 to clients that read only after sending (.NET, PowerShell)
+  ([#473](https://github.com/eizedev/pivotkit/issues/473)).
+- REST logs a token in the address (`?access_token=`) as `token_in_address`, as MCP does, not as
+  `no_token`.
 
 - Every error answer (4xx and 5xx) has one log line under its `X-Request-Id`, a 404 or 405 only at
   `log.level` `debug`: its own line, or a `refused` line whose reason is the answer's problem code or

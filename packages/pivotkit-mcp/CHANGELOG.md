@@ -8,6 +8,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Upgrading from 0.1.1
 
+- Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still
+  waiting for approval are deleted with reports older than `output.maxAgeDays` (30 by default) at the
+  first start ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
+- Behaviour change: `mcp.rateLimit` and `mcp.concurrency` count per person, no longer per OAuth
+  client ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#limits-per-person)). Needs the pivotkit-server of this release
+  (`limitKeyOf`).
+
 - The log ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#log)): on a terminal it
   is text unless `log.format` is `json`; JSON lines only gain fields; over HTTP the client's address
   is logged by default (`log.address: "off"` keeps it out).

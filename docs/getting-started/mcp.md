@@ -84,7 +84,9 @@ category fields as `values` (the model sees their values as a complete list, so 
 exact name of a channel or a team, but no result over them), and fields it must not know about as
 `hide` (dropped when the data is read). `"policy": { "autoValues": true }` gives `values` to text
 fields that look like categories by itself ([the rule](../reference/mcp.md#auto-values));
-`--check-config` lists them. In a configuration file:
+`--check-config` lists them. Give each source a `description` and explain short or coded field names
+in `fields.<name>.description`: a model chooses and reads sources by these words
+([configuration](../reference/mcp.md#configuration)). In a configuration file:
 
 ```json
 {
@@ -92,6 +94,7 @@ fields that look like categories by itself ([the rule](../reference/mcp.md#auto-
     "sales": {
       "file": "/Users/you/reports/sales.csv",
       "title": "Sales",
+      "description": "Orders since 2024, one row per order line",
       "policy": { "fields": { "Region": "show", "Product": "show", "Channel": "values", "Discount": "hide" } }
     }
   },
@@ -130,7 +133,9 @@ claude mcp add --transport http pivotkit https://reports.example.com/mcp --heade
 
 For sign-in with your identity provider (Authentik, Keycloak, Microsoft Entra ID, any OAuth 2.1 /
 OpenID Connect provider), see [OAuth](../reference/mcp.md#oauth); scopes then decide who sees which
-source and may use which tool. A policy profile per token, OAuth client, group or scope gives a
+source and may use which tool. A provider without dynamic client registration (Authentik, for
+example) needs a client you create there, given to Claude Code with `--client-id` and
+`--callback-port` ([a client registered in advance](../reference/mcp.md#preregistered-client)). A policy profile per token, OAuth client, group or scope gives a
 cloud assistant less than a model on your own hardware ([per client](../model-data.md#per-client)).
 
 To serve programs too, run `pivotkit-server serve --config pivotkit-mcp.json --auth token` (with
