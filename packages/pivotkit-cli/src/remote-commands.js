@@ -52,6 +52,7 @@ export async function remoteCommand(command, positionals, values, ctx, helpers) 
     }
     // every option and the token are checked before the first line and the first request
     timeoutOf(values);
+    const sourceParams = paramsOf(values.param);
     checkTls(server, ctx.io.env);
     const first = await readToken(values, ctx);
     // where the requests go and with which token, so a wrong target shows (the origin only, never the path)
@@ -64,7 +65,7 @@ export async function remoteCommand(command, positionals, values, ctx, helpers) 
     }
     const client = createClient({ server, values, ctx, userAgent: `pivotkit-cli/${helpers.version}` });
     const run = { render: renderRemote, validate: validateRemote, describe: describeRemote, sources: sourcesRemote }[command];
-    return run(positionals, { ...values, sourceParams: paramsOf(values.param) }, ctx, client, helpers);
+    return run(positionals, { ...values, sourceParams }, ctx, client, helpers);
 }
 
 /**

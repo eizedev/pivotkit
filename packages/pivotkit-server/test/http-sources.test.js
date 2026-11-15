@@ -617,6 +617,11 @@ test("check-source for the operator: options in any order, exit 2 for an id that
     const set = (await checkSource(open, "all", {}, { fetch: noCa, env: { NODE_EXTRA_CA_CERTS: join(dir, "ca.pem") } })).text;
     assert.match(set, /a certificate error: NODE_EXTRA_CA_CERTS is set, but no certificate in that file signed this server's certificate; add the certificate authority that did and start the server again/);
     assert.doesNotMatch(set, /ca\.pem/, "the file's path is the operator's own; the hint does not repeat it");
+    // an expired certificate or another host's name is no unknown signer: the file is not blamed
+    const { certificateHint } = await import("../src/sources/http.js");
+    for (const failure of ["certificate has expired (CERT_HAS_EXPIRED)", "Hostname/IP does not match certificate's altnames (ERR_TLS_CERT_ALTNAME_INVALID)"]) {
+        assert.doesNotMatch(certificateHint({ NODE_EXTRA_CA_CERTS: "ca.pem" }, failure), /is set/);
+    }
 });
 
 test("REST: GET /sources/{id} of a source that needs params points to POST /sources/describe, which takes them", async () => {

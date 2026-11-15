@@ -216,7 +216,7 @@ export async function checkSource(options, id, params, means = {}) {
         }
         // why it failed, as the debug log says it (the pages and the pointer are printed above)
         for (const d of details.filter((d) => !/ answered \d{3}$/.test(d) && !(trace.keys && /rows' pointer/.test(d)))) {
-            lines.push(`  ${d.replace(`the source ${id}: `, "").replace(certificateHint(process.env), certificateHint(env))}`);
+            lines.push(`  ${d.replace(`the source ${id}: `, "").replace(certificateHint(process.env, d), certificateHint(env, d))}`);
         }
         const backendStatus = e instanceof SourceError ? e.status : undefined;
         if ((backendStatus === 401 || backendStatus === 403) && !trace.auth?.error) {

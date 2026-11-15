@@ -228,7 +228,8 @@ test("params: sources names what a source needs; --param goes with the source as
         }
 
         // usage: name=value, once each, with a source; and only with a server
-        assert.match((await remote(server, ["sources", "vms", "--param", "customer"])).stderr, /--param takes name=value, not "customer"/);
+        const malformed = await remote(server, ["sources", "vms", "--param", "customer"]);
+        assert.match(malformed.stderr, /^pivotkit: --param takes name=value, not "customer"/, "refused before the first line and the first request");
         assert.match((await remote(server, ["sources", "vms", "--param", "customer=a", "--param", "customer=b"])).stderr, /--param customer is given twice/);
         const bare = await remote(server, ["sources", "--param", "customer=acme"]);
         assert.equal(bare.code, 2);

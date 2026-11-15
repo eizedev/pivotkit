@@ -171,13 +171,18 @@ export const declaresParams = (declared) => Boolean(declared && Object.keys(decl
 /** A system error code of a certificate that the server's trusted authorities do not cover. */
 const CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_VERIFY|ALTNAME|UNABLE_TO_GET_ISSUER/;
 
+/** The codes of a certificate whose signer the server does not know (not an expired one, not another host's name). */
+const UNKNOWN_SIGNER = /SELF_SIGNED|UNABLE_TO_VERIFY|UNABLE_TO_GET_ISSUER/;
+
 /**
- * What the operator does about a certificate the server does not trust: Node reads
- * NODE_EXTRA_CA_CERTS once, at start, so with it set the file holds no authority that signed it.
+ * What the operator does about a certificate the server does not trust. Node reads
+ * NODE_EXTRA_CA_CERTS once, at start: with it set and a signer the server does not know, that file
+ * holds no authority that signed the certificate.
  * @param {Record<string, string | undefined>} env
+ * @param {string} failure  the error's message and system code
  */
-export const certificateHint = (env) =>
-    env.NODE_EXTRA_CA_CERTS
+export const certificateHint = (env, failure) =>
+    env.NODE_EXTRA_CA_CERTS && UNKNOWN_SIGNER.test(failure)
         ? "a certificate error: NODE_EXTRA_CA_CERTS is set, but no certificate in that file signed this server's certificate; add the certificate authority that did and start the server again"
         : "a certificate error: for an internal certificate authority start the server with NODE_EXTRA_CA_CERTS set to its certificate file";
 
@@ -196,7 +201,7 @@ function fetchFailure(error, how) {
         error.code === "REFUSED_ADDRESS" && !how.settings.intranet && /private/.test(error.message)
             ? `; for an internal API set intranet: true on ${how.settings.backend ? `the backend (httpSources.backends.${how.settings.backend}.intranet)` : `the source (sources.${how.id}.http.intranet)`}`
             : error.code === "NETWORK" && CERTIFICATE.test(`${error.message} ${/** @type {any} */ (error.cause)?.code ?? ""}`)
-              ? `; ${certificateHint(process.env)}`
+              ? `; ${certificateHint(process.env, `${error.message} ${/** @type {any} */ (error.cause)?.code ?? ""}`)}`
               : "";
     how.log.debug(`the source ${how.id}: the request failed (${error.code}): ${String(error.message).slice(0, 300)}${hint}`, { source: how.id, requestId: requestId() });
     if (error.code === "TOO_LARGE") {
