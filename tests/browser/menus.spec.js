@@ -675,3 +675,21 @@ test.describe("a second click on a menu's button closes it", () => {
         }
     });
 });
+
+test.describe("a press on a menu's button that never ends in a click", () => {
+    // the window loses the focus (Alt-Tab) or the release happens where no click is sent while the
+    // button is held: no click and no pointercancel reach the page. The menu must still close when the
+    // focus then leaves it by other means than a click or Tab (those are handled elsewhere).
+    test("the focus leaving an open menu closes it after a press on its button that got no click", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await openZones(page);
+        const button = page.getByTestId("export");
+        await button.click();
+        await expect(button).toHaveAttribute("aria-expanded", "true");
+        // the press only (a pointerdown, as a held button leaves it), no click after it
+        await button.evaluate((el) => el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "mouse", button: 0 })));
+        // the focus leaves without a key or a press (assistive technology, a script): the blur closes it
+        await page.getByTestId("views").focus();
+        await expect(button).toHaveAttribute("aria-expanded", "false");
+    });
+});

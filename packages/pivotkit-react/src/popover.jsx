@@ -19,6 +19,13 @@ import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
 import { fromOrigin, keepPlace, placePopover, viewportOf } from "./place.js";
 
+/**
+ * How long after a press on a popover's button (its pointerdown, or its release) the focus moving to
+ * the report around it is taken for that press, in ms: a press that never ends in a click (the
+ * window left while the button is held) does not keep the popover open for longer.
+ */
+const PRESS_MS = 1000;
+
 /** The layer element and the size class of the report ("wide", "medium", "narrow"). */
 export const LayerContext = createContext({ layer: /** @type {HTMLElement | null} */ (null), size: "wide" });
 
@@ -196,10 +203,15 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     }, [open, anchor, align, sheet, layer, fill]);
 
     useEscapeLayer(open, onClose);
-    // a press on its button, until its click: WebKit does not focus a button that is clicked, so the
-    // press moves the focus out of the popover to the report around it. The focus leaving must not
-    // close it then: the click toggles it, and would open it again (#393)
-    const pressOnAnchor = useRef(false);
+    // when its button was last pressed or released (0: no press now), until the click: WebKit does
+    // not focus a button that is clicked, so the press moves the focus out of the popover to the
+    // report around the button. The focus leaving that way must not close it: the click toggles it,
+    // and would open it again (#393). Trusted only for PRESS_MS and only for a move to an element
+    // around the button (pressedAway), so a focus moved by assistive technology or a script after a
+    // press that got no click still closes it.
+    const pressedAt = useRef(0);
+    /** @param {Node} to  where the focus went */
+    const pressedAway = (to) => pressedAt.current > 0 && performance.now() - pressedAt.current < PRESS_MS && Boolean(anchor.current && to.contains(anchor.current));
     // the latest onClose without re-running the open effect: a caller's inline arrow is new on
     // every render, and a re-run would move the focus back to the first control
     const closeRef = useRef(onClose);
@@ -227,20 +239,27 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         });
         // a press inside a popover opened from this one (a rule's item picker) is inside
         const onDown = (e) => {
-            pressOnAnchor.current = eventWithin(e, [anchor.current]);
+            pressedAt.current = eventWithin(e, [anchor.current]) ? performance.now() : 0;
             if (!eventWithin(e, [el, anchor.current]) && !e.composedPath().some((n) => n instanceof Element && n !== el && n.getAttribute("data-pk-parent") === elId)) {
                 closeRef.current();
             }
         };
-        // after the click (on a touch screen the focus moves at the mouse events that follow the
-        // pointer's release), or a press that ends without one
+        // on a touch screen the focus moves at the mouse events that follow the pointer's release,
+        // also after a long press: the window counts from the release too
+        const onUp = () => {
+            if (pressedAt.current) pressedAt.current = performance.now();
+        };
+        // after the click, a press that ends without one, or the window losing the focus while held
         const onPressEnd = () => {
-            pressOnAnchor.current = false;
+            pressedAt.current = 0;
         };
         const doc = el?.ownerDocument ?? document;
+        const win = doc.defaultView;
         doc.addEventListener("pointerdown", onDown, true);
+        doc.addEventListener("pointerup", onUp, true);
         doc.addEventListener("click", onPressEnd, true);
         doc.addEventListener("pointercancel", onPressEnd, true);
+        win?.addEventListener("blur", onPressEnd);
         // the wheel stays in the popover (not passive: React's onWheel cannot prevent the scroll)
         const onWheel = (/** @type {WheelEvent} */ e) => {
             if (el && !e.ctrlKey && !wheelScrollsInside(e.composedPath(), el, e.deltaX, e.deltaY)) {
@@ -252,9 +271,11 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         return () => {
             cancelAnimationFrame(t);
             doc.removeEventListener("pointerdown", onDown, true);
+            doc.removeEventListener("pointerup", onUp, true);
             doc.removeEventListener("click", onPressEnd, true);
             doc.removeEventListener("pointercancel", onPressEnd, true);
-            pressOnAnchor.current = false;
+            win?.removeEventListener("blur", onPressEnd);
+            pressedAt.current = 0;
             el?.removeEventListener("wheel", onWheel);
             // focus goes back to the button unless the user moved it somewhere else
             const now = activeIn(button);
@@ -311,11 +332,11 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         }
     };
     // Tab out of a popover closes it; a click on its button toggles it instead (in WebKit too, where
-    // the press on the button moves the focus to the report: pressOnAnchor)
+    // the press on the button moves the focus to the report: pressedAway)
     const onBlur = (e) => {
         const to = /** @type {Node | null} */ (e.relatedTarget);
         // the focus moving into a popover opened from this one (a rule's item picker) keeps it open
-        if (to && !pressOnAnchor.current && !ref.current?.contains(to) && !anchor.current?.contains(to) && !(to instanceof Element && [...to.ownerDocument.querySelectorAll(".pk-popover")].some((p) => p.contains(to) && within(p)))) {
+        if (to && !pressedAway(to) && !ref.current?.contains(to) && !anchor.current?.contains(to) && !(to instanceof Element && [...to.ownerDocument.querySelectorAll(".pk-popover")].some((p) => p.contains(to) && within(p)))) {
             onClose();
         }
     };
