@@ -262,7 +262,7 @@ each level and how to set them per client):
   not lie inside an allowed directory. Every file in an allowed directory can be read: its first line
   becomes field names the model sees, so keep only data files there.
 - **Output** goes only to the operator's output directory, as new files that never replace one,
-  with names cleaned to letters, digits, spaces, dots, dashes and parentheses. A directory a web server serves
+  with names cleaned to letters, digits, spaces, dots, underscores, dashes and parentheses. A directory a web server serves
   gets names that start with 22 random characters; protect that server as you would the data, and
   note that it gets an address only for reports over sources whose fields are all `show`. The
   directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's (its

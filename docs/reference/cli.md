@@ -128,8 +128,8 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--url <address>` | render, validate, describe, sources | A pivotkit-server's REST address, `https://host/api/v1`; environment `PIVOTKIT_URL`. [With a server](#with-a-server) |
 | `--source <id>` | render, validate, describe | The server's source to run on (`pivotkit sources` lists them). |
 | `--param name=value` | render, validate, describe, sources `<id>` | A value of the source's parameter; repeatable. `pivotkit sources` says which a source needs. |
-| `--token-file <file>` | | Read the server's token from this file instead of `PIVOTKIT_TOKEN`. |
-| `--timeout <s>` | | Seconds to wait for the server's answer (default 30). |
+| `--token-file <file>` | render, validate, describe, sources | Read the server's token from this file instead of `PIVOTKIT_TOKEN`. |
+| `--timeout <s>` | render, validate, describe, sources | Seconds to wait for the server's answer, 1 to 3600 (default 30). |
 
 An option on the command line wins over its environment variable. Every command checks `--locale`,
 `--time-zone` and `--now` (from the command line or the environment, and the message names the
@@ -347,8 +347,8 @@ One object on stdout, for scripts and for the PowerShell Universal module:
   `environment` with `node`, `locale`, `timeZone` (each `{ value, from, known }`: from the environment
   variable or the default, and whether Node's Intl knows it), `now` (`{ value, from }`) and pivotkit-core's
   default `limits`: for a bug report or a CI log.
-- `sources`: `kind: "sources"` and `sources` (each `{ id, title, kind, link, schedulable }`, as the
-  server lists them); `sources <id>`: `kind: "source"`, `source` and `description` (`rows`, `fields`,
+- `sources`: `kind: "sources"` and `sources` (each `{ id, title, kind, link, schedulable }` and, for a
+  source with parameters, `params`, as the server lists them); `sources <id>`: `kind: "source"`, `source` and `description` (`rows`, `fields`,
   `text`, `hiddenFields`).
 - `render`: `summary` and `output` (`{ file, format, mediaType, bytes }`, or `null` when nothing was
   written); with `--save-view` also `savedView` (`{ file, bytes }`); with `--suggest`, `draft: true`
@@ -369,7 +369,7 @@ One object on stdout, for scripts and for the PowerShell Universal module:
 A [pivotkit-server](rest.md) keeps the data and decides who sees what; `render`, `validate` and
 `describe` run on its sources instead of local files, through its REST service, and `pivotkit
 sources` lists what the token reaches. The view is a local file, JSON text or stdin, as without a
-server; the layout flags, `--suggest` and `--map` work too.
+server; the layout flags and `--suggest` work too, and `--map` with `render` and `describe --suggest`.
 
 ```bash
 export PIVOTKIT_URL=https://reports.example.com/api/v1

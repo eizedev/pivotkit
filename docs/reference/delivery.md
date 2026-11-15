@@ -33,7 +33,7 @@ Over REST a link to a report over a closed source also needs `results: true` in 
 policy (the caller is a program that could open the link itself, the same rule as the
 [file route](rest.md#downloads)). Reports over open sources get their link without it.
 
-Over stdio there is no HTTP server and no link: a local server keeps showing the file's path.
+Over stdio there is no HTTP server and no link: a local server shows the file's path.
 
 Reports can also go to a store you run (S3, Azure Blob Storage, a file service of your own): see
 [Upload to your store](#upload). The store's link then takes the place of these links, under the
@@ -77,7 +77,9 @@ internal address.
 The reports that get a link are stored with the link's 22 random characters before their name
 (`Q3vB0rD3cE1fG9hI2jK4lM-Sales by region.pivotkit-out.xlsx`); the result's `output.name` is that
 stored name and `output.filename` the name the person sees (`Sales by region.xlsx`). Reports
-without a link keep their names. A key that cannot be read (a missing variable or file, shorter than
+without a link keep their names. A report's name keeps letters, digits, spaces, `.`, `_`, `-` and
+parentheses; any other character becomes `-`, accents are dropped, and it is cut at 80 characters
+(`Orders (fake backend)` is stored as `Orders (fake backend).pivotkit-out.xlsx`). A key that cannot be read (a missing variable or file, shorter than
 32 bytes) is a warning at start; until it can be read, reports get no link, keep their names, and
 their result says to ask the operator.
 
@@ -220,8 +222,8 @@ result shows the store's link. You configure the store; a caller cannot name an 
 
 Here pivotkit sends `POST https://store.example.com/presign` with the `authorization` header and the
 JSON `{ "filename": "Sales by region.xlsx", "mediaType": "...", "bytes": 18234, "sha256": "<hex>" }`,
-with `"subject"` added for a `bind: "signIn"` store (below). `filename` comes from the report's name,
-which a caller can choose: treat it as untrusted text, and never use it unchecked as an object key
+with `"subject"` added for a `bind: "signIn"` store (below). `filename` is the report's stored name without its mark
+(spaces and parentheses kept, other special characters replaced by `-`), which a caller can choose: treat it as untrusted text, and never use it unchecked as an object key
 or a path. A presign service you run answers, for example:
 
 ```json
@@ -351,7 +353,7 @@ the log. With more than one replica, set `output.downloads.key` (the same on eve
 them one output directory (a ReadWriteMany volume), or run one replica; see
 [the container](container.md) and [Kubernetes](../getting-started/kubernetes.md).
 
-`output.baseUrl` (your own web server for the directory) still works instead of these links. It gives
+`output.baseUrl` (your own web server for the directory) is the alternative to these links. It gives
 an address only to reports over open sources: a report over a closed source (data per person
 included) carries no `url`, since anyone with the address could open a report whose fields were
 withheld from the model, or another person's data. Such an address works as long as the file is

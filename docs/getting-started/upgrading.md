@@ -182,7 +182,8 @@ callers notice:
 | [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
 | [HTML reports on a dark screen](#dark-mid-colour) | your reports or print templates set a colour scale's middle colour (`--pk-scale-mid`), or pass `tokens` with quoted strings | pass the middle colour in `darkTokens` to keep one on a dark screen |
 | [Loopback addresses](#loopback) | the server listens on `127.1`, `127.0.1` or a host name that starts with `127.` | write `127.0.0.1`, or set `auth` |
-| [Command line](#cli-next) | a script reads the names of files `pivotkit render` writes, or its error text | name the output with `-o`; read the exit code or `--json` |
+| [Report file names](#report-names) | a script finds reports in `output.dir` by name | match the name with its parentheses |
+| [Command line](#cli-next) | a script reads `pivotkit`'s error text | read the exit code or `--json` |
 
 Before you connect a cloud model to a server you upgraded, read [what reaches an AI
 model](../model-data.md): it shows the answers a model gets at each level and how to give each
@@ -367,10 +368,15 @@ written in full), `::1` and `localhost`. A listen host written short (`127.1`, `
 name that starts with `127.` (`127.example.com`) is no longer loopback, so the server needs `auth`
 there (or `--allow-unauthenticated`). Write `127.0.0.1`.
 
+### Report file names { #report-names }
+
+Reports and drafts the server writes into `output.dir` keep parentheses in their names: a report
+named "Orders (fake backend)" is stored as `Orders (fake backend).pivotkit-out.xlsx`, not
+`Orders -fake backend.pivotkit-out.xlsx`, and `output.name`, `output.filename` and a presign
+request's `filename` follow. Files `pivotkit render -o` writes keep the name you give, as before.
+
 ### Command line { #cli-next }
 
-- File names keep parentheses: a report named "Orders (fake backend)" is written as
-  `Orders (fake backend).xlsx`, not `Orders -fake backend.xlsx`. Give `-o` to choose the name.
 - Usage errors end with `run "pivotkit <command> --help"`, and unknown options and commands read
   `unknown option "--bogus"`. Scripts read the exit code or `--json`, not the text.
 
