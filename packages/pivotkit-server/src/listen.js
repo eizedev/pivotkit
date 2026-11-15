@@ -164,7 +164,7 @@ export function pathOfTarget(target) {
 /**
  * What serveFetch's onClientError is told of a request the HTTP parser refused: the status it was
  * answered with, its id (X-Request-Id of that answer), the socket's address and the parser's code.
- * @typedef {{ status: number, requestId: string, address: string, parserError: string }} ClientErrorEntry
+ * @typedef {{ status: number, requestId: string, address: string, parserError?: string }} ClientErrorEntry
  */
 
 /**
@@ -415,12 +415,12 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 return;
             }
             const failed = scope ?? requestScopeFor(null, info, { trustProxy });
-            if (phase === "handler" && e?.status !== 413) {
-                // the handler threw: a 500 with no detail; what its precheck took is given back (the
-                // handler's release, as its problem() does), and it is told unless the request wrote
-                // its line already
+            if (phase === "handler") {
+                // the handler threw (whatever status its error names): a 500 with no detail; what its
+                // precheck took is given back (the handler's release, as its problem() does), and it
+                // is told unless a line of the request named a 5xx already
                 handler.release?.(info);
-                if (!failed.answer?.logged) {
+                if (!((failed.answer?.worst ?? 0) >= 500)) {
                     withRequestScope(failed, () => onInternalError?.({ status: 500, requestId: failed.id }));
                 }
                 markMidBody(req);
@@ -428,11 +428,13 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 res.end(JSON.stringify({ error: "internal error", requestId: failed.id }));
                 return;
             }
-            const answer = withRequestScope(failed, () => problem(e?.status === 413 ? 413 : 400, req.url ?? "/", info));
+            // the client's: a request that cannot be built (400), or its body (413 when too large, else 400)
+            const tooLarge = phase === "body" && e?.status === 413;
+            const answer = withRequestScope(failed, () => problem(tooLarge ? 413 : 400, req.url ?? "/", info));
             const bytes = Buffer.from(await answer.arrayBuffer());
             markMidBody(req);
             res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close", "content-length": String(bytes.length), "x-request-id": failed.id });
-            if (e?.status === 413 && !req.complete) {
+            if (tooLarge && !req.complete) {
                 // a body found too large while it streams (no Content-Length, as a proxy forwards an
                 // HTTP/2 body): the answer goes out at once, complete by its length, so a client or proxy
                 // that reads while it sends gets the 413 and its id also when it sends past drainLimit(cap)
@@ -454,6 +456,15 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         }
     });
     server.keepAliveTimeout = 5_000;
+    // CONNECT (a tunnel, which this server never opens): node:http hands it here and, without a
+    // listener, closes the socket with no answer. It is answered 400 with an id and told to
+    // onClientError, as a request the parser refuses
+    server.on("connect", (_req, socket) => {
+        const id = newRequestId();
+        socket.on("error", () => undefined);
+        onClientError?.({ status: 400, requestId: id, address: plainAddress(/** @type {import("node:net").Socket} */ (socket).remoteAddress) });
+        socket.end(`HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\nX-Request-Id: ${id}\r\n\r\n`);
+    });
     // a request the HTTP parser refuses (a broken request line, headers too large, too slow) never
     // reaches the handler: it is answered as node:http would, with an id, and told to onClientError
     server.on("clientError", (error, socket) => {

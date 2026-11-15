@@ -391,7 +391,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   the HTTP parser.
 - A handler that throws is answered 500 without detail and logged as one `refused` line at `error`
   with reason `internal`; a place it held for a large body is given back. A request whose method or
-  headers cannot be read as a request (such as `TRACE`) is the client's: 400, `bad_request`.
+  headers cannot be read as a request (such as `TRACE`) is the client's: 400, `bad_request`. A 500
+  has an `error` line also where the request logged a line below 500 first. A `CONNECT` is answered
+  400 with an `X-Request-Id` and a `bad_request` line, not a closed connection.
 - check-config prints a source's policy rules in that source's own spelling, never another
   source's.
 - An `http://` `auth.issuer` with download sign-in and no `output.downloads.signIn.issuer` is

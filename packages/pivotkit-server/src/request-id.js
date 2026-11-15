@@ -32,7 +32,7 @@ import { clientAddress } from "./checks.js";
  * @property {string} [upstreamRequestId]  an incoming X-Request-Id that passed UPSTREAM_REQUEST_ID
  * @property {string} [address]  the client as best known: with http.trustProxy the forwarded one (the last entry of X-Forwarded-For), "invalid" for one that is no IP address; else the socket's peer
  * @property {string} [peerAddress]  the socket's peer, only where it differs from address (the proxy)
- * @property {{ logged: boolean, protocol?: { error: string, refusal?: string, detail: string } }} [answer]  whether the request wrote a line of its own, and a refusal the MCP SDK reported for it (log.js noteAnswered); one box per request, shared by every copy of the scope that keeps its id
+ * @property {{ logged: boolean, worst?: number, protocol?: { error: string, refusal?: string, detail: string } }} [answer]  whether the request wrote a line of its own, and a refusal the MCP SDK reported for it (log.js noteAnswered); one box per request, shared by every copy of the scope that keeps its id
  */
 
 /** The scope of the work running now. */

@@ -203,11 +203,15 @@ function insertAfter(pairs, after, added) {
  * (request-id.js), which every copy of the scope with the same id shares, so a line written inside
  * withRequestId reaches the HTTP edge's check. logUnanswered writes a `refused` line for an error
  * answer of any other request.
+ * @param {number} [status]  the line's status (an error line: 500), kept as the highest so far
  */
-export function noteAnswered() {
+export function noteAnswered(status = 0) {
     const answer = requestScope()?.answer;
     if (answer) {
         answer.logged = true;
+        // the highest status a line of the request named: a 500 the HTTP edge answers later still
+        // gets an error line unless one is there
+        answer.worst = Math.max(answer.worst ?? 0, Number.isFinite(status) ? status : 0);
     }
 }
 
@@ -338,7 +342,7 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
     const outcomeLine = (event, msgOf) => (/** @type {Record<string, any>} */ entry, /** @type {{ level?: "debug" | "info" }} */ how = {}) => {
         const status = Number(entry.status);
         const ok = event !== "refused" && entry.ok !== false && !(status >= 400);
-        noteAnswered();
+        noteAnswered(status);
         // debug: a refusal that is routine noise (a GET of a stateless MCP endpoint, a path nobody serves)
         const lineLevel = how.level ?? (Number.isFinite(status) && status > 0 ? levelOfStatus(status) : ok ? "info" : "warn");
         write(lineLevel, msgOf(entry, ok), { event, ...entry });
@@ -371,7 +375,7 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
         debug: (message, extra = {}) => write("debug", message, { event: "debug", message, ...extra }),
         /** An unexpected error: its name and message only with log.level debug, its stack never. */
         error: (error, extra = {}) => {
-            noteAnswered();
+            noteAnswered(500);
             write("error", "unexpected error", { event: "error", ...extra, ...(level === "debug" ? { error: String(error?.message ?? error).slice(0, 500) } : { error: error?.name ?? "Error" }) });
         }
     };

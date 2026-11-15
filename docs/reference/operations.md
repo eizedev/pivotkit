@@ -97,7 +97,7 @@ Lines of calls, requests, downloads and refusals add:
 | `path` | `refused` | The route family that refused it (`/api/v1`, `/openapi.json`, `/mcp`, `/downloads`), never the path the request asked for |
 | `error`, `refusal`, `detail` | `refused` | For a request the MCP protocol layer refused: its error's class, the SDK's fixed name for the refusal (such as `name-header-mismatch`) and, only at `debug`, its message, which can quote the request's body |
 | `host`, `origin` | `refused` | For `reason` `host` or `origin`: the Host or Origin the request sent (at most 100 characters) |
-| `parserError` | `refused` | For a request the HTTP parser refused (answered 400, 408 or 431 with an `X-Request-Id`): the parser's code, such as `HPE_INVALID_HEADER_TOKEN` |
+| `parserError` | `refused` | For a request the HTTP parser refused (answered 400, 408 or 431 with an `X-Request-Id`): the parser's code, such as `HPE_INVALID_HEADER_TOKEN`. A `CONNECT` (a tunnel, which the server never opens) is answered 400 with a `bad_request` line without it |
 
 The level of a `call`, `request`, `download` or `refused` line follows its status: `info` below 400,
 `warn` for 4xx, `error` for 5xx. A refused request is `warn` or `error`, except the two routine ones
