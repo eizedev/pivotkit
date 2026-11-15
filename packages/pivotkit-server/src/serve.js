@@ -43,8 +43,8 @@ export async function loadMcp() {
             return null;
         }
         // a missing export is a SyntaxError of the import, before any of pivotkit-mcp runs; only one
-        // of pivotkit-server's is a mismatch of the two
-        if (e instanceof SyntaxError && String(e.message).includes("requested module 'pivotkit-server'")) {
+        // of pivotkit-server's (or a subpath's, pivotkit-server/policy) is a mismatch of the two
+        if (e instanceof SyntaxError && /requested module 'pivotkit-server(?:\/[^']*)?'/.test(String(e.message))) {
             throw await releaseMismatch(e);
         }
         throw e;

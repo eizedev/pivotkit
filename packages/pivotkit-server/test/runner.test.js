@@ -50,6 +50,10 @@ test("a pivotkit-mcp of another release: serve and mcp say so with both versions
             args[0]
         );
     }
+    // the same for a name of a subpath (pivotkit-server/policy)
+    const subpath = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "subpath-export.js" }, timeout: 30_000 });
+    assert.equal(subpath.status, 2, subpath.stderr);
+    assert.match(subpath.stderr.split("\n")[0], /^pivotkit-server: pivotkit-mcp 0\.0\.1 does not fit pivotkit-server [^ ]+ \(it needs pivotkit-server \^0\.0\.1; The requested module 'pivotkit-server\/policy' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'\)\. Install/);
     // a missing export of another package is no mismatch of the two: its own error stays
     const other = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "core-export.js" }, timeout: 30_000 });
     assert.equal(other.status, 2, other.stderr);
