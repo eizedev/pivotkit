@@ -363,7 +363,20 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 // stopping halfway) is not another refusal
                 markMidBody(req);
                 res.writeHead(early.status, { ...Object.fromEntries(early.headers), "x-request-id": inScope.id });
-                res.end(Buffer.from(await early.arrayBuffer()));
+                // a small body is in the socket's buffers already: the answer ends at once, so a request
+                // pipelined after it is read as before
+                const declared = Number(req.headers["content-length"]);
+                if (req.complete || declared <= DRAIN_FLOOR) {
+                    res.end(Buffer.from(await early.arrayBuffer()));
+                    return;
+                }
+                // a large body still on its way: the answer goes out at once, and the response ends
+                // only once the rest is drained (up to drainLimit(cap), at most BODY_DRAIN_MS): ending
+                // it while the client still sends closes the connection under it, a reset before a
+                // client that reads only after sending (.NET, PowerShell) has read the answer
+                res.write(Buffer.from(await early.arrayBuffer()));
+                await untilSent(req, BODY_DRAIN_MS);
+                res.end();
                 return;
             }
             phase = "body";

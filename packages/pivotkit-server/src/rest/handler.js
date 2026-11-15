@@ -519,6 +519,17 @@ export async function createRestHandler(context, runtime = {}) {
             return withCors(problem("BODY_TOO_LARGE", bodyTooLargeText(options, cap)), origin);
         };
         if (declared > ceiling) {
+            if (isRestPost(request)) {
+                // refused whoever calls; a caller whose token holds is kept as signed in all the same,
+                // since listen.js drains a refused body against the cap of the caller the precheck
+                // signed in (four times it): a client that reads only after sending its whole body
+                // gets this 413 rather than a reset, and a caller without a valid token keeps the
+                // small bound
+                const who = await authenticate(request, clientAddress(request, info.address ?? "", trustProxy));
+                if (!("refused" in who)) {
+                    info[SIGNED_IN] = who;
+                }
+            }
             return tooLarge(ceiling);
         }
         if (!isRestPost(request)) {

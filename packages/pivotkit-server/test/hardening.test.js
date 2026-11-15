@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { REQUEST_LIMITS, callerOf, checkConfig, createLimits, limitKeyOf, validateOptions } from "pivotkit-server";
 import { randomBytes } from "node:crypto";
+import { connect } from "node:net";
 import { existsSync, readdirSync, utimesSync, writeFileSync } from "node:fs";
 import { prune } from "../src/output.js";
 import { join } from "node:path";
@@ -218,6 +219,62 @@ test("REST: a token in the address is refused 401 and logged with reason token_i
         const reasons = server.log.filter((l) => l.event === "refused").map((l) => l.reason);
         assert.deepEqual(reasons, ["token_in_address", "token_in_address"]);
         assert.ok(!JSON.stringify(server.log).includes(TOKEN), "the token is never logged");
+    } finally {
+        await server.close();
+    }
+});
+
+// --- #473: a body over rest.data.maxBytes gets its 413 also by a client that reads only after sending ---
+
+/**
+ * A POST sent whole before anything is read, as .NET's HttpClient and PowerShell send: the answer's
+ * status line and request id, or the error that ended the connection.
+ */
+function sendThenRead(url, token, bytes) {
+    return new Promise((resolve) => {
+        const u = new URL(url);
+        const socket = connect(Number(u.port), u.hostname);
+        const received = [];
+        let error = null;
+        socket.on("error", (e) => (error = e));
+        socket.pause();
+        const head = `POST ${u.pathname} HTTP/1.1\r\nHost: ${u.host}\r\nAuthorization: Bearer ${token}\r\nContent-Type: application/json\r\nContent-Length: ${bytes}\r\nConnection: close\r\n\r\n`;
+        const chunk = Buffer.alloc(65_536, 0x20);
+        let left = bytes;
+        socket.write(head);
+        const pump = () => {
+            while (left > 0) {
+                const n = Math.min(left, chunk.length);
+                left -= n;
+                if (!socket.write(n === chunk.length ? chunk : chunk.subarray(0, n))) {
+                    socket.once("drain", pump);
+                    return;
+                }
+            }
+            // all sent: only now is the answer read
+            socket.on("data", (d) => received.push(d));
+            socket.resume();
+        };
+        pump();
+        socket.on("close", () => {
+            const text = Buffer.concat(received).toString("latin1");
+            resolve({ status: Number(/^HTTP\/1\.1 (\d{3})/.exec(text)?.[1] ?? 0), requestId: /\r\nx-request-id: ([^\r]+)/i.exec(text)?.[1] ?? null, error: error?.code ?? null });
+        });
+    });
+}
+
+test("#473: a declared body over rest.data.maxBytes from a caller that may send data gets 413 with its request id, also when the client reads only after sending it all", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }] }, baseDir: dir }, { env: { ETL_TOKEN: TOKEN } });
+    try {
+        // 11 MiB: over the default rest.data.maxBytes (10 MiB), under four times it
+        const got = await sendThenRead(`${server.api}/views/render`, TOKEN, 11 * 1_048_576);
+        assert.equal(got.status, 413, JSON.stringify(got));
+        assert.ok(got.requestId, JSON.stringify(got));
+        // a caller without a valid token keeps the small bound (four times 2 MiB): never more than that is read
+        const stranger = await sendThenRead(`${server.api}/views/render`, "a-token-nobody-has-0123456789012345678", 11 * 1_048_576);
+        assert.notEqual(stranger.status, 200);
+        assert.ok(server.log.some((l) => l.event === "refused" && l.status === 413 && l.size === 11 * 1_048_576));
     } finally {
         await server.close();
     }
