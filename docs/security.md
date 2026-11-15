@@ -350,7 +350,8 @@ and the sign-in above hold for it too. What differs:
   caller more (values, downloads): it is bound to a token, an OAuth client, a group or a scope, or
   given to every other signed-in caller (`auth.defaultProfile`), in the configuration, never chosen
   by the caller, and a field the source hides stays hidden in every
-  profile. A token without a profile gets the server's policy.
+  profile. A caller without a profile gets `auth.defaultProfile` where it is set, otherwise the
+  server's and the source's policy.
 - **Downloads** (`POST /api/v1/views/render/file`) need a policy with `results: true`; whether one is
   allowed never depends on the view's fields. The file comes as an attachment with
   `X-Content-Type-Options: nosniff`, `Cache-Control: no-store` and

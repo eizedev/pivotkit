@@ -17,6 +17,12 @@ for each kind of client, exactly what it gets and which setting changes it.
 | A program (a script, a scheduled job, PowerShell Universal) | REST `/api/v1` with a token or OAuth | the same | the same profiles; inline results off, downloads with `results: true` ([REST](#rest)) |
 | A person who opens a link | a browser | the person, where the link is bound to a sign-in | the link's binding; the report page of `create_link` loads data with the person's own rights ([links](#links)) |
 
+!!! note "In plain words"
+    The model gets the names of your columns and how many rows and distinct values they have, and
+    values only of the columns you mark `show` or `values`. A report that uses any other column is
+    written to a file the model does not read; the person opens it. Whatever the model reads, the
+    company that runs the model receives too.
+
 ## One request at each level { #levels }
 
 The answers below are what a model received from `pivotkit-mcp` over stdio (as Claude Desktop or
@@ -132,7 +138,7 @@ In short:
 
 | Level | The model reads | A result over the field |
 | --- | --- | --- |
-| `show` | name, type, counts, up to `items` values, smallest and largest | inline for csv and json when every field of the view is `show` and it fits `inline` (500 cells, 32 KiB); the result's rows and columns and the rows kept (`summary`) |
+| `show` | name, type, counts, up to `items` values, and for numbers and dates the smallest and largest | inline for csv and json when every field of the view is `show` and it fits `inline` (500 cells, 32 KiB); the result's rows and columns and the rows kept (`summary`) |
 | `values` | name, type, counts, every distinct value (at most `valuesMax`, 50) | in the file only, `withheld` |
 | `summary` (default) | name, type, counts | in the file only, `withheld` |
 | `hide` | that a field is hidden (`hiddenFields`), not its name | none: the column is not read |
@@ -156,7 +162,7 @@ open it."
 | Tool | What the model gets |
 | --- | --- |
 | `list_sources` | Each source it may use: id, title, description, whether a link or a schedule works, its parameters (type, description, example, list of values, pattern); how much data it may send. A source whose scopes the token lacks is not listed. |
-| `describe_source` | The rows, and per field its name, type, level, counts and what its level lists (above), the operator's description, the aggregators and filters it takes; `hiddenFields`, `withheld`, `hint`, example views, `dataAsOf`. |
+| `describe_source` | The rows, and per field its name, type, level, counts and what its level lists (above), the operator's description, the aggregators and filters it takes; `hiddenFields`, `withheld`, `hint`, example views, `dataAsOf`; `notes` on how the data was read (renamed or dropped columns, a sheet's or JSON property's names, how many values did not convert). |
 | `suggest_view` | A draft view and `picks` from the fields' names and types: no value, no count. |
 | `get_view_guide` | How to write a view: pivotkit's own text, nothing of yours. |
 | `validate_view`, `describe_view` | Findings (field names, the items the model wrote, the data's spelling for `show` and `values` fields), the view in words, the fields it uses, `dataAsOf`. |
@@ -174,6 +180,9 @@ Besides the fields, a model reads:
 - **The operator's words**: a source's id, `title` and `description` (`list_sources`); a field's
   `description` (every level but `hide`); a parameter's `description`, `example`, `enum` and
   `pattern`; whether a source takes a link or a schedule; the cap of [data it may send](#model-writes).
+- **File names**: with `files.list` (`--list-files`), `list_sources` lists the data files of the
+  allowed directories by name. The server refuses an `output.dir` inside `files.allowDirs`, so the
+  model cannot read back a report as a source.
 - **Counts**: the source's rows (`rows: false` keeps them back) and each listed field's distinct
   and blank counts (`counts: false`). `suggest_view` and `layout` group a shown date by its span
   (up to two years by month), which tells that span.
@@ -200,7 +209,8 @@ The model's own input goes to the server, and from there:
   operator wrote (and so into the backend's access log); a code source's `load` receives them.
   pivotkit checks each value against the parameter's type, pattern or list first.
 - **Data in the request** (`source` `inline:`, [details](reference/mcp.md#data)): a table the model
-  sends, at most 500 rows, 5,000 cells and 256 KiB. It is the model's, so no exposure policy applies:
+  sends, on MCP at most 500 rows, 5,000 cells and 256 KiB (on REST, with `data: true`, a body of up
+  to `rest.data.maxBytes`, 10 MiB by default). It is the model's, so no exposure policy applies:
   every field is `show` to the caller who sent it. It is never cached; a report over it is written to
   the output directory and, over HTTP, gets a link only the person who asked can open, a one-time
   link where you chose that, or none. It may still be
@@ -215,20 +225,20 @@ A report is a file in the server's output directory. Who can open it:
 | Way | Who | Over |
 | --- | --- | --- |
 | The path in the result | whoever can read the directory | stdio |
-| A [download link](reference/delivery.md) (`/downloads/...`, 60 minutes) | anyone with the link | HTTP, an open source |
+| A [download link](reference/delivery.md) (`/downloads/...`, 60 minutes by default: `output.downloads.expiresMinutes`, 1 to 1440) | anyone with the link | HTTP, a fully shown source |
 | A sign-in link | only the person who asked, after signing in (OAuth with `output.downloads.signIn`) | HTTP, any other source |
 | A one-time link (`output.downloads.bind: "once"`) | whoever opens it first | the same, where you choose it |
-| `output.baseUrl` | anyone with the address, with no expiry | an open source |
-| Your [upload store](reference/delivery.md#upload) (`output.upload`) | as the store's links allow (`bind`, `none` by default) | an open source; another only where you declare the store's links bound (`once`, or `signIn` for a signed-in person; on REST with `results: true`) |
+| `output.baseUrl` | anyone with the address, with no expiry | a fully shown source |
+| Your [upload store](reference/delivery.md#upload) (`output.upload`) | as the store's links allow (`bind`, `none` by default) | a fully shown source; another only where you declare the store's links bound (`once`, or `signIn` for a signed-in person; on REST with `results: true`) |
 | The REST file route | a program whose policy has `results: true` | REST |
 
-A source is open when its policy resolves to `"default": "show"` with no field below `show` under
+A source is fully shown when its policy resolves to `"default": "show"` with no field below `show` under
 the server's policy and under every profile, and the automatic values rule is off for it; listing
-every column as `show` is not enough. Data that belongs to one person is never open: data sent in
+every column as `show` is not enough. Data that belongs to one person is never fully shown: data sent in
 the request, a source with a parameter bound to a claim or a token exchange, and a code source with
-`perPerson: true`. `check-config` lists the closed sources under `Delivery:`.
+`perPerson: true`. `check-config` lists the sources with withheld fields under `Delivery:`.
 
-A report over an open source comes with a link the model reads, and so its provider (the link
+A report over a fully shown source comes with a link the model reads, and so its provider (the link
 shortened here):
 
 ```json
@@ -239,7 +249,8 @@ shortened here):
 ```
 
 A client of protocol 2025-06-18 or later also gets it as a `resource_link` for the user. A report over
-a closed source gets a link only where it is bound: a link the client or the model could open would
+a source with withheld fields gets a link only where it is bound: a link the client or the model
+could open would
 hand over what was withheld. With static tokens there is no person to bind it to, so such a report
 gets no link and its result says to ask you for the file.
 
@@ -338,7 +349,8 @@ How a profile combines with a source's policy:
   level: a profile with a `default` replaces the source's levels for every field it does not name;
 - `items`, `rows`, `counts`, `inline`, `results` and `data` are the profile's where it sets them;
 - a caller bound to a profile never gets the [automatic values rule](reference/mcp.md#auto-values);
-- a caller without a profile gets the server's and the source's policy.
+- a caller without a profile gets `auth.defaultProfile` where it is set, otherwise the server's and
+  the source's policy.
 
 ### OAuth: clients, groups and scopes { #oauth }
 
@@ -390,14 +402,15 @@ the same rules. What differs:
   through them.
 - **Downloads**: `POST /api/v1/views/render/file` returns the file only where the caller's policy
   has `results: true`. Such a caller may read every value of every field that is not hidden, in a
-  file, whatever level the field has.
+  file, whatever level the field has. A caller with `data: true` also takes the file of a report
+  over its own `inline:` table this way.
 - **Data in the request** is off until a profile has `"data": true`.
 
 The request above over REST, with the tokens of the configuration above:
 
 | Token | `POST /views/render` | `POST /views/render/file` |
 | --- | --- | --- |
-| `psu` (no profile) | 200, `withheld`, "Its content is not part of this answer: results over fields that are not fully shown (Channel, Revenue) stay in the file." | 403 `NOT_ALLOWED`, "your token may not download files; ask the operator for a token whose profile has results: true" |
+| `psu` (no profile, no `auth.defaultProfile`) | 200, `withheld`, "Its content is not part of this answer: results over fields that are not fully shown (Channel, Revenue) stay in the file." | 403 `NOT_ALLOWED`, "your token may not download files; ask the operator for a token whose profile has results: true" |
 | `nightly-export` (`results: true`) | 200, `withheld` | 200, the CSV file |
 | `local-model` | 200, `summary` with the counts, no inline result | 403 `NOT_ALLOWED` |
 
@@ -434,13 +447,18 @@ message, which may quote a value or a request's body. The person is named only w
 | `policy.data`, a profile's `data` | MCP on, REST off | The caller may send its own table (`inline:`) |
 | `mcp.data` | 500 rows, 5000 cells, 256 KiB | `false` switches data in the request off on MCP; an object lowers the cap |
 | `files.allowDirs` | none | Directories the model may name files in (`file:`) |
+| `files.list` (`--list-files`) | `false` | `list_sources` lists the files of the allowed directories by name |
 | `sources.<id>.scopes`, `auth.toolScopes` | none | Scopes a caller needs for a source or a tool |
 | `auth.tokens[].profile`, `auth.clientProfiles`, `auth.groupProfiles`, `auth.scopeProfiles`, `auth.defaultProfile` | none | Which profile a caller gets |
-| `output.downloads` | on over HTTP; `bind` is `signIn` with OAuth and a sign-in client, else `none` | The server's own [download links](reference/delivery.md); `none` gives reports over closed sources no link |
-| `output.baseUrl` | none | A permanent address for reports over open sources |
-| `output.upload` | none | Reports go to your store; over a closed source only with `bind` `once` or `signIn` |
+| `output.downloads` | on over HTTP; `bind` is `signIn` with OAuth and a sign-in client, else `none` | The server's own [download links](reference/delivery.md); `none` gives reports over sources with withheld fields no link |
+| `output.baseUrl` | none | A permanent address for reports over fully shown sources |
+| `output.upload` | none | Reports go to your store; over a source with withheld fields only with `bind` `once` or `signIn` |
 | `log.address` | on | The client's IP address on a request's log lines |
 | `audit.subject` | off | The person on the log lines |
+
+A field asked for `values` is `summary` where a list would not be complete and exact: a date or
+number field, more distinct values than `valuesMax`, a value over 80 characters, or a source with
+`counts` or `rows` false.
 
 `pivotkit-server check-config` (or `pivotkit-mcp --check-config`) prints each field's level per
 source and per profile, who may send data, and which reports get links.
@@ -459,6 +477,11 @@ source and per profile, who may send data, and which reports get links.
    none of the groups are refused.
 6. Decide how people get their reports: sign-in links (`output.downloads.signIn`), one-time links,
    or asking you; and how long reports stay (`output.maxAgeDays`, 30 days).
-7. Run `check-config` and read each profile's levels and the `Delivery:` section.
-8. Tell the people who use it what the assistant's provider receives
+7. Run `check-config` and read each profile's levels and the `Delivery:` section, then call
+   `describe_source` with the cloud client's own token and read what it gets.
+8. Never give a model's token `results: true`, and leave `files.allowDirs`, `files.list` and
+   `output.baseUrl` unset for a cloud client.
+9. Put fields about people at `hide`, not `summary`: `summary` still names the field and counts its
+   values, which can tell whether a person is in the data.
+10. Tell the people who use it what the assistant's provider receives
    ([what to tell your users](privacy.md#tell-users)).

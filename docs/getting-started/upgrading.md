@@ -279,6 +279,8 @@ itself under `/downloads/<token>` for 60 minutes ([download links](../reference/
 - Results with a link carry `url`, `expiresAt`, `bound`, `note` and `filename`, and MCP results for
   clients of protocol 2025-06-18 or later a `resource_link`; the `message` names the file and leaves
   the address to `output.url`.
+- `/downloads/` answers without a token: the link is the credential. Keep it out of logs and
+  chats as you would a token.
 - Off loopback the links need `http.publicUrl`; route `/downloads/` to the server at the proxy or
   ingress. Set `output.downloads.key` (a secret of at least 32 bytes), or links stop working on a
   restart and differ between replicas.
@@ -415,6 +417,9 @@ they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next re
   (30 s), `LIMIT_EXCEEDED` over `compute.memoryMb` (1024 MB), and `BUSY` when no worker is free
   within `compute.queueMs`. A host that computed long reports over its own data raises these, or
   `compute.workers`.
+- `checkConfig(options)` checks the options as `createContext` does first and throws the same
+  `ConfigError`; its second argument is optional. A host that called it with options
+  `createContext` refuses gets that error now.
 
 `check-config` given these options lists each code source with its time limit and how its data is
 kept.
