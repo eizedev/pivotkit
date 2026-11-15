@@ -36,7 +36,7 @@ import { compileTemplate } from "./sources/template.js";
  * The bounds on a document: 5 MiB, 10 s for a URL, nesting of the JSON text, a chain of references,
  * allOf within allOf, the nodes the whole run may visit, the fields taken from a row, the length of a source's title.
  */
-export const OPENAPI_LIMITS = Object.freeze({ bytes: 5_242_880, timeMs: 10_000, nesting: 128, refChain: 32, allOfDepth: 8, nodes: 100_000, fields: 500, merged: 1000, title: 200, path: 2000 });
+export const OPENAPI_LIMITS = Object.freeze({ bytes: 5_242_880, timeMs: 10_000, nesting: 128, refChain: 32, allOfDepth: 8, nodes: 100_000, paths: 200_000, fields: 500, merged: 1000, title: 200, path: 2000 });
 
 /** The methods of a path item (OpenAPI 3.0 and 3.1). */
 const METHODS = Object.freeze(["get", "put", "post", "delete", "options", "head", "patch", "trace"]);
@@ -55,15 +55,27 @@ const BREAKS = /[\p{Cc}\p{Zl}\p{Zp}]+/gu;
 const INVISIBLE = /(?![\u200c\u200d])\p{Cf}/gu;
 
 /**
- * A value that looks like a credential, whatever the parameter's name: a known token prefix (OpenAI
- * and Stripe sk-/pk-/rk-, GitHub ghp_ and github_pat_, Slack xox?-, AWS AKIA, GitLab glpat-), a JWT, or
- * a long run of token characters (32 or more) that is not a UUID. Such an example or list of values is
- * not copied; dropping an example is harmless, copying a key is not.
+ * Whether a document's value looks like a credential, whatever the parameter's name: a known token
+ * prefix followed by at least 8 token characters and a digit somewhere (OpenAI and Stripe sk-/pk-/rk-, GitHub ghp_ and
+ * github_pat_, Slack xox?-, AWS AKIA and ASIA, GitLab glpat-, Google ya29., SendGrid SG., Shopify
+ * shpat_, DigitalOcean dop_v1_), a JWT, or a run of 32 or more token characters with both letters and
+ * digits that is no UUID (a long kebab-case word is no key). Such an example or list of values is not
+ * copied; dropping an example is harmless, copying a key is not.
+ * @param {unknown} value
  */
-const SECRET_VALUE = /^(?:(?:sk|pk|rk)[-_]|gh[pousr]_|github_pat_|xox[abposr]-|AKIA[0-9A-Z]{12,}|glpat-|eyJ[\w-]+\.[\w-]+\.)|^(?![0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$)[A-Za-z0-9+/=_-]{32,}$/i;
-
-/** Whether a document's value looks like a credential (SECRET_VALUE). */
-export const looksSecret = (value) => typeof value === "string" && SECRET_VALUE.test(value);
+export function looksSecret(value) {
+    if (typeof value !== "string") {
+        return false;
+    }
+    if (JWT.test(value) || (SECRET_PREFIX.test(value) && /\d/.test(value))) {
+        return true;
+    }
+    return LONG_TOKEN.test(value) && /\d/.test(value) && /[A-Za-z]/.test(value) && !UUID.test(value);
+}
+const SECRET_PREFIX = /^(?:(?:sk|pk|rk)[-_]|gh[pousr]_|github_pat_|xox[abposr]-|AKIA|ASIA|glpat-|ya29\.|SG\.|shpat_|dop_v1_)[A-Za-z0-9+/=_.-]{8,}$/;
+const JWT = /^eyJ[\w-]+\.[\w-]+\./;
+const LONG_TOKEN = /^[A-Za-z0-9+/=_.-]{32,}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** An OAuth scope token (RFC 6749, 3.3). */
 const SCOPE_TOKEN = /^[\x21\x23-\x5b\x5d-\x7e]{1,128}$/;
@@ -213,10 +225,13 @@ class Resolver {
      * @param {Record<string, any>} doc
      * @param {(note: string) => void} note
      */
-    constructor(doc, note) {
+    constructor(doc, note, budget = OPENAPI_LIMITS.nodes) {
         this.doc = doc;
         this.note = note;
         this.nodes = 0;
+        this.budget = budget;
+        /** @type {WeakMap<object, Record<string, any> | null>} each schema object merged once, however often it is referenced */
+        this.merged = new WeakMap();
         /** @type {Set<string>} references already noted, so one is noted once */
         this.noted = new Set();
     }
@@ -224,8 +239,8 @@ class Resolver {
     /** Counts a visited node; throws OpenApiError over the budget. */
     visit() {
         this.nodes++;
-        if (this.nodes > OPENAPI_LIMITS.nodes) {
-            throw new OpenApiError(`the document's references expand to more than ${OPENAPI_LIMITS.nodes} nodes; it may be built to exhaust whoever reads it`);
+        if (this.nodes > this.budget) {
+            throw new OpenApiError(`the document's references expand to more than ${this.budget} nodes; it may be built to exhaust whoever reads it`);
         }
     }
 
@@ -342,13 +357,16 @@ class Resolver {
         if (!schema || !Array.isArray(parts)) {
             return schema;
         }
+        if (this.merged.has(schema)) {
+            return /** @type {Record<string, any> | null} */ (this.merged.get(schema));
+        }
         if (depth >= OPENAPI_LIMITS.allOfDepth) {
             return this.refused(where, `allOf is nested more than ${OPENAPI_LIMITS.allOfDepth} levels deep`);
         }
         /** @type {Array<[string, any]>} */
         const properties = this.entriesOf(ownObject(schema, "properties"));
         let type = own(schema, "type");
-        for (const part of parts) {
+        for (const part of parts.slice(0, OPENAPI_LIMITS.merged)) {
             // each part costs a node, and its properties one each: a wide or repeated allOf cannot multiply work for free
             this.visit();
             if (properties.length >= OPENAPI_LIMITS.merged) {
@@ -367,7 +385,9 @@ class Resolver {
                 }
             }
         }
-        const merged = /** @type {Record<string, any>} */ (Object.fromEntries(Object.entries(schema).filter(([k]) => k !== "allOf" && k !== "properties")));
+        // only the keys the generator reads are copied: a schema's other keys (thousands of x- keys) cost nothing
+        /** @type {Record<string, any>} */
+        const merged = Object.fromEntries(MERGED_KEYS.filter((k) => Object.hasOwn(schema, k)).map((k) => [k, schema[k]]));
         merged.properties = Object.fromEntries(properties.filter(([k]) => !k.startsWith("\0")));
         for (const [k, v] of properties.filter(([key]) => key.startsWith("\0"))) {
             merged[k.slice(1)] ??= v;
@@ -375,6 +395,7 @@ class Resolver {
         if (type !== undefined) {
             merged.type = type;
         }
+        this.merged.set(schema, merged);
         return merged;
     }
 }
@@ -398,6 +419,9 @@ function typeOf(schema) {
     }
     return null;
 }
+
+/** The keys of a schema the generator reads, the only ones a merged allOf carries. */
+const MERGED_KEYS = Object.freeze(["type", "items", "description", "title", "enum", "format", "example", "examples", "pattern", "minLength", "maxLength", "minimum", "maximum"]);
 
 /** A JSON Pointer to one key ("/items"). */
 const pointerTo = (key) => `/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`;
@@ -472,7 +496,8 @@ export function sourceFromOpenApi(doc, how) {
     const notes = [];
     const note = (text) => notes.push(text);
     const refs = new Resolver(doc, note);
-    const found = findOperation(doc, how.operation, refs);
+    // the operation scan has a budget of its own, so a document with many operations is not refused for its size alone
+    const found = findOperation(doc, how.operation, new Resolver(doc, note, OPENAPI_LIMITS.paths));
     const { path, method, operation, pathItem } = found;
     if (method !== "get") {
         throw new OpenApiError(`HTTP sources read with GET; the operation ${shown(how.operation)} is a ${method.toUpperCase()}, so it cannot be a source.`);
@@ -580,15 +605,15 @@ function findOperation(doc, wanted, refs) {
     /** @type {string[]} */
     const gets = [];
     for (const [path, value] of refs.entriesOf(paths)) {
-        const pathItem = refs.resolve(value, `paths ${shown(path)}`);
+        // a path item costs a node only when it is a reference to follow
+        const pathItem = own(value, "$ref") === undefined ? value : refs.resolve(value, `paths ${shown(path)}`);
         for (const method of METHODS) {
             const operation = ownObject(pathItem, method);
             if (!operation) {
                 continue;
             }
-            refs.visit();
             const opId = own(operation, "operationId");
-            if (method === "get") {
+            if (method === "get" && gets.length < 31) {
                 gets.push(typeof opId === "string" ? cleanText(opId, 80) : `"GET ${cleanText(path, 80)}"`);
             }
             if (byPath ? byPath[1].toLowerCase() === method && byPath[2] === path : opId === wanted) {
@@ -601,7 +626,7 @@ function findOperation(doc, wanted, refs) {
     }
     if (!matches.length) {
         const list = gets.slice(0, 30);
-        throw new OpenApiError(`no operation ${byPath ? shown(wanted) : `with the id ${shown(wanted)}`}; ${list.length ? `the GET operations of the document (an operationId, else "GET /path"): ${list.join(", ")}${gets.length > list.length ? `, and ${gets.length - list.length} more` : ""}` : "the document has no GET operation"}`);
+        throw new OpenApiError(`no operation ${byPath ? shown(wanted) : `with the id ${shown(wanted)}`}; ${list.length ? `the GET operations of the document (an operationId, else "GET /path"): ${list.join(", ")}${gets.length > list.length ? ", and more" : ""}` : "the document has no GET operation"}`);
     }
     return matches[0];
 }
@@ -779,11 +804,11 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames) {
 function answerOf(operation, refs, note, id) {
     const todoRows = `${TODO_MARK}: JSON Pointer to the rows`;
     const responses = ownObject(operation, "responses") ?? {};
-    const codes = Object.keys(responses).filter((c) => /^2(\d\d|XX)$/i.test(c));
+    const codes = refs.entriesOf(responses, 100).map(([c]) => c).filter((c) => /^2(\d\d|XX)$/i.test(c));
     codes.sort((a, b) => (a === "200" ? -1 : b === "200" ? 1 : a.localeCompare(b)));
     const response = codes.length ? refs.resolve(responses[codes[0]], `the answer ${codes[0]}`) : null;
     const content = ownObject(response, "content") ?? {};
-    const types = Object.keys(content);
+    const types = refs.entriesOf(content, 100).map(([t]) => t);
     const json = types.find((t) => /^application\/json\s*(;|$)/i.test(t)) ?? types.find((t) => /^application\/[\w.-]*\+json\s*(;|$)/i.test(t));
     if (!json) {
         if (types.some((t) => /^text\/csv\s*(;|$)/i.test(t))) {
@@ -858,8 +883,13 @@ function serverOf(doc, pathItem, operation, note, documentUrl) {
     let named = describedAddress(raw);
     if (raw.includes("{")) {
         // a template ("https://{region}.example.com/{base}"): its text as written, never through URL, which would encode the braces
-        const defaults = Object.entries(ownObject(first, "variables") ?? {})
-            .slice(0, 10)
+        /** @type {Array<[string, any]>} */
+        const variables = [];
+        for (const key in ownObject(first, "variables") ?? {}) {
+            if (variables.length >= 10) break;
+            if (Object.hasOwn(first.variables, key)) variables.push([key, first.variables[key]]);
+        }
+        const defaults = variables
             .map(([name, v]) => `${cleanText(name, 40)}=${cleanText(String(own(v, "default") ?? "?"), 60)}`);
         note("The document's server address has variables in braces: write the address with your values.");
         named = `${named}${defaults.length ? ` (${defaults.join(", ")})` : ""}`;
@@ -915,8 +945,8 @@ function securityOf(doc, operation, refs, note) {
     /** @type {Set<string>} */
     const queryNames = new Set();
     // every API key a scheme sends in the query: a credential, never a caller's parameter
-    for (const name of Object.keys(schemes)) {
-        const scheme = refs.resolve(schemes[name], `the security scheme ${shown(name)}`);
+    for (const [name, value] of refs.entriesOf(schemes, 100)) {
+        const scheme = refs.resolve(value, `the security scheme ${shown(name)}`);
         if (own(scheme, "type") === "apiKey" && own(scheme, "in") === "query" && typeof own(scheme, "name") === "string") {
             queryNames.add(scheme.name.toLowerCase());
         }
@@ -924,13 +954,15 @@ function securityOf(doc, operation, refs, note) {
     if (!Array.isArray(requirements) || !requirements.length) {
         return { auth: null, queryNames };
     }
-    if (requirements.some((r) => isObject(r) && !Object.keys(r).length)) {
+    // the first alternatives only, each with its first scheme names, every one counted
+    const alternatives = requirements.slice(0, 20).map((r) => (isObject(r) ? refs.entriesOf(r, 5).map(([k]) => k) : null));
+    if (alternatives.some((names) => names && !names.length)) {
         note("The document allows this operation without sign-in too; the backend's auth below is for when the API asks for it.");
     }
     /** @type {string[]} */
     const unsupported = [];
-    for (const requirement of requirements) {
-        const names = isObject(requirement) ? Object.keys(requirement) : [];
+    for (const [i, requirement] of requirements.slice(0, 20).entries()) {
+        const names = alternatives[i] ?? [];
         if (names.length !== 1) {
             if (names.length > 1) {
                 unsupported.push(`${names.map((n) => cleanText(n, 40)).join(" and ")} together`);

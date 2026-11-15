@@ -757,9 +757,10 @@ token exchange or another backend auth is yours to configure.
   allowed here without `intranet`. For a document behind a sign-in or on plain `http://`, download it
   and pass the file.
 - **Local references only.** `$ref` values that start with `#/` are followed, with own properties
-  only, at most 32 in a chain, `allOf` at most 8 deep and merging at most 1,000 properties, and one
-  budget of 100,000 nodes for the whole run, which every property read counts against. A document
-  over a limit is refused or shortened with a note, quickly. A reference to another file or address (`file:`, `https:`, `http://169.254.169.254/...`) is
+  only, at most 32 in a chain, `allOf` at most 8 deep and merging at most 1,000 properties (each
+  schema merged once, however often it is referenced), and one budget of 100,000 nodes for the whole
+  run, which every property read counts against; finding the operation has a budget of its own
+  (about 200,000 paths). A document over a limit is refused or shortened with a note, quickly. A reference to another file or address (`file:`, `https:`, `http://169.254.169.254/...`) is
   never fetched: the command names it in a note and goes on without it. A circular reference is
   named the same way.
 
@@ -790,8 +791,9 @@ text the model will read": an API's documentation can hold instructions meant fo
 
 A parameter whose name looks like a credential's (`key`, `token`, `secret`, `auth`, `pass`) keeps
 no example and no list of values, nor does a parameter whose example or values look like one (a
-known token prefix such as `sk-`, `ghp_`, `xoxb-`, `AKIA`, a JWT, or 32 or more token characters
-that are no UUID). A query parameter in which the document's own security scheme sends an API key is
+known token prefix such as `sk-`, `ghp_`, `xoxb-`, `AKIA`, `ya29.` or `SG.` with a digit after it,
+a JWT, or 32 or more token characters with letters and digits that are no UUID); a note names each
+one. A query parameter in which the document's own security scheme sends an API key is
 left out: a credential never comes from a caller.
 
 The sign-in, from the operation's `security` (else the document's), the first alternative of one

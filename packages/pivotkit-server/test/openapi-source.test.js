@@ -227,11 +227,20 @@ test("source-from-openapi: the hostile document neither steers addresses or cred
     assertValidates(g);
 });
 
-test("source-from-openapi: an exponential fan-out of references hits the node budget fast", () => {
+test("source-from-openapi: an exponential fan-out of references is merged once per schema and ends fast; the node budget still holds", () => {
     const doc = readDocument(HOSTILE_TEXT);
     const started = performance.now();
-    assert.throws(() => generate(doc, "fanOut"), new RegExp(`references expand to more than ${OPENAPI_LIMITS.nodes} nodes`));
-    assert.ok(performance.now() - started < 5000);
+    // each of L0..L12 (allOf of 4 references to the next) is merged once, and the nesting stops at allOfDepth
+    const fan = generate(doc, "fanOut");
+    assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
+    assert.deepEqual(Object.keys(fan.config.sources.fanOut.policy.fields), ["a", "b", "c"]);
+    assert.ok(fan.notes.some((n) => n.includes(`allOf is nested more than ${OPENAPI_LIMITS.allOfDepth} levels deep`)));
+    // work that grows with the document still counts against the budget: 150000 parameter references
+    const many = minimal({ type: "object" }, { P: { name: "p", in: "query", schema: { type: "string" } } });
+    many.paths["/a"].get.parameters = Array.from({ length: 150_000 }, () => ({ $ref: "#/P" }));
+    const before = performance.now();
+    assert.throws(() => generate(readDocument(JSON.stringify(many)), "op"), new RegExp(`references expand to more than ${OPENAPI_LIMITS.nodes} nodes`));
+    assert.ok(performance.now() - before < 3000);
     // the cycle in the answer's schema leaves the rows to the operator
     const cycle = generate(doc, "cycle");
     assert.equal(cycle.config.sources.cycle.http.rows, "TODO: JSON Pointer to the rows");
@@ -449,7 +458,7 @@ test("source-from-openapi: scopes, header names and values from the document tha
     const secrets = withSecurity(
         [],
         [
-            { name: "a", in: "query", schema: { type: "string", example: "sk-proj-abcdefghijklmnop" } },
+            { name: "a", in: "query", schema: { type: "string", example: "sk-proj-abc123def456ghi789" } },
             { name: "b", in: "query", schema: { type: "string", enum: ["ok", "ghp_abcdefghijklmnopqrstuvwxyz0123456789"] } },
             { name: "c", in: "query", schema: { type: "string", example: "aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bC1dF3h" } },
             { name: "d", in: "query", schema: { type: "string", enum: ["eu-central", "us-east"] } },
@@ -549,5 +558,45 @@ test("source-from-openapi: the guards each have a case that fails without them",
     const toString = minimal({ type: "object" });
     toString.paths["/a"].get.responses = { 200: { $ref: "#/components/responses/toString" } };
     assert.ok(generate(readDocument(JSON.stringify(toString)), "op").notes.some((n) => n.includes("points at nothing")));
+});
+
+test("source-from-openapi: a schema's other keys are not copied, and a schema referenced thousands of times is merged once", () => {
+    // the reviewer's shape: Big = allOf plus 60000 x- keys, and an answer of 6000 properties that each reference Big (about 1 MB)
+    const big = { allOf: [{ type: "object" }], ...Object.fromEntries(Array.from({ length: 60_000 }, (_, i) => [`x-k${i}`, 1])) };
+    const doc = minimal({ type: "object" }, { components: { schemas: { Big: big } } });
+    doc.paths["/a"].get.responses[200].content["application/json"].schema = { type: "object", properties: Object.fromEntries(Array.from({ length: 6000 }, (_, i) => [`p${i}`, { $ref: "#/components/schemas/Big" }])) };
+    const text = JSON.stringify(doc);
+    assert.ok(text.length > 1_000_000);
+    const started = performance.now();
+    const g = generate(readDocument(text), "op");
+    assert.ok(performance.now() - started < 2000, `took ${Math.round(performance.now() - started)} ms`);
+    assert.equal(g.config.sources.op.http.rows, "TODO: JSON Pointer to the rows");
+});
+
+test("source-from-openapi: credential-looking values: the known prefixes and long tokens go, words stay, and a note says which", () => {
+    const values = {
+        aws: "ASIAIOSFODNN7EXAMPLE",
+        google: "ya29.a0AfH6SMBexampleexample",
+        sendgrid: "SG.abcdefgh12345678.qrstuvwxyz90",
+        shopify: "shpat_0123456789abcdef0123",
+        digitalocean: "dop_v1_0123456789abcdef0123456789",
+        dotted: "abcd1234.efgh5678.ijkl9012.mnop3456.qrst",
+        kebab: "order-status-pending-fulfillment-queue",
+        bare: "pk-",
+        word: "pk-ordinary"
+    };
+    const doc = minimal({ type: "object" });
+    doc.paths["/a"].get.parameters = Object.entries(values).map(([name, example]) => ({ name, in: "query", schema: { type: "string", maxLength: 64, enum: [example] } }));
+    const g = generate(readDocument(JSON.stringify(doc)), "op");
+    const params = g.config.sources.op.params;
+    for (const name of ["aws", "google", "sendgrid", "shopify", "digitalocean", "dotted"]) {
+        assert.equal(params[name].enum, undefined, name);
+        assert.ok(g.notes.some((n) => n.includes(`The query parameter "${name}"'s example or list of values looks like a credential, so neither is copied.`)), name);
+    }
+    for (const name of ["kebab", "bare", "word"]) {
+        assert.deepEqual(params[name].enum, [values[name]], name);
+        assert.ok(!g.notes.some((n) => n.includes(`"${name}"'s example or list of values looks like a credential`)), name);
+    }
+    assertValidates(g);
 });
 
