@@ -273,3 +273,35 @@ test("a client that leaves before the answer starts: its streamed body is given 
         await listening.close();
     }
 });
+
+test("a body that fails in the middle of an answer ends the connection, never a clean answer cut short", async () => {
+    const listening = await serveFetch(
+        {
+            fetch: async () =>
+                new Response(
+                    new ReadableStream({
+                        start(controller) {
+                            controller.enqueue(new TextEncoder().encode("part"));
+                            setTimeout(() => controller.error(new Error("the source failed")), 50);
+                        }
+                    }),
+                    { headers: { "content-type": "text/event-stream" } }
+                )
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024 }
+    );
+    try {
+        const ended = await new Promise((resolve) => {
+            const socket = connect(listening.port, "127.0.0.1", () => socket.write("GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"));
+            let text = "";
+            socket.on("data", (d) => (text += d));
+            socket.on("error", () => resolve({ text, how: "error" }));
+            socket.on("close", () => resolve({ text, how: "close" }));
+        });
+        assert.match(ended.text, /part/);
+        // chunked transfer: a clean end is the zero-length chunk; a failed body must not send it
+        assert.doesNotMatch(ended.text, /\r\n0\r\n\r\n$/, "no terminating chunk: the client sees the answer was cut");
+    } finally {
+        await listening.close();
+    }
+});

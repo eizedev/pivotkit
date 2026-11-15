@@ -277,11 +277,10 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                     abort.signal.addEventListener("abort", stop, { once: true });
                 }
                 for (;;) {
-                    const { done, value } = await reader.read().catch(() => ({ done: true, value: undefined }));
-                    if (done || res.destroyed) {
-                        if (!done) {
-                            await stop();
-                        }
+                    // a body that fails rejects here: the catch below ends the connection, so a cut answer
+                    // never looks complete; a cancel (the client left) ends the read with done
+                    const { done, value } = await reader.read();
+                    if (done) {
                         break;
                     }
                     if (!res.write(value)) {
