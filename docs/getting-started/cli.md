@@ -40,6 +40,8 @@ runs the command once; it does not put `pivotkit` on your `PATH`, so each line s
 `npx pivotkit-cli` (`npx pivotkit` alone asks npm for another package). The rest of this page writes
 `pivotkit`.
 
+To update it later, see [Update an installation](upgrading.md#update).
+
 ## 2. Try it on the example files { #try-it }
 
 ```bash

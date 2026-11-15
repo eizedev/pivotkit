@@ -14,6 +14,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- `output.dir` with a name longer than the file system allows, or a symbolic link loop in its path:
+  `check-config` reports it as a directory that cannot be created, with the reason, as the start
+  refuses it (it said "will be created at start"); with `output.create: false` both say it cannot
+  be examined. Start errors name these reasons in words, keep any other file system code in a
+  neutral sentence, and a link changed while the directory is made is refused with its reason
+  instead of a raw error.
 - `isLoopback` takes only literal loopback addresses: a host name that starts with `127.`
   (`127.example.com`) is no longer loopback, and `[::1]` as a URL writes it is.
 

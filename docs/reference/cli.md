@@ -9,7 +9,8 @@ description: The pivotkit command line - render a view over CSV, JSON or Excel d
 views in a pipeline before they go live, and describes views and data. On local files it needs no
 network, and with `--now` its output is the same on every run. With `--url` and `--source` the same
 commands run on the sources of a [pivotkit-server](rest.md) ([With a server](#with-a-server)), for
-data that lives there.
+data that lives there. To update it, see
+[Update an installation](../getting-started/upgrading.md#update).
 
 ```bash
 npm install --global pivotkit-cli     # the command pivotkit

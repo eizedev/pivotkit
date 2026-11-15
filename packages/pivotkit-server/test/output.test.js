@@ -5,8 +5,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { whyNot } from "../src/context.js";
 import { prune } from "../src/present.js";
 import { BIN, BY_REGION, call, restServer, workspace } from "./helpers.js";
 
@@ -322,4 +323,72 @@ test("check-config says whether the output directory exists, will be created, or
             chmodSync(join(dir, "data"), 0o755);
         }
     }
+});
+
+test("a name longer than the file system allows: check-config and serve both refuse it with the reason (#365)", { skip: process.platform === "win32" ? "Windows reports other codes for long names" : false }, async () => {
+    const dir = workspace();
+    const long = "x".repeat(300);
+    const config = join(dir, "pivotkit.json");
+    for (const path of [long, `${long}/out`]) {
+        writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path } }));
+        const check = run(["check-config", "--config", config]);
+        assert.equal(check.status, 1, check.stdout);
+        assert.match(check.stdout, /\(NOT FOUND: cannot be created: a name in the path is longer than the file system allows\)/);
+        await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path }, baseDir: dir }), /^ConfigError: output\.dir: cannot be created: a name in the path is longer than the file system allows$/);
+    }
+    assert.deepEqual(readdirSync(dir).sort(), ["data", "out", "pivotkit.json"], "a refused start makes nothing");
+});
+
+test("a symbolic link loop in output.dir is named as one, in check-config and at start (#365)", { skip: process.platform === "win32" ? "symbolic links need rights on Windows" : false }, async () => {
+    const dir = workspace();
+    symlinkSync(join(dir, "loop"), join(dir, "loop"));
+    const config = join(dir, "pivotkit.json");
+    for (const path of ["loop", "loop/out"]) {
+        writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path } }));
+        const check = run(["check-config", "--config", config]);
+        assert.equal(check.status, 1, check.stdout);
+        assert.match(check.stdout, /\(NOT FOUND: cannot be created: a symbolic link in the path leads in a loop\)/);
+        await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path }, baseDir: dir }), /^ConfigError: output\.dir: cannot be created: a symbolic link in the path leads in a loop$/);
+    }
+});
+
+test("whyNot: words for every code a directory start meets, a neutral fallback that keeps the code (#365)", () => {
+    assert.equal(whyNot("ELOOP"), "a symbolic link in the path leads in a loop");
+    assert.equal(whyNot("ENAMETOOLONG"), "a name in the path is longer than the file system allows");
+    assert.equal(whyNot("ENOTDIR"), "a part of the path is a file");
+    assert.equal(whyNot("EEXIST"), "something that is not a directory already exists at the path");
+    assert.equal(whyNot("EIO"), "the file system refused it (EIO)");
+    assert.equal(whyNot(undefined), "the file system refused it (unknown error)");
+});
+
+test("check-config and serve give the same reason for an output.dir stat refuses: a file in the path, no permission; examined, not created, with output.create false (#365)", { skip: process.getuid?.() === 0 || process.platform === "win32" ? "root reads anywhere; POSIX modes" : false }, async () => {
+    const dir = workspace();
+    mkdirSync(join(dir, "locked"), { mode: 0o600 });
+    const config = join(dir, "pivotkit.json");
+    const both = async (output, reason) => {
+        writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output }));
+        const check = run(["check-config", "--config", config]);
+        assert.equal(check.status, 1, check.stdout);
+        assert.ok(check.stdout.includes(`Output: ${output.dir}  (NOT FOUND: ${reason})`), check.stdout);
+        await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output, baseDir: dir }), (e) => e.message === `output.dir: ${reason}`);
+    };
+    try {
+        await both({ dir: "data/sales.csv/out" }, "cannot be created: a part of the path is a file");
+        await both({ dir: "locked/out" }, `cannot be created: permission denied for the user ${process.getuid?.()} the server runs as`);
+        await both({ dir: "locked/out", create: false }, `cannot be examined: permission denied for the user ${process.getuid?.()} the server runs as`);
+        await both({ dir: "x".repeat(300), create: false }, "cannot be examined: a name in the path is longer than the file system allows");
+    } finally {
+        chmodSync(join(dir, "locked"), 0o755);
+    }
+});
+
+test("an output.dir inside an allowed directory: the start's error and check-config's PROBLEM line say the same reason, word for word", async () => {
+    const dir = workspace();
+    const reason = "lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them";
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/out" } }));
+    const check = run(["check-config", "--config", config]);
+    assert.equal(check.status, 1, check.stdout);
+    assert.ok(check.stdout.split("\n").includes(`  PROBLEM: output.dir ${reason}`), check.stdout);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/out" }, baseDir: dir }), (e) => e.message === `output.dir: ${reason}`);
 });
