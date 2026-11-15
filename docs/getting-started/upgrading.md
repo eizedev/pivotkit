@@ -151,7 +151,9 @@ Operators of pivotkit-server and pivotkit-mcp need not act for the exposure poli
 keeps its level, and the automatic values rule and the new operator controls are off. Library hosts
 with code sources check [Code sources](#code-sources). Over HTTP with an output directory, check the
 [download links](#download-links): reports may get links of the server under `/downloads/`, and
-`output.baseUrl` no longer gives an address to reports over closed sources. What callers notice:
+`output.baseUrl` no longer gives an address to reports over closed sources. With OAuth and an issuer
+on a private address (your LAN, your cluster), set [`auth.intranet: true`](#issuer-requests). What
+callers notice:
 
 - a filter item that is none of a `show` field's values gets the warning `itemUnknown` where
   `describe_source` lists all of them, and `itemCase` comes for a `show` field also when the view
@@ -173,6 +175,7 @@ with code sources check [Code sources](#code-sources). Over HTTP with an output 
 | [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
+| [Requests to the issuer](#issuer-requests) | `auth.mode` is `oauth` and the issuer resolves to a loopback or private address, is reached through a proxy, redirects, or serves a key set over 256 KiB | set `auth.intranet: true` for an issuer in your LAN or cluster; run `check-config` |
 | [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | nothing, or `output.maxAgeDays: 0` to keep reports with no age limit |
 | [check-config's layout](#check-config-layout) | you read `check-config`'s output in a script | use its exit code, or its first line, which says whether the server starts |
 | [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
@@ -343,6 +346,21 @@ off for its callers ([details](../reference/mcp.md#data)). On REST it is off unt
 `"data": true`; such a caller may also send a file as `multipart/form-data` and a body of up to
 `rest.data.maxBytes` (default 10 MiB) ([details](../reference/rest.md#data)). `inline:` was
 answered as an unknown source before; `check-config` says who may send data.
+
+### Requests to the issuer { #issuer-requests }
+
+The issuer's metadata, its keys and the download sign-in's token endpoint are requested like every
+other outbound request of the server ([OAuth 2.1](../reference/mcp.md#oauth)). What an existing
+OAuth installation notices:
+
+- An issuer whose name resolves to a loopback or private address (Keycloak or Authentik in your
+  LAN or cluster) is refused until you set `"intranet": true` in `auth`: `/readyz` stays 503, and
+  the log warns with the setting's name. `check-config` prints a PROBLEM for it.
+- The proxy of the environment (`NODE_USE_ENV_PROXY` with `HTTPS_PROXY`) is not used for the issuer.
+- A key set over 256 KiB is refused; no token verifies against it.
+- `auth.allowInsecureIssuer` accepts an `http://` issuer on a loopback address only.
+- A download sign-in whose provider keeps its token endpoint on another host than the issuer needs
+  `output.downloads.signIn.tokenUrl`.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 

@@ -25,6 +25,7 @@ import { isLoopback } from "../listen.js";
 import { secretFileWarning } from "../secrets.js";
 import { personBound } from "../sources/auth.js";
 import { settingsOf as downloadSettingsOf } from "../options/downloads.js";
+import { issuerRulesOf } from "../issuer.js";
 import { signInItems } from "./operator.js";
 import { fileText, heading, plain, problem, warning } from "./format.js";
 
@@ -126,7 +127,7 @@ async function issuerItems(options, runtime) {
         const late = `no answer within ${ISSUER_MS / 1000} s`;
         const why = await Promise.race([
             Promise.resolve()
-                .then(() => runtime.discover(issuer, { signal }))
+                .then(() => runtime.discover(issuer, issuerRulesOf(options), { signal }))
                 .then(
                     () => null,
                     // discover tries two addresses: a reason said twice is said once

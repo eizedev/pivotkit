@@ -23,6 +23,7 @@ import * as output from "./output.js";
 import * as downloads from "./downloads.js";
 import * as upload from "./upload.js";
 import * as access from "./access.js";
+import * as issuer from "./issuer.js";
 import * as operator from "./operator.js";
 import * as profiles from "./profiles.js";
 import * as rest from "./rest.js";
@@ -35,7 +36,7 @@ import * as rest from "./rest.js";
  * @property {string} tokenEnv
  * @property {boolean} rest
  * @property {boolean} [mcp]  the MCP server is served (false: a REST-only server)
- * @property {(issuer: string, how: { signal: AbortSignal }) => Promise<unknown>} [discover]  loads an issuer's metadata (auth.js discover); without it no issuer is asked
+ * @property {(issuer: string, rules: import("../issuer.js").IssuerRules, how: { signal: AbortSignal }) => Promise<unknown>} [discover]  loads an issuer's metadata (auth.js discover); without it no issuer is asked
  * @property {Map<string, { names: string[], stats: any }>} columns  filled by check/sources.js
  * @property {Map<string, string> | null} [everyColumn]  every column of every source by its policy key (null: not all known); set by check/sources.js
  */
@@ -50,11 +51,11 @@ export const UPGRADING_URL = "https://pivotkit.eize.dev/getting-started/upgradin
 /**
  * In the order check-config prints them: the data (sources, HTTP and code sources, data in the
  * request), where reports go and who gets them (output, delivery, upload), who may call (address and
- * auth, audit, profiles, REST).
+ * auth, the requests to the issuer, audit, profiles, REST).
  * @type {ReadonlyArray<{ name: string, section: Section }>}
  */
 export const SECTIONS = Object.freeze(
-    Object.entries({ sources, http, code, inline, output, downloads, upload, access, operator, profiles, rest }).map(([name, module]) => Object.freeze({ name, section: module.section }))
+    Object.entries({ sources, http, code, inline, output, downloads, upload, access, issuer, operator, profiles, rest }).map(([name, module]) => Object.freeze({ name, section: module.section }))
 );
 
 /**

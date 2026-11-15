@@ -20,46 +20,35 @@ import { fileText, heading, plain, problem, warning } from "./format.js";
 import { OUTPUT_DEFAULTS } from "../config.js";
 import { addressText, uploadMaxBytes, uploadSettingsOf } from "../options/upload.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
-import { addressRefusal } from "../sources/fetch.js";
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
-
-/** How long check-config waits for a name's addresses. */
-const LOOKUP_MS = 3000;
+import { resolveRefusal } from "./host.js";
 
 /** What a PROBLEM of the upload target does: the server starts, uploads fail. */
 const FAILS = { effect: "the server starts; every upload fails (UPLOAD_FAILED)" };
 
 /**
- * What keeps the server from reaching a host the uploads go to, by the rule a request applies
- * (guardedFetch's addressRefusal over every address the name has now): a PROBLEM, a WARNING when
- * the name cannot be looked up now, or null.
+ * What keeps the server from reaching a host the uploads go to (check/host.js): a PROBLEM, a
+ * WARNING when the name cannot be looked up now, or null.
  * @param {string} host
  * @param {boolean} intranet
  * @param {string} key  the option that names it
  * @returns {Promise<import("./format.js").Item | null>}
  */
 async function hostItem(host, intranet, key) {
-    const bare = host.replace(/^\[|\]$/g, "");
-    if (isIP(bare)) {
-        return problem(`${key}: ${bare} is an IP address, which uploads refuse; name the server`, FAILS);
+    const refusal = await resolveRefusal(host, { allowPrivate: intranet, ipLiterals: false });
+    if (!refusal) {
+        return null;
     }
-    /** @type {Array<{ address: string }> | null} */
-    // the lookup itself cannot be cancelled and may outlive the 3 s wait: harmless in a command that ends
-    const addresses = await Promise.race([lookup(bare, { all: true }), new Promise((resolve) => setTimeout(() => resolve(null), LOOKUP_MS).unref())]).catch(() => null);
-    if (!addresses?.length) {
-        return warning(`${key}: ${bare} cannot be looked up from here; the upload checks its addresses when it runs`);
+    const { kind, said } = refusal;
+    if (kind === "ipLiteral") {
+        return problem(`${key}: ${said} is an IP address, which uploads refuse; name the server`, FAILS);
     }
-    for (const { address } of addresses) {
-        const rule = addressRefusal(address, { allowPrivate: intranet });
-        if (rule === "always") {
-            return problem(`${key}: ${bare} resolves to ${address}, which is never connected to (link-local, metadata, multicast or unspecified)`, FAILS);
-        }
-        if (rule) {
-            return problem(`${key}: ${bare} resolves to ${address}, a loopback or private address, which uploads refuse without output.upload.intranet: true`, FAILS);
-        }
+    if (kind === "lookup") {
+        return warning(`${key}: ${said} cannot be looked up from here; the upload checks its addresses when it runs`);
     }
-    return null;
+    if (kind === "always") {
+        return problem(`${key}: ${said}, which is never connected to (link-local, metadata, multicast or unspecified)`, FAILS);
+    }
+    return problem(`${key}: ${said}, a loopback or private address, which uploads refuse without output.upload.intranet: true`, FAILS);
 }
 
 /** Up to six ids, then how many more. */

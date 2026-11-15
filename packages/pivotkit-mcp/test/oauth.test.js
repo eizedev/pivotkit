@@ -200,3 +200,39 @@ for (const era of ["legacy", "modern"]) {
         }
     });
 }
+
+test("the issuer's keys are read through pivotkit-server's guarded requests: a key set over the cap is refused, so its key signs nothing in", async () => {
+    // an issuer whose key set holds the signing key and is padded far over 256 KiB with more keys
+    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
+    const big = JSON.stringify({ keys: [jwk, ...Array.from({ length: 1200 }, (_, i) => ({ ...jwk, kid: `pad${i}` }))] });
+    assert.ok(big.length > 262_144);
+    let own;
+    const padded = createServer((req, res) => {
+        if (req.url === "/.well-known/openid-configuration") {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify({ issuer: own, authorization_endpoint: `${own}/authorize`, token_endpoint: `${own}/token`, jwks_uri: `${own}/jwks`, response_types_supported: ["code"] }));
+        } else if (req.url === "/jwks") {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(big);
+        } else {
+            res.writeHead(404);
+            res.end();
+        }
+    });
+    await new Promise((resolve) => padded.listen(0, "127.0.0.1", resolve));
+    own = `http://127.0.0.1:${padded.address().port}`;
+    const server = await oauthServer({ issuer: own });
+    try {
+        const good = await token({ claims: { iss: own } });
+        let response = await post(server.url, good);
+        for (let i = 0; i < 100 && response.status === 503; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            response = await post(server.url, good);
+        }
+        assert.equal(response.status, 401);
+        assert.match(JSON.stringify(server.log), /the issuer's keys could not be read from .*\/jwks: TOO_LARGE/);
+    } finally {
+        await server.close();
+        await new Promise((resolve) => padded.close(resolve));
+    }
+});

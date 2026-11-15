@@ -30,7 +30,7 @@ export const KEYS = Object.freeze({
                 expiresMinutes: "integer",
                 bind: { enum: BINDINGS },
                 key: SECRET_REF,
-                signIn: { object: { clientId: "string", clientSecret: SECRET_REF, issuer: "string", scopes: "strings" } }
+                signIn: { object: { clientId: "string", clientSecret: SECRET_REF, issuer: "string", scopes: "strings", tokenUrl: "string" } }
             }
         }
     }
@@ -42,7 +42,7 @@ export const KEYS = Object.freeze({
  * @property {number} [expiresMinutes]  how long a link works, 1 to 1440 (default 60)
  * @property {"signIn" | "once" | "none"} [bind]  how links to reports over closed sources are bound (default "signIn" with OAuth and signIn.clientId, else "none")
  * @property {{ env?: string, file?: string }} [key]  the link key, at least 32 bytes (default a random key per process)
- * @property {{ clientId: string, clientSecret?: { env?: string, file?: string }, issuer?: string, scopes?: string[] }} [signIn]  the browser client of the sign-in
+ * @property {{ clientId: string, clientSecret?: { env?: string, file?: string }, issuer?: string, scopes?: string[], tokenUrl?: string }} [signIn]  the browser client of the sign-in; tokenUrl: its token endpoint when the metadata names one on another origin
  */
 
 /**
@@ -51,7 +51,7 @@ export const KEYS = Object.freeze({
  * @property {number} expiresMinutes
  * @property {"signIn" | "once" | "none"} bind  for reports over closed sources
  * @property {{ env?: string, file?: string } | null} key  null: a random key per process
- * @property {{ clientId: string, clientSecret: { env?: string, file?: string } | null, issuer: string, scopes: string[] } | null} signIn
+ * @property {{ clientId: string, clientSecret: { env?: string, file?: string } | null, issuer: string, scopes: string[], tokenUrl: string | null } | null} signIn  tokenUrl: null takes the metadata's token_endpoint, which must be on the issuer's origin
  */
 
 /**
@@ -62,7 +62,7 @@ export const KEYS = Object.freeze({
 export function settingsOf(options) {
     const d = options.output?.downloads ?? {};
     const oauth = options.auth?.mode === "oauth";
-    const signIn = d.signIn?.clientId ? { clientId: d.signIn.clientId, clientSecret: d.signIn.clientSecret ?? null, issuer: d.signIn.issuer ?? options.auth?.issuer ?? "", scopes: d.signIn.scopes ?? [...SIGN_IN_SCOPES] } : null;
+    const signIn = d.signIn?.clientId ? { clientId: d.signIn.clientId, clientSecret: d.signIn.clientSecret ?? null, issuer: d.signIn.issuer ?? options.auth?.issuer ?? "", scopes: d.signIn.scopes ?? [...SIGN_IN_SCOPES], tokenUrl: d.signIn.tokenUrl ?? null } : null;
     return {
         enabled: d.enabled !== false && !options.output?.baseUrl && Boolean(options.output?.dir),
         expiresMinutes: d.expiresMinutes ?? EXPIRES_MINUTES.default,
@@ -111,6 +111,9 @@ export function validate(options) {
         // links are bound to the issuer and subject the MCP or REST token named: the person must sign in at the same issuer
         if (d.signIn.issuer !== undefined && d.signIn.issuer !== options.auth?.issuer) {
             throw new ConfigError("output.downloads.signIn.issuer: must be auth.issuer (a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did); leave it out");
+        }
+        if (d.signIn.tokenUrl !== undefined && !httpsOrAllowed(d.signIn.tokenUrl, options.auth?.allowInsecureIssuer === true)) {
+            throw new ConfigError("output.downloads.signIn.tokenUrl: must be an https:// address (the provider's token endpoint)");
         }
         if (!settings.signIn.scopes.includes("openid")) {
             throw new ConfigError('output.downloads.signIn.scopes: must hold "openid" (the sign-in reads the person from the ID token)');

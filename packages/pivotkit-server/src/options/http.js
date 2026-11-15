@@ -16,6 +16,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { issuerRulesOf } from "../issuer.js";
 import { resolvePolicy } from "../policy.js";
 import { canonicalJson } from "../sources/keys.js";
 import { compileTemplate } from "../sources/template.js";
@@ -218,7 +219,7 @@ export const pointerKeys = (text) => (text === "" ? [] : text.slice(1).split("/"
  * for messages.
  * @typedef {{ kind: "header", at: string, hash: string, name: string, prefix: string, value: SecretRef, baseDir: string | undefined }
  *   | { kind: "clientCredentials", at: string, hash: string, tokenUrl: string, clientId: string, clientSecret: SecretRef | null, assertion: SecretRef | null, scope: string | null, audience: string | null, resource: string | null, intranet: boolean, allowIpLiterals: boolean, baseDir: string | undefined }
- *   | { kind: "tokenExchange", at: string, hash: string, tokenUrl: string | null, issuer: string | null, clientId: string, clientSecret: SecretRef, scope: string | null, audience: string | null, resource: string | null, maxAgeSeconds: number, intranet: boolean, allowIpLiterals: boolean, baseDir: string | undefined }} BackendAuth
+ *   | { kind: "tokenExchange", at: string, hash: string, tokenUrl: string | null, issuer: string | null, issuerRules: import("../issuer.js").IssuerRules, clientId: string, clientSecret: SecretRef, scope: string | null, audience: string | null, resource: string | null, maxAgeSeconds: number, intranet: boolean, allowIpLiterals: boolean, baseDir: string | undefined }} BackendAuth
  */
 
 /** A text of the sign-in's settings (a client id, a scope): no control characters, at most `max`. */
@@ -331,6 +332,8 @@ export function backendAuthOf(options, auth, at, headers) {
         kind: /** @type {const} */ ("tokenExchange"),
         tokenUrl: x.tokenUrl !== undefined ? tokenUrlOf(x.tokenUrl, `${at}.tokenExchange.tokenUrl`, allowIpLiterals) : null,
         issuer: options.auth?.issuer ?? null,
+        // the issuer's metadata (its default token endpoint) is read under auth.issuer's rules (issuer.js)
+        issuerRules: issuerRulesOf(options),
         clientId: x.clientId,
         clientSecret: x.clientSecret,
         scope: x.scope ?? null,

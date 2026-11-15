@@ -56,6 +56,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `output.filename` is the plain name).
 - With `output.baseUrl`, a report over a source with a field that is not `show` carries no `url` any
   more (REST and MCP); the file is still written.
+- With OAuth, the issuer's metadata, its keys and the download sign-in's token endpoint are requested
+  through the server's guarded requests: an issuer on a loopback or private address needs
+  `auth.intranet: true`, the environment's proxy is not used, and a key set over 256 KiB is refused
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#issuer-requests)).
 
 ### Added
 
@@ -256,6 +260,20 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   uses, says when there are no sources, names a secret file with its full path, and closes with "New
   in this version" in one line and the upgrading link. `checkConfig()` returns `warnings` and
   `stops` too ([#424](https://github.com/eizedev/pivotkit/issues/424)).
+- The requests to the OAuth issuer (metadata, keys, the download sign-in's token endpoint) go through
+  guardedFetch, with its rules: no redirects, the address checked where the connection goes,
+  link-local and cloud metadata addresses never, loopback and private addresses only with the new
+  `auth.intranet`, an IP address as host only where the operator wrote it, the key set capped at
+  256 KiB. The download sign-in reads the keys where the access tokens' are read (`auth.jwksUri`, or
+  a `jwks_uri` on the issuer's origin). A refused request is a warning that names the setting;
+  `check-config` prints the rules and a PROBLEM for an issuer on such an address
+  ([#420](https://github.com/eizedev/pivotkit/issues/420)). The exported `discover(issuer)` follows
+  the same rules and refuses a loopback or private issuer unless its second argument allows it
+  (`{ intranet: true, insecure: false, origins: [] }`). After a failed read of the key set (also a
+  non-200 answer or one without a `keys` list), tokens are refused for 5 seconds without asking the
+  issuer again, and the warning comes at most once a minute. The download sign-in's token endpoint
+  from the metadata must be on the issuer's origin; `output.downloads.signIn.tokenUrl` names another.
+  `/readyz` answers 503 with `reason` in fixed words.
 - A code source's operation is computed in a worker as a table job, as an HTTP source's: `load` and
   the reading of its rows stay in the host's thread, the encoding and the report are bounded by
   `compute.timeMs` and `compute.memoryMb` ([#414](https://github.com/eizedev/pivotkit/issues/414)).

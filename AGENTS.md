@@ -265,7 +265,12 @@ root `package.json`: `npm run types` and the builds depend on it.
   identity (`auth.subjectClaim`) and `identityKey`, the only identity a cache or binding uses, null
   without a usable subject; `callerView`, the frozen caller a code source gets; `exchangeTokenFor`,
   the one use of a caller's access token, which an ESLint rule lets only `src/sources/auth.js`
-  import), `src/checks.js` (Host
+  import), `src/issuer.js` (every request to the OAuth issuer: `discover`, the key set for jose
+  through its `customFetch`, the download sign-in's token endpoint, all through guardedFetch under
+  `issuerRulesOf` (`auth.intranet`, `allowInsecureIssuer` for plain http to loopback, IP addresses
+  only on an origin the operator wrote); `jwksUriOf`, the issuer's origin unless `auth.jwksUri`;
+  `issuerMeans` lets tests use their own guardedFetch; `options/issuer.js` and `check/issuer.js`
+  are its option and check-config section), `src/checks.js` (Host
   check, client address), `src/listen.js` (`serveFetch`: a fetch handler on node:http, headers checked
   before the body, every value of a repeated header, connections bounded in all and per address
   with slots kept for loopback (`connectionGate`), request targets read by their path, the body's

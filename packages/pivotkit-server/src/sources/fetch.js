@@ -3,7 +3,8 @@
  * an upload target, an OpenAPI document by URL): guardedFetch.
  *
  * - https: only (plain http only through createGuardedFetch's allowHttpLoopback, to a loopback
- *   address: tests); no user name or password in the address.
+ *   address: tests, and issuer.js for auth.allowInsecureIssuer); no user name or password in the
+ *   address.
  * - No redirect is followed: a 3xx answer is refused (REDIRECT).
  * - The address checked is the one the socket connects to: a lookup function on the connection
  *   itself (node:http's `lookup` option, which node:net calls when it connects, with `all: true`
@@ -308,8 +309,9 @@ function decoderOf(encoding) {
  */
 
 /**
- * A guardedFetch with other means for tests: a stand-in for dns.lookup, plain http to loopback, a
- * certificate authority to trust. Not part of the package's API.
+ * A guardedFetch with other means: a stand-in for dns.lookup and a certificate authority to trust
+ * (tests), plain http to loopback (tests, and issuer.js for a test issuer on this machine). Not part
+ * of the package's API.
  * @param {{ lookup?: Function, allowHttpLoopback?: boolean, ca?: string | Buffer }} [means]
  * @returns {(url: string | URL, request?: GuardedRequest) => Promise<GuardedResponse>}
  */

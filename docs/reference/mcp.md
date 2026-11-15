@@ -544,6 +544,16 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 - At start the server reads the issuer's metadata (RFC 8414, then OpenID Connect discovery; its
   `issuer` must match exactly, its `jwks_uri` must be on the issuer's origin unless `jwksUri` is set),
   with a time limit and no redirects. Until it has it, `/mcp` answers 503 and the server keeps trying.
+- Every request to the issuer (metadata, keys, a download link's sign-in, whose token endpoint must
+  be on the issuer's origin unless `output.downloads.signIn.tokenUrl` names it) follows the rules of the
+  server's other outbound requests: `https://` only, no redirects, no proxy from the environment, the
+  address checked where the connection goes, at most 256 KiB of metadata and 256 KiB of keys (a
+  larger key set is refused, and no token verifies against it). Link-local and cloud metadata
+  addresses are never reached; loopback and private addresses only with `auth.intranet: true`, for
+  an issuer in your LAN or cluster (Keycloak, Authentik). An IP address as the host works only in
+  `auth.issuer` or `auth.jwksUri` itself. A refused request is a warning in the log that names the
+  setting, and `check-config` prints a PROBLEM for an issuer on such an address. For a certificate
+  of your own authority, set `NODE_EXTRA_CA_CERTS` to its file.
   It reads the metadata again every hour, and when a token names a key the JWKS does not hold, so a
   moved `jwks_uri` works without a restart; after a read that found nothing new (or failed, which
   keeps what is loaded) the next such read waits a minute, so made-up key ids cannot hammer the
@@ -567,7 +577,8 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `auth.jwksUri` | the issuer's | Another place for the keys |
 | `auth.requireTyp` | none | Require a token type, e.g. `at+jwt` (rejects ID tokens where the provider marks access tokens) |
 | `auth.clockTolerance` | 30 | Seconds of clock difference |
-| `auth.allowInsecureIssuer` | false | Accept an `http://` issuer: for a test issuer on this machine only |
+| `auth.intranet` | false | The issuer (and `jwksUri`) may be on a loopback or private address: an issuer in your LAN or cluster |
+| `auth.allowInsecureIssuer` | false | Accept an `http://` issuer on a loopback address: for a test issuer on this machine only |
 | `auth.clientProfiles`, `auth.scopeProfiles` | none | The policy profile of an OAuth client id or scope ([profiles](rest.md#profiles)) |
 | `auth.groupProfiles` | none | A person's group to a profile, `[{ "group": "finance", "profile": "finance" }]`: the first entry whose group the token carries wins ([groups](#groups)) |
 | `auth.groupsClaim` | `groups` | The claim with the person's groups, a list of texts |

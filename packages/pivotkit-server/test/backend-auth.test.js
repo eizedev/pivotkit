@@ -565,6 +565,44 @@ test("token exchange: the token endpoint from the issuer's metadata, only on the
     }
 });
 
+test("token exchange: the issuer's metadata is read under auth.issuer's rules (auth.intranet), and a refused private issuer names the setting", async () => {
+    routes.set("/v1/vms", json({ items: VMS }));
+    routes.set("/oauth/token", tokenEndpoint());
+    const file = secretFile(SECRET);
+    const issuer = `https://auth.example.test:${port}/`;
+    const original = authMeans.discover;
+    const rulesSeen = [];
+    authMeans.discover = async (given, rules) => {
+        rulesSeen.push(rules);
+        return { issuer: given, token_endpoint: `https://auth.example.test:${port}/oauth/token` };
+    };
+    const auth = { tokenExchange: { audience: "platform-api", clientId: "p", clientSecret: { file }, intranet: true } };
+    try {
+        for (const intranet of [true, undefined]) {
+            tokenCache.clear();
+            const context = await contextOf(optionsOf(auth, { auth: { ...OAUTH, issuer, ...(intranet ? { intranet } : {}) } }));
+            try {
+                await describe(context, person("ana"));
+            } finally {
+                await context.close();
+            }
+            assert.equal(rulesSeen.at(-1)?.intranet, intranet === true, `auth.intranet ${intranet}`);
+        }
+    } finally {
+        authMeans.discover = original;
+    }
+    // the real discover: an issuer on a loopback address is refused without auth.intranet
+    tokenCache.clear();
+    const refused = await contextOf(optionsOf(auth, { auth: { ...OAUTH, issuer: `https://127.0.0.1:${port}/` } }));
+    try {
+        const error = await failure(describe(refused, person("ana")));
+        assert.equal(error.code, "SOURCE_UNAVAILABLE");
+        assert.ok(refused.lines.some((l) => /the issuer's metadata could not be read for the token endpoint; for an issuer on an internal address set auth\.intranet: true/.test(l.message)), JSON.stringify(refused.lines));
+    } finally {
+        await refused.close();
+    }
+});
+
 test("a source only a signed-in person can use: not listed and not found without a subject, never schedulable", async () => {
     routes.set("/xchg", tokenEndpoint());
     routes.set("/v1/vms", json({ items: VMS }));

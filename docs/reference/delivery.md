@@ -66,6 +66,7 @@ same rules for closed sources.
 | `output.downloads.signIn.clientSecret` | none (a public client with PKCE) | Its secret, a secret reference, sent as HTTP Basic (or in the form where the provider only takes `client_secret_post`) |
 | `output.downloads.signIn.issuer` | `auth.issuer` | May be left out; when given, it must equal `auth.issuer` (a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did) |
 | `output.downloads.signIn.scopes` | `["openid"]` | What the sign-in asks for; must hold `openid` |
+| `output.downloads.signIn.tokenUrl` | the metadata's `token_endpoint` | The token endpoint the code (and the client secret) goes to, `https://`. Without it the metadata's endpoint must be on the issuer's own origin; set it for a provider that keeps it on another host |
 
 `bind: "signIn"` needs `auth.mode: "oauth"`, `http.publicUrl` with `https://` and
 `signIn.clientId`; the server does not start without them. Without `http.publicUrl`, a server on
@@ -99,8 +100,11 @@ several audiences must name this client as `azp`). Register at the provider:
 The link holds the person only as a keyed digest of the link's own random part, the issuer and the
 subject: it does not tell who it is for, and two links of one person cannot be tied to each other.
 
-ID tokens must be signed with a key from the issuer's `jwks_uri` (RS256, ES256 and the like); tokens
-signed with the client secret (HS256) are not accepted. Someone signed in as another account gets
+ID tokens must be signed with a key from the issuer's key set (`auth.jwksUri`, else the metadata's
+`jwks_uri` on the issuer's origin, as for access tokens; RS256, ES256 and the like); tokens signed
+with the client secret (HS256) are not accepted. The issuer's metadata, keys and token endpoint are
+requested under the rules of [the server's issuer](mcp.md#oauth): an issuer on a private address
+needs `auth.intranet: true`. Someone signed in as another account gets
 403 "You are signed in as a different account than the one that asked for this report." No session
 outlives the download: the short cookie that holds the sign-in under way is cleared with the answer.
 
