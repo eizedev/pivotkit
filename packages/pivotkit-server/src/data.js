@@ -2,9 +2,10 @@
  * The data of a source for an operation: read a file the safe way (pivotkit-cli/files), drop the
  * columns the policy hides, encode, and keep the last few data sets (by the file's identity, size and
  * time, or a table job's key), so a model's run of describe, validate and render reads a file once
- * (a code source's data is kept by sources/run.js). Each data set says when it is from (asOf, sources/as-of.js). Used inside
- * a compute worker (file sources, tables loaded in the main thread, uploaded files) and in the main
- * thread (code sources of a library host).
+ * (a code source's data is kept by sources/run.js). Each data set says when it is from (asOf, sources/as-of.js). Encoding
+ * and the operation run inside a compute worker (file sources, tables loaded in the main thread,
+ * uploaded files); in the main thread only a code source's rows are read once into a plain table
+ * (codeTable), so the host's code stays in its process.
  */
 
 import { stat } from "node:fs/promises";
@@ -176,10 +177,11 @@ function keysOf(row, max) {
  * What a code source's load() gave, read once into plain values (the host's code, getters and toJSON,
  * runs only here, and its errors are the source's): checked against the run limits a file has (rows
  * before any is read, columns, cells), texts cut at limits.textLength, hidden fields left out. Rows
- * (`[{...}]` or `{ rows, asOf }`) or columnar data (`{ columns, types?, data, asOf? }`).
+ * (`[{...}]` or `{ rows, asOf }`) or columnar data (`{ columns, types?, data, asOf? }`), always as
+ * columnar data (posted to a worker at a third of the cost of row objects).
  * @param {unknown} loaded
  * @param {SourceSpec} spec
- * @returns {{ rows: Array<Record<string, unknown>> | null, columnar: { columns: string[], types?: string[], data: unknown[][] } | null, asOf: unknown, hidden: number }}
+ * @returns {{ columnar: { columns: string[], types?: string[], data: unknown[][] }, asOf: unknown, hidden: number }}
  */
 function loadedTable(loaded, spec) {
     const limits = { ...LIMITS, ...spec.limits };
@@ -207,8 +209,7 @@ function loadedTable(loaded, spec) {
             throw overLimit("importCells", rows.length * keys.size, limits.importCells, "cells");
         }
         const hide = new Set(hiddenOf(spec.levels, [...keys]));
-        const copy = rows.map((row, i) => Object.fromEntries(rowKeys[i].filter((k) => !hide.has(fieldKey(k))).map((k) => [k, plainOf(row[k], limits.textLength)])));
-        return { rows: copy, columnar: null, asOf, hidden: hide.size };
+        return { columnar: columnsOfRows(rows, rowKeys, hide, limits.textLength), asOf, hidden: hide.size };
     }
     if (!shape || typeof shape !== "object" || typeof shape.column === "function" || !Array.isArray(shape.columns) || !Array.isArray(shape.data)) {
         throw ownError(new OperationError("INTERNAL", "a code source returns rows, { rows, asOf } or columnar data ({ columns, types, data, asOf }), not encoded data, so hidden fields can be dropped"));
@@ -227,32 +228,68 @@ function loadedTable(loaded, spec) {
     const types = Array.isArray(shape.types) ? Array.from(shape.types, (t) => (typeof t === "string" ? t : undefined)) : undefined;
     const data = columns.map((_, i) => (Array.isArray(shape.data[i]) ? Array.from(shape.data[i], (v) => plainOf(v, limits.textLength)) : []));
     const hide = hiddenOf(spec.levels, columns);
-    return { rows: null, columnar: withoutHidden({ columns, types, data }, hide), asOf, hidden: hide.length };
+    return { columnar: withoutHidden({ columns, types, data }, hide), asOf, hidden: hide.length };
 }
 
 /** A host's asOf as a plain value (a Date read without its own methods). */
 const plainAsOf = (value) => (value instanceof Date ? Date.prototype.getTime.call(value) : typeof value === "string" || typeof value === "number" ? value : undefined);
 
 /**
- * A code source's loaded data (what its load() gave), checked against the run limits, hidden fields
- * dropped and encoded; asOf the source's own (parsed, sources/as-of.js), else now. Keeping and
- * reusing it is sources/run.js's. Errors of pivotkit's own checks and of encoding the plain copy are
- * marked (ownError); an error of the host's code while its data is read is the source's failure.
+ * Rows as columnar data, read as encode() reads rows: keys that differ only in case are one column,
+ * named by its first spelling, a later value of a row wins, a missing value is null. Hidden fields
+ * (by their field key) are left out, and their values are never read.
+ * @param {unknown[]} rows
+ * @param {string[][]} rowKeys  each row's own keys
+ * @param {Set<string>} hide  the field keys of the hidden fields
+ * @param {number} max  limits.textLength
+ */
+function columnsOfRows(rows, rowKeys, hide, max) {
+    /** @type {Map<string, number>} a column by its name in lower case */
+    const index = new Map();
+    /** @type {Map<string, number>} each spelling's column, -1 for a hidden field (decided once per spelling) */
+    const columnOf = new Map();
+    /** @type {string[]} */
+    const columns = [];
+    /** @type {unknown[][]} */
+    const data = [];
+    for (let r = 0; r < rows.length; r++) {
+        const row = /** @type {Record<string, unknown>} */ (rows[r]);
+        for (const k of rowKeys[r]) {
+            let c = columnOf.get(k);
+            if (c === undefined) {
+                c = hide.has(fieldKey(k)) ? -1 : index.get(k.toLowerCase());
+                if (c === undefined) {
+                    c = columns.length;
+                    index.set(k.toLowerCase(), c);
+                    columns.push(k);
+                    data.push(new Array(rows.length).fill(null));
+                }
+                columnOf.set(k, c);
+            }
+            if (c >= 0) {
+                data[c][r] = plainOf(row[k], max);
+            }
+        }
+    }
+    return { columns, data };
+}
+
+/**
+ * A code source's loaded data (what its load() gave) as a plain table for a worker (a table job):
+ * checked against the run limits, hidden fields dropped (`hidden` counts them, since the worker no
+ * longer sees them); asOf the source's own (parsed, sources/as-of.js), else now, fixed here so kept
+ * data keeps its time. Keeping and reusing it is sources/run.js's; encoding it is the worker's
+ * (tableData). Errors of pivotkit's own checks are marked (ownError); an error of the host's code
+ * while its data is read is the source's failure.
  * @param {SourceSpec} spec
  * @param {unknown} loaded
- * @returns {import("pivotkit-report/operations").SourceData & { hidden: number, stats: import("./stats.js").SourceStats }}
+ * @returns {{ table: { columns: string[], types?: string[], data: unknown[][] }, hidden: number, asOf: string }}
  */
 export function codeTable(spec, loaded) {
     // the host's code runs here: its errors pass unmarked
-    const { rows, columnar, asOf, hidden } = loadedTable(loaded, spec);
-    try {
-        const data = encode(/** @type {any} */ (rows ?? columnar), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        // when the host says the data is from, else when load() gave it
-        return { data, notes: [], hidden, asOf: (asOf !== undefined ? asOfText(asOf) : null) ?? asOfText(new Date()), stats: sourceStats(data), name: spec.name, schedulable: spec.schedulable };
-    } catch (e) {
-        // only plain values are encoded here: whatever fails is pivotkit's
-        throw ownError(e instanceof PivotkitError ? asOperationError(e, spec.name) : new OperationError("INTERNAL", "internal error"));
-    }
+    const { columnar, asOf, hidden } = loadedTable(loaded, spec);
+    // when the host says the data is from, else when load() gave it
+    return { table: columnar, hidden, asOf: (asOf !== undefined ? asOfText(asOf) : null) ?? /** @type {string} */ (asOfText(new Date())) };
 }
 
 /**
@@ -263,8 +300,9 @@ export function codeTable(spec, loaded) {
  * @param {string | null} key  sources/keys.js tableKeyOf
  * @param {string | null} [asOf]  when the data is from (sources/as-of.js asOfText)
  * @param {import("pivotkit-report/operations").Finding[]} [notes]
+ * @param {number} [dropped]  hidden fields the main thread already left out (a code source's), counted with those dropped here
  */
-export function tableData(spec, table, key, asOf = null, notes = []) {
+export function tableData(spec, table, key, asOf = null, notes = [], dropped = 0) {
     const of = (read) => ({ ...read, name: spec.name, schedulable: spec.schedulable });
     if (key !== null && cache.has(key)) {
         return of(remember(key, cache.get(key)));
@@ -277,7 +315,7 @@ export function tableData(spec, table, key, asOf = null, notes = []) {
     const hide = hiddenOf(spec.levels, columns);
     try {
         const data = encode(/** @type {any} */ (withoutHidden(/** @type {any} */ (columnar), hide)), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
-        const out = { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data), asOf: asOf ?? asOfText(new Date()) };
+        const out = { data, notes: cleanNotes(notes, hide), hidden: hide.length + dropped, stats: sourceStats(data), asOf: asOf ?? asOfText(new Date()) };
         return of(key !== null ? remember(key, out) : out);
     } catch (e) {
         throw asOperationError(e, spec.name);

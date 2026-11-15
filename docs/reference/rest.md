@@ -605,8 +605,9 @@ A configured source may be an operator's backend, an [HTTP source](sources.md#ht
 [code source](sources.md#code):
 `load(params, { caller, signal })` returns an array of row objects, `{ rows, asOf }` or columnar data
 `{ columns, types, data }` with one array per column (not `encode()`'s result, so hidden fields can
-be dropped). It runs in the host's thread, not in a worker; its `signal` is aborted after `timeMs`
-(30 s by default). The data is kept per caller, values and policy levels while `version(params,
+be dropped). `load` runs in the host's thread and its `signal` is aborted after `timeMs` (30 s by
+default); the report over its data is computed in a worker under `compute.timeMs` and
+`compute.memoryMb` ([where it runs](sources.md#code-thread)). The data is kept per caller, values and policy levels while `version(params,
 { caller })` gives the same value or for `ttl` seconds (`cacheShared: true`: one copy for all
 callers), parallel calls share one load, and after a transient failure the last good data stands in
 for up to `maxStale` seconds, with `stale` in the result. A `SourceError` answers its code with its

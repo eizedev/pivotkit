@@ -62,7 +62,8 @@ is shared by all callers, `cacheShared`): what it does with them is the host's d
 token itself goes to no source. The data a code source loaded is kept in the server's memory per
 person (at most 64 loads and 256 MiB in all) until newer loads push it out, also after its
 `maxStale` has passed or the person lost access: it is not given to anyone then, but it stays in
-memory until it is pushed out or the process restarts.
+memory until it is pushed out or the process restarts. Each compute worker (`compute.workers`) also keeps
+the last four data sets it computed, under the same per-person key, until newer ones push them out.
 
 An [HTTP source](reference/sources.md#http) sends the values a caller passes for its parameters to
 the operator's backend, in the address the operator configured, and nothing else of the caller: no

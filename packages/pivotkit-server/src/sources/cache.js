@@ -1,8 +1,8 @@
 /*
- * The process cache of loaded data (code sources, and HTTP sources later): encoded data by a key
- * (sources/keys.js canonical JSON), least recently used out, bounded three ways so one source or one
- * person cannot push everyone else's data out or fill the memory: at most 64 entries, at most 256 MiB
- * of encoded data (measured by encodedBytes), at most 8 entries and a quarter of the bytes per owner
+ * The process cache of loaded data (code and HTTP sources): their tables by a key (sources/keys.js
+ * canonical JSON), least recently used out, bounded three ways so one source or one person cannot
+ * push everyone else's data out or fill the memory: at most 64 entries, at most 256 MiB (each entry
+ * measured by its kind: columnarBytes for a code source's table), at most 8 entries and a quarter of the bytes per owner
  * (a person, or a shared source). A new entry pushes out its own owner's oldest entries first; an
  * entry larger than an owner's share is not kept.
  */
@@ -25,6 +25,30 @@ export function encodedBytes(data) {
         for (const entry of column.dict ?? []) {
             bytes += 16 + (typeof entry === "string" ? entry.length * 2 : 8);
         }
+    }
+    return bytes;
+}
+
+/**
+ * About how many bytes a plain columnar table takes (a code source's, sources/code.js): every cell a
+ * reference or a number (8), and each distinct text of a column once (two bytes a character and a
+ * little overhead), as the same text repeated in a column is one string in memory.
+ * @param {{ columns: string[], data: unknown[][] }} table
+ */
+export function columnarBytes(table) {
+    let bytes = 0;
+    for (const column of table.data) {
+        bytes += 8 * column.length;
+        const texts = new Set();
+        for (const value of column) {
+            if (typeof value === "string" && !texts.has(value)) {
+                texts.add(value);
+                bytes += 16 + 2 * value.length;
+            }
+        }
+    }
+    for (const name of table.columns) {
+        bytes += 16 + 2 * name.length;
     }
     return bytes;
 }

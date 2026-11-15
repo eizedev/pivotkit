@@ -27,7 +27,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   params (`{}`), aborted after 30 s (`timeMs`); data kept per caller unless `cacheShared: true`; last
   good data up to an hour old after a transient failure, with `stale` (`maxStale: 0` turns it off);
   an error thrown by `load` answers `SOURCE_UNAVAILABLE` (502) instead of `INTERNAL` (500); the data
-  has a file's limits ([code sources](https://pivotkit.eize.dev/getting-started/upgrading/#code-sources)).
+  has a file's limits; the report over it is computed in a worker under `compute.timeMs`,
+  `compute.memoryMb` and `compute.queueMs` ([code sources](https://pivotkit.eize.dev/getting-started/upgrading/#code-sources)).
 - `checkConfig(options)` checks the options as `createContext` does first and throws the same
   `ConfigError`; its second argument is optional.
 - MCP clients may send a small table of their own (`inline:`, below); `"mcp": { "data": false }`
@@ -189,6 +190,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Changed
 
+- A code source's operation is computed in a worker as a table job, as an HTTP source's: `load` and
+  the reading of its rows stay in the host's thread, the encoding and the report are bounded by
+  `compute.timeMs` and `compute.memoryMb` ([#414](https://github.com/eizedev/pivotkit/issues/414)).
+  Kept loads are measured as plain tables.
 - `ConfigError` is defined in `src/options/shared.js`; `pivotkit-server` exports it as before.
 - A pattern of a source's parameter that runs out of time on a test value is tried once more before
   it is refused at start, so a busy host does not refuse a fast pattern.

@@ -4,15 +4,15 @@
  * (resourceLimits) and a wall-clock limit (a run over it terminates the worker, which is replaced),
  * so a large file or a heavy view cannot stall the server or take the other callers' time. At most
  * `workers` runs at once; a further call waits up to `queueMs` for a free worker, then is BUSY.
- * Code sources of a library host run in the main thread (the host's code stays in its process).
+ * A code source of a library host is loaded in the main thread (the host's code stays in its
+ * process) and computed in a worker as a table job, as an HTTP source is.
  */
 
 import { Worker } from "node:worker_threads";
-import { OPERATIONS, OperationError } from "pivotkit-report/operations";
+import { OperationError } from "pivotkit-report/operations";
 import { COMPUTE_DEFAULTS } from "./config.js";
 import { codeTable } from "./data.js";
 import { isOwnError, sourceFailure } from "./sources/run.js";
-import { draftingOf } from "./policy.js";
 
 /**
  * @param {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [options]
@@ -170,58 +170,29 @@ export function createComputer(options = {}) {
         });
     }
 
-    /** A code source's own load, once: no time limit, nothing kept (sources/code.js does that). */
-    async function loadOnce(spec, source) {
+    /**
+     * A code source's own { load } (a host calling the pool itself), once: no time limit, nothing
+     * kept (sources/code.js does that), its errors answered as runLoad answers them; then a table job.
+     */
+    async function loadOnce(op, input, job, source) {
+        let read;
         try {
-            return { data: codeTable(spec, await source.load()), stale: null };
+            read = codeTable(job.spec, await source.load());
         } catch (e) {
             throw isOwnError(e) ? e : sourceFailure(e);
         }
-    }
-
-    /** Runs an operation over a code source's data (sources/code.js: loaded in this thread) in this thread. */
-    async function inThread(op, input, job, source) {
-        let hidden = 0;
-        /** @type {import("./stats.js").SourceStats | null} */
-        let stats = null;
-        /** @type {string | null} */
-        let asOf = null;
-        /** @type {{ since: string } | null} */
-        let stale = null;
-        const env = {
-            data: async () => {
-                // a code source's own { load } (a host calling the pool itself): loaded once, its own
-                // errors answered as runLoad answers them
-                const read = typeof source.read === "function" ? await source.read() : await loadOnce(job.spec, source);
-                hidden = read.data.hidden;
-                stats = read.data.stats;
-                asOf = read.data.asOf;
-                stale = read.stale;
-                return read.data;
-            },
-            link: async () => job.link ?? null,
-            template: async () => job.template,
-            limits: job.spec.limits,
-            drafting: draftingOf(job.spec.levels),
-            unknownItems: true,
-            ...(job.locale ? { locale: job.locale } : {}),
-            ...(job.timeZone ? { timeZone: job.timeZone } : {}),
-            ...(job.now !== undefined ? { now: job.now } : {}),
-            ...(op === "render_view" && (input.format === "svg" || input.format === "html") ? { echarts: await import("echarts") } : {})
-        };
-        const outcome = await OPERATIONS[op].run(input, env);
-        return { outcome, hidden, stats, asOf, stale };
+        return inWorker(op, input, { ...job, table: read.table, tableKey: null, asOf: read.asOf, dropped: read.hidden });
     }
 
     return {
         /**
          * @param {string} op
          * @param {any} input
-         * @param {{ spec: import("./data.js").SourceSpec, link?: any, template?: string, locale?: string, timeZone?: string, now?: any, table?: { columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] }, upload?: { bytes: Uint8Array, format: string, sheet?: string }, tableKey?: string | null, asOf?: string | null }} job
-         *   a table job (data loaded in this thread, computed in a worker): table or upload, with tableKey (sources/keys.js; null: not kept) and asOf
-         * @param {{ read: () => Promise<{ data: any, stale: { since: string } | null }> } | { load: () => unknown }} [source]  a code source's data (sources/code.js: time limit, kept data, last good data), or its own load, called once
+         * @param {{ spec: import("./data.js").SourceSpec, link?: any, template?: string, locale?: string, timeZone?: string, now?: any, table?: { columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] }, upload?: { bytes: Uint8Array, format: string, sheet?: string }, tableKey?: string | null, asOf?: string | null, dropped?: number }} job
+         *   a table job (data loaded in this thread, computed in a worker): table or upload, with tableKey (sources/keys.js; null: not kept), asOf and the hidden fields already left out (dropped)
+         * @param {{ load: () => unknown }} [source]  a code source's own load, called once in this thread
          */
-        run: (op, input, job, source) => (source ? inThread(op, input, job, source) : inWorker(op, input, job)),
+        run: (op, input, job, source) => (source ? loadOnce(op, input, job, source) : inWorker(op, input, job)),
         /** The workers alive (0 once closed). */
         size: () => (closed ? 0 : pool.filter((s) => !s.exited).length),
         async close() {

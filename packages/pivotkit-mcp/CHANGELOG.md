@@ -56,7 +56,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   `NOT_READY` and `TIMEOUT` keep their own words. Release pivotkit-server first: this version needs
   its new exports (`serverTextOf`, `withRequestId`, `callerFields`, `offeredScopes`).
 - Code sources of a library host have a time limit, share parallel loads, keep data per caller and
-  give last good data with `stale` after a transient failure; a failing load is `SOURCE_UNAVAILABLE`
+  give last good data with `stale` after a transient failure; a failing load is `SOURCE_UNAVAILABLE`;
+  the report over their data is computed in a worker under `compute.timeMs` and `compute.memoryMb`
   ([code sources](https://pivotkit.eize.dev/reference/sources/#code)).
 
 ## [0.1.1] - 2026-11-14

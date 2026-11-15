@@ -1,6 +1,8 @@
 /*
  * Code sources of a library host (sources.<id>.load): the host's own function, called in the main
- * thread (the host's code stays in its process), the operation with it. Every load is
+ * thread (the host's code stays in its process); its rows are read once into a plain table there,
+ * and the operation over them runs in a worker as a table job (compute.js, bounded by
+ * compute.timeMs and compute.memoryMb), as an HTTP source's do. Every load is
  * load(params, { caller, signal }) and version(params, { caller }): `params` the caller's checked
  * values ({} for a source without params), `caller` a frozen view of the caller (auth.js callerView,
  * never a token; null for a source with cacheShared), `signal` aborted at the source's timeMs.
@@ -38,8 +40,8 @@ import { randomBytes } from "node:crypto";
 import { callerView, identityKey } from "../auth.js";
 import { codeTable } from "../data.js";
 import { CODE_DEFAULTS } from "../options/code.js";
-import { encodedBytes } from "./cache.js";
-import { canonicalJson } from "./keys.js";
+import { columnarBytes } from "./cache.js";
+import { canonicalJson, tableKeyOf } from "./keys.js";
 import { loadRunner } from "./run.js";
 
 /** What a source without params gets as its params. */
@@ -71,11 +73,13 @@ function ownerOf(caller, shared) {
 
 /**
  * Loads a code source's data for a caller (or reuses it): sources/run.js with the source's limits.
+ * `tableKey` names this load's table for the worker (a new load has a new one, so a worker never
+ * answers from an older table; null without an identity: nothing kept).
  * @param {any} resolved  registry.resolve's
  * @param {import("../registry.js").Caller} caller
  * @param {any} log
  * @param {AbortSignal} [signal]  the caller's request: the call stops waiting when it fires
- * @returns {Promise<{ data: any, stale: { since: string } | null }>}
+ * @returns {Promise<{ value: { table: { columns: string[], types?: string[], data: unknown[][] }, hidden: number, asOf: string, serial: string }, stale: { since: string } | null, tableKey: string | null }>}
  */
 export async function loadCode(resolved, caller, log, signal = undefined) {
     const source = resolved.source;
@@ -90,7 +94,7 @@ export async function loadCode(resolved, caller, log, signal = undefined) {
     const person = identityKey(caller) ?? `client:${caller.client}`;
     const key = owner === null ? null : canonicalJson(["code", name, spec.id, params, owner, spec.levels, spec.timeZone ?? null, spec.limits]);
     const ran = await loadRunner.runLoad(key, (signal) => source.load(params, { caller: view, signal }), {
-        prepare: (loaded) => codeTable(spec, loaded),
+        prepare: (loaded) => ({ ...codeTable(spec, loaded), serial: randomBytes(9).toString("base64url") }),
         source: name,
         label: spec.id,
         bucket: person,
@@ -99,11 +103,14 @@ export async function loadCode(resolved, caller, log, signal = undefined) {
         ttl: source.ttl ?? CODE_DEFAULTS.ttl,
         maxStale: source.maxStale ?? CODE_DEFAULTS.maxStale,
         version: source.version ? () => source.version(params, { caller: view }) : null,
-        sizeOf: (read) => encodedBytes(read.data),
+        sizeOf: (read) => columnarBytes(read.table),
         log,
         ...(signal ? { signal } : {})
     });
-    return { data: ran.value, stale: ran.stale };
+    // this load's table (its serial) for the same owner as the load's key; a caller without an
+    // identity gets no key, so the worker keeps nothing of it either
+    const tableKey = tableKeyOf({ kind: "code", id: `${name}:${spec.id}`, configHash: canonicalJson([ran.value.serial, spec.timeZone ?? null]), params, identity: owner, levels: spec.levels, limits: spec.limits });
+    return { value: ran.value, stale: ran.stale, tableKey };
 }
 
 export const codeKind = Object.freeze({
@@ -112,7 +119,7 @@ export const codeKind = Object.freeze({
     },
 
     /**
-     * Runs an operation over the host's data in this thread.
+     * Loads the host's data in this thread and runs the operation over it in a worker.
      * @param {any} computer
      * @param {string} op
      * @param {any} input
@@ -122,7 +129,9 @@ export const codeKind = Object.freeze({
      * @param {any} log  the server's log
      * @param {{ signal?: AbortSignal }} [how]  signal: the caller's request
      */
-    run(computer, op, input, resolved, base, caller, log, how = {}) {
-        return computer.run(op, input, { ...base, spec: resolved.spec }, { read: () => loadCode(resolved, caller, log, how.signal) });
+    async run(computer, op, input, resolved, base, caller, log, how = {}) {
+        const { value, stale, tableKey } = await loadCode(resolved, caller, log, how.signal);
+        const ran = await computer.run(op, input, { ...base, spec: resolved.spec, table: value.table, tableKey, asOf: value.asOf, dropped: value.hidden });
+        return { ...ran, asOf: ran.asOf ?? value.asOf, stale };
     }
 });

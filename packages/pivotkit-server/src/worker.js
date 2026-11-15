@@ -1,6 +1,6 @@
 /*
  * A compute worker: runs one operation of pivotkit-report's table over a file source, a table the
- * main thread loaded or a file handed in (a table job) at a time, with its own cache of data sets
+ * main thread loaded (an HTTP or code source's) or a file handed in (a table job) at a time, with its own cache of data sets
  * (data.js). The main thread gives it the operation, its input and what it needs (the source's spec,
  * the link target, the template text, the table) and gets back the outcome with when the data is
  * from, or an error's code and message; the policy is applied in the main thread. A run over its time is ended by
@@ -17,7 +17,7 @@ import { draftingOf } from "./policy.js";
 let echarts = null;
 
 parentPort?.on("message", async (job) => {
-    const { id, op, input, spec, link, template, locale, timeZone, now, table, upload, tableKey, asOf: given } = job;
+    const { id, op, input, spec, link, template, locale, timeZone, now, table, upload, tableKey, asOf: given, dropped } = job;
     try {
         if (!Object.hasOwn(OPERATIONS, op)) {
             throw new OperationError("INTERNAL", "unknown operation");
@@ -32,7 +32,7 @@ parentPort?.on("message", async (job) => {
         let asOf = null;
         const env = {
             data: async () => {
-                const data = table ? tableData(spec, table, tableKey ?? null, given ?? null) : upload ? await uploadData(spec, upload, tableKey ?? null, given ?? null) : await fileData(spec);
+                const data = table ? tableData(spec, table, tableKey ?? null, given ?? null, [], dropped ?? 0) : upload ? await uploadData(spec, upload, tableKey ?? null, given ?? null) : await fileData(spec);
                 hidden = /** @type {any} */ (data).hidden ?? 0;
                 stats = /** @type {any} */ (data).stats ?? null;
                 asOf = /** @type {any} */ (data).asOf ?? null;

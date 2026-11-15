@@ -166,7 +166,7 @@ with code sources check [Code sources](#code-sources). Over HTTP with an output 
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
 | [Request ids](#request-ids) | you parse the log or MCP tool errors, or a program reads problem documents | accept the new members and the id at the end of a tool error |
-| [Code sources](#code-sources) | you embed pivotkit-server or pivotkit-mcp with a source that has `load` | check the time limit, the per-caller cache and `cacheShared`; read `stale` |
+| [Code sources](#code-sources) | you embed pivotkit-server or pivotkit-mcp with a source that has `load` | check the time limit, the per-caller cache and `cacheShared`; read `stale`; reports are computed in a worker under `compute.*` |
 | [HTTP sources](../reference/sources.md#http) | you want an API's data as a source without writing code | add `sources.<id>.http` with typed `params`, test it with `pivotkit-server check-source` |
 | [Backend sign-in](../reference/sources.md#http-auth) | the API needs credentials, or each person should see only their own rows | add `http.auth` (a secret header, client credentials or a token exchange) or a parameter with `claim`; for a token exchange, restrict the exchange at your provider |
 | [Data in the request](#data-in-request) | you run the MCP server, or a program should send its own data over REST | nothing, or `mcp.data: false` to switch it off on MCP; `data: true` in a profile to allow it on REST |
@@ -288,6 +288,11 @@ they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next re
   your own words.
 - The data has a file's limits: `limits.rows`, `limits.columns`, `limits.importCells`
   (`LIMIT_EXCEEDED`), and texts are cut at `limits.textLength`.
+- The report over a code source's data is computed in a worker, as for a file
+  ([where it runs](../reference/sources.md#code-thread)): it answers `TIMEOUT` after `compute.timeMs`
+  (30 s), `LIMIT_EXCEEDED` over `compute.memoryMb` (1024 MB), and `BUSY` when no worker is free
+  within `compute.queueMs`. A host that computed long reports over its own data raises these, or
+  `compute.workers`.
 
 `check-config` given these options lists each code source with its time limit and how its data is
 kept.

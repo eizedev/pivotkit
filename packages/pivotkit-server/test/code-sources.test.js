@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { OperationError } from "pivotkit-report/operations";
 import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, serverTextOf, validateOptions } from "pivotkit-server";
-import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.js";
+import { LOAD_CACHE, columnarBytes, createLoadCache, encodedBytes } from "../src/sources/cache.js";
 import { LOAD_LIMITS, createLoadRunner, isTransient, sourceFailure } from "../src/sources/run.js";
 import { call, restServer, workspace } from "./helpers.js";
 
@@ -924,4 +924,68 @@ test("the warning about a hung load is not given for a slow load that ended in t
     await wait(80);
     assert.ok(!lines.some(([, m]) => /still holds a load slot/.test(m)), JSON.stringify(lines));
     assert.equal(runner.running("s"), 0);
+});
+
+/** A code source's large table: `n` rows of four columns, as columnar data (cheap to build). */
+const largeTable = (n) => ({
+    columns: ["Region", "Team", "Sales", "Note"],
+    data: [Array.from({ length: n }, (_, i) => ["North", "South", "East", "West"][i % 4]), Array.from({ length: n }, (_, i) => `team-${i % 97}`), Array.from({ length: n }, (_, i) => (i * 7919) % 10_000), Array.from({ length: n }, (_, i) => `note ${i}`)]
+});
+
+test("where it runs: a code source's operation is computed in a worker, bounded by compute.timeMs; its load is kept for the next call", async () => {
+    let loads = 0;
+    const table = largeTable(400_000);
+    const context = await contextOf({ compute: { workers: 1, timeMs: 20 }, sources: { t: { load: async () => (loads++, table), ttl: 60 } } });
+    try {
+        // a timer of this thread runs while the worker computes
+        let ticks = 0;
+        const timer = setInterval(() => ticks++, 1);
+        const started = Date.now();
+        const error = await describe(context).then(
+            () => null,
+            (e) => e
+        );
+        clearInterval(timer);
+        assert.ok(error, "the call answers TIMEOUT, not a result");
+        assert.equal(error.code, "TIMEOUT", "the computation over a code source's data is bounded by compute.timeMs");
+        assert.match(error.message, /compute\.timeMs/);
+        assert.ok(ticks > 0, `the thread was not blocked (${ticks} ticks in ${Date.now() - started} ms)`);
+        assert.equal(loads, 1);
+        // the load is kept (ttl): the next call computes again, but does not load again
+        assert.equal((await failure(describe(context))).code, "TIMEOUT");
+        assert.equal(loads, 1);
+    } finally {
+        await context.close();
+    }
+});
+
+test("where it runs: the same result, hidden fields and dataAsOf as before; rows whose keys differ in case are one column", async (t) => {
+    const loadedAt = Date.UTC(2025, 10, 15, 8, 0, 0);
+    // the worker's clock is not this thread's: the time a load ended comes from here
+    t.mock.timers.enable({ apis: ["Date"], now: loadedAt });
+    const rows = [
+        { Region: "North", Sales: 10, Secret: "x" },
+        { region: "South", Sales: 20, secret: "y" },
+        { Sales: 5 }
+    ];
+    const context = await contextOf({ sources: { t: { load: async () => rows, ttl: 60, policy: { fields: { Secret: "hide" } } } } });
+    try {
+        const described = await describe(context);
+        assert.deepEqual(described.result.fields.map((f) => f.name), ["Region", "Sales"]);
+        assert.equal(described.result.hiddenFields, 1, "a field dropped before the worker still counts as hidden");
+        assert.equal(described.result.dataAsOf, "2025-11-15T08:00:00Z");
+        const rendered = await present(context, "render_view", { source: "t", view: VIEW, format: "csv" }, LOCAL);
+        assert.match(rendered.result.inline.text, /North,10/);
+        assert.match(rendered.result.inline.text, /South,20/);
+        assert.equal(rendered.result.dataAsOf, "2025-11-15T08:00:00Z", "kept data keeps the time it was loaded");
+    } finally {
+        await context.close();
+    }
+});
+
+test("the load cache measures a code source's table: 8 bytes a value, each distinct text of a column once", () => {
+    const table = { columns: ["Region", "Sales"], data: [["North", "North", "South", null], [1, 2, 3, 4]] };
+    // values 2 x 4 x 8; texts North and South (16 + 10 each); names Region and Sales (16 + 12, 16 + 10)
+    assert.equal(columnarBytes(table), 64 + 52 + 54);
+    assert.equal(columnarBytes({ columns: ["A"], data: [["x", "y", "z", "x"]] }), 32 + 3 * 18 + 18);
 });

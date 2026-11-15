@@ -316,8 +316,9 @@ give a source a function instead of a file, a [code source](sources.md#code):
 `load(params, { caller, signal })` returns rows, `{ rows, asOf }` or columnar data, and
 `version(params, { caller })` says when the data changed. `caller` is a frozen copy of who calls
 (`client`, `profile`, `scopes`, `groups`, and with OAuth `subject` and `issuer`, else null; never a
-token); `signal` is aborted after the source's `timeMs` (30 s by default). Such sources run in the
-host's thread, not in a worker. pivotkit keeps their data per caller (with its client, scopes, groups
+token); `signal` is aborted after the source's `timeMs` (30 s by default). `load` runs in the host's
+thread; the report over its data is computed in a worker under `compute.timeMs` and
+`compute.memoryMb`, as for a file ([where it runs](sources.md#code-thread)). pivotkit keeps their data per caller (with its client, scopes, groups
 and claims), values and policy levels, unless `cacheShared: true` makes one copy for all callers
 (`caller` is then null); a caller without an identity (an OAuth token without a usable subject) gets
 no kept data. Calls that need the same data while it loads share one load; after a transient failure
