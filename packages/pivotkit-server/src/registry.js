@@ -85,10 +85,14 @@ export async function createRegistry(options) {
         return source;
     }
 
-    /** Whether a field of a policy, under the server's, the source's or any profile's policy, is not "show". */
+    /**
+     * Whether a field of a source, under the server's, the source's or any profile's policy, is not
+     * "show". A policy the automatic "values" rule may apply to (`auto`, decided by the data at run
+     * time) counts as closed: that rule only ever lowers a field from "show"'s reach.
+     */
     const closedUnder = (sourcePolicy) => [undefined, ...Object.values(options.policy?.profiles ?? {})].some((profile) => {
-        const p = resolvePolicy(options.policy, sourcePolicy, profile);
-        return p.default !== "show" || [...p.fields.values()].some((l) => l !== "show");
+        const p = /** @type {any} */ (resolvePolicy(options.policy, sourcePolicy, profile));
+        return p.default !== "show" || [...p.fields.values()].some((l) => l !== "show") || Boolean(p.auto);
     });
     const closedSources = new Map([...sources.entries()].map(([id, s]) => [id, closedUnder(s.policy)]));
 
