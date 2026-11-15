@@ -8,7 +8,7 @@ import { OperationError } from "pivotkit-report/operations";
 import { SIGNED_IN, serveFetch } from "pivotkit-server";
 import { BODY_BYTES, MAX_BODY_BYTES, bodyCapOf, peekSignIn, untilSent } from "../src/listen.js";
 import { bodyBytesOf } from "../src/limits.js";
-import { CALLER_LOG_FIELDS, callerFields } from "../src/log.js";
+import { CALLER_LOG_FIELDS, callerFields, noteAnswered } from "../src/log.js";
 import { REQUEST_ID, errorDetails, requestId, withRequestId } from "../src/request-id.js";
 import { offeredScopes } from "../src/scopes.js";
 import { problem, problemOf, serverTextOf } from "../src/rest/problem.js";
@@ -418,6 +418,62 @@ test("serveFetch: a malformed request pipelined right after a refused body that 
         });
         assert.equal(told.length, 1, JSON.stringify(told));
         assert.notEqual(told[0].parserError, "HPE_INVALID_EOF_STATE");
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a request the server cannot build from its request line (TRACE, which the Fetch API refuses) is the client's: 400 and the problem's line, never the 500 of a handler that threw", async () => {
+    const problems = [];
+    const internal = [];
+    const handler = {
+        fetch: async () => Response.json({ ok: true }),
+        problem: (status) => {
+            problems.push(status);
+            return Response.json({ error: "bad request" }, { status });
+        }
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onInternalError: (entry) => internal.push(entry) });
+    try {
+        const answer = await raw(`http://127.0.0.1:${listening.port}/x`, { method: "TRACE" });
+        assert.equal(answer.status, 400);
+        assert.match(String(answer.headers["x-request-id"]), REQUEST_ID);
+        assert.deepEqual(problems, [400]);
+        assert.deepEqual(internal, []);
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a handler that throws after its precheck took a place gives the place back (the handler's release), and no second line where the request has one", async () => {
+    const released = [];
+    const internal = [];
+    const PLACE = Symbol("place");
+    const handler = {
+        precheck: async (_request, info) => {
+            info[PLACE] = () => released.push("place");
+            return null;
+        },
+        release: (info) => {
+            info[PLACE]?.();
+            delete info[PLACE];
+        },
+        fetch: async (request) => {
+            if (new URL(request.url).pathname === "/logged") {
+                // the request wrote its own line before it failed
+                noteAnswered();
+            }
+            throw new Error("unexpected");
+        }
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onInternalError: (entry) => internal.push(entry) });
+    try {
+        assert.equal((await raw(`http://127.0.0.1:${listening.port}/x`, { method: "POST", body: "{}" })).status, 500);
+        assert.deepEqual(released, ["place"]);
+        assert.equal(internal.length, 1);
+        assert.equal((await raw(`http://127.0.0.1:${listening.port}/logged`, { method: "POST", body: "{}" })).status, 500);
+        assert.deepEqual(released, ["place", "place"]);
+        assert.equal(internal.length, 1, "the request's own line is its one line");
     } finally {
         await listening.close();
     }

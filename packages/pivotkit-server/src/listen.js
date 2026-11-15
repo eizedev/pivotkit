@@ -172,6 +172,7 @@ export function pathOfTarget(target) {
  * @property {(request: Request, info: { address: string }) => Promise<Response>} fetch
  * @property {(request: Request, info: { address: string }) => Promise<Response | null>} [precheck]  checks before the body is read: a Response to send, or null to go on
  * @property {(status: 400 | 413, path: string, info?: Record<string | symbol, any>) => Response} [problem]  the answer for a body that cannot be read (path: the request's; info: the one the precheck had)
+ * @property {(info: Record<string | symbol, any>) => void} [release]  gives back what the precheck took for a request (a place for a large body) when it ends without the handler's own answer
  */
 
 /**
@@ -319,8 +320,13 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         res.on("close", () => abort.abort());
         /** @type {import("./request-id.js").RequestScope | null} the request's, once its headers are read */
         let scope = null;
-        /** Whether the body is being read: a failure then is the body's (400 or 413), else the handler's (500). */
-        let reading = false;
+        /**
+         * Whose a failure is: the client's while its request is built from the request line and
+         * headers ("request": a method or header the Fetch API refuses, such as TRACE) and while its
+         * body is read ("body"), both 400 or 413; the handler's otherwise (500).
+         * @type {"request" | "handler" | "body"}
+         */
+        let phase = "request";
         try {
             // every value of a repeated header: node:http keeps only the first Authorization (and drops
             // the others) in req.headers, so two tokens would pass as one; joined, the auth check sees both
@@ -339,6 +345,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const head = new Request(url, { method: req.method, headers });
             const inScope = requestScopeFor(head, info, { trustProxy });
             scope = inScope;
+            phase = "handler";
             const early = handler.precheck ? await withRequestScope(inScope, () => /** @type {any} */ (handler.precheck)(head, info)) : null;
             // the body's cap, decided once the precheck has signed the caller in (it is in info)
             const cap = bodyCapOf(bodyBytes, head, info);
@@ -359,9 +366,9 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 res.end(Buffer.from(await early.arrayBuffer()));
                 return;
             }
-            reading = true;
+            phase = "body";
             const body = req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req, cap);
-            reading = false;
+            phase = "handler";
             const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
             const response = await withRequestScope(inScope, () => handler.fetch(request, info));
             res.writeHead(response.status, { ...Object.fromEntries(response.headers), "x-request-id": inScope.id });
@@ -408,9 +415,14 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 return;
             }
             const failed = scope ?? requestScopeFor(null, info, { trustProxy });
-            if (!reading && e?.status !== 413) {
-                // the handler threw (not the body's reading): a 500 with no detail, told once
-                withRequestScope(failed, () => onInternalError?.({ status: 500, requestId: failed.id }));
+            if (phase === "handler" && e?.status !== 413) {
+                // the handler threw: a 500 with no detail; what its precheck took is given back (the
+                // handler's release, as its problem() does), and it is told unless the request wrote
+                // its line already
+                handler.release?.(info);
+                if (!failed.answer?.logged) {
+                    withRequestScope(failed, () => onInternalError?.({ status: 500, requestId: failed.id }));
+                }
                 markMidBody(req);
                 res.writeHead(500, { "content-type": "application/json", connection: "close", "x-request-id": failed.id });
                 res.end(JSON.stringify({ error: "internal error", requestId: failed.id }));

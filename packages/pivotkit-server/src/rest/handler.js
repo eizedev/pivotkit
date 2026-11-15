@@ -127,7 +127,7 @@ async function readJson(request, max, detail) {
  * The REST service of a context.
  * @param {any} context  createContext's
  * @param {{ env?: Record<string, string | undefined>, loopback?: boolean }} [runtime]  env: where static tokens are read (default process.env); loopback: whether the server listens on loopback only
- * @returns {Promise<{ fetch(request: Request, info?: { address?: string }): Promise<Response>, precheck(request: Request, info?: { address?: string }): Promise<Response | null>, problem(status: 400 | 413, path: string, info?: Record<string | symbol, any>): Response, handles(path: string): boolean, close(): Promise<void>, openapi(): Record<string, unknown> }>}
+ * @returns {Promise<{ fetch(request: Request, info?: { address?: string }): Promise<Response>, precheck(request: Request, info?: { address?: string }): Promise<Response | null>, problem(status: 400 | 413, path: string, info?: Record<string | symbol, any>): Response, release(info: Record<string | symbol, any>): void, handles(path: string): boolean, close(): Promise<void>, openapi(): Record<string, unknown> }>}
  */
 export async function createRestHandler(context, runtime = {}) {
     const options = context.options;
@@ -419,6 +419,17 @@ export async function createRestHandler(context, runtime = {}) {
         return response;
     }
 
+    /**
+     * Gives back a place for a large body the precheck took for a request, once (fetch when the
+     * request ran, problem when its body could not be read, serveFetch when the handler threw).
+     * @param {Record<string | symbol, any>} info
+     */
+    function release(info) {
+        const give = info[LARGE_PLACE];
+        delete info[LARGE_PLACE];
+        give?.();
+    }
+
     return {
         handles,
         openapi,
@@ -448,9 +459,10 @@ export async function createRestHandler(context, runtime = {}) {
                 return withRequestIdHeader(await withRequestIdMember(/** @type {Response} */ (response), scope.id), scope.id);
             } finally {
                 // a place for a large body, held since the precheck: given back once the request ran
-                info[LARGE_PLACE]?.();
+                release(info);
             }
         },
+        release,
         /**
          * The answer to a body that cannot be read (serveFetch's problem): 413 or 400, with the
          * request's id, also on a log line.
@@ -461,7 +473,7 @@ export async function createRestHandler(context, runtime = {}) {
         problem(status, path, info = {}) {
             const scope = requestScopeFor(null, info, { trustProxy });
             // the body was not read (too large, or the client left): its place is free again
-            info[LARGE_PLACE]?.();
+            release(info);
             const cap = restBodyBytesAt(options, peekSignIn(info)?.caller, new URL(path, "http://localhost").pathname);
             withRequestScope(scope, () => context.log.refused({ status, path: REST_BASE, reason: refusalReason(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT"), ...(status === 413 ? { limit: cap } : {}) }));
             return withRequestIdHeader(problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? bodyTooLargeText(options, cap) : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: scope.id } }), scope.id);

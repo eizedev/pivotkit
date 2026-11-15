@@ -390,7 +390,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - A client that stops sending its body after a 413 leaves one `refused` line, not a second one of
   the HTTP parser.
 - A handler that throws is answered 500 without detail and logged as one `refused` line at `error`
-  with reason `internal`.
+  with reason `internal`; a place it held for a large body is given back. A request whose method or
+  headers cannot be read as a request (such as `TRACE`) is the client's: 400, `bad_request`.
 - check-config prints a source's policy rules in that source's own spelling, never another
   source's.
 - An `http://` `auth.issuer` with download sign-in and no `output.downloads.signIn.issuer` is

@@ -222,6 +222,8 @@ export async function createServerHandler(options, runtime) {
                 const response = await logUnanswered(context.log, scope, await withRequestScope(scope, () => routes.fetch(request, info)), routeFamily(request));
                 return withRequestIdHeader(/** @type {Response} */ (response), scope.id);
             },
+            /** @type {import("./listen.js").FetchHandler["release"]} */
+            release: (info) => rest?.release(info),
             problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than 2 MiB, the most this service takes" : "the request cannot be read")),
             async close() {
                 downloads.close();
