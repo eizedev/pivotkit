@@ -1411,3 +1411,25 @@ test("the pool: a CSV read whose callers all went away stops, its worker replace
         await computer.close();
     }
 });
+
+test("packed tables: a number column with -0 stays Float64, so -0 comes back as -0", () => {
+    const packed = packTable({ columns: ["N"], data: [[1, -0]] }, 2, 0);
+    const column = /** @type {any} */ (packed.columns[0]);
+    assert.equal(column.values.constructor, Float64Array);
+    const back = /** @type {any} */ (unpackTable(packed));
+    assert.ok(Object.is(back.data[0][1], -0), "an integer array would give 0");
+});
+
+test("an async prepare that ignores the signal: when every caller left before it resolved, its value is not kept", async () => {
+    const runner = createLoadRunner();
+    const reading = gate();
+    const leave = new AbortController();
+    const first = runner.runLoad("k", async () => "old", unitHow({ ttl: 60, signal: leave.signal, prepare: async (raw) => (await reading.opened, raw) }).how);
+    await wait(10);
+    leave.abort();
+    await assert.rejects(first);
+    reading.open();
+    await wait(10);
+    assert.deepEqual(runner.size(), { entries: 0, bytes: 0 });
+    assert.equal((await runner.runLoad("k", async () => "fresh", unitHow({ ttl: 60 }).how)).value, "fresh");
+});

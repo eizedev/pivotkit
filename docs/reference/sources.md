@@ -438,7 +438,8 @@ What a CSV answer takes in memory:
   four bytes per row, and whole numbers in one, two or four bytes; other numbers and dates take 8
   bytes. It is about the size of the answer or smaller: a million rows of four columns with a
   distinct text in one (27.5 MB of CSV) take about 28 MB, a million rows of eight small whole
-  numbers (19 MB) 8 MB.
+  numbers (19 MB) 8 MB. Packing costs the first call some time: for that million rows with a
+  distinct text about 1.2 s instead of 1.1 s (measured on a laptop); later calls are as fast.
 - It counts against `sourceCache.maxMb` as a code source's table does (see
   [code sources](#code-cache)): a table over a quarter of it is not kept, every call asks the
   backend again, and the log says so once an hour per source, naming `sourceCache.maxMb`.
