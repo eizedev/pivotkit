@@ -10,6 +10,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { LIMITS, closest } from "pivotkit-core";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
+import { REST_BASE, SOURCE_ID } from "pivotkit-cli/rest";
 import { POLICY_LEVELS } from "./policy.js";
 
 export class ConfigError extends Error {
@@ -171,8 +172,8 @@ export const OPTION_KEYS = Object.freeze({
     baseDir: "string"
 });
 
-/** A source id: letters, digits, "_", "-", "." (no "file:", no path). */
-export const SOURCE_ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
+/** A source id: letters, digits, "_", "-", "." (no "file:", no path); pivotkit-cli/rest's, which the CLI checks an id against. */
+export { SOURCE_ID } from "pivotkit-cli/rest";
 
 /** Checks a value against a schema of the small language above; throws ConfigError with the key's path. */
 function check(value, schema, path) {
@@ -371,8 +372,8 @@ export async function loadConfig(file) {
     return { ...options, baseDir: options.baseDir ? resolve(dirname(resolve(file)), options.baseDir) : dirname(resolve(file)) };
 }
 
-/** The REST service's path. */
-export const REST_BASE = "/api/v1";
+/** The REST service's path (pivotkit-cli/rest's, the CLI's remote mode names it). */
+export { REST_BASE } from "pivotkit-cli/rest";
 
 /**
  * The REST service's OAuth resource: rest.resource, else the origin of auth.resource with /api/v1

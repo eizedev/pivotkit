@@ -5,7 +5,10 @@
  * Contract (docs/reference/cli.md): exit code 0 done, 1 findings (an error in the view, or a warning
  * with --strict), 2 a usage, file, limit or template error. --json writes one object on stdout:
  * { ok, exitCode, command, findings: [{ severity, code, path, message, suggestion }], error?: { kind,
- * code, message }, output?, ... }. No network; with --now the output is the same on every run.
+ * code, message }, output?, ... }; a server's error (kind "remote") adds its status and retryAfter.
+ * Locally no network; with --now the output is the same on every run. With --url or --source,
+ * render, validate and describe run on a pivotkit-server's source and `sources` lists them
+ * (remote-commands.js); which options act where is the option table's `where` (commands.js).
  */
 
 import { createRequire } from "node:module";
@@ -17,13 +20,14 @@ import xlsxReader from "pivotkit-xlsx";
 import { readViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { OPERATIONS, findingOf } from "pivotkit-report/operations";
-import { COMMANDS, DOCS, SHELLS, optionsOf } from "./commands.js";
-import { CliError, asCliError, printable, shortName } from "./errors.js";
+import { COMMANDS, DOCS, SHELLS, WHERE, optionsOf } from "./commands.js";
+import { CliError, RemoteError, asCliError, printable, shortName } from "./errors.js";
 import { examples, tryLine, writeExample } from "./examples.js";
 import { completionScript, helpText } from "./help.js";
 import { INFO_NOTES } from "./files.js";
 import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, quoteArg, viewFileFor } from "./layout-view.js";
 import { allowedDirs, readSafe, readStdin, writeSafe } from "./safe-files.js";
+import { remoteCommand } from "./remote-commands.js";
 import { resolve as resolvePath } from "node:path";
 import { stat } from "node:fs/promises";
 
@@ -171,6 +175,9 @@ export async function main(argv, io) {
             return 0;
         }
         command = argv[0];
+        if (command === "serve") {
+            throw new CliError("usage", "UNKNOWN_COMMAND", 'the server is a package of its own: use "pivotkit-server serve" (npm install --global pivotkit-server pivotkit-mcp)');
+        }
         if (!Object.hasOwn(COMMANDS, command)) {
             throw new CliError("usage", "UNKNOWN_COMMAND", `unknown command ${printable(JSON.stringify(command))}${didYouMean(command, Object.keys(COMMANDS))}; run "pivotkit help"`);
         }
@@ -195,18 +202,31 @@ export async function main(argv, io) {
             io.stdout.write(completionScript(/** @type {any} */ (shell)));
             return 0;
         }
-        // defaults from the environment; an option given wins
+        // remote mode: --url or --source on the command line (PIVOTKIT_URL alone is only the address), or sources
+        const remote = command === "sources" || values.url !== undefined || values.source !== undefined;
+        checkWhere(command, values, remote);
+        // defaults from the environment; an option given wins; a variable of an option that does not act in this mode is not used
         /** @type {Record<string, string>} the options whose value came from an environment variable */
         const fromEnv = {};
+        const unused = [];
         for (const [name, spec] of Object.entries(optionsOf(command))) {
             if (spec.env && values[name] === undefined && io.env[spec.env]) {
+                if ((remote && spec.where === "local") || (!remote && spec.where === "remote")) {
+                    if (remote) unused.push(spec.env);
+                    continue;
+                }
                 values[name] = io.env[spec.env];
                 fromEnv[name] = spec.env;
             }
         }
+        if (unused.length && !values.quiet) {
+            say(`note: ${unused.join(", ")} ${unused.length === 1 ? "is" : "are"} not used with a server (the server's settings and the view's apply)`);
+        }
         checkValues(values, fromEnv);
         const ctx = await context(values, io);
-        const outcome = command === "render" ? await renderCommand(positionals, values, ctx) : command === "validate" ? await validateCommand(positionals, values, ctx) : command === "example" ? await exampleCommand(positionals, values, ctx) : await describeCommand(positionals, values, ctx);
+        const outcome = remote
+            ? await remoteCommand(/** @type {any} */ (command), positionals, values, ctx, { version: versions()["pivotkit-cli"], readView, withMap, renderFormat, checkNotInput, ignoredOptions, formatNames: FORMAT_NAMES })
+            : command === "render" ? await renderCommand(positionals, values, ctx) : command === "validate" ? await validateCommand(positionals, values, ctx) : command === "example" ? await exampleCommand(positionals, values, ctx) : await describeCommand(positionals, values, ctx);
         findings = outcome.findings;
         const failing = findings.filter((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
         const exitCode = failing.length > 0 ? 1 : 0;
@@ -238,11 +258,37 @@ export async function main(argv, io) {
             error.message = `${error.message}; see "pivotkit help ${command}"`;
         }
         if (json) {
-            io.stdout.write(`${JSON.stringify({ ok: false, exitCode: 2, command, findings, error: { kind: error.kind, code: error.code, message: error.message } })}\n`);
+            // a server's error: its HTTP status (null without an answer) and the seconds it asks to wait
+            const remote = error instanceof RemoteError ? { status: error.status, retryAfter: error.retryAfter } : {};
+            io.stdout.write(`${JSON.stringify({ ok: false, exitCode: 2, command, findings, error: { kind: error.kind, code: error.code, message: error.message, ...remote } })}\n`);
         } else {
             say(`pivotkit: ${error.message}`);
         }
         return 2;
+    }
+}
+
+/**
+ * An option given where it does not act (the table's `where`) is a usage error that names it, never
+ * silently ignored: a local one with a server (--data with --source), a server's one without.
+ * @param {string} command
+ * @param {Record<string, any>} values  as given on the command line
+ * @param {boolean} remote
+ */
+function checkWhere(command, values, remote) {
+    if (!["render", "validate", "describe", "sources"].includes(command)) {
+        return;
+    }
+    for (const [name, spec] of Object.entries(optionsOf(command))) {
+        if (values[name] === undefined) {
+            continue;
+        }
+        if (remote && spec.where === "local") {
+            throw new CliError("usage", "NOT_REMOTE", `--${name} is not available with --source or --url (${WHERE.local}: it acts on local data and files)`);
+        }
+        if (!remote && spec.where === "remote") {
+            throw new CliError("usage", "NEEDS_SERVER", `--${name} acts ${WHERE.remote} only: give --url (or PIVOTKIT_URL) and --source`);
+        }
     }
 }
 
@@ -708,24 +754,18 @@ function ignoredOptions(values, format) {
         .map(([name, spec]) => ({ severity: "warning", code: "ignoredOption", path: "", message: `--${name} does nothing in ${format} (only in ${spec.formats.join(", ")})` }));
 }
 
-async function renderCommand(positionals, values, ctx) {
-    if (positionals.length > 1) {
-        throw new CliError("usage", "EXTRA_ARGUMENT", `render takes one view, not ${positionals.length}`);
-    }
+/**
+ * render's output, checked before anything is read (locally and with a server): -o and --json, the
+ * name's extension against -f, no workbook to a terminal. The format.
+ * @param {Record<string, any>} values
+ * @param {any} ctx
+ */
+function renderFormat(values, ctx) {
     if (values.output === "-") {
         throw new CliError("usage", "BAD_VALUE", "-o -: the output goes to stdout when -o is left out");
     }
     if (values.json && !values.output) {
         throw new CliError("usage", "JSON_NEEDS_OUTPUT", "--json writes the result on stdout: give the output a file with -o");
-    }
-    // the inputs an output must not replace: the data (the argument with layout flags), else the view and --data
-    /** @type {Array<[string | undefined, string]>} */
-    const inputs = fromFields(values) ? [[positionals[0] ?? values.data, "data"]] : [[values.link === undefined ? positionals[0] : undefined, "view"], [values.data, "data"]];
-    if (values.output !== undefined) {
-        await checkNotInput(ctx, "-o", values.output, inputs, "output");
-    }
-    if (values["save-view"] !== undefined) {
-        await checkNotInput(ctx, "--save-view", values["save-view"], inputs.filter(([, what]) => what === "data"), "view file");
     }
     if (values.format && values.output) {
         // -o t.html -f csv would write CSV into an .html file: the name and the format must agree
@@ -738,6 +778,23 @@ async function renderCommand(positionals, values, ctx) {
     const format = values.format ?? formatOf(values.output);
     if (!values.output && format === "xlsx" && ctx.io.stdout.isTTY) {
         throw new CliError("usage", "BINARY_TO_TERMINAL", "an XLSX file is not shown in a terminal: write it to a file with -o, or redirect stdout");
+    }
+    return format;
+}
+
+async function renderCommand(positionals, values, ctx) {
+    if (positionals.length > 1) {
+        throw new CliError("usage", "EXTRA_ARGUMENT", `render takes one view, not ${positionals.length}`);
+    }
+    const format = renderFormat(values, ctx);
+    // the inputs an output must not replace: the data (the argument with layout flags), else the view and --data
+    /** @type {Array<[string | undefined, string]>} */
+    const inputs = fromFields(values) ? [[positionals[0] ?? values.data, "data"]] : [[values.link === undefined ? positionals[0] : undefined, "view"], [values.data, "data"]];
+    if (values.output !== undefined) {
+        await checkNotInput(ctx, "-o", values.output, inputs, "output");
+    }
+    if (values["save-view"] !== undefined) {
+        await checkNotInput(ctx, "--save-view", values["save-view"], inputs.filter(([, what]) => what === "data"), "view file");
     }
     checkSaveView(values);
     const made = fromFields(values) ? await viewFromData(positionals, values, ctx, "render") : null;

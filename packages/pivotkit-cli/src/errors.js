@@ -11,7 +11,7 @@ import { PivotkitError } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
 
-/** @typedef {"usage" | "io" | "limit" | "template" | "internal"} ErrorKind */
+/** @typedef {"usage" | "io" | "limit" | "template" | "remote" | "internal"} ErrorKind */
 
 export class CliError extends Error {
     /**
@@ -24,6 +24,26 @@ export class CliError extends Error {
         this.name = "CliError";
         this.kind = kind;
         this.code = code;
+    }
+}
+
+/**
+ * A pivotkit-server's refusal (an RFC 9457 problem), an answer that is none of a pivotkit-server, or
+ * a network error: kind "remote" with the HTTP status (null without an answer) and the seconds the
+ * server asks to wait (Retry-After), else null. The message holds fixed words, the problem's code
+ * and its cleaned detail only.
+ */
+export class RemoteError extends CliError {
+    /**
+     * @param {string} code
+     * @param {string} message
+     * @param {{ status?: number | null, retryAfter?: number | null }} [more]
+     */
+    constructor(code, message, { status = null, retryAfter = null } = {}) {
+        super("remote", code, message);
+        this.name = "RemoteError";
+        this.status = status;
+        this.retryAfter = retryAfter;
     }
 }
 

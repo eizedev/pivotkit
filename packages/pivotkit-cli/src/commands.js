@@ -19,8 +19,13 @@ import { CATALOG } from "pivotkit-core";
  * @property {string[]} [formats]  render: the output formats it acts in (given with another, a warning)
  * @property {string[]} [commands]  a global option: the commands it acts in, whose help lists it (every
  *   command still takes it, so a script can pass it to all); default every command
+ * @property {"local" | "remote"} [where]  where it acts: "local" on local data and files only (with --url or
+ *   --source a usage error that names it), "remote" against a server only; left out: both (WHERE)
  * @property {string} text  one line of help
  */
+
+/** Where an option acts, as the help writes it. */
+export const WHERE = Object.freeze({ local: "local only", remote: "with a server" });
 
 /** The documentation site, from package.json's homepage (its CLI page): "https://pivotkit.eize.dev/". */
 export const DOCS = new URL("/", createRequire(import.meta.url)("../package.json").homepage).href;
@@ -30,25 +35,25 @@ export const GLOBAL_OPTIONS = Object.freeze({
     json: { type: "boolean", text: "Write the result as one JSON object on stdout (render: needs -o)." },
     quiet: { type: "boolean", short: "q", text: "Write no notes and warnings to stderr; errors still." },
     verbose: { type: "boolean", commands: ["render", "validate", "describe"], text: "Also write how the data was read (encoding, separator, sheet) to stderr." },
-    locale: { type: "string", value: "tag", env: "PIVOTKIT_LOCALE", commands: ["render", "describe"], text: "Numbers, dates and the report's words in this locale when the view names none, and the names of groupings (default en-US; de-DE: German)." },
-    "time-zone": { type: "string", value: "zone", env: "PIVOTKIT_TIME_ZONE", commands: ["render", "validate", "describe"], text: "Time zone of the data's dates and of the generated time (default UTC)." },
-    now: { type: "string", value: "date", env: "PIVOTKIT_NOW", commands: ["render"], text: 'The "today" of relative date filters and the generated time; fix it for the same output on every run.' },
-    limit: { type: "string", multiple: true, value: "key=n", commands: ["render", "validate", "describe"], text: "Set one of pivotkit-core's limits (rows=200000); may be given more than once." },
+    locale: { type: "string", value: "tag", env: "PIVOTKIT_LOCALE", where: "local", commands: ["render", "describe"], text: "Numbers, dates and the report's words in this locale when the view names none, and the names of groupings (default en-US; de-DE: German)." },
+    "time-zone": { type: "string", value: "zone", env: "PIVOTKIT_TIME_ZONE", where: "local", commands: ["render", "validate", "describe"], text: "Time zone of the data's dates and of the generated time (default UTC)." },
+    now: { type: "string", value: "date", env: "PIVOTKIT_NOW", where: "local", commands: ["render"], text: 'The "today" of relative date filters and the generated time; fix it for the same output on every run.' },
+    limit: { type: "string", multiple: true, value: "key=n", where: "local", commands: ["render", "validate", "describe"], text: "Set one of pivotkit-core's limits (rows=200000); may be given more than once." },
     "allow-dir": { type: "string", multiple: true, value: "dir", complete: "dir", text: "Read and write only inside this directory (symbolic links and .. resolved); may be given more than once." },
     help: { type: "boolean", short: "h", text: "Show the help of the command." }
 });
 
 /** @type {Readonly<Record<string, OptionSpec>>} Options of commands that read data. */
 const DATA_OPTIONS = Object.freeze({
-    data: { type: "string", value: "file", complete: "file", text: "The data: a CSV, JSON or XLSX file, or - for stdin." },
-    "data-format": { type: "string", value: "format", choices: ["csv", "json", "xlsx"], text: "The data's format; needed for stdin, else taken from the file's extension." },
-    sheet: { type: "string", value: "name", text: "The sheet of a workbook to read (default the one the view names, else the first visible one)." }
+    data: { type: "string", value: "file", complete: "file", where: "local", text: "The data: a CSV, JSON or XLSX file, or - for stdin." },
+    "data-format": { type: "string", value: "format", where: "local", choices: ["csv", "json", "xlsx"], text: "The data's format; needed for stdin, else taken from the file's extension." },
+    sheet: { type: "string", value: "name", where: "local", text: "The sheet of a workbook to read (default the one the view names, else the first visible one)." }
 });
 
 /** @type {Readonly<Record<string, OptionSpec>>} Options of commands that read a view. */
 const VIEW_OPTIONS = Object.freeze({
-    link: { type: "string", value: "url", text: "Read the view from a pivotkit link (an address or its #fragment) instead of <view>." },
-    key: { type: "string", value: "key", text: "The report's key in the link (when its page has more than one report)." }
+    link: { type: "string", value: "url", where: "local", text: "Read the view from a pivotkit link (an address or its #fragment) instead of <view>." },
+    key: { type: "string", value: "key", where: "local", text: "The report's key in the link (when its page has more than one report)." }
 });
 
 /**
@@ -65,6 +70,26 @@ const LAYOUT_OPTIONS = Object.freeze({
     filter: { type: "string", multiple: true, value: "json", text: 'A filter as a view writes it, as JSON or @file.json: {"field":"Region","type":"in","items":["North"]}.' },
     "chart-type": { type: "string", value: "type", choices: [...CATALOG.chartTypes], text: "Show the chart of this type (with layout flags or --suggest)." },
     map: { type: "string", multiple: true, value: "old=new", text: "The view's field old is the data's new (a column renamed since the view was made): --map Revenue=Turnover." }
+});
+
+/** The default of --timeout, in seconds. */
+export const REMOTE_TIMEOUT = 30;
+
+/**
+ * @type {Readonly<Record<string, OptionSpec>>} Running a command against a pivotkit-server (its REST
+ * service) instead of local files: --url or --source starts remote mode, PIVOTKIT_URL alone is only
+ * the default address. The token comes from --token-file or PIVOTKIT_TOKEN, never from a flag's value.
+ */
+const SERVER_OPTIONS = Object.freeze({
+    url: { type: "string", value: "url", env: "PIVOTKIT_URL", where: "remote", text: "Run against this pivotkit-server: its REST address, https://host/api/v1 (http only for localhost, 127.0.0.1 or [::1])." },
+    "token-file": { type: "string", value: "file", complete: "file", where: "remote", text: "Read the server's token from this file (a regular file of at most 4 KiB) instead of PIVOTKIT_TOKEN." },
+    timeout: { type: "string", value: "s", where: "remote", text: `Give up when the server has not answered within this many seconds (default ${REMOTE_TIMEOUT}).` }
+});
+
+/** @type {Readonly<Record<string, OptionSpec>>} The server's options of render, validate and describe: with the source to run on. */
+const REMOTE_OPTIONS = Object.freeze({
+    source: { type: "string", value: "id", where: "remote", text: "Run on this source of the server (pivotkit sources lists them) instead of a data file; needs --url or PIVOTKIT_URL." },
+    ...SERVER_OPTIONS
 });
 
 /**
@@ -86,26 +111,27 @@ export const COMMANDS = Object.freeze({
             ...VIEW_OPTIONS,
             ...DATA_OPTIONS,
             ...LAYOUT_OPTIONS,
-            "save-view": { type: "string", value: "file", complete: "file", text: "Also write the view used as a view file (after --map; with layout flags or --suggest the view they make)." },
+            ...REMOTE_OPTIONS,
+            "save-view": { type: "string", value: "file", complete: "file", where: "local", text: "Also write the view used as a view file (after --map; with layout flags or --suggest the view they make)." },
             format: { type: "string", short: "f", value: "format", choices: ["html", "csv", "json", "xlsx", "svg"], text: "The output's format; default -o's extension (another one is an error), html on stdout." },
             output: { type: "string", short: "o", value: "file", complete: "file", text: "Write to this file (replaced if it is a file) instead of stdout; the data file and the view file are refused." },
-            template: { type: "string", value: "file", complete: "file", formats: ["html"], text: "html: the print template with {{placeholders}} (default the built-in one)." },
+            template: { type: "string", value: "file", complete: "file", where: "local", formats: ["html"], text: "html: the print template with {{placeholders}} (default the built-in one)." },
             title: { type: "string", value: "text", formats: ["html", "xlsx"], text: "html, xlsx: the report's title (default the view file's name)." },
             chart: { type: "string", value: "when", choices: ["auto", "on", "off"], formats: ["html"], text: "html: the chart above the table: auto (when the view shows the chart), on or off." },
-            width: { type: "string", value: "px", formats: ["svg", "html"], text: "svg, html: the chart's width (default 800)." },
-            height: { type: "string", value: "px", formats: ["svg", "html"], text: "svg, html: the chart's height (default 480)." },
-            bom: { type: "string", value: "when", choices: ["auto", "on", "off"], formats: ["csv"], text: "csv: a byte order mark first, so Excel reads UTF-8: auto (in a file of -o, not on stdout), on or off." },
-            lenient: { type: "boolean", text: "Write the output also when the view has errors (as the report shows it); the exit code is still 1." },
+            width: { type: "string", value: "px", where: "local", formats: ["svg", "html"], text: "svg, html: the chart's width (default 800)." },
+            height: { type: "string", value: "px", where: "local", formats: ["svg", "html"], text: "svg, html: the chart's height (default 480)." },
+            bom: { type: "string", value: "when", where: "local", choices: ["auto", "on", "off"], formats: ["csv"], text: "csv: a byte order mark first, so Excel reads UTF-8: auto (in a file of -o, not on stdout), on or off." },
+            lenient: { type: "boolean", where: "local", text: "Write the output also when the view has errors (as the report shows it); the exit code is still 1." },
             strict: { type: "boolean", text: "Warnings are findings too (exit 1)." }
         },
-        examples: ["pivotkit render sales.pivotkit.json --data sales.csv -o sales.html", 'pivotkit render sales.xlsx --rows Region --cols Month --group Month:yearMonth --values sum:Revenue -o sales.html', "pivotkit render sales.csv --suggest -o draft.html --save-view draft.pivotkit.json", "pivotkit render view.json --data - --data-format csv --format csv < sales.csv > out.csv", "pivotkit render view.json --data sales.xlsx -o chart.svg --now 2026-11-13"]
+        examples: ["pivotkit render sales.pivotkit.json --data sales.csv -o sales.html", 'pivotkit render sales.xlsx --rows Region --cols Month --group Month:yearMonth --values sum:Revenue -o sales.html', "pivotkit render sales.csv --suggest -o draft.html --save-view draft.pivotkit.json", "pivotkit render view.json --data - --data-format csv --format csv < sales.csv > out.csv", "pivotkit render view.json --data sales.xlsx -o chart.svg --now 2026-11-13", "pivotkit render sales.pivotkit.json --url https://reports.example.com/api/v1 --source sales -o sales.xlsx"]
     },
     validate: {
         usage: "pivotkit validate <view> [--data <file>] [options]",
         text: "Check a view against data (or the fields its view file lists): errors exit 1, warnings too with --strict.",
         args: [{ name: "view", text: "A view file, a view as JSON text, or - for stdin.", optional: true, complete: "file" }],
-        options: { ...VIEW_OPTIONS, ...DATA_OPTIONS, strict: { type: "boolean", text: "Warnings are findings too (exit 1)." } },
-        examples: ["pivotkit validate sales.pivotkit.json --data sales.csv --strict"]
+        options: { ...VIEW_OPTIONS, ...DATA_OPTIONS, ...REMOTE_OPTIONS, strict: { type: "boolean", text: "Warnings are findings too (exit 1)." } },
+        examples: ["pivotkit validate sales.pivotkit.json --data sales.csv --strict", "pivotkit validate sales.pivotkit.json --url https://reports.example.com/api/v1 --source sales"]
     },
     describe: {
         usage: "pivotkit describe <view | data> [options]\n       pivotkit describe <data> --suggest [-o <file>] [layout flags]",
@@ -114,13 +140,21 @@ export const COMMANDS = Object.freeze({
         options: {
             ...DATA_OPTIONS,
             ...LAYOUT_OPTIONS,
+            ...REMOTE_OPTIONS,
             output: { type: "string", short: "o", value: "file", complete: "file", text: "--suggest: write the draft view file here (replaced if it is a file) instead of stdout; the data file is refused." },
-            lenient: { type: "boolean", text: "--suggest: write the draft also when the data has nothing to group by (a count of rows); the exit code is still 1." },
+            lenient: { type: "boolean", where: "local", text: "--suggest: write the draft also when the data has nothing to group by (a count of rows); the exit code is still 1." },
             strict: { type: "boolean", text: "Warnings are findings too (exit 1)." },
-            as: { type: "string", value: "kind", choices: ["view", "data"], text: "Read the input as a view or as data (default: a view when it is one)." },
-            items: { type: "string", value: "n", text: "data: list up to n values of each field (default none: names, types and counts only)." }
+            as: { type: "string", value: "kind", where: "local", choices: ["view", "data"], text: "Read the input as a view or as data (default: a view when it is one)." },
+            items: { type: "string", value: "n", where: "local", text: "data: list up to n values of each field (default none: names, types and counts only)." }
         },
         examples: ["pivotkit describe sales.csv --json", "pivotkit describe sales.pivotkit.json --data sales.csv", "pivotkit describe sales.xlsx --suggest -o draft.pivotkit.json", 'pivotkit describe weather.csv --suggest --values "average:Mean °C"']
+    },
+    sources: {
+        usage: "pivotkit sources [id] --url <https://host/api/v1> [options]",
+        text: "List the sources of a pivotkit-server, or describe one: its fields, types and counts.",
+        args: [{ name: "id", text: "A source's id (pivotkit sources lists them); left out: the list.", optional: true }],
+        options: SERVER_OPTIONS,
+        examples: ["PIVOTKIT_URL=https://reports.example.com/api/v1 pivotkit sources", "pivotkit sources sales --url https://reports.example.com/api/v1 --token-file token.txt --json"]
     },
     example: {
         usage: "pivotkit example [name] [--list]",

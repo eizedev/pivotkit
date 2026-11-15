@@ -1,0 +1,84 @@
+// The command line in remote mode against the real REST service: pivotkit-cli's `pivotkit` spawned
+// with --url and --source, one token without results: true (validate, describe and sources work,
+// render is refused) and one whose profile has results: true (render writes the file).
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { OTHER_TOKEN, TOKEN, restServer, workspace } from "./helpers.js";
+
+const CLI = join(dirname(createRequire(import.meta.url).resolve("pivotkit-cli/package.json")), "bin", "pivotkit.js");
+const VIEW = JSON.stringify({ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] });
+
+/** pivotkit with its arguments, the token in PIVOTKIT_TOKEN. */
+function pivotkit(args, { cwd, token }) {
+    return new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, [CLI, ...args], { cwd, env: { PATH: process.env.PATH, HOME: process.env.HOME, PIVOTKIT_TOKEN: token }, stdio: ["ignore", "pipe", "pipe"] });
+        const out = [];
+        const err = [];
+        child.stdout.on("data", (c) => out.push(c));
+        child.stderr.on("data", (c) => err.push(c));
+        child.on("error", reject);
+        child.on("close", (code) => resolve({ code, stdout: Buffer.concat(out).toString("utf8"), stderr: Buffer.concat(err).toString("utf8") }));
+    });
+}
+
+test("pivotkit --url: a plain token validates, describes and lists; render needs a profile with results: true", async () => {
+    const dir = workspace();
+    writeFileSync(join(dir, "view.json"), VIEW);
+    const server = await restServer(
+        {
+            sources: { sales: { file: "data/sales.csv", policy: { fields: { Customer: "hide" } } } },
+            policy: { profiles: { export: { results: true } } },
+            auth: { mode: "token", tokens: [{ name: "reader", env: "READER" }, { name: "exporter", env: "EXPORTER", profile: "export" }] },
+            baseDir: dir
+        },
+        { env: { READER: TOKEN, EXPORTER: OTHER_TOKEN } }
+    );
+    try {
+        const plain = { cwd: dir, token: TOKEN };
+        const remote = ["--url", server.api, "--source", "sales"];
+        const sources = await pivotkit(["sources", "--url", server.api, "--json"], plain);
+        assert.equal(sources.code, 0, sources.stderr);
+        assert.deepEqual(JSON.parse(sources.stdout).sources.map((s) => s.id), ["sales"]);
+        const fields = await pivotkit(["sources", "sales", "--url", server.api, "--json"], plain);
+        assert.equal(fields.code, 0, fields.stderr);
+        const names = JSON.parse(fields.stdout).description.fields.map((f) => f.name);
+        assert.ok(names.includes("Region") && !names.includes("Customer"), "the hidden field is listed");
+        const valid = await pivotkit(["validate", "view.json", ...remote], plain);
+        assert.equal(valid.code, 0, valid.stderr);
+        assert.match(valid.stderr, /valid: no errors/);
+        const typo = await pivotkit(["validate", JSON.stringify({ rows: ["Regoin"], values: [{ field: "Sales", agg: "sum" }] }), ...remote, "--json"], plain);
+        assert.equal(typo.code, 1);
+        assert.equal(JSON.parse(typo.stdout).findings.find((f) => f.code === "unknownField").suggestion, "Region");
+        const described = await pivotkit(["describe", "view.json", ...remote], plain);
+        assert.equal(described.code, 0, described.stderr);
+        assert.match(described.stdout, /Region/);
+        const refused = await pivotkit(["render", "view.json", ...remote, "-o", "out.csv", "--json"], plain);
+        assert.equal(refused.code, 2);
+        const { error } = JSON.parse(refused.stdout);
+        assert.deepEqual([error.kind, error.code, error.status], ["remote", "NOT_ALLOWED", 403]);
+        for (const r of [sources, fields, valid, typo, described, refused]) {
+            assert.ok(!r.stdout.includes(TOKEN) && !r.stderr.includes(TOKEN));
+        }
+        const exporter = { cwd: dir, token: OTHER_TOKEN };
+        const rendered = await pivotkit(["render", "view.json", ...remote, "-o", "out.csv"], exporter);
+        assert.equal(rendered.code, 0, rendered.stderr);
+        assert.match(readFileSync(join(dir, "out.csv"), "utf8"), /^\uFEFF?Region,Sum of Sales\r?\n/);
+        if (process.platform !== "win32") {
+            assert.equal(statSync(join(dir, "out.csv")).mode & 0o777, 0o600);
+        }
+        // a view using the hidden field: the server's findings, exit 1, no file
+        const hidden = await pivotkit(["render", JSON.stringify({ rows: ["Customer"], values: [{ agg: "count" }] }), ...remote, "-o", "hidden.csv", "--json"], exporter);
+        assert.equal(hidden.code, 1, hidden.stderr);
+        assert.equal(JSON.parse(hidden.stdout).output, null);
+        const xlsx = await pivotkit(["render", "--rows", "Region", "--values", "sum:Sales", ...remote, "-o", "out.xlsx"], exporter);
+        assert.equal(xlsx.code, 0, xlsx.stderr);
+        assert.equal(readFileSync(join(dir, "out.xlsx")).subarray(0, 2).toString("latin1"), "PK");
+        assert.ok(!rendered.stderr.includes(OTHER_TOKEN) && !xlsx.stderr.includes(OTHER_TOKEN));
+    } finally {
+        await server.close();
+    }
+});
