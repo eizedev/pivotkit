@@ -14,7 +14,7 @@ it. It makes no compliance claim.
 
 | What | Where | How long | Who sees it |
 | --- | --- | --- | --- |
-| [Source data loaded for a caller](#memory) (code and HTTP sources) | the server's memory | until newer loads push it out (at most 64 loads, 256 MiB) or a restart | the caller it was loaded for, through the policy |
+| [Source data loaded for a caller](#memory) (code and HTTP sources) | the server's memory | until newer loads push it out (at most 64 loads and `sourceCache.maxMb`, default 256 MiB, a quarter per person or shared source) or a restart | the caller it was loaded for, through the policy |
 | [Reports and schedule drafts](#retention) | files in `output.dir` | 30 days by default (`output.maxAgeDays`), or until `output.maxFiles`/`output.maxMb` push them out | whoever opens their link, or can read the directory |
 | [Data sent in a request](#inline) (`inline:`) | the server's memory for one call; a report over it in `output.dir` | the call; the report as any report | the sender, through the model or program it uses |
 | [Cache keys](#memory) | the server's memory | as long as their data | nobody: values, groups and claims only as a keyed digest |
@@ -102,7 +102,8 @@ hash that means nothing outside the process), and does not log them unless you s
 them. A library host's code source receives them as `caller.subject` and `caller.issuer` (unless it
 is shared by all callers, `cacheShared`): what it does with them is the host's decision. The access
 token itself goes to no source. The data a code source loaded is kept in the server's memory per
-person (at most 64 loads and 256 MiB in all) until newer loads push it out, also after its
+person (at most 64 loads and `sourceCache.maxMb` in all, default 256 MiB, a quarter per person or
+shared source) until newer loads push it out, also after its
 `maxStale` has passed or the person lost access: it is not given to anyone then, but it stays in
 memory until it is pushed out or the process restarts. Each compute worker (`compute.workers`) keeps
 the data sets of its last four runs, of any source, without hidden fields, at most a quarter of
@@ -138,11 +139,14 @@ What reaches other services, in short:
 The server keeps in its memory, never on disk:
 
 - the data of code and HTTP sources per person (and per set of values and policy levels), at most
-  64 loads and 256 MiB in all, until newer loads push it out or the process restarts, also after
+  64 loads and `sourceCache.maxMb` in all (default 256 MiB, a quarter per person or shared
+  source), until newer loads push it out or the process restarts, also after
   `maxStale` passed or the person lost access (it is not given to anyone then). An HTTP source's
   JSON answer is kept without the columns the caller's policy hides; a CSV answer is kept as it came
   for its `ttl` and read per call, its hidden columns in memory too
   ([#433](https://github.com/eizedev/pivotkit/issues/433));
+- in each compute worker, the data sets of its last four runs without hidden fields, at most a
+  quarter of `compute.memoryMb`, until newer ones push them out or the worker is replaced;
 - exchanged backend tokens, per person, at most until the person's own token expires;
 - the keys of that data: the person, their groups, claims and values only as a keyed digest (a
   random key per process), so a memory dump does not show them in clear text, while the data
