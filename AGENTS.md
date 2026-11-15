@@ -272,9 +272,12 @@ root `package.json`: `npm run types` and the builds depend on it.
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
   auth.js), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency; one of another release that imports what this pivotkit-server lacks is refused with both versions), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
-  `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source, mcp, cli,
-  healthcheck), `src/check-source.js` (`check-source`: one load of an HTTP source, never a value
-  printed). What
+  `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source,
+  source-from-openapi, mcp, cli, healthcheck), `src/check-source.js` (`check-source`: one load of an
+  HTTP source, never a value printed), `src/openapi-source.js` (`source-from-openapi`: an HTTP source
+  block from one GET operation of an operator's OpenAPI document, read as hostile input; imported by
+  the runner's command only, never by the server; its `TODO` values are refused by
+  `options/base.js todoPaths`). What
   the REST service and the CLI's remote mode agree on (base path, source ids, token syntax, problem
   codes, loopback) is pivotkit-cli/rest's, re-exported here; `test/cli-remote.test.js` runs the CLI
   against the service.

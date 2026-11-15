@@ -97,6 +97,14 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   server would make it, with each page's status, the rows, the fields and their types (no cell
   value; literal query values as `...`), what a caller would get when it fails, and the operator's
   hint for a private address (`intranet`) or a certificate (`NODE_EXTRA_CA_CERTS`).
+- `pivotkit-server source-from-openapi <file or https URL> --operation <operationId or "GET /path">`: proposes an
+  HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (path and query
+  parameters with their types, where the rows are, the fields' descriptions, a skeleton of the
+  backend's sign-in). The document is read as untrusted input: local references only, size and
+  node budgets, no `pattern` copied, descriptions cleaned and listed for review, and no address
+  copied as a value. What the operator must decide says `TODO`, and the server refuses a value under
+  `httpSources` or a source's `http` that still does
+  ([data sources](https://pivotkit.eize.dev/reference/sources/#openapi)).
 - Parameters: a refused value's `INVALID_INPUT` names the parameter's description, example and short
   pattern; a value must have the parameter's type (a number for a `string` parameter is refused) and
   a text must be well-formed Unicode; `list_sources` adds each parameter's `pattern`, `format`,
@@ -129,9 +137,15 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   over sources whose fields are all `show` get a plain link; reports over other sources only a link
   bound to the person's sign-in (OpenID Connect code flow with PKCE against `output.downloads.signIn`,
   the issuer and subject compared with the caller's token's) or, where the operator chooses `bind: "once"`, a one-time
-  link (GET shows a page, one POST sends the file). REST callers get links to such reports only with
+  link (GET shows a page with the file's name, kind, size and expiry and a Download button, one POST
+  sends the file; the same browser may repeat it for two minutes, and for any other browser the GET
+  already answers 409 `LINK_USED`). REST callers get links to such reports only with
   `results: true`. Results carry `output.filename`, `url`, `expiresAt`, `bound` and `note`;
   `present()` returns the file's MCP `resource_link`. `check-config` prints a `Delivery:` section.
+  Each answer of the route has a page with its own title and heading (a sign-in that was cancelled,
+  one whose page is out of date and one that failed say so apart, each with the link to open again)
+  and a problem document with `requestId`, the id of the request's log line. The pages meet 4.5:1
+  contrast in both colour schemes and show a focus ring.
   `createDownloadHandler`, `linksOf` and the route's constants are exported.
 - Upload to the operator's store ([#332](https://github.com/eizedev/pivotkit/issues/332)):
   `output.upload` sends a written report to a store the operator names, either through a presign

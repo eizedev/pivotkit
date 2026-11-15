@@ -107,10 +107,18 @@ outlives the download: the short cookie that holds the sign-in under way is clea
 ## One-time links { #once }
 
 `bind: "once"` is your explicit choice for servers without a sign-in client. A GET (or HEAD) of the
-link answers a short page (light or dark, as the browser is set) with a Download button that says
-when the download has started, and never uses the link, so a chat client's link preview
-does not use it up; the button's POST sends the file once. The same browser may repeat the download
-for two minutes; anyone else gets 409 "This link was already used. Ask whoever made the report to make it again." The POST must come from the
+link answers a short page, light or dark as the browser is set. It shows the file's name, kind and
+size, until when the link works (in the browser's own time zone) and a Download button. The GET
+never uses the link, so a chat client's link preview does not use it up. The button's POST sends
+the file once.
+
+After the click the page says "Downloaded once. You can repeat it for 2 minutes, in this browser."
+That browser may repeat the download for two minutes, and its page says until when. Any other
+browser gets 409 at once, on the GET too, without a button: "This link was already used. If you
+downloaded the report earlier, look in the downloads of the browser you used. Otherwise ask whoever
+made the report to make it again."
+
+The POST must come from the
 link's own page: its `Origin` is `http.publicUrl`'s origin (the page is served with
 `Referrer-Policy: same-origin`, so the browser names it), or `Origin: null` with
 `Sec-Fetch-Site: same-origin`.
@@ -155,8 +163,11 @@ address: the address is `output.url`.
 
 ## Answers { #answers }
 
-A browser gets a short page, a program that asks for JSON (`Accept: application/json`) a problem
-document like the [REST service's](rest.md#errors).
+A browser gets a short page with a title and heading of its own for each answer (and the
+request's id where the server failed, status 500 or more), a program that asks for JSON (`Accept: application/json`) a problem document like the [REST
+service's](rest.md#errors), with `requestId`. A person quotes the id to the operator, who finds it
+on the request's log line where there is one: its `download` line, or the debug line of a link that
+does not exist.
 
 | Status | Code | When |
 | --- | --- | --- |
@@ -165,7 +176,7 @@ document like the [REST service's](rest.md#errors).
 | 409 | <a id="error-link-used"></a>`LINK_USED` | A one-time link that was used |
 | 403 | <a id="error-link-not-yours"></a>`LINK_NOT_YOURS` | Signed in as another account than the one that asked |
 | 403 | `FORBIDDEN_ORIGIN`, `FORBIDDEN_HOST` | A one-time link's POST from another page; a `Host` the server does not answer to |
-| 400 | <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED` | The sign-in did not complete: refused at the provider, the browser's sign-in cookie missing or used, or the ID token not valid |
+| 400 | <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED` | The sign-in did not complete. The page tells three cases apart: cancelled or refused at the provider ("Not signed in"); no sign-in of this browser under way, as after a reload, a tab left open for more than 10 minutes or a callback opened in another browser ("Sign-in page out of date"); the ID token not valid ("Sign-in failed"). Each says to open the download link once more |
 | 503 | <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | The server has not loaded the sign-in issuer's metadata yet (`Retry-After`) |
 
 Every answer carries `Cache-Control: no-store`, `Referrer-Policy: no-referrer` (`same-origin` on a
