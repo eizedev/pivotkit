@@ -650,6 +650,9 @@ test("a refused or timed-out upload closes its file: the count of open files sta
     for (const [what, upload, code] of cases) {
         const { context, log } = await contextOf({ sources: SOURCES, output: { dir: "out", upload: { intranet: true, ...upload } } });
         try {
+            // the context's compute workers started first: each worker's event loop opens its own
+            // files (epoll, io_uring, a pipe, an eventfd), which a worker still starting would add to the count
+            await context.computer.bounds();
             const before = openFds();
             const tries = code === "TIMEOUT" ? 3 : 20;
             for (let i = 0; i < tries; i++) {
