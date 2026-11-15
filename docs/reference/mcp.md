@@ -242,6 +242,7 @@ error that names the key and the one probably meant.
 | `output.create` | - | true | `false`: a missing `output.dir` is an error at start instead |
 | `output.baseUrl` | - | none | The address the directory is served at: file names start with 22 random characters, and results over sources whose fields are all `show` carry a `url` (others none: anyone with it could open what the model was not shown) |
 | `output.downloads` | - | on over HTTP | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` (`clientId`, `clientSecret`, `issuer`, `scopes`) |
+| `output.upload` | - | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method` (PUT), `timeMs` (30000), `maxBytes`, `keepLocal` (true), `bind` (`none`), `intranet` |
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold; a new report deletes the oldest reports, whoever made them; drafts are never deleted this way (see [REST](rest.md#running) for the trade-off) |
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
@@ -388,7 +389,7 @@ request id (source tickets; trying again later may work) (id Ab3_xY9-k2Q)`); `BU
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
 | `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)); one of pivotkit's fixed texts (not available right now; the backend refused pivotkit's access; not set up correctly), with the source's id and whether trying again may work |
 | `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`); an HTTP source's backend answered 401, 403 or 404 for the values given |
-| `UPLOAD_FAILED` | Reserved for delivery that stores reports elsewhere; this version does not answer it |
+| `UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload); a fixed text with the request id and whether trying again may work; the report stays in the output directory |
 | `INTERNAL` | Anything else: "internal error", the details only in the log with `--log debug` |
 
 ## Logging { #logging }

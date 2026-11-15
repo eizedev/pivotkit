@@ -291,6 +291,16 @@ may try to steer it:
   such a link also needs `results: true`. Links carry no internal address (none off loopback without
   `http.publicUrl`); the log never holds a token. The token is in the link's path, so proxy logs and
   browser history hold it: keep proxy logs of `/downloads/` short.
+- **Upload to the operator's store** ([details](reference/delivery.md#upload)): the store is the
+  operator's configuration, never a caller's. Requests go through the guarded fetch (`https://` only,
+  no redirects, loopback and private addresses only with `intranet`, metadata addresses never). The
+  operator's credentials are secret references and go to the presign address only; the address to
+  upload to must be on `presign.allowOrigins`, and the presign service cannot ask for credential or
+  connection headers. A link is shown only when it is `https://`, on `linkOrigins`, without user
+  name or control characters. A report over a closed source goes to the store only where the
+  operator declares its links bound (`once`, `signIn`); a store whose links anyone can open never
+  gets one. Presigned addresses, links, store tokens and answer bodies are never logged or shown;
+  a failure is `UPLOAD_FAILED` with a fixed text and the request id.
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
 - **Connections**: at most 256 at once, 16 kept for loopback clients (the health check), 5 seconds

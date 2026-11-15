@@ -10,6 +10,7 @@
 
 import { CALLBACK_PATH, DOWNLOADS_PATH, KEY_MIN_BYTES } from "../downloads.js";
 import { settingsOf } from "../options/downloads.js";
+import { uploadSettingsOf } from "../options/upload.js";
 import { isLoopback } from "../listen.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
 import { resolvePolicy } from "../policy.js";
@@ -85,24 +86,28 @@ export async function section(options, registry, runtime) {
     }
     const base = publicUrl ?? `http://${host.includes(":") ? `[${host}]` : host}:${options.http?.port ?? 3333}`;
     lines.push(`  downloads: on, links ${base}${DOWNLOADS_PATH}/<token>${publicUrl ? ` (route ${DOWNLOADS_PATH} to this service)` : ""}, expire after ${settings.expiresMinutes} minute${settings.expiresMinutes === 1 ? "" : "s"}`);
-    if (closed.length) {
+    // with an upload target, reports the store takes are check/upload.js's to describe
+    const upload = uploadSettingsOf(options);
+    const ownClosed = upload && upload.bind !== "none" ? [] : closed;
+    if (ownClosed.length) {
         // why: open needs default "show" and no field below it, for the server, the source and every profile
-        lines.push(`  closed (a field not shown for someone): ${idsText(closed.map((id) => `${id} (${whyClosed(options, id)})`))}`);
+        lines.push(`  closed (a field not shown for someone): ${idsText(ownClosed.map((id) => `${id} (${whyClosed(options, id)})`))}`);
         const rest = runtime.rest ? "; REST programs get them only with results: true" : "";
         if (settings.bind === "signIn" && settings.signIn) {
             const claim = options.auth?.subjectClaim ?? "sub";
-            lines.push(`  reports over closed sources (${idsText(closed)}): sign-in links; register ${base}${CALLBACK_PATH} at the provider for client ${settings.signIn.clientId}; it must resolve the same subject (${claim}) as the MCP client${rest}`);
+            lines.push(`  reports over closed sources (${idsText(ownClosed)}): sign-in links; register ${base}${CALLBACK_PATH} at the provider for client ${settings.signIn.clientId}; it must resolve the same subject (${claim}) as the MCP client${rest}`);
         } else if (settings.bind === "once") {
-            lines.push(`  reports over closed sources (${idsText(closed)}): one-time links${rest}`, '  warning: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters');
+            lines.push(`  reports over closed sources (${idsText(ownClosed)}): one-time links${rest}`, '  warning: one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters');
         } else {
-            lines.push(`  reports over closed sources (${idsText(closed)}): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open`);
+            lines.push(`  reports over closed sources (${idsText(ownClosed)}): no links (the file is kept; the person asks you for it); set output.downloads.signIn for links only the person can open`);
         }
     }
-    if (open.length) {
-        lines.push(`  reports over open sources (${idsText(open)}): plain links`);
+    const ownOpen = upload ? [] : open;
+    if (ownOpen.length) {
+        lines.push(`  reports over open sources (${idsText(ownOpen)}): plain links`);
     }
     // whether any report gets a link: the key and the stored names matter only then
-    const linking = open.length > 0 || (closed.length > 0 && settings.bind !== "none");
+    const linking = ownOpen.length > 0 || (ownClosed.length > 0 && settings.bind !== "none");
     if (settings.key) {
         try {
             const value = await readSecret(settings.key, options, runtime.env);

@@ -33,7 +33,7 @@ curl -s -H "Content-Type: application/json" \
 | --- | --- |
 | Run it and call it with curl and PowerShell | [Getting started: REST service](https://pivotkit.eize.dev/getting-started/rest/) |
 | Routes, profiles, downloads, sign-in, CORS, limits, errors, OpenAPI, embedding | [pivotkit-server reference](https://pivotkit.eize.dev/reference/rest/) |
-| Download links that expire, bound to the person's sign-in | [Download links](https://pivotkit.eize.dev/reference/delivery/) |
+| Download links that expire, bound to the person's sign-in; upload to your own store | [Download links](https://pivotkit.eize.dev/reference/delivery/) |
 | The container image | [Container image](https://pivotkit.eize.dev/reference/container/) |
 | Kubernetes | [Kubernetes](https://pivotkit.eize.dev/getting-started/kubernetes/) |
 | Update it (with pivotkit-mcp), and what changes between releases | [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#update) |

@@ -15,6 +15,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- Reports can go to the operator's store (pivotkit-server's `output.upload`,
+  [#332](https://github.com/eizedev/pivotkit/issues/332)): render_view then carries the store's link
+  in its text and as a `resource_link`; a failed upload is the tool error `UPLOAD_FAILED` with a
+  fixed text and the request id. Needs the pivotkit-server release of the same round.
+
 - HTTP sources of pivotkit-server ([#328](https://github.com/eizedev/pivotkit/issues/328)) in
   `sources.<id>.http`, with their parameters in `list_sources`. A `SOURCE_UNAVAILABLE` tool error says
   the fixed text its reason picks (not available right now, the backend refused pivotkit's access,

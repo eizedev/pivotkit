@@ -87,7 +87,9 @@ users: restrict the directory itself where that matters. Decide how long the log
 are kept, and who can read the output directory (a web server that serves it, `output.baseUrl`,
 makes every file reachable by its name). The server's own [download links](reference/delivery.md)
 expire (60 minutes by default) and, for sources with fields that are not shown, open only for the
-person who asked; a link is in the browser's history and a proxy's log until it expires.
+person who asked; a link is in the browser's history and a proxy's log until it expires. With an
+[upload target](reference/delivery.md#upload) reports also go to the store you name, and how long
+they stay there is that store's setting.
 
 ## The AI client { #ai-client }
 

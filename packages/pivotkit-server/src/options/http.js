@@ -64,10 +64,10 @@ export const HTTP_MAX = Object.freeze({ pages: 100, timeMs: 600_000 });
 const REFUSED_HEADERS = /^(authorization|cookie|host|content-length|transfer-encoding|connection|te|trailer|upgrade|keep-alive|accept-encoding|proxy-.*|x-forwarded-.*|forwarded)$/i;
 
 /** A header's name (RFC 9110 token). */
-const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/;
+export const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/;
 
 /** A header's value: printable Latin-1 and tab, no line break, no NUL. */
-const HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]{0,1000}$/;
+export const HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]{0,1000}$/;
 
 /** The words in a header's or query parameter's name that look like a secret's. */
 export const SECRET_NAME = /key|token|secret|auth|pass/i;
@@ -141,7 +141,7 @@ function pagingProblems(paging) {
  * What is wrong with a JSON Pointer (RFC 6901), or null.
  * @param {string} text
  */
-function pointerProblem(text) {
+export function pointerProblem(text) {
     if (text === "") {
         return null;
     }

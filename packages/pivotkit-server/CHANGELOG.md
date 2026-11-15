@@ -94,6 +94,17 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `results: true`. Results carry `output.filename`, `url`, `expiresAt`, `bound` and `note`;
   `present()` returns the file's MCP `resource_link`. `check-config` prints a `Delivery:` section.
   `createDownloadHandler`, `linksOf` and the route's constants are exported.
+- Upload to the operator's store ([#332](https://github.com/eizedev/pivotkit/issues/332)):
+  `output.upload` sends a written report to a store the operator names, either through a presign
+  service (`presign`: a POST with the operator's credentials, which names the address to upload to,
+  its headers, the link and its expiry) or an address template (`url` with `{id}`, `{name}`,
+  `{format}`), and the result shows the store's link (`url`, `expiresAt`, `bound`, `note`, and the
+  MCP `resource_link`). Reports over closed sources go there only where `bind` is `once` or
+  `signIn`; schedule drafts never. Requests go through guardedFetch (private addresses only with
+  `intranet`), the upload address must be on `presign.allowOrigins` and the link on `linkOrigins`;
+  at most two uploads at once within one `timeMs` (30 s). A failure answers `UPLOAD_FAILED` (502)
+  with a fixed text, the request id and `retryable`; the report stays in `output.dir`.
+  `check-config` prints an `Upload:` section.
 
 - A request id on every REST request and MCP tool call: on every log line written inside it, inside
   its work (a source's code, an error's details), in every REST problem document and at the end of

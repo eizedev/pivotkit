@@ -1,6 +1,6 @@
 ---
 title: Download links
-description: How pivotkit-server and pivotkit-mcp hand reports to people over HTTP - links that expire, bound to the person's sign-in for sources whose fields are withheld.
+description: How pivotkit-server and pivotkit-mcp hand reports to people over HTTP - links that expire, bound to the person's sign-in for sources whose fields are withheld, or an upload to the operator's store.
 ---
 
 # Download links
@@ -30,6 +30,10 @@ policy (the caller is a program that could open the link itself, the same rule a
 [file route](rest.md#downloads)). Reports over open sources get their link without it.
 
 Over stdio there is no HTTP server and no link: a local server keeps showing the file's path.
+
+Reports can also go to a store you run (S3, Azure Blob Storage, a file service of your own): see
+[Upload to your store](#upload). The store's link then takes the place of these links, under the
+same rules for closed sources.
 
 ## Configuration { #configuration }
 
@@ -163,6 +167,113 @@ same-origin`; a file `Content-Security-Policy: sandbox; default-src 'none'` and
 `Content-Disposition: attachment`, a page `default-src 'none'` with only its own style and the
 button's script allowed by their hashes (`style-src`, `script-src`), `form-action 'self'` and
 `frame-ancestors 'none'`. Ranges are not served. A download request takes a body of at most 1 KiB.
+
+## Upload to your store { #upload }
+
+With `output.upload`, a report is written to `output.dir` and then uploaded to a store you name; the
+result shows the store's link. You configure the store; a caller cannot name an address.
+
+```json
+{
+  "output": {
+    "dir": "reports",
+    "upload": {
+      "presign": {
+        "url": "https://store.example.com/presign",
+        "headers": { "authorization": { "prefix": "Bearer ", "value": { "env": "STORE_TOKEN" } } },
+        "uploadUrl": "/uploadUrl",
+        "uploadHeaders": "/headers",
+        "link": "/downloadUrl",
+        "expiresAt": "/expiresAt",
+        "allowOrigins": ["https://bucket.store.example.com"]
+      },
+      "linkOrigins": ["https://files.example.com"],
+      "maxBytes": 52428800
+    }
+  }
+}
+```
+
+Here pivotkit sends `POST https://store.example.com/presign` with the `authorization` header and the
+JSON `{ "filename": "Sales by region.xlsx", "mediaType": "...", "bytes": 18234, "sha256": "<hex>" }`.
+A presign service you run answers, for example:
+
+```json
+{
+  "uploadUrl": "https://bucket.store.example.com/reports/7f3a.xlsx?X-Amz-Signature=...",
+  "headers": { "x-amz-server-side-encryption": "AES256" },
+  "downloadUrl": "https://files.example.com/reports/7f3a.xlsx?sig=...",
+  "expiresAt": "2026-11-16T08:00:00Z"
+}
+```
+
+pivotkit then sends the file with `PUT` to `uploadUrl`, with `content-type`, `content-length` and the
+answer's `headers`, and shows `downloadUrl` as `output.url`, with `expiresAt`. Your credentials go to
+the presign address only, never to `uploadUrl`.
+
+Without a presign service, give an address template; `{id}` is random, `{name}` is the report's name
+as letters, digits, `.`, `_` and `-` (at most 80 characters), `{format}` its format:
+
+```json
+"upload": {
+  "url": "https://store.example.com/reports/{id}/{name}.{format}",
+  "headers": { "authorization": { "prefix": "Bearer ", "value": { "file": "secrets/store-token" } } }
+}
+```
+
+A `PUT` there makes the address itself the link. With `"method": "POST"`, `link` says where the
+answer names the stored report: a JSON Pointer (`"/url"`) or `"header:location"`.
+
+| Key | Default | What it is |
+| --- | --- | --- |
+| `output.upload.url` | none | An `https://` address template with `{id}`, `{name}` and `{format}` in its path or query; or `presign` |
+| `output.upload.headers` | none | With `url`: headers sent to the store. A value is a text, or `{ "prefix": "Bearer ", "value": <secret reference> }`; `authorization`, `cookie` and names with `key`, `token`, `secret`, `auth` or `pass` take a secret reference only |
+| `output.upload.link` | the address (`PUT`) | With `url`: a JSON Pointer into the store's answer, or `"header:location"`; required for `POST` |
+| `output.upload.expiresAt` | none | With `url`: a JSON Pointer to the link's expiry in the store's answer |
+| `output.upload.presign.url` | none | The `https://` address of your presign service |
+| `output.upload.presign.headers` | none | Headers sent to the presign service only, as `output.upload.headers` |
+| `output.upload.presign.uploadUrl`, `.link` | none | JSON Pointers to the address to upload to and to the link, in the presign answer |
+| `output.upload.presign.uploadHeaders`, `.expiresAt` | none | JSON Pointers to headers for the upload (an object of texts) and to the link's expiry |
+| `output.upload.presign.allowOrigins` | the presign address's origin | The origins `uploadUrl` may have (`https://bucket.store.example.com`) |
+| `output.upload.linkOrigins` | the origin of `url` or `presign.url` | The origins a link may have |
+| `output.upload.method` | `"PUT"` | `PUT` or `POST` for the upload |
+| `output.upload.timeMs` | 30000 | Waiting for a slot, presign and upload together, 1000 to 600000 ms |
+| `output.upload.maxBytes` | `output.maxMb` | A larger report is not uploaded (`UPLOAD_FAILED`) |
+| `output.upload.keepLocal` | true | Keep the report in `output.dir` too; with `false` it is removed once the store answered 2xx and the link was checked |
+| `output.upload.bind` | `"none"` | What the store's links do, as you declare it: `none` (anyone with the link), `once`, or `signIn` (the store checks the person) |
+| `output.upload.intranet` | false | The store may be on a loopback or private address |
+
+`output.upload` needs `output.dir` and cannot be combined with `output.baseUrl`.
+
+Which reports go to the store:
+
+| Source | `bind` | Delivery |
+| --- | --- | --- |
+| Open | any | Uploaded; the store's link (`bound` is `bind`) |
+| Closed | `once` or `signIn` | Uploaded; the store's link. Over REST only for a caller with `results: true` |
+| Closed | `none` | Not uploaded: a store whose links anyone can open never gets such a report. The server's own links apply (a sign-in link where configured), else no link |
+
+Schedule drafts are not uploaded: the host approves them in `output.dir`.
+
+What is checked: every request goes through the same guarded fetch as [HTTP sources](sources.md#http)
+(`https://` only, no redirects followed, cloud metadata and link-local addresses never, loopback and
+private addresses only with `intranet`). `uploadUrl` must be `https://` and on `allowOrigins`. The
+presign service may not ask for `host`, `content-length`, `authorization`, `cookie`, `proxy-*` or
+connection headers, nor for line breaks in a value. A link must be `https://`, on `linkOrigins`,
+without a user name or password or control characters, and at most 2048 characters. Answers are read
+up to 64 KiB. At most two uploads run at once; the file is streamed from disk. A `PUT` is tried once
+more after a dropped connection or a 502, 503 or 504 while time is left; a `POST` (the presign
+request among them) never is.
+
+When an upload fails, the caller gets `UPLOAD_FAILED` (502) with a fixed text, the request id and
+`retryable` ([REST](rest.md#error-upload-failed), [MCP](mcp.md#errors)); the report stays in
+`output.dir` (with `keepLocal: false` until it is cleaned up). The log line `upload failed` names the
+request id and a code (`PRESIGN_403`, `UPLOAD_URL`, `LINK`, `STORE_503`, `TIMEOUT`, `SECRET`, ...),
+never an address, a header or what the store answered: presigned addresses and links are
+credentials.
+
+`check-config` prints an `Upload:` section: the target, which sources' reports go there, and a
+`PROBLEM:` line for a header secret it cannot read.
 
 ## Behind a proxy { #proxy }
 
