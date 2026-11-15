@@ -1,6 +1,6 @@
 /*
  * The server's options, shared by the MCP server and the REST service: one table of every key with
- * its type (OPTION_KEYS), the check of an options object against it (validateOptions: an unknown key
+ * its type (OPTION_KEYS, composed from this module's keys and each feature's fragment in options/), the check of an options object against it (validateOptions: an unknown key
  * is an error with "did you mean"), and the configuration file (loadConfig: JSON, paths relative to
  * the file). The runners' flags are made from the same table, so the docs' configuration reference,
  * the help and the checks cannot drift apart.
@@ -12,17 +12,12 @@ import { LIMITS, closest } from "pivotkit-core";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
 import { REST_BASE, SOURCE_ID } from "pivotkit-cli/rest";
 import { POLICY_LEVELS } from "./policy.js";
-import { declaredProblems } from "./sources/params.js";
 import { STATS_DISTINCT } from "./stats.js";
+import { FRAGMENTS, composeSlots } from "./options/index.js";
+import { ConfigError } from "./options/shared.js";
 
-export class ConfigError extends Error {
-    /** @param {string} message */
-    constructor(message) {
-        super(message);
-        this.name = "ConfigError";
-        this.code = "CONFIG";
-    }
-}
+/** The error of a wrong option (options/shared.js, so a fragment can throw it without importing this module). */
+export { ConfigError } from "./options/shared.js";
 
 /**
  * @typedef {object} PolicyOptions
@@ -53,6 +48,9 @@ export class ConfigError extends Error {
  * @property {PolicyOptions} [policy]
  * @property {Record<string, { type: "string" | "integer" | "number" | "boolean", required?: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number, format?: "date", default?: string | number | boolean }>} [params]  values a caller passes with the source (a code source gets them: load(params, { caller }))
  * @property {Record<string, { description?: string }>} [fields]  the operator's words about fields, shown by describe_source (at most 500 characters each)
+ * @property {number} [ttl]  code sources: seconds a load is kept (taken, not used yet)
+ * @property {number} [maxStale]  code sources: seconds the last good data stands in after a failed load (taken, not used yet)
+ * @property {number} [timeMs]  code sources: the longest load, in ms (taken, not used yet)
  */
 
 /**
@@ -124,68 +122,72 @@ export const DEFAULT_ALGORITHMS = Object.freeze(["RS256", "PS256", "ES256", "EdD
 // A small schema language for the options: "string", "boolean", "integer", "strings" (array of
 // strings), "function", { enum: [...] }, { object: {...} } (known keys), { map: <schema> } (any keys),
 // { custom: (value) => problems } (a check of its own, each problem "<key path>: <what>").
-// POLICY holds a profile's and files.policy's keys; a source's and the server's add the "values"
-// settings, which belong to the data, not to a caller (a profile never gets the automatic rule) or a
-// file: path
-const POLICY = { object: { default: { enum: POLICY_LEVELS }, fields: { map: { enum: POLICY_LEVELS } }, items: "integer", rows: "boolean", counts: "boolean", inline: { or: [{ const: false }, { object: { cells: "integer", bytes: "integer" } }] }, results: "boolean" } };
+//
+// The table is composed: config.js's own keys below, grouped by slot (options/shared.js SLOTS), and
+// each feature's fragment (options/<feature>.js) adds its keys to a slot. A key is declared once.
+
+/** The parts of the HTTP server the runner of pivotkit-server can serve. */
+export const ENDPOINTS = Object.freeze(["mcp", "rest"]);
+
+/** A key whose schema is built from the composed slots (a top-level object, a source's policy). */
+const SLOT = Symbol("slot");
+
+/** A request limit's keys, the same for rest.* and mcp.*. */
+const RATE_LIMIT = { object: { perMinute: "integer", burst: "integer", failedAuthPerMinute: "integer" } };
+
+/** config.js's own keys by slot; the order is the one "known: ..." lists print. */
+const BASE_SLOTS = {
+    top: { sources: SLOT, files: SLOT, output: SLOT, policy: SLOT, limits: { map: "integer" }, locale: "string", timeZone: "string", compute: { object: { workers: "integer", timeMs: "integer", memoryMb: "integer", queueMs: "integer" } }, http: SLOT, auth: SLOT, mcp: SLOT, rest: SLOT, log: { enum: ["info", "debug", "off"] }, baseDir: "string" },
+    source: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: SLOT },
+    // a profile's and files.policy's keys; a source's and the server's add the "values" settings,
+    // which belong to the data, not to a caller (a profile never gets the automatic rule) or a file: path
+    policy: { default: { enum: POLICY_LEVELS }, fields: { map: { enum: POLICY_LEVELS } }, items: "integer", rows: "boolean", counts: "boolean", inline: { or: [{ const: false }, { object: { cells: "integer", bytes: "integer" } }] }, results: "boolean" },
+    http: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer", maxConnectionsPerAddress: "integer" },
+    auth: {
+        mode: { enum: ["none", "token", "oauth"] },
+        allowUnauthenticated: "boolean",
+        tokens: { list: { object: { name: "string", env: "string", file: "string", scopes: "strings", profile: "string" } } },
+        issuer: "string",
+        resource: "string",
+        audience: "strings",
+        algorithms: "strings",
+        jwksUri: "string",
+        scopesSupported: "strings",
+        requiredScopes: "strings",
+        toolScopes: { map: "strings" },
+        scopeClaim: "string",
+        clockTolerance: "integer",
+        requireTyp: "string",
+        allowInsecureIssuer: "boolean",
+        clientProfiles: { map: "string" },
+        scopeProfiles: { map: "string" }
+    },
+    mcp: { rateLimit: RATE_LIMIT, concurrency: "integer" },
+    rest: { resource: "string", audience: "strings", requiredScopes: "strings", cors: { object: { origins: "strings", maxAge: "integer" } }, openapi: { enum: ["auth", "public", "off"] }, inline: "boolean", rateLimit: RATE_LIMIT, concurrency: "integer" },
+    output: { dir: "string", create: "boolean", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer" }
+};
+
+const SLOTS = composeSlots(/** @type {any} */ (BASE_SLOTS), FRAGMENTS);
+const POLICY = { object: SLOTS.policy };
 const AUTO_VALUES_OPTION = { or: ["boolean", { object: { maxDistinct: "integer", minRowsPerValue: "integer", minRows: "integer", deny: "strings" } }] };
 /** A source's policy. */
 const SOURCE_POLICY = { object: { ...POLICY.object, valuesMax: "integer", autoValues: AUTO_VALUES_OPTION } };
 /** The server's policy: a source's, plus the named profiles. */
 const SERVER_POLICY = { object: { ...SOURCE_POLICY.object, profiles: { map: POLICY } } };
-
-/** The parts of the HTTP server the runner of pivotkit-server can serve. */
-export const ENDPOINTS = Object.freeze(["mcp", "rest"]);
+/** The schemas of the top-level keys built from a slot. */
+const FROM_SLOTS = {
+    sources: { map: { object: Object.fromEntries(Object.entries(SLOTS.source).map(([key, schema]) => [key, schema === SLOT ? SOURCE_POLICY : schema])) } },
+    files: { object: { allowDirs: "strings", list: "boolean", hardLinks: "boolean", scopes: "strings", policy: POLICY } },
+    output: { object: SLOTS.output },
+    policy: SERVER_POLICY,
+    http: { object: SLOTS.http },
+    auth: { object: SLOTS.auth },
+    mcp: { object: SLOTS.mcp },
+    rest: { object: SLOTS.rest }
+};
 
 /** Every option, nested as the options object is. */
-export const OPTION_KEYS = Object.freeze({
-    sources: { map: { object: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: SOURCE_POLICY, params: { custom: declaredProblems }, fields: { map: { object: { description: "string" } } } } } },
-    files: { object: { allowDirs: "strings", list: "boolean", hardLinks: "boolean", scopes: "strings", policy: POLICY } },
-    output: { object: { dir: "string", create: "boolean", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer" } },
-    policy: SERVER_POLICY,
-    limits: { map: "integer" },
-    locale: "string",
-    timeZone: "string",
-    compute: { object: { workers: "integer", timeMs: "integer", memoryMb: "integer", queueMs: "integer" } },
-    http: { object: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer", maxConnectionsPerAddress: "integer" } },
-    auth: {
-        object: {
-            mode: { enum: ["none", "token", "oauth"] },
-            allowUnauthenticated: "boolean",
-            tokens: { list: { object: { name: "string", env: "string", file: "string", scopes: "strings", profile: "string" } } },
-            issuer: "string",
-            resource: "string",
-            audience: "strings",
-            algorithms: "strings",
-            jwksUri: "string",
-            scopesSupported: "strings",
-            requiredScopes: "strings",
-            toolScopes: { map: "strings" },
-            scopeClaim: "string",
-            subjectClaim: "string",
-            clockTolerance: "integer",
-            requireTyp: "string",
-            allowInsecureIssuer: "boolean",
-            clientProfiles: { map: "string" },
-            scopeProfiles: { map: "string" }
-        }
-    },
-    mcp: { object: { rateLimit: { object: { perMinute: "integer", burst: "integer", failedAuthPerMinute: "integer" } }, concurrency: "integer" } },
-    rest: {
-        object: {
-            resource: "string",
-            audience: "strings",
-            requiredScopes: "strings",
-            cors: { object: { origins: "strings", maxAge: "integer" } },
-            openapi: { enum: ["auth", "public", "off"] },
-            inline: "boolean",
-            rateLimit: { object: { perMinute: "integer", burst: "integer", failedAuthPerMinute: "integer" } },
-            concurrency: "integer"
-        }
-    },
-    log: { enum: ["info", "debug", "off"] },
-    baseDir: "string"
-});
+export const OPTION_KEYS = Object.freeze(Object.fromEntries(Object.entries(SLOTS.top).map(([key, schema]) => [key, schema === SLOT ? FROM_SLOTS[/** @type {keyof typeof FROM_SLOTS} */ (key)] : schema])));
 
 /** A source id: letters, digits, "_", "-", "." (no "file:", no path); pivotkit-cli/rest's, which the CLI checks an id against. */
 export { SOURCE_ID } from "pivotkit-cli/rest";
@@ -271,14 +273,6 @@ export function validateOptions(options) {
         }
         if (source.link !== undefined) {
             urlOf(source.link, `sources.${id}.link`);
-        }
-        if (source.params !== undefined && !source.load) {
-            throw new ConfigError(`sources.${id}.params: only a code source (load) takes params`);
-        }
-        for (const [name, field] of Object.entries(source.fields ?? {})) {
-            if ((field.description?.length ?? 0) > 500) {
-                throw new ConfigError(`sources.${id}.fields.${name.slice(0, 60)}.description: at most 500 characters`);
-            }
         }
     }
     for (const key of Object.keys(options.limits ?? {})) {
@@ -370,6 +364,10 @@ export function validateOptions(options) {
         if (value !== undefined && value < 1) {
             throw new ConfigError(`${path}: must be 1 or more`);
         }
+    }
+    // each feature's own rules, in the fragments' order
+    for (const fragment of FRAGMENTS) {
+        fragment.validate(options);
     }
     return options;
 }

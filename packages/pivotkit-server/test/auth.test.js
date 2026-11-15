@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { BY_REGION, OTHER_TOKEN, TOKEN, call, raw, restServer, workspace } from "./helpers.js";
 
 const MCP_RESOURCE = "https://pk.example.com/mcp";
@@ -233,5 +234,32 @@ test("oauth: until the issuer answers, REST says 503 with Retry-After and /ready
         assert.equal((await call(`${server.url}/healthz`)).status, 200);
     } finally {
         await server.close();
+    }
+});
+
+test("oauth: a person's subject, groups and other claims never reach a log line, at info or debug, on REST and MCP", async () => {
+    for (const level of ["info", "debug"]) {
+        const dir = workspace();
+        const server = await restServer({ sources: SOURCES, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, http: { publicUrl: "https://pk.example.com/" }, log: level, baseDir: dir }, { enable: ["rest", "mcp"] });
+        const claims = { groups: ["finance-secret-group"], customer: "acme-secret-claim", email: "person@secret.example", name: "Secret Person" };
+        const client = new Client({ name: "claims", version: "1.0.0" });
+        try {
+            await ready(server);
+            assert.equal((await call(`${server.api}/views/validate`, { body: { source: "sales", view: BY_REGION }, token: await jwt({ claims }) })).status, 200);
+            assert.equal((await call(`${server.api}/sources/nope`, { token: await jwt({ claims }) })).status, 404);
+            const token = await jwt({ claims, aud: MCP_RESOURCE });
+            await client.connect(new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
+            await client.callTool({ name: "describe_source", arguments: { source: "sales" } });
+            await client.callTool({ name: "describe_source", arguments: { source: "nope" } });
+            const text = JSON.stringify(server.log);
+            assert.ok(server.log.some((l) => l.event === "call" && l.client === "report-bot"), text);
+            assert.ok(server.log.some((l) => l.event === "request" && l.client === "report-bot"), text);
+            for (const secret of ["someone", "finance-secret-group", "acme-secret-claim", "person@secret.example", "Secret Person"]) {
+                assert.ok(!text.includes(secret), `${level}: ${secret} in the log`);
+            }
+        } finally {
+            await client.close();
+            await server.close();
+        }
     }
 });

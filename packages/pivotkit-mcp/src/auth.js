@@ -13,7 +13,7 @@
  */
 
 import { OAuthError, getOAuthProtectedResourceMetadataUrl, oauthMetadataResponse, requireBearerAuth } from "@modelcontextprotocol/server";
-import { AuthRefusal } from "pivotkit-server";
+import { AuthRefusal, offeredScopes } from "pivotkit-server";
 
 /** A JSON answer with a status and headers. */
 const json = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
@@ -91,12 +91,13 @@ export async function createAuth(context, runtime) {
             if (!metadata) {
                 return undefined;
             }
+            const offered = offeredScopes(options, "mcp");
             return oauthMetadataResponse(request, {
                 oauthMetadata: metadata,
                 resourceServerUrl: resource,
                 resourceName: "pivotkit",
                 serviceDocumentationUrl: new URL("https://pivotkit.eize.dev/reference/mcp/"),
-                ...(auth.scopesSupported?.length || requiredScopes.length ? { scopesSupported: auth.scopesSupported ?? requiredScopes } : {}),
+                ...(offered ? { scopesSupported: offered } : {}),
                 ...(auth.allowInsecureIssuer ? { dangerouslyAllowInsecureIssuerUrl: true } : {})
             });
         }

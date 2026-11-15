@@ -62,7 +62,8 @@ is the host's decision. The access token itself goes to no source.
 ## Logs and retention { #retention }
 
 The log holds the operation, the source id, the client (a token's name or an OAuth client id, never a
-person's id), the status and the time (a source id only when it is a configured source); at the
+person's id), a random request id (it names nothing; it lets the operator find the line a person
+quotes from an error), the status and the time (a source id only when it is a configured source); at the
 default level never a view, a value or a token, and no client address unless
 `http.trustProxy` is set. Reports and drafts stay in the output directory until you remove them, or,
 for reports, until the directory holds `output.maxFiles` files or `output.maxMb` megabytes of

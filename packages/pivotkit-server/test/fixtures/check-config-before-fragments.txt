@@ -1,0 +1,28 @@
+pivotkit-server: the configuration is valid, but not everything it names is there.
+
+Sources (3):
+  sales: <dir>/data/sales.csv
+    fields: show by default; Customer hide; values listed per shown field: 20; inline results: up to 500 cells
+    scopes: sales:read
+    field levels (automatic values: not applied, a default is written):
+      Region: show (the default)
+      Product: show (the default)
+      Customer: hide (a rule)
+      Sales: show (the default)
+  gone: <dir>/data/missing.csv  (NOT FOUND)
+    fields: summary by default; values listed per shown field: 20; inline results: up to 500 cells
+  code: a code source
+    fields: summary by default; values listed per shown field: 20; inline results: up to 500 cells
+
+Files by path: off
+Output: out
+  at most 1000 files of pivotkit's (of them 500 schedule drafts) and 1024 MB; when full, the oldest reports are deleted to make room, drafts are kept
+HTTP: 127.0.0.1:3333; quick-start page on
+Auth: token
+  token bot from $BOT_TOKEN: scopes sales:read typo:scope, profile analyst
+Profile analyst: fields show by default; a field a source hides stays hidden; no automatic values; file downloads (REST) allowed
+  sales: Region show, Product show, Customer hide, Sales show
+REST: /api/v1; files by path refused; inline results off; CORS https://app.example.com; /openapi.json auth; file downloads only for profiles with results: true
+  warning: the token bot's scope "typo:scope" is named by no source, tool or required scope
+
+1 problem: see NOT FOUND above.

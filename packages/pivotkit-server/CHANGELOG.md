@@ -17,8 +17,24 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - A withheld render's `message` reads "results over fields that are not fully shown (...) stay in
   the file".
 - `check-config` prints more lines: each field's level and why, and each profile's levels.
+- The `call`, `request` and `download` log lines carry `requestId`.
 
 ### Added
+
+- A request id on every REST request and MCP tool call (`requestId` on its log lines, and inside the
+  work, so a source's code and an error's details name the same id). A problem document of an error
+  with details (a source or a store that failed) carries `requestId` and `retryable`, and
+  `Retry-After` where known; the 5xx text of `SOURCE_UNAVAILABLE` and `UPLOAD_FAILED` is fixed.
+- The options table is composed from per-feature fragments (`src/options/`); a key declared twice is
+  an error when it is composed. `check-config` runs one section per feature and closes with "New in
+  this version" where a change applies to the configuration.
+- `readSecret` and the secret reference `{ "env": "NAME" }` or `{ "file": "path" }`: read on every
+  use, one trailing newline trimmed, a line break or NUL inside refused, never logged.
+- `serveFetch`'s `bodyBytes` may be a function of the request and the precheck's `info`, decided
+  after the sign-in (`bodyBytesOf`, `peekSignIn`); `offeredScopes`, `callerFields` (the caller's
+  fields a log line may hold: the client only).
+- `sources.<id>.ttl`, `maxStale` and `timeMs` are taken by code sources (refused on file sources);
+  they do nothing yet.
 
 - The level `values` between `show` and `summary`: a field's distinct values as a complete, sorted
   list (`items`, `complete: true`), never a result over them. A number or date field, more values
@@ -51,6 +67,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Changed
 
+- `ConfigError` is defined in `src/options/shared.js`; `pivotkit-server` exports it as before.
+- A pattern of a source's parameter that runs out of time on a test value is tried once more before
+  it is refused at start, so a busy host does not refuse a fast pattern.
 - The message of a withheld render names the fields that are not fully shown.
 - `REST_BASE`, `SOURCE_ID`, `TOKEN_SYNTAX`, `TOKEN_SYNTAX_TEXT`, `REST_ERRORS`, `PROBLEM_CODES` and
   `isLoopback` come from `pivotkit-cli/rest`, which the command line's remote mode checks against

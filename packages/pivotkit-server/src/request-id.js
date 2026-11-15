@@ -2,8 +2,9 @@
  * The id of a request: 8 random bytes in base64url, carried through the request's work with
  * AsyncLocalStorage, so an error deep inside a source can name it and the request's log line can say
  * the same id. A person quotes it to the operator; it says nothing about the request itself. The
- * front ends do not wrap their requests in withRequestId yet: until they do, errorDetails makes a
- * fresh id per error.
+ * REST service runs each request, the MCP server each tool call, inside withRequestId; their log lines
+ * carry the id, and a problem or tool error of an error with details names it. Outside a request,
+ * errorDetails makes a fresh id per error.
  *
  *   await withRequestId(newRequestId(), () => present(...));
  *   throw new OperationError("SOURCE_UNAVAILABLE", "...", errorDetails({ retryable: true }));

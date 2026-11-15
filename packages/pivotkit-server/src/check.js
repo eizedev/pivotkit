@@ -18,13 +18,14 @@ import { createRegistry } from "./registry.js";
 import { findingText } from "pivotkit-report/operations";
 import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "./policy.js";
 import { sourceStats } from "./stats.js";
+import { SECTIONS, UPGRADING_URL, runSections } from "./check/index.js";
 
 /**
  * @param {import("./config.js").ServerOptions} options
- * @param {{ http: boolean, env?: Record<string, string | undefined>, name?: string, tokenEnv?: string, rest?: boolean }} runtime  name: the runner's; rest: the REST service is served too
+ * @param {{ http: boolean, env?: Record<string, string | undefined>, name?: string, tokenEnv?: string, rest?: boolean, sections?: ReadonlyArray<{ name: string, section: import("./check/index.js").Section }> }} runtime  name: the runner's; rest: the REST service is served too; sections: the features' sections (default check/index.js SECTIONS; tests)
  * @returns {Promise<{ text: string, problems: number }>}  problems: what would keep the server from starting or a source from working
  */
-export async function checkConfig(options, { http, env = {}, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false }) {
+export async function checkConfig(options, { http, env = {}, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false, sections = SECTIONS }) {
     let problems = 0;
     let unwritable = 0;
     let other = 0;
@@ -171,9 +172,17 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
             }
         }
     }
+    // each feature's section: its lines, its problems counted as PROBLEM lines, what changes for this
+    // configuration in this version (the closing block)
+    const features = await runSections(sections, options, registry, { http, env, name, tokenEnv, rest, columns: read });
+    lines.push(...features.lines);
+    other += features.problems;
     const total = problems + unwritable + other;
     if (total) {
         lines.push("", `${total} problem${total === 1 ? "" : "s"}: see ${[problems ? "NOT FOUND" : "", unwritable ? "NOT WRITABLE" : "", other ? "PROBLEM" : ""].filter(Boolean).join(" and ")} above.`);
+    }
+    if (features.upgrade.length) {
+        lines.push("", `New in this version (what changes with this configuration; ${UPGRADING_URL}):`, ...features.upgrade.map((line) => `  - ${line}`));
     }
     lines[0] = other ? `${name}: the configuration is valid, but the server would not start with it as it is.` : problems ? `${name}: the configuration is valid, but not everything it names is there.` : unwritable ? `${name}: the configuration is valid, but the server could not write its reports.` : lines[0];
     return { text: `${lines.join("\n")}\n`, problems: total };

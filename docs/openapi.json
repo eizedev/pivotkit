@@ -1175,6 +1175,14 @@
               "type": "object"
             },
             "description": "The view's findings (422 of the file route)."
+          },
+          "requestId": {
+            "type": "string",
+            "description": "The request's id, for an error of a source or a store that failed: give it to the operator, who finds the request's log line by it."
+          },
+          "retryable": {
+            "type": "boolean",
+            "description": "For an error of a source or a store that failed: whether the same request may work when tried again (Retry-After says when, where known)."
           }
         }
       },

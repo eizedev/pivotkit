@@ -317,6 +317,16 @@ Every error is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem doc
 most, never its content. A 5xx answer carries a fixed text, never an error's message. 429 and 503
 carry `Retry-After`.
 
+An error of a source or a store that failed (`SOURCE_UNAVAILABLE`, `UPLOAD_FAILED`) also carries
+`requestId`, the id on the request's [log line](#logging) to give the operator, and `retryable`,
+whether the same request may work when tried again; `Retry-After` says when, where it is known:
+
+```json
+{ "type": "https://pivotkit.eize.dev/reference/rest/#error-source-unavailable", "title": "Source unavailable",
+  "status": 502, "code": "SOURCE_UNAVAILABLE", "detail": "the source is not available right now; try again later, or give the operator the request id",
+  "requestId": "Ab3_xY9-k2Q", "retryable": true }
+```
+
 | Status | Code | When |
 | --- | --- | --- |
 | 400 | <a id="error-invalid-input"></a>`INVALID_INPUT` | The body is not valid JSON, is no JSON object, or does not fit the route's schema (an unknown key, a wrong type, nested deeper than 64 levels, also inside a view given as JSON text) |
@@ -365,7 +375,7 @@ pivotkit-server's.
 | Command | What it does |
 | --- | --- |
 | `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json`, and with pivotkit-mcp installed `/mcp` and its quick-start page; `/healthz` and `/readyz` |
-| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant |
+| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant. Where a change of this version applies to the configuration, it closes with "New in this version" |
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit` |
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |
@@ -425,11 +435,13 @@ and hard links on Windows).
 ## Logging { #logging }
 
 One JSON line per event on stderr, as the [MCP server's](mcp.md#logging): `started` (version,
-address, what it serves, auth mode), `request` (operation, route, client, source id, status, error
-code, time in ms), `download` (operation, client, source, format, bytes), `refused` (a request refused
-by the Host, Origin or token check) and `warning`. The client is the static token's name or the OAuth
-client id, never the person's id; no line holds a view, a value, a token, a path or, unless
-`http.trustProxy` is set, a client address.
+address, what it serves, auth mode), `request` (operation, route, client, `requestId`, source id,
+status, error code, time in ms), `download` (operation, client, `requestId`, source, format, bytes),
+`refused` (a request refused by the Host, Origin or token check) and `warning`. `requestId` is random
+(11 characters) and the same on every line of one request, and in a problem that carries it. The
+client is the static token's name or the OAuth client id, never the person's id: a line takes only
+these fields of the caller, never the person's subject, groups or other claims; no line holds a
+view, a value, a token, a path or, unless `http.trustProxy` is set, a client address.
 
 ## In your own server { #embed }
 

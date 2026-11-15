@@ -103,15 +103,19 @@ export function matchWithin(re, text) {
 /**
  * Whether a pattern is slow on some value of up to `length` characters: tried on runs of letters,
  * digits, spaces, punctuation and each character the pattern names, each followed by a character
- * that ends a match late ("!").
+ * that ends a match late ("!"). A value that runs out of time is tried once more before the pattern
+ * counts as slow, so a host busy at start (another process, a garbage collection) does not refuse a
+ * pattern that is fast.
  * @param {RegExp} re
  * @param {number} length
+ * @param {(re: RegExp, text: string) => boolean | null} [match]  matchWithin (tests pass their own)
  */
-function slowOn(re, length) {
+export function slowOn(re, length, match = matchWithin) {
     const chars = new Set(["a", "1", " ", "-", "_", ".", ...String(re.source).replace(/\\./gu, "").replace(/[\\^$.|?*+()[\]{}]/gu, "")]);
     for (const c of chars) {
         for (const tail of ["!", "\u0000", ""]) {
-            if (matchWithin(re, `${c.repeat(Math.max(length - 1, 1))}${tail}`) === null) {
+            const text = `${c.repeat(Math.max(length - 1, 1))}${tail}`;
+            if (match(re, text) === null && match(re, text) === null) {
                 return true;
             }
         }

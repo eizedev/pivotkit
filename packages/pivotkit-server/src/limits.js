@@ -4,8 +4,21 @@
  * balancer counts on its own): a token bucket per caller (rest.rateLimit.perMinute, .burst), a count
  * of refused tokens per address over the last minute (.failedAuthPerMinute: someone trying tokens is
  * stopped before the next one is checked), and the requests of one caller at once
- * (rest.concurrency). Every map is bounded: the oldest key goes first.
+ * (rest.concurrency). Every map is bounded: the oldest key goes first. And the cap of a request's
+ * body (bodyBytesOf).
  */
+
+import { BODY_BYTES } from "./listen.js";
+
+/**
+ * The most bytes of a request's body, decided per request after the precheck signed the caller in
+ * (serveFetch's bodyBytes; listen.js peekSignIn reads the sign-in): BODY_BYTES for every request.
+ * @param {import("./config.js").ServerOptions} _options
+ * @returns {(request: Request, info: Record<string | symbol, any>) => number}
+ */
+export function bodyBytesOf(_options) {
+    return () => BODY_BYTES;
+}
 
 /** The defaults, the same for both front ends. */
 export const REQUEST_LIMITS = Object.freeze({ perMinute: 120, burst: 30, failedAuthPerMinute: 30, concurrency: 4 });

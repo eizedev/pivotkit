@@ -24,7 +24,10 @@ import { BODY_BYTES, SIGNED_IN, isLoopback, takeSignIn } from "../listen.js";
 import { present, presentedInput, renderFile } from "../present.js";
 import { createLimits } from "../limits.js";
 import { openApiDocument } from "./openapi.js";
-import { SAFE_HEADERS, json, problem } from "./problem.js";
+import { SAFE_HEADERS, json, problem, problemOf } from "./problem.js";
+import { callerFields } from "../log.js";
+import { newRequestId, withRequestId } from "../request-id.js";
+import { offeredScopes } from "../scopes.js";
 import { REST_ROUTES } from "./routes.js";
 
 /** The most bytes of a request body (the server's, MCP's too). */
@@ -240,7 +243,7 @@ export async function createRestHandler(context, runtime = {}) {
             }
             const format = RENDER_FORMATS[result.format] ?? RENDER_FORMATS.xlsx;
             const name = `${safeName(file.name)}.${format.extension}`;
-            context.log.download({ operation: route.operation, client: caller.client, source: entry.source, format: result.format, bytes: file.bytes.length });
+            context.log.download({ operation: route.operation, ...callerFields(caller), requestId: entry.requestId, source: entry.source, format: result.format, bytes: file.bytes.length });
             return new Response(/** @type {any} */ (file.bytes), {
                 status: 200,
                 headers: { ...SAFE_HEADERS, "content-type": format.mediaType, "content-disposition": disposition(name), "content-security-policy": "sandbox; default-src 'none'", "content-length": String(file.bytes.length) }
@@ -276,7 +279,8 @@ export async function createRestHandler(context, runtime = {}) {
             if (!metadata) {
                 return problem("AUTH_NOT_READY", "", { headers: { "retry-after": "10" } });
             }
-            return json({ resource: resource.href, authorization_servers: [metadata.issuer], ...(authOptions.scopesSupported?.length || requiredScopes.length ? { scopes_supported: authOptions.scopesSupported ?? requiredScopes } : {}), resource_name: "pivotkit REST", resource_documentation: "https://pivotkit.eize.dev/reference/rest/" }, 200, { "cache-control": "max-age=300" });
+            const offered = offeredScopes(options, "rest");
+            return json({ resource: resource.href, authorization_servers: [metadata.issuer], ...(offered ? { scopes_supported: offered } : {}), resource_name: "pivotkit REST", resource_documentation: "https://pivotkit.eize.dev/reference/rest/" }, 200, { "cache-control": "max-age=300" });
         }
         if (path === "/openapi.json") {
             if ((rest.openapi ?? "auth") === "off" || request.method !== "GET") {
@@ -316,21 +320,22 @@ export async function createRestHandler(context, runtime = {}) {
             return problem("RATE_LIMITED", "too many requests at once; wait for one to finish", { headers: { "retry-after": "1" } });
         }
         const started = Date.now();
+        // the request's id: on its log lines, and inside its work (a source's code, an error's details)
+        const id = newRequestId();
         /** @type {Record<string, unknown>} */
-        const entry = { operation: match.route.operation, route: `${match.route.method} ${match.route.path}`, client: caller.client, ...(trustProxy ? { address } : {}) };
+        const entry = { operation: match.route.operation, route: `${match.route.method} ${match.route.path}`, ...callerFields(caller), requestId: id, ...(trustProxy ? { address } : {}) };
         let response;
         try {
-            response = await run(match, request, caller, entry);
+            response = await withRequestId(id, () => run(match, request, caller, entry));
         } catch (e) {
             const error = e instanceof OperationError ? e : null;
             if (e?.problem) {
                 response = problem(e.problem, "the body is larger than the service takes");
             } else {
                 if (!error || (error.code === "INTERNAL" && error.cause)) {
-                    context.log.error(error?.cause ?? e, { where: "rest", operation: match.route.operation });
+                    context.log.error(error?.cause ?? e, { where: "rest", operation: match.route.operation, requestId: id });
                 }
-                const code = error?.code ?? "INTERNAL";
-                response = problem(code, error ? error.message : "internal error", code === "BUSY" || code === "NOT_READY" ? { headers: { "retry-after": "5" } } : {});
+                response = problemOf(error ?? e);
             }
         } finally {
             limits.leave(caller.client);

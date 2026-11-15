@@ -123,7 +123,9 @@ export function openApiDocument(options = {}) {
                 status: { type: "integer" },
                 code: { type: "string", description: `A stable code; new ones may come. Today: ${PROBLEM_CODES.join(", ")}.` },
                 detail: { type: "string", description: "What went wrong and what to do; never file content." },
-                findings: { type: "array", items: { type: "object" }, description: "The view's findings (422 of the file route)." }
+                findings: { type: "array", items: { type: "object" }, description: "The view's findings (422 of the file route)." },
+                requestId: { type: "string", description: "The request's id, for an error of a source or a store that failed: give it to the operator, who finds the request's log line by it." },
+                retryable: { type: "boolean", description: "For an error of a source or a store that failed: whether the same request may work when tried again (Retry-After says when, where known)." }
             }
         },
         ...viewComponents()

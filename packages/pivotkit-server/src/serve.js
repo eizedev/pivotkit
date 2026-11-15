@@ -11,6 +11,7 @@ import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 export { TOKEN_ENV };
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./listen.js";
+import { bodyBytesOf } from "./limits.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { problem } from "./rest/problem.js";
 
@@ -136,7 +137,7 @@ export async function serve(options, runtime) {
     const handler = await createServerHandler(options, { ...runtime, loopback: isLoopback(host) });
     let listening;
     try {
-        listening = await serveFetch(handler, { host, port, bodyBytes: REST_BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
+        listening = await serveFetch(handler, { host, port, bodyBytes: bodyBytesOf(options), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler.close();
         throw e;

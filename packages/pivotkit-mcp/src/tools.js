@@ -8,7 +8,7 @@
 
 import { fromJsonSchema } from "@modelcontextprotocol/server";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
-import { present, presentedInput, presentedOutput } from "pivotkit-server";
+import { callerFields, newRequestId, present, presentedInput, presentedOutput, withRequestId } from "pivotkit-server";
 
 /** The tool's description: the operation's, plus what the model must know about this server. */
 function descriptionOf(name) {
@@ -43,8 +43,15 @@ function inputSchemaOf(name, offers) {
 /** The annotations of a tool from the table's. */
 const annotationsOf = (op) => ({ title: op.title, readOnlyHint: op.annotations.readOnly, destructiveHint: false, idempotentHint: op.annotations.idempotent, openWorldHint: false });
 
-/** A tool error as the model gets it: its code and message. */
-const errorResult = (code, message) => ({ isError: true, content: [{ type: "text", text: `${code}: ${message}` }] });
+/**
+ * A tool error as the model gets it: its code and message, and for an error with details (a source or
+ * a store that failed) the request's id to give the operator.
+ * @param {OperationError | null} error  null: an unexpected error (INTERNAL)
+ */
+export function errorResult(error) {
+    const id = error?.details?.requestId;
+    return { isError: true, content: [{ type: "text", text: `${error?.code ?? "INTERNAL"}: ${error ? error.message : "internal error"}${id ? ` (id ${id})` : ""}` }] };
+}
 
 /** A tool's result: a short text without data, the JSON, and the structured content. */
 const okResult = (summary, structured) => ({ content: [{ type: "text", text: `${summary}\n${JSON.stringify(structured)}` }], structuredContent: structured });
@@ -82,7 +89,9 @@ export function registerTools(server, context, caller) {
             },
             async (/** @type {any} */ args) => {
                 const started = Date.now();
-                const entry = { tool: name, client: caller.client, source: logSource(args?.source) };
+                // the call's id: on its log lines, and inside its work (a source's code, an error's details)
+                const id = newRequestId();
+                const entry = { tool: name, ...callerFields(caller), requestId: id, source: logSource(args?.source) };
                 try {
                     if (caller.scopes !== null && !scopes.every((s) => caller.scopes?.has(s))) {
                         throw new OperationError("NOT_ALLOWED", `your token may not use ${name}`);
@@ -90,7 +99,7 @@ export function registerTools(server, context, caller) {
                     if (VIEW_ONLY.has(name) && args?.layout !== undefined) {
                         throw new OperationError("INVALID_INPUT", `${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here`);
                     }
-                    const { text, result } = await present(context, name, args ?? {}, caller);
+                    const { text, result } = await withRequestId(id, () => present(context, name, args ?? {}, caller));
                     context.log.call({ ...entry, ok: true, ms: Date.now() - started });
                     return /** @type {any} */ (okResult(text, result));
                 } catch (e) {
@@ -99,7 +108,7 @@ export function registerTools(server, context, caller) {
                         context.log.error(error?.cause ?? e, entry);
                     }
                     context.log.call({ ...entry, ok: false, code: error?.code ?? "INTERNAL", ms: Date.now() - started });
-                    return errorResult(error?.code ?? "INTERNAL", error ? error.message : "internal error");
+                    return errorResult(error);
                 }
             }
         );

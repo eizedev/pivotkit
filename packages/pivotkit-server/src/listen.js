@@ -198,13 +198,32 @@ function readBody(req, max) {
     });
 }
 
+/**
+ * The cap of a request's body, decided after the precheck: it may look at the sign-in the precheck
+ * kept in `info` (peekSignIn), so a larger cap can depend on who calls, never on what a stranger's
+ * headers claim.
+ * @typedef {(request: Request, info: Record<string | symbol, any>) => number} BodyBytes
+ */
+
+/**
+ * The sign-in a precheck kept for this request, left in `info` for the route (takeSignIn takes it).
+ * @param {Record<string | symbol, any>} info
+ */
+export const peekSignIn = (info) => (Object.hasOwn(info, SIGNED_IN) ? info[SIGNED_IN] : undefined);
+
+/** A request's body cap: the number, or what the function says; BODY_BYTES for anything but a whole number of 1 or more. */
+function capOf(bodyBytes, request, info) {
+    const cap = typeof bodyBytes === "function" ? bodyBytes(request, info) : bodyBytes;
+    return Number.isSafeInteger(cap) && cap >= 1 ? cap : BODY_BYTES;
+}
+
 /** The default answer for a body that cannot be read. */
 const defaultProblem = (status) => Response.json({ error: status === 413 ? "request body too large" : "bad request" }, { status, headers: { connection: "close" } });
 
 /**
  * Serves a fetch handler on node:http.
  * @param {FetchHandler} handler
- * @param {{ host: string, port: number, bodyBytes: number, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close)
+ * @param {{ host: string, port: number, bodyBytes: number | BodyBytes, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close)
  * @returns {Promise<{ port: number, server: import("node:http").Server, close(): Promise<void> }>}
  */
 export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused }) {
@@ -242,14 +261,17 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const host = req.headers.host ?? "localhost";
             const url = `http://${HOST_SYNTAX.test(host) ? host : "invalid.invalid"}${path}`;
             // what the headers tell is checked before a byte of the body is read
-            const early = handler.precheck ? await handler.precheck(new Request(url, { method: req.method, headers }), info) : null;
+            const head = new Request(url, { method: req.method, headers });
+            const early = handler.precheck ? await handler.precheck(head, info) : null;
+            // the body's cap, decided once the precheck has signed the caller in (it is in info)
+            const cap = capOf(bodyBytes, head, info);
             if (early) {
                 // the body that follows is drained, not read, so the client gets the answer rather than a
                 // reset connection; one that keeps sending past 4 x the cap is cut off
                 let drained = 0;
                 req.on("data", (chunk) => {
                     drained += chunk.length;
-                    if (drained > bodyBytes * 4) {
+                    if (drained > cap * 4) {
                         req.destroy();
                     }
                 });
@@ -257,7 +279,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 res.end(Buffer.from(await early.arrayBuffer()));
                 return;
             }
-            const body = req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req, bodyBytes);
+            const body = req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req, cap);
             const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
             const response = await handler.fetch(request, info);
             res.writeHead(response.status, Object.fromEntries(response.headers));

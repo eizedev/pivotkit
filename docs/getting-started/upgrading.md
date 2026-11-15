@@ -160,6 +160,7 @@ automatic values rule is off. What callers notice:
 | --- | --- | --- |
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
+| [Request ids](#request-ids) | you parse the log, or a program reads problem documents | accept the new members |
 
 ### The values level { #values-level }
 
@@ -184,6 +185,13 @@ the new `itemUnknown` (an item that is none of a field's values, with the closes
 `suggestion`) where its values are listed completely. `noRowsKept`, `filterEmpty`, `tableCut` and
 `chartCut` stay for views whose fields are all `show`. `describe_source` may add `withheld`, `hint`,
 `complete` and `auto`; a client reads a `level` it does not know as `summary`.
+
+### Request ids { #request-ids }
+
+The `call`, `request` and `download` log lines carry `requestId`. A problem document of a source or
+a store that failed carries `requestId` and `retryable` (REST), and an MCP tool error of one ends with
+`(id ...)`; no source or store of this version answers such an error yet. `check-config` closes with
+"New in this version" where a change applies to the configuration.
 
 ## From 0.6.0 to 0.6.1 { #from-0-6-0 }
 

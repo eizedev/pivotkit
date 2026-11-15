@@ -177,7 +177,14 @@ root `package.json`: `npm run types` and the builds depend on it.
   fake server and a fake proxy on loopback.
 - `packages/pivotkit-server/` - what the MCP server and the REST service share, and the REST service
   (Node only, no MCP SDK): `src/config.js` (`OPTION_KEYS`, the one table of options for both, `rest.*`
-  included; `validateOptions` with "did you mean"; `loadConfig`), `src/flags.js` (`optionsFrom`, the
+  included, composed from its own keys and the fragments of `src/options/`; `validateOptions` with "did
+  you mean", then each fragment's rules; `loadConfig`), `src/options/` (`shared.js`: `ConfigError`,
+  the slots a fragment adds keys to, `SECRET_REF`; `base.js`: the keys several features share, a
+  source's `params`, field descriptions, `ttl`, `maxStale`, `timeMs`, `auth.subjectClaim`; one file per
+  feature with its `KEYS` and `validate`; `index.js`: `FRAGMENTS` and `composeSlots`, which refuses a
+  key declared twice: a new option is a key in its feature's fragment, never in two places),
+  `src/secrets.js` (`readSecret`: a `{ env }` or `{ file }` reference read on every use, never
+  logged), `src/flags.js` (`optionsFrom`, the
   runners' flags into options; `SERVER_FLAGS`), `src/context.js` (`createContext(options)`: registry,
   workers, output, log, the sign-in both front ends share, `ready()`, `offers`: the extra inputs each
   surface offers, fixed at start; `callerOf` and `identityKey` from auth.js), `src/policy.js`
@@ -208,9 +215,11 @@ root `package.json`: `npm run types` and the builds depend on it.
   sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are
   made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
   `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: how a written report
-  reaches the caller, `output.note`), `src/scopes.js` (`listHint` of list_sources), `src/request-id.js`
-  (a request's id: `newRequestId`, `withRequestId`, `requestId`, `errorDetails` for an
-  `OperationError`'s `details`), `src/auth.js` (`createAuthCore`: static tokens, the
+  reaches the caller, `output.note`), `src/scopes.js` (`offeredScopes`, the metadata's
+  `scopes_supported` of MCP and REST; `listHint` of list_sources), `src/request-id.js`
+  (a request's id: `newRequestId`, `withRequestId` (each REST request and MCP tool call runs in one;
+  its log lines carry the id), `requestId`, `errorDetails` for an `OperationError`'s `details`, which
+  `rest/problem.js problemOf` and MCP's error text show), `src/auth.js` (`createAuthCore`: static tokens, the
   OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`; `callerOf`, a caller's
   identity (`auth.subjectClaim`) and `identityKey`, the only identity a cache or binding uses, null
   without a usable subject; `callerView`, the frozen caller a code source gets; `exchangeTokenFor`,
@@ -218,10 +227,13 @@ root `package.json`: `npm run types` and the builds depend on it.
   import), `src/checks.js` (Host
   check, client address), `src/listen.js` (`serveFetch`: a fetch handler on node:http, headers checked
   before the body, every value of a repeated header, connections bounded in all and per address
-  with slots kept for loopback (`connectionGate`), request targets read by their path, a graceful
-  stop), `src/check.js` (`--check-config`
-  of both runners), `src/limits.js` (`createLimits`: rate and concurrency limits in one process, one
-  set per front end: `rest.*`, `mcp.*`), `src/log.js`, `src/serve.js` (`serve`, `createServerHandler`: REST and, with
+  with slots kept for loopback (`connectionGate`), request targets read by their path, the body's
+  cap a number or `(request, info) => number` decided after the precheck signed the caller in
+  (`peekSignIn`), a graceful stop), `src/check.js` (`--check-config`
+  of both runners, then `src/check/`: one section per feature with its lines, problems and the
+  "New in this version" lines, `runSections`), `src/limits.js` (`createLimits`: rate and concurrency
+  limits in one process, one set per front end: `rest.*`, `mcp.*`; `bodyBytesOf`), `src/log.js`
+  (`callerFields`: the allowlist of a caller's fields a log line holds), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/healthz`, `/readyz`),
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck). What
   the REST service and the CLI's remote mode agree on (base path, source ids, token syntax, problem

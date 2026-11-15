@@ -227,7 +227,7 @@ error that names the key and the one probably meant.
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
-| - | `--check-config` | - | Print what would be exposed (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output, auth) and exit; 1 when a file or directory it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0) |
+| - | `--check-config` | - | Print what would be exposed (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output, auth) and exit; 1 when a file or directory it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0). Where a change of this version applies to the configuration, it closes with "New in this version" |
 
 A write the server is killed in leaves its temporary file
 (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). It is not a report: neither counted toward
@@ -315,7 +315,9 @@ a JSON-RPC error; the counts live in the memory of one process.
 
 A tool error is a result with `isError` and the text `CODE: message` (an input the tool's schema
 refuses is answered by the SDK before the tool runs, as `Input validation error: ...`); the message names a file by its
-base name only and holds no file content.
+base name only and holds no file content. An error of a source or a store that failed ends with the
+call's id, `CODE: message (id Ab3_xY9-k2Q)`: the person gives it to the operator, who finds the
+call's [log line](#logging) by it.
 
 | Code | When |
 | --- | --- |
@@ -336,10 +338,12 @@ base name only and holds no file content.
 
 One JSON line per event on stderr (on stdio, stdout is the protocol): `started` (version, transport,
 address, auth mode, the number of sources, whether files and an output directory are on), `call`
-(tool, source id or the base name of a file, client, `ok`, error code, time in ms), `refused` (an HTTP
-request refused by the Host, Origin or token check, with its status) and `warning`. The client is the
-static token's name or the OAuth token's client id, never the person's id. No line holds a view, a
-value, a token or a full path. The log is the supervisor's to keep and rotate.
+(tool, source id or the base name of a file, client, `requestId`, `ok`, error code, time in ms),
+`refused` (an HTTP request refused by the Host, Origin or token check, with its status) and
+`warning`. `requestId` is random (11 characters) and the same on every line of one call. The client
+is the static token's name or the OAuth token's client id, never the person's id: a line takes only
+these fields of the caller, never the person's subject, groups or other claims. No line holds a
+view, a value, a token or a full path. The log is the supervisor's to keep and rotate.
 
 ## Streamable HTTP { #http }
 
