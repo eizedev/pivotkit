@@ -507,6 +507,9 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
   it names it. `errorDetails({ retryable, retryAfter })` builds an `OperationError`'s details with
   that id. `callerFields(caller)` is what a log line may hold of a caller: the client, and `subject` where
   `audit.subject` named the person when the token was verified.
+- With `auth.groupProfiles`, answer a verified token whose groups are unknown before you make its
+  caller: `groupRefusal(options.auth, authInfo)` gives the text of the 403, or null. `callerOf`
+  throws `NOT_ALLOWED` for such a token, so it never gets the sources' own policy.
 - A secret in your options is a reference, `{ "env": "NAME" }` or `{ "file": "path" }` (`SECRET_REF`);
   `readSecret(ref, options, env)` reads it on every use (a rotated file works without a restart),
   trims one trailing newline and refuses a value with another line break or a NUL; its error names
