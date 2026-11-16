@@ -25,9 +25,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   days are deleted from `output.dir` at start and every hour. A schedule draft whose `status` is
   still `"draft"` waits for approval and stays; one the host gave another status goes by age. Set
   `output.maxAgeDays: 0` for no age limit ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
-- Breaking: a static token with fewer than 8 different characters, or one that repeats one piece,
-  keeps the server from starting ("is too easy to guess"); make one with
-  `npx -y pivotkit-server token new`.
+- Breaking: a trivial static token keeps the server from starting: one with fewer than 8 different
+  characters, or one that repeats one piece, "is too easy to guess". The rule stops trivial tokens;
+  it does not measure strength. Make one with `npx -y pivotkit-server token new`.
 - Behaviour change: where a caller sees a field below `show`, a CSV, TSV or TXT file with a quoted
   value that spans lines is refused with `INVALID_FILE`: an unclosed quote pulled the rows after
   it, hidden values too, into one shown cell.
@@ -135,6 +135,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Fixed
 
+- The npm description, the quick-start page, the skill, the plugin and the instructions sent to the
+  model said the model never reads the data. Through pivotkit it reads only what the operator's
+  policy shows; they now say so. A client gets the new instructions when it reconnects.
 - `--http` exited 0 on SIGTERM or SIGINT even when closing the server failed. It now logs the error
   and exits 1.
 - A request with a Host the server does not answer to got the SDK's JSON-RPC "Invalid Host: <name>"
@@ -143,7 +146,6 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   --allow-host, or set http.publicUrl". The `refused` line carries it as `hint`.
 - Over HTTP on loopback with `$PIVOTKIT_MCP_TOKEN` set and no `auth.mode`, the start warns:
   "PIVOTKIT_MCP_TOKEN is set but auth is none; use --auth token (or auth.mode token)".
-
 - Every refusal of the protocol layer is one `refused` line with its status, a reason, the path
   `/mcp`, the error's class and the SDK's name for it (its message only at debug, on the same line):
   a body that is not JSON, an unsupported `mcp-protocol-version`, a wrong `Content-Type` (415) or

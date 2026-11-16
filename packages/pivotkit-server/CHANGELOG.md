@@ -44,10 +44,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   value that spans lines is refused with `INVALID_FILE`. An unclosed quote pulled the rows after it,
   hidden values too, into one shown cell. A line break inside a quoted value is refused too, since
   it cannot be told from an unclosed quote. `check-config` warns of such a file.
-- Breaking: a static token (`auth.tokens`, `$PIVOTKIT_TOKEN`) with fewer than 8 different
-  characters, or one that repeats one piece (`abcabc...`), keeps the server from starting: "is too
-  easy to guess". `check-config` names it, `token new --if-missing` does not keep such a file, and a
-  token file rotated to one after the start is refused like a short one. Make a new token with
+- Breaking: a trivial static token (`auth.tokens`, `$PIVOTKIT_TOKEN`) keeps the server from
+  starting: one with fewer than 8 different characters, or one that repeats one piece
+  (`abcabc...`), "is too easy to guess". The rule stops trivial tokens; it does not measure
+  strength. `check-config` names it, `token new --if-missing` does not keep such a file, and a token
+  file rotated to one after the start is refused like a short one. Make a new token with
   `pivotkit-server token new`. Random tokens pass, hex tokens of 32 characters too.
 - Behaviour change: the request limits (`rest.*`, `mcp.*` `rateLimit` and `concurrency`) count per
   person, no longer per OAuth client; one client's people together get eight times the rate and run
@@ -117,6 +118,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Added
 
+- New exports: `stopOnSignals` (one stop on SIGINT and SIGTERM for a server: exit 0, or 1 when
+  closing fails), `hostProblem` (a refused Host as problem+json with its `refused` line),
+  `hostRefusedLine` (that line) and `HOST_HINT` (the words that say how to allow a Host).
 - A state directory (`--state-dir`, `$PIVOTKIT_STATE_DIR`; the image: `/var/lib/pivotkit`): over
   HTTP the server makes there what is missing, the token `admin` when auth needs a token off loopback
   and none is given, the download links' key, and the audit key for `audit.subject` `"hash"`, so
@@ -496,11 +500,12 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   variable, so it probed 3333 while the server listened on the configured port. It now takes the
   port in the order `serve` does: `--port`, `http.port`, `$PIVOTKIT_PORT`, 3333
   ([#439](https://github.com/eizedev/pivotkit/issues/439)). It also takes `--port` and `--help`;
-  an unknown option is a usage error (exit 1).
+  an unknown option, or a url together with `--port`, is a usage error (exit 1).
 - `serve` and `mcp` started with a pivotkit-mcp of another release whose imports all resolved, and
   served MCP with its old code. A pivotkit-mcp whose declared `pivotkit-server` range does not hold
   this version is now refused with both versions and the update guide
-  ([#382](https://github.com/eizedev/pivotkit/issues/382)).
+  ([#382](https://github.com/eizedev/pivotkit/issues/382)). A range in a form the check cannot read
+  (a path, a tag, a URL) is not refused.
 - An unclosed quote in a shown cell of a CSV file pulled the rows after it, values of hidden columns
   too, into that cell, so `describe_source` and reports showed them. Such a file is now refused
   where a field is below `show`.
