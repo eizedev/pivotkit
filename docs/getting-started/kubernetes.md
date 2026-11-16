@@ -30,9 +30,9 @@ holds every part shown below; the sections explain each one.
 
     ```bash
     kubectl create namespace pivotkit
-    openssl rand -base64 32 | tr -d '/+=\n' > reports.token   # about 42 characters
+    npx -y pivotkit-server token new --file reports.token   # 43 characters, a file only you read
     kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
-    kubectl -n pivotkit create secret generic pivotkit-download-key --from-literal=key="$(openssl rand -base64 48)"
+    kubectl -n pivotkit create secret generic pivotkit-download-key --from-literal=key="$(npx -y pivotkit-server key new --for downloads)"
     kubectl apply -f kubernetes.example.yaml
     kubectl -n pivotkit create job --from=cronjob/pivotkit-fetch-data pivotkit-fetch-data-first
     kubectl -n pivotkit rollout status deployment/pivotkit
@@ -40,7 +40,8 @@ holds every part shown below; the sections explain each one.
 
     `apply` warns once that the namespace has no `last-applied-configuration` annotation and adds
     it. A token has at least 32 characters. Keep it out of the manifest and out of environment
-    variables (`kubectl describe` shows those). `pivotkit-download-key` is the key of the
+    variables (`kubectl describe` shows those). Without Node, the image makes them too:
+    `docker run --rm ghcr.io/eizedev/pivotkit:<version> token new` ([tokens and keys](../reference/rest.md#credentials)). `pivotkit-download-key` is the key of the
     [download links](../reference/delivery.md): at least 32 bytes, and kept, so links survive a restart.
 
 ## Check it { #check }

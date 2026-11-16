@@ -12,7 +12,7 @@
 # The token is a Secret you create yourself (never in this file):
 #   kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
 # So are the key of the download links (the same in every pod, so a link works after a restart):
-#   kubectl -n pivotkit create secret generic pivotkit-download-key --from-literal=key="$(openssl rand -base64 48)"
+#   kubectl -n pivotkit create secret generic pivotkit-download-key --from-literal=key="$(npx -y pivotkit-server key new --for downloads)"
 # The CronJob sends the header in the optional Secret pivotkit-source (key "header", e.g.
 # "Authorization: Bearer ...") when the data's host needs one.
 # The --8<-- lines mark the parts the docs page shows.

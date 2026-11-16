@@ -7,7 +7,7 @@
  * check/index.js says what a section returns. Without audit the section prints nothing.
  */
 
-import { GROUPS_REFUSED, NOT_IN_GROUP } from "../auth.js";
+import { GROUPS_REFUSED, NOT_IN_GROUP, makeKey } from "../auth.js";
 import { POLICY_LEVELS, levelOf, resolvePolicy } from "../policy.js";
 import { AUDIT_KEY_MIN } from "../log.js";
 import { offeredScopes } from "../scopes.js";
@@ -158,13 +158,13 @@ async function auditItems(options, runtime, oauth) {
     }
     if (subject === "hash") {
         if (!audit.key) {
-            items.push(warning("no audit.key: a random key per start, so the same person gets another hash after every restart"));
+            items.push(warning(`no audit.key: a random key per start, so the same person gets another hash after every restart; make one with: ${makeKey("audit")}`));
         } else {
             items.push(plain(`key from ${secretText(options, audit.key)}`));
             // read at start with OAuth only, where a key that cannot be read stops the start
             const unreadable = oauth
                 ? await readSecret(audit.key, options, runtime.env).then(
-                      (key) => (key.length < AUDIT_KEY_MIN ? `at least ${AUDIT_KEY_MIN} characters` : null),
+                      (key) => (key.length < AUDIT_KEY_MIN ? `at least ${AUDIT_KEY_MIN} characters; make one with: ${makeKey("audit")}` : null),
                       (e) => String(e?.message ?? e)
                   )
                 : null;

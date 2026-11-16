@@ -65,7 +65,11 @@ not. Set the port with `PIVOTKIT_PORT`, not `http.port` in the file: the health 
 [docker/compose.example.yml](https://github.com/eizedev/pivotkit/blob/main/docker/compose.example.yml)
 and [docker/pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/main/docker/pivotkit.example.json)
 are an example for Docker Compose with these settings: two tokens as secrets, one with a profile that
-may download files.
+may download files. Make the two files with `pivotkit-server token new --file secrets/pivotkit_token`
+and `--file secrets/pivotkit_export_token` (with Node, `npx -y pivotkit-server`; without, the image's
+`docker run --rm ghcr.io/eizedev/pivotkit:<version> token new`, its output saved to the file), then
+give them to the user 10001 as above: `token new` writes mode 0600 for your own user
+([tokens and keys](rest.md#credentials)).
 
 The image sets `PIVOTKIT_LOG_FORMAT=json`: the log is JSON lines on stderr, also under `docker run -t`
 (a configuration's `log.format` still wins). Each answer carries `X-Request-Id`, the id on its log
@@ -78,6 +82,8 @@ The image's entry point is `pivotkit-server`; the command after the image name i
 
 ```bash
 docker run --rm ghcr.io/eizedev/pivotkit:<version> --help
+docker run --rm ghcr.io/eizedev/pivotkit:<version> token new   # a token on stdout (key new --for downloads: the download key)
+kubectl -n pivotkit exec deploy/pivotkit -- /nodejs/bin/node /app/packages/pivotkit-server/bin/pivotkit-server.js token show reports   # a token's value as the running server reads it
 docker run --rm -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/data:/data:ro" -v "$PWD/secrets/pivotkit_token:/run/secrets/pivotkit_token:ro" -v pivotkit-out:/out ghcr.io/eizedev/pivotkit:<version> check-config   # the mounts of the example above
 docker run --rm --read-only -v "$PWD:/work" -w /work ghcr.io/eizedev/pivotkit:<version> cli render view.json --data sales.csv -o report.xlsx
 docker run --rm -i -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/data:/data:ro" ghcr.io/eizedev/pivotkit:<version> mcp

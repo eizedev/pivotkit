@@ -41,7 +41,10 @@ export const TOKEN_MIN = 32;
 export { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 
 /** The command that makes a token, for the messages. */
-export const MAKE_TOKEN = `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`;
+export const MAKE_TOKEN = "npx -y pivotkit-server token new (pivotkit-server token new --file <path> writes it to a file)";
+
+/** The command that makes a key for output.downloads.key or audit.key, for the messages. */
+export const makeKey = (use) => `pivotkit-server key new --for ${use} --file <path>`;
 
 /** How often the issuer's metadata is read again (a changed jwks_uri), and the least time between two reads for a token with an unknown key. */
 export const METADATA_REFRESH = Object.freeze({ everyMs: 3_600_000, unknownKeyMs: 60_000 });
@@ -261,7 +264,7 @@ export async function auditOf(options, { env, log }) {
         throw new ConfigError(`audit.key: ${String(e?.message ?? e)}`);
     }
     if (key.length < AUDIT_KEY_MIN) {
-        throw new ConfigError(`audit.key: at least ${AUDIT_KEY_MIN} characters (a short key lets anyone with the log try names)`);
+        throw new ConfigError(`audit.key: at least ${AUDIT_KEY_MIN} characters (a short key lets anyone with the log try names); make one with: ${makeKey("audit")}`);
     }
     return { subject, key: Buffer.from(key, "utf8") };
 }

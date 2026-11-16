@@ -93,6 +93,8 @@ test("the runner's usage errors exit 2 with a hint; --help and --version exit 0"
     const help = runner(["--help"], dir);
     assert.equal(help.status, 0);
     assert.match(help.stdout, /--allow-dir <dir>/);
+    // where a token for --auth token comes from: pivotkit-server's command
+    assert.match(help.stdout, /\$PIVOTKIT_MCP_TOKEN or auth\.tokens\): npx -y pivotkit-server token new/);
     assert.match(runner(["--version"], dir).stdout, /^pivotkit-mcp \d+\.\d+\.\d+/);
 });
 

@@ -165,8 +165,8 @@ Make two tokens and start it again:
 === "bash"
 
     ```bash
-    export SCRIPTS_TOKEN="$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))")"
-    export EXPORT_TOKEN="$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))")"
+    export SCRIPTS_TOKEN="$(npx -y pivotkit-server token new)"
+    export EXPORT_TOKEN="$(npx -y pivotkit-server token new)"
     npx -y pivotkit-server check-config --config pivotkit.json
     npx -y pivotkit-server serve --config pivotkit.json
     ```
@@ -174,8 +174,8 @@ Make two tokens and start it again:
 === "PowerShell"
 
     ```powershell
-    $env:SCRIPTS_TOKEN = node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
-    $env:EXPORT_TOKEN = node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+    $env:SCRIPTS_TOKEN = npx -y pivotkit-server token new
+    $env:EXPORT_TOKEN = npx -y pivotkit-server token new
     npx -y pivotkit-server check-config --config pivotkit.json
     npx -y pivotkit-server serve --config pivotkit.json
     ```

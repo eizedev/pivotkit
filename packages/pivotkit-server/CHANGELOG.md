@@ -92,6 +92,12 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Added
 
+- `pivotkit-server token new`, `token show` and `key new --for downloads|audit`: a token (32 random
+  bytes) or key (48) on stdout, or into a file with mode 0600 that is never written through a
+  symbolic link and never replaced without `--force` (`--if-missing` keeps it, also with several runs
+  at once); `token new --config <file> --add` puts the token into `auth.tokens` with a backup;
+  `--json` as pivotkit-cli's. The messages and docs that named `openssl` or `node -e` name these
+  commands ([tokens and keys](https://pivotkit.eize.dev/reference/rest/#credentials)).
 - `output.downloads.allowInsecureUrl`: download links under an `http://` `http.publicUrl` off
   loopback, refused without it; with it the start and `check-config` warn.
 - `check-config` warns of `"default": "show"` with hidden fields (a deny list), of

@@ -164,8 +164,10 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   profiles per token, OAuth client, group or scope, and a default profile (more values, downloads,
   data sent with the request as JSON or a csv, tsv, json or xlsx file); the person in the log only
   when the operator asks for it; CORS off by default; limits per caller; `check-config` says
-  whether the server starts and prints each field's level per source and profile
-  ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
+  whether the server starts and prints each field's level per source and profile; `token new` and
+  `key new` make its tokens and keys into files only their owner reads, `--add` puts a token into
+  the configuration ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
+  [tokens and keys](reference/rest.md#credentials),
   [reading check-config](reference/rest.md#check-config), [security](security.md#rest),
   [privacy](privacy.md)).
 - Sources for both: data files, an operator's API as an HTTP source (its address written once with

@@ -26,7 +26,7 @@ import { join } from "node:path";
 import { ConfigError } from "./options/shared.js";
 import { DEFAULT_ALGORITHMS } from "./config.js";
 import { insecurePublicHost, insecureUrlText, settingsOf } from "./options/downloads.js";
-import { subjectOf } from "./auth.js";
+import { makeKey, subjectOf } from "./auth.js";
 import { discover, ISSUER_LIMITS, issuerFetch, issuerHint, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { isLoopback } from "./listen.js";
@@ -369,7 +369,7 @@ function keySource(settings, options, env) {
     const read = async () => {
         const value = await readSecret(ref, options, env);
         if (Buffer.byteLength(value) < KEY_MIN_BYTES) {
-            throw new ConfigError(`output.downloads.key (${ref.env ? `$${ref.env}` : `the file ${ref.file}`}) is shorter than ${KEY_MIN_BYTES} bytes; make one with: openssl rand -base64 48`);
+            throw new ConfigError(`output.downloads.key (${ref.env ? `$${ref.env}` : `the file ${ref.file}`}) is shorter than ${KEY_MIN_BYTES} bytes; make one with: ${makeKey("downloads")}`);
         }
         if (value !== last.value) {
             last = { value, keys: subkeysOf(Buffer.from(value, "utf8")) };

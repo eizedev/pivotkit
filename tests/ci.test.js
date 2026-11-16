@@ -261,10 +261,12 @@ test("CI's test job and the release build verify the registry signatures right a
 });
 
 // pivotkit-cli's file handling is tested on Windows too (junctions, drive letters, device names)
-test("CI runs pivotkit-cli's tests on Windows", () => {
+test("CI runs pivotkit-cli's tests and pivotkit-server's credential commands on Windows", () => {
     const job = jobOf(".github/workflows/ci.yml", "windows");
     assert.match(job, /runs-on: windows-latest/);
     assert.match(job, /run: npm test -w pivotkit-cli/);
+    // and pivotkit-server's secret files (token new, key new)
+    assert.match(job, /node --test packages\/pivotkit-server\/test\/credentials\.test\.js/);
 });
 
 test("the release workflow runs check-release for the tagged package before it packs", () => {
