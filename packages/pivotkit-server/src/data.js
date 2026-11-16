@@ -155,6 +155,112 @@ export function withoutLongRows(levels, read, label) {
     };
 }
 
+/** The formats read as delimited text, where a quote can pull rows into one value. */
+const TEXT_FORMATS = new Set(["csv", "tsv", "txt"]);
+
+/** TextDecoder's labels of the encodings pivotkit-core's text reader names in its ENCODING note. */
+const DECODER_LABELS = { "UTF-8": "utf-8", "Windows-1252": "windows-1252", "UTF-16 (little endian)": "utf-16le", "UTF-16 (big endian)": "utf-16be" };
+
+const QUOTE = 34;
+const LF = 10;
+const CR = 13;
+
+/**
+ * The line in which the first quoted value that spans lines starts, or 0. It splits the text as
+ * pivotkit-core's reader does (import-csv.js splitRows): a quote opens a value only at its start, a
+ * doubled quote inside is one quote. A loop, not a regular expression: the text holds every value.
+ * @param {string} text
+ * @param {string} sep  one character
+ * @param {number} start  after a "sep=" line
+ * @param {number} line  the line `start` is in
+ */
+export function quotedBreakLine(text, sep, start, line) {
+    const S = sep.charCodeAt(0);
+    const n = text.length;
+    let fieldStart = true;
+    for (let i = start; i < n; ) {
+        const c = text.charCodeAt(i);
+        if (fieldStart && c === QUOTE) {
+            for (let j = i + 1; ; j++) {
+                if (j >= n) {
+                    // never closed: the reader refuses the file itself
+                    return 0;
+                }
+                const d = text.charCodeAt(j);
+                if (d === LF || d === CR) {
+                    return line;
+                }
+                if (d === QUOTE) {
+                    if (text.charCodeAt(j + 1) === QUOTE) {
+                        j++;
+                        continue;
+                    }
+                    i = j + 1;
+                    break;
+                }
+            }
+            fieldStart = false;
+            continue;
+        }
+        if (c === LF || c === CR) {
+            line++;
+            i += c === CR && text.charCodeAt(i + 1) === LF ? 2 : 1;
+            fieldStart = true;
+            continue;
+        }
+        fieldStart = c === S;
+        i++;
+    }
+    return 0;
+}
+
+/**
+ * The line in which a file's first quoted value that spans lines starts, or 0: a text format only,
+ * split with the separator and encoding pivotkit-core's reader noted (its SEPARATOR and ENCODING
+ * notes) and after its "sep=" line.
+ * @param {Uint8Array} bytes
+ * @param {string} format
+ * @param {{ notes?: Array<{ code: string, params?: Record<string, unknown> }> }} table  readTable's
+ */
+export function quotedBreakOf(bytes, format, table) {
+    if (!TEXT_FORMATS.has(format)) {
+        return 0;
+    }
+    const paramOf = (code, key) => table.notes?.find((n) => n.code === code)?.params?.[key];
+    const sep = paramOf("SEPARATOR", "separator");
+    if (typeof sep !== "string" || sep.length !== 1) {
+        return 0;
+    }
+    const text = new TextDecoder(DECODER_LABELS[/** @type {keyof typeof DECODER_LABELS} */ (String(paramOf("ENCODING", "encoding")))] ?? "utf-8").decode(bytes);
+    const hint = /^sep=.\r?\n/i.exec(text.slice(0, 8));
+    return quotedBreakLine(text, sep, hint ? hint[0].length : 0, hint ? 2 : 1);
+}
+
+/**
+ * A read table checked for what moves a kept-back value into a shown one, where the levels hold a
+ * field below "show": a quoted value that spans lines refuses the file (an unclosed quote pulls the
+ * rows after it, their hidden values too, into one cell, and a line break that is meant cannot be
+ * told from one that is not), and rows longer than the header are left out (withoutLongRows).
+ * Where every field is "show" the table stays as it was read.
+ * @param {{ default: string, fields: Record<string, string> }} levels
+ * @param {Uint8Array} bytes  the file's
+ * @param {string} format
+ * @param {{ table: any, notes: import("pivotkit-report/operations").Finding[] }} read  readTable's
+ * @param {string} label  the source's name for the message
+ */
+export function checkedRead(levels, bytes, format, read, label) {
+    if (!allShown(levels)) {
+        const line = quotedBreakOf(bytes, format, read.table);
+        if (line) {
+            throw new OperationError("INVALID_FILE", `${label}: ${quotedBreakText(line)}; close the quote, or save the file as xlsx or JSON`);
+        }
+    }
+    return withoutLongRows(levels, read, label);
+}
+
+/** The words for a quoted value that spans lines, in a refusal. */
+const quotedBreakText = (line) => `a quoted value that starts in line ${line} spans several lines; an unclosed quote can pull the rows after it, hidden values too, into one cell, so a source that hides a field is not read from this file`;
+
 /**
  * Whether levels show every field: "show" by default and no rule below it.
  * @param {{ default: string, fields: Record<string, string> }} levels
@@ -315,7 +421,7 @@ export async function fileData(spec) {
             return of(remember(key, cache.get(key)));
         }
         const bytes = await readSafe(/** @type {string} */ (spec.path), { cwd: "/", allow: spec.allow ?? [], maxBytes: spec.limits.fileBytes ?? 52_428_800, hardLinks: spec.hardLinks ?? true });
-        const { table, notes } = withoutLongRows(spec.levels, await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits }), label);
+        const { table, notes } = checkedRead(spec.levels, bytes, format, await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits }), label);
         const hide = hiddenOf(spec.levels, table.columns, table.unnamed);
         const data = encode(withoutHidden(table, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
         return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data), asOf: asOfText(info.mtime) }));
@@ -565,7 +671,7 @@ async function readUpload(spec, upload) {
         throw new OperationError("LIMIT_EXCEEDED", `${spec.name}: the file is larger than the server reads (limits.fileBytes)`);
     }
     try {
-        return withoutLongRows(spec.levels, await readTable(upload.bytes, `${spec.name}.${format}`, { format, ...(upload.sheet ? { sheet: upload.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits }), spec.name);
+        return checkedRead(spec.levels, upload.bytes, format, await readTable(upload.bytes, `${spec.name}.${format}`, { format, ...(upload.sheet ? { sheet: upload.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits }), spec.name);
     } catch (e) {
         // the caller's own file (inline:): its reader's sentence, not only a code (sources/inline.js)
         throw spec.kind === "inline" ? await uploadError(e, upload, spec.limits) : asOperationError(e, spec.name);

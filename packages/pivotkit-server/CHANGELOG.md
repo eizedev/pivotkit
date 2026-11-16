@@ -40,6 +40,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   uniform file that ends every line with a separator aside) is left out whole, with a `ROWS_DROPPED` note that counts such rows;
   `check-config` counts them ([#479](https://github.com/eizedev/pivotkit/issues/479),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#long-rows)).
+- Behaviour change: where a caller sees a field below `show`, a CSV, TSV or TXT file with a quoted
+  value that spans lines is refused with `INVALID_FILE`. An unclosed quote pulled the rows after it,
+  hidden values too, into one shown cell. A line break inside a quoted value is refused too, since
+  it cannot be told from an unclosed quote. `check-config` warns of such a file.
 - Behaviour change: the request limits (`rest.*`, `mcp.*` `rateLimit` and `concurrency`) count per
   person, no longer per OAuth client; one client's people together get eight times the rate and run
   at most eight times `concurrency` at once; `auth.subjectClaim` must name a claim users cannot change
@@ -470,6 +474,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- An unclosed quote in a shown cell of a CSV file pulled the rows after it, values of hidden columns
+  too, into that cell, so `describe_source` and reports showed them. Such a file is now refused
+  where a field is below `show`.
 - A row with more cells than the header put a hidden column's value into a shown `Column N` under
   `"default": "show"`; such columns are now hidden. The cells after the stray separator also moved a
   hidden value into the next named column; such rows are now left out where a field is below `show`

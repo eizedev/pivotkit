@@ -1158,3 +1158,20 @@ test("#479: a CSV answer's row longer than its header is left out where the sour
         await context.close();
     }
 });
+
+test("a CSV answer with a quoted value over several lines is refused where the source hides a field (data.js checkedRead)", async () => {
+    routes.set("/v1/quoted.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end('name,cpu,owner,state\nweb-1,4,alice@example.com,running\n"web-2,2,bob@example.com,stopped\nweb-3,1,carol@example.com,"running"\n');
+    });
+    const options = { ...optionsOf({}, {}, { policy: { results: true } }), sources: { csv: { http: { backend: "platform", path: "/quoted.csv", format: "csv" }, policy: POLICY } } };
+    const context = await contextOf(options);
+    try {
+        const refused = await describe(context, undefined, LOCAL, "csv").then(() => null, (e) => e);
+        assert.equal(refused?.code, "INVALID_FILE", String(refused));
+        assert.match(refused.message, /^csv: a quoted value that starts in line 3 spans several lines;/);
+        assert.doesNotMatch(refused.message, /bob@example\.com|carol/);
+    } finally {
+        await context.close();
+    }
+});

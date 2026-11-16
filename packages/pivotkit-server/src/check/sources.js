@@ -21,13 +21,14 @@
  * (profiles), so no file is read twice. check/index.js says what a section returns.
  */
 
-import { basename } from "node:path";
+import { basename, extname } from "node:path";
 import { closest, encode } from "pivotkit-core";
 import { readSafe, readTable } from "pivotkit-cli/files";
 import { findingText } from "pivotkit-report/operations";
 import { serverLimitsOf } from "../config.js";
 import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "../policy.js";
 import { sourceStats } from "../stats.js";
+import { quotedBreakOf } from "../data.js";
 import { allShown } from "../data.js";
 import { checkTemplates } from "../print-template.js";
 import { HTTP_HEADING } from "./http.js";
@@ -70,7 +71,7 @@ export async function section(options, registry, runtime) {
     for (const s of sources) {
         const written = options.sources?.[s.id] ?? {};
         const fields = Object.entries(s.policy.fields);
-        const columns = s.file && s.exists ? await columnsOf(s.file, written.sheet, options) : { names: null, unnamed: [], longRows: 0, stats: null, why: null };
+        const columns = s.file && s.exists ? await columnsOf(s.file, written.sheet, options) : { names: null, unnamed: [], longRows: 0, quotedBreak: 0, stats: null, why: null };
         const byKey = new Map((columns.names ?? []).map((c) => [fieldKey(c), c]));
         for (const [key, name] of byKey) {
             everyColumn?.set(key, name);
@@ -114,9 +115,13 @@ export async function section(options, registry, runtime) {
         if (columns.longRows && !shownAll) {
             items.push(warning(`sources.${s.id}: ${columns.longRows} row${columns.longRows === 1 ? " has" : "s have"} more values than the header (a separator inside a value); ${columns.longRows === 1 ? "it is" : "they are"} left out for callers who do not see every field as show`));
         }
+        // a quoted value over several lines (data.js checkedRead): the file is refused below show
+        if (columns.quotedBreak && !shownAll) {
+            items.push(warning(`sources.${s.id}: a quoted value that starts in line ${columns.quotedBreak} spans several lines; the source is refused for callers who do not see every field as show (an unclosed quote can pull the rows after it, hidden values too, into one cell)`));
+        }
         // a value can move into another column only in text formats: the limit of the check above
         if (s.file && !shownAll && /\.(csv|tsv|txt)$/i.test(s.file)) {
-            items.push(plain("a value kept back is safe in CSV only when values that hold the separator are quoted; xlsx or JSON is safer", 2));
+            items.push(plain("a value kept back is safe in CSV only when values that hold the separator are quoted and no quoted value spans lines; xlsx or JSON is safer", 2));
         }
         if (columns.why) {
             items.push(warning(`sources.${s.id}: its columns could not be read to check the policy (${columns.why})`));
@@ -209,8 +214,8 @@ function fieldLevelItems(id, resolved, names, stats, sourcePolicy, serverPolicy)
 
 /**
  * The column names of a source file as the server reads them and its statistics, or why they could
- * not be read.
- * @returns {Promise<{ names: string[] | null, unnamed: string[], longRows: number, stats: import("../stats.js").SourceStats | null, why: string | null }>}
+ * not be read. quotedBreak: the line of the first quoted value that spans lines (data.js checkedRead), or 0.
+ * @returns {Promise<{ names: string[] | null, unnamed: string[], longRows: number, quotedBreak: number, stats: import("../stats.js").SourceStats | null, why: string | null }>}
  */
 async function columnsOf(path, sheet, options) {
     const limits = serverLimitsOf(options);
@@ -219,8 +224,8 @@ async function columnsOf(path, sheet, options) {
         const { table } = await readTable(bytes, basename(path), { ...(sheet ? { sheet } : {}), ...(options.timeZone ? { timeZone: options.timeZone } : {}), limits });
         // the statistics as the server counts them: encoded the same way (data.js)
         const stats = sourceStats(encode({ columns: table.columns, types: table.types, data: table.data }, { timeZone: options.timeZone ?? "UTC", limits }));
-        return { names: table.columns, unnamed: table.unnamed ?? [], longRows: table.longRows?.length ?? 0, stats, why: null };
+        return { names: table.columns, unnamed: table.unnamed ?? [], longRows: table.longRows?.length ?? 0, quotedBreak: quotedBreakOf(bytes, extname(path).slice(1).toLowerCase(), table), stats, why: null };
     } catch (e) {
-        return { names: null, unnamed: [], longRows: 0, stats: null, why: String(e?.message ?? e).slice(0, 200) };
+        return { names: null, unnamed: [], longRows: 0, quotedBreak: 0, stats: null, why: String(e?.message ?? e).slice(0, 200) };
     }
 }
