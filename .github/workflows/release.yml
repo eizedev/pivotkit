@@ -79,8 +79,12 @@ jobs:
       - name: Registry signatures
         # every installed package carries the registry's signature (and its attestation where it has one)
         run: npm audit signatures
+      - name: Types
+        # every workspace's declarations, in build order: a package's types import its dependencies'
+        # (pivotkit-react's do not compile without them). tsc only; lint and tests run after the pack
+        run: npm run types --workspaces --if-present
       - name: Pack
-        # right after the install: only the package's prepack (its build and types) has run yet
+        # before lint and tests: only tsc and the package's prepack (its build) have run yet
         id: pack
         env:
           PACKAGE: ${{ steps.package.outputs.name }}

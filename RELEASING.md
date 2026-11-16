@@ -72,7 +72,7 @@ Release packages in this order. It follows their run-time dependencies.
 ### 4. Approve on npm
 
 - The `build` job checks tag, version, main and CI.
-- It packs the tarball right after the install, then runs lint, types and tests.
+- It builds the declarations and packs the tarball right after the install. Then it runs lint, types and tests.
   A compromised dev dependency in those checks cannot change the tarball.
 - It records the tarball's integrity right after the pack. `publish` refuses a tarball with another one.
 - The `publish` job waits for an environment reviewer.
@@ -158,7 +158,7 @@ For the container image:
 - No npm token is stored in GitHub.
 - The `build` job has no publishing right. Only `publish` holds the OIDC token.
 - Provenance attests the workflow and the commit. It does not prove `dist/` is unaltered.
-- `build` packs before lint, types and tests run. Only the package's own build runs before the pack.
+- `build` packs before lint, types and tests run. Only tsc and the package's own build run before the pack.
 - `publish` checks the tarball's integrity, and that its name and version match the tag.
 - No check compares a package's imports with the lowest core version its range admits.
   Exact ranges and `check-release.js` cover that instead.
