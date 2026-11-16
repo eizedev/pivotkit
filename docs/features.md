@@ -198,7 +198,10 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - One server, different rules per client: a profile per token, OAuth client, group or scope, and a
   default profile, so a cloud assistant sees less than a model on your own hardware
   ([per client](model-data.md#per-client)).
-- When the data is from (`dataAsOf`) in every result and in html and xlsx files; a small table of
+- A result only in the answer, saved nowhere: `render_view` with `save: false` returns a small csv
+  or json over shown fields inline and writes no file ([inline only](reference/mcp.md#inline-only)).
+- When the data is from (`dataAsOf`) in every result and in the html and xlsx files the services
+  write; a small table of
   the model's own (`inline:`, capped, switched off with `mcp.data: false`); stdio and Streamable HTTP
   with a token or OAuth 2.1; a skill that teaches the workflow ([data in the request](reference/mcp.md#data)).
 

@@ -30,11 +30,14 @@ the size of the table (`cells`). For more rows, see
 
 ## My data is on a server. Does pivotkit fetch it?
 
-No. The report takes an array of plain objects you load yourself (`fetch`, a framework's data layer, a
-`<script type="application/json">` block), and never makes a network request. To aggregate on the
-server instead, run pivotkit-core there and send the [grid](getting-started/engine.md#drawing-the-grid)
-or the XLSX file, or run the [REST service](getting-started/rest.md) (or its container image) on files
-you configure, and let programs ask it for reports.
+The report in the browser does not. It takes an array of plain objects you load yourself (`fetch`, a
+framework's data layer, a `<script type="application/json">` block), and never makes a network
+request. To aggregate on the server instead, run pivotkit-core there and send the
+[grid](getting-started/engine.md#drawing-the-grid) or the XLSX file, or run the
+[REST service](getting-started/rest.md) (or its container image) or the
+[MCP server](getting-started/mcp.md): they fetch the data themselves, from files, an
+[HTTP API](reference/sources.md#http) or your [own code](reference/sources.md#code) you configure,
+and programs or an AI client ask them for reports.
 
 ## My data is columnar (`{ columns, rows }`). Can I pass it?
 

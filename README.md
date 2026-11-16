@@ -18,8 +18,13 @@ report by dragging fields, and take it to Excel; the same report renders again i
 - Reports for other programs: a REST service with an OpenAPI document and a container image
   ([REST](https://pivotkit.eize.dev/getting-started/rest/)), and an MCP server for AI clients that
   never hands the model the rows ([MCP](https://pivotkit.eize.dev/getting-started/mcp/)).
+- Live data: the REST service and the MCP server read a file, or call an HTTP API or run your own
+  code with the caller's parameters ([sources](https://pivotkit.eize.dev/reference/sources/)); a model gets rows only
+  where the policy shows them ([what reaches an AI model](https://pivotkit.eize.dev/model-data/)).
+- Report delivery: download links that expire, bound to the person's sign-in where the data is not
+  open, or an upload to a store you run ([download links](https://pivotkit.eize.dev/reference/delivery/)).
 
-[Live demo](https://pivotkit.eize.dev/playground/) · [Documentation](https://pivotkit.eize.dev/) · [Features](https://pivotkit.eize.dev/features/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Security](docs/security.md) ([policy](SECURITY.md))
+[Live demo](https://pivotkit.eize.dev/playground/) · [Documentation](https://pivotkit.eize.dev/) · [Features](https://pivotkit.eize.dev/features/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Security](docs/security.md) ([policy](SECURITY.md)) · [Releases and changelogs](#releases-and-changelogs)
 
 ![The pivot report: average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
 
@@ -27,7 +32,7 @@ report by dragging fields, and take it to Excel; the same report renders again i
 
 For the people who build reports in an application, and for the developers who put it there: a
 React 18/19 component, a web component (also in PowerShell Universal apps), a JavaScript engine for
-the browser and Node, a command line, a REST service and an MCP server; MIT. The report computes in the browser on the rows the host passes and fetches no data. It
+the browser and Node, a command line, a REST service and an MCP server; MIT. The report in the browser computes on the rows the host passes and fetches no data; the REST service and the MCP server fetch it from the sources you configure. It
 runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
 ([browser support](docs/browser-support.md)); the engine, the reports, the CLI, the REST service and the MCP server in Node 22 or later.
 [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)
@@ -130,6 +135,16 @@ PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (after npm ci --
 ```
 
 Releasing is described in [CONTRIBUTING.md](CONTRIBUTING.md#releasing).
+
+## Releases and changelogs
+
+Each package is released on its own: the [GitHub releases](https://github.com/eizedev/pivotkit/releases)
+list them with their notes, and each package keeps a `CHANGELOG.md`:
+[core](packages/pivotkit-core/CHANGELOG.md), [react](packages/pivotkit-react/CHANGELOG.md),
+[element](packages/pivotkit-element/CHANGELOG.md), [xlsx](packages/pivotkit-xlsx/CHANGELOG.md),
+[report](packages/pivotkit-report/CHANGELOG.md), [cli](packages/pivotkit-cli/CHANGELOG.md),
+[server](packages/pivotkit-server/CHANGELOG.md), [mcp](packages/pivotkit-mcp/CHANGELOG.md).
+Before you update, read [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/).
 
 ## License
 

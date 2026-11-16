@@ -278,4 +278,32 @@ test.describe("the Filter level of a date field", () => {
         expect(sizes).toMatchObject({ cut: true, overflow: "ellipsis", fits: true });
         await expect(chip.getByTestId("rule-badge")).toContainText("+1");
     });
+
+    test("the rules are as wide as their form: each row and its value field have room, wide and on a phone", async ({ page }) => {
+        for (const width of [1280, 390]) {
+            await page.setViewportSize({ width, height: 900 });
+            await openView(page, byYear());
+            if (!(await page.getByTestId(`chip-menu-${YEAR}`).isVisible())) await page.getByTestId("layout-summary").click();
+            await chipMenu(page, YEAR, "filter");
+            const menu = page.locator(".pk-chip-menu");
+            await openRules(menu);
+            await menu.getByTestId("rule-add-item").click();
+            await menu.getByTestId("rule-add-total").click();
+            await expect(menu.getByTestId("rule")).toHaveCount(2);
+            const sizes = await menu.getByTestId("rules").evaluate((form) => ({
+                form: form.clientWidth,
+                list: form.querySelector(".pk-rule-list").getBoundingClientRect().width,
+                rows: [...form.querySelectorAll('[data-testid="rule"]')].map((row) => row.getBoundingClientRect().width),
+                number: form.querySelector('[data-testid="value-filter-number"]').getBoundingClientRect().width
+            }));
+            // the WebKit of Playwright 1.65 (build 2388) laid the rule list out at no size inside a wrapping column (#474)
+            expect(sizes.form, `${width} px`).toBeGreaterThan(200);
+            expect(Math.abs(sizes.list - sizes.form), `${width} px: ${JSON.stringify(sizes)}`).toBeLessThanOrEqual(1);
+            for (const row of sizes.rows) expect(Math.abs(row - sizes.form), `${width} px: ${JSON.stringify(sizes)}`).toBeLessThanOrEqual(1);
+            expect(sizes.number, `${width} px`).toBeGreaterThan(40);
+            await expect(menu.getByTestId("value-filter-number")).toBeVisible();
+            await page.keyboard.press("Escape");
+            await page.keyboard.press("Escape");
+        }
+    });
 });

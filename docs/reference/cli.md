@@ -139,6 +139,10 @@ workbook, is a warning `ignoredOption`. A command a line on stderr suggests can 
 shell as it is: a value with spaces is in double quotes, one with `!` in single quotes (bash expands
 `!` in double quotes). The CLI writes no colours.
 
+A report rendered from local files carries no time of the data: the command line passes none, so
+an HTML report's details have no "Data as of" and a workbook no `DataAsOf` property.
+[With a server](#with-a-server), the file is the server's and carries the time its source gives.
+
 ## What it says
 
 stdout carries only a command's output: the rendered report or file without `-o`, the `--json`

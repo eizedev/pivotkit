@@ -60,17 +60,35 @@ over REST (`FILES_NOT_ALLOWED`), whatever `files.allowDirs` allows the MCP serve
 
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"source":"sales","view":{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]},"format":"xlsx"}' \
+  -d '{"source":"sales","view":{"rows":["Region"],"values":[{"field":"Revenue","agg":"sum"}]},"format":"xlsx"}' \
   http://127.0.0.1:3333/api/v1/views/render
 ```
 
+Over a source whose fields are `summary` (the default), the report gets no link and its content is
+withheld:
+
 ```json
-{ "ok": true, "findings": [], "uses": ["Region", "Sales"], "format": "xlsx",
+{ "ok": true, "findings": [], "uses": ["Region", "Revenue"], "format": "xlsx",
   "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "dataAsOf": "2026-11-16T00:19:40Z",
   "withheld": ["rows", "columns", "bytes", "content"],
-  "dataAsOf": "2026-11-15T08:00:00Z",
-  "output": { "name": "sales.pivotkit-out.xlsx", "format": "xlsx", "mediaType": "..." },
-  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer: results over fields that are not fully shown (Sales) stay in the file. Data as of 2026-11-15 08:00 UTC." }
+  "output": { "name": "sales.pivotkit-out.xlsx", "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "filename": "sales.xlsx", "note": "The report is saved on the server; ask the operator how to open it.", "format": "xlsx" },
+  "message": "The report is saved on the server; ask the operator how to open it. Its content is not part of this answer: results over fields that are not fully shown (Region, Revenue) stay in the file. Data as of 2026-11-16 00:19 UTC." }
+```
+
+Over an open source (`"policy": { "default": "show" }`, title Sales), the same request gets a
+[download link](delivery.md) and the table's size in `summary` (the token in `url` is shortened here):
+
+```json
+{ "ok": true, "findings": [], "uses": ["Region", "Revenue"], "format": "xlsx",
+  "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "dataAsOf": "2026-11-16T00:19:40Z",
+  "summary": { "rows": 6, "columns": 2, "sourceRows": 2000, "keptRows": 2000, "truncated": false },
+  "output": { "name": "LBYgghNzgES9CtH50Kz7nQ-Sales.pivotkit-out.xlsx", "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "filename": "Sales.xlsx", "url": "http://127.0.0.1:3333/downloads/eyJ2IjoxLC...qjt4hRZV3X", "expiresAt": "2026-11-16T01:19:54Z",
+    "bound": "none", "note": "Open the link in your browser; it works for 60 minutes.", "format": "xlsx" },
+  "message": "The report is saved as \"Sales.xlsx\". Open the link in your browser; it works for 60 minutes. Data as of 2026-11-16 00:19 UTC." }
 ```
 
 Every answer over a source's data (all routes but `GET /sources` and `GET /views/guide`) carries
@@ -93,11 +111,13 @@ input, else `title`, else the view's name, else the source's, with `.pivotkit-ou
 format (`sales.pivotkit-out.xlsx`), the mark by which the server knows its own files; a name that is
 taken gets `-2`, `-3` and so on, since no file is ever replaced. Check `ok` in the answer: a view with errors answers 200
 with `ok: false` and `output: null`. The caller fetches the file from there or
-uses the [file route](#downloads). The field names in these examples are made up: the fields of your
+uses the [file route](#downloads). The field names in these examples are those of the
+`sales.csv` that `pivotkit example` writes, or made up: the fields of your
 source and views built from them are in `GET /sources/{id}` (`fields`, `examples`).
 
 A csv result is the report's layout, as the HTML report and the workbook show it: a header row per
-column field, a row of labels, then a row per group with a total row and column; it starts with a
+column field, a row of labels, then a row per group with a total row and column; the file (not the
+inline `inline.text`, which has none) starts with a
 UTF-8 byte order mark, so a spreadsheet opens it as UTF-8.
 
 A csv or json result comes back inline (`inline.text`) only when the operator sets
@@ -444,9 +464,22 @@ most, never its content. A 5xx answer carries a fixed text, never an error's mes
 carry `Retry-After`.
 
 Every problem also carries `requestId`, the id on the request's [log lines](#logging): a person
-gives it to the operator. An error of a source or a store that failed (`SOURCE_UNAVAILABLE`,
-`UPLOAD_FAILED`) adds `retryable`, whether the same request may work when tried again;
-`Retry-After` says when, where it is known:
+gives it to the operator. These errors add `retryable`, whether the same request may work when
+tried again; `Retry-After` says when, where it is known:
+
+- `SOURCE_UNAVAILABLE`: `true` for a failure that may pass: an error with a network code
+  (`ECONNRESET`, `ETIMEDOUT` and the like), the source's time limit, a backend's 429, 502, 503 or
+  504, a `SourceError` marked `transient`, too many loads of the source running; `false` for any
+  other error (the backend refused pivotkit's access or answered another status such as 500, a
+  source not set up correctly, an error of a code source's `load` without a network code);
+- `NOT_ALLOWED`, `INVALID_INPUT` and `DATA_NOT_AVAILABLE` from a source (a code source's
+  `SourceError`; an HTTP source's backend that answered 400 or 422, or 401, 403 or 404 for a source
+  with parameters): `false`;
+- `UPLOAD_FAILED`: as the store's failure is;
+- 503 `BUSY` for a [large body](#data) while two are read already: `true`.
+
+Every other error carries none, a limit of a source's settings (`LIMIT_EXCEEDED`, `http.maxBytes`
+or `http.maxPages`) included.
 
 ```json
 { "type": "https://pivotkit.eize.dev/reference/rest/#error-source-unavailable", "title": "Source unavailable",
@@ -722,8 +755,9 @@ class in the log, its message with `log: "debug"`.
   REST and, when pivotkit-mcp is installed, MCP over one context, with `/healthz` and `/readyz`; hand
   it to `serveFetch` or your own server. To combine them yourself, build the context with pivotkit-mcp's
   `createMcpContext` (its `createHttpHandler` needs the MCP server factory it adds) and give it to both
-  `createHttpHandler` and `createRestHandler`. `openApiDocument(options)` builds the OpenAPI document,
-`REST_ROUTES` lists the routes, and `present(context, operation, input, caller)` runs an operation for
+  `createHttpHandler` and `createRestHandler`. From `pivotkit-server/rest`, `openApiDocument(options)`
+  builds the OpenAPI document and `REST_ROUTES` lists the routes; from `pivotkit-server`,
+  `present(context, operation, input, caller)` runs an operation for
 a caller (`callerOf("none")` without sign-in) and gives `{ text, result }` as both endpoints do.
 `serve(options, { env, stderr })` is `pivotkit-server serve` in code.
 

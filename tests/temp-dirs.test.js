@@ -5,12 +5,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, rmSync } from "node:fs";
-import { basename, relative } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { leftovers } from "../scripts/test-run.js";
+import { forwarded, leftovers } from "../scripts/test-run.js";
 import { root, sourceFiles } from "./source-files.js";
-import { RUN_ENV } from "./temp-dir.js";
+import { GRACE_MS, RUN_ENV } from "./temp-dir.js";
 
 const HELPER = fileURLToPath(new URL("./temp-dir.js", import.meta.url));
 const TEST_RUN = fileURLToPath(new URL("../scripts/test-run.js", import.meta.url));
@@ -35,6 +36,55 @@ const maker = (then) => `
 
 const runMaker = (then, run) => spawnSync(process.execPath, ["--input-type=module", "-e", maker(then)], { encoding: "utf8", env: { ...process.env, [RUN_ENV]: run } });
 
+/**
+ * Whether a source makes or finds a temporary directory itself: mkdtemp, os.tmpdir() (called, taken
+ * from a namespace, imported or destructured, also renamed), the TMPDIR/TEMP/TMP variables or a
+ * "/tmp/" path. A word in a string or a key, and comments, do not count.
+ * @param {string} source
+ */
+function makesTempDir(source) {
+    // strings first, kept as they are, so a "/*" or "//" inside one starts no comment
+    const code = source.replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (match, literal) => literal ?? "");
+    // a regular expression literal with a quote in it can still look like the start of a string here
+    return /\bmkdtemp(Sync)?\b|\btmpdir\s*\(|\.\s*tmpdir\b|\{[^}]*\btmpdir\b[^}]*\}\s*(from\b|=\s*require\b)|\btmpdir\s+as\b|\benv\s*(\.\s*|\[\s*["'`])(TMPDIR|TEMP|TMP)\b|["'`]\/tmp\//.test(code);
+}
+
+test("the check finds every way to make or find a temporary directory, and not a comment about one", () => {
+    const found = [
+        'import { mkdtempSync } from "node:fs";',
+        "await mkdtemp(prefix);",
+        "const dir = tmpdir();",
+        'import { tmpdir as t } from "node:os";',
+        "join(os.tmpdir (), name)",
+        'const { tmpdir: where } = require("os");',
+        "const base = process.env.TMPDIR;",
+        'const base = process.env["TMP"] ?? process.env.TEMP;',
+        'const dir = "/tmp/pivotkit-x";',
+        "const dir = `/tmp/${name}`;",
+        // a "/*" inside a string starts no comment
+        'const glob = "tests/*.test.js";\nmkdtempSync(prefix);\n/** a doc comment */',
+        "const url = 'http://example.org'; const dir = tmpdir();",
+    ];
+    for (const source of found) assert.equal(makesTempDir(source), true, source);
+    const clean = [
+        "// tempDir() instead of os.tmpdir() or mkdtempSync",
+        "/* not process.env.TMPDIR, not \"/tmp\" */ const dir = tempDir();",
+        'const url = "http://localhost/tmp";',
+        "const tmpdirLabel = tempDir(\"probe\");",
+        'const page = "https://example.org/a"; // a page',
+        // a word in a string or a key is no temporary directory
+        'const hint = "set TMPDIR or tmpdir to change it";',
+        "const options = { tmpdir: false, label: \"/tmp\" };",
+    ];
+    for (const source of clean) assert.equal(makesTempDir(source), false, source);
+});
+
+test("the checks over the repository's sources cover .cjs, .jsx, .ts and .tsx files as well", () => {
+    const names = sourceFiles().map((file) => relative(root, file).split("\\").join("/"));
+    for (const name of ["tests/browser/pages/host.jsx", "bench/browser/page.jsx", "packages/pivotkit-server/test/types/consumer.ts"]) assert.ok(names.includes(name), name);
+    assert.ok(names.every((name) => /\.(c|m)?(j|t)sx?$/.test(name)));
+});
+
 test("no file but tests/temp-dir.js makes a temporary directory: every one goes through tempDir()", () => {
     const own = [];
     for (const file of sourceFiles()) {
@@ -42,7 +92,7 @@ test("no file but tests/temp-dir.js makes a temporary directory: every one goes 
         // the packages' own code is not test code; the helper and this file make them, the run's check
         // only lists the temporary directory
         if (/^packages\/[^/]+\/(src|bin)\//.test(name) || ["tests/temp-dir.js", "tests/temp-dirs.test.js", "scripts/test-run.js"].includes(name)) continue;
-        if (/\bmkdtemp(Sync)?\b|\btmpdir\(/.test(readFileSync(file, "utf8"))) own.push(name);
+        if (makesTempDir(readFileSync(file, "utf8"))) own.push(name);
     }
     assert.deepEqual(own, [], "make a temporary directory with tempDir() of tests/temp-dir.js: it is removed when the process ends");
 });
@@ -60,22 +110,155 @@ test("tempDir's directories carry the run's id and are gone when the process end
     }
 });
 
-test("tempDir's directories are gone after SIGTERM, as a spawning test's timeout sends it", { skip: process.platform === "win32" && "Windows has no SIGTERM to catch: a killed process ends at once" }, async () => {
-    const run = newRun();
-    const child = spawn(process.execPath, ["--input-type=module", "-e", maker("setInterval(() => {}, 1000);")], { env: { ...process.env, [RUN_ENV]: run }, stdio: ["ignore", "pipe", "inherit"] });
+const NO_SIGTERM = process.platform === "win32" && "Windows has no SIGTERM to catch: a killed process ends at once";
+
+/**
+ * Starts a process and waits for the first line it prints, as JSON (its "ready" line).
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} env
+ * `ended` settles when the process exits, `closed` when its output is complete as well (a process it
+ * started and left running can hold that open).
+ * @returns {Promise<{ child: import("node:child_process").ChildProcess, first: any, output: () => string, ended: Promise<{ code: number | null, signal: string | null }>, closed: Promise<void> }>}
+ */
+async function started(args, env) {
+    const child = spawn(process.execPath, args, { env, stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
-    const dirs = await new Promise((resolve, reject) => {
+    let err = "";
+    child.stderr.on("data", (chunk) => (err += chunk));
+    const ended = new Promise((resolve) => child.on("exit", (code, signal) => resolve({ code, signal })));
+    const closed = new Promise((resolve) => child.on("close", () => resolve()));
+    const first = await new Promise((resolve, reject) => {
         child.on("error", reject);
         child.stdout.on("data", (chunk) => {
+            const ready = !out.includes("\n");
             out += chunk;
-            if (out.includes("\n")) resolve(JSON.parse(out.split("\n")[0]));
+            if (ready && out.includes("\n")) resolve(JSON.parse(out.split("\n")[0]));
         });
+        closed.then(() => reject(new Error(`ended before it was ready: ${out}${err}`)));
     });
+    return { child, first, output: () => out + err, ended, closed };
+}
+
+/**
+ * Ends a process that may already be gone.
+ * @param {number} pid
+ */
+function kill(pid) {
+    try {
+        process.kill(pid, "SIGKILL");
+    } catch {
+        // already gone
+    }
+}
+
+test("tempDir's directories are gone after SIGTERM, as a spawning test's timeout sends it", { skip: NO_SIGTERM, timeout: 30_000 }, async () => {
+    const run = newRun();
+    const { child, first: dirs, ended } = await started(["--input-type=module", "-e", maker("setInterval(() => {}, 1000);")], { ...process.env, [RUN_ENV]: run });
     assert.ok(dirs.every((dir) => existsSync(dir)));
-    const ended = new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal })));
     child.kill("SIGTERM");
     assert.deepEqual(await ended, { code: 128 + 15, signal: null });
     for (const dir of dirs) assert.equal(existsSync(dir), false, dir);
+});
+
+test("a SIGTERM handler of the process's own (a server's graceful stop) runs to its end, before or after the first tempDir()", { skip: NO_SIGTERM, timeout: 30_000 }, async () => {
+    for (const order of ["after", "before"]) {
+        const run = newRun();
+        // the stop takes a moment and still needs the directory, as pivotkit-server's runner closing its server
+        const stop = `const stop = () => setTimeout(() => { console.log("stopped " + existsSync(dirs[0])); process.exit(0); }, 50);`;
+        const handle = `process.once("SIGTERM", () => stop());`;
+        const code = maker(`${order === "after" ? handle : ""} setInterval(() => {}, 1000);`)
+            .replace(`import { tempDir }`, `import { existsSync } from "node:fs";\n    ${stop}\n    ${order === "before" ? handle : ""}\n    import { tempDir }`)
+            .replace("console.log(JSON.stringify([a, tempDir(\"probe\")]));", "const dirs = [a, tempDir(\"probe\")];\n    console.log(JSON.stringify(dirs));");
+        const { child, first: dirs, output, ended, closed } = await started(["--input-type=module", "-e", code], { ...process.env, [RUN_ENV]: run });
+        child.kill("SIGTERM");
+        const result = await ended;
+        await closed;
+        assert.deepEqual(result, { code: 0, signal: null }, `${order}: ${output()}`);
+        assert.match(output(), /^stopped true$/m, order);
+        for (const dir of dirs) assert.equal(existsSync(dir), false, `${order}: ${dir}`);
+    }
+});
+
+test("a SIGTERM handler that never ends the process: tempDir ends it after a grace period, the directories gone", { skip: NO_SIGTERM, timeout: 30_000 }, async () => {
+    const run = newRun();
+    const { child, first: dirs, output, ended, closed } = await started(["--input-type=module", "-e", maker(`process.once("SIGTERM", () => console.log("ignored")); setInterval(() => {}, 1000);`)], { ...process.env, [RUN_ENV]: run });
+    // a deadline of its own, so a process that does not end fails the test instead of holding it
+    let deadline;
+    try {
+        const sent = Date.now();
+        child.kill("SIGTERM");
+        const result = await Promise.race([ended, new Promise((resolve) => (deadline = setTimeout(() => resolve({ code: "still running", signal: null }), GRACE_MS * 3)))]);
+        child.kill("SIGKILL");
+        await closed;
+        assert.deepEqual(result, { code: 128 + 15, signal: null }, output());
+        assert.match(output(), /^ignored$/m);
+        // not at once: the handler had its grace period
+        assert.ok(Date.now() - sent >= GRACE_MS - 100, `ended after ${Date.now() - sent} ms`);
+        for (const dir of dirs) assert.equal(existsSync(dir), false, dir);
+    } finally {
+        clearTimeout(deadline);
+        child.kill("SIGKILL");
+        for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test("a test run hands SIGINT and SIGTERM on to its command, then checks for leftovers", { skip: NO_SIGTERM, timeout: 30_000 }, async () => {
+    for (const signal of ["SIGTERM", "SIGINT"]) {
+        const run = newRun();
+        // a command that leaves a directory behind and stops on the signal with an exit code of its own
+        const command = `
+            const { mkdtempSync } = require("node:fs");
+            const { join } = require("node:path");
+            const { tmpdir } = require("node:os");
+            mkdtempSync(join(tmpdir(), "pivotkit-" + process.env.${RUN_ENV} + "-left-"));
+            process.on("${signal}", () => { console.log("stopping"); process.exit(5); });
+            console.log(process.pid);
+            setInterval(() => {}, 1000);
+        `;
+        const { child, first: pid, output, ended, closed } = await started([TEST_RUN, "node", "-e", command], { ...process.env, [RUN_ENV]: run });
+        try {
+            // the signal to the wrapper only, as a CI runner or a supervisor sends it
+            child.kill(signal);
+            const result = await ended;
+            // a command the wrapper failed to stop holds the output open: stop it before reading it
+            kill(pid);
+            await closed;
+            assert.deepEqual(result, { code: 5, signal: null }, `${signal}: ${output()}`);
+            assert.match(output(), /^stopping$/m, signal);
+            assert.match(output(), new RegExp(`left 1 temporary directory of run ${run} behind`), signal);
+            assert.deepEqual(leftovers(run), [], signal);
+        } finally {
+            kill(pid);
+            for (const dir of leftovers(run)) rmSync(dir, { recursive: true, force: true });
+        }
+    }
+});
+
+test("a test run hands SIGINT on only without a terminal, whose Ctrl-C reaches the command itself; SIGTERM always", () => {
+    assert.deepEqual(forwarded(true), ["SIGTERM"]);
+    assert.deepEqual(forwarded(false), ["SIGINT", "SIGTERM"]);
+    assert.deepEqual(forwarded(undefined), ["SIGINT", "SIGTERM"]);
+});
+
+test("a test run whose command ends on a signal fails, and a command it cannot start fails after the check", { skip: NO_SIGTERM, timeout: 30_000 }, async () => {
+    const run = newRun();
+    const { child, first: pid, ended, closed, output } = await started([TEST_RUN, "node", "-e", "console.log(process.pid); setInterval(() => {}, 1000);"], { ...process.env, [RUN_ENV]: run });
+    child.kill("SIGTERM");
+    const result = await ended;
+    kill(pid);
+    await closed;
+    assert.deepEqual(result, { code: 1, signal: null }, output());
+    // a directory of the run from before the command, which the check still names and removes
+    const early = mkdtempSync(join(tmpdir(), `pivotkit-${run}-early-`));
+    try {
+        const missing = spawnSync(process.execPath, [TEST_RUN, "pivotkit-no-such-command"], { encoding: "utf8", env: { ...process.env, [RUN_ENV]: run } });
+        assert.notEqual(missing.status, 0);
+        assert.match(missing.stderr, /ENOENT/);
+        assert.match(missing.stderr, new RegExp(`left 1 temporary directory of run ${run} behind`));
+        assert.equal(existsSync(early), false);
+    } finally {
+        rmSync(early, { recursive: true, force: true });
+    }
 });
 
 test("a test run fails when it leaves a directory of its own behind, names and removes it, and counts no other run's", () => {

@@ -8,6 +8,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The rules in a field's Filter level show in the WebKit of Playwright 1.65 (build 2388): the rule
+  list stacked in a wrapping column got no size there, so a new rule's row and its value field could
+  not be seen or used. The rules form is a single column as wide as the menu, each row with room for
+  its value, in every browser. Whether a Safari release shows the same fault was not checked
+  ([#474](https://github.com/eizedev/pivotkit/issues/474)).
 - Export → HTML report carries the host's dark colours too (pivotkit-report's `darkTokens`), read
   from the report's dark theme whichever theme it shows: a reader on a dark screen sees the host's
   dark design, not pivotkit's default dark colours. Paper and a print stay light. The report's
@@ -22,6 +27,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   others: the toolbar's menus (Export, Views, Data, Start over, More) and a field's chip menu. WebKit
   does not focus a clicked button, so the press moved the focus out of the menu, which closed it,
   and the click opened it again ([#393](https://github.com/eizedev/pivotkit/issues/393)).
+- `import "pivotkit-react/styles.css"` compiles in a strict TypeScript project without a bundler's
+  CSS types: the stylesheet ships its own declaration (`styles.css.d.ts`, the `types` condition of
+  its export); TypeScript answered TS2882 before
+  ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 
 ## [0.6.1] - 2026-11-14
 

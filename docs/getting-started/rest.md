@@ -1,6 +1,6 @@
 ---
 title: "Getting started: REST service"
-description: Run pivotkit-server over a CSV file, call it with curl and PowerShell, validate and render a view, download the report, then add tokens and a profile.
+description: Run pivotkit-server over a CSV file, call it with curl and PowerShell, validate and render a view, get a download link, then add tokens and a profile.
 ---
 
 # Getting started: REST service
@@ -26,7 +26,9 @@ npx -y pivotkit-server serve --source sales=sales.csv --output reports
 ```
 
 The log says `started` with the address. Leave it running and open a second terminal in the same
-folder. `npx -y` takes the newest release at each start; for a service others use, install a version
+folder. For another port, add `--port 8080`, set the environment variable `PIVOTKIT_PORT`, or write
+`http.port` in a configuration file (the flag wins over the file, the file over the variable), and
+use that port in the calls below. `npx -y` takes the newest release at each start; for a service others use, install a version
 you name and update it as in [Update an installation](upgrading.md#update).
 
 ## 2. Look at the data { #describe }
@@ -55,7 +57,7 @@ you name and update it as in [Update an installation](upgrading.md#update).
 
 Each field has a `level`. By default every field is `summary`: you get its name, type and counts, not
 its values. At `values` you get every value as a complete list, at `show` values and results. The
-operator decides per field ([step 5](#policy)).
+operator decides per field ([step 6](#policy)).
 
 ## 3. Check a view { #validate }
 
@@ -103,15 +105,49 @@ With the name fixed, render the report into the output folder:
 The answer names the file (`output.filename`, here `sales.xlsx`); it is in the `reports` folder as
 `sales.pivotkit-out.xlsx`. Its `message` says "The report is saved on the server; ask the operator
 how to open it.": a program does not get the server's path; it takes the file itself through the
-file route ([step 5](#policy)). Check
+file route ([step 6](#policy)), and a person a [download link](#download-link). Check
 `ok` in a script: a view with errors also answers 200, with `ok: false`, its `findings` and no file.
 The answer also says `withheld`: Region and Revenue are `summary` fields, so the numbers stay in the
 file and are not part of the answer.
 
-## 5. Tokens, a profile and downloads { #policy }
+## 5. A download link { #download-link }
 
-Stop the service (Ctrl+C) and write a configuration file `pivotkit.json`: Region is shown, two
-tokens, one of them with a profile that may download files.
+A report over a source whose fields are all shown gets a link a person opens in the browser. Stop
+the service (Ctrl+C), write a configuration file `pivotkit.json` that shows every field of `sales`,
+and start it again:
+
+```json
+{
+  "sources": { "sales": { "file": "sales.csv", "title": "Sales", "policy": { "default": "show" } } },
+  "output": { "dir": "reports" }
+}
+```
+
+```bash
+npx -y pivotkit-server check-config --config pivotkit.json
+npx -y pivotkit-server serve --config pivotkit.json
+```
+
+`check-config` warns that `output.downloads.key` is not set: without it the server makes a new key
+at each start, so links stop working on a restart. That is fine here; for a service others use, set
+the key ([download links](../reference/delivery.md#configuration)). Render the same view again
+([step 4](#render)); the answer's `output` now holds the link (the token is shortened here):
+
+```json
+"output": { "name": "LBYgghNzgES9CtH50Kz7nQ-Sales.pivotkit-out.xlsx", "filename": "Sales.xlsx",
+  "url": "http://127.0.0.1:3333/downloads/eyJ2IjoxLC...qjt4hRZV3X", "expiresAt": "2026-11-16T01:19:54Z",
+  "bound": "none", "note": "Open the link in your browser; it works for 60 minutes.", "format": "xlsx", ... }
+```
+
+`url` works until `expiresAt` for anyone who has it (`bound: "none"`). A report over a source with a
+field that is not shown gets no link, or one bound to the person's sign-in or used once, as the
+operator sets it: [Download links](../reference/delivery.md) has the rules, sign-in links and an
+upload to your own store instead.
+
+## 6. Tokens, a profile and downloads { #policy }
+
+Stop the service (Ctrl+C) and write `pivotkit.json` again: Region is shown, two tokens, one of them
+with a profile that may download files.
 
 ```json
 {

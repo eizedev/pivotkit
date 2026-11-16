@@ -124,12 +124,13 @@ npm and GitHub. Their words are quoted in [each in detail](#each-in-detail). The
 
 - The report does not fetch data and makes no network request: the host passes the rows, or a person
   loads a file of their own in the browser where the host allows it (`allowImport`, off by default;
-  [FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it)). The command line reads local files
-  only; the REST service and the MCP server, which an operator runs, read the files their
+  [FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it)). The command line reads local files,
+  or asks a REST service; the REST service and the MCP server, which an operator runs, read the
+  files, [HTTP APIs](reference/sources.md#http) and [code sources](reference/sources.md#code) their
   configuration names and answer requests.
 - It is not access control: a viewer can see every row the host passes, and with Source data
   (`exportData`, off by default) download them ([security](security.md#pivotkit-is-not-access-control)).
-- The report computes on the page, not in WebAssembly or a worker, and has no server row model or streaming
+- The report in the browser computes on the page, not in WebAssembly or a worker, and has no server row model or streaming
   updates. For more than a million rows, aggregate on the server first
   ([more than a million rows](concepts/limits.md#more-than-a-million-rows)).
 - It is a pivot report, not a data grid or a dashboard tool: no editing of cells, no calculated

@@ -7,26 +7,14 @@
 // controls the view (set again from every pivot-view-change) and starts it again at the start view
 // whenever the element is put back, as a host that renders it anew. window.__putBackTwice() takes the
 // element out of the page and puts it back twice in a row: the second time as soon as the report
-// mounted the first time has restored its file (its pivot-data-load "restore"), before it renders again. window.__selects counts the native <select> elements the report creates: WebKit reports a
-// style-src-attr violation for each (its own shadow tree of the control), with or without pivotkit.
+// mounted the first time has restored its file (its pivot-data-load "restore"), before it renders again.
 import { DATASETS } from "../../../../examples/playground/src/data.js";
 
 window.__violations = [];
 window.__loads = [];
-window.__selects = 0;
 document.addEventListener("securitypolicyviolation", (e) => window.__violations.push(`${e.violatedDirective}: ${e.blockedURI} ${e.sample ?? ""}`.trim()));
 const query = new URLSearchParams(location.search);
 const el = document.getElementById("report");
-customElements.whenDefined("pivot-report").then(() => {
-    const count = (nodes) => {
-        for (const n of nodes) {
-            if (n.nodeType === 1) {
-                window.__selects += (n.matches("select") ? 1 : 0) + n.querySelectorAll("select").length;
-            }
-        }
-    };
-    new MutationObserver((records) => records.forEach((r) => count(r.addedNodes))).observe(el.shadowRoot, { childList: true, subtree: true });
-});
 el.addEventListener("pivot-data-load", (e) => {
     window.__loads.push(JSON.parse(JSON.stringify(e.detail)));
     if (query.has("refuse") && e.detail.cause === "load") {

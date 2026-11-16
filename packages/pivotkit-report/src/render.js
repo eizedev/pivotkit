@@ -171,6 +171,14 @@ export async function render(view, data, options = {}) {
     if (options.dataAsOf !== undefined && !isDataAsOf(options.dataAsOf)) {
         throw badOption("dataAsOf", 'dataAsOf is a time in UTC to the second: "2026-11-15T08:00:00Z"');
     }
+    // the colours are an object: another type would give the default colours without a word (a token
+    // in it that cannot be used is still left out on its own: tokens.js cleanTokens)
+    for (const key of /** @type {const} */ (["tokens", "darkTokens"])) {
+        const value = options[key];
+        if (value !== undefined && (value === null || typeof value !== "object" || Array.isArray(value))) {
+            throw badOption(key, `${key} is an object of --pk-* names and their values, not ${value === null ? "null" : Array.isArray(value) ? "a list" : `a ${typeof value}`}`);
+        }
+    }
     if (options.now !== undefined) {
         // checked here, so a wrong one is named as an option before any work
         generatedText(options.now, "en-US", "UTC");

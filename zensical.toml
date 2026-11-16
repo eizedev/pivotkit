@@ -16,7 +16,7 @@ nav = [
   { "Live demo" = "demo.md" },
   { "Comparison" = "compare.md" },
   { "Use a report" = [
-    { "Overview" = "use/index.md" },
+    { "Where to start" = "use/index.md" },
     { "Quick start" = "use/quick-start.md" },
     { "Learn with real data" = "learn.md" },
     { "Load your own data" = "use/load-data.md" },
@@ -32,7 +32,7 @@ nav = [
     { "Behaviour reference" = "use/behaviour.md" },
   ] },
   { "Embed pivotkit" = [
-    { "Overview" = "embed/index.md" },
+    { "Which package fits" = "embed/index.md" },
     { "Getting started: React" = "getting-started/react.md" },
     { "Getting started: web component" = "getting-started/web-component.md" },
     { "Getting started: engine only" = "getting-started/engine.md" },

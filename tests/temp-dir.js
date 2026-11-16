@@ -40,21 +40,35 @@ export function removeTempDirs() {
     }
 }
 
+/**
+ * How long a signal handler of the process's own may take before the process ends anyway: a graceful
+ * stop that never comes would otherwise keep it alive until it is killed.
+ */
+export const GRACE_MS = 5000;
+
 let watching = false;
 
 /**
  * Removes the directories when the process ends: at its end or exit(), and on a signal that would
- * otherwise end it without the exit event (Ctrl-C, the timeout of a spawning test). A signal
- * somebody else handles (Playwright's worker) is left to them.
+ * otherwise end it without the exit event (Ctrl-C, the timeout of a spawning test). A signal the
+ * process handles itself (a server's graceful stop, Playwright's worker) is left to that handler,
+ * whether it was added before or after the first tempDir(); the exit event removes the directories
+ * once it is done, and a handler that has not ended the process after GRACE_MS ends it here. Only without such a handler does the signal end the process here, as it would
+ * without one (exit code 128 + the signal's number).
  */
 function watch() {
     if (watching) return;
     watching = true;
     process.on("exit", removeTempDirs);
     for (const [signal, number] of /** @type {const} */ ([["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]])) {
-        if (process.listenerCount(signal) === 0) {
-            process.once(signal, () => process.exit(128 + number));
-        }
+        const end = () => {
+            // counted when the signal comes, before the other listeners run: first in line, so a
+            // once() listener has not removed itself yet
+            if (process.listeners(signal).every((listener) => listener === end)) process.exit(128 + number);
+            // the handler's stop has its time; unref'd, so a stop that ends the process is not held up
+            setTimeout(() => process.exit(128 + number), GRACE_MS).unref();
+        };
+        process.prependListener(signal, end);
     }
 }
 

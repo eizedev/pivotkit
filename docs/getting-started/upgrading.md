@@ -172,7 +172,7 @@ callers notice:
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
-| [Data as of in files](#data-as-of-files) | people read html reports or open xlsx files | nothing; a print template of your own may add `{{dataAsOf}}` |
+| [Data as of in files](#data-as-of-files) | people read html or xlsx reports from the REST service or the MCP server, or your code passes `dataAsOf` | nothing; a print template of your own may add `{{dataAsOf}}` |
 | [Groups, a default profile, source scopes, the person in the log](#operator-controls) | you want profiles by group, a profile for everyone else, the sources' scopes in the OAuth metadata, or the person in the log | set `auth.groupProfiles` with `auth.defaultProfile`, `auth.offerSourceScopes`, `audit.subject` |
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
 | [Findings carry their field](#findings-field) | a client reads `findings` | accept the optional `field`, the code `itemUnknown` and an unknown `level` |
@@ -193,6 +193,7 @@ callers notice:
 | [check-config's layout](#check-config-layout) | you read `check-config`'s output in a script | use its exit code, or its first line, which says whether the server starts |
 | [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
 | [HTML reports on a dark screen](#dark-mid-colour) | your reports or print templates set a colour scale's middle colour (`--pk-scale-mid`), or pass `tokens` with quoted strings | pass the middle colour in `darkTokens` to keep one on a dark screen |
+| **Breaking:** [`tokens` and `darkTokens` that are no object](#tokens-object) | your code passes pivotkit-report's `render` a `tokens` or `darkTokens` that is a text, a list, `null` or a number | pass an object, or leave the option out |
 | [Loopback addresses](#loopback) | the server listens on `127.1`, `127.0.1` or a host name that starts with `127.` | write `127.0.0.1`, or set `auth` |
 | [Report file names](#report-names) | a script finds reports in `output.dir` by name | match the name with its parentheses |
 | [Command line](#cli-next) | a script reads `pivotkit`'s error text | read the exit code or `--json` |
@@ -205,7 +206,10 @@ client its own profile.
 
 An html report's details (the default template's `{{details}}`) add "Data as of" with when the data
 is from, and a print template may place it with `{{dataAsOf}}`. An xlsx file carries it as the
-custom document property `DataAsOf`. A print template of your own shows it only where it uses
+custom document property `DataAsOf`. Both appear only where the report is given that time: the REST
+service and the MCP server pass it (the results' `dataAsOf`), and pivotkit-report's `render` takes
+it as its [`dataAsOf` option](../reference/report.md). The command line passes none, so a report it
+renders from a local file carries none. A print template of your own shows it only where it uses
 `{{details}}` or `{{dataAsOf}}`: the Minimal example uses `{{details}}`, the Corporate example writes
 its own footer without it (add `{{dataAsOf}}` there where your reports always come from a service).
 csv, json and svg carry it in the result only.
@@ -420,6 +424,13 @@ light. To keep a middle colour on a dark screen, pass it in pivotkit-report's `d
 
 A host's `tokens` (and `darkTokens`) value that holds a quoted string is left out, and the default
 stands in, except in `font-family`. Write such a colour without quotes.
+
+### `tokens` and `darkTokens` that are no object { #tokens-object }
+
+**Breaking** for code that passes such a value. pivotkit-report's `render` refuses `tokens` or
+`darkTokens` that is no object (a CSS text, a list, `null`, a number) with `INVALID_OPTION` and
+`details.option`; such a value gave the default colours without a word. Pass an object of `--pk-*`
+names and values, or leave the option out (`undefined`, not `null`).
 
 ### Loopback addresses { #loopback }
 

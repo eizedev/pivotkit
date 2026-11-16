@@ -68,6 +68,18 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
    same report from it on the command line or in CI, as HTML, CSV or Excel, and `pivotkit describe
    --suggest` a first view from a CSV or Excel file's fields
    ([command line](getting-started/cli.md)).
+6. **Live data from files, HTTP APIs and code.** The REST service and the MCP server, which you run, read a
+   file, or call an [HTTP API](reference/sources.md#http) or run your [own code](reference/sources.md#code)
+   with the caller's parameters, and keep a load for a short time per caller. An AI model gets field names and counts; rows
+   only where the policy shows them ([what reaches an AI model](model-data.md)). Every result says
+   when its data is from: "Data as of" in the server's HTML reports, a document property in its
+   Excel files.
+7. **Reports that reach people.** A report the server writes comes with a
+   [download link](reference/delivery.md) that expires, bound to the person's sign-in where the
+   data is not open to everyone, or goes to a [store you run](reference/delivery.md#upload)
+   (S3, Azure Blob Storage, a file service of your own). A small csv or json result over fields
+   that are shown can also come back only in the answer, saved nowhere
+   ([`save: false`](reference/mcp.md#inline-only)).
 
 <div class="grid" markdown>
 
@@ -109,13 +121,14 @@ Which package fits, what a host switches on, and the recipes: [Embed pivotkit](e
 
 !!! note "What pivotkit does not do"
 
-    - The report fetches no data and makes no network request: the application passes the rows, or a
-      person loads a file; only the REST service and the MCP server, which you run yourself, answer
-      requests, and they read the files you configure ([FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it)).
+    - The report in the browser fetches no data and makes no network request: the application passes
+      the rows, or a person loads a file. Only the REST service and the MCP server, which you run
+      yourself, answer requests and fetch data: the files and HTTP APIs you configure, or your code
+      ([FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it)).
     - It is not access control: whoever sees the report can read every row the application passes
       ([security](security.md#pivotkit-is-not-access-control)).
-    - The report computes on the page, not in WebAssembly or on a server (the REST service and the MCP
-      server compute on yours): measured up to 1,000,000 rows, where
+    - The report in the browser computes on the page in JavaScript (the REST service and the MCP
+      server compute on your server): measured up to 1,000,000 rows, where
       the first table takes 1 to 2.5 s and the page waits meanwhile; for more, aggregate on the server
       first ([limits](concepts/limits.md#measured-in-the-browser)).
     - It draws bars, lines, area, pie, donut and heatmap, not dozens of chart types, and ships English

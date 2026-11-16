@@ -68,8 +68,9 @@ Installation and a first example are in [Getting started with React](../getting-
 | `importWorker` | `() => Worker` |  | Starts a module worker that runs `pivotkit-react/import-worker`, so CSV and JSON files are read off the page. [More](#prop-importworker) |
 
 Exports: `PivotReport` and the types `PivotReportProps`, `CellClick`,
-`ExportFile`, `Template`, `TemplateScope`, `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `DataLoad`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
-`PartialLabels`. The stylesheet is `pivotkit-react/styles.css`. `pivotkit-react/labels` exports
+`ExportFile`, `Template`, `TemplateScope`, `TemplateSource` (the data a view is saved or published from), `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `DataLoad`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
+`PartialLabels`. The stylesheet is `pivotkit-react/styles.css`; it ships its own type declaration,
+so a strict TypeScript project imports it without a bundler's CSS types. `pivotkit-react/labels` exports
 `LABELS` (`{ en, de }`, every text), a subpath of its own: the menus' texts load with the menus, so
 the report's first load stays small.
 

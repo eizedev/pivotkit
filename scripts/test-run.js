@@ -5,8 +5,11 @@
 // tests/temp-dir.js puts into the name of each directory it makes. Afterwards only the directories
 // with this run's id are counted: another run on the same machine, at the same time, does not count.
 // What is left is named and removed, and the run fails. "node" runs this Node, "npm" the npm that
-// started the script (npm_execpath), so it works without a shell on every system.
-import { spawnSync } from "node:child_process";
+// started the script (npm_execpath), so it works without a shell on every system. SIGTERM to this
+// script goes on to the command (a CI runner or a supervisor may signal this process alone), SIGINT
+// as well when no terminal sends it to both; the check runs once the command has ended, however it
+// ended.
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -38,27 +41,53 @@ function program([name, ...args], env) {
 }
 
 /**
- * Runs the command as a test run; its exit code, or 1 when it left directories behind.
- * @param {string[]} command
+ * The signals handed on to the command. SIGINT only without a terminal: a Ctrl-C there reaches the
+ * whole foreground group, the command as well, and a second one could turn its graceful stop into a
+ * forced one.
+ * @param {boolean | undefined} terminal whether this script's input is a terminal
+ * @returns {NodeJS.Signals[]}
  */
-export function testRun(command) {
+export const forwarded = (terminal) => (terminal ? ["SIGTERM"] : ["SIGINT", "SIGTERM"]);
+
+/**
+ * Runs the command as a test run; its exit code, 1 when a signal ended it, or 1 when it left
+ * directories behind.
+ * @param {string[]} command
+ * @returns {Promise<number>}
+ */
+export async function testRun(command) {
     if (command.length === 0) throw new Error("usage: node scripts/test-run.js <command> [args...]");
     const run = process.env[RUN_ENV] || randomBytes(6).toString("hex");
     runPrefix(run);
     const env = { ...process.env, [RUN_ENV]: run };
     const [file, args, shell] = program(command, env);
-    const result = spawnSync(file, args, { stdio: "inherit", env, shell });
-    if (result.error) throw result.error;
-    let code = result.status ?? 1;
-    const left = leftovers(run);
-    if (left.length > 0) {
-        process.stderr.write(`\nThe tests left ${left.length} temporary director${left.length === 1 ? "y" : "ies"} of run ${run} behind (make them with tempDir() of tests/temp-dir.js):\n${left.map((path) => `  ${path}\n`).join("")}`);
-        for (const path of left) rmSync(path, { recursive: true, force: true, maxRetries: 3 });
-        code ||= 1;
+    /** @type {import("node:child_process").ChildProcess | undefined} */
+    let child;
+    // kept until the check is done: a signal while it runs does not cut it short (kill() does
+    // nothing once the command has ended)
+    const forwards = forwarded(process.stdin.isTTY).map((signal) => /** @type {const} */ ([signal, () => child?.kill(signal)]));
+    // not on Windows: no signal reaches this script alone there, and kill() would end the command at once
+    if (process.platform !== "win32") for (const [signal, forward] of forwards) process.on(signal, forward);
+    let code = 1;
+    try {
+        code = await new Promise((resolve, reject) => {
+            child = spawn(file, args, { stdio: "inherit", env, shell });
+            child.once("error", reject);
+            child.once("close", (status) => resolve(status ?? 1));
+        });
+    } finally {
+        // also when the command could not start: whatever it made is still named and removed
+        const left = leftovers(run);
+        if (left.length > 0) {
+            process.stderr.write(`\nThe tests left ${left.length} temporary director${left.length === 1 ? "y" : "ies"} of run ${run} behind (make them with tempDir() of tests/temp-dir.js):\n${left.map((path) => `  ${path}\n`).join("")}`);
+            for (const path of left) rmSync(path, { recursive: true, force: true, maxRetries: 3 });
+            code ||= 1;
+        }
+        for (const [signal, forward] of forwards) process.off(signal, forward);
     }
     return code;
 }
 
 if (isMain(import.meta.url)) {
-    process.exitCode = testRun(process.argv.slice(2));
+    process.exitCode = await testRun(process.argv.slice(2));
 }
