@@ -82,7 +82,8 @@ async function drawn(chart) {
         chart.evaluate(async (el) => {
             const { getInstanceByDom } = await import("echarts/core");
             const instance = getInstanceByDom(el);
-            if (!instance) return null;
+            // the chart's animation has ended: the marks are where they stay
+            if (!instance || !instance.getZr().animation.isFinished()) return null;
             const box = (t) => {
                 const r = t.getBoundingRect().clone();
                 const m = t.getComputedTransform();
