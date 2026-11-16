@@ -163,8 +163,8 @@ jobs:
         run: |
           set -o pipefail
           npm stage publish "./pack/$TARBALL" --provenance --access public --ignore-scripts 2>&1 | tee stage.log
-          # npm 11.21.1 prints "+ <name>@<version> (staged with id <id>)" when the registry returns an
-          # id; the summary does not rely on it
+          # the stage id, if npm prints it as "(staged with id <id>)"; unverified, so the summary
+          # does not rely on it
           id="$(grep -o 'staged with id [^)]*' stage.log | head -n 1 | sed 's/^staged with id //' || true)"
           {
             echo "## $TAG is staged on npm, not published"
