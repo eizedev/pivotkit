@@ -5,37 +5,46 @@ description: How pivotkit compares with Perspective, Graphic Walker, PivotTable.
 
 # Compared with other pivot components
 
-What people and developers can do with pivotkit and with six other pivot components, one row per
-task, each cell linked to the page it comes from. pivotkit aims at people who know Excel's
-PivotTable and at developers who put that report into their own application; the others choose
-differently, and [where others are stronger](#where-others-are-stronger) says where.
+This page compares what people and developers can do with pivotkit and with six other pivot
+components. Each row is one task, and each cell links to the page it comes from. pivotkit aims at
+people who know Excel's PivotTable, and at developers who put that report into their own
+application. The others make different choices. [Where others are stronger](#where-others-are-stronger)
+says where.
 
 ## The short answer
 
-Among the components below, pivotkit is the only one we found that combines a field list for people
-without technical knowledge, loading their own CSV, JSON or Excel file in the report with a preview
-(where the host turns it on; Excel with a plugin),
-a switch between table and chart, views as JSON with a published JSON Schema, a native Excel export
-that keeps the pivot layout, the rows behind the report as a file, and the same report rendered
-without a browser by a library, a command line that checks views in CI, a REST service with a
-container image and an MCP server for AI clients; it is MIT-licensed.
+Among the components below, pivotkit is the only one we found that combines all of these:
 
-- **Perspective** is the strongest engine for large and live data, has no built-in Excel export (its
-  FAQ says so) and streams live data.
-- **Graphic Walker** is a chart builder first; it lets people upload a CSV or JSON file with a
-  preview, and needs React 19.
-- **Flexmonster** is a complete paid pivot tool: rules, top N, 13 languages, raw rows
-  from its drill-through view; it exports in the browser (on a server through a headless browser).
+- a field list for people without technical knowledge
+- loading their own CSV, JSON or Excel file in the report with a preview, where the host turns it
+  on (Excel with a plugin)
+- a switch between table and chart
+- views as JSON with a published JSON Schema
+- a native Excel export that keeps the pivot layout
+- the rows behind the report as a file
+- the same report rendered without a browser by a library
+- a command line that checks views in CI
+- a REST service with a container image
+- an MCP server for AI clients
+
+pivotkit is MIT-licensed. The others in short:
+
+- **Perspective** is the strongest engine for large and live data. It has no built-in Excel export,
+  as its FAQ says, and it streams live data.
+- **Graphic Walker** is a chart builder first. It lets people upload a CSV or JSON file with a
+  preview, and it needs React 19.
+- **Flexmonster** is a complete paid pivot tool: rules, top N, 13 languages, raw rows from its
+  drill-through view. It exports in the browser, and on a server through a headless browser.
 - **AG Grid Enterprise** is a data grid with a paid pivot mode, server-side pivoting and 46 locales.
 - **WebDataRocks** is free of charge but proprietary, capped at 1 MB of data.
-- **PivotTable.js** has had no release since 2018; react-pivottable keeps its React wrapper current.
+- **PivotTable.js** has had no release since 2018. react-pivottable keeps its React wrapper current.
 
 ## What you can do
 
-Checked on 2026-11-14 in each project's own documentation, README, wiki or npm entry; cells marked
-¹ were checked on 2026-11-12 or 2026-11-13 and not again. "Not found" means not found in the pages
-looked at, on that date; it is not proof of absence. Paid features say so. The table scrolls sideways
-on a small screen.
+The table was checked on 2026-11-14 in each project's own documentation, README, wiki or npm entry.
+Cells marked ¹ were checked on 2026-11-12 or 2026-11-13 and not again. "Not found" means not found
+in the pages looked at, on that date. It is not proof of absence. Paid features say so. The table
+scrolls sideways on a small screen.
 
 | | pivotkit | Perspective | Graphic Walker | PivotTable.js / react-pivottable | AG Grid Enterprise | Flexmonster | WebDataRocks |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -69,9 +78,14 @@ on a small screen.
 
 ## At a glance
 
-Licence, release, where the pivot is computed and how many rows each project's own docs name. Checked
-on 2026-11-12 (Flexmonster and WebDataRocks again on 2026-11-13); the releases again on 2026-11-14 on
-npm and GitHub. Their words are quoted in [each in detail](#each-in-detail). The Frameworks column and "in the browser" are from the pages linked in the same row and in each in detail, not linked cell by cell.
+This table shows the licence, the release, where the pivot is computed and how many rows each
+project's own docs name.
+
+- Checked on 2026-11-12. Flexmonster and WebDataRocks were checked again on 2026-11-13. The releases
+  were checked again on 2026-11-14 on npm and GitHub.
+- [Each in detail](#each-in-detail) quotes the projects' own words.
+- The Frameworks column and "in the browser" come from the pages linked in the same row and in each
+  in detail. They are not linked cell by cell.
 
 | | Licence | Latest release | Where the pivot is computed | Rows its docs name | Frameworks | Excel (.xlsx) export |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -86,71 +100,75 @@ npm and GitHub. Their words are quoted in [each in detail](#each-in-detail). The
 ## Where others are stronger
 
 - **More rows in the browser**: [Perspective](https://perspective-dev.github.io/guide/use_cases/large_datasets.md)
-  computes in C++ compiled to WebAssembly in a Web Worker, so the page stays responsive, and names
-  millions of rows as routine; it also streams updates and runs the same engine on a server or as
-  SQL against DuckDB, ClickHouse, PostgreSQL and Polars. Its `restore()` checks a saved config and
-  `migrate()` updates old ones. pivotkit computes on the page: at 1,000,000 rows the first table
-  takes 1 to 2.5 s on an Apple M4 and the page is frozen meanwhile
-  ([measured](concepts/limits.md#measured-in-the-browser)).
-- **Charts**: Perspective draws more than 15 chart types with WebGL; Graphic Walker is a chart
-  builder first (Vega-Lite). pivotkit draws bars, lines, area, pie, donut and heatmap
-  ([charts](use/charts.md)).
+  computes in C++ compiled to WebAssembly in a Web Worker, so the page stays responsive. It names
+  millions of rows as routine. It also streams updates, and it runs the same engine on a server or
+  as SQL against DuckDB, ClickHouse, PostgreSQL and Polars. Its `restore()` checks a saved config
+  and `migrate()` updates old ones. pivotkit computes on the page. At 1,000,000 rows the first table
+  takes 1 to 2.5 s on an Apple M4, and the page is frozen meanwhile. See
+  [measured](concepts/limits.md#measured-in-the-browser).
+- **Charts**: Perspective draws more than 15 chart types with WebGL. Graphic Walker is a chart
+  builder first, built on Vega-Lite. pivotkit draws bars, lines, area, pie, donut and heatmap. See
+  [charts](use/charts.md).
 - **A full data grid**: AG Grid is a data grid with several row models,
   [server-side pivoting](https://www.ag-grid.com/react-data-grid/server-side-model-pivoting/) and an
-  [Excel import](https://www.ag-grid.com/react-data-grid/excel-import/) by drag and drop; pivotkit is a
-  pivot report, not a grid.
+  [Excel import](https://www.ag-grid.com/react-data-grid/excel-import/) by drag and drop. pivotkit is
+  a pivot report, not a grid.
 - **Languages and data sources**: AG Grid ships 46 locales, Flexmonster localization files for 13
-  languages, WebDataRocks 11; Flexmonster connects to Microsoft Analysis Services, SQL databases,
-  MongoDB and Elasticsearch. pivotkit ships English and German, every text replaceable
-  ([localisation](reference/localisation.md)).
+  languages, WebDataRocks 11. Flexmonster connects to Microsoft Analysis Services, SQL databases,
+  MongoDB and Elasticsearch. pivotkit ships English and German, and every text is replaceable. See
+  [localisation](reference/localisation.md).
 - **Raw rows and accessibility in Flexmonster**: its drill-through view lists the records behind a
-  value and exports them, and its [accessibility page](https://www.flexmonster.com/doc/accessibility-overview/)
+  value and exports them. Its [accessibility page](https://www.flexmonster.com/doc/accessibility-overview/)
   says it follows guidelines based on WCAG 2.1 and Section 508, with a high-contrast theme.
-- **Files people bring**: Graphic Walker lets people upload a CSV or JSON file, preview it and set each
-  column's role; top N and an Excel export were not found in its docs.
-- **Size**: PivotTable.js's core is 6.3 KB gzip by its README, without charts. pivotkit's web
-  component loads about 172 KiB gzip first, with React inside, and the chart's code (about 216 KiB
-  gzip, ECharts with it) on the first chart (measured with `npm run size -w pivotkit-element` on
-  2026-11-14; [bundle size](reference/element.md#bundle-size)); Graphic Walker's FAQ names about
-  1.5 MB minified, roughly 400 KB gzip, with Vega-Lite.
-- **Maturity and support**: AG Grid, Flexmonster and WebDataRocks are commercial products with vendor
-  support and years in production, Perspective and PivotTable.js have long track records; pivotkit
-  is in 0.x (the version and date are in the table above) and its API can still change between minor
-  versions.
+- **Files people bring**: Graphic Walker lets people upload a CSV or JSON file, preview it and set
+  each column's role. Top N and an Excel export were not found in its docs.
+- **Size**: PivotTable.js's core is 6.3 KB gzip by its README, without charts. Graphic Walker's FAQ
+  names about 1.5 MB minified, roughly 400 KB gzip, with Vega-Lite. pivotkit's web component loads:
+    - first: about 172 KiB gzip, with React inside
+    - on the first chart: the chart's code, about 216 KiB gzip, ECharts with it
+
+    Measured with `npm run size -w pivotkit-element` on 2026-11-14. See
+    [bundle size](reference/element.md#bundle-size).
+- **Maturity and support**: AG Grid, Flexmonster and WebDataRocks are commercial products with
+  vendor support and years in production. Perspective and PivotTable.js have long track records.
+  pivotkit is in 0.x, and its API can still change between minor versions. The version and date are
+  in the table above.
 - **Calculated values and more chart types**: Flexmonster has calculated values with a formula
-  editor and charts such as scatter and column-line combinations; pivotkit has neither.
+  editor, and charts such as scatter and column-line combinations. pivotkit has neither.
 
 ## What pivotkit does not do
 
-- The report does not fetch data and makes no network request: the host passes the rows, or a person
-  loads a file of their own in the browser where the host allows it (`allowImport`, off by default;
-  [FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it)). The command line reads local files,
-  or asks a REST service; the REST service and the MCP server, which an operator runs, read the
-  files, [HTTP APIs](reference/sources.md#http) and [code sources](reference/sources.md#code) their
-  configuration names and answer requests.
-- It is not access control: a viewer can see every row the host passes, and with Source data
-  (`exportData`, off by default) download them ([security](security.md#pivotkit-is-not-access-control)).
-- The report in the browser computes on the page, not in WebAssembly or a worker, and has no server row model or streaming
-  updates. For more than a million rows, aggregate on the server first
-  ([more than a million rows](concepts/limits.md#more-than-a-million-rows)).
-- It is a pivot report, not a data grid or a dashboard tool: no editing of cells, no calculated
-  fields from formulas, no dashboards of several reports.
-- No conformance level of WCAG is claimed, and it ships two UI languages.
+- The report does not fetch data and makes no network request. The host passes the rows. Or a
+  person loads a file of their own in the browser, where the host allows it (`allowImport`, off by
+  default). See the [FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it).
+- The command line reads local files, or asks a REST service. An operator runs the REST service and
+  the MCP server. They answer requests, and they read the files,
+  [HTTP APIs](reference/sources.md#http) and [code sources](reference/sources.md#code) that their
+  configuration names.
+- It is not access control. A viewer can see every row the host passes. With Source data
+  (`exportData`, off by default), the viewer can also download those rows. See
+  [security](security.md#pivotkit-is-not-access-control).
+- The report in the browser computes on the page, not in WebAssembly or a worker. It has no server
+  row model and no streaming updates. For more than a million rows, aggregate on the server first.
+  See [more than a million rows](concepts/limits.md#more-than-a-million-rows).
+- It is a pivot report, not a data grid or a dashboard tool. It has no editing of cells, no
+  calculated fields from formulas and no dashboards of several reports.
+- pivotkit claims no conformance level of WCAG, and it ships two UI languages.
 
 ## Each in detail
 
 ??? info "Perspective"
 
-    - Packages `@perspective-dev/*` (5.9.1 on 2026-11-12; `@finos/perspective*` stopped at 3.8.0 in
-      2025); the React wrapper `@perspective-dev/react` accepts React `>17 <20`. Member project of
+    - Packages `@perspective-dev/*`, 5.9.1 on 2026-11-12. `@finos/perspective*` stopped at 3.8.0 in
+      2025. The React wrapper `@perspective-dev/react` accepts React `>17 <20`. Member project of
       the OpenJS Foundation.
-    - Pivot: group by (rows, with subtotals), split by (columns), many aggregates, expressions,
-      date buckets; drag and drop in its column list. Top N: not found in its docs.
-    - Export: the viewer downloads the current view as CSV or Arrow; `export()` gives CSV, Arrow and
-      HTML, a chart as PNG. Its [FAQ](https://perspective-dev.github.io/guide/FAQ.md): "Perspective
+    - Pivot: group by (rows, with subtotals), split by (columns), many aggregates, expressions and
+      date buckets. Drag and drop in its column list. Top N: not found in its docs.
+    - Export: the viewer downloads the current view as CSV or Arrow. `export()` gives CSV, Arrow and
+      HTML, and a chart as PNG. Its [FAQ](https://perspective-dev.github.io/guide/FAQ.md): "Perspective
       does not have built-in Excel export."
-    - Saved views: `save()` and `restore()` as a JSON config; `restore()` rejects keys the format
-      does not define, `migrate()` updates configs since 2.0.0.
+    - Saved views: `save()` and `restore()` as a JSON config. `restore()` rejects keys the format
+      does not define. `migrate()` updates configs since 2.0.0.
     - Loading a file in the viewer and an accessibility statement: not found in its guide.
     - It publishes `llms.txt` and `llms-full.txt` for its docs.
 
@@ -161,63 +179,63 @@ npm and GitHub. Their words are quoted in [each in detail](#each-in-detail). The
       filters and a CSV, SVG and PNG export of the worksheet.
     - Its README: "upload your Data(csv/json) file, preview your data, and define the analytic type of
       columns (dimension or measure)".
-    - Pivot: a `PivotTable` component is exported from the package and named in the 0.6.0 release
-      notes; not found in its README or docs site.
-    - Rows ([FAQ](https://docs.kanaries.net/graphic-walker/faq)): under 10K excellent, 10K-100K good,
-      100K-1M usable, above 1M server-side computation; it "requires a browser environment for
-      rendering".
+    - Pivot: the package exports a `PivotTable` component, and the 0.6.0 release notes name it. It
+      is not found in its README or docs site.
+    - Rows, by its [FAQ](https://docs.kanaries.net/graphic-walker/faq): under 10K excellent,
+      10K-100K good, 100K-1M usable, above 1M server-side computation. It "requires a browser
+      environment for rendering".
     - Saved charts: a JSON spec, with a JSON Schema for its TerseSpec format. UI languages: English,
       Chinese, Japanese, and your own.
     - Subtotals, top N, .xlsx export and an accessibility statement: not found in its README or docs.
 
 ??? info "PivotTable.js and react-pivottable"
 
-    - PivotTable.js needs jQuery and jQuery UI; its last commit is from 2024-01-06. react-pivottable
-      0.11.1 (2026-03-13) updated a dependency for React 19; the release before it is from 2020-11-19.
-    - Drag and drop UI for rows and columns, one aggregator at a time, derived attributes (a date
-      format deriver), table, heatmap and chart renderers (Plotly, C3, D3, Google Charts). Subtotals
-      come from a third-party renderer named in its wiki. PivotTable.js has 14 locale packs besides
-      English; react-pivottable none.
+    - PivotTable.js needs jQuery and jQuery UI. Its last commit is from 2024-01-06. react-pivottable
+      0.11.1 (2026-03-13) updated a dependency for React 19. The release before it is from 2020-11-19.
+    - Drag and drop UI for rows and columns, one aggregator at a time, and derived attributes, such
+      as a date format deriver. Table, heatmap and chart renderers (Plotly, C3, D3, Google Charts).
+      Subtotals come from a third-party renderer named in its wiki. PivotTable.js has 14 locale packs
+      besides English, react-pivottable none.
     - Its [FAQ](https://github.com/nicolaskruchten/pivottable/wiki/Frequently-Asked-Questions):
-      "PivotTable.js is designed to be a browser-side component"; export is out of scope, with a TSV
+      "PivotTable.js is designed to be a browser-side component". Export is out of scope, with a TSV
       renderer to copy into Excel.
     - Open requests in react-pivottable: [Excel and PDF export](https://github.com/plotly/react-pivottable/issues/168),
       [click events](https://github.com/plotly/react-pivottable/issues/40).
 
 ??? info "AG Grid Enterprise"
 
-    - Pivot mode, row groups and aggregation with a side bar and pivot panel; pivoting, the Excel
+    - Pivot mode, row groups and aggregation with a side bar and pivot panel. Pivoting, the Excel
       export, the Excel import and integrated charts are Enterprise features.
-    - Grid state, the pivot among it, saves as a JSON object with a version and converts old state
-      ([grid state](https://www.ag-grid.com/react-data-grid/grid-state/)).
-    - In pivot mode "it is not possible to drill all the way down the leaf levels"
-      ([server-side pivoting](https://www.ag-grid.com/react-data-grid/server-side-model-pivoting/)).
-    - Excel export: groups and merged header groups; "Cell styles will NOT be exported by default".
+    - Grid state, the pivot among it, saves as a JSON object with a version and converts old state.
+      See [grid state](https://www.ag-grid.com/react-data-grid/grid-state/).
+    - In pivot mode "it is not possible to drill all the way down the leaf levels". See
+      [server-side pivoting](https://www.ag-grid.com/react-data-grid/server-side-model-pivoting/).
+    - Excel export: groups and merged header groups. "Cell styles will NOT be exported by default".
     - Its [accessibility page](https://www.ag-grid.com/react-data-grid/accessibility/) describes a
-      WCAG and ARIA approach; a conformance claim was not found there.
+      WCAG and ARIA approach. A conformance claim was not found there.
 
 ??? info "Flexmonster"
 
-    - Paid licences for a company, SaaS and OEM; a trial of at most 30 days, watermarked, for
-      evaluation only (clause 3.1.1 of its
+    - Paid licences for a company, SaaS and OEM. A trial of at most 30 days, watermarked, for
+      evaluation only: clause 3.1.1 of its
       [licence agreement](https://www.flexmonster.com/software-license-agreement/), "Last updated:
-      October 15, 2026").
-    - Rows: "you can load more than 1GB of data and display up to 1 million rows of grouped data"
-      ([introduction](https://www.flexmonster.com/doc/introduction/)).
+      October 15, 2026".
+    - Rows: "you can load more than 1GB of data and display up to 1 million rows of grouped data".
+      See [introduction](https://www.flexmonster.com/doc/introduction/).
     - [Export](https://www.flexmonster.com/doc/export-report/) to PDF, Excel, CSV, HTML and image,
       with caveats: "A node is not included in the exported file if its parent nodes are collapsed",
       and "the chart view or the grid and charts view can be exported only to PDF, HTML, or an image".
       Without a browser it recommends a headless browser (Puppeteer).
-    - People load a local CSV or JSON file through Connect; Excel is not listed.
-    - UI languages: localization files for 13 languages ship with it
-      ([localizing](https://www.flexmonster.com/doc/localizing-component/)); data from Microsoft
-      Analysis Services, SQL databases, MongoDB and Elasticsearch, some through its own server tools
-      ([data sources](https://www.flexmonster.com/doc/supported-data-sources/)).
-    - Reports save as a JSON object
-      ([save and restore](https://www.flexmonster.com/doc/save-and-restore-report/)).
+    - People load a local CSV or JSON file through Connect. Excel is not listed.
+    - UI languages: localization files for 13 languages ship with it. See
+      [localizing](https://www.flexmonster.com/doc/localizing-component/).
+    - Data from Microsoft Analysis Services, SQL databases, MongoDB and Elasticsearch, some through
+      its own server tools. See [data sources](https://www.flexmonster.com/doc/supported-data-sources/).
+    - Reports save as a JSON object. See
+      [save and restore](https://www.flexmonster.com/doc/save-and-restore-report/).
     - [Accessibility](https://www.flexmonster.com/doc/accessibility-overview/): "Flexmonster follows
-      accessibility guidelines based on WCAG 2.1 and Section 508 standards"; no conformance level or
-      audit named there.
+      accessibility guidelines based on WCAG 2.1 and Section 508 standards". No conformance level or
+      audit is named there.
     - Wrappers on npm: `react-flexmonster` for React 17 to 19, `ngx-flexmonster` for Angular 12 or
       later, and `vue-flexmonster`.
 
@@ -229,37 +247,46 @@ npm and GitHub. Their words are quoted in [each in detail](#each-in-detail). The
       data size loaded to WebDataRocks" and any "proprietary notice, copyright notice or label (e.g.,
       WebDataRocks logo and/or "WebDataRocks.com" text displayed when the WebDataRocks reporting tool
       is running)".
-    - Packages: `@webdatarocks/webdatarocks` 1.4.23 (2026-04-13); the unscoped `webdatarocks` and
+    - Packages: `@webdatarocks/webdatarocks` 1.4.23 (2026-04-13). The unscoped `webdatarocks` and
       `react-webdatarocks` (1.4.9, 2023-10-19) are deprecated. The React wrapper
-      `@webdatarocks/react-webdatarocks` still declares React `^17.0.1`; React 18 and 19 are not
-      mentioned in its docs.
+      `@webdatarocks/react-webdatarocks` still declares React `^17.0.1`. Its docs do not mention
+      React 18 and 19.
     - [Export](https://www.webdatarocks.com/doc/js/exporting/) "to a file in which format is the most
       convenient for you – PDF, Excel or HTML. Besides, you can print it as well."
-    - People load a local CSV or JSON file from the toolbar; the drill-through view is view-only.
+    - People load a local CSV or JSON file from the toolbar. The drill-through view is view-only.
     - Charts: its docs describe integrations with amCharts, Highcharts, Google Charts and
-      FusionCharts; charts of its own were not found.
+      FusionCharts. Charts of its own were not found.
 
 ??? info "pivotkit"
 
     - Subtotals and grand totals, aggregations with "show values as", date grouping, filters with
-      relative date ranges and top N, drill-down, undo and redo ([feature list](features.md)).
+      relative date ranges and top N, drill-down, undo and redo. See the [feature list](features.md).
     - Loading a CSV, JSON or Excel file in the report, with a preview, a type per column and a sheet
-      picker, where the host allows it ([load your own data](use/load-data.md)); the rows behind the
-      report as CSV or JSON, where the host allows it
-      ([the table or the rows](use/export.md#the-table-or-the-rows-behind-it)).
+      picker, where the host allows it. See [load your own data](use/load-data.md).
+    - The rows behind the report as CSV or JSON, where the host allows it. See
+      [the table or the rows](use/export.md#the-table-or-the-rows-behind-it).
     - Views: versioned JSON with a published [JSON Schema](reference/view-file.md), shared as a file,
-      as JSON or as a link; rendered without a browser by [pivotkit-report](reference/report.md) and
-      the [command line](reference/cli.md), which also checks them in CI.
-    - Keyboard and screen readers: every action by keyboard and by a menu
-      ([keyboard](use/keyboard.md)); no conformance level is claimed.
+      as JSON or as a link. [pivotkit-report](reference/report.md) and the
+      [command line](reference/cli.md) render them without a browser, and the command line also
+      checks them in CI.
+    - Keyboard and screen readers: every action by keyboard and by a menu. See
+      [keyboard](use/keyboard.md). No conformance level is claimed.
 
 ## How this page was made
 
-Each fact comes from the project's own documentation, its npm entry or its GitHub repository,
-linked in the table, and was checked on the date given; a page that only summarised itself to the
-tool that read it (Flexmonster's site refuses plain downloads) is no less linked, but worth a second
-look in a browser. Prices are left out; the licence links lead to them. The comparison on 2026-11-06
-also covered, among others, MUI X Premium, Syncfusion, DevExtreme, Handsontable, RevoGrid and Univer
-(pivoting only in a paid edition), TanStack Table, Tabulator and Glide (no pivot UI), DuckDB-WASM and
-Arquero (engines without a UI), and Orb and Voyager; these were not checked again for this page.
+Each fact comes from the project's own documentation, its npm entry or its GitHub repository. The
+table links it, and it was checked on the date given. Some pages only summarised themselves to the
+tool that read them, because Flexmonster's site refuses plain downloads. Those pages are linked all
+the same, but they are worth a second look in a browser. Prices are left out. The licence links lead
+to them.
+
+The comparison on 2026-11-06 also covered other components. These were not checked again for this
+page. Among them:
+
+- MUI X Premium, Syncfusion, DevExtreme, Handsontable, RevoGrid and Univer: pivoting only in a paid
+  edition
+- TanStack Table, Tabulator and Glide: no pivot UI
+- DuckDB-WASM and Arquero: engines without a UI
+- Orb and Voyager
+
 Corrections are welcome as an [issue](https://github.com/eizedev/pivotkit/issues).
