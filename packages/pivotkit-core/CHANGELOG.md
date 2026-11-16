@@ -10,7 +10,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 - The import table's `unnamed`: the columns the file gives no name (a blank header cell, a row
   with more values than the header) as they are named (`Column 7`), so a host can treat them apart;
-  pivotkit-server hides them.
+  pivotkit-server hides them. `overflow`: of those, the columns rows longer than the header added,
+  so a host can tell such rows.
 
 - `toXlsx(grid, { dataAsOf })`: when the data is from (`"2026-11-15T08:00:00Z"`) as the workbook's
   custom document property `DataAsOf`, a date ([#331](https://github.com/eizedev/pivotkit/issues/331));

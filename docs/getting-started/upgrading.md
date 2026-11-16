@@ -184,6 +184,7 @@ callers notice:
 | [Reports and drafts deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | copy the schedule drafts and reports you want to keep out of `output.dir` before you update, or set `output.maxAgeDays: 0` |
 | **Breaking:** [download links over plain http](#download-links-http) | `http.publicUrl` is `http://` on a host other than loopback, with `output.dir` | use `https://`, or set `output.downloads.allowInsecureUrl: true` for a network you trust, or `output.downloads.enabled: false` |
 | [Columns without a header](#columns-without-header) | a file source has rows longer than its header, or a blank header cell, under `"default": "show"` | name such a column in `fields` if it should be shown; run `check-config` |
+| [Rows longer than the header](#long-rows) | a file or CSV answer has rows longer than its header, and the source hides a field | fix those rows (quote values with the separator in them); until then they are left out, with a `ROWS_DROPPED` note |
 | [Request limits per person](#limits-per-person) | people sign in through one OAuth client | nothing; each person gets `rateLimit` and `concurrency` of their own |
 | [The log](#log) | you read the log on a terminal, parse it, alert on it, or ship it to a log server | JSON lines gain fields and the client's address is logged by default (`log.address: "off"` keeps it out); levels and `msg` are new, and more refusals get a line; on a terminal the log is text unless `log.format` is `json`; a start error is a JSON line where stderr is no terminal |
 | [check-config's layout](#check-config-layout) | you read `check-config`'s output in a script | use its exit code, or its first line, which says whether the server starts |
@@ -332,6 +333,14 @@ which an unquoted separator inside a value causes) is `hide` whatever the policy
 values may be another column's, shifted. Before, it took the default, so under `"default": "show"` a
 hidden column's value could be shown there. A rule that names it (`"Column 7": "show"`) still holds.
 `check-config` prints such a column as `hide` and warns of `"default": "show"` with hidden fields.
+
+### Rows longer than the header { #long-rows }
+
+Where a source hides a field (its default or a rule is `hide`), a row with more values than the
+header (an unquoted separator inside a value) is left out whole, and the answer's notes say how many
+with `ROWS_DROPPED`: the values after the stray separator shift one column to the right, so a hidden
+value would land in a shown column. A source that hides nothing keeps such rows, their extra values in
+a hidden `Column N`. Quote values that hold the separator to keep the rows.
 
 ### Request limits per person { #limits-per-person }
 

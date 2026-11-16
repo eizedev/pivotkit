@@ -1141,3 +1141,20 @@ test("a CSV answer for a caller without an identity: read by the operation's wor
         await context.close();
     }
 });
+
+test("#479: a CSV answer's row longer than its header is left out where the source hides a field, with a read note", async () => {
+    routes.set("/v1/shifted.csv", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/csv" });
+        res.end("name,cpu,owner,state\nweb-1,4,alice@example.com,running\nweb,2,2,bob@example.com,stopped\n");
+    });
+    const options = { ...optionsOf({}, {}, { policy: { results: true } }), sources: { csv: { http: { backend: "platform", path: "/shifted.csv", format: "csv" }, policy: POLICY } } };
+    const context = await contextOf(options);
+    try {
+        const described = (await describe(context, undefined, LOCAL, "csv")).result;
+        assert.doesNotMatch(JSON.stringify(described), /bob@example\.com/, "the hidden owner never reaches state");
+        assert.equal(described.rows, 1);
+        assert.ok(described.notes.some((n) => n.code === "ROWS_DROPPED"), JSON.stringify(described.notes));
+    } finally {
+        await context.close();
+    }
+});

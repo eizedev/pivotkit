@@ -81,6 +81,45 @@ const hiddenOf = (levels, columns, unnamed = undefined) => {
     return columns.filter((c) => levelOf(policy, c) === "hide").map(fieldKey);
 };
 
+/**
+ * A read table without its rows longer than the header, where the levels hide a field (the default
+ * or a rule): a separator inside a value shifts every cell after it one column to the right, so a
+ * hidden column's value lands in the next column, which may be shown. Which cell moved cannot be
+ * told, and the row's other values are misplaced too, so the whole row goes, with a read note that
+ * counts them. A row is longer than its header where it has a value in a column such a row added
+ * (pivotkit-core's `overflow`). Without a hidden field the table stays as it was read.
+ * @param {{ default: string, fields: Record<string, string> }} levels
+ * @param {{ table: any, notes: import("pivotkit-report/operations").Finding[] }} read  readTable's
+ * @param {string} label  the source's name for the note
+ * @returns {{ table: any, notes: import("pivotkit-report/operations").Finding[] }}
+ */
+export function withoutLongRows(levels, read, label) {
+    const { table } = read;
+    const overflow = Array.isArray(table?.overflow) ? table.overflow : [];
+    const hides = levels.default === "hide" || Object.values(levels.fields ?? {}).includes("hide");
+    if (!hides || !overflow.length) {
+        return read;
+    }
+    const extra = overflow.map((name) => table.columns.indexOf(name)).filter((c) => c >= 0);
+    const rows = table.data[0]?.length ?? 0;
+    const keep = [];
+    for (let r = 0; r < rows; r++) {
+        if (!extra.some((c) => table.data[c][r] !== null && table.data[c][r] !== undefined)) {
+            keep.push(r);
+        }
+    }
+    const dropped = rows - keep.length;
+    if (!dropped) {
+        return read;
+    }
+    const pick = (column) => keep.map((r) => column[r]);
+    const note = { severity: /** @type {const} */ ("warning"), code: "ROWS_DROPPED", path: "", message: `${label}: ${dropped} row${dropped === 1 ? "" : "s"} with more values than there are column names left out: a separator inside a value shifts the values after it into other columns, and this source hides a field` };
+    return {
+        table: { ...table, data: table.data.map(pick), ...(Array.isArray(table.raw) ? { raw: table.raw.map(pick) } : {}), rowCount: keep.length },
+        notes: [...read.notes, note]
+    };
+}
+
 /** Columnar data without the hidden columns. */
 function withoutHidden(table, hide) {
     if (!hide.length) {
@@ -182,7 +221,7 @@ export async function fileData(spec) {
             return of(remember(key, cache.get(key)));
         }
         const bytes = await readSafe(/** @type {string} */ (spec.path), { cwd: "/", allow: spec.allow ?? [], maxBytes: spec.limits.fileBytes ?? 52_428_800, hardLinks: spec.hardLinks ?? true });
-        const { table, notes } = await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
+        const { table, notes } = withoutLongRows(spec.levels, await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits }), label);
         const hide = hiddenOf(spec.levels, table.columns, table.unnamed);
         const data = encode(withoutHidden(table, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
         return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length, stats: sourceStats(data), asOf: asOfText(info.mtime) }));
@@ -430,7 +469,7 @@ async function readUpload(spec, upload) {
         throw new OperationError("LIMIT_EXCEEDED", `${spec.name}: the file is larger than the server reads (limits.fileBytes)`);
     }
     try {
-        return await readTable(upload.bytes, `${spec.name}.${format}`, { format, ...(upload.sheet ? { sheet: upload.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
+        return withoutLongRows(spec.levels, await readTable(upload.bytes, `${spec.name}.${format}`, { format, ...(upload.sheet ? { sheet: upload.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits }), spec.name);
     } catch (e) {
         // the caller's own file (inline:): its reader's sentence, not only a code (sources/inline.js)
         throw spec.kind === "inline" ? await uploadError(e, upload, spec.limits) : asOperationError(e, spec.name);

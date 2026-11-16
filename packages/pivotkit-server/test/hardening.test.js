@@ -300,3 +300,37 @@ test("#471: check-config gives a hint (not a warning) for a source without a des
     assert.equal(text.match(/no description:/g)?.length, 1, "the described source gets none");
     assert.doesNotMatch(text, /WARNING[^\n]*description/);
 });
+
+// --- #479: a row longer than its header is left out where the source hides a field --------------------
+
+/** Two hidden salaries; the third row's name holds an unquoted comma, so 73457 shifts into Office. */
+const SHIFTED_CSV = ["Name,Team,Salary,Salary,Office,Grade", "Ann,a,51234,51235,Berlin,3", "Bob,b,62345,62346,Hamburg,4", "Carl,Jr,c,73456,73457,Munich,5"].join("\n") + "\n";
+
+test("#479: a row longer than its header is left out of a source that hides a field, with a read note; nothing of it reaches describe or a render", async () => {
+    const dir = workspace({ "staff.csv": SHIFTED_CSV });
+    const server = await restServer({ sources: { staff: { file: "data/staff.csv", policy: { default: "show", fields: { Salary: "hide", "Salary (2)": "hide" } } } }, baseDir: dir });
+    try {
+        const described = await call(`${server.api}/sources/describe`, { body: { source: "staff" } });
+        assert.equal(described.status, 200);
+        const text = JSON.stringify(described.data);
+        assert.doesNotMatch(text, /7345[67]|Carl|Munich/, "nothing of the shifted row");
+        assert.equal(described.data.rows, 2);
+        assert.ok(described.data.notes.some((n) => n.code === "ROWS_DROPPED" && /1 row/.test(n.message)), JSON.stringify(described.data.notes));
+        const office = await call(`${server.api}/views/render`, { body: { source: "staff", view: { rows: ["Office"], values: [{ agg: "count" }] }, format: "json" } });
+        assert.doesNotMatch(JSON.stringify(office.data), /7345[67]/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("#479: a source that hides nothing keeps such a row (its extra values in a hidden Column N), as before", async () => {
+    const dir = workspace({ "staff.csv": SHIFTED_CSV });
+    const server = await restServer({ sources: { staff: { file: "data/staff.csv", policy: { default: "show" } } }, baseDir: dir });
+    try {
+        const described = await call(`${server.api}/sources/describe`, { body: { source: "staff" } });
+        assert.equal(described.data.rows, 3);
+        assert.ok(!described.data.notes.some((n) => n.code === "ROWS_DROPPED"));
+    } finally {
+        await server.close();
+    }
+});

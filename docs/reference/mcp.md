@@ -130,6 +130,9 @@ name) keep the stricter of the two.
 A column the file gives no name (a blank header cell, or a row with more values than the header,
 which a separator inside a value can cause: the reader names it `Column 7`) is `hide` whatever the
 default, since its values may belong to another column; a rule of `fields` that names it holds.
+Where a source hides a field, a row with more values than the header is left out whole, with a
+`ROWS_DROPPED` note that counts such rows: the values after a stray separator shift one column to the
+right, so a hidden value would land in the next column, which may be shown.
 `"default": "show"` with fields set to `hide` is a deny list: a column the data gains later is shown
 unless someone hides it, and `check-config` warns of it. Prefer `summary` by default and name the
 fields to show.

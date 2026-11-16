@@ -169,7 +169,9 @@ test("unnamed lists the columns the file gives no name: a blank header cell and 
     const t = await readFile(text("x.csv", "A;;B;B\n1;2;3;4\n5;6;7;8;9\n"));
     assert.deepEqual(t.columns, ["A", "Column 2", "B", "B (2)", "Column 5"]);
     assert.deepEqual(t.unnamed, ["Column 2", "Column 5"]);
-    assert.deepEqual((await readFile(text("y.csv", "A;B\n1;2\n"))).unnamed, []);
+    assert.deepEqual(t.overflow, ["Column 5"], "only the column a long row added");
+    const y = await readFile(text("y.csv", "A;B\n1;2\n"));
+    assert.deepEqual([y.unnamed, y.overflow], [[], []]);
 });
 
 test("types from text: dates before numbers, leading zeros and long numbers stay text, the notation per column", async () => {

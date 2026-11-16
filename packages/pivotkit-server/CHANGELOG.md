@@ -17,6 +17,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - Behaviour change: a column a file gives no header (a blank header cell, a row longer than the
   header) is `hide` whatever the policy's default; a rule that names it still holds
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#columns-without-header)).
+- Behaviour change: where a source hides a field, a row with more values than its header is left out
+  whole, with a `ROWS_DROPPED` note that counts such rows ([#479](https://github.com/eizedev/pivotkit/issues/479),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#long-rows)).
 - Behaviour change: the request limits (`rest.*`, `mcp.*` `rateLimit` and `concurrency`) count per
   person, no longer per OAuth client; one client's people together run at most eight times
   `concurrency` at once ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#limits-per-person)).
@@ -401,7 +404,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 ### Fixed
 
 - A row with more cells than the header put a hidden column's value into a shown `Column N` under
-  `"default": "show"`; such columns are now hidden.
+  `"default": "show"`; such columns are now hidden. The cells after the stray separator also moved a
+  hidden value into the next named column; such rows are now left out where the source hides a field
+  ([#479](https://github.com/eizedev/pivotkit/issues/479)).
 - The download key (`output.downloads.key`) was read on every request to `/downloads/`, forged links
   included; a read is now shared for a second.
 - A download sign-in's `state` was used once only because the browser drops its cookie; a callback
