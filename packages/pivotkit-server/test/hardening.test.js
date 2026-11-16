@@ -157,7 +157,7 @@ test("F5: sweepMarkers deletes an expired sign-in state's marker and keeps a liv
 
 // --- the age sweep says what it deleted -----------------------------------------------------------
 
-test("output.maxAgeDays: a sweep that deletes old reports and drafts writes one info line with both counts; one that deletes nothing writes none", async () => {
+test("output.maxAgeDays: a sweep deletes old reports, never a schedule draft waiting for approval, and writes one info line with the count; one that deletes nothing writes none", async () => {
     const dir = tempDir();
     const old = (Date.now() - 3 * 86_400_000) / 1000;
     for (const name of ["a.pivotkit-out.csv", "b.pivotkit-out.xlsx", "Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"]) {
@@ -167,11 +167,17 @@ test("output.maxAgeDays: a sweep that deletes old reports and drafts writes one 
     const lines = [];
     const log = { info: (msg, fields) => lines.push({ msg, ...fields }) };
     await prune({ output: { dir, maxAgeDays: 1, cleanUp: true }, log });
-    assert.deepEqual(readdirSync(dir).sort(), ["fresh.pivotkit-out.csv", "mine.csv"]);
+    assert.deepEqual(readdirSync(dir).sort(), ["Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"], "the draft waits for a person");
     assert.equal(lines.length, 1, JSON.stringify(lines));
-    assert.match(lines[0].msg, /output\.maxAgeDays/);
+    assert.equal(lines[0].msg, "output.maxAgeDays: reports older than 1 days deleted");
     assert.equal(lines[0].reports, 2);
-    assert.equal(lines[0].drafts, 1);
+    assert.equal(lines[0].drafts, undefined);
+    // a directory of old drafts only: nothing deleted, nothing said
+    const drafts = tempDir();
+    writeFileSync(join(drafts, "Old.pivotkit-out.report.json"), "x");
+    utimesSync(join(drafts, "Old.pivotkit-out.report.json"), old, old);
+    await prune({ output: { dir: drafts, maxAgeDays: 1, cleanUp: true }, log });
+    assert.deepEqual(readdirSync(drafts), ["Old.pivotkit-out.report.json"]);
     const empty = tempDir();
     await prune({ output: { dir: empty, maxAgeDays: 1, cleanUp: true }, log });
     assert.equal(lines.length, 1, "nothing deleted, nothing said");
@@ -351,7 +357,7 @@ test("#479: a source that hides nothing keeps such a row (its extra values in a 
 
 // --- the operator review of #476 ----------------------------------------------------------------------
 
-test("check-config: counts the reports and schedule drafts the age sweep deletes at the next start, as a WARNING (Output)", async () => {
+test("check-config: counts the reports the age sweep deletes at the next start, as a WARNING (Output); drafts waiting for approval are not counted", async () => {
     const dir = workspace();
     const out = join(dir, "out");
     const old = (Date.now() - 40 * 86_400_000) / 1000;
@@ -360,7 +366,8 @@ test("check-config: counts the reports and schedule drafts the age sweep deletes
         if (name !== "fresh.pivotkit-out.csv") utimesSync(join(out, name), old, old);
     }
     const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
-    assert.match(text, /^WARNING \(Output\): 1 schedule draft and 2 reports are older than 30 days and are deleted at the next start; copy them away or set output\.maxAgeDays: 0$/m);
+    assert.match(text, /^WARNING \(Output\): 2 reports are older than 30 days and are deleted at the next start; copy them away or set output\.maxAgeDays: 0$/m);
+    assert.match(text, /^ {2}reports older than 30 days are deleted; schedule drafts stay until a person approves or removes them$/m);
     // no age limit, or nothing old: no such warning
     assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text, /deleted at the next start/);
     assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 60 }, baseDir: dir }, { http: false, env: {} })).text, /deleted at the next start/);

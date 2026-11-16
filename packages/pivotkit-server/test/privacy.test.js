@@ -137,7 +137,7 @@ test("check-config: warns only when output.maxAgeDays is 0 while closed sources 
     // the default (30 days), a written limit, no output.dir, or nothing closed and no data in requests: no warning
     const byDefault = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
     assert.doesNotMatch(byDefault, /Retention:/);
-    assert.match(byDefault, /^ {2}reports and drafts older than 30 days are deleted$/m);
+    assert.match(byDefault, /^ {2}reports older than 30 days are deleted; schedule drafts stay until a person approves or removes them$/m);
     assert.match(byDefault, /\nNew in this version: [^\n]*reports deleted after 30 days/);
     assert.doesNotMatch(factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 7 }, baseDir: dir }, { http: false, env: {} })).text), /Retention:|deleted after 30 days/);
     assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);

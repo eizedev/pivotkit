@@ -142,8 +142,8 @@ export const COMPUTE_DEFAULTS = Object.freeze({ workers: 2, timeMs: 30_000, memo
 
 /** How many reports and drafts the output directory holds, and how many megabytes, before its oldest go. */
 /**
- * The output directory's defaults: at most 1000 files and 1024 MB of pivotkit's, and reports and
- * drafts older than 30 days deleted (maxAgeDays; 0: no age limit). The age limit applies by default
+ * The output directory's defaults: at most 1000 files and 1024 MB of pivotkit's, and reports older
+ * than 30 days deleted (maxAgeDays; 0: no age limit; a schedule draft waits for approval and stays). The age limit applies by default
  * only to a directory of the reports' own (context.js), never where the operator's files lie.
  */
 export const OUTPUT_DEFAULTS = Object.freeze({ maxFiles: 1000, maxMb: 1024, maxAgeDays: 30 });
@@ -464,7 +464,7 @@ export const restResourceOf = (options) => options.rest?.resource ?? new URL(RES
 export const pathOf = (options, path) => (isAbsolute(path) ? path : resolve(options.baseDir ?? process.cwd(), path));
 
 /**
- * The age limit of reports and drafts in days (0: none): output.maxAgeDays as written, else
+ * The age limit of reports in days (0: none): output.maxAgeDays as written, else
  * OUTPUT_DEFAULTS.maxAgeDays, except in a directory that holds the operator's own files (shared),
  * where only a written value applies (and createContext refuses it).
  * @param {ServerOptions} options

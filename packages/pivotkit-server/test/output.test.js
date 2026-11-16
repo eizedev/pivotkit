@@ -94,7 +94,8 @@ test("schedule drafts take at most half of output.maxFiles: more are refused, re
         assert.equal(second.status, 409, JSON.stringify(second.data));
         assert.equal(second.data.code, "NO_OUTPUT");
         assert.match(second.data.detail, /schedule drafts awaiting approval, the most it may/);
-        assert.match(second.data.detail, /output\.maxAgeDays/, "the hint names what the operator can set");
+        assert.match(second.data.detail, /a person must approve or remove some first, or the operator raises output\.maxFiles$/, "the hint names what the operator can set");
+        assert.doesNotMatch(second.data.detail, /maxAgeDays/, "the age limit does not delete waiting drafts");
         for (let i = 0; i < 4; i++) {
             assert.equal((await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } })).status, 200);
         }

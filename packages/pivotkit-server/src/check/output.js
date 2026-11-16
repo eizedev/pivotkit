@@ -8,7 +8,7 @@
  *     /srv/pivotkit/reports
  *     will be created at start
  *     when full, the oldest reports are deleted to make room; drafts are kept
- *     reports and drafts older than 30 days are deleted
+ *     reports older than 30 days are deleted; schedule drafts stay until a person approves or removes them
  *
  * check/index.js says what a section returns.
  */
@@ -83,16 +83,13 @@ export async function section(options, registry) {
     } else {
         items.push(plain("when full, the oldest reports are deleted to make room; drafts are kept"));
         const days = maxAgeDaysOf(options, shared);
-        items.push(plain(days > 0 ? `reports and drafts older than ${days} days are deleted` : "no age limit (output.maxAgeDays 0)"));
-        // what the next start's sweep deletes (output.js prune): drafts awaiting approval among them
+        items.push(plain(days > 0 ? `reports older than ${days} days are deleted; schedule drafts stay until a person approves or removes them` : "no age limit (output.maxAgeDays 0)"));
+        // what the next start's sweep deletes (output.js prune): reports only, never a waiting draft
         if (days > 0) {
             const before = Date.now() - days * 86_400_000;
-            const old = (await reportsIn(dir)).filter((f) => f.mtimeMs < before);
-            const drafts = old.filter((f) => f.draft).length;
-            const reports = old.length - drafts;
-            if (old.length) {
-                const parts = [...(drafts ? [`${drafts} schedule draft${drafts === 1 ? "" : "s"}`] : []), ...(reports ? [`${reports} report${reports === 1 ? "" : "s"}`] : [])];
-                items.push(warning(`${parts.join(" and ")} ${old.length === 1 ? "is" : "are"} older than ${days} days and ${old.length === 1 ? "is" : "are"} deleted at the next start; copy them away or set output.maxAgeDays: 0`));
+            const old = (await reportsIn(dir)).filter((f) => f.mtimeMs < before && !f.draft).length;
+            if (old) {
+                items.push(warning(`${old} report${old === 1 ? " is" : "s are"} older than ${days} days and ${old === 1 ? "is" : "are"} deleted at the next start; copy them away or set output.maxAgeDays: 0`));
             }
         }
     }

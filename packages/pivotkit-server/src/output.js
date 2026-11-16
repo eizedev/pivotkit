@@ -2,7 +2,8 @@
  * The output directory: pivotkit writes reports and schedule drafts there under names marked as its
  * own (OUTPUT_MARK), one write at a time per directory, makes room by deleting the oldest reports
  * (never schedule drafts awaiting approval, never where the operator's own files lie) and cleans up
- * reports older than output.maxAgeDays.
+ * reports older than output.maxAgeDays. A schedule draft in the directory waits for a person to
+ * approve it in the host, which takes it away; pivotkit deletes none.
  */
 
 import { readdir, stat, unlink } from "node:fs/promises";
@@ -57,9 +58,10 @@ async function leftoverTempFiles(dir) {
 }
 
 /**
- * Removes the reports and drafts older than output.maxAgeDays from the output directory (its top
- * level; a file of another kind and a subdirectory stay), and the temporary files of its writes
- * older than an hour, at most once an hour; an info line says how many reports and drafts went.
+ * Removes the reports older than output.maxAgeDays from the output directory (its top level; a
+ * schedule draft, which waits for approval, a file of another kind and a subdirectory stay), and the
+ * temporary files of its writes older than an hour, at most once an hour; an info line says how many
+ * reports went.
  * @param {any} context
  */
 export async function prune(context) {
@@ -73,16 +75,15 @@ export async function prune(context) {
     pruned.set(dir, Date.now());
     const now = Date.now();
     const before = now - days * 86_400_000;
-    const deleted = { reports: 0, drafts: 0 };
+    let reports = 0;
     for (const file of await reportsIn(dir)) {
-        if (file.mtimeMs < before && (await unlink(file.path).then(() => true, () => false))) {
-            deleted[file.draft ? "drafts" : "reports"]++;
+        if (!file.draft && file.mtimeMs < before && (await unlink(file.path).then(() => true, () => false))) {
+            reports++;
         }
     }
-    // one line per sweep that deleted something: drafts awaiting approval go too, and the operator
-    // must be able to tell where they went
-    if (deleted.reports || deleted.drafts) {
-        context.log?.info(`output.maxAgeDays: reports and schedule drafts older than ${days} days deleted`, { ...deleted, maxAgeDays: days });
+    // one line per sweep that deleted something: the operator must be able to tell where reports went
+    if (reports) {
+        context.log?.info(`output.maxAgeDays: reports older than ${days} days deleted`, { reports, maxAgeDays: days });
     }
     for (const file of await leftoverTempFiles(dir)) {
         if (file.mtimeMs < now - TEMP_MAX_AGE_MS) {
@@ -143,7 +144,7 @@ export async function makeRoom(context, dir, bytes, draft) {
     const files = await reportsIn(dir);
     const drafts = files.filter((f) => f.draft).length;
     if (draft && drafts + 1 > draftCap(maxFiles)) {
-        throw new OperationError("NO_OUTPUT", draftCap(maxFiles) === 0 ? "output.maxFiles 1 leaves no room for drafts; the operator raises it" : `the output directory holds ${drafts} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first, or the operator raises output.maxFiles or sets output.maxAgeDays`);
+        throw new OperationError("NO_OUTPUT", draftCap(maxFiles) === 0 ? "output.maxFiles 1 leaves no room for drafts; the operator raises it" : `the output directory holds ${drafts} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first, or the operator raises output.maxFiles`);
     }
     let count = files.length;
     let total = files.reduce((sum, f) => sum + f.size, 0);
