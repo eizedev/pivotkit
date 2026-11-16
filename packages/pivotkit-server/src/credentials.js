@@ -118,9 +118,6 @@ const FLAGS = Object.freeze({
 /** The usage line of each command, by its name in FLAGS. */
 const USAGE = Object.freeze({ "token new": "pivotkit-server token new [options]", "token show": "pivotkit-server token show <name> [options]", "token issue": "pivotkit-server token issue [options]", "token list": "pivotkit-server token list [options]", "token revoke": "pivotkit-server token revoke <id or name> [options]", "token remove": "pivotkit-server token remove <id or name> [options]", "key new": "pivotkit-server key new --for downloads|audit|signing [options]", "key remove": "pivotkit-server key remove <key id> --for signing [options]" });
 
-/** A token's name: letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit. */
-export const TOKEN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
-
 /** The help of `token` or `key`. */
 function helpOf(group) {
     const lines = (flags) => Object.entries(flags).map(([name, f]) => `  --${name}${f.value ? ` <${f.value}>` : ""}`.padEnd(30) + f.text);
@@ -331,6 +328,9 @@ export const rewrittenLine = (values, backup) => `${values.config} is rewritten 
  * the hints for a terminal and the warnings.
  * @typedef {{ json: Record<string, unknown>, value: string, printValue: boolean, field: "token" | "key", hints: string[], warnings: string[], text?: string }} Outcome  text: what a terminal gets on stdout in place of the value (token list), never in --json
  */
+
+/** A token's name: letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit. */
+export const TOKEN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 /**
  * `--expires` of `token new` as auth.tokens[].expires: a date or date-time as given, a time from now
