@@ -44,6 +44,9 @@ import { MAX_SECRET_BYTES, UTF16_TEXT, readSecretHandle, secretValue } from "./s
 /** The random bytes of each kind of secret: a token of 43 base64url characters, a key of 64. */
 export const SECRET_BYTES = Object.freeze({ token: 32, key: 48 });
 
+/** The most draws of newSecret: a random token fails tokenProblem about never, so 100 failures mean a check no value can pass. */
+const NEW_SECRET_DRAWS = 100;
+
 /**
  * A new random secret of `bytes` random bytes, base64url (no padding: only characters a bearer token
  * and a file line carry), drawn again until `usable` takes it: a token that is too easy to guess
@@ -52,13 +55,16 @@ export const SECRET_BYTES = Object.freeze({ token: 32, key: 48 });
  * @param {(value: string) => string | null} [usable]  why a value cannot be used, or null
  */
 export function newSecret(bytes, usable = () => null) {
-    for (;;) {
+    for (let draw = 0; draw < NEW_SECRET_DRAWS; draw++) {
         const value = randomBytes(bytes).toString("base64url");
         if (!usable(value)) {
             return value;
         }
     }
+    // a check no random value passes: a programmer error, never a loop without end
+    throw new SecretFileError("UNUSABLE", `no usable secret of ${bytes} random bytes in ${NEW_SECRET_DRAWS} draws`);
 }
+
 
 /** The mode of a secret file: its owner reads and writes it, nobody else. */
 export const SECRET_MODE = 0o600;

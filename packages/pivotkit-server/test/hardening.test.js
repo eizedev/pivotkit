@@ -232,6 +232,16 @@ test("auth token: a token file emptied or removed after the start refuses with 4
     };
     assert.match(await again("short-token-12345"), /\(its file has 17 characters\)/);
     assert.match(await again(null), /\(its file is missing\)/);
+    // rotated to a token too easy to guess: refused like a short one, even when a request sends it
+    const weak = "x".repeat(40);
+    const seen = [];
+    writeFileSync(file, `${TOKEN}\n`);
+    const rotated = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log: { ...log, warn: (msg) => seen.push(msg) }, loopback: true });
+    writeFileSync(file, `${weak}\n`);
+    for (let i = 0; i < 2; i++) {
+        await assert.rejects(rotated.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${weak}` } })), (e) => e.status === 401);
+    }
+    assert.match(seen.join("\n"), /\(its file holds a token too easy to guess \(1 different character, at least 8\)\)/);
     assert.ok(!JSON.stringify(warnings).includes(TOKEN.slice(0, 12)), "never the token");
     assert.ok(!JSON.stringify(warnings).includes(dir), "never the file's path either");
 });

@@ -163,9 +163,27 @@ async function staticTokens(auth, env, options, tokenEnv) {
         if (guessable) {
             throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) is ${guessable}; make one with: ${MAKE_TOKEN}`);
         }
-        out.push({ name: t.name, which, file: t.file ? pathOf(options, t.file) : null, scopes: t.scopes ?? null, profile: t.profile ?? null, read: t.file ? read : async () => value });
+        out.push({ name: t.name, which, file: t.file ? pathOf(options, t.file) : null, scopes: t.scopes ?? null, profile: t.profile ?? null, read: t.file ? judged(read) : async () => ({ value, usable: true }) });
     }
     return out;
+}
+
+/**
+ * A token file's read with whether its token can be used (TOKEN_MIN, tokenGuessable), judged once
+ * per value the file gives, not on every request that compares it. A variable's token is judged at
+ * start.
+ * @param {() => Promise<string>} read
+ * @returns {() => Promise<{ value: string, usable: boolean }>}
+ */
+function judged(read) {
+    let last = { value: "", usable: false };
+    return async () => {
+        const value = await read();
+        if (value !== last.value) {
+            last = { value, usable: value.length >= TOKEN_MIN && !tokenGuessable(value) };
+        }
+        return last;
+    };
 }
 
 /** How often a static token's file that cannot be used is said on the log, at most: once a minute. */
@@ -371,8 +389,8 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                 let match = null;
                 // every token compared, so the time does not tell which one is close
                 for (const t of tokens) {
-                    const value = await t.read();
-                    if (value.length < TOKEN_MIN || tokenGuessable(value)) {
+                    const { value, usable } = await t.read();
+                    if (!usable) {
                         await unusable(t);
                     } else if (timingSafeEqual(given, digest(value)) && !match) {
                         match = t;

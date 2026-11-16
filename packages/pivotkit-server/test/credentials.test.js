@@ -469,6 +469,10 @@ test("a token too easy to guess: fewer than 8 different characters or one piece 
     for (let i = 0; i < 2000; i++) {
         assert.equal(tokenProblem(newSecret(SECRET_BYTES.token, tokenProblem)), null);
     }
+    // a check no value passes ends after 100 draws instead of looping on
+    let draws = 0;
+    assert.throws(() => newSecret(SECRET_BYTES.token, () => (draws++, "never")), /no usable secret of 32 random bytes in 100 draws/);
+    assert.equal(draws, 100);
     // the start refuses it, check-config says so, token new --if-missing does not keep it
     const dir = workspace();
     const weak = "x".repeat(40);
