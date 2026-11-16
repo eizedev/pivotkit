@@ -64,6 +64,42 @@ export function setCacheBytes(bytes) {
 /** The bytes of encoded data this process keeps (a worker reports it when it is ready). */
 export const cacheBytesNow = () => cacheBytes;
 
+/** A job that only gives back the data sets this worker keeps (tests: test/memory.test.js reads what a worker holds). */
+export const KEPT_JOB = "pivotkit:kept";
+
+/**
+ * What the data sets this process keeps hold, oldest first (KEPT_JOB): every text, number and typed
+ * array or buffer reachable from them through objects, arrays, Maps and Sets, as lists a worker can
+ * post (a data set itself holds functions, which a message cannot carry).
+ * @returns {{ texts: string[], numbers: number[], bytes: Uint8Array[] }}
+ */
+export function keptDataSets() {
+    const out = { texts: [], numbers: [], bytes: [] };
+    const seen = new Set();
+    const stack = [...cache.values()];
+    while (stack.length) {
+        const v = stack.pop();
+        if (typeof v === "string") {
+            out.texts.push(v);
+        } else if (typeof v === "number") {
+            out.numbers.push(v);
+        } else if (v !== null && typeof v === "object" && !seen.has(v)) {
+            seen.add(v);
+            if (ArrayBuffer.isView(v)) {
+                out.bytes.push(new Uint8Array(v.buffer, v.byteOffset, v.byteLength).slice());
+            } else if (v instanceof ArrayBuffer || v instanceof SharedArrayBuffer) {
+                out.bytes.push(new Uint8Array(v).slice());
+            } else {
+                // one by one: a spread of a large dictionary would overflow the call's arguments
+                for (const item of v instanceof Map ? [...v.entries()].flat() : v instanceof Set ? [...v] : Object.values(v)) {
+                    stack.push(item);
+                }
+            }
+        }
+    }
+    return out;
+}
+
 /** Whether a data set is kept under a table job's key (a worker that holds it needs no table). */
 export const holds = (key) => key !== null && cache.has(key);
 
@@ -156,6 +192,53 @@ function forget(key) {
     cache.delete(key);
 }
 
+/**
+ * The texts a reader cuts from a file are slices: V8 keeps a slice of 13 characters or more as a
+ * pointer into the whole text it was cut from, so a kept value would keep the whole file alive, the
+ * columns the policy hides included (a CSV answer's decoded text in a worker). A copy made from a
+ * text of its own (" " + text, then cut) points into that one only.
+ */
+const SLICED_FROM = 13;
+
+/**
+ * A data set's texts (names, dictionaries, notes: every string in its plain objects and arrays) as
+ * copies of their own, in place, before it is kept, so the data set holds nothing of the text it was
+ * read from. Typed arrays and functions are left as they are.
+ * @param {unknown} value
+ */
+export function ownTexts(value) {
+    const own = (v) => (typeof v === "string" && v.length >= SLICED_FROM ? ` ${v}`.slice(1) : v);
+    const seen = new Set();
+    // an explicit stack, not recursion: any depth
+    const stack = [value];
+    while (stack.length) {
+        const v = stack.pop();
+        if (v === null || typeof v !== "object" || seen.has(v) || ArrayBuffer.isView(v) || Object.isFrozen(v)) {
+            continue;
+        }
+        seen.add(v);
+        if (Array.isArray(v)) {
+            for (let i = 0; i < v.length; i++) {
+                v[i] = own(v[i]);
+                stack.push(v[i]);
+            }
+        } else if (Object.getPrototypeOf(v) === Object.prototype) {
+            for (const [k, item] of Object.entries(v)) {
+                v[k] = own(item);
+                stack.push(v[k]);
+            }
+        }
+    }
+}
+
+/**
+ * V8 keeps the subject of the last regular expression run (for RegExp.lastMatch and its kin). After
+ * a read that is a slice of the file's text (a cell, a column name), which keeps the whole text alive
+ * until another expression runs, the hidden columns included. A run on an empty text replaces it;
+ * every read here ends with it, also one that fails.
+ */
+const forgetLastSubject = () => void /$/.exec("");
+
 /** Keeps a data set, the oldest going first, at most CACHE_ENTRIES and cacheBytes; one larger than all of it is not kept. */
 function remember(key, value) {
     if (cache.has(key)) {
@@ -171,6 +254,7 @@ function remember(key, value) {
     while (cache.size && (cache.size >= CACHE_ENTRIES || keptBytes + bytes > cacheBytes)) {
         forget(cache.keys().next().value);
     }
+    ownTexts(value);
     cache.set(key, value);
     sizes.set(key, bytes);
     keptBytes += bytes;
@@ -232,6 +316,8 @@ export async function fileData(spec) {
         }
         // the operator's file name stays on the server: the message names the source
         throw error.code === "FILE_NOT_AVAILABLE" ? new OperationError("FILE_NOT_AVAILABLE", `the source ${spec.name} is not available now; tell the operator`) : new OperationError(/** @type {any} */ (error.code), error.message.split(basename(spec.path ?? "")).join(spec.name));
+    } finally {
+        forgetLastSubject();
     }
 }
 
@@ -488,8 +574,12 @@ export async function uploadData(spec, upload, key, asOf = null) {
     if (key !== null && cache.has(key)) {
         return { ...remember(key, cache.get(key)), name: spec.name, schedulable: spec.schedulable };
     }
-    const read = await readUpload(spec, upload);
-    return tableData(spec, read.table, key, asOf, read.notes);
+    try {
+        const read = await readUpload(spec, upload);
+        return tableData(spec, read.table, key, asOf, read.notes);
+    } finally {
+        forgetLastSubject();
+    }
 }
 
 /**
@@ -505,6 +595,15 @@ export async function uploadData(spec, upload, key, asOf = null) {
  * @returns {Promise<{ table: import("./packed.js").PackedTable, notes: import("pivotkit-report/operations").Finding[] }>}
  */
 export async function packedUpload(spec, upload, key, asOf) {
+    try {
+        return await packedRead(spec, upload, key, asOf);
+    } finally {
+        forgetLastSubject();
+    }
+}
+
+/** packedUpload's work. */
+async function packedRead(spec, upload, key, asOf) {
     const read = await readUpload(spec, upload);
     const { table } = read;
     const hide = hiddenOf(spec.levels, table.columns, table.unnamed);

@@ -92,6 +92,7 @@ Lines of calls, requests, downloads and refusals add:
 | `outcome` | all four | `ok` or `error`; `ok` stays beside it on `call` lines |
 | `code` | failures | The [error code](#codes) |
 | `ms` | `call`, `request` | The time the work took, in milliseconds |
+| `saved` | `call`, `request` | `false` for a `render_view` with `save: false`, which writes no file ([inline only](mcp.md#inline-only)) |
 | `reason` | `refused` | `no_token`, `bad_token`, `rate_limited`, `body_too_large`, `host`, `origin`, `insufficient_scope`, `not_allowed` (the person's groups), `not_ready` (the issuer is not loaded yet), `busy`, `bad_request` (a body or a request the HTTP parser cannot read, a method the server never takes such as `TRACE`, which gets 400 and a line at `warn` by design, a body that is not JSON or an `mcp-protocol-version` the MCP endpoint does not support), `unsupported_media_type` and `not_acceptable` (the MCP endpoint's `Content-Type` and `Accept` checks), `token_in_address`, `internal` (a 5xx without a line of its own), and at `debug` only `method_not_allowed` (a method a route does not take, such as a GET of the MCP endpoint, which clients send to open a stream) and `not_found` (a path nobody serves, also under `/api/v1`; under `/downloads` a link nobody has is at `info`, since a person asks you about it). Any other error answer without a line of its own gives its problem's code in lower case, or one of these by its status |
 | `limit`, `size` | `refused` | For `body_too_large`: the bytes allowed and the declared size; for `rate_limited` after sign-in, `limit` is `rate`, `concurrency` (the caller's own requests at once) or `clientShare` (the requests of one OAuth client's people together, eight times `concurrency`). Limits count per person; the line names the person as `subject` only with `audit.subject` |
 | `path` | `refused` | The route family that refused it (`/api/v1`, `/openapi.json`, `/mcp`, `/downloads`), never the path the request asked for |
@@ -196,6 +197,12 @@ To find a proxy's access log line next to pivotkit's:
   a later version) is ignored and a new trace id is made.
 - With `http.trustProxy`, `address` is the client the proxy saw and `peerAddress` the proxy; without
   it, `address` is the proxy's own address.
+- When the proxy runs in a container whose port Docker publishes (`ports:` in Compose, `-p`), the
+  proxy itself may see the Docker network's gateway (such as `172.17.0.1`) instead of the client,
+  depending on how Docker forwards the connection on that host. `address` is then the gateway for
+  every client, and `http.trustProxy` cannot fix that: the proxy never learned the client's address.
+  Check the proxy's own access log; if it shows the gateway, change how the proxy receives
+  connections (for example host networking for the proxy's container).
 
 ## Docker log drivers { #docker }
 
@@ -235,25 +242,25 @@ services:
         tag: "pivotkit"
 ```
 
-To a plain receiver on port 514, over TCP or UDP (whichever the receiver listens on):
+To a plain receiver on port 514, over TCP or UDP (whichever the receiver listens on). `rfc3164`
+is the safe choice for a NAS's log center; use `rfc5424` for a receiver that expects it:
 
 ```yaml
     logging:
       driver: syslog
       options:
         syslog-address: "tcp://nas.example:514"   # or "udp://nas.example:514"
-        syslog-format: "rfc5424"
+        syslog-format: "rfc3164"                  # or "rfc5424"
         tag: "pivotkit"
 ```
 
-The receiver's format and transport must match what the driver sends: an RFC 5424 sender to a
-receiver that expects RFC 3164 (or TCP to a UDP port) gives garbled or no messages.
-
-On a Synology NAS, create a receiving rule in Log Center > Log Receiving with the IETF format
-(RFC 5424) and the same protocol (UDP or TCP) as `syslog-address`, and set an archive location first
-(Log Center > Archive Settings). If the lines look wrong, try the BSD format or a custom rule. The
-message text is pivotkit's JSON line. The names of these settings depend on the DSM version: check
-them in yours.
+On a Synology NAS, Log Center receives syslog on port 514 (UDP and TCP, depending on the receiving
+rule in Log Center > Log Receiving) and files it per sending host. The Docker syslog driver sends
+each line as one message with facility `daemon` and severity `err` for everything on stderr (where
+pivotkit logs), whatever pivotkit's own `level` says: map the level from the JSON. The message text
+is pivotkit's JSON line. A BSD (RFC 3164) receiving rule accepts the driver's `rfc3164` and
+`rfc5424` output over UDP and TCP; check one test line in your Log Center before relying on how it
+shows the tag and severity.
 
 Both drivers put pivotkit's whole JSON line into the message (GELF `short_message`, the syslog
 message text). The driver's own level is the stream's, the same for every line of stderr, so it says

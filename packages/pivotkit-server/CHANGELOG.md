@@ -105,7 +105,12 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - A `warning` when a static token's file is missing, empty or shorter than 32 characters while the
   server runs, naming the token and the cause (never its value or path), at most once a minute.
 - `limitKeyOf(caller)`: whom a caller's request limits count for (pivotkit-mcp uses it).
-
+- `render_view` (MCP and `POST /views/render`) takes `save: false`: the csv or json result comes back
+  inline only, with no file in `output.dir`, no upload and no link; csv when no format is given.
+  Where it cannot come back inline (xlsx, html or svg, inline results off, a field that is not `show`, a result over the `inline`
+  limits) it answers `INVALID_INPUT`, `NOT_ALLOWED` or `LIMIT_EXCEEDED` instead of saving a file. The
+  `call` and `request` lines have `saved: false`; `saveLogFields` gives that field
+  ([inline only](https://pivotkit.eize.dev/reference/mcp/#inline-only), [#472](https://github.com/eizedev/pivotkit/issues/472)).
 - Operations log ([operations](https://pivotkit.eize.dev/reference/operations/)): `log.level`
   (`debug`, `info`, `warn`, `error`, `off`), `log.format` (`auto`, `text`, `json`) and `log.address`
   (`on`, `off`), each a key, a flag (`--log`, `--log-format`, `--log-address`) and a variable
@@ -317,6 +322,14 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Changed
 
+- The privacy page says what the server's memory holds of a hidden column of a code or HTTP source:
+  nothing it keeps (the loads per person, the workers' data sets), measured by `test/memory.test.js`
+  for texts and numbers, with and without a caller's identity, in the kept data and in heap snapshots
+  of the main thread and the worker; the data it reads to drop the column is freed, and freed memory
+  can hold its values until it is reused ([#456](https://github.com/eizedev/pivotkit/issues/456)).
+- The docs: check-config in a container runs with `serve`'s flags; behind a published Docker port
+  `address` can be the Docker network's gateway, which `http.trustProxy` cannot fix; Synology Log
+  Center as measured (facility `daemon`, severity `err`, `rfc3164` the safe format).
 - check-config's "New in this version" also names, where they apply: the client's IP address on the
   log's request lines (`log.address: "off"`), a start error as a JSON line over HTTP
   (`log.format: "text"`), and the `/downloads/` route, answered without a token since the link is
@@ -448,6 +461,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   source's.
 - An `http://` `auth.issuer` with download sign-in and no `output.downloads.signIn.issuer` is
   reported as `auth.issuer: must be an https:// address`.
+- A compute worker's kept data set of a CSV (an HTTP source's answer or a file) no longer keeps the
+  whole text it was read from in memory, the columns the policy hides included: its texts were
+  slices of that text, which V8 keeps alive whole. The data set's texts are copies of their own, and
+  a read ends by replacing the subject V8 keeps of the last regular expression run, which on Node 22
+  and 24 kept the whole text too ([#456](https://github.com/eizedev/pivotkit/issues/456)).
 - REST: `inline:` from a caller without `data: true` is 403 `NOT_ALLOWED` on every route that takes
   a source, on a server that offers data to no profile in MCP's words ("this server takes no data
   sent in the request ..."), instead of 400 `INVALID_INPUT` "input has no key \"data\""

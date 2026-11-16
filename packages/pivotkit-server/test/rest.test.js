@@ -134,6 +134,47 @@ test("render inline: only with rest.inline and only when every field the view us
     }
 });
 
+test("render with save: false: the result inline and nothing saved; refused with a way out where it cannot be inline; the file route takes it and sends the file", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", results: true } }, closed: { file: "data/sales.csv", policy: { fields: { Region: "show" } } } }, rest: { inline: true }, output: { dir: "out" }, baseDir: dir });
+    const files = () => readdirSync(join(dir, "out")).filter((n) => !n.startsWith("."));
+    try {
+        const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "json", save: false } });
+        assert.equal(res.status, 200, JSON.stringify(res.data));
+        assert.match(res.data.inline.text, /North/);
+        assert.equal(res.data.output, null);
+        assert.match(res.data.message, /not saved as a file/);
+        assert.deepEqual(files(), []);
+        const line = server.log.find((l) => l.event === "request" && l.operation === "render_view");
+        assert.deepEqual([line?.saved, line?.status], [false, 200]);
+        assertProblem(await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "xlsx", save: false } }), 400, "INVALID_INPUT");
+        const closed = await call(`${server.api}/views/render`, { body: { source: "closed", view: BY_REGION, format: "csv", save: false } });
+        assertProblem(closed, 403, "NOT_ALLOWED");
+        assert.match(closed.data.detail, /^a field the view uses is at level values or summary, so its numbers cannot come back in the answer/);
+        assert.deepEqual(files(), []);
+        // the file route sends the file and saves nothing: save is no input of it, and its log never says saved
+        const file = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv", save: false } });
+        assertProblem(file, 400, "INVALID_INPUT");
+        assert.match(file.data.detail, /save/);
+        assert.ok(!server.log.some((l) => l.event === "request" && l.route === "POST /views/render/file" && "saved" in l));
+        const sent = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
+        assert.equal(sent.status, 200);
+        assert.deepEqual(files(), []);
+    } finally {
+        await server.close();
+    }
+    // without rest.inline nothing may come back inline: refused, naming the file route
+    const off = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out" }, baseDir: dir });
+    try {
+        const res = await call(`${off.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv", save: false } });
+        assertProblem(res, 403, "NOT_ALLOWED");
+        assert.match(res.data.detail, /^inline results are switched off by the operator \(rest\.inline.*views\/render\/file/);
+        assert.deepEqual(files(), []);
+    } finally {
+        await off.close();
+    }
+});
+
 test("suggest: a draft from the fields with its picks; a layout instead of a view renders and validates; not both", async () => {
     const { server } = await salesServer();
     try {

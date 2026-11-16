@@ -141,12 +141,13 @@ In short:
 | `show` | name, type, counts, up to `items` values, and for numbers and dates the smallest and largest | inline for csv and json when every field of the view is `show` and it fits `inline` (500 cells, 32 KiB); the result's rows and columns and the rows kept (`summary`) |
 | `values` | name, type, counts, every distinct value (at most `valuesMax`, 50) | in the file only, `withheld` |
 | `summary` (default) | name, type, counts | in the file only, `withheld` |
-| `hide` | that a field is hidden (`hiddenFields`), not its name | none: the column is not read |
+| `hide` | that a field is hidden (`hiddenFields`), not its name | none: the column is dropped when the data is read; for code sources, HTTP sources and CSV files, no data the server keeps holds it ([memory](privacy.md#memory)) |
 
 A view that uses a field that is not `show` anywhere in it (rows, columns, values, filters, sorting)
 has its whole result withheld, so a filter on a `summary` field cannot be used to read counts. xlsx,
 html and svg never come back inline: the model reads the file's name and, where every field of the
-view is `show`, the counts in `summary`. Over stdio the
+view is `show`, the counts in `summary`. A render with `save: false` writes no file: it comes back
+inline by these rules or fails ([inline only](reference/mcp.md#inline-only)). Over stdio the
 result names the file's full path on your machine (your user name is in it); over HTTP it names the
 file and a [link](#links) or the note "The report is saved on the server; ask the operator how to
 open it."

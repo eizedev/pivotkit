@@ -9,7 +9,8 @@ A report the MCP server or the REST service writes lands in the server's output 
 (`output.dir`). Over HTTP the server serves those reports itself: a result carries a link under
 `http.publicUrl` + `/downloads/<token>` that works for 60 minutes. MCP results carry it twice: in
 the text the model reads and as a `resource_link` the client can show the person. Nothing else has
-to run beside the server.
+to run beside the server. A `render_view` with `save: false` writes no file and gets no link: its
+csv or json result comes back [inline only](mcp.md#inline-only).
 
 Which report gets which link depends on the source. A source is **open** when its policy has
 `"default": "show"` and no field below `show`, for the server's policy, the source's and every

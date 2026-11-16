@@ -281,6 +281,27 @@ test("presigned: the presign service gets the report's facts and the credential,
     }
 });
 
+test("render_view with save: false: nothing goes to the store or the output directory; the result is inline", async () => {
+    routes.set("POST /presign", presignRoute());
+    routes.set("PUT *", bucket());
+    const { context, files } = await contextOf(presignOptions());
+    try {
+        const caller = callerOf("none");
+        const { result, link } = await present(context, "render_view", { source: "open", view: BY_REGION, format: "csv", save: false }, caller);
+        assert.equal(result.output, null);
+        assert.match(result.inline.text, /North/);
+        assert.equal(link, undefined);
+        assert.equal(asked.length, 0, "no request to the presign service or the store");
+        assert.deepEqual(files(), []);
+        // without save the same render goes to the store, as before
+        const saved = await present(context, "render_view", { source: "open", view: BY_REGION, format: "csv" }, caller);
+        assert.match(String(saved.result.output?.url), new RegExp(`^${origin("files")}/`));
+        assert.equal(asked.length, 2);
+    } finally {
+        await context.close();
+    }
+});
+
 test("a report over a closed source never goes to a store whose links anyone can open: no request at all, the server's own delivery", async () => {
     routes.set("POST /presign", presignRoute());
     routes.set("PUT *", bucket());
@@ -650,6 +671,9 @@ test("a refused or timed-out upload closes its file: the count of open files sta
     for (const [what, upload, code] of cases) {
         const { context, log } = await contextOf({ sources: SOURCES, output: { dir: "out", upload: { intranet: true, ...upload } } });
         try {
+            // the context's compute workers started first: each worker's event loop opens its own
+            // files (epoll, io_uring, a pipe, an eventfd), which a worker still starting would add to the count
+            await context.computer.bounds();
             const before = openFds();
             const tries = code === "TIMEOUT" ? 3 : 20;
             for (let i = 0; i < tries; i++) {

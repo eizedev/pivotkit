@@ -139,7 +139,7 @@ test.describe("Export menu: HTML report, SVG and print", () => {
                 await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
             }
             const p = await printOnce();
-            // inside the click: Safari prints without asking "This webpage is trying to print". The
+            // inside the click, with no wait for a load or an animation frame. The
             // first print may wait for the report's modules (they load when Print is pointed at, and
             // Playwright's click comes at once); from the second on they are there
             if (n > 0) {

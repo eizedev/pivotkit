@@ -13,7 +13,7 @@ import { access, constants, lstat, mkdir, realpath, stat } from "node:fs/promise
 import { basename, dirname, join } from "node:path";
 import { isInside } from "pivotkit-cli/files";
 import { ConfigError, OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf, validateOptions } from "./config.js";
-import { createComputer } from "./compute.js";
+import { COMPUTE_HOOKS, createComputer } from "./compute.js";
 import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
 import { checkTemplates } from "./print-template.js";
@@ -161,7 +161,8 @@ export async function createContext(options, runtime = {}) {
         // operator did not set never keeps the server from starting
         output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles, maxMb: options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb, maxAgeDays: maxAgeDaysOf(options, shared), cleanUp: !shared, showPath: runtime.showPaths ?? false };
     }
-    const computer = createComputer(options.compute);
+    // the tests' look into the workers, by a key only code that imports compute.js can give (never a setting)
+    const computer = createComputer(options.compute, runtime[COMPUTE_HOOKS] === true ? { hooks: true } : {});
     /** Gives back this context's sourceCache.maxMb (set once the context is made, below). */
     let releaseCache = () => undefined;
     /** @type {Promise<any> | null} */

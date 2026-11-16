@@ -12,8 +12,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   (`pivot-report[data-pk-theme="dark"]`), for a reader on a dark screen
   ([#385](https://github.com/eizedev/pivotkit/issues/385)).
 - The element bundles pivotkit-react's fix of Print or save as PDF: the print dialog opens in the
-  click itself (Safari asked "This webpage is trying to print" from the second print on while it
-  came an animation frame later) ([#210](https://github.com/eizedev/pivotkit/issues/210)).
+  click itself, also on a hidden page ([#210](https://github.com/eizedev/pivotkit/issues/210)).
 - The element bundles pivotkit-react's fix of a menu's button in Safari and other WebKit browsers: a
   second click on it closes the menu ([#393](https://github.com/eizedev/pivotkit/issues/393)).
 

@@ -14,7 +14,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { readTable } from "pivotkit-cli/files";
-import { READ_JOB, asOperationError, cacheBytesNow, fileData, holds, packedUpload, setCacheBytes, tableData, uploadData } from "./data.js";
+import { KEPT_JOB, READ_JOB, asOperationError, keptDataSets, cacheBytesNow, fileData, holds, packedUpload, setCacheBytes, tableData, uploadData } from "./data.js";
 import { draftingOf } from "./policy.js";
 
 if (typeof workerData?.cacheBytes === "number") {
@@ -32,6 +32,11 @@ parentPort?.on("message", async (job) => {
         return;
     }
     try {
+        if (op === KEPT_JOB && workerData?.hooks === true) {
+            // what this worker keeps, for the main thread to look at (tests); runs nothing
+            parentPort.postMessage({ id, outcome: keptDataSets(), hidden: 0, stats: null, asOf: null });
+            return;
+        }
         if (op === READ_JOB) {
             // an HTTP source's CSV answer, read for the main thread to keep: no operation runs
             parentPort.postMessage({ id, outcome: await packedUpload(spec, upload, tableKey ?? null, given ?? null), hidden: 0, stats: null, asOf: null, kept: holds(tableKey ?? null) });

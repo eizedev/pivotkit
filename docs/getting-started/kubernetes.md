@@ -114,7 +114,8 @@ What each setting is for:
 
 A source whose file is missing does not stop the server or `/readyz`: a call to that source answers
 404 `FILE_NOT_AVAILABLE` until the file is there. `pivotkit-server check-config` reports such a file
-as a `PROBLEM` the server starts with and exits with 1.
+as a `PROBLEM` the server starts with and exits with 1. Run it with the flags of the container's
+`serve` (`--host 0.0.0.0`, and `--enable` where you set it), or it checks another surface.
 
 The limits on callers (`rest.rateLimit`, `mcp.rateLimit`, the refused tokens per address) are counted
 in the memory of one process. With more than one replica, each counts on its own, and each needs an

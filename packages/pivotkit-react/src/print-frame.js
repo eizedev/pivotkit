@@ -7,11 +7,17 @@
  * attributes. So a page with a strict Content-Security-Policy, whose policy the frame inherits, prints
  * it as it is.
  *
- * print() runs in the click: Safari asks "This webpage is trying to print" before a print it does not
- * take as the person's. So the Export menu makes an empty frame ready when it opens
- * (preparePrintFrame: loaded and laid out, at 1 px), and the click fills it and prints at once, with
- * no wait for a load or an animation frame (which a hidden page never gets either). Only a click
- * before the frame has loaded waits for it.
+ * print() runs in the click, with no wait for a load or an animation frame (which a hidden page never
+ * gets): the Export menu makes an empty frame ready when it opens (preparePrintFrame: loaded and laid
+ * out, at 1 px), and the click fills it and prints at once. Only a click before the frame has loaded
+ * waits for it.
+ *
+ * Safari's question "This webpage is trying to print" does not depend on this path: WebKit hands every
+ * print() to the browser without user-activation information (LocalDOMWindow::print → Chrome::print →
+ * the UI delegate's printFrame), and Safari counts no print a page starts as the person's. Per tab,
+ * the first page print opens the dialog directly; a later one asks first only if the previous print
+ * dialog in that tab was cancelled. A load from the browser itself (address bar, bookmark,
+ * back/forward) starts the tab over.
  *
  * The frame stays until the dialog is closed (afterprint) or the next print. WebKit runs no event
  * listener in a frame without scripts, not even the page's own: there the page's afterprint removes

@@ -36,7 +36,7 @@ holds what it shares with the REST service (sources, policy, workers, output, si
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
 | `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
-| `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows; over HTTP a [download link](delivery.md) in the text and as a `resource_link` where the report gets one | a new file |
+| `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows; over HTTP a [download link](delivery.md) in the text and as a `resource_link` where the report gets one; with `save: false` csv or json inline only ([below](#inline-only)) | a new file; none with `save: false` |
 | `create_link` | A link that opens the view in the source's report page (only for sources with `link`); a view only, a `layout` is refused with the way to make one (`validate_view`) | - |
 | `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing; a view only, as `create_link` | a new file |
 
@@ -210,6 +210,18 @@ A view that uses a field that is not `show` (rows, columns, values, filters, sor
 grouping's source field; `values` included) has its result **withheld**: `render_view` writes the file and returns
 its name, `withheld: ["rows", "columns", "bytes", "content"]` and a `message` for the user, but no
 count, size or content, since even a row count could answer "is this person in the data?".
+
+<a id="inline-only"></a>With **`save: false`**, `render_view` returns the result inline only: no file in
+the output directory, no upload to the [operator's store](delivery.md#upload), no `output` (it is
+`null`) and no link, for a person who asks for the result in the chat. It takes `csv` (the format
+when none is given) or `json` and lets out no more than a render without it: where the result could
+not come back inline, the call fails and says to leave out `save` for a file, never saving one
+instead. `INVALID_INPUT` for `xlsx`, `html` or `svg`; `NOT_ALLOWED` where inline results are off (the policy's
+`inline: false`) or the view uses a field that is not `show` (that error says nothing of the
+result's size); `LIMIT_EXCEEDED` for a result over the policy's `inline` cells or bytes. The call's
+log line has `saved: false`. Without `save` (or with `save: true`) a render is saved as above, also
+when its csv or json comes back inline. In an inline json result every row and column has `total`:
+0 data, 1 subtotal, 2 grand total, so a sum over the rows takes only those with `total: 0`.
 
 `suggest_view` reads what `describe_source` shows. Its draft and `picks` name fields, never values
 (not those of a `values` field either) or counts; the one thing they tell about a shown field's values is the date grouping its span gives
@@ -429,7 +441,8 @@ how to ship the log. `started` (version, transport, address, auth mode, the numb
 their ids, whether files and an output directory are on, the log's settings, the static tokens'
 names), `call` (tool, the source: a configured id, `inline:`, `file:` for any file by path or
 `unknown` for any other text, never the text the model sent; client, `requestId`, `traceId`, `ok`,
-`status` and `outcome`, error code, time in ms; for `inline:` data the number of rows and columns),
+`status` and `outcome`, error code, time in ms; for `inline:` data the number of rows and columns;
+`saved: false` for a `render_view` with `save: false`),
 `download` (a [download link](delivery.md) opened: `via: "link"`, its binding, whether it worked and
 the code, never the token), `refused` (an HTTP request refused by the Host, Origin or token check, a
 limit or a body over the cap, a request the protocol layer refuses (its error's class and the SDK's
