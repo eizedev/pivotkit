@@ -157,11 +157,15 @@ test("F5: sweepMarkers deletes an expired sign-in state's marker and keeps a liv
 
 // --- the age sweep says what it deleted -----------------------------------------------------------
 
-test("output.maxAgeDays: a sweep deletes old reports, never a schedule draft waiting for approval, and writes one info line with the count; one that deletes nothing writes none", async () => {
+/** A schedule draft's file as draft_schedule writes it, with its status. */
+const draftJson = (status) => JSON.stringify({ format: "pivotkit-report-draft", version: 0, status, name: "Weekly" });
+
+test("output.maxAgeDays: a sweep deletes old reports and drafts no longer waiting, never a draft waiting for approval, and writes one info line with the counts; one that deletes nothing writes none", async () => {
     const dir = tempDir();
     const old = (Date.now() - 3 * 86_400_000) / 1000;
-    for (const name of ["a.pivotkit-out.csv", "b.pivotkit-out.xlsx", "Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"]) {
-        writeFileSync(join(dir, name), "x");
+    const files = { "a.pivotkit-out.csv": "x", "b.pivotkit-out.xlsx": "x", "Weekly.pivotkit-out.report.json": draftJson("draft"), "Done.pivotkit-out.report.json": draftJson("approved"), "fresh.pivotkit-out.csv": "x", "mine.csv": "x" };
+    for (const [name, text] of Object.entries(files)) {
+        writeFileSync(join(dir, name), text);
         if (name !== "fresh.pivotkit-out.csv") utimesSync(join(dir, name), old, old);
     }
     const lines = [];
@@ -170,10 +174,10 @@ test("output.maxAgeDays: a sweep deletes old reports, never a schedule draft wai
     assert.deepEqual(readdirSync(dir).sort(), ["Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"], "the draft waits for a person");
     assert.equal(lines.length, 1, JSON.stringify(lines));
     assert.equal(lines[0].msg, "output.maxAgeDays: reports and schedule drafts no longer waiting older than 1 days deleted");
-    assert.deepEqual([lines[0].reports, lines[0].drafts], [2, 0]);
-    // a directory of old drafts only: nothing deleted, nothing said
+    assert.deepEqual([lines[0].reports, lines[0].drafts], [2, 1]);
+    // a directory of old drafts that wait: nothing deleted, nothing said
     const drafts = tempDir();
-    writeFileSync(join(drafts, "Old.pivotkit-out.report.json"), "x");
+    writeFileSync(join(drafts, "Old.pivotkit-out.report.json"), draftJson("draft"));
     utimesSync(join(drafts, "Old.pivotkit-out.report.json"), old, old);
     await prune({ output: { dir: drafts, maxAgeDays: 1, cleanUp: true }, log });
     assert.deepEqual(readdirSync(drafts), ["Old.pivotkit-out.report.json"]);
