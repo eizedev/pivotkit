@@ -60,20 +60,31 @@ export function useBigResult(root) {
  * The least height of the report's root (its inline min-height): what its toolbar, zones,
  * tips, the result's own least height (CSS min-height) and the status line need. A host box that is
  * higher changes nothing; a lower one lets the report grow past it, so the page scrolls. Measured
- * after every render and when the report's size changes. The ref holds the last value (`need`, 0:
- * none) and what the report needs with its zones open (`open`), so a box too low for the open zones
- * folds them (PivotReport) instead of growing, and they stay folded until the box has room.
+ * after every render and when the report or a part of its column changes size. The ref holds the
+ * last value (`need`, 0: none) and what the report needs with its zones open (`open`), so a box too
+ * low for the open zones folds them (PivotReport) instead of growing, and they stay folded until the
+ * box has room. `onOpen` runs when `open` changed: the zones can need more while the report's box
+ * keeps its size (longer texts in another language, a font or stylesheet that loads late), and no
+ * resize of the report says so (#93).
  * @param {React.RefObject<HTMLElement | null>} root
  * @param {React.RefObject<HTMLElement | null>} main  the column with the toolbar, the zones and the result
  * @param {boolean} grow  the report may grow past its box (else only `open` is measured, for folding)
+ * @param {() => void} [onOpen]
  * @returns {React.MutableRefObject<{ need: number, open: number, grow: boolean }>}
  */
-export function useFitHeight(root, main, grow) {
+export function useFitHeight(root, main, grow, onOpen) {
     const fit = useRef({ need: 0, open: 0, grow });
+    const opened = useRef(onOpen);
+    // the observer of the report and of the parts of its column, and the parts it watches
+    const watch = useRef(/** @type {{ ro: ResizeObserver | null, parts: Set<Element> }} */ ({ ro: null, parts: new Set() }));
     // every render may change what the column holds (tips, zones folded or open)
     useIsoLayoutEffect(() => {
+        opened.current = onOpen;
         fit.current.grow = grow;
-        measureFit(root.current, main.current, fit);
+        watchParts(watch.current, main.current);
+        if (measureFit(root.current, main.current, fit)) {
+            opened.current?.();
+        }
     });
     useIsoLayoutEffect(() => {
         const el = root.current;
@@ -85,15 +96,49 @@ export function useFitHeight(root, main, grow) {
         let frame = 0;
         const ro = new ResizeObserver(() => {
             cancelAnimationFrame(frame);
-            frame = requestAnimationFrame(() => measureFit(root.current, main.current, fit));
+            frame = requestAnimationFrame(() => {
+                if (measureFit(root.current, main.current, fit)) {
+                    opened.current?.();
+                }
+            });
         });
         ro.observe(el);
+        const w = watch.current;
+        w.ro = ro;
+        watchParts(w, main.current);
         return () => {
             cancelAnimationFrame(frame);
             ro.disconnect();
+            w.ro = null;
+            w.parts = new Set();
         };
     }, [root, main]);
     return fit;
+}
+
+/**
+ * Lets the observer watch the parts the column holds now (toolbar, zones, tips, result, status line),
+ * and no longer those a render took out: a part that grows inside a box of the same size changes no
+ * size of the report.
+ * @param {{ ro: ResizeObserver | null, parts: Set<Element> }} w
+ * @param {HTMLElement | null} m
+ */
+function watchParts(w, m) {
+    if (!w.ro || !m) {
+        return;
+    }
+    const now = new Set(m.children);
+    for (const part of w.parts) {
+        if (!now.has(part)) {
+            w.ro.unobserve(part);
+        }
+    }
+    for (const part of now) {
+        if (!w.parts.has(part)) {
+            w.ro.observe(part);
+        }
+    }
+    w.parts = now;
 }
 
 /**
@@ -101,11 +146,12 @@ export function useFitHeight(root, main, grow) {
  * @param {HTMLElement | null} el
  * @param {HTMLElement | null} m
  * @param {{ current: { need: number, open: number, grow: boolean } }} fit
+ * @returns {boolean}  what the open zones need changed
  */
 function measureFit(el, m, fit) {
     const result = m?.querySelector(":scope > .pk-result");
     if (!el || !m || !(result instanceof HTMLElement)) {
-        return;
+        return false;
     }
     // the result's least height (styles.css): also when it may scroll inside a box of the host's
     const least = parseFloat(el.ownerDocument.defaultView?.getComputedStyle(result).getPropertyValue("--pk-result-least") ?? "") || 0;
@@ -113,8 +159,10 @@ function measureFit(el, m, fit) {
     const needMain = m.scrollHeight - result.offsetHeight + least;
     const need = Math.ceil(el.offsetHeight - m.clientHeight + needMain);
     // the zones open and shown (not folded, not enlarged): what the open layout needs
-    if (!el.hasAttribute("data-pk-layout") && !el.hasAttribute("data-pk-enlarged")) {
+    let changed = false;
+    if (!el.hasAttribute("data-pk-layout") && !el.hasAttribute("data-pk-enlarged") && Math.abs(need - fit.current.open) > 1) {
         fit.current.open = need;
+        changed = true;
     }
     if (!fit.current.grow) {
         fit.current.need = 0;
@@ -124,4 +172,5 @@ function measureFit(el, m, fit) {
         // inline, so no rule of the page (a card's min-height: 0) squeezes the report below it
         el.style.minHeight = `${need}px`;
     }
+    return changed;
 }

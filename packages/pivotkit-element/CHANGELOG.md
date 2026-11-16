@@ -6,6 +6,22 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Upgrading from 0.7
+
+- The row count under the result says "2,190 of 4,386 rows" when a filter leaves rows out. A page
+  whose `labels` set `rowsCount` or add a language sets the new label `rowsFiltered` too
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#rows-filtered)).
+
+### Changed
+
+- The row count under the result says how many of the data's rows the filters keep, as
+  pivotkit-react's (#108).
+
+### Fixed
+
+- The zones fold when they no longer fit the element's box, also when the box keeps its size, as
+  pivotkit-react's (#93).
+
 ## [0.7.0] - 2026-11-16
 
 ### Upgrading from 0.6

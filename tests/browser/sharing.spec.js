@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chips, expect, test, toolbar } from "./fixtures.js";
+import { chips, expect, openZones, test, toolbar } from "./fixtures.js";
 
 /** A switch of a menu (its checkbox is drawn as a track): by keyboard, as a person reaches it. */
 async function flip(locator) {
@@ -379,6 +379,8 @@ test.describe("a link for other data and a load check by keyboard", () => {
         await page.goto(`?data=sales#pivot-playground=${link}`);
         const check = page.getByTestId("link-check");
         await expect(check).toContainText("It was made for “Weather of 14 cities, 2023-2025”.");
+        // the check above the result leaves the open zones no room: they fold (#93); open them to read the chips
+        await openZones(page);
         // not opened yet: the start view stays
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
         await check.getByTestId("load-cancel").click();

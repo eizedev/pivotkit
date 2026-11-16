@@ -158,6 +158,23 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
+## From 0.7 to 0.8 { #from-0-7 }
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` set `rowsCount` or add a language, or a test reads the row count under the result | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
+
+### The row count says "2,190 of 4,386 rows" { #rows-filtered }
+
+When a filter leaves rows out, the line under the result says "2,190 of 4,386 rows" instead of
+"2,190 rows". Its text is the new label `rowsFiltered`.
+
+- English and German have it.
+- A host whose `labels` set `rowsCount` sets `rowsFiltered` too. Otherwise the line uses the
+  language's own words while a filter is on, such as "rows" beside your "records".
+- A host whose `labels` add another language adds `rowsFiltered` too. Without it, that line is in
+  English while a filter is on. See [Localisation](../reference/localisation.md).
+
 ## From 0.6 to 0.7 { #from-0-6-1 }
 
 !!! warning "Copy old reports out of `output.dir` first"

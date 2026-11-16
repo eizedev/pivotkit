@@ -45,6 +45,8 @@ test("a view with unused parts shows a warning, open, each part in plain words w
 test("the warning folds by its title, with the mouse and the keyboard, and stays folded for that view", async ({ page }) => {
     await page.goto("?data=sales");
     await paste(page, VIEW);
+    // the warning above the result can leave the open zones no room: they fold (#93); open them
+    await openZones(page);
     const warning = page.getByTestId("view-issues");
     const title = warning.getByTestId("unused-title");
     await expect(warning.getByTestId("unused-item").first()).toBeVisible();
@@ -172,6 +174,8 @@ test("a narrow report shows the first two lines of a long warning", async ({ pag
 test("a line goes once its part of the view is changed by hand, and comes back with Undo (#82)", async ({ page }) => {
     await page.goto("?data=sales");
     await paste(page, VIEW);
+    // the warning above the result can leave the open zones no room: they fold (#93); open them
+    await openZones(page);
     const warning = page.getByTestId("view-issues");
     await expect(warning.getByTestId("unused-title")).toHaveText("2 parts of this view could not be used");
     // the value whose colour scale did not fit is removed: its line goes, the legend's stays

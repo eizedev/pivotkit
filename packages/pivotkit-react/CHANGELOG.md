@@ -6,6 +6,23 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Upgrading from 0.7
+
+- The row count under the result says "2,190 of 4,386 rows" when a filter leaves rows out. A host
+  whose `labels` set `rowsCount` or add a language sets the new label `rowsFiltered` too
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#rows-filtered)).
+
+### Changed
+
+- The row count under the result says how many of the data's rows the filters keep: "2,190 of 4,386
+  rows", German "2.190 von 4.386 Zeilen". With nothing filtered it says "4,386 rows" (#108).
+
+### Fixed
+
+- The zones fold when they no longer fit the report's box, also when the box keeps its size. Longer
+  texts in another language, more fields in Rows, a tip or a late stylesheet made them taller without
+  a resize, and they stayed open over a squeezed result (#93).
+
 ## [0.7.0] - 2026-11-16
 
 ### Upgrading from 0.6
