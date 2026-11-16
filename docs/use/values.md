@@ -124,6 +124,7 @@ Whole number, Compact, Bytes and the durations are under **More formats**.
 
     So a sum of fractions keeps two decimals even where it adds up to a whole number ("118.00" next
     to "2.33"). The column lines up, as with Excel's `0.00`.
+
 - A saved view may bring a format that is not in this list, such as a date, text, another currency
   or other decimals. It stays until you pick another, and no entry is checked then.
 - Numbers, dates and currency follow the report's language, never the computer's.

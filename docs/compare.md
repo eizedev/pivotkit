@@ -129,6 +129,7 @@ project's own docs name.
 
     Measured with `npm run size -w pivotkit-element` on 2026-11-14. See
     [bundle size](reference/element.md#bundle-size).
+
 - **Maturity and support**: AG Grid, Flexmonster and WebDataRocks are commercial products with
   vendor support and years in production. Perspective and PivotTable.js have long track records.
   pivotkit is in 0.x, and its API can still change between minor versions. The version and date are

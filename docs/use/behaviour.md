@@ -69,6 +69,7 @@ not know. The report leaves those parts out and shows the rest. It puts a warnin
     For example: "**Quakes**: the colour scale needs two or three colours - the
     default colours are used" or "**Planet**: the data has no field of this name - it is left out of
     Rows".
+
 - **The first three lines** show, two on a narrow report. **Show N more** shows the rest, **Show
   fewer** hides them again.
 - **Fold it** with a click on its title, or with Enter or Space on it. It stays folded while you

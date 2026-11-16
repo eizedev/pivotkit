@@ -90,18 +90,19 @@ The report adapts to its own width, not the window's.
     - The name of the view you loaded takes the room that is left on its line. The report shortens it
       with "…", never to less than a few letters. A tap on it opens Views.
 
-  | Window (field list open / folded) | English | German |
-  | --- | --- | --- |
-  | 1920 px | every button / every button | every button / every button |
-  | 1440 px | Layout and Options in More / every button | Layout, Options and the chart type in More / Layout and Options in More |
-  | 1280 px | Options and the chart type in More / every button | everything but Views in More / Layout and the chart type in More |
-  | 1000 px | everything in More / Layout, Options and the chart type in More | everything in More / everything but Views in More |
+    | Window (field list open / folded) | English | German |
+    | --- | --- | --- |
+    | 1920 px | every button / every button | every button / every button |
+    | 1440 px | Layout and Options in More / every button | Layout, Options and the chart type in More / Layout and Options in More |
+    | 1280 px | Options and the chart type in More / every button | everything but Views in More / Layout and the chart type in More |
+    | 1000 px | everything in More / Layout, Options and the chart type in More | everything in More / everything but Views in More |
 
-  The table shows measurements in the playground with the sales data, in Chromium. Another font or
-  other texts move the limits a little.
+    The table shows measurements in the playground with the sales data, in Chromium. Another font or
+    other texts move the limits a little.
 
-  ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-light.png#only-light)
-  ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-dark.png#only-dark)
+    ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-light.png#only-light)
+    ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-dark.png#only-dark)
+
 - **The table**: row labels wrap between words. A table wider than the phone scrolls sideways.
 
 ### A low report

@@ -190,6 +190,7 @@ the grouping:
     month (or this year, for a grouping by year or quarter), or it is set to something other than
     today. Otherwise it waits among **More choices**. It does not move while the menu is open. The
     view saves the choice, and every relative range of the field counts from it, a rule's range too.
+
 - **More choices** opens with a click or Enter. It opens by itself when the choice set is Next,
   Before or rolling.
 - Today is the day in the data's time zone, not your computer's. That is the report's `timeZone`,
@@ -370,6 +371,7 @@ greater than 2,000,000".
 
     Enter applies a found choice at once. A date field compares days, and its rule editor picks
     them.
+
 - **Remove** beside Rules takes every rule away. The values ticked and the quick choice stay.
   **Reset filter** in the summary takes all three away.
 - **Reset filter**, **Clear** and **Remove** are greyed out while they would change nothing. For
@@ -466,6 +468,7 @@ The first level of a row or column field's menu:
     - takes the average, median, minimum or maximum of dates
 
     The menu leaves those out.
+
 - A field with an order of its own is sorted in it as soon as you place it on Rows or Columns.
   Choose A to Z to sort it by label instead, and the report keeps that choice.
 

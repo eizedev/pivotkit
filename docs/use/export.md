@@ -191,9 +191,9 @@ set (`pivotkit-tickets.xlsx`), and after a file you load into it (`quarter-csv.x
 
 ## Safe to open
 
-Some labels a spreadsheet would run as a formula: those that start with `=` or `@`, or with `+` or
-`-` and are no number. In the CSV and in the copies, such a label gets a leading `'`. The Excel file
-writes text as text, never as a formula. The HTML report and the SVG write every text as text, never
+Some labels a spreadsheet would run as a formula: those that start with `=` or `@`,
+or with `+` or `-` and are no number. In the CSV and in the copies, such a label gets a leading `'`.
+The Excel file writes text as text, never as a formula. The HTML report and the SVG write every text as text, never
 as markup. See [security](../security.md#exports).
 
 ## When copying is not allowed
