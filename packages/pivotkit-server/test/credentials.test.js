@@ -492,7 +492,7 @@ test("a token or key file that is no regular file or too long is refused, never 
     await assert.rejects(restServer(await loadConfig(config)), (e) => /not a regular file/.test(e.message));
 });
 
-test("--if-missing: a kept file of another user gets a warning", async () => {
+test("--if-missing: a kept file of another user gets a warning", { skip: !POSIX && "file owners by uid are POSIX" }, async () => {
     const { placeSecret, secretFileMeans } = await import("../src/secret-file.js");
     const { uid } = secretFileMeans;
     const dir = tempDir();
