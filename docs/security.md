@@ -576,7 +576,8 @@ and the sign-in above hold for it too. What differs:
     - the deny list, on every request
 
     A token it cannot check is refused: an unknown key, a scope or profile of the wrong form, or a
-    deny list it cannot read. The keys have mode 0600 and are never printed. A static token is
+    deny list it cannot read. The keys have mode 0600 and are never printed. A key file behind a
+    symbolic link, or one the group or others may read, is not used. A static token is
     always compared first, so a static token that looks like a JWT keeps working.
 
 - **Errors** are problem documents with a stable code. A message names no file content, and a 5xx

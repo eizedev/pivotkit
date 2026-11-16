@@ -979,7 +979,10 @@ start.
 - The log names the token by its ID, never by its value or its name. Rate limits count per token.
 - Clocks may differ by `auth.clockTolerance` seconds (default 30), at both ends of the lifetime.
 - Signed tokens work with `auth.mode` `"token"` only. A static token is still needed, as for
-  `token new`. With a state directory, that is `admin`.
+  `token new`. With a state directory and no `auth.mode` written, the server makes `admin`
+  ([first start](#first-start)).
+- `--scope` takes one word per scope, without spaces. A token over 2048 characters is refused at
+  issue, since the server would not take it: give fewer or shorter scopes.
 
 The files live in `auth.signedTokens.dir`. With a [state directory](#first-start), the default is
 `<state>/secrets/signed`. Without either, `token issue` says what to set. The first `token issue`
@@ -991,8 +994,16 @@ makes the directory:
 | One record per token: ID, name, key, profile, scopes, issued and expiry. No value | `issued/<id>.json` |
 | The deny list, one entry per revoked token | `revoked/<id>.json` |
 
-Keep this directory on a volume, like the other secrets. `token issue` removes records and entries of
-tokens that expired. `check-config` prints the keys and counts the active and revoked tokens under
+Keep this directory on a volume, like the other secrets. Never copy it to another server. Every
+server signs with the same issuer and no audience, so servers with the same keys take each other's
+tokens. Run `pivotkit-server key new --for signing` on each server instead.
+
+The server uses only key files of their own with mode 0600. It skips a symbolic link and a file the
+group or others may read, logs it, and `check-config` shows it. A planted key therefore never signs.
+On Windows the mode is not checked.
+
+ `token issue` removes records and entries of
+tokens that expired, at most once an hour. `check-config` prints the keys and counts the active and revoked tokens under
 `Signed tokens`, once the directory is there.
 
 | Key | Default | What it is |
@@ -1008,6 +1019,8 @@ Every key in `keys/` verifies tokens. The newest key signs new ones. So a new ke
 2. New tokens are signed with it. Tokens of the older key keep working.
 3. Once those have expired, run `pivotkit-server key remove <old key id> --for signing`.
 
+`token list` shows a token of a removed key as `key removed`: it gets 401.
+
 `key remove` exits 1 while tokens of that key still work, and names when the last one expires.
 `--force` removes it anyway, and those tokens get 401 from the next request on. A key file is never
 printed, and `key new --for signing` refuses `--file`, `--print` and `--add`.
@@ -1019,6 +1032,12 @@ pivotkit-server token list
 pivotkit-server token revoke laptop
 pivotkit-server token remove contractor
 ```
+
+!!! warning "After a leak: `token remove` alone does not stop a static token"
+
+    The running server reads `auth.tokens` at start. After `token remove`, it still accepts the
+    static token until it restarts. The command says so in its first line. Restart the server now,
+    or delete the token's file. A signed token is refused from the next request on.
 
 `token list` shows every token. It never shows a value.
 
@@ -1036,7 +1055,7 @@ admin             admin    static  -        never                 active
   old file as a backup first, as `--add` does.
     - The token's file is deleted where the server made it (`"create": true`, or in the state
       directory). The token is then refused from the next request on.
-    - Otherwise the file stays. The token works until the next restart, unless you delete the file.
+    - Otherwise the file stays, and the token works until the next restart (see the warning above).
     - It refuses the last token of `auth.tokens`, and `admin`. Give `admin` a new value with
       `token new --file <its file> --force`.
 - `token remove` on a signed token revokes it and takes it off the list.
@@ -1055,7 +1074,7 @@ that survive a restart:
 | What | Where | When |
 | --- | --- | --- |
 | `auth.mode` `"token"` | | `auth.mode` is not set, the address is not loopback and `auth.allowUnauthenticated` is not set (such a start is refused without a state directory) |
-| The token `admin` (every scope, no profile) | `<dir>/secrets/admin.token` | `auth.mode` is `"token"`, `auth.tokens` is empty and `$PIVOTKIT_TOKEN` (pivotkit-mcp: `$PIVOTKIT_MCP_TOKEN`) is not set |
+| The token `admin` (every scope, no profile) | `<dir>/secrets/admin.token` | `auth.mode` is not written, so the row above sets `"token"`, `auth.tokens` is empty and `$PIVOTKIT_TOKEN` (pivotkit-mcp: `$PIVOTKIT_MCP_TOKEN`) is not set. A written `auth.mode` `"token"` without a token is refused (below) |
 | The key of the [download links](delivery.md) | `<dir>/secrets/downloads.key` | Links are on and `output.downloads.key` is not set |
 | The [audit](mcp.md#logging) key | `<dir>/secrets/audit.key` | `audit.subject` is `"hash"` and `audit.key` is not set |
 | The [signed tokens'](#signed-tokens) directory | `<dir>/secrets/signed/` | The first `token issue`, not the start |
