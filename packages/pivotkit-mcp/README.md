@@ -3,7 +3,7 @@
 An [MCP](https://modelcontextprotocol.io) server for [pivotkit](https://pivotkit.eize.dev/). An AI
 client such as Claude Code, Claude Desktop or VS Code describes your data sources, writes and checks
 pivot views, and has reports made into Excel, HTML, CSV, JSON or SVG files or into links. The client
-does all this without reading the data itself.
+does all this without reading the data itself, beyond what the operator allows.
 
 ## Install
 
