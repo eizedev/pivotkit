@@ -13,7 +13,7 @@ import { makeKey } from "../auth.js";
 import { EXPIRES_MINUTES, insecurePublicHost, insecureUrlText, settingsOf } from "../options/downloads.js";
 import { uploadSettingsOf } from "../options/upload.js";
 import { isLoopback } from "../listen.js";
-import { readSecret, secretFileWarning } from "../secrets.js";
+import { madeAtStart, readSecret, secretFileWarning } from "../secrets.js";
 import { resolvePolicy } from "../policy.js";
 import { realpath } from "node:fs/promises";
 import { OUTPUT_DEFAULTS, pathOf } from "../config.js";
@@ -227,13 +227,16 @@ async function links(options, registry, runtime) {
     const noLinks = { effect: "the server starts; reports get no download links until it can be read" };
     if (settings.key) {
         items.push(plain(`key from ${secretText(options, settings.key)}`));
-        try {
-            const value = await readSecret(settings.key, options, runtime.env);
-            if (Buffer.byteLength(value) < KEY_MIN_BYTES) {
-                items.push(problem(`output.downloads.key is shorter than ${KEY_MIN_BYTES} bytes; make one with: ${makeKey("downloads")}`, noLinks));
+        // a key made at start is said under Credentials
+        if (!(await madeAtStart(settings.key, options))) {
+            try {
+                const value = await readSecret(settings.key, options, runtime.env);
+                if (Buffer.byteLength(value) < KEY_MIN_BYTES) {
+                    items.push(problem(`output.downloads.key is shorter than ${KEY_MIN_BYTES} bytes; make one with: ${makeKey("downloads")}`, noLinks));
+                }
+            } catch (e) {
+                items.push(problem(`output.downloads.key: ${String(/** @type {any} */ (e)?.message ?? e)}`, noLinks));
             }
-        } catch (e) {
-            items.push(problem(`output.downloads.key: ${String(/** @type {any} */ (e)?.message ?? e)}`, noLinks));
         }
         const readable = await secretFileWarning(settings.key, options, `the file ${settings.key.file} of output.downloads.key`);
         if (readable) {

@@ -29,7 +29,9 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund --include-workspace-
     && for p in core xlsx report cli server mcp; do cp -a "packages/pivotkit-$p" /app/packages/; done \
     && rm -rf /app/packages/*/test /app/packages/*/bench /app/packages/*/node_modules \
     && cp -a node_modules LICENSE /app/ \
-    && mkdir /out
+    && mkdir -p /app/examples /out \
+    && gunzip -c packages/pivotkit-cli/examples/sales.csv.gz > /app/examples/sales.csv \
+    && mkdir -m 0700 /state
 
 FROM ${RUNTIME_IMAGE}
 LABEL org.opencontainers.image.title="pivotkit" \
@@ -39,11 +41,19 @@ LABEL org.opencontainers.image.title="pivotkit" \
 COPY --from=build /app /app
 # the output directory, owned by the user that writes it (a volume created from it keeps that owner)
 COPY --from=build --chown=10001:10001 /out /out
+# the state directory: the token and keys made at the first start (state.js), only this user's. No
+# VOLUME: an anonymous volume would hide that nothing keeps it; mount a named one (-v pivotkit:/var/lib/pivotkit),
+# which takes this owner and mode when it is new
+COPY --from=build --chown=10001:10001 --chmod=0700 /state /var/lib/pivotkit
+# `pivotkit-server` on the PATH, for docker exec / kubectl exec (distroless has no /usr/bin/env)
+COPY --chmod=0755 docker/pivotkit-server /usr/local/bin/pivotkit-server
 WORKDIR /app
 # the log as JSON lines: docker run -t gives the process a terminal, where "auto" would write text;
 # a configuration's log.format still wins
+# /config/pivotkit.json missing and /config empty: the built-in example configuration (state.js)
 ENV NODE_ENV=production \
     PIVOTKIT_CONFIG=/config/pivotkit.json \
+    PIVOTKIT_STATE_DIR=/var/lib/pivotkit \
     PIVOTKIT_PORT=3333 \
     PIVOTKIT_LOG_FORMAT=json
 # a fixed user and group, not the base image's: the operator owns /out by this id
@@ -53,5 +63,6 @@ VOLUME ["/out"]
 HEALTHCHECK --interval=30s --timeout=6s --start-period=15s --retries=3 \
     CMD ["/nodejs/bin/node", "/app/packages/pivotkit-server/bin/pivotkit-server.js", "healthcheck"]
 ENTRYPOINT ["/nodejs/bin/node", "/app/packages/pivotkit-server/bin/pivotkit-server.js"]
-# serve on every address of the container: the server refuses to start so without auth token or oauth
+# serve on every address of the container: without a token of its own the server makes one in the
+# state directory (pivotkit-server token show admin prints it); it never serves without auth here
 CMD ["serve", "--host", "0.0.0.0"]

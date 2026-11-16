@@ -14,7 +14,7 @@ import { REST_BASE, SOURCE_ID } from "pivotkit-cli/rest";
 import { POLICY_LEVELS } from "./policy.js";
 import { STATS_DISTINCT } from "./stats.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
-import { ConfigError } from "./options/shared.js";
+import { CREATE_NEEDS_FILE, ConfigError } from "./options/shared.js";
 
 /** The error of a wrong option (options/shared.js, so a fragment can throw it without importing this module). */
 export { ConfigError } from "./options/shared.js";
@@ -79,7 +79,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {import("./options/http.js").HttpSourcesOptions} [httpSources]  HTTP sources on or off, IP addresses as hosts, backends defined once
  * @property {{ maxMb?: number }} [sourceCache]  the loaded data of code and HTTP sources the process keeps (default 256 MiB; one owner a quarter)
  * @property {"debug" | "info" | "warn" | "error" | "off" | { level?: "debug" | "info" | "warn" | "error" | "off", format?: "auto" | "text" | "json", address?: "on" | "off" }} [log]  the log's level, or its level, format and addresses (options/log.js)
- * @property {{ subject?: "off" | "hash" | "plain", key?: { env?: string, file?: string } }} [audit]  the person in the log lines of calls, requests and downloads (default off)
+ * @property {{ subject?: "off" | "hash" | "plain", key?: { env?: string, file?: string, create?: boolean } }} [audit]  the person in the log lines of calls, requests and downloads (default off)
  * @property {string} [baseDir]  where relative paths start (loadConfig sets the config file's directory; default the working directory)
  */
 
@@ -102,7 +102,7 @@ export { ConfigError } from "./options/shared.js";
  * @typedef {object} AuthOptions
  * @property {"none" | "token" | "oauth"} [mode]
  * @property {boolean} [allowUnauthenticated]  "none" on an address other than loopback
- * @property {Array<{ name: string, env?: string, file?: string, scopes?: string[], profile?: string }>} [tokens]
+ * @property {Array<{ name: string, env?: string, file?: string, create?: boolean, scopes?: string[], profile?: string }>} [tokens]  create: make a missing file at start (state.js)
  * @property {string} [issuer]
  * @property {string} [resource]
  * @property {string[]} [audience]
@@ -178,7 +178,7 @@ const BASE_SLOTS = {
     auth: {
         mode: { enum: ["none", "token", "oauth"] },
         allowUnauthenticated: "boolean",
-        tokens: { list: { object: { name: "string", env: "string", file: "string", scopes: "strings", profile: "string" } } },
+        tokens: { list: { object: { name: "string", env: "string", file: "string", create: "boolean", scopes: "strings", profile: "string" } } },
         issuer: "string",
         resource: "string",
         audience: "strings",
@@ -324,6 +324,9 @@ export function validateOptions(options) {
     for (const [i, token] of (options.auth?.tokens ?? []).entries()) {
         if (!token.name || Boolean(token.env) === Boolean(token.file)) {
             throw new ConfigError(`auth.tokens[${i}]: a token has a name and either env (the variable that holds it) or file`);
+        }
+        if (token.create !== undefined && token.env) {
+            throw new ConfigError(`auth.tokens[${i}].create: ${CREATE_NEEDS_FILE}`);
         }
     }
     if (options.auth?.mode === "oauth") {

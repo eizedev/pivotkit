@@ -3,7 +3,7 @@
  *
  *   pivotkit-server token new [--file <path>] [--name <n>] [--profile <p>] [--scope <s>]...
  *                             [--if-missing | --force] [--print] [--config <file> [--add]] [--json]
- *   pivotkit-server token show <name> [--config <file>] [--json]
+ *   pivotkit-server token show <name> [--config <file>] [--state-dir <dir>] [--json]
  *   pivotkit-server key new --for downloads|audit [--file <path>] [--if-missing | --force] [--print] [--json]
  *
  * A token is 32 random bytes and a key 48, in base64url. Without --file the value is the only line
@@ -11,7 +11,8 @@
  * configuration's lines, how to try it) go to stderr, and only on a terminal. `token new` and
  * `key new` read no configuration unless --config is given (the container image sets
  * $PIVOTKIT_CONFIG, and `docker run --rm <image> token new` must work without one); `token show`
- * reads $PIVOTKIT_CONFIG by default. Exit codes as the runner's: 0 done, 1 a file that is there,
+ * reads $PIVOTKIT_CONFIG and $PIVOTKIT_STATE_DIR by default and resolves the tokens as the server
+ * does (state.js), so `token show admin` prints the token the server made at its first start. Exit codes as the runner's: 0 done, 1 a file that is there,
  * missing or unusable, 2 a usage or configuration error. --json writes one object on stdout, as
  * pivotkit-cli's: { ok, exitCode, command, ..., error?: { kind, code, message } }; the value is in it
  * only where it would be printed. No message and no error holds a value.
@@ -23,6 +24,8 @@ import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
 import { isInside } from "pivotkit-cli/files";
 import { ConfigError, REST_BASE, loadConfig, pathOf, validateOptions } from "./config.js";
+import { madeAtStart } from "./secrets.js";
+import { STATE_ENV, configFrom, planState, stateDirOf } from "./state.js";
 import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";
 import { DEFAULT_PORT, TOKEN_ENV } from "./serve.js";
 import { SECRET_BYTES, SecretFileError, newSecret, placeSecret, replaceFile, writeBackup } from "./secret-file.js";
@@ -53,6 +56,7 @@ const FLAGS = Object.freeze({
     },
     "token show": {
         config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
+        "state-dir": { type: "string", value: "dir", text: "The server's state directory, where it keeps the tokens it made (default $PIVOTKIT_STATE_DIR)." },
         json: { type: "boolean", text: "Write one JSON object on stdout." },
         help: { type: "boolean", short: "h", text: "Print this help and exit." }
     },
@@ -344,11 +348,15 @@ async function keyNew(argv, io) {
  * @returns {Promise<string>}
  */
 async function configuredToken(options, name, env, config) {
-    const tokens = options.auth?.tokens ?? [];
+    // auth.js staticTokens: the variable's token, named "token", while auth.tokens lists none
+    const tokens = options.auth?.tokens?.length ? options.auth.tokens : options.auth?.mode === "token" ? [{ name: "token", env: TOKEN_ENV }] : [];
     const token = tokens.find((t) => t.name === name);
     if (!token) {
         const near = closest(name, tokens.map((t) => t.name));
         throw usage("UNKNOWN_TOKEN", `no token "${name.slice(0, 60)}" in auth.tokens of ${config}${near ? `; did you mean "${near}"?` : tokens.length ? `; there are ${tokens.map((t) => t.name).join(", ")}` : ""}`);
+    }
+    if (await madeAtStart(token, options)) {
+        throw new CommandError(1, "NOT_CREATED", `the token "${name}" is not created yet (${token.file}); start the server first, it makes the token at its first start`);
     }
     let value;
     if (token.file) {
@@ -372,21 +380,32 @@ async function configuredToken(options, name, env, config) {
 }
 
 /**
- * `token show`.
+ * `token show`: the token as the server resolves it (state.js planState): auth.tokens, the token the
+ * state directory holds where auth needs one and none is given, and the one of $PIVOTKIT_TOKEN
+ * ("token"); a token made at the first start that is not there yet is not made here.
  * @returns {Promise<Outcome>}
  */
 async function tokenShow(argv, io) {
     const { values, positionals } = parse("token show", argv, true);
     if (positionals.length !== 1) {
-        throw usage("NAME", "token show takes the name of one token of auth.tokens: pivotkit-server token show <name> [--config file]");
+        throw usage("NAME", "token show takes the name of one token of auth.tokens: pivotkit-server token show <name> [--config file] [--state-dir dir]");
     }
     const [name] = positionals;
+    const cwd = io.cwd ?? process.cwd();
+    const stateDir = stateDirOf(values["state-dir"], io.env, cwd);
     const config = values.config ?? io.env[CONFIG_ENV];
-    if (!config) {
-        throw usage("NO_CONFIG", `token show reads the configuration file: give --config <file> or set $${CONFIG_ENV}`);
+    if (!config && !stateDir) {
+        throw usage("NO_CONFIG", `token show reads the configuration file or the state directory: give --config <file> or --state-dir <dir>, or set $${CONFIG_ENV} or $${STATE_ENV}`);
     }
-    const options = await configOf(resolve(io.cwd ?? process.cwd(), config));
-    const value = await configuredToken(options, name, io.env, config);
+    let options;
+    try {
+        options = (await configFrom({ flag: values.config && resolve(cwd, values.config), fromEnv: io.env[CONFIG_ENV] && resolve(cwd, io.env[CONFIG_ENV]), stateDir }))?.options ?? { baseDir: cwd };
+        // the address is not known here (the image passes --host to serve): taken as off loopback
+        options = planState(options, { env: io.env, host: null, tokenEnv: TOKEN_ENV, stateDir }).options;
+    } catch (e) {
+        throw e instanceof ConfigError ? usage("CONFIG", e.message) : e;
+    }
+    const value = await configuredToken(options, name, io.env, config ?? stateDir);
     return { json: { name }, value, hints: [], warnings: [], printValue: true, field: "token" };
 }
 

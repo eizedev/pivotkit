@@ -7,7 +7,7 @@
  * (secretFileWarning).
  */
 
-import { readFile, stat } from "node:fs/promises";
+import { lstat, readFile, stat } from "node:fs/promises";
 import { pathOf } from "./config.js";
 
 export class SecretError extends Error {
@@ -75,4 +75,15 @@ export async function secretFileWarning(ref, options, label = `the file ${ref.fi
         return null;
     }
     return `${label} can be read by other users of this machine (mode ${(info.mode & 0o777).toString(8)}); make it readable by the server's user only (chmod 600)`;
+}
+
+/**
+ * Whether a reference with `create: true` names a file that is not there yet (nor a link): the start
+ * makes it (state.js), so check-config says so under Credentials instead of calling it unreadable.
+ * @param {{ env?: string, file?: string, create?: boolean }} ref
+ * @param {{ baseDir?: string }} options
+ * @returns {Promise<boolean>}
+ */
+export async function madeAtStart(ref, options) {
+    return Boolean(ref.create && ref.file) && !(await lstat(pathOf(options, /** @type {string} */ (ref.file))).catch(() => null));
 }

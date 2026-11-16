@@ -21,7 +21,7 @@ import { readFile } from "node:fs/promises";
 import { pathOf, restResourceOf } from "../config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "../auth.js";
 import { isLoopback } from "../listen.js";
-import { secretFileWarning } from "../secrets.js";
+import { madeAtStart, secretFileWarning } from "../secrets.js";
 import { personBound } from "../sources/auth.js";
 import { signInItems } from "./operator.js";
 import { heading, plain, problem, secretText, warning } from "./format.js";
@@ -43,7 +43,8 @@ export async function section(options, _registry, runtime) {
             if (readable) {
                 items.push(warning(readable));
             }
-            if (runtime.http) {
+            // a token made at start is said under Credentials
+            if (runtime.http && !(await madeAtStart(t, options))) {
                 const why = await tokenProblem(t, runtime.env, options);
                 if (why) {
                     items.push(problem(`the token ${t.name} ${why}`, stop));

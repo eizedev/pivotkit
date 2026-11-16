@@ -25,22 +25,47 @@ export const SLOTS = Object.freeze(["top", "source", "http", "policy", "auth", "
 
 /**
  * What is wrong with a secret reference: exactly one of `{ "env": "NAME" }` (an environment variable)
- * or `{ "file": "path" }` (relative to the configuration file), never the secret itself.
+ * or `{ "file": "path" }` (relative to the configuration file), never the secret itself. `creatable`:
+ * a file reference may add `"create": true` (pivotkit makes the file where it is missing); elsewhere
+ * the secret is one another system issues.
  * @param {unknown} ref
+ * @param {boolean} creatable
  * @returns {string[]}
  */
-function secretRefProblems(ref) {
+function secretRefProblems(ref, creatable) {
     if (ref === null || typeof ref !== "object" || Array.isArray(ref)) {
         return ['must be a reference to a secret, { "env": "NAME" } or { "file": "path" }, never the secret itself'];
     }
     const keys = Object.keys(ref);
-    const extra = keys.filter((k) => k !== "env" && k !== "file");
-    if (extra.length) {
-        return [`unknown key "${extra[0].slice(0, 60)}" (known: env, file)`];
+    const r = /** @type {any} */ (ref);
+    if (keys.includes("create")) {
+        if (!creatable) {
+            return ["create: pivotkit cannot make a secret another system issues; make it there and name it by env or file"];
+        }
+        if (typeof r.create !== "boolean") {
+            return ["create: must be true or false"];
+        }
+        if (r.env !== undefined) {
+            return [CREATE_NEEDS_FILE];
+        }
     }
-    const given = keys.filter((k) => typeof (/** @type {any} */ (ref)[k]) === "string" && /** @type {any} */ (ref)[k] !== "");
-    return given.length === 1 && keys.length === 1 ? [] : ["give either env (the variable that holds it) or file, as a non-empty text"];
+    const known = creatable ? ["env", "file", "create"] : ["env", "file"];
+    const extra = keys.filter((k) => !known.includes(k));
+    if (extra.length) {
+        return [`unknown key "${extra[0].slice(0, 60)}" (known: ${known.join(", ")})`];
+    }
+    const given = ["env", "file"].filter((k) => typeof r[k] === "string" && r[k] !== "");
+    return given.length === 1 && keys.filter((k) => k !== "create").length === 1 ? [] : ["give either env (the variable that holds it) or file, as a non-empty text"];
 }
 
-/** The schema of a secret reference in the options' schema language (a custom check). */
-export const SECRET_REF = Object.freeze({ custom: secretRefProblems });
+/** What a reference with create and env is told. */
+export const CREATE_NEEDS_FILE = "create needs file; pivotkit cannot set a variable";
+
+/** The schema of a secret reference in the options' schema language (a custom check): one another system issues. */
+export const SECRET_REF = Object.freeze({ custom: (/** @type {unknown} */ ref) => secretRefProblems(ref, false) });
+
+/**
+ * The schema of a secret reference pivotkit may make: `{ "file": "path", "create": true }` makes the
+ * file where it is missing (state.js), or `{ "env": "NAME" }` (output.downloads.key, audit.key).
+ */
+export const CREATABLE_SECRET_REF = Object.freeze({ custom: (/** @type {unknown} */ ref) => secretRefProblems(ref, true) });
