@@ -776,9 +776,11 @@ On SIGTERM or SIGINT, the server takes no new connection. It lets running reques
 `http.graceMs` (25 seconds by default).
 
 Windows has no SIGTERM. There, Ctrl+C stops the server this way, also the Ctrl+C event of a service
-manager. CI does not test this stop on Windows. Closing the console window sends SIGHUP instead: the
-server ends without waiting for running requests, and Windows ends it about 10 seconds
-later at the latest. So does a forced end of the process.
+manager. CI does not test this stop on Windows.
+
+Closing the console window sends SIGHUP instead. The server does not wait for running requests then,
+and Windows ends the process about 10 seconds later at the latest. A forced end of the process, for
+example in Task Manager, ends it at once.
 
 | Key | Default | What it is |
 | --- | --- | --- |
