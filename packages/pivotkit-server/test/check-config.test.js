@@ -165,7 +165,7 @@ test("check-config: an issuer that accepts and never answers is a WARNING after 
         const took = Date.now() - started;
         assert.match(factsOf(run.stdout), /WARNING \(Auth\): auth\.issuer: the metadata of http:\/\/127\.0\.0\.1:\d+\/issuer cannot be loaded from here \(no answer within 3 s\); the server starts and keeps trying; callers get 503 until it loads/);
         assert.equal(run.status, 0, run.stdout);
-        assert.ok(took < 8000, `check-config took ${took} ms`);
+        assert.ok(took < 8000, `check-config took ${took} ms`); // wall time: event latency (a child process and the issuer's 3 s)
     } finally {
         for (const socket of held) socket.destroy();
         silent.close();

@@ -411,7 +411,8 @@ test("a client that leaves in the middle of a large download does not keep the s
     await new Promise((r) => setTimeout(r, 200));
     const started = Date.now();
     await server.close();
-    assert.ok(Date.now() - started < 2000, `close took ${Date.now() - started} ms`);
+    // below graceMs (5 s): a close that waits for the stalled client takes all of it
+    assert.ok(Date.now() - started < 4000, `close took ${Date.now() - started} ms`); // wall time: event latency
 });
 
 test("a file name cut at 80 characters never splits a character; the download still works", async () => {

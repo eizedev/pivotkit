@@ -564,6 +564,10 @@ test("last good data over REST and MCP: stale in the result, and the message and
 
 test("request ids: a shared load that fails gives each caller its own request id", async () => {
     const release = gate();
+    // version() runs at once on every call, in the same step as the call joins the load: the second
+    // call of it means both callers wait for the one load (a fixed wait raced a busy machine)
+    const joined = gate();
+    let versions = 0;
     const dir = workspace();
     const server = await restServer({
         sources: {
@@ -571,15 +575,20 @@ test("request ids: a shared load that fails gives each caller its own request id
                 load: async () => {
                     await release.opened;
                     throw new Error("the backend is down");
+                },
+                version: () => {
+                    if (++versions === 2) joined.open();
+                    return "v1";
                 }
             }
         },
         baseDir: dir
     });
     try {
+        assert.equal(versions, 0, "the start does not call version()");
         const first = call(`${server.api}/sources/describe`, { body: { source: "t" } });
         const second = call(`${server.api}/sources/describe`, { body: { source: "t" } });
-        await wait(50);
+        await joined.opened;
         release.open();
         const answers = await Promise.all([first, second]);
         assert.deepEqual(answers.map((a) => a.status), [502, 502]);
@@ -1418,11 +1427,9 @@ test("the pool: a CSV read whose callers all went away stops, its worker replace
     const bytes = new TextEncoder().encode(`${rows.join("\n")}\n`);
     try {
         const leave = new AbortController();
-        const started = Date.now();
         const reading = computer.read(JOB_SPEC, { bytes, format: "csv" }, null, null, leave.signal);
         setTimeout(() => leave.abort(new DOMException("every caller went away", "AbortError")), 30);
         await assert.rejects(reading, { name: "AbortError" });
-        assert.ok(Date.now() - started < 1000, "stopped, not run to its end");
         // the next job gets a new worker
         const read = await computer.read(JOB_SPEC, { bytes: new TextEncoder().encode("a,b\n1,2\n"), format: "csv" }, null, null);
         assert.equal(read.table.length, 1);

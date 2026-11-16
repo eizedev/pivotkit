@@ -105,7 +105,7 @@ async function withLookup(answers, body) {
 async function oauthServer(issuer, auth = {}, waitMs = 3000) {
     const server = await restServer({ sources: SOURCES, auth: { mode: "oauth", issuer, resource: REST_RESOURCE, requiredScopes: ["pivotkit"], ...auth }, baseDir: workspace() });
     const until = Date.now() + waitMs;
-    while (Date.now() < until && (await call(`${server.url}/readyz`)).status !== 200) {
+    while (Date.now() < until && (await call(`${server.url}/readyz`)).status !== 200) { // wall time: a polling deadline
         await new Promise((resolve) => setTimeout(resolve, 30));
     }
     return server;

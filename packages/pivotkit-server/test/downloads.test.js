@@ -274,7 +274,7 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
         assert.equal(output.bound, "none");
         assert.ok(output.url.startsWith(`${server.url}/downloads/`), output.url);
         assert.match(output.expiresAt, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
-        assert.ok(Math.abs(Date.parse(output.expiresAt) - Date.now() - 3_600_000) < 5000);
+        assert.ok(Math.abs(Date.parse(output.expiresAt) - Date.now() - 3_600_000) < 5000); // wall time: a timestamp the server wrote
         assert.equal(output.note, "Open the link in your browser; it works for 60 minutes.");
         // the address is output.url (and the resource_link), named once: the message names the file
         assert.equal(r.data.message.split(output.url).length, 1, r.data.message);
@@ -558,7 +558,7 @@ test("once: the page names the file, its kind, size and expiry; after the downlo
         const mineHtml = await mine.text();
         assert.match(mineHtml, /<form method="post"><button type="submit">Download<\/button><\/form>/);
         const until = /<span id="until">You downloaded it in this browser a moment ago and can download it again until <time datetime="([^"]+)">/.exec(mineHtml)?.[1];
-        assert.ok(until && Math.abs(Date.parse(until) - Date.now() - 120_000) < 5000, String(until));
+        assert.ok(until && Math.abs(Date.parse(until) - Date.now() - 120_000) < 5000, String(until)); // wall time: a timestamp the server wrote
         // a GET never uses a link: an unused one stays unused after many
         const fresh = local((await render("Fresh")).url);
         for (let i = 0; i < 3; i++) {
