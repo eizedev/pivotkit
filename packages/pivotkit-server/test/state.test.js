@@ -427,7 +427,8 @@ test("check-config resolves the same files without making them, and has no PROBL
     assert.match(text, /the download links' key \(default of the state directory\): .*downloads\.key, made at the first start/);
     assert.match(text, /read the token with: pivotkit-server token show admin --state-dir /);
     assert.match(text, /Auth: token/);
-    assert.match(text, /^New in this version: .*the token "admin", the download links' key made at the first start in .*secrets \(an empty \$PIVOTKIT_STATE_DIR keeps the start as before\)/m);
+    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
+    assert.doesNotMatch(text, /made at the first start in .*an empty \$PIVOTKIT_STATE_DIR keeps the start as before/);
     stateMeans.container = container;
     assert.deepEqual(readdirSync(state), []);
     // the runner, as the image runs it: exit 0, nothing made

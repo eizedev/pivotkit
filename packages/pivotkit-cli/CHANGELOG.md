@@ -21,6 +21,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 - `--values avg:Revenue` asks "did you mean average?", as do `mean`, `cnt`, `total`, `distinct`
   and `stddev` (#508).
 - `itemCase` says "did you mean" once: pivotkit-core's message no longer names the item meant (#508).
+- pivotkit-core's internal limit helper words a file over its limit. The text stays the same
+  ([#509](https://github.com/eizedev/pivotkit/issues/509)).
 
 ## [0.3.0] - 2026-11-16
 

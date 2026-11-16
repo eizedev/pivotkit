@@ -22,17 +22,10 @@ const FORMAT_TEXT = Object.freeze({ auto: "auto (text on a terminal, JSON otherw
 export async function section(options, _registry, runtime) {
     const log = logSettingsOf(options.log);
     const items = [heading("Log:"), plain(`level ${log.level}, format ${FORMAT_TEXT[log.format]}`)];
-    const upgrade = [];
-    if (runtime.http && log.address !== "off") {
-        upgrade.push(`the client's IP address on the log's request lines (log.address: "off" leaves it out)`);
-    }
-    if (runtime.http && log.format !== "text") {
-        upgrade.push(`a start error as a JSON line where stderr is no terminal (log.format: "text" keeps the plain line)`);
-    }
     if (log.address === "off") {
         items.push(plain("addresses off (log.address)"));
     } else if (runtime.http) {
         items.push(plain(`addresses on: ${options.http?.trustProxy ? "the forwarded client, the proxy as peerAddress (http.trustProxy)" : "the socket's peer"}`));
     }
-    return { items, upgrade };
+    return { items, upgrade: [] };
 }

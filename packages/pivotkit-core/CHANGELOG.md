@@ -25,6 +25,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   row name needs a px more than the text (was 4/3 of it). Every layout function weighs CJK and
   fullwidth characters a whole em and capitals 0.7 em. The
   [upgrading page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-7) has the details.
+- `checkLimit`, the view link, pivotkit-cli and pivotkit-server word a limit through one internal
+  helper (`pivotkit-core/internal`, no public API). The text stays the same
+  ([#509](https://github.com/eizedev/pivotkit/issues/509)).
 
 ### Fixed
 

@@ -179,6 +179,12 @@ docker exec pivotkit pivotkit-server token new --file /var/lib/pivotkit/secrets/
     - `http.publicUrl`, whose host name the server answers too
 - Behind the proxy, set `"http": { "publicUrl": "https://reports.example.com/" }`. Download links
   point there.
+- One address may hold at most 32 connections. Behind a proxy that writes `X-Forwarded-For`, set
+  `"http": { "trustProxy": true }`, and the proxy limits its clients. Where many clients share one
+  address without a proxy, such as an office behind one NAT, raise
+  `"http": { "maxConnectionsPerAddress": 128 }`. These keys go into `pivotkit.json`, mounted as in
+  [step 6](#own-data). There is no flag or variable for them
+  ([connections per address](../reference/container.md#per-address)).
 
 ### Your own tokens, Kubernetes { #more }
 

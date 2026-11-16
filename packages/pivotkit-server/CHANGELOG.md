@@ -6,6 +6,70 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `output.draftMaxAgeDays` deletes schedule drafts that still wait for approval after that many
+  days, at start and every hour. It is off by default and works with `output.maxAgeDays: 0`. Like
+  `output.maxAgeDays`, it is refused where the output directory holds the operator's own files.
+  `check-config` counts the drafts the next start deletes
+  ([#513](https://github.com/eizedev/pivotkit/issues/513)).
+
+### Changed
+
+- Behaviour change: a source is open for plain links only where nothing new can become visible,
+  for every caller alike. A source hidden by default whose named fields are all `show` or `hide`
+  is open now: its reports get plain download links, an `output.baseUrl` address and plain store
+  links. A source with every field shown stays open. "Show everything except" (`"default": "show"`
+  with a field at `hide`), `values`, `summary`, the automatic values rule and a field shown to some
+  callers only stay closed. `check-config` says why each is closed, and how a deny list gets
+  plain links
+  ([#510](https://github.com/eizedev/pivotkit/issues/510),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open)).
+- Behaviour change: one address may hold at most 32 connections by default. With
+  `http.trustProxy` there is no bound by default, since every client has the proxy's address.
+  `http.maxConnectionsPerAddress` overrides both, and `0` switches the bound off. `check-config`
+  prints the bound under `HTTP:`. `CONNECTION_LIMITS.perAddress` is 32, and `serveFetch` without
+  `limits.perAddress` takes 32, or none with `trustProxy`
+  ([#511](https://github.com/eizedev/pivotkit/issues/511),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#per-address)).
+- Behaviour change: schedule drafts that wait for approval may take at most half of
+  `output.maxMb`, as they take at most half of `output.maxFiles`. A draft over it answers 409
+  `NO_OUTPUT`. Renders keep working. A single draft larger than the whole byte cap gets its own
+  answer, which says the operator must raise `output.maxMb`. `check-config` prints both caps and
+  warns of a directory whose waiting drafts are already over the byte cap
+  ([#513](https://github.com/eizedev/pivotkit/issues/513),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota)).
+- Behaviour change: REST answers `params` on a server where no source takes parameters with
+  `INVALID_INPUT` "this server has no source that takes params; leave params out (GET /sources
+  lists the sources)", instead of `input has no key "params"`. JSON and multipart bodies alike
+  ([#516](https://github.com/eizedev/pivotkit/issues/516)).
+- `check-config` closes with this release's changes that apply to the configuration, one per line,
+  each with the link to its section on the upgrading page. The notes of 0.2.0 are gone.
+- Each duplicated helper exists once: one shell quote for printed commands, pivotkit-core's internal
+  limit helper for limits, the body cap's size from `REST_BODY_BYTES`, and `bytesText` in
+  `src/text.js`. The messages stay the same, except that check-config and the sweep log write "1
+  day" in the singular. pivotkit-report and pivotkit-xlsx keep their own limit wording ("the view
+  has N characters; at most M", "the part ... is N bytes"). Those texts say different things, so
+  they are not merged on purpose ([#509](https://github.com/eizedev/pivotkit/issues/509)).
+
+### Fixed
+
+- Behaviour change: on a busy host, a parameter pattern's time limit no longer refuses fast, valid
+  values and patterns.
+    - Every match runs under 75 ms instead of 25 ms, in a request as at start, so the start never
+      takes a pattern that requests cannot match.
+    - A request tries a match that ran out of time once more. The start's check tries a value up
+      to three times and counts it as fast if any try ends in time. One pattern's check takes 1
+      second at most, else the pattern counts as slow. Its example, default and enum values share
+      another second.
+    - A value that runs out of time twice answers 503 `BUSY` with `retryable: true` and
+      `Retry-After: 2`, also for a value from a claim, instead of `INVALID_INPUT`.
+    - The pattern checks of one request take 150 ms at most in all. Past that the request answers
+      `BUSY` ([#528](https://github.com/eizedev/pivotkit/issues/528)).
+- The drafts' caps count only drafts that still wait for approval. A draft the host approved or
+  rejected (another `status`) no longer takes a waiting draft's place in the count of half of
+  `output.maxFiles` ([#513](https://github.com/eizedev/pivotkit/issues/513)).
+
 ## [0.2.0] - 2026-11-16
 
 ### Upgrading from 0.1.1
