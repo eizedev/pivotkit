@@ -24,14 +24,14 @@ curl -s -H "Content-Type: application/json" \
 
 ## What it does
 
-- It serves an OpenAPI 3.1 document, made from the same operations.
-- Per field, the operator decides what a caller may see. Profiles give one token, OAuth client or
-  group more: values or downloads.
-- Sign-in uses static tokens or OAuth 2.1.
-- It is the shared core of [pivotkit-mcp](https://www.npmjs.com/package/pivotkit-mcp).
+- Serves an OpenAPI 3.1 document, made from the same operations as the routes.
+- Lets the operator decide per field what a caller may see. Profiles give one token, OAuth client or
+  group more, such as values or downloads.
+- Signs callers in with static tokens or OAuth 2.1.
+- Is the shared core of [pivotkit-mcp](https://www.npmjs.com/package/pivotkit-mcp).
   `pivotkit-server serve` runs the REST service. With pivotkit-mcp installed, it also runs the MCP
   endpoint on the same port.
-- A container image runs both with the command line.
+- Runs in a container image, together with pivotkit-mcp and the command line.
 
 ## Where in the docs
 
@@ -39,7 +39,7 @@ curl -s -H "Content-Type: application/json" \
 | --- | --- |
 | Run it and call it with curl and PowerShell | [Getting started: REST service](https://pivotkit.eize.dev/getting-started/rest/) |
 | Routes, profiles, downloads, sign-in, CORS, limits, errors, OpenAPI, embedding | [pivotkit-server reference](https://pivotkit.eize.dev/reference/rest/) |
-| Download links that expire and stay bound to the person's sign-in, upload to your own store | [Download links](https://pivotkit.eize.dev/reference/delivery/) |
+| Download links that expire, bound to the person's sign-in, or an upload to your own store | [Download links](https://pivotkit.eize.dev/reference/delivery/) |
 | The container image | [Container image](https://pivotkit.eize.dev/reference/container/) |
 | Kubernetes | [Kubernetes](https://pivotkit.eize.dev/getting-started/kubernetes/) |
 | Update it together with pivotkit-mcp, and what changes between releases | [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#update) |

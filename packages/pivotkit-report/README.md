@@ -1,14 +1,8 @@
 # pivotkit-report
 
 Render [pivotkit](https://pivotkit.eize.dev/) views without a browser. It turns a view over rows into
-one of these:
-
-- an HTML report to print or save as PDF
-- CSV or JSON
-- an Excel workbook (.xlsx)
-- the chart as SVG
-
-It runs in Node and in the browser.
+an HTML report to print or save as PDF, CSV, JSON, an Excel workbook (.xlsx) or the chart as SVG. It
+runs in Node and in the browser.
 
 ## Install
 
@@ -38,10 +32,9 @@ await writeFile("report.html", result.body);  // Uint8Array; result.text for the
 
 ## How it works
 
-- It draws the same table and chart as the report on the screen, with pivotkit-core's engine and
+- Draws the same table and chart as the report on the screen, with pivotkit-core's engine and
   exporters.
-- The print template is HTML with `{{placeholders}}`. pivotkit-report escapes everything it fills
-  into the template.
+- Uses HTML with `{{placeholders}}` as the print template, and escapes everything it fills into it.
 
 ## Where in the docs
 

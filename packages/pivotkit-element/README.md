@@ -42,11 +42,11 @@ report.addEventListener("pivot-view-change", (e) => localStorage.setItem("view",
 
 ## How it works
 
-- It brings its own React ([which version](https://pivotkit.eize.dev/browser-support/#react)),
+- Brings its own React ([which version](https://pivotkit.eize.dev/browser-support/#react)),
   [pivotkit-react](https://www.npmjs.com/package/pivotkit-react),
   [pivotkit-core](https://www.npmjs.com/package/pivotkit-core) and @dnd-kit.
-- It renders into an open shadow root.
-- It loads ECharts on the first chart.
+- Renders into an open shadow root.
+- Loads ECharts on the first chart.
 
 ![A line chart of monthly revenue per category](https://pivotkit.eize.dev/assets/screenshots/chart-light.png)
 

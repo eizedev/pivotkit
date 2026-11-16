@@ -2,8 +2,8 @@
 
 An [MCP](https://modelcontextprotocol.io) server for [pivotkit](https://pivotkit.eize.dev/). An AI
 client such as Claude Code, Claude Desktop or VS Code describes your data sources, writes and checks
-pivot views, and has reports made into Excel, HTML, CSV, JSON or SVG files or into links. The model
-does this without reading the data itself.
+pivot views, and has reports made into Excel, HTML, CSV, JSON or SVG files or into links. The client
+does all this without reading the data itself.
 
 ## Install
 
@@ -38,9 +38,9 @@ npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token   # http://12
 
 ## What it does
 
-- Per field, the operator decides what the model may see: names and counts, values, or nothing.
-- A local client connects over stdio.
-- A team connects over Streamable HTTP, with a token or OAuth 2.1.
+- Lets the operator decide per field what the model may see: names and counts, values, or nothing.
+- Talks to a local client over stdio.
+- Serves a team over Streamable HTTP, with a token or OAuth 2.1.
 
 ## Where in the docs
 

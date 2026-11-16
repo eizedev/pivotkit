@@ -27,13 +27,13 @@ const table = await readFile(file, { plugins: [xlsxReader] }); // the first visi
 const data = encode(table);                                      // typed columns for the report
 ```
 
-## What it checks
+## Checks on every file
 
-It checks the file before it parses anything:
+Before it parses a file, pivotkit-xlsx:
 
-- It refuses `.xls` files, workbooks with macros, password-protected workbooks, ZIP bombs and XML
-  with a document type. For each it says what to do.
-- While it unpacks a sheet, it leaves out a used range of formatted empty cells far below the data.
+- Refuses `.xls` files, workbooks with macros, password-protected workbooks, ZIP bombs and XML with
+  a document type. For each, it says what to do.
+- Leaves out a used range of formatted empty cells far below the data, while it unpacks the sheet.
 
 It builds on [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT). It starts no
 worker, so a strict Content-Security-Policy works.
