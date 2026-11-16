@@ -3,7 +3,7 @@
 // no entry under [Unreleased]; else the package was built and tested against code that npm does not
 // have yet, and would fail at import against the published version (#206). Release that package first.
 // With --published, each of them must also be on npm at the version in this repository (network), so
-// the publish order of CONTRIBUTING.md is kept.
+// the publish order of RELEASING.md is kept.
 //
 //   node scripts/check-release.js pivotkit-react [--published]
 //
@@ -50,7 +50,7 @@ function ownDependencies(name, read) {
 export function releaseProblems(name, read) {
     return ownDependencies(name, read).flatMap((dep) => {
         const count = unreleasedEntries(read(`packages/${dep}/CHANGELOG.md`)).length;
-        return count > 0 ? [`${name} depends on ${dep}, whose CHANGELOG has ${count} unreleased ${count === 1 ? "entry" : "entries"}: release ${dep} first (CONTRIBUTING.md, "Releasing")`] : [];
+        return count > 0 ? [`${name} depends on ${dep}, whose CHANGELOG has ${count} unreleased ${count === 1 ? "entry" : "entries"}: release ${dep} first (RELEASING.md)`] : [];
     });
 }
 
@@ -76,7 +76,7 @@ if (isMain(import.meta.url)) {
             if (error && !/E404/.test(error)) {
                 problems.push(`${name}: npm could not tell whether ${dep} ${version} is published: ${error.trim().split("\n")[0]}`);
             } else {
-                problems.push(`${name} depends on ${dep} ${version}, which is not on npm: publish ${dep} first (CONTRIBUTING.md, "Releasing")`);
+                problems.push(`${name} depends on ${dep} ${version}, which is not on npm: publish ${dep} first (RELEASING.md)`);
             }
         }
     }

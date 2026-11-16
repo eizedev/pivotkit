@@ -73,7 +73,7 @@ test("caretSatisfies reads caret ranges as npm does", () => {
     assert.equal(caretSatisfies("^1.2.0", "1.1.9"), false);
 });
 
-// publish order (CONTRIBUTING.md, "Releasing"): a range of an own package must take the version in this
+// publish order (RELEASING.md): a range of an own package must take the version in this
 // repository, else npm would fetch another one from the registry instead of linking the workspace
 test("every caret range on an own package is satisfied by the workspace version", () => {
     for (const name of OWN) {
@@ -217,7 +217,7 @@ exit 1
     // pivotkit-report 0.3.1 is not on npm (only an older version is): refused, with the publish order
     r = run({ NPM_STUB_PUBLISHED: "pivotkit-core@0.6.0 pivotkit-report@0.3.0" }, "--published");
     assert.equal(r.status, 1);
-    assert.equal(r.stderr, "pivotkit-react depends on pivotkit-report 0.3.1, which is not on npm: publish pivotkit-report first (CONTRIBUTING.md, \"Releasing\")\n");
+    assert.equal(r.stderr, "pivotkit-react depends on pivotkit-report 0.3.1, which is not on npm: publish pivotkit-report first (RELEASING.md)\n");
 
     // npm cannot reach the registry: refused for each dependency, with npm's error, not as "not published"
     r = run({ NPM_STUB_PUBLISHED: "pivotkit-core@0.6.0 pivotkit-report@0.3.1", NPM_STUB_OFFLINE: "1" }, "--published");
@@ -357,7 +357,7 @@ test("the release workflow publishes the tarball by a path npm reads as a file",
     }
 });
 
-// The trusted publisher on npm allows staging only (CONTRIBUTING.md, "Releasing"): a plain npm publish
+// The trusted publisher on npm allows staging only (RELEASING.md): a plain npm publish
 // would fail at release time, after the tag is pushed
 test("the release workflow stages on npm and never publishes directly", () => {
     const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
@@ -380,7 +380,7 @@ test("the release workflow stages on npm and never publishes directly", () => {
 });
 
 // The OIDC token exists only in the job that waits for the "npm" environment's reviewers, and only a
-// pushed release tag starts the workflow (CONTRIBUTING.md, "Releasing")
+// pushed release tag starts the workflow (RELEASING.md)
 test("the release workflow holds the OIDC token only behind the npm environment, on tags only", () => {
     const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
     const commands = release.split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
@@ -402,7 +402,7 @@ test("the release workflow holds the OIDC token only behind the npm environment,
 
 // Docs and READMEs name no version of pivotkit as a fact about the present, so a release cannot leave
 // one behind: no caret range of a pivotkit package. The statements that must name the current version
-// are listed here, each with the package whose version it names, and in CONTRIBUTING.md's release steps.
+// are listed here, each with the package whose version it names, and in RELEASING.md's release steps.
 const VERSION_STATEMENTS = [
     { file: "docs/compare.md", pattern: /^\| \*\*pivotkit\*\* \| [^|]+ \| (\d+\.\d+\.\d+) on \d{4}-\d{2}-\d{2} \|/m, pkg: "pivotkit-core" },
     { file: "docs/reference/view-file.md", pattern: /"generator": \{ "name": "pivotkit-react", "version": "(\d+\.\d+\.\d+)" \}/, pkg: "pivotkit-react" },
@@ -411,9 +411,14 @@ const VERSION_STATEMENTS = [
 ];
 const minorOf = (version) => version.split(".").slice(0, 2).join(".");
 
-/** The Markdown files a reader takes as the current state: READMEs, AGENTS.md, CONTRIBUTING.md, SECURITY.md, docs/. */
+/** The Markdown files a reader takes as the current state: READMEs, every AGENTS.md, CONTRIBUTING.md, RELEASING.md, SECURITY.md, docs/. */
 function docFiles() {
-    const files = ["README.md", "AGENTS.md", "CONTRIBUTING.md", "SECURITY.md", ...WORKSPACES.map((w) => `${w}/README.md`)];
+    // every tracked AGENTS.md, the root's and the nested ones of packages and folders
+    const agents = spawnSync("git", ["ls-files", "--", "AGENTS.md", "**/AGENTS.md"], { cwd: fileURLToPath(root), encoding: "utf8" });
+    assert.equal(agents.status, 0, `git ls-files failed: ${agents.stderr}`);
+    const agentFiles = agents.stdout.split("\n").filter(Boolean);
+    assert.ok(agentFiles.includes("AGENTS.md"), "git ls-files found no AGENTS.md at the root");
+    const files = ["README.md", ...agentFiles, "CONTRIBUTING.md", "RELEASING.md", "SECURITY.md", ...WORKSPACES.map((w) => `${w}/README.md`)];
     for (const entry of readdirSync(new URL("docs/", root), { recursive: true, withFileTypes: true })) {
         const path = `${entry.parentPath ?? entry.path}/${entry.name}`.slice(fileURLToPath(new URL("docs/", root)).length);
         if (entry.isFile() && entry.name.endsWith(".md") && !path.startsWith("playground")) files.push(`docs/${path}`);

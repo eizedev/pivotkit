@@ -10,7 +10,7 @@ name: Release
 #      release.yml and the environment "npm", with "Allow npm publish" unchecked (staging only),
 #   3. created the GitHub environment "npm" with required reviewers, deployable from tags only,
 #   4. set the repository variable NPM_RELEASE_ENABLED to "true".
-# Until then every run is skipped. See CONTRIBUTING.md, "Releasing".
+# Until then every run is skipped. See RELEASING.md.
 #
 # Two jobs: "build" installs, checks and packs without any publishing right (the dependencies run
 # there); "publish" gets the OIDC token, installs nothing and stages the tarball "build" made.

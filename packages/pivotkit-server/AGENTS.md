@@ -1,0 +1,103 @@
+# pivotkit-server
+
+The REST service and the core it shares with pivotkit-mcp. Node only, no MCP SDK.
+The root [AGENTS.md](../../AGENTS.md) applies too. Read `docs/privacy.md` before touching policy.
+
+## Commands
+
+```bash
+npm test -w pivotkit-server    # the service over HTTP: hostile inputs, tokens, OAuth, profiles
+npx pivotkit-server serve --source sales=data.csv --output out   # http://127.0.0.1:3333
+node scripts/openapi.js        # write docs/openapi.json after a route or operation change
+```
+
+## Options
+
+- `OPTION_KEYS` in `src/config.js` is the one table of options for REST and MCP.
+- It is composed from the fragments in `src/options/`, one file per feature.
+- A new option is a key in its feature's fragment. Never in two places.
+- `composeSlots` refuses a key declared twice.
+- Secrets are `{ env }` or `{ file }` references. `readSecret` reads them on every use.
+- Never log a secret.
+
+## Check-config
+
+- `src/check/` has one section per concern. `check/index.js` lists them in `SECTIONS`.
+- A PROBLEM that stops the start must also be refused by `createContext` or `serve`.
+- `test/check-config.test.js` runs both.
+- Output wraps at 78 columns. Tests read wrapped text through `factsOf` in `test/helpers.js`.
+
+## Requests to other servers
+
+- `guardedFetch` in `src/sources/fetch.js` is the one way the server requests another server.
+- It allows https only and no redirects. It checks the address on the connection's own lookup.
+- It counts bodies after decompression and has one time limit.
+- HTTP sources, uploads and the OAuth issuer all go through it.
+- Private addresses need the operator's `intranet` setting.
+- A source's URL template keeps its origin and shape (`sources/template.js`).
+
+## Sign-in and identity
+
+- `profileOf` in `src/auth.js` is the one order of a caller's profile.
+- `identityKey` is the only identity a cache or binding uses. It is null without a usable subject.
+- A caller's access token leaves `auth.js` only through `exchangeTokenFor`.
+- Only `src/sources/auth.js` may import it. An ESLint rule enforces this.
+- Sources that only a signed-in person sees are never schedulable.
+
+## Policy and privacy
+
+- Levels are `show`, `values`, `summary` and `hide` (`POLICY_LEVELS`), in order of strictness.
+- `stats.js` counts per field. It never keeps a value.
+- A source the caller may not use answers "not found".
+- `isClosedForDelivery` is the one rule for which reports get only bound links.
+- Cache keys hold a caller's values, groups and claims only as a keyed digest (`sources/keys.js`).
+- Inline data (`inline:`) is never kept, linked or scheduled.
+- `test/memory.test.js` proves no kept data holds a hidden column.
+- Its hooks exist only for a context made with `COMPUTE_HOOKS`. Never make that a setting.
+
+## Logs
+
+- One line per event, JSON or logfmt.
+- `callerFields` is the allowlist of caller fields a log line may hold.
+- The subject appears only where `audit.subject` asks, as a keyed hash or the claim's text.
+- Every error answer gets a log line. `logUnanswered` writes a `refused` line if none was written.
+- Every answer carries `X-Request-Id`.
+
+## Sources and memory
+
+- `src/sources/` holds one module per kind of source. `runResolved` is the one way to run one.
+- Loads have time limits, coalescing and per-source and per-identity limits (`sources/run.js`).
+- Last good data is served only after a transient failure.
+- The process cache and kept data sets are bounded in entries and bytes.
+- A kept data set copies its texts first. A reader's slices would keep the whole file alive.
+- Every read ends with `forgetLastSubject`. V8 keeps the last regular expression's subject.
+- Workers have memory and time limits.
+
+## Untrusted documents
+
+- `source-from-openapi` reads an operator's OpenAPI document as hostile input.
+- The server never imports `openapi-source.js`. Only the runner's command does.
+- Its `TODO` values are refused at start (`todoPaths` in `options/base.js`).
+
+## REST
+
+- `src/rest/` is `pivotkit-server/rest`.
+- `REST_ROUTES` in `routes.js` has one route per operation of pivotkit-report's table.
+- A new operation gets its words and an example in `routes.js`.
+- Then run `node scripts/openapi.js`. `test/openapi.test.js` fails until you do.
+- Errors are RFC 9457 problems (`rest/problem.js`).
+- The REST contract shared with the CLI lives in `pivotkit-cli/rest`. Change it there.
+
+## Serving and releases
+
+- `serve` runs REST and, when pivotkit-mcp is installed, MCP on one port.
+- pivotkit-mcp is imported by name, not as a dependency.
+- A pivotkit-mcp that needs exports this version lacks is refused with both versions.
+- Release pivotkit-server before pivotkit-mcp, see [RELEASING.md](../../RELEASING.md).
+
+## Tests
+
+- `test/` drives the service over HTTP.
+- `test/conformance.test.js` checks that MCP and REST answer alike.
+- `test/cli-remote.test.js` runs the CLI against the service.
+- Use the `tempDir` of `test/helpers.js` for files on disk.
