@@ -3,6 +3,7 @@
 import React from "react";
 import { PivotReport, type CellClick, type DataLoad, type ExportFile, type FieldDefaults, type PartialLabels, type PivotReportProps, type Template, type ViewInput } from "pivotkit-react";
 import { LABELS } from "pivotkit-react/labels";
+import "pivotkit-react/styles.css"; // the stylesheet as a strict project imports it, without a bundler's CSS types (TS2882 without its declaration)
 import type { View } from "pivotkit-core";
 
 const templates: Template[] = [{ name: "By region", view: { rows: ["Region"] } }, { file: '{"format":"pivotkit-view","formatVersion":1,"name":"From a file","view":{}}', scope: "shared" }, { name: "Mine", view: {}, scope: "user", deletable: true }];

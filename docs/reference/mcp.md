@@ -143,7 +143,7 @@ reads an unknown `level` as `summary`: more levels may come.
 | `autoValues` | `false` | Server and source: the [automatic rule](#auto-values): `true`, `false` or `{ "maxDistinct", "minRowsPerValue", "minRows", "deny" }` |
 | `rows` | `true` | Show the number of rows (`false` also keeps a render's `sourceRows` and `keptRows` back) |
 | `counts` | `true` | Show distinct and blank counts per field |
-| `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline; `false`: never |
+| `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline; `false`: never. An inline csv (`inline.text`) has no byte order mark, as text a program reads; the csv file starts with one |
 | `results` | `false` | The REST service's file route may hand out the rendered file ([downloads](rest.md#downloads)) |
 
 ### The automatic values rule { #auto-values }
@@ -383,7 +383,11 @@ parenthesis (`SOURCE_UNAVAILABLE: the source is not available right now; if it s
 operator the request id (source tickets; trying again later may work; request id Ab3_xY9-k2Q)`).
 A message that ends in a parenthesis (a refused value's "(The team, for example blue)") takes the
 request id inside it, so no two stand in a row. `BUSY`, `NOT_READY` and
-`TIMEOUT` keep their own words, which name only the server's limits.
+`TIMEOUT` keep their own words, which name only the server's limits. Whether trying again may work
+is said for `SOURCE_UNAVAILABLE` and `UPLOAD_FAILED` (as the REST service's
+[`retryable`](rest.md#errors)); a source's own refusal below status 500 (`NOT_ALLOWED`,
+`INVALID_INPUT`, `DATA_NOT_AVAILABLE`) keeps its words and says nothing about it: the same call
+does not work when tried again.
 
 | Code | When |
 | --- | --- |
@@ -497,8 +501,10 @@ authentication unless `--allow-unauthenticated` says the network is trusted. The
 every request gets a fresh server from the shared context. Behind a reverse proxy: keep the server
 on 127.0.0.1 when the proxy runs on the same machine, terminate TLS at the proxy, forward `/mcp`,
 `/.well-known/`, `/downloads/` ([download links](delivery.md)) and `/`, keep the `Host` header (or add the proxy's name with `--allow-host`), set
-`--public-url`, and turn response buffering off for `/mcp`. The server reads no `X-Forwarded-*`
-header: client addresses are in the proxy's log. For IIS with ARR, see
+`--public-url`, and turn response buffering off for `/mcp`. The server reads no
+`X-Forwarded-Proto` or `X-Forwarded-Host`: its own address is `--public-url`. `X-Forwarded-For` it
+reads only with `http.trustProxy` (the client's address for its limits and the log, [REST
+service](rest.md#running)); without it, client addresses are in the proxy's log. For IIS with ARR, see
 [PowerShell Universal](../getting-started/mcp.md#psu-iis). For nginx:
 
 ```nginx

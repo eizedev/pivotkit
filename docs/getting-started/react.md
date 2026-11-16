@@ -136,8 +136,9 @@ export function SalesReport() {
   (`Date` objects or ISO strings such as `"2026-01-05"`) are recognised by themselves.
 - `defaultView` is the start: a [view](../concepts/views.md), plain JSON. Leave it out and the report
   starts empty with a short guide.
-- Import `pivotkit-react/styles.css` once. Every colour, size and font weight is a `--pk-*` token you
-  can [override](../reference/theming.md).
+- Import `pivotkit-react/styles.css` once (it ships its own type declaration, so a strict TypeScript
+  project takes the import without a bundler's CSS types). Every colour, size and font weight is a
+  `--pk-*` token you can [override](../reference/theming.md).
 - `height` is the report's height (default 640 px); the table and the field list scroll inside it.
 
 ## 3. Keep the view in your app { #keep-the-view-in-your-app }

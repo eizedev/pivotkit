@@ -219,6 +219,22 @@ test("options are checked: an unknown format, a chart size out of range, SVG wit
     await assert.rejects(render(BY_REGION, SALES, { format: "csv", bom: "no" }), option("bom"));
 });
 
+test("tokens and darkTokens of a wrong type are refused, not ignored", async () => {
+    const option = (o) => (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION" && e.details.option === o;
+    // a CSS text, a list, null or a number: a host's mistake that would give the default colours without a word
+    for (const wrong of ["--pk-accent: #c00", [["--pk-accent", "#c00"]], null, 42]) {
+        await assert.rejects(render(BY_REGION, SALES, { format: "html", tokens: /** @type {any} */ (wrong), ...FIXED }), option("tokens"), JSON.stringify(wrong));
+        await assert.rejects(render(BY_REGION, SALES, { format: "html", darkTokens: /** @type {any} */ (wrong), ...FIXED }), option("darkTokens"), JSON.stringify(wrong));
+    }
+    // xlsx and csv read tokens too (a workbook's colour scale): the same check in every format
+    await assert.rejects(render(BY_REGION, SALES, { format: "xlsx", tokens: /** @type {any} */ ("#c00"), ...FIXED }), option("tokens"));
+    // in an object, a token that cannot be used is left out on its own, as documented
+    const kept = await render(BY_REGION, SALES, { format: "html", tokens: { "--pk-accent": "url(x)", "--pk-chart-1": "#c00000" }, darkTokens: {}, ...FIXED });
+    assert.equal(kept.ok, true);
+    assert.doesNotMatch(kept.text, /url\(x\)/);
+    assert.match(kept.text, /--pk-chart-1:#c00000/);
+});
+
 test("CSV: a byte order mark by default, none with bom: false", async () => {
     const withBom = await render(BY_REGION, SALES, { format: "csv", ...FIXED });
     const without = await render(BY_REGION, SALES, { format: "csv", bom: false, ...FIXED });

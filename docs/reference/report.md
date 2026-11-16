@@ -71,7 +71,7 @@ The whole body is built in memory; the [limits](../concepts/limits.md) keep it b
 | `size` | `{ width: 800, height: 480 }` | The chart's size in px, 100 to 8,000. |
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
-| `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form, or a time that does not exist, is refused. `html`: "Data as of" in the details and the `{{dataAsOf}}` [placeholder](print-template.md), in the locale and time zone with the zone named; `xlsx`: the custom document property `DataAsOf` (a date). csv, json and svg leave it out. The REST service and the MCP server pass it. |
+| `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form, or a time that does not exist, is refused. `html`: "Data as of" in the details and the `{{dataAsOf}}` [placeholder](print-template.md), in the locale and time zone with the zone named; `xlsx`: the custom document property `DataAsOf` (a date). csv, json and svg leave it out. The REST service and the MCP server pass it; the command line passes none for local files. |
 
 Any other option name is refused (`INVALID_OPTION`, with the closest name), so a misspelt one is not
 ignored.
@@ -89,7 +89,7 @@ ignored.
 
 A bad view never throws: its issues come back. `PivotkitError` is thrown for a wrong argument
 (`INVALID_ARGUMENT`), a wrong option (`INVALID_OPTION` with `details.option`: an unknown `format`, a
-`size` out of range, an unknown option, a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take, an SVG or `chart: true` without `echarts`, a `now` that is no date, a `dataAsOf` in another form), a limit (`LIMIT_EXCEEDED`) and
+`size` out of range, an unknown option, a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take, an SVG or `chart: true` without `echarts`, a `now` that is no date, a `dataAsOf` in another form, a `tokens` or `darkTokens` that is no object), a limit (`LIMIT_EXCEEDED`) and
 a refused template (`INVALID_TEMPLATE`, see [print template](print-template.md)). The report's own
 issues are warnings: `chartUnavailable` (a view that shows the chart, rendered as HTML with `chart`
 `"auto"` and without `echarts`: the table is there, the chart is not; pass `strict` and check `ok`, or

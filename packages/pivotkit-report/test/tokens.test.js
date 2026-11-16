@@ -119,15 +119,17 @@ test("darkTokens: in the rules of a dark screen over the dark theme's, cleaned a
     assert.match(plain, /\{:root:not\(\[data-pk-theme="light"\]\)\{[^}]*--pk-scale-mid:initial;color-scheme:dark\}/);
 });
 
-test("darkTokens: what could end the rule or load something is left out, and an object that is no map of tokens adds nothing", async () => {
+test("darkTokens: what could end the rule or load something is left out, and a darkTokens that is no object is refused", async () => {
     const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
     const hostile = { "--pk-text": "red}body{display:none", "--pk-border": "url(https://x)", "--pk-muted": 'image-set("a.png" 1x)', "--pk-total": "#abc\n/* x", color: "blue", dark: { "--pk-surface": "#000000" } };
     const r = await render(view, SALES, { format: "html", darkTokens: { ...hostile, "--pk-grid": "#123456" } });
     assert.ok(!r.text.includes("red}body") && !/url\(|image-set/i.test(r.text) && !r.text.includes("/* x") && !r.text.includes("color:blue") && !r.text.includes("#000000"));
     assert.match(r.text, /--pk-grid:#123456/);
     const base = (await render(view, SALES, { format: "html" })).text;
+    // an empty object adds nothing; another type is a host's mistake and is refused (INVALID_OPTION), not read as none
+    assert.equal((await render(view, SALES, { format: "html", darkTokens: {} })).text, base);
     for (const darkTokens of [null, "--pk-surface:#000", 42, ["#000"]]) {
-        assert.equal((await render(view, SALES, { format: "html", darkTokens: /** @type {any} */ (darkTokens) })).text, base, JSON.stringify(darkTokens));
+        await assert.rejects(render(view, SALES, { format: "html", darkTokens: /** @type {any} */ (darkTokens) }), (e) => e.code === "INVALID_OPTION" && e.details.option === "darkTokens", JSON.stringify(darkTokens));
     }
 });
 

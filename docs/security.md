@@ -399,9 +399,32 @@ without install scripts. Run it with a read-only root file system, no capabiliti
 signed with cosign (keyless) and has provenance and SBOM attestations; [check them](reference/container.md#verify)
 before you run it.
 
-## HTTP sources { #http-sources }
+## HTTP sources and outbound requests { #http-sources }
 
-An [HTTP source](reference/sources.md#http) makes the server request an operator's backend, so the
+The REST service and the MCP server make requests to other servers only where the operator's
+configuration names the address: an [HTTP source](reference/sources.md#http) and its backend
+sign-in, the OAuth issuer's metadata, key set and token endpoint ([OAuth](reference/mcp.md#oauth)),
+an [upload to a store](reference/delivery.md#upload), and an OpenAPI document by URL for
+`pivotkit-server source-from-openapi`. Every one goes through the same guarded request
+(`guardedFetch` in pivotkit-server), so a caller or a model cannot point the server at an address:
+
+- `https://` only, with no user name or password in the address; plain `http://` only to a
+  loopback address, for a test issuer the operator allows (`auth.allowInsecureIssuer`).
+- No redirect is followed: a 3xx answer fails the request.
+- The address is checked on the connection's own name lookup, not on a separate DNS question
+  beforehand, so a name that answers differently the second time cannot pass, and the socket's
+  address is checked once more after it connects. Link-local and cloud metadata addresses
+  (169.254.0.0/16, `fd00:ec2::254`, `100.100.100.200` and others, also inside an IPv6 address that
+  carries an IPv4 one) are refused always. Loopback and private addresses are refused unless the
+  operator marks that target as internal: `intranet` on an HTTP source's backend, its token
+  endpoint or the upload store, `auth.intranet` for the issuer. An IP address written in a source's
+  address needs `httpSources.allowIpLiterals`. The OpenAPI document, whose address the operator
+  types on the command line, may be on a private address.
+- Each request has its own connection and uses no proxy of the environment, so no proxy connects
+  past the address check. The body is counted while it arrives, after decompression, and the whole
+  request has a time limit.
+
+An HTTP source in particular makes the server request an operator's backend, so the
 address is the operator's, never a caller's:
 
 - The address is written in the configuration; a caller passes only values for its declared

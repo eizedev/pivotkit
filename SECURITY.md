@@ -3,11 +3,21 @@
 ## Scope
 
 The packages in this repository (`pivotkit-core`, `pivotkit-react`, `pivotkit-element`,
-`pivotkit-xlsx`, `pivotkit-report`, `pivotkit-cli`). A view (report template), the data, a loaded file
+`pivotkit-xlsx`, `pivotkit-report`, `pivotkit-cli`, `pivotkit-server`, `pivotkit-mcp`) and the
+container image built from it. A view (report template), the data, a loaded file
 (CSV, JSON, a workbook read by pivotkit-xlsx), a print template and a host's theme tokens can come
 from users; anything that lets them run code, load or read something they should not (a file outside
 the directories `pivotkit-cli --allow-dir` names, a resource from an HTML report), or makes an
 exported CSV, XLSX, HTML report or SVG dangerous to open is in scope.
+
+For the REST service (`pivotkit-server`) and the MCP server (`pivotkit-mcp`) the callers, their
+views, parameters and data, and an AI model are untrusted too. In scope are, among others: a request
+the server makes where it should not (SSRF through an HTTP source, a parameter, an upload store or
+the issuer's metadata, past the address rules in [Security](https://pivotkit.eize.dev/security/#http-sources));
+a token, a backend's secret or a download link that leaks into a result, a log line, an error or a
+page; a download link that someone other than the person it is bound to can open, or that works after
+it expired or was used; and a field's values or rows that reach a caller or a model above the level
+the policy gives them.
 
 A view cannot run code, but it decides how much work the engine does. The limits in `LIMITS`
 ([Limits](https://pivotkit.eize.dev/concepts/limits/#limits) on the documentation site) bound it: the size of a view (fields per axis, values), the rows

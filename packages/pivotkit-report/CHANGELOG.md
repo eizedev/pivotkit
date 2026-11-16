@@ -47,6 +47,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 - A token's value with a quoted string is left out (the default stands in), except in
   `font-family`: in the host's `tokens` too. A quote in a colour could only make the chart's SVG
   refused ([#369](https://github.com/eizedev/pivotkit/issues/369)).
+- `render` refuses `tokens` or `darkTokens` that is no object (a CSS text, a list, `null`, a number)
+  with `INVALID_OPTION` and `details.option`, as its other options; such a value gave the default
+  colours without a word. A token inside the object that cannot be used is still left out on its own
+  ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 
 ### Fixed
 

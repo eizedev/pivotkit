@@ -22,6 +22,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   others: the toolbar's menus (Export, Views, Data, Start over, More) and a field's chip menu. WebKit
   does not focus a clicked button, so the press moved the focus out of the menu, which closed it,
   and the click opened it again ([#393](https://github.com/eizedev/pivotkit/issues/393)).
+- `import "pivotkit-react/styles.css"` compiles in a strict TypeScript project without a bundler's
+  CSS types: the stylesheet ships its own declaration (`styles.css.d.ts`, the `types` condition of
+  its export); TypeScript answered TS2882 before
+  ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 
 ## [0.6.1] - 2026-11-14
 
