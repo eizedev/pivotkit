@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { TEMP_FILE_NAME, writeNew } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
-import { bytesText } from "./sources/inline.js";
+import { bytesText, countText } from "./text.js";
 
 /** The output directory's real path, or null. */
 export const outputDir = (context) => context.output?.dir ?? null;
@@ -141,10 +141,10 @@ export async function prune(context) {
     }
     // one line per limit that deleted something: the operator must be able to tell where they went
     if (deleted.reports || deleted.drafts) {
-        context.log?.info(`output.maxAgeDays: reports and schedule drafts no longer waiting older than ${days} days deleted`, { ...deleted, maxAgeDays: days });
+        context.log?.info(`output.maxAgeDays: reports and schedule drafts no longer waiting older than ${countText(days, "day")} deleted`, { ...deleted, maxAgeDays: days });
     }
     if (waiting) {
-        context.log?.info(`output.draftMaxAgeDays: schedule drafts still waiting for approval older than ${draftDays} days deleted`, { drafts: waiting, draftMaxAgeDays: draftDays });
+        context.log?.info(`output.draftMaxAgeDays: schedule drafts still waiting for approval older than ${countText(draftDays, "day")} deleted`, { drafts: waiting, draftMaxAgeDays: draftDays });
     }
     for (const file of await leftoverTempFiles(dir)) {
         if (file.mtimeMs < now - TEMP_MAX_AGE_MS) {
@@ -190,9 +190,9 @@ export function outputErrorOf(e) {
  * of pivotkit's files or output.maxMb, its oldest reports are deleted, whoever made them; so a caller
  * that renders without pause shortens how long the reports stay, but never stops the others from
  * rendering. Schedule drafts count but are never deleted to make room (a person has yet to approve
- * them): when only drafts are left, it refuses. Drafts may take at most half of output.maxFiles
- * (draftCap) and of output.maxMb (draftBytesCap), so callers who may draft cannot fill the directory
- * and stop every render. A
+ * them): when only drafts are left, it refuses. Drafts that still wait may take at most half of
+ * output.maxFiles (draftCap) and of output.maxMb (draftBytesCap), so callers who may draft cannot
+ * fill the directory and stop every render (checkDraftRoom). A
  * directory that holds the operator's own files (output.cleanUp false) is never cleaned: a full one
  * refuses.
  * @returns {Promise<number>}  the files deleted
@@ -204,13 +204,8 @@ export async function makeRoom(context, dir, bytes, draft) {
         throw new OperationError("NO_OUTPUT", `the report is larger than the output directory may hold (output.maxMb: ${maxMb})`);
     }
     const files = await reportsIn(dir);
-    const drafts = files.filter((f) => f.draft);
-    if (draft && drafts.length + 1 > draftCap(maxFiles)) {
-        throw new OperationError("NO_OUTPUT", draftCap(maxFiles) === 0 ? "output.maxFiles 1 leaves no room for drafts; the operator raises it" : `the output directory holds ${drafts.length} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first, or the operator raises output.maxFiles`);
-    }
-    const draftBytes = drafts.reduce((sum, f) => sum + f.size, 0);
-    if (draft && draftBytes + bytes > draftBytesCap(maxMb)) {
-        throw new OperationError("NO_OUTPUT", `the schedule drafts awaiting approval take ${bytesText(draftBytes)} of the ${bytesText(draftBytesCap(maxMb))} they may (half of output.maxMb); a person must approve or remove some first, or the operator raises output.maxMb`);
+    if (draft) {
+        checkDraftRoom(await waitingDrafts(files), bytes, maxFiles, maxMb);
     }
     let count = files.length;
     let total = files.reduce((sum, f) => sum + f.size, 0);
@@ -229,6 +224,48 @@ export async function makeRoom(context, dir, bytes, draft) {
         deleted++;
     }
     return deleted;
+}
+
+/**
+ * The schedule drafts among pivotkit's files that still wait for approval (stillWaiting): the ones
+ * the drafts' caps count. A draft the host approved or rejected counts as a file, not as a draft.
+ * @param {Array<{ path: string, size: number, mtimeMs: number, draft: boolean }>} files  reportsIn
+ */
+export async function waitingDrafts(files) {
+    const waiting = [];
+    for (const file of files) {
+        if (file.draft && (await stillWaiting(file))) {
+            waiting.push(file);
+        }
+    }
+    return waiting;
+}
+
+/**
+ * Refuses a new schedule draft of `bytes` the drafts' caps leave no room for: one larger than all
+ * drafts may take (nobody can help but the operator), more drafts waiting than draftCap, or more
+ * bytes than draftBytesCap. A draft that just fits is taken.
+ * @param {Array<{ size: number }>} waiting  waitingDrafts
+ * @param {number} bytes
+ * @param {number} maxFiles
+ * @param {number} maxMb
+ */
+function checkDraftRoom(waiting, bytes, maxFiles, maxMb) {
+    const files = draftCap(maxFiles);
+    const most = draftBytesCap(maxMb);
+    if (files === 0) {
+        throw new OperationError("NO_OUTPUT", "output.maxFiles 1 leaves no room for drafts; the operator raises it");
+    }
+    if (bytes > most) {
+        throw new OperationError("NO_OUTPUT", `the schedule draft takes ${bytesText(bytes)}, more than all drafts together may take (${bytesText(most)}, half of output.maxMb); the operator raises output.maxMb`);
+    }
+    if (waiting.length + 1 > files) {
+        throw new OperationError("NO_OUTPUT", `the output directory holds ${waiting.length} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first, or the operator raises output.maxFiles`);
+    }
+    const taken = waiting.reduce((sum, f) => sum + f.size, 0);
+    if (taken + bytes > most) {
+        throw new OperationError("NO_OUTPUT", `the schedule drafts awaiting approval take ${bytesText(taken)} of the ${bytesText(most)} they may (half of output.maxMb); a person must approve or remove some first, or the operator raises output.maxMb`);
+    }
 }
 
 /**

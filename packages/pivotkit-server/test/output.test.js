@@ -9,6 +9,7 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, statSync, symlinkSync, u
 import { join } from "node:path";
 import { whyNot } from "../src/context.js";
 import { prune } from "../src/present.js";
+import { makeRoom } from "../src/output.js";
 import { checkConfig } from "pivotkit-server";
 import { BIN, BY_REGION, call, factsOf, restServer, workspace } from "./helpers.js";
 
@@ -130,7 +131,7 @@ test("schedule drafts take at most half of output.maxMb: a draft over it is refu
     }
     const checked = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxMb: 1 }, baseDir: dir }, { http: false, env: {} });
     assert.match(factsOf(checked.text), /^ {2}at most 1000 files and 1 MiB of pivotkit's; schedule drafts at most 500 files and 512 KiB$/m);
-    assert.match(factsOf(checked.text), /^WARNING \(Output\): schedule drafts take 600\.\d KiB, more than the 512 KiB they may \(half of output\.maxMb\): new drafts are refused until a person approves or removes some, or you raise output\.maxMb$/m);
+    assert.match(factsOf(checked.text), /^WARNING \(Output\): schedule drafts awaiting approval take 600\.\d KiB, more than the 512 KiB they may \(half of output\.maxMb\): new drafts are refused until a person approves or removes some, or you raise output\.maxMb$/m);
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxMb: 1 }, baseDir: dir });
     try {
         const refused = await call(`${server.api}/schedules/draft`, { body: { source: "sales", view: BY_REGION, name: "Daily", formats: ["xlsx"], every: { unit: "day", at: "07:00" }, recipients: ["Sales team"] } });
@@ -144,6 +145,30 @@ test("schedule drafts take at most half of output.maxMb: a draft over it is refu
     } finally {
         await server.close();
     }
+});
+
+test("the drafts' caps count only drafts that still wait; a draft that just fits is taken; one larger than all drafts may take says the operator must raise output.maxMb", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const context = (output) => ({ output: { maxFiles: 1000, maxMb: 1, cleanUp: true, ...output } });
+    const cap = 512 * 1024;
+    // byte cap: waiting drafts fill it but for 100 bytes; an approved draft beside them does not count
+    writeFileSync(join(out, "Waiting.pivotkit-out.report.json"), draftFile("draft", cap - 100 - draftFile("draft").length));
+    writeFileSync(join(out, "Approved.pivotkit-out.report.json"), draftFile("approved", 300 * 1024));
+    const waitingBytes = statSync(join(out, "Waiting.pivotkit-out.report.json")).size;
+    assert.equal(await makeRoom(context({}), out, cap - waitingBytes, true), 0, "a draft that just fits is taken");
+    await assert.rejects(makeRoom(context({}), out, cap - waitingBytes + 1, true), /^OperationError: the schedule drafts awaiting approval take [\d.]+ KiB of the 512 KiB they may \(half of output\.maxMb\)/);
+    // count cap: maxFiles 4 lets two drafts wait; one waits, one was approved: a second waiting one fits
+    const counted = workspace();
+    const outCounted = join(counted, "out");
+    writeFileSync(join(outCounted, "A.pivotkit-out.report.json"), draftFile("draft"));
+    writeFileSync(join(outCounted, "B.pivotkit-out.report.json"), draftFile("rejected"));
+    assert.equal(await makeRoom(context({ maxFiles: 4, maxMb: 1024 }), outCounted, 10, true), 0, "an approved or rejected draft is no waiting draft");
+    writeFileSync(join(outCounted, "C.pivotkit-out.report.json"), draftFile("draft"));
+    await assert.rejects(makeRoom(context({ maxFiles: 4, maxMb: 1024 }), outCounted, 10, true), /holds 2 schedule drafts awaiting approval, the most it may/);
+    // one draft larger than all drafts together may take: nothing waits, and no approval can help
+    const empty = workspace();
+    await assert.rejects(makeRoom(context({}), join(empty, "out"), cap + 1024, true), (e) => e.message === "the schedule draft takes 513 KiB, more than all drafts together may take (512 KiB, half of output.maxMb); the operator raises output.maxMb" || assert.fail(e.message));
 });
 
 test("output.draftMaxAgeDays: drafts that still wait go after that many days, also with output.maxAgeDays 0; off by default; refused where the operator's files lie", async () => {

@@ -95,12 +95,9 @@ Log:
   level info, format auto (text on a terminal, JSON otherwise)
   addresses on: the socket's peer
 
-New in this version: code sources with a time limit and data per caller, data
-    in the request (inline:; mcp.data: false switches it off), download links
-    under /downloads/, answered without a token (the link is the credential;
-    output.downloads.enabled: false switches them off), reports with a link
-    stored with a random prefix (output.name), reports deleted after 30 days
-    (output.maxAgeDays: 0 keeps them), the client's IP address on the log's
-    request lines (log.address: "off" leaves it out), a start error as a JSON
-    line where stderr is no terminal (log.format: "text" keeps the plain line)
-    -> https://pivotkit.eize.dev/getting-started/upgrading/
+New in this version:
+  schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays
+      lets waiting drafts expire)
+    -> https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota
+  a field hidden for every caller no longer closes a source for links (sales)
+    -> https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open

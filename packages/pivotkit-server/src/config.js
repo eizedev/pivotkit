@@ -140,9 +140,9 @@ export const serverLimitsOf = (options) => ({ ...SERVER_LIMITS, ...(options.limi
 /** The defaults of the compute pool. */
 export const COMPUTE_DEFAULTS = Object.freeze({ workers: 2, timeMs: 30_000, memoryMb: 1024, queueMs: 10_000 });
 
-/** How many reports and drafts the output directory holds, and how many megabytes, before its oldest go. */
+/** How many reports and drafts the output directory holds, and how many MiB (output.maxMb), before its oldest go. */
 /**
- * The output directory's defaults: at most 1000 files and 1024 MB of pivotkit's, and reports older
+ * The output directory's defaults: at most 1000 files and 1024 MiB of pivotkit's, and reports older
  * than 30 days deleted (maxAgeDays; 0: no age limit; a schedule draft waits for approval and stays,
  * unless the operator sets draftMaxAgeDays). The age limit applies by default
  * only to a directory of the reports' own (context.js), never where the operator's files lie.

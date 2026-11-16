@@ -18,8 +18,8 @@ import { lstat, realpath } from "node:fs/promises";
 import { isInside } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf } from "../config.js";
 import { OUTPUT_INSIDE_ALLOWED, SHARED_OUTPUT_TEXT, cannotCreate, entryOf, notWritable, notWritableText, outputRefusal, ownFileDirs, plannedPath } from "../context.js";
-import { draftBytesCap, draftCap, expiredIn, reportsIn } from "../output.js";
-import { bytesText } from "../sources/inline.js";
+import { draftBytesCap, draftCap, expiredIn, reportsIn, waitingDrafts } from "../output.js";
+import { bytesText, countText } from "../text.js";
 import { heading, plain, problem, warning } from "./format.js";
 
 /** @type {import("./index.js").Section} */
@@ -29,6 +29,7 @@ export async function section(options, registry) {
         return { items: [heading("Output: none (reports only as inline csv or json where the policy allows)")], upgrade: [] };
     }
     const items = [heading(`Output: ${out.dir}`)];
+    const upgrade = [{ text: "schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays lets waiting drafts expire)", anchor: "draft-quota" }];
     const dir = pathOf(options, out.dir);
     // only ENOENT is missing: any other error (a name too long, a symbolic link loop) cannot be made
     const entry = await entryOf(dir);
@@ -60,7 +61,7 @@ export async function section(options, registry) {
         items.push(problem(`output.dir: ${OUTPUT_INSIDE_ALLOWED}`, stop));
     }
     if (!found) {
-        return { items, upgrade: [] };
+        return { items, upgrade };
     }
     const refused = await notWritable(dir);
     if (refused) {
@@ -75,10 +76,10 @@ export async function section(options, registry) {
     const maxMb = out.maxMb ?? OUTPUT_DEFAULTS.maxMb;
     const draftBytes = draftBytesCap(maxMb);
     items.push(plain(`at most ${maxFiles} files and ${bytesText(maxMb * 1_048_576)} of pivotkit's; schedule drafts at most ${draftCap(maxFiles)} files and ${bytesText(draftBytes)}`));
-    // drafts written under a larger output.maxMb, or before drafts had a byte quota: new ones are refused (makeRoom)
-    const draftsNow = (await reportsIn(dir)).filter((f) => f.draft).reduce((sum, f) => sum + f.size, 0);
+    // waiting drafts written under a larger output.maxMb, or before drafts had a byte quota: new ones are refused (makeRoom)
+    const draftsNow = (await waitingDrafts(await reportsIn(dir))).reduce((sum, f) => sum + f.size, 0);
     if (draftsNow > draftBytes) {
-        items.push(warning(`schedule drafts take ${bytesText(draftsNow)}, more than the ${bytesText(draftBytes)} they may (half of output.maxMb): new drafts are refused until a person approves or removes some, or you raise output.maxMb`));
+        items.push(warning(`schedule drafts awaiting approval take ${bytesText(draftsNow)}, more than the ${bytesText(draftBytes)} they may (half of output.maxMb): new drafts are refused until a person approves or removes some, or you raise output.maxMb`));
     }
     if (shared) {
         items.push(plain("no age limit: the directory holds other files"));
@@ -94,8 +95,8 @@ export async function section(options, registry) {
         items.push(plain("when full, the oldest reports are deleted to make room; drafts are kept"));
         const days = maxAgeDaysOf(options, shared);
         const draftDays = out.draftMaxAgeDays ?? OUTPUT_DEFAULTS.draftMaxAgeDays;
-        const reportsLine = days > 0 ? `reports older than ${days} days are deleted` : "no age limit for reports (output.maxAgeDays 0)";
-        const draftsLine = draftDays > 0 ? `schedule drafts that wait for approval are deleted after ${draftDays} days` : "schedule drafts stay until a person approves or removes them";
+        const reportsLine = days > 0 ? `reports older than ${countText(days, "day")} are deleted` : "no age limit for reports (output.maxAgeDays 0)";
+        const draftsLine = draftDays > 0 ? `schedule drafts that wait for approval are deleted after ${countText(draftDays, "day")}` : "schedule drafts stay until a person approves or removes them";
         items.push(plain(`${reportsLine}; ${draftsLine}`));
         // what the next start's sweep deletes (output.js expiredIn)
         const old = await expiredIn(dir, days, draftDays);
@@ -104,13 +105,13 @@ export async function section(options, registry) {
         const reports = aged.length - drafts;
         if (aged.length) {
             const parts = [...(reports ? [`${reports} report${reports === 1 ? "" : "s"}`] : []), ...(drafts ? [`${drafts} schedule draft${drafts === 1 ? "" : "s"} no longer waiting for approval`] : [])];
-            items.push(warning(`${parts.join(" and ")} ${aged.length === 1 ? "is" : "are"} older than ${days} days and ${aged.length === 1 ? "is" : "are"} deleted at the next start; copy them away or set output.maxAgeDays: 0`));
+            items.push(warning(`${parts.join(" and ")} ${aged.length === 1 ? "is" : "are"} older than ${countText(days, "day")} and ${aged.length === 1 ? "is" : "are"} deleted at the next start; copy them away or set output.maxAgeDays: 0`));
         }
         const waiting = old.length - aged.length;
         if (waiting) {
             const one = waiting === 1;
-            items.push(warning(`${waiting} schedule draft${one ? "" : "s"} waiting for approval ${one ? "is" : "are"} older than ${draftDays} days and ${one ? "is" : "are"} deleted at the next start; copy ${one ? "it" : "them"} away or set output.draftMaxAgeDays: 0`));
+            items.push(warning(`${waiting} schedule draft${one ? "" : "s"} waiting for approval ${one ? "is" : "are"} older than ${countText(draftDays, "day")} and ${one ? "is" : "are"} deleted at the next start; copy ${one ? "it" : "them"} away or set output.draftMaxAgeDays: 0`));
         }
     }
-    return { items, upgrade: [] };
+    return { items, upgrade };
 }

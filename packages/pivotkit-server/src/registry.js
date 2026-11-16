@@ -291,7 +291,7 @@ export async function createRegistry(options, { log = null } = {}) {
         // the quick-start page has no caller: a source only a signed-in person can use is not there
         titles: () => [...sources.entries()].filter(([id]) => !bound.has(id)).map(([id, s]) => ({ id, title: s.title ?? id, scopes: s.scopes ?? [] })),
 
-        /** For --check-config: each source's file, whether it exists, its fields by level, and whether it is closed for links (a field not "show" for someone, or data per person). */
+        /** For --check-config: each source's file, whether it exists, its fields by level, and whether it is closed for links (isClosedForDelivery). */
         async check() {
             const out = [];
             for (const [id, s] of sources) {

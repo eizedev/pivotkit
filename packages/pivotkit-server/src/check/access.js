@@ -94,7 +94,9 @@ export async function section(options, _registry, runtime) {
             }
         }
     }
-    return { items, upgrade: [] };
+    // an HTTP server off loopback with neither setting gets the new default bound
+    const perAddressNew = runtime.http && options.http?.maxConnectionsPerAddress === undefined && options.http?.trustProxy !== true && !isLoopback(options.http?.host ?? "127.0.0.1");
+    return { items, upgrade: perAddressNew ? [{ text: `at most ${connectionLimitsOf(options).perAddress} connections per address (http.maxConnectionsPerAddress)`, anchor: "per-address" }] : [] };
 }
 
 /**

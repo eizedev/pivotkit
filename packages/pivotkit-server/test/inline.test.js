@@ -239,7 +239,8 @@ test("check-config: who may send data on MCP and REST, and how much; warnings fo
     };
     const designed = await sectionOf({ policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }] }, rest: { data: { maxBytes: 20_971_520 } }, mcp: { data: { rows: 200, cells: 2000, bytes: 131_072 } } }, { env: { ETL_TOKEN: "x".repeat(40) } });
     assert.deepEqual(designed.facts, ["  MCP: on, up to 200 rows / 2000 cells / 128 KiB (mcp.data)", "  REST: for profiles etl, up to 20 MiB (rest.data.maxBytes)"]);
-    assert.match(factsOf(designed.text), /\nNew in this version: [^\n]*data in the request \(inline:; mcp\.data: false switches it off\)/);
+    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
+    assert.doesNotMatch(factsOf(designed.text), /data in the request \(inline:; mcp\.data: false switches it off\)/);
     assert.deepEqual((await sectionOf({})).facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB", "  REST: off (no policy or profile has data: true)"]);
     const off = await sectionOf({ mcp: { data: false } });
     assert.deepEqual(off.facts, ["  MCP: off (mcp.data: false)", "  REST: off (no policy or profile has data: true)"]);

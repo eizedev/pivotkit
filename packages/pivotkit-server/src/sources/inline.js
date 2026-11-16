@@ -21,6 +21,7 @@ import { LIMITS, PivotkitError } from "pivotkit-core";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, resolvePolicy } from "../policy.js";
 import { asOfText } from "./as-of.js";
+import { bytesText } from "../text.js";
 
 /** The reserved source id of data sent in the request. */
 export const INLINE_ID = "inline:";
@@ -98,22 +99,6 @@ export function dataRefusal(surface, { offered = true } = {}) {
         return new OperationError("NOT_ALLOWED", offered ? "your token may not send data (the operator allows it per profile: data: true)" : "this server takes no data sent in the request (the operator allows it per profile: data: true); use a source from GET /sources");
     }
     return new OperationError("NOT_ALLOWED", "this server takes no data sent in the request (the operator switched it off); use a source from list_sources");
-}
-
-/**
- * "256 KiB", "20 MiB" of a number of bytes.
- * @param {number} bytes
- */
-export function bytesText(bytes) {
-    /** @type {Array<[string, number]>} */
-    const units = [["MiB", 1_048_576], ["KiB", 1024]];
-    for (const [unit, size] of units) {
-        if (bytes >= size) {
-            const n = bytes / size;
-            return `${Number.isInteger(n) ? n : n.toFixed(1)} ${unit}`;
-        }
-    }
-    return `${bytes} bytes`;
 }
 
 /** "500 rows / 5000 cells / 256 KiB" of a cap. */

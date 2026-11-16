@@ -13,9 +13,10 @@
  * | closed | bind "once" (the operator's explicit choice)      | one time               |
  * | closed | anything else; REST without results: true         | none: the file is kept |
  *
- * A closed source is one with a field that is not "show" for someone, or one whose data belongs to
- * one person (data sent in the request, a source bound to a person, a code source with perPerson;
- * registry.js); an unknown state counts as closed. output.baseUrl gives an address only to reports
+ * A closed source is one with a field or default at "values" or "summary" for someone, or a field
+ * hidden for some callers and shown to others (registry.js closedReason), or one whose data belongs
+ * to one person (data sent in the request, a source bound to a person, a code source with
+ * perPerson; registry.js isClosedForDelivery); an unknown state counts as closed. output.baseUrl gives an address only to reports
  * over open sources.
  *
  * With an upload target (output.upload, upload.js) a report goes to the operator's store and the
@@ -120,7 +121,7 @@ function noteOf(bound, minutes) {
  * @param {any} context
  * @param {{ bytes: Uint8Array, mediaType: string, extension: string, name: string }} file
  * @param {{ caller: import("./registry.js").Caller, sourceClosed: boolean | undefined, surface: "mcp" | "rest", policy: import("./policy.js").Policy, draft?: boolean }} how
- *   sourceClosed: a field of the source is not "show" for someone (the server's, the source's or any profile's policy), or its data is per person; undefined counts as closed
+ *   sourceClosed: registry.js isClosedForDelivery of the source (a field at "values" or "summary", or hidden for some callers only, under the server's, the source's or any profile's policy; or its data is per person); undefined counts as closed
  * @returns {Promise<Delivered | null>}  null: no output directory
  */
 export async function deliver(context, file, how) {

@@ -47,5 +47,5 @@ export async function section(options, _registry, _runtime) {
             items.push(plain("reports over it get plain links (every field is shown or hidden)", 2), plain("if load answers each caller differently, set perPerson: true, so only the person who asked can open them", 2));
         }
     }
-    return { items: [...items, ...cache], upgrade: ["code sources with a time limit and data per caller"] };
+    return { items: [...items, ...cache], upgrade: [] };
 }

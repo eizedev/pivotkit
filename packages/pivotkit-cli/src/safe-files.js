@@ -27,7 +27,7 @@
 import { constants } from "node:fs";
 import { link, lstat, open, realpath, rename, stat, unlink } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, isAbsolute, sep } from "node:path";
-import { limitText } from "pivotkit-core";
+import { limitText } from "pivotkit-core/internal";
 import { CliError, printable, shortName } from "./errors.js";
 
 const READ_FLAGS = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);

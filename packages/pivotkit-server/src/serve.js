@@ -20,7 +20,7 @@ import { connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./liste
 import { bodyBytesOf } from "./limits.js";
 import { DOWNLOADS_PATH, DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
-import { bytesText } from "./sources/inline.js";
+import { bytesText } from "./text.js";
 import { hostProblem, problem } from "./rest/problem.js";
 import { logUnanswered, noteAnswered, refusalReason, startFields } from "./log.js";
 import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";

@@ -11,7 +11,8 @@
 
 import { stat } from "node:fs/promises";
 import { basename, extname } from "node:path";
-import { LIMITS, PivotkitError, encode, limitText } from "pivotkit-core";
+import { LIMITS, PivotkitError, encode } from "pivotkit-core";
+import { limitText } from "pivotkit-core/internal";
 import { asCliError, readSafe, readTable } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";

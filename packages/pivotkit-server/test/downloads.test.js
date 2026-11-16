@@ -980,7 +980,8 @@ test("check-config: where links point, which sources get which link, the redirec
     const why = await checkConfig({ sources: { listed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "values" } } }, profiled: { file: "data/sales.csv", policy: { default: "show" } } }, policy: { profiles: { reader: { default: "summary" } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
     assert.match(factsOf(why.text), /closed \(a field summarized, listed or shown to some callers only\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
     assert.match(signIn.text, /^WARNING \(Delivery\): output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
-    assert.match(signIn.text, /\nNew in this version: [^\n]*download links under \/downloads/);
+    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
+    assert.doesNotMatch(signIn.text, /download links under \/downloads\/, answered without a token/);
 
     const once = await checkConfig({ sources, output: { dir: "out", downloads: { bind: "once", key: { env: "DL_KEY" } } }, baseDir: dir }, { http: true, env: { DL_KEY: "short" } });
     assert.match(once.text, /reports over closed sources \(sales\): one-time links/);
@@ -992,7 +993,7 @@ test("check-config: where links point, which sources get which link, the redirec
 
     const baseUrl = await checkConfig({ sources, output: { dir: "out", baseUrl: "https://files.example.com/" }, baseDir: dir }, { http: false, env: {} });
     assert.match(baseUrl.text, /reports over closed sources \(sales\): no address under output\.baseUrl/);
-    assert.match(factsOf(baseUrl.text), /\nNew in this version: [^\n]*no output\.baseUrl address for closed sources/);
+    assert.doesNotMatch(factsOf(baseUrl.text), /no output\.baseUrl address for closed sources/);
 
     const stdio = await checkConfig({ sources, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} });
     assert.doesNotMatch(stdio.text, /Delivery:/);

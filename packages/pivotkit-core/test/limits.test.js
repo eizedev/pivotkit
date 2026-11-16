@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import { randomBytes } from "node:crypto";
 import assert from "node:assert/strict";
-import { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, PivotkitError, validate, computePivot, encode, limitText, normalize, outsideLimits, toEChartsOption, toGrid, toSeries } from "../src/index.js";
+import { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, PivotkitError, validate, computePivot, encode, normalize, outsideLimits, toEChartsOption, toGrid, toSeries } from "../src/index.js";
 import { encodeViewLink } from "../src/link.js";
+import { limitText } from "../src/internal.js";
 import { toCsv, toXlsx } from "../src/export.js";
 import { derivedColumn } from "../src/derive.js";
 import { ITEM_LENGTH } from "../src/limits.js";
