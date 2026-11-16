@@ -300,6 +300,27 @@ module(load="imjournal")   # only where /etc/rsyslog.conf does not load it
 if $programname == 'pivotkit' then @@logs.example.com:514;RSYSLOG_SyslogProtocol23Format
 ```
 
+## The state volume { #state }
+
+With a state directory (`/var/lib/pivotkit` in the [container image](container.md), `--state-dir`
+elsewhere) the server keeps there the token `admin`, the key of the download links and the audit key
+it made at its first start, in `secrets/`, and, where `output.dir` names it, the reports in `out/`
+([made at the first start](rest.md#first-start)). Back the volume up with the rest of the
+installation and keep the backup as secret as the tokens: with the files, anyone can call the server
+and open its download links. A restore brings the same token and keys back; without one, the server
+makes new ones, so clients need the new token and older links stop working.
+
+Rotate a value by replacing its file, without a restart:
+
+```bash
+docker exec pivotkit pivotkit-server token new --file /var/lib/pivotkit/secrets/admin.token --force
+docker exec pivotkit pivotkit-server key new --for downloads --file /var/lib/pivotkit/secrets/downloads.key --force
+```
+
+The token's old value gets 401 at once, and links made with the old key stop working within a
+second. The audit key is read at start: restart after replacing it, and the same person gets
+another hash from then on. To make a value new at the next start instead, delete its file.
+
 ## Kubernetes { #kubernetes }
 
 Kubernetes has no log driver per pod: the container runtime writes each container's stderr to a file

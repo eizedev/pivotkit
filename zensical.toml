@@ -59,6 +59,7 @@ nav = [
     { "Your own corporate design" = "reference/corporate-design.md" },
   ] },
   { "Services: REST and MCP" = [
+    { "Server in 5 minutes" = "getting-started/server-in-5-minutes.md" },
     { "Getting started: REST service" = "getting-started/rest.md" },
     { "Getting started: MCP server" = "getting-started/mcp.md" },
     { "pivotkit-server (REST)" = "reference/rest.md" },

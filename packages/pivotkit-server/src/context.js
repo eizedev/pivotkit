@@ -41,6 +41,9 @@ export { callerOf, identityKey };
 /** The variable of the one static token when auth.tokens is empty. */
 export const TOKEN_ENV = "PIVOTKIT_TOKEN";
 
+/** pivotkit-mcp's variable of its one static token, defined here so `token show` knows it too. */
+export const MCP_TOKEN_ENV = "PIVOTKIT_MCP_TOKEN";
+
 /** The package's version. */
 export const VERSION = createRequire(import.meta.url)("../package.json").version;
 
@@ -154,7 +157,10 @@ export async function createContext(options, runtime = {}) {
         if (shared) {
             log.warn(SHARED_OUTPUT_TEXT);
         }
-        if (!(await writable(dir))) {
+        const refused = await notWritable(dir);
+        if (refused === "EROFS") {
+            log.warn(`${notWritableText(refused)}; every report will fail with NO_OUTPUT until then`);
+        } else if (refused) {
             log.warn("output.dir is not writable by the server's user: every report will fail with NO_OUTPUT until its owner or mode is fixed");
         }
         // the default age limit only where the reports have a directory of their own: a default the
@@ -359,8 +365,22 @@ export async function plannedPath(path) {
     }
 }
 
+/** The file system call tests replace (a read-only file system). */
+export const outputMeans = { access };
+
+/** Why the server's user may not create files in a directory (an error code), or null. */
+export const notWritable = (dir) => outputMeans.access(dir, constants.W_OK).then(() => null, (e) => String(e?.code ?? "EACCES"));
+
 /** Whether the server's user may create files in a directory. */
-export const writable = (dir) => access(dir, constants.W_OK).then(() => true, () => false);
+export const writable = async (dir) => (await notWritable(dir)) === null;
+
+/**
+ * What the start and check-config say of an output directory the server cannot write: a read-only
+ * file system (a container's --read-only root without a volume there) needs a volume, else its owner
+ * or mode.
+ * @param {string} code  of notWritable
+ */
+export const notWritableText = (code) => (code === "EROFS" ? "output.dir is on a read-only file system (for example a container started with --read-only and no volume there): mount a writable volume at output.dir" : `output.dir is not writable by the user ${process.getuid?.() ?? ""} the server runs as`);
 
 /** What the start and check-config say of an output directory that holds the operator's own files. */
 export const SHARED_OUTPUT_TEXT = "output.dir is the configuration's directory or holds a source, template or token file: reports there are never deleted to make room, so a full directory refuses new ones; give the reports a directory of their own";

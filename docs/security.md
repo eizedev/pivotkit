@@ -395,7 +395,14 @@ The [image](reference/container.md) runs as the user 10001 on a distroless Node 
 package manager), pinned by digest, with its packages installed from the repository's lock file
 without install scripts. Run it with a read-only root file system, no capabilities and
 `no-new-privileges`, data mounted read-only, tokens as secret files (environment variables show in
-`docker inspect`). It refuses to listen on every address without sign-in. Each release's image is
+`docker inspect`). It never listens on every address without sign-in. Without a token of yours it
+makes the token `admin` at its first start, in its state volume ([made at the first start](reference/rest.md#first-start)).
+It does so only where the configuration leaves auth to it: a written `auth.mode` `"token"` that
+resolves no token is refused, so a misspelt variable never becomes a token with every scope.
+That token holds every scope: keep it like a password, and send it over HTTPS only when it leaves the
+machine. Without a configuration the image serves only its example data. A mounted `/data` is not
+readable by path until a configuration says so (`files.allowDirs`), since every token could then read
+every file below it. Each release's image is
 signed with cosign (keyless) and has provenance and SBOM attestations; [check them](reference/container.md#verify)
 before you run it.
 

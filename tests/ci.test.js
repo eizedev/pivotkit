@@ -462,6 +462,22 @@ test("docs and READMEs write no caret range of a pivotkit package; the version s
     }
 });
 
+// The "Server in 5 minutes" commands are copied as they are: every image tag, release tag and
+// PIVOTKIT_VERSION on the page names pivotkit-server's version in full, and so does the example
+// version of the container examples (CONTRIBUTING.md, "Releasing")
+const IMAGE_VERSIONS = /ghcr\.io\/eizedev\/pivotkit:(\d+\.\d+\.\d+)|pivotkit-server@(\d+\.\d+\.\d+)|PIVOTKIT_VERSION\s*=\s*"?(\d+\.\d+\.\d+)|e\.g\. (\d+\.\d+\.\d+)/g;
+test("server-in-5-minutes.md and the container examples name pivotkit-server's current version everywhere, in full", () => {
+    const { version } = JSON.parse(readFileSync(new URL("packages/pivotkit-server/package.json", root), "utf8"));
+    const named = (file) => [...readFileSync(new URL(file, root), "utf8").matchAll(IMAGE_VERSIONS)].map((m) => [m[0], m[1] ?? m[2] ?? m[3] ?? m[4]]);
+    const page = named("docs/getting-started/server-in-5-minutes.md");
+    assert.ok(page.some(([m]) => m.startsWith("ghcr")) && page.some(([m]) => m.startsWith("pivotkit-server@")) && page.some(([m]) => m.includes("PIVOTKIT_VERSION")), `the page names no image tag, release tag or PIVOTKIT_VERSION: ${JSON.stringify(page)}`);
+    for (const file of ["docs/getting-started/server-in-5-minutes.md", "docker/compose.example.yml", "docker/compose.secrets.example.yml", "docker/kubernetes.example.yaml"]) {
+        for (const [where, found] of named(file)) {
+            assert.equal(found, version, `${file}: ${where} is not pivotkit-server ${version}: update it in the release pull request`);
+        }
+    }
+});
+
 // A merge that left its conflict markers in a file (a CHANGELOG is the usual one) is refused: the
 // markers are lines of their own, so no text of the repository has them otherwise.
 test("no tracked text file holds a merge conflict marker", () => {

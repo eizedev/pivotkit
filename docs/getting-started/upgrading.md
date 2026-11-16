@@ -101,7 +101,8 @@ new image before you restart. Pulling a tag does not change a running container;
     # then the same docker run as before, with the new tag
     ```
 
-    The reports stay in the volume `pivotkit-out`; `docker rm` does not remove a volume.
+    The token, the keys and the reports stay in the volume `pivotkit` (`/var/lib/pivotkit`), and
+    reports of a configuration that names `/out` in its volume; `docker rm` does not remove a volume.
 
 === "Docker Compose"
 
@@ -173,6 +174,7 @@ callers notice:
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| [Tokens and keys made at the first start](#first-start-0-7) | you run the container image, or start pivotkit-server or pivotkit-mcp with `--state-dir` | mount a volume at `/var/lib/pivotkit`; read the token with `pivotkit-server token show admin`; the example files are `compose.example.yml` and `pivotkit.example.json` (minimal) and `compose.secrets.example.yml` and `pivotkit.secrets.example.json` (tokens of your own) |
 | [Versions move together](#versions-0-7) | you also install pivotkit-core, pivotkit-report or pivotkit-xlsx yourself, or pivotkit-server and pivotkit-mcp side by side | update them to the same release |
 | [Data as of in files](#data-as-of-files) | people read html or xlsx reports from the REST service or the MCP server, or your code passes `dataAsOf` | nothing; a print template of your own may add `{{dataAsOf}}` |
 | [Groups, a default profile, source scopes, the person in the log](#operator-controls) | you want profiles by group, a profile for everyone else, the sources' scopes in the OAuth metadata, or the person in the log | set `auth.groupProfiles` with `auth.defaultProfile`, `auth.offerSourceScopes`, `audit.subject` |
@@ -203,6 +205,50 @@ callers notice:
 Before you connect a cloud model to a server you upgraded, read [what reaches an AI
 model](../model-data.md): it shows the answers a model gets at each level and how to give each
 client its own profile.
+
+### Tokens and keys made at the first start { #first-start-0-7 }
+
+The container image starts without any setup: `docker run -v pivotkit:/var/lib/pivotkit <image>`
+serves its built-in example and makes the token `admin` at its first start
+([Server in 5 minutes](server-in-5-minutes.md)). What changes for an existing installation:
+
+- The image sets `PIVOTKIT_STATE_DIR=/var/lib/pivotkit` (outside the image: `--state-dir <dir>`).
+  With a state directory, the server makes there what is missing
+  ([made at the first start](../reference/rest.md#first-start)): the token `admin` when auth needs a
+  token and none is given, the key of the download links when `output.downloads.key` is not set, the
+  audit key for `audit.subject` `"hash"` without `audit.key`. Download links and audit hashes then
+  stay the same after a restart, as long as the directory is on a volume.
+- A start with `auth.mode` not set on an address off loopback was refused. With a state directory
+  it now starts with the token `admin`. Without one it is refused as before. In the image,
+  `-e PIVOTKIT_STATE_DIR=` turns it off.
+- `auth.mode` `"token"` with neither `auth.tokens` nor `$PIVOTKIT_TOKEN` is still refused. The
+  message says how to fix it: set the variable, or remove `auth.mode` to use the generated `admin`.
+  A misspelt variable never turns into a token with every scope.
+- A configuration that names its tokens, or `$PIVOTKIT_TOKEN`, gets no `admin`.
+- A read-only container without a volume at `/var/lib/pivotkit` warns at every start that the
+  download links' key cannot be made. Add `-v pivotkit:/var/lib/pivotkit` to keep links across
+  restarts.
+- The image declares no `VOLUME` any more. Before, `/out` was an anonymous volume.
+  - A `--read-only` run without `-v ...:/out` can no longer write reports there. The start warns
+    that `output.dir` is on a read-only file system, and each report fails with `NO_OUTPUT`. Mount a
+    named volume: `-v pivotkit-out:/out`, or move `output.dir` to `/var/lib/pivotkit/out` on the
+    state volume.
+  - Without `--read-only`, reports go into the container and are lost with it.
+  - Reports of earlier runs stay in the old anonymous volume. `docker volume ls` lists it (a long
+    hexadecimal name). Copy what you need out of it, then remove it.
+- The token cannot be made on a read-only root without a volume at `/var/lib/pivotkit`: the start is
+  refused and says which volume to mount. Without `--read-only` and without a volume it starts and
+  warns that the token and keys are lost with the container.
+- An empty `/config` (nothing mounted there) starts the built-in example instead of refusing. It
+  serves the example data only; a mounted `/data` needs `files.allowDirs` in a configuration. A
+  `/config` with other files but no `pivotkit.json` is refused and names them.
+- `pivotkit-server` is on the image's `PATH`: `docker exec <container> pivotkit-server token show admin`.
+- `docker/compose.example.yml` and `docker/pivotkit.example.json` are the minimal setup now, with the
+  volume `pivotkit` and no secrets; the tokens as secret files moved to
+  `docker/compose.secrets.example.yml` and `docker/pivotkit.secrets.example.json`. A copy you made of
+  the old files keeps working.
+- `auth.tokens[]`, `output.downloads.key` and `audit.key` take `"create": true`: a file pivotkit makes
+  where it is missing. `create` on any other secret, or with `env`, is refused.
 
 ### Versions move together { #versions-0-7 }
 

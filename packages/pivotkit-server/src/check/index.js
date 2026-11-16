@@ -23,6 +23,7 @@ import * as output from "./output.js";
 import * as downloads from "./downloads.js";
 import * as upload from "./upload.js";
 import * as access from "./access.js";
+import * as credentials from "./credentials.js";
 import * as issuer from "./issuer.js";
 import * as operator from "./operator.js";
 import * as profiles from "./profiles.js";
@@ -38,6 +39,7 @@ import * as log from "./log.js";
  * @property {boolean} rest
  * @property {boolean} [mcp]  the MCP server is served (false: a REST-only server)
  * @property {(issuer: string, rules: import("../issuer.js").IssuerRules, how: { signal: AbortSignal }) => Promise<unknown>} [discover]  loads an issuer's metadata (auth.js discover); without it no issuer is asked
+ * @property {import("../state.js").StatePlan | null} [state]  over HTTP: the state directory's defaults and the secrets made at start (state.js planState)
  * @property {Map<string, { names: string[], stats: any }>} columns  filled by check/sources.js
  * @property {Map<string, string> | null} [everyColumn]  every column of every source by its policy key (null: not all known); set by check/sources.js
  */
@@ -56,7 +58,7 @@ export const UPGRADING_URL = "https://pivotkit.eize.dev/getting-started/upgradin
  * @type {ReadonlyArray<{ name: string, section: Section }>}
  */
 export const SECTIONS = Object.freeze(
-    Object.entries({ sources, http, code, inline, output, downloads, upload, access, issuer, operator, profiles, rest, log }).map(([name, module]) => Object.freeze({ name, section: module.section }))
+    Object.entries({ sources, http, code, inline, output, downloads, upload, access, credentials, issuer, operator, profiles, rest, log }).map(([name, module]) => Object.freeze({ name, section: module.section }))
 );
 
 /**

@@ -6,8 +6,9 @@
 
 import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
-import { ConfigError, loadConfig, validateOptions } from "./config.js";
+import { ConfigError, validateOptions } from "./config.js";
 import { LOG_ADDRESS, LOG_FORMATS, LOG_LEVELS, formatOf } from "./log.js";
+import { configFrom, stateDirOf } from "./state.js";
 
 /**
  * @typedef {{ type: "string" | "boolean", multiple?: boolean, short?: string, value?: string, text: string }} Flag
@@ -30,7 +31,8 @@ export const SHARED_FLAGS = Object.freeze({
         auth: { type: "string", value: "mode", text: "none, token or oauth (oauth settings are in the configuration file)." },
         "allow-unauthenticated": { type: "boolean", text: "Allow auth none on an address other than loopback." },
         "allow-host": { type: "string", multiple: true, value: "name", text: "A host name clients use (besides localhost and the public URL's)." },
-        "allow-origin": { type: "string", multiple: true, value: "name", text: "A browser origin's host name allowed to call MCP (none by default)." }
+        "allow-origin": { type: "string", multiple: true, value: "name", text: "A browser origin's host name allowed to call MCP (none by default)." },
+        "state-dir": { type: "string", value: "dir", text: "Keep the tokens and keys made at first start here (default $PIVOTKIT_STATE_DIR; the image: /var/lib/pivotkit)." }
     })),
     log: { type: "string", value: "level", text: "debug, info (default), warn, error or off; $PIVOTKIT_LOG_LEVEL." },
     "log-format": { type: "string", value: "format", text: "auto (default: text on a terminal, JSON otherwise), text or json; $PIVOTKIT_LOG_FORMAT." },
@@ -132,7 +134,10 @@ export const helpPointer = (program) => `run "${program} --help"`;
 export const flagLines = (flags) => Object.entries(flags).map(([name, f]) => `  --${name}${f.value ? ` <${f.value}>` : ""}`.padEnd(32) + f.text);
 
 /**
- * The options from the configuration file and the flags (a flag wins; lists add to the file's).
+ * The options from the configuration file and the flags (a flag wins; lists add to the file's), and
+ * the state directory (--state-dir, $PIVOTKIT_STATE_DIR; state.js). The configuration file is
+ * --config, else the runner's variable, else none; the container image's built-in configuration
+ * where the variable names the image's path and nothing is there (state.js configFrom).
  * @param {string[]} argv
  * @param {Record<string, string | undefined>} env
  * @param {{ flags: FlagTable, configEnv: string, program?: string }} runner  its flags, the variable that names its configuration file, its name for the pointer to --help
@@ -152,9 +157,10 @@ export async function optionsFrom(argv, env, { flags, configEnv, program = "pivo
     if (values.auth !== undefined && !AUTH_MODES.includes(values.auth)) {
         throw new ConfigError(`--auth must be ${AUTH_MODES.slice(0, -1).join(", ")} or ${AUTH_MODES.at(-1)}; ${helpPointer(program)}`);
     }
-    const file = values.config ?? env[configEnv];
+    const stateDir = stateDirOf(values["state-dir"], env);
+    const loaded = await configFrom({ flag: values.config, fromEnv: env[configEnv], stateDir });
     /** @type {any} */
-    const options = file ? await loadConfig(file) : {};
+    const options = loaded?.options ?? {};
     for (const entry of values.source ?? []) {
         const at = entry.indexOf("=");
         if (at < 1) {
@@ -188,5 +194,5 @@ export async function optionsFrom(argv, env, { flags, configEnv, program = "pivo
     if (log !== undefined) options.log = log;
     options.baseDir ??= process.cwd();
     validateOptions(options);
-    return { options, values };
+    return { options, values, stateDir };
 }

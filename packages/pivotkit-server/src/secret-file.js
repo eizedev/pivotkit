@@ -57,7 +57,7 @@ const RENAME_RETRY = Object.freeze({ tries: 3, waitMs: 50 });
  * How long a kept file that is still empty is read again: another process that created it in place
  * (no hard links) may not have written its value yet. About a second.
  */
-const EMPTY_RETRY = Object.freeze({ tries: 20, waitMs: 50 });
+export const EMPTY_RETRY = Object.freeze({ tries: 20, waitMs: 50 });
 
 /** The calls tests replace: a file system without hard links, a mounted file, another user. */
 export const secretFileMeans = { link, rename, lstat, uid: () => process.getuid?.(), chown: (handle, uid, gid) => handle.chown(uid, gid), stat: (handle) => handle.stat() };

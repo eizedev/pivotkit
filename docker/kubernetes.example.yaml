@@ -1,7 +1,7 @@
 # An example for Kubernetes (docs/getting-started/kubernetes.md, which explains every part): the REST
 # service and the MCP server of the container image in the namespace pivotkit, one replica, the data
-# on a ReadWriteMany volume that a CronJob fills, reports on a volume of their own, an Ingress, and
-# NetworkPolicies. Before applying it, replace:
+# on a ReadWriteMany volume that a CronJob fills, the state (the token and keys the server makes at
+# its first start, and the reports) on a volume of its own, an Ingress, and NetworkPolicies. Before applying it, replace:
 #   - <version> with a release of pivotkit-server (e.g. 0.2.0), or a digest;
 #   - reports.example.com with the host name clients use;
 #   - the CronJob's SOURCE_URL with where your data comes from, and the addresses of that host and
@@ -9,13 +9,10 @@
 #   - the namespace of your ingress controller in the NetworkPolicy pivotkit;
 #   - where needed: the Ingress's ingressClassName, its TLS Secret pivotkit-tls, and the
 #     storageClassName of pivotkit-data (a class that offers ReadWriteMany).
-# The token is a Secret you create yourself (never in this file), from a file the image writes
-# (bash; in PowerShell -v "${PWD}:/out" without --user, docs/getting-started/kubernetes.md):
-#   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
-#   kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
-# So are the key of the download links (the same in every pod, so a link works after a restart):
-#   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> key new --for downloads --file /out/download.key
-#   kubectl -n pivotkit create secret generic pivotkit-download-key --from-file=key=./download.key
+# The server makes its token "admin" and the download links' key at its first start, on the volume
+# pivotkit-state; read the token with:
+#   kubectl -n pivotkit exec deploy/pivotkit -- pivotkit-server token show admin
+# Tokens of your own as Secrets instead: docs/getting-started/kubernetes.md#managed-secrets.
 # The CronJob sends the header in the optional Secret pivotkit-source (key "header", e.g.
 # "Authorization: Bearer ...") when the data's host needs one.
 # The --8<-- lines mark the parts the docs page shows.
@@ -41,11 +38,7 @@ data:
       "sources": {
         "sales": { "file": "/data/sales.csv", "title": "Sales", "policy": { "fields": { "Region": "show", "Product": "show", "Customer": "hide" } } }
       },
-      "output": { "dir": "/out", "maxAgeDays": 7, "downloads": { "key": { "env": "PIVOTKIT_DOWNLOAD_KEY" } } },
-      "auth": {
-        "mode": "token",
-        "tokens": [ { "name": "reports", "file": "/run/secrets/pivotkit/reports" } ]
-      },
+      "output": { "dir": "/var/lib/pivotkit/out", "maxAgeDays": 7 },
       "http": {
         "publicUrl": "https://reports.example.com/",
         "trustProxy": true
@@ -67,11 +60,12 @@ spec:
     requests:
       storage: 1Gi
 ---
-# The reports render_view writes: one server process per output directory.
+# The state: the token and the download links' key the server makes at its first start (secrets/),
+# and the reports render_view writes (out/). One server process per volume.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: pivotkit-out
+  name: pivotkit-state
   namespace: pivotkit
 spec:
   accessModes: ["ReadWriteOnce"]
@@ -89,7 +83,8 @@ metadata:
   labels:
     app.kubernetes.io/name: pivotkit
 spec:
-  # one process per output directory: no second pod on pivotkit-out, not even during an update
+  # one process per state volume: no second pod on pivotkit-state, not even during an update. More
+  # replicas need one ReadWriteMany volume they all share (per-pod volumes would each make their own token)
   replicas: 1
   strategy:
     type: Recreate
@@ -124,11 +119,6 @@ spec:
           env:
             - name: PIVOTKIT_PORT
               value: "3333"
-            - name: PIVOTKIT_DOWNLOAD_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: pivotkit-download-key
-                  key: key
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
@@ -177,11 +167,8 @@ spec:
             - name: data
               mountPath: /data
               readOnly: true
-            - name: out
-              mountPath: /out
-            - name: tokens
-              mountPath: /run/secrets/pivotkit
-              readOnly: true
+            - name: state
+              mountPath: /var/lib/pivotkit
             - name: tmp
               mountPath: /tmp
       volumes:
@@ -192,15 +179,9 @@ spec:
           persistentVolumeClaim:
             claimName: pivotkit-data
             readOnly: true
-        - name: out
+        - name: state
           persistentVolumeClaim:
-            claimName: pivotkit-out
-        # mounted as a directory (no subPath), so a changed Secret reaches the pod and the server
-        # reads the new token on the next request; group 10001 (fsGroup) may read it
-        - name: tokens
-          secret:
-            secretName: pivotkit-tokens
-            defaultMode: 0440
+            claimName: pivotkit-state
         - name: tmp
           emptyDir:
             sizeLimit: 64Mi
