@@ -171,6 +171,45 @@ test("serve from the command line: REST and MCP on one port, /healthz for health
     }
 });
 
+test("healthcheck probes the port serve listens on: --port, then http.port of the configuration, then $PIVOTKIT_PORT (#439)", async () => {
+    const dir = workspace();
+    const server = await serve({ sources: { sales: { file: "data/sales.csv" } }, http: { port: 0, enable: ["rest"] }, baseDir: dir, log: "off" }, { env: {}, stderr: { write() {} } });
+    try {
+        const live = String(server.port);
+        const config = join(dir, "live.json");
+        writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, http: { port: server.port } }));
+        // asynchronous: the server answers in this process
+        const probe = (args, env) =>
+            new Promise((resolve) => {
+                const child = spawn(process.execPath, [BIN, "healthcheck", ...args], { cwd: dir, env: { PATH: process.env.PATH ?? "", ...env } });
+                const out = { stdout: "", stderr: "" };
+                child.stdout.on("data", (c) => (out.stdout += c));
+                child.stderr.on("data", (c) => (out.stderr += c));
+                child.on("close", (status) => resolve({ ...out, status }));
+            });
+        // the image sets PIVOTKIT_PORT; the configuration's http.port wins, as for serve
+        for (const port of ["1", "tcp://10.0.0.1:3333"]) {
+            const r = await probe([], { PIVOTKIT_PORT: port, PIVOTKIT_CONFIG: config });
+            assert.equal(r.status, 0, `${port}: ${r.stderr}`);
+        }
+        const flagged = await probe(["--port", live], { PIVOTKIT_PORT: "1" });
+        assert.equal(flagged.status, 0, flagged.stderr);
+        assert.equal((await probe(["--port", "1"], { PIVOTKIT_CONFIG: config })).status, 1, "--port wins over the configuration");
+        assert.equal((await probe([], { PIVOTKIT_PORT: live })).status, 0, "the variable without a configured port");
+        assert.equal((await probe([`http://127.0.0.1:${live}/healthz`], {})).status, 0);
+        const help = await probe(["--help"], {});
+        assert.equal(help.status, 0);
+        assert.match(help.stdout, /^Usage: pivotkit-server healthcheck \[url\] \[--port <port>\]\n/);
+        for (const args of [["--port", "abc"], ["--port"], ["--prot", "1"], ["a", "b"]]) {
+            const r = await probe(args, {});
+            assert.equal(r.status, 1, args.join(" "));
+            assert.match(r.stderr, /^pivotkit-server: healthcheck: .+; pivotkit-server healthcheck --help\n$/, args.join(" "));
+        }
+    } finally {
+        await server.close();
+    }
+});
+
 test("close() lets a running report finish before the server stops", async () => {
     const dir = workspace();
     let release;
@@ -214,13 +253,15 @@ test("PIVOTKIT_PORT as Kubernetes service links set it (tcp://...): serve, check
         assert.equal(r.status, status, `${args[0]}: ${r.stderr}`);
         assert.equal(args[0] === "serve" ? startError(r.stderr) : r.stderr, said, args[0]);
     }
-    // http.port in the configuration file wins for serve and check-config, as before; healthcheck
-    // still asks $PIVOTKIT_PORT first and says so
+    // http.port in the configuration file wins for serve, check-config and healthcheck (#439): the
+    // variable is not read then (port 1: nothing answers there, so the probe fails at once)
     const config = join(dir, "port.json");
-    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, http: { port: 3333 } }));
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, http: { port: 1 } }));
     const fromFile = run(["check-config"], { env: { ...env, PIVOTKIT_CONFIG: config }, cwd: dir });
     assert.equal(fromFile.status, 0, fromFile.stderr);
-    assert.equal(run(["healthcheck"], { env: { ...env, PIVOTKIT_CONFIG: config }, cwd: dir }).stderr, said);
+    const probe = run(["healthcheck"], { env: { ...env, PIVOTKIT_CONFIG: config }, cwd: dir });
+    assert.equal(probe.status, 1);
+    assert.match(probe.stderr, /^pivotkit-server: http:\/\/127\.0\.0\.1:1\/healthz: /);
     // a port given otherwise wins, as before: --port for serve, a URL for healthcheck
     const check = run(["check-config", "--source", "sales=data/sales.csv", "--port", "3333"], { env, cwd: dir });
     assert.equal(check.status, 0, check.stderr);

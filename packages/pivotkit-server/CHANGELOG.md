@@ -474,6 +474,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- `healthcheck` asked `$PIVOTKIT_PORT` before the configuration's `http.port`. The image sets the
+  variable, so it probed 3333 while the server listened on the configured port. It now takes the
+  port in the order `serve` does: `--port`, `http.port`, `$PIVOTKIT_PORT`, 3333
+  ([#439](https://github.com/eizedev/pivotkit/issues/439)). It also takes `--port` and `--help`;
+  an unknown option is a usage error (exit 1).
 - `serve` and `mcp` started with a pivotkit-mcp of another release whose imports all resolved, and
   served MCP with its old code. A pivotkit-mcp whose declared `pivotkit-server` range does not hold
   this version is now refused with both versions and the update guide

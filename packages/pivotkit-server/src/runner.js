@@ -8,7 +8,7 @@
  *   pivotkit-server source-from-openapi <file or URL> --operation <id>    propose an HTTP source from an OpenAPI document
  *   pivotkit-server mcp [flags]            pivotkit-mcp's runner (stdio by default)
  *   pivotkit-server cli <command> ...      the command line pivotkit (pivotkit-cli)
- *   pivotkit-server healthcheck [url]      exit 0 when the server answers /healthz (the image's HEALTHCHECK)
+ *   pivotkit-server healthcheck [url] [--port n]   exit 0 when the server answers /healthz (the image's HEALTHCHECK)
  *   pivotkit-server token new|show, key new   make and show credentials (credentials.js)
  */
 
@@ -30,7 +30,7 @@ const COMMANDS = Object.freeze({
     "source-from-openapi <file|url>": "Propose an HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (--operation <operationId or 'GET /path'>, --id, --backend); TODO values for you to fill in.",
     mcp: "Run pivotkit-mcp (stdio by default; its own flags, pivotkit-mcp --help).",
     cli: "Run the command line pivotkit (pivotkit-server cli --help).",
-    healthcheck: `Exit 0 when the server answers GET /healthz (default http://127.0.0.1:${DEFAULT_PORT}/healthz).`,
+    "healthcheck [url]": `Exit 0 when the server answers GET /healthz (default http://127.0.0.1:${DEFAULT_PORT}/healthz; pivotkit-server healthcheck --help).`,
     // credentials.js (loaded only for these)
     "token new": "Make a token for auth.tokens (--file, --add to put it into --config; pivotkit-server token --help).",
     "token show <name>": "Print the value of a token of auth.tokens (1 when it cannot be used).",
@@ -76,6 +76,71 @@ function portOfEnv(env) {
         throw new ConfigError(`PIVOTKIT_PORT is "${value.slice(0, 80)}", which Kubernetes sets for a Service named pivotkit; set enableServiceLinks: false in the pod, or PIVOTKIT_PORT to the port number`);
     }
     return value || undefined;
+}
+
+/**
+ * The port serve listens on (one rule for serve, check-config and healthcheck): the options' http.port
+ * (--port, else the configuration file's), else $PIVOTKIT_PORT, else undefined (DEFAULT_PORT).
+ * @param {{ http?: { port?: number } }} options
+ * @param {Record<string, string | undefined>} env
+ * @returns {number | undefined}
+ */
+function servePort(options, env) {
+    if (options.http?.port !== undefined) {
+        return options.http.port;
+    }
+    const fromEnv = portOfEnv(env);
+    return fromEnv === undefined ? undefined : Number(fromEnv);
+}
+
+/** healthcheck's help. */
+const HEALTHCHECK_HELP = `Usage: pivotkit-server healthcheck [url] [--port <port>]\n\nExit 0 when the server answers GET /healthz, else 1.\nWithout a url it asks http://127.0.0.1:<port>/healthz. The port: --port, then http.port of $${CONFIG_ENV}'s file, then $PIVOTKIT_PORT, then ${DEFAULT_PORT}.\n`;
+
+/**
+ * healthcheck: its arguments, then one GET. Every failure is 1: a container's health check reserves 2.
+ * @param {string[]} argv
+ * @param {any} io
+ */
+async function healthcheckCommand(argv, io) {
+    if (argv.includes("--help") || argv.includes("-h")) {
+        io.stdout.write(HEALTHCHECK_HELP);
+        return 0;
+    }
+    const usage = (why) => {
+        io.stderr.write(`pivotkit-server: healthcheck: ${why}; pivotkit-server healthcheck --help\n`);
+        return 1;
+    };
+    let url;
+    let port;
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if (arg === "--port" || arg.startsWith("--port=")) {
+            const value = arg === "--port" ? argv[++i] : arg.slice("--port=".length);
+            if (!/^\d{1,5}$/.test(value ?? "") || Number(value) > 65535) {
+                return usage("--port takes a port number");
+            }
+            port = Number(value);
+        } else if (arg.startsWith("-")) {
+            return usage(`unknown option ${JSON.stringify(arg.slice(0, 40))}`);
+        } else if (url === undefined) {
+            url = arg;
+        } else {
+            return usage("one url at most");
+        }
+    }
+    if (url !== undefined) {
+        return healthcheck(url, io);
+    }
+    if (port === undefined) {
+        try {
+            const configured = io.env[CONFIG_ENV] ? await configFrom({ fromEnv: io.env[CONFIG_ENV], stateDir: null }).then((c) => c?.options ?? {}, () => ({})) : {};
+            port = servePort(configured, io.env);
+        } catch (e) {
+            io.stderr.write(`pivotkit-server: ${e.message}\n`);
+            return 1;
+        }
+    }
+    return healthcheck(`http://127.0.0.1:${port ?? DEFAULT_PORT}/healthz`, io);
 }
 
 /** GET a health address; 0 when it answers 200. */
@@ -146,21 +211,7 @@ export async function run(argv, io) {
             return await runMcp(rest, io);
         }
         if (command === "healthcheck") {
-            // the port serve listens on: $PIVOTKIT_PORT, else the configuration file's, else the default
-            if (rest[0]) {
-                return healthcheck(rest[0], io);
-            }
-            let fromEnv;
-            try {
-                fromEnv = portOfEnv(io.env);
-            } catch (e) {
-                // 1, not 2: a container's health check reserves exit code 2
-                io.stderr.write(`pivotkit-server: ${e.message}\n`);
-                return 1;
-            }
-            const configured = io.env[CONFIG_ENV] ? await configFrom({ fromEnv: io.env[CONFIG_ENV], stateDir: null }).then((c) => c?.options.http?.port, () => undefined) : undefined;
-            const port = fromEnv ?? String(configured ?? DEFAULT_PORT);
-            return healthcheck(`http://127.0.0.1:${port}/healthz`, io);
+            return await healthcheckCommand(rest, io);
         }
         if (command === "token" || command === "key") {
             const { credentialsCommand } = await import("./credentials.js");
@@ -186,8 +237,9 @@ export async function run(argv, io) {
             return 0;
         }
         const { options, values, stateDir } = await optionsFrom(rest, io.env, { flags: SERVER_FLAGS, configEnv: CONFIG_ENV });
-        if (io.env.PIVOTKIT_PORT && !values.port && options.http?.port === undefined) {
-            options.http = { ...options.http, port: Number(portOfEnv(io.env)) };
+        const port = servePort(options, io.env);
+        if (port !== undefined) {
+            options.http = { ...options.http, port };
         }
         if (command === "check-config" || values["check-config"]) {
             const { checkConfig } = await import("./check.js");
