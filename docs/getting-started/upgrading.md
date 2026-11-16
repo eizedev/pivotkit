@@ -169,6 +169,8 @@ Then restart Claude Code.
     `check-config` of 0.2.0 first. It counts the reports and the drafts no longer waiting that the
     next start would delete.
 
+pivotkit-mcp's instructions for the model changed. MCP clients must reconnect to get them.
+
 Operators of pivotkit-server and pivotkit-mcp need not act for the exposure policy. Every field
 keeps its level, and the automatic values rule and the new operator controls are off. Check these:
 
@@ -511,11 +513,12 @@ text file with any quoted value that spans lines. The answer is `INVALID_FILE` (
 ```text
 sales: a quoted value that starts in line 12 spans several lines; an unclosed quote can pull the rows
 after it, hidden values too, into one cell, so a source that hides a field is not read from this
-file; close the quote, or save the file as xlsx or JSON
+file. The file needs every quote closed; the operator can fix the quotes or provide the data as xlsx
+or JSON
 ```
 
 - It holds for file sources, uploads, data sent in a request and an HTTP source's CSV answer.
-- A file whose separator the server cannot tell is refused too.
+- A file whose separator or encoding the server cannot tell is refused too.
 - A source whose fields are all `show` reads such a file as before.
 - A correct value over several lines, such as an address, also refuses such a source. Save that
   file as xlsx or JSON.
@@ -542,10 +545,10 @@ token nobody can guess protects the server.
 
 ### The health check's port { #healthcheck-port }
 
-`pivotkit-server healthcheck [url] [--port <port>]` takes the port from `--port`, then `http.port`
-of the file `$PIVOTKIT_CONFIG` names, then `$PIVOTKIT_PORT`, then 3333. A usage error exits 1. A
-custom `HEALTHCHECK` that relied on `$PIVOTKIT_PORT` while the file sets another `http.port` now
-asks the file's port.
+`pivotkit-server healthcheck [url] [--port <port>]` takes a url or `--port`, not both. It takes the
+port from `--port`, then `http.port` of the file `$PIVOTKIT_CONFIG` names, then `$PIVOTKIT_PORT`,
+then 3333. A usage error exits 1. A custom `HEALTHCHECK` that relied on `$PIVOTKIT_PORT` while the
+file sets another `http.port` now asks the file's port.
 
 The warning for a token variable that does nothing covers both servers: `$PIVOTKIT_TOKEN` for
 pivotkit-server and `$PIVOTKIT_MCP_TOKEN` for `pivotkit-mcp --http`. It shows at start and in

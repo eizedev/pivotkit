@@ -63,7 +63,7 @@ beyond the named header as a file with a separator that ends every line, and kee
 A value can open a quote and never close it. That quote can pull the rows after it, hidden values
 too, into one cell. So where a caller sees a field below `show`, the server refuses a CSV, TSV or
 text file with any quoted value that spans lines (`INVALID_FILE`, 422). It also refuses a file whose
-separator it cannot tell. This holds for file sources, uploads, data sent in a request and an HTTP
+separator or encoding it cannot tell. This holds for file sources, uploads, data sent in a request and an HTTP
 source's CSV answer. A source whose fields are all `show` reads such a file as before.
 
 The cost: a correct value over several lines, such as an address, also refuses such a source. Use
