@@ -27,9 +27,12 @@ pivotkit --version
 
 Update pivotkit-server and pivotkit-mcp in one command, to the same release. `pivotkit-server serve`
 loads the pivotkit-mcp installed beside it. pivotkit-server 0.2.0 and later check the pivotkit-server
-range that this pivotkit-mcp declares. When the installed pivotkit-server is outside it, `serve` does
-not start and says "pivotkit-mcp <x> does not fit pivotkit-server <y>". pivotkit-server 0.1.1 and
-earlier stop only where a module "does not provide an export named ...". The sure sign is
+range that this pivotkit-mcp declares. When the installed pivotkit-server is outside it, `serve` and
+`mcp` do not start, and say "pivotkit-mcp <x> does not fit pivotkit-server <y> (it needs
+pivotkit-server <range>). Install pivotkit-server and pivotkit-mcp of one release in one command".
+pivotkit-mcp 0.1.1 beside pivotkit-server 0.2.0 is refused this way. `check-config` does not load
+pivotkit-mcp, so it does not show this. pivotkit-server 0.1.1 and earlier stop only where a module
+"does not provide an export named ...". The sure sign is
 that `npm ls -g --all` marks pivotkit-server under pivotkit-mcp as `invalid`. Then install both
 again in one command.
 
@@ -161,9 +164,10 @@ Then restart Claude Code.
     This applies to pivotkit-server and pivotkit-mcp 0.1.1 too, which move to 0.2.0 with pivotkit
     0.7. At their first start, pivotkit-server 0.2.0 and pivotkit-mcp 0.2.0 delete reports older than
     30 days from `output.dir` ([why](#max-age-default)). Reports are the `*.pivotkit-out.*` files.
-    Schedule drafts (`*.pivotkit-out.report.json`) stay. Copy the reports you want to keep elsewhere
-    before you update, or set `output.maxAgeDays: 0`. Run the `check-config` of 0.2.0 first. It
-    counts the reports the first start would delete.
+    Schedule drafts (`*.pivotkit-out.report.json`) stay while they wait for approval. Copy the
+    reports you want to keep elsewhere before you update, or set `output.maxAgeDays: 0`. Run the
+    `check-config` of 0.2.0 first. It counts the reports and the drafts no longer waiting that the
+    next start would delete.
 
 Operators of pivotkit-server and pivotkit-mcp need not act for the exposure policy. Every field
 keeps its level, and the automatic values rule and the new operator controls are off. Check these:
@@ -200,11 +204,11 @@ What callers notice:
 | [Download links](#download-links) | the server serves HTTP and has `output.dir` | route `/downloads/` to it, set `output.downloads.key`, and for closed sources a sign-in client; or set `output.downloads.enabled: false` |
 | [`output.baseUrl` and closed sources](#base-url-closed) | you set `output.baseUrl` | reports over sources with a field that is not `show` carry no `url` any more |
 | [Requests to the issuer](#issuer-requests) | `auth.mode` is `oauth` and the issuer resolves to a loopback or private address, is reached through a proxy, redirects, or serves a key set over 256 KiB | set `auth.intranet: true` for an issuer in your LAN or cluster; run `check-config` |
-| [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | copy the reports you want to keep out of `output.dir` before you update, or set `output.maxAgeDays: 0`; schedule drafts stay |
+| [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | copy the reports you want to keep out of `output.dir` before you update, or set `output.maxAgeDays: 0`; drafts waiting for approval stay |
 | **Breaking:** [download links over plain http](#download-links-http) | `http.publicUrl` is `http://` on a host other than loopback, with `output.dir` | use `https://`, or set `output.downloads.allowInsecureUrl: true` for a network you trust, or `output.downloads.enabled: false` |
 | [Columns without a header](#columns-without-header) | a file source has rows longer than its header, or a blank header cell, under `"default": "show"` | name such a column in `fields` if it should be shown; run `check-config` |
 | **Breaking:** [Tokens that are easy to guess](#weak-tokens) | you wrote a static token by hand | make it again with `pivotkit-server token new` |
-| **Breaking:** [CSV with a quote never closed](#unclosed-quote) | a CSV source has a field below `show` | fix the quote in the file; until then the server refuses it |
+| **Breaking:** [CSV with a quote never closed](#unclosed-quote) | a caller sees a field below `show` of a CSV source, upload, data sent in a request or HTTP source's CSV answer | close the quote, or use xlsx or JSON; a correct value over several lines is refused too |
 | [Rows longer than the header](#long-rows) | a file or CSV answer has rows wider than its named header (other than a separator that ends every line), and a caller sees a field below `show` | fix those rows (quote values with the separator in them); until then they are left out, with a `ROWS_DROPPED` note; `check-config` counts them |
 | [Request limits per person](#limits-per-person) | people sign in through one OAuth client | nothing; each person gets `rateLimit` and `concurrency` of their own |
 | [The log](#log) | you read the log on a terminal, parse it, alert on it, or ship it to a log server | JSON lines gain fields and the client's address is logged by default (`log.address: "off"` keeps it out); levels and `msg` are new, and more refusals get a line; on a terminal the log is text unless `log.format` is `json`; a start error is a JSON line where stderr is no terminal |
@@ -421,8 +425,14 @@ Copy the reports you want to keep out of `output.dir` before you update.
 pushed them out. Set `output.maxAgeDays` to another number of days, or to `0` for no age limit, the
 old behaviour.
 
-A schedule draft waits for a person to approve it. `output.maxAgeDays` never deletes it, and neither
-do `output.maxFiles` and `output.maxMb`. Remove the drafts nobody approved yourself.
+A schedule draft waits for approval while its file's `status` is `"draft"`, as `draft_schedule`
+writes it. `output.maxAgeDays` never deletes a waiting draft, and neither do `output.maxFiles` and
+`output.maxMb`. A host that approves or rejects a draft should change its `status`. The draft then
+goes by age like a report. Remove the drafts nobody approved yourself.
+
+`check-config` warns when the next start would delete reports or drafts no longer waiting: "<n>
+report(s) and <m> schedule draft(s) no longer waiting for approval ... are deleted at the next
+start; copy them away or set output.maxAgeDays: 0".
 
 The default applies only to a directory of the reports' own. `output.dir` may hold the configuration
 or a source, template or token file. Then nothing is deleted by age, and the server starts as
@@ -484,15 +494,34 @@ closed makes the server refuse the file instead ([below](#unclosed-quote)).
 
 ### CSV with a quote never closed { #unclosed-quote }
 
-A value can open a quote and never close it. The server then cannot tell where the cells after it
-begin, so a value kept back could land in a shown column. A source with a field at `hide`,
-`summary` or `values` refuses such a file. Close the quote in the file, or write the file with a
-tool that quotes values correctly.
+A value can open a quote and never close it. That quote can pull the rows after it, hidden values
+too, into one cell. So where a caller sees a field below `show`, the server refuses a CSV, TSV or
+text file with any quoted value that spans lines. The answer is `INVALID_FILE` (422):
+
+```text
+sales: a quoted value that starts in line 12 spans several lines; an unclosed quote can pull the rows
+after it, hidden values too, into one cell, so a source that hides a field is not read from this
+file; close the quote, or save the file as xlsx or JSON
+```
+
+- It holds for file sources, uploads, data sent in a request and an HTTP source's CSV answer.
+- A file whose separator the server cannot tell is refused too.
+- A source whose fields are all `show` reads such a file as before.
+- A correct value over several lines, such as an address, also refuses such a source. Save that
+  file as xlsx or JSON.
+- `check-config` warns: "sources.<id>: a quoted value that starts in line N spans several lines;
+  the source is refused for callers who do not see every field as show".
+
+Close the quote in the file, or save the file as xlsx or JSON.
 
 ### Tokens that are easy to guess { #weak-tokens }
 
-The server refuses a static token that is too short or too simple. Make every token with
-`pivotkit-server token new`: 32 random bytes. The limit on refused tokens does not slow down
+A static token needs at least 32 characters and at least 8 different characters, and must not
+repeat one piece (such as `abcabc...`). The server checks this at start, in `check-config`, for
+`token new --if-missing` and when it reads a token file again. A start with such a token stops:
+"auth: the token "<name>" (...) is too easy to guess (N different character(s), at least 8); make
+one with: ...". Make every token with `pivotkit-server token new`: 32 random bytes, which always
+pass. The limit on refused tokens does not slow down
 guessing, since a right token still works beyond it. Only a token nobody can guess protects the
 server.
 

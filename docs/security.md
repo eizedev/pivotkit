@@ -393,7 +393,7 @@ gets at each level, and how to set them per client.
     - This never deletes drafts awaiting approval. Drafts may take at most half of `maxFiles`. A
       draft over that is refused.
     - Set `maxFiles` high. Give `render_view` and `draft_schedule` scopes of their own. Keep
-      `output.maxAgeDays` on, 30 days by default. It deletes old reports, never drafts. Keep the
+      `output.maxAgeDays` on, 30 days by default. It never deletes drafts that wait. Keep the
       rate limits ([REST](reference/rest.md#auth)).
 - **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) belongs to the
   model, not the operator:
@@ -566,7 +566,8 @@ and the sign-in above hold for it too. What differs:
     The limit on refused tokens does not slow down guessing. Beyond it, a wrong token from that
     address gets 429 instead of 401, but a right token still works. What stops guessing is a token
     nobody can guess. Make every token with `pivotkit-server token new`: 32 random bytes. The server
-    refuses a configured token that is too short or too simple.
+    refuses a static token with fewer than 32 characters or 8 different characters, or one that
+    repeats one piece.
 
 - **Errors** are problem documents with a stable code. A message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.

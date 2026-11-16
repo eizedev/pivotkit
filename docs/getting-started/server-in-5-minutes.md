@@ -171,7 +171,8 @@ docker exec pivotkit pivotkit-server token new --file /var/lib/pivotkit/secrets/
   a proxy with HTTPS, or on a network you trust.
 - Publish the port on an address they reach: `-p 3333:3333`.
 - Name the host name they use. The server answers no other host name. A request to another one
-  gets 403, and the answer names the three ways to allow it:
+  gets 403 with "Invalid Host: <name>; add the name with http.allowHosts or --allow-host, or set
+  http.publicUrl". The three ways:
     - `"http": { "allowHosts": ["reports.example.com"] }` in the configuration
     - the flag `--allow-host reports.example.com`. In the container, write the whole command after
       the image name: `serve --host 0.0.0.0 --allow-host reports.example.com`.

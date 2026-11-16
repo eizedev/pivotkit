@@ -435,7 +435,8 @@ there, 30 days by default (`output.maxAgeDays`).
 Reports stay in the output directory after their link expired, until `output.maxFiles`,
 `output.maxMb` or `output.maxAgeDays` remove them. `output.maxAgeDays` is 30 by default: the server
 deletes reports older than 30 days at start and every hour. `output.maxAgeDays: 0` keeps them with
-no age limit. Schedule drafts have no age limit. They stay until the host or you remove them. The
+no age limit. A schedule draft that waits for approval (`status` `"draft"`) stays until the host
+or you remove it. The
 default does not apply where the output directory holds the configuration or a source, template or
 token file. `check-config` warns under `Retention:` when you set 0 while closed sources or data sent
 in requests are on.

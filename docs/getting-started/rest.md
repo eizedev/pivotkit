@@ -33,8 +33,8 @@ npx -y pivotkit-server serve --source sales=sales.csv --output reports
 ```
 
 The log says `started` with the address. Leave it running and open a second terminal in the same
-folder. If your shell sets `PIVOTKIT_TOKEN`, the start warns, since you did not set `auth.mode`.
-[Step 6](#policy) sets up tokens.
+folder. If your shell sets `PIVOTKIT_TOKEN`, the start warns: "PIVOTKIT_TOKEN is set but auth is
+none; use --auth token (or auth.mode token)". Here that is fine. [Step 6](#policy) sets up tokens.
 
 For another port, use one of these and use that port in the calls below:
 

@@ -74,8 +74,7 @@ This catches a typo such as `pivotkit.jsn`.
 | `/run/secrets/` | Token files of your own, readable by the user 10001 ([managed secrets](#managed-secrets)) |
 | `/tmp` | A tmpfs: the root file system stays read-only |
 
-Set the port with `PIVOTKIT_PORT`, not with `http.port` in the file, because the health check asks
-`$PIVOTKIT_PORT`. The server reads a token file on every request, so a new token works without a
+Set the port with `PIVOTKIT_PORT` or `http.port` in the file. The health check reads both. The server reads a token file on every request, so a new token works without a
 restart:
 `docker exec pivotkit pivotkit-server token new --file /var/lib/pivotkit/secrets/admin.token --force`.
 
@@ -203,7 +202,8 @@ or cannot be made (a read-only state directory). `check-config` itself makes not
 ## Health { #health }
 
 The image has a `HEALTHCHECK` that runs `pivotkit-server healthcheck` every 30 seconds. It asks
-`/healthz`, which answers while the process runs.
+`/healthz`, which answers while the process runs. It takes the port from `http.port` of the
+configuration, then `$PIVOTKIT_PORT`, then 3333 ([commands](rest.md#running)).
 
 `/readyz` answers 200 only when the server can take work, and 503 otherwise. The server can take
 work when the OAuth issuer is loaded, the workers are up and the output directory is writable. Use

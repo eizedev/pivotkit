@@ -548,8 +548,8 @@ source and per profile, who may send data, and which reports get links.
 5. With OAuth and groups, set `auth.defaultProfile` to a narrow profile. Otherwise, people in none
    of the groups are refused.
 6. Decide how people get their reports: sign-in links (`output.downloads.signIn`), one-time links,
-   or asking you. Decide how long reports stay (`output.maxAgeDays`, 30 days). Schedule drafts have
-   no age limit. Remove the ones nobody approved.
+   or asking you. Decide how long reports stay (`output.maxAgeDays`, 30 days). Schedule drafts that
+   wait for approval stay. Remove the ones nobody approved.
 7. Run `check-config` and read each profile's levels and the `Delivery:` section. Then call
    `describe_source` with the cloud client's own token and read what it gets.
 8. Never give a model's token `results: true`. Leave `files.allowDirs`, `files.list` and

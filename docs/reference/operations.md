@@ -109,6 +109,7 @@ Lines of calls, requests, downloads and refusals add:
 | `path` | `refused` | The route family that refused it (`/api/v1`, `/openapi.json`, `/mcp`, `/downloads`), never the path the request asked for |
 | `error`, `refusal`, `detail` | `refused` | For a request the MCP protocol layer refused: its error's class, the SDK's fixed name for the refusal (such as `name-header-mismatch`) and, only at `debug`, its message, which can quote the request's body |
 | `host`, `origin` | `refused` | For `reason` `host` or `origin`: the Host or Origin the request sent (at most 100 characters) |
+| `hint` | `refused` | For `reason` `host`: how to allow the name (`http.allowHosts`, `--allow-host` or `http.publicUrl`) |
 | `parserError` | `refused` | For a request the HTTP parser refused (answered 400, 408 or 431 with an `X-Request-Id`): the parser's code, such as `HPE_INVALID_HEADER_TOKEN`. A `CONNECT` (a tunnel, which the server never opens) is answered 400 with a `bad_request` line without it |
 
 <a id="reasons"></a>The values of `reason`:
@@ -195,7 +196,7 @@ time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source fail
 | `download` | A file handed out: by the REST file route or a [download link](delivery.md) (`via: "link"`) |
 | `refused` | A request refused before it reached an operation, with its `reason` |
 | `warning` | Something the operator should look at: a backend that failed, refused connections, a setting that does not fit, a static token's file that cannot be used, with the cause (at most once a minute per token) |
-| `info` | Something that changed: the issuer's metadata loaded, old reports deleted (to make room, or by `output.maxAgeDays`: one line per sweep with the counts `reports` and `drafts`) |
+| `info` | Something that changed: the issuer's metadata loaded, old reports deleted (to make room, or by `output.maxAgeDays`: one line per sweep, "reports and schedule drafts no longer waiting older than N days deleted", with the counts `reports` and `drafts` and `maxAgeDays`) |
 | `error` | An unexpected error: its class, its message only at `debug`, never its stack |
 | `debug` | Only at `debug`: why a token was refused, what a backend answered |
 

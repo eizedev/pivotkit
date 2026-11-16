@@ -16,7 +16,7 @@ carries it. It makes no compliance claim.
 | --- | --- | --- | --- |
 | [Source data loaded for a caller](#memory) (code and HTTP sources) | the server's memory | until newer loads push it out (at most 64 loads and `sourceCache.maxMb`, default 256 MiB, a quarter per person or shared source) or a restart | the caller it was loaded for, through the policy |
 | [Reports](#retention) | files in `output.dir` | 30 days by default (`output.maxAgeDays`), or until `output.maxFiles`/`output.maxMb` push them out | whoever opens their link, or can read the directory |
-| [Schedule drafts](#retention) | files in `output.dir` | until the host or you remove them. No age limit | whoever can read the directory, such as the host that approves them |
+| [Schedule drafts](#retention) | files in `output.dir` | while waiting for approval, until the host or you remove them; once the host sets another `status`, as reports | whoever can read the directory, such as the host that approves them |
 | [Data sent in a request](#inline) (`inline:`) | the server's memory for one call; a report over it in `output.dir` | the call; the report as any report | the sender, through the model or program it uses |
 | [Cache keys](#memory) | the server's memory | as long as their data | nobody: values, groups and claims only as a keyed digest |
 | [Exchanged backend tokens](#memory) | the server's memory | at most until the person's own token expires | the backend they are for |
@@ -60,8 +60,17 @@ counting the row's empty cells at the end. It then leaves the row out.
 There is one exception. pivotkit reads a file whose every row has the same width and holds nothing
 beyond the named header as a file with a separator that ends every line, and keeps its rows.
 
-A value can open a quote and never close it. pivotkit then cannot tell where the cells after it
-begin. A source with a field at `hide`, `summary` or `values` refuses such a file.
+A value can open a quote and never close it. That quote can pull the rows after it, hidden values
+too, into one cell. So where a caller sees a field below `show`, the server refuses a CSV, TSV or
+text file with any quoted value that spans lines (`INVALID_FILE`, 422). It also refuses a file whose
+separator it cannot tell. This holds for file sources, uploads, data sent in a request and an HTTP
+source's CSV answer. A source whose fields are all `show` reads such a file as before.
+
+The cost: a correct value over several lines, such as an address, also refuses such a source. Use
+xlsx or JSON for it.
+
+A stray pair of quotes on one line, such as `"South,hid-2",20`, still puts a hidden value into a
+shown cell. pivotkit cannot tell it from correct quoting.
 
 pivotkit cannot detect two kinds of shift from the data:
 
@@ -365,7 +374,7 @@ Reports and drafts stay in the output directory until one of these deletes them:
 
 - **Age.** `output.maxAgeDays` is 30 by default. The server deletes reports older than 30 days at
   start and every hour. It also deletes the temporary files of writes the server was killed in, once
-  they are an hour old. It never deletes a schedule draft by age.
+  they are an hour old. It never deletes a schedule draft that still waits for approval.
     - `output.maxAgeDays: 0` keeps them with no age limit. `check-config` warns under `Retention:`
       when you set 0 while closed sources or data sent in requests are on.
     - The default does not apply where the output directory holds the configuration or a source,
@@ -377,9 +386,11 @@ Reports and drafts stay in the output directory until one of these deletes them:
   take at most half of `output.maxFiles`, and the server refuses a draft over that.
 - **You**, on a schedule of your own.
 
-A schedule draft waits for a person to approve it, so no rule of the server deletes it. It stays
-until the host or you remove it. Drafts carry a view and recipients by name. Remove the drafts
-nobody approved, on a schedule of your own.
+A schedule draft waits for approval while its file's `status` is `"draft"`, as `draft_schedule`
+writes it. A draft the server cannot read, or one over 1 MiB, counts as waiting too. No rule of the
+server deletes a waiting draft. A host that approves or rejects a draft should change its `status`.
+The draft then goes by age like a report. Drafts carry a view and recipients by name. Remove the
+drafts nobody approved, on a schedule of your own.
 
 A link that expires does not remove its file. You cannot search reports per person. To remove a
 person's reports, you delete files.
