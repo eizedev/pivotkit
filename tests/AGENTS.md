@@ -23,7 +23,10 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - The `tempDir` of a package's `test/helpers.js` is this one with the package's label.
 - A Playwright spec calls `removeTempDirs()` in `test.afterAll`.
 - The directories are removed at process end, also after a failure, `exit()` or a signal.
+- Each name holds its process id. SIGKILL or a crash leaves the directories behind.
+  The next `tempDir()` of any process removes those of processes that are gone.
 - `scripts/test-run.js` fails a run that leaves one of its directories behind.
+- CI also fails when any `pivotkit-*` directory is new after the tests (`scripts/temp-dirs.js`).
 - `tests/temp-dirs.test.js` fails on `mkdtemp`, `tmpdir()`, `TMPDIR` or `"/tmp/"` elsewhere.
 - `tests/source-files.js` lists the files such checks scan.
 

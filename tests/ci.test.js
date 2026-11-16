@@ -249,6 +249,19 @@ function jobOf(file, job) {
     return next === -1 ? text.slice(start) : text.slice(start, start + 1 + next);
 }
 
+// a process killed without its exit event, or a child that makes directories outside the run's id,
+// leaves directories that test-run.js does not count: CI compares all pivotkit-* names around the
+// tests (#526)
+test("CI's test job fails when the tests leave any pivotkit-* directory in the temporary directory", () => {
+    const job = jobOf(".github/workflows/ci.yml", "test");
+    const save = job.indexOf("run: node scripts/temp-dirs.js save ");
+    const tests = job.indexOf("run: npm run coverage");
+    const repository = job.indexOf('run: node scripts/test-run.js node --test "tests/*.test.js"');
+    const check = job.indexOf("run: node scripts/temp-dirs.js check ");
+    assert.ok(save !== -1 && save < tests, "the names are saved before the tests");
+    assert.ok(check > repository, "they are compared after the repository checks");
+});
+
 // npm audit signatures checks the registry signatures of what npm ci installed: the step right after
 // the install, in CI's test job and in the release's build job
 test("CI's test job and the release build verify the registry signatures right after npm ci", () => {

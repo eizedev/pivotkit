@@ -40,12 +40,18 @@ jobs:
       - name: Types
         # type check of the JSDoc sources, generated .d.ts, and a TypeScript consumer compiled against them
         run: npm run types
+      - name: Temporary directories before the tests
+        # the pivotkit-* names already there, for the check after the repository checks
+        run: node scripts/temp-dirs.js save "$RUNNER_TEMP/temp-dirs.json"
       - name: Unit tests with coverage
         run: npm run coverage
       - name: Repository checks
         # the Playwright image matches the locked @playwright/test, every dependency is pinned; a run
         # that leaves a temporary directory behind fails (scripts/test-run.js)
         run: node scripts/test-run.js node --test "tests/*.test.js"
+      - name: No temporary directory left behind
+        # of any run or process: one killed without its exit event, or started without the run's id
+        run: node scripts/temp-dirs.js check "$RUNNER_TEMP/temp-dirs.json"
       - name: Package contents
         # npm pack --dry-run: LICENSE, docs, sources and types in the tarball; publishes nothing
         run: npm run pack:check

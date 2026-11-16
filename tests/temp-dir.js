@@ -4,8 +4,10 @@
 // failure. Every name starts with "pivotkit-" and, when PIVOTKIT_TEST_RUN is set
 // (scripts/test-run.js sets it), the run's id: the run checks afterwards that it left none behind,
 // without counting another run's directories on the same machine. tests/temp-dirs.test.js fails on
-// a temporary directory made any other way.
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+// a temporary directory made any other way. A process that ends without its exit event (SIGKILL, a
+// crash) cannot remove its directories: each name holds its process id, and the first tempDir() of
+// any later process removes the directories of processes that are gone (#526).
+import { mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -25,6 +27,47 @@ export function runPrefix(run) {
 
 /** @type {Set<string>} */
 const made = new Set();
+
+/** The owner's process id in a directory's name: "-p<pid>-" before mkdtemp's random part. */
+const OWNER = /^pivotkit-.*-p(\d+)-[A-Za-z0-9]{6}$/;
+
+/**
+ * Whether a process is running (or exists under another user, which signal 0 may not reach).
+ * @param {number} pid
+ */
+function running(pid) {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (error) {
+        return /** @type {NodeJS.ErrnoException} */ (error).code === "EPERM";
+    }
+}
+
+/**
+ * Removes the directories whose process is gone without removing them (SIGKILL, a crash), of any
+ * run. A directory of a running process stays, and so does one without a process id in its name.
+ * @param {string} [dir] the temporary directory to look in
+ */
+export function removeOrphans(dir = tmpdir()) {
+    for (const name of tempDirNames(dir)) {
+        const pid = Number(OWNER.exec(name)?.[1] ?? 0);
+        if (pid === 0 || pid === process.pid || running(pid)) continue;
+        try {
+            rmSync(join(dir, name), { recursive: true, force: true, maxRetries: 3 });
+        } catch {
+            // another process may be removing it now; the next sweep tries again
+        }
+    }
+}
+
+/**
+ * The names in the temporary directory that tempDir() makes, of every run and process.
+ * @param {string} [dir]
+ */
+export function tempDirNames(dir = tmpdir()) {
+    return readdirSync(dir).filter((name) => name.startsWith("pivotkit-"));
+}
 
 /** Removes every directory tempDir() made in this process that is still there. */
 export function removeTempDirs() {
@@ -59,6 +102,7 @@ let watching = false;
 function watch() {
     if (watching) return;
     watching = true;
+    removeOrphans();
     process.on("exit", removeTempDirs);
     for (const [signal, number] of /** @type {const} */ ([["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]])) {
         const end = () => {
@@ -81,7 +125,7 @@ function watch() {
  */
 export function tempDir(label = "test") {
     const name = label.replace(/^pivotkit-/, "").replace(/-$/, "");
-    const dir = realpathSync.native(mkdtempSync(join(tmpdir(), `${runPrefix(process.env[RUN_ENV])}${name}-`)));
+    const dir = realpathSync.native(mkdtempSync(join(tmpdir(), `${runPrefix(process.env[RUN_ENV])}${name}-p${process.pid}-`)));
     made.add(dir);
     watch();
     return dir;
