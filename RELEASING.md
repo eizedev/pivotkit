@@ -46,6 +46,9 @@ Release packages in this order. It follows their run-time dependencies.
   - the pivotkit row of `docs/compare.md`, version and date
   - the example's `generator` in `docs/reference/view-file.md`
   - the pivotkit-core minor pivotkit-xlsx needs, in `docs/reference/plugins.md`
+  - pivotkit-server's full version in `docs/getting-started/server-in-5-minutes.md`:
+    every image tag, the release tag `pivotkit-server@<version>` and `PIVOTKIT_VERSION`
+  - the example version in `docker/compose*.example.yml` and `docker/kubernetes.example.yaml`
 - Two more files carry a version. Their package's tests check them:
   - `docs/openapi.json`. Run `node scripts/openapi.js`.
   - `packages/pivotkit-mcp/.claude-plugin/plugin.json`

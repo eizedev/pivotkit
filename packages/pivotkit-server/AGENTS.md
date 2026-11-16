@@ -41,6 +41,20 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - EBUSY of a mounted file is `MOUNTED`. On SIGINT and SIGTERM it removes the temporary file.
 - `replaceFile` and `writeBackup` write a configuration file. Tests replace system calls through `secretFileMeans`.
 
+## State directory and first start
+
+- `src/state.js` owns the state directory, `--state-dir` or `$PIVOTKIT_STATE_DIR`.
+- Its defaults: auth.mode token off loopback, the token `admin` and the download and audit keys.
+  They are file references with `create: true` in `<state>/secrets/`.
+- `planState` is the one rule for these defaults. The start, check-config and `token show` share it.
+- The `credentials` section of check-config (`check/credentials.js`) reports them.
+- `prepareHttpServe` makes what is missing with `placeSecret` and returns the log's lines.
+  `serve()` and pivotkit-mcp's `listen()` call it before they refuse an open address.
+- A token it cannot make stops the start. It never falls back to no auth.
+- `configFrom` finds the configuration file for `optionsFrom` and `token show`.
+  Where `/config` is empty, it uses the image's `builtInConfig`.
+- `stateMeans` lets tests replace the container and mount facts.
+
 ## Check-config
 
 - `src/check/` has one section per concern. `check/index.js` lists them in `SECTIONS`.
