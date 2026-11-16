@@ -770,8 +770,11 @@ take work, and 503 otherwise:
 Both answer `HEAD` too.
 
 An output directory the server's user cannot write is also a warning at start, a problem in
-`check-config`, and 409 `NO_OUTPUT` for a report. On SIGTERM, the server takes no new connection. It
-lets running requests finish for up to `http.graceMs` (25 seconds by default).
+`check-config`, and 409 `NO_OUTPUT` for a report.
+
+On SIGTERM or SIGINT, the server takes no new connection. It lets running requests finish for up to
+`http.graceMs` (25 seconds by default). Windows has no SIGTERM. There, Ctrl+C stops the server this
+way, also the Ctrl+C event of a service manager. Any other stop ends it at once.
 
 | Key | Default | What it is |
 | --- | --- | --- |
@@ -819,8 +822,8 @@ location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|read
 Without containers, on Windows next to PowerShell Universal, `pivotkit-server serve` runs as a
 service with a service manager of your choice. [PowerShell Universal](../getting-started/mcp.md#psu)
 has the steps: an account of its own, its file rights, the token from a PSU secret, a rotated log,
-and IIS with ARR in front. CI runs the server's tests on Linux, macOS and Windows.
-Some of its file checks are tested on Linux and macOS only.
+and IIS with ARR in front. CI runs the server's tests on Linux, macOS and Windows. Its tests of
+file modes, owners, FIFOs, symbolic links and the stop on SIGTERM run on Linux and macOS only.
 [#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows.
 
 ### Tokens and keys { #credentials }

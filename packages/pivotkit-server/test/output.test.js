@@ -314,7 +314,7 @@ test("output.create: false keeps a missing directory an error; one that cannot b
     }
 });
 
-test("a symbolic link to nothing as output.dir is a problem in check-config and refused at start; a refused start makes no directory", async () => {
+test("a symbolic link to nothing as output.dir is a problem in check-config and refused at start; a refused start makes no directory", { skip: process.platform === "win32" ? "symbolic links need rights on Windows" : false }, async () => {
     const dir = workspace();
     symlinkSync(join(dir, "gone"), join(dir, "dangling"));
     const config = join(dir, "pivotkit.json");
@@ -328,7 +328,7 @@ test("a symbolic link to nothing as output.dir is a problem in check-config and 
     assert.ok(!existsSync(join(dir, "data", "new")), "no directory left behind");
 });
 
-test("check-config refuses what serve refuses: a missing output.dir inside an allowed directory, one below a link to nothing", async () => {
+test("check-config refuses what serve refuses: a missing output.dir inside an allowed directory, one below a link to nothing", { skip: process.platform === "win32" ? "symbolic links need rights on Windows" : false }, async () => {
     const dir = workspace();
     symlinkSync(join(dir, "gone"), join(dir, "link"));
     const config = join(dir, "pivotkit.json");

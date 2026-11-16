@@ -330,6 +330,7 @@ nssm set pivotkit AppStderr D:\pivotkit\logs\pivotkit.log
 nssm set pivotkit AppRotateFiles 1
 nssm set pivotkit AppRotateOnline 1
 nssm set pivotkit AppRotateBytes 10485760
+nssm set pivotkit AppStopMethodConsole 30000
 nssm start pivotkit
 ```
 
@@ -339,6 +340,10 @@ terminal. It holds no view, value, token or path. See [operations and logs](../r
 NSSM restarts the process when it ends. With `AppRotateFiles` and `AppRotateOnline`, NSSM renames
 the log once it is larger than `AppRotateBytes`, here 10 MiB. It does that also while the service
 runs.
+
+To stop the service, NSSM first sends Ctrl+C. The server then lets running requests finish for up
+to `http.graceMs`, 25 seconds by default. NSSM waits 1500 ms by default, then ends the process.
+`AppStopMethodConsole 30000` gives it 30 seconds.
 
 Set the account before `nssm start pivotkit`. Without `ObjectName`, the service runs as LocalSystem.
 

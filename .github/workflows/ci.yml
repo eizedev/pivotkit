@@ -68,8 +68,9 @@ jobs:
     # pivotkit-cli and pivotkit-server on Windows and macOS; the other jobs run on Linux. Windows:
     # drive letters, junctions (reparse points), no O_NOFOLLOW, no POSIX modes. macOS: its own file
     # system and signals. The server's tests cover the workers, the output directory, download
-    # markers (hard links), listen, the state directory, sign-in and the secret files; the tests of
-    # POSIX modes, owners and FIFOs skip themselves on Windows
+    # markers (hard links), listen, the state directory, sign-in and the secret files. On Windows,
+    # the tests of file modes, owners, FIFOs, symbolic links and a caught SIGTERM skip themselves or
+    # check what Windows does instead
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20

@@ -161,9 +161,11 @@ test("serve from the command line: REST and MCP on one port, /healthz for health
         const port = new URL(started.url).port;
         const ok = spawnSync(process.execPath, [BIN, "healthcheck"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "", PIVOTKIT_PORT: port } });
         assert.equal(ok.status, 0, ok.stderr);
+        const exited = new Promise((resolve) => child.once("exit", (c) => resolve(c)));
         child.kill("SIGTERM");
-        const code = await new Promise((resolve) => child.once("exit", (c) => resolve(c)));
-        assert.equal(code, 0);
+        // Windows has no SIGTERM to catch: kill() ends the process at once, without its graceful stop
+        if (process.platform !== "win32") assert.equal(await exited, 0);
+        else await exited;
         const dead = spawnSync(process.execPath, [BIN, "healthcheck", `http://127.0.0.1:${port}/healthz`], { encoding: "utf8" });
         assert.equal(dead.status, 1);
     } finally {
