@@ -479,6 +479,9 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- `token new --if-missing` refused a token file with spaces around the token, which the server
+  takes. A kept file is now read as the server reads it: a token without the whitespace around it, a
+  key without one line ending.
 - `serve` exited 0 on SIGTERM or SIGINT even when closing the server failed. It now logs the error
   and exits 1.
 - A request with a Host the server does not answer to got 403 "Invalid Host: <name>" without a way

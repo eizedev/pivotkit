@@ -20,7 +20,7 @@
 import { pathOf, restResourceOf } from "../config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT, tokenGuessable } from "../auth.js";
 import { isLoopback } from "../listen.js";
-import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, unreadable } from "../secrets.js";
+import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, secretValue, unreadable } from "../secrets.js";
 import { personBound } from "../sources/auth.js";
 import { noTokenText } from "../state.js";
 import { signInItems } from "./operator.js";
@@ -123,7 +123,7 @@ async function tokenProblem(token, env, options) {
         return value.length < TOKEN_MIN ? `($${token.env}) is not set or shorter than ${TOKEN_MIN} characters` : !TOKEN_SYNTAX.test(value) ? `($${token.env}) ${TOKEN_SYNTAX_TEXT}` : guessableText(`$${token.env}`, value);
     }
     try {
-        const value = (await readSecretFile(pathOf(options, token.file))).trim();
+        const value = secretValue(await readSecretFile(pathOf(options, token.file)), "token");
         return value.length < TOKEN_MIN ? `(${token.file}) is shorter than ${TOKEN_MIN} characters` : !TOKEN_SYNTAX.test(value) ? `(${token.file}) ${TOKEN_SYNTAX_TEXT}` : guessableText(token.file, value);
     } catch (e) {
         return e?.code === "UTF16" ? `(${token.file}) ${UTF16_TEXT}` : `(${token.file}) cannot be read: ${unreadable(e?.code)}`;

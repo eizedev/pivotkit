@@ -39,7 +39,7 @@ import { randomBytes } from "node:crypto";
 import { constants, unlinkSync } from "node:fs";
 import { link, lstat, open, realpath, rename, unlink } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
-import { MAX_SECRET_BYTES, UTF16_TEXT, looksUtf16 } from "./secrets.js";
+import { MAX_SECRET_BYTES, UTF16_TEXT, readSecretHandle, secretValue } from "./secrets.js";
 
 /** The random bytes of each kind of secret: a token of 43 base64url characters, a key of 64. */
 export const SECRET_BYTES = Object.freeze({ token: 32, key: 48 });
@@ -71,6 +71,28 @@ const RENAME_RETRY = Object.freeze({ tries: 3, waitMs: 50 });
  * (no hard links) may not have written its value yet. About a second.
  */
 export const EMPTY_RETRY = Object.freeze({ tries: 20, waitMs: 50 });
+
+/** What `untilFilled`'s read gives for a file that is still empty. */
+export const STILL_EMPTY = Symbol("still empty");
+
+/**
+ * Runs `read` again while it gives STILL_EMPTY, up to EMPTY_RETRY: the one wait for a file another
+ * process created in place and has not written yet (a start's ensure in state.js, a kept secret
+ * here). Gives `read`'s last result, STILL_EMPTY when the file stayed empty.
+ * @template T
+ * @param {() => Promise<T | typeof STILL_EMPTY>} read
+ * @returns {Promise<T | typeof STILL_EMPTY>}
+ */
+export async function untilFilled(read) {
+    for (let attempt = 1; ; attempt++) {
+        const result = await read();
+        if (result !== STILL_EMPTY || attempt >= EMPTY_RETRY.tries) {
+            return result;
+        }
+        // a ref'd timer: the process waits for it
+        await new Promise((done) => setTimeout(done, EMPTY_RETRY.waitMs));
+    }
+}
 
 /** The calls tests replace: a file system without hard links, a mounted file, another user. */
 export const secretFileMeans = { link, rename, lstat, uid: () => process.getuid?.(), chown: (handle, uid, gid) => handle.chown(uid, gid), stat: (handle) => handle.stat() };
@@ -253,15 +275,15 @@ export async function renameOver(from, to, label = to) {
 }
 
 /**
- * Reads a kept secret file (a regular file, not followed through a link), its value without the
- * one line ending, checked by `usable`. A file of this user that everyone may read loses the world's
+ * Reads a kept secret file (a regular file, not followed through a link) through readSecretHandle,
+ * its value as the server reads it (secretValue), checked by `usable`. A file of this user that everyone may read loses the world's
  * bits; one a group may still read, and one of another user than this one or root, gets a warning.
  * @param {string} target
  * @param {string} label
  * @param {(value: string) => string | null} usable  why a value cannot be used, or null
  * @param {string} kind  "token" or "key", for the message
  * @param {boolean} [throughLink]  the name is a symbolic link: read the file behind it, change nothing
- * @returns {Promise<{ value: string, warnings: string[] }>}
+ * @returns {Promise<{ value: string, warnings: string[] } | typeof STILL_EMPTY>}
  */
 async function readKept(target, label, usable, kind, throughLink = false) {
     let handle;
@@ -274,20 +296,18 @@ async function readKept(target, label, usable, kind, throughLink = false) {
         throw new SecretFileError("UNREADABLE", `${label}: is there but cannot be read (${e?.code === "EACCES" ? "permission denied" : "unreadable"})`);
     }
     try {
-        const info = await handle.stat();
-        if (!info.isFile()) {
-            throw new SecretFileError("NOT_REGULAR_FILE", `${label}: is ${whatIs(info)}; not written`);
-        }
-        if (info.size > MAX_SECRET_BYTES) {
-            throw new SecretFileError("UNUSABLE", `${label}: is there but not a usable ${kind} (more than ${MAX_SECRET_BYTES} bytes); replace it with --force`);
-        }
-        const bytes = await handle.readFile();
-        if (looksUtf16(bytes)) {
-            throw new SecretFileError("UNUSABLE", `${label}: ${UTF16_TEXT}`);
-        }
-        const value = bytes.toString("utf8").replace(/\r?\n$/, "");
+        const { text, info } = await readSecretHandle(handle).catch(async (e) => {
+            if (e?.code === "NOT_REGULAR_FILE") {
+                throw new SecretFileError("NOT_REGULAR_FILE", `${label}: is ${whatIs(await handle.stat())}; not written`);
+            }
+            if (e?.code === "TOO_LARGE") {
+                throw new SecretFileError("UNUSABLE", `${label}: is there but not a usable ${kind} (more than ${MAX_SECRET_BYTES} bytes); replace it with --force`);
+            }
+            throw e?.code === "UTF16" ? new SecretFileError("UNUSABLE", `${label}: ${UTF16_TEXT}`) : e;
+        });
+        const value = secretValue(text, kind);
         if (!value) {
-            throw new EmptyFile();
+            return STILL_EMPTY;
         }
         const why = usable(value);
         if (why) {
@@ -326,12 +346,9 @@ async function readKept(target, label, usable, kind, throughLink = false) {
     }
 }
 
-/** A kept file that is empty so far. */
-class EmptyFile extends Error {}
-
 /**
  * readKept, read again while the file is empty (another process may be between creating it and
- * writing it), up to EMPTY_RETRY; then UNUSABLE.
+ * writing it), up to EMPTY_RETRY (untilFilled); then UNUSABLE.
  * @param {string} target
  * @param {string} label
  * @param {(value: string) => string | null} usable
@@ -340,20 +357,11 @@ class EmptyFile extends Error {}
  * @returns {Promise<{ value: string, warnings: string[] }>}
  */
 async function readSettled(target, label, usable, kind, throughLink = false) {
-    for (let attempt = 1; ; attempt++) {
-        try {
-            return await readKept(target, label, usable, kind, throughLink);
-        } catch (e) {
-            if (!(e instanceof EmptyFile)) {
-                throw e;
-            }
-            if (attempt >= EMPTY_RETRY.tries) {
-                throw new SecretFileError("UNUSABLE", `${label}: is there but empty; replace it with --force`);
-            }
-            // a ref'd timer: the process waits for it
-            await new Promise((done) => setTimeout(done, EMPTY_RETRY.waitMs));
-        }
+    const read = await untilFilled(() => readKept(target, label, usable, kind, throughLink));
+    if (read === STILL_EMPTY) {
+        throw new SecretFileError("UNUSABLE", `${label}: is there but empty; replace it with --force`);
     }
+    return read;
 }
 
 /**

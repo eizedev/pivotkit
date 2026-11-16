@@ -28,7 +28,7 @@ import { OperationError } from "pivotkit-report/operations";
 import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
 import { AUDIT_KEY_MIN, auditText, noteAudit } from "./log.js";
-import { UTF16_TEXT, readSecret, readSecretFile, unreadable } from "./secrets.js";
+import { UTF16_TEXT, readSecret, readSecretFile, secretValue, unreadable } from "./secrets.js";
 import { discover, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
 import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
 import { claimNamesOf, claimsOf } from "./sources/params.js";
@@ -139,7 +139,7 @@ async function staticTokens(auth, env, options, tokenEnv) {
     for (const t of list) {
         // the one token of the variable has no name of its own ("token" in the log): a message names the variable only
         const which = auth.tokens?.length ? `the token "${t.name}"` : "the token";
-        const read = t.env ? async () => env[t.env] ?? "" : async () => (await readSecretFile(pathOf(options, /** @type {string} */ (t.file))).catch(() => "")).trim();
+        const read = t.env ? async () => env[t.env] ?? "" : async () => secretValue(await readSecretFile(pathOf(options, /** @type {string} */ (t.file))).catch(() => ""), "token");
         const value = await read();
         if (t.file && value.length < TOKEN_MIN) {
             const why = await readSecretFile(pathOf(options, t.file)).then(() => null, (e) => e?.code);
@@ -345,7 +345,10 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                 warned.set(t.name, now);
                 // the cause, never the value or the path
                 const cause = await readSecretFile(/** @type {string} */ (t.file)).then(
-                    (v) => (v.trim() === "" ? "its file is empty" : v.trim().length < TOKEN_MIN ? `its file has ${v.trim().length} characters` : `its file holds a token ${tokenGuessable(v.trim()) ?? "that cannot be used"}`),
+                    (text) => {
+                        const v = secretValue(text, "token");
+                        return v === "" ? "its file is empty" : v.length < TOKEN_MIN ? `its file has ${v.length} characters` : `its file holds a token ${tokenGuessable(v) ?? "that cannot be used"}`;
+                    },
                     (e) => (e?.code === "ENOENT" ? "its file is missing" : e?.code === "UTF16" ? `its file ${UTF16_TEXT}` : "its file cannot be read")
                 );
                 log.warn(`auth: ${t.which} cannot be used (${cause}): a token has at least ${TOKEN_MIN} characters and ${TOKEN_DISTINCT_MIN} different ones, so requests with it are refused; write the token to the file again (write it whole, then rename it into place)`);

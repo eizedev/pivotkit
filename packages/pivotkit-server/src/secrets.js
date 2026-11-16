@@ -44,35 +44,55 @@ export const unreadable = (code) =>
     code === "ENOENT" ? "no such file" : code === "EACCES" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : code === "NOT_REGULAR_FILE" ? "not a regular file" : code === "TOO_LARGE" ? `longer than ${MAX_SECRET_BYTES} bytes` : code === "UTF16" ? UTF16_TEXT : "unreadable";
 
 /**
+ * A secret's value from its text, as the server reads each kind: a static token without the
+ * whitespace around it (a bearer token holds none), any other secret (a key) without one trailing
+ * line ending, since spaces may be part of a key.
+ * @param {string} text
+ * @param {string} kind  "token", or another kind of secret
+ */
+export const secretValue = (text, kind) => (kind === "token" ? text.trim() : text.replace(/\r?\n$/, ""));
+
+/**
+ * The text of an open secret file and its stats: a regular file, at most MAX_SECRET_BYTES however
+ * much the file grows while it is read, UTF-8. An error with the code NOT_REGULAR_FILE, TOO_LARGE
+ * or UTF16. readSecretFile and a kept secret (secret-file.js) read through it.
+ * @param {import("node:fs/promises").FileHandle} handle
+ * @returns {Promise<{ text: string, info: import("node:fs").Stats }>}
+ */
+export async function readSecretHandle(handle) {
+    const info = await handle.stat();
+    if (!info.isFile()) {
+        throw Object.assign(new Error("not a regular file"), { code: "NOT_REGULAR_FILE" });
+    }
+    const buffer = Buffer.alloc(MAX_SECRET_BYTES + 1);
+    let length = 0;
+    for (;;) {
+        const { bytesRead } = await handle.read(buffer, length, buffer.length - length, null);
+        if (bytesRead === 0 || (length += bytesRead) > MAX_SECRET_BYTES) {
+            break;
+        }
+    }
+    if (length > MAX_SECRET_BYTES) {
+        throw Object.assign(new Error("too large"), { code: "TOO_LARGE" });
+    }
+    const bytes = buffer.subarray(0, length);
+    if (looksUtf16(bytes)) {
+        throw Object.assign(new Error("UTF-16"), { code: "UTF16" });
+    }
+    return { text: bytes.toString("utf8"), info };
+}
+
+/**
  * A secret file's text: a regular file (a link to one is followed, as a mounted Secret is), opened
- * without waiting for a writer, at most MAX_SECRET_BYTES, UTF-8. An error with the code
- * NOT_REGULAR_FILE, TOO_LARGE or UTF16, or the system's (ENOENT, EACCES, ...); `unreadable` words it.
+ * without waiting for a writer, read by readSecretHandle. An error with the code NOT_REGULAR_FILE,
+ * TOO_LARGE or UTF16, or the system's (ENOENT, EACCES, ...); `unreadable` words it.
  * @param {string} path
  * @returns {Promise<string>}
  */
 export async function readSecretFile(path) {
     const handle = await open(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
     try {
-        const info = await handle.stat();
-        if (!info.isFile()) {
-            throw Object.assign(new Error("not a regular file"), { code: "NOT_REGULAR_FILE" });
-        }
-        const buffer = Buffer.alloc(MAX_SECRET_BYTES + 1);
-        let length = 0;
-        for (;;) {
-            const { bytesRead } = await handle.read(buffer, length, buffer.length - length, null);
-            if (bytesRead === 0 || (length += bytesRead) > MAX_SECRET_BYTES) {
-                break;
-            }
-        }
-        if (length > MAX_SECRET_BYTES) {
-            throw Object.assign(new Error("too large"), { code: "TOO_LARGE" });
-        }
-        const bytes = buffer.subarray(0, length);
-        if (looksUtf16(bytes)) {
-            throw Object.assign(new Error("UTF-16"), { code: "UTF16" });
-        }
-        return bytes.toString("utf8");
+        return (await readSecretHandle(handle)).text;
     } finally {
         await handle.close();
     }
@@ -101,7 +121,7 @@ export async function readSecret(ref, options, env = process.env) {
             throw new SecretError(code === "UTF16" ? `${where} ${UTF16_TEXT}` : `${where} cannot be read (${unreadable(code)})`);
         }
     }
-    const value = text.replace(/\r?\n$/, "");
+    const value = secretValue(text, "key");
     if (!value) {
         throw new SecretError(`${where} is empty`);
     }

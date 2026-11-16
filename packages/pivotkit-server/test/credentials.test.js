@@ -481,6 +481,27 @@ test("a token too easy to guess: fewer than 8 different characters or one piece 
     assert.match(kept.stderr, /weak\.token: is there but not a usable token \(too easy to guess \(1 different character, at least 8\)\); replace it with --force/);
 });
 
+test("--if-missing reads a kept token file as the server does: spaces and the line ending around it trimmed; a key keeps its spaces", async () => {
+    const dir = tempDir();
+    const token = "Abc-def_ghi.jkl~mno+pqr/stu0123456789xyzXYZ";
+    writeFileSync(join(dir, "padded.token"), `  ${token}  \n`, { mode: 0o600 });
+    const kept = run(["token", "new", "--file", "padded.token", "--if-missing", "--print"], { cwd: dir });
+    assert.equal(kept.status, 0, kept.stderr);
+    assert.equal(kept.stdout.trim().split("\n")[0], token, "the value the server reads");
+    // the server takes the same file
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "bot", file: join(dir, "padded.token") }] }, baseDir: workspace() });
+    try {
+        assert.equal((await call(`${server.api}/sources`, { token })).status, 200);
+    } finally {
+        await server.close();
+    }
+    // a key: one line ending off, as readSecret reads it; spaces are part of it
+    writeFileSync(join(dir, "padded.key"), `  ${"k1".repeat(20)}  \n`, { mode: 0o600 });
+    const key = run(["key", "new", "--for", "downloads", "--file", "padded.key", "--if-missing", "--print"], { cwd: dir });
+    assert.equal(key.status, 0, key.stderr);
+    assert.equal(key.stdout.split("\n")[0], `  ${"k1".repeat(20)}  `);
+});
+
 /** A token file as PowerShell 5.1's ">" writes it: UTF-16 with a BOM. */
 const utf16 = (text) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(`${text}\r\n`, "utf16le")]);
 

@@ -26,7 +26,7 @@ import { isInside } from "pivotkit-cli/files";
 import { ConfigError, REST_BASE, loadConfig, pathOf, validateOptions } from "./config.js";
 import { STATE_ENV, configFrom, planState, stateDirOf } from "./state.js";
 import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";
-import { UTF16_TEXT, madeAtStart, readSecretFile, unreadable } from "./secrets.js";
+import { UTF16_TEXT, madeAtStart, readSecretFile, secretValue, unreadable } from "./secrets.js";
 import { CONFIG_ENV } from "./flags.js";
 import { DEFAULT_PORT, TOKEN_ENV } from "./serve.js";
 import { MCP_TOKEN_ENV } from "./context.js";
@@ -505,7 +505,7 @@ async function configuredToken(options, name, env, config, tokenEnv = TOKEN_ENV)
     let value;
     if (token.file) {
         value = await readSecretFile(pathOf(options, token.file)).then(
-            (text) => text.trim(),
+            (text) => secretValue(text, "token"),
             (e) => {
                 throw new CommandError(1, e?.code === "UTF16" ? "UTF16" : "UNREADABLE", e?.code === "UTF16" ? `the token "${name}" (${token.file}) ${UTF16_TEXT}` : `the token "${name}" (${token.file}) cannot be read (${unreadable(e?.code)})`);
             }

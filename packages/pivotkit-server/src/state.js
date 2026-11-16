@@ -34,7 +34,7 @@ import { ConfigError, loadConfig, pathOf } from "./config.js";
 import { isLoopback } from "./listen.js";
 import { settingsOf } from "./options/downloads.js";
 import { keyProblem, tokenProblem } from "./secret-rules.js";
-import { EMPTY_RETRY, SECRET_BYTES, SecretFileError, newSecret, placeSecret } from "./secret-file.js";
+import { SECRET_BYTES, STILL_EMPTY, SecretFileError, newSecret, placeSecret, untilFilled } from "./secret-file.js";
 
 /** The variable that names the state directory (the flag is --state-dir). */
 export const STATE_ENV = "PIVOTKIT_STATE_DIR";
@@ -316,14 +316,10 @@ function whyNot(e) {
  * @param {string} path
  */
 async function settled(path) {
-    for (let attempt = 1; attempt < EMPTY_RETRY.tries; attempt++) {
+    await untilFilled(async () => {
         const info = await stat(path).catch(() => null);
-        if (!info?.isFile() || info.size > 0) {
-            return;
-        }
-        // a ref'd timer: the start waits for it
-        await new Promise((done) => setTimeout(done, EMPTY_RETRY.waitMs));
-    }
+        return info?.isFile() && info.size === 0 ? STILL_EMPTY : null;
+    });
 }
 
 /**
