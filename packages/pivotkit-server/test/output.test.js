@@ -158,6 +158,28 @@ test("output.maxMb: the oldest reports go until the new one fits; a directory of
     }
 });
 
+test("an output directory on a read-only file system (a container's --read-only root without a volume): the start, a report and check-config say to mount a volume", async () => {
+    const { outputMeans } = await import("../src/context.js");
+    const { outputErrorOf } = await import("../src/output.js");
+    const { checkConfig } = await import("pivotkit-server");
+    const { constants } = await import("node:fs");
+    const { access } = outputMeans;
+    const dir = workspace();
+    outputMeans.access = async (path, mode) => (mode & constants.W_OK ? Promise.reject(Object.assign(new Error("read-only file system"), { code: "EROFS" })) : access(path, mode));
+    try {
+        const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir });
+        await server.close();
+        assert.ok(server.log.some((l) => l.event === "warning" && /output\.dir is on a read-only file system \(for example a container started with --read-only/.test(l.message) && /mount a writable volume at/.test(l.message)), JSON.stringify(server.log.map((l) => l.message)));
+        const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
+        assert.match(factsOf(result.text), /PROBLEM: output\.dir is on a read-only file system .*mount a writable volume/);
+    } finally {
+        outputMeans.access = access;
+    }
+    // a report's answer when a write meets the read-only file system
+    assert.match(outputErrorOf(Object.assign(new Error("x"), { code: "EROFS" })).message, /the output directory is on a read-only file system; the operator must mount a writable volume there \(output\.dir\)/);
+    assert.match(outputErrorOf(Object.assign(new Error("x"), { code: "EACCES" })).message, /not writable by the server's user/);
+});
+
 test("an output directory the server cannot write: a warning at start, 409 NO_OUTPUT with a hint, a problem in check-config", { skip: process.getuid?.() === 0 ? "root writes anywhere" : false }, async () => {
     const dir = workspace();
     const out = join(dir, "out");

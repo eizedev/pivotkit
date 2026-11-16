@@ -290,7 +290,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   (`peekSignIn`, `bodyCapOf`: a function's cap is clamped to `BODY_BYTES` for a stranger and
   `MAX_BODY_BYTES` for a signed-in caller), a graceful stop), `src/check.js` (`--check-config`
   of both runners: `src/check/` has one section per concern (`sources`, `http`, `code`, `inline`,
-  `output`, `downloads`, `upload`, `access` with the operator's sign-in lines, `operator` for the
+  `output`, `downloads`, `upload`, `access` with the operator's sign-in lines, `credentials` for the secrets made at the first start (state.js), `operator` for the
   audit, `profiles`, `rest`; check/index.js `SECTIONS`, `runSections`), each returning items
   (`check/format.js` `heading`, `plain`, `warning`, `problem` with `stops` or its `effect`) and the
   short names of this version's changes; `format.js` `render` prints the verdict, the counts, every
@@ -325,7 +325,15 @@ root `package.json`: `npm run types` and the builds depend on it.
   it may (else a warning), EBUSY of a mounted file `MOUNTED`, the
   temporary file removed on SIGINT and SIGTERM, a symbolic link, directory or missing directory
   refused; `replaceFile` and `writeBackup` for a configuration file; for any code that
-  creates a missing secret),
+  creates a missing secret), `src/state.js` (the state directory, `--state-dir` or
+  `$PIVOTKIT_STATE_DIR`: `planState`, the one rule the start, check-config (`check/credentials.js`)
+  and `token show` share for the defaults (auth.mode token off loopback, the token `admin`, the
+  download and audit keys in `<state>/secrets/`) as file references with `create: true`;
+  `prepareHttpServe`, called by `serve()` and pivotkit-mcp's `listen()` before their refusal of an
+  open address, makes what is missing with `placeSecret` and returns the log's lines; `configFrom`,
+  the configuration file of `optionsFrom` and `token show` with the image's built-in configuration
+  (`builtInConfig`, `IMAGE_PATHS`) where `/config` is empty; `stateMeans` lets tests replace the
+  container and mount facts),
   `src/check-source.js` (`check-source`: one load of an
   HTTP source, never a value printed), `src/openapi-source.js` (`source-from-openapi`: an HTTP source
   block from one GET operation of an operator's OpenAPI document, read as hostile input; imported by
@@ -362,9 +370,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   HTTP in both eras, a local OAuth issuer, hostile files and inputs.
 - `docker/` - the container image: `Dockerfile` (built from the repository root at a release tag:
   `npm ci --omit=dev --ignore-scripts` of pivotkit-server, pivotkit-mcp and pivotkit-cli from the root
-  lock file, the CLI's example files (built there from the playground's data and `examples/report-templates/`), onto a distroless Node 22 image by digest, user 10001,
-  `HEALTHCHECK`), `pivotkit.example.json` and `compose.example.yml` (the docs' example, also the CI's
-  smoke test), `kubernetes.example.yaml` (the example manifest of `docs/getting-started/kubernetes.md`,
+  lock file, the CLI's example files (built there from the playground's data and `examples/report-templates/`; `sales.csv` unpacked as the built-in configuration's example), onto a distroless Node 22 image by digest, user 10001,
+  `HEALTHCHECK`, the state directory `/var/lib/pivotkit` (0700, no `VOLUME`), `pivotkit-server` on the PATH through the launcher `docker/pivotkit-server`; the paths are pivotkit-server's `state.js` `IMAGE_PATHS`, which `test/state.test.js` compares with the Dockerfile), `pivotkit.example.json` and `compose.example.yml` (the minimal setup of the docs' "Server in 5 minutes": the token made at the first start; also the CI's compose test), `pivotkit.secrets.example.json` and `compose.secrets.example.yml` (tokens of your own as secret files; the CI's operator run), `kubernetes.example.yaml` (the example manifest of `docs/getting-started/kubernetes.md`,
   which shows its parts marked `--8<--` through the snippets extension; check it with kubeconform
   `-strict` after a change); `.github/workflows/image.yml` builds and runs it on pull requests and publishes it to
   GHCR on `pivotkit-server@*` tags (multi-arch, provenance, SBOM, cosign).

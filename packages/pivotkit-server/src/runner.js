@@ -12,7 +12,8 @@
  *   pivotkit-server token new|show, key new   make and show credentials (credentials.js)
  */
 
-import { ConfigError, loadConfig } from "./config.js";
+import { ConfigError } from "./config.js";
+import { configFrom } from "./state.js";
 import { VERSION } from "./context.js";
 import { CONFIG_ENV, SERVER_FLAGS, flagLines, helpPointer, optionsFrom, startFormatOf } from "./flags.js";
 import { flushed, startErrorLine } from "./log.js";
@@ -157,7 +158,7 @@ export async function run(argv, io) {
                 io.stderr.write(`pivotkit-server: ${e.message}\n`);
                 return 1;
             }
-            const configured = io.env[CONFIG_ENV] ? await loadConfig(io.env[CONFIG_ENV]).then((o) => o.http?.port, () => undefined) : undefined;
+            const configured = io.env[CONFIG_ENV] ? await configFrom({ fromEnv: io.env[CONFIG_ENV], stateDir: null }).then((c) => c?.options.http?.port, () => undefined) : undefined;
             const port = fromEnv ?? String(configured ?? DEFAULT_PORT);
             return healthcheck(`http://127.0.0.1:${port}/healthz`, io);
         }
@@ -184,19 +185,19 @@ export async function run(argv, io) {
             io.stdout.write(helpText());
             return 0;
         }
-        const { options, values } = await optionsFrom(rest, io.env, { flags: SERVER_FLAGS, configEnv: CONFIG_ENV });
+        const { options, values, stateDir } = await optionsFrom(rest, io.env, { flags: SERVER_FLAGS, configEnv: CONFIG_ENV });
         if (io.env.PIVOTKIT_PORT && !values.port && options.http?.port === undefined) {
             options.http = { ...options.http, port: Number(portOfEnv(io.env)) };
         }
         if (command === "check-config" || values["check-config"]) {
             const { checkConfig } = await import("./check.js");
             const { discover } = await import("./auth.js");
-            const { text, problems } = await checkConfig(options, { http: true, env: io.env, name: "pivotkit-server", tokenEnv: TOKEN_ENV, rest: (options.http?.enable ?? ["rest"]).includes("rest"), mcp: (options.http?.enable ?? ["rest", "mcp"]).includes("mcp"), discover });
+            const { text, problems } = await checkConfig(options, { http: true, env: io.env, name: "pivotkit-server", tokenEnv: TOKEN_ENV, stateDir, rest: (options.http?.enable ?? ["rest"]).includes("rest"), mcp: (options.http?.enable ?? ["rest", "mcp"]).includes("mcp"), discover });
             io.stdout.write(text);
             return problems ? 1 : 0;
         }
         const { serve } = await import("./serve.js");
-        const server = await serve(options, { env: io.env, stderr: io.stderr });
+        const server = await serve(options, { env: io.env, stderr: io.stderr, stateDir });
         const stop = async () => {
             server.context.log.info("stopping: running requests may finish", { graceMs: options.http?.graceMs ?? 25_000 });
             try {

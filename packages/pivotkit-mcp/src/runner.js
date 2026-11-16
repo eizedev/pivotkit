@@ -56,17 +56,17 @@ export async function run(argv, io) {
             io.stdout.write(`pivotkit-mcp ${VERSION}\n`);
             return 0;
         }
-        const { options, values } = await optionsFrom(argv, io.env);
+        const { options, values, stateDir } = await optionsFrom(argv, io.env);
         if (values["check-config"]) {
             const { checkConfig, discover } = await import("pivotkit-server");
             // the issuer is asked only where it is used: over HTTP
-            const { text, problems } = await checkConfig(options, { http: Boolean(values.http), env: io.env, ...(values.http ? { discover } : {}) });
+            const { text, problems } = await checkConfig(options, { http: Boolean(values.http), env: io.env, ...(values.http ? { discover, stateDir } : {}) });
             io.stdout.write(text);
             return problems ? 1 : 0;
         }
         if (values.http) {
             const { listen } = await import("./http.js");
-            const server = await listen(options, { env: io.env, stderr: io.stderr });
+            const server = await listen(options, { env: io.env, stderr: io.stderr, stateDir });
             const stop = async () => {
                 try {
                     await server.close();

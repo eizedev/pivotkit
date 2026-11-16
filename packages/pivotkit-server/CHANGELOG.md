@@ -10,6 +10,22 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Upgrading from 0.1.1
 
+- The container image starts without a configuration. It makes its token `admin` at the first start
+  in `/var/lib/pivotkit`: mount a volume there (`-v pivotkit:/var/lib/pivotkit`)
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#first-start-0-7)).
+- With `--read-only` and no volume at `/var/lib/pivotkit`, the start is refused, since the token
+  cannot be made. With `$PIVOTKIT_TOKEN` or tokens of your own it starts, and warns at every start
+  that the download key cannot be made.
+- A start off loopback without `auth.mode` was refused. With a state directory it now starts with
+  the token `admin`.
+- A written `auth.mode` `"token"` that resolves no token is still refused. The message says how to
+  fix it.
+- `docker/compose.example.yml` and `docker/pivotkit.example.json` are the minimal setup. The tokens
+  as secret files moved to `compose.secrets.example.yml` and `pivotkit.secrets.example.json`.
+- The image declares no `VOLUME` any more. A `--read-only` run without `-v ...:/out` can no longer
+  write reports to `/out`: the start warns of the read-only file system, and reports fail with
+  `NO_OUTPUT`. Mount a named volume there.
+- Reports of earlier runs stay in the old anonymous volume of `/out` (`docker volume ls`).
 - Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still
   waiting for approval (`*.pivotkit-out.report.json`) are deleted with reports older than
   `output.maxAgeDays` (30 by default) at the first start; this release's `check-config` counts them
@@ -92,6 +108,20 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Added
 
+- A state directory (`--state-dir`, `$PIVOTKIT_STATE_DIR`; the image: `/var/lib/pivotkit`): over
+  HTTP the server makes there what is missing, the token `admin` when auth needs a token off loopback
+  and none is given, the download links' key, and the audit key for `audit.subject` `"hash"`, so
+  links and hashes stay the same after a restart. `auth.tokens[]`, `output.downloads.key` and
+  `audit.key` take `"create": true` for a file pivotkit makes where it is missing. A token that cannot
+  be made stops the start; a key is a warning. The start logs the command that prints the token,
+  never the value; `check-config` says under `Credentials` what is there or will be made, and
+  `token show admin` prints it without a configuration
+  ([server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/),
+  [made at the first start](https://pivotkit.eize.dev/reference/rest/#first-start)).
+- The container image: a built-in example configuration when `/config` is empty (the example data
+  only; a mounted `/data` needs `files.allowDirs`), the state
+  directory `/var/lib/pivotkit` (0700, user 10001), and `pivotkit-server` on its `PATH` for
+  `docker exec` and `kubectl exec`.
 - `pivotkit-server token new`, `token show` and `key new --for downloads|audit`: a token (32 random
   bytes) or key (48) on stdout, or into a file with mode 0600 that is never written through a
   symbolic link and never replaced without `--force` (`--if-missing` keeps it, also with several runs

@@ -17,8 +17,8 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
-import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, callerOf, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logUnanswered, noteProtocolRefusal, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
-import { createMcpContext } from "./context.js";
+import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, callerOf, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
+import { MCP_TOKEN_ENV, createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
 import { quickStartPage } from "./page.js";
 
@@ -360,18 +360,21 @@ function gateReason(status, client, request) {
 const bodyProblem = (status) => Response.json({ jsonrpc: "2.0", error: { code: -32600, message: status === 413 ? "request body too large" : "bad request" }, id: null }, { status });
 
 /**
- * The runner's HTTP server: builds the context and the handler and listens.
- * @param {import("pivotkit-server").ServerOptions} options
- * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown } }} runtime
+ * The runner's HTTP server: builds the context and the handler and listens. With a state directory
+ * (runtime.stateDir, pivotkit-server's state.js) a token and keys that are missing are made first.
+ * @param {import("pivotkit-server").ServerOptions} given
+ * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, stateDir?: string | null }} runtime
  * @returns {Promise<{ port: number, url: string, close(): Promise<void>, context: any }>}
  */
-export async function listen(options, runtime) {
-    const host = options.http?.host ?? "127.0.0.1";
-    const port = options.http?.port ?? DEFAULT_PORT;
+export async function listen(given, runtime) {
+    const host = given.http?.host ?? "127.0.0.1";
+    const port = given.http?.port ?? DEFAULT_PORT;
+    const { options, notes } = await prepareHttpServe(given, { env: runtime.env, host, tokenEnv: MCP_TOKEN_ENV, stateDir: runtime.stateDir });
     if (!isLoopback(host) && (options.auth?.mode ?? "none") === "none" && !options.auth?.allowUnauthenticated) {
-        throw new ConfigError(`--host ${host}: an address other than loopback needs --auth token or oauth (or --allow-unauthenticated for a network you trust)`);
+        throw new ConfigError(openAddressRefusal(host));
     }
     const context = await createMcpContext(options, { showPaths: false, stderr: runtime.stderr, env: runtime.env });
+    logNotes(context.log, notes);
     let handler;
     let listening;
     try {

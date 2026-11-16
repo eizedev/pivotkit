@@ -297,6 +297,7 @@ error that names the key and the one probably meant.
 | `http.publicUrl` | `--public-url url` | none | The server's address as clients reach it (behind a proxy) |
 | `http.allowHosts` | `--allow-host name` | localhost names | Host names the server answers to (DNS rebinding protection) |
 | `http.allowOrigins` | `--allow-origin name` | none | Browser origins (host names) allowed to call |
+| - | `--state-dir dir` | `$PIVOTKIT_STATE_DIR` | `--http`: where the server makes, at its first start, the token and keys it needs when none is given ([made at the first start](rest.md#first-start)); nothing over stdio |
 | `http.page` | - | on | The quick-start page; `{ "sources": true }` lists source ids on it; `false` turns it off |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
 | `http.maxConnectionsPerAddress` | - | 0 (no bound) | Connections one address may hold, loopback excepted ([Streamable HTTP](#http)) |
@@ -308,7 +309,7 @@ error that names the key and the one probably meant.
 | `log.format` | `--log-format format` | auto | `auto` (text on a terminal, JSON otherwise), `text` or `json`; `$PIVOTKIT_LOG_FORMAT` |
 | `log.address` | `--log-address on\|off` | on | The client's address on a request's lines (HTTP); `$PIVOTKIT_LOG_ADDRESS` |
 | `audit.subject` | - | off | `hash` or `plain`: the person (`auth.subjectClaim` of an OAuth token) on the `call`, `request` and `download` [log lines](#logging) |
-| `audit.key` | - | a random key per start | `hash`: the key (at least 16 characters), `{ "env": "NAME" }` or `{ "file": "path" }`, read at start with OAuth only |
+| `audit.key` | - | a random key per start; `<state>/secrets/audit.key` with a state directory | `hash`: the key (at least 16 characters), `{ "env": "NAME" }` or `{ "file": "path" }` (`"create": true` makes a missing file), read at start with OAuth only |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print whether the server would start and what it would expose (sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output, auth) and exit; 1 when it finds a problem ([reading it](rest.md#check-config)). A policy rule that names no column of the data is a warning (exit 0) |
 
@@ -562,14 +563,18 @@ location ~ ^/(mcp|\.well-known/|downloads/|healthz$|$) {
 ### Static tokens { #token }
 
 The token comes from `$PIVOTKIT_MCP_TOKEN`, or several named tokens from `auth.tokens`, each from
-an environment variable or a file (read on every request, so a token is rotated without a restart),
+an environment variable or a file (read on every request, so a token is rotated without a restart;
+`"create": true` makes a missing file at start),
 each with its own `scopes` (a token without `scopes` holds every scope). A token has at least 32
 characters, only those a bearer token can carry (letters, digits, `-._~+/`, `=` at the end; the
 start refuses another); make one with `npx -y pivotkit-server token new`, or into a file with
 `--file <path>` ([tokens and keys](rest.md#credentials)). Tokens are compared
 as SHA-256 digests in constant time, never logged, and refused in the address (`?access_token=`) and
 when a request carries two `Authorization` headers.
-The token's name is the client in the log. A token file that is missing, empty or shorter than 32
+The token's name is the client in the log. With `--http` and a state directory (`--state-dir`,
+`$PIVOTKIT_STATE_DIR`), a server that has no token and listens off loopback makes the token `admin`
+there at its first start, instead of refusing to start: `auth.mode` unset off loopback means `token`
+then ([made at the first start](rest.md#first-start)). A token file that is missing, empty or shorter than 32
 characters while the server runs refuses every request with that token (401) and writes a warning
 naming the token and the cause, at most once a minute.
 

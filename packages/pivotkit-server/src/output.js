@@ -110,8 +110,11 @@ async function oneAtATime(dir, fn) {
 }
 
 /** A failed write of the output directory as the caller's answer: what the operator must fix. */
-function outputError(e) {
-    if (["EACCES", "EPERM", "EROFS"].includes(e?.code)) {
+export function outputErrorOf(e) {
+    if (e?.code === "EROFS") {
+        return new OperationError("NO_OUTPUT", "the output directory is on a read-only file system; the operator must mount a writable volume there (output.dir)");
+    }
+    if (["EACCES", "EPERM"].includes(e?.code)) {
         return new OperationError("NO_OUTPUT", "the output directory is not writable by the server's user; the operator must fix its owner or mode (output.dir)");
     }
     if (e?.code === "ENOSPC" || e?.code === "EDQUOT") {
@@ -153,7 +156,7 @@ export async function makeRoom(context, dir, bytes, draft) {
             const why = !cleanUp ? " and holds the operator's own files, so the server deletes none there" : " and what is left are schedule drafts awaiting approval, which are not deleted";
             throw new OperationError("NO_OUTPUT", `the output directory ${over}${why}; the operator must clean it up`);
         }
-        await unlink(oldest.path).catch((e) => (e?.code === "ENOENT" ? undefined : Promise.reject(outputError(e))));
+        await unlink(oldest.path).catch((e) => (e?.code === "ENOENT" ? undefined : Promise.reject(outputErrorOf(e))));
         count--;
         total -= oldest.size;
         deleted++;
@@ -185,7 +188,7 @@ export async function writeOutput(context, file, draft = false, how = {}) {
         if (deleted) {
             context.log.info("output directory full: the oldest reports deleted", { deleted });
         }
-        return writeNew(dir, file.name, `${OUTPUT_MARK}.${file.extension}`, file.bytes, { prefix }).catch((e) => Promise.reject(outputError(e)));
+        return writeNew(dir, file.name, `${OUTPUT_MARK}.${file.extension}`, file.bytes, { prefix }).catch((e) => Promise.reject(outputErrorOf(e)));
     });
     return {
         name,

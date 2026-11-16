@@ -22,6 +22,7 @@ import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { problem } from "./rest/problem.js";
 import { logUnanswered, noteAnswered, refusalReason, startFields } from "./log.js";
 import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
+import { logNotes, openAddressRefusal, prepareHttpServe } from "./state.js";
 
 /** The default port. */
 export const DEFAULT_PORT = 3333;
@@ -241,18 +242,21 @@ export async function createServerHandler(options, runtime) {
 }
 
 /**
- * Serves REST (and MCP) over HTTP.
- * @param {import("./config.js").ServerOptions} options
- * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown } }} runtime
+ * Serves REST (and MCP) over HTTP. With a state directory (runtime.stateDir, state.js) a token and
+ * keys that are missing are made first.
+ * @param {import("./config.js").ServerOptions} given
+ * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, stateDir?: string | null }} runtime
  * @returns {Promise<{ port: number, url: string, context: any, enable: string[], close(): Promise<void> }>}
  */
-export async function serve(options, runtime) {
-    const host = options.http?.host ?? "127.0.0.1";
-    const port = options.http?.port ?? DEFAULT_PORT;
+export async function serve(given, runtime) {
+    const host = given.http?.host ?? "127.0.0.1";
+    const port = given.http?.port ?? DEFAULT_PORT;
+    const { options, notes } = await prepareHttpServe(given, { env: runtime.env, host, tokenEnv: TOKEN_ENV, stateDir: runtime.stateDir });
     if (!isLoopback(host) && (options.auth?.mode ?? "none") === "none" && !options.auth?.allowUnauthenticated) {
-        throw new ConfigError(`--host ${host}: an address other than loopback needs --auth token or oauth (or --allow-unauthenticated for a network you trust)`);
+        throw new ConfigError(openAddressRefusal(host));
     }
-    const handler = await createServerHandler(options, { ...runtime, loopback: isLoopback(host) });
+    const handler = await createServerHandler(options, { env: runtime.env, stderr: runtime.stderr, loopback: isLoopback(host) });
+    logNotes(handler.context.log, notes);
     let listening;
     try {
         const bodyBytes = bodyBytesOf(options);

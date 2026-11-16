@@ -8,7 +8,7 @@
  */
 
 import { closest } from "pivotkit-core";
-import { ConfigError, SECRET_REF } from "./shared.js";
+import { ConfigError, CREATABLE_SECRET_REF } from "./shared.js";
 
 export const NAME = "operator";
 
@@ -28,7 +28,7 @@ export const KEYS = Object.freeze({
         offerSourceScopes: "boolean"
     },
     top: {
-        audit: { object: { subject: { enum: AUDIT_SUBJECT }, key: SECRET_REF } }
+        audit: { object: { subject: { enum: AUDIT_SUBJECT }, key: CREATABLE_SECRET_REF } }
     }
 });
 

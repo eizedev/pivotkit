@@ -181,8 +181,11 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   provider ([download links](reference/delivery.md)); or uploaded to a store you run, through a presign
   service or an address template, with the store's link in the result ([upload](reference/delivery.md#upload)).
 - One container image for the REST service, the MCP server and the command line: distroless Node 22,
-  non-root, read-only, health checks, signed with provenance and an SBOM
-  ([container image](reference/container.md), [Kubernetes](getting-started/kubernetes.md)).
+  non-root, read-only, health checks, signed with provenance and an SBOM; one `docker run` serves
+  example data with a token the server makes at its first start and keeps in a volume, with the
+  download links' key, read back with `token show` ([server in 5 minutes](getting-started/server-in-5-minutes.md),
+  [made at the first start](reference/rest.md#first-start), [container image](reference/container.md),
+  [Kubernetes](getting-started/kubernetes.md)).
 - A log for operations: JSON lines (text on a terminal) with level, severity, request and trace ids,
   the client's address, outcome and a refused request's reason; `X-Request-Id` on every answer, and
   examples for Docker's `gelf` and `syslog` drivers ([operations and logs](reference/operations.md)).

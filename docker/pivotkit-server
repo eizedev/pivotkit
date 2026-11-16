@@ -1,0 +1,4 @@
+#!/nodejs/bin/node
+// pivotkit-server on the image's PATH (/usr/local/bin), for `docker exec <container> pivotkit-server token show admin`:
+// the runner of the package, with this command's arguments (docker/Dockerfile).
+import("/app/packages/pivotkit-server/bin/pivotkit-server.js");

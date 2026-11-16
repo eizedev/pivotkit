@@ -11,13 +11,16 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { McpServer, fromJsonSchema } from "@modelcontextprotocol/server";
-import { callerOf, createContext } from "pivotkit-server";
+import { MCP_TOKEN_ENV, callerOf, createContext } from "pivotkit-server";
 import { registerTools } from "./tools.js";
 
 export { callerOf };
 
 /** The package's version. */
 export const VERSION = createRequire(import.meta.url)("../package.json").version;
+
+/** The variable of the one static token when auth.tokens lists none (pivotkit-server's constant). */
+export { MCP_TOKEN_ENV };
 
 /** The skill folder shipped in the package. */
 export const SKILLS_DIR = fileURLToPath(new URL("../skills/", import.meta.url));
@@ -51,7 +54,7 @@ const PROMPT_ARGS = { type: "object", properties: { request: { type: "string", d
  * @returns {Promise<import("pivotkit-server").ServerContext & { server(requestContext?: { authInfo?: import("@modelcontextprotocol/server").AuthInfo }): McpServer }>}
  */
 export async function createMcpContext(options, runtime = {}) {
-    const shared = await createContext(options, { tokenEnv: "PIVOTKIT_MCP_TOKEN", service: { name: "pivotkit-mcp", version: VERSION }, ...runtime });
+    const shared = await createContext(options, { tokenEnv: MCP_TOKEN_ENV, service: { name: "pivotkit-mcp", version: VERSION }, ...runtime });
     let skills = null;
     try {
         const { loadSkills } = await import("@modelcontextprotocol/server/ext/skills/node");

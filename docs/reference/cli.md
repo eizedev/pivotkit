@@ -378,6 +378,7 @@ server; the layout flags and `--suggest` work too, and `--map` with `render` and
 ```bash
 export PIVOTKIT_URL=https://reports.example.com/api/v1
 export PIVOTKIT_TOKEN=...                 # or --token-file token.txt
+# the container's own token (server in 5 minutes): export PIVOTKIT_TOKEN="$(docker exec pivotkit pivotkit-server token show admin)"
 pivotkit sources                          # the sources this token reaches
 pivotkit sources sales                    # their fields, types and counts
 pivotkit sources vms --param customer=acme   # a source with parameters: a value for each it needs
