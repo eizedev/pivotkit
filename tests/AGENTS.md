@@ -29,9 +29,12 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 ## Time bounds
 
-- A test that bounds how long work takes measures CPU time with `cpuClock()` from `tests/cpu-time.js`.
+- Work the process computes is bounded by CPU time: `cpuClock()` from `tests/cpu-time.js`.
 - Wall time fails when other test suites share the machine. CPU time does not grow then.
-- CPU time misses waits for a timer, the network or a child process. Bound those by events instead.
+- Event latency (a timer, the network, a child process) stays on wall time. CPU time misses waits.
+  Prefer an assert on the event. Else give a wide margin, a comment why, and the marker
+  `// wall time: event latency` on the line.
+- `tests/time-bounds.test.js` fails on a wall-clock bound in a test without the marker.
 
 ## Scripts
 

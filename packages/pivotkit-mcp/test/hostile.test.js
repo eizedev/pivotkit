@@ -129,9 +129,10 @@ test("too large an input: a view over the size limit, too many elements, unknown
 });
 
 /**
- * A CSV of 1,000,000 rows (the rows limit). Describing it took 1.6 s on an idle machine, the small
- * sales file 30 ms. The worker tests below set their limits far from both: a limit of a few tens of
- * ms ended the small calls too on a busy machine.
+ * A CSV of 1,000,000 rows (the rows limit). The worker tests below assume:
+ * - describing it takes longer than queueMs 300 and timeMs 500 (about 1.6 s on an idle machine);
+ * - a small call on the sales file finishes within those (about 30 ms on an idle machine).
+ * A limit of a few tens of ms ended the small calls too on a busy machine.
  */
 function millionRows() {
     const rows = ["Region,Product,Sales"];

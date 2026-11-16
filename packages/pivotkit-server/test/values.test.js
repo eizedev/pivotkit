@@ -410,7 +410,9 @@ test("a column whose values are 30,000 characters without a space: describe_sour
         assert.equal(described.data.fields.find((f) => f.name === "Blob").level, "summary", "values over 80 characters are no exact list");
         const check = await checkConfig({ sources: { tickets: { file: "data/tickets.csv" } }, policy: { autoValues: true }, baseDir: dir }, { http: false });
         assert.match(check.text, /Blob: summary/);
-        assert.ok(Date.now() - start < 10_000, `answered in ${Date.now() - start} ms`);
+        // a round trip over HTTP and a worker, below compute.timeMs: the work is in a worker and the
+        // CPU bound above covers the stats; this checks the answer comes, with a wide margin
+        assert.ok(Date.now() - start < 10_000, `answered in ${Date.now() - start} ms`); // wall time: event latency
     } finally {
         await server.close();
     }

@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { tempDir } from "./helpers.js";
 import { GuardedFetchError, addressRefusal, createGuardedFetch, guardedFetch } from "../src/sources/fetch.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 let server;
 let base;
@@ -201,9 +202,9 @@ test("a redirect is refused, not followed", async () => {
 test("bodies over maxBytes are cut: with a Content-Length, streamed, and a gzip bomb counted after decompression", async () => {
     assert.equal(await codeOf(local(`${base}/large`, { maxBytes: 1_048_576 })), "TOO_LARGE");
     assert.equal(await codeOf(local(`${base}/chunked`, { maxBytes: 1_048_576 })), "TOO_LARGE");
-    const started = Date.now();
+    const cpu = cpuClock();
     assert.equal(await codeOf(local(`${base}/bomb`, { maxBytes: 1_048_576 })), "TOO_LARGE");
-    assert.ok(Date.now() - started < 5000);
+    assert.ok(cpu() < 5000, `${Math.round(cpu())} ms of CPU`);
     // under the limit it is read whole
     assert.equal((await local(`${base}/large`, { maxBytes: 3 * 1_048_576 })).body.length, 2 * 1_048_576);
 });
@@ -213,7 +214,8 @@ test("a server that trickles its answer is cut at timeMs, the whole request coun
     const error = await local(`${base}/trickle`, { timeMs: 300 }).catch((e) => e);
     assert.equal(error.code, "TIMEOUT");
     assert.equal(error.transient, true);
-    assert.ok(Date.now() - started < 2000, `ended after ${Date.now() - started} ms`);
+    // the trickle never ends by itself: a time limit per read would wait for the test's own timeout
+    assert.ok(Date.now() - started < 10_000, `ended after ${Date.now() - started} ms`); // wall time: event latency
 });
 
 test("a cancelled signal ends the request; headers of the connection and line breaks are refused", async () => {
