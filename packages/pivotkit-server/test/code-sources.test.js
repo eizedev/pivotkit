@@ -484,8 +484,8 @@ test("options: cacheShared only for a code source; timeMs at most ten minutes; t
     assert.match(text, /^Code sources \(2\):$/m);
     assert.match(text, /^ {2}a: load up to 20000 ms\n {4}reused while version\(\) is the same\n {4}data per caller\n {4}last good data: off$/m);
     assert.match(text, /^ {2}b: load up to 30000 ms\n {4}loaded on every call\n {4}data per caller\n {4}last good data: up to 3600 s after a transient failure$/m);
-    // among the changes of this version (data sent in the request is one on an MCP server too)
-    assert.match(factsOf(text), /\nNew in this version: [^\n]*code sources with a time limit and data per caller/);
+    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
+    assert.doesNotMatch(factsOf(text), /code sources with a time limit and data per caller/);
     // without MCP, where data sent in the request adds no note, a file source alone gives none
     assert.doesNotMatch((await checkConfig({ sources: { f: { file: "x.csv" } } }, { http: false, mcp: false })).text, /Code sources|New in this version/);
     // with MCP on (the default) a file source alone gets no code-source line or note either

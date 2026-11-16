@@ -165,7 +165,8 @@ For other machines, put the server behind a reverse proxy with TLS. Give it
 The server writes the reports and serves them itself under `/downloads/` for 60 minutes. Results
 carry a link:
 
-- For a source whose fields are all `show`: a plain link.
+- For an [open source](../reference/delivery.md), hidden by default with its shown fields listed, or
+  with every field shown: a plain link.
 - For other sources: only a link the person opens after signing in with your identity provider, or
   a one-time link you switch on.
 

@@ -169,8 +169,8 @@ details:
   sources with fields kept back.
 
 `"default": "show"` with fields set to `hide` is a deny list. A column the data gains later is shown
-unless someone hides it, and `check-config` warns of it. Prefer `summary` by default and name the
-fields to show.
+unless someone hides it, and `check-config` warns of it. Prefer `hide` by default and name the
+fields to show. Such a source also gets plain [download links](delivery.md).
 
 A field asked for `values` is `summary` where a list would not be complete and exact:
 
@@ -335,12 +335,13 @@ one probably meant.
 | `files.scopes`, `files.policy` | - | none, the server's | Scopes and policy of `file:` sources |
 | `output.dir` | `--output dir` | none | Where reports and drafts are written. Made at start when missing, with its parents and mode 0700, since reports may hold what a model may not see. With `output.baseUrl` set, the mode is 0755 narrowed by the umask, so the web server can read it. The start logs a warning. With `output.create: false`, a missing directory is an error |
 | `output.create` | - | true | `false`: a missing `output.dir` is an error at start instead |
-| `output.baseUrl` | - | none | The address the directory is served at. File names start with 22 random characters. Results over sources whose fields are all `show` carry a `url`. Others carry none, since anyone with it could open what the model was not shown |
+| `output.baseUrl` | - | none | The address the directory is served at. File names start with 22 random characters. Results over [open sources](delivery.md) carry a `url`. Others carry none, since anyone with it could open what the model was not shown |
 | `output.downloads` | - | on over HTTP | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` (`clientId`, `clientSecret`, `issuer`, `scopes`) |
 | `output.upload` | - | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method` (PUT), `timeMs` (30000), `maxBytes`, `keepLocal` (true), `bind` (`none`), `intranet` |
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold. A new report deletes the oldest reports, whoever made them. Drafts are never deleted this way. A draft that waits for approval is not deleted by age either (see [REST](rest.md#running) for the trade-off) |
-| `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold. A new report deletes the oldest reports until it fits |
+| `output.maxMb` | - | 1024 | MiB of reports and drafts the directory may hold. A new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | 30 | Delete reports, and schedule drafts no longer waiting for approval, older than this many days from the top level of the output directory, at start and every hour. Also delete the temporary files of writes the server was killed in (older than an hour). `0`: no age limit. The default applies only to a directory of the reports' own (see [REST](rest.md#running)) |
+| `output.draftMaxAgeDays` | - | 0 (never) | Delete schedule drafts that still wait for approval when they are older than this many days, at start and every hour |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `policy.data`, `policy.profiles.<name>.data` | - | MCP: on | `false`: the caller may not send [its own data](#data) (`inline:`). REST needs `true` |
 | `mcp.data` | - | 500 rows, 5000 cells, 262144 bytes | `false` switches [data in the request](#data) off. `{ "rows", "cells", "bytes" }` lowers the cap. A value above the built-in one is an error |
@@ -357,7 +358,7 @@ one probably meant.
 | - | `--state-dir dir` | `$PIVOTKIT_STATE_DIR` | `--http`: where the server makes, at its first start, the token and keys it needs when none is given ([made at the first start](rest.md#first-start)). Nothing over stdio |
 | `http.page` | - | on | The quick-start page. `{ "sources": true }` lists source ids on it. `false` turns it off |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM or SIGINT, [stopping](rest.md#running)) waits for running requests |
-| `http.maxConnectionsPerAddress` | - | 0 (no bound) | Connections one address may hold, loopback excepted ([Streamable HTTP](#http)) |
+| `http.maxConnectionsPerAddress` | - | 32, none with `http.trustProxy` | Connections one address may hold, loopback excepted. `0`: no bound ([Streamable HTTP](#http)) |
 | `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller, with up to `burst` at once after a pause. A caller is the person an OAuth token names, a static token's name, or `local` without sign-in. An OAuth token without a subject counts for its client. The people of one OAuth client together get eight times both |
 | `mcp.rateLimit.failedAuthPerMinute` | - | 30 | HTTP: refused tokens per address and minute. Beyond that, a wrong token from that address gets 429 instead of 401. A right one still works |
 | `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once. An answer that streams holds its place until it ends. The same setting holds the people of one OAuth client together to eight times this (the refusal's `limit` is `clientShare`) |
@@ -370,10 +371,11 @@ one probably meant.
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print whether the server would start and what it would expose, then exit. It shows the sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output and auth. Exit 1 when it finds a problem ([reading it](rest.md#check-config)). A policy rule that names no column of the data is a warning (exit 0) |
 
-Waiting drafts never expire. They count against the drafts cap (half of `output.maxFiles`, 500 by
-default) and against `output.maxMb`, and the server never deletes them to make room. Once the
-directory is full of them, the server refuses new drafts, and renders too when only drafts are
-left, until a person approves or removes drafts. So approve or reject drafts by changing their
+Waiting drafts do not expire unless you set `output.draftMaxAgeDays`. They count against the drafts
+cap: half of `output.maxFiles` (500 by default) and half of `output.maxMb` (512 MiB by default). The
+server never deletes them to make room. Once they reach the cap, the server refuses new drafts until
+a person approves or removes drafts. Renders keep working, unless drafts written under larger
+limits fill the directory alone. So approve or reject drafts by changing their
 `status`, or remove them. A host may also delete or move a draft instead of rewriting its `status`.
 A draft file that cannot be read or parsed, is over 1 MiB, or has no `status` that is a string
 counts as waiting.
@@ -469,8 +471,21 @@ Their names are letters, digits and `_`.
 - A `pattern` is matched against the whole value, as if written `^(?:...)$`. It may not repeat a
   group (`(a|b)*`, `(ab)+`, `(ab){1,3}`). Repeat a character or a class instead (`[ab]*`), or make
   the group optional (`(-x)?`).
-- Every match runs with a time limit of 25 ms. A pattern that takes longer on values made to be slow
-  is refused at start. A value the pattern cannot check in time is `INVALID_INPUT`.
+- Every match runs with a time limit of 75 ms. A busy host can pause a fast match, so a match that
+  runs out of time is tried once more in a request.
+- At start and in `check-config`, each pattern is tried on values made to be slow, under the same
+  75 ms. A value that ends in time on one of three tries counts as fast. A pattern that runs out of
+  time on every try, or whose check takes over 1 second in all, is refused. The example, default
+  and enum values of one parameter also share 1 second. Under normal conditions, a value the start
+  matches in time a request matches in time too. That holds per value, not per request: a pattern
+  near the limit can still answer `BUSY` on a cold first request.
+- A value that runs out of time twice answers `BUSY` (503, `retryable: true`, `Retry-After: 2`):
+  "params could not be checked in time; the server may be busy, try again". It is the same for a
+  value from a claim. A claim value that stays slow keeps getting `BUSY`, since the person cannot
+  change it: check the pattern against such values.
+- The pattern checks of one request take 150 ms at most, over every parameter and retry. Then the
+  request answers `BUSY` too, also when two slow but matching values use up the 150 ms together. This bounds how long one request holds the server's event loop for
+  pattern checks. On a server without sign-in, every caller who reaches it can cause this.
 - A string without `pattern` or `enum` takes letters, digits and `. _ ~ -` only. No string value may
   hold `..` or a control character.
 - `list_sources` lists a source's parameters. The tools that take a source take `params` only when a
@@ -530,7 +545,7 @@ since the same call does not work when tried again.
 | `DATA_MISMATCH` | [Data sent](#data) whose `rowCount` differs from the rows sent |
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source, data sent in the request, or a source with a token exchange or a parameter bound to a claim ([backend sign-in](sources.md#http-claims)) |
-| `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
+| `BUSY`, `TIMEOUT` | No worker free within `queueMs`, or a parameter's pattern [could not be checked in time](#configuration); a call over `timeMs` |
 | `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)). The text is one of pivotkit's fixed texts (not available right now, the backend refused pivotkit's access, not set up correctly), with the source's id and whether trying again may work |
 | `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`); an HTTP source's backend answered 401, 403 or 404 for the values given |
 | `UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload). A fixed text with the request id and whether trying again may work. The report stays in the output directory |
@@ -616,10 +631,15 @@ body.
   health check or a proxy on the same host, so clients on the network that hold connections without
   sending cannot lock them out. A process on the same host can.
 - A client has 5 seconds for its headers and 30 for its request.
-- `http.maxConnectionsPerAddress` (default 0, no bound) caps the connections of one address. Set it
-  where clients reach the port directly with addresses of their own. Behind NAT, a published port or
-  a proxy, every client has one address, so leave it off there. An IPv6 address counts as it is,
-  not by its network.
+- `http.maxConnectionsPerAddress` caps the connections of one address. It counts the socket's peer.
+  An IPv6 address counts as it is, not by its network. The default depends on `http.trustProxy`:
+    - Without it, clients reach the server directly. The default is 32.
+    - With it, every client has the proxy's address. There is no bound by default, and the proxy
+      limits its clients.
+- A number you set in `http.maxConnectionsPerAddress` wins in both cases. `0` switches the bound off.
+- Raise it where many clients share one address without a proxy, such as an office behind one NAT,
+  or a published port that hands every connection over from Docker's gateway
+  ([container](container.md#per-address)). `check-config` says which bound applies.
 - Refused connections are logged at most once a minute: the first at once, the rest when the minute
   ends. The line names each bound that refused a connection since the last line (`total`,
   `loopbackReserve`, `perAddress`), the last address and the counts.

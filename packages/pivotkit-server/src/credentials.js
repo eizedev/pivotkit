@@ -24,7 +24,7 @@ import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
 import { isInside } from "pivotkit-cli/files";
 import { ConfigError, REST_BASE, loadConfig, pathOf, validateOptions } from "./config.js";
-import { STATE_ENV, configFrom, planState, stateDirOf } from "./state.js";
+import { STATE_ENV, configFrom, planState, psQuoted, shellQuoted, stateDirOf } from "./state.js";
 import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretValue, unreadable } from "./secrets.js";
 import { CONFIG_ENV } from "./flags.js";
@@ -73,12 +73,15 @@ const FLAGS = Object.freeze({
     }
 });
 
+/** The usage line of each command, by its name in FLAGS. */
+const USAGE = Object.freeze({ "token new": "pivotkit-server token new [options]", "token show": "pivotkit-server token show <name> [options]", "key new": "pivotkit-server key new --for downloads|audit [options]" });
+
 /** The help of `token` or `key`. */
 function helpOf(group) {
     const lines = (flags) => Object.entries(flags).map(([name, f]) => `  --${name}${f.value ? ` <${f.value}>` : ""}`.padEnd(30) + f.text);
     const parts = Object.keys(FLAGS)
         .filter((command) => command.startsWith(group))
-        .map((command) => `${command === "key new" ? "pivotkit-server key new --for downloads|audit [options]" : command === "token show" ? "pivotkit-server token show <name> [options]" : "pivotkit-server token new [options]"}\n${lines(FLAGS[command]).join("\n")}`);
+        .map((command) => `${USAGE[/** @type {keyof typeof USAGE} */ (command)]}\n${lines(FLAGS[command]).join("\n")}`);
     return `${parts.join("\n\n")}\n\nWithout --file the value is the only line on stdout. Exit codes: 0 done, 1 a file that is there, missing or not usable, 2 a usage or configuration error.\nDocs: https://pivotkit.eize.dev/reference/rest/#credentials\n`;
 }
 
@@ -172,10 +175,6 @@ const snippetOf = (value) => (value && typeof value === "object" && !Array.isArr
 
 /** Where clients reach the server: http.publicUrl, else loopback on its port. */
 const baseUrlOf = (options) => (options?.http?.publicUrl ? options.http.publicUrl.replace(/\/+$/, "") : `http://127.0.0.1:${options?.http?.port || DEFAULT_PORT}`);
-
-/** Single quotes for a shell (bash, PowerShell): a path as one word. */
-const quoted = (text) => `'${text.replace(/'/g, "'\\''")}'`;
-const psQuoted = (text) => `'${text.replace(/'/g, "''")}'`;
 
 /**
  * The --config of `token new` or `key new`, read and checked; a file inside output.dir refused
@@ -388,13 +387,13 @@ function tokenHints({ values, entry, options, backup, secret }) {
     const file = values.file;
     hints.push(
         "Try it (curl reads the header from stdin, so the token is in no command line):",
-        `  printf 'header = "Authorization: Bearer %s"\\n' "$(cat ${quoted(file)})" | curl -K - ${url}${REST_BASE}/sources`,
+        `  printf 'header = "Authorization: Bearer %s"\\n' "$(cat ${shellQuoted(file)})" | curl -K - ${url}${REST_BASE}/sources`,
         `  PowerShell: Invoke-RestMethod -Headers @{ Authorization = "Bearer $(Get-Content ${psQuoted(file)})" } ${url}${REST_BASE}/sources`
     );
     if (servesMcp(options)) {
         // claude's own command line holds the header: it keeps it in its configuration anyway
         hints.push(
-            `  claude mcp add --transport http pivotkit ${url}/mcp --header "Authorization: Bearer $(cat ${quoted(file)})"${options ? "" : "  (where the server serves MCP)"}`,
+            `  claude mcp add --transport http pivotkit ${url}/mcp --header "Authorization: Bearer $(cat ${shellQuoted(file)})"${options ? "" : "  (where the server serves MCP)"}`,
             "    (this line puts the token into the process list and your shell's history; Claude Code keeps it in its configuration)"
         );
     }

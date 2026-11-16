@@ -196,7 +196,7 @@ time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source fail
 | `download` | A file handed out: by the REST file route or a [download link](delivery.md) (`via: "link"`) |
 | `refused` | A request refused before it reached an operation, with its `reason` |
 | `warning` | Something the operator should look at: a backend that failed, refused connections, a setting that does not fit, a static token's file that cannot be used, with the cause (at most once a minute per token) |
-| `info` | Something that changed: the issuer's metadata loaded, old reports deleted (to make room, or by `output.maxAgeDays`: one line per sweep, "reports and schedule drafts no longer waiting older than N days deleted", with the counts `reports` and `drafts` and `maxAgeDays`) |
+| `info` | Something that changed: the issuer's metadata loaded, old reports deleted (to make room, or by `output.maxAgeDays`: one line per sweep, "reports and schedule drafts no longer waiting older than N days deleted", with the counts `reports` and `drafts` and `maxAgeDays`; or by `output.draftMaxAgeDays`: "schedule drafts still waiting for approval older than N days deleted", with `drafts` and `draftMaxAgeDays`) |
 | `error` | An unexpected error: its class, its message only at `debug`, never its stack |
 | `debug` | Only at `debug`: why a token was refused, what a backend answered |
 

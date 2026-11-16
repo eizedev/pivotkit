@@ -355,7 +355,7 @@ test("the log: created lines once, the token's line with the command for where i
         const { dir, state } = setup();
         const plain = await openServer({ sources, baseDir: dir }, { stateDir: state });
         await plain.close();
-        assert.ok(plain.log.some((l) => l.message?.endsWith(`read it with: pivotkit-server token show admin --state-dir ${state}`)), JSON.stringify(plain.log.map((l) => l.message)));
+        assert.ok(plain.log.some((l) => l.message?.endsWith(`read it with: pivotkit-server token show admin --state-dir ${state}${process.platform === "win32" ? " (PowerShell)" : ""}`)), JSON.stringify(plain.log.map((l) => l.message)));
         // a pod whose namespace file cannot be read: the pod's name alone
         stateMeans.namespace = async () => null;
         stateMeans.container = () => "kubernetes";
@@ -435,7 +435,8 @@ test("check-config resolves the same files without making them, and has no PROBL
     assert.match(text, /the download links' key \(default of the state directory\): .*downloads\.key, made at the first start/);
     assert.match(text, /read the token with: pivotkit-server token show admin --state-dir /);
     assert.match(text, /Auth: token/);
-    assert.match(text, /^New in this version: .*the token "admin", the download links' key made at the first start in .*secrets \(an empty \$PIVOTKIT_STATE_DIR keeps the start as before\)/m);
+    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
+    assert.doesNotMatch(text, /made at the first start in .*an empty \$PIVOTKIT_STATE_DIR keeps the start as before/);
     stateMeans.container = container;
     assert.deepEqual(readdirSync(state), []);
     // the runner, as the image runs it: exit 0, nothing made

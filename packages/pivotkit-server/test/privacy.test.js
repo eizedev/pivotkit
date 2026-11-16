@@ -87,6 +87,29 @@ test("isClosedForDelivery: closed by a field, inline data, a claim parameter, a 
     assert.equal(isClosedForDelivery(/** @type {any} */ ({ ...options, policy: { profiles: { reader: { default: "summary" } } } }), "shown"), true);
 });
 
+test("isClosedForDelivery (#510): open only where nothing new can become visible: hidden by default, every listed field shown or hidden, the same for every caller; or every field shown", () => {
+    const sourceOf = (policy) => ({ sources: { s: { file: "data/sales.csv", policy } } });
+    const closed = (options) => isClosedForDelivery(/** @type {any} */ (options), "s");
+    // open: an allow list, the same for every caller
+    assert.equal(closed(sourceOf({ default: "hide", fields: { Region: "show", Sales: "show" } })), false, "hidden by default, some fields shown");
+    assert.equal(closed(sourceOf({ default: "hide", fields: { Region: "show", Customer: "hide" } })), false, "hidden by default, one also hidden by name");
+    assert.equal(closed({ ...sourceOf({ default: "hide", fields: { Region: "show" } }), policy: { profiles: { reader: { default: "show" } } } }), false, "a profile cannot show what the source hides by default");
+    // open as before: every field shown, nothing hidden
+    assert.equal(closed(sourceOf({ default: "show" })), false, "every field shown");
+    assert.equal(closed(sourceOf({ default: "show", fields: { Region: "show" } })), false, "every field shown, one named");
+    // closed: a deny list, where a column the data gains later would be shown
+    assert.equal(closed(sourceOf({ default: "show", fields: { Customer: "hide" } })), true, "show everything except one field");
+    assert.equal(closed({ ...sourceOf({ default: "show" }), policy: { fields: { Customer: "hide" } } }), true, "hidden by the server's policy under default show");
+    // closed as before
+    assert.equal(closed(sourceOf({ default: "show", fields: { Customer: "values" } })), true, "values");
+    assert.equal(closed(sourceOf({ default: "hide", fields: { Region: "summary" } })), true, "summary under a hidden default");
+    assert.equal(closed(sourceOf(undefined)), true, "the default summary");
+    assert.equal(closed({ ...sourceOf({ default: "hide", fields: { Region: "show" } }), policy: { profiles: { reader: { fields: { Region: "hide" } } } } }), true, "shown to some callers only");
+    assert.equal(closed({ ...sourceOf({ default: "hide", fields: { Region: "show" } }), policy: { profiles: { reader: { default: "summary" } } } }), true, "a profile at summary");
+    assert.equal(isClosedForDelivery(/** @type {any} */ ({ files: { allowDirs: ["data"], policy: { default: "hide", fields: { Region: "show" } } } }), "file:sales.csv"), false, "a file by a files.policy that is an allow list");
+    assert.equal(isClosedForDelivery(/** @type {any} */ ({ files: { allowDirs: ["data"], policy: { default: "show", fields: { Customer: "hide" } } } }), "file:sales.csv"), true, "a file by a files.policy that is a deny list");
+});
+
 test("perPerson: a code source only, and not with cacheShared (one copy for all callers is no data per person)", () => {
     assert.doesNotThrow(() => validateOptions({ sources: { mine: { load: async () => [], perPerson: true } } }));
     assert.throws(() => validateOptions({ sources: { f: { file: "data/x.csv", perPerson: true } } }), /sources\.f\.perPerson: only a code source \(load\) takes perPerson/);
@@ -118,7 +141,7 @@ test("check-config: per-person sources and data sent in requests are named with 
     assert.match(text, /^ {2}reports over closed sources \(team, mine, sales\): no links/m);
     assert.match(text, /^ {2}reports over open sources \(open\): plain links$/m);
     // a code source open by its fields: pivotkit cannot see whether load answers per caller
-    assert.match(text, /^ {2}open: load up to 30000 ms\n(?: {4}[^\n]*\n)*? {4}reports over it get plain links \(every field is shown\)\n {4}if load answers each caller differently, set perPerson: true/m);
+    assert.match(text, /^ {2}open: load up to 30000 ms\n(?: {4}[^\n]*\n)*? {4}reports over it get plain links \(nothing new can become visible\)\n {4}if load answers each caller differently, set perPerson: true/m);
     assert.match(text, /^ {2}mine: load up to 30000 ms\n {4}loaded on every call\n {4}data per caller, per person \(perPerson: no plain links to its reports\)/m);
     assert.doesNotMatch(text, /^ {2}(team|mine): load[^\n]*\n(?: {4}[^\n]*\n)*? {4}reports over it get plain links/m);
 });
@@ -128,9 +151,9 @@ test("check-config: per-person sources and data sent in requests are named with 
 test("check-config: warns only when output.maxAgeDays is 0 while closed sources or data sent in requests are on; the default limit is said on the output line", async () => {
     const dir = workspace();
     const warned = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text);
-    assert.match(warned, /^Retention:\n {2}no age limit: reports stay in output\.dir until output\.maxFiles \(1000\) or output\.maxMb \(1024 MB\) push them out, also after their link expired$/m);
+    assert.match(warned, /^Retention:\n {2}no age limit: reports stay in output\.dir until output\.maxFiles \(1000\) or output\.maxMb \(1024 MiB\) push them out, also after their link expired$/m);
     assert.match(warned, /^WARNING \(Retention\): output\.maxAgeDays is 0 \(no age limit\) and reports over closed sources \(sales\) and data sent in requests can hold data about people; leave out output\.maxAgeDays \(the default deletes reports after 30 days\) or set a number of days$/m);
-    assert.match(warned, /^ {2}no age limit \(output\.maxAgeDays 0\)$/m);
+    assert.match(warned, /^ {2}no age limit for reports \(output\.maxAgeDays 0\); schedule drafts stay until a person approves or removes them$/m);
     // data sent in requests alone: an open source, MCP on
     const inlineOnly = factsOf((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text);
     assert.match(inlineOnly, /WARNING \(Retention\): output\.maxAgeDays is 0 \(no age limit\) and data sent in requests can hold/);
@@ -138,7 +161,8 @@ test("check-config: warns only when output.maxAgeDays is 0 while closed sources 
     const byDefault = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
     assert.doesNotMatch(byDefault, /Retention:/);
     assert.match(byDefault, /^ {2}reports older than 30 days are deleted; schedule drafts stay until a person approves or removes them$/m);
-    assert.match(byDefault, /\nNew in this version: [^\n]*reports deleted after 30 days/);
+    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
+    assert.doesNotMatch(byDefault, /reports deleted after 30 days \(output\.maxAgeDays: 0 keeps them\)/);
     assert.doesNotMatch(factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 7 }, baseDir: dir }, { http: false, env: {} })).text), /Retention:|deleted after 30 days/);
     assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
     assert.doesNotMatch((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, mcp: { data: false }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
