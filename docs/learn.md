@@ -6,9 +6,9 @@ description: Learn the pivot report step by step with five real public data sets
 # Learn with real data
 
 The [live demo](demo.md) has five real public data sets next to the generated ones. Each comes with
-templates phrased as questions: pick one under **Start** in the playground's header, read the answer,
-then change the report with the tasks below. Every task says what you should see, so you know when
-you got it right.
+templates phrased as questions. Pick one under **Start** in the playground's header and read the
+answer. Then change the report with the tasks below. Every task says what you should see, so you know
+when you got it right.
 
 <p><a class="md-button md-button--primary" href="playground/?data=weather" target="_blank" rel="noopener">Open the playground with the weather data</a></p>
 
@@ -20,33 +20,35 @@ you got it right.
 | [Nobel Prize laureates, 1901-2026](#nobel-laureates) | 1,036 prizes | Laureate, Type, Gender, Category, Year, Share, Age at award, Country | [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/), [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | [Software end of life, 489 products](#software-end-of-life) | 9,374 release cycles | Product, Category, Cycle, Released, EOL date, EOL, Maintained, LTS, Active support until, Support years, Days to EOL, Latest version, Latest release, Release year, Tags | [endoflife.date](https://endoflife.date/), [MIT](https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE) |
 
-The data are snapshots fetched once on 2026-11-07 and stored with the playground; the page makes no
-call to these services. How each snapshot was made, what was changed and the full terms of each
-source are in
-[`examples/playground/data/SOURCES.md`](https://github.com/eizedev/pivotkit/blob/main/examples/playground/data/SOURCES.md).
-At the end of each section: how to query the source yourself, live.
+The data are snapshots, fetched once on 2026-11-07 and stored with the playground. The page makes no
+call to these services.
+[`examples/playground/data/SOURCES.md`](https://github.com/eizedev/pivotkit/blob/main/examples/playground/data/SOURCES.md)
+says how each snapshot was made and what was changed, and has the full terms of each source. At the
+end of each section, you learn how to query the source yourself, live.
 
 ## Before you start
 
-- **Rows, Columns, Values, Filters**: drag a field from the list into a zone, or open the field's
-  menu (the three dots) and pick "Add to Rows". [Use a report](use/index.md) explains every part.
-- **The chip menu** (the small arrow on a field in a zone) groups dates, sorts, filters, keeps the
-  top N, and for a value changes the aggregator, the "show values as" and the format.
-- **Undo** takes back every step; the **Start** list in the header brings back a template.
+- **Rows, Columns, Values, Filters**: drag a field from the list into a zone. Or open the field's
+  menu, the three dots, and pick "Add to Rows". [Use a report](use/index.md) explains every part.
+- **The chip menu** is the small arrow on a field in a zone. It groups dates, sorts, filters and
+  keeps the top N. For a value, it changes the aggregator, the "show values as" and the format.
+- **Undo** takes back every step. The **Start** list in the header brings back a template.
 
 ## Weather
 
 Daily values of 14 cities on six continents for 2023, 2024 and 2025: the highest, lowest and mean
-temperature, rain and sunshine. "Rain day" is 1 on a day with at least 1 mm of rain, so its sum
-counts rain days. "Season" is the meteorological season, swapped south of the equator: December in
-Sydney is summer.
+temperature, rain and sunshine.
+
+- "Rain day" is 1 on a day with at least 1 mm of rain, so its sum counts rain days.
+- "Season" is the meteorological season, swapped south of the equator: December in Sydney is
+  summer.
 
 ![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/learn-weather-light.png#only-light)
 ![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/learn-weather-dark.png#only-dark)
 
-**How warm is each city, month by month?** Cities on rows, the month on columns (across all three
-years: January is every January of the data in one column, see [which grouping do I
-need?](use/values.md#dates-and-number-ranges)), the average of "Mean °C" coloured from cold to warm.
+**How warm is each city, month by month?** Cities on rows, the month on columns, the average of
+"Mean °C" coloured from cold to warm. The month spans all three years: January is every January of
+the data in one column. See [which grouping do I need?](use/values.md#dates-and-number-ranges)
 
 - Read it: Reykjavik is the coldest city (‑1.4 °C in January), Dubai the hottest (35.7 °C in August).
   Cape Town, Sydney and São Paulo are warm in January and cool in July: the southern hemisphere.
@@ -60,7 +62,7 @@ need?](use/values.md#dates-and-number-ranges)), the average of "Mean °C" colour
   that the Grand Total covers these three cities only.
 - Try this: open the menu of "City", set **Count** under Top to 5 and press **Apply**. Cape Town and Rome follow.
 - Try this: drag "Date" to Columns. The report groups the dates by quarter on its own ("Date by
-  quarter") since they span three years; the chip's menu switches to months or years.
+  quarter"), since they span three years. The chip's menu switches to months or years.
 
 **How many rain days per season? (2025)** Cities on rows, seasons on columns, the sum of "Rain day",
 filtered to 2025 with the derived field "Year".
@@ -70,9 +72,9 @@ filtered to 2025 with the derived field "Year".
 - Try this: open the menu of "Rain days" and pick **Show as: % of row total**. Each row now
   adds up to 100 %: the share of a city's rain days per season.
 - Try this: open the menu of "Season" and pick **A to Z**, then **Custom order** again. The seasons
-  follow the year (Spring, Summer, Autumn, Winter) instead of the alphabet: the playground gives
-  "Season" this order (`fieldDefaults`), as Excel's custom lists do, and the template, which has no
-  sort for "Season", uses it.
+  follow the year (Spring, Summer, Autumn, Winter) instead of the alphabet. The playground gives
+  "Season" this order with `fieldDefaults`, as Excel's custom lists do. The template has no sort for
+  "Season", so it uses this order.
 
 **Was 2025 warmer than 2023 in Berlin? (chart)** One line per year, filtered to Berlin.
 
@@ -88,9 +90,9 @@ filtered to 2025 with the derived field "Year".
 https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&start_date=2025-07-01&end_date=2025-07-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,sunshine_duration&timezone=auto
 ```
 
-- Key: none for non-commercial use; a commercial product needs Open-Meteo's paid plan
-  ([terms](https://open-meteo.com/en/terms)).
-- Limits: 600 calls a minute, 5,000 an hour, 10,000 a day; a request of more than two weeks or more
+- Key: none for non-commercial use. A commercial product needs Open-Meteo's paid plan. See the
+  [terms](https://open-meteo.com/en/terms).
+- Limits: 600 calls a minute, 5,000 an hour, 10,000 a day. A request of more than two weeks or more
   than 10 variables counts as several calls.
 - Licence: CC BY 4.0. Show "Weather data by Open-Meteo.com" with a link next to the data.
 - Underlying data: ECMWF IFS, ERA5 and ERA5-Land. For ERA5 and ERA5-Land the Copernicus Climate Data
@@ -102,7 +104,7 @@ https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&sta
 
 The JavaScript examples import the request and the mapping from
 [`sources.js`](https://github.com/eizedev/pivotkit/blob/main/examples/playground/data/sources.js), a
-plain module without dependencies: save it next to your script, or paste the functions shown under
+plain module without dependencies. Save it next to your script, or paste the functions shown under
 each example.
 
 === "JavaScript (browser or Node)"
@@ -122,8 +124,8 @@ each example.
     $weather.daily.time.Count   # 31
     ```
 
-    Hand the response to the page as JSON (`$weather | ConvertTo-Json -Depth 5`) and turn it into
-    rows there with `weatherRows`, the mapping below.
+    Hand the response to the page as JSON (`$weather | ConvertTo-Json -Depth 5`). Turn it into rows
+    there with `weatherRows`, the mapping below.
 
 The mapping that made the snapshot, from
 [`sources.js`](https://github.com/eizedev/pivotkit/blob/main/examples/playground/data/sources.js):
@@ -135,8 +137,8 @@ The mapping that made the snapshot, from
 ## Countries
 
 Population, GDP in current US dollars and CO2 emissions (million tonnes, without land use) of 217
-countries from 2005 to 2024, with the World Bank's region and income group. Aggregates such as
-"World" are left out, so a total over countries is the world. "Year" is a number field.
+countries from 2005 to 2024, with the World Bank's region and income group. The data leave out
+aggregates such as "World", so a total over countries is the world. "Year" is a number field.
 
 ![The countries data: population of the three largest countries per region in 2024, grouped by region with subtotals](assets/screenshots/learn-countries-light.png#only-light)
 ![The countries data: population of the three largest countries per region in 2024, grouped by region with subtotals](assets/screenshots/learn-countries-dark.png#only-dark)
@@ -144,11 +146,11 @@ countries from 2005 to 2024, with the World Bank's region and income group. Aggr
 **Where do most people live? Region, then country (2024)** Region and country on rows, the sum of
 population, filtered to 2024 and to the top 3 countries of each region.
 
-- Read it: East Asia & Pacific comes first; its three largest countries (China 1.4B, Indonesia
+- Read it: East Asia & Pacific comes first. Its three largest countries (China 1.4B, Indonesia
   283.5M, Japan 124M) add up to 1.8B. South Asia follows with India (1.5B).
-- Try this: click the arrow before a region to collapse it; the subtotal stays.
-- Try this: remove the top 3 (the chip menu of "Country", **Remove** under Top and Count). Every country shows,
-  and the region totals are the regions' populations.
+- Try this: click the arrow before a region to collapse it. The subtotal stays.
+- Try this: remove the top 3: in the chip menu of "Country", pick **Remove** under Top and Count.
+  Every country shows, and the region totals are the regions' populations.
 
 **What share of the world's CO2 comes from each region?** Regions on rows, five years on columns,
 CO2 shown as **% of column total**.
@@ -162,10 +164,11 @@ CO2 shown as **% of column total**.
 GDP shown as **% difference from previous** along the columns.
 
 - Read it: 2020 shrank the world's GDP by 2.8 %, 2021 grew it by 14.2 % (current dollars, not
-  adjusted for inflation). The 2019 column is empty: the year before it is filtered out, as in Excel.
+  adjusted for inflation). The 2019 column is empty: the filter leaves out the year before it, as in
+  Excel.
 - Try this: open the filter of "Year" and add 2018. Now 2019 has a value and 2018 is the empty column.
 - Note: each year's sum covers the countries that have a value for that year. A country whose GDP
-  is missing in one of two years counts in one sum only, which moves the change a little.
+  is missing in one of two years counts in one sum only. This moves the change a little.
 
 **How has population grown per income group? (chart)** Years on rows, income groups as stacked bars.
 
@@ -180,7 +183,7 @@ https://api.worldbank.org/v2/country?format=json&per_page=400
 https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&date=2024&per_page=20000
 ```
 
-- Key: none. No rate limit is documented; send one request per indicator, not one per country.
+- Key: none. No rate limit is documented. Send one request per indicator, not one per country.
 - Licence: CC BY 4.0. Name "World Bank, World Development Indicators" with the data.
 - The other two indicators: `NY.GDP.MKTP.CD` (GDP, current US$) and `EN.GHG.CO2.MT.CE.AR5` (CO2).
 
@@ -208,10 +211,13 @@ https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&date=
 
 ## Earthquakes
 
-Every earthquake of magnitude 4.5 or more in 2025, from the USGS catalogue. "Time" is in UTC.
-"Region" is the end of the place name ("92 km S of Lakatoro, Vanuatu" is "Vanuatu"; a place at sea
-such as "southern Mid-Atlantic Ridge" is its own region). "Tsunami flag" is set by USGS for large
-events in oceanic regions; it does not say that a tsunami happened.
+Every earthquake of magnitude 4.5 or more in 2025, from the USGS catalogue.
+
+- "Time" is in UTC.
+- "Region" is the end of the place name: "92 km S of Lakatoro, Vanuatu" is "Vanuatu". A place at
+  sea such as "southern Mid-Atlantic Ridge" is its own region.
+- USGS sets "Tsunami flag" for large events in oceanic regions. It does not say that a tsunami
+  happened.
 
 ![The earthquake data: the strongest quakes by region and tsunami flag, with the drill-down panel listing the four quakes of Russia](assets/screenshots/learn-earthquakes-light.png#only-light)
 ![The earthquake data: the strongest quakes by region and tsunami flag, with the drill-down panel listing the four quakes of Russia](assets/screenshots/learn-earthquakes-dark.png#only-dark)
@@ -223,13 +229,14 @@ and the count again as **% of grand total**.
 - Try this: open the menu of "Magnitude (by 0.5)" and set **Range size** to 1. The ranges keep their
   start: 4.5 – 5.5, 5.5 – 6.5 and so on. Set **Starting at** to 4 for 4 – 5, 5 – 6: 4 – 5 holds the
   same 6,430 quakes, as none is below 4.5.
-- Try this: switch to **Chart**. A bar per range; the tall first bar is the 4.5 to 5 range.
+- Try this: switch to **Chart**. You see a bar per range. The tall first bar is the 4.5 to 5
+  range.
 
 **Which regions shook most often? (top 10)** The count of quakes per region, the largest
 magnitude next to it, top 10.
 
 - Read it: Russia leads with 1,870 quakes, most of them aftershocks of the magnitude 8.8 quake off
-  Kamchatka on 29 July; Indonesia (692) and Japan (539) follow.
+  Kamchatka on 29 July. Indonesia (692) and Japan (539) follow.
 - Try this: remove "Region" from Rows and add "Depth km" instead, then open its chip menu and group
   it in ranges of 100. Most quakes (7,430 of 8,559) are shallower than 100 km.
 
@@ -238,7 +245,7 @@ flag on columns, filtered to magnitude ranges 7 and 8.
 
 - Read it: 16 quakes of 7 and more; Russia has four.
 - Try this: click Russia's **4**. A panel lists the four quakes with time, magnitude, depth and
-  place; the 8.8 is one of them. Press Escape to close it.
+  place. The 8.8 is one of them. Press Escape to close it.
 
 **Did some months shake more than others? (chart)** Quakes per month as bars.
 
@@ -252,9 +259,9 @@ flag on columns, filtered to magnitude ranges 7 and 8.
 https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2025-07-28&endtime=2025-08-04&minmagnitude=6&eventtype=earthquake&orderby=time-asc
 ```
 
-- Key: none. At most 20,000 events per request; for live dashboards USGS asks to use its
+- Key: none. At most 20,000 events per request. For live dashboards, USGS asks you to use its
   [real-time feeds](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php).
-- Licence: public domain; credit "U.S. Geological Survey" is asked for.
+- Licence: public domain. USGS asks for the credit "U.S. Geological Survey".
 
 === "JavaScript (browser or Node)"
 
@@ -279,9 +286,11 @@ https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2025-0
 ## Nobel laureates
 
 Every Nobel Prize and every Prize in Economic Sciences from 1901 to 2026, one row per prize of a
-laureate (persons and organizations; a few won twice). "Country" is where a person was born or an
-organization founded, in today's borders as the source names them. "Share" is the laureate's portion
-of the prize.
+laureate. Laureates are persons and organizations, and a few won twice.
+
+- "Country" is where a person was born or an organization founded, in today's borders as the
+  source names them.
+- "Share" is the laureate's portion of the prize.
 
 ![The Nobel laureates data: laureates per category and decade as a table](assets/screenshots/learn-nobel-light.png#only-light)
 ![The Nobel laureates data: laureates per category and decade as a table](assets/screenshots/learn-nobel-dark.png#only-dark)
@@ -289,7 +298,7 @@ of the prize.
 **How many laureates per category and decade?** Categories on rows, "Year" grouped in ranges of
 10 on columns, the count of laureates.
 
-- Read it: Physiology or Medicine has the most laureates (235), then Physics (231); Economic
+- Read it: Physiology or Medicine has the most laureates (235), then Physics (231). Economic
   Sciences starts in 1969, so its first decade has 2.
 - Try this: add "Share" to Values. Its sum is the number of prizes: a prize shared by three counts
   three laureates but one prize.
@@ -310,9 +319,9 @@ as **% of row total**, filtered to persons.
 **Which countries have the most laureates? (top 10)** Countries on rows, the count and the average
 age at the award, top 10.
 
-- Read it: USA 309, United Kingdom 97, Germany 86; the laureates of these ten countries were 61 years old on average when they won.
+- Read it: USA 309, United Kingdom 97, Germany 86. The laureates of these ten countries were 61 years old on average when they won.
 - Try this: change the language in the header to **Deutsch**. Labels, numbers and the totals row
-  ("Gesamtergebnis") follow; the data's own names stay as they are.
+  ("Gesamtergebnis") follow. The data's own names stay as they are.
 
 ### Query it live
 
@@ -320,9 +329,11 @@ age at the award, top 10.
 https://api.nobelprize.org/2.1/laureates?offset=0&limit=5&sort=asc
 ```
 
-- Key: none. No rate limit is documented; the terms ask to keep the load low and cache the data.
-- Licence: CC0. The terms ask not to alter the data in a misleading way and not to use Nobel Prize
-  Outreach's name or logo as an endorsement; naming the source is encouraged.
+- Key: none. No rate limit is documented. The terms ask you to keep the load low and cache the
+  data.
+- Licence: CC0. The terms ask you not to alter the data in a misleading way. They also ask you not
+  to use Nobel Prize Outreach's name or logo as an endorsement. They encourage you to name the
+  source.
 
 === "JavaScript (browser or Node)"
 
@@ -348,17 +359,21 @@ https://api.nobelprize.org/2.1/laureates?offset=0&limit=5&sort=asc
 
 Every release cycle of every product on [endoflife.date](https://endoflife.date/): operating systems,
 languages, databases, frameworks, server and desktop apps, cloud services and devices. A row is one
-release cycle ("Python 3.12", "Ubuntu 24.04"). "EOL" and "Maintained" are Yes or No as endoflife.date
-saw them on 2026-11-07; "Maintained" stays Yes while any support is left, extended support
-included. "Days to EOL" counts from that day (negative: the end lies behind), "Support years" from the
-release to the end of life. 1,288 cycles have no known end of life: their "EOL date", "Support years"
-and "Days to EOL" are blank, and 551 of them are EOL all the same, the date was just never recorded.
+release cycle, such as "Python 3.12" or "Ubuntu 24.04".
+
+- "EOL" and "Maintained" are Yes or No as endoflife.date saw them on 2026-11-07.
+- "Maintained" stays Yes while any support is left, extended support included.
+- "Days to EOL" counts from that day. A negative number means the end lies behind.
+- "Support years" counts from the release to the end of life.
+
+1,288 cycles have no known end of life: their "EOL date", "Support years" and "Days to EOL" are
+blank, and 551 of them are EOL all the same, the date was just never recorded.
 
 ![The end-of-life data: what reaches end of life in the next 12 months per category and product, with the drill-down panel listing the cycles of one product](assets/screenshots/learn-endoflife-light.png#only-light)
 ![The end-of-life data: what reaches end of life in the next 12 months per category and product, with the drill-down panel listing the cycles of one product](assets/screenshots/learn-endoflife-dark.png#only-dark)
 
-**How many release cycles reach end of life per year? (chart)** "EOL date" grouped by year (the
-derived field "EOL date by year"), counted, filtered to 2016 to 2030, as bars.
+**How many release cycles reach end of life per year? (chart)** "EOL date" grouped by year in the
+derived field "EOL date by year", counted, filtered to 2016 to 2030, as bars.
 
 - Read it: 2026 has the most, 1,047 release cycles; 2025 follows with 1,008. The later years are
   not complete: 737 supported cycles have no end date yet.
@@ -366,16 +381,16 @@ derived field "EOL date by year"), counted, filtered to 2016 to 2030, as bars.
   487 of 2026's cycles.
 
 **Which products have the most supported release cycles right now? (top 10)** Products on rows,
-filtered to "Maintained" Yes and to the top 10 by count; the oldest release date still supported next
-to it.
+filtered to "Maintained" Yes and to the top 10 by count. The oldest release date still supported
+stands next to the count.
 
 - Read it: devices and services lead: Samsung Mobile 127, Motorola Mobility 103, OpenAI API Models
   63. A phone model is a release cycle here.
 - Try this: open the menu of "Product", set **Count** under Top to 20 and press **Apply**.
 
 **How long is a release supported, by category? (ranges of 2 years)** Categories on rows, "Support
-years" in ranges of 2 on columns, counted as **% of row total**; cycles without a known end are
-filtered out (the "(blank)" item of the range).
+years" in ranges of 2 on columns, counted as **% of row total**. A filter leaves out the cycles
+without a known end: the "(blank)" item of the range.
 
 - Read it: 61.0 % of all release cycles with a known end are supported for less than 2 years; of the
   devices only 5.1 %.
@@ -406,13 +421,13 @@ https://endoflife.date/api/v1/products/python
 https://endoflife.date/api/v1/products/full
 ```
 
-- Key: none. No rate limit is documented; the API answers `429 Too Many Requests` with a
-  `Retry-After` header when a client asks too often, and supports `304 Not Modified` for caching
-  ([API documentation](https://endoflife.date/docs/api/v1/)). The API is marked beta.
-- `products/full` returns every product with every release cycle in one response (about 3 MB),
-  `products/{product}` one product.
+- Key: none. No rate limit is documented. When a client asks too often, the API answers
+  `429 Too Many Requests` with a `Retry-After` header. It supports `304 Not Modified` for caching.
+  See the [API documentation](https://endoflife.date/docs/api/v1/). The API is marked beta.
+- `products/full` returns every product with every release cycle in one response (about 3 MB).
+  `products/{product}` returns one product.
 - Licence: MIT. Keep the copyright notice "Copyright 2020 endoflife.date contributors" and the
-  licence text with copies of the data; the playground shows the notice and links the licence.
+  licence text with copies of the data. The playground shows the notice and links the licence.
 
 === "JavaScript (browser or Node)"
 
@@ -431,7 +446,8 @@ https://endoflife.date/api/v1/products/full
     $eol.result.releases | Select-Object name, releaseDate, eolFrom, isEol, isLts
     ```
 
-    `eolFrom` is a date or empty (not known), `isEol` always `True` or `False`; the dates stay text.
+    `eolFrom` is a date, or empty when it is not known. `isEol` is always `True` or `False`. The
+    dates stay text.
 
 ```js
 --8<-- "sources.js:endoflife"

@@ -8,9 +8,9 @@ name: Container image
 # it as <version> and <major>.<minor> with a provenance and an SBOM attestation, and signs it with
 # cosign (keyless, the workflow's OIDC identity), but only after the maintainer has
 #   1. checked, after the first publishing run created ghcr.io/eizedev/pivotkit, that the package is
-#      public and this repository has write access to it (CONTRIBUTING.md),
+#      public and this repository has write access to it (RELEASING.md),
 #   2. set the repository variable IMAGE_RELEASE_ENABLED to "true".
-# See CONTRIBUTING.md, "Releasing".
+# See RELEASING.md.
 on:
   # every base branch: a pull request stacked on another one is tested too
   pull_request:

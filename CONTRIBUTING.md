@@ -1,288 +1,125 @@
 # Contributing
 
-Thanks for helping. Bug reports and ideas go into [issues](https://github.com/eizedev/pivotkit/issues),
-questions into [discussions](https://github.com/eizedev/pivotkit/discussions),
-security reports privately (see [SECURITY.md](SECURITY.md)).
+Thanks for helping.
 
-## Changes
+- Bug reports and ideas go into [issues](https://github.com/eizedev/pivotkit/issues).
+- Questions go into [discussions](https://github.com/eizedev/pivotkit/discussions).
+- Security reports go privately, see [SECURITY.md](SECURITY.md).
+- Everyone follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-1. Fork, create a branch named after the change (`feat/...`, `fix/...`, `docs/...`).
-2. Follow [AGENTS.md](AGENTS.md): layout, commands and the rules that keep the packages safe and small.
-3. Run `npm ci`, `npm run lint`, `npm run types` and `npm test`; for engine changes also
-   `npm run bench -w pivotkit-core` and compare with the baseline on the documentation site
-   ([pivotkit-core reference, Performance](https://pivotkit.eize.dev/reference/core/#performance),
-   `docs/reference/core.md`); for UI
-   changes `npm run test:browser` (Playwright's browsers: `npx playwright install` once) and a look
-   at the playground (`npm run playground`) in light and dark, wide and narrow; for the web component
-   also `npm run size -w pivotkit-element` and the example (`examples/element/`, served after
-   `npm run build:playground` with `node examples/playground/serve.js` at `/examples/element/`) and the
-   Angular example (`examples/angular/`, see AGENTS.md);
-   for a reader (`pivotkit-core/import`, pivotkit-xlsx) tests on real files of its format (see
-   `packages/pivotkit-core/test/import-fixtures/SOURCES.md`), and for pivotkit-xlsx also
-   `npm run size -w pivotkit-xlsx` and `npm run bench -w pivotkit-xlsx`.
-   The type declarations in `packages/pivotkit-core/types/` are generated, not committed: run
-   `npm run types` before a TypeScript consumer in this repository (a later package) imports the core.
-4. Describe what people see on the [documentation site](https://pivotkit.eize.dev/) too: its pages are
-   in `docs/`, a new page also in a section of `[project.plugins.llmstxt.sections]` in `zensical.toml`
-   (`tests/llms-sections.test.js` checks it). Preview them with `npm run docs:demo` (the live demo, the
-   view file schema, the social preview and `robots.txt`), then
-   `curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css`
-   and `uvx zensical@<version> serve` (the version is in eizedev/brand's
-   `docs-site/requirements.txt`); `zensical build --strict` is what CI runs. A change of the UI takes
-   the screenshots again: `npm run docs:screenshots`. A feature also updates the overview pages and
-   the quick starts (the README's top, the start page, the feature list, the comparison, the npm
-   READMEs, the getting-started pages), and a larger one is reviewed by a user, an operator and a
-   developer who run it from the packed packages (AGENTS.md, "Rules that matter here").
-5. Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
-6. Open a pull request with a short description and what you tested; use Conventional Commits
-   (`feat(core): ...`, `fix(react): ...`, `feat(element): ...`).
+## Before you start
+
+- Read [PRODUCT.md](PRODUCT.md). It says what pivotkit is and what a pull request delivers.
+- A new feature answers PRODUCT.md's five questions in its issue.
+- [AGENTS.md](AGENTS.md) holds the layout, the commands and the code rules.
+  Packages have their own `AGENTS.md` with details. AI assistants read them on their own.
+
+## Set up
+
+You need Node.js 22 or later.
+
+```bash
+npm ci
+npx playwright install   # once, for the browser tests
+```
+
+## Make a change
+
+1. Fork the repository.
+2. Create a branch named after the change: `feat/...`, `fix/...` or `docs/...`.
+3. Write the test first for a fix. Watch it fail, then fix the code.
+4. Run the checks below.
+5. Update the docs and the changelog.
+6. Open a pull request.
+
+## Check your change
+
+Every change:
+
+```bash
+npm run lint
+npm run types
+npm test
+```
+
+Then, depending on what you changed:
+
+| You changed | Also run |
+| --- | --- |
+| the engine | `npm run bench -w pivotkit-core`, compare with the baseline in `docs/reference/core.md` |
+| the UI | `npm run test:browser`, and look at `npm run playground` in light and dark, wide and narrow |
+| the web component | `npm run size -w pivotkit-element` and the examples in `examples/` |
+| a reader | tests on real files, see `packages/pivotkit-core/test/import-fixtures/SOURCES.md` |
+| pivotkit-xlsx | `npm run size -w pivotkit-xlsx` and `npm run bench -w pivotkit-xlsx` |
+| the HTML report's look | `npx playwright test tests/browser/report-` |
+
+The package's `AGENTS.md` lists its commands and what its tests cover.
+
+## Tests
+
+- A fix comes with a test that fails without it.
+- Never weaken or delete a test to get green.
+- If a test fails, the code or the test is wrong. Say which in the pull request.
+- Files on disk go into a directory from `tempDir()` ([tests/AGENTS.md](tests/AGENTS.md)).
+- UI logic lives in plain `.js` modules, tested with `node --test`.
+- What needs a browser is a Playwright test in `tests/browser/`.
+  It fails on any console error or warning.
+
+## Docs
+
+Describe what people see on the [documentation site](https://pivotkit.eize.dev/). Its pages are in `docs/`.
+
+- A new page goes into one section of `[project.plugins.llmstxt.sections]` in `zensical.toml`.
+- A UI change takes the screenshots again with `npm run docs:screenshots`.
+- A feature also updates the overview pages. [AGENTS.md](AGENTS.md#docs-and-changelogs) lists them.
+
+Preview the site:
+
+```bash
+npm run docs:demo
+curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css
+uvx zensical@<version> serve
+```
+
+- Take `<version>` from eizedev/brand's `docs-site/requirements.txt`.
+- CI runs `zensical build --strict`.
+
+## Changelog and commits
+
+- Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
+- Use Conventional Commits with the package as scope: `feat(core): ...`, `fix(react): ...`.
+
+## Pull request
+
+- Link the issue. Write `Fixes #n` in the description, not in commit messages.
+- Say what you tested.
+- A larger feature is reviewed by a user, an operator and a developer, from the packed packages.
+- An independent review before you open the pull request is strongly recommended.
+  [PRODUCT.md](PRODUCT.md#what-a-contribution-delivers) says why.
 
 ## Dependencies
 
-The root override pins ESLint's development-only `minimatch` to 11.0.1 to avoid the
-globparts-amplification advisory (#76). Remove it when ESLint and its config-array
-dependency require a patched version themselves; lint must still pass unchanged.
+- Check the licence of every library you add. It must be permissive and free for companies.
+- Pin every third-party package to an exact version.
+- A package of this repository takes a caret range on another one: `^<its version>`.
+- A devDependency on one takes its exact version. `tests/ci.test.js` checks both.
+- In 0.x a caret range spans patch versions only. `^0.y.z` matches later 0.y patches.
+- A host that uses pivotkit-core directly must stay inside that range.
+- `pivotkit-core` has no runtime dependency except `fflate`. Keep it that way.
 
-Every package of a third party is pinned to an exact version with the lock file; a package of this
-repository that another one depends on takes a caret range on its current version (`pivotkit-react`
-depends on `^<version of pivotkit-core>`, exactly that) and a devDependency on one its exact version;
-`tests/ci.test.js` checks both. In 0.x a caret range
-spans patch versions only (`^0.y.z` matches 0.y.z and later 0.y patches, `^0.0.1` matches 0.0.1 alone), so a host that
-also uses pivotkit-core directly must use a version inside that range; npm shares one copy only
-when the ranges overlap.
-`pivotkit-element` bundles everything it needs: each bundled package (React, ReactDOM, @dnd-kit,
-ECharts, and pivotkit-core and pivotkit-react at the version in this repository) is an exact
-devDependency, and the package has no runtime dependency. A change of a bundled version changes what
-the element ships; its license lands in `dist/THIRD_PARTY_LICENSES.txt` by itself.
-React 19 for the browser tests is a separate install with its own lock file in `tests/react19/` (an
-alias in the workspace would clash with React 18's peer dependencies). Its pinned React 19 types
-are checked against the generated declarations with `npm run types --prefix tests/react19`
-(after `npm run types` at the root), also in each React 19 browser CI job. Check the license of every library
-you add: permissive (MIT, Apache-2.0, BSD) and free for companies. `pivotkit-core` has no runtime
-dependency except `fflate` for the XLSX zip; keep it that way.
-`pivotkit-xlsx` depends on pivotkit-core (a caret range, as above), fflate and read-excel-file (exact
-versions); its `dist/` bundles them for pages without a bundler, with their licenses (and saxen's, of
-which read-excel-file carries a copy) in `dist/THIRD_PARTY_LICENSES.txt`, written by `build.js`
-through `scripts/third-party-licenses.js`.
+### Bundles and overrides
 
-## Package commands
+- `pivotkit-element` and `pivotkit-xlsx` bundle their dependencies.
+  Their licences land in `dist/THIRD_PARTY_LICENSES.txt` by themselves.
+- React 19 for the browser tests has its own install and lock file in `tests/react19/`.
+- The root override pins ESLint's `minimatch` to 11.0.1 for an advisory (#76).
+  Remove it once ESLint requires a patched version itself.
 
-The commands for the whole repository (lint, types, tests, coverage, benchmark, bundle size,
-playground, browser tests, React 19) are in [AGENTS.md](AGENTS.md#commands). Per package:
+## Adding to the engine
 
-```bash
-npm test -w pivotkit-core              # node --test
-npm run coverage -w pivotkit-core      # the same with a coverage report
-npm run types -w pivotkit-core         # type check and generated .d.ts in types/
-
-npm run build -w pivotkit-react        # dist/index.js and dist/styles.css (esbuild)
-npm test -w pivotkit-react             # build, then node --test: view changes, history, keyboard moves, labels, chart text, files, server render, contrast
-
-npm run build -w pivotkit-element      # pivotkit-react's dist, then dist/ of this package (esbuild)
-npm test -w pivotkit-element           # build, then node --test: attributes, events, stylesheet, bundle, Node import
-npm run types -w pivotkit-element      # tsc: types/ from the JSDoc, plus src/global.d.ts and src/jsx.d.ts
-
-npm test -w pivotkit-xlsx              # node --test on generated workbooks (test/make-xlsx.js): types, sheets, used range, refusals
-npm run build -w pivotkit-xlsx         # dist/: the plugin for pages without a bundler, THIRD_PARTY_LICENSES.txt
-npm run size -w pivotkit-xlsx          # build, gzip size of the plugin and its reader, fails above SIZE_BUDGET_KIB
-npm run bench -w pivotkit-xlsx         # read time and memory of a 94,000-row workbook (-- --browser: Chromium too)
-npm run bench:browser                  # the report in three browsers, 100,000 to 1,000,000 rows (docs/concepts/limits.md)
-```
-
-`npm run coverage -w pivotkit-react` covers its `.js` modules; the `.jsx` components are covered by
-the browser tests, without a number.
-
-pivotkit-react's build compiles JSX to `React.createElement`, so the host needs `react` and
-`react-dom` only (no JSX runtime), and keeps every dependency as an import for the host's bundler.
-
-pivotkit-element's `build.js` bundles pivotkit-react as it ships (its `dist/`), with
-`process.env.NODE_ENV` set to `production` and the package's version as
-`PivotReportElement.version`, and writes `dist/THIRD_PARTY_LICENSES.txt` with the license texts of
-every bundled package, once per name and version (React, ReactDOM, scheduler and @dnd-kit: MIT;
-ECharts: Apache-2.0 with its NOTICE; zrender: BSD-3-Clause; tslib: 0BSD; fflate: MIT). The browser
-test pages of the element are in `tests/browser/pages/element/`.
-
-## Adding a view feature
-
-The vocabulary of a view lives in tables, so a new name is one entry plus its tests:
-
-| Feature | Table | Also |
-| --- | --- | --- |
-| Aggregator | `AGGREGATORS` in `src/aggregators.js` (kernel, result type, `numeric`, `dates`, `additive`, `keepsValues` when it stores a value per row, which counts heavier against `limits.work`) | its label in `DEFAULT_LABELS.aggregators` (`src/labels.js`) |
-| Date grouping or bin unit | `DERIVED` in `src/derive.js` (source type, result type, value, label) | |
-| Filter type | `FILTERS` in `src/filters.js` (stage, `normalize`, `allowed` or `keep`) | |
-| "Show values as" | `SHOW_AS` in `src/show-as.js` (default format, `alongAxis`, `additive`, `compute`) | |
-| Format | `FORMAT_NAMES` and `formatterFor` in `src/format.js` | its Excel code in `excelNumberFormat`, or the gap in `docs/concepts/values.md` (Export) |
-| A new view key | a section function in `src/view.js`, added to `SECTIONS`, and the key in `emptyView()` | if old views must change: raise `VIEW_VERSION` and add the step to `MIGRATIONS` |
-
-`CATALOG` (`src/catalog.js`) reads these tables, so a UI offers the new name without further changes.
-Then: tests (below), the view on the documentation site (`docs/concepts/views.md` and the concept
-page of the key), the API in `docs/reference/core.md`, and the changelog. A new public function is
-exported from `src/index.js` (or `src/export.js`) and listed in `test/api.test.js` and
-`docs/reference/core.md`; anything else stays internal. The package READMEs are short npm landing
-pages: they link to the site and repeat none of it.
-
-## Adding a test
-
-- Tests live in `packages/pivotkit-core/test/*.test.js` and run with `node --test`; shared rows are in
-  `test/fixtures.js`. Test through the public API (`../src/index.js`, `../src/export.js`); import an
-  internal module only for a helper the public API cannot reach precisely.
-- A fix comes with a test that fails without it. Write the test first, watch it fail, then fix.
-- Never weaken or delete a test to get green: a failing test means the code or the test is wrong, and
-  the pull request says which.
-- Behaviour that depends on the machine (time zone, locale) is tested in child processes with `TZ` and
-  `LANG` set, as in `test/time-zones.test.js`.
-- A test that needs files on disk makes its directory with `tempDir()` (`tests/temp-dir.js`, or the
-  `tempDir` of the package's `test/helpers.js`); it is removed when the test file ends, and a test
-  run that leaves one behind fails.
-- A type change: `test/types/consumer.ts` compiles against the generated declarations
-  (`npm run types`).
-- UI logic of `pivotkit-react` (view changes, the history, keyboard moves, names, the chart's text)
-  lives in plain `.js` modules and is tested with `node --test` in `packages/pivotkit-react/test/`;
-  `npm run coverage` measures those modules only. What needs a browser (drag and drop, menus, focus,
-  downloads, themes, layouts) is a Playwright test in `tests/browser/` against the playground and the
-  pages of `tests/browser/pages/` (a host page with React from an import map, a shadow root, the web
-  component's pages in `pages/element/`); it fails on any console error or warning. A test that measures layout waits until it has settled.
-  The HTML report's colours in both system themes, on screen and in print, and its contrast are
-  measured there too, and Chromium prints it to a PDF that the test reads; a change to the report's
-  stylesheet or tokens runs `npx playwright test tests/browser/report-` before the pull request.
+A new aggregator, filter type or view key is one table entry plus its tests.
+See [Adding a view feature](packages/pivotkit-core/AGENTS.md#adding-a-view-feature).
 
 ## Releasing
 
-The release workflow (`.github/workflows/release.yml`) stages every package on npm, and a maintainer
-approves the staged version on npm with two-factor authentication before it is published. It was set up once
-with the steps below, and a new package needs steps 2 and 3 again: a trusted publisher is configured
-in a package's settings on npm, so each package is published once by hand before the workflow takes
-over. A package that is not on npm yet (`npm view <package>` answers E404) needs steps 2 and 3 at
-its first release.
-
-1. Make the repository public: npm generates no provenance for private repositories (npm's
-   documentation, "Generating provenance statements").
-2. Publish the first version of each package by hand, in the publish order below (`pivotkit-core`,
-   `pivotkit-xlsx`, `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`,
-   `pivotkit-server`, `pivotkit-mcp`), from
-   tarballs built from `main` (`npm ci --ignore-scripts`, `npm run build`, `npm pack -w <package>`),
-   with an npm account that has two-factor authentication: `npm publish <tarball> --access public`.
-   Provenance is not in `publishConfig`: the workflow asks for it with `--provenance`, which needs
-   the CI's OIDC token.
-3. Configure trusted publishing for each package on npm (`pivotkit-core`, `pivotkit-xlsx`,
-   `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`, `pivotkit-server`, `pivotkit-mcp`): owner `eizedev`,
-   repository `pivotkit`, workflow file `release.yml`, environment `npm`, with "Allow npm publish"
-   unchecked and no dist-tag action allowed: the publisher may only stage (`npm stage publish` is
-   always allowed), so a misused workflow run cannot publish a version by itself (npm's
-   documentation, "Trusted publishers" and "Staged publishing"). "Allow npm publish" is a checkbox
-   on the connection and can be changed later by editing it in the package's settings.
-   No npm token is stored in GitHub. A new trusted
-   publisher expires unless it publishes successfully within two days (npm's documentation,
-   "Trusted publishers"); the documentation does not say whether staging counts, so create it when
-   the next release is ready, then tag and approve that release within the two days. Then set the
-   package's publishing access to "Require two-factor authentication and disallow tokens". The split of the workflow into
-   a "build" and a "publish" job keeps the OIDC token away from the dependencies; it does not prove
-   the tarball: "build" runs the dev dependencies that make `dist/`, and provenance attests the
-   workflow and the commit, not that `dist/` is unaltered. "publish" checks only that the tarball's
-   name and version match the tag.
-4. In the repository settings, create the environment `npm` with required reviewers and deployments
-   from tags only (deployment branch and tag rule `*@*`).
-5. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.
-6. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
-
-The eight packages' trusted publishers were created when the workflow ran `npm publish`, so they
-allow it. Switch each of them to staging once, after the workflow that runs `npm stage publish` is
-on main (#87): edit the trusted publisher of `pivotkit-core`, `pivotkit-xlsx`, `pivotkit-report`,
-`pivotkit-react`, `pivotkit-element`, `pivotkit-cli`, `pivotkit-server` and `pivotkit-mcp`, uncheck
-"Allow npm publish" and save. Unchecked before that workflow is on main, the release's `npm publish`
-fails; left checked, a misused workflow run can still publish directly instead of staging.
-
-The publish order follows the run-time dependencies in each `package.json`: `pivotkit-core` (no own
-dependency), `pivotkit-xlsx` (core), `pivotkit-report` (core), `pivotkit-react` (core, report),
-`pivotkit-element` (bundles core, react and report: devDependencies only, no registry dependency),
-`pivotkit-cli` (core, report, xlsx), `pivotkit-server` (core, report, cli, xlsx; it imports
-`pivotkit-report/operations` and `pivotkit-cli/files`, so both are released before it when they
-changed), `pivotkit-mcp` (report, server: released after pivotkit-server whenever that changed).
-pivotkit-server loads pivotkit-mcp by name when it is installed beside it and does not depend on it,
-so there is no cycle. A package that depends on pivotkit-core takes `^<its version>`,
-which in 0.x admits that minor only: when core's minor moves (0.6 to 0.7), pivotkit-xlsx,
-pivotkit-report, pivotkit-react, pivotkit-cli, pivotkit-server and pivotkit-mcp are released too, even without a change of their
-own, or their published ranges keep the old core and a host gets two copies (`tests/ci.test.js`
-requires every range to be the version in this repository).
-
-For each release:
-
-0. A docs walkthrough first: `npm pack` every package, install the tarballs in fresh projects and
-   follow each getting-started page and the CLI's Try it exactly as written; fix what does not run.
-1. One pull request prepares it: move the `[Unreleased]` entries in `packages/<package>/CHANGELOG.md`
-   under the new version and date; set `version` in `packages/<package>/package.json`, and in the
-   same pull request the caret range or the devDependency of every package that uses it
-   (`tests/ci.test.js` fails on a range or devDependency that is not exactly the version in this
-   repository, #206; `examples/reader-plugin/package.json` too, which takes pivotkit-core from npm);
-   update the statements that name the current version, which `tests/ci.test.js`
-   checks against it: the pivotkit row of `docs/compare.md` (version and date), the example's
-   `generator` in `docs/reference/view-file.md`, the pivotkit-core minor that pivotkit-xlsx needs
-   in the official plugins table of `docs/reference/plugins.md`, and the image tag of
-   `docs/getting-started/server-in-5-minutes.md` (pivotkit-server's version in full, at every image
-   tag, release tag `pivotkit-server@<version>` and `PIVOTKIT_VERSION`), and the example version
-   ("e.g. <version>") of `docker/compose*.example.yml` and `docker/kubernetes.example.yaml`. Docs and READMEs name no other
-   version of their own. Two files carry a package's version and are checked by its tests:
-   `docs/openapi.json` (pivotkit-server's, made again with `node scripts/openapi.js`) and
-   `packages/pivotkit-mcp/.claude-plugin/plugin.json` (pivotkit-mcp's).
-   Merge that pull request.
-2. Wait for CI on main, then tag the merge commit `<package>@<version>` and push the tags one at a
-   time in the publish order, each after the previous one is approved and published: the `build` job runs
-   `scripts/check-release.js --published`, which fails when a package of this repository the tagged
-   one depends on has entries under `[Unreleased]` (it was tested against code npm does not have) or
-   is not on npm at the version in this commit. After a failure for that reason, publish the
-   dependency and re-run the job.
-3. The workflow's `build` job checks that the tag matches the version, that the commit is on main
-   and that CI passed for it, runs lint, types, tests and the package check, and packs the tarball;
-   it has no publishing right. The `publish` job waits for an environment reviewer, then stages
-   only that tarball with an npm provenance attestation (`npm stage publish`), with npm 11.21.1
-   (staged publishing needs 11.15.0 or later, trusted publishing Node 22.14.0 or later).
-   The step and the job summary say where to approve.
-   An environment reviewer approves the workflow as it is in the tagged commit, not the one on main:
-   check `.github/workflows/release.yml` at the tag before approving.
-4. Approve the staged version with two-factor authentication, after checking that the name, version
-   and publisher are the ones the workflow run staged: sign in on npmjs.com, open the Staged Packages
-   tab in the account settings and click Approve, or run `npm stage approve <stage-id>` (the job
-   summary shows the id when npm prints one; `npm stage list <package>` lists it). No token of the
-   workflow can approve or reject it. If nobody approves it, the version never goes live: the next
-   tag's `check-release.js --published` fails for it and the GitHub release waits. To drop a staged
-   version instead, click Reject or run `npm stage reject <stage-id>`.
-5. Once the version is approved and on npm, publish a GitHub release for each tag, with a short
-   text and a link to the package's CHANGELOG.
-   Publishing a release also publishes the documentation site (`.github/workflows/docs.yml`), not a
-   push to main, so the site describes what is on npm. Every release builds the newest release tag
-   on main, whichever release started the run, so the releases of several packages cannot leave an
-   older site behind. To publish it again by hand: Actions > Docs site > Run workflow with the input
-   `tag` (a release tag of any package that exists, or `main` for a preview of unreleased docs; the
-   next release replaces it).
-
-No check compares what a package imports from pivotkit-core with the exports of the lowest version
-its range admits: that needs the published tarball. The exact ranges and `check-release.js` cover it
-instead: a range is the version in this repository, and that version is released before the package
-that depends on it.
-
-### The container image
-
-`.github/workflows/image.yml` builds the image `ghcr.io/eizedev/pivotkit` on each tag
-`pivotkit-server@<version>` from that commit (pivotkit-server, pivotkit-mcp and pivotkit-cli of the
-same commit, from the lock file), for linux/amd64 and linux/arm64, pushes it as `<version>`,
-`<major>.<minor>` and `latest` (docker/metadata-action's default for a tag pattern), attaches a
-provenance and an SBOM attestation and signs it with cosign (keyless).
-Pull requests that touch it build and smoke-test it without pushing. It was set up once with:
-
-1. The package on GHCR: the first publishing run creates `ghcr.io/eizedev/pivotkit` with the
-   workflow's token (GitHub links a package published that way to the repository; check GitHub's
-   documentation, "Publishing and installing a package with GitHub Actions", for the current rule).
-   Then, in the package's settings, make it public and check that this repository has write access
-   under "Manage Actions access". If an older package of that name exists, link it to this
-   repository and give it that access first.
-2. The repository variable `IMAGE_RELEASE_ENABLED` set to `true`; until then the publishing job is
-   skipped and only the test job runs.
-
-Tag pivotkit-server after its npm release (the image's packages are the commit's, not npm's, but the
-docs name the image by pivotkit-server's version). A new base image: update the two digests in
-`docker/Dockerfile` (`docker buildx imagetools inspect <image>:<tag>` shows the index digest).
-
-`npm run pack:check` shows locally what would be published (LICENSE, README, CHANGELOG, `src/` or
-`dist/`, `types/`, and for pivotkit-element and pivotkit-xlsx `dist/THIRD_PARTY_LICENSES.txt`); it fails while a
-package is marked `"private": true`.
+Maintainers release. See [RELEASING.md](RELEASING.md).

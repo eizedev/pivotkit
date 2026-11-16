@@ -5,9 +5,9 @@ description: Click a value of a pivotkit report to see the source rows behind it
 
 # The rows behind a number
 
-Click a value in the table or a mark in the chart, and a panel shows the rows of the data behind it:
-which tickets make up "648", which sales add up to a region's revenue. From there you can copy the
-rows or download them.
+Click a value in the table or a mark in the chart. A panel shows the rows of the data behind it:
+which tickets make up "648", or which sales add up to a region's revenue. From there you can copy
+the rows or download them.
 
 ![The rows behind the value Service Desk, P3 Medium: 648 rows with all their fields](../assets/screenshots/drill-down-light.png#only-light)
 ![The rows behind the value Service Desk, P3 Medium: 648 rows with all their fields](../assets/screenshots/drill-down-dark.png#only-dark)
@@ -17,44 +17,48 @@ rows or download them.
 | To | Do |
 | --- | --- |
 | Open it | Click a value, or move to it with the arrow keys and press Enter or Space. In the chart, click a bar, a point or a heatmap cell. |
-| Give it the whole report | **Enlarge**. **Reduce** or Escape brings it back to its size; the focus stays on the button. |
-| Close it | Escape (a second Escape when it is enlarged), its close button, or a click beside it. The focus returns to the value. |
+| Give it the whole report | **Enlarge**. **Reduce** or Escape brings it back to its size. The focus stays on the button. |
+| Close it | Press Escape, use its close button, or click beside it. When the panel is enlarged, press Escape twice. The focus returns to the value. |
 
-- The rows are formatted as the table formats them: dates as dates, numbers in your language, yes/no
-  fields as "Yes" and "No".
-- The panel covers the report while it is open: the focus stays in it.
-- It lists up to 1,000 rows by default; with more behind the value its title line says "Showing the
-  first 1,000 of 4,210 rows". The application can raise the limit.
+- The panel formats the rows as the table formats them: dates as dates, numbers in your language,
+  yes/no fields as "Yes" and "No".
+- The panel covers the report while it is open, and the focus stays in it.
+- It lists up to 1,000 rows by default. With more rows behind the value, its title line says
+  "Showing the first 1,000 of 4,210 rows". The application can raise the limit.
 - A blank cell with no rows behind it opens nothing.
-- Each column is as wide as its content; a long text wraps inside its column, so the panel scrolls
+- Each column is as wide as its content. A long text wraps inside its column, so the panel scrolls
   sideways less.
-- On a narrow report the panel fills it already and has no Enlarge. Enlarge is not part of the saved
-  view.
+- On a narrow report the panel already fills the report and has no Enlarge. Enlarge is not part of
+  the saved view.
 
 ## Copy or download the rows
 
 ![The rows behind the grand total, enlarged, with the Export menu open: Copy, Copy as JSON, Download CSV, Download Excel, and the note that it holds the first 1,000 of 4,000 rows](../assets/screenshots/drill-export-light.png#only-light)
 ![The rows behind the grand total, enlarged, with the Export menu open: Copy, Copy as JSON, Download CSV, Download Excel, and the note that it holds the first 1,000 of 4,000 rows](../assets/screenshots/drill-export-dark.png#only-dark)
 
-The panel's **Export** menu, in two groups, **Copy** and **Download**:
+The panel has an **Export** menu with two groups, **Copy** and **Download**:
 
 | Entry | Gives |
 | --- | --- |
-| **Copy** | The rows as the panel shows them (dates and numbers in your language), tab-separated with a header row. Pasted into Excel, Numbers or Google Sheets they land in columns, and a spreadsheet in the same language reads the numbers and dates back as numbers and dates. An **i** says so. |
-| **Copy as JSON** | The rows as objects with the data's field names and raw values (numbers as numbers, dates as ISO dates, blank `null`), for a program. |
-| **Download CSV**, **Download Excel** | The rows with the headers the panel shows, each value formatted as in the panel (a field's format, numbers with up to 6 decimals, dates as their day). The Excel file keeps numbers and dates as numbers and freezes the header row. |
+| **Copy** | The rows as the panel shows them, with dates and numbers in your language. They are tab-separated, with a header row. When you paste them into Excel, Numbers or Google Sheets, they land in columns. A spreadsheet in the same language reads the numbers and dates back as numbers and dates. An **i** says so. |
+| **Copy as JSON** | The rows as objects for a program, with the data's field names and raw values: numbers as numbers, dates as ISO dates, a blank as `null`. |
+| **Download CSV**, **Download Excel** | The rows with the headers the panel shows. Each value has the format it has in the panel: a field's format, numbers with up to 6 decimals, dates as their day. The Excel file keeps numbers and dates as numbers and freezes the header row. |
 
-- Files and sheet are named after the cell: `Central – Jul 2026.csv`.
-- With more rows behind the value than the panel shows, every export holds the rows shown: the menu
-  says "Holds the first 1,000 of 4,212 rows, as shown here.", and the note after a copy "Copied 1,000
-  of 4,212 rows".
-- A copy says what it gave ("Copied 25 rows: …"); the notes show above the open panel.
-- Text a spreadsheet would run as a formula gets a leading `'`, as in every export
-  ([security](../security.md#exports)).
+- The file and its sheet take the cell's name: `Central – Jul 2026.csv`.
+- With more rows behind the value than the panel shows, every export holds the rows shown. The menu
+  says "Holds the first 1,000 of 4,212 rows, as shown here.", and the note after a copy says
+  "Copied 1,000 of 4,212 rows".
+- A copy says what it gave, such as "Copied 25 rows: …". The notes show above the open panel.
+- Text a spreadsheet would run as a formula gets a leading `'`, as in every export. See
+  [security](../security.md#exports).
 
 !!! note "For developers"
-    `drillDown` turns the panel off, `drillDownLimit` sets how many rows it gets, `onCellClick` gives
-    the host the clicked cell and its rows, and `fieldDefaults.drillFormat` a field's format in the
-    panel; every copy and file passes `onExport` first (`drill-copy`, `drill-json`, `drill-csv`,
-    `drill-xlsx`). `exportData={{ columns }}` keeps its copies and files to those columns. See the
-    [pivotkit-react reference](../reference/react.md#props).
+    - `drillDown` turns the panel off.
+    - `drillDownLimit` sets how many rows it gets.
+    - `onCellClick` gives the host the clicked cell and its rows.
+    - `fieldDefaults.drillFormat` sets a field's format in the panel.
+    - Every copy and file passes `onExport` first: `drill-copy`, `drill-json`, `drill-csv`,
+      `drill-xlsx`.
+    - `exportData={{ columns }}` keeps its copies and files to those columns.
+
+    See the [pivotkit-react reference](../reference/react.md#props).

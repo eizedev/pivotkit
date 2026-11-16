@@ -1,10 +1,9 @@
 # pivotkit-core
 
 The pivot engine of [pivotkit](https://pivotkit.eize.dev/), a pivot report builder for the web with
-Excel's PivotTable as the reference. Plain JavaScript without UI: it encodes your rows and computes
-pivot tables with subtotals and totals, "show values as", filters, date grouping and number ranges;
-it gives a grid with merged headers for any table renderer, chart options for Apache ECharts, and
-XLSX, CSV and JSON export. The whole report is a view, a small JSON object you can save and share.
+Excel's PivotTable as the reference. It turns your rows into pivot tables, and those into a grid,
+chart options or files. It is plain JavaScript without a UI. The whole report is a view, a small JSON
+object you can save and share.
 
 ![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](https://pivotkit.eize.dev/assets/screenshots/report-light.png)
 
@@ -19,12 +18,13 @@ contains modified Copernicus Climate Change Service information
 npm install pivotkit-core
 ```
 
-ES modules (no `require`) for Node 22 or later and browsers from Chrome 111, Firefox 113 and
-Safari 16.4. The only dependency is
-[fflate](https://github.com/101arrowz/fflate) (MIT), loaded only by the `pivotkit-core/export` and
-`pivotkit-core/link` entries. TypeScript declarations are included. `pivotkit-core/import` reads CSV
-and JSON files into a table; Excel workbooks with the plugin
-[pivotkit-xlsx](https://www.npmjs.com/package/pivotkit-xlsx).
+- ES modules only, no `require`.
+- Node 22 or later. Browsers from Chrome 111, Firefox 113 and Safari 16.4.
+- The only dependency is [fflate](https://github.com/101arrowz/fflate) (MIT). Only the
+  `pivotkit-core/export` and `pivotkit-core/link` entries load it.
+- The package includes TypeScript declarations.
+- `pivotkit-core/import` reads CSV and JSON files into a table. For Excel workbooks, add the plugin
+  [pivotkit-xlsx](https://www.npmjs.com/package/pivotkit-xlsx).
 
 ## Example
 
@@ -53,12 +53,20 @@ const csv = toCsv(grid);
 const option = toEChartsOption(result, { chart: { type: "bar", stacked: true } });
 ```
 
+## What it does
+
+- Encodes your rows and computes pivot tables with subtotals and totals.
+- Supports "show values as", filters, date grouping and number ranges.
+- Gives a grid with merged headers for any table renderer.
+- Gives chart options for Apache ECharts.
+- Exports XLSX, CSV and JSON.
+
 ## Where in the docs
 
 | Topic | Page |
 | --- | --- |
 | Getting started: rows to a table, drawing the grid, on a server | [Getting started with the engine](https://pivotkit.eize.dev/getting-started/engine/) |
-| Loading CSV, JSON and (with a plugin) Excel files; the data as a file again (`dataToCsv`) | [Loading files](https://pivotkit.eize.dev/reference/import/), [Plugins](https://pivotkit.eize.dev/reference/plugins/) |
+| Loading CSV and JSON files, Excel files with a plugin, writing the data as a file again (`dataToCsv`) | [Loading files](https://pivotkit.eize.dev/reference/import/), [Plugins](https://pivotkit.eize.dev/reference/plugins/) |
 | Every function, constant and type | [pivotkit-core reference](https://pivotkit.eize.dev/reference/core/): [data](https://pivotkit.eize.dev/reference/core/#data), [views](https://pivotkit.eize.dev/reference/core/#views), [pivot](https://pivotkit.eize.dev/reference/core/#pivot), [output and export](https://pivotkit.eize.dev/reference/core/#output), [helpers](https://pivotkit.eize.dev/reference/core/#helpers), [types](https://pivotkit.eize.dev/reference/core/#types) |
 | The view and every key | [Views and saved views](https://pivotkit.eize.dev/concepts/views/#a-complete-view) |
 | Aggregators, show as, formats | [Values](https://pivotkit.eize.dev/concepts/values/) |

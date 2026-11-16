@@ -1,13 +1,8 @@
 # pivotkit-react
 
 The pivot report builder of [pivotkit](https://pivotkit.eize.dev/) as a React 18/19 component,
-`<PivotReport>`: a searchable field list, four drop zones (Rows, Columns, Values, Filters) with drag
-and drop and a menu on every field, table and chart (Apache ECharts), filters with value counts,
-drill-down to the rows behind a value, undo and redo, saved and shared views as JSON files, and
-Excel, CSV, HTML report, PNG and SVG export and printing. Where the host turns them on, people load
-their own CSV, JSON or Excel file with a preview (`allowImport`) and download the rows behind the
-report for the command line (`exportData`). Excel's PivotTable is the reference; the engine is
-[pivotkit-core](https://www.npmjs.com/package/pivotkit-core).
+`<PivotReport>`. People build pivot tables and charts from your data by drag and drop. Excel's
+PivotTable is the reference. The engine is [pivotkit-core](https://www.npmjs.com/package/pivotkit-core).
 
 ![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](https://pivotkit.eize.dev/assets/screenshots/report-light.png)
 
@@ -26,10 +21,12 @@ npm install pivotkit-react react react-dom echarts
 | `react`, `react-dom` | `>=18.2 <20` | Hooks break with two copies of React in one page. Tested on React 18 and 19. |
 | `echarts` | `>=6.1.0 <7` | About 1 MB, and its security updates stay with your app. Loaded on the first chart only. |
 
-TypeScript declarations are included. pivotkit-core (a caret range) and @dnd-kit come with the
-package. In 0.x a caret range spans patch
-versions only (`^0.y.z` is 0.y.z and later 0.y patches): an app that also imports pivotkit-core itself must use a version
-inside that range, since npm shares one copy only when the ranges overlap.
+- The package includes TypeScript declarations.
+- pivotkit-core, pivotkit-report and @dnd-kit come with the package. It depends on pivotkit-core with
+  a caret range.
+- In 0.x a caret range spans patch versions only: `^0.y.z` means 0.y.z and later 0.y patches. If your
+  app also imports pivotkit-core itself, use a version inside that range. npm shares one copy only
+  when the ranges overlap.
 
 ## Example
 
@@ -47,9 +44,26 @@ export function TicketReport({ rows }) {
 }
 ```
 
-Without app state, `defaultView={start}` starts the report and it keeps the view itself. The view is
-plain JSON: the preset, the saved view and the undo step at once. It is user input, checked against
-the data; it cannot run code.
+Without app state, pass `defaultView={start}` instead, and the report keeps the view itself.
+
+The view is plain JSON. It is the preset, the saved view and the undo step at once. The report treats
+it as user input and checks it against the data. A view cannot run code.
+
+## What it does
+
+- A searchable field list.
+- Four drop zones: Rows, Columns, Values and Filters, with drag and drop and a menu on every field.
+- Table and chart. The chart uses Apache ECharts.
+- Filters with value counts.
+- Drill-down to the rows behind a value.
+- Undo and redo.
+- Saved and shared views as JSON files.
+- Export to Excel, CSV, HTML report, PNG and SVG, and printing.
+
+Two more features are off until the host turns them on:
+
+- `allowImport`: people load their own CSV, JSON or Excel file, with a preview.
+- `exportData`: people download the rows behind the report for the command line.
 
 ## Where in the docs
 

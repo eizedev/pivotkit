@@ -1,12 +1,7 @@
 # pivotkit-cli
 
-The [pivotkit](https://pivotkit.eize.dev/) command line, `pivotkit`: run a view over a CSV, JSON or
-Excel file and write an HTML report, CSV, JSON, XLSX or the chart as SVG; get a draft view from a
-file's fields, or render from layout flags without a view file; validate and describe views in CI
-with stable exit codes and `--json`; run the same commands on a pivotkit-server's sources with
-`--url` and `--source`. No browser, and no network for local files; with `--now` the output is the
-same on every run. Files are read and written only as regular files, and `--allow-dir` limits them to the
-directories you name.
+The [pivotkit](https://pivotkit.eize.dev/) command line, `pivotkit`. It runs a view over a CSV, JSON
+or Excel file and writes an HTML report, CSV, JSON, XLSX or the chart as SVG.
 
 ## Install
 
@@ -14,8 +9,8 @@ directories you name.
 npm install --global pivotkit-cli    # the command pivotkit
 ```
 
-Without installing, `npx pivotkit-cli <command>` runs it once; it does not put `pivotkit` on the
-`PATH`, so every line starts with `npx pivotkit-cli`.
+To run it once without installing, use `npx pivotkit-cli <command>`. That does not put `pivotkit` on
+the `PATH`, so every line starts with `npx pivotkit-cli`.
 
 Node 22 or later. It brings pivotkit-core, pivotkit-report, pivotkit-xlsx and ECharts 6.1.0.
 
@@ -30,8 +25,23 @@ pivotkit describe sales.csv --suggest -o draft.pivotkit.json      # a draft view
 pivotkit render sales.csv --rows Region --cols Channel --values sum:Revenue -o by-region.html
 ```
 
-Exit codes: 0 done, 1 findings (an error in the view, or a warning with `--strict`), 2 a usage, file,
-limit or template error.
+Exit codes:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Done. |
+| 1 | Findings: an error in the view, or a warning with `--strict`. |
+| 2 | A usage, file, limit or template error. |
+
+## What it does
+
+- Gets a draft view from a file's fields, or renders from layout flags without a view file.
+- Validates and describes views in CI, with stable exit codes and `--json`.
+- Runs the same commands on a pivotkit-server's sources with `--url` and `--source`.
+- Needs no browser, and no network for local files.
+- Gives the same output on every run with `--now`.
+- Reads and writes files only as regular files. `--allow-dir` limits them to the directories you
+  name.
 
 ## Where in the docs
 
