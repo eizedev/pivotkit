@@ -14,6 +14,7 @@ import { todoPaths } from "../src/options/base.js";
 import { CHECK_FIRST, CHECK_HOST, OPENAPI_LIMITS, OpenApiError, looksSecret, loadDocumentText, operatorText, readDocument, sourceFromOpenApi, sourceFromOpenApiCommand } from "../src/openapi-source.js";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { BIN, tempDir } from "./helpers.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const fixturePath = (name) => fileURLToPath(new URL(`./fixtures/openapi/${name}`, import.meta.url));
 const fixture = (name) => readFileSync(fixturePath(name), "utf8");
@@ -231,18 +232,18 @@ test("source-from-openapi: the hostile document neither steers addresses or cred
 
 test("source-from-openapi: an exponential fan-out of references is merged once per schema and ends fast; the node budget still holds", () => {
     const doc = readDocument(HOSTILE_TEXT);
-    const started = performance.now();
+    const cpu = cpuClock();
     // each of L0..L12 (allOf of 4 references to the next) is merged once, and the nesting stops at allOfDepth
     const fan = generate(doc, "fanOut");
-    assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
+    assert.ok(cpu() < 1000, `took ${Math.round(cpu())} ms of CPU`);
     assert.deepEqual(Object.keys(fan.config.sources.fanOut.policy.fields), ["a", "b", "c"]);
     assert.ok(fan.notes.some((n) => n.includes(`allOf is nested more than ${OPENAPI_LIMITS.allOfDepth} levels deep`)));
     // work that grows with the document still counts against the budget: 150000 parameter references
     const many = minimal({ type: "object" }, { P: { name: "p", in: "query", schema: { type: "string" } } });
     many.paths["/a"].get.parameters = Array.from({ length: 150_000 }, () => ({ $ref: "#/P" }));
-    const before = performance.now();
+    const again = cpuClock();
     assert.throws(() => generate(readDocument(JSON.stringify(many)), "op"), new RegExp(`references expand to more than ${OPENAPI_LIMITS.nodes} nodes`));
-    assert.ok(performance.now() - before < 3000);
+    assert.ok(again() < 3000);
     // the cycle in the answer's schema leaves the rows to the operator
     const cycle = generate(doc, "cycle");
     assert.equal(cycle.config.sources.cycle.http.rows, "TODO: JSON Pointer to the rows");
@@ -404,7 +405,7 @@ test("source-from-openapi: a wide allOf repeated many times stays within the nod
     // the reviewer's shape: Leaf with 20000 properties, S0 = allOf of 2000 references to it (about 300 KB)
     const leaf = { type: "object", properties: Object.fromEntries(Array.from({ length: 20_000 }, (_, i) => [`f${i}`, {}])) };
     const doc = minimal({ $ref: "#/components/schemas/S0" }, { components: { schemas: { Leaf: leaf, S0: { allOf: Array.from({ length: 2000 }, () => ({ $ref: "#/components/schemas/Leaf" })) } } } });
-    const started = performance.now();
+    const cpu = cpuClock();
     let result;
     try {
         result = generate(readDocument(JSON.stringify(doc)), "op");
@@ -412,7 +413,7 @@ test("source-from-openapi: a wide allOf repeated many times stays within the nod
         assert.ok(e instanceof OpenApiError, String(e));
         assert.match(e.message, /more than 100000 nodes/);
     }
-    assert.ok(performance.now() - started < 3000, `took ${Math.round(performance.now() - started)} ms`);
+    assert.ok(cpu() < 3000, `took ${Math.round(cpu())} ms of CPU`);
     if (result) {
         assert.ok(Object.keys(result.config.sources.op.policy.fields).length <= OPENAPI_LIMITS.fields);
         assert.ok(result.notes.some((n) => n.includes(`allOf merges more than ${OPENAPI_LIMITS.merged} properties`)));
@@ -569,9 +570,9 @@ test("source-from-openapi: a schema's other keys are not copied, and a schema re
     doc.paths["/a"].get.responses[200].content["application/json"].schema = { type: "object", properties: Object.fromEntries(Array.from({ length: 6000 }, (_, i) => [`p${i}`, { $ref: "#/components/schemas/Big" }])) };
     const text = JSON.stringify(doc);
     assert.ok(text.length > 1_000_000);
-    const started = performance.now();
+    const cpu = cpuClock();
     const g = generate(readDocument(text), "op");
-    assert.ok(performance.now() - started < 2000, `took ${Math.round(performance.now() - started)} ms`);
+    assert.ok(cpu() < 2000, `took ${Math.round(cpu())} ms of CPU`);
     assert.equal(g.config.sources.op.http.rows, "TODO: JSON Pointer to the rows");
 });
 

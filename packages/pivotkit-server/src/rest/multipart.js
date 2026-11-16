@@ -14,6 +14,7 @@ import { createHash } from "node:crypto";
 import { OperationError, checkInput } from "pivotkit-report/operations";
 import { INPUT_DEPTH, jsonDepth, presentedInput } from "../present.js";
 import { INLINE_ID, UPLOAD_FORMATS } from "../sources/inline.js";
+import { checkParamsOffered } from "../sources/input.js";
 
 /** The parts a multipart body may have. */
 const PARTS = Object.freeze(["data", "input"]);
@@ -142,6 +143,7 @@ export async function readMultipart(bytes, contentType, operation, offers, fileR
             throw new OperationError("INVALID_INPUT", "the part input is a JSON object: the operation's input without data");
         }
     }
+    checkParamsOffered(operation, input, offers);
     checkInput(multipartInputSchema(operation, offers, fileRoute), input);
     if (input.source !== undefined && input.source !== INLINE_ID) {
         throw new OperationError("INVALID_INPUT", `a multipart body's source is the file it carries: leave source out or give "${INLINE_ID}"`);

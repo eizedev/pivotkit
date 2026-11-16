@@ -12,7 +12,7 @@ import { describeSource, encode, isIdentifierName, normalize, toViewFile } from 
 import { sourceIdOf } from "pivotkit-core/import";
 import { LAYOUT_NOTE_SEVERITY, OperationError, viewOfLayout } from "pivotkit-report/operations";
 import { CliError, printable, shortName } from "./errors.js";
-import { LAYOUT_FLAGS, layoutOf, parseFilter, parseMap } from "./layout-flags.js";
+import { LAYOUT_FLAGS, isJsonFilter, layoutOf, parseFilter, parseMap, parseShortFilter } from "./layout-flags.js";
 
 /** The most bytes of a --filter @file (a filter is small; a view may be larger). */
 const FILTER_BYTES = 1_000_000;
@@ -34,19 +34,37 @@ export const hasLayoutFlags = (values) => LAYOUT_FLAGS.some((flag) => flag !== "
 export const fromFields = (values) => Boolean(values.suggest) || hasLayoutFlags(values);
 
 /**
- * The filters of --filter: JSON text, or @file read through the CLI's safe reader.
+ * The filters of --filter: the short form Field=Item, JSON text, or @file (JSON) read through the
+ * CLI's safe reader. Short forms of one field make one filter that keeps each of their items.
  * @param {string[] | undefined} list
  * @param {any} ctx
+ * @param {string[]} [fields]  the data's field names; none when the data is the server's
  */
-export async function filtersOf(list, ctx) {
+export async function filtersOf(list, ctx, fields = []) {
+    const names = new Set(fields.map((f) => f.toLowerCase()));
+    /** @type {any[]} */
     const out = [];
+    /** @type {Map<string, { items: string[] }>} the short forms by field, lower case */
+    const short = new Map();
     for (const value of list ?? []) {
         if (value.startsWith("@")) {
             const path = value.slice(1);
             const bytes = await ctx.readInput(path, "the filter", FILTER_BYTES, "json");
             out.push(...parseFilter(textOfFile(bytes), `--filter @${shortName(path)}`));
+        } else if (isJsonFilter(value)) {
+            // "[Q]=1" reads as JSON: say why the short form did not apply, unless a quote before the
+            // first "=" says it is JSON meant as JSON ('{"items":["x=y"]' with its "}" missing)
+            const nameLike = value.includes("=") && !value.slice(0, value.indexOf("=")).includes('"');
+            out.push(...parseFilter(value, "--filter", nameLike ? "a field name that starts with { or [ needs a JSON filter" : ""));
         } else {
-            out.push(...parseFilter(value, "--filter"));
+            const filter = parseShortFilter(value, names);
+            const same = short.get(filter.field.toLowerCase());
+            if (same) {
+                if (!same.items.includes(filter.items[0])) same.items.push(filter.items[0]);
+            } else {
+                short.set(filter.field.toLowerCase(), filter);
+                out.push(filter);
+            }
         }
     }
     return out;
@@ -90,8 +108,9 @@ export function mapOf(list, used) {
 export async function layoutView(data, values, ctx, where) {
     const encoded = encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
     const description = describeSource(encoded, { items: 0 });
-    const filters = await filtersOf(values.filter, ctx);
-    const layout = layoutOf(values, { fields: data.table.columns.map(String), filters });
+    const fields = data.table.columns.map(String);
+    const filters = await filtersOf(values.filter, ctx, fields);
+    const layout = layoutOf(values, { fields, filters });
     const placed = [...(layout.rows ?? []), ...(layout.cols ?? []), ...(layout.values ?? []).map((v) => v.field ?? ""), ...(layout.groups ?? []).map((g) => g.field), ...filters.map((f) => (typeof f.field === "string" ? f.field : ""))];
     const map = mapOf(values.map, values.suggest ? [...placed, ...data.table.columns.map(String)] : placed);
     if (map) layout.map = map;

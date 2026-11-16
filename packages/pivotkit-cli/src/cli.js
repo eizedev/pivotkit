@@ -835,6 +835,8 @@ async function renderCommand(positionals, values, ctx) {
     const height = intOption("height", values.height, 100, 8000);
     const env = {
         ...operationEnv(ctx, data),
+        // a view from the layout flags: an item of --filter that is none of the field's values is a warning with the one meant
+        ...(made ? { unknownItems: true } : {}),
         ...(echarts ? { echarts } : {}),
         // the command line's own render options: the template file, --lenient, the byte order mark, the chart's size
         renderOptions: {

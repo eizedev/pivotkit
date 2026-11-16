@@ -115,7 +115,7 @@ read as JSON text, so give a file whose name starts with `{` as `./{name}.json`.
 | `--rows`, `--cols <field>` | render, describe `--suggest` | A field on the rows or the columns, outer first; repeat the flag for the next level. |
 | `--values <agg:field>` | | `sum:Revenue`, `"average:Mean °C"`, `count` (the rows), or a field alone (a number summed, an identifier or another type counted). Repeatable. |
 | `--group <field:unit>` | | Group a field where it is placed: `Date:yearMonth`, `Date:month` (Jan to Dec of every year), `Revenue:bin:500`. Repeatable. |
-| `--filter <json>` | | A filter as a view writes it, as JSON text or `@file.json`. Repeatable. |
+| `--filter <field=item\|json>` | | Keep the rows of one item, as in `Country=Germany`, or any filter as a view writes it, as JSON text or `@file.json`. Repeatable. |
 | `--chart-type <type>` | | Show the chart: `auto`, `bar`, `line`, `area`, `pie`, `donut`, `heatmap`. |
 | `--map <old=new>` | render, describe `--suggest` | The view's field `old` is the data's `new`, for a column renamed since the view was made. Works with a view file too. |
 | `--save-view <file>` | render | Also write the view used as a view file (after `--map`; the view the layout flags or `--suggest` made). The data file is a usage error. |
@@ -317,7 +317,7 @@ view.
   aggregator (`sum`, `average`, `count`, `countUnique`, `median`, `min`, `max`, …, any case). So
   `"sum:Time: start"` sums the field `Time: start`. A field named exactly as the whole value wins.
   A misspelt aggregator before a field of the data (`summ:Revenue`) is a usage error with the one
-  meant.
+  meant. A name from another tool, such as `avg`, gets a hint: did you mean average?
   `count` alone counts the rows.
 - **`--group`**: `<field>:<unit>`, the unit after the last colon, or `<field>:bin:<size>` for number
   ranges. The units are the view file's: `year`, `yearQuarter`, `yearMonth`, `yearWeek`, `day` along
@@ -325,9 +325,24 @@ view.
   (Jan to Dec of every year together). The grouping takes its field's place on the axes. A grouping
   whose field is on no axis is a warning `unusedGroup`. A date on an axis without `--group` is grouped
   by its span, as the report groups a date it places. An `info` finding `dateGrouped` says so.
-- **`--filter`**: a filter as a [view](view-file.md) writes it, as JSON (`'{"field":"Region","type":"in","items":["North"]}'`)
-  or `@file.json`. In PowerShell, where quoting JSON is awkward, use `--filter '@north.json'`. A list
-  of filters in one file works too.
+- **`--filter`** has a short form and a JSON form:
+    - `Field=Item` keeps the rows of one item: `--filter Country=Germany`. It splits at the `=` after
+      a field of the data, so a name and an item may hold `=`. When two `=` follow field names, the
+      first wins. With fields `a` and `a=b`, `a=b=c` keeps the item `b=c` of `a`. With a server, the
+      data's fields are not known first, so it splits at the first `=`.
+    - Write the item as the data spells it. With local data, an item of a text field in another case,
+      or one that is none of its values, is a warning with the item meant. With `--strict`, the
+      warning fails the run. For a number field, or with a server, only `noRowsKept` tells you.
+    - The same field given again keeps each item: `--filter Country=Germany --filter Country=France`.
+      A JSON filter stays its own filter. Filters keep the rows that all of them keep.
+    - A value that starts with `{` or `[` is a filter as a [view](view-file.md) writes it, as JSON:
+      `'{"field":"Revenue","type":"compare","op":">","value":1000}'`. A list of filters works too.
+    - `@file.json` reads that JSON from a file. In PowerShell, where quoting JSON is awkward, use
+      `--filter '@revenue.json'`.
+    - `Field=Item` is the only short form. `Revenue>1000`, `Country!=Germany` or `Country<>Germany`
+      is a usage error that gives the JSON filter it means. A value in neither form is a usage error
+      with an example of each.
+    - A field name that starts with `{` or `[` needs a JSON filter.
 - **`--chart-type`** shows the chart of that type: the SVG, and the HTML report above the table.
   `--chart auto|on|off` keeps its meaning. With a view file, it is a usage error, since the view sets
   its chart.

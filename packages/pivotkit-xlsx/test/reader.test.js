@@ -9,6 +9,7 @@ import { readFile, readerFor, validatePlugin } from "pivotkit-core/import";
 import xlsxReader from "pivotkit-xlsx";
 import { read, sheets } from "pivotkit-xlsx/reader";
 import { TICKET_COLUMNS, makeXlsx, ticketRows } from "./make-xlsx.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const col = (t, name) => t.data[t.columns.indexOf(name)];
 const fileOf = (bytes, name = "book.xlsx") => new File([bytes], name);
@@ -210,10 +211,10 @@ test("a ZIP bomb: the unpacked size from the directory is refused before anythin
     for (let at = 0; at < big.length; at += row.length) big.set(row.subarray(0, Math.min(row.length, big.length - at)), at);
     const bytes = makeXlsx({ sheets: [{ name: "S", rows: [["A"], [1]] }], extra: { "xl/media/padding.xml": big } });
     assert.ok(bytes.length < 2_000_000, `${bytes.length} bytes`);
-    const started = performance.now();
+    const cpu = cpuClock();
     // LIMIT_EXCEEDED as for every other limit (#208), with the limit, the values and the file
     await assert.rejects(read(fileOf(bytes), { limits: { unpackedBytes: 100 * 1024 * 1024 } }), (e) => e instanceof PivotkitError && e.code === "LIMIT_EXCEEDED" && e.details.limit === "unpackedBytes" && e.details.max === 100 * 1024 * 1024 && e.details.value > e.details.max && e.details.file === "book.xlsx" && /ZIP bomb/.test(e.message) && /limits\.unpackedBytes/.test(e.message));
-    assert.ok(performance.now() - started < 1_000, "refused without unpacking");
+    assert.ok(cpu() < 1_000, "refused without unpacking");
     // a forged directory that understates a part: unpacking stops at the stated size
     const small = makeXlsx({ sheets: [{ name: "S", rows: Array.from({ length: 20_000 }, (_, i) => [i]) }] });
     const at = directory(small).get("xl/worksheets/sheet1.xml");
@@ -458,19 +459,19 @@ test("a small sheet with a value far out (row 300,000, column XFD) is refused be
     const sheet = (rows) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows}</sheetData></worksheet>`);
     const wide = sheet('<row r="1"><c r="XFD1"><v>1</v></c></row><row r="300000"><c r="A300000"><v>1</v></c></row>');
     assert.ok(wide.length < 10_000, `${wide.length} bytes`);
-    const started = performance.now();
+    const cpu = cpuClock();
     await assert.rejects(read(fileOf(wide)), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns" && e.details.file === "book.xlsx");
     await assert.rejects(read(fileOf(sheet('<row r="1"><c r="A1"><v>1</v></c></row><row r="999999999"><c r="A999999999"><v>1</v></c></row>'))), (e) => e.details.limit === "rows");
     await assert.rejects(read(fileOf(sheet('<row r="1"><c r="ALL1"><v>1</v></c></row><row r="200000"><c r="A200000"><v>1</v></c></row>'))), (e) => e.details.limit === "importCells");
-    assert.ok(performance.now() - started < 2_000, "refused at once");
+    assert.ok(cpu() < 2_000, "refused at once");
 });
 
 test("a list of sheets with <sheet repeated and never closed is read in linear time", async () => {
     const workbook = `<?xml version="1.0"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${"<sheet".repeat(40_000)}`; // and no ">" after them
     const bytes = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), { "xl/workbook.xml": strToU8(workbook) });
-    const started = performance.now();
+    const cpu = cpuClock();
     await rejects(read(fileOf(bytes)), "NO_TABLE");
-    assert.ok(performance.now() - started < 2_000, `${performance.now() - started} ms`);
+    assert.ok(cpu() < 2_000, `${Math.round(cpu())} ms of CPU`);
 });
 
 test("a row that never ends is refused once it passes 64 MiB, not held whole", async () => {
@@ -541,20 +542,20 @@ test("a sheet padded with whitespace is read in linear time and memory, with its
     // takes about as long as the scan of the sheet before parsing; without the guard, read-excel-file
     // took minutes and then ran out of stack
     ctx.diagnostic(`read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`);
-    assert.ok(ms < PADDED_READ_PER_SCAN * scanMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`);
+    assert.ok(ms < PADDED_READ_PER_SCAN * scanMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`); // wall time: a ratio of two measurements
     assert.ok(peak - rss < 300 * MiB, `${Math.round((peak - rss) / MiB)} MiB more resident memory`);
 });
 
 test("a text of more than 1 MiB or a tag of more than 256 KiB in a sheet is refused at once, however it is padded", async () => {
     const MiB = 1024 * 1024;
     const sheet = (body) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">${body}</row></sheetData></worksheet>`);
-    const started = performance.now();
+    const cpu = cpuClock();
     // an Excel cell holds at most 32,767 characters
     await rejects(read(fileOf(sheet(`<c r="A1" t="inlineStr"><is><t>${"a".repeat(2 * MiB)}</t></is></c>`))), "DAMAGED", (e) => /1 MiB/.test(e.message));
     // a quoted attribute value of ">" is one tag to an XML parser
     await rejects(read(fileOf(sheet(`<c r="A1" x="${">".repeat(2 * MiB)}"><v>1</v></c>`))), "DAMAGED", (e) => /256 KiB/.test(e.message));
     await rejects(read(fileOf(sheet(`<c r="A1"><v>1</v></c><!--${"->".repeat(MiB)}-->`))), "DAMAGED", (e) => /1 MiB/.test(e.message));
-    assert.ok(performance.now() - started < 5_000, `${Math.round(performance.now() - started)} ms`);
+    assert.ok(cpu() < 5_000, `${Math.round(cpu())} ms of CPU`);
 });
 
 test("cell and row positions are read however the attribute is quoted or spaced, in linear time", async () => {
@@ -573,9 +574,9 @@ test("cell and row positions are read however the attribute is quoted or spaced,
     assert.deepEqual(col(t, "n"), [7]);
     // a row of half a megabyte of "<c " without a ">": the filter scans each tag once (it was
     // quadratic) and refuses the "<" in a tag the parser would read as one long tag
-    const started = performance.now();
+    const cpu = cpuClock();
     await rejects(read(fileOf(sheet(`<row r="1"><c r="A1"><v>1</v></c></row><row r="2">${"<c ".repeat(170_000)}</c></row>`))), "DAMAGED", (e) => /"<" in a tag/.test(e.message));
-    assert.ok(performance.now() - started < 3_000, `${Math.round(performance.now() - started)} ms`);
+    assert.ok(cpu() < 3_000, `${Math.round(cpu())} ms of CPU`);
 });
 
 test("rows inside a comment or CDATA section between rows are not read", async () => {
@@ -615,10 +616,10 @@ test("a </row> inside a comment, CDATA section or processing instruction in a ro
         assert.equal(parts.join(""), xml, `pieces of ${size} bytes`);
     }
     const many = `<row r="1"><c r="A1"><v>1</v></c></row><row r="2"><c r="A2"><v>2</v></c>${"<!----><?a?>".repeat(150_000)}</row>`;
-    const started = performance.now();
+    const cpu = cpuClock();
     const t = await read(fileOf(makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet ${NS}><sheetData>${many}</sheetData></worksheet>`)));
     assert.deepEqual(t.columns, ["1"]);
-    assert.ok(performance.now() - started < 3_000, `${Math.round(performance.now() - started)} ms`);
+    assert.ok(cpu() < 3_000, `${Math.round(cpu())} ms of CPU`);
 });
 
 // 100 MiB of one-letter shared strings fit in a workbook of 257 KB, and read-excel-file keeps an entry
@@ -812,14 +813,14 @@ test("a sheet with namespace prefixes is checked and trimmed as one without", as
     const XNS = 'xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
     const prefixed = (rows) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<x:worksheet ${XNS}><x:sheetData>${rows}</x:sheetData></x:worksheet>`);
     const head = '<x:row r="1"><x:c r="A1" t="inlineStr"><x:is><x:t>n</x:t></x:is></x:c></x:row>';
-    const started = performance.now();
+    const cpu = cpuClock();
     await assert.rejects(read(fileOf(prefixed(`${head}<x:row r="300000"><x:c r="ALL300000"><x:v>1</x:v></x:c></x:row>`))), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells");
     await assert.rejects(read(fileOf(prefixed(`${head}<x:row r="2"><x:c r="XFD2"><x:v>1</x:v></x:c></x:row>`))), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns");
     // a cell with another prefix than its row, and only the sheet's data with a prefix, count the same
     await assert.rejects(read(fileOf(prefixed(`${head}<x:row r="2"><y:c xmlns:y="urn:y" r="XFD2"><x:v>1</x:v></y:c></x:row>`))), (e) => e.details?.limit === "columns");
     const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
     await assert.rejects(read(fileOf(makeXlsxWithSheet(`<worksheet ${NS} ${XNS}><x:sheetData><row r="1"><c r="A1"><v>1</v></c></row><row r="2"><c r="XFD2"><v>1</v></c></row></x:sheetData></worksheet>`))), (e) => e.details?.limit === "columns");
-    assert.ok(performance.now() - started < 3_000, `${Math.round(performance.now() - started)} ms`);
+    assert.ok(cpu() < 3_000, `${Math.round(cpu())} ms of CPU`);
     // a sheet with prefixes reads as before; its rows without a value are left out with a note
     const empty = Array.from({ length: 200 }, (_, k) => `<x:row r="${k + 3}"><x:c r="A${k + 3}" s="1"/></x:row>`).join("");
     const t = await read(fileOf(prefixed(`${head}<x:row r="2" ><x:c r="A2"><x:v>7</x:v></x:c></x:row >${empty}`)));
@@ -856,14 +857,14 @@ test("row and cell numbers are read as the parser reads them, before parsing", a
     await assert.rejects(read(fileOf(sheet('<row><c r="A2e8"><v>1</v></c></row>'))), (e) => e.details?.limit === "rows");
     // columns only the check before parsing can refuse in time (billions of cells to the parser);
     // "~" is column 62 to it, a lower-case letter 33 to 58
-    const started = performance.now();
+    const cpu = cpuClock();
     for (const cell of ['<c r="~~~~~~~2">', '<c r="zzzzzzz2">', '<c r="ZZZZZZZZ2" r="A2">', '<c x:r="ZZZZZZZZ2" r="A2">', '<c x:y:r="ZZZZZZZZ2" y:r="A2">']) {
         await assert.rejects(read(fileOf(sheet(`<row r="2">${cell}<v>1</v></c></row>`))), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns", cell);
     }
     for (const cell of ['<c r="&#90;ZZZZZZZ2">', '<c x:r="&amp;#90;ZZZZZZZ2" r="A2">', '<c r="A\u00a02">']) {
         await assert.rejects(read(fileOf(sheet(`<row r="2">${cell}<v>1</v></c></row>`))), (e) => e.code === "LIMIT_EXCEEDED", cell);
     }
-    assert.ok(performance.now() - started < 3_000, `${Math.round(performance.now() - started)} ms`);
+    assert.ok(cpu() < 3_000, `${Math.round(cpu())} ms of CPU`);
     // an xmlns:r declared on a row or cell is no r
     const t = await read(fileOf(sheet('<row r="2" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><c r="A2" xmlns:t="urn:t"><v>7</v></c></row>')));
     assert.deepEqual(col(t, "n"), [7]);
@@ -878,9 +879,9 @@ test("a row in a row is checked; a '<' in a tag and a row the sheet does not end
     await rejects(read(fileOf(sheet('<row r="2"><c a="<" r="XFD2"><v>1</v></c></row><row r="600000"><c r="A600000"><v>1</v></c></row>'))), "DAMAGED", (e) => /"<"/.test(e.message));
     await rejects(read(fileOf(sheet('<row r="2"><c r="A2" <v>1</v></c></row>'))), "DAMAGED", (e) => /"<"/.test(e.message));
     // a row cut off at the end of the sheet goes to the parser unchecked no more
-    const started = performance.now();
+    const cpu = cpuClock();
     await rejects(read(fileOf(sheet('<row r="2"><c r="ZZZZZZZZ2"><v>1</v></c>', ""))), "DAMAGED");
-    assert.ok(performance.now() - started < 1_000, `${Math.round(performance.now() - started)} ms`);
+    assert.ok(cpu() < 1_000, `${Math.round(cpu())} ms of CPU`);
     // the sheet's data starts where the parser starts it: not in a comment or CDATA section before it
     for (const before of ["<!-- <sheetData> -->", "<![CDATA[<sheetData>]]>"]) {
         const t = await read(fileOf(makeXlsxWithSheet(`<worksheet ${NS}>${before}<sheetData>${head}<row r="2"><c r="A2"><v>7</v></c></row></sheetData></worksheet>`)));

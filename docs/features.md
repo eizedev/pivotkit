@@ -190,7 +190,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 - `pivotkit-cli` ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)):
     - `pivotkit example`, `render`, `validate` and `describe`.
     - A draft view from a file's fields (`describe --suggest`), and a report without a view file
-      from layout flags (`render --rows ... --values ...`). `--map` for a renamed column, and
+      from layout flags (`render --rows ... --values ... --filter Country=Germany`). `--map` for a renamed column, and
       `--save-view` ([a view from the data's fields](reference/cli.md#a-view-from-the-datas-fields)).
     - Exit codes, `--json`, and messages that say what to fix.
     - The sheet of a workbook a view names. `describe` lists a workbook's sheets.

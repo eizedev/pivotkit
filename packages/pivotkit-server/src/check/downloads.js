@@ -2,7 +2,8 @@
  * check-config's section for download links: whether the server gives its own links, where they
  * point, which sources' reports get which link (delivery.js linkFor), what to register at the
  * sign-in provider, and the warnings (a random key, one-time links, output.baseUrl with closed
- * sources, no public address off loopback); and how long reports stay on disk (retention).
+ * sources, no public address off loopback); and how long reports stay on disk (retention). Its
+ * "New in this version" note names the open sources hidden by default, which were closed before.
  *
  * check/index.js says what a section returns. Over stdio (no --http) and without output.baseUrl it
  * says nothing about links (there are none); the retention warning holds there too.
@@ -14,6 +15,8 @@ import { EXPIRES_MINUTES, insecurePublicHost, insecureUrlText, settingsOf } from
 import { uploadSettingsOf } from "../options/upload.js";
 import { isLoopback } from "../listen.js";
 import { madeAtStart, readSecret, secretFileWarning } from "../secrets.js";
+import { closedReason } from "../registry.js";
+import { bytesText } from "../text.js";
 import { resolvePolicy } from "../policy.js";
 import { realpath } from "node:fs/promises";
 import { OUTPUT_DEFAULTS, pathOf } from "../config.js";
@@ -22,40 +25,37 @@ import { personBound } from "../sources/auth.js";
 import { mcpCapOf, restDataOffered } from "../sources/inline.js";
 import { heading, idsText, plain, problem, secretText, warning } from "./format.js";
 
-
-/** What makes a policy closed, in words, or null where every field is shown; a field by its written name. */
-function closedBy(policy, written = []) {
-    if (policy.default !== "show") {
-        return `fields ${policy.default} by default`;
-    }
-    const field = [...policy.fields.entries()].find(([, level]) => level !== "show");
-    if (field) {
-        const name = written.find((w) => w.toLowerCase() === field[0].toLowerCase()) ?? field[0];
-        return `${name.slice(0, 60)} ${field[1]}`;
-    }
-    return policy.auto ? "the automatic values rule" : null;
-}
-
 /**
- * Why a source counts as closed: the first field that is not shown under its policy (with the
- * server's), else under a profile. Open needs `default: "show"` and no field below it, everywhere.
+ * Why a source counts as closed (registry.js closedReason), in words: the level that closes it, of a
+ * field by its written name or of the default, and the profile where that is not the policy of a
+ * caller without one. Open needs, for every caller alike, the default "hide" with every named field
+ * "show" or "hide", or every field "show".
  * @param {import("../config.js").ServerOptions} options
  * @param {string} id
  */
 export function whyClosed(options, id) {
     const source = options.sources?.[id]?.policy;
+    const reason = closedReason(options, source);
+    if (!reason) {
+        return NO_FIELD_REASON;
+    }
     const written = [options.policy, source, ...Object.values(options.policy?.profiles ?? {})].flatMap((p) => Object.keys(p?.fields ?? {}));
-    const own = closedBy(resolvePolicy(options.policy, source), written);
-    if (own) {
-        return own;
-    }
-    for (const [name, profile] of Object.entries(options.policy?.profiles ?? {})) {
-        const by = closedBy(resolvePolicy(options.policy, source, profile), written);
-        if (by) {
-            return `profile ${name.slice(0, 40)}: ${by}`;
-        }
-    }
-    return NO_FIELD_REASON;
+    const { field } = reason;
+    const name = field ? (written.find((w) => w.toLowerCase() === field.toLowerCase()) ?? field).slice(0, 60) : null;
+    const what = reason.auto ? "the automatic values rule" : name ? `${name} ${reason.level}` : `fields ${reason.level} by default`;
+    const why = reason.others ? ", shown to other callers" : reason.denyList ? " under default show: a column the data gains later would be shown" : "";
+    return `${reason.profile !== null ? `profile ${reason.profile.slice(0, 40)}: ` : ""}${what}${why}`;
+}
+
+/**
+ * Whether a source's policy hides fields by default, for a caller without a profile or under any
+ * profile: such an open source was closed in pivotkit-server 0.2.0 (#510).
+ * @param {import("../config.js").ServerOptions} options
+ * @param {string} id
+ */
+function hiddenByDefault(options, id) {
+    const source = options.sources?.[id]?.policy;
+    return [undefined, ...Object.values(options.policy?.profiles ?? {})].some((profile) => resolvePolicy(options.policy, source, profile).default === "hide");
 }
 
 /** Whether callers may send data of their own (inline:), whose reports count as closed: over MCP unless off, over REST where a profile allows it. */
@@ -69,7 +69,7 @@ export const inlineOffered = (options, runtime) => Boolean((runtime.mcp !== fals
  */
 export const perPersonItem = (personal, inline) => plain(`per person (counted as closed): ${[...[...personal].map(([id, why]) => `${id} (${why})`), ...(inline ? ["data sent in requests (inline:)"] : [])].join(", ")}`);
 
-/** whyClosed's answer where no field says why. */
+/** whyClosed's answer where no field closes the source (it is closed for its data per person). */
 const NO_FIELD_REASON = "a field is not shown";
 
 /**
@@ -111,13 +111,6 @@ async function retention(options, registry, runtime) {
     if (!options.output?.dir) {
         return none;
     }
-    if (options.output.maxAgeDays === undefined) {
-        // the default age limit, new in this version: only in a directory of the reports' own
-        const dir = pathOf(options, options.output.dir);
-        const real = await realpath(dir).catch(() => dir);
-        const shared = (await ownFileDirs(options)).includes(real);
-        return shared ? none : { ...none, upgrade: [`reports deleted after ${OUTPUT_DEFAULTS.maxAgeDays} days (output.maxAgeDays: 0 keeps them)`] };
-    }
     if (options.output.maxAgeDays !== 0) {
         return none;
     }
@@ -138,7 +131,7 @@ async function retention(options, registry, runtime) {
     return {
         items: [
             heading("Retention:"),
-            plain(`no age limit: reports stay in output.dir until output.maxFiles (${maxFiles}) or output.maxMb (${maxMb} MB) push them out, also after their link expired`),
+            plain(`no age limit: reports stay in output.dir until output.maxFiles (${maxFiles}) or output.maxMb (${bytesText(maxMb * 1_048_576)}) push them out, also after their link expired`),
             warning(`output.maxAgeDays is 0 (no age limit) and ${what} can hold data about people; ${fix}`)
         ],
         upgrade: []
@@ -153,11 +146,15 @@ async function links(options, registry, runtime) {
     const open = sources.filter((s) => !s.closed).map((s) => s.id);
     const items = [];
     const upgrade = [];
+    // open sources hidden by default: closed before this version, where reports get links
+    const hiddenOpen = open.filter((id) => hiddenByDefault(options, id));
+    if (hiddenOpen.length && (options.output?.baseUrl || runtime.http || uploadSettingsOf(options))) {
+        upgrade.push({ text: `a source hidden by default whose listed fields are shown counts as open for links (${idsText(hiddenOpen)})`, anchor: "hidden-open" });
+    }
 
     if (options.output?.baseUrl) {
         if (closed.length) {
             items.push(heading("Delivery:"), plain(`reports over closed sources (${idsText(closed)}): no address under output.baseUrl`), plain("anyone with it could open a report whose fields are withheld; the file is kept, and the person asks you for it", 2));
-            upgrade.push("no output.baseUrl address for closed sources");
         }
         return { items, upgrade };
     }
@@ -169,8 +166,6 @@ async function links(options, registry, runtime) {
         items.push(plain(`download links: off (${options.output?.downloads?.enabled === false ? "output.downloads.enabled is false" : "no output.dir"})`));
         return { items, upgrade };
     }
-    // the route is served wherever links are on, also before any report gets one
-    upgrade.push(`download links under ${DOWNLOADS_PATH}/, answered without a token (the link is the credential; output.downloads.enabled: false switches them off)`);
     const host = options.http?.host ?? "127.0.0.1";
     const publicUrl = options.http?.publicUrl ? options.http.publicUrl.replace(/\/$/, "") : null;
     if (!publicUrl && !isLoopback(host)) {
@@ -195,8 +190,16 @@ async function links(options, registry, runtime) {
     const byField = ownClosed.filter((id) => !personal.has(id) || whyClosed(options, id) !== NO_FIELD_REASON);
     const inline = !storeTakesClosed && inlineOffered(options, runtime);
     if (byField.length) {
-        // why: open needs default "show" and no field below it, for the server, the source and every profile
-        items.push(plain(`closed (a field not shown for someone): ${idsText(byField.map((id) => `${id} (${whyClosed(options, id)})`))}`));
+        // why each is closed (registry.js closedReason), and for each kind of reason the way to plain links
+        items.push(plain(`closed for plain links: ${idsText(byField.map((id) => `${id} (${whyClosed(options, id)})`))}`));
+        const reasons = byField.map((id) => closedReason(options, options.sources?.[id]?.policy)).filter((r) => r !== null);
+        const ways = [
+            [reasons.some((r) => r.denyList), "for plain links, set the source's default to hide and list the fields to show"],
+            [reasons.some((r) => !r.denyList && !r.others && !r.auto), "for plain links, set the fields at values or summary to show, or set the default to hide and list the fields to show"],
+            [reasons.some((r) => r.others), "for plain links, give every caller the same levels: the server's policy, the source's and every profile's"],
+            [reasons.some((r) => r.auto), "for plain links, write a policy: the automatic values rule decides levels by the data, so it closes the source"]
+        ];
+        items.push(...ways.filter(([applies]) => applies).map(([, text]) => plain(/** @type {string} */ (text), 2)));
     }
     if (personal.size || inline) {
         items.push(perPersonItem(personal, inline));
@@ -255,9 +258,6 @@ async function links(options, registry, runtime) {
         if (readable) {
             items.push(warning(readable));
         }
-    }
-    if (linking) {
-        upgrade.push(`reports with a link stored with a random prefix (output.name)`);
     }
     return { items, upgrade };
 }

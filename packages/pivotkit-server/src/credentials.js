@@ -27,7 +27,7 @@ import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
 import { isInside } from "pivotkit-cli/files";
 import { ConfigError, REST_BASE, loadConfig, pathOf, validateOptions } from "./config.js";
-import { STATE_ENV, configFrom, planState, stateDirOf } from "./state.js";
+import { STATE_ENV, configFrom, planState, shellQuoted, stateDirOf } from "./state.js";
 import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretValue, unreadable } from "./secrets.js";
 import { expiryOf } from "./signed-tokens.js";
@@ -218,8 +218,7 @@ const snippetOf = (value) => (value && typeof value === "object" && !Array.isArr
 /** Where clients reach the server: http.publicUrl, else loopback on its port. */
 const baseUrlOf = (options) => (options?.http?.publicUrl ? options.http.publicUrl.replace(/\/+$/, "") : `http://127.0.0.1:${options?.http?.port || DEFAULT_PORT}`);
 
-/** Single quotes for a shell (bash, PowerShell): a path as one word. */
-const quoted = (text) => `'${text.replace(/'/g, "'\\''")}'`;
+/** Single quotes for PowerShell: a path as one word. */
 const psQuoted = (text) => `'${text.replace(/'/g, "''")}'`;
 
 /**
@@ -454,13 +453,13 @@ function tokenHints({ values, entry, options, backup, secret }) {
     const file = values.file;
     hints.push(
         "Try it (curl reads the header from stdin, so the token is in no command line):",
-        `  printf 'header = "Authorization: Bearer %s"\\n' "$(cat ${quoted(file)})" | curl -K - ${url}${REST_BASE}/sources`,
+        `  printf 'header = "Authorization: Bearer %s"\\n' "$(cat ${shellQuoted(file)})" | curl -K - ${url}${REST_BASE}/sources`,
         `  PowerShell: Invoke-RestMethod -Headers @{ Authorization = "Bearer $(Get-Content ${psQuoted(file)})" } ${url}${REST_BASE}/sources`
     );
     if (servesMcp(options)) {
         // claude's own command line holds the header: it keeps it in its configuration anyway
         hints.push(
-            `  claude mcp add --transport http pivotkit ${url}/mcp --header "Authorization: Bearer $(cat ${quoted(file)})"${options ? "" : "  (where the server serves MCP)"}`,
+            `  claude mcp add --transport http pivotkit ${url}/mcp --header "Authorization: Bearer $(cat ${shellQuoted(file)})"${options ? "" : "  (where the server serves MCP)"}`,
             "    (this line puts the token into the process list and your shell's history; Claude Code keeps it in its configuration)"
         );
     }

@@ -116,7 +116,13 @@ A source with parameters takes their values as `params` with its id in a POST bo
   `POST /sources/describe`.
 - `GET /sources` lists the parameters.
 - The routes take `params` only when a configured source declares any
-  ([parameters](mcp.md#configuration)).
+  ([parameters](mcp.md#configuration)). Otherwise a request with `params` answers `INVALID_INPUT`
+  with the `detail` "this server has no source that takes params; leave params out (GET /sources
+  lists the sources)".
+- Where another source declares parameters, a source without them answers `params` with
+  `INVALID_INPUT`, for example "the source sales takes no params".
+- A parameter's pattern runs under a time limit. A value it cannot check in time, also on a busy
+  server, answers 503 `BUSY` with `retryable: true` ([the limits](mcp.md#configuration)).
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where:
 
@@ -126,7 +132,8 @@ A source with parameters takes their values as `params` with its id in a POST bo
 Where the report gets a [download link](delivery.md), the link is in `output.url`, with `expiresAt`,
 `bound` and `note`, one sentence on how to open it. A report gets a link:
 
-- always, over a source whose fields are all `show`
+- always, over an [open source](delivery.md): hidden by default with its shown fields listed, or
+  every field shown
 - over another source only with `results: true` and a bound link
 
 The file's name is `name` from the input, else `title`, else the view's name, else the source's.
@@ -167,7 +174,8 @@ Its `request` line has `saved: false`. The file route sends the file and saves n
 The server decides findings per field. A finding about a field's items carries the field in
 `field`:
 
-- An item spelt differently (`itemCase`) is named for a `show` or `values` field.
+- An item spelt differently (`itemCase`) is named for a `show` or `values` field. The item meant is
+  in `suggestion`, not in `message`.
 - An item that is none of a field's values (`itemUnknown`, with the closest one) is named where the
   field's list is complete.
 
@@ -469,14 +477,15 @@ a `hint`.
 Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068). The server
 then refuses an ID token with the right audience.
 
-The output directory holds at most `output.maxFiles` files and `output.maxMb` megabytes that
+The output directory holds at most `output.maxFiles` files and `output.maxMb` MiB that
 pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them, so any
 token that may render can push other callers' older reports out. A link to such a report
 (`output.baseUrl`) then answers 404, and one of the server's own links answers 410 `LINK_EXPIRED`.
 
 Schedule drafts are never deleted this way. They may take at most half of `output.maxFiles` (none at
-1). A draft over that answers 409 `NO_OUTPUT`, while reports keep working. `output.maxAgeDays` does
-not delete a draft that waits for approval either. So give `draft_schedule` a scope of its own too,
+1) and half of `output.maxMb`. A draft over that answers 409 `NO_OUTPUT`, while reports keep
+working. `output.maxAgeDays` does not delete a draft that waits for approval either.
+`output.draftMaxAgeDays` does, where you set it. So give `draft_schedule` a scope of its own too,
 and remove the drafts nobody approved. A file you name with `.pivotkit-out.` yourself counts as
 pivotkit's and may be deleted.
 
@@ -496,8 +505,9 @@ make room. With `output.maxAgeDays: 0`, it stays until you remove it.
 
 The server holds at most 256 connections. It keeps 16 of them for loopback clients, such as the
 health check or a proxy on the same host. A client has 5 seconds to send its headers
-([MCP](mcp.md#http) has the details). `http.maxConnectionsPerAddress` bounds the connections of one
-address. On a network you do not trust, put a reverse proxy in front.
+([MCP](mcp.md#http) has the details). One address may hold at most 32 connections
+(`http.maxConnectionsPerAddress`). With `http.trustProxy` there is no such bound by default. On a
+network you do not trust, put a reverse proxy in front.
 
 With `auth.mode: oauth` and neither required scopes nor `auth.toolScopes`, the start warns. Any token
 of the issuer for the REST audience then gets everything its profile allows.
@@ -592,7 +602,8 @@ when, where it is known.
   code source's `SourceError`, or from an HTTP source's backend that answered 400 or 422, or 401,
   403 or 404 for a source with parameters.
 - `UPLOAD_FAILED`: as the store's failure is.
-- 503 `BUSY` for a [large body](#data) while two are read already: `true`.
+- 503 `BUSY` for a [large body](#data) while two are read already, or for a parameter's pattern that
+  could not be checked in time: `true`.
 
 Every other error carries no `retryable`. This includes a limit of a source's settings
 (`LIMIT_EXCEEDED`, `http.maxBytes` or `http.maxPages`).
@@ -630,7 +641,7 @@ Rows go by status, then by code. The answers of the download links come last.
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else. The details are only in the log, with `--log debug` |
 | 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused pivotkit's access, or the source is not set up correctly. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 502 | <a id="error-upload-failed"></a>`UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload) (`retryable` says whether trying again may help); the report stays in the output directory |
-| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, or two [large bodies](#data) read already; starting or stopping; the OAuth issuer not loaded yet |
+| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, or a parameter's pattern not checked in time; starting or stopping; the OAuth issuer not loaded yet |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 | 400, 403, 409, 410, 503 | <a id="error-link-expired"></a>`LINK_EXPIRED`, <a id="error-link-used"></a>`LINK_USED`, <a id="error-link-not-yours"></a>`LINK_NOT_YOURS`, <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED`, <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | Answers of the server's own [download links](delivery.md#answers) (`/downloads/`), not of `/api/v1` |
 
@@ -726,14 +737,9 @@ Sources (1):
 Auth: token
   token export from $PIVOTKIT_TOKEN: all scopes, profile export
 
-New in this version: data in the request (inline:; mcp.data: false switches it
-    off), download links under /downloads/, answered without a token (the link
-    is the credential; output.downloads.enabled: false switches them off),
-    reports deleted after 30 days (output.maxAgeDays: 0 keeps them), the
-    client's IP address on the log's request lines (log.address: "off" leaves
-    it out), a start error as a JSON line where stderr is no terminal
-    (log.format: "text" keeps the plain line)
-    -> https://pivotkit.eize.dev/getting-started/upgrading/
+New in this version:
+  at most 32 connections per address (http.maxConnectionsPerAddress)
+    -> https://pivotkit.eize.dev/getting-started/upgrading/#per-address
 ```
 
 Each line holds one fact. A fact under another is two spaces further in, a wrapped line four. Lines
@@ -748,8 +754,8 @@ its full path, never by its value.
 Over stdio (`pivotkit-mcp` without `--http`), there are no download links and no signed-in person.
 The `Transport:` section says which sources therefore cannot be used.
 
-"New in this version" names the changes of this release that apply to the configuration, with the
-setting that switches each off. It links to the [upgrading page](../getting-started/upgrading.md).
+"New in this version" names the changes of this release that apply to the configuration, one per
+line. Each links to its section of the [upgrading page](../getting-started/upgrading.md).
 
 The flags of `serve` are the [MCP runner's](mcp.md#configuration) without `--http`, `--allow-dir`
 and `--list-files`, plus `--enable rest,mcp`. `--enable` sets `http.enable`, what to serve. The
@@ -783,11 +789,12 @@ lets running requests finish for up to `http.graceMs` (25 seconds by default).
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
 | `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log's `address` (the proxy is then `peerAddress`) |
 | `log.level`, `log.format`, `log.address` | info, auto, on | The log's level, its format (text on a terminal, JSON otherwise) and whether lines name the client's address. Flags `--log`, `--log-format`, `--log-address`. Variables `PIVOTKIT_LOG_LEVEL`, `PIVOTKIT_LOG_FORMAT`, `PIVOTKIT_LOG_ADDRESS` ([operations](operations.md#settings)) |
-| `http.maxConnectionsPerAddress` | 0 (no bound) | Connections one address may hold (loopback excepted). Set it (for example 32) when clients reach the port directly with addresses of their own. Leave it off behind NAT, a published port or a proxy, where every client has one address |
+| `http.maxConnectionsPerAddress` | 32, none with `http.trustProxy` | Connections one address may hold (loopback excepted), counted by the socket's peer. `0` switches the bound off. Raise it where many clients share one address without a proxy, such as an office behind one NAT ([MCP](mcp.md#http) has the details) |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
 | `output.create` | true | Make a missing `output.dir` at start, with its parents and mode 0700. When `output.baseUrl` is set, the mode is 0755 narrowed by the umask. The start logs a warning when it makes the directory. `false` makes a missing directory an error. A relative `output.dir` without a configuration file is relative to the working directory. `check-config` says whether the directory exists, will be made, or cannot be made, and why: a parent the server's user may not write, a name too long, a symbolic link loop |
-| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted. They may take at most half of `output.maxFiles`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
+| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their MiB (1,048,576 bytes each) the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted to make room. They may take at most half of `output.maxFiles` and half of `output.maxMb`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
 | `output.maxAgeDays` | 30 | `0`: no age limit. Otherwise the server deletes reports (the files marked `.pivotkit-out.`) and schedule drafts no longer waiting for approval (`.pivotkit-out.report.json` whose `status` is not `"draft"`) older than this many days from the top level of the output directory, at start and every hour. It also deletes the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour). Other files and subdirectories stay. Use a directory of its own. The server refuses to start with a limit you write when the output directory is the configuration file's directory or holds a source, print template or token file. There the default does not apply (no age limit) |
+| `output.draftMaxAgeDays` | 0 (never) | Delete schedule drafts that still wait for approval (`status` `"draft"`) when they are older than this many days, at start and every hour. It works with `output.maxAgeDays: 0` too. Like `output.maxAgeDays`, the server refuses to start with it where the output directory holds the operator's own files |
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `output.upload` | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method`, `timeMs`, `maxBytes`, `keepLocal`, `bind`, `intranet` |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |

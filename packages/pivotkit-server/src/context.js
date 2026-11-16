@@ -61,7 +61,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {import("./config.js").ServerOptions} options
  * @property {any} registry  the sources (registry.js)
  * @property {any} computer  the compute pool (compute.js)
- * @property {{ dir: string, baseUrl: string | null, maxFiles: number, maxMb: number, maxAgeDays: number, cleanUp: boolean, showPath: boolean } | null} output  cleanUp: the oldest reports may be deleted to make room (not where the operator's own files lie)
+ * @property {{ dir: string, baseUrl: string | null, maxFiles: number, maxMb: number, maxAgeDays: number, draftMaxAgeDays: number, cleanUp: boolean, showPath: boolean } | null} output  cleanUp: the oldest reports may be deleted to make room (not where the operator's own files lie)
  * @property {any} log  the log (log.js)
  * @property {import("./sources/input.js").Offers} offers  the extra inputs each surface offers (fixed at start)
  * @property {string} authMode
@@ -151,8 +151,10 @@ export async function createContext(options, runtime = {}) {
         // old reports are deleted by their extension (.csv, .json, ...): never where the operator's
         // own files lie, which have such names too
         const shared = (await ownFileDirs(options)).includes(dir);
-        if (options.output.maxAgeDays && shared) {
-            throw new ConfigError("output.dir: is the configuration's directory or holds a source, template or token file, which output.maxAgeDays could delete with the old reports; give the reports a directory of their own");
+        for (const key of /** @type {const} */ (["maxAgeDays", "draftMaxAgeDays"])) {
+            if (options.output[key] && shared) {
+                throw new ConfigError(`output.dir: is the configuration's directory or holds a source, template or token file, which output.${key} could delete with the old reports; give the reports a directory of their own`);
+            }
         }
         if (shared) {
             log.warn(SHARED_OUTPUT_TEXT);
@@ -165,7 +167,7 @@ export async function createContext(options, runtime = {}) {
         }
         // the default age limit only where the reports have a directory of their own: a default the
         // operator did not set never keeps the server from starting
-        output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles, maxMb: options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb, maxAgeDays: maxAgeDaysOf(options, shared), cleanUp: !shared, showPath: runtime.showPaths ?? false };
+        output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles, maxMb: options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb, maxAgeDays: maxAgeDaysOf(options, shared), draftMaxAgeDays: options.output.draftMaxAgeDays ?? OUTPUT_DEFAULTS.draftMaxAgeDays, cleanUp: !shared, showPath: runtime.showPaths ?? false };
     }
     // the tests' look into the workers, by a key only code that imports compute.js can give (never a setting)
     const computer = createComputer(options.compute, runtime[COMPUTE_HOOKS] === true ? { hooks: true } : {});
@@ -269,8 +271,8 @@ export async function createContext(options, runtime = {}) {
             releaseCache = () => undefined;
         }
     };
-    if (output?.maxAgeDays) {
-        // old reports go at start and every hour, also while nobody renders
+    if (output?.maxAgeDays || output?.draftMaxAgeDays) {
+        // old reports and drafts go at start and every hour, also while nobody renders
         await prune(context);
         pruning = setInterval(() => prune(context).catch(() => undefined), 3_600_000);
         pruning.unref();

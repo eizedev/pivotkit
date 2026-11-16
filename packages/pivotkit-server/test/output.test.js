@@ -9,6 +9,8 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, statSync, symlinkSync, u
 import { join } from "node:path";
 import { whyNot } from "../src/context.js";
 import { prune } from "../src/present.js";
+import { makeRoom } from "../src/output.js";
+import { checkConfig } from "pivotkit-server";
 import { BIN, BY_REGION, call, factsOf, restServer, workspace } from "./helpers.js";
 
 const run = (args) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
@@ -76,7 +78,7 @@ test("schedule drafts awaiting approval count but are never deleted to make room
     try {
         const res = await call(`${small.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
         assert.equal(res.status, 409, JSON.stringify(res.data));
-        assert.match(res.data.detail, /schedule drafts awaiting approval, which are not deleted/);
+        assert.match(res.data.detail, /what is left are schedule drafts, awaiting approval or not, which are not deleted to make room/);
         assert.equal(reports(join(full, "out")).length, 2);
     } finally {
         await small.close();
@@ -115,6 +117,103 @@ test("schedule drafts take at most half of output.maxFiles: more are refused, re
     } finally {
         await one.close();
     }
+});
+
+/** A schedule draft's file as pivotkit writes it, with its status, padded to about `bytes`. */
+const draftFile = (status, bytes = 0) => JSON.stringify({ format: "pivotkit-report-draft", version: 0, status, name: "Weekly", note: "x".repeat(bytes) });
+
+test("schedule drafts take at most half of output.maxMb: a draft over it is refused with what to do, renders keep working, check-config warns of a directory already over it", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    // drafts a host never approves: 600 KiB of the 512 KiB that half of output.maxMb 1 allows
+    for (const name of ["A", "B", "C"]) {
+        writeFileSync(join(out, `${name}.pivotkit-out.report.json`), draftFile("draft", 200 * 1024));
+    }
+    const checked = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxMb: 1 }, baseDir: dir }, { http: false, env: {} });
+    assert.match(factsOf(checked.text), /^ {2}at most 1000 files and 1 MiB of pivotkit's; schedule drafts at most 500 files and 512 KiB$/m);
+    assert.match(factsOf(checked.text), /^WARNING \(Output\): schedule drafts awaiting approval take 600\.\d KiB, more than the 512 KiB they may \(half of output\.maxMb\): new drafts are refused until a person approves or removes some, or you raise output\.maxMb$/m);
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxMb: 1 }, baseDir: dir });
+    try {
+        const refused = await call(`${server.api}/schedules/draft`, { body: { source: "sales", view: BY_REGION, name: "Daily", formats: ["xlsx"], every: { unit: "day", at: "07:00" }, recipients: ["Sales team"] } });
+        assert.equal(refused.status, 409, JSON.stringify(refused.data));
+        assert.equal(refused.data.code, "NO_OUTPUT");
+        assert.match(refused.data.detail, /^the schedule drafts awaiting approval take 600\.\d KiB of the 512 KiB they may \(half of output\.maxMb\); a person must approve or remove some first, or the operator raises output\.maxMb$/);
+        for (let i = 0; i < 3; i++) {
+            assert.equal((await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } })).status, 200);
+        }
+        assert.equal(reports(out).filter((n) => n.endsWith(".report.json")).length, 3, "no draft deleted, none added");
+    } finally {
+        await server.close();
+    }
+});
+
+test("the drafts' caps count only drafts that still wait; a draft that just fits is taken; one larger than all drafts may take says the operator must raise output.maxMb", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const context = (output) => ({ output: { maxFiles: 1000, maxMb: 1, cleanUp: true, ...output } });
+    const cap = 512 * 1024;
+    // byte cap: waiting drafts fill it but for 100 bytes; an approved draft beside them does not count
+    writeFileSync(join(out, "Waiting.pivotkit-out.report.json"), draftFile("draft", cap - 100 - draftFile("draft").length));
+    writeFileSync(join(out, "Approved.pivotkit-out.report.json"), draftFile("approved", 300 * 1024));
+    const waitingBytes = statSync(join(out, "Waiting.pivotkit-out.report.json")).size;
+    assert.equal(await makeRoom(context({}), out, cap - waitingBytes, true), 0, "a draft that just fits is taken");
+    await assert.rejects(makeRoom(context({}), out, cap - waitingBytes + 1, true), /^OperationError: the schedule drafts awaiting approval take [\d.]+ KiB of the 512 KiB they may \(half of output\.maxMb\)/);
+    // count cap: maxFiles 4 lets two drafts wait; one waits, one was approved: a second waiting one fits
+    const counted = workspace();
+    const outCounted = join(counted, "out");
+    writeFileSync(join(outCounted, "A.pivotkit-out.report.json"), draftFile("draft"));
+    writeFileSync(join(outCounted, "B.pivotkit-out.report.json"), draftFile("rejected"));
+    assert.equal(await makeRoom(context({ maxFiles: 4, maxMb: 1024 }), outCounted, 10, true), 0, "an approved or rejected draft is no waiting draft");
+    writeFileSync(join(outCounted, "C.pivotkit-out.report.json"), draftFile("draft"));
+    await assert.rejects(makeRoom(context({ maxFiles: 4, maxMb: 1024 }), outCounted, 10, true), /holds 2 schedule drafts awaiting approval, the most it may/);
+    // two sizes that round alike are said in bytes, so the answer never reads "512 KiB of the 512 KiB"
+    const close = workspace();
+    writeFileSync(join(close, "out", "Big.pivotkit-out.report.json"), draftFile("draft", cap - 10 - draftFile("draft").length));
+    await assert.rejects(makeRoom(context({}), join(close, "out"), 20, true), (e) => /take 524,278 bytes of the 524,288 bytes they may/.test(e.message) || assert.fail(e.message));
+    // one draft larger than all drafts together may take: nothing waits, and no approval can help
+    const empty = workspace();
+    await assert.rejects(makeRoom(context({}), join(empty, "out"), cap + 1024, true), (e) => e.message === "the schedule draft takes 513 KiB, more than all drafts together may take (512 KiB, half of output.maxMb); the operator raises output.maxMb" || assert.fail(e.message));
+});
+
+test("output.draftMaxAgeDays: drafts that still wait go after that many days, also with output.maxAgeDays 0; off by default; refused where the operator's files lie", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const files = { "Old.pivotkit-out.report.json": [draftFile("draft"), 10], "New.pivotkit-out.report.json": [draftFile("draft"), 1], "Done.pivotkit-out.report.json": [draftFile("approved"), 10], "old.pivotkit-out.csv": ["x", 10] };
+    for (const [name, [text, days]] of Object.entries(files)) {
+        writeFileSync(join(out, name), text);
+        const when = new Date(Date.now() - days * 86_400_000);
+        utimesSync(join(out, name), when, when);
+    }
+    const options = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0, draftMaxAgeDays: 7 }, baseDir: dir };
+    const text = factsOf((await checkConfig(options, { http: false, env: {} })).text);
+    assert.match(text, /^ {2}no age limit for reports \(output\.maxAgeDays 0\); schedule drafts that wait for approval are deleted after 7 days$/m);
+    assert.match(text, /^WARNING \(Output\): 1 schedule draft waiting for approval is older than 7 days and is deleted at the next start; copy it away or set output\.draftMaxAgeDays: 0$/m);
+    // the start sweeps: the old waiting draft goes; reports and drafts no longer waiting keep output.maxAgeDays 0
+    const server = await restServer(options);
+    try {
+        assert.deepEqual(reports(out).sort(), ["Done.pivotkit-out.report.json", "New.pivotkit-out.report.json", "old.pivotkit-out.csv"]);
+        const said = server.log.filter((l) => /output\.draftMaxAgeDays/.test(l.message ?? l.msg ?? ""));
+        assert.equal(said.length, 1, JSON.stringify(server.log));
+        assert.equal(said[0].drafts, 1);
+    } finally {
+        await server.close();
+    }
+    // by default a waiting draft stays, however old
+    const kept = workspace();
+    writeFileSync(join(kept, "out", "Old.pivotkit-out.report.json"), draftFile("draft"));
+    const longAgo = new Date(Date.now() - 400 * 86_400_000);
+    utimesSync(join(kept, "out", "Old.pivotkit-out.report.json"), longAgo, longAgo);
+    const plain = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: kept });
+    await plain.close();
+    assert.deepEqual(reports(join(kept, "out")), ["Old.pivotkit-out.report.json"]);
+    // checked like output.maxAgeDays
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", draftMaxAgeDays: -1 }, baseDir: kept }), /output\.draftMaxAgeDays: must be a whole number of 0 or more/);
+    const config = join(kept, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", draftMaxAgeDays: 7 } }));
+    const check = run(["check-config", "--config", config]);
+    assert.equal(check.status, 1, check.stdout);
+    assert.match(factsOf(check.stdout), /PROBLEM: output\.draftMaxAgeDays in a directory that holds the configuration or a source, template or token file; give the reports a directory of their own -> the server does not start/);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", draftMaxAgeDays: 7 }, baseDir: kept }), /output\.dir: is the configuration's directory or holds a source, template or token file, which output\.draftMaxAgeDays could delete/);
 });
 
 test("the file count holds when many reports are written at once", async () => {

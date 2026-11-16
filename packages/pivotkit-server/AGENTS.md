@@ -107,7 +107,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Below `show`, a text file with a quoted value over several lines is refused (`checkedRead`).
 - REST callers never get `file:` paths (`files: false` in the registry).
 - Delivery decides a report's link before the file is written (`linkFor` in `delivery.js`).
-- `isClosedForDelivery` is the one rule for which reports get only bound links.
+- `isClosedForDelivery` is the one rule for which reports get only bound links. `closedReason` says why.
 
 ### Caches, inline data and memory
 

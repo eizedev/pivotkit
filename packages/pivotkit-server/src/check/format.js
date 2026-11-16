@@ -17,9 +17,9 @@
  *         /srv/pivotkit/data/a-long-folder-name/and-another-one/sales-2026.csv
  *     ...
  *
- *   New in this version: data in the request (inline:; mcp.data: false switches
- *       it off)
- *       -> https://pivotkit.eize.dev/getting-started/upgrading/
+ *   New in this version:
+ *     at most 32 connections per address (http.maxConnectionsPerAddress)
+ *       -> https://pivotkit.eize.dev/getting-started/upgrading/#per-address
  *
  * Three markers: PROBLEM (counted; keeps the server from starting, or a source or feature from
  * working, and says which), WARNING (counted, not an error) and plain. The verdict and the counts
@@ -31,6 +31,12 @@
  */
 
 import { pathOf } from "../config.js";
+
+/**
+ * A change of this version that applies to the loaded configuration: a short name and the anchor of
+ * its section on the upgrading page.
+ * @typedef {{ text: string, anchor: string }} Upgrade
+ */
 
 /** The width check-config wraps its lines at. */
 export const WIDTH = 78;
@@ -140,7 +146,7 @@ const problemText = (item) => `PROBLEM: ${item.text} -> ${item.stops ? "the serv
  * in this version.
  * @param {string} name  the program ("pivotkit-server", "pivotkit-mcp")
  * @param {Item[][]} sections  each section's items, in the order printed
- * @param {string[]} upgrade  short names of this version's changes that apply
+ * @param {Upgrade[]} upgrade  this version's changes that apply, each with its upgrading section
  * @param {string} upgradingUrl
  * @returns {{ text: string, problems: number, warnings: number, stops: number }}
  */
@@ -173,7 +179,7 @@ export function render(name, sections, upgrade, upgradingUrl) {
         }
     }
     if (upgrade.length) {
-        lines.push("", ...wrap(`New in this version: ${upgrade.join(", ")}`, 0), `    -> ${upgradingUrl}`);
+        lines.push("", "New in this version:", ...upgrade.flatMap((u) => [...wrap(u.text, 2), `    -> ${upgradingUrl}#${u.anchor}`]));
     }
     return { text: `${lines.join("\n")}\n`, problems: problems.length, warnings, stops };
 }

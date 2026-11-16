@@ -6,6 +6,29 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Changed
+
+- Behaviour change from pivotkit-server: a source hidden by default whose named fields are all
+  `show` or `hide` is open, and its reports get plain download links. "Show everything except"
+  stays closed
+  ([#510](https://github.com/eizedev/pivotkit/issues/510),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open)).
+- Behaviour change from pivotkit-server: over HTTP, one address may hold at most 32 connections by
+  default, none with `http.trustProxy` (`http.maxConnectionsPerAddress`)
+  ([#511](https://github.com/eizedev/pivotkit/issues/511),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#per-address)).
+- Behaviour change from pivotkit-server: schedule drafts may take at most half of `output.maxMb`,
+  and `output.draftMaxAgeDays` lets waiting drafts expire
+  ([#513](https://github.com/eizedev/pivotkit/issues/513),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota)).
+
+### Fixed
+
+- Behaviour change from pivotkit-server: on a busy host, a parameter pattern's time limit no longer
+  refuses fast, valid values and patterns. Matches run under 75 ms with retries. A value that runs
+  out of time twice, or a request whose pattern checks take over 150 ms, answers `BUSY`
+  ([#528](https://github.com/eizedev/pivotkit/issues/528)).
+
 ## [0.2.0] - 2026-11-16
 
 ### Upgrading from 0.1.1

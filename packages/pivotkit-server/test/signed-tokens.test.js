@@ -165,7 +165,7 @@ test("token issue: a signed token works on REST and MCP at once, its value is in
         assert.match(out.token, JWT_TEXT);
         assert.match(out.id, /^[0-9a-f]{16}$/);
         assert.equal(out.name, "ci");
-        assert.ok(Math.abs(Date.parse(out.expiresAt) - Date.now() - 3_600_000) < 60_000);
+        assert.ok(Math.abs(Date.parse(out.expiresAt) - Date.now() - 3_600_000) < 60_000); // wall time: a timestamp the code wrote
         const token = out.token;
         // REST and MCP both let it in, without a restart
         assert.equal((await call(`${server.api}/views/validate`, { body: { source: "sales", view: BY_REGION }, token })).status, 200);

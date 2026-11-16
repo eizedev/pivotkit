@@ -274,7 +274,7 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
         assert.equal(output.bound, "none");
         assert.ok(output.url.startsWith(`${server.url}/downloads/`), output.url);
         assert.match(output.expiresAt, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
-        assert.ok(Math.abs(Date.parse(output.expiresAt) - Date.now() - 3_600_000) < 5000);
+        assert.ok(Math.abs(Date.parse(output.expiresAt) - Date.now() - 3_600_000) < 5000); // wall time: a timestamp the server wrote
         assert.equal(output.note, "Open the link in your browser; it works for 60 minutes.");
         // the address is output.url (and the resource_link), named once: the message names the file
         assert.equal(r.data.message.split(output.url).length, 1, r.data.message);
@@ -336,6 +336,40 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
         assert.equal(removed.data.code, "LINK_EXPIRED");
         assert.match(removed.data.detail, /The report was removed from the server/);
         assert.doesNotMatch(logText(server), new RegExp(token.split(".")[1]));
+    } finally {
+        await server.close();
+    }
+});
+
+test("#510: a source hidden by default with its shown fields listed gets plain links, and a column the data gains later never appears behind one; show-everything-except stays closed with its reason", async () => {
+    const dir = workspace();
+    const allowed = { file: "data/sales.csv", policy: { default: "hide", fields: { Region: "show", Product: "show", Sales: "show" } } };
+    const denied = { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } } };
+    const server = await restServer({ sources: { allowed, denied }, output: { dir: "out", downloads: { key: { env: "DL_KEY" } } }, baseDir: dir }, { env: { DL_KEY } });
+    const view = { rows: ["Region", "Product"], values: [{ field: "Sales", agg: "sum" }] };
+    try {
+        const r = await call(`${server.api}/views/render`, { body: { source: "allowed", view, format: "csv" } });
+        assert.equal(r.status, 200, JSON.stringify(r.data));
+        assert.equal(r.data.output.bound, "none");
+        assert.doesNotMatch(await (await fetch(r.data.output.url)).text(), /Alice|Bob|Carol/);
+        // the data gains a column: it is hidden by default, so neither the plain link nor a view reaches it
+        writeFileSync(join(dir, "data", "sales.csv"), SALES_CSV.split("\n").map((line, i) => (line ? `${line},${i === 0 ? "Secret" : `secret-${i}`}` : line)).join("\n"));
+        const later = await call(`${server.api}/views/render`, { body: { source: "allowed", view: { rows: ["Region", "Secret"], values: [{ field: "Sales", agg: "sum" }] }, format: "csv" } });
+        assert.equal(later.data.output, null, JSON.stringify(later.data));
+        const again = await call(`${server.api}/views/render`, { body: { source: "allowed", view, format: "html" } });
+        assert.equal(again.data.output.bound, "none");
+        assert.doesNotMatch(await (await fetch(again.data.output.url)).text(), /Secret|secret-/);
+        // show everything except Customer: the new column would be shown, so no plain link
+        const deny = await call(`${server.api}/views/render`, { body: { source: "denied", view: { rows: ["Region", "Secret"], values: [{ field: "Sales", agg: "sum" }] }, format: "csv" } });
+        assert.equal(deny.status, 200, JSON.stringify(deny.data));
+        assert.equal(deny.data.output.url, undefined, JSON.stringify(deny.data.output));
+        const checked = factsOf((await checkConfig({ sources: { allowed, denied }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} })).text);
+        assert.match(checked, /^ {2}reports over open sources \(allowed\): plain links$/m);
+        assert.match(checked, /^ {2}closed for plain links: denied \(Customer hide under default show: a column the data gains later would be shown\)$/m);
+        assert.match(checked, /^ {4}for plain links, set the source's default to hide and list the fields to show$/m);
+        // shown to one profile only: another caller's report holds the field, so the link is bound
+        const split = await checkConfig({ sources: { shown: { file: "data/sales.csv", policy: { default: "hide", fields: { Region: "show" } } } }, policy: { profiles: { reader: { fields: { region: "hide" } } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
+        assert.match(factsOf(split.text), /^ {2}closed for plain links: shown \(profile reader: Region hide, shown to other callers\)$/m);
     } finally {
         await server.close();
     }
@@ -524,7 +558,7 @@ test("once: the page names the file, its kind, size and expiry; after the downlo
         const mineHtml = await mine.text();
         assert.match(mineHtml, /<form method="post"><button type="submit">Download<\/button><\/form>/);
         const until = /<span id="until">You downloaded it in this browser a moment ago and can download it again until <time datetime="([^"]+)">/.exec(mineHtml)?.[1];
-        assert.ok(until && Math.abs(Date.parse(until) - Date.now() - 120_000) < 5000, String(until));
+        assert.ok(until && Math.abs(Date.parse(until) - Date.now() - 120_000) < 5000, String(until)); // wall time: a timestamp the server wrote
         // a GET never uses a link: an unused one stays unused after many
         const fresh = local((await render("Fresh")).url);
         for (let i = 0; i < 3; i++) {
@@ -947,11 +981,20 @@ test("check-config: where links point, which sources get which link, the redirec
     assert.match(signIn.text, /^ {2}reports over closed sources \(sales\): download links \(signed in\)\n {4}register https:\/\/reports\.example\.com\/downloads\/callback at the provider for the client pivotkit-downloads\n {4}it must give the same subject \(claim sub\) as the MCP client\n {4}REST programs get them only with results: true$/m);
     assert.match(signIn.text, /^ {2}reports over open sources \(open\): plain links$/m);
     // why a source counts as closed: open needs default "show" and no field below it
-    assert.match(signIn.text, /^ {2}closed \(a field not shown for someone\): sales \(fields summary by default\)$/m);
+    assert.match(signIn.text, /^ {2}closed for plain links: sales \(fields summary by default\)$/m);
     const why = await checkConfig({ sources: { listed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "values" } } }, profiled: { file: "data/sales.csv", policy: { default: "show" } } }, policy: { profiles: { reader: { default: "summary" } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
-    assert.match(factsOf(why.text), /closed \(a field not shown for someone\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
+    assert.match(factsOf(why.text), /closed for plain links: listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
+    // each kind of reason has its way to plain links
+    assert.match(factsOf(why.text), /^ {4}for plain links, set the fields at values or summary to show, or set the default to hide and list the fields to show$/m);
+    assert.doesNotMatch(why.text, /give every caller the same levels|write a policy:/);
+    const others = factsOf((await checkConfig({ sources: { shown: { file: "data/sales.csv", policy: { default: "hide", fields: { Region: "show" } } } }, policy: { profiles: { reader: { fields: { region: "hide" } } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} })).text);
+    assert.match(others, /^ {4}for plain links, give every caller the same levels: the server's policy, the source's and every profile's$/m);
+    const auto = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, policy: { autoValues: true }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} })).text);
+    assert.match(auto, /closed for plain links: sales \(the automatic values rule\)/);
+    assert.match(auto, /^ {4}for plain links, write a policy: the automatic values rule decides levels by the data, so it closes the source$/m);
     assert.match(signIn.text, /^WARNING \(Delivery\): output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
-    assert.match(signIn.text, /\nNew in this version: [^\n]*download links under \/downloads/);
+    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
+    assert.doesNotMatch(signIn.text, /download links under \/downloads\/, answered without a token/);
 
     const once = await checkConfig({ sources, output: { dir: "out", downloads: { bind: "once", key: { env: "DL_KEY" } } }, baseDir: dir }, { http: true, env: { DL_KEY: "short" } });
     assert.match(once.text, /reports over closed sources \(sales\): one-time links/);
@@ -963,7 +1006,7 @@ test("check-config: where links point, which sources get which link, the redirec
 
     const baseUrl = await checkConfig({ sources, output: { dir: "out", baseUrl: "https://files.example.com/" }, baseDir: dir }, { http: false, env: {} });
     assert.match(baseUrl.text, /reports over closed sources \(sales\): no address under output\.baseUrl/);
-    assert.match(factsOf(baseUrl.text), /\nNew in this version: [^\n]*no output\.baseUrl address for closed sources/);
+    assert.doesNotMatch(factsOf(baseUrl.text), /no output\.baseUrl address for closed sources/);
 
     const stdio = await checkConfig({ sources, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} });
     assert.doesNotMatch(stdio.text, /Delivery:/);
