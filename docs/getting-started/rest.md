@@ -232,14 +232,15 @@ service again:
 ??? note "A token that expires on its own"
 
     The server can issue a token that works for a while, for example a working day. Add a directory
-    for its keys to `auth` in `pivotkit.json`: `"signedTokens": { "dir": "secrets/signed" }`. Then:
+    for its keys to `auth` in `pivotkit.json`: `"signedTokens": { "dir": "secrets/signed" }`.
+    Restart the service once, since it reads `auth` at start. Then, in the second terminal:
 
     ```bash
     npx -y pivotkit-server token issue --config pivotkit.json --expires 8h --name laptop
     ```
 
-    The token works on the running server at once. `token list` shows it, and `token revoke laptop`
-    ends it early ([signed tokens](../reference/rest.md#signed-tokens)).
+    The token works at once, on REST and MCP. `token list` shows it, and `token revoke laptop` ends
+    it early ([signed tokens](../reference/rest.md#signed-tokens)).
 
 In the second terminal, read the two tokens into variables:
 

@@ -260,11 +260,11 @@ export async function changedConfig(path, config, options, change) {
     // written is refused now, before the secret's file is written
     const info = await lstat(path);
     if (!info.isFile()) {
-        throw usage("CONFIG_NOT_WRITABLE", `${config}: is ${info.isSymbolicLink() ? "a symbolic link (a mounted ConfigMap is one)" : "not a regular file"}; --add replaces the file, so add the entry where the file comes from`);
+        throw usage("CONFIG_NOT_WRITABLE", `${config}: is ${info.isSymbolicLink() ? "a symbolic link (a mounted ConfigMap is one)" : "not a regular file"}; the command replaces the file, so change it where the file comes from`);
     }
     const writable = await access(dirname(path), fsConstants.W_OK).then(() => true, () => false);
     if (!writable) {
-        throw usage("CONFIG_NOT_WRITABLE", `${config}: its directory cannot be written (the backup and the new file go there); add the entry by hand`);
+        throw usage("CONFIG_NOT_WRITABLE", `${config}: its directory cannot be written (the backup and the new file go there); change the file by hand`);
     }
     // the bytes as they are, for the backup and the check before the replace; the text for parsing
     const bytes = await readFile(path);
@@ -439,7 +439,7 @@ function tokenHints({ values, entry, options, backup, secret }) {
     if (backup) {
         hints.push(`Added the token "${entry.name}" to auth.tokens. ${rewrittenLine(values, backup)}`);
     } else if (!values.file) {
-        hints.push(`Keep it where only the server reads it (pivotkit-server token new --file <path>), and add to auth.tokens of ${config}:`, `  ${snippetOf({ name: entry.name, file: "<path>" })}  or  ${snippetOf({ name: entry.name, env: "<VARIABLE>" })}`);
+        hints.push(`Keep it where only the server reads it (pivotkit-server token new --file <path>), and add to auth.tokens of ${config}:`, `  ${snippetOf({ name: entry.name, file: "<path>", ...(entry.expires ? { expires: entry.expires } : {}) })}  or  ${snippetOf({ name: entry.name, env: "<VARIABLE>", ...(entry.expires ? { expires: entry.expires } : {}) })}`);
     } else if (!secret.replaced) {
         hints.push(`Add it to auth.tokens of ${config} (auth.mode "token"):`, `  ${snippetOf(entry)}`);
     }

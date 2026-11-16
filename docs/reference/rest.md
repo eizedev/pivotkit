@@ -965,7 +965,9 @@ pivotkit-server token issue --expires 8h --name laptop --profile staff
 docker exec pivotkit pivotkit-server token issue --expires 7d --scope pivotkit:sales
 ```
 
-The token is printed once, on stdout. It works on REST and MCP at once, without a restart.
+The token is printed once, on stdout. It works on REST and MCP at once, without a restart. Only
+after you set or change `auth.signedTokens` does the server need a restart, since it reads `auth` at
+start.
 
 - It is a JWT signed with Ed25519 (`EdDSA`), of the type `pivotkit+jwt`. Clients send it like any
   bearer token.

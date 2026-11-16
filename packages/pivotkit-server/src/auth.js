@@ -355,8 +355,18 @@ const SIGNED_REFUSALS = Object.freeze({ EXPIRED: "this token expired; ask the op
  */
 function signedCheckOf(options, log) {
     const store = signedStore(pathOf(options, /** @type {string} */ (options.auth?.signedTokens?.dir)));
+    // a stranger's made-up token reaches these before any check: each text at most once a minute
+    /** @type {Map<string, number>} */
+    const warned = new Map();
+    const warn = (text) => {
+        const now = Date.now();
+        if (now - (warned.get(text) ?? -Infinity) >= SHORT_TOKEN_WARN_MS) {
+            warned.set(text, now);
+            log.warn(text);
+        }
+    };
     const verifier = createSignedVerifier({
-        keyFor: keyring(store, { onProblem: (text) => log.warn(`auth: signed tokens: ${text}`) }),
+        keyFor: keyring(store, { onProblem: (text) => warn(`auth: signed tokens: ${text}`) }),
         isRevoked: (id) => store.isRevoked(id),
         issuer: SIGNED_TOKEN.issuer,
         typ: SIGNED_TOKEN.typ,
@@ -376,7 +386,7 @@ function signedCheckOf(options, log) {
             throw new AuthRefusal(401, "invalid_token", SIGNED_REFUSALS[/** @type {keyof typeof SIGNED_REFUSALS} */ (e.code)] ?? UNKNOWN_TOKEN_TEXT);
         }
         if (claims.profile !== null && !profiles.has(claims.profile)) {
-            log.warn(`auth: the signed token ${claims.id} names the profile "${claims.profile}", which policy.profiles does not have: refused`);
+            warn(`auth: the signed token ${claims.id} names the profile "${claims.profile}", which policy.profiles does not have: refused`);
             throw new AuthRefusal(401, "invalid_token", "this token's profile is not configured; ask the operator for a new one");
         }
         return { token: "", clientId: claims.id, scopes: claims.scopes ?? [], expiresAt: claims.expiresAt, extra: { allScopes: claims.scopes === null, profile: claims.profile, signed: true } };

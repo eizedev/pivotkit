@@ -353,7 +353,7 @@ test("auth.tokens[].expires: a date or a date-time with a zone; anything else is
     for (const good of ["2027-01-31", "2027-01-31T08:00:00Z", "2027-01-31T08:00:00+01:00"]) {
         validateOptions({ ...base, auth: { ...base.auth, tokens: [{ name: "a", env: "A", expires: good }] } });
     }
-    for (const bad of ["tomorrow", "2027-13-01", "2027-01-31T08:00:00", "31.01.2027"]) {
+    for (const bad of ["tomorrow", "2027-13-01", "2027-01-31T08:00:00", "31.01.2027", "2027-01-31T25:00:00Z", "2027-01-31T08:61:00+01:00"]) {
         assert.throws(() => validateOptions({ ...base, auth: { ...base.auth, tokens: [{ name: "a", env: "A", expires: bad }] } }), /auth\.tokens\[0\]\.expires/, bad);
     }
 });
@@ -433,6 +433,76 @@ test("with a state directory and no configuration of its own: token issue --stat
         assert.equal(admin.status, 2);
         assert.match(admin.stderr, /token new --file .*admin\.token --force/);
     } finally {
+        await server.close();
+    }
+});
+
+test("an expired signed token is refused on REST and MCP, and the log names a token by its ID, never by its name", async () => {
+    const { signedStore } = await import("../src/signed-tokens.js");
+    const { config, signed } = setup();
+    const server = await serverOf(config);
+    try {
+        const store = signedStore(signed);
+        await store.ensureDirs();
+        const { token: expired } = await store.issue({ name: null, profile: null, scopes: null, expiresAt: Math.floor(Date.now() / 1000) - 120 });
+        const refused = await call(`${server.api}/sources`, { token: expired });
+        assert.equal(refused.status, 401);
+        assert.match(JSON.stringify(refused.data), /expired/);
+        assert.equal(await mcpCall(server, expired), false);
+        const named = JSON.parse(run(["token", "issue", "--config", config, "--name", "distinct-laptop-name", "--json"]).stdout);
+        assert.equal((await call(`${server.api}/sources`, { token: named.token })).status, 200);
+        const text = JSON.stringify(server.log);
+        assert.ok(text.includes(named.id));
+        assert.ok(!text.includes("distinct-laptop-name"), "the name in the log");
+    } finally {
+        await server.close();
+    }
+});
+
+test("a signed token whose profile policy.profiles no longer has gets 401", async () => {
+    const { config } = setup({ policy: { profiles: { narrow: { default: "show" } } } });
+    const token = JSON.parse(run(["token", "issue", "--config", config, "--profile", "narrow", "--json"]).stdout).token;
+    const options = await loadConfig(config);
+    delete options.policy;
+    const server = await restServer(options, { env: { OPS_TOKEN: TOKEN } });
+    try {
+        const refused = await call(`${server.api}/sources`, { token });
+        assert.equal(refused.status, 401);
+        assert.match(JSON.stringify(refused.data), /profile/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("rate limits count per signed token: one token over its limit does not slow another", async () => {
+    const { config } = setup();
+    const options = await loadConfig(config);
+    const server = await restServer({ ...options, rest: { rateLimit: { perMinute: 1, burst: 1 } } }, { env: { OPS_TOKEN: TOKEN } });
+    try {
+        const a = JSON.parse(run(["token", "issue", "--config", config, "--json"]).stdout).token;
+        const b = JSON.parse(run(["token", "issue", "--config", config, "--json"]).stdout).token;
+        assert.equal((await call(`${server.api}/sources`, { token: a })).status, 200);
+        assert.equal((await call(`${server.api}/sources`, { token: a })).status, 429);
+        assert.equal((await call(`${server.api}/sources`, { token: b })).status, 200);
+    } finally {
+        await server.close();
+    }
+});
+
+test("keys that cannot be read refuse every signed token, and say so on the log at most once a minute", { skip: !POSIX || process.getuid?.() === 0 }, async () => {
+    const { chmodSync } = await import("node:fs");
+    const { config, signed } = setup();
+    const token = JSON.parse(run(["token", "issue", "--config", config, "--json"]).stdout).token;
+    const server = await serverOf(config);
+    chmodSync(join(signed, "keys"), 0o000);
+    try {
+        for (let i = 0; i < 5; i++) {
+            assert.equal((await call(`${server.api}/sources`, { token })).status, 401);
+        }
+        const warnings = server.log.filter((l) => l.level === "warn" && /keys cannot be read/.test(l.msg));
+        assert.equal(warnings.length, 1, JSON.stringify(server.log));
+    } finally {
+        chmodSync(join(signed, "keys"), 0o700);
         await server.close();
     }
 });

@@ -391,7 +391,7 @@ export function signedStore(dir, { now = Date.now } = {}) {
  * SIGNED_TOKEN.reloadMs old, for a change the directory does not show. Reads at the same time share
  * one. No timer.
  * @param {ReturnType<typeof signedStore>} store
- * @param {{ now?: () => number, onProblem?: (text: string) => void }} [how]
+ * @param {{ now?: () => number, onProblem?: (text: string) => void }} [how]  onProblem: on every read that finds one; the caller limits how often it logs
  * @returns {(kid: string) => Promise<import("node:crypto").KeyObject | null>}
  */
 export function keyring(store, { now = Date.now, onProblem = () => undefined } = {}) {
@@ -402,7 +402,6 @@ export function keyring(store, { now = Date.now, onProblem = () => undefined } =
     let seen = NaN;
     /** @type {Promise<void> | null} */
     let inflight = null;
-    const reported = new Set();
     const changed = () => store.keysChanged(seen);
     const load = () =>
         (inflight ??= store
@@ -411,8 +410,7 @@ export function keyring(store, { now = Date.now, onProblem = () => undefined } =
                 const { keys: k, problems } = await store.loadKeys();
                 keys = k;
                 seen = stamp;
-                for (const p of problems.filter((p) => !reported.has(p))) {
-                    reported.add(p);
+                for (const p of problems) {
                     onProblem(p);
                 }
             })
@@ -456,5 +454,7 @@ export function expiryOf(text, { nowMs = Date.now(), durations = true } = {}) {
     if (!Number.isFinite(day) || new Date(day).toISOString().slice(0, 10) !== m[1]) {
         return null;
     }
-    return m[2] ? Date.parse(text) : day;
+    // a time that does not exist (25:00) parses as NaN: refused, never a token that does not expire
+    const at = m[2] ? Date.parse(text) : day;
+    return Number.isFinite(at) ? at : null;
 }
