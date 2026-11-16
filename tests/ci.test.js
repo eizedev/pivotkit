@@ -4,9 +4,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { delimiter, dirname, join } from "node:path";
+import { delimiter, dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { releaseProblems, unreleasedEntries } from "../scripts/check-release.js";
+import { filesUnder } from "./source-files.js";
 import { tempDir } from "./temp-dir.js";
 
 const root = new URL("../", import.meta.url);
@@ -414,29 +415,17 @@ const VERSION_STATEMENTS = [
 const minorOf = (version) => version.split(".").slice(0, 2).join(".");
 
 /** The Markdown files a reader takes as the current state: READMEs, every AGENTS.md, CONTRIBUTING.md, RELEASING.md, SECURITY.md, docs/. */
-// directories that hold no tracked file: installs, build output, git's own (.gitignore)
-const UNTRACKED_DIRS = new Set([".git", "node_modules", "dist", "coverage", "site", "types", "test-results", "playwright-report"]);
-
 /**
  * Every AGENTS.md under `dir`, the root's and the nested ones of packages and folders, as paths
  * relative to `dir` with "/". git's list of tracked files where `dir` is a repository; without git
- * or .git (a source archive), a walk of the directory that skips what .gitignore leaves out.
+ * or .git (a source archive), a walk of the directory without installs and build output.
  * @param {string} dir
  */
 function agentsFiles(dir) {
     // the ceiling keeps git from answering for a repository that only encloses dir
     const git = spawnSync("git", ["ls-files", "--", "AGENTS.md", "**/AGENTS.md"], { cwd: dir, encoding: "utf8", env: { ...process.env, GIT_CEILING_DIRECTORIES: dirname(dir) } });
     if (git.status === 0) return git.stdout.split("\n").filter(Boolean).sort();
-    const found = [];
-    const walk = (sub) => {
-        for (const entry of readdirSync(join(dir, sub), { withFileTypes: true })) {
-            const path = sub ? `${sub}/${entry.name}` : entry.name;
-            if (entry.isDirectory() && !UNTRACKED_DIRS.has(entry.name)) walk(path);
-            else if (entry.isFile() && entry.name === "AGENTS.md") found.push(path);
-        }
-    };
-    walk("");
-    return found.sort();
+    return filesUnder(dir, (name) => name === "AGENTS.md").map((path) => relative(dir, path).split(sep).join("/")).sort();
 }
 
 test("agentsFiles finds the nested AGENTS.md files in a copy without .git, outside build output", () => {
