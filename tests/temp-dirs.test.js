@@ -215,10 +215,12 @@ test("a killed process's directories go with the next tempDir() of any process; 
     try {
         killed.child.kill("SIGKILL");
         await killed.ended;
-        assert.ok(killed.first.every((dir) => existsSync(dir)), "SIGKILL leaves them");
         // another run's process, without this run's id
         const next = runMaker("", "");
         assert.equal(next.status, 0, next.stderr);
+        // other ended processes on the machine may have left some too
+        const said = /^removed \d+ temporary directories? of ended processes: (.*)$/m.exec(next.stderr)?.[1].split(", ") ?? [];
+        for (const dir of killed.first) assert.ok(said.includes(basename(dir)), `${basename(dir)} named in: ${next.stderr}`);
         for (const dir of killed.first) assert.equal(existsSync(dir), false, `${dir} of the killed process is still there`);
         for (const dir of running.first) assert.equal(existsSync(dir), true, `${dir} of the running process was removed`);
     } finally {
