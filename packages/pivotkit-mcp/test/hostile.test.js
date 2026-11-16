@@ -128,15 +128,21 @@ test("too large an input: a view over the size limit, too many elements, unknown
     }
 });
 
-test("a worker over its time is stopped and replaced; the next call works", async () => {
-    // compute.timeMs holds for every call, the next small one too: on a busy machine a limit of a few
-    // tens of ms ended that one as well. The limit lies far from both calls instead: describing the
-    // 1,000,000 rows (the rows limit) took 1.6 s on an idle machine, the small file 30 ms.
+/**
+ * A CSV of 1,000,000 rows (the rows limit). Describing it took 1.6 s on an idle machine, the small
+ * sales file 30 ms. The worker tests below set their limits far from both: a limit of a few tens of
+ * ms ended the small calls too on a busy machine.
+ */
+function millionRows() {
     const rows = ["Region,Product,Sales"];
     for (let i = 0; i < 1_000_000; i++) {
         rows.push(`R${i % 5000},P${i % 3000},${i}`);
     }
-    const dir = workspace({ "sales.csv": SALES_CSV, "huge.csv": `${rows.join("\n")}\n` });
+    return `${rows.join("\n")}\n`;
+}
+
+test("a worker over its time is stopped and replaced; the next call works", async () => {
+    const dir = workspace({ "sales.csv": SALES_CSV, "huge.csv": millionRows() });
     const server = await httpServer({ sources: { sales: { file: "data/sales.csv" }, huge: { file: "data/huge.csv" } }, output: { dir: "out" }, compute: { workers: 1, timeMs: 500 }, baseDir: dir });
     try {
         const { client, close } = await httpClient(server.url);
@@ -151,18 +157,20 @@ test("a worker over its time is stopped and replaced; the next call works", asyn
 });
 
 test("more calls than workers: a call that waits longer than queueMs is BUSY, and the slot is free again after", async () => {
-    const rows = ["Region,Product,Sales"];
-    for (let i = 0; i < 150_000; i++) {
-        rows.push(`R${i % 4000},P${i % 2000},${i}`);
-    }
-    const dir = workspace({ "sales.csv": SALES_CSV, "huge.csv": `${rows.join("\n")}\n` });
-    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" }, huge: { file: "data/huge.csv" } }, output: { dir: "out" }, compute: { workers: 1, queueMs: 50 }, baseDir: dir });
+    const dir = workspace({ "sales.csv": SALES_CSV, "huge.csv": millionRows() });
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" }, huge: { file: "data/huge.csv" } }, output: { dir: "out" }, compute: { workers: 1, queueMs: 300 }, baseDir: dir });
     try {
         const { client, close } = await httpClient(server.url);
-        const heavy = call(client, "describe_source", { source: "huge" });
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        const second = await call(client, "describe_source", { source: "sales" });
-        assert.match(second.text, /^BUSY: the server is busy/);
+        let heavyDone = false;
+        const heavy = call(client, "describe_source", { source: "huge" }).finally(() => (heavyDone = true));
+        // small calls one after another: one that reaches the worker before the heavy call runs at
+        // once; the first one after it waits for the worker the heavy call holds, and is BUSY
+        const answers = [];
+        while (!heavyDone && !answers.at(-1)?.isError) {
+            answers.push(await call(client, "describe_source", { source: "sales" }));
+        }
+        assert.match(String(answers.at(-1)?.text), /^BUSY: the server is busy/);
+        assert.ok(answers.slice(0, -1).every((a) => !a.isError), "the calls before it ran");
         assert.equal((await heavy).isError, false);
         assert.equal((await call(client, "describe_source", { source: "sales" })).isError, false);
         await close();
