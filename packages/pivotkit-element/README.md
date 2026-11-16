@@ -2,12 +2,8 @@
 
 The pivot report builder of [pivotkit](https://pivotkit.eize.dev/) as one web component,
 `<pivot-report>`, for pages without React: Angular apps, PHP and other server-rendered pages, plain
-HTML. It brings its own React ([which version](https://pivotkit.eize.dev/browser-support/#react)), [pivotkit-react](https://www.npmjs.com/package/pivotkit-react),
-[pivotkit-core](https://www.npmjs.com/package/pivotkit-core) and @dnd-kit, renders into an open shadow
-root and loads ECharts on the first chart. Everything the React component does works the same: field
-list, drag and drop, table and chart, filters, drill-down, undo, saved and shared views, export.
-
-![A line chart of monthly revenue per category](https://pivotkit.eize.dev/assets/screenshots/chart-light.png)
+HTML. Everything the React component does works the same: field list, drag and drop, table and
+chart, filters, drill-down, undo, saved and shared views, export.
 
 ## Install
 
@@ -15,11 +11,12 @@ list, drag and drop, table and chart, filters, drill-down, undo, saved and share
 npm install pivotkit-element
 ```
 
-With a bundler, `import "pivotkit-element";` once defines `<pivot-report>`. Without one, serve the
-package's whole `dist/` directory: its chunks are loaded by relative URL from `dist/index.js`, so
-`index.js` alone is not enough. The package has no runtime dependency; the licenses of what it
-bundles are in `dist/THIRD_PARTY_LICENSES.txt`. Browsers: Chrome 111, Firefox 113, Safari 16.4 or
-later.
+- With a bundler, `import "pivotkit-element";` once. That defines `<pivot-report>`.
+- Without a bundler, serve the package's whole `dist/` directory. `dist/index.js` loads its chunks by
+  relative URL, so `index.js` alone is not enough.
+- The package has no runtime dependency. The licenses of what it bundles are in
+  `dist/THIRD_PARTY_LICENSES.txt`.
+- Browsers: Chrome 111, Firefox 113, Safari 16.4 or later.
 
 ## Example
 
@@ -42,6 +39,16 @@ report.data = rows;                        // an array of objects, property only
 report.templates = [{ name: "By region", view: { rows: ["Region"] } }];
 report.addEventListener("pivot-view-change", (e) => localStorage.setItem("view", JSON.stringify(e.detail.view)));
 ```
+
+## How it works
+
+- It brings its own React ([which version](https://pivotkit.eize.dev/browser-support/#react)),
+  [pivotkit-react](https://www.npmjs.com/package/pivotkit-react),
+  [pivotkit-core](https://www.npmjs.com/package/pivotkit-core) and @dnd-kit.
+- It renders into an open shadow root.
+- It loads ECharts on the first chart.
+
+![A line chart of monthly revenue per category](https://pivotkit.eize.dev/assets/screenshots/chart-light.png)
 
 ## Where in the docs
 
@@ -71,5 +78,5 @@ report.addEventListener("pivot-view-change", (e) => localStorage.setItem("view",
 
 ## License
 
-[MIT](https://github.com/eizedev/pivotkit/blob/main/LICENSE); the bundled packages under their own
-licenses, see `dist/THIRD_PARTY_LICENSES.txt`.
+[MIT](https://github.com/eizedev/pivotkit/blob/main/LICENSE). The bundled packages keep their own
+licenses, listed in `dist/THIRD_PARTY_LICENSES.txt`.

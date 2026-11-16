@@ -1,10 +1,14 @@
 # pivotkit-report
 
-Render [pivotkit](https://pivotkit.eize.dev/) views without a browser: a view over rows as an HTML
-report to print or save as PDF, CSV, JSON, an Excel workbook (.xlsx) or the chart as SVG. The same
-table and chart as the report on the screen, from pivotkit-core's engine and exporters; the print
-template is HTML with `{{placeholders}}`, and everything filled into it is escaped. Runs in Node and
-in the browser.
+Render [pivotkit](https://pivotkit.eize.dev/) views without a browser. It turns a view over rows into
+one of these:
+
+- an HTML report to print or save as PDF
+- CSV or JSON
+- an Excel workbook (.xlsx)
+- the chart as SVG
+
+It runs in Node and in the browser.
 
 ## Install
 
@@ -12,10 +16,12 @@ in the browser.
 npm install pivotkit-report echarts
 ```
 
-ES modules for Node 22 or later and browsers from Chrome 111, Firefox 113 and Safari 16.4. It depends
-on pivotkit-core (a caret range on the minor version it was released with, see its `package.json`). ECharts (`>=6.1.0 <7`) is an optional peer dependency: only
-the SVG and the chart of an HTML report need it, passed in as `options.echarts`. TypeScript
-declarations are included.
+- ES modules for Node 22 or later and browsers from Chrome 111, Firefox 113 and Safari 16.4.
+- It depends on pivotkit-core with a caret range on the minor version it shipped with. Its
+  `package.json` names the range.
+- ECharts (`>=6.1.0 <7`) is an optional peer dependency. Only the SVG and the chart of an HTML report
+  need it. You pass it in as `options.echarts`.
+- The package includes TypeScript declarations.
 
 ## Example
 
@@ -29,6 +35,13 @@ const result = await render(view, rows, { format: "html", echarts, now: "2026-11
 if (!result.ok) console.warn(result.issues);   // a bad view never throws: its issues come back
 await writeFile("report.html", result.body);  // Uint8Array; result.text for the text formats
 ```
+
+## How it works
+
+- It draws the same table and chart as the report on the screen, with pivotkit-core's engine and
+  exporters.
+- The print template is HTML with `{{placeholders}}`. pivotkit-report escapes everything it fills
+  into the template.
 
 ## Where in the docs
 
