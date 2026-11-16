@@ -321,7 +321,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   replacing one without `replace`, `keep` reading the one there (an empty one read again for about a
   second, for a file system without hard links, where the file is created in place;
   `secretFileMeans` lets tests replace link(), rename() and the user), a kept file losing only its
-  world bits, a link only read through, a replaced file keeping its owner, group and group bits where
+  world bits, a link only read through, a replaced file keeping its owner, group and group read bit where
   it may (else a warning), EBUSY of a mounted file `MOUNTED`, the
   temporary file removed on SIGINT and SIGTERM, a symbolic link, directory or missing directory
   refused; `replaceFile` and `writeBackup` for a configuration file; for any code that

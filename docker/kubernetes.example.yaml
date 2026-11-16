@@ -9,7 +9,8 @@
 #   - the namespace of your ingress controller in the NetworkPolicy pivotkit;
 #   - where needed: the Ingress's ingressClassName, its TLS Secret pivotkit-tls, and the
 #     storageClassName of pivotkit-data (a class that offers ReadWriteMany).
-# The token is a Secret you create yourself (never in this file), from a file the image writes:
+# The token is a Secret you create yourself (never in this file), from a file the image writes
+# (bash; in PowerShell -v "${PWD}:/out" without --user, docs/getting-started/kubernetes.md):
 #   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
 #   kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
 # So are the key of the download links (the same in every pod, so a link works after a restart):

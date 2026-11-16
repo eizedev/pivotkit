@@ -16,8 +16,9 @@
  * - A file that replaces another keeps the old one's owner and group where this process may set them
  *   (run as root). A file that is mounted on its own (a bind mount of one file, a Kubernetes subPath)
  *   cannot be replaced: MOUNTED.
- * - A replacement keeps the old file's group bits where it keeps its group, never the world's; an
- *   owner, group or mode it could not keep gets a warning.
+ * - A replacement keeps the old file's group read bit where it keeps its group (never a write bit,
+ *   never the world's); an owner, group or mode it could not keep gets a warning. Not root, it keeps
+ *   the group alone where this user is in it (chown with the owner -1, "unchanged").
  * - A kept file loses only its world bits (with a warning); a group's bits stay (a group may share
  *   it), with a warning, as does a file of another user than this one or root. A kept file behind a
  *   symbolic link (a mounted Kubernetes Secret) is only read through it, never changed.
@@ -59,7 +60,7 @@ const RENAME_RETRY = Object.freeze({ tries: 3, waitMs: 50 });
 const EMPTY_RETRY = Object.freeze({ tries: 20, waitMs: 50 });
 
 /** The calls tests replace: a file system without hard links, a mounted file, another user. */
-export const secretFileMeans = { link, rename, uid: () => process.getuid?.(), chown: (handle, uid, gid) => handle.chown(uid, gid) };
+export const secretFileMeans = { link, rename, lstat, uid: () => process.getuid?.(), chown: (handle, uid, gid) => handle.chown(uid, gid) };
 
 /** The signals during which a temporary file is removed. */
 const SIGNALS = Object.freeze(["SIGINT", "SIGTERM"]);
@@ -106,7 +107,7 @@ async function targetOf(path, label) {
  * @param {string} label
  */
 async function existingFile(target, label) {
-    const info = await lstat(target).catch((e) => (e?.code === "ENOENT" ? null : Promise.reject(e)));
+    const info = await secretFileMeans.lstat(target).catch((e) => (e?.code === "ENOENT" ? null : Promise.reject(e)));
     if (info && !info.isFile()) {
         throw new SecretFileError("NOT_REGULAR_FILE", `${label}: is ${whatIs(info)}; not written`);
     }
@@ -127,7 +128,8 @@ function writeRefusal(e, label) {
 /**
  * Creates a new file with exactly `mode` and writes `bytes` into it, synced; the file is removed again
  * when the write fails. With `owner` (the file it replaces), the owner and group are set to its where
- * this process may (root, or a group it is in); its group bits are added only where the group is its.
+ * this process may (root; else the group alone, with the owner -1, where this user is in it); the
+ * group's read bit is added only where the group is the old one's.
  * @param {string} path
  * @param {Uint8Array | string} bytes
  * @param {number} mode
@@ -147,13 +149,18 @@ async function createWith(path, bytes, mode, label, owner = null) {
             // the umask does not narrow or widen it
             await handle.chmod(mode);
             if (owner) {
-                await secretFileMeans.chown(handle, owner.uid, owner.gid).catch((e) => (e?.code === "EPERM" ? undefined : Promise.reject(e)));
+                const refused = (e) => (e?.code === "EPERM" ? false : Promise.reject(e));
+                const done = await secretFileMeans.chown(handle, owner.uid, owner.gid).then(() => true, refused);
+                if (!done) {
+                    // not root: the owner stays this user's, the group may still be kept (-1: leave the owner as it is)
+                    await secretFileMeans.chown(handle, -1, owner.gid).catch(refused);
+                }
             }
         }
         const made = process.platform === "win32" ? null : await handle.stat();
-        if (made && owner && made.gid === owner.gid && owner.mode & 0o070) {
-            // the group that may read it is the old one: it keeps its group bits, never the world's
-            await handle.chmod(mode | (owner.mode & 0o070));
+        if (made && owner && made.gid === owner.gid && owner.mode & 0o040) {
+            // the group that may read it is the old one: it keeps the group's read bit, never a write bit
+            await handle.chmod(mode | 0o040);
         }
         await handle.writeFile(bytes);
         await handle.sync();
@@ -273,6 +280,16 @@ async function readKept(target, label, usable, kind, throughLink = false) {
             throw new SecretFileError("UNUSABLE", `${label}: is there but not a usable ${kind} (${why}); replace it with --force`);
         }
         const warnings = [];
+        if (process.platform !== "win32" && throughLink) {
+            // the file behind a mounted Secret is not ours to change: only said
+            const me = secretFileMeans.uid();
+            if (info.mode & 0o004) {
+                warnings.push(`${label} is readable by everyone (mode ${(info.mode & 0o777).toString(8)}); not changed through the link`);
+            }
+            if (info.uid !== me && info.uid !== 0) {
+                warnings.push(`${label} is owned by user ${info.uid}, not by ${me} (this user) or root; not changed through the link`);
+            }
+        }
         if (process.platform !== "win32" && !throughLink) {
             const me = secretFileMeans.uid();
             let mode = info.mode & 0o777;
@@ -339,13 +356,13 @@ async function readSettled(target, label, usable, kind, throughLink = false) {
  * @param {string} path
  * @param {string} value
  * @param {PlaceOptions} [options]
- * @returns {Promise<{ path: string, value: string, created: boolean, replaced: boolean, warnings: string[] }>}  the real path, and the value in the file now (another one when a file was kept)
+ * @returns {Promise<{ path: string, value: string, created: boolean, replaced: boolean, warnings: string[], throughLink?: boolean }>}  the real path, and the value in the file now (another one when a file was kept); throughLink: read through a symbolic link
  */
 export async function placeSecret(path, value, { replace = false, keep = false, usable = () => null, kind = "secret", label = path } = {}) {
     const { dir, target } = await targetOf(resolve(path), label);
     if (keep && (await lstat(target).catch(() => null))?.isSymbolicLink()) {
         // a mounted Secret: checked through the link, never written
-        return { path: target, ...(await readSettled(target, label, usable, kind, true)), created: false, replaced: false };
+        return { path: target, ...(await readSettled(target, label, usable, kind, true)), created: false, replaced: false, throughLink: true };
     }
     const existing = await existingFile(target, label);
     if (existing && keep) {

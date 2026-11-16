@@ -697,13 +697,38 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 | Option | What it does |
 | --- | --- |
 | `--file <path>` | Write the value to this file: one line ending in LF, mode 0600, never through a symbolic link, never into a directory that is not there. The value is not printed (`--print` prints it too) |
-| `--if-missing` | Keep a file that is there and exit 0, if it holds a value the server can use (else 1). A file of yours that everyone may read loses those bits, with a warning; one a group may read keeps them (a group may share it), with a warning, as does a file of another user than you or root. A symbolic link (a mounted Secret) is only read, never changed. Several runs at once end with one value |
-| `--force` | Replace a file that is there, atomically, keeping its owner and group where it may (run as root, or a group you are in) and then its group's read bit; a warning says what it could not keep. Clients that still send the old token get 401 from then on; the server reads a token's file on every request and the download key within a second, so neither needs a restart. A file mounted on its own (a bind mount of one file, a Kubernetes `subPath`) cannot be replaced (`MOUNTED`): change it where it comes from |
+| `--if-missing` | Keep a file that is there and exit 0, if the server can use its value; else exit 1. [Below](#credentials-if-missing) |
+| `--force` | Replace a file that is there, atomically. [Below](#credentials-force) |
 | `--config <file>` | `token new`: check `--profile` against `policy.profiles`, refuse a file inside `output.dir`, and use `http.publicUrl` in the hints. `token new` and `key new` read no configuration without it, not even `$PIVOTKIT_CONFIG`; `token show` reads `$PIVOTKIT_CONFIG` by default |
 | `--add` | `token new`: add the token to `auth.tokens` of `--config`. `key new`: name the key as `output.downloads.key` or `audit.key`. Both need `--file`; [below](#credentials-add) |
 | `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
 | `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
 | `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "config", "configured", "backup", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`; the value only where it would be printed |
+
+#### What `--if-missing` does { #credentials-if-missing }
+
+- It reads the file and checks the value by the server's rules. A value it cannot use is exit 1.
+- A file of yours that everyone may read loses those bits. It says so.
+- A file a group may read keeps that bit, since a group may share it on purpose. It warns you.
+- A file of another user than you or root is kept too, with a warning.
+- A symbolic link, such as a mounted Kubernetes Secret, is only read through. Nothing behind it is
+  changed, and `--print` is refused there; `token show` prints a configured token.
+- Several runs at once end with one value.
+
+#### What `--force` does { #credentials-force }
+
+- It writes the new value to a temporary file and renames it over the old one. A reader never sees
+  half a value.
+- It keeps the old file's owner and group where it may. As root it keeps both. As another user it
+  keeps the group when you are in it, and the owner is yours.
+- With the old group kept, the group's read bit stays. A write bit never does, nor any bit for
+  everyone else.
+- It warns you of an owner, group or read bit it could not keep. Then check that the server's user
+  can still read the file.
+- Clients that still send the old token get 401 from then on. The server reads a token's file on
+  every request and the download key within a second, so neither needs a restart.
+- A file mounted on its own (a bind mount of one file, a Kubernetes `subPath`) cannot be replaced
+  (`MOUNTED`). Change it where it comes from.
 
 #### What `--add` does { #credentials-add }
 
@@ -720,9 +745,9 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
   no longer need them.
 - It writes the configuration again as pretty-printed JSON. The indentation and the file's mode
   stay; a compact one-line object is spread over lines.
-- It reads the configuration, writes the secret's file, then replaces the configuration. If
-  someone saves the configuration in between, it does not replace it and says so; run it again
-  with `--if-missing`.
+- It reads the configuration, writes the secret's file, then replaces the configuration. Right
+  before the replace it reads the configuration again. If someone changed it in between, it does
+  not replace it and says so; run it again with `--if-missing`.
 - It refuses a configuration that is a symbolic link (a mounted ConfigMap) or in a folder it
   cannot write.
 - Restart the server afterwards: it reads the list of tokens and the audit key at start.

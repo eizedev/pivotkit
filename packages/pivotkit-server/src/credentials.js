@@ -110,7 +110,9 @@ function parse(command, argv, positionals = false) {
         const flag = /'(-{1,2}[^'\s]+)'/.exec(String(e.message))?.[1] ?? "";
         const near = closest(flag.replace(/^-+/, ""), Object.keys(flags));
         const what = e.code === "ERR_PARSE_ARGS_UNKNOWN_OPTION" ? `unknown option ${JSON.stringify(flag.slice(0, 40))}` : String(e.message).split("\n")[0].replace(/^./, (c) => c.toLowerCase());
-        throw usage("UNKNOWN_OPTION", `${what}; ${near ? `did you mean --${near}? ` : ""}run "pivotkit-server ${command.split(" ")[0]} --help"`);
+        // a flag without its value is named by the error itself: no "did you mean" of the same flag
+        const hint = near && near !== flag.replace(/^-+/, "") ? `did you mean --${near}? ` : "";
+        throw usage("UNKNOWN_OPTION", `${what}; ${hint}run "pivotkit-server ${command.split(" ")[0]} --help"`);
     }
 }
 
@@ -142,6 +144,10 @@ async function secretOf(values, bytes, kind, usable, cwd) {
     const path = resolve(cwd, values.file);
     try {
         const placed = await placeSecret(path, newSecret(bytes), { replace: values.force, keep: values["if-missing"], usable, kind, label: values.file });
+        if (placed.throughLink && values.print) {
+            // a mounted Secret's value is the cluster's to hand out; token show prints a configured token by name
+            throw usage("LINK_PRINT", `${values.file}: is checked behind a symbolic link (a mounted Secret), and a value behind a link is not printed; pivotkit-server token show <name> prints a configured token`);
+        }
         return { ...placed, file: path };
     } catch (e) {
         if (e instanceof SecretFileError) {
@@ -227,9 +233,10 @@ async function changedConfig(path, config, options, change) {
 }
 
 /**
- * Writes a changed configuration with its backup, unless it changed since it was read (its size or
- * time): then nothing is replaced and the backup goes again. When that fails, says that the secret's
- * file is written and the configuration is not.
+ * Writes a changed configuration with its backup, unless it changed since it was read (its content,
+ * read again right before the replace; its size and time before that): then nothing is replaced and
+ * the backup goes again. When that fails, says that the secret's file is written and the
+ * configuration is not.
  * @param {{ path: string, before: string, text: string, mode: number, size: number, mtimeMs: number }} changed
  * @param {Record<string, any>} values
  * @returns {Promise<string>}  the backup's path
@@ -237,7 +244,7 @@ async function changedConfig(path, config, options, change) {
 async function writeConfig(changed, values) {
     const unchanged = async () => {
         const now = await lstat(changed.path);
-        return now.size === changed.size && now.mtimeMs === changed.mtimeMs;
+        return now.size === changed.size && now.mtimeMs === changed.mtimeMs && (await readFile(changed.path, "utf8")) === changed.before;
     };
     if (!(await unchanged())) {
         throw new CommandError(1, "CONFIG_CHANGED", `${values.config} changed since it was read and was not replaced; the file ${values.file} is written: run the same command with --if-missing to add it now`);
@@ -297,7 +304,7 @@ async function tokenNew(argv, io) {
     }
     const backup = added && !("done" in added) ? await writeConfig(added, values) : null;
     warnings.push(...(added && "notes" in added ? added.notes : []));
-    const hints = added && "done" in added ? [`kept ${values.file} (usable); already configured in ${values.config}`] : tokenHints({ values, entry, options, backup, secret });
+    const hints = added && "done" in added ? [`${secret.created ? "created" : `kept`} ${values.file}${secret.created ? "" : " (usable)"}; already configured in ${values.config}`] : tokenHints({ values, entry, options, backup, secret });
     const json = { name, ...(file ? { file: secret.file, created: secret.created, replaced: secret.replaced } : {}), ...(added ? { config: added.path, configured: "done" in added ? "already" : "added", backup } : {}) };
     return { json, value: secret.value, hints, warnings, printValue: !file || Boolean(values.print), field: "token" };
 }
@@ -418,8 +425,10 @@ async function keyNew(argv, io) {
     const backup = added && !("done" in added) ? await writeConfig(added, values) : null;
     warnings.push(...(added && "notes" in added ? added.notes : []));
     let hints;
-    if (values.file && !secret.created && !secret.replaced) {
-        hints = [`kept ${values.file} (usable)${added && "done" in added ? `; already configured in ${values.config}` : ""}`];
+    if (added && "done" in added) {
+        hints = [`${secret.created ? "created" : "kept"} ${values.file}${secret.created ? "" : " (usable)"}; already configured in ${values.config}`];
+    } else if (values.file && !secret.created && !secret.replaced) {
+        hints = [`kept ${values.file} (usable)`];
     } else if (backup) {
         hints = [`Named it as ${use.option}. ${rewrittenLine(values, backup)}`, use.after];
     } else if (ref) {

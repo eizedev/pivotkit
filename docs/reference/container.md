@@ -68,7 +68,8 @@ are an example for Docker Compose with these settings: two tokens as secrets, on
 may download files. Make the two files with `pivotkit-server token new --file secrets/pivotkit_token`
 and `--file secrets/pivotkit_export_token`: with Node `npx -y pivotkit-server`, without it the image
 itself,
-`docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/secrets:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/pivotkit_token`.
+`docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/secrets:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/pivotkit_token`
+(bash; in PowerShell `-v "${PWD}/secrets:/out"` without `--user`).
 Then give them to the user 10001 as above: `token new` writes mode 0600 for your own user
 ([tokens and keys](rest.md#credentials)). Its output saved with `>` instead gets the mode your umask
 gives (often 0644, readable by everyone): run `umask 077` first if you do that.

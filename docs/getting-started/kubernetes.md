@@ -27,12 +27,28 @@ holds every part shown below; the sections explain each one.
    `pivotkit-tls` (made by hand or by a tool such as cert-manager), and the `storageClassName` of
    `pivotkit-data` (when the default class offers no ReadWriteMany).
 3. Create the namespace, the token and the download key, then apply the manifest and fetch the data
-   once. The image makes the two files (each a file only you read):
+   once. The image makes the two files (each a file only you read); the lines are for bash on Linux
+   or macOS, the PowerShell tab shows the two that differ:
+
+    === "bash"
+
+        ```bash
+        docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
+        docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> key new --for downloads --file /out/download.key
+        ```
+
+    === "PowerShell"
+
+        ```powershell
+        # Docker Desktop on Windows: the folder is writable from the container without --user
+        docker run --rm -v "${PWD}:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
+        docker run --rm -v "${PWD}:/out" ghcr.io/eizedev/pivotkit:<version> key new --for downloads --file /out/download.key
+        ```
+
+    Then, in either shell:
 
     ```bash
     kubectl create namespace pivotkit
-    docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
-    docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> key new --for downloads --file /out/download.key
     kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
     kubectl -n pivotkit create secret generic pivotkit-download-key --from-file=key=./download.key
     kubectl apply -f kubernetes.example.yaml

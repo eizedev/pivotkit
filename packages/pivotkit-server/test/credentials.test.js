@@ -618,10 +618,75 @@ test("--if-missing --add twice: the second run finds it done; a different entry 
     assert.equal(run(["key", "new", "--for", "downloads", "--file", join(dir, "e.key"), "--config", config, "--add", "--if-missing"]).status, 2, "another file for the key is refused");
 });
 
-test("--force keeps the old file's group and its group bits where it may, and warns where it may not", { skip: (!POSIX || (process.getgroups?.() ?? []).length < 2) && "needs POSIX and a second group" }, async () => {
+/**
+ * The lstat placeSecret sees, with the file's owner and group as given: an old file of another user
+ * or group, which a test that is not root cannot make.
+ */
+async function withOldOwner(secretFileMeans, file, owner, work) {
+    const { lstat: realLstat } = await import("node:fs/promises");
+    const { lstat } = secretFileMeans;
+    secretFileMeans.lstat = async (path) => {
+        const info = await realLstat(path);
+        return path === file ? Object.assign(Object.create(Object.getPrototypeOf(info)), info, owner) : info;
+    };
+    try {
+        return await work();
+    } finally {
+        secretFileMeans.lstat = lstat;
+    }
+}
+
+test("--force over another user's file: the group kept by chown(-1, gid), only its read bit, and a warning for the owner", { skip: !POSIX && "owners and modes are POSIX" }, async () => {
     const { placeSecret, secretFileMeans } = await import("../src/secret-file.js");
     const dir = tempDir();
+    const file = join(dir, "theirs.token");
+    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
+    chmodSync(file, 0o660);
+    const gid = statSync(file).gid;
+    const calls = [];
+    const { chown } = secretFileMeans;
+    try {
+        // not root: changing the owner is refused, keeping the owner (-1) and setting a group of one's own is not
+        secretFileMeans.chown = async (handle, uid, group) => {
+            calls.push([uid, group]);
+            return uid === -1 ? handle.chown(-1, group) : Promise.reject(Object.assign(new Error("not permitted"), { code: "EPERM" }));
+        };
+        const placed = await withOldOwner(secretFileMeans, file, { uid: (process.getuid?.() ?? 0) + 4242 }, () => placeSecret(file, "a-new-token-that-is-long-enough-01234567890", { replace: true, label: "theirs.token" }));
+        assert.deepEqual(calls, [[(process.getuid?.() ?? 0) + 4242, gid], [-1, gid]], "the owner tried, then the group alone");
+        assert.equal(statSync(file).gid, gid);
+        assert.equal(statSync(file).mode & 0o777, 0o640, "the group's read bit, never its write bit");
+        assert.ok(placed.warnings.some((w) => /theirs\.token: owner or group not kept/.test(w)), placed.warnings.join("\n"));
+        assert.ok(placed.warnings.some((w) => /mode 640, was 660/.test(w)), placed.warnings.join("\n"));
+    } finally {
+        secretFileMeans.chown = chown;
+    }
+});
+
+test("--force where neither owner nor group can be kept: mode 600 and a warning", { skip: !POSIX && "owners and modes are POSIX" }, async () => {
+    const { placeSecret, secretFileMeans } = await import("../src/secret-file.js");
+    const dir = tempDir();
+    const file = join(dir, "lost.token");
+    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
+    chmodSync(file, 0o640);
+    const own = statSync(file).gid;
+    const { chown } = secretFileMeans;
+    try {
+        secretFileMeans.chown = async () => Promise.reject(Object.assign(new Error("not permitted"), { code: "EPERM" }));
+        const placed = await withOldOwner(secretFileMeans, file, { uid: (process.getuid?.() ?? 0) + 4242, gid: own + 4242 }, () => placeSecret(file, "a-new-token-that-is-long-enough-01234567890", { replace: true, label: "lost.token" }));
+        assert.equal(statSync(file).gid, own, "this user's group, not the old file's");
+        assert.equal(statSync(file).mode & 0o777, 0o600, "no group bits for another group");
+        assert.ok(placed.warnings.some((w) => /lost\.token: owner or group not kept \(now \d+:\d+, was \d+:\d+\)/.test(w)), placed.warnings.join("\n"));
+        assert.ok(placed.warnings.some((w) => /mode 600, was 640/.test(w)), placed.warnings.join("\n"));
+    } finally {
+        secretFileMeans.chown = chown;
+    }
+});
+
+test("--force keeps a second group of this user and its read bit", { skip: (!POSIX || (process.getgroups?.() ?? []).length < 2) && "needs POSIX and a second group" }, async () => {
+    const { placeSecret } = await import("../src/secret-file.js");
+    const dir = tempDir();
     const file = join(dir, "shared.token");
+    // a group a new file in this directory would not get by itself
     const group = (process.getgroups?.() ?? []).find((g) => g !== statSync(dir).gid && g !== process.getgid?.());
     assert.ok(group !== undefined);
     writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
@@ -631,17 +696,6 @@ test("--force keeps the old file's group and its group bits where it may, and wa
     assert.equal(statSync(file).gid, group, "the group kept");
     assert.equal(statSync(file).mode & 0o777, 0o640, "its read bit kept");
     assert.deepEqual(kept.warnings, []);
-    const { chown } = secretFileMeans;
-    try {
-        secretFileMeans.chown = async () => Promise.reject(Object.assign(new Error("not permitted"), { code: "EPERM" }));
-        const lost = await placeSecret(file, "a-third-token-that-is-long-enough-012345678", { replace: true, label: "shared.token" });
-        assert.notEqual(statSync(file).gid, group);
-        assert.equal(statSync(file).mode & 0o777, 0o600, "no group bits for another group");
-        assert.ok(lost.warnings.some((w) => /shared\.token: owner or group not kept/.test(w)), lost.warnings.join("\n"));
-        assert.ok(lost.warnings.some((w) => /mode 600, was 640/.test(w)), lost.warnings.join("\n"));
-    } finally {
-        secretFileMeans.chown = chown;
-    }
 });
 
 test("--if-missing that takes away everyone's read access says so; through a link it only reads", { skip: !POSIX && "mode bits and links are POSIX" }, () => {
@@ -657,10 +711,18 @@ test("--if-missing that takes away everyone's read access says so; through a lin
     writeFileSync(join(dir, "..data", "reports"), "a-test-token-that-is-long-enough-0123456789\n");
     chmodSync(join(dir, "..data", "reports"), 0o644);
     symlinkSync(join("..data", "reports"), join(dir, "reports"));
-    const linked = run(["token", "new", "--file", join(dir, "reports"), "--if-missing", "--print"]);
+    const linked = run(["token", "new", "--file", join(dir, "reports"), "--if-missing"]);
     assert.equal(linked.status, 0, linked.stderr);
-    assert.equal(linked.stdout, "a-test-token-that-is-long-enough-0123456789\n");
+    assert.equal(linked.stdout, "");
+    assert.match(linked.stderr, /warning: .*reports is readable by everyone \(mode 644\); not changed through the link/);
     assert.equal(statSync(join(dir, "..data", "reports")).mode & 0o777, 0o644, "nothing changed through the link");
+    // the value behind a link is not printed: that is token show's job, by name
+    for (const flag of ["--print", "--json"]) {
+        const printed = run(["token", "new", "--file", join(dir, "reports"), "--if-missing", "--print", ...(flag === "--json" ? ["--json"] : [])]);
+        assert.equal(printed.status, 2, flag);
+        assert.ok(!printed.stdout.includes("a-test-token-that-is-long-enough"), flag);
+        assert.match(flag === "--json" ? JSON.parse(printed.stdout).error.message : printed.stderr, /behind a symbolic link/);
+    }
 });
 
 test("--add refuses to replace a configuration that changed since it was read", async () => {
@@ -706,4 +768,48 @@ test("the claude mcp add hint says that the token lands in the process list and 
     let err = "";
     await credentialsCommand("token", ["new", "--file", "t.token"], { env: {}, cwd: dir, stdout: { write() {} }, stderr: { isTTY: true, write: (t) => (err += t) } });
     assert.match(err, /claude mcp add[^\n]*\n[^\n]*process list and your shell's history/);
+});
+
+test("--add notices a same-size edit with the time put back", async () => {
+    const { credentialsCommand } = await import("../src/credentials.js");
+    const { secretFileMeans } = await import("../src/secret-file.js");
+    const { utimesSync } = await import("node:fs");
+    const dir = workspace();
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv", title: "AAAA" } } }, null, 2));
+    // whole seconds, so the edit below can put the time back exactly
+    const stamp = new Date("2026-01-02T03:04:05Z");
+    utimesSync(config, stamp, stamp);
+    const { link } = secretFileMeans;
+    let err = "";
+    try {
+        secretFileMeans.link = async (from, to) => {
+            writeFileSync(config, readFileSync(config, "utf8").replace("AAAA", "BBBB"));
+            utimesSync(config, stamp, stamp);
+            return link(from, to);
+        };
+        const code = await credentialsCommand("token", ["new", "--file", "x.token", "--config", "pivotkit.json", "--add"], { env: {}, cwd: dir, stdout: { write() {} }, stderr: { write: (t) => (err += t) } });
+        assert.equal(code, 1);
+    } finally {
+        secretFileMeans.link = link;
+    }
+    assert.match(err, /changed since it was read/);
+    assert.equal(JSON.parse(readFileSync(config, "utf8")).sources.sales.title, "BBBB");
+});
+
+test("--if-missing --add of an entry that is there, with its file new: the hint says created", async () => {
+    const { credentialsCommand } = await import("../src/credentials.js");
+    const dir = tempDir();
+    writeFileSync(join(dir, "pivotkit.json"), JSON.stringify({ auth: { mode: "token", tokens: [{ name: "new", file: "new.token" }] } }));
+    let err = "";
+    const code = await credentialsCommand("token", ["new", "--file", "new.token", "--config", "pivotkit.json", "--add", "--if-missing"], { env: {}, cwd: dir, stdout: { write() {} }, stderr: { isTTY: true, write: (t) => (err += t) } });
+    assert.equal(code, 0);
+    assert.equal(err, "created new.token; already configured in pivotkit.json\n");
+});
+
+test("a flag without its value names that flag, without a 'did you mean' of itself", () => {
+    const r = run(["token", "new", "--file", "--json"]);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /--file/);
+    assert.doesNotMatch(r.stderr, /did you mean/);
 });
