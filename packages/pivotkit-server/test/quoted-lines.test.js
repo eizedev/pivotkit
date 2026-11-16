@@ -62,7 +62,7 @@ test("the file is split as the reader splits it: semicolons, tabs, CRLF, a byte 
         "semicolons.csv": semicolons,
         "tabs.tsv": PROBE.replaceAll(",", "\t"),
         "crlf.csv": PROBE.replaceAll("\n", "\r\n"),
-        "bom.csv": `﻿${PROBE}`,
+        "bom.csv": `\uFEFF${PROBE}`,
         "hint.csv": `sep=;\n${semicolons}`,
         "utf16.csv": Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(PROBE, "utf16le")])
     };
