@@ -3,9 +3,11 @@
  * into its own answer (MCP: the SDK's challenge, REST: a problem document). Three modes:
  *
  * - "none": no check (loopback, or an explicit opt-in on another address).
- * - "token": static bearer tokens, each with a name (logged), optionally its scopes and a policy
- *   profile; read from an environment variable at start or from a file on every request (rotation
- *   without a restart); compared as SHA-256 digests in constant time.
+ * - "token": static bearer tokens, each with a name (logged), optionally its scopes, a policy
+ *   profile and an expiry; read from an environment variable at start or from a file on every
+ *   request (rotation without a restart); compared as SHA-256 digests in constant time. A bearer no
+ *   static token matches may be a signed token the server issued (signed-tokens.js, by its ID in the
+ *   log).
  * - "oauth": an OAuth 2.1 protected resource: the issuer's metadata (RFC 8414 or OpenID Connect
  *   discovery), access tokens as JWTs checked against the issuer's JWKS with jose (signature, issuer,
  *   audience, expiry, algorithms; no "none", no HMAC). Each endpoint checks its own audience. The
@@ -32,6 +34,8 @@ import { UTF16_TEXT, readSecret, readSecretFile, secretValue, unreadable } from 
 import { discover, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
 import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
 import { claimNamesOf, claimsOf } from "./sources/params.js";
+import { SIGNED_TOKEN, SignedTokenError, createSignedVerifier, expiryOf, keyring, looksSigned, signedStore } from "./signed-tokens.js";
+import { maxLifetimeOf } from "./options/signed.js";
 
 /** The fewest characters of a static token. */
 export const TOKEN_MIN = 32;
@@ -163,7 +167,9 @@ async function staticTokens(auth, env, options, tokenEnv) {
         if (guessable) {
             throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) is ${guessable}; make one with: ${MAKE_TOKEN}`);
         }
-        out.push({ name: t.name, which, file: t.file ? pathOf(options, t.file) : null, scopes: t.scopes ?? null, profile: t.profile ?? null, read: t.file ? judged(read) : async () => ({ value, usable: true }) });
+        // validateOptions checked the date: refused from then on
+        const expiresAt = t.expires ? expiryOf(t.expires, { durations: false }) : null;
+        out.push({ name: t.name, which, file: t.file ? pathOf(options, t.file) : null, scopes: t.scopes ?? null, profile: t.profile ?? null, expires: t.expires ?? null, expiresAt, read: t.file ? judged(read) : async () => ({ value, usable: true }) });
     }
     return out;
 }
@@ -215,7 +221,7 @@ export function resourceMetadataUrlOf(resource) {
  * @property {string[]} scopes
  * @property {number} expiresAt
  * @property {URL} [resource]
- * @property {{ allScopes?: boolean, profile?: string | null, subject?: string | null, issuer?: string | null, groups?: string[], groupsUnknown?: boolean, audit?: string | null, claims?: Readonly<Record<string, string | number | boolean>> }} [extra]  subject: the token's auth.subjectClaim when usable, issuer: its iss, groups: the person's groups when the token carries a usable list, groupsUnknown: it does not (cut, too long, an overage marker, missing), audit: how the log names the person, claims: the ones sources' params are bound to (OAuth)
+ * @property {{ allScopes?: boolean, signed?: boolean, profile?: string | null, subject?: string | null, issuer?: string | null, groups?: string[], groupsUnknown?: boolean, audit?: string | null, claims?: Readonly<Record<string, string | number | boolean>> }} [extra]  subject: the token's auth.subjectClaim when usable, issuer: its iss, groups: the person's groups when the token carries a usable list, groupsUnknown: it does not (cut, too long, an overage marker, missing), audit: how the log names the person, claims: the ones sources' params are bound to (OAuth)
  */
 
 /** The longest subject taken as an identity. */
@@ -333,6 +339,50 @@ export async function auditOf(options, { env, log }) {
     return { subject, key: Buffer.from(key, "utf8") };
 }
 
+/** What a request with a token the server does not know is told. */
+const UNKNOWN_TOKEN_TEXT = "unknown token; check the token the operator gave you";
+
+/** What a caller with a signed token is told, by why it was refused; only a caller with a genuinely signed token gets past "unknown". */
+const SIGNED_REFUSALS = Object.freeze({ EXPIRED: "this token expired; ask the operator for a new one", REVOKED: "this token was revoked; ask the operator for a new one", NOT_YET_VALID: "this token is not valid yet; the clocks of the server and the machine that issued it differ" });
+
+/**
+ * The check of the signed tokens of auth.signedTokens.dir (signed-tokens.js): a bearer in, an
+ * AuthInfo out, or AuthRefusal. A token whose profile policy.profiles no longer has is refused. The
+ * log names a refused token by why (debug), never by its value.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {any} log
+ * @returns {(token: string) => Promise<AuthInfo>}
+ */
+function signedCheckOf(options, log) {
+    const store = signedStore(pathOf(options, /** @type {string} */ (options.auth?.signedTokens?.dir)));
+    const verifier = createSignedVerifier({
+        keyFor: keyring(store, { onProblem: (text) => log.warn(`auth: signed tokens: ${text}`) }),
+        isRevoked: (id) => store.isRevoked(id),
+        issuer: SIGNED_TOKEN.issuer,
+        typ: SIGNED_TOKEN.typ,
+        clockToleranceSec: options.auth?.clockTolerance ?? 30,
+        maxLifetimeSec: maxLifetimeOf(options)
+    });
+    const profiles = new Set(Object.keys(options.policy?.profiles ?? {}));
+    return async (token) => {
+        let claims;
+        try {
+            claims = await verifier.verify(token);
+        } catch (e) {
+            if (!(e instanceof SignedTokenError)) {
+                throw e;
+            }
+            log.debug("auth: signed token refused", { reason: e.code });
+            throw new AuthRefusal(401, "invalid_token", SIGNED_REFUSALS[/** @type {keyof typeof SIGNED_REFUSALS} */ (e.code)] ?? UNKNOWN_TOKEN_TEXT);
+        }
+        if (claims.profile !== null && !profiles.has(claims.profile)) {
+            log.warn(`auth: the signed token ${claims.id} names the profile "${claims.profile}", which policy.profiles does not have: refused`);
+            throw new AuthRefusal(401, "invalid_token", "this token's profile is not configured; ask the operator for a new one");
+        }
+        return { token: "", clientId: claims.id, scopes: claims.scopes ?? [], expiresAt: claims.expiresAt, extra: { allScopes: claims.scopes === null, profile: claims.profile, signed: true } };
+    };
+}
+
 /**
  * Builds the authentication both front ends share (one per process: one issuer to fetch).
  * @param {import("./config.js").ServerOptions} options
@@ -353,6 +403,12 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
 
     if (mode === "token") {
         const tokens = await staticTokens(auth, env, options, tokenEnv);
+        for (const t of tokens) {
+            if (t.expiresAt !== null && Date.now() >= t.expiresAt) {
+                log.warn(`auth: the token "${t.name}" expired (${t.expires}): requests with it get 401; remove it (pivotkit-server token remove ${t.name}) or give it a later expires`);
+            }
+        }
+        const signed = auth.signedTokens?.dir ? signedCheckOf(options, log) : null;
         /** @type {Map<string, number>} when each token's unusable file was last said on the log */
         const warned = new Map();
         // a file emptied, removed or cut after the start (a rotation gone wrong): every request with
@@ -397,9 +453,18 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                     }
                 }
                 if (!match) {
-                    throw new AuthRefusal(401, "invalid_token", "unknown token; check the token the operator gave you");
+                    // a static token never reaches the signed check: a static one with dots keeps working
+                    if (signed && looksSigned(bearer.token)) {
+                        return signed(bearer.token);
+                    }
+                    throw new AuthRefusal(401, "invalid_token", UNKNOWN_TOKEN_TEXT);
                 }
-                return { token: "", clientId: match.name, scopes: match.scopes ?? [], expiresAt: Math.floor(Date.now() / 1000) + 3600, extra: { allScopes: match.scopes === null, profile: match.profile } };
+                if (match.expiresAt !== null && Date.now() >= match.expiresAt) {
+                    // only a caller with the right value learns this
+                    throw new AuthRefusal(401, "invalid_token", `this token expired (${match.expires}); ask the operator for a new one`);
+                }
+                const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+                return { token: "", clientId: match.name, scopes: match.scopes ?? [], expiresAt: match.expiresAt === null ? expiresAt : Math.min(expiresAt, Math.floor(match.expiresAt / 1000)), extra: { allScopes: match.scopes === null, profile: match.profile } };
             },
             close() {}
         };
@@ -632,7 +697,8 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
     if (authInfo.token === "" || mode === "token") {
         // a static token: its name is who calls
         const caller = { scopes, client, profile };
-        known.set(caller, { basis: ["token", String(authInfo.clientId ?? "token")], token: null });
+        // a signed token by its ID: a static token's name never names the same identity
+        known.set(caller, { basis: [authInfo.extra?.signed ? "signed" : "token", String(authInfo.clientId ?? "token")], token: null });
         return caller;
     }
     const refused = groupRefusal(authOptions, authInfo);

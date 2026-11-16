@@ -61,6 +61,9 @@ test("options: the composed table is today's, in today's order, plus the shared 
     delete expected.log;
     const levels = { enum: ["debug", "info", "warn", "error", "off"] };
     expected.log = { or: [levels, { object: { level: levels, format: { enum: ["auto", "text", "json"] }, address: { enum: ["on", "off"] } } }] };
+    // a static token's expiry (config.js, last of a token's keys) and the signed tokens (options/signed.js, the last fragment)
+    expected.auth.object.tokens.list.object.expires = "string";
+    expected.auth.object.signedTokens = { object: { dir: "string", maxDays: "integer" } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -97,7 +100,7 @@ test("options: every fragment has frozen keys in known slots and a validate; eac
     for (const f of FRAGMENTS.slice(1)) {
         assert.ok(names.includes(f.name), f.name);
     }
-    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "issuer", "operator", "profiles", "rest", "log"]);
+    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "issuer", "operator", "profiles", "rest", "log"]);
 });
 
 test("options: an unknown key is still refused with the name meant, also for keys no fragment declares yet", () => {
