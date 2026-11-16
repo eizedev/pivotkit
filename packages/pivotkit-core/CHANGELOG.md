@@ -12,7 +12,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   default, is the element under the pointer. `"axis"` is every series at the pointer's category.
   `CATALOG.chartTooltips` lists both ([#106](https://github.com/eizedev/pivotkit/issues/106)).
 - `CATALOG.additiveAggregators`: the aggregators whose values add up (`count`, `sum`), so a UI
-  knows when the parts of a stack have a total.
+  knows when the parts of a stack have a total. `CATALOG.additiveShowAs` (from the new `addsUp` of
+  `SHOW_AS`): the "show values as" types whose results still add up, a share of the grand or the
+  row total, a difference and a running total.
 
 ### Changed
 

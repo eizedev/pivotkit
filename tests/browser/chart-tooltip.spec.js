@@ -199,6 +199,16 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Hardware 20.00", "Services 10.00", "Software 30.00"]);
     });
 
+    test("a sum shown as a rank does not add up: no total; shown as a share of the row total it does", async ({ page }) => {
+        const ranked = await mount(page, { type: "bar", stacked: true }, { view: { values: [{ field: "Revenue", agg: "sum", showAs: { type: "rankDescending", axis: "rows" } }] } });
+        await hover(page, await pointOf(ranked, barMiddle, { series: HARDWARE, index: NORTH }));
+        // Hardware: North 20 is the first of the regions
+        await expect.poll(() => tooltipOf(ranked)).toEqual(["North", "Hardware 1"]);
+        const shares = await mount(page, { type: "bar", stacked: true }, { view: { values: [{ field: "Revenue", agg: "sum", showAs: { type: "percentOfRowTotal" } }] } });
+        await hover(page, await pointOf(shares, barMiddle, { series: HARDWARE, index: NORTH }));
+        await expect.poll(async () => (await tooltipOf(shares)).at(-1)).toMatch(/^Total 100(\.0+)?%$/);
+    });
+
     test("a part below zero: the total is the sum of the parts", async ({ page }) => {
         const rows = ROWS.map((r) => (r.Region === "North" && r.Category === "Services" ? { ...r, Revenue: -10 } : r));
         const chartEl = await mount(page, { type: "bar", stacked: true }, { rows });
@@ -263,26 +273,33 @@ test.describe("the chart's tooltip follows the pointer", () => {
     });
 });
 
-for (const width of [1440, 390]) test(`15 series with long names at ${width} px: names end in "…", the tooltip stays inside the chart`, async ({ page }) => {
+for (const [width, stacked] of [[1440, false], [390, false], [390, true]]) test(`15 series with long names at ${width} px${stacked ? ", stacked" : ""}: names end in "…", the tooltip stays inside the chart`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("pages/host.html");
     const names = Array.from({ length: 15 }, (_, i) => `A product category with a rather long name, number ${i + 1}`);
     const rows = ["North", "South"].flatMap((Region, r) => names.map((Category, i) => ({ Region, Category, Revenue: 10 + i + r })));
-    const chartEl = await mount(page, { type: "bar" }, { rows });
-    // the gap after North: every series there
+    // stacked: a line chart, whose fill shows every series and the total; else grouped bars
+    const chartEl = await mount(page, stacked ? { type: "area", stacked: true } : { type: "bar" }, { rows });
+    // the gap after North (the fill of a stacked area): every series there
     await hover(page, await pointOf(chartEl, between, { index: 0, part: 0.45, value: 1 }));
     await expect.poll(async () => (await tooltipOf(chartEl)).length).toBeGreaterThan(3);
     const shown = await tooltipOf(chartEl);
     expect(shown[0]).toBe("North");
-    // every series, or the first ones and a line that says how many more: never more than 15
-    const more = shown.at(-1).match(/^\+(\d+) more$/);
-    expect(shown.length - 1 - (more ? 1 : 0) + (more ? Number(more[1]) : 0)).toBe(15);
+    // every series, or the first ones and a line that says how many more: 15 in all; stacked, the
+    // total last, and the cut line says the cut ones are in it
+    const total = stacked ? shown.at(-1) : null;
+    if (stacked) expect(total).toBe(`Total ${names.reduce((sum, _, i) => sum + 10 + i, 0)}`);
+    const lines = stacked ? shown.slice(0, -1) : shown;
+    const more = lines.at(-1).match(stacked ? /^\+(\d+) more \(in the total\)$/ : /^\+(\d+) more$/);
+    expect(lines.length - 1 - (more ? 1 : 0) + (more ? Number(more[1]) : 0)).toBe(15);
+    if (stacked && width === 390) expect(more, "a phone cuts the list").not.toBeNull();
     // ECharts slides the tooltip to its place: inside the chart once it is there
     const measure = () => chartEl.evaluate((el) => {
         const t = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
         const [c, r] = [el.getBoundingClientRect(), t.getBoundingClientRect()];
-        const nameSpans = [...t.firstElementChild.children].slice(1).map((row) => row.children[1]).filter(Boolean);
-        return { inside: r.left >= c.left - 1 && r.right <= c.right + 1 && r.top >= c.top - 1 && r.bottom <= c.bottom + 1, cut: nameSpans.every((n) => n.scrollWidth > n.clientWidth) };
+        // the series' names, not the total's
+        const nameSpans = [...t.firstElementChild.children].map((row) => row.children[1]).filter((n) => n?.textContent.startsWith("A product"));
+        return { inside: r.left >= c.left - 1 && r.right <= c.right + 1 && r.top >= c.top - 1 && r.bottom <= c.bottom + 1, cut: nameSpans.length > 0 && nameSpans.every((n) => n.scrollWidth > n.clientWidth) };
     });
     await expect.poll(async () => (await measure()).inside).toBe(true);
     const { cut } = await measure();

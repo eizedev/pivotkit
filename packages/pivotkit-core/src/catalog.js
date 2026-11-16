@@ -48,6 +48,11 @@ export const CATALOG = Object.freeze({
     showAs: SHOW_AS_NAMES,
     /** show-as types that walk along an axis (Excel's "base field") */
     showAsAlongAxis: Object.freeze(SHOW_AS_NAMES.filter((name) => SHOW_AS[name].alongAxis)),
+    /**
+     * show-as types whose results still add up across a category's series (with an additive aggregator);
+     * one that walks an axis only along the rows, the categories of a chart
+     */
+    additiveShowAs: Object.freeze(SHOW_AS_NAMES.filter((name) => SHOW_AS[name].addsUp)),
     chartTypes: CHART_TYPES,
     /** how a chart is drawn: its value labels, its legend, its category axis labels */
     chartValueLabels: CHART_VALUE_LABELS,

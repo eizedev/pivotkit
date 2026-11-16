@@ -30,7 +30,7 @@ export const en = {
         drillCopy: "The rows as the panel shows them, with a header row: tab-separated, pastes into Excel or Google Sheets as columns.",
         drillJson: "The rows as JSON objects, with the data's field names and raw values, for a program.",
         groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
-        tooltip: "Automatic: pointing at a bar, segment or point shows that one. Pointing between them shows every series. Stacked charts add the total. All series: always shows every series at that place.",
+        tooltip: "Automatic: a bar, segment or point shows only itself. Between them, every series shows. Stacked sums and counts also show the total. All series: always every series of that category.",
         labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend; outside when a donut's ring is too thin for it.",
         sharedView: "Only admins can change shared views.",
         valuesFilter: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters."

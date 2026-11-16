@@ -60,9 +60,12 @@ donut. Other types write the value.
 
 `chart.tooltip` applies to bars, lines and areas:
 
-- `"auto"` shows the element under the pointer. A stacked one adds the sum of its stack's parts,
-  when the value adds up (`CATALOG.additiveAggregators`: sum, count).
+- `"auto"` shows the element under the pointer. A stacked one adds the sum of its stack's parts.
 - `"axis"` shows every series at the pointer's category, the one under the pointer first.
+
+Only sums and counts add up (`CATALOG.additiveAggregators`). A value shown as something else adds up
+only when `CATALOG.additiveShowAs` lists its type: a share of the grand or the row total, and a
+difference or a running total along the rows. A rank or a percent difference gets no total.
 
 A pie, a donut and a heatmap always show the slice or cell under the pointer.
 

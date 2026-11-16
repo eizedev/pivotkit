@@ -7,6 +7,8 @@
  * tooltipFormatter() builds the nodes in the chart's document.
  */
 
+import { CATALOG } from "pivotkit-core";
+
 /**
  * @typedef {object} TooltipLine
  * @property {string | null} color  the series' or slice's colour, null when it is not a plain colour
@@ -29,7 +31,22 @@
  * @property {string} [totalLabel]  the name of a stack's total
  * @property {number} [maxLines]  the most series lines that fit; more are cut, with `moreLabel`
  * @property {string} [moreLabel]  "+{count} more": the line that says how many were cut
+ * @property {string} [moreInTotalLabel]  the same line when a total is shown: the cut ones are in it
  */
+
+/**
+ * Whether a value's results add up across a category's series, so a stack of them has a total: an
+ * additive aggregator (sum, count), shown as itself or as a show-as type that adds up
+ * (CATALOG.additiveShowAs; one that walks an axis only along the rows, the chart's categories).
+ * @param {{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined} value  the view's value
+ */
+export function valueAddsUp(value) {
+    if (!value || !CATALOG.additiveAggregators.includes(/** @type {string} */ (value.agg))) {
+        return false;
+    }
+    const showAs = value.showAs;
+    return !showAs || (CATALOG.additiveShowAs.includes(showAs.type) && (!CATALOG.showAsAlongAxis.includes(showAs.type) || showAs.axis === "rows"));
+}
 
 /** A number to show: ECharts hands null (or "-") for a series without a value at the category. */
 const hasValue = (v) => typeof v === "number" && Number.isFinite(v);
@@ -69,7 +86,7 @@ function axisItems(params, { valueFormatter, mode, series, hover, totalLabel }) 
  * @param {TooltipOptions} [options]
  * @returns {{ title: string, lines: TooltipLine[], more?: string, total?: { name: string, value: string } }}
  */
-export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}" } = {}) {
+export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}", moreInTotalLabel = moreLabel } = {}) {
     const color = (p) => (typeof p.color === "string" ? p.color : null);
     const text = (v) => (v === null || v === undefined ? "" : String(v));
     if (Array.isArray(params)) {
@@ -81,7 +98,7 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
         return {
             title: first ? text(categoryNames[first.dataIndex] ?? first.axisValueLabel ?? first.name) : "",
             lines: kept.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(p.value), ...(hovered ? { hovered } : {}) })),
-            ...(cut ? { more: moreLabel.replace("{count}", String(cut)) } : {}),
+            ...(cut ? { more: (total ? moreInTotalLabel : moreLabel).replace("{count}", String(cut)) } : {}),
             ...(total ? { total } : {})
         };
     }

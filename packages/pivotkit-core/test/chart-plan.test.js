@@ -155,4 +155,7 @@ test("the tooltip's marks: a bar lights up alone, the axis position lights up no
 test("CATALOG.additiveAggregators: the aggregators whose values add up (a stack's total means something)", async () => {
     const { CATALOG } = await import("pivotkit-core");
     assert.deepEqual(CATALOG.additiveAggregators, ["count", "sum"]);
+    // shown as: shares of the grand or the row total, a difference and a running total still add up
+    // across a category's series; a rank, a percent difference or a share of another base does not
+    assert.deepEqual(CATALOG.additiveShowAs, ["percentOfGrandTotal", "percentOfRowTotal", "differenceFromPrevious", "runningTotal"]);
 });

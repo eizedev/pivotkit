@@ -9,7 +9,14 @@
 
 import { DEFAULT_THEME } from "pivotkit-core";
 import { decorateOption } from "pivotkit-core/chart";
-import { tooltipFormatter } from "./chart-tooltip.js";
+import { tooltipFormatter, valueAddsUp } from "./chart-tooltip.js";
+
+/** The tooltip's room: a line of text is this many times the text size high. */
+const TOOLTIP_LINE = 1.5;
+/** The tooltip's padding, top and bottom together, in px (ECharts' default 10 px each side, and some air). */
+const TOOLTIP_PADDING = 24;
+/** Lines besides the series: the title, the total and the "+N more" line. */
+const TOOLTIP_OTHER_LINES = 3;
 
 /**
  * @param {any} option
@@ -17,22 +24,22 @@ import { tooltipFormatter } from "./chart-tooltip.js";
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, additive?: boolean[] } }} [extra]
+ * @param {{ categoryNames?: string[], axisLabels?: string, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined> } }} [extra]
  *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
  *   chart.axisLabels; tooltip: the view's chart.tooltip, the chart's hover state (chart.jsx writes the
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
- *   the line that says how many series were cut, and per series whether its values add up
+ *   the lines that say how many series were cut, and each series' value (whether it adds up)
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
 export function decorate(option, style, height = 480, doc = undefined, width = 800, extra = {}) {
     const { tooltip = {}, ...rest } = extra;
     // each series' type and stack, by index: the tooltip's totals and the gap between stacked bars
-    const series = (option.series || []).map((/** @type {any} */ s, /** @type {number} */ i) => ({ type: s.type, stack: s.stack, additive: tooltip.additive?.[i] }));
+    const series = (option.series || []).map((/** @type {any} */ s, /** @type {number} */ i) => ({ type: s.type, stack: s.stack, additive: tooltip.values ? valueAddsUp(tooltip.values[i]) : undefined }));
     const hover = tooltip.hover;
     // the lines that fit the chart's height, with the title, the total and the tooltip's padding
-    const line = Math.round((typeof option.textStyle?.fontSize === "number" ? option.textStyle.fontSize : DEFAULT_THEME.textSize) * 1.5);
-    const maxLines = Math.max(2, Math.floor((height - 24) / line) - 3);
-    const options = { series, mode: tooltip.mode, totalLabel: tooltip.totalLabel, moreLabel: tooltip.moreLabel, maxLines, hoverOf: () => hover?.current ?? null };
+    const line = Math.round((typeof option.textStyle?.fontSize === "number" ? option.textStyle.fontSize : DEFAULT_THEME.textSize) * TOOLTIP_LINE);
+    const maxLines = Math.max(2, Math.floor((height - TOOLTIP_PADDING) / line) - TOOLTIP_OTHER_LINES);
+    const options = { series, mode: tooltip.mode, totalLabel: tooltip.totalLabel, moreLabel: tooltip.moreLabel, moreInTotalLabel: tooltip.moreInTotalLabel, maxLines, hoverOf: () => hover?.current ?? null };
     const drawn = decorateOption(option, style, { height, width, ...rest, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
     // on the screen the tooltip stays inside the chart
     return doc ? { ...drawn, tooltip: { ...drawn.tooltip, confine: true } } : drawn;

@@ -131,13 +131,14 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 - The tooltip names the element under the pointer: the series' colour, its name and the value
   formatted as in the table. Its title is the category's whole name.
 - A stacked segment, or a point of a stacked area, adds a **Total** line: the sum of the stack's
-  parts. A part below zero counts against it. A value that does not add up, such as an average,
-  gets no total.
+  parts. A part below zero counts against it.
+- Only sums and counts add up. An average, a median or a maximum gets no total. Neither does a
+  value shown as a rank or as a percent difference.
 - Between the elements, the tooltip lists every series at that category. So does the fill of an
   area. Between stacked bars, it shows the total only.
 - A series without a value at the category is left out.
 - A long series name ends in "…". When more series are there than fit, the last line says how many
-  more there are.
+  more there are, and whether the total includes them.
 - On a phone, tap a bar or a point to see its tooltip.
 - A pie's tooltip shows the value's name, the slice and its value.
 - A heatmap's tooltip shows the value's name, the cell's row and column and its value.

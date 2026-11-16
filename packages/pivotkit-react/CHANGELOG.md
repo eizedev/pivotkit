@@ -12,7 +12,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   series** (`chart.tooltip`, [#106](https://github.com/eizedev/pivotkit/issues/106)). All series lists
   every series at the pointer's category, the hovered one first, its name in the strong weight.
 - `labels.chartTotal`, the tooltip's "Total" line (German "Gesamt"), and `labels.chartMore`, the
-  line for the series that do not fit ("+{count} more").
+  line for the series that do not fit ("+{count} more"), and `labels.chartMoreInTotal` for it when
+  a total is shown ("+{count} more (in the total)").
 - `--pk-tooltip-name-w` (default `12em`): the widest series name in the tooltip. A longer one ends
   in "…".
 
@@ -22,7 +23,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#376](https://github.com/eizedev/pivotkit/issues/376)):
   - A bar or a line point shows that series alone.
   - A segment of stacked bars, or a point of a stacked area, adds the sum of the stack's parts. A
-    value that does not add up (an average, a median) gets no total.
+    value that does not add up gets no total: only sums and counts do, and not when shown as a rank
+    or a percent difference.
   - Between the elements it lists every series at the category. Between stacked bars it shows the
     total only.
   - A series without a value at the category is left out, not shown as an empty line.

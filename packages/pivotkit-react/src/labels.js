@@ -170,6 +170,7 @@ export const en = {
     chartTotal: "Total",
     // the tooltip's line for the series that do not fit
     chartMore: "+{count} more",
+    chartMoreInTotal: "+{count} more (in the total)",
     categories: "categories",
     close: "Close",
     // toasts and live region
@@ -482,6 +483,7 @@ export const de = {
     chartTableHint: "Zur Tabelle wechseln, um jeden Wert zu lesen.",
     chartTotal: "Gesamt",
     chartMore: "+{count} weitere",
+    chartMoreInTotal: "+{count} weitere (im Gesamtwert)",
     categories: "Kategorien",
     close: "Schließen",
     toastRemoved: "{field} entfernt",

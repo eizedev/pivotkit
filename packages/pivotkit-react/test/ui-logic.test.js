@@ -371,6 +371,31 @@ test("chart tooltips: the total is the sum of the parts, none for a value that d
     assert.equal(tooltipContent(many.slice(0, 6), { mode: "axis", maxLines: 6 }).more, undefined);
 });
 
+test("a stack's total only for values that add up: sums and counts, not shown as a rank or a percent difference (#376)", async () => {
+    const { valueAddsUp } = await import("../src/chart-tooltip.js");
+    const value = (agg, showAs = null) => ({ field: "Revenue", agg, showAs });
+    assert.deepEqual([value("sum"), value("count"), value("average"), value("median"), value("max")].map(valueAddsUp), [true, true, false, false, false]);
+    for (const type of ["rankAscending", "rankDescending", "percentDifferenceFromPrevious", "percentOfColumnTotal", "percentRunningTotal"]) {
+        assert.equal(valueAddsUp(value("sum", { type, axis: "rows" })), false, type);
+    }
+    for (const type of ["percentOfGrandTotal", "percentOfRowTotal", "differenceFromPrevious", "runningTotal"]) {
+        assert.equal(valueAddsUp(value("sum", { type, axis: "rows" })), true, type);
+    }
+    assert.equal(valueAddsUp(value("average", { type: "percentOfRowTotal", axis: "rows" })), false);
+    // a running total across the series of a category counts each part again: no total
+    assert.equal(valueAddsUp(value("sum", { type: "runningTotal", axis: "cols" })), false);
+    assert.equal(valueAddsUp(value("sum", { type: "differenceFromPrevious", axis: "cols" })), false);
+    assert.equal(valueAddsUp(undefined), false);
+});
+
+test("a cut list with a total says the cut series are in the total", () => {
+    const many = Array.from({ length: 15 }, (_, i) => ({ seriesIndex: i, dataIndex: 0, axisValueLabel: "North", seriesName: `S${i}`, value: 1, color: "#000000" }));
+    const series = many.map(() => ({ type: "line", stack: "total" }));
+    const options = { maxLines: 6, moreLabel: "+{count} more", moreInTotalLabel: "+{count} more (in the total)" };
+    assert.equal(tooltipContent(many, { ...options, series }).more, "+10 more (in the total)");
+    assert.equal(tooltipContent(many, { ...options, series: series.map(() => ({ type: "line" })) }).more, "+10 more");
+});
+
 test("the tooltip's total row and the hovered line: weights and the rule from the tokens, set through the CSSOM", () => {
     const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
     const doc = /** @type {any} */ ({ createElement: () => node() });
