@@ -44,7 +44,7 @@ export async function section(options, _registry, _runtime) {
         // an open source's reports get plain links: whether load answers each caller differently is
         // the host's to say (pivotkit cannot see it)
         if (!source.cacheShared && !isClosedForDelivery(options, id)) {
-            items.push(plain("reports over it get plain links (every field is shown or hidden)", 2), plain("if load answers each caller differently, set perPerson: true, so only the person who asked can open them", 2));
+            items.push(plain("reports over it get plain links (nothing new can become visible)", 2), plain("if load answers each caller differently, set perPerson: true, so only the person who asked can open them", 2));
         }
     }
     return { items: [...items, ...cache], upgrade: [] };

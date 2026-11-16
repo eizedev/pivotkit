@@ -3,7 +3,7 @@
  * point, which sources' reports get which link (delivery.js linkFor), what to register at the
  * sign-in provider, and the warnings (a random key, one-time links, output.baseUrl with closed
  * sources, no public address off loopback); and how long reports stay on disk (retention). Its
- * "New in this version" note names the open sources that hide a field, which were closed before.
+ * "New in this version" note names the open sources hidden by default, which were closed before.
  *
  * check/index.js says what a section returns. Over stdio (no --http) and without output.baseUrl it
  * says nothing about links (there are none); the retention warning holds there too.
@@ -28,8 +28,8 @@ import { heading, idsText, plain, problem, secretText, warning } from "./format.
 /**
  * Why a source counts as closed (registry.js closedReason), in words: the level that closes it, of a
  * field by its written name or of the default, and the profile where that is not the policy of a
- * caller without one. Open needs no field at "values" or "summary" and a hidden field hidden for
- * every caller.
+ * caller without one. Open needs, for every caller alike, the default "hide" with every named field
+ * "show" or "hide", or every field "show".
  * @param {import("../config.js").ServerOptions} options
  * @param {string} id
  */
@@ -43,20 +43,19 @@ export function whyClosed(options, id) {
     const { field } = reason;
     const name = field ? (written.find((w) => w.toLowerCase() === field.toLowerCase()) ?? field).slice(0, 60) : null;
     const what = reason.auto ? "the automatic values rule" : name ? `${name} ${reason.level}` : `fields ${reason.level} by default`;
-    return `${reason.profile !== null ? `profile ${reason.profile.slice(0, 40)}: ` : ""}${what}${reason.others ? ", shown to other callers" : ""}`;
+    const why = reason.others ? ", shown to other callers" : reason.denyList ? " under default show: a column the data gains later would be shown" : "";
+    return `${reason.profile !== null ? `profile ${reason.profile.slice(0, 40)}: ` : ""}${what}${why}`;
 }
 
 /**
- * Whether a source's policy hides a field, for a caller without a profile or under any profile.
+ * Whether a source's policy hides fields by default, for a caller without a profile or under any
+ * profile: such an open source was closed before 0.8 (#510).
  * @param {import("../config.js").ServerOptions} options
  * @param {string} id
  */
-function hidesAField(options, id) {
+function hiddenByDefault(options, id) {
     const source = options.sources?.[id]?.policy;
-    return [undefined, ...Object.values(options.policy?.profiles ?? {})].some((profile) => {
-        const p = resolvePolicy(options.policy, source, profile);
-        return p.default === "hide" || [...p.fields.values()].includes("hide");
-    });
+    return [undefined, ...Object.values(options.policy?.profiles ?? {})].some((profile) => resolvePolicy(options.policy, source, profile).default === "hide");
 }
 
 /** Whether callers may send data of their own (inline:), whose reports count as closed: over MCP unless off, over REST where a profile allows it. */
@@ -147,10 +146,10 @@ async function links(options, registry, runtime) {
     const open = sources.filter((s) => !s.closed).map((s) => s.id);
     const items = [];
     const upgrade = [];
-    // sources that hide a field and are open: closed before this version, where reports get links
-    const hiddenOpen = open.filter((id) => hidesAField(options, id));
+    // open sources hidden by default: closed before this version, where reports get links
+    const hiddenOpen = open.filter((id) => hiddenByDefault(options, id));
     if (hiddenOpen.length && (options.output?.baseUrl || runtime.http || uploadSettingsOf(options))) {
-        upgrade.push({ text: `a field hidden for every caller no longer closes a source for links (${idsText(hiddenOpen)})`, anchor: "hidden-open" });
+        upgrade.push({ text: `a source hidden by default whose listed fields are shown counts as open for links (${idsText(hiddenOpen)})`, anchor: "hidden-open" });
     }
 
     if (options.output?.baseUrl) {
@@ -191,9 +190,11 @@ async function links(options, registry, runtime) {
     const byField = ownClosed.filter((id) => !personal.has(id) || whyClosed(options, id) !== NO_FIELD_REASON);
     const inline = !storeTakesClosed && inlineOffered(options, runtime);
     if (byField.length) {
-        // why: open needs no field at values or summary, for the server, the source and every profile,
-        // and a hidden field hidden for every caller
-        items.push(plain(`closed (a field summarized, listed or shown to some callers only): ${idsText(byField.map((id) => `${id} (${whyClosed(options, id)})`))}`));
+        // why each is closed (registry.js closedReason); a deny list gets the way to plain links
+        items.push(plain(`closed for plain links: ${idsText(byField.map((id) => `${id} (${whyClosed(options, id)})`))}`));
+        if (byField.some((id) => closedReason(options, options.sources?.[id]?.policy)?.denyList)) {
+            items.push(plain("for plain links, set the source's default to hide and list the fields to show", 2));
+        }
     }
     if (personal.size || inline) {
         items.push(perPersonItem(personal, inline));

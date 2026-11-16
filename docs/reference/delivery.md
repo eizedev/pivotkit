@@ -17,14 +17,19 @@ no link. Its csv or json result comes back [inline only](mcp.md#inline-only).
 
 Which report gets which link depends on the source:
 
-- A source is **open** when every field and the default are `show` or `hide`, the same for every
-  caller. This must hold for the server's policy, the source's and every profile. The server drops
-  a hidden field when it reads the data, so the field reaches no report. "Show everything except
-  the personal column" is open.
-- A field or default at `values` or `summary` for anyone makes a source **closed**, since its
-  report may hold what the model was not shown. The automatic `values` rule closes it too.
-- A field hidden for some callers and shown to others also closes it. One caller's report would
-  hold what another caller may not see.
+- A source is **open** only where nothing new can become visible, the same for every caller. This
+  must hold for the server's policy, the source's and every profile. Two policies are open:
+    - `"default": "hide"`, with every field it names at `show` or `hide`. The server drops a hidden
+      field when it reads the data, and a column the data gains later is hidden too.
+    - `"default": "show"` with no field below `show`: every field shown, nothing hidden.
+- Any other policy makes a source **closed**:
+    - a field or the default at `values` or `summary` for anyone, since its report may hold what the
+      model was not shown, and the automatic `values` rule
+    - `"default": "show"` with a field at `hide` ("show everything except the personal column"). A
+      column the data gains later would be shown. For plain links, set the default to `hide` and
+      list the fields to show.
+    - a field shown to some callers and hidden for others. One caller's report would hold what
+      another caller may not see.
 - Data that belongs to one person counts as closed too, whatever its fields' levels. That is data
   sent in the request (`inline:`), a source bound to a person (a
   [parameter bound to a claim](sources.md#http-claims) or a backend's

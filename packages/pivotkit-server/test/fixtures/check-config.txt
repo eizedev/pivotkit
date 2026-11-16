@@ -1,5 +1,5 @@
 pivotkit-server: the server starts, but not everything will work.
-1 problem, 3 warnings.
+1 problem, 2 warnings.
 
 PROBLEM: sources.gone.file: data/missing.csv is not there -> the server
     starts; gone answers FILE_NOT_AVAILABLE
@@ -8,8 +8,6 @@ WARNING (Sources): sources.sales.policy: "show" by default with hidden fields
     is a deny list: a column the data gains later is shown unless someone
     hides it; prefer "summary" by default and give the fields to show the
     level show
-WARNING (Delivery): output.downloads.key is not set: links stop working on a
-    restart and on another replica
 WARNING (Auth): the token bot's scope "typo:scope" is named by no source, tool
     or required scope
 
@@ -66,13 +64,15 @@ Output: out
 Delivery:
   download links: http://127.0.0.1:3333/downloads/<token>
     expire after 60 minutes
-  closed (a field summarized, listed or shown to some callers only): gone
-      (fields summary by default), code (fields summary by default)
+  closed for plain links: sales (Customer hide under default show: a column
+      the data gains later would be shown), gone (fields summary by default),
+      code (fields summary by default)
+    for plain links, set the source's default to hide and list the fields to
+        show
   per person (counted as closed): data sent in requests (inline:)
-  reports over closed sources (gone, code): no links (the file is kept; the
-      person asks you for it)
+  reports over closed sources (sales, gone, code): no links (the file is kept;
+      the person asks you for it)
     set output.downloads.signIn for links only the person can open
-  reports over open sources (sales): plain links
 
 HTTP: 127.0.0.1:3333
   connections per address: at most 32 (the default; clients reach the server
@@ -99,5 +99,3 @@ New in this version:
   schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays
       lets waiting drafts expire)
     -> https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota
-  a field hidden for every caller no longer closes a source for links (sales)
-    -> https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open

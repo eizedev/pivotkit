@@ -16,11 +16,13 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
-- Behaviour change: a field at `hide` no longer closes a source for delivery. The server drops it
-  when it reads the data, so it reaches no report. A source that hides a field for every caller,
-  with no field at `values` or `summary`, is open. Its reports get plain download links, an
-  `output.baseUrl` address and plain store links. A field hidden for some callers and shown to
-  others still closes it. `check-config` names that case
+- Behaviour change: a source is open for plain links only where nothing new can become visible,
+  for every caller alike. A source hidden by default whose named fields are all `show` or `hide`
+  is open now: its reports get plain download links, an `output.baseUrl` address and plain store
+  links. A source with every field shown stays open. "Show everything except" (`"default": "show"`
+  with a field at `hide`), `values`, `summary`, the automatic values rule and a field shown to some
+  callers only stay closed. `check-config` says why each is closed, and how a deny list gets
+  plain links
   ([#510](https://github.com/eizedev/pivotkit/issues/510),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open)).
 - Behaviour change: one address may hold at most 32 connections by default. With

@@ -256,12 +256,14 @@ A report is a file in the server's output directory. Who can open it:
 
 A source is open when both of these hold:
 
-- every field and the default resolve to `show` or `hide`, the same under the server's policy and
-  under every profile
+- it is hidden by default with every field it names at `show` or `hide`, or every field is `show`
+  and nothing is hidden, the same under the server's policy and under every profile
 - the automatic values rule is off for it
 
-The server drops a hidden field when it reads the data, so the field reaches no report. Data that belongs to one
-person is never open:
+So nothing new can become visible through a link: the server drops a hidden field when it reads
+the data, and a column the data gains later is hidden by default. "Show everything except one
+field" stays closed, since a new column would be shown. Data that belongs to one person is never
+open:
 
 - data sent in the request
 - a source with a parameter bound to a claim or a token exchange

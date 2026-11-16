@@ -166,23 +166,29 @@ configuration, under "New in this version", with a link to each section below.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
-| [Hidden fields keep a source open](#hidden-open) | a source hides a field for every caller and has no field at `values` or `summary` | nothing, or a policy at `summary` where its reports must not get plain links |
+| [Sources hidden by default can be open](#hidden-open) | a source is hidden by default (`"default": "hide"`) and names only fields at `show` or `hide` | nothing; for plain links over a "show everything except" source, set its default to `hide` and list the fields to show |
 | [A byte quota and an age limit for drafts](#draft-quota) | callers make schedule drafts (`draft_schedule`, `POST /schedules/draft`) | nothing; run `check-config`; set `output.draftMaxAgeDays` if waiting drafts should expire |
 | [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
 
-### Hidden fields keep a source open { #hidden-open }
+### Sources hidden by default can be open { #hidden-open }
 
-The server drops a field at `hide` when it reads the data, so the field reaches no report. Such a
-field no longer closes a source for [delivery](../reference/delivery.md). A source that shows everything except a
-personal column is open:
+A source is open for plain links only where nothing new can become visible, for every caller alike
+([delivery](../reference/delivery.md)). A source hidden by default (`"default": "hide"`) whose
+named fields are all `show` or `hide` is open now. Before, it was closed. Its reports:
 
-- Its reports get plain download links.
-- With `output.baseUrl`, they carry an address there.
-- With an upload store, they go to the store under its plain links.
+- get plain download links
+- carry an address under `output.baseUrl`
+- go to an upload store under its plain links
 
-A source stays closed when a field or the default is `values` or `summary` for anyone. It also stays
-closed when some callers see a field that others have hidden. `check-config` lists under
-`Delivery:` which sources are open, and what closes each of the others.
+A source with every field shown and nothing hidden stays open, as before. These stay closed:
+
+- "Show everything except the personal column" (`"default": "show"` with a field at `hide`). A
+  column the data gains later would be shown. For plain links, set the default to `hide` and list
+  the fields to show.
+- A field or the default at `values` or `summary` for anyone, or the automatic values rule.
+- A field shown to some callers and hidden for others.
+
+`check-config` lists under `Delivery:` which sources are open, and what closes each of the others.
 
 ### A byte quota and an age limit for drafts { #draft-quota }
 

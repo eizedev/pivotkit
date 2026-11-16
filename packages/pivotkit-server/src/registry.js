@@ -53,19 +53,26 @@ export const holds = (caller, scopes) => caller.scopes === null || (scopes ?? []
 const DELIVERY_OPEN = new Set(["show", "hide"]);
 
 /**
- * @typedef {{ profile: string | null, level?: string, field?: string, auto?: true, others?: true }} ClosedReason
+ * @typedef {{ profile: string | null, level?: string, field?: string, auto?: true, others?: true, denyList?: true }} ClosedReason
  *   profile: the profile whose policy closes it (null: the policy of a caller without one); level and
  *   field: the level that closes it, of that field (a field key) or of the default; auto: the
- *   automatic "values" rule may apply; others: the level differs from another caller's
+ *   automatic "values" rule may apply; others: the level differs from another caller's; denyList: a
+ *   field hidden under the default "show", where a column the data gains later would be shown
  */
 
 /**
- * What makes reports over a policy closed for delivery, or null where they are open. Under the
- * server's policy with the source's, and under each profile's: a field or the default at "values" or
- * "summary", or the automatic "values" rule (decided by the data at run time, so closed whatever the
- * written levels say). A hidden field keeps it open only where every caller has it hidden: a field
- * hidden for some callers and shown to others would let one caller's report hold what another's
- * model was not shown. registry.js (isClosedForDelivery) and check-config (whyClosed) share it.
+ * What makes reports over a policy closed for plain links, or null where they are open. A source is
+ * open only where nothing new can become visible, for every caller alike (the maintainer's rule,
+ * #510):
+ *
+ * - hidden by default, every field it names "show" or "hide" (an allow list); or
+ * - every field "show", nothing hidden (open as before 0.8).
+ *
+ * Closed, under the server's policy with the source's or under any profile's: a field or the default
+ * at "values" or "summary"; the automatic "values" rule (decided by the data at run time); a field at
+ * "hide" under the default "show" (a deny list: a column the data gains later would be shown); a level
+ * that differs between callers. registry.js (isClosedForDelivery) and check-config (whyClosed) share
+ * it.
  * @param {import("./config.js").ServerOptions} options
  * @param {import("./config.js").PolicyOptions | undefined} sourcePolicy
  * @returns {ClosedReason | null}
@@ -82,6 +89,10 @@ export function closedReason(options, sourcePolicy) {
         const field = [...p.fields].find(([, level]) => !DELIVERY_OPEN.has(level));
         if (field) {
             return { profile, field: field[0], level: field[1] };
+        }
+        const hidden = p.default === "show" ? [...p.fields].find(([, level]) => level === "hide") : undefined;
+        if (hidden) {
+            return { profile, field: hidden[0], level: "hide", denyList: true };
         }
     }
     const [, base] = policies[0];

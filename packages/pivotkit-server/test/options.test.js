@@ -200,7 +200,7 @@ test("check-config: the whole text of a configuration of every kind of source, w
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: TOKEN }, name: "pivotkit-server", rest: true });
     const golden = readFileSync(new URL("./fixtures/check-config.txt", import.meta.url), "utf8");
     assert.equal(result.text.split(dir).join("<dir>"), golden);
-    assert.deepEqual([result.problems, result.warnings, result.stops], [1, 3, 0]);
+    assert.deepEqual([result.problems, result.warnings, result.stops], [1, 2, 0]);
     // every line fits, but for a full path (one word, never cut)
     for (const line of result.text.split("\n").filter((l) => !l.includes(dir))) {
         assert.ok(line.length <= 78, line);

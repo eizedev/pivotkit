@@ -8,8 +8,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Changed
 
-- Behaviour change from pivotkit-server: a source that hides a field for every caller, with no field
-  at `values` or `summary`, is open, and its reports get plain download links
+- Behaviour change from pivotkit-server: a source hidden by default whose named fields are all
+  `show` or `hide` is open, and its reports get plain download links. "Show everything except"
+  stays closed
   ([#510](https://github.com/eizedev/pivotkit/issues/510),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open)).
 - Behaviour change from pivotkit-server: over HTTP, one address may hold at most 32 connections by

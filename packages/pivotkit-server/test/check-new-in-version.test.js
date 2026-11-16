@@ -22,14 +22,14 @@ async function newIn(options, runtime) {
     return notes;
 }
 
-/** A source that shows everything but one field. */
-const HIDES = { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } } };
+/** A source hidden by default with the fields it shows listed: closed before 0.8, open now. */
+const HIDES = { file: "data/sales.csv", policy: { default: "hide", fields: { Region: "show", Sales: "show" } } };
 
 test("New in this version: the 0.2.0 notes are gone; each note links to its own section", async () => {
     const notes = await newIn({ sources: { sales: HIDES }, http: { host: "0.0.0.0" }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] } }, { http: true, env: { BOT: "x".repeat(40) } });
     assert.deepEqual(notes, [
         ["schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays lets waiting drafts expire)", "draft-quota"],
-        ["a field hidden for every caller no longer closes a source for links (sales)", "hidden-open"],
+        ["a source hidden by default whose listed fields are shown counts as open for links (sales)", "hidden-open"],
         ["at most 32 connections per address (http.maxConnectionsPerAddress)", "per-address"]
     ]);
 });
@@ -45,7 +45,8 @@ test("New in this version: the per-address note only off loopback without either
 test("New in this version: the hidden-field note only for open sources that hide a field, where reports get links", async () => {
     const anchors = async (options, runtime) => (await newIn(options, runtime)).map(([, anchor]) => anchor);
     assert.ok((await anchors({ sources: { sales: HIDES } }, { http: true })).includes("hidden-open"));
-    assert.ok(!(await anchors({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } } }, { http: true })).includes("hidden-open"), "nothing hidden");
+    assert.ok(!(await anchors({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } } }, { http: true })).includes("hidden-open"), "every field shown: open as before");
+    assert.ok(!(await anchors({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } } } } }, { http: true })).includes("hidden-open"), "show everything except one field: closed as before");
     assert.ok(!(await anchors({ sources: { sales: { file: "data/sales.csv" } } }, { http: true })).includes("hidden-open"), "closed");
     assert.ok(!(await anchors({ sources: { sales: HIDES } }, { http: false })).includes("hidden-open"), "stdio without output.baseUrl: no links");
     assert.ok((await anchors({ sources: { sales: HIDES }, output: { dir: "out", baseUrl: "https://files.example.com/" } }, { http: false })).includes("hidden-open"));
