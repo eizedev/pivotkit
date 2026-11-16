@@ -74,11 +74,12 @@ Every decision is measured against these. When two conflict, the earlier one win
   lists every break. From 1.0.0 on, pivotkit follows Semantic
   Versioning strictly: only a major release removes or breaks something, after a numbered
   deprecation (`PK-DEP-NNNN`) with a warning and a migration path. The one exception is a security
-  fix, marked as such. [#491](https://github.com/eizedev/pivotkit/issues/491) plans the details.
+  fix, marked as such. [Versioning](docs/versioning.md) has the details.
 - It runs on Node.js 22 or later and in the browsers listed in
   [docs/browser-support.md](docs/browser-support.md).
 - This page changes through an issue first. The maintainer decides. An idea that does not fit may
   still work as a plugin or in the host.
+- Lasting decisions and their reasons are [decision records](docs/decisions/index.md).
 
 ## Before building a feature
 

@@ -117,6 +117,35 @@ uvx zensical@<version> serve
 - The root override pins ESLint's `minimatch` to 11.0.1 for an advisory (#76).
   Remove it once ESLint requires a patched version itself.
 
+## Deprecate something
+
+[docs/versioning.md](docs/versioning.md) has the policy. In 0.x, every break goes on the
+upgrading page. From 1.0.0, nothing public goes away without a deprecation first.
+
+A pull request that deprecates something delivers:
+
+- the next free id `PK-DEP-NNNN` from the register on the versioning page
+- a warning, once per process, when code uses the old form. It names the id and the replacement
+- for the services, a `check-config` line that names the id
+- where possible, the old form keeps working. pivotkit turns it into the new one
+- a test that uses the old form and checks the warning and the result
+- the register entry, an upgrading section with the id, and a changelog entry
+
+The removal waits for the next major release.
+
+## Record a decision
+
+A lasting decision gets a record in `docs/decisions/`. Reversible choices with little impact do not.
+
+1. Copy the layout of an existing record: front matter with `title`, `description`, `status` and
+   `date`, then the sections of MADR's minimal template.
+2. Take the next free number. Link the issue or pull request the decision comes from.
+3. Write "reason not recorded" where no source gives the reason. Never guess one.
+4. Run `node scripts/decisions.js`. It writes the index. `tests/decisions.test.js` checks both.
+
+An accepted record is not edited. To change a decision, write a new record. Set the old one to
+`status: superseded` with `superseded_by: <new file>`, and link both ways.
+
 ## Adding to the engine
 
 A new aggregator, filter type or view key is one table entry plus its tests.

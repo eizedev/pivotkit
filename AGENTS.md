@@ -2,6 +2,8 @@
 
 Read [PRODUCT.md](PRODUCT.md) before you plan or build anything.
 It says what pivotkit is, who it is for and what it is not. A feature issue answers its five questions.
+Read the [decision records](docs/decisions/index.md) too. Accepted binds, proposed is context, superseded is history.
+A task that conflicts with an accepted record stops. Propose a new record in its issue instead.
 
 This file holds what you need on every task. Packages and some folders have their own `AGENTS.md`.
 
@@ -61,6 +63,7 @@ Generated files. Run the generator after a change. A test fails until you do:
 node scripts/schemas.js                                 # pivotkit-core's JSON Schemas
 node scripts/examples.js                                # the CLI's example files
 node scripts/openapi.js                                 # docs/openapi.json
+node scripts/decisions.js                               # docs/decisions/index.md
 PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report    # golden files; review the diff
 ```
 
@@ -178,9 +181,7 @@ For agents and the maintainer. See also [PRODUCT.md](PRODUCT.md#what-a-contribut
 
 - Write `Fixes #n` only in the pull request description, never in intermediate commits.
 - A changed MCP tool description or schema: the upgrading page says clients must reconnect.
-- A public interface change follows PRODUCT.md's versioning promise.
-  In 0.x, list every break on the upgrading page.
-  From 1.0.0, deprecate first with a numbered `PK-DEP-NNNN` warning, remove only in a major (#491).
+- A public interface change follows [docs/versioning.md](docs/versioning.md), deprecations included.
 - A product decision that changes PRODUCT.md updates it in the same pull request.
 
 ## Where details live
