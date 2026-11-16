@@ -6,6 +6,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- A host that runs a report without a server of its own (a script calling `createContext`) no longer
+  ends before the report: a compute worker keeps the process alive while a run waits for it or uses
+  it. On Node 22 the process could end while the worker started.
+
 ## [0.2.0] - 2026-11-16
 
 ### Upgrading from 0.1.1
