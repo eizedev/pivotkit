@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { forwarded, leftovers } from "../scripts/test-run.js";
 import { leftBehind, newNames } from "../scripts/temp-dirs.js";
 import { root, sourceFiles } from "./source-files.js";
-import { GRACE_MS, HOST, ROOT_ENV, RUN_ENV, SWEPT_LOG, tempDir } from "./temp-dir.js";
+import { GRACE_MS, HOST, ROOT_ENV, RUN_ENV, SWEPT_LOG, tempDir, tempDirNames } from "./temp-dir.js";
 
 const HELPER = fileURLToPath(new URL("./temp-dir.js", import.meta.url));
 const TEST_RUN = fileURLToPath(new URL("../scripts/test-run.js", import.meta.url));
@@ -373,4 +373,7 @@ test("a sweep never writes its note through a symbolic link, and says so", { ski
     assert.equal(existsSync(join(root, orphan)), false, "removed");
     assert.match(next.stderr, new RegExp(`^could not note them in ${join(root, SWEPT_LOG).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}: `, "m"));
     assert.equal(readFileSync(target, "utf8"), "kept\n");
+    // a name of its own instead, so CI's check (new pivotkit-* names) fails on it
+    assert.deepEqual(tempDirNames(root).filter((name) => name.startsWith("pivotkit-swept-unnoted-")), [`pivotkit-swept-unnoted-${next.pid}`]);
+    assert.equal(readFileSync(join(root, `pivotkit-swept-unnoted-${next.pid}`), "utf8"), `${orphan}\n`);
 });

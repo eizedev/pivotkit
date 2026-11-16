@@ -9,7 +9,7 @@
 // first tempDir() of any later process on the same host removes the directories of processes that
 // are gone, and notes them in SWEPT_LOG (#526).
 import { createHash } from "node:crypto";
-import { closeSync, constants, lstatSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeSync } from "node:fs";
+import { closeSync, constants, lstatSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -126,10 +126,17 @@ export function removeOrphans(dir = tempRoot()) {
     if (removed.length === 0) return;
     // said and noted: a run whose processes were killed fails CI's check (scripts/temp-dirs.js)
     process.stderr.write(`removed ${removed.length} temporary director${removed.length === 1 ? "y" : "ies"} of ended processes: ${removed.join(", ")}\n`);
+    const names = removed.map((name) => `${name}\n`).join("");
     try {
-        noteSwept(dir, removed.map((name) => `${name}\n`).join(""));
+        noteSwept(dir, names);
     } catch (error) {
         process.stderr.write(`could not note them in ${join(dir, SWEPT_LOG)}: ${/** @type {Error} */ (error).message}\n`);
+        // a pivotkit-* name of its own instead: new since the save, so CI's check fails on it too
+        try {
+            writeFileSync(join(dir, `pivotkit-swept-unnoted-${process.pid}`), names, { flag: "wx" });
+        } catch {
+            // the line on stderr stays
+        }
     }
 }
 

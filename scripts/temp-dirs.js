@@ -19,7 +19,6 @@ export function newNames(before, now) {
     return now.filter((name) => !old.has(name));
 }
 
-
 /**
  * What a run left: the new names, and the directories a sweep removed during the run.
  * @param {{ names: string[], swept: number }} before

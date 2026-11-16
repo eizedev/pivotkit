@@ -28,6 +28,7 @@ npm run bench:browser                                     # benchmark, 100k to 1
   On macOS the host name can change with the network. Directories with an old mark stay; remove them by hand.
 - The next `tempDir()` on the same host removes those of processes that are gone.
   It says so on stderr and notes them in `pivotkit-swept.log` in the temporary directory.
+  When it cannot, it writes `pivotkit-swept-unnoted-<pid>` instead, which CI's check counts.
 - `$PIVOTKIT_TEMP_ROOT` names another directory for them. The test of the sweep uses it.
 - `scripts/test-run.js` fails a run that leaves one of its directories behind, or whose directories a sweep removed.
 - CI's Linux test job also fails when any `pivotkit-*` directory is new after the tests.
