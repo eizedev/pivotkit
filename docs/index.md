@@ -77,7 +77,9 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
 7. **Reports that reach people.** A report the server writes comes with a
    [download link](reference/delivery.md) that expires, bound to the person's sign-in where the
    data is not open to everyone, or goes to a [store you run](reference/delivery.md#upload)
-   (S3, Azure Blob Storage, a file service of your own).
+   (S3, Azure Blob Storage, a file service of your own). A small csv or json result over fields
+   that are shown can also come back only in the answer, saved nowhere
+   ([`save: false`](reference/mcp.md#inline-only)).
 
 <div class="grid" markdown>
 
