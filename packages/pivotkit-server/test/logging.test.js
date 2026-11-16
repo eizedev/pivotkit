@@ -348,7 +348,7 @@ test("flushed: resolves when the stream says its write is out, or after a second
     assert.ok(said);
     const started = Date.now();
     await flushed({ write: () => true });
-    assert.ok(Date.now() - started >= 900);
+    assert.ok(Date.now() - started >= 900); // wall time: a timer's least delay
 });
 
 test("a context names its program and version on every line", async () => {

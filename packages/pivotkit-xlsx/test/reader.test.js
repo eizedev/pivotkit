@@ -542,7 +542,7 @@ test("a sheet padded with whitespace is read in linear time and memory, with its
     // takes about as long as the scan of the sheet before parsing; without the guard, read-excel-file
     // took minutes and then ran out of stack
     ctx.diagnostic(`read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`);
-    assert.ok(ms < PADDED_READ_PER_SCAN * scanMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`);
+    assert.ok(ms < PADDED_READ_PER_SCAN * scanMs, `read ${Math.round(ms)} ms, scan ${Math.round(scanMs)} ms`); // wall time: a ratio of two measurements
     assert.ok(peak - rss < 300 * MiB, `${Math.round((peak - rss) / MiB)} MiB more resident memory`);
 });
 

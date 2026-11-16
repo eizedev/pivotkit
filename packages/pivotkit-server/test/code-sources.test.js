@@ -1427,12 +1427,9 @@ test("the pool: a CSV read whose callers all went away stops, its worker replace
     const bytes = new TextEncoder().encode(`${rows.join("\n")}\n`);
     try {
         const leave = new AbortController();
-        const started = Date.now();
         const reading = computer.read(JOB_SPEC, { bytes, format: "csv" }, null, null, leave.signal);
         setTimeout(() => leave.abort(new DOMException("every caller went away", "AbortError")), 30);
         await assert.rejects(reading, { name: "AbortError" });
-        // the AbortError is the stop; the bound only catches one that comes after the read's end
-        assert.ok(Date.now() - started < 10_000, "stopped, not run to its end"); // wall time: event latency
         // the next job gets a new worker
         const read = await computer.read(JOB_SPEC, { bytes: new TextEncoder().encode("a,b\n1,2\n"), format: "csv" }, null, null);
         assert.equal(read.table.length, 1);

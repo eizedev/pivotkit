@@ -353,7 +353,7 @@ test("dataAsOf of a code source: its own asOf parsed, else when load() gave the 
         assert.equal((await present(context, "describe_source", { source: "dated" }, LOCAL)).result.dataAsOf, "2026-11-01T08:00:00Z");
         for (const id of ["garbage", "rows"]) {
             const asOf = (await present(context, "describe_source", { source: id }, LOCAL)).result.dataAsOf;
-            assert.ok(Date.parse(asOf) >= Math.floor(before / 1000) * 1000 && Date.parse(asOf) <= Date.now(), `${id}: ${asOf}`);
+            assert.ok(Date.parse(asOf) >= Math.floor(before / 1000) * 1000 && Date.parse(asOf) <= Date.now(), `${id}: ${asOf}`); // wall time: a timestamp the server wrote
         }
         const linked = await present(context, "create_link", { source: "link", view: { rows: ["A"] } }, LOCAL);
         assert.match(linked.result.dataAsOf, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
