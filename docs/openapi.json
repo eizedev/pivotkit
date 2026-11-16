@@ -4273,7 +4273,7 @@
       "bearer": {
         "type": "http",
         "scheme": "bearer",
-        "description": "A static token the operator gives you: Authorization: Bearer <token>."
+        "description": "A token the operator gives you, static or signed: Authorization: Bearer <token>."
       }
     }
   }

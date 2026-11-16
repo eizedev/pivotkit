@@ -115,17 +115,8 @@ const FLAGS = Object.freeze({
     }
 });
 
-/** The usage line of each command, for the help. */
-const USAGE = Object.freeze({
-    "token new": "pivotkit-server token new [options]",
-    "token show": "pivotkit-server token show <name> [options]",
-    "token issue": "pivotkit-server token issue [options]",
-    "token list": "pivotkit-server token list [options]",
-    "token revoke": "pivotkit-server token revoke <id or name> [options]",
-    "token remove": "pivotkit-server token remove <id or name> [options]",
-    "key new": "pivotkit-server key new --for downloads|audit|signing [options]",
-    "key remove": "pivotkit-server key remove <key id> --for signing [options]"
-});
+/** The usage line of each command, by its name in FLAGS. */
+const USAGE = Object.freeze({ "token new": "pivotkit-server token new [options]", "token show": "pivotkit-server token show <name> [options]", "token issue": "pivotkit-server token issue [options]", "token list": "pivotkit-server token list [options]", "token revoke": "pivotkit-server token revoke <id or name> [options]", "token remove": "pivotkit-server token remove <id or name> [options]", "key new": "pivotkit-server key new --for downloads|audit|signing [options]", "key remove": "pivotkit-server key remove <key id> --for signing [options]" });
 
 /** A token's name: letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit. */
 export const TOKEN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
