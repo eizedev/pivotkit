@@ -142,7 +142,7 @@ An option on the command line wins over its environment variable.
 
 Every command checks `--locale`, `--time-zone` and `--now`, from the command line or the
 environment, so a wrong value in a pipeline's environment fails in every step, not only in
-`render`. The message names the variable.
+`render`. When the value came from the environment, the message names the variable.
 
 An option given for a format it does nothing in (`--width` with `csv`), or `--sheet` for data that is
 no workbook, is a warning `ignoredOption`.
@@ -151,8 +151,7 @@ You can paste a command that a line on stderr suggests into a shell as it is. A 
 in double quotes, one with `!` in single quotes, since bash expands `!` in double quotes. The CLI
 writes no colours.
 
-A report rendered from local files carries no time of the data, since the command line passes none.
-So an HTML report's details have no "Data as of", and a workbook has no `DataAsOf` property.
+A report rendered from local files carries no time of the data, since the command line passes none, so an HTML report's details have no "Data as of", and a workbook has no `DataAsOf` property.
 [With a server](#with-a-server), the file is the server's and carries the time its source gives.
 
 ## What it says
@@ -272,7 +271,7 @@ The draft is a view file of format 2:
 - Its name is `Draft: ` and what it shows.
 - Its description says where it came from.
 - It names the data as the report names a loaded file, with the sheet of a workbook
-  (`source.params.sheet`). So **Views**, **Open view file** in the report opens it on that file and
+  (`source.params.sheet`), so **Views**, **Open view file** in the report opens it on that file and
   sheet.
 
 The draft is checked against the data as `validate --strict` would. A field the data lacks
@@ -447,7 +446,7 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
     - `describe --suggest`: `POST /views/suggest`
     - `render`: `POST /views/validate`, then `POST /views/render/file`. `render --suggest` calls
       `POST /views/suggest` first.
-    - `sources`: `GET /sources` and `GET /sources/{id}`, with `--param` `POST /sources/describe`.
+    - `sources`: `GET /sources` and `GET /sources/{id}`, and with `--param`, `POST /sources/describe`.
     - `describe` with a server takes a view. For a source's fields, run `pivotkit sources <id>`.
 - **Parameters**: a source with parameters needs a value for each required one in every call. Such a
   source is an HTTP source with `{customer}` in its address, or a code source that declares

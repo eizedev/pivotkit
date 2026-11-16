@@ -10,7 +10,7 @@ A report the MCP server or the REST service writes lands in the server's output 
 `http.publicUrl` + `/downloads/<token>` that works for 60 minutes. MCP results carry the link twice:
 
 - in the text the model reads
-- as a `resource_link` the client can show the person.
+- as a `resource_link` the client can show the person
 
 Nothing else has to run beside the server. A `render_view` with `save: false` writes no file and gets
 no link. Its csv or json result comes back [inline only](mcp.md#inline-only).
@@ -33,7 +33,7 @@ Which report gets which link depends on the source:
 | Source | Caller | Link |
 | --- | --- | --- |
 | Open | any | A plain link anyone who has it can open until it expires (`bound: "none"`) |
-| Closed | signed in over OAuth with a subject, `bind: "signIn"` | A link only that person can open, after signing in in the browser (`bound: "signIn"`) |
+| Closed | signed in over OAuth with a subject, `bind: "signIn"` | A link only that person can open, after signing in through the browser (`bound: "signIn"`) |
 | Closed | `bind: "once"` (your explicit choice) | A link that works once (`bound: "once"`) |
 | Closed | anything else: a static token, a token without a usable subject, `bind: "none"` | No link: the file is kept, and the result says "The report is saved on the server; ask the operator how to open it." |
 
@@ -69,7 +69,7 @@ same rules for closed sources.
 | `output.downloads.enabled` | true | The server's own links. They need HTTP and `output.dir`, and are off while `output.baseUrl` is set. `true` next to `output.baseUrl` is refused at start: choose one |
 | `output.downloads.expiresMinutes` | 60 | How long a link works, 1 to 1440 minutes. A person reads the answer, opens the link and signs in within this time, so give them minutes, not seconds. `check-config` warns below 5 |
 | `output.downloads.bind` | `"signIn"` with `auth.mode: "oauth"` and `signIn.clientId`, else `"none"` | How links to reports over closed sources are bound: `signIn`, `once`, or `none` (such reports get no link) |
-| `output.downloads.key` | a random key per process. With a state directory, `<state>/secrets/downloads.key`, made at the first start ([made at the first start](rest.md#first-start)) | The link key, a secret reference (`{ "env": "NAME" }` or `{ "file": "path" }`, `"create": true` makes a missing file) of at least 32 bytes. Set it for more than one replica and for links that survive a restart. Make one with `pivotkit-server key new --for downloads --file <path>` ([tokens and keys](rest.md#credentials)). It is read again at most once a second, so a rotated key works without a restart, within a second. Links made with the old key stop working. This needs the `{ "file": "path" }` form, since a process's environment variables do not change while it runs |
+| `output.downloads.key` | a random key per process. With a state directory, `<state>/secrets/downloads.key`, made at the first start ([made at the first start](rest.md#first-start)) | The link key, a secret reference (`{ "env": "NAME" }` or `{ "file": "path" }`, `"create": true` makes a missing file) of at least 32 bytes. Set it for more than one replica and for links that survive a restart. Make one with `pivotkit-server key new --for downloads --file <path>` ([tokens and keys](rest.md#credentials)). It is read again at most once a second, so a rotated key works without a restart, within a second. Links made with the old key stop working. Rotating without a restart needs the `{ "file": "path" }` form, since a process's environment variables do not change while it runs |
 | `output.downloads.allowInsecureUrl` | false | Links under an `http://` `http.publicUrl` on a host other than loopback. Without it, the server does not start with such an address while links are on: a link is the credential, and it and its cookie would cross the network in clear text. With it, the start and `check-config` warn. Use it only on a network you trust |
 | `output.downloads.signIn.clientId` | none | The browser client the person signs in with |
 | `output.downloads.signIn.clientSecret` | none (a public client with PKCE) | Its secret, a secret reference, sent as HTTP Basic (or in the form where the provider only takes `client_secret_post`) |
@@ -83,7 +83,7 @@ same rules for closed sources.
 Without `http.publicUrl`:
 
 - A server on loopback puts its own address in links (`http://127.0.0.1:3333/downloads/...`).
-- A server on any other address gives no links, with a warning at start and in `check-config`. So a
+- A server on any other address gives no links, with a warning at start and in `check-config`, so a
   link never shows an internal address.
 
 The reports that get a link are stored with the link's 22 random characters before their name
@@ -92,7 +92,7 @@ stored name, and `output.filename` the name the person sees (`Sales by region.xl
 a link keep their names.
 
 A report's name keeps letters, digits, spaces, `.`, `_`, `-` and parentheses. Any other character
-becomes `-`, accents are dropped, and the name is cut at 80 characters. So `Orders (fake backend)` is
+becomes `-`, accents are dropped, and the name is cut at 80 characters. For example, `Orders (fake backend)` is
 stored as `Orders (fake backend).pivotkit-out.xlsx`.
 
 A key that cannot be read (a missing variable or file, shorter than 32 bytes) is a warning at start.
@@ -152,8 +152,8 @@ downloaded the report earlier, look in the downloads of the browser you used. Ot
 made the report to make it again."
 
 The POST must come from the link's own page. Its `Origin` is `http.publicUrl`'s origin: the page is
-served with `Referrer-Policy: same-origin`, so the browser names it. Or the POST carries
-`Origin: null` with `Sec-Fetch-Site: same-origin`.
+served with `Referrer-Policy: same-origin`, so the browser names it. A POST with `Origin: null`
+and `Sec-Fetch-Site: same-origin` is accepted too.
 
 Anyone who sees a one-time link can use it once, and an assistant with a browser or a code tool can
 use it before the person does. `check-config` warns of that. Use `signIn` where it matters.
@@ -304,7 +304,7 @@ stored report: a JSON Pointer (`"/url"`) or `"header:location"`.
 
 | Key | Default | What it is |
 | --- | --- | --- |
-| `output.upload.url` | none | An `https://` address template with `{id}` (required), `{name}` and `{format}` in its path or query. Or use `presign` |
+| `output.upload.url` | none | An `https://` address template with `{id}` (required), `{name}` and `{format}` in its path or query. Use `presign` instead for a presign service |
 | `output.upload.headers` | none | With `url`: headers sent to the store. A value is a text, or `{ "prefix": "Bearer ", "value": <secret reference> }`. `authorization`, `cookie` and names with `key`, `token`, `secret`, `auth` or `pass` take a secret reference only |
 | `output.upload.link` | the address (`PUT` to an address without a query) | With `url`: a JSON Pointer into the store's answer, or `"header:location"`. Required for `POST` and for an address with a query. A query may hold a signature, such as a SAS token, which is never shown |
 | `output.upload.expiresAt` | none | With `url`: a JSON Pointer to the link's expiry in the store's answer |
@@ -318,7 +318,7 @@ stored report: a JSON Pointer (`"/url"`) or `"header:location"`.
 | `output.upload.timeMs` | 30000 | Waiting for a slot, presign and upload together, 1000 to 600000 ms |
 | `output.upload.maxBytes` | `output.maxMb` | A larger report is not uploaded (`UPLOAD_FAILED`) |
 | `output.upload.keepLocal` | true | Keep the report in `output.dir` too. With `false`, it is removed once the store answered 2xx and the link was checked |
-| `output.upload.bind` | `"none"` | What the store's links do, as you declare it. pivotkit does not check it. `none` (anyone with the link), `once`, or `signIn` (the store checks the person) |
+| `output.upload.bind` | `"none"` | What the store's links do, as you declare it. pivotkit does not check it. The values are `none` (anyone with the link), `once`, or `signIn` (the store checks the person) |
 | `output.upload.intranet` | false | The store may be on a loopback or private address |
 
 `output.upload` needs `output.dir` and cannot be combined with `output.baseUrl`.
@@ -336,7 +336,7 @@ Schedule drafts are not uploaded: the host approves them in `output.dir`.
 
 With `bind: "signIn"`, the presign request carries `subject`. It is an HMAC of the caller's issuer
 and subject under a key derived from `output.downloads.key` for this purpose alone. It is never the
-subject itself, and never a value a sign-in link holds. So your presign service can scope the object
+subject itself, and never a value a sign-in link holds. The presign service can use it to scope the object
 to the person and check it when they open the link.
 
 - The value is the same for one person across reports, so the store can tell which reports belong to
@@ -396,12 +396,12 @@ link given out for it. pivotkit does not delete it there, since it may not have 
 the store's own retention remove such objects.
 
 `check-config` prints an `Upload:` section: the target (without its query), which sources' reports
-go there, and where each header's secret comes from. Each of these is a `PROBLEM` the server starts
+go there, and where each header's secret comes from. Two cases are a `PROBLEM` the server starts
 with:
 
 - a header secret it cannot read
 - a target that resolves to an address uploads refuse: an IP address, a metadata address, or a
-  loopback or private one without `intranet`.
+  loopback or private one without `intranet`
 
 Every upload fails until it is fixed ([reading check-config](rest.md#check-config)).
 
@@ -423,7 +423,7 @@ a call's line does. That is who got the file, or who was refused with `LINK_NOT_
 does not exist is on the debug log only (`--log debug`), so a scan does not fill the log.
 
 With more than one replica, set `output.downloads.key` (the same on every replica) and give them one
-output directory (a ReadWriteMany volume). Or run one replica. See [the container](container.md) and
+output directory (a ReadWriteMany volume), or run one replica. See [the container](container.md) and
 [Kubernetes](../getting-started/kubernetes.md).
 
 `output.baseUrl` (your own web server for the directory) is the alternative to these links. It gives

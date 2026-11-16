@@ -12,7 +12,7 @@ manager. The image runs as the user 10001.
 
 | Tag | What it is |
 | --- | --- |
-| `<version>`, e.g. the release `pivotkit-server@0.1.0` as `0.1.0` | That release, unchanged |
+| `<version>`, for example the release `pivotkit-server@0.1.0` as `0.1.0` | That release, unchanged |
 | `<major>.<minor>` | The latest release of that minor version |
 | `latest` | The image of the pivotkit-server release published last. That can be a new minor version, or an older version when a patch of an older minor version comes out later. Not for production |
 
@@ -201,8 +201,8 @@ Behind a proxy:
 - With a proxy or a published port in front, every client comes from one address. Set
   `http.trustProxy` with a proxy that writes `X-Forwarded-For`
   ([the nginx example](rest.md#running)). The limit on refused tokens then counts per client.
-- In this setup, the proxy guards the connections (timeouts, limits per client). Make the
-  container's port reachable from the proxy only.
+- In this setup, the proxy guards the connections (timeouts, limits per client). The
+  container's port should be reachable from the proxy only.
 - Leave `http.maxConnectionsPerAddress` off behind a proxy: every client has the proxy's address.
 
 With OAuth, the MCP endpoint and the REST service are two resources with their own audiences:
@@ -225,7 +225,7 @@ service. In Keycloak that is an audience mapper, in Entra ID the application ID 
 [MCP: OAuth](mcp.md#oauth) has provider examples. The image must reach the issuer over HTTPS.
 
 Until the server has loaded the issuer's keys, `/readyz` answers 503. The server tries again after 2,
-4, 8 seconds and so on, at most every minute. After a long outage of the issuer, it can take up to a
+4, 8 seconds and so on, with a wait of up to one minute. After a long outage of the issuer, it can take up to a
 minute to be ready again.
 
 The proxy also routes `/downloads/` to the container, because reports come back as

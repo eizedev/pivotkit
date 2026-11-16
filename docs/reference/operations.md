@@ -33,31 +33,31 @@ then the file, then the variable.
     - `error` keeps only server errors (5xx) and unexpected errors.
     - The `started` and `stopped` lines are written at every level but `off`.
     - `debug` is for setting a server up. Its lines hold more, an error's own message among them,
-      which may quote a value or a request's body. So do not leave it on.
-    - Where you only look at what went wrong (a busy server, a log you pay for by volume), run with
-      `warn`.
+      which may quote a value or a request's body, so do not leave it on.
+    - Where you only look at what went wrong (a busy server, a log you pay for by volume), `warn` is
+      the level to run with.
 - **`log.format`**:
     - `json` writes one JSON object per line.
     - `text` writes `key=value` pairs (logfmt, in the style of Go's `slog` TextHandler) for a person
       at a terminal.
     - `auto` writes text when stderr is a terminal, and JSON otherwise.
-    - Both formats carry the same fields. Text leaves out `severity`, `service`, `version` (the
-      `started` line names it) and `traceId`.
+    - Both formats carry the same fields, except that text leaves out `severity`, `service`,
+      `version` (the `started` line names it) and `traceId`.
     - Text is coloured only on a terminal, and only when `NO_COLOR` is not set.
     - The [container image](container.md) sets `PIVOTKIT_LOG_FORMAT=json`, because `docker run -t`
       gives the process a terminal.
 - **`log.address`**: `on` puts the client's address on every line of a request:
     - `address`, the client as best known: with `http.trustProxy` the last entry of
       `X-Forwarded-For`, else the socket's peer
-    - `peerAddress`, the socket's peer, where it differs (behind a proxy, the proxy).
+    - `peerAddress`, the socket's peer, where it differs (behind a proxy, the proxy)
 
     `off` leaves both out. An address is personal data ([privacy](../privacy.md#logs)).
 
 `started` names the format it chose (`logFormat`), so a log that suddenly reads as text or JSON
 tells you why.
 
-An error at start, before the log exists, follows the same rule. Such an error is a configuration
-that cannot be read, or an unknown flag. It is a JSON line (`event` `error`, `code` `CONFIG`) where
+An error at start, before the log exists, follows the same rule: for example a configuration that
+cannot be read, or an unknown flag. It is a JSON line (`event` `error`, `code` `CONFIG`) where
 stderr is no terminal or JSON is asked for. It is the plain line `pivotkit-server: ...` on a terminal
 or with `--log-format text`. check-config prints the log's settings and does not log.
 
@@ -304,13 +304,13 @@ nothing. Let the log server parse the message as JSON and use pivotkit's `level`
 
 In Graylog, add a JSON extractor on the message (or a pipeline rule that parses it as JSON). Use its
 `level` and `severity` fields instead of the GELF level the driver sets. `time` stays a text field
-until you map it to a date. Or use the message's own timestamp, which the driver sets when it
+until you map it to a date, or use the message's own timestamp, which the driver sets when it
 receives the line.
 
 ## Without a container: journald and rsyslog { #journald }
 
-When the server runs as a systemd service, its stderr goes to the journal. Name the service, and the
-log stays JSON, since stderr is no terminal there:
+When the server runs as a systemd service, its stderr goes to the journal. Name the syslog identifier
+(`SyslogIdentifier`). The log stays JSON, since stderr is no terminal there:
 
 ```ini
 # /etc/systemd/system/pivotkit.service (the parts about the log)
@@ -340,12 +340,12 @@ if $programname == 'pivotkit' then @@logs.example.com:514;RSYSLOG_SyslogProtocol
 
 ## The state volume { #state }
 
-The state directory is `/var/lib/pivotkit` in the [container image](container.md), and
-`--state-dir` elsewhere. The server keeps there:
+When the server has a state directory (`/var/lib/pivotkit` in the [container image](container.md),
+`--state-dir` elsewhere), it keeps there:
 
 - in `secrets/`, the token `admin`, the key of the download links and the audit key it made at its
   first start ([made at the first start](rest.md#first-start))
-- in `out/`, the reports, where `output.dir` names it.
+- in `out/`, the reports, where `output.dir` names it
 
 Back the volume up with the rest of the installation. Keep the backup as secret as the tokens: with
 the files, anyone can call the server and open its download links. A restore brings the same token

@@ -162,7 +162,7 @@ details:
 - A `ROWS_DROPPED` note counts such rows.
 - The reason: the values after a stray separator shift one column to the right. A value kept back
   would land in the next column, which may be shown.
-- `check-config` counts such rows per source by the source's own policy. So a caller whose profile
+- `check-config` counts such rows per source by the source's own policy, so a caller whose profile
   sees fewer fields can lose rows `check-config` does not warn about.
 - A shifted row as wide as the header cannot be told. See [privacy](../privacy.md#defaults) for CSV
   sources with fields kept back.
@@ -421,9 +421,13 @@ A library host may give a source a function instead of a file, a [code source](s
 - `signal` is aborted after the source's `timeMs` (30 s by default).
 - `load` runs in the host's thread. The report over its data is computed in a worker under
   `compute.timeMs` and `compute.memoryMb`, as for a file ([where it runs](sources.md#code-thread)).
-- pivotkit keeps their data per caller (with its client, scopes, groups and claims), values and
-  policy levels, unless `cacheShared: true` makes one copy for all callers. `caller` is then null. A
-  caller without an identity (an OAuth token without a usable subject) gets no kept data.
+- pivotkit keeps one copy of the data for each combination of caller, parameter values and policy
+  levels. The caller counts with its client, scopes, groups and claims.
+    - With `cacheShared: true`, one copy serves all callers.
+    - A caller without an identity (an OAuth token without a usable subject) gets nothing kept.
+    - A kept copy is reused while `version(params, { caller })` gives the same value, or for `ttl`
+      seconds.
+- With `cacheShared: true`, `load` and `version` get `caller` as null.
 - Calls that need the same data while it loads share one load.
 - After a transient failure, the last good data stands in for up to `maxStale` seconds (3600 by
   default), with `stale` in the result.
@@ -536,7 +540,7 @@ request and trace ids and how to ship the log.
 | `call` | Tool, the source, client, `requestId`, `traceId`, `ok`, `status` and `outcome`, error code, time in ms. The source is a configured id, `inline:`, `file:` for any file by path, or `unknown` for any other text, never the text the model sent. For `inline:` data also the number of rows and columns. `saved: false` for a `render_view` with `save: false` |
 | `download` | A [download link](delivery.md) opened: `via: "link"`, its binding, whether it worked and the code, never the token |
 | `refused` | An HTTP request refused by the Host, Origin or token check, a limit or a body over the cap. A request the protocol layer refuses, with its error's class and the SDK's name for the refusal. The message itself can quote the request's body, so it appears only with `--log debug`. Any other error answer that has no line of its own, such as a body that is not JSON, with its status and `reason` |
-| `warning` | A warning |
+| `warning` | A problem that does not stop the server |
 | `stopped` | Written after an HTTP server stops |
 
 A call line is `info` when it worked, `warn` for an error a REST caller would get as 4xx, and `error`
@@ -599,7 +603,7 @@ The server checks Host, Origin, the declared size and the token from the headers
 body.
 
 - At most 256 connections are open at once. 16 of them are kept for loopback clients, such as the
-  health check or a proxy on the same host. So clients on the network that hold connections without
+  health check or a proxy on the same host, so clients on the network that hold connections without
   sending cannot lock them out. A process on the same host can.
 - A client has 5 seconds for its headers and 30 for its request.
 - `http.maxConnectionsPerAddress` (default 0, no bound) caps the connections of one address. Set it
@@ -664,7 +668,7 @@ location ~ ^/(mcp|\.well-known/|downloads/|healthz$|$) {
 
 ### Static tokens { #token }
 
-The token comes from `$PIVOTKIT_MCP_TOKEN`. Or several named tokens come from `auth.tokens`, each
+The token comes from `$PIVOTKIT_MCP_TOKEN`, or several named tokens come from `auth.tokens`, each
 from an environment variable or a file, each with its own `scopes`.
 
 - A token file is read on every request, so a token is rotated without a restart. `"create": true`
@@ -742,7 +746,7 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
   for an issuer on such an address. For a certificate of your own authority, set
   `NODE_EXTRA_CA_CERTS` to its file.
 - The server reads the metadata again every hour, and when a token names a key the JWKS does not
-  hold. So a moved `jwks_uri` works without a restart. After a read that found nothing new, or that
+  hold, so a moved `jwks_uri` works without a restart. After a read that found nothing new, or that
   failed and kept what is loaded, the next such read waits a minute, so made-up key ids cannot
   hammer the issuer. A made-up key id sent just before a rotation can delay picking up the moved
   `jwks_uri` by up to that minute.

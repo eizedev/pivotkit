@@ -135,7 +135,7 @@ server knows its own files. A name that is taken gets `-2`, `-3` and so on, sinc
 replaces a file.
 
 Check `ok` in the answer: a view with errors answers 200 with `ok: false` and `output: null`. The
-caller fetches the file from where `output` says, or uses the [file route](#downloads).
+caller fetches the file from the address in `output`, or uses the [file route](#downloads).
 
 The field names in these examples are those of the `sales.csv` that `pivotkit example` writes, or
 made up. `GET /sources/{id}` lists the fields of your source and views built from them (`fields`,
@@ -299,8 +299,9 @@ Groups to profiles, with a narrow profile for everyone else:
 A person in both groups gets `finance`, since it comes first. `check-config` warns when a later entry
 shows a field an earlier one holds back.
 
-Without `defaultProfile`, the server refuses a person with 403 `access_denied` when they are in none
-of the groups and their client or scopes name no profile. Set `defaultProfile` to a narrow profile to
+Without `defaultProfile`, the server refuses a person with 403 `NOT_ALLOWED` when they are in none
+of the groups and their client or scopes name no profile (the MCP endpoint answers
+`access_denied`). Set `defaultProfile` to a narrow profile to
 let such people in. `check-config` warns when it is missing.
 
 ## Data in the request { #data }
@@ -684,7 +685,8 @@ A `PROBLEM` ends with what it does:
 
 - `-> the server does not start`: what `serve` refuses. That is an output directory it cannot use, a
   static token that is missing or too short, an address off loopback without auth, an issuer that is
-  not https, an audit key, or a print template the parser refuses.
+  not https, an `audit.key` that cannot be read or has fewer than 16 characters (OAuth with
+  `audit.subject: hash`), or a print template the parser refuses.
 - What does not work while the server runs: a source file that is not there, a backend secret, the
   download key, an upload header's secret, the download links' client secret, an issuer or upload
   target on an address the server refuses, or an output directory the server cannot write.
@@ -774,7 +776,7 @@ lets running requests finish for up to `http.graceMs` (25 seconds by default).
 | `http.maxConnectionsPerAddress` | 0 (no bound) | Connections one address may hold (loopback excepted). Set it (for example 32) when clients reach the port directly with addresses of their own. Leave it off behind NAT, a published port or a proxy, where every client has one address |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
 | `output.create` | true | Make a missing `output.dir` at start, with its parents and mode 0700. When `output.baseUrl` is set, the mode is 0755 narrowed by the umask. The start logs a warning when it makes the directory. `false` makes a missing directory an error. A relative `output.dir` without a configuration file is relative to the working directory. `check-config` says whether the directory exists, will be made, or cannot be made, and why: a parent the server's user may not write, a name too long, a symbolic link loop |
-| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted. They may take at most half of `output.maxFiles`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays`, the server does not start there |
+| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted. They may take at most half of `output.maxFiles`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
 | `output.maxAgeDays` | 30 | `0`: no age limit. Otherwise the server deletes reports and drafts (the files marked `.pivotkit-out.`) older than this many days from the top level of the output directory, at start and every hour. It also deletes the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour). Other files and subdirectories stay. Use a directory of its own. The server refuses to start with a limit you write when the output directory is the configuration file's directory or holds a source, print template or token file. There the default does not apply (no age limit) |
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `output.upload` | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method`, `timeMs`, `maxBytes`, `keepLocal`, `bind`, `intranet` |
@@ -988,7 +990,7 @@ to ship the log.
 | `request` | Operation, route, client, `requestId`, `traceId`, the client's `address`, source id, `status`, `outcome`, error code, time in ms. For `inline:` data also the number of rows and columns, or a file's format and bytes |
 | `download` | Operation, client, `requestId`, source, format, bytes. For a [download link](delivery.md) also `via: "link"`, its binding, whether it worked and the code, never the token |
 | `refused` | A request refused by the Host, Origin or token check, a limit or a body over the cap, with its `requestId` and `reason` |
-| `warning` | A warning |
+| `warning` | A problem that does not stop the server |
 | `stopped` | Written after a stop |
 
 A request line is `info` when it worked, `warn` for 4xx and `error` for 5xx. `requestId` is random
@@ -997,7 +999,7 @@ A request line is `info` when it worked, `warn` for 4xx and `error` for 5xx. `re
 
 The client is the static token's name or the OAuth client id. The person is on `request` and
 `download` lines only with `audit.subject` ([audit](mcp.md#logging)). Their groups and other claims
-never are. No line holds a view, a value, a token or a path. `log.address: "off"` leaves the client's
+never appear. No line holds a view, a value, a token or a path. `log.address: "off"` leaves the client's
 address out.
 
 ## In your own server { #embed }
@@ -1048,8 +1050,8 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
   NUL. Its error names the reference, never the value.
 
 A configured source may be an operator's backend, an [HTTP source](sources.md#http)
-(`sources.<id>.http`, with typed `params`). For a library host, it may also be a function instead of
-a file, a [code source](sources.md#code):
+(`sources.<id>.http`, with typed `params`), or, for a library host, a function instead of a file, a
+[code source](sources.md#code):
 
 - `load(params, { caller, signal })` returns an array of row objects, `{ rows, asOf }`, or columnar
   data `{ columns, types, data }` with one array per column. It does not return `encode()`'s result,
@@ -1057,8 +1059,12 @@ a file, a [code source](sources.md#code):
 - `load` runs in the host's thread. Its `signal` is aborted after `timeMs` (30 s by default).
 - The report over its data is computed in a worker under `compute.timeMs` and `compute.memoryMb`
   ([where it runs](sources.md#code-thread)).
-- The data is kept per caller, values and policy levels while `version(params, { caller })` gives
-  the same value or for `ttl` seconds. With `cacheShared: true`, one copy serves all callers.
+- pivotkit keeps one copy of the data for each combination of caller, parameter values and policy
+  levels. The caller counts with its client, scopes, groups and claims.
+    - With `cacheShared: true`, one copy serves all callers.
+    - A caller without an identity (an OAuth token without a usable subject) gets nothing kept.
+    - A kept copy is reused while `version(params, { caller })` gives the same value, or for `ttl`
+      seconds.
 - Parallel calls share one load.
 - After a transient failure, the last good data stands in for up to `maxStale` seconds, with `stale`
   in the result.
