@@ -118,12 +118,13 @@ const hiddenOf = (levels, columns, unnamed = undefined) => {
 };
 
 /**
- * A read table without its rows longer than the header, where the levels hide a field (the default
- * or a rule): a separator inside a value shifts every cell after it one column to the right, so a
- * hidden column's value lands in the next column, which may be shown. Which cell moved cannot be
- * told, and the row's other values are misplaced too, so the whole row goes, with a read note that
- * counts them. A row is longer than its header where it has a value in a column such a row added
- * (pivotkit-core's `overflow`). Without a hidden field the table stays as it was read.
+ * A read table without its rows longer than the header, where the levels hold a field below "show"
+ * (the default or a rule): a separator inside a value shifts every cell after it one column to the
+ * right, so a hidden, summary or values field's value lands in the next column, which may be shown.
+ * Which cell moved cannot be told, and the row's other values are misplaced too, so the whole row
+ * goes, with a read note that counts them. A row is longer than its header by the cells the reader
+ * read, an empty one at the end too (pivotkit-core's `longRows`). Where every field is "show" the
+ * table stays as it was read.
  * @param {{ default: string, fields: Record<string, string> }} levels
  * @param {{ table: any, notes: import("pivotkit-report/operations").Finding[] }} read  readTable's
  * @param {string} label  the source's name for the note
@@ -131,16 +132,14 @@ const hiddenOf = (levels, columns, unnamed = undefined) => {
  */
 export function withoutLongRows(levels, read, label) {
     const { table } = read;
-    const overflow = Array.isArray(table?.overflow) ? table.overflow : [];
-    const hides = levels.default === "hide" || Object.values(levels.fields ?? {}).includes("hide");
-    if (!hides || !overflow.length) {
+    const long = new Set(Array.isArray(table?.longRows) ? table.longRows : []);
+    if (!long.size || allShown(levels)) {
         return read;
     }
-    const extra = overflow.map((name) => table.columns.indexOf(name)).filter((c) => c >= 0);
     const rows = table.data[0]?.length ?? 0;
     const keep = [];
     for (let r = 0; r < rows; r++) {
-        if (!extra.some((c) => table.data[c][r] !== null && table.data[c][r] !== undefined)) {
+        if (!long.has(r)) {
             keep.push(r);
         }
     }
@@ -155,6 +154,15 @@ export function withoutLongRows(levels, read, label) {
         notes: [...read.notes, note]
     };
 }
+
+/**
+ * Whether levels show every field: "show" by default and no rule below it.
+ * @param {{ default: string, fields: Record<string, string> }} levels
+ */
+export const allShown = (levels) => levels.default === "show" && Object.values(levels.fields ?? {}).every((l) => l === "show");
+
+/** Notes whose text is fixed and names no column (pivotkit-core's, and ROWS_DROPPED): never cleaned, whatever a hidden column is called. */
+const FIXED_NOTES = new Set(["ENCODING", "SEPARATOR", "LINES_SKIPPED", "COLUMNS_RENAMED_MORE", "COLUMN_DROPPED", "COLUMNS_ADDED", "ROWS_EMPTY", "TEXT_CUT", "CHARACTERS_REMOVED", "ROWS_DROPPED"]);
 
 /** Columnar data without the hidden columns. */
 function withoutHidden(table, hide) {
@@ -183,7 +191,9 @@ export function withoutHiddenRows(levels, table) {
 }
 
 /** Reader notes without those about a hidden column: nothing about it reaches the model. */
-const cleanNotes = (notes, hide) => notes.filter((n) => !hide.some((h) => fieldKey(n.message).includes(h)));
+// a note of fixed text stays: its words could hold a hidden column's name ("column names") and
+// dropping it would hide that rows went missing
+const cleanNotes = (notes, hide) => notes.filter((n) => FIXED_NOTES.has(n.code) || !hide.some((h) => fieldKey(n.message).includes(h)));
 
 /** Drops a kept data set. */
 function forget(key) {

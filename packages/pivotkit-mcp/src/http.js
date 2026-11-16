@@ -231,7 +231,7 @@ export async function createHttpHandler(context, runtime = {}) {
         const limitKey = limitKeyOfAuth(authInfo);
         const wait = limits.take(limitKey, client);
         if (wait) {
-            context.log.refused({ status: 429, path: ENDPOINT, reason: refusalReason("RATE_LIMITED"), limit: "rate", client });
+            context.log.refused({ status: 429, path: ENDPOINT, reason: refusalReason("RATE_LIMITED"), limit: limits.rateBy(limitKey, client), client });
             return rpcError(429, -32000, "too many requests; wait before the next", { "retry-after": String(wait) });
         }
         if (!limits.enter(limitKey, client)) {

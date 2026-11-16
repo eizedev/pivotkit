@@ -390,7 +390,7 @@ export async function createRestHandler(context, runtime = {}) {
         const limitKey = limitKeyOf(caller);
         const wait = limits.take(limitKey, caller.client);
         if (wait) {
-            context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: "rate", ...callerFields(caller) });
+            context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: limits.rateBy(limitKey, caller.client), ...callerFields(caller) });
             return problem("RATE_LIMITED", "too many requests; wait before the next", { headers: { "retry-after": String(wait) } });
         }
         if (!limits.enter(limitKey, caller.client)) {

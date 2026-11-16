@@ -295,8 +295,8 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             if (now - (warned.get(t.name) ?? -Infinity) >= SHORT_TOKEN_WARN_MS) {
                 warned.set(t.name, now);
                 // the cause, never the value or the path
-                const text = await readFile(/** @type {string} */ (t.file), "utf8").then((v) => v.trim(), (e) => (e?.code === "ENOENT" ? null : ""));
-                const cause = text === null ? "its file is missing" : text === "" ? "its file is empty" : `its file has ${text.length} characters`;
+                const text = await readFile(/** @type {string} */ (t.file), "utf8").then((v) => v.trim(), (e) => (e?.code === "ENOENT" ? null : undefined));
+                const cause = text === null ? "its file is missing" : text === undefined ? "its file cannot be read" : text === "" ? "its file is empty" : `its file has ${text.length} characters`;
                 log.warn(`auth: ${t.which} cannot be used (${cause}): a token has at least ${TOKEN_MIN} characters, so requests with it are refused; write the token to the file again (write it whole, then rename it into place)`);
             }
         };

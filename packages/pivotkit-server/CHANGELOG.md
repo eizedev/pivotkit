@@ -18,8 +18,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - Behaviour change: a column a file gives no header (a blank header cell, a row longer than the
   header) is `hide` whatever the policy's default; a rule that names it still holds
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#columns-without-header)).
-- Behaviour change: where a source hides a field, a row with more values than its header is left out
-  whole, with a `ROWS_DROPPED` note that counts such rows ([#479](https://github.com/eizedev/pivotkit/issues/479),
+- Behaviour change: where a caller sees a field below `show`, a row with more cells than its header
+  (an empty last cell counted) is left out whole, with a `ROWS_DROPPED` note that counts such rows;
+  `check-config` counts them ([#479](https://github.com/eizedev/pivotkit/issues/479),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#long-rows)).
 - Behaviour change: the request limits (`rest.*`, `mcp.*` `rateLimit` and `concurrency`) count per
   person, no longer per OAuth client; one client's people together get eight times the rate and run
@@ -97,9 +98,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   does), and counts the schedule drafts and reports the next start's age sweep deletes; one line under
   `Sources` names the sources without a `description`, which a model chooses sources by
   ([#471](https://github.com/eizedev/pivotkit/issues/471)).
-- A refusal by the client's share of the request limits logs `limit: clientShare`.
+- A refusal by the client's share of the request limits logs `limit: clientRate` or `limit: clientShare`.
 - Download sign-in callbacks are limited to 20 a minute per address (each writes a marker); over that
-  the page asks to wait (429).
+  the page asks to wait (429 `RATE_LIMITED`). Behind a proxy, set `http.trustProxy`, or all people
+  share the proxy's address.
 - An `info` line for each `output.maxAgeDays` sweep that deleted something, with the counts of
   `reports` and `drafts`.
 - A `warning` when a static token's file is missing, empty or shorter than 32 characters while the
@@ -424,7 +426,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 - A row with more cells than the header put a hidden column's value into a shown `Column N` under
   `"default": "show"`; such columns are now hidden. The cells after the stray separator also moved a
-  hidden value into the next named column; such rows are now left out where the source hides a field
+  hidden value into the next named column; such rows are now left out where a field is below `show`
   ([#479](https://github.com/eizedev/pivotkit/issues/479)).
 - The download key (`output.downloads.key`) was read on every request to `/downloads/`, forged links
   included; a read is now shared for a second.

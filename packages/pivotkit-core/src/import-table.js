@@ -67,7 +67,7 @@ export const IMPORT_NOTE_CODES = Object.freeze([
  * @property {ImportNote[]} notes
  * @property {ImportHints} hints
  * @property {string[]} [unnamed]  the columns the file gives no name (a blank header cell, a row longer than the header) as they are named here ("Column 7"); a plugin's own table may leave it out
- * @property {string[]} [overflow]  of those, the columns rows longer than the header added: a row with a value in one is longer than its header, so its cells may be shifted (a separator inside a value); a plugin's own table may leave it out
+ * @property {number[]} [longRows]  the rows (0-based, in `data`) with more cells than the header, empty ones at the end counted: their cells may be shifted (a separator inside a value); a plugin's own table may leave it out
  *
  * @typedef {object} ImportProgress
  * @property {"read" | "unpack" | "parse" | "type"} phase
@@ -622,6 +622,8 @@ export function createTable(options) {
     /** @type {ImportNote[]} */
     const notes = [];
     const counts = { removed: 0, cut: 0, empty: 0, extraRows: 0 };
+    /** @type {number[]} the rows with more cells than the header, by the cells read (an empty one at the end too) */
+    const longRows = [];
     /** @type {unknown[][]} */
     const columns = [];
     /** @type {unknown[] | null} */
@@ -650,6 +652,9 @@ export function createTable(options) {
         }
         if (filled > headerWidth) {
             counts.extraRows++;
+        }
+        if (cells.length > headerWidth) {
+            longRows.push(rowCount);
         }
         if (filled > columns.length) {
             // a wide row late in a long file: the limits before a column of rowCount values is allocated
@@ -726,7 +731,7 @@ export function createTable(options) {
          */
         finish(types) {
             if (sample !== null) flushSample();
-            return finishTable({ header: header ?? [], columns, rowCount, notes, counts, hints, limits, types });
+            return finishTable({ header: header ?? [], columns, rowCount, notes, counts, hints, limits, types, longRows });
         }
     };
 }
@@ -762,7 +767,7 @@ function nameColumns(header, count, notes) {
     return names;
 }
 
-function finishTable({ header, columns, rowCount, notes, counts, hints, limits, types }) {
+function finishTable({ header, columns, rowCount, notes, counts, hints, limits, types, longRows = [] }) {
     // columns without a name and without a value go
     const keep = [];
     for (let c = 0; c < columns.length; c++) {
@@ -776,7 +781,6 @@ function finishTable({ header, columns, rowCount, notes, counts, hints, limits, 
     const keptHeader = keep.map((c) => (c < header.length ? header[c] : null));
     const names = nameColumns(keptHeader, keep.length, notes);
     const unnamed = names.filter((_, i) => keptHeader[i] === null || keptHeader[i] === "");
-    const overflow = names.filter((_, i) => keep[i] >= header.length);
     const raw = keep.map((c) => columns[c]);
     const added = keep.filter((c) => c >= header.length).length;
     if (counts.extraRows > 0 && added > 0) notes.push(note("COLUMNS_ADDED", { rows: counts.extraRows, count: added }));
@@ -794,7 +798,7 @@ function finishTable({ header, columns, rowCount, notes, counts, hints, limits, 
         notes,
         hints,
         unnamed,
-        overflow
+        longRows
     };
     const inferred = raw.map((values) => inferColumn(values, hints));
     table.detected = inferred.map((x) => x.type);

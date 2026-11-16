@@ -279,6 +279,16 @@ export function createLimits(rest = {}, now = Date.now, how = {}) {
             return true;
         },
         /**
+         * Which bucket a refused take met: "rate" (the caller's own) or "clientRate" (its client's
+         * people together), for the refusal's log line.
+         * @param {string} key
+         * @param {string} [client]
+         * @returns {"rate" | "clientRate"}
+         */
+        rateBy(key, client = key) {
+            return (buckets.get(key)?.tokens ?? burst) < 1 ? "rate" : (clientBuckets.get(client)?.tokens ?? burst * share) < 1 ? "clientRate" : "rate";
+        },
+        /**
          * Which limit a refused enter met: "concurrency" (the caller's own) or "clientShare" (its
          * client's people together), for the refusal's log line.
          * @param {string} key

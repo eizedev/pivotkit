@@ -307,3 +307,20 @@ test("limits: the people of one OAuth client together are held to concurrency x 
         await server.close();
     }
 });
+
+test("limits: a refusal by the client's rate bucket logs limit clientRate, a person's own logs rate", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: SOURCES, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { rateLimit: { perMinute: 1, burst: 1 } }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir }, { enable: ["rest", "mcp"] });
+    try {
+        const people = await Promise.all(Array.from({ length: REQUEST_LIMITS.clientShare + 1 }, (_, i) => jwt({ sub: `person-${i}` })));
+        for (const token of people.slice(0, -1)) {
+            assert.equal((await call(`${server.api}/sources`, { token })).status, 200);
+        }
+        assert.equal((await call(`${server.api}/sources`, { token: people[0] })).status, 429);
+        assert.equal((await call(`${server.api}/sources`, { token: people.at(-1) })).status, 429);
+        const limits = server.log.filter((l) => l.event === "refused" && l.reason === "rate_limited").map((l) => l.limit);
+        assert.deepEqual(limits, ["rate", "clientRate"]);
+    } finally {
+        await server.close();
+    }
+});

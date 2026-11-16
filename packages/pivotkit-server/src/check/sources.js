@@ -69,7 +69,7 @@ export async function section(options, registry, runtime) {
     for (const s of sources) {
         const written = options.sources?.[s.id] ?? {};
         const fields = Object.entries(s.policy.fields);
-        const columns = s.file && s.exists ? await columnsOf(s.file, written.sheet, options) : { names: null, unnamed: [], stats: null, why: null };
+        const columns = s.file && s.exists ? await columnsOf(s.file, written.sheet, options) : { names: null, unnamed: [], longRows: 0, stats: null, why: null };
         const byKey = new Map((columns.names ?? []).map((c) => [fieldKey(c), c]));
         for (const [key, name] of byKey) {
             everyColumn?.set(key, name);
@@ -106,6 +106,10 @@ export async function section(options, registry, runtime) {
             } else if (template.missing) {
                 items.push(problem(`sources.${s.id}.template: ${template.missing}`, { effect: `the server starts; html reports of ${s.id} fail until it can be read` }));
             }
+        }
+        // rows longer than the header (data.js withoutLongRows): left out wherever a field is below show
+        if (columns.longRows) {
+            items.push(warning(`sources.${s.id}: ${columns.longRows} row${columns.longRows === 1 ? " has" : "s have"} more values than the header (a separator inside a value); ${columns.longRows === 1 ? "it is" : "they are"} left out for callers who do not see every field as show`));
         }
         if (columns.why) {
             items.push(warning(`sources.${s.id}: its columns could not be read to check the policy (${columns.why})`));
@@ -199,7 +203,7 @@ function fieldLevelItems(id, resolved, names, stats, sourcePolicy, serverPolicy)
 /**
  * The column names of a source file as the server reads them and its statistics, or why they could
  * not be read.
- * @returns {Promise<{ names: string[] | null, unnamed: string[], stats: import("../stats.js").SourceStats | null, why: string | null }>}
+ * @returns {Promise<{ names: string[] | null, unnamed: string[], longRows: number, stats: import("../stats.js").SourceStats | null, why: string | null }>}
  */
 async function columnsOf(path, sheet, options) {
     const limits = serverLimitsOf(options);
@@ -208,8 +212,8 @@ async function columnsOf(path, sheet, options) {
         const { table } = await readTable(bytes, basename(path), { ...(sheet ? { sheet } : {}), ...(options.timeZone ? { timeZone: options.timeZone } : {}), limits });
         // the statistics as the server counts them: encoded the same way (data.js)
         const stats = sourceStats(encode({ columns: table.columns, types: table.types, data: table.data }, { timeZone: options.timeZone ?? "UTC", limits }));
-        return { names: table.columns, unnamed: table.unnamed ?? [], stats, why: null };
+        return { names: table.columns, unnamed: table.unnamed ?? [], longRows: table.longRows?.length ?? 0, stats, why: null };
     } catch (e) {
-        return { names: null, unnamed: [], stats: null, why: String(e?.message ?? e).slice(0, 200) };
+        return { names: null, unnamed: [], longRows: 0, stats: null, why: String(e?.message ?? e).slice(0, 200) };
     }
 }

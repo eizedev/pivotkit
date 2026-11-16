@@ -413,8 +413,8 @@ Besides pivotkit-core's [limits](../concepts/limits.md) and the workers' (`compu
 [MCP](mcp.md#configuration)), the REST service limits each caller: the person an OAuth token names (its issuer and subject), a
 static token by its name, or `local` without sign-in; an OAuth token without a subject counts for its
 client. The people of one OAuth client together get eight times `rest.rateLimit` and run at most eight
-times `rest.concurrency` requests at once (a refusal by the latter says `limit: clientShare` on its
-log line):
+times `rest.concurrency` requests at once (their refusals say `limit: clientRate` and
+`limit: clientShare` on the log line):
 
 | Key | Default | What it is |
 | --- | --- | --- |

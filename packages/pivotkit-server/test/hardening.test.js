@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { REQUEST_LIMITS, callerOf, checkConfig, createLimits, limitKeyOf, validateOptions } from "pivotkit-server";
 import { randomBytes } from "node:crypto";
 import { connect } from "node:net";
-import { existsSync, readdirSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { prune } from "../src/output.js";
 import { join } from "node:path";
 import { placeMarker, signToken, subkeysOf, sweepMarkers } from "../src/downloads.js";
@@ -401,4 +401,61 @@ test("F3: one client's people together take at most clientShare times perMinute:
     } finally {
         limits.close();
     }
+});
+
+// --- fix review of #476 at 05c42f10 ----------------------------------------------------------------
+
+test("#479: the ROWS_DROPPED note stays when a hidden column is called name (notes are cleaned by code, not by a word in their text)", async () => {
+    const dir = workspace({ "people.csv": "Name,Team,Office\nAnn,a,Berlin\nCarl,Jr,c,Munich\n" });
+    const server = await restServer({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { Name: "hide" } } } }, baseDir: dir });
+    try {
+        const described = await call(`${server.api}/sources/describe`, { body: { source: "people" } });
+        assert.ok(described.data.notes.some((n) => n.code === "ROWS_DROPPED"), JSON.stringify(described.data.notes));
+        assert.ok(described.data.notes.some((n) => n.code === "COLUMNS_ADDED"), JSON.stringify(described.data.notes));
+    } finally {
+        await server.close();
+    }
+});
+
+test("#479: a row longer than its header only by an empty last cell is left out too: its values are shifted all the same", async () => {
+    const dir = workspace({ "people.csv": "name,ssn,city\nann,11,Berlin\nbob,12,3,\n" });
+    const server = await restServer({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { ssn: "hide" } } } }, baseDir: dir });
+    try {
+        const city = await call(`${server.api}/views/render`, { body: { source: "people", view: { rows: ["city"], values: [{ agg: "count" }] }, format: "json" } });
+        assert.doesNotMatch(JSON.stringify(city.data), /"3"|\b3\b(?=[^0-9])/, JSON.stringify(city.data));
+        const described = await call(`${server.api}/sources/describe`, { body: { source: "people" } });
+        assert.equal(described.data.rows, 1);
+    } finally {
+        await server.close();
+    }
+});
+
+test("#479: a summary field shifted into a shown column is left out as a hidden one is", async () => {
+    const dir = workspace({ "people.csv": "name,salary,city\nann,51234,Berlin\nbob,62,345,Munich\n" });
+    const server = await restServer({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { salary: "summary" } } } }, baseDir: dir });
+    try {
+        const described = await call(`${server.api}/sources/describe`, { body: { source: "people" } });
+        assert.doesNotMatch(JSON.stringify(described.data), /345/);
+        assert.equal(described.data.rows, 1);
+    } finally {
+        await server.close();
+    }
+});
+
+test("#479: check-config says how many rows are longer than the header and who does not get them", async () => {
+    const dir = workspace({ "people.csv": "name,ssn,city\nann,11,Berlin\nbob,12,3,\ncid,13,4,x\n" });
+    const text = factsOf((await checkConfig({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { ssn: "hide" } } } }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.match(text, /^WARNING \(Sources\): sources\.people: 2 rows have more values than the header \(a separator inside a value\); they are left out for callers who do not see every field as show$/m);
+});
+
+test("auth token: a token file that cannot be read (a directory in its place) is said so, not called empty", async () => {
+    const dir = tempDir();
+    const file = join(dir, "bot.token");
+    writeFileSync(file, `${TOKEN}\n`);
+    const seen = [];
+    const core = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log: { warn: (msg) => seen.push(msg), info() {}, debug() {} }, loopback: true });
+    unlinkSync(file);
+    mkdirSync(file);
+    await assert.rejects(core.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } })));
+    assert.match(seen.join("\n"), /\(its file cannot be read\)/);
 });
