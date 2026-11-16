@@ -19,6 +19,7 @@ node scripts/schemas.js          # rebuild schema/ after a table change
 
 - Public: `src/index.js`, `export.js`, `chart-style.js`, `link.js`, `templates.js`, `import.js`.
 - Every other module is internal.
+- `src/internal.js` (`pivotkit-core/internal`) shares helpers with this repository's packages. It is no public API: docs never name it.
 - A new public function is exported from an entry and listed in `test/api.test.js`.
 - Also document it in `docs/reference/core.md`.
 - Only the export and link entries import `fflate`. `test/api.test.js` checks it.

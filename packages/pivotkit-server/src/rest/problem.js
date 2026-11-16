@@ -11,6 +11,8 @@ import { OPERATION_ERRORS, OperationError } from "pivotkit-report/operations";
 import { isRequestId, requestId } from "../request-id.js";
 import { REST_ERRORS } from "pivotkit-cli/rest";
 import { hostRefusedLine } from "../checks.js";
+import { PARAMS_BUSY_TEXT } from "../sources/params.js";
+
 
 /** The codes the REST layer adds to the operations', with their status, and every code a problem can carry: pivotkit-cli/rest's, which the CLI's remote mode checks answers against. */
 export { REST_ERRORS, PROBLEM_CODES } from "pivotkit-cli/rest";
@@ -27,8 +29,9 @@ export const typeOf = (code) => `https://pivotkit.eize.dev/reference/rest/#error
 /** What a 5xx says instead of the error's message. */
 const SERVER_TEXT = { BUSY: "the server is busy with other reports; try again in a moment", NOT_READY: "the server is starting or shutting down; try again in a moment", AUTH_NOT_READY: "the server is waiting for its authorization server; try again in a moment", TIMEOUT: "the report took longer than the server allows; make the view smaller or filter more", SOURCE_UNAVAILABLE: "the source is not available right now; if it stays so, give the operator the request id", UPLOAD_FAILED: "the report was made but could not be stored; give the operator the request id", INTERNAL: "internal error" };
 
-/** Other fixed texts of a code, picked by the error's `reason` (a SourceError's, sources/run.js SOURCE_REASONS). */
+/** Other fixed texts of a code, picked by the error's `reason` (a SourceError's, sources/run.js SOURCE_REASONS; a pattern check's, sources/params.js). */
 const SERVER_TEXT_BY_REASON = Object.freeze({
+    BUSY: Object.freeze({ params: PARAMS_BUSY_TEXT }),
     SOURCE_UNAVAILABLE: Object.freeze({ refused: "the source's backend refused pivotkit's access; ask the operator and give the request id", setup: "the source is not set up correctly; ask the operator and give the request id" })
 });
 

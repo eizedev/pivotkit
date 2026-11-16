@@ -173,7 +173,7 @@ test("output.maxAgeDays: a sweep deletes old reports and drafts no longer waitin
     await prune({ output: { dir, maxAgeDays: 1, cleanUp: true }, log });
     assert.deepEqual(readdirSync(dir).sort(), ["Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"], "the draft waits for a person");
     assert.equal(lines.length, 1, JSON.stringify(lines));
-    assert.equal(lines[0].msg, "output.maxAgeDays: reports and schedule drafts no longer waiting older than 1 days deleted");
+    assert.equal(lines[0].msg, "output.maxAgeDays: reports and schedule drafts no longer waiting older than 1 day deleted");
     assert.deepEqual([lines[0].reports, lines[0].drafts], [2, 1]);
     // a directory of old drafts that wait: nothing deleted, nothing said
     const drafts = tempDir();

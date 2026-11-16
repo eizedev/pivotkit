@@ -11,8 +11,8 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { CONNECTION_LIMITS, connectionGate, connectionLimitsOf, refusedText } from "../src/listen.js";
-import { serveFetch } from "pivotkit-server";
-import { BIN, TOKEN, call, restServer, workspace } from "./helpers.js";
+import { checkConfig, serveFetch } from "pivotkit-server";
+import { BIN, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 
 /** Sends raw bytes and gives back what the server answers (until it closes or `ms` pass). */
 function rawExchange(port, text, ms = 3000) {
@@ -33,7 +33,7 @@ function rawExchange(port, text, ms = 3000) {
 }
 
 test("CONNECTION_LIMITS: the defaults", () => {
-    assert.deepEqual({ ...CONNECTION_LIMITS }, { total: 256, perAddress: 0, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
+    assert.deepEqual({ ...CONNECTION_LIMITS }, { total: 256, perAddress: 32, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
 });
 
 test("connections: one address gets perAddress, the network gets all but the loopback slots, loopback the rest", () => {
@@ -53,11 +53,24 @@ test("connections: one address gets perAddress, the network gets all but the loo
     assert.equal(gate.admit("203.0.113.1"), true, "a freed slot of the network");
     assert.equal(gate.admit("127.0.0.1"), false);
     assert.equal(gate.open(), 6);
-    // behind a proxy the server trusts, every client has the proxy's address: no bound per address
-    // no bound per address unless the operator sets one: behind NAT or a published port every client has one address
-    assert.deepEqual(connectionLimitsOf({}), {});
-    assert.deepEqual(connectionLimitsOf({ http: { trustProxy: true } }), {});
-    assert.deepEqual(connectionLimitsOf({ http: { maxConnectionsPerAddress: 32 } }), { perAddress: 32 });
+    // the bound counts the socket's peer: 32 where clients reach the server directly; behind a proxy
+    // the server trusts (http.trustProxy) every client has the proxy's address, so none by default
+    assert.deepEqual(connectionLimitsOf({}), { perAddress: 32 });
+    assert.deepEqual(connectionLimitsOf({ http: { trustProxy: false } }), { perAddress: 32 });
+    assert.deepEqual(connectionLimitsOf({ http: { trustProxy: true } }), { perAddress: 0 });
+    // the operator's number wins either way; 0 switches the bound off
+    assert.deepEqual(connectionLimitsOf({ http: { maxConnectionsPerAddress: 8 } }), { perAddress: 8 });
+    assert.deepEqual(connectionLimitsOf({ http: { maxConnectionsPerAddress: 0 } }), { perAddress: 0 });
+    assert.deepEqual(connectionLimitsOf({ http: { trustProxy: true, maxConnectionsPerAddress: 16 } }), { perAddress: 16 });
+    assert.deepEqual(connectionLimitsOf({ http: { trustProxy: true, maxConnectionsPerAddress: 0 } }), { perAddress: 0 });
+    // by default one address on the network cannot take every slot
+    const direct = connectionGate({ ...CONNECTION_LIMITS, ...connectionLimitsOf({}) });
+    for (let i = 0; i < 32; i++) {
+        assert.equal(direct.admit("203.0.113.7"), true);
+    }
+    assert.equal(direct.admit("203.0.113.7"), false, "a 33rd from one address");
+    assert.equal(direct.refusedBy, "perAddress");
+    assert.equal(direct.admit("203.0.113.8"), true, "another address still gets in");
     const open = connectionGate({ ...CONNECTION_LIMITS, total: 6, loopback: 2 });
     for (let i = 0; i < 4; i++) {
         assert.equal(open.admit("203.0.113.9"), true, "one address may take every slot of the network");
@@ -116,7 +129,7 @@ test("refused connections are told once a minute with the address and counts; ht
     assert.match(refusedText(told[1]), /every connection the server may hold was open/);
     const dir = workspace();
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: -1 }, baseDir: dir }), /http\.maxConnectionsPerAddress/);
-    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: 300 }, baseDir: dir }), /http\.maxConnectionsPerAddress: 0 \(no bound, the default\) to 256/);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: 300 }, baseDir: dir }), /http\.maxConnectionsPerAddress: 0 \(no bound\) to 256/);
     const bounded = await restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: 8 }, baseDir: dir });
     await bounded.close();
 });
@@ -333,4 +346,21 @@ test("serveFetch: a client that leaves while the answer streams cancels it", asy
     } finally {
         await listening.close();
     }
+});
+
+test("check-config says which per-address bound applies: the default without and with http.trustProxy, the operator's number, or 0", async () => {
+    const dir = workspace();
+    const lineOf = async (http) => {
+        const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, http, baseDir: dir }, { http: true, env: {} })).text);
+        // the HTTP section's lines after its heading
+        return text.split("\nHTTP: ")[1].split("\n\n")[0].split("\n").slice(1);
+    };
+    assert.deepEqual(await lineOf({ host: "0.0.0.0" }), ["  connections per address: at most 32 (the default; clients reach the server directly)", "    behind NAT or a proxy, clients share one address: raise http.maxConnectionsPerAddress, or set http.trustProxy behind a proxy"]);
+    // on loopback only, no client is bounded per address: the hint is left out
+    assert.deepEqual(await lineOf({}), ["  connections per address: at most 32 (the default; clients reach the server directly)"]);
+    assert.deepEqual(await lineOf({ trustProxy: true }), ["  connections per address: no bound (the default with http.trustProxy; the proxy limits its clients)"]);
+    assert.deepEqual(await lineOf({ maxConnectionsPerAddress: 64 }), ["  connections per address: at most 64 (http.maxConnectionsPerAddress)"]);
+    assert.deepEqual(await lineOf({ maxConnectionsPerAddress: 0 }), ["  connections per address: no bound (http.maxConnectionsPerAddress is 0)"]);
+    // behind a trusted proxy the bound counts the proxy's address: every client shares it
+    assert.deepEqual(await lineOf({ trustProxy: true, maxConnectionsPerAddress: 64 }), ["  connections per address: at most 64 (http.maxConnectionsPerAddress)", "    it counts the proxy's address, so all clients behind it share these 64"]);
 });

@@ -16,7 +16,7 @@ carries it. It makes no compliance claim.
 | --- | --- | --- | --- |
 | [Source data loaded for a caller](#memory) (code and HTTP sources) | the server's memory | until newer loads push it out (at most 64 loads and `sourceCache.maxMb`, default 256 MiB, a quarter per person or shared source) or a restart | the caller it was loaded for, through the policy |
 | [Reports](#retention) | files in `output.dir` | 30 days by default (`output.maxAgeDays`), or until `output.maxFiles`/`output.maxMb` push them out | whoever opens their link, or can read the directory |
-| [Schedule drafts](#retention) | files in `output.dir` | while waiting for approval, until the host or you remove them; once the host sets another `status`, as reports | whoever can read the directory, such as the host that approves them |
+| [Schedule drafts](#retention) | files in `output.dir` | while waiting for approval, until the host or you remove them, or `output.draftMaxAgeDays` where you set it; once the host sets another `status`, as reports | whoever can read the directory, such as the host that approves them |
 | [Data sent in a request](#inline) (`inline:`) | the server's memory for one call; a report over it in `output.dir` | the call; the report as any report | the sender, through the model or program it uses |
 | [Cache keys](#memory) | the server's memory | as long as their data | nobody: values, groups and claims only as a keyed digest |
 | [Exchanged backend tokens](#memory) | the server's memory | at most until the person's own token expires | the backend they are for |
@@ -383,16 +383,18 @@ Reports and drafts stay in the output directory until one of these deletes them:
       template or token file. Nothing is deleted by age there. Give the output directory to
       pivotkit alone.
 - **Count and size.** The limits are `output.maxFiles` files (1000 by default) or `output.maxMb`
-  megabytes (1024 by default) of pivotkit's. When the directory holds that much, a new report
+  MiB (1024 by default) of pivotkit's. When the directory holds that much, a new report
   deletes the oldest reports, whoever asked for them. This rule does not delete drafts. Drafts may
-  take at most half of `output.maxFiles`, and the server refuses a draft over that.
+  take at most half of `output.maxFiles` and half of `output.maxMb`. The server refuses a draft
+  over that.
 - **You**, on a schedule of your own.
 
 A schedule draft waits for approval while its file's `status` is `"draft"`, as `draft_schedule`
-writes it. A draft the server cannot read, or one over 1 MiB, counts as waiting too. No rule of the
-server deletes a waiting draft. A host that approves or rejects a draft should change its `status`.
-The draft then goes by age like a report. Drafts carry a view and recipients by name. Remove the
-drafts nobody approved, on a schedule of your own.
+writes it. A draft the server cannot read, or one over 1 MiB, counts as waiting too. By default no
+rule of the server deletes a waiting draft. A host that approves or rejects a draft should change
+its `status`. The draft then goes by age like a report. Drafts carry a view and recipients by name.
+Remove the drafts nobody approved, on a schedule of your own. Or set `output.draftMaxAgeDays`: the
+server then deletes waiting drafts older than that many days.
 
 A link that expires does not remove its file. You cannot search reports per person. To remove a
 person's reports, you delete files.
