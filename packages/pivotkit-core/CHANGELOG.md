@@ -6,6 +6,16 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `CATALOG.aggregatorAliases`: other tools' names of aggregators (`avg`) and the ones they mean
+  (`average`), for "did you mean". A view never accepts them (#508).
+
+### Changed
+
+- `unknownFilterType` lists the filter types for an unknown type too (#508).
+- `filterCompareValue` names the operators and shows a comparison written out (#508).
+
 ## [0.7.0] - 2026-11-16
 
 ### Added

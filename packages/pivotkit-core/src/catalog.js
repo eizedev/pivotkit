@@ -3,7 +3,7 @@
  * tables the engine runs on, so a list can never offer something the engine does not know.
  */
 
-import { AGGREGATOR_NAMES } from "./aggregators.js";
+import { AGGREGATOR_ALIASES, AGGREGATOR_NAMES } from "./aggregators.js";
 import { CYCLIC_UNITS, DERIVE_UNITS, TIMELINE_UNITS } from "./derive.js";
 import { COLUMN_TYPES } from "./encode.js";
 import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, FILTER_TYPES, RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS, TOP_TIES } from "./filters.js";
@@ -16,6 +16,8 @@ export const CATALOG = Object.freeze({
     aggregators: AGGREGATOR_NAMES,
     /** the aggregators a UI offers first; the others are statistics for fewer people */
     commonAggregators: Object.freeze(["sum", "count", "average", "min", "max"]),
+    /** other tools' names of aggregators ("avg") and ours they mean ("average"), for "did you mean"; never accepted */
+    aggregatorAliases: AGGREGATOR_ALIASES,
     columnTypes: COLUMN_TYPES,
     deriveUnits: DERIVE_UNITS,
     /** date units along the time line (each value one period of one year: "Jan 2025") */

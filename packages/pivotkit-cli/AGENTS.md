@@ -28,6 +28,7 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 - A layout becomes a view only through pivotkit-report's `viewOfLayout`.
 - In the layout flags (`--rows`, `--cols`, `--values` and so on) one value names one thing.
 - So field names may hold commas and colons (`src/layout-flags.js`).
+- `--filter` is `Field=Item` or JSON. Short forms of one field merge into one filter (`filtersOf`).
 - A view file's `source.fields` decide a column's type only when every value fits.
 
 ## Files

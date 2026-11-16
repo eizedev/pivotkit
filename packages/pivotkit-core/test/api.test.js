@@ -98,6 +98,10 @@ test("the catalog lists exactly what normalize accepts", () => {
     assert.ok(Object.isFrozen(CATALOG));
     // the UI's sub-lists name only entries of the full lists
     for (const agg of CATALOG.commonAggregators) assert.ok(CATALOG.aggregators.includes(agg), agg);
+    // other tools' names point at ours and are never ours themselves (hints only)
+    assert.equal(CATALOG.aggregatorAliases.avg, "average");
+    for (const [alias, agg] of Object.entries(CATALOG.aggregatorAliases)) assert.ok(CATALOG.aggregators.includes(agg) && !CATALOG.aggregators.includes(alias), alias);
+    assert.ok(Object.isFrozen(CATALOG.aggregatorAliases));
     assert.deepEqual([...CATALOG.timelineUnits, ...CATALOG.cyclicUnits].sort(), CATALOG.deriveUnits.filter((u) => u !== "bin").sort());
 });
 

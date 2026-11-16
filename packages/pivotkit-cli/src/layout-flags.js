@@ -2,7 +2,7 @@
  * The layout flags of `render` and `describe --suggest` as a layout (pivotkit-core's viewFromLayout):
  * --rows, --cols, --values, --group, --filter, --chart-type and --map. One value names one thing and
  * every flag may be given again (outer first), so a field name may hold commas, spaces, colons and
- * "=". Pure: --filter @file is read by the caller (`readFilterFile`).
+ * "=". Pure: --filter @file is read by the caller (`filtersOf` in layout-view.js).
  */
 
 import { CATALOG, closest } from "pivotkit-core";
@@ -29,6 +29,12 @@ export const UNIT_TEXTS = Object.freeze({
 /** A name in a message: quoted, cleaned, cut. */
 const shown = (text) => JSON.stringify(printable(String(text).slice(0, 60)));
 
+/** Our aggregator for another tool's name of it ("avg": average), else null. */
+function aliasOf(name) {
+    const key = name.trim().toLowerCase();
+    return Object.hasOwn(CATALOG.aggregatorAliases, key) ? CATALOG.aggregatorAliases[key] : null;
+}
+
 /**
  * --values: "<agg>:<field>", "<field>" or "count". The part before the first ":" is an aggregator
  * only when pivotkit knows that name (in any case); a field of the data named exactly as the whole
@@ -53,7 +59,7 @@ export function parseValue(value, fields) {
     }
     // "summ:Revenue": a field of the data after the colon, an aggregator misspelt before it
     if (at > 0 && fields.has(value.slice(at + 1).toLowerCase())) {
-        const near = closest(value.slice(0, at), [...CATALOG.aggregators]);
+        const near = aliasOf(value.slice(0, at)) ?? closest(value.slice(0, at), [...CATALOG.aggregators]);
         throw new CliError("usage", "BAD_VALUE", `--values ${shown(value)}: ${shown(value.slice(0, at))} is no aggregator${near ? `; did you mean ${near}?` : ""} (the aggregators: ${CATALOG.aggregators.join(", ")})`);
     }
     return { field: value };
@@ -95,6 +101,62 @@ export function parseMap(value, used) {
     return [value.slice(0, at), value.slice(at + 1)];
 }
 
+/** The filter of the examples in --filter's messages. */
+const FILTER_EXAMPLE = '{"field":"Region","type":"in","items":["North"]}';
+
+/** Whether a --filter value is JSON (it starts with "{" or "["); else it is the short form Field=Item. */
+export const isJsonFilter = (text) => /^\s*[[{]/.test(text);
+
+/**
+ * The JSON filter a short form with a comparison or a negation means, for its message.
+ * @param {string} field
+ * @param {string} op  "!=", "<", "<=", ">" or ">="
+ * @param {string} item
+ */
+function meantFilter(field, op, item) {
+    const name = printable(field.slice(0, 60));
+    const text = printable(item.slice(0, 60));
+    if (op === "!=") {
+        return JSON.stringify({ field: name, type: "in", items: [text], not: true });
+    }
+    const value = /^-?\d+(\.\d+)?$/.test(text) ? Number(text) : text;
+    return JSON.stringify({ field: name, type: "compare", op, value });
+}
+
+/**
+ * --filter's short form "Field=Item": a filter that keeps the rows of one item. It splits at the "="
+ * whose left part is a field of the data, else at the first "=", so a name and an item may hold "=".
+ * A comparison or a negation ("Units>=3", "Country!=Germany") is refused with the JSON filter it means.
+ * @param {string} value
+ * @param {Set<string>} fields  the data's field names, lower case; empty when the data is the server's
+ * @returns {{ field: string, type: "in", items: string[] }}
+ */
+export function parseShortFilter(value, fields) {
+    const refuse = (text) => new CliError("usage", "BAD_VALUE", `--filter ${shown(value)}: ${text}`);
+    const cuts = [...value.matchAll(/=/g)].map((m) => m.index ?? 0);
+    const at = cuts.find((i) => i > 0 && fields.has(value.slice(0, i).toLowerCase())) ?? cuts[0];
+    if (at === undefined) {
+        const sign = /^(.+?)([<>])(.+)$/.exec(value);
+        if (sign) {
+            throw refuse(`the short form keeps one item: Field=Item. For this filter give JSON: ${meantFilter(sign[1], sign[2], sign[3])}`);
+        }
+        throw refuse(`give Field=Item, as in --filter "Country=Germany", or a filter as JSON, e.g. ${FILTER_EXAMPLE}`);
+    }
+    const field = value.slice(0, at);
+    const item = value.slice(at + 1);
+    const sign = /[!<>]$/.exec(field)?.[0];
+    if (sign && field.length > 1 && !fields.has(field.toLowerCase())) {
+        throw refuse(`the short form keeps one item: Field=Item. For this filter give JSON: ${meantFilter(field.slice(0, -1), `${sign}=`, item)}`);
+    }
+    if (field === "") {
+        throw refuse(`give the field before =, as in --filter "Country=Germany"`);
+    }
+    if (item === "") {
+        throw refuse(`give the item after =, as in --filter "Country=Germany"; blanks take a JSON filter: {"field":"Country","type":"blank"}`);
+    }
+    return { field, type: "in", items: [item] };
+}
+
 /**
  * A --filter: a filter object as JSON text.
  * @param {string} text
@@ -107,11 +169,11 @@ export function parseFilter(text, where) {
     } catch (e) {
         // where the JSON stops, never the text itself (it may be a file's content)
         const at = /position (\d+)/.exec(String(e.message))?.[1];
-        throw new CliError("usage", "BAD_VALUE", `${where}: not JSON${at ? ` (at character ${Number(at) + 1})` : ""}; give one filter as in a view, e.g. {"field":"Region","type":"in","items":["North"]}`);
+        throw new CliError("usage", "BAD_VALUE", `${where}: not JSON${at ? ` (at character ${Number(at) + 1})` : ""}; give one filter as in a view, e.g. ${FILTER_EXAMPLE}`);
     }
     const list = Array.isArray(filter) ? filter : [filter];
     if (!list.length || list.some((f) => !f || typeof f !== "object" || Array.isArray(f))) {
-        throw new CliError("usage", "BAD_VALUE", `${where}: a filter is a JSON object (or a list of them), e.g. {"field":"Region","type":"in","items":["North"]}`);
+        throw new CliError("usage", "BAD_VALUE", `${where}: a filter is a JSON object (or a list of them), e.g. ${FILTER_EXAMPLE}`);
     }
     return list;
 }

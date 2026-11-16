@@ -616,6 +616,10 @@ test("layout flags and --suggest go to the server as a layout; the data argument
         const flags = await remote(server, ["render", "--source", "sales", "--rows", "Region", "--values", "sum:Sales", "--map", "Region=Area", "-f", "csv"], { cwd });
         assert.equal(flags.code, 0, flags.stderr);
         assert.deepEqual(JSON.parse(flags.stdout), { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }], map: { Region: "Area" } });
+        // --filter's short form goes to the server as the filter a view writes (the fields are the server's: split at the first =)
+        const filtered = await remote(server, ["render", "--source", "sales", "--rows", "Region", "--filter", "Region=North", "--filter", "Region=a=b", "-f", "csv"], { cwd });
+        assert.equal(filtered.code, 0, filtered.stderr);
+        assert.deepEqual(JSON.parse(filtered.stdout).filters, [{ field: "Region", type: "in", items: ["North", "a=b"] }]);
         const draft = await remote(server, ["describe", "--source", "sales", "--suggest", "-o", "draft.pivotkit.json"], { cwd });
         assert.equal(draft.code, 0, draft.stderr);
         assert.deepEqual(JSON.parse(readFileSync(join(cwd, "draft.pivotkit.json"), "utf8")), DRAFT);

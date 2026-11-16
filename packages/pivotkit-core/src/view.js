@@ -9,7 +9,7 @@
  * per section. Each section reports what it drops as an issue { path, message }.
  */
 
-import { AGGREGATOR_NAMES, aggregatorFits, aggregatorOf } from "./aggregators.js";
+import { AGGREGATOR_ALIASES, AGGREGATOR_NAMES, aggregatorFits, aggregatorOf } from "./aggregators.js";
 import { DERIVED, MIN_BIN_SIZE } from "./derive.js";
 import { FILTERS, FILTER_TYPES_V1, WEEK_START, fieldKinds, fieldTypeHint, itemFor, readItem } from "./filters.js";
 import { closest } from "./hints.js";
@@ -460,7 +460,7 @@ function filtersSection(raw, view, ctx) {
         }
         if (!def) {
             const renamed = typeof type === "string" && Object.hasOwn(FILTER_TYPES_V1, type) ? { suggestion: FILTER_TYPES_V1[type] } : suggest(type, Object.keys(FILTERS));
-            return ctx.issue(path, type === undefined ? `a filter needs a type: one of ${Object.keys(FILTERS).join(", ")}` : `unknown filter type ${JSON.stringify(type)}`, "unknownFilterType", { value: shown(type), ...renamed });
+            return ctx.issue(path, type === undefined ? `a filter needs a type: one of ${Object.keys(FILTERS).join(", ")}` : `unknown filter type ${JSON.stringify(type)}; the types: ${Object.keys(FILTERS).join(", ")}`, "unknownFilterType", { value: shown(type), ...renamed });
         }
         ctx.keys(flt, def.keys, path);
         if (!fieldKinds(f, view).some((kind) => def.fields.includes(kind))) {
@@ -642,9 +642,6 @@ function suggest(name, candidates) {
     const suggestion = closest(name, candidates);
     return suggestion === null ? {} : { suggestion };
 }
-
-/** Names of aggregators in other tools, hinted as ours ("avg": did you mean "average"?); never accepted. */
-const AGGREGATOR_ALIASES = Object.freeze({ avg: "average", mean: "average", cnt: "count", total: "sum", distinct: "countUnique", stddev: "stdev" });
 
 /** The hint for an unknown aggregator: its alias, else the closest name. */
 function suggestAggregator(agg) {
