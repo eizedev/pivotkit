@@ -4,7 +4,7 @@
  * expose and exits. The flags are one table (FLAGS): the parser and the help are made from it.
  */
 
-import { ConfigError, SHARED_FLAGS, flagLines, httpFlags, optionsFrom as sharedOptionsFrom, flushed, startErrorLine, startFields, startFormatOf } from "pivotkit-server";
+import { ConfigError, SHARED_FLAGS, flagLines, httpFlags, optionsFrom as sharedOptionsFrom, startErrorLine, startFields, startFormatOf, stopOnSignals } from "pivotkit-server";
 import { VERSION, createMcpContext } from "./context.js";
 
 /** @type {Readonly<Record<string, { type: "string" | "boolean", multiple?: boolean, short?: string, value?: string, text: string }>>} */
@@ -67,17 +67,7 @@ export async function run(argv, io) {
         if (values.http) {
             const { listen } = await import("./http.js");
             const server = await listen(options, { env: io.env, stderr: io.stderr, stateDir });
-            const stop = async () => {
-                try {
-                    await server.close();
-                } finally {
-                    // the stopped line out before the process ends (a pipe's writes are asynchronous on some systems)
-                    await flushed(io.stderr);
-                    process.exit(0);
-                }
-            };
-            process.once("SIGINT", stop);
-            process.once("SIGTERM", stop);
+            stopOnSignals(server, { log: server.context.log, stderr: io.stderr });
             return null;
         }
         const context = await createMcpContext(options, { showPaths: true, stderr: io.stderr, env: io.env });

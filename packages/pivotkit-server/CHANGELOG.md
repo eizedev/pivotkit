@@ -479,6 +479,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- `serve` exited 0 on SIGTERM or SIGINT even when closing the server failed. It now logs the error
+  and exits 1.
 - A request with a Host the server does not answer to got 403 "Invalid Host: <name>" without a way
   out. The answer and its `refused` line now add "add the name with http.allowHosts or --allow-host,
   or set http.publicUrl"; the line carries it as `hint`. On a server with MCP, the routes other than

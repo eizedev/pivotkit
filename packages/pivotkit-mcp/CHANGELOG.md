@@ -128,6 +128,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Fixed
 
+- `--http` exited 0 on SIGTERM or SIGINT even when closing the server failed. It now logs the error
+  and exits 1.
 - A request with a Host the server does not answer to got the SDK's JSON-RPC "Invalid Host: <name>"
   on every route. `/mcp` still answers JSON-RPC, the other routes (`/`, `/healthz`,
   `/.well-known/...`) answer problem+json, and both add "add the name with http.allowHosts or

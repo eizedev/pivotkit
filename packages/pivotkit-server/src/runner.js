@@ -16,7 +16,8 @@ import { ConfigError } from "./config.js";
 import { configFrom } from "./state.js";
 import { VERSION } from "./context.js";
 import { CONFIG_ENV, SERVER_FLAGS, flagLines, helpPointer, optionsFrom, startFormatOf } from "./flags.js";
-import { flushed, startErrorLine } from "./log.js";
+import { startErrorLine } from "./log.js";
+import { stopOnSignals } from "./stop.js";
 import { DEFAULT_PORT, TOKEN_ENV, loadMcp } from "./serve.js";
 
 /** The variable that names the configuration file (flags.js's). */
@@ -250,18 +251,7 @@ export async function run(argv, io) {
         }
         const { serve } = await import("./serve.js");
         const server = await serve(options, { env: io.env, stderr: io.stderr, stateDir });
-        const stop = async () => {
-            server.context.log.info("stopping: running requests may finish", { graceMs: options.http?.graceMs ?? 25_000 });
-            try {
-                await server.close();
-            } finally {
-                // the stopped line out before the process ends (a pipe's writes are asynchronous on some systems)
-                await flushed(io.stderr);
-                process.exit(0);
-            }
-        };
-        process.once("SIGINT", stop);
-        process.once("SIGTERM", stop);
+        stopOnSignals(server, { log: server.context.log, stderr: io.stderr, before: () => server.context.log.info("stopping: running requests may finish", { graceMs: options.http?.graceMs ?? 25_000 }) });
         return null;
     } catch (e) {
         const text = e instanceof ConfigError ? e.message : `could not start: ${String(e?.message ?? e).slice(0, 300)}`;

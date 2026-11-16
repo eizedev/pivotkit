@@ -210,6 +210,25 @@ test("healthcheck probes the port serve listens on: --port, then http.port of th
     }
 });
 
+test("stopOnSignals: SIGTERM or SIGINT closes the server once and exits 0; a close that throws is logged and exits 1", async () => {
+    const { stopOnSignals } = await import("pivotkit-server");
+    const { EventEmitter } = await import("node:events");
+    for (const [signal, fails] of [["SIGTERM", false], ["SIGINT", true]]) {
+        const signals = new EventEmitter();
+        const exits = [];
+        const errors = [];
+        let closed = 0;
+        const server = { close: async () => (closed++, fails ? Promise.reject(new Error("socket hang")) : undefined) };
+        const log = { error: (e, extra) => errors.push([e.message, extra]) };
+        const done = new Promise((resolve) => stopOnSignals(server, { log, stderr: { write: (_t, cb) => cb?.() }, signals, exit: (code) => resolve(exits.push(code)) }));
+        signals.emit(signal);
+        await done;
+        assert.deepEqual([closed, exits], [1, [fails ? 1 : 0]], signal);
+        assert.deepEqual(errors, fails ? [["socket hang", { where: "stop" }]] : [], signal);
+        assert.equal(signals.listenerCount("SIGINT") + signals.listenerCount("SIGTERM"), 0, "both listeners gone");
+    }
+});
+
 test("close() lets a running report finish before the server stops", async () => {
     const dir = workspace();
     let release;
