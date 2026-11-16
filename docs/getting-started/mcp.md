@@ -142,6 +142,10 @@ one-time link you switch on); see [download links](../reference/delivery.md). Cl
 claude mcp add --transport http pivotkit https://reports.example.com/mcp --header "Authorization: Bearer <token>"
 ```
 
+The token is then on that command line: other users of the machine can see it in the process list
+while the command runs, and your shell keeps it in its history. Claude Code stores it in its
+configuration either way.
+
 For sign-in with your identity provider (Authentik, Keycloak, Microsoft Entra ID, any OAuth 2.1 /
 OpenID Connect provider), see [OAuth](../reference/mcp.md#oauth); scopes then decide who sees which
 source and may use which tool. A provider without dynamic client registration (Authentik, for

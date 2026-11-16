@@ -18,7 +18,7 @@
  * only where it would be printed. No message and no error holds a value.
  */
 
-import { access, constants as fsConstants, lstat, readFile } from "node:fs/promises";
+import { access, constants as fsConstants, lstat, readFile, unlink } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
@@ -27,11 +27,10 @@ import { ConfigError, REST_BASE, loadConfig, pathOf, validateOptions } from "./c
 import { STATE_ENV, configFrom, planState, stateDirOf } from "./state.js";
 import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, unreadable } from "./secrets.js";
+import { CONFIG_ENV } from "./flags.js";
 import { DEFAULT_PORT, TOKEN_ENV } from "./serve.js";
 import { SECRET_BYTES, SecretFileError, newSecret, placeSecret, replaceFile, writeBackup } from "./secret-file.js";
 
-/** The variable that names the configuration file (the runner's CONFIG_ENV, defined there). */
-const CONFIG_ENV = "PIVOTKIT_CONFIG";
 
 /** Where the configuration names a key of each use (secret-rules.js KEY_USES), for the hints. */
 const KEY_OPTIONS = Object.freeze({
@@ -114,7 +113,9 @@ function parse(command, argv, positionals = false) {
         const flag = /'(-{1,2}[^'\s]+)'/.exec(String(e.message))?.[1] ?? "";
         const near = closest(flag.replace(/^-+/, ""), Object.keys(flags));
         const what = e.code === "ERR_PARSE_ARGS_UNKNOWN_OPTION" ? `unknown option ${JSON.stringify(flag.slice(0, 40))}` : String(e.message).split("\n")[0].replace(/^./, (c) => c.toLowerCase());
-        throw usage("UNKNOWN_OPTION", `${what}; ${near ? `did you mean --${near}? ` : ""}run "pivotkit-server ${command.split(" ")[0]} --help"`);
+        // a flag without its value is named by the error itself: no "did you mean" of the same flag
+        const hint = near && near !== flag.replace(/^-+/, "") ? `did you mean --${near}? ` : "";
+        throw usage("UNKNOWN_OPTION", `${what}; ${hint}run "pivotkit-server ${command.split(" ")[0]} --help"`);
     }
 }
 
@@ -146,6 +147,10 @@ async function secretOf(values, bytes, kind, usable, cwd) {
     const path = resolve(cwd, values.file);
     try {
         const placed = await placeSecret(path, newSecret(bytes), { replace: values.force, keep: values["if-missing"], usable, kind, label: values.file });
+        if (placed.throughLink && values.print) {
+            // a mounted Secret's value is the cluster's to hand out; token show prints a configured token by name
+            throw usage("LINK_PRINT", `${values.file}: is checked behind a symbolic link (a mounted Secret), and a value behind a link is not printed; pivotkit-server token show <name> prints a configured token`);
+        }
         return { ...placed, file: path };
     } catch (e) {
         if (e instanceof SecretFileError) {
@@ -198,7 +203,8 @@ async function configFor(values, cwd, what) {
  * @param {string} path  the configuration file, absolute
  * @param {string} config  as given, for messages
  * @param {any} options  the file as loadConfig read it
- * @param {(raw: any) => { next: any, notes: string[] }} change
+ * @param {(raw: any) => { next: any, notes: string[] } | { done: true }} change  `done`: the configuration has it already
+ * @returns {Promise<{ path: string, before: string, text: string, mode: number, notes: string[], size: number, mtimeMs: number } | { done: true, path: string }>}
  */
 async function changedConfig(path, config, options, change) {
     // replaceFile renames over it: a link (a mounted ConfigMap is one) or a directory that cannot be
@@ -212,8 +218,12 @@ async function changedConfig(path, config, options, change) {
         throw usage("CONFIG_NOT_WRITABLE", `${config}: its directory cannot be written (the backup and the new file go there); add the entry by hand`);
     }
     const before = await readFile(path, "utf8");
-    const bom = before.startsWith("﻿") ? "﻿" : "";
-    const { next, notes } = change(JSON.parse(before.slice(bom.length)));
+    const bom = before.startsWith("\uFEFF") ? "\uFEFF" : "";
+    const changed = change(JSON.parse(before.slice(bom.length)));
+    if ("done" in changed) {
+        return { done: true, path };
+    }
+    const { next, notes } = changed;
     try {
         validateOptions({ ...structuredClone(next), baseDir: options.baseDir });
     } catch (e) {
@@ -222,22 +232,39 @@ async function changedConfig(path, config, options, change) {
     const indent = /^([ \t]+)"/m.exec(before)?.[1] ?? "  ";
     const eol = before.includes("\r\n") ? "\r\n" : "\n";
     const body = JSON.stringify(next, null, indent).replace(/\n/g, eol);
-    return { path, before, text: `${bom}${body}${/\r?\n$/.test(before) ? eol : ""}`, mode: info.mode & 0o777, notes };
+    return { path, before, text: `${bom}${body}${/\r?\n$/.test(before) ? eol : ""}`, mode: info.mode & 0o777, notes, size: info.size, mtimeMs: info.mtimeMs };
 }
 
 /**
- * Writes a changed configuration with its backup; when that fails, says that the secret's file is
- * written and the configuration is not.
- * @param {{ path: string, before: string, text: string, mode: number }} changed
+ * Writes a changed configuration with its backup, unless it changed since it was read (its content,
+ * read again right before the replace; its size and time before that): then nothing is replaced and
+ * the backup goes again. When that fails, says that the secret's file is written and the
+ * configuration is not.
+ * @param {{ path: string, before: string, text: string, mode: number, size: number, mtimeMs: number }} changed
  * @param {Record<string, any>} values
  * @returns {Promise<string>}  the backup's path
  */
 async function writeConfig(changed, values) {
+    const unchanged = async () => {
+        const now = await lstat(changed.path);
+        return now.size === changed.size && now.mtimeMs === changed.mtimeMs && (await readFile(changed.path, "utf8")) === changed.before;
+    };
+    if (!(await unchanged())) {
+        throw new CommandError(1, "CONFIG_CHANGED", `${values.config} changed since it was read and was not replaced; the file ${values.file} is written: run the same command with --if-missing to add it now`);
+    }
     try {
         const backup = await writeBackup(changed.path, changed.before, changed.mode);
+        // the last look right before the replace: the window that stays is this one step
+        if (!(await unchanged())) {
+            await unlink(backup).catch(() => undefined);
+            throw new CommandError(1, "CONFIG_CHANGED", `${values.config} changed since it was read and was not replaced; the file ${values.file} is written: run the same command with --if-missing to add it now`);
+        }
         await replaceFile(changed.path, changed.text, changed.mode, values.config);
         return backup;
     } catch (e) {
+        if (e instanceof CommandError) {
+            throw e;
+        }
         const why = String(e?.message ?? e).slice(0, 200);
         throw new CommandError(1, "CONFIG_NOT_WRITTEN", `${values.config} was not changed (${why}); the file ${values.file} is written: run the same command with --if-missing instead of a new value`);
     }
@@ -272,35 +299,51 @@ async function tokenNew(argv, io) {
     }
     const entry = { name, ...(file ? { file: configPath(file, options?.baseDir ?? cwd) } : {}), ...(values.scope?.length ? { scopes: values.scope } : {}), ...(values.profile !== undefined ? { profile: values.profile } : {}) };
     // --add: the new configuration checked before anything is written
-    const added = values.add ? await changedConfig(resolve(cwd, values.config), values.config, options, (raw) => withToken(raw, entry, values.config)) : null;
+    const added = values.add ? await changedConfig(resolve(cwd, values.config), values.config, options, (raw) => withToken(raw, entry, values.config, values["if-missing"] && sameFileIn(options))) : null;
     const secret = await secretOf(values, SECRET_BYTES.token, "token", tokenProblem, cwd);
     const warnings = [...secret.warnings];
     if (secret.replaced) {
         warnings.push(`${values.file} replaced: clients that still send the old token get 401 from now on`);
     }
-    const backup = added ? await writeConfig(added, values) : null;
-    warnings.push(...(added?.notes ?? []));
-    const hints = tokenHints({ values, entry, options, backup, secret });
-    const json = { name, ...(file ? { file: secret.file, created: secret.created, replaced: secret.replaced } : {}), ...(added ? { config: added.path, backup } : {}) };
+    const backup = added && !("done" in added) ? await writeConfig(added, values) : null;
+    warnings.push(...(added && "notes" in added ? added.notes : []));
+    const hints = added && "done" in added ? [`${secret.created ? "created" : `kept`} ${values.file}${secret.created ? "" : " (usable)"}; already configured in ${values.config}`] : tokenHints({ values, entry, options, backup, secret });
+    const json = { name, ...(file ? { file: secret.file, created: secret.created, replaced: secret.replaced } : {}), ...(added ? { config: added.path, configured: "done" in added ? "already" : "added", backup } : {}) };
     return { json, value: secret.value, hints, warnings, printValue: !file || Boolean(values.print), field: "token" };
 }
 
 /**
- * auth.tokens with the entry added; refused for a name that is there, for auth.mode oauth or none.
- * @param {any} raw  the configuration's JSON
- * @param {Record<string, unknown>} entry
- * @param {string} config  as given, for messages
+ * With --if-missing, whether two file references of the configuration name one file (relative ones
+ * from its base directory); else false.
+ * @param {any} options  the configuration as loadConfig read it
+ * @returns {(a: unknown, b: unknown) => boolean}
  */
-function withToken(raw, entry, config) {
+const sameFileIn = (options) => (a, b) => typeof a === "string" && typeof b === "string" && pathOf(options, a) === pathOf(options, b);
+
+/**
+ * auth.tokens with the entry added; refused for a name that is there, for auth.mode oauth or none.
+ * With --if-missing (`same`), an entry of that name with the same file, scopes and profile is done.
+ * @param {any} raw  the configuration's JSON
+ * @param {Record<string, any>} entry
+ * @param {string} config  as given, for messages
+ * @param {false | ((a: unknown, b: unknown) => boolean)} same
+ * @returns {{ next: any, notes: string[] } | { done: true }}
+ */
+function withToken(raw, entry, config, same) {
     const auth = raw.auth ?? {};
     const tokens = auth.tokens ?? [];
-    if (tokens.some((t) => t?.name === entry.name)) {
+    const there = tokens.find((t) => t?.name === entry.name);
+    if (there && same && auth.mode === "token" && same(there.file, entry.file) && JSON.stringify(there.scopes ?? null) === JSON.stringify(entry.scopes ?? null) && (there.profile ?? null) === (entry.profile ?? null)) {
+        return { done: /** @type {const} */ (true) };
+    }
+    if (there) {
         throw usage("DUPLICATE", `a token named "${entry.name}" is already in auth.tokens of ${config}; give another --name, or replace its file's value with --force`);
     }
     // a file without auth.mode gets "token"; one that chose none or oauth is not changed behind its back
     if (auth.mode !== undefined && auth.mode !== "token") {
         throw usage("AUTH_MODE", `auth.mode is "${auth.mode}" in ${config}: static tokens are used with auth.mode "token" only${auth.mode === "none" ? '; set it to "token" first' : ""}`);
     }
+    /** @type {string[]} */
     const notes = [];
     if (auth.mode === undefined) {
         notes.push(`${config} had no auth.mode: it is "token" now, so every request needs a token`);
@@ -345,7 +388,10 @@ function tokenHints({ values, entry, options, backup, secret }) {
     );
     if (servesMcp(options)) {
         // claude's own command line holds the header: it keeps it in its configuration anyway
-        hints.push(`  claude mcp add --transport http pivotkit ${url}/mcp --header "Authorization: Bearer $(cat ${quoted(file)})"${options ? "" : "  (where the server serves MCP)"}`);
+        hints.push(
+            `  claude mcp add --transport http pivotkit ${url}/mcp --header "Authorization: Bearer $(cat ${quoted(file)})"${options ? "" : "  (where the server serves MCP)"}`,
+            "    (this line puts the token into the process list and your shell's history; Claude Code keeps it in its configuration)"
+        );
     }
     if (process.platform === "win32") {
         hints.push(`On Windows the file takes the permissions of its folder. To keep it to your account (PowerShell): icacls ${JSON.stringify(file)} /inheritance:r /grant:r "\${env:USERNAME}:F"; that also takes away SYSTEM and Administrators, so a server that runs as a service needs its own grant (/grant "<account>:R").`);
@@ -373,16 +419,18 @@ async function keyNew(argv, io) {
     const use = KEY_OPTIONS[/** @type {keyof typeof KEY_OPTIONS} */ (values.for)];
     const { options, file } = await configFor(values, cwd, "key");
     const ref = file ? { file: configPath(file, options?.baseDir ?? cwd) } : null;
-    const added = values.add ? await changedConfig(resolve(cwd, values.config), values.config, options, (raw) => withKey(raw, values.for, ref, values.config)) : null;
+    const added = values.add ? await changedConfig(resolve(cwd, values.config), values.config, options, (raw) => withKey(raw, values.for, ref, values.config, values["if-missing"] && sameFileIn(options))) : null;
     const secret = await secretOf(values, SECRET_BYTES.key, "key", keyProblem(values.for), cwd);
     const warnings = [...secret.warnings];
     if (secret.replaced && values.for === "downloads") {
         warnings.push(`${values.file} replaced: download links made with the old key stop working within a second`);
     }
-    const backup = added ? await writeConfig(added, values) : null;
-    warnings.push(...(added?.notes ?? []));
+    const backup = added && !("done" in added) ? await writeConfig(added, values) : null;
+    warnings.push(...(added && "notes" in added ? added.notes : []));
     let hints;
-    if (values.file && !secret.created && !secret.replaced) {
+    if (added && "done" in added) {
+        hints = [`${secret.created ? "created" : "kept"} ${values.file}${secret.created ? "" : " (usable)"}; already configured in ${values.config}`];
+    } else if (values.file && !secret.created && !secret.replaced) {
         hints = [`kept ${values.file} (usable)`];
     } else if (backup) {
         hints = [`Named it as ${use.option}. ${rewrittenLine(values, backup)}`, use.after];
@@ -391,19 +439,27 @@ async function keyNew(argv, io) {
     } else {
         hints = [`Keep it in a file only the server reads (pivotkit-server key new --for ${values.for} --file <path>) and name it as ${use.option}: ${snippetOf({ file: "<path>" })}.`];
     }
-    const json = { for: values.for, ...(file ? { file: secret.file, created: secret.created, replaced: secret.replaced } : {}), ...(added ? { config: added.path, backup } : {}) };
+    const json = { for: values.for, ...(file ? { file: secret.file, created: secret.created, replaced: secret.replaced } : {}), ...(added ? { config: added.path, configured: "done" in added ? "already" : "added", backup } : {}) };
     return { json, value: secret.value, hints, warnings, printValue: !file || Boolean(values.print), field: "key" };
 }
 
 /**
- * output.downloads.key or audit.key named in the configuration; refused where it is set already.
+ * output.downloads.key or audit.key named in the configuration; refused where it is set already,
+ * unless --if-missing (`same`) finds it naming this file.
  * @param {any} raw  the configuration's JSON
  * @param {"downloads" | "audit"} use
  * @param {{ file: string }} ref
  * @param {string} config  as given, for messages
+ * @param {false | ((a: unknown, b: unknown) => boolean)} same
+ * @returns {{ next: any, notes: string[] } | { done: true }}
  */
-function withKey(raw, use, ref, config) {
+function withKey(raw, use, ref, config, same) {
+    /** @type {string[]} */
     const notes = [];
+    const there = use === "downloads" ? raw.output?.downloads?.key : raw.audit?.key;
+    if (there && same && same(there.file, ref.file)) {
+        return { done: /** @type {const} */ (true) };
+    }
     if (use === "downloads") {
         if (raw.output?.downloads?.key) {
             throw usage("DUPLICATE", `output.downloads.key is set already in ${config}; replace its file's value with --force instead`);
@@ -501,8 +557,10 @@ async function tokenShow(argv, io) {
 export async function credentialsCommand(group, argv, io) {
     const [sub, ...rest] = argv;
     const command = `${group} ${sub ?? ""}`.trim();
-    const json = rest.includes("--json");
-    if (!sub || sub === "--help" || sub === "-h" || rest.includes("--help") || rest.includes("-h")) {
+    // the flags as the command's parser reads them: a value or a word after "--" is no flag
+    const seen = /** @type {Record<string, any>} */ (parseArgs({ args: rest, options: /** @type {any} */ (FLAGS[/** @type {keyof typeof FLAGS} */ (command)] ?? { help: FLAGS["token new"].help }), strict: false, allowPositionals: true }).values);
+    const json = seen.json === true;
+    if (!sub || sub === "--help" || sub === "-h" || seen.help === true) {
         io.stdout.write(helpOf(group));
         return sub ? 0 : 2;
     }

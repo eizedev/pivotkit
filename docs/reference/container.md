@@ -83,6 +83,8 @@ container's environment. The image makes the values, so you need no other tool:
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/secrets:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/pivotkit_token
 ```
 
+In PowerShell, mount `"${PWD}/secrets:/out"` and leave `--user` out.
+
 (With Node, `npx -y pivotkit-server token new --file secrets/pivotkit_token`.) `token new --file`
 writes mode 0600 for your own user ([tokens and keys](rest.md#credentials)); output saved with `>`
 instead gets the mode your umask gives (often 0644, readable by everyone): run `umask 077` first if
