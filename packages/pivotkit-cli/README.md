@@ -23,6 +23,7 @@ pivotkit validate sales.pivotkit.json --data sales.csv --strict --json
 pivotkit describe sales.csv
 pivotkit describe sales.csv --suggest -o draft.pivotkit.json      # a draft view from the fields
 pivotkit render sales.csv --rows Region --cols Channel --values sum:Revenue -o by-region.html
+pivotkit render sales.csv --rows Region --values sum:Revenue --filter Country=Germany -o germany.html
 ```
 
 Exit codes:

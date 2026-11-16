@@ -137,6 +137,20 @@ pivotkit render sales.csv --rows Region --cols Month --group Month:yearQuarter -
 
 `pivotkit render sales.csv --suggest -o draft.html` does both in one step.
 
+`--filter Field=Item` keeps the rows of one item. Give it again for more items of the same field:
+
+```bash
+pivotkit render sales.csv --rows Region --values sum:Revenue --filter Country=Germany --filter Country=France -o two-countries.html
+```
+
+Other filters are JSON as a view writes them. This one keeps the rows with Revenue greater than 1000:
+
+```bash
+pivotkit render sales.csv --rows Region --values sum:Revenue --filter '{"field":"Revenue","type":"compare","op":">","value":1000}' -o big-orders.html
+```
+
+See [the layout flags](../reference/cli.md#layout-flags).
+
 For a workbook, `--sheet` picks the sheet. Without it, the CLI takes the first visible sheet.
 `pivotkit describe book.xlsx` lists the sheets. The view file names the sheet. In the report,
 **Views**, **Open view file** opens the view file on the same file and sheet, so you can go on there.

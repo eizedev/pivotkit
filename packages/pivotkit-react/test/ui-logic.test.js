@@ -14,6 +14,7 @@ import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, answered, createState, record, redo, reset, settle, tagFor, told, undo } from "../src/view-history.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { en as menuEn } from "../src/menu-labels.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 /** The menus' texts of both languages (German is a chunk of its own in the package). */
 const MENU_LABELS = { en: menuEn, de: menuDe };
@@ -130,10 +131,10 @@ test("file names: no path, no reserved characters or names", () => {
     assert.equal(safeFileName("report"), "report");
     assert.equal(safeFileName(" .report. . "), "report");
     // trailing dots and spaces are trimmed in linear time (a regex for them backtracked quadratically)
-    const t0 = performance.now();
+    const cpu = cpuClock();
     assert.equal(safeFileName(`a${". ".repeat(200_000)}x`), `a${". ".repeat(200_000)}x`.slice(0, 120).replace(/[\s.]+$/, ""));
     assert.equal(safeFileName(`a${". ".repeat(200_000)}`), "a");
-    assert.ok(performance.now() - t0 < 200, `${Math.round(performance.now() - t0)} ms`);
+    assert.ok(cpu() < 200, `${Math.round(cpu())} ms of CPU`);
     assert.equal(safeFileName("../../etc/passwd"), "etc-passwd");
     assert.equal(safeFileName("C:\\\\temp\\\\x"), "C-temp-x");
     assert.equal(safeFileName('a<b>c:"d|e?*'), "a-b-c-d-e-");

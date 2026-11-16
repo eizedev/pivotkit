@@ -243,6 +243,9 @@ export const AGGREGATORS = Object.freeze({
 
 export const AGGREGATOR_NAMES = Object.freeze(Object.keys(AGGREGATORS));
 
+/** Names of aggregators in other tools, hinted as ours ("avg": did you mean "average"?); never accepted. */
+export const AGGREGATOR_ALIASES = Object.freeze({ avg: "average", mean: "average", cnt: "count", total: "sum", distinct: "countUnique", stddev: "stdev" });
+
 /** The aggregator definition of a name; null for an unknown one (an own-property check). */
 export function aggregatorOf(agg) {
     return typeof agg === "string" && Object.hasOwn(AGGREGATORS, agg) ? AGGREGATORS[agg] : null;

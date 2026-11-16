@@ -73,7 +73,7 @@ export { autoChartType, toSeries, toEChartsOption } from "./chart.js";
 export { chartPlan, swapAxes, chartThemeFrom, CHART_COLORS } from "./chart-plan.js";
 export { createHistory } from "./history.js";
 export { formatter, isFormat } from "./format.js";
-export { aggregatorsFor } from "./aggregators.js";
+export { aggregatorsFor, AGGREGATOR_ALIASES } from "./aggregators.js";
 export { CATALOG } from "./catalog.js";
 export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";
 export { DEFAULT_LABELS, GROUPING_NAMES, REPORT_LABELS, fieldLabel, groupingName, reportLabels } from "./labels.js";

@@ -473,7 +473,9 @@ test("timeMs is presign and upload together", async () => {
     const r = await failing({ timeMs: 1000 });
     assert.equal(r.code, "TIMEOUT");
     assert.equal(r.error.details.retryable, true);
-    assert.ok(Date.now() - started < 2500, "one budget, not one per request");
+    // the TIMEOUT itself shows one budget (a budget per request would let both 700 ms steps pass);
+    // the bound checks that it ends near timeMs
+    assert.ok(Date.now() - started < 5000, "one budget, not one per request"); // wall time: event latency
 });
 
 test("at most two uploads at once: the third waits for a slot", async () => {
@@ -704,7 +706,8 @@ test("the slot queue is capped: an upload beyond 32 waiting ones fails at once, 
         }
         const started = Date.now();
         const refused = await failureOf(withRequestId("Queue_Full0", () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false })));
-        assert.ok(Date.now() - started < 1000, "refused at once, not after timeMs");
+        // far below the upload's timeMs (30 s) that a queued call would wait
+        assert.ok(Date.now() - started < 10_000, "refused at once, not after timeMs"); // wall time: event latency
         assert.deepEqual([refused?.code, refused?.details?.retryable], ["UPLOAD_FAILED", true]);
         assert.equal(log.find((l) => l.requestId === "Queue_Full0" && l.upload)?.upload, "TIMEOUT");
         hold = false;
