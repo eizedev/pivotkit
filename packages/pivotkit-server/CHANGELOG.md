@@ -16,7 +16,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   refused starts with that token where a state directory is set. `docker/compose.example.yml` and
   `docker/pivotkit.example.json` are the minimal setup; the tokens as secret files moved to
   `compose.secrets.example.yml` and `pivotkit.secrets.example.json`. The image declares no `VOLUME`
-  any more: mount a named volume where reports go. A read-only container without the state volume
+  any more: a `--read-only` run without `-v ...:/out` can no longer write reports to `/out` (the
+  start warns of the read-only file system, reports fail with `NO_OUTPUT`); mount a named volume
+  there. Reports of earlier runs stay in the old anonymous volume (`docker volume ls`).
+  `auth.mode` `"token"` that resolves no token is still refused, with how to fix it. A read-only container without the state volume
   warns at every start that the download key cannot be made
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#first-start-0-7)).
 - Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still

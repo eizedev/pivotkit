@@ -154,8 +154,9 @@ export async function configFrom({ flag, fromEnv, stateDir, paths = IMAGE_PATHS 
  *
  * - auth.mode unset on an address off loopback without allowUnauthenticated: "token" (such a
  *   configuration is refused without a state directory);
- * - auth.mode "token" without auth.tokens and without the token's variable: the token "admin" in
- *   <state>/secrets/admin.token, every scope, no profile;
+ * - auth.mode unset, so "token" by the rule above, without auth.tokens and without the token's
+ *   variable: the token "admin" in <state>/secrets/admin.token, every scope, no profile (a written
+ *   auth.mode "token" that resolves no token is refused by prepareHttpServe instead);
  * - download links on without output.downloads.key: <state>/secrets/downloads.key;
  * - audit.subject "hash" without audit.key: <state>/secrets/audit.key.
  * @param {import("./config.js").ServerOptions} options
@@ -177,7 +178,9 @@ export function planState(options, { env, host, tokenEnv, stateDir }) {
             auth.mode = "token";
             next.auth = auth;
         }
-        if (auth.mode === "token" && !auth.tokens?.length && !env[tokenEnv]) {
+        // only where the configuration left auth to the server: a written auth.mode "token" names its
+        // own tokens, and one that resolves none is refused (prepareHttpServe), never given admin
+        if (auth.mode === "token" && options.auth?.mode === undefined && !auth.tokens?.length && !env[tokenEnv]) {
             auth.tokens = [{ name: DEFAULT_TOKEN_NAME, file: join(secretsDir, STATE_FILES.token), create: true }];
             next.auth = auth;
         }
@@ -272,10 +275,10 @@ export async function tokenShowHint(name, { env, stateDir }) {
     const container = stateMeans.container(env);
     if (container === "kubernetes") {
         const namespace = await stateMeans.namespace();
-        return `kubectl${namespace ? ` -n ${namespace}` : ""} exec ${stateMeans.hostname()} -- ${command}`;
+        return `kubectl${namespace ? ` -n ${namespace}` : ""} exec ${stateMeans.hostname()} -- ${command} (in a pod with sidecars add -c <container>)`;
     }
     if (container) {
-        return `${container} exec <container> ${command}`;
+        return `${container} exec <container> ${command} (replace <container> with the container's name or ID)`;
     }
     return env[STATE_ENV] || !stateDir ? command : `${command} --state-dir ${quoted(stateDir)}`;
 }
@@ -374,6 +377,10 @@ export async function secretState(secret, plan) {
  * @returns {Promise<{ options: import("./config.js").ServerOptions, notes: StateNote[] }>}
  */
 export async function prepareHttpServe(options, { env, host, tokenEnv, stateDir = null }) {
+    if (stateDir && options.auth?.mode === "token" && !options.auth.tokens?.length && !env[tokenEnv]) {
+        // fail closed: a typo in the variable's name must not become a generated token with every scope
+        throw new ConfigError(`auth.mode is "token", but neither auth.tokens nor $${tokenEnv} gives a token; set $${tokenEnv} or list tokens in auth.tokens, or remove auth.mode (and --auth token) to let the server make the token "${DEFAULT_TOKEN_NAME}" in ${join(stateDir, STATE_PARTS.secrets)}`);
+    }
     const plan = planState(options, { env, host, tokenEnv, stateDir });
     /** @type {StateNote[]} */
     const notes = [];
@@ -426,10 +433,6 @@ export async function prepareHttpServe(options, { env, host, tokenEnv, stateDir 
     }
     if (plan.defaultToken && next.auth?.tokens?.some((t) => t.file === plan.defaultToken?.path)) {
         notes.push({ level: "info", text: `auth: token "${DEFAULT_TOKEN_NAME}" from ${plan.defaultToken.path}; read it with: ${await tokenShowHint(DEFAULT_TOKEN_NAME, { env, stateDir: plan.stateDir })}` });
-        if (options.auth?.mode === "token") {
-            // a configuration that asked for tokens and gave none was refused before; say what clients need now
-            notes.push({ level: "warn", text: `auth.mode is "token", but neither auth.tokens nor $${tokenEnv} gives a token: clients need the token "${DEFAULT_TOKEN_NAME}" from ${plan.defaultToken.path}; set $${tokenEnv} or auth.tokens to use a token of your own` });
-        }
     }
     return { options: next, notes };
 }

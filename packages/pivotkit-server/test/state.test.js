@@ -40,6 +40,9 @@ async function openServer(options, { env = {}, stateDir = null } = {}) {
 
 const sources = { sales: { file: "data/sales.csv" }, open: { file: "data/sales.csv", policy: { default: "show" } } };
 
+/** A workspace's configuration file that asks for tokens and names none. */
+const workspaceWithTokenConfig = (dir) => writeFileSync(join(dir, "token.json"), JSON.stringify({ auth: { mode: "token" } }));
+
 test("without a state directory an open address without auth is still refused, and nothing is made", async () => {
     const { dir, state } = setup();
     await assert.rejects(openServer({ sources, baseDir: dir }), /needs --auth token or oauth/);
@@ -320,9 +323,9 @@ test("the log: created lines once, the token's line with the command for where i
         stateMeans.hostname = () => "pivotkit-7d9f";
         stateMeans.namespace = async () => "team-a";
         for (const [where, env, hint] of /** @type {const} */ ([
-            ["kubernetes", { KUBERNETES_SERVICE_HOST: "10.0.0.1" }, "kubectl -n team-a exec pivotkit-7d9f -- pivotkit-server token show admin"],
-            ["docker", {}, "docker exec <container> pivotkit-server token show admin"],
-            ["podman", {}, "podman exec <container> pivotkit-server token show admin"]
+            ["kubernetes", { KUBERNETES_SERVICE_HOST: "10.0.0.1" }, "kubectl -n team-a exec pivotkit-7d9f -- pivotkit-server token show admin (in a pod with sidecars add -c <container>)"],
+            ["docker", {}, "docker exec <container> pivotkit-server token show admin (replace <container> with the container's name or ID)"],
+            ["podman", {}, "podman exec <container> pivotkit-server token show admin (replace <container> with the container's name or ID)"]
         ])) {
             stateMeans.container = (e = {}) => (e.KUBERNETES_SERVICE_HOST ? "kubernetes" : /** @type {any} */ (where === "kubernetes" ? null : where));
             const { dir, state } = setup();
@@ -351,7 +354,7 @@ test("the log: created lines once, the token's line with the command for where i
         const k8s = setup();
         const noNs = await openServer({ sources, baseDir: k8s.dir }, { stateDir: k8s.state, env: { KUBERNETES_SERVICE_HOST: "10.0.0.1" } });
         await noNs.close();
-        assert.ok(noNs.log.some((l) => l.message?.endsWith("read it with: kubectl exec pivotkit-7d9f -- pivotkit-server token show admin")), JSON.stringify(noNs.log.map((l) => l.message)));
+        assert.ok(noNs.log.some((l) => l.message?.endsWith("read it with: kubectl exec pivotkit-7d9f -- pivotkit-server token show admin (in a pod with sidecars add -c <container>)")), JSON.stringify(noNs.log.map((l) => l.message)));
     } finally {
         stateMeans.container = container;
         stateMeans.hostname = hostname;
@@ -359,13 +362,26 @@ test("the log: created lines once, the token's line with the command for where i
     }
 });
 
-test("auth.mode token without a token and without the variable: the token admin with a warning that says so", async () => {
+test("auth.mode token written without a token and without the variable is refused, never the generated admin (fail closed)", async () => {
     const { dir, state } = setup();
-    const { notes } = await prepareHttpServe({ sources, auth: { mode: "token" }, baseDir: dir }, { env: {}, host: "127.0.0.1", tokenEnv: "PIVOTKIT_TOKEN", stateDir: state });
-    assert.ok(notes.some((n) => n.level === "warn" && /auth\.mode is "token", but neither auth\.tokens nor \$PIVOTKIT_TOKEN gives a token: clients need the token "admin"/.test(n.text)), JSON.stringify(notes));
-    // auth.mode unset off loopback: that start was refused before, no such warning
+    workspaceWithTokenConfig(dir);
+    await assert.rejects(
+        prepareHttpServe({ sources, auth: { mode: "token" }, baseDir: dir }, { env: {}, host: OPEN, tokenEnv: "PIVOTKIT_TOKEN", stateDir: state }),
+        (e) => e instanceof ConfigError && /auth\.mode is "token", but neither auth\.tokens nor \$PIVOTKIT_TOKEN gives a token/.test(e.message) && /set \$PIVOTKIT_TOKEN/.test(e.message) && /remove auth\.mode/.test(e.message)
+    );
+    assert.deepEqual(readdirSync(state), []);
+    // the runner with --auth token: the same
+    const r = run(["serve", "--host", OPEN, "--port", "0", "--auth", "token", "--source", `s=${join(dir, "data", "sales.csv")}`], { env: { [STATE_ENV]: state } });
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /neither auth\.tokens nor \$PIVOTKIT_TOKEN gives a token/);
+    assert.deepEqual(readdirSync(state), []);
+    // token show and check-config see no admin there
+    const shown = run(["token", "show", "admin", "--state-dir", state, "--config", join(dir, "token.json")], { env: {} });
+    assert.equal(shown.status, 2);
+    // auth not set at all: the generated admin, as before
     const other = setup();
     const unset = await prepareHttpServe({ sources, baseDir: other.dir }, { env: {}, host: OPEN, tokenEnv: "PIVOTKIT_TOKEN", stateDir: other.state });
+    assert.ok(existsSync(join(other.state, "secrets", "admin.token")));
     assert.ok(!unset.notes.some((n) => /neither auth\.tokens/.test(n.text)));
 });
 

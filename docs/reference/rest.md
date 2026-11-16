@@ -795,8 +795,10 @@ without any setup has a token and links that survive a restart:
   and the pod: `kubectl -n <namespace> exec <pod> -- pivotkit-server token show admin` (add
   `-c <container>` in a pod with more than one). Elsewhere it is
   `pivotkit-server token show admin --state-dir <dir>`.
-- With `auth.mode` `"token"` written in the configuration and no token given, the server uses
-  `admin` and warns. Such a start was refused before there was a state directory.
+- `admin` is made only where the configuration leaves auth to the server. A written `auth.mode`
+  `"token"` (or `--auth token`) with neither `auth.tokens` nor the variable is refused. Set the
+  variable, list tokens, or remove `auth.mode` to use `admin`. A misspelt variable never becomes a
+  token with every scope.
 - When the token cannot be made, the start is refused. It never serves without auth instead. The
   message says what helps: a writable volume in a container, else the directory itself.
 - A key that cannot be made is a warning. The key is then a random one per process.

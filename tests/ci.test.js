@@ -409,9 +409,7 @@ const VERSION_STATEMENTS = [
     { file: "docs/compare.md", pattern: /^\| \*\*pivotkit\*\* \| [^|]+ \| (\d+\.\d+\.\d+) on \d{4}-\d{2}-\d{2} \|/m, pkg: "pivotkit-core" },
     { file: "docs/reference/view-file.md", pattern: /"generator": \{ "name": "pivotkit-react", "version": "(\d+\.\d+\.\d+)" \}/, pkg: "pivotkit-react" },
     // the official plugins table: the pivotkit-core version pivotkit-xlsx needs (its caret range on core)
-    { file: "docs/reference/plugins.md", pattern: /^\| <span id="pivotkit-xlsx"><\/span>.*\| (\d+\.\d+(?:\.\d+)?) \(plugin API \d+\) \|$/m, pkg: "pivotkit-core" },
-    // the image the "Server in 5 minutes" commands start, copied as they are (its tag is pivotkit-server's version)
-    { file: "docs/getting-started/server-in-5-minutes.md", pattern: /ghcr\.io\/eizedev\/pivotkit:(\d+\.\d+\.\d+)/, pkg: "pivotkit-server" }
+    { file: "docs/reference/plugins.md", pattern: /^\| <span id="pivotkit-xlsx"><\/span>.*\| (\d+\.\d+(?:\.\d+)?) \(plugin API \d+\) \|$/m, pkg: "pivotkit-core" }
 ];
 const minorOf = (version) => version.split(".").slice(0, 2).join(".");
 
@@ -436,6 +434,18 @@ test("docs and READMEs write no caret range of a pivotkit package; the version s
         assert.ok(found, `${file}: the version statement is gone; update VERSION_STATEMENTS`);
         const { version } = JSON.parse(readFileSync(new URL(`packages/${pkg}/package.json`, root), "utf8"));
         assert.equal(minorOf(found), minorOf(version), `${file} names ${pkg} ${found}, the repository has ${version}: update it in the release pull request`);
+    }
+});
+
+// The "Server in 5 minutes" commands are copied as they are: every image tag, release tag and
+// PIVOTKIT_VERSION on the page names pivotkit-server's version in full (CONTRIBUTING.md, "Releasing")
+test("server-in-5-minutes.md names pivotkit-server's current version everywhere, in full", () => {
+    const text = readFileSync(new URL("docs/getting-started/server-in-5-minutes.md", root), "utf8");
+    const { version } = JSON.parse(readFileSync(new URL("packages/pivotkit-server/package.json", root), "utf8"));
+    const found = [...text.matchAll(/ghcr\.io\/eizedev\/pivotkit:(\d+\.\d+\.\d+)|pivotkit-server@(\d+\.\d+\.\d+)|PIVOTKIT_VERSION\s*=\s*"?(\d+\.\d+\.\d+)/g)].map((m) => [m[0], m[1] ?? m[2] ?? m[3]]);
+    assert.ok(found.some(([m]) => m.startsWith("ghcr")) && found.some(([m]) => m.startsWith("pivotkit-server@")) && found.some(([m]) => m.includes("PIVOTKIT_VERSION")), `the page names no image tag, release tag or PIVOTKIT_VERSION: ${JSON.stringify(found)}`);
+    for (const [where, named] of found) {
+        assert.equal(named, version, `server-in-5-minutes.md: ${where} is not pivotkit-server ${version}: update it in the release pull request`);
     }
 });
 

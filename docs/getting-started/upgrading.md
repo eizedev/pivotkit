@@ -218,17 +218,24 @@ serves its built-in example and makes the token `admin` at its first start
   token and none is given, the key of the download links when `output.downloads.key` is not set, the
   audit key for `audit.subject` `"hash"` without `audit.key`. Download links and audit hashes then
   stay the same after a restart, as long as the directory is on a volume.
-- Two starts that were refused now start with the token `admin` when there is a state directory:
-  `auth.mode` not set on an address off loopback, and `auth.mode` `"token"` with neither
-  `auth.tokens` nor `$PIVOTKIT_TOKEN`. The second one logs a warning that says so. Without a state
-  directory both are refused as before. In the image, `-e PIVOTKIT_STATE_DIR=` turns it off.
+- A start with `auth.mode` not set on an address off loopback was refused. With a state directory
+  it now starts with the token `admin`. Without one it is refused as before. In the image,
+  `-e PIVOTKIT_STATE_DIR=` turns it off.
+- `auth.mode` `"token"` with neither `auth.tokens` nor `$PIVOTKIT_TOKEN` is still refused. The
+  message says how to fix it: set the variable, or remove `auth.mode` to use the generated `admin`.
+  A misspelt variable never turns into a token with every scope.
 - A configuration that names its tokens, or `$PIVOTKIT_TOKEN`, gets no `admin`.
 - A read-only container without a volume at `/var/lib/pivotkit` warns at every start that the
   download links' key cannot be made. Add `-v pivotkit:/var/lib/pivotkit` to keep links across
   restarts.
-- The image declares no `VOLUME` any more. A `docker run` without `-v ...:/out` wrote reports into
-  an anonymous volume that nothing named; now they stay in the container. Mount a named volume where
-  your configuration writes reports (`/var/lib/pivotkit/out` in the examples).
+- The image declares no `VOLUME` any more. Before, `/out` was an anonymous volume.
+  - A `--read-only` run without `-v ...:/out` can no longer write reports there. The start warns
+    that `output.dir` is on a read-only file system, and each report fails with `NO_OUTPUT`. Mount a
+    named volume: `-v pivotkit-out:/out`, or move `output.dir` to `/var/lib/pivotkit/out` on the
+    state volume.
+  - Without `--read-only`, reports go into the container and are lost with it.
+  - Reports of earlier runs stay in the old anonymous volume. `docker volume ls` lists it (a long
+    hexadecimal name). Copy what you need out of it, then remove it.
 - The token cannot be made on a read-only root without a volume at `/var/lib/pivotkit`: the start is
   refused and says which volume to mount. Without `--read-only` and without a volume it starts and
   warns that the token and keys are lost with the container.

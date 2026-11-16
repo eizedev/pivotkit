@@ -142,6 +142,15 @@ jobs:
           if docker run --rm -v "$work/explicit:/config:ro" -v pk-state:/var/lib/pivotkit pivotkit:test 2> "$work/explicit.txt"; then exit 1; fi
           grep -q 'the token \\"mine\\"' "$work/explicit.txt"
           docker run --rm -v pk-state:/state --entrypoint /nodejs/bin/node pivotkit:test -e "process.exit(require('fs').existsSync('/state/mine.token') ? 1 : 0)"
+          # read-only, output.dir /out and no volume there (the image declares none): it starts and says to mount one
+          mkdir -p "$work/ro-out"
+          echo '{"output":{"dir":"/out"}}' > "$work/ro-out/pivotkit.json"
+          chmod 0644 "$work/ro-out/pivotkit.json"
+          docker run -d --name pk-ro-out --read-only --tmpfs /tmp -v "$work/ro-out:/config:ro" -v pk-state:/var/lib/pivotkit pivotkit:test
+          for i in $(seq 1 30); do docker logs pk-ro-out 2>&1 | grep -q '"started"' && break; sleep 1; done
+          docker logs pk-ro-out 2>&1 | grep -q "read-only file system"
+          docker logs pk-ro-out 2>&1 | grep -q "mount a writable volume at output.dir"
+          docker rm -f pk-ro-out
           # without --read-only and without a volume the state lies on the container's layer: a warning
           docker run -d --name pk-layer pivotkit:test
           for i in $(seq 1 30); do docker logs pk-layer 2>&1 | grep -q '"started"' && break; sleep 1; done

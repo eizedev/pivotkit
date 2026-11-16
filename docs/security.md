@@ -397,6 +397,8 @@ without install scripts. Run it with a read-only root file system, no capabiliti
 `no-new-privileges`, data mounted read-only, tokens as secret files (environment variables show in
 `docker inspect`). It never listens on every address without sign-in. Without a token of yours it
 makes the token `admin` at its first start, in its state volume ([made at the first start](reference/rest.md#first-start)).
+It does so only where the configuration leaves auth to it: a written `auth.mode` `"token"` that
+resolves no token is refused, so a misspelt variable never becomes a token with every scope.
 That token holds every scope: keep it like a password, and send it over HTTPS only when it leaves the
 machine. Without a configuration the image serves only its example data. A mounted `/data` is not
 readable by path until a configuration says so (`files.allowDirs`), since every token could then read

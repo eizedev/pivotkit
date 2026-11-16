@@ -16,7 +16,7 @@
 import { lstat, realpath } from "node:fs/promises";
 import { isInside } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf } from "../config.js";
-import { OUTPUT_INSIDE_ALLOWED, SHARED_OUTPUT_TEXT, cannotCreate, entryOf, outputRefusal, ownFileDirs, plannedPath, writable } from "../context.js";
+import { OUTPUT_INSIDE_ALLOWED, SHARED_OUTPUT_TEXT, cannotCreate, entryOf, notWritable, notWritableText, outputRefusal, ownFileDirs, plannedPath } from "../context.js";
 import { reportsIn } from "../output.js";
 import { draftCap } from "../present.js";
 import { heading, plain, problem, warning } from "./format.js";
@@ -61,8 +61,9 @@ export async function section(options, registry) {
     if (!found) {
         return { items, upgrade: [] };
     }
-    if (!(await writable(dir))) {
-        items.push(problem(`output.dir is not writable by the user ${process.getuid?.() ?? ""} the server runs as`, { effect: "the server starts; every report fails with NO_OUTPUT" }));
+    const refused = await notWritable(dir);
+    if (refused) {
+        items.push(problem(notWritableText(refused), { effect: "the server starts; every report fails with NO_OUTPUT" }));
     }
     if (out.baseUrl) {
         items.push(plain(`served at ${out.baseUrl}`));
