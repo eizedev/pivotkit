@@ -43,12 +43,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([#516](https://github.com/eizedev/pivotkit/issues/516)).
 - `check-config` closes with this release's changes that apply to the configuration, one per line,
   each with the link to its section on the upgrading page. The notes of 0.2.0 are gone.
-- Each duplicated helper exists once: one shell quote for printed commands, pivotkit-core's
-  internal limit helper for limits, the body cap's size from `REST_BODY_BYTES`, and `bytesText`
-  in `src/text.js`. The messages stay the same. pivotkit-report and pivotkit-xlsx keep their own
-  limit wording ("the view has N characters; at most M", "the part ... is N bytes"). Those texts
-  say different things, so they are not merged on purpose
-  ([#509](https://github.com/eizedev/pivotkit/issues/509)).
+- Each duplicated helper exists once: one shell quote for printed commands, pivotkit-core's internal
+  limit helper for limits, the body cap's size from `REST_BODY_BYTES`, and `bytesText` in
+  `src/text.js`. The messages stay the same, except that check-config and the sweep log write "1
+  day" in the singular. pivotkit-report and pivotkit-xlsx keep their own limit wording ("the view
+  has N characters; at most M", "the part ... is N bytes"). Those texts say different things, so
+  they are not merged on purpose ([#509](https://github.com/eizedev/pivotkit/issues/509)).
 
 ### Fixed
 

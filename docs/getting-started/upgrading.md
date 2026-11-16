@@ -199,6 +199,9 @@ approves or removes some, or you raise `output.maxMb`.
 approval after that many days. The server sweeps at start and every hour, also with
 `output.maxAgeDays: 0`. `check-config` counts the drafts the next start deletes.
 
+A host that approves or rejects a draft changes its `status` in the file. Such a draft no longer
+counts against the drafts' caps. It follows only `output.maxAgeDays`, like a report.
+
 ### 32 connections per address { #per-address }
 
 One address on the network may hold at most 32 connections at once. Before, there was no such

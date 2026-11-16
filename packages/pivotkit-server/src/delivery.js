@@ -16,8 +16,8 @@
  * A closed source is one with a field or default at "values" or "summary" for someone, or a field
  * hidden for some callers and shown to others (registry.js closedReason), or one whose data belongs
  * to one person (data sent in the request, a source bound to a person, a code source with
- * perPerson; registry.js isClosedForDelivery); an unknown state counts as closed. output.baseUrl gives an address only to reports
- * over open sources.
+ * perPerson; registry.js isClosedForDelivery); an unknown state counts as closed. output.baseUrl
+ * gives an address only to reports over open sources.
  *
  * With an upload target (output.upload, upload.js) a report goes to the operator's store and the
  * result shows the store's link instead (storeFor):

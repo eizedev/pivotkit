@@ -215,7 +215,7 @@ export async function makeRoom(context, dir, bytes, draft) {
         const oldest = cleanUp ? reports.shift() : undefined;
         if (!oldest) {
             const over = count + 1 > maxFiles ? `holds ${count} files, the most it may (output.maxFiles: ${maxFiles})` : `is full (output.maxMb: ${maxMb})`;
-            const why = !cleanUp ? " and holds the operator's own files, so the server deletes none there" : " and what is left are schedule drafts awaiting approval, which are not deleted";
+            const why = !cleanUp ? " and holds the operator's own files, so the server deletes none there" : " and what is left are schedule drafts, awaiting approval or not, which are not deleted to make room";
             throw new OperationError("NO_OUTPUT", `the output directory ${over}${why}; the operator must clean it up`);
         }
         await unlink(oldest.path).catch((e) => (e?.code === "ENOENT" ? undefined : Promise.reject(outputErrorOf(e))));
@@ -253,18 +253,23 @@ export async function waitingDrafts(files) {
 function checkDraftRoom(waiting, bytes, maxFiles, maxMb) {
     const files = draftCap(maxFiles);
     const most = draftBytesCap(maxMb);
+    // two sizes that round to the same text ("512.0 KiB of the 512 KiB") are said in bytes
+    const rounded = (n) => bytesText(n).replace(".0 ", " ");
+    const sizes = (a, b) => (a !== b && rounded(a) === rounded(b) ? [a, b].map((n) => `${n.toLocaleString("en-US")} bytes`) : [bytesText(a), bytesText(b)]);
     if (files === 0) {
         throw new OperationError("NO_OUTPUT", "output.maxFiles 1 leaves no room for drafts; the operator raises it");
     }
     if (bytes > most) {
-        throw new OperationError("NO_OUTPUT", `the schedule draft takes ${bytesText(bytes)}, more than all drafts together may take (${bytesText(most)}, half of output.maxMb); the operator raises output.maxMb`);
+        const [size, cap] = sizes(bytes, most);
+        throw new OperationError("NO_OUTPUT", `the schedule draft takes ${size}, more than all drafts together may take (${cap}, half of output.maxMb); the operator raises output.maxMb`);
     }
     if (waiting.length + 1 > files) {
         throw new OperationError("NO_OUTPUT", `the output directory holds ${waiting.length} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first, or the operator raises output.maxFiles`);
     }
     const taken = waiting.reduce((sum, f) => sum + f.size, 0);
     if (taken + bytes > most) {
-        throw new OperationError("NO_OUTPUT", `the schedule drafts awaiting approval take ${bytesText(taken)} of the ${bytesText(most)} they may (half of output.maxMb); a person must approve or remove some first, or the operator raises output.maxMb`);
+        const [size, cap] = sizes(taken, most);
+        throw new OperationError("NO_OUTPUT", `the schedule drafts awaiting approval take ${size} of the ${cap} they may (half of output.maxMb); a person must approve or remove some first, or the operator raises output.maxMb`);
     }
 }
 

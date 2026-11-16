@@ -56,4 +56,8 @@ test("New in this version: the draft note wherever reports and drafts are writte
     const dir = workspace();
     const { text } = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { env: {}, http: false });
     assert.doesNotMatch(text, /New in this version/, "no output directory, nothing new applies");
+    // only sources bound to a person: no source takes a draft, so the note does not apply
+    const bound = { http: { url: "https://platform.example.com/v1/{customer}/vms", rows: "/items" }, params: { customer: { type: "string", claim: "customer", required: true, pattern: "^[a-z0-9-]{1,40}$" } }, policy: { default: "hide" } };
+    const notes = await newIn({ sources: { mine: bound }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: "https://reports.example.com/mcp" } }, { http: false });
+    assert.ok(!notes.some(([, anchor]) => anchor === "draft-quota"), JSON.stringify(notes));
 });

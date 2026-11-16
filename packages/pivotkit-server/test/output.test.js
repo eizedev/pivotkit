@@ -78,7 +78,7 @@ test("schedule drafts awaiting approval count but are never deleted to make room
     try {
         const res = await call(`${small.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
         assert.equal(res.status, 409, JSON.stringify(res.data));
-        assert.match(res.data.detail, /schedule drafts awaiting approval, which are not deleted/);
+        assert.match(res.data.detail, /what is left are schedule drafts, awaiting approval or not, which are not deleted to make room/);
         assert.equal(reports(join(full, "out")).length, 2);
     } finally {
         await small.close();
@@ -166,6 +166,10 @@ test("the drafts' caps count only drafts that still wait; a draft that just fits
     assert.equal(await makeRoom(context({ maxFiles: 4, maxMb: 1024 }), outCounted, 10, true), 0, "an approved or rejected draft is no waiting draft");
     writeFileSync(join(outCounted, "C.pivotkit-out.report.json"), draftFile("draft"));
     await assert.rejects(makeRoom(context({ maxFiles: 4, maxMb: 1024 }), outCounted, 10, true), /holds 2 schedule drafts awaiting approval, the most it may/);
+    // two sizes that round alike are said in bytes, so the answer never reads "512 KiB of the 512 KiB"
+    const close = workspace();
+    writeFileSync(join(close, "out", "Big.pivotkit-out.report.json"), draftFile("draft", cap - 10 - draftFile("draft").length));
+    await assert.rejects(makeRoom(context({}), join(close, "out"), 20, true), (e) => /take 524,278 bytes of the 524,288 bytes they may/.test(e.message) || assert.fail(e.message));
     // one draft larger than all drafts together may take: nothing waits, and no approval can help
     const empty = workspace();
     await assert.rejects(makeRoom(context({}), join(empty, "out"), cap + 1024, true), (e) => e.message === "the schedule draft takes 513 KiB, more than all drafts together may take (512 KiB, half of output.maxMb); the operator raises output.maxMb" || assert.fail(e.message));
