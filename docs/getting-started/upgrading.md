@@ -391,6 +391,12 @@ words. A body over the cap gets a `refused` log line. `check-config` warns of a 
 that other users of the machine can read, and closes with "New in this version" where a change
 applies to the configuration.
 
+### The 401 without a token { #no-token-text }
+
+A request without a token gets a 401 whose detail says `send Authorization: Bearer YOUR_TOKEN`
+(it said `<token>`, which PowerShell's error details leave out). A script that matches the old text
+needs the new one; the status and the `WWW-Authenticate` header are the same.
+
 ### The log { #log }
 
 [Operations and logs](../reference/operations.md) describes the log as it is now. What an existing

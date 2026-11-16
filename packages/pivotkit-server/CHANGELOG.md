@@ -337,7 +337,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 ### Changed
 
 - The 401 for a request without a token says `send Authorization: Bearer YOUR_TOKEN` (it said
-  `<token>`, which PowerShell's error details leave out).
+  `<token>`, which PowerShell's error details leave out)
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#no-token-text)).
 - The privacy page says what the server's memory holds of a hidden column of a code or HTTP source:
   nothing it keeps (the loads per person, the workers' data sets), measured by `test/memory.test.js`
   for texts and numbers, with and without a caller's identity, in the kept data and in heap snapshots

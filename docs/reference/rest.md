@@ -697,13 +697,35 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 | Option | What it does |
 | --- | --- |
 | `--file <path>` | Write the value to this file: one line ending in LF, mode 0600, never through a symbolic link, never into a directory that is not there. The value is not printed (`--print` prints it too) |
-| `--if-missing` | Keep a file that is there and exit 0, if it holds a value the server can use (else 1). A file of yours that everyone may read loses those bits; one a group may read keeps them (a group may share it) with a warning, as does a file of another user than you or root. Several runs at once end with one value |
-| `--force` | Replace a file that is there, atomically, keeping its owner and group where it may (run as root). Clients that still send the old token get 401 from then on; the server reads a token's file on every request and the download key within a second, so neither needs a restart. A file mounted on its own (a bind mount of one file, a Kubernetes `subPath`) cannot be replaced (`MOUNTED`): change it where it comes from |
+| `--if-missing` | Keep a file that is there and exit 0, if it holds a value the server can use (else 1). A file of yours that everyone may read loses those bits, with a warning; one a group may read keeps them (a group may share it), with a warning, as does a file of another user than you or root. A symbolic link (a mounted Secret) is only read, never changed. Several runs at once end with one value |
+| `--force` | Replace a file that is there, atomically, keeping its owner and group where it may (run as root, or a group you are in) and then its group's read bit; a warning says what it could not keep. Clients that still send the old token get 401 from then on; the server reads a token's file on every request and the download key within a second, so neither needs a restart. A file mounted on its own (a bind mount of one file, a Kubernetes `subPath`) cannot be replaced (`MOUNTED`): change it where it comes from |
 | `--config <file>` | `token new`: check `--profile` against `policy.profiles`, refuse a file inside `output.dir`, and use `http.publicUrl` in the hints. `token new` and `key new` read no configuration without it, not even `$PIVOTKIT_CONFIG`; `token show` reads `$PIVOTKIT_CONFIG` by default |
-| `--add` | `token new`: add `{ "name", "file", "scopes", "profile" }` to `auth.tokens` of `--config` (and `auth.mode` `"token"` when the file sets none, with a warning). Once `auth.tokens` lists a token, `$PIVOTKIT_TOKEN` is no longer read: the first `--add` warns that its clients need a token of the list. The new configuration is checked first; a name that is there, an unknown profile, `auth.mode` `none` or `oauth`, and a configuration that is a symbolic link or in a directory that cannot be written are refused before anything is written. The configuration is rewritten as pretty-printed JSON (its indentation and mode stay; a compact one-line object is spread over lines); the old file is kept as `<file>.bak-<UTC time>`, one per run. The token's file is written relative to the configuration when it lies below it. Restart the server: it reads the list of tokens at start. `key new --add` names the key as `output.downloads.key` or `audit.key` the same way, refused where one is set |
+| `--add` | `token new`: add the token to `auth.tokens` of `--config`. `key new`: name the key as `output.downloads.key` or `audit.key`. Both need `--file`; [below](#credentials-add) |
 | `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
 | `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
-| `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`; the value only where it would be printed |
+| `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "config", "configured", "backup", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`; the value only where it would be printed |
+
+#### What `--add` does { #credentials-add }
+
+- It writes `{ "name", "file", "scopes", "profile" }` into `auth.tokens`, or `{ "file" }` as the key.
+  The file's path is relative to the configuration when the file lies below it.
+- It checks the new configuration first. A name that is there, a key that is set, an unknown
+  profile, `auth.mode` `none` or `oauth` stop it before anything is written.
+- It sets `auth.mode` to `token` when the file has none, and says so.
+- Once `auth.tokens` lists a token, `$PIVOTKIT_TOKEN` is no longer read. The first `--add` warns
+  you.
+- With `--if-missing`, an entry with the same name, file, scopes and profile counts as done: the
+  run exits 0 and writes nothing.
+- It keeps the old configuration as `<file>.bak-<UTC time>`, one per run. Remove old backups when you
+  no longer need them.
+- It writes the configuration again as pretty-printed JSON. The indentation and the file's mode
+  stay; a compact one-line object is spread over lines.
+- It reads the configuration, writes the secret's file, then replaces the configuration. If
+  someone saves the configuration in between, it does not replace it and says so; run it again
+  with `--if-missing`.
+- It refuses a configuration that is a symbolic link (a mounted ConfigMap) or in a folder it
+  cannot write.
+- Restart the server afterwards: it reads the list of tokens and the audit key at start.
 
 Without `--file` the value is the only line on stdout. On a terminal the commands write on stderr
 what to add to the configuration and how to try the token with curl, PowerShell and

@@ -313,14 +313,16 @@ root `package.json`: `npm run types` and the builds depend on it.
   source-from-openapi, mcp, cli, healthcheck, token, key), `src/credentials.js` (`token new`, `token show`,
   `key new`, loaded by the runner only for them: a value on stdout or into a file, `--add` into
   `auth.tokens` checked by `validateOptions` with a backup, `--json` as pivotkit-cli's;
-  `configuredToken`, the one lookup of `token show`; `MAKE_TOKEN` and `makeKey` in auth.js are the
+  `configuredToken`, the one lookup of `token show`; `--add` with `--if-missing` done when the same
+  entry is there, the configuration's size and time checked again right before it is replaced; `MAKE_TOKEN` and `makeKey` in auth.js are the
   commands the messages name), `src/secret-rules.js` (`tokenProblem`, `keyProblem`: whether a value
   is one the server can use, by auth.js's, downloads.js's and log.js's rules), `src/secret-file.js`
   (`placeSecret`: a secret into a file with mode 0600 through a temporary file and link(), never
   replacing one without `replace`, `keep` reading the one there (an empty one read again for about a
   second, for a file system without hard links, where the file is created in place;
   `secretFileMeans` lets tests replace link(), rename() and the user), a kept file losing only its
-  world bits, a replaced file keeping its owner where it may, EBUSY of a mounted file `MOUNTED`, the
+  world bits, a link only read through, a replaced file keeping its owner, group and group bits where
+  it may (else a warning), EBUSY of a mounted file `MOUNTED`, the
   temporary file removed on SIGINT and SIGTERM, a symbolic link, directory or missing directory
   refused; `replaceFile` and `writeBackup` for a configuration file; for any code that
   creates a missing secret),

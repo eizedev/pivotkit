@@ -16,12 +16,22 @@
  * - A file that replaces another keeps the old one's owner and group where this process may set them
  *   (run as root). A file that is mounted on its own (a bind mount of one file, a Kubernetes subPath)
  *   cannot be replaced: MOUNTED.
- * - A kept file loses only its world bits; a group's bits stay (a group may share it), with a warning,
- *   as does a file of another user than this one or root.
+ * - A replacement keeps the old file's group bits where it keeps its group, never the world's; an
+ *   owner, group or mode it could not keep gets a warning.
+ * - A kept file loses only its world bits (with a warning); a group's bits stay (a group may share
+ *   it), with a warning, as does a file of another user than this one or root. A kept file behind a
+ *   symbolic link (a mounted Kubernetes Secret) is only read through it, never changed.
  * - The temporary file is removed when SIGINT or SIGTERM comes during the write.
  * - On Windows the mode bits do not apply: the file takes the permissions of its folder.
  *
  * No message holds the value; a path is named as the caller labels it.
+ *
+ * Why not pivotkit-cli's writeSafe (pivotkit-cli/files): it writes a file and refuses or replaces
+ * what is there, which is right for a report. A secret needs more: keeping the file that is there and
+ * reading it back checked (--if-missing, several runs at once), a mode of 0600 whatever the umask, the
+ * old file's owner and group on a replacement, a clear word for a mounted file, and the temporary
+ * file removed on a signal. pivotkit-cli also ships on its own release line, so its writer is not
+ * changed for the server's needs.
  */
 
 import { randomBytes } from "node:crypto";
@@ -49,7 +59,7 @@ const RENAME_RETRY = Object.freeze({ tries: 3, waitMs: 50 });
 const EMPTY_RETRY = Object.freeze({ tries: 20, waitMs: 50 });
 
 /** The calls tests replace: a file system without hard links, a mounted file, another user. */
-export const secretFileMeans = { link, rename, uid: () => process.getuid?.() };
+export const secretFileMeans = { link, rename, uid: () => process.getuid?.(), chown: (handle, uid, gid) => handle.chown(uid, gid) };
 
 /** The signals during which a temporary file is removed. */
 const SIGNALS = Object.freeze(["SIGINT", "SIGTERM"]);
@@ -116,13 +126,14 @@ function writeRefusal(e, label) {
 
 /**
  * Creates a new file with exactly `mode` and writes `bytes` into it, synced; the file is removed again
- * when the write fails. With `owner` (the file it replaces), the owner and group are set to its; a
- * process that may not (not root) leaves them its own.
+ * when the write fails. With `owner` (the file it replaces), the owner and group are set to its where
+ * this process may (root, or a group it is in); its group bits are added only where the group is its.
  * @param {string} path
  * @param {Uint8Array | string} bytes
  * @param {number} mode
  * @param {string} label
- * @param {{ uid: number, gid: number } | null} [owner]
+ * @param {{ uid: number, gid: number, mode: number } | null} [owner]
+ * @returns {Promise<{ uid: number, gid: number, mode: number } | null>}  the new file's owner, group and mode (null on Windows)
  */
 async function createWith(path, bytes, mode, label, owner = null) {
     let handle;
@@ -135,18 +146,25 @@ async function createWith(path, bytes, mode, label, owner = null) {
         if (process.platform !== "win32") {
             // the umask does not narrow or widen it
             await handle.chmod(mode);
-            if (owner && owner.uid !== secretFileMeans.uid()) {
-                await handle.chown(owner.uid, owner.gid).catch((e) => (e?.code === "EPERM" ? undefined : Promise.reject(e)));
+            if (owner) {
+                await secretFileMeans.chown(handle, owner.uid, owner.gid).catch((e) => (e?.code === "EPERM" ? undefined : Promise.reject(e)));
             }
+        }
+        const made = process.platform === "win32" ? null : await handle.stat();
+        if (made && owner && made.gid === owner.gid && owner.mode & 0o070) {
+            // the group that may read it is the old one: it keeps its group bits, never the world's
+            await handle.chmod(mode | (owner.mode & 0o070));
         }
         await handle.writeFile(bytes);
         await handle.sync();
+        const after = made ? await handle.stat() : null;
+        await handle.close();
+        return after ? { uid: after.uid, gid: after.gid, mode: after.mode & 0o777 } : null;
     } catch (e) {
         await handle.close();
         await unlink(path).catch(() => undefined);
         throw e;
     }
-    await handle.close();
 }
 
 /** Syncs a directory, so a new name in it survives a crash; not on Windows, where a directory cannot be opened so. */
@@ -221,12 +239,13 @@ export async function renameOver(from, to, label = to) {
  * @param {string} label
  * @param {(value: string) => string | null} usable  why a value cannot be used, or null
  * @param {string} kind  "token" or "key", for the message
+ * @param {boolean} [throughLink]  the name is a symbolic link: read the file behind it, change nothing
  * @returns {Promise<{ value: string, warnings: string[] }>}
  */
-async function readKept(target, label, usable, kind) {
+async function readKept(target, label, usable, kind, throughLink = false) {
     let handle;
     try {
-        handle = await open(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+        handle = await open(target, constants.O_RDONLY | (throughLink ? 0 : (constants.O_NOFOLLOW ?? 0)) | (constants.O_NONBLOCK ?? 0));
     } catch (e) {
         if (e?.code === "ELOOP") {
             throw new SecretFileError("NOT_REGULAR_FILE", `${label}: is a symbolic link (a mounted Secret is one); not written`);
@@ -254,12 +273,14 @@ async function readKept(target, label, usable, kind) {
             throw new SecretFileError("UNUSABLE", `${label}: is there but not a usable ${kind} (${why}); replace it with --force`);
         }
         const warnings = [];
-        if (process.platform !== "win32") {
+        if (process.platform !== "win32" && !throughLink) {
             const me = secretFileMeans.uid();
             let mode = info.mode & 0o777;
             if (info.uid === me && mode & 0o007) {
+                const was = mode;
                 mode &= ~0o007;
                 await handle.chmod(mode);
+                warnings.push(`${label}: removed everyone's read access (mode ${mode.toString(8)}, was ${was.toString(8)})`);
             }
             if (mode & 0o077) {
                 warnings.push(`${label} is readable by others than its owner (mode ${mode.toString(8)}); chmod 600 it unless a group shares it on purpose`);
@@ -284,12 +305,13 @@ class EmptyFile extends Error {}
  * @param {string} label
  * @param {(value: string) => string | null} usable
  * @param {string} kind
+ * @param {boolean} [throughLink]
  * @returns {Promise<{ value: string, warnings: string[] }>}
  */
-async function readSettled(target, label, usable, kind) {
+async function readSettled(target, label, usable, kind, throughLink = false) {
     for (let attempt = 1; ; attempt++) {
         try {
-            return await readKept(target, label, usable, kind);
+            return await readKept(target, label, usable, kind, throughLink);
         } catch (e) {
             if (!(e instanceof EmptyFile)) {
                 throw e;
@@ -321,6 +343,10 @@ async function readSettled(target, label, usable, kind) {
  */
 export async function placeSecret(path, value, { replace = false, keep = false, usable = () => null, kind = "secret", label = path } = {}) {
     const { dir, target } = await targetOf(resolve(path), label);
+    if (keep && (await lstat(target).catch(() => null))?.isSymbolicLink()) {
+        // a mounted Secret: checked through the link, never written
+        return { path: target, ...(await readSettled(target, label, usable, kind, true)), created: false, replaced: false };
+    }
     const existing = await existingFile(target, label);
     if (existing && keep) {
         return { path: target, ...(await readSettled(target, label, usable, kind)), created: false, replaced: false };
@@ -335,12 +361,12 @@ export async function placeSecret(path, value, { replace = false, keep = false, 
 
 /** placeSecret's write, from the temporary file to its name; the temporary file is gone after it. */
 async function placeNew(temp, target, dir, bytes, { value, existing, replace, keep, usable, kind, label }) {
-    await createWith(temp, bytes, SECRET_MODE, label, existing && replace ? existing : null);
+    const made = await createWith(temp, bytes, SECRET_MODE, label, existing && replace ? existing : null);
     try {
         if (replace) {
             await renameOver(temp, target, label);
             await syncDir(dir);
-            return { path: target, value, created: !existing, replaced: Boolean(existing), warnings: [] };
+            return { path: target, value, created: !existing, replaced: Boolean(existing), warnings: existing && made ? keptWarnings(label, existing, made) : [] };
         }
         try {
             // link() never replaces: a file made since the check stays as it is
@@ -367,6 +393,25 @@ async function placeNew(temp, target, dir, bytes, { value, existing, replace, ke
     } finally {
         await unlink(temp).catch(() => undefined);
     }
+}
+
+/**
+ * What a replacement could not keep of the old file: its owner or group (another user's file, as
+ * someone that is not root), or read bits (the world's always go; a group's where its group went).
+ * @param {string} label
+ * @param {{ uid: number, gid: number, mode: number }} old
+ * @param {{ uid: number, gid: number, mode: number }} made
+ */
+function keptWarnings(label, old, made) {
+    const warnings = [];
+    if (made.uid !== old.uid || made.gid !== old.gid) {
+        warnings.push(`${label}: owner or group not kept (now ${made.uid}:${made.gid}, was ${old.uid}:${old.gid}); the server's user may no longer read it: chown it, or run this as that user or root`);
+    }
+    const oldMode = old.mode & 0o777;
+    if (oldMode & ~made.mode & 0o077) {
+        warnings.push(`${label}: read access narrowed (mode ${made.mode.toString(8)}, was ${oldMode.toString(8)})`);
+    }
+    return warnings;
 }
 
 /** Another process named the file first: keep its value, or EXISTS. */

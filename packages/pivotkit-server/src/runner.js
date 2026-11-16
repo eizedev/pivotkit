@@ -14,12 +14,12 @@
 
 import { ConfigError, loadConfig } from "./config.js";
 import { VERSION } from "./context.js";
-import { SERVER_FLAGS, flagLines, helpPointer, optionsFrom, startFormatOf } from "./flags.js";
+import { CONFIG_ENV, SERVER_FLAGS, flagLines, helpPointer, optionsFrom, startFormatOf } from "./flags.js";
 import { flushed, startErrorLine } from "./log.js";
 import { DEFAULT_PORT, TOKEN_ENV, loadMcp } from "./serve.js";
 
-/** The variable that names the configuration file. */
-export const CONFIG_ENV = "PIVOTKIT_CONFIG";
+/** The variable that names the configuration file (flags.js's). */
+export { CONFIG_ENV };
 
 /** The subcommands, for the help. */
 const COMMANDS = Object.freeze({

@@ -146,11 +146,15 @@ test("a symbolic link, a directory and a missing directory are refused, never wr
     writeFileSync(target, "keep me\n");
     const link = join(dir, "linked.token");
     symlinkSync(target, link);
-    for (const extra of [[], ["--force"], ["--if-missing"]]) {
+    for (const extra of [[], ["--force"]]) {
         const r = run(["token", "new", "--file", link, ...extra]);
         assert.equal(r.status, 1, extra.join(" "));
         assert.match(r.stderr, /symbolic link/);
     }
+    // --if-missing only reads through the link (a mounted Secret): this one holds no usable token
+    const checked = run(["token", "new", "--file", link, "--if-missing"]);
+    assert.equal(checked.status, 1);
+    assert.match(checked.stderr, /not a usable token/);
     assert.equal(readFileSync(target, "utf8"), "keep me\n");
     mkdirSync(join(dir, "adir"));
     const d = run(["token", "new", "--file", join(dir, "adir"), "--force"]);
@@ -588,4 +592,118 @@ test("a request without a token is told what to send in plain words, without ang
     } finally {
         await server.close();
     }
+});
+
+test("--if-missing --add twice: the second run finds it done; a different entry of that name is still refused", () => {
+    const dir = workspace();
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, policy: { profiles: { export: { results: true } } } }, null, 2));
+    const args = ["token", "new", "--file", join(dir, "a.token"), "--config", config, "--add", "--name", "a", "--if-missing"];
+    assert.equal(run(args).status, 0);
+    const after = readFileSync(config, "utf8");
+    const again = run([...args, "--json"]);
+    assert.equal(again.status, 0, again.stdout);
+    const out = JSON.parse(again.stdout);
+    assert.deepEqual([out.ok, out.created, out.configured], [true, false, "already"]);
+    assert.equal(readFileSync(config, "utf8"), after, "the configuration is not written again");
+    assert.equal(readdirSync(dir).filter((n) => n.startsWith("pivotkit.json.bak-")).length, 1, "no second backup");
+    // the same name with another profile is a different entry
+    const other = run([...args, "--profile", "export"]);
+    assert.equal(other.status, 2);
+    assert.match(other.stderr, /"a" is already in auth\.tokens/);
+    // a key the same way
+    const keyArgs = ["key", "new", "--for", "downloads", "--file", join(dir, "d.key"), "--config", config, "--add", "--if-missing"];
+    assert.equal(run(keyArgs).status, 0);
+    assert.equal(run(keyArgs).status, 0);
+    assert.equal(run(["key", "new", "--for", "downloads", "--file", join(dir, "e.key"), "--config", config, "--add", "--if-missing"]).status, 2, "another file for the key is refused");
+});
+
+test("--force keeps the old file's group and its group bits where it may, and warns where it may not", { skip: (!POSIX || (process.getgroups?.() ?? []).length < 2) && "needs POSIX and a second group" }, async () => {
+    const { placeSecret, secretFileMeans } = await import("../src/secret-file.js");
+    const dir = tempDir();
+    const file = join(dir, "shared.token");
+    const group = (process.getgroups?.() ?? []).find((g) => g !== statSync(dir).gid && g !== process.getgid?.());
+    assert.ok(group !== undefined);
+    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
+    (await import("node:fs")).chownSync(file, process.getuid?.() ?? 0, group);
+    chmodSync(file, 0o640);
+    const kept = await placeSecret(file, "a-new-token-that-is-long-enough-01234567890", { replace: true, label: "shared.token" });
+    assert.equal(statSync(file).gid, group, "the group kept");
+    assert.equal(statSync(file).mode & 0o777, 0o640, "its read bit kept");
+    assert.deepEqual(kept.warnings, []);
+    const { chown } = secretFileMeans;
+    try {
+        secretFileMeans.chown = async () => Promise.reject(Object.assign(new Error("not permitted"), { code: "EPERM" }));
+        const lost = await placeSecret(file, "a-third-token-that-is-long-enough-012345678", { replace: true, label: "shared.token" });
+        assert.notEqual(statSync(file).gid, group);
+        assert.equal(statSync(file).mode & 0o777, 0o600, "no group bits for another group");
+        assert.ok(lost.warnings.some((w) => /shared\.token: owner or group not kept/.test(w)), lost.warnings.join("\n"));
+        assert.ok(lost.warnings.some((w) => /mode 600, was 640/.test(w)), lost.warnings.join("\n"));
+    } finally {
+        secretFileMeans.chown = chown;
+    }
+});
+
+test("--if-missing that takes away everyone's read access says so; through a link it only reads", { skip: !POSIX && "mode bits and links are POSIX" }, () => {
+    const dir = tempDir();
+    const file = join(dir, "open.token");
+    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
+    chmodSync(file, 0o604);
+    const r = run(["token", "new", "--file", file, "--if-missing"]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stderr, /warning: .*open\.token: removed everyone's read access \(mode 600, was 604\)/);
+    // a mounted Secret: the file behind ..data links, its mode not ours to change
+    mkdirSync(join(dir, "..data"));
+    writeFileSync(join(dir, "..data", "reports"), "a-test-token-that-is-long-enough-0123456789\n");
+    chmodSync(join(dir, "..data", "reports"), 0o644);
+    symlinkSync(join("..data", "reports"), join(dir, "reports"));
+    const linked = run(["token", "new", "--file", join(dir, "reports"), "--if-missing", "--print"]);
+    assert.equal(linked.status, 0, linked.stderr);
+    assert.equal(linked.stdout, "a-test-token-that-is-long-enough-0123456789\n");
+    assert.equal(statSync(join(dir, "..data", "reports")).mode & 0o777, 0o644, "nothing changed through the link");
+});
+
+test("--add refuses to replace a configuration that changed since it was read", async () => {
+    const { credentialsCommand } = await import("../src/credentials.js");
+    const { secretFileMeans } = await import("../src/secret-file.js");
+    const dir = workspace();
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } } }, null, 2));
+    const { link } = secretFileMeans;
+    let err = "";
+    try {
+        // someone saves the configuration while the token is being written
+        secretFileMeans.link = async (from, to) => {
+            writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv", title: "Edited" } } }, null, 2));
+            return link(from, to);
+        };
+        const code = await credentialsCommand("token", ["new", "--file", "x.token", "--config", "pivotkit.json", "--add"], { env: {}, cwd: dir, stdout: { write() {} }, stderr: { write: (t) => (err += t) } });
+        assert.equal(code, 1);
+    } finally {
+        secretFileMeans.link = link;
+    }
+    assert.match(err, /pivotkit\.json changed since it was read/);
+    assert.equal(JSON.parse(readFileSync(config, "utf8")).sources.sales.title, "Edited", "the other change stays");
+    assert.deepEqual(readdirSync(dir).filter((n) => n.includes(".bak-")), [], "no backup left for a write that did not happen");
+});
+
+test("--json and --help count as flags only before --", () => {
+    const dir = tempDir();
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ auth: { mode: "token", tokens: [{ name: "a", env: "A_TOKEN" }] } }));
+    const r = run(["token", "show", "--config", config, "--", "--json"]);
+    assert.equal(r.status, 2);
+    assert.equal(r.stdout, "", "no JSON: --json after -- is the name");
+    assert.match(r.stderr, /no token "--json"/);
+    const h = run(["token", "show", "--config", config, "--", "--help"]);
+    assert.equal(h.status, 2);
+    assert.match(h.stderr, /no token "--help"/);
+});
+
+test("the claude mcp add hint says that the token lands in the process list and the shell's history", async () => {
+    const { credentialsCommand } = await import("../src/credentials.js");
+    const dir = tempDir();
+    let err = "";
+    await credentialsCommand("token", ["new", "--file", "t.token"], { env: {}, cwd: dir, stdout: { write() {} }, stderr: { isTTY: true, write: (t) => (err += t) } });
+    assert.match(err, /claude mcp add[^\n]*\n[^\n]*process list and your shell's history/);
 });
