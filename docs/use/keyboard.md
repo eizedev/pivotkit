@@ -5,9 +5,9 @@ description: Use a pivotkit report with the keyboard alone and with a screen rea
 
 # Keyboard and screen readers
 
-Every action in the report has a button or a menu entry: drag and drop is never the only way. With the
-keyboard you reach every field, menu and value; a screen reader hears what each control is and what
-changed. **Options**, **Help**, **Keyboard shortcuts** lists the keys in the report itself.
+Every action in the report has a button or a menu entry, so drag and drop is never the only way.
+With the keyboard you reach every field, menu and value. A screen reader hears what each control is
+and what changed. In the report itself, **Options**, **Help**, **Keyboard shortcuts** lists the keys.
 
 ## Keys
 
@@ -15,62 +15,66 @@ changed. **Options**, **Help**, **Keyboard shortcuts** lists the keys in the rep
 | --- | --- |
 | Anywhere | **Ctrl+Z** (Mac **Cmd+Z**) undo, **Ctrl+Shift+Z** or **Ctrl+Y** (Mac **Cmd+Shift+Z**) redo. **Escape** closes the newest open menu or panel. |
 | Before the field list | A **Skip to the toolbar** link comes first. |
-| Field list | One stop of **Tab**. **Up** and **Down** move between the fields (**Home**, **End**), **Left** and **Right** to a field's grip, its **i** and its menu. **Enter** on a name adds the field; **Shift+F10** (or the context menu key) opens its menu; **Space** on the grip picks it up. |
-| Moving a chip or a field | **Space** picks it up. **Left** and **Right** move it within a zone, **Up** and **Down** to the zone above or below; its position is announced ("Region is over Rows, position 2 of 3"). **Space** drops it, **Escape** cancels. |
-| Menus | **Start over** and **More** open with **Enter**, **Space** or **Down**. The arrow keys move, also over an entry that is greyed out (a screen reader hears why), **Home** and **End** jump to the first and the last entry, a letter to the next entry that starts with it; **Tab** or **Escape** closes the menu and the focus goes back to its button. |
-| A chip's menu, Options, Views (in levels) | One stop of **Tab**: the arrow keys move (**Left** and **Right** between choices side by side), a letter jumps. **Enter**, **Space** or **Right** on a row opens its level; **Escape** or **Left** goes back, the focus on that row; **Escape** on the first level closes the menu and the focus goes back to its button; **Tab** closes it and moves on. In a level with fields, **Tab** moves between them; **Tab** past the last one (or **Shift+Tab** before the first) closes the menu and the focus goes back to its button (a bottom sheet keeps **Tab** inside). **/** goes to the search, **Down** in it moves into its hits, **Enter** runs one. |
-| Text fields in menus | **Escape** empties the field first; the next Escape closes the menu. In a level of a chip's menu, where a field applies as you type, **Escape** gives back what applies, then goes back a level; **Enter** applies at once. **Ctrl+Z** in the field brings back text its **×** emptied. |
-| Table | The arrow keys move between values; **Enter** or **Space** opens the rows behind one. A field's or value's name in the header is a button: **Tab** to it, **Enter** or **Space** sorts ([sort with a click on a header](filters.md#sort-with-a-click-on-a-header)). |
-| Drill-down panel | **Escape** reduces it when enlarged, then closes it. |
+| Field list | One stop of **Tab**. **Up** and **Down** move between the fields, **Home** and **End** to the first and the last. **Left** and **Right** move to a field's grip, its **i** and its menu. **Enter** on a name adds the field. **Shift+F10** or the context menu key opens its menu. **Space** on the grip picks it up. |
+| Moving a chip or a field | **Space** picks it up. **Left** and **Right** move it within a zone, **Up** and **Down** to the zone above or below. The report announces its position: "Region is over Rows, position 2 of 3". **Space** drops it, **Escape** cancels. |
+| Menus | **Start over** and **More** open with **Enter**, **Space** or **Down**. The arrow keys move, also over an entry that is greyed out, and a screen reader hears why it is greyed out. **Home** and **End** jump to the first and the last entry. A letter jumps to the next entry that starts with it. **Tab** or **Escape** closes the menu, and the focus goes back to its button. |
+| A chip's menu, Options, Views (in levels) | One stop of **Tab**. The arrow keys move, **Left** and **Right** between choices side by side. A letter jumps. **Enter**, **Space** or **Right** on a row opens its level. **Escape** or **Left** goes back, with the focus on that row. **Escape** on the first level closes the menu, and the focus goes back to its button. **Tab** closes the menu and moves on. In a level with fields, **Tab** moves between them. **Tab** past the last field, or **Shift+Tab** before the first, closes the menu, and the focus goes back to its button. A bottom sheet keeps **Tab** inside. **/** goes to the search, **Down** in it moves into its hits, **Enter** runs one. |
+| Text fields in menus | **Escape** empties the field first. The next Escape closes the menu. In a level of a chip's menu, a field applies as you type. There, **Escape** gives back what applies, then goes back a level, and **Enter** applies at once. **Ctrl+Z** in the field brings back text its **×** emptied. |
+| Table | The arrow keys move between values. **Enter** or **Space** opens the rows behind one. A field's or value's name in the header is a button: **Tab** to it, and **Enter** or **Space** sorts. See [sort with a click on a header](filters.md#sort-with-a-click-on-a-header). |
+| Drill-down panel | When the panel is enlarged, **Escape** reduces it first, then closes it. |
 
 ## What a screen reader hears
 
-- An empty cell of the table is a stop too: "No rows" (nothing behind it) or "No value" (rows
-  without a number).
-- From 300 rows on a row label is cut to one line; the status line under the table shows the whole
-  label of the row the focus is on, or of a label you tap.
-- A chip's name says what is set on it: the filter ("3 of 4"), its rules ("last 5 years
-  (2022–2026)", "from 2022"), the top N, the whole value condition, the sort; the chip's tooltip has
-  the same words.
-- In a chip's menu each row says what is set and whether it is the default: "Filter, 3 of 4,
-  changed". A level's title names the field ("Month › Group"); a level with fields is a group with
-  that heading, a level of choices a menu. The Filter level says how many items it keeps as it
-  changes.
-- The header whose sort you chose says its order ("sorted descending"); after a click on a header
-  the new order is read out ("Region sorted: Z to A").
+- An empty cell of the table is a stop too. It says "No rows" when no rows are behind it, and
+  "No value" when its rows have no number.
+- From 300 rows on, the report cuts a row label to one line. The status line under the table shows
+  the whole label of the row the focus is on, or of a label you tap.
+- A chip's name says what is set on it. The chip's tooltip has the same words. The name covers:
+    - the filter, such as "3 of 4"
+    - its rules, such as "last 5 years (2022–2026)" or "from 2022"
+    - the top N
+    - the whole value condition
+    - the sort
+- In a chip's menu, each row says what is set and whether it is the default: "Filter, 3 of 4,
+  changed". A level's title names the field, such as "Month › Group". A level with fields is a group
+  with that heading. A level of choices is a menu. The Filter level says how many items it keeps as
+  it changes.
+- The header whose sort you chose says its order: "sorted descending". After a click on a header, a
+  screen reader reads out the new order: "Region sorted: Z to A".
 - The chart has a text alternative: type, values, counts, highest and lowest value.
-- Status messages ("Undone: Region removed", "View “Sales” saved") are read out
-  ([status messages](behaviour.md#status-messages)).
-- While the report waits for its data it says "Loading the report…", once.
-- The descriptions of fields stay readable for screen readers also when the **i** is switched off.
+- A screen reader reads out status messages, such as "Undone: Region removed" or
+  "View “Sales” saved". See [status messages](behaviour.md#status-messages).
+- While the report waits for its data, it says "Loading the report…" once.
+- The descriptions of fields stay readable for screen readers even when the **i** is switched off.
 
 ## Focus
 
-- A menu takes the focus when it opens (its first entry), with or without reduced motion, and gives
-  it back to its button when it closes. A level of a chip's menu takes it on its choice in use (or its
-  first field), and gives it back to the row it came from.
-- The drill-down, the field drawer and the bottom sheets keep the focus inside while open and give it
-  back when they close.
-- After a chip is removed the focus goes to the neighbouring chip, or to the zone.
+- A menu takes the focus on its first entry when it opens, with or without reduced motion. It gives
+  the focus back to its button when it closes. A level of a chip's menu takes the focus on its choice
+  in use, or on its first field. It gives the focus back to the row it came from.
+- The drill-down, the field drawer and the bottom sheets keep the focus inside while they are open.
+  They give it back when they close.
+- When you remove a chip, the focus goes to the neighbouring chip, or to the zone.
 - The **×** of a text field keeps the focus in the field.
-- After a publish or Cancel in the Views menu the focus goes back to where you asked; after a delete
-  to the view that takes its place.
+- After a publish or Cancel in the Views menu, the focus goes back to where you asked. After a
+  delete, it goes to the view that takes the deleted one's place.
 
 ## Touch and sizes
 
 - Text is at least 14 px, and controls at least 24 x 24 px.
-- On a touch screen the small buttons (×, **i**, a field's menu and grip, a tip's x) are at least
-  44 px. In the field list they keep their desktop size, so the rows stay as compact and the names
-  on one line where they fit; a finger still finds them in an area 44 px high around each (the grip's
-  44 px wide too), and the rows stand a little further apart so that no area reaches into the next
-  row.
-- Contrast is checked in both themes; reduced motion switches the animations and transitions off:
-  a menu or popover appears at once, in its place.
+- On a touch screen, the small buttons are at least 44 px: ×, **i**, a field's menu and grip, a
+  tip's x. In the field list they keep their desktop size. This keeps the rows as compact, and the
+  names on one line where they fit. A finger still finds each button in an area 44 px high around
+  it. The grip's area is also 44 px wide. The rows stand a little further apart, so that no area
+  reaches into the next row.
+- Contrast is checked in both themes.
+- Reduced motion switches the animations and transitions off: a menu or popover appears at once, in
+  its place.
 
 !!! note "For developers"
-    How Escape works when the report sits in a dialog of the host page is in the
-    [pivotkit-react reference](../reference/react.md#escape-and-the-host-page); `label` names the
-    report's region, so several reports on a page can be told apart. The region is not a `<main>`, so
-    it fits inside the host page's own main landmark. The sorted header carries `aria-sort`, the view
-    loaded in the Views menu `aria-current`. The sizes are `--pk-*` tokens
-    ([theming](../reference/theming.md)).
+    The [pivotkit-react reference](../reference/react.md#escape-and-the-host-page) explains how
+    Escape works when the report sits in a dialog of the host page. `label` names the report's
+    region, so a screen reader can tell several reports on a page apart. The region is not a
+    `<main>`, so it fits inside the host page's own main landmark. The sorted header carries
+    `aria-sort`. The view loaded in the Views menu carries `aria-current`. The sizes are `--pk-*`
+    tokens: see [theming](../reference/theming.md).
