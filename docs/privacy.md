@@ -213,6 +213,7 @@ The server keeps in its memory, never on disk:
 
     The server keeps an HTTP source's answer, JSON or CSV, without the columns the caller's policy
     hides.
+
 - **In each compute worker**, the data sets of its last four runs without hidden fields. They take
   at most a quarter of `compute.memoryMb` and stay until newer ones push them out or the server
   replaces the worker.
