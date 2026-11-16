@@ -147,6 +147,7 @@ node scripts/check-readme-links.js site   # after the build: README links resolv
 ### Pages and screenshots
 
 - A new page goes into one `llmstxt` section in `zensical.toml` (`tests/llms-sections.test.js`).
+- A list needs a blank line before it, or the item joins the paragraph (`tests/docs-lists.test.js`).
 - A page or anchor that moves keeps its address with a redirect in `zensical.toml`.
 - Screenshots come in light and dark pairs. A UI change takes them again (`npm run docs:screenshots`).
 - The Excel screenshot `xlsx-result-*.png` is taken by hand. Its steps are in `scripts/docs-screenshots.js`.

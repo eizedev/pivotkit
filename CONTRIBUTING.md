@@ -70,6 +70,7 @@ The package's `AGENTS.md` lists its commands and what its tests cover.
 Describe what people see on the [documentation site](https://pivotkit.eize.dev/). Its pages are in `docs/`.
 
 - A new page goes into one section of `[project.plugins.llmstxt.sections]` in `zensical.toml`.
+- A list needs a blank line before it. Without one, the build joins the items to the paragraph above.
 - A UI change takes the screenshots again with `npm run docs:screenshots`.
 - A feature also updates the overview pages. [AGENTS.md](AGENTS.md#docs-and-changelogs) lists them.
 

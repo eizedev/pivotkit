@@ -63,3 +63,4 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `tests/examples.test.js` fails until `node scripts/examples.js` has run.
 - `tests/schemas.test.js` fails until `node scripts/schemas.js` has run.
 - `tests/llms-sections.test.js` checks that every docs page is in one `llmstxt` section.
+- `tests/docs-lists.test.js` checks that every list in the docs starts after a blank line.
