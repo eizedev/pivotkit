@@ -151,3 +151,8 @@ test("the tooltip's marks: a bar lights up alone, the axis position lights up no
         assert.deepEqual([o.tooltip.trigger, o.axisPointer], ["item", undefined], type);
     }
 });
+
+test("CATALOG.additiveAggregators: the aggregators whose values add up (a stack's total means something)", async () => {
+    const { CATALOG } = await import("pivotkit-core");
+    assert.deepEqual(CATALOG.additiveAggregators, ["count", "sum"]);
+});

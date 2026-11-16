@@ -3,7 +3,7 @@
  * tables the engine runs on, so a list can never offer something the engine does not know.
  */
 
-import { AGGREGATOR_NAMES } from "./aggregators.js";
+import { AGGREGATORS, AGGREGATOR_NAMES } from "./aggregators.js";
 import { CYCLIC_UNITS, DERIVE_UNITS, TIMELINE_UNITS } from "./derive.js";
 import { COLUMN_TYPES } from "./encode.js";
 import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, FILTER_TYPES, RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS, TOP_TIES } from "./filters.js";
@@ -14,6 +14,8 @@ import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEG
 
 export const CATALOG = Object.freeze({
     aggregators: AGGREGATOR_NAMES,
+    /** the aggregators whose values add up (count, sum): the parts of a stack sum to a total */
+    additiveAggregators: Object.freeze(AGGREGATOR_NAMES.filter((name) => AGGREGATORS[name].additive)),
     /** the aggregators a UI offers first; the others are statistics for fewer people */
     commonAggregators: Object.freeze(["sum", "count", "average", "min", "max"]),
     columnTypes: COLUMN_TYPES,

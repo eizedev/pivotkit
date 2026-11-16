@@ -11,6 +11,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `chart.tooltip` in the view: what the tooltip of bars, lines and areas covers. `"auto"`, the
   default, is the element under the pointer. `"axis"` is every series at the pointer's category.
   `CATALOG.chartTooltips` lists both ([#106](https://github.com/eizedev/pivotkit/issues/106)).
+- `CATALOG.additiveAggregators`: the aggregators whose values add up (`count`, `sum`), so a UI
+  knows when the parts of a stack have a total.
 
 ### Changed
 
