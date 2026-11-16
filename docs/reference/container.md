@@ -12,7 +12,7 @@ manager. The image runs as the user 10001.
 
 | Tag | What it is |
 | --- | --- |
-| `<version>`, for example the release `pivotkit-server@0.1.0` as `0.1.0` | That release, unchanged |
+| `<version>`, the version of the release tag `pivotkit-server@<version>` | That release, unchanged |
 | `<major>.<minor>` | The latest release of that minor version |
 | `latest` | The image of the pivotkit-server release published last. That can be a new minor version, or an older version when a patch of an older minor version comes out later. Not for production |
 
@@ -100,8 +100,10 @@ are this setup for Docker Compose. There you show the token with
 
 ### An output directory in `/out` { #out-dir }
 
-Mount `/out` for an output directory that a configuration names. The user 10001 must be able to
-write to it:
+Mount `/out` for an output directory that a configuration names. The image declares no `VOLUME`
+there. Without a mount, you lose the reports and the schedule drafts waiting for approval with the
+container. Mount a named volume (`-v pivotkit-out:/out`) or a host folder. The user 10001 must be
+able to write to it:
 
 - A named volume is writable by the user 10001. A host folder needs `chown 10001:10001`.
 - Docker makes a missing host folder as root, so make it yourself first. `check-config` and the start
@@ -117,8 +119,26 @@ write to it:
 
 Put tokens of your own into `auth.tokens`, for example several with a profile each. The server then
 makes no `admin`. Keep the tokens in files (secrets), not in environment variables, because
-`docker inspect` shows a container's environment. The image makes the values, so you need no other
-tool:
+`docker inspect` shows a container's environment.
+
+The simplest way lets the server make each token file. Write the token with `"create": true` and a
+file in the state volume ([made at the first start](rest.md#first-start)):
+
+```json
+{ "auth": { "mode": "token", "tokens": [
+  { "name": "reports", "file": "/var/lib/pivotkit/reports.token", "create": true },
+  { "name": "exports", "file": "/var/lib/pivotkit/exports.token", "create": true, "profile": "export" }
+] } }
+```
+
+At its next start, the server makes each missing file as the user 10001, with mode 0600. Print a
+token with `token show`:
+
+```bash
+docker exec pivotkit pivotkit-server token show reports
+```
+
+To make a token file on the host instead, the image makes the value, so you need no other tool:
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/secrets:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/pivotkit_token
@@ -134,13 +154,14 @@ With Node, run `npx -y pivotkit-server token new --file secrets/pivotkit_token`.
 Output you save with `>` instead gets the mode your umask gives, often 0644, which everyone can
 read. Run `umask 077` first if you do that.
 
-Docker mounts a secret file with its owner and mode from the host, so the user 10001 must be able to
-read it:
+`token new --add` writes the token into `auth.tokens` of the configuration file. It needs that file
+writable. With the configuration mounted `:ro`, run it where you edit the file, or add the entry by
+hand.
 
-- Owned by 10001 with `chmod 0400` (`sudo chown 10001 secrets/*`), the file stays hidden from the
-  host's other users.
-- `chmod 0644` is the way without root.
-- `check-config` and the start say so when the user 10001 cannot read the file.
+Docker mounts a secret file with its owner and mode from the host, so the user 10001 must be able to
+read it. Give it to that user with `sudo chown 10001 secrets/*` and `chmod 0400`. The file then stays
+hidden from the host's other users. `check-config` and the start say so when the user 10001 cannot
+read the file.
 
 [docker/compose.secrets.example.yml](https://github.com/eizedev/pivotkit/blob/main/docker/compose.secrets.example.yml)
 and [docker/pivotkit.secrets.example.json](https://github.com/eizedev/pivotkit/blob/main/docker/pivotkit.secrets.example.json)

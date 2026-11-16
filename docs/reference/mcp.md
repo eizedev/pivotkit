@@ -6,8 +6,9 @@ description: The pivotkit MCP server - tools for an AI client to describe data s
 # pivotkit-mcp
 
 `pivotkit-mcp` is an [MCP](https://modelcontextprotocol.io) server. An AI client (Claude Code,
-Claude Desktop, VS Code and others) uses it to build pivot reports over data the operator names. The
-model never reads the data itself:
+Claude Desktop, VS Code and others) uses it to build pivot reports over data the operator names.
+Through the server, the model reads only what the policy shows, not the data itself. A client with
+file tools can [reach more](../model-data.md#beyond-policy). The model works like this:
 
 - It sees what the operator allows of each source. By default, that is names, types and counts.
 - It writes a [view](view-file.md) and lets the server check it.
@@ -337,9 +338,9 @@ one probably meant.
 | `output.baseUrl` | - | none | The address the directory is served at. File names start with 22 random characters. Results over sources whose fields are all `show` carry a `url`. Others carry none, since anyone with it could open what the model was not shown |
 | `output.downloads` | - | on over HTTP | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` (`clientId`, `clientSecret`, `issuer`, `scopes`) |
 | `output.upload` | - | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method` (PUT), `timeMs` (30000), `maxBytes`, `keepLocal` (true), `bind` (`none`), `intranet` |
-| `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold. A new report deletes the oldest reports, whoever made them. Drafts are never deleted this way (see [REST](rest.md#running) for the trade-off) |
+| `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold. A new report deletes the oldest reports, whoever made them. Drafts are never deleted this way, nor by age (see [REST](rest.md#running) for the trade-off) |
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold. A new report deletes the oldest reports until it fits |
-| `output.maxAgeDays` | - | 30 | Delete reports and drafts older than this many days from the top level of the output directory, at start and every hour. Also delete the temporary files of writes the server was killed in (older than an hour). `0`: no age limit. The default applies only to a directory of the reports' own (see [REST](rest.md#running)) |
+| `output.maxAgeDays` | - | 30 | Delete reports older than this many days from the top level of the output directory, at start and every hour. Also delete the temporary files of writes the server was killed in (older than an hour). `0`: no age limit. The default applies only to a directory of the reports' own (see [REST](rest.md#running)) |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `policy.data`, `policy.profiles.<name>.data` | - | MCP: on | `false`: the caller may not send [its own data](#data) (`inline:`). REST needs `true` |
 | `mcp.data` | - | 500 rows, 5000 cells, 262144 bytes | `false` switches [data in the request](#data) off. `{ "rows", "cells", "bytes" }` lowers the cap. A value above the built-in one is an error |
@@ -553,7 +554,8 @@ differs, the line names it as `peerAddress`.
 
 The client is the static token's name or the OAuth token's client id. A line holds the person only
 where you ask for it with `audit.subject`, as `subject`, and never their groups or other claims. No
-line holds a view, a value, a token or a full path. The log is the supervisor's to keep and rotate.
+line holds a view, a value or a token. A call's line holds no path. Lines at start can name the
+operator's own file paths. The log is the supervisor's to keep and rotate.
 
 `audit.subject` names the person of an OAuth token (its `auth.subjectClaim`) on `call`, `request`
 and `download` lines. A refused request never names one. A static token's caller is named by the

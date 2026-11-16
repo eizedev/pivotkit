@@ -259,7 +259,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - Tools to list and describe sources, and to suggest a draft view.
     - Tools to write views, or lay them out by field names, and to validate and describe them.
     - Tools to render reports into files, make links and draft schedules.
-    - The model never reads the data itself.
+    - Through pivotkit, the model reads only what the policy shows. A client with file tools can
+      [reach more](model-data.md#beyond-policy).
 - An exposure policy per field ([what reaches an AI model](model-data.md), [exposure policy](reference/mcp.md#policy)):
 
     | Level | The model gets |

@@ -41,8 +41,10 @@ build a report by dragging fields and take it to Excel. The same report renders 
   More: [command line](https://pivotkit.eize.dev/getting-started/cli/).
 - Other programs get reports from a [REST service](https://pivotkit.eize.dev/getting-started/rest/),
   with an OpenAPI document and a container image. AI clients get them from an
-  [MCP server](https://pivotkit.eize.dev/getting-started/mcp/), which never hands the model the
-  rows. One `docker run` starts both, with a token of their own:
+  [MCP server](https://pivotkit.eize.dev/getting-started/mcp/). It hands the model only what the
+  policy shows. A client that can read files or open links can
+  [reach more](https://pivotkit.eize.dev/model-data/#beyond-policy). One `docker run` starts
+  both, with a token of their own:
   [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/).
 - The REST service and the MCP server read live data. They read a file, call an HTTP API or run
   your own code with the caller's parameters: [sources](https://pivotkit.eize.dev/reference/sources/).
@@ -81,8 +83,8 @@ the MCP server run in Node 22 or later.
 | [pivotkit-xlsx](packages/pivotkit-xlsx/) | A [plugin](https://pivotkit.eize.dev/reference/plugins/) that reads Excel .xlsx workbooks in the browser. It checks a workbook before it parses it. pivotkit-core reads CSV and JSON itself. | `npm install pivotkit-xlsx` |
 | [pivotkit-report](packages/pivotkit-report/) | [Reports without a browser](https://pivotkit.eize.dev/reference/report/), in Node and the browser. It makes a view over rows into JSON, CSV, XLSX, an SVG chart or a printable HTML report from a template. | `npm install pivotkit-report echarts` |
 | [pivotkit-cli](packages/pivotkit-cli/) | The [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`. It renders, validates and describes views in CI, with exit codes and `--json`. | `npm install --global pivotkit-cli` |
-| [pivotkit-server](packages/pivotkit-server/) | A [REST service](https://pivotkit.eize.dev/reference/rest/) over the same operations, with an OpenAPI 3.1 document. Sign-in with tokens or OAuth, and policy profiles. Sources are files or an operator's API: [HTTP sources](https://pivotkit.eize.dev/reference/sources/#http). It is the shared core of the MCP server. One command runs REST, MCP and the CLI, and so does the [container image](https://pivotkit.eize.dev/reference/container/). | `npm install --global pivotkit-server` |
-| [pivotkit-mcp](packages/pivotkit-mcp/) | An [MCP server](https://pivotkit.eize.dev/reference/mcp/). An AI client describes data sources, writes and checks views, and has reports made into files or links. The client does not read the data. The server runs over stdio and Streamable HTTP, with a token or OAuth. | `npx -y pivotkit-mcp` |
+| [pivotkit-server](packages/pivotkit-server/) | A [REST service](https://pivotkit.eize.dev/reference/rest/) over the same operations, with an OpenAPI 3.1 document. Sign-in with tokens or OAuth, and policy profiles. Sources are files or an operator's API: [HTTP sources](https://pivotkit.eize.dev/reference/sources/#http). It is the shared core of the MCP server. `pivotkit-server serve` runs the REST service, and the MCP endpoint too when pivotkit-mcp is installed beside it. The [container image](https://pivotkit.eize.dev/reference/container/) holds both and the CLI. | `npm install --global pivotkit-server` |
+| [pivotkit-mcp](packages/pivotkit-mcp/) | An [MCP server](https://pivotkit.eize.dev/reference/mcp/). An AI client describes data sources, writes and checks views, and has reports made into files or links. Through the server, the client reads only what the policy shows. The server runs over stdio and Streamable HTTP, with a token or OAuth. | `npx -y pivotkit-mcp` |
 
 ## Example
 

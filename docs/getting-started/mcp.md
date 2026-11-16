@@ -7,9 +7,9 @@ description: Let an AI client (Claude Code, Claude Desktop, VS Code and others) 
 
 `pivotkit-mcp` lets an AI client build pivot reports for you. You ask for "sales by region per
 quarter as Excel". The model builds a view. The server checks it against your data and writes it
-into a file you open. The model sees the fields of your data, but never reads the data itself. By default
-it sees names, types and counts, and no values. The [reference](../reference/mcp.md) has every tool
-and setting.
+into a file you open. Through pivotkit, the model sees the fields of your data, not the data itself.
+By default it sees names, types and counts, and no values. The [reference](../reference/mcp.md) has
+every tool and setting.
 
 You need Node 22 or later. A client either starts the server itself (stdio) or connects to a server
 that runs (HTTP). Without Node, use [Server in 5 minutes](server-in-5-minutes.md). It starts the
@@ -87,6 +87,14 @@ Then ask, for example:
 
 The server answers with the file's place. A report can use fields whose values you did not let the
 model see. Then the server says that the model has not seen the content.
+
+!!! warning "A client with file tools can read the files"
+    Over stdio, the answer names the report's absolute path. Claude Code, VS Code and other clients
+    with file or shell tools can read that file and your source files. The model then sees values
+    the policy keeps back, and its provider receives them. So over stdio the policy is no access
+    control against such a client. Give it only data its model may see. Or run the server as another
+    user and connect over [HTTP](#4-for-a-team-http).
+    [What the policy does not cover](../model-data.md#beyond-policy) has the details.
 
 ## 3. Choose what the model may see
 
@@ -258,7 +266,7 @@ account or as LocalSystem. Use a local or domain account that is no administrato
 | `app`, `pivotkit.json` | read | none (an administrator updates them) |
 | `data` | read | modify (the export script writes there) |
 | `secrets` | read | modify (the script that writes the token) |
-| `out` | modify (reports, drafts, `output.maxAgeDays` deletes old ones) | read, if a script hands the files on |
+| `out` | modify (reports, drafts, `output.maxAgeDays` deletes old reports) | read, if a script hands the files on |
 | `logs` | modify (NSSM runs as this account and writes and renames the log) | modify (the schedule that deletes old logs), or read when an administrator deletes them |
 
 For example:

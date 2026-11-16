@@ -312,8 +312,8 @@ treats the model as a caller that may have been steered by text it read. It trea
 that may try to steer the model. [What reaches an AI model](model-data.md) shows the answers a model
 gets at each level, and how to set them per client.
 
-- **The model never gets the data.** It gets what the [exposure policy](reference/mcp.md#policy)
-  allows per field:
+- **Through pivotkit, the model gets what the policy shows.** It gets what the
+  [exposure policy](reference/mcp.md#policy) allows per field:
 
     | Level | The model gets |
     | --- | --- |
@@ -353,6 +353,15 @@ gets at each level, and how to set them per client.
 
     Leave out of the data, or `hide`, what the model must not learn about.
 
+- **Over stdio, the policy is no access control against the client.** A result names the report
+  file by its absolute path. A client with file or shell tools, such as Claude Code or VS Code, can
+  read that file and the source files. The model then reads values the policy keeps back. Give such
+  a client only data its model may see. Or run the server as another user or on another machine,
+  and connect over HTTP, where a result names no path.
+- **Links reach the model.** A sign-in link or a one-time link (`bind: "once"`) is in the result the
+  model reads. A client with a browser tool in the person's signed-in session can open it.
+  [What the policy does not cover](model-data.md#beyond-policy) has both.
+
 - **Data values are text, never instructions.** Names and values reach the model only inside the
   result's JSON. They are cleaned of control and direction characters and cut at 80 characters. They
   never appear in the sentence a tool answers with, in the tool descriptions or in the instructions.
@@ -384,7 +393,8 @@ gets at each level, and how to set them per client.
     - This never deletes drafts awaiting approval. Drafts may take at most half of `maxFiles`. A
       draft over that is refused.
     - Set `maxFiles` high. Give `render_view` and `draft_schedule` scopes of their own. Keep
-      `output.maxAgeDays` on, 30 days by default. Keep the rate limits ([REST](reference/rest.md#auth)).
+      `output.maxAgeDays` on, 30 days by default. It deletes old reports, never drafts. Keep the
+      rate limits ([REST](reference/rest.md#auth)).
 - **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) belongs to the
   model, not the operator:
     - No exposure policy applies to it.
@@ -473,7 +483,8 @@ gets at each level, and how to set them per client.
     - Source ids include `inline:`, `file:` for a file by path, and `unknown` for anything else a
       caller typed.
     - The client is a token's name or an OAuth client id.
-    - The log never names a view, a value, a token or a full path.
+    - A request's or a call's line never names a view, a value, a token or a path. Lines at start
+      can name the operator's own file paths.
     - It names a person's id only when the operator sets `audit.subject`. With `hash`, the id is an
       HMAC-SHA256 with `audit.key`, which has at least 16 characters. With OAuth, the server reads
       the key at start. With a static token it does not read it. A rotated key needs a restart and changes every value. With `plain`,
@@ -545,12 +556,17 @@ and the sign-in above hold for it too. What differs:
   endpoint does not reach it, and the other way round.
 - **CORS** is off. A browser request is refused unless its origin is listed exactly
   (`rest.cors.origins`, never `*`).
-- **Limits** slow down scripts and token guessing, on the REST service and the MCP endpoint alike.
-  Each counts on its own:
+- **Limits** slow down scripts, on the REST service and the MCP endpoint alike. Each counts on its
+  own:
     - per caller: requests per minute and requests at once
     - per address: refused tokens
 
     The counts live in one process's memory.
+
+    The limit on refused tokens does not slow down guessing. Beyond it, a wrong token from that
+    address gets 429 instead of 401, but a right token still works. What stops guessing is a token
+    nobody can guess. Make every token with `pivotkit-server token new`: 32 random bytes. The server
+    refuses a configured token that is too short or too simple.
 
 - **Errors** are problem documents with a stable code. A message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.

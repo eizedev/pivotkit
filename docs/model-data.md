@@ -5,10 +5,13 @@ description: What an AI model sees through pivotkit's MCP server, and what a pro
 
 # What reaches an AI model
 
-The model never reads your data. It reads what the [exposure policy](reference/mcp.md#policy) shows
-of each field. By default, that is a field's name, type and counts. Everything a model reads goes to
-the provider that runs it, so the policy decides what that provider receives. This page shows, for
-each kind of client, exactly what it gets and which setting changes it.
+Through pivotkit, the model reads only what the [exposure policy](reference/mcp.md#policy) shows of
+each field. By default, that is a field's name, type and counts. Everything a model reads goes to
+the provider that runs it. This page shows, for each kind of client, exactly what it gets and which
+setting changes it.
+
+A client that can read files or open links can reach more than pivotkit hands it. See
+[what the policy does not cover](#beyond-policy).
 
 | Client | How it connects | Who it is to pivotkit | What decides what it sees |
 | --- | --- | --- | --- |
@@ -18,10 +21,11 @@ each kind of client, exactly what it gets and which setting changes it.
 | A person who opens a link | a browser | the person, where the link is bound to a sign-in | the link's binding. The report page of `create_link` loads data with the person's own rights. See [links](#links). |
 
 !!! note "In plain words"
-    The model gets the names of your columns and how many rows and distinct values they have. It
-    gets values only of the columns you mark `show` or `values`. pivotkit writes a report that uses
-    any other column to a file the model does not read, and the person opens that file. The company
-    that runs the model receives whatever the model reads.
+    Through pivotkit, the model gets the names of your columns and how many rows and distinct values
+    they have. It gets values only of the columns you mark `show` or `values`. pivotkit writes a
+    report that uses any other column to a file it does not hand the model, and the person opens that
+    file. A client with file tools can still read that file. The company that runs the model receives
+    whatever the model reads.
 
 ## One request at each level { #levels }
 
@@ -285,13 +289,28 @@ the data with the rights of the person who opens it, and the exposure policy doe
 same holds for a PowerShell Universal app that shows a report with `New-UDPivotReport`. The report
 runs in the person's browser with the data the app gives it.
 
+## What the policy does not cover { #beyond-policy }
+
+The policy decides what pivotkit hands the model. Some clients can reach more on their own:
+
+- **Over stdio**, a result names the report file by its absolute path, as the answers
+  [above](#levels) show. A client with file or shell tools, such as Claude Code or VS Code, can read
+  that file and the source files. The model then reads values the policy keeps back, and its
+  provider receives them. Over stdio, the policy is no access control against such a client. Give
+  such a client only data its model may see. Or run the server as another user or on another
+  machine, and connect over HTTP, where a result names no path.
+- **A sign-in link or a one-time link** (`bind: "once"`) is in the result the model reads. A client
+  with a browser tool in the person's signed-in session can open it, and the model then reads the
+  report.
+
 ## Per client: one server, different rules { #per-client }
 
 ### A client on your machine (stdio) { #stdio }
 
 A client that starts `pivotkit-mcp` itself signs in to nothing. The server has one caller, `local`,
 and no profile applies. `auth` settings do nothing over stdio. This client sees the policy in the
-configuration it starts.
+configuration it starts. A client with file or shell tools can also read the report and source files
+([what the policy does not cover](#beyond-policy)).
 
 To give two clients different rules, give each its own configuration file:
 
@@ -468,7 +487,10 @@ A tool call's log line holds:
 - the source's id: `inline:` with the number of rows and columns of data sent, `file:` for a file by
   path
 - the status, the time and a request id
-- over HTTP, the client's IP address (`log.address`, on by default)
+- over HTTP, the `X-Request-Id` the request came with (`upstreamRequestId`). A proxy may put a user
+  id or a session id there.
+- over HTTP, the client's IP address. This is personal data and on by default. `"log": { "address":
+  "off" }` leaves it out.
 
 At the default level, a log line never holds a view, a value, a parameter's value, a token or a
 person's groups. `--log debug` is for setting a server up. Its lines can hold an error's own
@@ -524,11 +546,13 @@ source and per profile, who may send data, and which reports get links.
 5. With OAuth and groups, set `auth.defaultProfile` to a narrow profile. Otherwise, people in none
    of the groups are refused.
 6. Decide how people get their reports: sign-in links (`output.downloads.signIn`), one-time links,
-   or asking you. Decide how long reports stay (`output.maxAgeDays`, 30 days).
+   or asking you. Decide how long reports stay (`output.maxAgeDays`, 30 days). Schedule drafts have
+   no age limit. Remove the ones nobody approved.
 7. Run `check-config` and read each profile's levels and the `Delivery:` section. Then call
    `describe_source` with the cloud client's own token and read what it gets.
 8. Never give a model's token `results: true`. Leave `files.allowDirs`, `files.list` and
-   `output.baseUrl` unset for a cloud client.
+   `output.baseUrl` unset for a cloud client. Over stdio, a client with file or shell tools reads the
+   files itself ([what the policy does not cover](#beyond-policy)).
 9. Put fields about people at `hide`, not `summary`. `summary` still names the field and counts its
    values, and the counts can tell whether a person is in the data.
 10. Tell the people who use it what the assistant's provider receives. See

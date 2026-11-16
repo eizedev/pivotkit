@@ -46,12 +46,13 @@ then the file, then the variable.
     - Text is coloured only on a terminal, and only when `NO_COLOR` is not set.
     - The [container image](container.md) sets `PIVOTKIT_LOG_FORMAT=json`, because `docker run -t`
       gives the process a terminal.
-- **`log.address`**: `on` puts the client's address on every line of a request:
+- **`log.address`**: `on`, the default, puts the client's address on every line of a request:
     - `address`, the client as best known: with `http.trustProxy` the last entry of
       `X-Forwarded-For`, else the socket's peer
     - `peerAddress`, the socket's peer, where it differs (behind a proxy, the proxy)
 
-    `off` leaves both out. An address is personal data ([privacy](../privacy.md#logs)).
+    An address is personal data ([privacy](../privacy.md#logs)). `off` leaves both out:
+    `"log": { "address": "off" }`, `--log-address off` or `PIVOTKIT_LOG_ADDRESS=off`.
 
 `started` names the format it chose (`logFormat`), so a log that suddenly reads as text or JSON
 tells you why.
@@ -81,7 +82,7 @@ A line written while a request or tool call runs adds its scope:
 | --- | --- |
 | `requestId` | 11 random characters, the same on every line of the request, in its `X-Request-Id` answer header and in its error ([correlation](#correlation)) |
 | `traceId` | 32 hex characters: the trace id of a valid W3C `traceparent` header, else a new one |
-| `upstreamRequestId` | The `X-Request-Id` the request came with (a proxy's id), 1 to 128 letters, digits and `_ . : + / = -`. Any other value is not logged |
+| `upstreamRequestId` | The `X-Request-Id` the request came with (a proxy's id), 1 to 128 letters, digits and `_ . : + / = -`. Any other value is not logged. The caller or a proxy chooses it, so it can hold a user id or a session id |
 | `address` | The client as best known, unless `log.address` is `off`. With `http.trustProxy`, the last entry of `X-Forwarded-For`, or `invalid` when that is no IP address (the request is never put on the proxy's address). Without it, the socket's peer |
 | `peerAddress` | The socket's peer, where it differs from `address` (behind a trusted proxy, the proxy) |
 
@@ -167,7 +168,8 @@ A warning's text (`msg`) is free text and may change between versions. Query by 
 `template`: the source's configured address template with the backend's host, never a value of a
 parameter.
 
-No line holds a view, a value, a token, a person's groups or other claims, or a full path. Text a
+No line holds a view, a value, a token, or a person's groups or other claims. A request's or a
+call's line holds no path. Lines at start can name the operator's own file paths. Text a
 caller or a backend controls is cut, and its control characters (C0, C1, the bidi controls, the line
 separators) are removed in both formats, so it cannot start a line of its own, a field in the text
 format, or a terminal escape in a log viewer.

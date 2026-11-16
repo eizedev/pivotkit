@@ -462,16 +462,20 @@ test("docs and READMEs write no caret range of a pivotkit package; the version s
     }
 });
 
-// The "Server in 5 minutes" commands are copied as they are: every image tag, release tag and
+// The "Server in 5 minutes" and Kubernetes commands are copied as they are: every image tag, release tag and
 // PIVOTKIT_VERSION on the page names pivotkit-server's version in full, and so does the example
 // version of the container examples (RELEASING.md, "Each release")
 const IMAGE_VERSIONS = /ghcr\.io\/eizedev\/pivotkit:(\d+\.\d+\.\d+)|pivotkit-server@(\d+\.\d+\.\d+)|PIVOTKIT_VERSION\s*=\s*"?(\d+\.\d+\.\d+)|e\.g\. (\d+\.\d+\.\d+)/g;
-test("server-in-5-minutes.md and the container examples name pivotkit-server's current version everywhere, in full", () => {
+test("server-in-5-minutes.md, kubernetes.md and the container examples name pivotkit-server's current version everywhere, in full", () => {
     const { version } = JSON.parse(readFileSync(new URL("packages/pivotkit-server/package.json", root), "utf8"));
     const named = (file) => [...readFileSync(new URL(file, root), "utf8").matchAll(IMAGE_VERSIONS)].map((m) => [m[0], m[1] ?? m[2] ?? m[3] ?? m[4]]);
     const page = named("docs/getting-started/server-in-5-minutes.md");
     assert.ok(page.some(([m]) => m.startsWith("ghcr")) && page.some(([m]) => m.startsWith("pivotkit-server@")) && page.some(([m]) => m.includes("PIVOTKIT_VERSION")), `the page names no image tag, release tag or PIVOTKIT_VERSION: ${JSON.stringify(page)}`);
-    for (const file of ["docs/getting-started/server-in-5-minutes.md", "docker/compose.example.yml", "docker/compose.secrets.example.yml", "docker/kubernetes.example.yaml"]) {
+    // the Kubernetes page downloads the manifest of a release tag, never of main
+    const kubernetes = named("docs/getting-started/kubernetes.md");
+    assert.ok(kubernetes.some(([m]) => m.startsWith("pivotkit-server@")), `kubernetes.md names no release tag pivotkit-server@<version>: ${JSON.stringify(kubernetes)}`);
+    assert.doesNotMatch(readFileSync(new URL("docs/getting-started/kubernetes.md", root), "utf8"), /eizedev\/pivotkit\/(blob\/)?main\/docker\//, "kubernetes.md takes a file of docker/ from main: name the release tag pivotkit-server@<version>");
+    for (const file of ["docs/getting-started/server-in-5-minutes.md", "docs/getting-started/kubernetes.md", "docker/compose.example.yml", "docker/compose.secrets.example.yml", "docker/kubernetes.example.yaml"]) {
         for (const [where, found] of named(file)) {
             assert.equal(found, version, `${file}: ${where} is not pivotkit-server ${version}: update it in the release pull request`);
         }

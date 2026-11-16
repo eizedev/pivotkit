@@ -33,7 +33,8 @@ npx -y pivotkit-server serve --source sales=sales.csv --output reports
 ```
 
 The log says `started` with the address. Leave it running and open a second terminal in the same
-folder.
+folder. If your shell sets `PIVOTKIT_TOKEN`, the start warns, since you did not set `auth.mode`.
+[Step 6](#policy) sets up tokens.
 
 For another port, use one of these and use that port in the calls below:
 
@@ -122,13 +123,14 @@ With the name fixed, render the report into the output folder:
     ```
 
 The answer names the file in `output.filename`, here `sales.xlsx`. The file is in the `reports`
-folder as `sales.pivotkit-out.xlsx`. The answer's `message` says "The report is saved on the server; ask the operator
-how to open it."
+folder as `sales.pivotkit-out.xlsx`. The answer's `message` says "The report is saved on the server;
+ask the operator how to open it."
 
-A program does not get the server's path. To get the report:
+You get this answer with the default policy. A program does not get the server's path, and a source
+with fields that are not shown gets no link. The next steps get you the report:
 
+- A person takes a [download link](#download-link) (step 5).
 - A program takes the file itself through the file route ([step 6](#policy)).
-- A person takes a [download link](#download-link).
 
 In a script, check `ok`. A view with errors also answers 200. That answer has `ok: false`, its
 `findings` and no file.

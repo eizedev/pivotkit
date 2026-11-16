@@ -83,6 +83,9 @@ and one shared part (`createTable`) does the rest.
   text around (U+202E and its kind). Line breaks and tabs become spaces. An empty name becomes
   `Column 3`, its position. A name that repeats, compared without case, becomes `Name (2)`. Each
   change is a note.
+- **Nested JSON**: the JSON reader flattens a nested object into columns with dotted names.
+  `{ "meta": { "Secret": 1 } }` becomes the column `meta.Secret`, with the note `JSON_FLATTENED`.
+  It flattens four levels. A deeper object stays JSON text in one column.
 - **Values**: `createTable` takes out control and direction characters. Tabs and line breaks become a
   space. It trims text and cuts it at `limits.textLength` characters. Text that looks like a formula
   (`=`, `+`, `-`, `@`) stays as it is: the [exports](../security.md#exports) guard it.

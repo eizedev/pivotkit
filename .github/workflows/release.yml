@@ -1,16 +1,12 @@
 name: Release
 
-# Prepared, not active. Stages a package of this repository (pivotkit-core, pivotkit-react,
-# pivotkit-element, pivotkit-xlsx, pivotkit-report, pivotkit-cli, pivotkit-server or pivotkit-mcp)
-# on npm with provenance when a tag <package>@<version> is pushed; a maintainer approves the staged
-# version on npm with two-factor authentication before it is published. Runs only after the
-# maintainer has
-#   1. made the repository public (npm provenance is not available for private repositories),
-#   2. created the package on npm and set up trusted publishing for this repository, the workflow
-#      release.yml and the environment "npm", with "Allow npm publish" unchecked (staging only),
-#   3. created the GitHub environment "npm" with required reviewers, deployable from tags only,
-#   4. set the repository variable NPM_RELEASE_ENABLED to "true".
-# Until then every run is skipped. See RELEASING.md.
+# Stages a package of this repository (pivotkit-core, pivotkit-react, pivotkit-element,
+# pivotkit-xlsx, pivotkit-report, pivotkit-cli, pivotkit-server or pivotkit-mcp) on npm with
+# provenance when a tag <package>@<version> is pushed; a maintainer approves the staged version on
+# npm with two-factor authentication before it is published. It needs trusted publishing on npm for
+# this workflow and the environment "npm" (staging only), the GitHub environment "npm" with required
+# reviewers, and the repository variable NPM_RELEASE_ENABLED set to "true" (RELEASING.md, "One-time
+# setup"). Without that variable every run is skipped.
 #
 # Two jobs: "build" installs, checks and packs without any publishing right (the dependencies run
 # there); "publish" gets the OIDC token, installs nothing and stages the tarball "build" made.

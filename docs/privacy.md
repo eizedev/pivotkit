@@ -15,7 +15,8 @@ carries it. It makes no compliance claim.
 | What | Where | How long | Who sees it |
 | --- | --- | --- | --- |
 | [Source data loaded for a caller](#memory) (code and HTTP sources) | the server's memory | until newer loads push it out (at most 64 loads and `sourceCache.maxMb`, default 256 MiB, a quarter per person or shared source) or a restart | the caller it was loaded for, through the policy |
-| [Reports and schedule drafts](#retention) | files in `output.dir` | 30 days by default (`output.maxAgeDays`), or until `output.maxFiles`/`output.maxMb` push them out | whoever opens their link, or can read the directory |
+| [Reports](#retention) | files in `output.dir` | 30 days by default (`output.maxAgeDays`), or until `output.maxFiles`/`output.maxMb` push them out | whoever opens their link, or can read the directory |
+| [Schedule drafts](#retention) | files in `output.dir` | until the host or you remove them. No age limit | whoever can read the directory, such as the host that approves them |
 | [Data sent in a request](#inline) (`inline:`) | the server's memory for one call; a report over it in `output.dir` | the call; the report as any report | the sender, through the model or program it uses |
 | [Cache keys](#memory) | the server's memory | as long as their data | nobody: values, groups and claims only as a keyed digest |
 | [Exchanged backend tokens](#memory) | the server's memory | at most until the person's own token expires | the backend they are for |
@@ -59,6 +60,9 @@ counting the row's empty cells at the end. It then leaves the row out.
 There is one exception. pivotkit reads a file whose every row has the same width and holds nothing
 beyond the named header as a file with a separator that ends every line, and keeps its rows.
 
+A value can open a quote and never close it. pivotkit then cannot tell where the cells after it
+begin. A source with a field at `hide`, `summary` or `values` refuses such a file.
+
 pivotkit cannot detect two kinds of shift from the data:
 
 - a row whose writer dropped a cell at the end, which has the header's width
@@ -76,6 +80,9 @@ For sources with fields kept back, write CSV with quoted values, or use xlsx or 
   can answer "is this person in the data?". The policy withholds a result's shape when a view uses a
   field that is not shown, but every number in a report is real. pivotkit does not suppress small
   cells. Filter out or merge small groups in the data itself when that matters.
+- **Error codes and timing** are not hidden. A view over a field that is not shown can end in
+  `LIMIT_EXCEEDED` or a timeout. That answer tells the caller one bit about the data: whether the
+  work went over a limit.
 - **Links and drafts** carry a view (field names, filter items) to whoever opens them. This policy
   does not limit the report page a link opens. It also does not limit a scheduled report once a
   person approves the draft. Whoever may open them sees the values. Keep those pages behind your own
@@ -91,6 +98,10 @@ For sources with fields kept back, write CSV with quoted values, or use xlsx or 
     - Other columns the reader names itself ("Column 8" for cells without a header) take the default
       level. For a source of personal data, start from `"default": "hide"` and list the fields to
       show.
+    - A JSON source's nested properties become fields with a dotted name
+      ([column names](reference/import.md#column-names-and-values)). A rule for `meta` does not cover
+      `meta.Secret`. Only a rule that names `meta.Secret` does. For JSON sources, start from
+      `"default": "hide"` too.
 
 ## The `values` level { #values }
 
@@ -304,11 +315,13 @@ A line holds:
 - the client: a token's name or an OAuth client id
 - a random request id. It names nothing. It lets you find the line a person quotes from an error.
 - a trace id
+- `upstreamRequestId`: the `X-Request-Id` the request came with, up to 128 characters. The caller
+  or a proxy chooses it. A proxy may put a user id or a session id there.
 - the status and the time
 
 At the default level a line never holds a view, a value or a token.
 
-A request's lines hold the client's IP address (`log.address`, on by default):
+A request's lines hold the client's IP address. This is on by default (`log.address`):
 
 - `address` is the client as best known. With `http.trustProxy` it is the address the proxy names,
   else the address the connection came from.
@@ -316,8 +329,8 @@ A request's lines hold the client's IP address (`log.address`, on by default):
 
 An IP address can identify a person, so it is personal data. It is there to tell an attack or a
 misbehaving script from a person, and to find a request a person reports. Keep the log no longer
-than that needs. Or set `log.address` to `off` (flag `--log-address off`) when the proxy's own log
-covers it.
+than that needs. To leave addresses out, set `"log": { "address": "off" }`, the flag
+`--log-address off` or `PIVOTKIT_LOG_ADDRESS=off`. Do that when the proxy's own log covers it.
 
 Other lines:
 
@@ -350,9 +363,9 @@ concerned, and keep that log no longer than the purpose needs.
 
 Reports and drafts stay in the output directory until one of these deletes them:
 
-- **Age.** `output.maxAgeDays` is 30 by default. The server deletes reports and drafts older than
-  30 days at start and every hour, drafts waiting for approval too. It also deletes the temporary
-  files of writes the server was killed in, once they are an hour old.
+- **Age.** `output.maxAgeDays` is 30 by default. The server deletes reports older than 30 days at
+  start and every hour. It also deletes the temporary files of writes the server was killed in, once
+  they are an hour old. It never deletes a schedule draft by age.
     - `output.maxAgeDays: 0` keeps them with no age limit. `check-config` warns under `Retention:`
       when you set 0 while closed sources or data sent in requests are on.
     - The default does not apply where the output directory holds the configuration or a source,
@@ -363,6 +376,10 @@ Reports and drafts stay in the output directory until one of these deletes them:
   deletes the oldest reports, whoever asked for them. This rule does not delete drafts. Drafts may
   take at most half of `output.maxFiles`, and the server refuses a draft over that.
 - **You**, on a schedule of your own.
+
+A schedule draft waits for a person to approve it, so no rule of the server deletes it. It stays
+until the host or you remove it. Drafts carry a view and recipients by name. Remove the drafts
+nobody approved, on a schedule of your own.
 
 A link that expires does not remove its file. You cannot search reports per person. To remove a
 person's reports, you delete files.
@@ -408,6 +425,17 @@ An MCP client sends what the model sees (descriptions, findings, inline results)
 provider. What the policy shows a model is what that provider receives.
 [What reaches an AI model](model-data.md) shows it per level and per client. See also
 [Security: the MCP server](security.md#mcp).
+
+The policy limits what pivotkit hands the model. It does not limit what the client reaches by other
+means:
+
+- **Over stdio**, a result names the report file by its absolute path. A client with file or shell
+  tools, such as Claude Code or VS Code, can read that file and the source files. The model then
+  reads values the policy keeps back, and its provider receives them. Over stdio, the policy is no
+  access control against such a client. Run the server as another user or on another machine, and
+  connect over HTTP, where a result names no path.
+- **A sign-in link or a one-time link** (`bind: "once"`) is in the result the model reads. A client
+  with a browser tool in the person's signed-in session can open it.
 
 ## What to tell your users { #tell-users }
 

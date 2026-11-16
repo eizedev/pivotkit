@@ -149,21 +149,44 @@ To store the report, or start it from a saved one, make it **controlled**. Pass 
 from `onViewChange`. The undo history stays inside the report however often your app renders.
 `Report.jsx` of the app above becomes:
 
-```jsx
-import { useState } from "react";
-import { PivotReport } from "pivotkit-react";
-import "pivotkit-react/styles.css";
+=== "Report.jsx"
 
-const rows = [/* the rows of the app above */];
-const presets = [
-    { name: "Sales per region", view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "sum" }] } }
-];
+    ```jsx
+    import { useState } from "react";
+    import { PivotReport } from "pivotkit-react";
+    import "pivotkit-react/styles.css";
 
-export function Report() {
-    const [view, setView] = useState(presets[0].view);
-    return <PivotReport data={rows} view={view} onViewChange={setView} />;
-}
-```
+    const rows = [/* the rows of the app above */];
+    const presets = [
+        { name: "Sales per region", view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "sum" }] } }
+    ];
+
+    export function Report() {
+        const [view, setView] = useState(presets[0].view);
+        return <PivotReport data={rows} view={view} onViewChange={setView} />;
+    }
+    ```
+
+=== "Report.tsx"
+
+    ```tsx
+    import { useState } from "react";
+    import { PivotReport, type ViewInput } from "pivotkit-react";
+    import "pivotkit-react/styles.css";
+
+    const rows = [/* the rows of the app above */];
+    const presets = [
+        { name: "Sales per region", view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "sum" }] } }
+    ];
+
+    export function Report() {
+        const [view, setView] = useState<ViewInput>(presets[0].view);
+        return <PivotReport data={rows} view={view} onViewChange={setView} />;
+    }
+    ```
+
+In TypeScript, type the state as `ViewInput`. Without it, TypeScript infers the preset's own type,
+and `tsc` refuses `onViewChange={setView}`.
 
 The steps below add props to this `<PivotReport>` inside `Report`.
 
