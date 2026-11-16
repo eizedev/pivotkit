@@ -17,6 +17,7 @@ import { lstat, realpath } from "node:fs/promises";
 import { isInside } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf } from "../config.js";
 import { OUTPUT_INSIDE_ALLOWED, SHARED_OUTPUT_TEXT, cannotCreate, entryOf, outputRefusal, ownFileDirs, plannedPath, writable } from "../context.js";
+import { reportsIn } from "../output.js";
 import { draftCap } from "../present.js";
 import { heading, plain, problem, warning } from "./format.js";
 
@@ -71,7 +72,6 @@ export async function section(options, registry) {
     const maxFiles = out.maxFiles ?? OUTPUT_DEFAULTS.maxFiles;
     items.push(plain(`at most ${maxFiles} files of pivotkit's (${draftCap(maxFiles)} of them schedule drafts) and ${out.maxMb ?? OUTPUT_DEFAULTS.maxMb} MB`));
     if (shared) {
-        items.push(plain("it holds the configuration or a source, template or token file: nothing there is deleted, and a full directory refuses new reports"));
         items.push(plain("no age limit: the directory holds other files"));
         if (out.maxAgeDays) {
             items.push(problem("output.maxAgeDays in a directory that holds the configuration or a source, template or token file; give the reports a directory of their own", stop));
@@ -83,6 +83,17 @@ export async function section(options, registry) {
         items.push(plain("when full, the oldest reports are deleted to make room; drafts are kept"));
         const days = maxAgeDaysOf(options, shared);
         items.push(plain(days > 0 ? `reports and drafts older than ${days} days are deleted` : "no age limit (output.maxAgeDays 0)"));
+        // what the next start's sweep deletes (output.js prune): drafts awaiting approval among them
+        if (days > 0) {
+            const before = Date.now() - days * 86_400_000;
+            const old = (await reportsIn(dir)).filter((f) => f.mtimeMs < before);
+            const drafts = old.filter((f) => f.draft).length;
+            const reports = old.length - drafts;
+            if (old.length) {
+                const parts = [...(drafts ? [`${drafts} schedule draft${drafts === 1 ? "" : "s"}`] : []), ...(reports ? [`${reports} report${reports === 1 ? "" : "s"}`] : [])];
+                items.push(warning(`${parts.join(" and ")} ${old.length === 1 ? "is" : "are"} older than ${days} days and ${old.length === 1 ? "is" : "are"} deleted at the next start; copy them away or set output.maxAgeDays: 0`));
+            }
+        }
     }
     return { items, upgrade: [] };
 }

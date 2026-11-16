@@ -387,13 +387,13 @@ export async function createRestHandler(context, runtime = {}) {
         const { caller } = who;
         // counted per person (a client's people do not share one bucket), the client's own cap beside it
         const limitKey = limitKeyOf(caller);
-        const wait = limits.take(limitKey);
+        const wait = limits.take(limitKey, caller.client);
         if (wait) {
             context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: "rate", ...callerFields(caller) });
             return problem("RATE_LIMITED", "too many requests; wait before the next", { headers: { "retry-after": String(wait) } });
         }
         if (!limits.enter(limitKey, caller.client)) {
-            context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: "concurrency", ...callerFields(caller) });
+            context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: limits.fullBy(limitKey, caller.client), ...callerFields(caller) });
             return problem("RATE_LIMITED", "too many requests at once; wait for one to finish", { headers: { "retry-after": "1" } });
         }
         const started = Date.now();

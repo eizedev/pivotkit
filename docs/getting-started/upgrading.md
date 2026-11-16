@@ -148,9 +148,12 @@ Then restart Claude Code.
 ## From 0.6.1 to the next release { #from-0-6-1 }
 
 !!! warning "Copy schedule drafts out of `output.dir` first"
+    This applies to pivotkit-server and pivotkit-mcp from 0.1.1 too, which come with this release.
     The new release deletes reports **and schedule drafts still waiting for approval** older than 30
-    days from `output.dir` at its first start ([why](#max-age-default)). Copy the drafts and reports
-    you want to keep elsewhere before you update, or set `output.maxAgeDays: 0`.
+    days from `output.dir` at its first start ([why](#max-age-default)): drafts are the files
+    `*.pivotkit-out.report.json`, reports the other `*.pivotkit-out.*` files. Copy those you want to
+    keep elsewhere before you update, or set `output.maxAgeDays: 0`. Run the new release's
+    `check-config` first: it counts the drafts and reports the first start would delete.
 
 Operators of pivotkit-server and pivotkit-mcp need not act for the exposure policy: every field
 keeps its level, and the automatic values rule and the new operator controls are off. Library hosts
@@ -216,7 +219,9 @@ at 78 columns. What was `NOT FOUND` or `NOT WRITABLE` is a `PROBLEM` line, and "
 is said only for what `serve` refuses: a missing source file, backend secret, download key or
 upload secret starts the server. With OAuth it asks the issuer for its public metadata once (3 s at
 most) and warns when it cannot be loaded. The exit code is as before: 1 for any problem
-([reading check-config](../reference/rest.md#check-config)).
+([reading check-config](../reference/rest.md#check-config)). A configuration the start refuses
+outright (an unknown key, a value out of range, a rule between keys) ends `check-config` at that
+message: the warnings of the later checks show once it is fixed.
 
 ### Print templates checked at start { #template-at-start }
 
@@ -323,8 +328,13 @@ With download links on (HTTP and `output.dir`, without `output.baseUrl`), the se
 with an `http://` `http.publicUrl` on a host other than loopback: a link is the credential, and it and
 its cookie would cross the network in clear text. Put the server behind TLS and write `https://`; or
 set `output.downloads.allowInsecureUrl: true` for a network you trust (the start and `check-config`
-then warn); or switch the links off with `output.downloads.enabled: false`. `http://localhost` and
-`http://127.0.0.1` work as before.
+then warn); or switch the links off with `output.downloads.enabled: false`, which turns off every
+download link, the https ones too. `http://localhost` and `http://127.0.0.1` work as before.
+
+```json
+{ "http": { "publicUrl": "http://reports.lan:3333" },
+  "output": { "dir": "reports", "downloads": { "allowInsecureUrl": true } } }
+```
 
 ### Columns without a header { #columns-without-header }
 
@@ -347,8 +357,9 @@ a hidden `Column N`. Quote values that hold the separator to keep the rows.
 `rest.rateLimit`, `rest.concurrency`, `mcp.rateLimit` and `mcp.concurrency` count per person (the
 issuer and subject of an OAuth token, a static token's name), no longer per OAuth client: people who
 sign in through one client no longer share 120 requests a minute and 4 at once. An OAuth token
-without a subject counts for its client. The people of one client together run at most eight times
-`concurrency` requests at once.
+without a subject counts for its client. The people of one client together get eight times the rate
+and run at most eight times `concurrency` requests at once. Make sure `auth.subjectClaim` names a claim
+your provider does not let users change.
 
 ### Request ids { #request-ids }
 

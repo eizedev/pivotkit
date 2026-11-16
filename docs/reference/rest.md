@@ -406,8 +406,9 @@ credentials mode is needed: the page sends the token in the `Authorization` head
 Besides pivotkit-core's [limits](../concepts/limits.md) and the workers' (`compute.*`, as for
 [MCP](mcp.md#configuration)), the REST service limits each caller: the person an OAuth token names (its issuer and subject), a
 static token by its name, or `local` without sign-in; an OAuth token without a subject counts for its
-client. The people of one OAuth client together run at most eight times `rest.concurrency` requests at
-once:
+client. The people of one OAuth client together get eight times `rest.rateLimit` and run at most eight
+times `rest.concurrency` requests at once (a refusal by the latter says `limit: clientShare` on its
+log line):
 
 | Key | Default | What it is |
 | --- | --- | --- |
@@ -535,12 +536,11 @@ WARNING (Auth): the token export's scope "typo:scope" is named by no source,
     tool or required scope
 
 Sources (1):
+  no description: vms (a model chooses sources by it: sources.<id>.description)
   values listed per shown field: 20 (policy.items)
   results inline in the tool answer: up to 500 cells (policy.inline)
   vms: an HTTP source, described under HTTP sources
     policy: hide by default; name show, cpu show
-    no description: a model chooses and reads sources by
-        sources.vms.description; say what the data is in a sentence
     fields: known only after a load (pivotkit-server check-source vms loads
         it)
 ...

@@ -130,6 +130,8 @@ name) keep the stricter of the two.
 A column the file gives no name (a blank header cell, or a row with more values than the header,
 which a separator inside a value can cause: the reader names it `Column 7`) is `hide` whatever the
 default, since its values may belong to another column; a rule of `fields` that names it holds.
+Such a name is a position, not a meaning: when the file gains or loses a column, `"Column 6": "show"`
+shows whatever lands there, so give the column a header instead where you can.
 Where a source hides a field, a row with more values than the header is left out whole, with a
 `ROWS_DROPPED` note that counts such rows: the values after a stray separator shift one column to the
 right, so a hidden value would land in the next column, which may be shown.
@@ -227,7 +229,7 @@ does not read counts (a shown date's grouping still follows its span).
 A model chooses a source and reads its fields by the words you give them: `list_sources` hands it
 `sources.<id>.description`, and `describe_source` each field's `fields.<name>.description`. Say in a
 sentence what a source holds (one row per what, since when) and explain field names that are short
-or coded; `check-config` names every source without a description.
+or coded; `check-config` names the sources without a description in one line under `Sources`.
 
 The runner reads a configuration file (JSON) and its flags; a flag wins, and a list given as flags
 adds to the file's. Paths in the file are relative to the file; a relative path given without a
@@ -281,9 +283,9 @@ error that names the key and the one probably meant.
 | `http.page` | - | on | The quick-start page; `{ "sources": true }` lists source ids on it; `false` turns it off |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
 | `http.maxConnectionsPerAddress` | - | 0 (no bound) | Connections one address may hold, loopback excepted ([Streamable HTTP](#http)) |
-| `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller (the person an OAuth token names, a static token's name, or `local` without sign-in; an OAuth token without a subject counts for its client), with up to `burst` at once after a pause |
+| `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller (the person an OAuth token names, a static token's name, or `local` without sign-in; an OAuth token without a subject counts for its client), with up to `burst` at once after a pause; the people of one OAuth client together get eight times both |
 | `mcp.rateLimit.failedAuthPerMinute` | - | 30 | HTTP: refused tokens per address and minute; beyond, a wrong token from that address gets 429 instead of 401 (a right one still works) |
-| `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once (an answer that streams holds its place until it ends); the people of one OAuth client together at most eight times this |
+| `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once (an answer that streams holds its place until it ends); the same setting holds the people of one OAuth client together to eight times this (the refusal's `limit` is `clientShare`) |
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log.level` | `--log level` | info | `debug`, `info`, `warn`, `error` or `off`; `"log": "debug"` is short for the level; `$PIVOTKIT_LOG_LEVEL` ([operations](operations.md#settings)) |
 | `log.format` | `--log-format format` | auto | `auto` (text on a terminal, JSON otherwise), `text` or `json`; `$PIVOTKIT_LOG_FORMAT` |
@@ -545,7 +547,7 @@ as SHA-256 digests in constant time, never logged, and refused in the address (`
 when a request carries two `Authorization` headers.
 The token's name is the client in the log. A token file that is missing, empty or shorter than 32
 characters while the server runs refuses every request with that token (401) and writes a warning
-naming the token, at most once a minute.
+naming the token and the cause, at most once a minute.
 
 ```json
 { "auth": { "mode": "token", "tokens": [
@@ -558,9 +560,13 @@ Rotating a token without a break:
 1. Add a second entry to `auth.tokens` for the new token, with the same `scopes` and `profile`, from
    a file of its own, and restart once (the list of tokens is read at start).
 2. Give the clients the new token, one after the other; both work meanwhile.
-3. Remove the old entry and restart, or, to rotate in place without a restart, write the new value
-   into the old entry's file: write it to a temporary file in the same directory, then rename it over
-   the old one (`mv`), so the server never reads a file that is half written.
+3. Remove the old entry and restart.
+
+A token file can also be overwritten in place, without a restart: every client still on the old value
+gets 401 from that moment, so do it only after steps 1 and 2, or when you mean to cut the old value
+off. Write the new value to a temporary file in the same directory and rename it over the old one
+(`mv`), so the server never reads a half-written file. The warning for a file that cannot be used
+names the cause (the file is missing, empty, or has N characters), never the value or the path.
 
 ### OAuth 2.1 { #oauth }
 
@@ -609,7 +615,7 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `auth.scopesSupported` | `requiredScopes` | What the metadata lists, taken as it is when set ([which scopes](#scopes)) |
 | `auth.offerSourceScopes` | false | `true`: the metadata lists the sources' scopes too |
 | `auth.scopeClaim` | `scope`, else `scp` | The claim the scopes are read from |
-| `auth.subjectClaim` | `sub` | The claim that names the person: the identity a code source's kept data is bound to. A token without it (or with an empty one, or one over 256 characters) has no identity, and nothing is kept for it. Some providers give a different `sub` per application; for those name another claim (for Microsoft Entra ID, for example, `oid`; check your provider's documentation) |
+| `auth.subjectClaim` | `sub` | The claim that names the person: the identity a code source's kept data, a download link and the request limits are bound to. Name a claim the provider does not let users change (not a profile field such as a nickname): one a person could edit would let them act as someone else or open new limits for themselves. A token without it (or with an empty one, or one over 256 characters) has no identity, and nothing is kept for it. Some providers give a different `sub` per application; for those name another claim (for Microsoft Entra ID, for example, `oid`; check your provider's documentation) |
 | `auth.algorithms` | RS256, PS256, ES256, EdDSA | Accepted signature algorithms |
 | `auth.jwksUri` | the issuer's | Another place for the keys |
 | `auth.requireTyp` | none | Require a token type, e.g. `at+jwt` (rejects ID tokens where the provider marks access tokens) |
@@ -625,8 +631,9 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 #### A client registered in advance { #preregistered-client }
 
 An MCP client registers itself at the issuer when the issuer offers dynamic client registration.
-Where it does not (Authentik, for example, and many company setups), create the client at the
-provider yourself and give the client its id. Claude Code otherwise stops with "does not support
+Where it does not (its discovery document, `/.well-known/openid-configuration` or
+`/.well-known/oauth-authorization-server`, has no `registration_endpoint`), create the client at the
+provider yourself and give the MCP client its id. Claude Code otherwise stops with "does not support
 dynamic client registration":
 
 ```bash
@@ -636,7 +643,13 @@ claude mcp add --transport http --client-id <client-id> --callback-port 8080 piv
 Register `http://localhost:8080/callback` (the port of `--callback-port`) as the client's redirect
 URI. For a confidential client add `--client-secret`, which asks for the secret (or reads
 `MCP_CLIENT_SECRET`); a public client with PKCE needs none. Claude Code's own
-[MCP documentation](https://code.claude.com/docs/en/mcp) has the current flags.
+[MCP documentation](https://code.claude.com/docs/en/mcp) has the current flags. Other MCP clients
+work the same way where they take a client id and a fixed redirect URI: register what the client's
+documentation names.
+
+Many providers put the client id into the access token's `aud` for such a client. Add that id to
+`auth.audience` (`"audience": ["https://reports.example.com/mcp", "<client-id>"]`), unless your
+provider sets `aud` to the resource the client asked for.
 
 #### Which scopes the metadata offers { #scopes }
 

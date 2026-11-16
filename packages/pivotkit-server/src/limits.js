@@ -170,6 +170,22 @@ export function createLimits(rest = {}, now = Date.now, how = {}) {
     const clientConcurrency = concurrency * REQUEST_LIMITS.clientShare;
     /** @type {Map<string, { tokens: number, at: number }>} */
     const buckets = new Map();
+    /** @type {Map<string, { tokens: number, at: number }>} each client's bucket, over all its people (clientShare times a person's) */
+    const clientBuckets = new Map();
+    const share = REQUEST_LIMITS.clientShare;
+    /**
+     * Takes one from a bucket of `map` (rate per minute, at most `size`); the seconds to wait, else 0.
+     * @param {Map<string, { tokens: number, at: number }>} map
+     */
+    const takeFrom = (map, key, rate, size, t) => {
+        const bucket = map.get(key) ?? { tokens: size, at: t };
+        bucket.tokens = Math.min(size, bucket.tokens + ((t - bucket.at) / 60_000) * rate);
+        bucket.at = t;
+        map.delete(key);
+        map.set(key, bucket);
+        bound(map);
+        return bucket.tokens < 1 ? Math.max(1, Math.ceil(((1 - bucket.tokens) / rate) * 60)) : 0;
+    };
     /** @type {Map<string, number[]>} */
     const failures = new Map();
     /** @type {Map<string, number>} */
@@ -198,27 +214,32 @@ export function createLimits(rest = {}, now = Date.now, how = {}) {
                 buckets.delete(key);
             }
         }
+        for (const [key, bucket] of clientBuckets) {
+            if (bucket.tokens + ((t - bucket.at) / 60_000) * perMinute * share >= burst * share) {
+                clientBuckets.delete(key);
+            }
+        }
     }
     const pruning = setInterval(prune, how.pruneEveryMs ?? PRUNE_MS);
     pruning.unref?.();
 
     return {
         /**
-         * Takes one request from a caller's bucket; the seconds to wait when it is empty, else 0.
-         * @param {string} key
+         * Takes one request from a caller's bucket and from its client's (clientShare times as large,
+         * so people of one client, a subject claim a user could change included, cannot take without
+         * end); the seconds to wait when either is empty, else 0. A refused request takes from neither.
+         * @param {string} key  limitKeyOf's
+         * @param {string} [client]  the caller's client (default: the key)
          */
-        take(key) {
+        take(key, client = key) {
             const t = now();
-            const bucket = buckets.get(key) ?? { tokens: burst, at: t };
-            bucket.tokens = Math.min(burst, bucket.tokens + ((t - bucket.at) / 60_000) * perMinute);
-            bucket.at = t;
-            buckets.delete(key);
-            buckets.set(key, bucket);
-            bound(buckets);
-            if (bucket.tokens < 1) {
-                return Math.max(1, Math.ceil(((1 - bucket.tokens) / perMinute) * 60));
+            const own = takeFrom(buckets, key, perMinute, burst, t);
+            const all = takeFrom(clientBuckets, client, perMinute * share, burst * share, t);
+            if (own || all) {
+                return Math.max(own, all);
             }
-            bucket.tokens -= 1;
+            /** @type {{ tokens: number }} */ (buckets.get(key)).tokens -= 1;
+            /** @type {{ tokens: number }} */ (clientBuckets.get(client)).tokens -= 1;
             return 0;
         },
         /**
@@ -256,6 +277,16 @@ export function createLimits(rest = {}, now = Date.now, how = {}) {
             add(running, key, 1);
             add(runningOfClient, client, 1);
             return true;
+        },
+        /**
+         * Which limit a refused enter met: "concurrency" (the caller's own) or "clientShare" (its
+         * client's people together), for the refusal's log line.
+         * @param {string} key
+         * @param {string} [client]
+         * @returns {"concurrency" | "clientShare"}
+         */
+        fullBy(key, client = key) {
+            return (running.get(key) ?? 0) >= concurrency ? "concurrency" : (runningOfClient.get(client) ?? 0) >= clientConcurrency ? "clientShare" : "concurrency";
         },
         /** Ends a request of a caller (enter's key and client). */
         leave(key, client = key) {

@@ -229,13 +229,13 @@ export async function createHttpHandler(context, runtime = {}) {
         const client = authInfo ? String(authInfo.clientId ?? "client") : "local";
         // counted per person (a client's people do not share one bucket), the client's own cap beside it
         const limitKey = limitKeyOfAuth(authInfo);
-        const wait = limits.take(limitKey);
+        const wait = limits.take(limitKey, client);
         if (wait) {
             context.log.refused({ status: 429, path: ENDPOINT, reason: refusalReason("RATE_LIMITED"), limit: "rate", client });
             return rpcError(429, -32000, "too many requests; wait before the next", { "retry-after": String(wait) });
         }
         if (!limits.enter(limitKey, client)) {
-            context.log.refused({ status: 429, path: ENDPOINT, reason: refusalReason("RATE_LIMITED"), limit: "concurrency", client });
+            context.log.refused({ status: 429, path: ENDPOINT, reason: refusalReason("RATE_LIMITED"), limit: limits.fullBy(limitKey, client), client });
             return rpcError(429, -32000, "too many requests at once; wait for one to finish", { "retry-after": "1" });
         }
         try {

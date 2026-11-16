@@ -9,8 +9,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 ### Upgrading from 0.1.1
 
 - Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still
-  waiting for approval are deleted with reports older than `output.maxAgeDays` (30 by default) at the
-  first start ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
+  waiting for approval (`*.pivotkit-out.report.json`) are deleted with reports older than
+  `output.maxAgeDays` (30 by default) at the first start; this release's `check-config` counts them
+  ([upgrading, from 0.6.1 / 0.1.1](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1)).
 - Breaking: with download links on, an `http://` `http.publicUrl` on a host other than loopback
   keeps the server from starting; use `https://`, or set `output.downloads.allowInsecureUrl: true`
   for a network you trust ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#download-links-http)).
@@ -21,8 +22,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   whole, with a `ROWS_DROPPED` note that counts such rows ([#479](https://github.com/eizedev/pivotkit/issues/479),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#long-rows)).
 - Behaviour change: the request limits (`rest.*`, `mcp.*` `rateLimit` and `concurrency`) count per
-  person, no longer per OAuth client; one client's people together run at most eight times
-  `concurrency` at once ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#limits-per-person)).
+  person, no longer per OAuth client; one client's people together get eight times the rate and run
+  at most eight times `concurrency` at once; `auth.subjectClaim` must name a claim users cannot change
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#limits-per-person)).
 
 - The log ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#log)): on a terminal it
   is text unless `log.format` is `json` (stderr that is no terminal, and the container image, stay
@@ -91,13 +93,17 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   loopback, refused without it; with it the start and `check-config` warn.
 - `check-config` warns of `"default": "show"` with hidden fields (a deny list), of
   `output.downloads.expiresMinutes` under 5 ([#468](https://github.com/eizedev/pivotkit/issues/468)),
-  and of an `output.dir` that holds the configuration or a source, template or token file (as the
-  start does); it names every source without a `description`, which a model chooses sources by
+  of an `output.dir` that holds the configuration or a source, template or token file (as the start
+  does), and counts the schedule drafts and reports the next start's age sweep deletes; one line under
+  `Sources` names the sources without a `description`, which a model chooses sources by
   ([#471](https://github.com/eizedev/pivotkit/issues/471)).
+- A refusal by the client's share of the request limits logs `limit: clientShare`.
+- Download sign-in callbacks are limited to 20 a minute per address (each writes a marker); over that
+  the page asks to wait (429).
 - An `info` line for each `output.maxAgeDays` sweep that deleted something, with the counts of
   `reports` and `drafts`.
 - A `warning` when a static token's file is missing, empty or shorter than 32 characters while the
-  server runs, naming the token (never its value), at most once a minute.
+  server runs, naming the token and the cause (never its value or path), at most once a minute.
 - `limitKeyOf(caller)`: whom a caller's request limits count for (pivotkit-mcp uses it).
 
 - Operations log ([operations](https://pivotkit.eize.dev/reference/operations/)): `log.level`

@@ -31,7 +31,8 @@ import { discover, ISSUER_LIMITS, issuerFetch, issuerHint, issuerRulesOf, jwksUr
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { isLoopback } from "./listen.js";
 import { OUTPUT_MARK, outputDir } from "./output.js";
-import { newRequestId, requestId, withRequestId } from "./request-id.js";
+import { newRequestId, requestId, requestScope, withRequestId } from "./request-id.js";
+import { createLimits } from "./limits.js";
 import { readSecret } from "./secrets.js";
 import { typeOf } from "./rest/problem.js";
 
@@ -106,6 +107,7 @@ const ANSWERS = Object.freeze({
     SIGN_IN_FAILED: { status: 400, heading: "Sign-in failed", text: "The sign-in did not complete. Open the download link you were sent once more (not this page) to try again." },
     SIGN_IN_DENIED: { status: 400, code: "SIGN_IN_FAILED", heading: "Not signed in", text: "You were not signed in. The sign-in was cancelled or the sign-in service refused it. To get the report, open the download link you were sent once more and sign in." },
     SIGN_IN_STALE: { status: 400, code: "SIGN_IN_FAILED", heading: "Sign-in page out of date", text: `This sign-in was already used, is older than ${minutesText(SIGN_IN_SECONDS)}, or was started in another browser. Open the download link you were sent once more, in this browser.` },
+    SIGN_IN_TOO_MANY: { status: 429, code: "RATE_LIMITED", heading: "Too many sign-ins", text: "Too many sign-ins came from your network in a short time. Wait a minute, then open the download link you were sent once more." },
     SIGN_IN_NOT_READY: { status: 503, heading: "Sign-in not ready", text: "The server is waiting for its sign-in service. Try again in a moment." },
     FORBIDDEN_ORIGIN: { status: 403, heading: "Download not started from its page", text: "This download must be started from its own page. Open the download link once more and press Download there." },
     FORBIDDEN_HOST: { status: 403, heading: "Address not served", text: "This address is not served here." },
@@ -225,6 +227,12 @@ export function dispositionOf(name) {
     const encoded = encodeURIComponent(clean).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
     return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
+
+/**
+ * Sign-in callbacks per client address: a person signs in a few times a minute at most, and each
+ * callback writes a marker of its state; over this an address waits (429), the others go on.
+ */
+export const SIGN_IN_CALLBACKS = Object.freeze({ perMinute: 20, burst: 20 });
 
 /** How often the markers of expired one-time links are swept: ten minutes. */
 const MARKER_SWEEP_MS = 600_000;
@@ -586,6 +594,8 @@ export function createDownloadHandler(context, runtime = {}) {
     }
 
     const markersDir = () => join(/** @type {string} */ (outputDir(context)), ".pivotkit-downloads");
+    // the sign-in callbacks per address (SIGN_IN_CALLBACKS)
+    const callbacks = createLimits({ rateLimit: SIGN_IN_CALLBACKS });
 
     /** Deletes the markers of expired one-time links (sweepMarkers), at most every MARKER_SWEEP_MS. */
     async function sweep() {
@@ -920,6 +930,13 @@ export function createDownloadHandler(context, runtime = {}) {
         // the state is used once on the server too, not only because the browser drops it from its
         // cookie: a callback replayed with the cookie from before it is refused (a marker beside the
         // one-time links', written only for a state of this server's signed cookie, swept at its expiry)
+        // each such callback writes a marker: bounded per address (SIGN_IN_CALLBACKS), so one address
+        // cannot fill the output directory with them; a callback without its cookie writes none
+        const wait = callbacks.take(`address:${requestScope()?.address ?? ""}`);
+        if (wait) {
+            log({ bound: "signIn", ok: false, code: "RATE_LIMITED" });
+            return answer(request, "SIGN_IN_TOO_MANY", { "set-cookie": cookie, "retry-after": String(wait) });
+        }
         if (!(await markStateUsed(stateValue, entry.x))) {
             context.log.debug("download links: a sign-in callback with a used state", { via: "link", bound: "signIn", code: "SIGN_IN_FAILED", requestId: requestId() });
             return answer(request, "SIGN_IN_STALE", { "set-cookie": cookie });
@@ -1047,6 +1064,7 @@ export function createDownloadHandler(context, runtime = {}) {
 
         close() {
             issuer?.close();
+            callbacks.close();
             if (sweeping) {
                 clearInterval(sweeping);
             }

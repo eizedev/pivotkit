@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { REQUEST_LIMITS, callerOf, checkConfig, createLimits, limitKeyOf, validateOptions } from "pivotkit-server";
 import { randomBytes } from "node:crypto";
 import { connect } from "node:net";
-import { existsSync, readdirSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { prune } from "../src/output.js";
 import { join } from "node:path";
 import { placeMarker, signToken, subkeysOf, sweepMarkers } from "../src/downloads.js";
@@ -66,7 +66,7 @@ test("F2: check-config prints such a column as hidden and warns of a default sho
 
 test("F1: an http:// http.publicUrl off loopback with download links on is refused unless output.downloads.allowInsecureUrl is set", () => {
     const base = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" } };
-    assert.throws(() => validateOptions({ ...base, http: { publicUrl: "http://reports.example.com" } }), /http\.publicUrl: an http:\/\/ address .*output\.downloads\.allowInsecureUrl/);
+    assert.throws(() => validateOptions({ ...base, http: { publicUrl: "http://reports.example.com" } }), /http\.publicUrl \(or --public-url\): an http:\/\/ address .*output\.downloads\.allowInsecureUrl: true .*switch every download link off with output\.downloads\.enabled: false/);
     assert.throws(() => validateOptions({ ...base, output: { dir: "out", downloads: { bind: "once" } }, http: { publicUrl: "http://10.1.2.3:3333" } }), /allowInsecureUrl/);
     // allowed: https, loopback, links off, or the opt-in
     for (const options of [
@@ -85,7 +85,7 @@ test("F1: with the opt-in, check-config and the start warn of links in clear tex
     const dir = workspace();
     const options = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", downloads: { allowInsecureUrl: true } }, http: { publicUrl: "http://reports.example.com" }, baseDir: dir };
     const text = factsOf((await checkConfig(options, { http: true, env: {} })).text);
-    assert.match(text, /^WARNING \(Delivery\): http\.publicUrl is http:\/\/ on reports\.example\.com \(output\.downloads\.allowInsecureUrl\): download links and their cookies cross the network in clear text/m);
+    assert.match(text, /^WARNING \(Delivery\): http\.publicUrl is http:\/\/ on reports\.example\.com \(accepted by output\.downloads\.allowInsecureUrl\): download links and their cookies cross the network in clear text/m);
     const server = await restServer(options);
     try {
         assert.ok(server.log.some((l) => l.level === "warn" && /http\.publicUrl is http:\/\/ on reports\.example\.com/.test(l.msg)), JSON.stringify(server.log));
@@ -192,7 +192,19 @@ test("auth token: a token file emptied or removed after the start refuses with 4
     await assert.rejects(ask(), (e) => e.status === 401);
     await assert.rejects(ask(), (e) => e.status === 401);
     assert.equal(warnings.length, 1, JSON.stringify(warnings));
-    assert.match(warnings[0].msg, /auth: the token "bot" \(its file\) is missing, empty or shorter than 32 characters/);
+    assert.match(warnings[0].msg, /auth: the token "bot" cannot be used \(its file is empty\)/);
+    // the cause, each in its words: a file cut short, a file gone (another core: the warning is per minute)
+    const again = async (content) => {
+        const seen = [];
+        writeFileSync(file, `${TOKEN}\n`);
+        const other = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log: { ...log, warn: (msg) => seen.push(msg) }, loopback: true });
+        if (content === null) unlinkSync(file);
+        else writeFileSync(file, content);
+        await assert.rejects(other.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } })));
+        return seen.join("\n");
+    };
+    assert.match(await again("short-token-12345"), /\(its file has 17 characters\)/);
+    assert.match(await again(null), /\(its file is missing\)/);
     assert.ok(!JSON.stringify(warnings).includes(TOKEN.slice(0, 12)), "never the token");
     assert.ok(!JSON.stringify(warnings).includes(dir), "never the file's path either");
 });
@@ -292,13 +304,15 @@ test("#468: check-config warns of download links that expire in under 5 minutes;
 
 // --- #471: a model chooses sources by their description ----------------------------------------------
 
-test("#471: check-config gives a hint (not a warning) for a source without a description", async () => {
+test("#471: check-config names the sources without a description in one hint line (not a warning) under Sources", async () => {
     const dir = workspace();
-    const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" }, described: { file: "data/sales.csv", description: "Orders by region and product, one row per order" } }, baseDir: dir }, { http: false, env: {} });
+    const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" }, described: { file: "data/sales.csv", description: "Orders by region and product, one row per order" }, orders: { file: "data/sales.csv" } }, baseDir: dir }, { http: false, env: {} });
     const text = factsOf(result.text);
-    assert.match(text, /^ {4}no description: a model chooses and reads sources by sources\.sales\.description; say what the data is in a sentence$/m);
-    assert.equal(text.match(/no description:/g)?.length, 1, "the described source gets none");
+    assert.match(text, /^Sources \(3\):\n {2}no description: sales, orders \(a model chooses sources by it: sources\.<id>\.description\)$/m);
+    assert.equal(text.match(/no description/g)?.length, 1, "one line for all of them");
     assert.doesNotMatch(text, /WARNING[^\n]*description/);
+    const described = factsOf((await checkConfig({ sources: { described: { file: "data/sales.csv", description: "Orders" } }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.doesNotMatch(described, /no description/);
 });
 
 // --- #479: a row longer than its header is left out where the source hides a field --------------------
@@ -332,5 +346,59 @@ test("#479: a source that hides nothing keeps such a row (its extra values in a 
         assert.ok(!described.data.notes.some((n) => n.code === "ROWS_DROPPED"));
     } finally {
         await server.close();
+    }
+});
+
+// --- the operator review of #476 ----------------------------------------------------------------------
+
+test("check-config: counts the reports and schedule drafts the age sweep deletes at the next start, as a WARNING (Output)", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const old = (Date.now() - 40 * 86_400_000) / 1000;
+    for (const name of ["a.pivotkit-out.csv", "b.pivotkit-out.xlsx", "Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"]) {
+        writeFileSync(join(out, name), "x");
+        if (name !== "fresh.pivotkit-out.csv") utimesSync(join(out, name), old, old);
+    }
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.match(text, /^WARNING \(Output\): 1 schedule draft and 2 reports are older than 30 days and are deleted at the next start; copy them away or set output\.maxAgeDays: 0$/m);
+    // no age limit, or nothing old: no such warning
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text, /deleted at the next start/);
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 60 }, baseDir: dir }, { http: false, env: {} })).text, /deleted at the next start/);
+});
+
+test("check-config: an output directory shared with the configuration says so once, as the WARNING", async () => {
+    const dir = workspace();
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "." }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.equal(text.match(/refuses new (reports|ones)/g)?.length, 1, text);
+});
+
+// --- security review of #476 ----------------------------------------------------------------------
+
+test("#479: a hidden column in the middle: the shifted salary never shows under the next column (the review's repro)", async () => {
+    const dir = workspace({ "staff.csv": "Name,Salary,Team,Office\nAnn,51234,a,Berlin\nCarl, Jr,73456,c,Munich\n" });
+    const server = await restServer({ sources: { staff: { file: "data/staff.csv", policy: { default: "show", fields: { Salary: "hide" } } } }, baseDir: dir });
+    try {
+        const described = await call(`${server.api}/sources/describe`, { body: { source: "staff" } });
+        assert.doesNotMatch(JSON.stringify(described.data), /73456/);
+        const team = await call(`${server.api}/views/render`, { body: { source: "staff", view: { rows: ["Team"], values: [{ agg: "count" }] }, format: "json" } });
+        assert.doesNotMatch(JSON.stringify(team.data), /73456/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("F3: one client's people together take at most clientShare times perMinute: a person cannot open buckets without end", () => {
+    let now = 0;
+    const limits = createLimits({ rateLimit: { perMinute: 1, burst: 1 } }, () => now);
+    try {
+        for (let i = 0; i < REQUEST_LIMITS.clientShare; i++) {
+            assert.equal(limits.take(`person:${i}`, "claude"), 0, `person ${i}`);
+        }
+        assert.ok(limits.take("person:new", "claude") > 0, "the client's own bucket is empty");
+        assert.equal(limits.take("person:other", "other-client"), 0, "another client is not held by it");
+        now += 60_000;
+        assert.equal(limits.take("person:new", "claude"), 0, "it fills again");
+    } finally {
+        limits.close();
     }
 });

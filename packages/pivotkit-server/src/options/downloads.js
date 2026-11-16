@@ -126,7 +126,7 @@ export function insecurePublicHost(options) {
 }
 
 /** What the start and check-config say of links in clear text that the operator allowed. */
-export const insecureUrlText = (host) => `http.publicUrl is http:// on ${host} (output.downloads.allowInsecureUrl): download links and their cookies cross the network in clear text, and anyone who reads one can download the report; use https:// on any network you do not fully trust`;
+export const insecureUrlText = (host) => `http.publicUrl is http:// on ${host} (accepted by output.downloads.allowInsecureUrl): download links and their cookies cross the network in clear text, and anyone who reads one can download the report; use https:// on any network you do not fully trust`;
 
 /**
  * Checks the rules between these keys; throws ConfigError.
@@ -137,7 +137,7 @@ export function validate(options) {
     // after the sign-in's rules, which need https:// whatever allowInsecureUrl says
     const insecure = insecurePublicHost(options);
     if (insecure && options.output?.downloads?.allowInsecureUrl !== true) {
-        throw new ConfigError(`http.publicUrl: an http:// address on ${insecure} while download links are on: a link is the credential and would cross the network in clear text; use https://, set output.downloads.enabled: false, or set output.downloads.allowInsecureUrl: true for a network you trust`);
+        throw new ConfigError(`http.publicUrl (or --public-url): an http:// address on ${insecure} while download links are on: a link is the credential and would cross the network in clear text; use https://, set output.downloads.allowInsecureUrl: true for a network you trust, or switch every download link off with output.downloads.enabled: false`);
     }
 }
 

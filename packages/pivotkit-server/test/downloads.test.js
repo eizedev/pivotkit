@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, readdirSync, unlinkSync, utimesSync, writeFile
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
-import { KEY_READ_MS, dispositionOf, filenameOf, placeMarker, readToken, signToken, sizeText, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
+import { KEY_READ_MS, SIGN_IN_CALLBACKS, dispositionOf, filenameOf, placeMarker, readToken, signToken, sizeText, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
 import { NO_LINK_NOTE, linkFor, resourceLinkOf } from "../src/delivery.js";
 import { BY_REGION, SALES_CSV, TOKEN, call, factsOf, raw, restServer, tempDir, workspace } from "./helpers.js";
 import { createContext } from "../src/context.js";
@@ -1260,6 +1260,24 @@ test("signIn: a callback replayed with the cookie from before it (and a provider
         const replay = await callback(code, state, cookie);
         assert.equal(replay.status, 400);
         assert.match(await replay.text(), /This sign-in was already used/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("signIn: sign-in callbacks from one address are rate limited (each writes a marker): over the limit 429, and the page says to wait", async () => {
+    const { server, render, open, callback } = await signInServer();
+    try {
+        const output = await render("alice");
+        const statuses = [];
+        for (let i = 0; i < SIGN_IN_CALLBACKS.burst + 5; i++) {
+            const redirect = await open(output.url);
+            const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+            statuses.push((await callback(code, state, cookieOf(redirect))).status);
+        }
+        assert.ok(statuses.includes(429), String(statuses));
+        assert.equal(statuses[0], 200);
+        assert.ok(server.log.some((l) => l.event === "download" && l.code === "RATE_LIMITED") || server.log.some((l) => l.status === 429), "the refusal has a line");
     } finally {
         await server.close();
     }

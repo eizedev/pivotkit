@@ -55,6 +55,11 @@ export async function section(options, registry, runtime) {
     // source's own rules over the server's, never another source's spelling
     const spelt = (...policies) => new Map(policies.flatMap((f) => Object.keys(f ?? {})).map((n) => [fieldKey(n), n]));
     items.push(heading(`Sources (${sources.length}):`));
+    // a hint, not a warning: list_sources gives a model the description to choose a source by
+    const undescribed = sources.filter((s) => !String(options.sources?.[s.id]?.description ?? "").trim()).map((s) => s.id);
+    if (undescribed.length) {
+        items.push(plain(`no description: ${undescribed.join(", ")} (a model chooses sources by it: sources.<id>.description)`));
+    }
     // the exposure limits every source has unless its own policy says otherwise
     const server = resolvePolicy(options.policy);
     items.push(plain(`values listed per shown field: ${server.items} (policy.items)`), plain(server.inline ? `results inline in the tool answer: up to ${server.inline.cells} cells (policy.inline)` : "results inline in the tool answer: off (policy.inline)"));
@@ -79,10 +84,6 @@ export async function section(options, registry, runtime) {
         }
         const configured = spelt(options.policy?.fields, written.policy?.fields);
         items.push(plain(`policy: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}`, 2));
-        // a hint, not a warning: list_sources gives a model the description to choose a source by
-        if (!String(written.description ?? "").trim()) {
-            items.push(plain(`no description: a model chooses and reads sources by sources.${s.id}.description; say what the data is in a sentence`, 2));
-        }
         if (s.policy.default === "show" && fields.some(([, l]) => l === "hide")) {
             items.push(warning(denyListText(`sources.${s.id}.policy`)));
         }

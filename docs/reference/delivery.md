@@ -136,7 +136,8 @@ use it before the person does. `check-config` warns of that; use `signIn` where 
 
 Which links were used, and which sign-ins came back (their `state`, so a callback replayed with the
 cookie from before it is refused), is kept in `.pivotkit-downloads/` in the output directory, a file
-per link or sign-in made exclusively, so replicas sharing the directory agree; the files go once
+per link or sign-in made exclusively, so replicas sharing the directory agree (at most 20 sign-ins a
+minute from one address write such a file; over that the page asks to wait); the files go once
 their link or sign-in expired
 (swept every ten minutes, and on a one-time download). Each
 file is written whole and then hard-linked to its name, so the output directory's file system must
