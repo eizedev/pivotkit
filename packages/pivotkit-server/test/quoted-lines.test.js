@@ -64,6 +64,8 @@ test("the file is split as the reader splits it: semicolons, tabs, CRLF, a byte 
         "crlf.csv": PROBE.replaceAll("\n", "\r\n"),
         "bom.csv": `\uFEFF${PROBE}`,
         "hint.csv": `sep=;\n${semicolons}`,
+        // a control character as the separator: the reader's note drops it from its text, the sep= line names it
+        "control.csv": `sep=\u0001\n${PROBE.replaceAll(",", "\u0001")}`,
         "utf16.csv": Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(PROBE, "utf16le")])
     };
     for (const [name, bytes] of Object.entries(cases)) {

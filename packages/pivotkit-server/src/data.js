@@ -216,8 +216,8 @@ export function quotedBreakLine(text, sep, start, line) {
 
 /**
  * The line in which a file's first quoted value that spans lines starts, or 0: a text format only,
- * split with the separator and encoding pivotkit-core's reader noted (its SEPARATOR and ENCODING
- * notes) and after its "sep=" line.
+ * split with the encoding pivotkit-core's reader noted (its ENCODING note) and its separator (the
+ * "sep=" line, else its SEPARATOR note). A separator it cannot tell gives line 1.
  * @param {Uint8Array} bytes
  * @param {string} format
  * @param {{ notes?: Array<{ code: string, params?: Record<string, unknown> }> }} table  readTable's
@@ -227,12 +227,14 @@ export function quotedBreakOf(bytes, format, table) {
         return 0;
     }
     const paramOf = (code, key) => table.notes?.find((n) => n.code === code)?.params?.[key];
-    const sep = paramOf("SEPARATOR", "separator");
-    if (typeof sep !== "string" || sep.length !== 1) {
-        return 0;
-    }
     const text = new TextDecoder(DECODER_LABELS[/** @type {keyof typeof DECODER_LABELS} */ (String(paramOf("ENCODING", "encoding")))] ?? "utf-8").decode(bytes);
-    const hint = /^sep=.\r?\n/i.exec(text.slice(0, 8));
+    // the reader's order: the "sep=" line, else what it detected (its note drops a control character)
+    const hint = /^sep=(.)\r?\n/i.exec(text.slice(0, 8));
+    const sep = hint ? hint[1] : paramOf("SEPARATOR", "separator");
+    if (typeof sep !== "string" || sep.length !== 1) {
+        // a separator it cannot tell: refused as one that spans lines would be (fail closed)
+        return 1;
+    }
     return quotedBreakLine(text, sep, hint ? hint[0].length : 0, hint ? 2 : 1);
 }
 
