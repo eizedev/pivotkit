@@ -27,7 +27,7 @@ async function onceServer(name = "Sales once") {
     return { dir, server, output };
 }
 
-test("a one-time link: the page's Download button saves the file once; the link is used for another browser", async ({ page, browser }) => {
+test("a one-time link: the page's Download button saves the file once; the link is used for another browser", async ({ page, browser, browserName }) => {
     const { dir, server, output } = await onceServer();
     try {
         expect(output.bound).toBe("once");
@@ -38,27 +38,20 @@ test("a one-time link: the page's Download button saves the file once; the link 
         if (!box) {
             throw new Error("no button");
         }
-        // the POST's answer is the file as an attachment. Chromium, Firefox and WebKit on macOS save it
-        // (a download); Playwright's WebKit on Linux shows a text attachment in the page instead, so
-        // there the answer's headers and the text shown are checked
+        // the POST's answer is the file as an attachment, which every browser saves (a download)
         const stored = readFileSync(join(dir, "out", output.name));
         const posted = page.waitForResponse((r) => r.request().method() === "POST");
-        const downloading = page.waitForEvent("download", { timeout: 15_000 }).catch(() => null);
+        const downloading = page.waitForEvent("download", { timeout: 15_000 });
         await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
         const answer = await posted;
         expect(answer.status()).toBe(200);
         expect(answer.headers()["content-disposition"]).toBe(`attachment; filename="Sales once.csv"; filename*=UTF-8''Sales%20once.csv`);
         const download = await downloading;
-        if (download) {
-            await expect(page.getByRole("status")).toHaveText("Downloaded once. You can repeat it for 2 minutes, in this browser.");
-            await expect(page.getByText(/It can be downloaded once, until/)).toHaveCount(0);
-            expect(download.suggestedFilename()).toBe("Sales once.csv");
-            expect(readFileSync(await download.path())).toEqual(stored);
-        } else {
-            // the text the page shows (its body is not kept for such an answer): the file without its byte order mark
-            const shown = await page.locator("pre").textContent();
-            expect(String(shown).replace(/\r\n/g, "\n")).toBe(stored.toString("utf8").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n"));
-        }
+        await expect(page.getByRole("status")).toHaveText("Downloaded once. You can repeat it for 2 minutes, in this browser.");
+        await expect(page.getByText(/It can be downloaded once, until/)).toHaveCount(0);
+        // the name the answer gives; Playwright's WebKit on Linux writes "_" for its space
+        expect(download.suggestedFilename()).toBe(browserName === "webkit" && process.platform === "linux" ? "Sales_once.csv" : "Sales once.csv");
+        expect(readFileSync(await download.path())).toEqual(stored);
         // another browser (no cookie of the first download) finds the link used as soon as it opens it
         const other = await browser.newContext();
         try {
