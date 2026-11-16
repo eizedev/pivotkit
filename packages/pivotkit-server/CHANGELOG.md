@@ -95,9 +95,13 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - `pivotkit-server token new`, `token show` and `key new --for downloads|audit`: a token (32 random
   bytes) or key (48) on stdout, or into a file with mode 0600 that is never written through a
   symbolic link and never replaced without `--force` (`--if-missing` keeps it, also with several runs
-  at once); `token new --config <file> --add` puts the token into `auth.tokens` with a backup;
-  `--json` as pivotkit-cli's. The messages and docs that named `openssl` or `node -e` name these
-  commands ([tokens and keys](https://pivotkit.eize.dev/reference/rest/#credentials)).
+  at once); `token new --config <file> --add` puts the token into `auth.tokens`, `key new --config
+  <file> --add` names the key, each with a backup; `--json` as pivotkit-cli's. The messages and docs
+  that named `openssl` or `node -e` name these commands
+  ([tokens and keys](https://pivotkit.eize.dev/reference/rest/#credentials)).
+- A token or key file in UTF-16 (PowerShell 5.1's `>`) is named as such by the start and
+  `check-config`; one that is not a regular file or is longer than 4096 bytes is refused, never
+  waited for.
 - `output.downloads.allowInsecureUrl`: download links under an `http://` `http.publicUrl` off
   loopback, refused without it; with it the start and `check-config` warn.
 - `check-config` warns of `"default": "show"` with hidden fields (a deny list), of
@@ -332,6 +336,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Changed
 
+- The 401 for a request without a token says `send Authorization: Bearer YOUR_TOKEN` (it said
+  `<token>`, which PowerShell's error details leave out).
 - The privacy page says what the server's memory holds of a hidden column of a code or HTTP source:
   nothing it keeps (the loads per person, the workers' data sets), measured by `test/memory.test.js`
   for texts and numbers, with and without a caller's identity, in the kept data and in heap snapshots

@@ -24,12 +24,11 @@
  */
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { readFile } from "node:fs/promises";
 import { OperationError } from "pivotkit-report/operations";
 import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
 import { AUDIT_KEY_MIN, auditText, noteAudit } from "./log.js";
-import { readSecret } from "./secrets.js";
+import { UTF16_TEXT, readSecret, readSecretFile, unreadable } from "./secrets.js";
 import { discover, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
 import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
 import { claimNamesOf, claimsOf } from "./sources/params.js";
@@ -41,13 +40,16 @@ export const TOKEN_MIN = 32;
 export { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 
 /** The command that makes a token, for the messages. */
-export const MAKE_TOKEN = "npx -y pivotkit-server token new (pivotkit-server token new --file <path> writes it to a file)";
+export const MAKE_TOKEN = "pivotkit-server token new (with --file <path> it writes a file only you read)";
 
 /** The command that makes a key for output.downloads.key or audit.key, for the messages. */
 export const makeKey = (use) => `pivotkit-server key new --for ${use} --file <path>`;
 
 /** How often the issuer's metadata is read again (a changed jwks_uri), and the least time between two reads for a token with an unknown key. */
 export const METADATA_REFRESH = Object.freeze({ everyMs: 3_600_000, unknownKeyMs: 60_000 });
+
+/** What a request without a token is told: plain words, since PowerShell's ErrorDetails drops what looks like a tag. */
+const NO_TOKEN_TEXT = "no token; send Authorization: Bearer YOUR_TOKEN";
 
 /** SHA-256 of a text, for comparing tokens in constant time. */
 const digest = (text) => createHash("sha256").update(text, "utf8").digest();
@@ -84,10 +86,10 @@ export function bearerOf(request) {
     const header = request.headers.get("authorization");
     // Headers joins repeated headers with ", ": two Authorization headers are refused
     if (!header || header.includes(",")) {
-        return { refused: header ? "send one Authorization header, not two" : "no token; send Authorization: Bearer <token>" };
+        return { refused: header ? "send one Authorization header, not two" : NO_TOKEN_TEXT };
     }
     const m = /^Bearer[ ]+(\S+)$/i.exec(header.trim());
-    return m && TOKEN_SYNTAX.test(m[1]) ? { token: m[1] } : { refused: "not a bearer token; send Authorization: Bearer <token>" };
+    return m && TOKEN_SYNTAX.test(m[1]) ? { token: m[1] } : { refused: "not a bearer token; send Authorization: Bearer YOUR_TOKEN" };
 }
 
 /**
@@ -103,12 +105,18 @@ async function staticTokens(auth, env, options, tokenEnv) {
     for (const t of list) {
         // the one token of the variable has no name of its own ("token" in the log): a message names the variable only
         const which = auth.tokens?.length ? `the token "${t.name}"` : "the token";
-        const read = t.env ? async () => env[t.env] ?? "" : async () => (await readFile(pathOf(options, /** @type {string} */ (t.file)), "utf8").catch(() => "")).trim();
+        const read = t.env ? async () => env[t.env] ?? "" : async () => (await readSecretFile(pathOf(options, /** @type {string} */ (t.file))).catch(() => "")).trim();
         const value = await read();
         if (t.file && value.length < TOKEN_MIN) {
-            const why = await readFile(pathOf(options, t.file), "utf8").then(() => null, (e) => e?.code);
+            const why = await readSecretFile(pathOf(options, t.file)).then(() => null, (e) => e?.code);
             if (why === "EACCES") {
                 throw new ConfigError(`auth: ${which} (${t.file}) cannot be read: permission denied for the user ${process.getuid?.() ?? ""} the server runs as (in the container image: 10001)`);
+            }
+            if (why === "UTF16") {
+                throw new ConfigError(`auth: ${which} (${t.file}) ${UTF16_TEXT}`);
+            }
+            if (why === "NOT_REGULAR_FILE" || why === "TOO_LARGE") {
+                throw new ConfigError(`auth: ${which} (${t.file}) cannot be read: ${unreadable(why)}`);
             }
         }
         if (value.length < TOKEN_MIN) {
@@ -298,8 +306,10 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             if (now - (warned.get(t.name) ?? -Infinity) >= SHORT_TOKEN_WARN_MS) {
                 warned.set(t.name, now);
                 // the cause, never the value or the path
-                const text = await readFile(/** @type {string} */ (t.file), "utf8").then((v) => v.trim(), (e) => (e?.code === "ENOENT" ? null : undefined));
-                const cause = text === null ? "its file is missing" : text === undefined ? "its file cannot be read" : text === "" ? "its file is empty" : `its file has ${text.length} characters`;
+                const cause = await readSecretFile(/** @type {string} */ (t.file)).then(
+                    (v) => (v.trim() === "" ? "its file is empty" : `its file has ${v.trim().length} characters`),
+                    (e) => (e?.code === "ENOENT" ? "its file is missing" : e?.code === "UTF16" ? `its file ${UTF16_TEXT}` : "its file cannot be read")
+                );
                 log.warn(`auth: ${t.which} cannot be used (${cause}): a token has at least ${TOKEN_MIN} characters, so requests with it are refused; write the token to the file again (write it whole, then rename it into place)`);
             }
         };
@@ -314,7 +324,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             async check(request) {
                 const bearer = /** @type {{ token?: string, refused?: string }} */ (bearerOf(request));
                 if (!bearer.token) {
-                    throw new AuthRefusal(401, "invalid_token", bearer.refused ?? "no token; send Authorization: Bearer <token>");
+                    throw new AuthRefusal(401, "invalid_token", bearer.refused ?? NO_TOKEN_TEXT);
                 }
                 const given = digest(bearer.token);
                 let match = null;

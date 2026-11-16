@@ -114,7 +114,6 @@ give each client its own rules.
 
 ## 4. For a team: HTTP
 
-```bash
 === "bash"
 
     ```bash

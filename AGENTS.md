@@ -186,7 +186,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   feature with its `KEYS` and `validate`; `index.js`: `FRAGMENTS` and `composeSlots`, which refuses a
   key declared twice: a new option is a key in its feature's fragment, never in two places),
   `src/secrets.js` (`readSecret`: a `{ env }` or `{ file }` reference read on every use, never
-  logged; `secretFileWarning` for check-config), `src/print-template.js` (a source's print template:
+  logged; `readSecretFile`, the one read of a secret's file, static tokens too: a regular file only,
+  at most `MAX_SECRET_BYTES`, UTF-16 named (`UTF16_TEXT`); `secretFileWarning` for check-config), `src/print-template.js` (a source's print template:
   `readTemplateFile`, the one safe reader for a request, the start and check-config;
   `checkTemplates`, each source's template read and parsed, the start refuses and check-config
   reports what parseTemplate refuses; a missing file is a warning at start and a PROBLEM the server
@@ -318,8 +319,10 @@ root `package.json`: `npm run types` and the builds depend on it.
   (`placeSecret`: a secret into a file with mode 0600 through a temporary file and link(), never
   replacing one without `replace`, `keep` reading the one there (an empty one read again for about a
   second, for a file system without hard links, where the file is created in place;
-  `secretFileMeans.link` lets tests take link() away), a symbolic link, directory or missing
-  directory refused; `replaceFile` and `writeBackup` for a configuration file; for any code that
+  `secretFileMeans` lets tests replace link(), rename() and the user), a kept file losing only its
+  world bits, a replaced file keeping its owner where it may, EBUSY of a mounted file `MOUNTED`, the
+  temporary file removed on SIGINT and SIGTERM, a symbolic link, directory or missing directory
+  refused; `replaceFile` and `writeBackup` for a configuration file; for any code that
   creates a missing secret),
   `src/check-source.js` (`check-source`: one load of an
   HTTP source, never a value printed), `src/openapi-source.js` (`source-from-openapi`: an HTTP source

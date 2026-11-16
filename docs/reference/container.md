@@ -66,10 +66,12 @@ not. Set the port with `PIVOTKIT_PORT`, not `http.port` in the file: the health 
 and [docker/pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/main/docker/pivotkit.example.json)
 are an example for Docker Compose with these settings: two tokens as secrets, one with a profile that
 may download files. Make the two files with `pivotkit-server token new --file secrets/pivotkit_token`
-and `--file secrets/pivotkit_export_token` (with Node, `npx -y pivotkit-server`; without, the image's
-`docker run --rm ghcr.io/eizedev/pivotkit:<version> token new`, its output saved to the file), then
-give them to the user 10001 as above: `token new` writes mode 0600 for your own user
-([tokens and keys](rest.md#credentials)).
+and `--file secrets/pivotkit_export_token`: with Node `npx -y pivotkit-server`, without it the image
+itself,
+`docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/secrets:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/pivotkit_token`.
+Then give them to the user 10001 as above: `token new` writes mode 0600 for your own user
+([tokens and keys](rest.md#credentials)). Its output saved with `>` instead gets the mode your umask
+gives (often 0644, readable by everyone): run `umask 077` first if you do that.
 
 The image sets `PIVOTKIT_LOG_FORMAT=json`: the log is JSON lines on stderr, also under `docker run -t`
 (a configuration's `log.format` still wins). Each answer carries `X-Request-Id`, the id on its log

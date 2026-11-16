@@ -41,7 +41,8 @@ holds every part shown below; the sections explain each one.
     `apply` warns once that the namespace has no `last-applied-configuration` annotation and adds
     it. A token has at least 32 characters. Keep it out of the manifest and out of environment
     variables (`kubectl describe` shows those). Without Node, the image makes them too:
-    `docker run --rm ghcr.io/eizedev/pivotkit:<version> token new` ([tokens and keys](../reference/rest.md#credentials)). `pivotkit-download-key` is the key of the
+    `docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token`
+    ([tokens and keys](../reference/rest.md#credentials)). `pivotkit-download-key` is the key of the
     [download links](../reference/delivery.md): at least 32 bytes, and kept, so links survive a restart.
 
 ## Check it { #check }

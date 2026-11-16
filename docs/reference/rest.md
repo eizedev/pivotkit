@@ -547,7 +547,7 @@ pivotkit-server's.
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |
 | `pivotkit-server token new [--file <path>] [--config <file> --add]` | Make a static token: on stdout, or into a file with mode 0600, and with `--add` into `auth.tokens` ([tokens and keys](#credentials)) |
 | `pivotkit-server token show <name>` | Print the value of a token of `auth.tokens`, as the server reads it; 1 when it is missing or cannot be used, 2 for a name that is not there |
-| `pivotkit-server key new --for downloads\|audit [--file <path>]` | Make a key for `output.downloads.key` or `audit.key` ([tokens and keys](#credentials)) |
+| `pivotkit-server key new --for downloads\|audit [--file <path>] [--config <file> --add]` | Make a key for `output.downloads.key` or `audit.key` ([tokens and keys](#credentials)) |
 | `pivotkit-server --version` | The version |
 
 ### Reading check-config { #check-config }
@@ -697,10 +697,10 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 | Option | What it does |
 | --- | --- |
 | `--file <path>` | Write the value to this file: one line ending in LF, mode 0600, never through a symbolic link, never into a directory that is not there. The value is not printed (`--print` prints it too) |
-| `--if-missing` | Keep a file that is there and exit 0, if it holds a value the server can use (else 1); its mode is set to 0600 again when it is yours. Several runs at once end with one value |
-| `--force` | Replace a file that is there, atomically. Clients that still send the old token get 401 from then on; the server reads a token's file on every request and the download key within a second, so neither needs a restart |
+| `--if-missing` | Keep a file that is there and exit 0, if it holds a value the server can use (else 1). A file of yours that everyone may read loses those bits; one a group may read keeps them (a group may share it) with a warning, as does a file of another user than you or root. Several runs at once end with one value |
+| `--force` | Replace a file that is there, atomically, keeping its owner and group where it may (run as root). Clients that still send the old token get 401 from then on; the server reads a token's file on every request and the download key within a second, so neither needs a restart. A file mounted on its own (a bind mount of one file, a Kubernetes `subPath`) cannot be replaced (`MOUNTED`): change it where it comes from |
 | `--config <file>` | `token new`: check `--profile` against `policy.profiles`, refuse a file inside `output.dir`, and use `http.publicUrl` in the hints. `token new` and `key new` read no configuration without it, not even `$PIVOTKIT_CONFIG`; `token show` reads `$PIVOTKIT_CONFIG` by default |
-| `--add` | `token new`: add `{ "name", "file", "scopes", "profile" }` to `auth.tokens` of `--config` (and `auth.mode` `"token"` when the file sets none, with a warning). Once `auth.tokens` lists a token, `$PIVOTKIT_TOKEN` is no longer read: the first `--add` warns that its clients need a token of the list. The new configuration is checked first; a name that is there, an unknown profile, `auth.mode` `none` or `oauth`, and a configuration that is a symbolic link or in a directory that cannot be written are refused before anything is written. The old file is kept as `<file>.bak` (`.bak.1`, ... when that exists), the indentation and the file's mode stay; the token's file is written relative to the configuration when it lies below it. Restart the server: it reads the list of tokens at start |
+| `--add` | `token new`: add `{ "name", "file", "scopes", "profile" }` to `auth.tokens` of `--config` (and `auth.mode` `"token"` when the file sets none, with a warning). Once `auth.tokens` lists a token, `$PIVOTKIT_TOKEN` is no longer read: the first `--add` warns that its clients need a token of the list. The new configuration is checked first; a name that is there, an unknown profile, `auth.mode` `none` or `oauth`, and a configuration that is a symbolic link or in a directory that cannot be written are refused before anything is written. The configuration is rewritten as pretty-printed JSON (its indentation and mode stay; a compact one-line object is spread over lines); the old file is kept as `<file>.bak-<UTC time>`, one per run. The token's file is written relative to the configuration when it lies below it. Restart the server: it reads the list of tokens at start. `key new --add` names the key as `output.downloads.key` or `audit.key` the same way, refused where one is set |
 | `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
 | `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
 | `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`; the value only where it would be printed |
@@ -708,13 +708,17 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 Without `--file` the value is the only line on stdout. On a terminal the commands write on stderr
 what to add to the configuration and how to try the token with curl, PowerShell and
 `claude mcp add --header`. The exit code is 0 when done, 1 for a file that is there, missing or not
-usable (`EXISTS`, `NOT_REGULAR_FILE`, `NO_DIRECTORY`, `READ_ONLY`, `UNUSABLE`), 2 for a usage or
-configuration error. No message holds a value.
+usable (`EXISTS`, `NOT_REGULAR_FILE`, `NO_DIRECTORY`, `READ_ONLY`, `MOUNTED`, `UNUSABLE`), 2 for a
+usage or configuration error. No message holds a value. A file in UTF-16 (what PowerShell 5.1's `>`
+writes) is named as such by these commands, `check-config` and the start; so is a token or key file
+that is not a regular file or longer than 4096 bytes, which is never waited for. A temporary file is
+removed when the command is stopped (Ctrl+C) during a write.
 
 On Windows the mode does not apply: the file takes the permissions of its folder. To keep it to your
 account, in PowerShell: `icacls secrets\reports.token /inheritance:r /grant:r "${env:USERNAME}:F"`
-(full control for you alone, so `--force` can still replace it). The server's account needs read
-access too when it is another one.
+(full control for you alone, so `--force` can still replace it). `/inheritance:r` also takes away
+SYSTEM and Administrators: a server that runs as a service needs its own grant
+(`/grant "<account>:R"`).
 
 ## Logging { #logging }
 
