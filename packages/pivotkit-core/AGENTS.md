@@ -30,7 +30,7 @@ node scripts/schemas.js          # rebuild schema/ after a table change
 - The only runtime dependency is `fflate`, for the XLSX zip. Keep it that way.
 - Write the XLSX XML by hand. No SheetJS, no ExcelJS.
 - Build plain ECharts option objects. Never import ECharts.
-- `src/` uses only globals that browsers and Node share. ESLint enforces it.
+- `src/` uses only globals that browsers and Node share. ESLint's `no-undef` with `shared-node-browser` globals enforces it.
 
 ## The view
 

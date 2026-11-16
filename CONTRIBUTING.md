@@ -5,6 +5,7 @@ Thanks for helping.
 - Bug reports and ideas go into [issues](https://github.com/eizedev/pivotkit/issues).
 - Questions go into [discussions](https://github.com/eizedev/pivotkit/discussions).
 - Security reports go privately, see [SECURITY.md](SECURITY.md).
+- Everyone follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Before you start
 
@@ -93,7 +94,8 @@ uvx zensical@<version> serve
 - Link the issue. Write `Fixes #n` in the description, not in commit messages.
 - Say what you tested.
 - A larger feature is reviewed by a user, an operator and a developer, from the packed packages.
-- Get an independent review first ([PRODUCT.md](PRODUCT.md#what-a-contribution-delivers) says why).
+- An independent review before you open the pull request is strongly recommended.
+  [PRODUCT.md](PRODUCT.md#what-a-contribution-delivers) says why.
 
 ## Dependencies
 

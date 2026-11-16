@@ -120,9 +120,7 @@ Done once. A new package needs steps 2 and 3 at its first release.
    - "Allow npm publish" unchecked and no dist-tag action. The workflow can then only stage.
    - A new trusted publisher expires unless it publishes within two days.
      Create it when the next release is ready.
-   - Then set publishing access to "Require two-factor authentication and disallow tokens".
-   - The eight existing publishers were made when the workflow still ran `npm publish` (#87).
-     Edit each one once and uncheck "Allow npm publish", if not done yet.
+   - Then set publishing access to "Require two-factor authentication and disallow tokens" on each package.
 4. Create the environment `npm` with required reviewers. Deploy from tags `*@*` only.
 5. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.
 6. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
@@ -130,7 +128,7 @@ Done once. A new package needs steps 2 and 3 at its first release.
 For the container image:
 
 1. The first publishing run creates the package on GHCR.
-2. Make it public. Check that this repository has write access under "Manage Actions access".
+2. Make it public. Check that this repository has write access in the "Manage Actions access" section.
 3. Set the repository variable `IMAGE_RELEASE_ENABLED` to `true`.
 
 ## Why the setup looks like this

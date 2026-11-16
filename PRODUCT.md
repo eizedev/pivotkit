@@ -7,12 +7,12 @@ is for, what it is not, and what we expect of a change.
 
 ## Who it is for
 
-Every feature is checked against these three roles.
+The maintainer checks every feature against these three roles.
 
 | Role | Wants | Success means |
 | --- | --- | --- |
 | User | a report from their data, by clicking, with curl or PowerShell, or by asking an AI client | a correct report, quickly, without studying the docs first |
-| Operator | to run pivotkit in their environment and answer for it | start the container and it runs with secure defaults; adjusting is possible, not required |
+| Operator | to run pivotkit in their environment and answer for it | start the container and it runs with secure defaults. Adjusting is possible, not required |
 | Developer | to build reports into their own application (React, web component, REST, MCP, host integrations) | a few lines, stable interfaces, clear errors |
 
 ## What it is
@@ -21,7 +21,7 @@ Every feature is checked against these three roles.
   sorting, totals and formats.
 - **The interface** is a React component and a web component to click a report together, with a
   chart, export and print. Integrations for hosts, such as the maintainer's PowerShell Universal
-  module, are optional add-ons in their own repositories; contributors do not need to update them.
+  module, are optional add-ons in their own repositories. Contributors do not need to update them.
 - **Reports without a browser**: the command line and the report renderer make the same file from a
   view and data as the browser does.
 - **The services**: the REST service and the MCP server read live data (a file, an HTTP API, the
@@ -34,22 +34,22 @@ released beyond what the policy allows, to people or to a model.
 
 ## Principles
 
-Every decision is measured against these. When two conflict, the earlier one wins.
+The maintainer measures every decision against these. When two conflict, the earlier one wins.
 
-1. **Data stays protected.** What the policy hides reaches no report, log or model answer. Limits
-   that cannot be closed (for example CSV without quotes) are listed in
-   [docs/privacy.md](docs/privacy.md).
-2. **Secure without effort.** The default is the secure one; loosening it is a deliberate setting.
+1. **Data stays protected.** What the policy hides reaches no report, log or model answer.
+   [docs/privacy.md](docs/privacy.md) lists the limits pivotkit cannot close, for example CSV
+   without quotes.
+2. **Secure without effort.** The default is the secure one. Loosening it is a deliberate setting.
    When a choice is unclear, it becomes a setting with a secure default rather than a guess.
 3. **Standards instead of our own.** Sign-in goes through existing identity providers, output is
    Excel, HTML and CSV, and the interfaces are REST with OpenAPI and MCP. pivotkit stores no
    passwords or accounts. What another tool does well, pivotkit does not rebuild.
-4. **Running in one step.** Starting the container is enough: what is needed is created at start and
-   can be read out afterwards. Detailed manual setups stay possible but are not the default.
+4. **Running in one step.** Starting the container is enough: pivotkit creates what it needs at start,
+   and you can read it out afterwards. Detailed manual setups stay possible but are not the default.
 5. **Everything with pivotkit itself.** What operators and users need is a pivotkit command, not a
    recipe with other tools. Users get by with curl or PowerShell. The maintainer decides exceptions.
 6. **Any client, any model.** REST and MCP work the same for every AI client and model, hosted or
-   local, and for plain programs. Nothing requires one vendor; client-specific helpers are optional.
+   local, and for plain programs. Nothing requires one vendor. Client-specific helpers are optional.
 7. **A product, not one installation.** What one environment shows is feedback, not a requirement.
    pivotkit works everywhere or says clearly why not.
 8. **Maintainable.** Each thing is defined once and reused. Every change has tests that fail without
@@ -59,52 +59,52 @@ Every decision is measured against these. When two conflict, the earlier one win
 
 | Not | Instead |
 | --- | --- |
-| An identity provider or user management (passwords, accounts) | an existing identity provider; without one, tokens the operator issues |
-| A BI suite with dashboards, a data model or a semantic layer | a BI tool; pivotkit makes the one pivot report |
-| A database, data warehouse or ETL tool | data stays in its systems; pivotkit reads it per request |
-| A scheduler or mail sender | pivotkit makes the report and a schedule draft and hands both to the host (webhook, host callback); the host schedules, approves and sends |
+| An identity provider or user management (passwords, accounts) | an existing identity provider. Without one, tokens the operator issues |
+| A BI suite with dashboards, a data model or a semantic layer | a BI tool. pivotkit makes the one pivot report |
+| A database, data warehouse or ETL tool | data stays in its systems. pivotkit reads it per request |
+| A scheduler or mail sender | pivotkit makes the report and a schedule draft and hands both to the host through a webhook or host callback. The host schedules, approves and sends |
 | A general chart or table library | charts only for the pivot view |
-| A file store for teams | download links expire; lasting copies live in the operator's store |
+| A file store for teams | download links expire. Lasting copies live in the operator's store |
 
 ## Promises and limits
 
 - **Versions.** pivotkit is 0.x and under active development: a minor release can break things,
-  though we break as little as possible, and every break is listed on the
-  [upgrading page](docs/getting-started/upgrading.md). From 1.0.0 on, pivotkit follows Semantic
+  though we break as little as possible. The [upgrading page](docs/getting-started/upgrading.md)
+  lists every break. From 1.0.0 on, pivotkit follows Semantic
   Versioning strictly: only a major release removes or breaks something, after a numbered
   deprecation (`PK-DEP-NNNN`) with a warning and a migration path. The one exception is a security
-  fix, marked as such. The details are planned in
-  [#491](https://github.com/eizedev/pivotkit/issues/491).
+  fix, marked as such. [#491](https://github.com/eizedev/pivotkit/issues/491) plans the details.
 - It runs on Node.js 22 or later and in the browsers listed in
   [docs/browser-support.md](docs/browser-support.md).
-- This page changes through an issue first; the maintainer decides. An idea that does not fit may
+- This page changes through an issue first. The maintainer decides. An idea that does not fit may
   still work as a plugin or in the host.
 
 ## Before building a feature
 
-A new capability, setting or dependency answers these five questions in its issue; bug fixes and
+A new capability, setting or dependency answers these five questions in its issue. Bug fixes and
 small polish do not. A "no" to the first or second means: do not build it, or change this page first.
 
 1. **Does it fit?** It helps a user, operator or developer build, get or deliver a pivot report, and
    it is not on the "not" list.
-2. **Does it keep the promise?** Same view, same numbers; no data beyond the policy.
+2. **Does it keep the promise?** Same view, same numbers. No data beyond the policy.
 3. **What does getting started look like?** Does it work with the defaults and without other tools?
    What does a user or operator have to do?
 4. **What does it cost for good?** A new setting, dependency, docs page or test path: is it worth it,
    or can what exists solve it?
-5. **Who notices the change?** Existing installations and the upgrading page are updated in the same
-   pull request.
+5. **Who notices the change?** The same pull request covers existing installations and updates the
+   upgrading page.
 
 ## What a contribution delivers
 
 How you work is up to you, with or without an AI assistant. What a pull request delivers is the
-same for everyone; [CONTRIBUTING.md](CONTRIBUTING.md) has the commands.
+same for everyone. [CONTRIBUTING.md](CONTRIBUTING.md) has the commands.
 
-- A linked issue; for a new feature, the answers to the five questions.
-- Tests that fail without the change and pass with it; no test weakened to pass.
+- A linked issue. For a new feature, also the answers to the five questions.
+- Tests that fail without the change and pass with it. No test weakened to pass.
 - Docs, upgrading notes and changelogs that describe the new state.
 - Strongly recommended: an independent review before you open the pull request. Have code an AI
   assistant wrote reviewed by a reviewer that did not write it (a person or a separate AI session),
-  and read, run and understand it yourself. Every pull request gets such a review here anyway; what
-  it would have found beforehand comes back as questions and change requests and delays the merge.
-- Green CI on the commit that is merged.
+  and read, run and understand it yourself. The maintainer reviews every pull request neutrally
+  anyway. What your own review would have found comes back as questions and change requests, and
+  it delays the merge.
+- Green CI on the commit that gets merged.

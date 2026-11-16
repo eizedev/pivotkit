@@ -20,6 +20,27 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Secrets are `{ env }` or `{ file }` references. `readSecret` reads them on every use.
 - Never log a secret.
 
+## Secrets and credential commands
+
+- `readSecretFile` in `src/secrets.js` is the one read of a secret's file, static tokens too.
+- It reads a regular file only, at most `MAX_SECRET_BYTES`. It names UTF-16 text with `UTF16_TEXT`.
+- `src/credentials.js` holds `token new`, `token show` and `key new`. The runner loads it only for them.
+- `--add` puts the token into `auth.tokens`, checked by `validateOptions`, with a backup.
+- `--add` reads the configuration again right before it replaces it. It holds no lock.
+- `--json` follows pivotkit-cli's contract. `configuredToken` is the one lookup of `token show`.
+- The messages name the commands through `MAKE_TOKEN` and `makeKey` in `auth.js`.
+- `src/secret-rules.js` has `tokenProblem` and `keyProblem`: whether the server can use a value.
+- `placeSecret` in `src/secret-file.js` is the one way code writes a secret into a file.
+  Any code that creates a missing secret uses it.
+- It writes with mode 0600 through a temporary file and `link()`. It never replaces a file without `replace`.
+- `keep` reads the file that is there. It reads an empty one again for about a second:
+  without hard links, another process creates the file in place.
+- A kept file loses only its world bits. A kept symbolic link is only read through, never written.
+- Otherwise it refuses a symbolic link, a directory or a missing directory.
+- A replaced file keeps its owner, group and group read bit where it may, else a warning.
+- EBUSY of a mounted file is `MOUNTED`. On SIGINT and SIGTERM it removes the temporary file.
+- `replaceFile` and `writeBackup` write a configuration file. Tests replace system calls through `secretFileMeans`.
+
 ## Check-config
 
 - `src/check/` has one section per concern. `check/index.js` lists them in `SECTIONS`.
@@ -57,7 +78,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 
 - Levels are `show`, `values`, `summary` and `hide` (`POLICY_LEVELS`), in order of strictness.
 - `stats.js` counts per field. It never keeps a value.
-- A source the caller may not use answers "not found".
+- A source the caller may not use gets the same answer as a missing one: not found.
 - REST callers never get `file:` paths (`files: false` in the registry).
 - Delivery decides a report's link before the file is written (`linkFor` in `delivery.js`).
 - `isClosedForDelivery` is the one rule for which reports get only bound links.

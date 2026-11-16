@@ -46,18 +46,13 @@ npm run coverage       # the tests with a coverage report
 npm run pack:check     # what npm pack would publish, checked
 ```
 
-Work on one package. Its `AGENTS.md` lists its size and benchmark commands:
+One package, the UI and the browser tests. A package's `AGENTS.md` lists its size and benchmark commands:
 
 ```bash
 npm test -w pivotkit-server        # any workspace name works
 npm run build -w pivotkit-react    # packages with a dist/ build first
-```
-
-UI and browser:
-
-```bash
-npm run playground                          # http://localhost:5173 with rebuilds
-npm run test:browser                        # three browsers. React 19 and ports: tests/AGENTS.md
+npm run playground                 # http://localhost:5173 with rebuilds
+npm run test:browser               # three browsers. React 19 and ports: tests/AGENTS.md
 ```
 
 Generated files. Run the generator after a change. A test fails until you do:
@@ -88,8 +83,9 @@ node scripts/check-readme-links.js site   # after the build: README links resolv
 - **Clean up.** Temporary directories only through `tempDir()` ([tests/AGENTS.md](tests/AGENTS.md)).
 - **Commit no `node_modules/` and no build output.**
 - **No secrets, host names or real data** in code, examples or tests.
-  The exceptions are public data with their licences:
-  `examples/playground/data/` and `packages/pivotkit-core/test/import-fixtures/`.
+  The exceptions are public data with their licences: `examples/playground/data/`,
+  the weather example built from it in `packages/pivotkit-cli/examples/` with `weather-SOURCE.txt`,
+  and `packages/pivotkit-core/test/import-fixtures/`.
 
 ## Code rules for every package
 
@@ -146,7 +142,7 @@ node scripts/check-readme-links.js site   # after the build: README links resolv
 - `docs/features.md` links to the pages. It never copies the behaviour.
 - A `use/` page gives the task in a few lines, then steps, then details folded in `???` blocks.
 - Prop names appear in `use/` only in a "For developers" box.
-- A props table has one short line per prop. The full text goes under "Props in detail".
+- A props table has one short line per prop. The full text goes into the "Props in detail" section.
 
 ### Pages and screenshots
 
@@ -170,10 +166,12 @@ For agents and the maintainer. See also [PRODUCT.md](PRODUCT.md#what-a-contribut
 ### Reviews
 
 - The agent that wrote a change does not review it.
-- Another agent or person reviews it before the pull request is opened.
+- For the maintainer's own AI agents, an independent review before the pull request is mandatory.
+- For outside contributors it is strongly recommended.
+  The maintainer reviews every pull request neutrally. Findings come back as change requests.
 - A larger feature gets reviews as user, operator and developer, run with the packed packages.
 - A change to what a caller may see gets an adversarial privacy review until it finds nothing new.
-- Limits that cannot be closed go into `docs/privacy.md`.
+  Limits that cannot be closed go into `docs/privacy.md`.
 
 ### Pull requests and interfaces
 
