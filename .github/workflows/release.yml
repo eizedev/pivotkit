@@ -8,11 +8,12 @@ name: Release
 # reviewers, and the repository variable NPM_RELEASE_ENABLED set to "true" (RELEASING.md, "One-time
 # setup"). Without that variable every run is skipped.
 #
-# Two jobs: "build" installs, packs and checks without any publishing right (the dependencies run
-# there); "publish" gets the OIDC token, installs nothing and stages the tarball "build" made. "build"
-# packs and uploads the tarball before lint, types and tests run: a compromised dev dependency
-# cannot change the packages between the tests and the pack. "publish" stages only a tarball with
-# the integrity the Pack step recorded.
+# Two jobs:
+# - "build" has no publishing right. It installs, packs and checks; the dependencies run here.
+# - "publish" gets the OIDC token. It installs nothing and stages the tarball "build" made.
+# "build" packs and uploads the tarball before lint and tests run. Only the compilers and bundlers
+# run before the pack: tsc and the package's prepack. "publish" stages only a tarball with the
+# integrity the Pack step recorded.
 on:
   push:
     tags: ["pivotkit-core@*", "pivotkit-react@*", "pivotkit-element@*", "pivotkit-xlsx@*", "pivotkit-report@*", "pivotkit-cli@*", "pivotkit-server@*", "pivotkit-mcp@*"]

@@ -277,25 +277,35 @@ test("the release workflow runs check-release for the tagged package before it p
     assert.ok(check < release.indexOf("npm pack --workspace"), "check-release runs after the pack");
 });
 
-// a compromised dev dependency runs in lint, types and tests: the tarball is packed and uploaded
-// before any of them (only the declarations and the package's prepack, its build, run before it), and the publish job stages only a tarball with the integrity the Pack step
-// recorded (#506)
-test("the release packs and uploads the tarball before lint, types and tests, and publish checks its integrity", () => {
+// A compromised dev dependency could change the packages during lint and tests (#506). So the
+// build job packs and uploads the tarball first. Only the compilers and bundlers run before the
+// pack: tsc for every workspace's declarations, and the package's own prepack. The publish job
+// stages only a tarball with the integrity the Pack step recorded.
+test("the release packs and uploads the tarball before lint and tests, and publish checks its integrity", () => {
     const build = jobOf(".github/workflows/release.yml", "build");
-    const signatures = build.indexOf("run: npm audit signatures");
-    const pack = build.indexOf("npm pack --workspace");
-    const upload = build.indexOf("uses: actions/upload-artifact@");
-    const checks = build.indexOf("npm run lint");
+    const steps = build.split(/\n {6}- /);
+    const at = (text) => steps.findIndex((step) => step.includes(text));
+    const signatures = at("run: npm audit signatures");
+    const pack = at("npm pack --workspace");
+    const upload = at("uses: actions/upload-artifact@");
+    const checks = at("npm run lint");
     assert.ok(signatures !== -1 && pack > signatures, "the pack follows the install and its signature check");
     assert.ok(upload > pack, "the upload follows the pack");
-    assert.ok(checks > upload, "lint, types and tests run after the tarball is uploaded");
-    // before the pack only the workspaces' declarations are built (tsc); a package's types need its dependencies'
-    const before = [...build.slice(signatures + "run: npm audit signatures".length, pack).matchAll(/run: (npm [^\n]*)/g)].map((m) => m[1]);
-    assert.deepEqual(before, ["npm run types --workspaces --if-present"], "only the declarations are built before the pack");
+    assert.ok(checks > upload, "lint, types and tests run after the upload");
+    // Every npm, npx or node command between the signature check and the pack, in one-line and
+    // multi-line run blocks: only the declarations are built there.
+    const commands = steps
+        .slice(signatures + 1, pack)
+        .flatMap((step) => (/\n {8}run: (?:\|\n)?([\s\S]*)/.exec(`\n${step}`)?.[1] ?? "").split("\n"))
+        .map((line) => line.trim())
+        .filter((line) => !line.startsWith("#") && /\b(npm|npx|node)\b/.test(line));
+    assert.deepEqual(commands, ["npm run types --workspaces --if-present"], "only the declarations are built before the pack");
     assert.match(build, /integrity: \$\{\{ steps\.pack\.outputs\.integrity \}\}/);
     const publish = jobOf(".github/workflows/release.yml", "publish");
     assert.match(publish, /INTEGRITY: \$\{\{ needs\.build\.outputs\.integrity \}\}/);
-    assert.ok(publish.indexOf("INTEGRITY:") < publish.indexOf("npm stage publish"), "the integrity is checked before the tarball is staged");
+    const compare = publish.indexOf('test "$actual" = "$INTEGRITY"');
+    assert.ok(compare !== -1, "the publish job compares the tarball's integrity with the recorded one");
+    assert.ok(compare < publish.indexOf("npm stage publish"), "it compares before it stages");
 });
 
 test("every package of this repository is checked, packed and released", () => {
