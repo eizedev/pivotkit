@@ -7,7 +7,7 @@ is for, what it is not, and what we expect of a change.
 
 ## Who it is for
 
-The maintainer checks every feature against these three roles.
+Every feature is checked against these three roles.
 
 | Role | Wants | Success means |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ released beyond what the policy allows, to people or to a model.
 
 ## Principles
 
-The maintainer measures every decision against these. When two conflict, the earlier one wins.
+Every decision is measured against these. When two conflict, the earlier one wins.
 
 1. **Data stays protected.** What the policy hides reaches no report, log or model answer.
    [docs/privacy.md](docs/privacy.md) lists the limits pivotkit cannot close, for example CSV
@@ -44,8 +44,9 @@ The maintainer measures every decision against these. When two conflict, the ear
 3. **Standards instead of our own.** Sign-in goes through existing identity providers, output is
    Excel, HTML and CSV, and the interfaces are REST with OpenAPI and MCP. pivotkit stores no
    passwords or accounts. What another tool does well, pivotkit does not rebuild.
-4. **Running in one step.** Starting the container is enough: pivotkit creates what it needs at start,
-   and you can read it out afterwards. Detailed manual setups stay possible but are not the default.
+4. **Running in one step.** Starting the container is enough: pivotkit creates what it needs at
+   start, and you can read it out afterwards. Detailed manual setups stay possible but are not the
+   default.
 5. **Everything with pivotkit itself.** What operators and users need is a pivotkit command, not a
    recipe with other tools. Users get by with curl or PowerShell. The maintainer decides exceptions.
 6. **Any client, any model.** REST and MCP work the same for every AI client and model, hosted or
@@ -91,8 +92,8 @@ small polish do not. A "no" to the first or second means: do not build it, or ch
    What does a user or operator have to do?
 4. **What does it cost for good?** A new setting, dependency, docs page or test path: is it worth it,
    or can what exists solve it?
-5. **Who notices the change?** The same pull request covers existing installations and updates the
-   upgrading page.
+5. **Who notices the change?** Existing installations and the upgrading page are updated in the same
+   pull request.
 
 ## What a contribution delivers
 

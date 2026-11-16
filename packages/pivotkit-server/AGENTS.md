@@ -27,11 +27,11 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `src/credentials.js` holds `token new`, `token show` and `key new`. The runner loads it only for them.
 - `--add` puts the token into `auth.tokens`, checked by `validateOptions`, with a backup.
 - `--add` reads the configuration again right before it replaces it. It holds no lock.
+- `--add` with `--if-missing` is done when the same entry is there. It writes nothing then.
 - `--json` follows pivotkit-cli's contract. `configuredToken` is the one lookup of `token show`.
 - The messages name the commands through `MAKE_TOKEN` and `makeKey` in `auth.js`.
 - `src/secret-rules.js` has `tokenProblem` and `keyProblem`: whether the server can use a value.
-- `placeSecret` in `src/secret-file.js` is the one way code writes a secret into a file.
-  Any code that creates a missing secret uses it.
+- Code that creates a missing secret uses `placeSecret` in `src/secret-file.js`.
 - It writes with mode 0600 through a temporary file and `link()`. It never replaces a file without `replace`.
 - `keep` reads the file that is there. It reads an empty one again for about a second:
   without hard links, another process creates the file in place.
