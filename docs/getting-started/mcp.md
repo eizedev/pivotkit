@@ -125,8 +125,8 @@ claude mcp add pivotkit -- npx -y pivotkit-mcp --config /Users/you/reports/pivot
 ```
 
 To let the model open any data file in a folder by path ("file:q3.csv"), add
-`--allow-dir /Users/you/reports`. Add `--list-files` to have the files listed. The server can then
-read every file in that folder, so put only data there that the model may use.
+`--allow-dir /Users/you/reports`. Add `--list-files` to have the files listed. Every file in that
+folder is then open to the model, so put only data there that the model may use.
 
 - [Exposure policy](../reference/mcp.md#policy) has the rules.
 - [What reaches the model](../model-data.md) shows the answers a model gets at each level. It also
@@ -301,7 +301,7 @@ PSU's scripts and apps send the same secret: `Authorization = "Bearer $Secret:Pi
 See [the calls in PowerShell](rest.md#powershell).
 
 Scheduled jobs cannot use a secret with roles. See
-[PSU's variables](https://docs.devolutions.net/powershell-universal/platform/variables). So the
+[PSU's variables](https://docs.devolutions.net/powershell-universal/platform/variables), so the
 script that writes the file runs on a schedule only with a secret without roles.
 
 Without a token file, `$PIVOTKIT_TOKEN` in the service's environment works too. A service manager

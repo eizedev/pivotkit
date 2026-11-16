@@ -30,7 +30,7 @@ drill-down holds, for memory. It does not decide who sees them.
   Load the data behind that id with the rights of the person who opens it, not of the person who
   shared it. Answer a source they may not see as you answer an unknown one. Check the link's allowed
   `params` the same way: they come from the link, not from you.
-- A shared view holds the values chosen in its filters. So a view can show a value to someone who
+- A shared view holds the values chosen in its filters, so a view can show a value to someone who
   could not see the rows ([Privacy](reference/view-file.md#privacy)).
 
 ### Source data { #source-data }
@@ -44,7 +44,7 @@ holds:
 - a field the host only relabels or describes. `fieldDefaults` changes how a field is shown, not
   whether it is there.
 
-It puts into one click what the browser's developer tools already reach. So turn it on only where
+It puts into one click what the browser's developer tools already reach, so turn it on only where
 the viewer may take every row home. Keep rows the viewer must not have off the page: aggregate them
 on your server. `exportData={{ columns }}` limits the files to the columns you name. It does the same
 for the drill-down's copies and files.
@@ -90,7 +90,7 @@ the file, it holds about twice the CSV's size. For JSON it holds a few times the
     - `templatesFromSchema` follows local references only and fetches nothing.
     - The report only shows what the host allows (`canPublish`, `deletable`). The host's server must
       check who may save, publish or delete, and validate every view it receives.
-- `chartOptions` belongs to the host, but is often JSON from a server. So pivotkit cleans it
+- `chartOptions` belongs to the host, but is often JSON from a server, so pivotkit cleans it
   ([Charts](concepts/charts.md#chartoptions-for-developers)):
     - Only plain JSON values pass. Prototype keys and functions are dropped.
     - Depth and size are capped.
@@ -218,7 +218,7 @@ and a hostile file affects only that person's tab. The readers treat every file 
     - The file's name and its column names are stored where views are kept or shared. The source id
       of a saved view, a view file or a link names the file, with up to 120 characters and a hash. A
       view file lists the fields it uses.
-    - Undo keeps at most three data sets. So loading one file after another does not keep every one
+    - Undo keeps at most three data sets, so loading one file after another does not keep every one
       in memory.
 
 ### Untrusted workbooks
@@ -246,7 +246,7 @@ costs about 100 bytes, even for a string of one letter. pivotkit-xlsx bounds the
   leaves out strings that only other sheets use.
 - It counts the strings and formats it keeps against `importCells` plus 1,000 rows for a title
   block. It counts them together, and with a namespace prefix too. More stop the read with
-  `LIMIT_EXCEEDED`. So they cost no more than a table at that limit.
+  `LIMIT_EXCEEDED`, so they cost no more than a table at that limit.
 - Shared strings are numbered across the whole workbook. So a small sheet is refused too when its
   cell names a string past that limit, for example in a workbook whose other sheets hold millions of
   strings.
@@ -317,7 +317,7 @@ gets at each level, and how to set them per client.
     | --- | --- |
     | `summary`, the default | names, types and counts |
     | `values` | the field's values as a complete list |
-    | `show` | values and results |
+    | `show` | values and results. Only `show` fields give them. |
     | `hide` | nothing. The field is dropped when the data is read. |
 
     - A view may touch a field that is not `show`, `values` included. Then its result is written to a
@@ -357,14 +357,14 @@ gets at each level, and how to set them per client.
     - With `files.allowDirs`, the model may name files inside those directories. The server checks
       them by real path, on the path and again on the open file.
     - A hard link is refused.
-    - A file that is missing, outside or replaced gets one answer. So paths outside cannot be probed.
+    - A file that is missing, outside or replaced gets one answer, so paths outside cannot be probed.
     - This is not a sandbox (see [the command line](#the-command-line)). Run the server as a user
       that can only read what it should.
     - Configured sources are the operator's paths and need no allowed directory. A `file:` path to
       one of them is that source, with its scopes and policy.
     - The output directory may not lie inside an allowed directory.
     - Every file in an allowed directory can be read. Its first line becomes field names the model
-      sees. So keep only data files there.
+      sees, so keep only data files there.
 - **Output** goes only to the operator's output directory:
     - Reports are new files that never replace one. Their names are cleaned to letters, digits,
       spaces, dots, underscores, dashes and parentheses.
@@ -374,7 +374,7 @@ gets at each level, and how to set them per client.
     - The directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's
       files. pivotkit's reports and drafts carry `.pivotkit-out.` in their names. Other files are
       neither counted nor deleted. A file named with `.pivotkit-out.` by hand counts as pivotkit's.
-    - When the directory is full, a new report deletes the oldest reports. So one caller cannot stop
+    - When the directory is full, a new report deletes the oldest reports, so one caller cannot stop
       rendering for everyone. But any token that may render can push other callers' reports out. A
       link to such a report then answers 404, or 410 for the server's own links.
     - This never deletes drafts awaiting approval. Drafts may take at most half of `maxFiles`. A
@@ -400,8 +400,9 @@ gets at each level, and how to set them per client.
       A forged and an unknown link get the same 404. The link names no file.
     - A source can have a field that is not `show` for someone. A report over that source gets a link
       only where the link is bound in one of two ways:
-        - to the person's sign-in: OpenID Connect code flow with PKCE, `state` and `nonce`. The file
-          goes only to the issuer and subject that asked. The token holds them as an HMAC.
+        - to the person's sign-in: OpenID Connect code flow with PKCE, `state` and `nonce`. Only a
+          sign-in with the issuer and subject that asked gets the file. The token holds them as an
+          HMAC.
         - as the operator's explicit choice, used once. A GET never uses it, so a link preview
           cannot.
     - Otherwise the report gets no link. A link anyone can open would let the client or the model
@@ -561,7 +562,7 @@ It never listens on every address without sign-in.
 
 Without a token of yours, it makes the token `admin` at its first start, in its state volume
 ([made at the first start](reference/rest.md#first-start)). It does so only where the configuration
-leaves auth to it. A written `auth.mode` `"token"` that resolves no token is refused. So a misspelt
+leaves auth to it. A written `auth.mode` `"token"` that resolves no token is refused, so a misspelt
 variable never becomes a token with every scope. The token `admin` holds every scope. Keep it like a
 password. When it leaves the machine, send it over HTTPS only.
 
@@ -603,7 +604,7 @@ model cannot point the server at an address:
   ([OAuth](reference/mcp.md#oauth)).
 - The operator types the OpenAPI document's address on the command line. That address may be
   private.
-- Each request has its own connection and uses no proxy of the environment. So no proxy connects
+- Each request has its own connection and uses no proxy of the environment, so no proxy connects
   past the address check.
 - The body is counted while it arrives, after decompression. The whole request has a time limit.
 
@@ -621,7 +622,7 @@ operator's, never a caller's:
 - Further pages must be on the same host and path. The bytes of all pages, the pages, the rows and
   the time are bounded.
 - A backend's body, and the words of a failed request, never reach a caller or the log. For a source
-  with parameters, the backend's 401, 403 and 404 give one answer. So a caller cannot probe which
+  with parameters, the backend's 401, 403 and 404 give one answer, so a caller cannot probe which
   other customers exist.
 - A backend's sign-in ([backend sign-in](reference/sources.md#http-auth)) is a header from a secret
   reference, OAuth client credentials or a token exchange.
@@ -637,7 +638,7 @@ operator's, never a caller's:
 - A parameter can be bound to a claim of the verified token. That gives a backend without per-person
   rights each person's own rows. The parameter needs a pattern or a list. It takes only a verified
   email. A caller never sets it, and the server never says it back.
-- The policy of an HTTP source must hide fields by default. So a field the backend adds later is not
+- The policy of an HTTP source must hide fields by default, so a field the backend adds later is not
   shown without anyone deciding. Its data is kept per caller and values, never shared between
   callers.
 
@@ -675,7 +676,7 @@ Not covered:
 pivotkit-react has no measured policy of its own. What it needs depends on how your app is built and
 served.
 
-The readers of `pivotkit-core/import` and pivotkit-xlsx start no worker and evaluate no code. So the
+The readers of `pivotkit-core/import` and pivotkit-xlsx start no worker and evaluate no code, so the
 policy above is enough for them. This was measured for pivotkit-xlsx in Chromium, Firefox and
 WebKit (`tests/browser/xlsx.spec.js`). A host that runs them in a module worker of its own needs
 `worker-src 'self'`.
@@ -701,7 +702,7 @@ instead. The browser logs the refusal.
 
 The browser fetches module scripts from another origin, such as a CDN, with CORS. The server must
 send `Access-Control-Allow-Origin` for `index.js` and every chunk. Subresource Integrity covers only
-the `<script integrity>` of the entry. The chunks it imports later cannot carry a hash. So pin a
+the `<script integrity>` of the entry. The chunks it imports later cannot carry a hash, so pin a
 version in the URL, or host `dist/` yourself.
 
 ## This documentation site
@@ -715,8 +716,8 @@ party. It loads only its own chunks from where you host it.
 - pivotkit-core has one runtime dependency: [fflate](https://github.com/101arrowz/fflate) for the XLSX
   zip.
 - pivotkit-xlsx depends on pivotkit-core, fflate and [read-excel-file](https://www.npmjs.com/package/read-excel-file)
-  (MIT). read-excel-file brings saxen, worker-f and unzipper-esm, for its Node entry. pivotkit-xlsx
-  does not use that entry. pivotkit-xlsx's `dist/` bundles read-excel-file and fflate, with
+  (MIT). read-excel-file brings saxen, worker-f and unzipper-esm (for its Node entry, not used by
+  pivotkit-xlsx). pivotkit-xlsx's `dist/` bundles read-excel-file and fflate, with
   their licenses in `dist/THIRD_PARTY_LICENSES.txt`.
 - pivotkit-react depends on pivotkit-core and @dnd-kit. React, ReactDOM and ECharts come from your
   app, so their security updates stay with you.

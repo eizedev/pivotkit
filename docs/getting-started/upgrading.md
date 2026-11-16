@@ -281,7 +281,7 @@ Both appear only where the report is given that time:
 
 - The REST service and the MCP server pass it, as the results' `dataAsOf`.
 - pivotkit-report's `render` takes it as its [`dataAsOf` option](../reference/report.md).
-- The command line passes none. So a report it renders from a local file carries none.
+- The command line passes none, so a report it renders from a local file carries none.
 
 A print template of your own shows it only where it uses `{{details}}` or `{{dataAsOf}}`. The
 Minimal example uses `{{details}}`. The Corporate example writes its own footer without it. Add
@@ -458,7 +458,7 @@ This applies where a caller sees any field below `show`: the default or a rule i
 `summary` or `hide`, the shipped default `summary` included.
 
 An unquoted separator inside a value can shift a row's cells. The values after the stray separator
-shift one column to the right. So a value kept back would land in a shown column. The server
+shift one column to the right, so a value kept back would land in a shown column. The server
 therefore leaves out such a row whole. The answer's notes say how many with `ROWS_DROPPED`.
 
 - Such a row has more cells than the named header, not counting its empty cells at the end.
@@ -472,7 +472,7 @@ therefore leaves out such a row whole. The answer's notes say how many with `ROW
   sees fewer fields can lose rows `check-config` does not warn about.
 
 To keep the rows, quote values that hold the separator. A shifted row as wide as the header cannot
-be caught. So use quoted CSV, xlsx or JSON for sources with fields kept back.
+be caught, so use quoted CSV, xlsx or JSON for sources with fields kept back.
 
 ### Request limits per person { #limits-per-person }
 
@@ -742,7 +742,7 @@ Date labels write a year before 1 AD with its era:
 | `yearWeek` | "2 BC-W02" | |
 
 `toCsv` and `toJson` write a date before year 0 or after 9999 in its signed ISO form
-(`-000001-01-11`). `isIdentifierName` takes `HTTPId` and `ABCId` as identifiers. So such a number
+(`-000001-01-11`). `isIdentifierName` takes `HTTPId` and `ABCId` as identifiers, so such a number
 field is counted when placed, as `ID` is.
 
 ### Command line { #cli-0-6-1 }
@@ -798,8 +798,8 @@ changes nothing.
 
 ### The report's words in pivotkit-report { #report-words }
 
-Without `labels`, `render()` writes the report's words in the language of its locale. So does
-`pivotkit render`.
+Without `labels`, `render()` writes the report's words in the language of its locale.
+`pivotkit render` does the same.
 
 - For `de-DE` the words are German: "Gesamtergebnis", "Summe von Units".
 - In English they are the words the report on a page shows: "Yes" and "No" instead of "true" and

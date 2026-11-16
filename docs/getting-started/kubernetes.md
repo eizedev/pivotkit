@@ -89,9 +89,9 @@ The configuration is a ConfigMap mounted at `/config`, where the image reads
   the other way, see [clients inside the cluster](#in-cluster).
 - `http.trustProxy` makes the server read the client's address from the last entry of
   `X-Forwarded-For`. The ingress controller writes that header. The address appears as `address` in
-  the log. The log is JSON lines for the cluster's log agent, see
+  the log. The log is JSON lines for the cluster's log agent. See
   [operations and logs](../reference/operations.md#kubernetes). With `http.trustProxy`, only the
-  controller may reach the pod, as the [NetworkPolicy](#networkpolicy) below ensures. Otherwise a
+  controller may reach the pod, through the [NetworkPolicy](#networkpolicy) below. Otherwise a
   client could name any address.
 - The configuration names no token. At its first start the server makes `admin` in
   `/var/lib/pivotkit/secrets/`, and the key of the download links beside it. To set a new value:
@@ -182,7 +182,7 @@ A pool of worker threads computes the reports over a file. `compute.*` in
 - The bound covers the old generation. The young generation adds up to 64 MB.
 - The bytes of the file the worker reads lie outside the heap.
 - The encoded columns lie outside it too. They are typed arrays, up to 12 bytes per row and column.
-- Each worker keeps the last four data sets it read. So its memory stays up after a report instead
+- Each worker keeps the last four data sets it read, so its memory stays up after a report instead
   of going back down. The encoded columns of all four count.
 
 As a starting point for the container's memory limit:
@@ -195,8 +195,8 @@ With the defaults that is about 150 MB + 2 x (1024 + 64 + 50) MB, about 2.4 GB. 
 2560Mi. Large files with many columns need more than this for the encoded columns the workers keep.
 Watch the pod's memory with your own data.
 
-A limit below the sum is dangerous. A report that alone would fail with `LIMIT_EXCEEDED` then
-becomes an OOM kill of the whole pod, with every report running in it. For a smaller pod, lower
+With a limit below the sum, a report that alone would fail with `LIMIT_EXCEEDED` becomes an OOM
+kill of the whole pod, with every report running in it. For a smaller pod, lower
 `compute.memoryMb` or the workers, not the limit alone. With 512 and 2 workers, the pod needs about
 1.4 GB.
 
@@ -329,7 +329,7 @@ git-sync's image sets `HOME` to `/tmp`. With the read-only root file system, `/t
 the `emptyDir`.
 
 If you use `files.allowDirs`, the server resolves it once at start. It does not start while a
-directory named there is missing. So name the volume's mount (`/data`), which exists from the start.
+directory named there is missing, so name the volume's mount (`/data`), which exists from the start.
 Do not name a directory git-sync makes later (`/data/git`) or the link (`/data/git/current`).
 
 A private repository needs credentials: git-sync's `--password-file` or `--ssh-key-file`, from a
@@ -441,7 +441,7 @@ Other features need more egress:
 - It also needs its token endpoint when it signs in with client credentials or a token exchange. See
   [backend sign-in](../reference/sources.md#http-auth).
 
-Cluster addresses are private ones. So something inside the cluster needs a setting:
+Cluster addresses are private ones, so something inside the cluster needs a setting:
 
 - A backend needs `intranet: true` on it.
 - A token endpoint needs `intranet: true` in its sign-in's settings.
@@ -510,7 +510,7 @@ puts the client ID into the access token's `aud`, and the granted scopes into it
 ### Egress to the issuer { #oauth-egress }
 
 The server loads the issuer's metadata and keys over HTTPS. Until then, `/readyz` answers 503. A
-NetworkPolicy cannot name a host. So allow the addresses that `auth.example.com` resolves to from
+NetworkPolicy cannot name a host, so allow the addresses that `auth.example.com` resolves to from
 inside the cluster, on port 443. Add the rule to the policy's `egress`:
 
 ```yaml
