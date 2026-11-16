@@ -820,7 +820,7 @@ Without containers, on Windows next to PowerShell Universal, `pivotkit-server se
 service with a service manager of your choice. [PowerShell Universal](../getting-started/mcp.md#psu)
 has the steps: an account of its own, its file rights, the token from a PSU secret, a rotated log,
 and IIS with ARR in front. CI runs the server's tests on Linux, macOS and Windows.
-The tests of POSIX file modes, owners and FIFOs run on Linux and macOS only.
+Some of its file checks are tested on Linux and macOS only.
 [#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows.
 
 ### Tokens and keys { #credentials }

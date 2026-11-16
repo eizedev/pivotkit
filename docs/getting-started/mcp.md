@@ -292,7 +292,7 @@ The server refuses to start in these cases:
 - The output folder is the configuration's folder.
 - The output folder holds a source, a print template or a token file.
 
-CI tests its checks of links and hard links on Linux, macOS and Windows.
+Its checks of links and hard links are measured on Linux and macOS.
 [#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows.
 
 ### The token from a PSU secret { #psu-token }
