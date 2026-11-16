@@ -61,7 +61,12 @@ async function mount(page, chart, { theme = "light", view = {} } = {}) {
         const { getInstanceByDom } = await import("echarts/core");
         return getInstanceByDom(el)?.getOption().series?.[0]?.type;
     })).toBe(drawn);
-    await page.waitForTimeout(500);
+    // the first animation is over: slices and bars stand where their layout says
+    await expect.poll(() => chartEl.evaluate(async (el) => {
+        const { getInstanceByDom } = await import("echarts/core");
+        return getInstanceByDom(el).getZr().animation.isFinished();
+    })).toBe(true);
+    await page.waitForTimeout(100);
     return chartEl;
 }
 
