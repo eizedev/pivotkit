@@ -394,7 +394,12 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     assert.ok(lines.includes("Audit: hash"), result.text);
     assert.ok(lines.includes("  the person is logged as a keyed hash of issuer and sub"), result.text);
     assert.ok(lines.includes(`  key from the file audit.key (${join(dir, "audit.key")})`), result.text);
-    assert.ok(lines.some((l) => /the audit key's file audit\.key can be read by other users/.test(l)), result.text);
+    if (process.platform === "win32") {
+        // Windows has no such modes: the file takes its folder's permissions, and nothing is warned of
+        assert.ok(!lines.some((l) => /can be read by other users/.test(l)), result.text);
+    } else {
+        assert.ok(lines.some((l) => /the audit key's file audit\.key can be read by other users/.test(l)), result.text);
+    }
     // offering the sources' scopes is opt-in: no change for an existing installation
     // (the block may hold other features' lines: none of this section's)
     assert.doesNotMatch(result.text, /New in this version[\s\S]*(scope|group|audit|profile)/i);

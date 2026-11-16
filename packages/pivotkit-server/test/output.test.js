@@ -354,7 +354,7 @@ test("check-config says whether the output directory exists, will be created, or
     };
     const created = check({ dir: "later/out" });
     assert.equal(created.status, 0, created.stdout);
-    assert.match(factsOf(created.stdout), /\nOutput: later\/out\n {2}\S+\/later\/out\n {2}will be created at start\n/);
+    assert.match(factsOf(created.stdout), /\nOutput: later\/out\n {2}\S+[\\/]later[\\/]out\n {2}will be created at start\n/);
     const off = check({ dir: "later/out", create: false });
     assert.equal(off.status, 1, off.stdout);
     assert.match(factsOf(off.stdout), /PROBLEM: output\.dir: not found \(create it first, or leave output\.create on\) -> the server does not start/);

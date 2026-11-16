@@ -5,7 +5,6 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { serve } from "pivotkit-server";
 import { fitsRange } from "../src/version-range.js";
@@ -53,7 +52,8 @@ test("help, version, an unknown command; cli and mcp hand over to their packages
 });
 
 test("a pivotkit-mcp of another release: serve and mcp say so with both versions, not a missing export", () => {
-    const hook = fileURLToPath(new URL("./fixtures/mcp-other-release/hook.js", import.meta.url));
+    // a file URL: --import takes a specifier, and on Windows a path with a drive letter is none
+    const hook = new URL("./fixtures/mcp-other-release/hook.js", import.meta.url).href;
     const dir = workspace();
     for (const args of [["serve", "--source", "sales=data/sales.csv", "--port", "0"], ["mcp", "--version"]]) {
         const r = spawnSync(process.execPath, ["--import", hook, BIN, ...args], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
@@ -76,7 +76,8 @@ test("a pivotkit-mcp of another release: serve and mcp say so with both versions
 });
 
 test("a pivotkit-mcp of another release whose imports resolve: its declared range refuses it, for serve and mcp", () => {
-    const hook = fileURLToPath(new URL("./fixtures/mcp-other-release/hook.js", import.meta.url));
+    // a file URL: --import takes a specifier, and on Windows a path with a drive letter is none
+    const hook = new URL("./fixtures/mcp-other-release/hook.js", import.meta.url).href;
     const dir = workspace();
     for (const args of [["mcp", "--version"], ["check-config", "--source", "sales=data/sales.csv"]]) {
         const r = spawnSync(process.execPath, ["--import", hook, BIN, ...args], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "imports-fine.js" }, timeout: 30_000 });

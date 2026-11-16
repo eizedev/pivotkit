@@ -267,8 +267,18 @@ export async function onContainerLayer(dir, env) {
     return on === "/";
 }
 
-/** Single quotes for a shell: a path as one word. */
-const quoted = (text) => (/^[\w./-]+$/.test(text) ? text : `'${text.replace(/'/g, "'\\''")}'`);
+/**
+ * A path as one word of the shell people use where the server runs: single quotes for a POSIX
+ * shell, and PowerShell's on Windows (a quote doubled, backslashes and the drive's colon as they are).
+ * @param {string} text
+ * @param {NodeJS.Platform} [platform]
+ */
+export function shellWord(text, platform = process.platform) {
+    if (platform === "win32") {
+        return /^[\w.\\:/-]+$/.test(text) ? text : `'${text.replace(/'/g, "''")}'`;
+    }
+    return /^[\w./-]+$/.test(text) ? text : `'${text.replace(/'/g, "'\\''")}'`;
+}
 
 /**
  * The command that prints a token of the state directory, for where the server runs: kubectl with the
@@ -289,7 +299,7 @@ export async function tokenShowHint(name, { env, stateDir }) {
     if (container) {
         return `${container} exec <container> ${command} (replace <container> with the container's name or ID)`;
     }
-    return env[STATE_ENV] || !stateDir ? command : `${command} --state-dir ${quoted(stateDir)}`;
+    return env[STATE_ENV] || !stateDir ? command : `${command} --state-dir ${shellWord(stateDir)}`;
 }
 
 /**

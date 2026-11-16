@@ -6,6 +6,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- On Windows, the start's hint `pivotkit-server token show admin --state-dir <dir>` quotes the
+  directory for PowerShell. It used POSIX quotes, which broke a path with a drive letter.
+
 ## [0.2.0] - 2026-11-16
 
 ### Upgrading from 0.1.1
