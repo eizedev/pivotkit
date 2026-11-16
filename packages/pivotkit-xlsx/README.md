@@ -31,8 +31,8 @@ const data = encode(table);                                      // typed column
 
 Before it parses a file, pivotkit-xlsx:
 
-- Refuses `.xls` files, workbooks with macros, password-protected workbooks, ZIP bombs and XML with
-  a document type. For each, it says what to do.
+- Refuses `.xls` and `.xlsb` files, workbooks with macros, password-protected workbooks, ZIP bombs
+  and XML with a document type. For each, it says what to do.
 - Leaves out a used range of formatted empty cells far below the data, while it unpacks the sheet.
 
 It builds on [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT). It starts no

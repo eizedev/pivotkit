@@ -5,6 +5,8 @@ The pivot report builder of [pivotkit](https://pivotkit.eize.dev/) as one web co
 HTML. Everything the React component does works the same: field list, drag and drop, table and
 chart, filters, drill-down, undo, saved and shared views, export.
 
+![A line chart of monthly revenue per category](https://pivotkit.eize.dev/assets/screenshots/chart-light.png)
+
 ## Install
 
 ```bash
@@ -47,8 +49,6 @@ report.addEventListener("pivot-view-change", (e) => localStorage.setItem("view",
   [pivotkit-core](https://www.npmjs.com/package/pivotkit-core) and @dnd-kit.
 - Renders into an open shadow root.
 - Loads ECharts on the first chart.
-
-![A line chart of monthly revenue per category](https://pivotkit.eize.dev/assets/screenshots/chart-light.png)
 
 ## Where in the docs
 

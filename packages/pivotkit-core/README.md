@@ -5,6 +5,13 @@ Excel's PivotTable as the reference. It turns your rows into pivot tables, and t
 chart options or files. It is plain JavaScript without a UI. The whole report is a view, a small JSON
 object you can save and share.
 
+![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](https://pivotkit.eize.dev/assets/screenshots/report-light.png)
+
+<sub>The report builder of pivotkit-react and pivotkit-element, computed by pivotkit-core. Weather
+data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/));
+contains modified Copernicus Climate Change Service information
+([attribution](https://pivotkit.eize.dev/learn/#query-it-live)).</sub>
+
 ## Install
 
 ```bash
@@ -53,13 +60,6 @@ const option = toEChartsOption(result, { chart: { type: "bar", stacked: true } }
 - Gives a grid with merged headers for any table renderer.
 - Gives chart options for Apache ECharts.
 - Exports XLSX, CSV and JSON.
-
-![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](https://pivotkit.eize.dev/assets/screenshots/report-light.png)
-
-<sub>The report builder of pivotkit-react and pivotkit-element, computed by pivotkit-core. Weather
-data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/));
-contains modified Copernicus Climate Change Service information
-([attribution](https://pivotkit.eize.dev/learn/#query-it-live)).</sub>
 
 ## Where in the docs
 

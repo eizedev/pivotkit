@@ -4,6 +4,12 @@ The pivot report builder of [pivotkit](https://pivotkit.eize.dev/) as a React 18
 `<PivotReport>`. People build pivot tables and charts from your data by drag and drop. Excel's
 PivotTable is the reference. The engine is [pivotkit-core](https://www.npmjs.com/package/pivotkit-core).
 
+![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](https://pivotkit.eize.dev/assets/screenshots/report-light.png)
+
+<sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/));
+contains modified Copernicus Climate Change Service information
+([attribution](https://pivotkit.eize.dev/learn/#query-it-live)).</sub>
+
 ## Install
 
 ```bash
@@ -16,7 +22,8 @@ npm install pivotkit-react react react-dom echarts
 | `echarts` | `>=6.1.0 <7` | About 1 MB, and its security updates stay with your app. Loaded on the first chart only. |
 
 - The package includes TypeScript declarations.
-- pivotkit-core and @dnd-kit come with the package. It depends on pivotkit-core with a caret range.
+- pivotkit-core, pivotkit-report and @dnd-kit come with the package. It depends on pivotkit-core with
+  a caret range.
 - In 0.x a caret range spans patch versions only: `^0.y.z` means 0.y.z and later 0.y patches. If your
   app also imports pivotkit-core itself, use a version inside that range. npm shares one copy only
   when the ranges overlap.
@@ -57,12 +64,6 @@ Two more features are off until the host turns them on:
 
 - `allowImport`: people load their own CSV, JSON or Excel file, with a preview.
 - `exportData`: people download the rows behind the report for the command line.
-
-![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](https://pivotkit.eize.dev/assets/screenshots/report-light.png)
-
-<sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/));
-contains modified Copernicus Climate Change Service information
-([attribution](https://pivotkit.eize.dev/learn/#query-it-live)).</sub>
 
 ## Where in the docs
 
