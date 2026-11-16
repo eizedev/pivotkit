@@ -12,18 +12,19 @@ build a report by dragging fields and take it to Excel. The same report renders 
 | --- | --- | --- |
 | A user | a report from your data, by clicking | Try the [live demo](https://pivotkit.eize.dev/demo/), then build a first report in six steps with the [quick start](https://pivotkit.eize.dev/use/quick-start/). |
 | An operator | the REST service and the MCP server in your environment | Start the container with one `docker run`: [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/). |
-| A developer | the report in your application, or reports from your code | Pick the package that fits and put a first report on it: [Embed pivotkit](https://pivotkit.eize.dev/embed/). |
+| A user of a running server | a report with curl, PowerShell or an AI client | [REST service](https://pivotkit.eize.dev/getting-started/rest/) for curl and PowerShell, [MCP server](https://pivotkit.eize.dev/getting-started/mcp/) for an AI client. |
+| A developer | the report in your application, or reports from your code | Pick the package that fits and build a first report with it: [Embed pivotkit](https://pivotkit.eize.dev/embed/). |
 
 ![The pivot report: average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
 
 <sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([sources](examples/playground/data/SOURCES.md)).</sub>
 
-[Live demo](https://pivotkit.eize.dev/playground/) · [Documentation](https://pivotkit.eize.dev/) · [Features](https://pivotkit.eize.dev/features/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Security](docs/security.md) · [Security policy](SECURITY.md) · [Releases and changelogs](#releases-and-changelogs)
+[Live demo](https://pivotkit.eize.dev/demo/) · [Documentation](https://pivotkit.eize.dev/) · [Features](https://pivotkit.eize.dev/features/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Security](docs/security.md) · [Security policy](SECURITY.md) · [Releases and changelogs](#releases-and-changelogs)
 
 | | |
 | --- | --- |
 | Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) [![Docs site](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml) |
-| Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/). [Use a report](https://pivotkit.eize.dev/use/) is for the people who build reports. [Embed pivotkit](https://pivotkit.eize.dev/embed/) and the API reference are for developers. To try it: the [live demo](https://pivotkit.eize.dev/demo/) and [Learn with real data](https://pivotkit.eize.dev/learn/) with weather, countries, earthquakes, Nobel laureates and software end of life. |
+| Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/). [Use a report](https://pivotkit.eize.dev/use/) is for the people who build reports. [Embed pivotkit](https://pivotkit.eize.dev/embed/) and the API reference are for developers. To try it, open the [live demo](https://pivotkit.eize.dev/demo/). [Learn with real data](https://pivotkit.eize.dev/learn/) walks through weather, countries, earthquakes, Nobel laureates and software end of life. |
 | npm | [![pivotkit-core](https://img.shields.io/npm/v/pivotkit-core?label=pivotkit-core)](https://www.npmjs.com/package/pivotkit-core) [![pivotkit-react](https://img.shields.io/npm/v/pivotkit-react?label=pivotkit-react)](https://www.npmjs.com/package/pivotkit-react) [![pivotkit-element](https://img.shields.io/npm/v/pivotkit-element?label=pivotkit-element)](https://www.npmjs.com/package/pivotkit-element) [![pivotkit-xlsx](https://img.shields.io/npm/v/pivotkit-xlsx?label=pivotkit-xlsx)](https://www.npmjs.com/package/pivotkit-xlsx) [![pivotkit-report](https://img.shields.io/npm/v/pivotkit-report?label=pivotkit-report)](https://www.npmjs.com/package/pivotkit-report) [![pivotkit-cli](https://img.shields.io/npm/v/pivotkit-cli?label=pivotkit-cli)](https://www.npmjs.com/package/pivotkit-cli) [![pivotkit-server](https://img.shields.io/npm/v/pivotkit-server?label=pivotkit-server)](https://www.npmjs.com/package/pivotkit-server) [![pivotkit-mcp](https://img.shields.io/npm/v/pivotkit-mcp?label=pivotkit-mcp)](https://www.npmjs.com/package/pivotkit-mcp) |
 | License | [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE) |
 
@@ -34,7 +35,7 @@ build a report by dragging fields and take it to Excel. The same report renders 
   More: [load your own data](https://pivotkit.eize.dev/use/load-data/).
 - The [export](https://pivotkit.eize.dev/use/export/) to Excel keeps the layout. The rows behind
   the report download as CSV or JSON.
-- A report is a safe JSON view: a view cannot run code. Reports also come without a browser.
+- A view is safe JSON: it cannot run code. Reports also come without a browser.
   `pivotkit render` makes the same report from the downloaded view and data.
   `pivotkit describe sales.xlsx --suggest` makes a first view from a file's fields.
   More: [command line](https://pivotkit.eize.dev/getting-started/cli/).
@@ -47,8 +48,9 @@ build a report by dragging fields and take it to Excel. The same report renders 
   your own code with the caller's parameters: [sources](https://pivotkit.eize.dev/reference/sources/).
   A model gets rows only where the policy shows them:
   [what reaches an AI model](https://pivotkit.eize.dev/model-data/).
-- Reports reach people as download links that expire. A link is bound to the person's sign-in
-  where the data is not open. A report can also go to a store you run, as an upload.
+- The services deliver a report in three ways. It comes back in the answer, where the policy
+  allows it. It reaches people as a download link that expires. The link is bound to the person's
+  sign-in where the data is not open. Or it goes to a store you run, as an upload.
   More: [download links](https://pivotkit.eize.dev/reference/delivery/).
 
 pivotkit is for the people who build reports in an application, and for the developers who put it
@@ -84,7 +86,7 @@ the MCP server run in Node 22 or later.
 
 ## Example
 
-The report builder in React. Try it in the [live demo](https://pivotkit.eize.dev/playground/):
+The report builder in React. Try it in the [playground](https://pivotkit.eize.dev/playground/):
 
 ```jsx
 import { PivotReport } from "pivotkit-react";
