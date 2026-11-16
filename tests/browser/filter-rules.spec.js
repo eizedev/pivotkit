@@ -296,7 +296,7 @@ test.describe("the Filter level of a date field", () => {
                 rows: [...form.querySelectorAll('[data-testid="rule"]')].map((row) => row.getBoundingClientRect().width),
                 number: form.querySelector('[data-testid="value-filter-number"]').getBoundingClientRect().width
             }));
-            // WebKit 27.2 laid the rule list out at no size inside a wrapping column (#474)
+            // the WebKit of Playwright 1.65 (build 2388) laid the rule list out at no size inside a wrapping column (#474)
             expect(sizes.form, `${width} px`).toBeGreaterThan(200);
             expect(Math.abs(sizes.list - sizes.form), `${width} px: ${JSON.stringify(sizes)}`).toBeLessThanOrEqual(1);
             for (const row of sizes.rows) expect(Math.abs(row - sizes.form), `${width} px: ${JSON.stringify(sizes)}`).toBeLessThanOrEqual(1);

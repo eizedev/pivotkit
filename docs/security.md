@@ -470,10 +470,11 @@ Loading data in the element (`allow-import`) was measured with the same policy
 (`tests/browser/import.spec.js`): its import worker, `dist/import-worker.js`, is a file of the page's
 origin started by URL, never `blob:`, which `script-src 'self'` allows (`worker-src` falls back to
 it); pivotkit-xlsx's `dist/` reads workbooks as a plugin; the drop overlay and the preview set their
-places through the CSSOM. Chromium, Firefox and WebKit 27.2 report no violation. Older WebKit versions
-report one `style-src-attr` violation, with a console error, for every native `<select>` (the
-preview's type and sheet lists, and a page's own `<select>` alike): the control's own inner parts, not
-the report's code; the lists work. A policy whose `worker-src` does not allow the worker's origin makes
+places through the CSSOM. Chromium, Firefox and the WebKit of Playwright 1.65 (build 2388) report no
+violation. The WebKit of Playwright 1.64 (build 2370) reports one `style-src-attr` violation, with a
+console error, for every native `<select>` (the preview's type and sheet lists, and a page's own
+`<select>` alike): the control's own inner parts, not the report's code; the lists work. Which
+Safari releases behave like which build was not measured. A policy whose `worker-src` does not allow the worker's origin makes
 the report read on the page instead (the browser logs the refusal).
 
 ## Loading from another origin

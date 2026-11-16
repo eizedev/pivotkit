@@ -49,7 +49,7 @@ test("a one-time link: the page's Download button saves the file once; the link 
         const download = await downloading;
         await expect(page.getByRole("status")).toHaveText("Downloaded once. You can repeat it for 2 minutes, in this browser.");
         await expect(page.getByText(/It can be downloaded once, until/)).toHaveCount(0);
-        // the name the answer gives; Playwright's WebKit on Linux writes "_" for its space
+        // the name the answer gives; the WebKit of Playwright 1.65 (build 2388) on Linux writes "_" for its space
         expect(download.suggestedFilename()).toBe(browserName === "webkit" && process.platform === "linux" ? "Sales_once.csv" : "Sales once.csv");
         expect(readFileSync(await download.path())).toEqual(stored);
         // another browser (no cookie of the first download) finds the link used as soon as it opens it

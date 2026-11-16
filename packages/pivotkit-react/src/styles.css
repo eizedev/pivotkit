@@ -2392,7 +2392,8 @@
 }
 
 /* the rules stack in one column of the form's width: a single line, so every row is as wide as the
-   form. WebKit (the one of Playwright 1.65) gives the rule list no size at all in a wrapping column. */
+   form. The WebKit of Playwright 1.65 (build 2388) gives the rule list no size at all in a wrapping
+   column. */
 .pk-condition.pk-rules {
     flex-wrap: nowrap;
 }
