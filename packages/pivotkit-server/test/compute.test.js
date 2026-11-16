@@ -13,6 +13,9 @@ const PROBE = new URL("./fixtures/probe-worker.js", import.meta.url);
 /** The thread id of the worker that answers the next run. */
 const threadOf = async (computer) => (await computer.run("echo", null, {})).outcome.threadId;
 
+/** A regression fails within this, instead of waiting out a queueMs or timeMs of minutes. */
+const FAST = { timeout: 20_000 };
+
 /** What a run that fails threw; null when it did not fail. */
 const failureOf = (promise) =>
     promise.then(
@@ -20,7 +23,7 @@ const failureOf = (promise) =>
         (e) => e
     );
 
-test("the pool: a run over compute.memoryMb is LIMIT_EXCEEDED and names the limit; its worker is replaced", async () => {
+test("the pool: a run over compute.memoryMb is LIMIT_EXCEEDED and names the limit; its worker is replaced", FAST, async () => {
     const computer = createComputer({ workers: 1, memoryMb: 64, timeMs: 120_000 }, { worker: PROBE });
     try {
         const before = await threadOf(computer);
@@ -34,7 +37,7 @@ test("the pool: a run over compute.memoryMb is LIMIT_EXCEEDED and names the limi
     }
 });
 
-test("the pool: a worker that dies while it starts fails the run that waits for it with INTERNAL, not after compute.timeMs; it is replaced", async () => {
+test("the pool: a worker that dies while it starts fails the run that waits for it with INTERNAL, not after compute.timeMs; it is replaced", FAST, async () => {
     const marker = join(tempDir(), "failed-once");
     process.env.PIVOTKIT_TEST_FAIL_START = marker;
     // a run that waited for its time would end in TIMEOUT after 30 s, not INTERNAL
@@ -53,7 +56,7 @@ test("the pool: a worker that dies while it starts fails the run that waits for 
     }
 });
 
-test("the pool: a read whose callers went away while it waited for a worker fails with their reason; the worker runs on", async () => {
+test("the pool: a read whose callers went away while it waited for a worker fails with their reason; the worker runs on", FAST, async () => {
     const computer = createComputer({ workers: 1, timeMs: 120_000, queueMs: 120_000 }, { worker: PROBE });
     try {
         const before = await threadOf(computer);
@@ -62,8 +65,10 @@ test("the pool: a read whose callers went away while it waited for a worker fail
         const controller = new AbortController();
         const queued = failureOf(computer.read({}, { bytes: new Uint8Array(0), format: "csv" }, null, null, controller.signal));
         const reason = new Error("every caller went away");
+        // aborted while it waits for the slot the held run took (the slot, not the worker's progress,
+        // makes it wait); then the gate lets the held run end, and the queued read gets the worker,
+        // sees the abort and gives it back unused
         controller.abort(reason);
-        // the held run ends: the queued read gets the worker, sees the abort and gives it back unused
         Atomics.store(gate, 0, 1);
         Atomics.notify(gate, 0);
         assert.equal((await held).outcome.threadId, before);
@@ -74,7 +79,7 @@ test("the pool: a read whose callers went away while it waited for a worker fail
     }
 });
 
-test("the pool: an input the structured clone cannot copy is INVALID_INPUT, and its worker is free at once", async () => {
+test("the pool: an input the structured clone cannot copy is INVALID_INPUT, and its worker is free at once", FAST, async () => {
     // queueMs 0: a call that finds no free worker is BUSY at once
     const computer = createComputer({ workers: 1, timeMs: 120_000, queueMs: 0 }, { worker: PROBE });
     try {

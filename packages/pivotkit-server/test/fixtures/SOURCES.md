@@ -7,3 +7,5 @@
 - `openapi/platform.json` and `openapi/hostile.json`: OpenAPI documents written for
   `test/openapi-source.test.js` (a made-up platform API, and a document built to attack whoever
   reads it); no third-party content.
+- `need-worker.js` and `probe-worker.js`: compute workers written for the pool's tests
+  (`test/code-sources.test.js`, `test/compute.test.js`); no third-party content.
