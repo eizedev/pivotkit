@@ -80,7 +80,9 @@ Release packages in this order. It follows their run-time dependencies.
 - `publish` stages the tarball with provenance (`npm stage publish`, npm 11.21.1).
 - Provenance comes from the workflow's `--provenance`, not from `publishConfig`.
 - Staging needs npm 11.15.0 or later. Trusted publishing needs Node 22.14.0 or later.
-- The run's summary names the tarball and its integrity.
+- The run's summary names the tarball and its integrity. npm's output below it shows the start and end of the integrity it staged.
+- To check the staged tarball itself, fetch it with `npm stage download <stage-id>`.
+  `echo "sha512-$(openssl dgst -sha512 -binary <file> | openssl base64 -A)"` must print the summary's integrity.
 - Check name, version and publisher. Then approve with two-factor authentication:
 
 ```bash
