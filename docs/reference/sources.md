@@ -544,7 +544,7 @@ The sources that use it answer `SOURCE_UNAVAILABLE` until it is there.
 
 `check-config` warns about:
 
-- a secret file other users of the machine can read
+- a secret file other users of the machine can read, on Linux and macOS (Windows has no such modes)
 - a token endpoint on a loopback or private address without `intranet: true`
 - a token exchange's `tokenUrl` on another host than `auth.issuer`, since the person's token goes
   there
