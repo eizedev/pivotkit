@@ -126,7 +126,7 @@ A source with parameters takes their values as `params` with its id in a POST bo
 Where the report gets a [download link](delivery.md), the link is in `output.url`, with `expiresAt`,
 `bound` and `note`, one sentence on how to open it. A report gets a link:
 
-- always, over a source whose fields are all `show`;
+- always, over a source whose fields are all `show`
 - over another source only with `results: true` and a bound link.
 
 The file's name is `name` from the input, else `title`, else the view's name, else the source's.
@@ -322,8 +322,8 @@ A caller without `data: true` that sends `inline:` gets 403 `NOT_ALLOWED`:
 
 As JSON, the table goes into `data`:
 
-- `columns`, the column names;
-- `rows`, the rows as lists in the columns' order;
+- `columns`, the column names
+- `rows`, the rows as lists in the columns' order
 - `rowCount`, the number of rows of the whole table.
 
 `rowCount` must match the rows sent, else the answer is 422 `DATA_MISMATCH`. This way the server
@@ -534,8 +534,8 @@ The server never reads cookies, so no credentials mode is needed: the page sends
 Besides pivotkit-core's [limits](../concepts/limits.md) and the workers' (`compute.*`, as for
 [MCP](mcp.md#configuration)), the REST service limits each caller. A caller is one of these:
 
-- the person an OAuth token names (its issuer and subject);
-- a static token, by its name;
+- the person an OAuth token names (its issuer and subject)
+- a static token, by its name
 - `local`, without sign-in.
 
 An OAuth token without a subject counts for its client. The people of one OAuth client together get
