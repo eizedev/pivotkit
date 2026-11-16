@@ -46,10 +46,20 @@ test("save: false: the result inline, no output, no link, no file; the call line
         assert.ok(lines.every((l) => l.saved === false && l.ok === true), JSON.stringify(lines));
     }));
 
+test("save: false without a format: csv, inline", () =>
+    withServer(POLICY, async (client, { files }) => {
+        const rendered = await call(client, "render_view", { source: "open", view: COUNT_BY_REGION, save: false });
+        assert.equal(rendered.isError, false, rendered.text);
+        assert.equal(rendered.data.format, "csv");
+        assert.equal(rendered.data.inline.format, "csv");
+        assert.match(rendered.data.inline.text, /North,2/);
+        assert.deepEqual(files(), []);
+    }));
+
 test("save: false with a format that is a file: INVALID_INPUT naming csv and json; nothing written", () =>
     withServer(POLICY, async (client, { files }) => {
-        for (const format of [undefined, "xlsx", "html", "svg"]) {
-            const rendered = await call(client, "render_view", { source: "open", view: COUNT_BY_REGION, ...(format ? { format } : {}), save: false });
+        for (const format of ["xlsx", "html", "svg"]) {
+            const rendered = await call(client, "render_view", { source: "open", view: COUNT_BY_REGION, format, save: false });
             assert.equal(rendered.isError, true);
             assert.match(rendered.text, /^INVALID_INPUT: save: false .*csv.*json/);
         }
@@ -60,7 +70,7 @@ test("save: false over a field that is not fully shown: NOT_ALLOWED, no number o
     withServer(POLICY, async (client, { files, log }) => {
         const rendered = await call(client, "render_view", { source: "sales", view: BY_REGION, format: "csv", save: false });
         assert.equal(rendered.isError, true);
-        assert.match(rendered.text, /^NOT_ALLOWED: .*not fully shown.*leave out save/);
+        assert.match(rendered.text, /^NOT_ALLOWED: a field the view uses is at level values or summary, so its numbers cannot be shown in the chat.*leave out save/);
         // the sums (15, 20, 7, 3) and the source's size stay out of the answer (the random request id left out)
         assert.doesNotMatch(rendered.text.replace(/\(request id [^)]*\)$/, ""), /\b(15|20|7|3|5|6)\b/);
         assert.deepEqual(files(), []);
@@ -97,7 +107,7 @@ test("save: false with inline results off: NOT_ALLOWED, no file", () =>
     withServer({ ...POLICY, inline: false }, async (client, { files }) => {
         const rendered = await call(client, "render_view", { source: "open", view: COUNT_BY_REGION, format: "csv", save: false });
         assert.equal(rendered.isError, true);
-        assert.match(rendered.text, /^NOT_ALLOWED: inline results are off/);
+        assert.match(rendered.text, /^NOT_ALLOWED: inline results are switched off by the operator, so this table cannot be shown in the chat\. Tell the user, or leave out save to make a file if they accept one/);
         assert.deepEqual(files(), []);
     }));
 
@@ -119,5 +129,10 @@ test("tools/list: render_view takes save, a boolean", () =>
         const { tools } = await client.listTools();
         const save = tools.find((t) => t.name === "render_view")?.inputSchema.properties?.save;
         assert.equal(save?.type, "boolean");
-        assert.match(String(save?.description), /inline/);
+        assert.match(String(save?.description), /no file and no link; the result must fit inline\. Prefer csv/);
+        const description = String(tools.find((t) => t.name === "render_view")?.description);
+        // what a model must know: inline results are saved too by default, when to use save, the total markers
+        assert.match(description, /saved as a file too/);
+        assert.match(description, /Use save:false when the user wants the table in the chat, not a file/);
+        assert.match(description, /total.*0 data, 1 subtotal, 2 grand total.*do not add up rows with total > 0/);
     }));

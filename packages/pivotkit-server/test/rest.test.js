@@ -150,12 +150,15 @@ test("render with save: false: the result inline and nothing saved; refused with
         assertProblem(await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "xlsx", save: false } }), 400, "INVALID_INPUT");
         const closed = await call(`${server.api}/views/render`, { body: { source: "closed", view: BY_REGION, format: "csv", save: false } });
         assertProblem(closed, 403, "NOT_ALLOWED");
-        assert.match(closed.data.detail, /not fully shown/);
+        assert.match(closed.data.detail, /^a field the view uses is at level values or summary, so its numbers cannot come back in the answer/);
         assert.deepEqual(files(), []);
-        // the file route saves nothing anyway: save is taken and the file sent
+        // the file route sends the file and saves nothing: save is no input of it, and its log never says saved
         const file = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv", save: false } });
-        assert.equal(file.status, 200);
-        assert.match(new TextDecoder().decode(file.data), /North/);
+        assertProblem(file, 400, "INVALID_INPUT");
+        assert.match(file.data.detail, /save/);
+        assert.ok(!server.log.some((l) => l.event === "request" && l.route === "POST /views/render/file" && "saved" in l));
+        const sent = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
+        assert.equal(sent.status, 200);
         assert.deepEqual(files(), []);
     } finally {
         await server.close();
@@ -165,7 +168,7 @@ test("render with save: false: the result inline and nothing saved; refused with
     try {
         const res = await call(`${off.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv", save: false } });
         assertProblem(res, 403, "NOT_ALLOWED");
-        assert.match(res.data.detail, /rest\.inline.*views\/render\/file/);
+        assert.match(res.data.detail, /^inline results are switched off by the operator \(rest\.inline.*views\/render\/file/);
         assert.deepEqual(files(), []);
     } finally {
         await off.close();

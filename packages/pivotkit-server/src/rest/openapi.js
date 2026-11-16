@@ -81,16 +81,16 @@ function withViewRef(schema) {
 }
 
 /** An operation's input schema with the view referenced. */
-const inputSchema = (name, offers) => withViewRef(presentedInput(name, { files: false, offers }));
+const inputSchema = (name, offers, fileRoute = false) => withViewRef(presentedInput(name, { files: false, offers, fileRoute }));
 
 /** The multipart body of an operation that takes a source, where data may be sent: the file and the input. */
-const multipartBody = (name, offers) => ({
+const multipartBody = (name, offers, fileRoute = false) => ({
     schema: {
         type: "object",
         required: ["data"],
         properties: {
             data: { type: "string", contentMediaType: "application/octet-stream", description: "The file: csv, tsv, json or xlsx (by the file name's extension, else the part's content type)." },
-            input: { ...withViewRef(multipartInputSchema(name, offers)), description: 'The operation\'s input as JSON: source may be left out (it is "inline:"); data holds only name, asOf, sheet and sha256.' }
+            input: { ...withViewRef(multipartInputSchema(name, offers, fileRoute)), description: 'The operation\'s input as JSON: source may be left out (it is "inline:"); data holds only name, asOf, sheet and sha256.' }
         }
     },
     encoding: { input: { contentType: "application/json" } }
@@ -151,6 +151,10 @@ export function openApiDocument(options = {}) {
         schemas[`${pascal(name)}Input`] = inputSchema(name, options.offers);
         schemas[`${pascal(name)}Output`] = presentedOutput(name);
     }
+    // the file route sends the file and saves none: its input has no `save`
+    for (const route of REST_ROUTES.filter((r) => r.answer === "file")) {
+        schemas[`${pascal(route.id)}Input`] = inputSchema(route.operation, options.offers, true);
+    }
     /** @type {Record<string, any>} */
     const responses = {};
     for (const [status, description] of Object.entries(PROBLEMS)) {
@@ -180,9 +184,9 @@ export function openApiDocument(options = {}) {
                       requestBody: {
                           required: true,
                           content: {
-                              "application/json": { schema: { $ref: `#/components/schemas/${pascal(route.operation)}Input` }, example: route.example.input },
+                              "application/json": { schema: { $ref: `#/components/schemas/${pascal(route.answer === "file" ? route.id : route.operation)}Input` }, example: route.example.input },
                               // data as a file, for callers whose profile has data: true
-                              ...(options.offers?.data && /** @type {any} */ (op.input).properties?.source ? { "multipart/form-data": multipartBody(route.operation, options.offers) } : {})
+                              ...(options.offers?.data && /** @type {any} */ (op.input).properties?.source ? { "multipart/form-data": multipartBody(route.operation, options.offers, route.answer === "file") } : {})
                           }
                       }
                   }

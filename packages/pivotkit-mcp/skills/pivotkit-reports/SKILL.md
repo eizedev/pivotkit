@@ -29,8 +29,10 @@ file or a link.
    for a source whose `list_sources` entry says `link: true`.
 6. Tell the user the `message` of the result as it is: where the file is, or the link (give `output.url` whole when there is one). Only csv and json
    can come back to you inline; xlsx, html and svg are files for the user, and you have not seen them.
-   When the user wants the result in the chat and no file, pass `save: false` with `csv` or `json`:
-   nothing is saved, and where the result may not come back inline the error says so.
+   A csv or json result that fits comes back inline and is saved as a file too. When the user wants
+   the table in the chat and no file, pass `save: false` (csv by default, much smaller than json):
+   nothing is saved, and where the result may not come back inline the error says so. In inline json,
+   `total` is 0 for data, 1 for a subtotal, 2 for the grand total: do not add up rows with total > 0.
 7. When the user wants the report regularly ("every Monday to the sales team"): `draft_schedule` with
    when, the formats and the recipients by name (never addresses). It only writes a draft; tell the
    user that nothing is sent until the operator's system (the host that runs pivotkit) approves it.

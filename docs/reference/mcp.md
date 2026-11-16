@@ -201,13 +201,15 @@ count, size or content, since even a row count could answer "is this person in t
 
 <a id="inline-only"></a>With **`save: false`**, `render_view` returns the result inline only: no file in
 the output directory, no upload to the [operator's store](delivery.md#upload), no `output` (it is
-`null`) and no link, for a person who asks for the result in the chat. It takes `csv` or `json`
-and lets out no more than a render without it: where the result could not come back inline, the call
-fails and says to leave out `save` for a file, never saving one instead. `INVALID_INPUT` for another
-format (also for the default, `xlsx`); `NOT_ALLOWED` where inline results are off (the policy's
+`null`) and no link, for a person who asks for the result in the chat. It takes `csv` (the format
+when none is given) or `json` and lets out no more than a render without it: where the result could
+not come back inline, the call fails and says to leave out `save` for a file, never saving one
+instead. `INVALID_INPUT` for `xlsx`, `html` or `svg`; `NOT_ALLOWED` where inline results are off (the policy's
 `inline: false`) or the view uses a field that is not `show` (that error says nothing of the
 result's size); `LIMIT_EXCEEDED` for a result over the policy's `inline` cells or bytes. The call's
-log line has `saved: false`. Without `save` (or with `save: true`) a render is saved as above.
+log line has `saved: false`. Without `save` (or with `save: true`) a render is saved as above, also
+when its csv or json comes back inline. In an inline json result every row and column has `total`:
+0 data, 1 subtotal, 2 grand total, so a sum over the rows takes only those with `total: 0`.
 
 `suggest_view` reads what `describe_source` shows. Its draft and `picks` name fields, never values
 (not those of a `values` field either) or counts; the one thing they tell about a shown field's values is the date grouping its span gives

@@ -32,8 +32,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 ### Added
 
 - `render_view` takes `save: false`: the csv or json result comes back inline only, with no file,
-  no upload and no link, for a result asked for in the chat. Where it cannot come back inline (another
-  format, inline results off, a field that is not `show`, a result over the `inline` limits) the call
+  no upload and no link, for a result asked for in the chat; csv when no format is given. Where it
+  cannot come back inline (xlsx, html or svg, inline results off, a field that is not `show`, a result over the `inline` limits) the call
   fails and says to leave out `save`; it never saves a file instead. The call line has `saved: false`
   ([inline only](https://pivotkit.eize.dev/reference/mcp/#inline-only), [#472](https://github.com/eizedev/pivotkit/issues/472)).
 - The log settings of pivotkit-server ([operations](https://pivotkit.eize.dev/reference/operations/)):

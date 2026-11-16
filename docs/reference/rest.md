@@ -104,10 +104,10 @@ A csv or json result comes back inline (`inline.text`) only when the operator se
 `rest.inline: true` and every field the view uses is `show`. With `"save": false` in the input,
 `/views/render` saves nothing (no file in the output directory, no upload, `output: null`) and
 returns the result inline only, by the same rules; where it cannot come back inline it answers an
-error instead of a file: 400 `INVALID_INPUT` for a format other than csv or json, 403 `NOT_ALLOWED`
+error instead of a file (csv when no format is given): 400 `INVALID_INPUT` for xlsx, html or svg, 403 `NOT_ALLOWED`
 without `rest.inline` or for a view of a field that is not `show`, 413 `LIMIT_EXCEEDED` over the
 profile's `inline` limits ([MCP](mcp.md#inline-only)). Its `request` line has `saved: false`. The
-file route takes `save` too and sends the file as always; it never saves one. `withheld` lists what is left out of the
+file route sends the file and saves none, so it takes no `save` (400 `INVALID_INPUT`). `withheld` lists what is left out of the
 answer because the view uses a field that is not `show` (`values` included). Findings are decided per
 field (a finding about a field's items carries it in `field`): an item spelt differently (`itemCase`)
 is named for a `show` or `values` field, an item that is none of a field's values (`itemUnknown`,

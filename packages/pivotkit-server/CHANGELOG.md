@@ -72,8 +72,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 ### Added
 
 - `render_view` (MCP and `POST /views/render`) takes `save: false`: the csv or json result comes back
-  inline only, with no file in `output.dir`, no upload and no link. Where it cannot come back inline
-  (another format, inline results off, a field that is not `show`, a result over the `inline`
+  inline only, with no file in `output.dir`, no upload and no link; csv when no format is given.
+  Where it cannot come back inline (xlsx, html or svg, inline results off, a field that is not `show`, a result over the `inline`
   limits) it answers `INVALID_INPUT`, `NOT_ALLOWED` or `LIMIT_EXCEEDED` instead of saving a file. The
   `call` and `request` lines have `saved: false`; `saveLogFields` gives that field
   ([inline only](https://pivotkit.eize.dev/reference/mcp/#inline-only), [#472](https://github.com/eizedev/pivotkit/issues/472)).

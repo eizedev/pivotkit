@@ -1062,7 +1062,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RenderViewInput"
+                "$ref": "#/components/schemas/RenderViewFileInput"
               },
               "example": {
                 "source": "sales",
@@ -3437,7 +3437,7 @@
           "save": {
             "type": "boolean",
             "default": true,
-            "description": "false: no file and no link; csv or json comes back inline only, or the call fails saying why."
+            "description": "false = no file and no link; the result must fit inline. Prefer csv (much smaller than json)."
           }
         },
         "required": [
@@ -3991,6 +3991,170 @@
           "draft"
         ],
         "additionalProperties": true
+      },
+      "RenderViewFileInput": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "A source id from GET /sources.",
+            "pattern": "^(?!file:)"
+          },
+          "view": {
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "object",
+                "description": "A view file (format pivotkit-view)."
+              },
+              {
+                "type": "string",
+                "description": "A view or a view file as JSON text."
+              }
+            ]
+          },
+          "layout": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "A view by field names, instead of a view (give one of them, not both): { \"rows\": [\"Region\"], \"cols\": [\"OrderDate\"], \"values\": [{ \"field\": \"Sales\", \"agg\": \"sum\" }], \"groups\": [{ \"field\": \"OrderDate\", \"by\": \"yearQuarter\" }] }. A date on rows or cols is grouped by its span unless groups says how; a value without agg is summed when it is a number, else counted.",
+            "properties": {
+              "rows": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "Fields (or groupings) on the rows, outer first."
+              },
+              "cols": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "Fields on the columns."
+              },
+              "values": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "agg": {
+                      "type": "string",
+                      "maxLength": 40
+                    }
+                  }
+                }
+              },
+              "groups": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "by"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "by": {
+                      "type": "string",
+                      "maxLength": 40,
+                      "description": "year, yearQuarter, yearMonth, yearWeek, day; quarter, month, week, weekday, hour (every year together); bin with size."
+                    },
+                    "size": {
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "filters": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object"
+                },
+                "description": "Filters as a view writes them (see get_view_guide)."
+              },
+              "chart": {
+                "enum": [
+                  "auto",
+                  "bar",
+                  "line",
+                  "area",
+                  "pie",
+                  "donut",
+                  "heatmap"
+                ],
+                "description": "Show the chart of this type."
+              },
+              "map": {
+                "type": "object",
+                "maxProperties": 64,
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "A field the layout names (key) is the data's field (value): for a column renamed since."
+              }
+            }
+          },
+          "format": {
+            "enum": [
+              "json",
+              "csv",
+              "xlsx",
+              "svg",
+              "html"
+            ],
+            "default": "xlsx",
+            "description": "xlsx for Excel, html for a report to read or print, csv, json, svg for the chart."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The report's title (default the view's name)."
+          },
+          "chart": {
+            "enum": [
+              "auto",
+              "on",
+              "off"
+            ],
+            "description": "html: the chart above the table (auto: when the view shows the chart)."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "The file's name without extension (default from the title)."
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false
       }
     },
     "responses": {

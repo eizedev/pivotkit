@@ -113,7 +113,10 @@ const INLINE_FORMATS = new Set(["csv", "json"]);
  * render_view's `save`: false returns the result inline only, never a file. present() takes it out
  * before the operation runs (renderInput), since saving is the server's work, not the operation's.
  */
-const SAVE_INPUT = Object.freeze({ type: "boolean", default: true, description: "false: no file and no link; csv or json comes back inline only, or the call fails saying why." });
+const SAVE_INPUT = Object.freeze({ type: "boolean", default: true, description: "false = no file and no link; the result must fit inline. Prefer csv (much smaller than json)." });
+
+/** The format of a render with save: false that names none: csv, the smaller inline text. */
+const INLINE_ONLY_FORMAT = "csv";
 
 /**
  * render_view's input for the operation: without `save`, with the format decided.
@@ -137,12 +140,12 @@ const SOURCE_ID_ONLY = "^(?!file:)";
  * The input schema of an operation as a caller sends it: the operation's, without what the server
  * decides itself (how many values describe_source lists is the operator's policy).
  * @param {string} name
- * @param {{ files?: boolean, offers?: import("./sources/input.js").SurfaceOffers }} [how]  files: false (REST) admits source ids only; offers: the surface's extra inputs (context.offers.mcp or .rest; none by default)
+ * @param {{ files?: boolean, offers?: import("./sources/input.js").SurfaceOffers, fileRoute?: boolean }} [how]  files: false (REST) admits source ids only; offers: the surface's extra inputs (context.offers.mcp or .rest; none by default); fileRoute: REST's file route, which sends the file and saves none, so takes no `save`
  */
 export function presentedInput(name, how = {}) {
     const input = /** @type {any} */ (OPERATIONS[name].input);
     // the server's own inputs before the extras a surface offers
-    const properties = { ...input.properties, ...(name === "render_view" ? { save: SAVE_INPUT } : {}), ...extraInputs(name, how.offers) };
+    const properties = { ...input.properties, ...(name === "render_view" && !how.fileRoute ? { save: SAVE_INPUT } : {}), ...extraInputs(name, how.offers) };
     if (name === "describe_source") {
         delete properties.items;
     }
@@ -390,15 +393,15 @@ const STEPS = {
     },
 
     async render_view(args, context, caller, how) {
-        const format = args.format ?? "xlsx";
         const inlineOnly = args.save === false;
+        const format = args.format ?? (inlineOnly ? INLINE_ONLY_FORMAT : "xlsx");
         if (inlineOnly && !INLINE_FORMATS.has(format)) {
             throw new OperationError("INVALID_INPUT", `save: false returns the result inline, which only csv and json can be: pass format "csv" or "json", or leave out save to get the ${format} file`);
         }
         const resolved = await resolveFor(context, args, caller, how);
         const inlinable = INLINE_FORMATS.has(format) && resolved.policy.inline !== false && how.inline !== false;
         if (inlineOnly && !inlinable) {
-            throw new OperationError("NOT_ALLOWED", how.surface === "rest" ? "inline results are off on this service (rest.inline or the policy's inline): leave out save to save the file, or use POST /views/render/file where your profile allows" : "inline results are off for this source (the policy's inline): leave out save to get the result as a file");
+            throw new OperationError("NOT_ALLOWED", how.surface === "rest" ? "inline results are switched off by the operator (rest.inline or the policy's inline), so this result cannot come back in the answer: leave out save to save the file, or use POST /views/render/file where your profile allows" : "inline results are switched off by the operator, so this table cannot be shown in the chat. Tell the user, or leave out save to make a file if they accept one.");
         }
         if (!outputDir(context) && !inlinable) {
             throw new OperationError("NO_OUTPUT", how.surface === "rest" ? `this server has no output directory, so a ${format} file cannot be saved (the operator sets output.dir); POST /views/render/file returns the file where your profile allows` : `this server has no output directory, so a ${format} file cannot be made (the operator sets output.dir); csv or json may come back inline where the policy allows`);
@@ -429,7 +432,7 @@ const STEPS = {
         const fits = caps !== null && cells <= caps.cells && file.bytes.length <= caps.bytes;
         if (inlineOnly && closed) {
             // nothing of the result is said: not its size, not whether it would fit
-            throw new OperationError("NOT_ALLOWED", "the view uses a field that is not fully shown, so its result cannot come back inline: leave out save to get it as a file");
+            throw new OperationError("NOT_ALLOWED", `a field the view uses is at level values or summary, so its numbers cannot ${how.surface === "rest" ? "come back in the answer" : "be shown in the chat"}: leave out save to get it as a file`);
         }
         if (inlineOnly && !fits) {
             throw new OperationError("LIMIT_EXCEEDED", `the result is larger than may come back inline (${caps?.cells} cells, ${caps?.bytes} bytes): filter more, or leave out save to get it as a file`);

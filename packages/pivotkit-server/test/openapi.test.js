@@ -129,3 +129,13 @@ test("/openapi.json: for signed-in callers by default, for anyone with public, n
         await off.close();
     }
 });
+
+test("save is an input of POST /views/render, not of the file route", () => {
+    const doc = openApiDocument();
+    const schemaOf = (path) => {
+        const ref = doc.paths[`/api/v1${path}`].post.requestBody.content["application/json"].schema.$ref.split("/").at(-1);
+        return doc.components.schemas[ref];
+    };
+    assert.equal(schemaOf("/views/render").properties.save?.type, "boolean");
+    assert.equal(schemaOf("/views/render/file").properties.save, undefined);
+});
