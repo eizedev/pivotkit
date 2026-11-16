@@ -6,8 +6,10 @@
  * chart needs it, so a report's first load does not.
  */
 
-import { DEFAULT_THEME, pxOf } from "./defaults.js";
-import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, heatmapFrame, pieLabelFit, pieLabelRoom, pieLabelTexts, ringLabelsFit, rowLabelInterval, valueLabelRoom } from "./chart-layout.js";
+import { CHART_GRID, DEFAULT_THEME, pxOf } from "./defaults.js";
+import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
+import { barExtent, pieLabelFit, pieLabelTexts, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
+import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame } from "./chart-measure.js";
 
 export * from "./chart-layout.js";
 
@@ -91,7 +93,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
                 }
             }
             // labels outside: room beside the pie, on lines where they are long, left out where a side has no room (pieLabelFit)
-            const fit = pieLabelFit({ ...s, label, labelLine: line }, box, fontSize);
+            const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: Boolean(option.legend) });
             label = fit.label ?? label;
             return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
@@ -104,7 +106,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         return s;
     });
     const legend = option.legend ? { ...option.legend, icon: "roundRect", itemWidth: 12, itemHeight: 12, textStyle: { ...option.legend.textStyle, color: v("--pk-text") || undefined } } : undefined;
-    const grid = option.grid ? { left: 12, right: 24, bottom: option.visualMap ? 64 : 12, containLabel: true, ...option.grid } : undefined;
+    const grid = option.grid ? { left: 12, right: 24, bottom: option.visualMap ? CHART_GRID.heatmapBottom : 12, containLabel: true, ...option.grid } : undefined;
     // the values past the end of horizontal bars keep their room on the right (valueLabelRoom)
     if (grid) grid.right += valueLabelRoom(series, fontSize);
     // a heatmap names every column: slanted where they would overlap (columnLabelLayout)
@@ -128,19 +130,25 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         }
         const names = list[0].data ?? [];
         // the height that is neither plot nor category labels: the grid's margins and a line of group labels
-        const reserved = (typeof grid?.top === "number" ? grid.top : 0) + (typeof grid?.bottom === "number" ? grid.bottom : 0) + (list[1]?.groups ? fontSize + 8 : 0);
+        const reserved = (typeof grid?.top === "number" ? grid.top : 0) + (typeof grid?.bottom === "number" ? grid.bottom : 0) + (list[1]?.groups ? groupLabelLine(fontSize) : 0);
         const layout = categoryLabelLayout(names, { width, height, horizontal: along === "yAxis", mode: extra.axisLabels, fontSize, reserved });
         axisEvery = layout.every;
         const longest = Math.min(layout.width, categoryLabelWidth(names, fontSize));
-        // the group labels' distance from the axis: past the category labels (a line of them, slanted
-        // ones' height, or the longest beside a vertical axis) and the room between
-        const offset = along === "yAxis" ? Math.round(longest) + 16 : layout.rotate ? Math.round(longest * 0.71) + fontSize + 2 : fontSize + 12;
+        const offset = groupLabelOffset({ beside: along === "yAxis", slanted: Boolean(layout.rotate), longest, fontSize });
         const main = { ...list[0], axisLabel: { ...list[0].axisLabel, rotate: layout.rotate, interval: layout.interval, width: layout.width, overflow: layout.overflow } };
         // a group's name is cut to the room of its smallest group, so two names never run into each other
         const slot = (along === "yAxis" ? Math.max(0, height - 60) : Math.max(0, width - 80)) / Math.max(1, names.length);
         const groupWidth = along === "yAxis" ? CATEGORY_LABEL_WIDTH : Math.max(24, Math.round(slot * (list[1]?.groupSize ?? 1)) - 8);
         const rest = list.slice(1).map((a) => (a.groups ? { ...a, offset, axisTick: { ...a.axisTick, length: offset }, axisLabel: { ...a.axisLabel, width: groupWidth, overflow: "truncate" } } : a));
         axes = { ...axes, [along]: rest.length ? [main, ...rest] : main };
+        // horizontal bars: fewer ticks where the value axis's labels would run into each other
+        const value = along === "yAxis" && !Array.isArray(axes.xAxis) && axes.xAxis?.type === "value" ? axes.xAxis : null;
+        if (value && grid && typeof value.axisLabel?.formatter === "function") {
+            const beside = rest.length ? offset + CATEGORY_LABEL_WIDTH : longest + AXIS_LABEL_MARGIN;
+            const plotWidth = width - grid.left - grid.right - beside;
+            const splitNumber = valueAxisSplit(barExtent(series), { plotWidth, fontSize, format: value.axisLabel.formatter });
+            if (splitNumber) axes = { ...axes, xAxis: { ...value, splitNumber } };
+        }
     }
     return { ...option, ...title, tooltip, series, ...(axes.xAxis ? { xAxis: axes.xAxis } : {}), ...(axes.yAxis ? { yAxis: axes.yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400, axisEvery };
 }

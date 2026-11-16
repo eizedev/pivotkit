@@ -91,6 +91,11 @@ async function drawn(chart) {
                 return { x: r.x, y: r.y, width: r.width, height: r.height };
             };
             const visible = (t) => t && !t.ignore && !t.invisible && t.style?.text;
+            // the angle a text is drawn at, from its transform on the page
+            const angle = (t) => {
+                const m = t.getComputedTransform();
+                return m ? Math.abs(Math.atan2(m[1], m[0])) : 0;
+            };
             // a text in a clipped area (the legend's scrolled items) counts with its part in the area
             const clipped = (t) => {
                 const b = box(t);
@@ -109,7 +114,7 @@ async function drawn(chart) {
                 .getZr()
                 .storage.getDisplayList()
                 .filter((x) => x.type === "tspan" && visible(x))
-                .map((t) => ({ text: t.style.text, rotated: Boolean(t.parent?.rotation), ...clipped(t) }))
+                .map((t) => ({ text: t.style.text, rotated: angle(t) > 0.1, ...clipped(t) }))
                 .filter((t) => t.width > 0 && t.height > 0);
             // the label of each item of the first series: shown or not, and its lines as drawn
             const data = instance.getModel().getSeriesByIndex(0)?.getData();
@@ -122,6 +127,7 @@ async function drawn(chart) {
             const grid = instance.getModel().getComponent("grid")?.coordinateSystem?.getRect();
             const value = ["yAxis", "xAxis"].map((t) => instance.getModel().getComponent(t)?.axis).find((a) => a && a.type === "value");
             const option = instance.getOption();
+            const category = instance.getModel().getComponent("xAxis")?.axis;
             return {
                 width: instance.getWidth(),
                 height: instance.getHeight(),
@@ -129,7 +135,10 @@ async function drawn(chart) {
                 texts,
                 items,
                 valueAxis: value ? { max: value.scale.getExtent()[1], labels: value.getViewLabels().map((l) => ({ text: l.formattedLabel, value: Number(l.tick?.value ?? l.tickValue) })) } : null,
-                yInterval: option.yAxis?.[0]?.axisLabel?.interval ?? null
+                yInterval: option.yAxis?.[0]?.axisLabel?.interval ?? null,
+                // the names the category axis along the bottom writes, whole
+                categoryLabels: category?.type === "category" ? category.getViewLabels().map((l) => l.formattedLabel) : null,
+                splitNumber: option.xAxis?.[0]?.splitNumber ?? null
             };
         });
     // the layout settles after the first frames (fonts, the resize observer)
@@ -191,6 +200,13 @@ for (const theme of ["light", "dark"]) {
                     expect(top, `${name}: the top tick`).toBe(d.valueAxis.max);
                     const topText = d.valueAxis.labels.find((l) => l.value === top).text;
                     expect(d.texts.map((t) => t.text), `${name}: the top tick is drawn`).toContain(topText);
+                    // the slanted names: each one the axis writes is drawn, whole or cut with "..." at the end
+                    const slanted = d.texts.filter((t) => t.rotated).map((t) => t.text);
+                    expect(slanted.length, `${name}: the names drawn`).toBe(d.categoryLabels.length);
+                    slanted.forEach((text, i) => {
+                        const whole = d.categoryLabels[i];
+                        if (text !== whole) expect(text.endsWith("...") && whole.startsWith(text.slice(0, -3)), `${name}: "${text}" for "${whole}"`).toBe(true);
+                    });
                 }
             });
 
@@ -205,6 +221,21 @@ for (const theme of ["light", "dark"]) {
                     const labels = d.items.map((i) => i.lines.join(" "));
                     expect(labels, `legend ${legend}`).toEqual(["Central: 3,790,750.5", "East: 2,838,900.0", "North: 1,531,742.0", "South: 2,010,480.0", "West: 2,318,960.0"]);
                 }
+            });
+
+            test("#229 a donut without a legend keeps every slice's label, on lines where long", async ({ page }, testInfo) => {
+                const view = { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "donut", valueLabels: "value", legend: "off" } };
+                const locator = await mount(page, { width, theme, data: SALES, view, height: HEIGHT[width] });
+                const d = await drawn(locator);
+                await locator.screenshot({ path: testInfo.outputPath(`229-off-${theme}-${width}.png`) });
+                expectReadable(d, "legend off");
+                expect(d.items.map((i) => i.lines.join(" "))).toEqual(["Central: 3,790,750.5", "East: 2,838,900.0", "North: 1,531,742.0", "South: 2,010,480.0", "West: 2,318,960.0"]);
+                // many slices without a legend: every name is there, even where two labels touch
+                const many = { rows: ["Country"], values: [{ field: "Population", agg: "sum" }], sort: [{ field: "Country", by: "value", order: "desc" }], display: "chart", chart: { type: "donut", valueLabels: "percent", legend: "off" } };
+                const all = await drawn(await mount(page, { width, theme, data: COUNTRIES, view: many, height: HEIGHT[width] }));
+                await page.locator("#labels").getByTestId("pivot-chart").screenshot({ path: testInfo.outputPath(`229-many-off-${theme}-${width}.png`) });
+                expect(all.items.filter((i) => i.lines.length).length).toBe(COUNTRIES.length);
+                expectReadable(all, "many, legend off", () => false);
             });
 
             test("#229 a donut of many small slices: labels that have no room are left out, the others are whole", async ({ page }, testInfo) => {
@@ -232,7 +263,29 @@ for (const theme of ["light", "dark"]) {
                     expectReadable(d, name);
                     expect(d.items.map((i) => i.lines.join(" ")), name).toContain(expected);
                     expect(d.items.every((i) => i.lines.length === 1), `${name}: every bar has its value`).toBe(true);
+                    // the value axis: every tick it has is written, 0 among them, at even steps
+                    const ticks = d.valueAxis.labels;
+                    expect(ticks[0].value, `${name}: 0`).toBe(0);
+                    for (const t of ticks) expect(d.texts.map((x) => x.text), `${name}: tick ${t.text}`).toContain(t.text);
+                    const steps = new Set(ticks.slice(1).map((t, i) => t.value - ticks[i].value));
+                    expect(steps.size, `${name}: even ticks`).toBe(1);
+                    // a desktop keeps ECharts' own 5 intervals
+                    if (width === 1440) expect([null, 5], `${name}: ECharts' own ticks on a desktop`).toContain(d.splitNumber);
                 }
+            });
+
+            test("#3 CJK names on the category axis: slanted where they need it, never on top of each other", async ({ page }, testInfo) => {
+                const data = ["東京都千代田区丸の内", "大阪府大阪市北区梅田", "愛知県名古屋市中村区", "福岡県福岡市博多区"].map((Place, i) => ({ Place, Visitors: 1200 + i * 350 }));
+                const view = { rows: ["Place"], values: [{ field: "Visitors", agg: "sum" }], display: "chart", chart: { type: "bar" } };
+                const locator = await mount(page, { width, theme, data, view, height: HEIGHT[width] });
+                const d = await drawn(locator);
+                await locator.screenshot({ path: testInfo.outputPath(`cjk-${theme}-${width}.png`) });
+                expectReadable(d, "CJK", (t) => !/\.\.\.$/.test(t.text) && !t.rotated);
+                const names = d.texts.filter((t) => /[\u4e00-\u9fff]/u.test(t.text));
+                expect(names.length).toBe(4);
+                // straight names side by side do not overlap; slanted ones are apart along the axis
+                const straight = names.filter((t) => !t.rotated);
+                straight.forEach((a, i) => straight.slice(i + 1).forEach((b) => expect(Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x), `"${a.text}" / "${b.text}"`).toBeLessThanOrEqual(1)));
             });
 
             test("#231 a heatmap names every row where a line fits it, else every n-th, never overlapping", async ({ page }, testInfo) => {

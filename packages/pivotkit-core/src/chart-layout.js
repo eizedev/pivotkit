@@ -7,6 +7,9 @@
  */
 
 import { DEFAULT_THEME } from "./defaults.js";
+import { AXIS_LABEL_MARGIN, SLANT, SLANTED_LABEL_WIDTH, columnsSlanted, heatmapFrame, labelLine, longestWidth, radiusPx, textRow, textWidth } from "./chart-measure.js";
+
+export { SLANTED_LABEL_WIDTH };
 
 /**
  * Room (px) above and below a pie for the labels outside it, for a chart `height` px high: 5 % of the
@@ -26,24 +29,6 @@ export function pieLabelRoom(height) {
 export const RIGHT_LEGEND_MIN_WIDTH = 480;
 /** Room (px) pivotkit-core gives a legend at the bottom of a chart. */
 export const BOTTOM_LEGEND_ROOM = 32;
-
-/** Width of a character (digits, signs and most letters) as a share of the font size, estimated. */
-const CHAR_WIDTH = 0.55;
-/** Width (px) of a text at `fontSize` px, estimated. */
-const textWidth = (text, fontSize) => String(text).length * fontSize * CHAR_WIDTH;
-/** Width (px) of the longest of `texts` at `fontSize` px, estimated. */
-const longestWidth = (texts, fontSize) => texts.reduce((m, t) => Math.max(m, textWidth(t, fontSize)), 0);
-/** Height (px) of a line of labels at `fontSize` px with the room between two of them: 16 px at 12 px. */
-const labelLine = (fontSize) => Math.round((fontSize * 4) / 3);
-/** The least height (px) of a row that holds one line of text: a px more than the text. */
-const textRow = (fontSize) => fontSize + 1;
-/** Room (px) ECharts keeps between an axis and its labels (axisLabel.margin). */
-const AXIS_LABEL_MARGIN = 8;
-/** Height (px) per px of width of a label slanted by 45 degrees (sin 45°). */
-const SLANT = Math.SQRT1_2;
-
-/** A pie's radius in px: a number as it is, a share ("70%") of `half`, half the smaller side of its box. */
-const radiusPx = (r, half) => (typeof r === "number" ? r : /%$/.test(String(r)) ? (parseFloat(String(r)) / 100) * half : parseFloat(String(r)) || 0);
 
 /**
  * Whether the numbers written inside a donut's ring fit across it: the ring is the outer less the
@@ -65,145 +50,13 @@ export function ringLabelsFit(radius, box, texts, fontSize = DEFAULT_THEME.textS
     return texts.every((t) => textWidth(t, fontSize) + 6 <= ring);
 }
 
-/** ECharts' line from a slice to its outside label, px: its two parts (ECharts' defaults), and shorter ones for a narrow chart. */
-const PIE_LINE = { length: 15, length2: 30 };
-const PIE_LINE_SHORT = { length: 10, length2: 10 };
-/** Room (px) between an outside label and its line (5) and the chart's edge (10), as ECharts keeps it. */
-const PIE_LABEL_GAP = 15;
-/** The least share of its radius a pie keeps to give its outside labels room. */
-const PIE_MIN_SCALE = 0.4;
-
-/**
- * The texts a pie writes on or beside its slices: its label's formatter on each slice (its name, value
- * and share), or the slice's name when the label has none (ECharts' default).
- * @param {{ data?: { name: string, value: unknown }[], label?: { formatter?: unknown } }} series
- * @returns {string[]}  none for a formatter that is no function (an ECharts template)
- */
-export function pieLabelTexts(series) {
-    const data = series.data || [];
-    const total = data.reduce((sum, d) => sum + (typeof d.value === "number" ? d.value : 0), 0);
-    const format = series.label?.formatter;
-    if (format === undefined) {
-        return data.map((d) => String(d.name));
-    }
-    if (typeof format !== "function") {
-        return [];
-    }
-    return data.map((d) => String(format({ name: d.name, value: d.value, percent: total && typeof d.value === "number" ? (d.value / total) * 100 : 0 })));
-}
-
-/**
- * How a pie in `box` (the chart less the room around it) makes room for its labels outside, beside it;
- * the changes to its series, none for labels inside or off:
- * - where the longest label (pieLabelTexts) fits beside the pie, its size and lines stay;
- * - else shorter label lines, and a smaller pie (down to PIE_MIN_SCALE of its radius) until the longest
- *   label fits, or at least its longest word; a label then breaks into lines at its spaces;
- * - each side of the pie writes as many labels as its height holds, those of the larger slices first;
- *   the others are left out (`data` with their label off). The legend and the tooltip name every slice.
- * Widths are estimated (CHAR_WIDTH).
- * @param {any} series  the pie's series: radius, data, label, labelLine
- * @param {{ width: number, height: number }} box
- * @param {number} [fontSize]  px
- * @returns {{ radius?: [string | number, string | number], labelLine?: object, label?: object, data?: object[] }}
- */
-export function pieLabelFit(series, box, fontSize = DEFAULT_THEME.textSize) {
-    const label = series.label;
-    if (label?.show === false || label?.position === "inside" || label?.position === "inner" || !Array.isArray(series.radius)) {
-        return {};
-    }
-    const texts = pieLabelTexts(series);
-    const half = Math.max(0, Math.min(box.width, box.height)) / 2;
-    const outer = radiusPx(series.radius[1], half);
-    const side = (r, line) => box.width / 2 - r - line.length - line.length2 - PIE_LABEL_GAP;
-    const whole = longestWidth(texts, fontSize);
-    let sized = {};
-    let lines = texts.map(() => 1);
-    if (outer > 0 && side(outer, PIE_LINE) < whole) {
-        const word = longestWidth(texts.flatMap((t) => t.split(" ")), fontSize);
-        // the largest radius at which the whole labels fit beside the pie; below the least radius, the
-        // one at which their longest word does (the labels are written on lines then)
-        const fits = side(0, PIE_LINE_SHORT);
-        const least = outer * PIE_MIN_SCALE;
-        const r = Math.min(outer, fits - whole >= least ? fits - whole : Math.max(least, fits - word));
-        const scale = r / outer;
-        const room = side(r, PIE_LINE_SHORT);
-        const scaled = (v) => (typeof v === "number" ? v * scale : /%$/.test(String(v)) ? `${Math.round(parseFloat(String(v)) * scale * 10) / 10}%` : v);
-        const format = typeof label?.formatter === "function" ? label.formatter : (/** @type {{ name: string }} */ p) => p.name;
-        const wrap = (/** @type {string} */ t) => wrapAtSpaces(t, room, fontSize);
-        lines = texts.map((t) => wrap(t).split("\n").length);
-        sized = {
-            radius: [scaled(series.radius[0]), scaled(series.radius[1])],
-            labelLine: { ...series.labelLine, ...PIE_LINE_SHORT },
-            ...(whole > room ? { label: { ...label, formatter: (/** @type {any} */ p) => wrap(String(format(p))) } } : {})
-        };
-    }
-    const shown = pieLabelsShown(series.data || [], lines, box.height, fontSize);
-    if (shown.every(Boolean)) {
-        return sized;
-    }
-    const off = { label: { show: false }, labelLine: { show: false } };
-    return { ...sized, data: series.data.map((/** @type {object} */ d, /** @type {number} */ i) => (shown[i] ? d : { ...d, ...off })) };
-}
-
-/**
- * Which slices of a pie keep their label outside: per side of the pie (ECharts' start at the top,
- * clockwise), as many as `height` holds at `lines` lines each, the larger slices first.
- * @param {{ value: unknown }[]} data
- * @param {number[]} lines
- * @param {number} height  px
- * @param {number} fontSize  px
- * @returns {boolean[]}
- */
-function pieLabelsShown(data, lines, height, fontSize) {
-    const values = data.map((d) => (typeof d.value === "number" && d.value > 0 ? d.value : 0));
-    const total = values.reduce((a, b) => a + b, 0) || 1;
-    let before = 0;
-    const left = values.map((v) => {
-        // the slice's middle, in degrees from the top, clockwise: past 180 it is on the left
-        const middle = ((before + v / 2) / total) * 360;
-        before += v;
-        return middle > 180;
-    });
-    const shown = values.map(() => false);
-    for (const onLeft of [false, true]) {
-        let used = 0;
-        const order = values.map((v, i) => i).filter((i) => left[i] === onLeft).sort((a, b) => values[b] - values[a]);
-        for (const i of order) {
-            used += lines[i] * labelLine(fontSize);
-            shown[i] = used <= height;
-        }
-    }
-    return shown;
-}
-
-/** A text broken into lines ("\n") at its spaces, each line at most `width` px where its words allow (estimated). */
-function wrapAtSpaces(text, width, fontSize) {
-    if (textWidth(text, fontSize) <= width) {
-        return text;
-    }
-    const lines = [];
-    for (const word of text.split(" ")) {
-        const last = lines.length ? `${lines[lines.length - 1]} ${word}` : null;
-        if (last !== null && textWidth(last, fontSize) <= width) {
-            lines[lines.length - 1] = last;
-        } else {
-            lines.push(word);
-        }
-    }
-    return lines.join("\n");
-}
-
-/** Width (px) a slanted column name of a heatmap takes at most; a longer one ends in "…". */
-export const SLANTED_LABEL_WIDTH = 120;
-/** Room (px) of a heatmap's chart beside its cells: the row names. */
-const HEATMAP_FRAME_X = 80;
 /** Room (px) a cell keeps on each side of its number. */
 const LABEL_PAD = 4;
 
 /**
  * How a heatmap writes its column names along the x axis of a chart `width` px wide: straight when
  * the longest fits its column, else slanted by 45 degrees and cut at SLANTED_LABEL_WIDTH. Every name is
- * shown (the core sets interval 0); the width of a character is estimated (CHAR_WIDTH).
+ * shown (the core sets interval 0); the width of a character is estimated (textWidth in chart-measure.js).
  * @param {string[]} names
  * @param {number} width  the chart's width in px
  * @param {number} [fontSize]  px
@@ -213,35 +66,21 @@ export function columnLabelLayout(names, width, fontSize = DEFAULT_THEME.textSiz
     if (names.length === 0) {
         return { rotate: 0 };
     }
-    const slot = Math.max(0, width - HEATMAP_FRAME_X) / names.length;
-    const longest = longestWidth(names, fontSize);
-    return longest <= slot ? { rotate: 0 } : { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" };
-}
-
-/**
- * Room (px) of a heatmap's chart that is not cells: `x` beside them for the row names, `y` above and
- * below them for the grid's margins (`top`, `bottom`: pivotkit-core's grid, the colour scale below) and
- * the column names (`names`, laid out for a chart `width` px wide by columnLabelLayout).
- * @param {{ top?: number, bottom?: number, names?: string[], width?: number, fontSize?: number }} [chart]
- * @returns {{ x: number, y: number }}
- */
-export function heatmapFrame({ top = 16, bottom = 64, names = [], width = 800, fontSize = DEFAULT_THEME.textSize } = {}) {
-    const slanted = columnLabelLayout(names, width, fontSize).rotate !== 0;
-    const columnNames = slanted ? (Math.min(SLANTED_LABEL_WIDTH, longestWidth(names, fontSize)) + fontSize) * SLANT : fontSize;
-    return { x: HEATMAP_FRAME_X, y: Math.round(top + bottom + AXIS_LABEL_MARGIN + columnNames) };
+    return columnsSlanted(names, width, fontSize) ? { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" } : { rotate: 0 };
 }
 
 /**
  * True when the cells of a heatmap of `columns` x `rows` in a chart of `width` x `height` px hold their
  * numbers as the chart writes them (`texts`, formatted: "1,234.5", "-12.3%"): the longest, estimated
- * (CHAR_WIDTH), fits a cell's width with room on both sides, and a line its height.
+ * (textWidth in chart-measure.js), fits a cell's width with room on both sides, and a line its height.
  * @param {number} columns
  * @param {number} rows
  * @param {number} width
  * @param {number} height
  * @param {string[]} texts
  * @param {number} [fontSize]  px
- * @param {{ x: number, y: number }} [frame]  the room that is not cells (heatmapFrame), by default with straight column names
+ * @param {{ x: number, y: number }} [frame]  the room of the chart that is not cells, px: `x` beside them for the row names,
+ *   `y` above and below them for the margins, the column names and the colour scale; by default with straight column names
  */
 export function heatmapCellLabels(columns, rows, width, height, texts, fontSize = DEFAULT_THEME.textSize, frame = heatmapFrame({ fontSize })) {
     const w = Math.max(0, width - frame.x) / Math.max(1, columns);
@@ -256,7 +95,8 @@ export function heatmapCellLabels(columns, rows, width, height, texts, fontSize 
  * @param {number} rows
  * @param {number} height
  * @param {number} [fontSize]  px
- * @param {{ x: number, y: number }} [frame]  the room that is not cells (heatmapFrame), by default with straight column names
+ * @param {{ x: number, y: number }} [frame]  the room of the chart that is not cells, px: `x` beside them for the row names,
+ *   `y` above and below them for the margins, the column names and the colour scale; by default with straight column names
  */
 export function rowLabelInterval(rows, height, fontSize = DEFAULT_THEME.textSize, frame = heatmapFrame({ fontSize })) {
     const h = Math.max(0, height - frame.y) / Math.max(1, rows);
@@ -277,7 +117,7 @@ const AXIS_FRAME = { x: 80, y: 60 };
  * - "nth": straight, every n-th so they never overlap.
  * Along a vertical axis (horizontal bars) the labels stay straight: every one while a line fits each
  * row, else every n-th. A label is cut at CATEGORY_LABEL_WIDTH; a slanted one shorter where it would
- * take more than SLANTED_SHARE of the height (slantedLabelWidth). The width of a character is estimated (CHAR_WIDTH).
+ * take more than SLANTED_SHARE of the height (slantedLabelWidth). The width of a character is estimated (textWidth in chart-measure.js).
  * @param {string[]} names
  * @param {{ width: number, height: number, horizontal?: boolean, mode?: string, fontSize?: number, reserved?: number }} box
  *   reserved: the px of the height that are neither plot nor category labels (margins, title, legend, group labels)
@@ -326,22 +166,6 @@ function slantedLabelWidth(room, fontSize) {
  */
 export function categoryLabelWidth(names, fontSize = DEFAULT_THEME.textSize) {
     return Math.min(CATEGORY_LABEL_WIDTH, longestWidth(names, fontSize));
-}
-
-/** Room (px) ECharts keeps between a bar's end and its value label (label.distance). */
-const VALUE_LABEL_DISTANCE = 5;
-
-/**
- * Room (px) beside the plot for the value labels written past the end of horizontal bars (series of
- * type "bar" with their label at the "right"): the longest as the chart writes it, estimated
- * (CHAR_WIDTH), and its distance from the bar; 0 without such labels.
- * @param {any[]} series  the option's series
- * @param {number} [fontSize]  px
- */
-export function valueLabelRoom(series, fontSize = DEFAULT_THEME.textSize) {
-    const ends = series.filter((s) => s.type === "bar" && s.label?.show && s.label.position === "right" && typeof s.label.formatter === "function");
-    const texts = ends.flatMap((s) => (s.data || []).map((/** @type {unknown} */ value) => String(s.label.formatter({ value }))));
-    return texts.length ? Math.ceil(longestWidth(texts, fontSize) + VALUE_LABEL_DISTANCE) : 0;
 }
 
 /** The least room (px) a group label needs along the axis, and the least size of a chart with group labels. */

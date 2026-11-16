@@ -317,9 +317,9 @@ test("chart tooltips are nodes with texts and CSSOM styles, never markup", () =>
 
 test("heatmap column names: straight when they fit, slanted and cut when they would overlap", () => {
     const names = ["App", "Database", "Device", "Framework", "Language", "Operating system", "Server app", "Service", "Standard"];
-    // "Operating system" at 14 px takes about 123 px: straight from a chart of about 1200 px; the chart
-    // of a report 1440 px wide (about 1100 px) slants them, at 12 px it would not
-    assert.deepEqual(columnLabelLayout(names, 1200), { rotate: 0 });
+    // "Operating system" at 14 px takes about 125 px (its capital a little wider): straight from a chart
+    // of about 1250 px; the chart of a report 1440 px wide (about 1100 px) slants them, at 12 px it would not
+    assert.deepEqual(columnLabelLayout(names, 1250), { rotate: 0 });
     assert.deepEqual(columnLabelLayout(names, 1100), { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" });
     assert.deepEqual(columnLabelLayout(names, 1100, 12), { rotate: 0 });
     assert.deepEqual(columnLabelLayout(names, 390), { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" });

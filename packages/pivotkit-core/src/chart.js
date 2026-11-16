@@ -5,7 +5,7 @@
  * are not plotted; collapsed groups are plotted as one category.
  */
 
-import { DEFAULT_THEME } from "./defaults.js";
+import { CHART_GRID, DEFAULT_THEME } from "./defaults.js";
 import { TIMELINE_UNITS } from "./derive.js";
 import { checkLimit, expect } from "./errors.js";
 import { formatterFor } from "./format.js";
@@ -335,7 +335,7 @@ export function toEChartsOption(result, options) {
             ...base,
             ...title,
             tooltip: { trigger: "item", valueFormatter },
-            grid: { top: 16 + titleRoom, bottom: 64 },
+            grid: { top: CHART_GRID.top + titleRoom, bottom: CHART_GRID.heatmapBottom },
             // no split areas: ECharts paints them light grey whatever the theme, so the empty cells
             // would be the brightest part of a dark chart; an empty cell shows the background
             // every column is labelled (interval 0): ECharts would otherwise hide every second name
@@ -366,8 +366,7 @@ export function toEChartsOption(result, options) {
     const valueAxis = {
         type: "value",
         axisLine,
-        // a narrow plot (a phone, the room of value labels) leaves out the ticks' labels that would overlap
-        axisLabel: { ...axisText, hideOverlap: true, formatter: (v) => compact(v) },
+        axisLabel: { ...axisText, formatter: (v) => compact(v) },
         splitLine: { lineStyle: { color: theme.gridColor } }
     };
     // value labels: at the end of a bar, inside a stacked one, above a point of a line
@@ -380,7 +379,7 @@ export function toEChartsOption(result, options) {
         ...legendPart,
         tooltip: { trigger: "axis", valueFormatter },
         // room for the title and the legend; ECharts keeps its own defaults for the label margins
-        grid: { top: 16 + titleRoom + room.top, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
+        grid: { top: CHART_GRID.top + titleRoom + room.top, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
         xAxis: chart.horizontal ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
         yAxis: chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
         series: s.series.map((x) => ({

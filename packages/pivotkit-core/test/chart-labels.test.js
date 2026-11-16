@@ -4,7 +4,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_THEME, computePivot, encode, toEChartsOption } from "pivotkit-core";
-import { CATEGORY_LABEL_WIDTH, decorateOption, heatmapFrame, pieLabelFit, rowLabelInterval, valueLabelRoom } from "pivotkit-core/chart";
+import { CATEGORY_LABEL_WIDTH, categoryLabelLayout, decorateOption, rowLabelInterval } from "pivotkit-core/chart";
+// the layout's internal parts: "pivotkit-core/chart" does not export them
+import { PIE_MIN_SCALE, pieLabelFit, valueLabelRoom } from "../src/chart-fit.js";
+import { heatmapFrame, textWidth } from "../src/chart-measure.js";
 
 const NO_TOKENS = { getPropertyValue: () => "" };
 const fontSize = DEFAULT_THEME.textSize;
@@ -59,6 +62,29 @@ test("#228 slanted category names take at most 40 % of the height left for the p
     assert.equal(decorated(COUNTRIES, view, { width: 1060, height: 380 }).xAxis[0].axisLabel.width, CATEGORY_LABEL_WIDTH);
 });
 
+/** The radius (px) of a pie's series in `box`, and the room beside it for its labels (short lines). */
+function pieRoom(series, box) {
+    const half = Math.min(box.width, box.height) / 2;
+    const r = (parseFloat(series.radius[1]) / 100) * half;
+    return { r, room: box.width / 2 - r - 10 - 10 - 15 };
+}
+
+/** Fails unless every label's lines fit beside the pie (a single word may be the line), and the pie keeps its least size. */
+function assertLabelsFit(patch, series, box, size) {
+    const theme = (parseFloat(series.radius[1]) / 100) * (Math.min(box.width, box.height) / 2);
+    const { r, room } = pieRoom({ ...series, ...patch }, box);
+    assert.ok(r >= theme * PIE_MIN_SCALE - 0.5, `radius ${r} below the floor ${theme * PIE_MIN_SCALE}`);
+    const format = patch.label?.formatter ?? series.label?.formatter ?? ((p) => p.name);
+    const total = series.data.reduce((sum, d) => sum + d.value, 0);
+    for (const d of series.data) {
+        for (const line of String(format({ name: d.name, value: d.value, percent: (d.value / total) * 100 })).split("\n")) {
+            assert.ok(textWidth(line, size) <= room || !line.includes(" "), `"${line}" (${textWidth(line, size)} px) beside ${room} px`);
+        }
+    }
+}
+
+const PHONE_BOX = { width: 330, height: 300 };
+
 test("#229 a donut's outside labels: room beside it on a phone, on lines where long; a desktop's unchanged", () => {
     const view = { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "donut", valueLabels: "value" } };
     const option = toEChartsOption(computePivot(SALES, view));
@@ -69,33 +95,50 @@ test("#229 a donut's outside labels: room beside it on a phone, on lines where l
     const phone = decorateOption(option, NO_TOKENS, { width: 330, height: 376 });
     const outer = (s) => parseFloat(s.radius[1]);
     assert.ok(outer(phone.series[0]) < outer(option.series[0]), `radius ${phone.series[0].radius}`);
-    // the ring keeps its shape
+    // the ring keeps its shape, the lines are shorter, a label is its name and value on lines
     assert.ok(Math.abs(parseFloat(phone.series[0].radius[0]) / outer(phone.series[0]) - 42 / 70) < 0.01);
     assert.deepEqual([phone.series[0].labelLine.length, phone.series[0].labelLine.length2, phone.series[0].labelLine.show], [10, 10, true]);
-    assert.equal(phone.series[0].label.formatter({ name: "Central", value: 3_735_700.5, percent: 30 }), "Central:\n3,735,700.5");
+    assert.equal(phone.series[0].label.formatter({ name: "Central", value: 3_735_700.5, percent: 30 }).replace(/\n/g, " "), "Central: 3,735,700.5");
+    assertLabelsFit(phone.series[0], option.series[0], { width: 330, height: 376 - phone.series[0].top - phone.series[0].bottom }, fontSize);
     // labels inside, or none: nothing to fit
-    assert.deepEqual(pieLabelFit({ ...option.series[0], label: { position: "inside" } }, { width: 330, height: 300 }), {});
-    assert.deepEqual(pieLabelFit({ ...option.series[0], label: { show: false } }, { width: 330, height: 300 }), {});
+    assert.deepEqual(pieLabelFit({ ...option.series[0], label: { position: "inside" } }, PHONE_BOX), {});
+    assert.deepEqual(pieLabelFit({ ...option.series[0], label: { show: false } }, PHONE_BOX), {});
 });
 
-test("#229 the pie is smaller until the longest word fits beside it, at most down to 40 % of its radius; the labels wrap at their spaces", () => {
-    const series = { radius: ["0%", "70%"], data: [{ name: "Saint Vincent and the Grenadines", value: 1 }, { name: "India", value: 9 }], label: {} };
-    const box = { width: 330, height: 300 };
-    // 70 % of 150 px is 105 px; "Grenadines" (77 px estimated) fits beside 53 px: 165 less 10 + 10 px of line, 15 px of gaps
-    const fit = pieLabelFit(series, box);
-    assert.deepEqual(fit.radius, ["0%", "35.3%"]);
+test("#229 shares at a larger text size: the labels fit beside the pie, and it keeps its least size", () => {
+    const view = { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "donut", valueLabels: "percent" } };
+    const option = toEChartsOption(computePivot(SALES, view), { theme: { textSize: 18 } });
+    const phone = decorateOption(option, NO_TOKENS, { width: 330, height: 376 });
+    assert.match(phone.series[0].label.formatter({ name: "Central", value: 1, percent: 12.5 }).replace(/\n/g, " "), /^Central: 12\.5%$/);
+    assertLabelsFit(phone.series[0], option.series[0], { width: 330, height: 376 - phone.series[0].top - phone.series[0].bottom }, 18);
+});
+
+test("#229 the pie is smaller until the longest word fits beside it, never below its floor; labels wrap at their spaces", () => {
+    const series = { radius: ["42%", "70%"], data: [{ name: "Saint Vincent and the Grenadines", value: 1 }, { name: "India", value: 9 }], label: {} };
+    const fit = pieLabelFit(series, PHONE_BOX);
+    assertLabelsFit(fit, series, PHONE_BOX, fontSize);
     const lines = fit.label.formatter({ name: "Saint Vincent and the Grenadines" }).split("\n");
     assert.ok(lines.length > 1 && lines.join(" ") === "Saint Vincent and the Grenadines", lines.join("|"));
-    // a word longer than that: the pie keeps 40 % of its radius
-    assert.deepEqual(pieLabelFit({ ...series, data: [{ name: "Kreditkartenabrechnungen", value: 1 }] }, box).radius, ["0%", "28%"]);
     // a short name beside a pie in a wide box: ECharts' own lines and radius
     assert.deepEqual(pieLabelFit({ ...series, data: [{ name: "India", value: 1 }] }, { width: 1060, height: 300 }), {});
-    // in the phone's box even "India" needs room: shorter lines and a pie of 61 % instead of 70 %, on one line
-    const india = pieLabelFit({ ...series, data: [{ name: "India", value: 1 }] }, box);
-    assert.deepEqual([india.radius, india.label], [["0%", "61%"], undefined]);
+    // a word longer than the room at the floor: the donut stays at its floor (its ring is too thin for the text inside)
+    const long = { ...series, data: [{ name: "Kreditkartenabrechnungen", value: 1 }] };
+    const floor = pieLabelFit(long, PHONE_BOX);
+    assert.ok(pieRoom({ ...long, ...floor }, PHONE_BOX).r >= 0.7 * 150 * PIE_MIN_SCALE - 0.5);
+    assert.equal(floor.label?.position, undefined);
 });
 
-test("#229 each side of a pie writes as many labels as its height holds, the larger slices first", () => {
+test("#229 a pie at its floor with a word still too long writes its labels inside, while a legend names the slices", () => {
+    const series = { radius: ["0%", "70%"], data: [{ name: "Kreditkartenabrechnungen", value: 3 }, { name: "Lastschriften", value: 1 }], label: {}, labelLine: { show: true } };
+    const inside = pieLabelFit(series, PHONE_BOX);
+    assert.deepEqual([inside.label.position, inside.labelLine.show, inside.minShowLabelAngle, inside.radius], ["inside", false, 12, undefined]);
+    // without a legend the labels stay outside: a name on the slice could be left out
+    const outside = pieLabelFit(series, PHONE_BOX, { legend: false });
+    assert.equal(outside.label?.position, undefined);
+    assert.ok(outside.radius);
+});
+
+test("#229 with a legend each side writes as many labels as its height holds, the larger slices first; without one every label stays", () => {
     // 20 slices from 39 down to 1: the large ones on the right, the many small ones on the left
     const data = Array.from({ length: 20 }, (_, i) => ({ name: `Country ${i + 1}`, value: 40 - 2 * i - 1 }));
     const series = { radius: ["42%", "70%"], data, label: {} };
@@ -110,6 +153,24 @@ test("#229 each side of a pie writes as many labels as its height holds, the lar
     assert.deepEqual(Object.keys(fit.data[19]).sort(), ["label", "labelLine", "name", "value"]);
     // a tall box holds every label
     assert.equal(pieLabelFit(series, { width: 1060, height: 600 }).data, undefined);
+    // no legend: no label is left out, in a low box too, also through decorateOption
+    assert.equal(pieLabelFit(series, { width: 1060, height: 240 }, { legend: false }).data, undefined);
+    const many = encode(data.map((d) => ({ C: d.name, V: d.value })));
+    const off = decorated(many, { rows: ["C"], values: [{ field: "V", agg: "sum" }], chart: { type: "donut", legend: "off" } }, { width: 330, height: 240 });
+    assert.equal(off.legend, undefined);
+    assert.ok(off.series[0].data.every((d) => d.label?.show !== false));
+    const on = decorated(many, { rows: ["C"], values: [{ field: "V", agg: "sum" }], chart: { type: "donut" } }, { width: 330, height: 240 });
+    assert.ok(on.series[0].data.some((d) => d.label?.show === false));
+});
+
+test("#3 CJK and fullwidth names count a whole em: they slant where Latin names of their length would not", () => {
+    const names = ["東京都千代田区丸の内", "大阪府大阪市北区梅田", "愛知県名古屋市中村区"];
+    // three slots of 120 px: 10 characters at 14 px take 140 px (77 px at the Latin average)
+    assert.equal(textWidth(names[0], 14), 140);
+    assert.equal(categoryLabelLayout(names, { width: 80 + 3 * 120, height: 400 }).rotate, 45);
+    assert.equal(categoryLabelLayout(["abcdefghij", "abcdefghij", "abcdefghij"], { width: 80 + 3 * 120, height: 400 }).rotate, 0);
+    // capitals weigh more than small letters
+    assert.ok(textWidth("WWWW", 14) > textWidth("wwww", 14));
 });
 
 test("#230 horizontal bars keep the room of their longest value label on the right", () => {
@@ -124,6 +185,15 @@ test("#230 horizontal bars keep the room of their longest value label on the rig
     // a legend on the right keeps its room, the labels' comes on top
     const legend = decorated(SALES, { ...view, cols: ["Region"], chart: { type: "bar", horizontal: true, valueLabels: "value", legend: "right" } }, { width: 1060, height: 426 });
     assert.equal(legend.grid.right, 168 + valueLabelRoom(legend.series, fontSize));
+});
+
+test("#230 a narrow value axis writes fewer, even ticks so its labels do not collide; a wide one keeps ECharts' own", () => {
+    const view = { rows: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", horizontal: true, valueLabels: "value" } };
+    assert.equal(decorated(SALES, view, { width: 1060, height: 426 }).xAxis.splitNumber, undefined);
+    const phone = decorated(SALES, view, { width: 330, height: 376 });
+    assert.ok(phone.xAxis.splitNumber >= 1 && phone.xAxis.splitNumber < 5, `splitNumber ${phone.xAxis.splitNumber}`);
+    // vertical bars and lines keep ECharts' ticks
+    assert.equal(decorated(SALES, { ...view, chart: { type: "bar", valueLabels: "value" } }, { width: 330, height: 376 }).yAxis.splitNumber, undefined);
 });
 
 test("#231 a heatmap's row names: the frame from the grid and the column names it draws, a row a px higher than the text", () => {
