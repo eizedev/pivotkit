@@ -41,7 +41,8 @@ jobs:
         # type check of the JSDoc sources, generated .d.ts, and a TypeScript consumer compiled against them
         run: npm run types
       - name: Temporary directories before the tests
-        # the pivotkit-* names already there, for the check after the repository checks
+        # the pivotkit-* names already there, for the check after the repository checks. Linux only:
+        # the windows job does not run it
         run: node scripts/temp-dirs.js save "$RUNNER_TEMP/temp-dirs.json"
       - name: Unit tests with coverage
         run: npm run coverage
@@ -50,7 +51,8 @@ jobs:
         # that leaves a temporary directory behind fails (scripts/test-run.js)
         run: node scripts/test-run.js node --test "tests/*.test.js"
       - name: No temporary directory left behind
-        # of any run or process: one killed without its exit event, or started without the run's id
+        # of any run or process: one killed without its exit event, or started without the run's id.
+        # A directory a sweep of tempDir() removed during the tests fails it too
         run: node scripts/temp-dirs.js check "$RUNNER_TEMP/temp-dirs.json"
       - name: Package contents
         # npm pack --dry-run: LICENSE, docs, sources and types in the tarball; publishes nothing

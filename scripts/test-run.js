@@ -12,17 +12,16 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { readdirSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isMain } from "./is-main.js";
-import { RUN_ENV, runPrefix } from "../tests/temp-dir.js";
+import { RUN_ENV, runPrefix, tempRoot } from "../tests/temp-dir.js";
 
 /**
  * The entries of the temporary directory that carry the run's id.
  * @param {string} run
  * @param {string} [dir]
  */
-export function leftovers(run, dir = tmpdir()) {
+export function leftovers(run, dir = tempRoot()) {
     const prefix = runPrefix(run);
     return readdirSync(dir).filter((name) => name.startsWith(prefix)).map((name) => join(dir, name));
 }

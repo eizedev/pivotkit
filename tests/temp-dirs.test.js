@@ -5,14 +5,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { forwarded, leftovers } from "../scripts/test-run.js";
-import { newNames } from "../scripts/temp-dirs.js";
+import { leftBehind, newNames } from "../scripts/temp-dirs.js";
 import { root, sourceFiles } from "./source-files.js";
-import { GRACE_MS, RUN_ENV } from "./temp-dir.js";
+import { GRACE_MS, HOST, ROOT_ENV, RUN_ENV, SWEPT_LOG, tempDir } from "./temp-dir.js";
 
 const HELPER = fileURLToPath(new URL("./temp-dir.js", import.meta.url));
 const TEST_RUN = fileURLToPath(new URL("../scripts/test-run.js", import.meta.url));
@@ -105,8 +105,8 @@ test("tempDir's directories carry the run's id and are gone when the process end
         const dirs = JSON.parse(child.stdout.trim().split("\n")[0]);
         assert.equal(dirs.length, 2, child.stderr);
         // the owner's process id before the random part: a later process removes them if it died
-        assert.match(basename(dirs[0]), new RegExp(`^pivotkit-${run}-server-p${child.pid}-\\w{6}$`));
-        assert.match(basename(dirs[1]), new RegExp(`^pivotkit-${run}-probe-p${child.pid}-\\w{6}$`));
+        assert.match(basename(dirs[0]), new RegExp(`^pivotkit-${run}-server-h${HOST}p${child.pid}-\\w{6}$`));
+        assert.match(basename(dirs[1]), new RegExp(`^pivotkit-${run}-probe-h${HOST}p${child.pid}-\\w{6}$`));
         for (const dir of dirs) assert.equal(existsSync(dir), false, `${then || "the end"}: ${dir} is still there`);
         assert.deepEqual(leftovers(run), [], then);
     }
@@ -207,26 +207,31 @@ test("a SIGTERM handler that never ends the process: tempDir ends it after a gra
 // SIGKILL, a crash or a fatal error of V8 end a process without its exit event: its directories stay
 // (#526). The next process that makes one removes those of processes that are gone, never one of a
 // process still running.
-test("a killed process's directories go with the next tempDir() of any process; a running one's stay", { timeout: 30_000 }, async () => {
-    const run = newRun();
-    const env = { ...process.env, [RUN_ENV]: run };
+test("a killed process's directories go with the next tempDir() of any process on this host, noted; a running one's, another host's and a foreign one stay", { timeout: 30_000 }, async () => {
+    // a temporary root of this test's own: no other process sweeps there
+    const root = tempDir("sweep-root");
+    const env = { ...process.env, [RUN_ENV]: newRun(), [ROOT_ENV]: root };
+    // a dead process id (no process has it) with another host's mark, and a foreign tool's name
+    const others = ["pivotkit-a1-server-h00000000p999999-abcdef", "pivotkit-tool-p999999-abcdef"];
+    for (const name of others) mkdirSync(join(root, name));
     const killed = await started(["--input-type=module", "-e", maker("setInterval(() => {}, 1000);")], env);
     const running = await started(["--input-type=module", "-e", maker("setInterval(() => {}, 1000);")], env);
     try {
         killed.child.kill("SIGKILL");
         await killed.ended;
-        // another run's process, without this run's id
-        const next = runMaker("", "");
+        // another run's process
+        const next = spawnSync(process.execPath, ["--input-type=module", "-e", maker("")], { encoding: "utf8", env: { ...env, [RUN_ENV]: newRun() } });
         assert.equal(next.status, 0, next.stderr);
-        // other ended processes on the machine may have left some too
-        const said = /^removed \d+ temporary directories? of ended processes: (.*)$/m.exec(next.stderr)?.[1].split(", ") ?? [];
-        for (const dir of killed.first) assert.ok(said.includes(basename(dir)), `${basename(dir)} named in: ${next.stderr}`);
+        const names = killed.first.map((dir) => basename(dir)).sort();
+        const said = /^removed 2 temporary directories of ended processes: (.*)$/m.exec(next.stderr)?.[1].split(", ") ?? [];
+        assert.deepEqual(said.sort(), names, next.stderr);
+        assert.deepEqual(readFileSync(join(root, SWEPT_LOG), "utf8").split("\n").filter(Boolean).sort(), names);
         for (const dir of killed.first) assert.equal(existsSync(dir), false, `${dir} of the killed process is still there`);
         for (const dir of running.first) assert.equal(existsSync(dir), true, `${dir} of the running process was removed`);
+        for (const name of others) assert.equal(existsSync(join(root, name)), true, `${name} was removed`);
     } finally {
         kill(running.child.pid);
         await running.ended;
-        for (const dir of [...killed.first, ...running.first]) rmSync(dir, { recursive: true, force: true });
     }
 });
 
@@ -329,8 +334,11 @@ test("a test run passes the command's exit code on, and its run id to the comman
     assert.match(fresh.stdout.trim(), /^[0-9a-f]{12}$/);
 });
 
-test("CI's check names the pivotkit-* directories that are new after the tests, not those that went", () => {
+test("CI's check names the pivotkit-* directories that are new after the tests, and those a sweep removed meanwhile", () => {
     const before = ["pivotkit-a1-server-p10-abcdef", "pivotkit-cli-p11-ghijkl"];
     assert.deepEqual(newNames(before, ["pivotkit-cli-p11-ghijkl"]), []);
     assert.deepEqual(newNames(before, [...before, "pivotkit-mcp-p12-mnopqr"]), ["pivotkit-mcp-p12-mnopqr"]);
+    const log = "pivotkit-old-p9-aaaaaa\n";
+    assert.deepEqual(leftBehind({ names: before, swept: log.length }, { names: before, swept: log }), []);
+    assert.deepEqual(leftBehind({ names: before, swept: log.length }, { names: before, swept: `${log}pivotkit-cli-p13-bbbbbb\n` }), ["pivotkit-cli-p13-bbbbbb (removed by a sweep: its process was killed)"]);
 });
