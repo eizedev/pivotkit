@@ -414,7 +414,6 @@ const VERSION_STATEMENTS = [
 ];
 const minorOf = (version) => version.split(".").slice(0, 2).join(".");
 
-/** The Markdown files a reader takes as the current state: READMEs, every AGENTS.md, CONTRIBUTING.md, RELEASING.md, SECURITY.md, docs/. */
 /**
  * Every AGENTS.md under `dir`, the root's and the nested ones of packages and folders, as paths
  * relative to `dir` with "/". git's list of tracked files where `dir` is a repository; without git
@@ -437,6 +436,7 @@ test("agentsFiles finds the nested AGENTS.md files in a copy without .git, outsi
     assert.deepEqual(agentsFiles(dir), ["AGENTS.md", "packages/a/AGENTS.md"]);
 });
 
+/** The Markdown files a reader takes as the current state: READMEs, every AGENTS.md, CONTRIBUTING.md, RELEASING.md, SECURITY.md, docs/. */
 function docFiles() {
     const agentFiles = agentsFiles(fileURLToPath(root));
     assert.ok(agentFiles.includes("AGENTS.md"), "found no AGENTS.md at the root");
@@ -464,7 +464,7 @@ test("docs and READMEs write no caret range of a pivotkit package; the version s
 
 // The "Server in 5 minutes" commands are copied as they are: every image tag, release tag and
 // PIVOTKIT_VERSION on the page names pivotkit-server's version in full, and so does the example
-// version of the container examples (CONTRIBUTING.md, "Releasing")
+// version of the container examples (RELEASING.md, "Each release")
 const IMAGE_VERSIONS = /ghcr\.io\/eizedev\/pivotkit:(\d+\.\d+\.\d+)|pivotkit-server@(\d+\.\d+\.\d+)|PIVOTKIT_VERSION\s*=\s*"?(\d+\.\d+\.\d+)|e\.g\. (\d+\.\d+\.\d+)/g;
 test("server-in-5-minutes.md and the container examples name pivotkit-server's current version everywhere, in full", () => {
     const { version } = JSON.parse(readFileSync(new URL("packages/pivotkit-server/package.json", root), "utf8"));

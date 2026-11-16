@@ -70,6 +70,7 @@ Release packages in this order. It follows their run-time dependencies.
 - The `publish` job waits for an environment reviewer.
 - Before approving, read `.github/workflows/release.yml` at the tag. That version runs.
 - `publish` stages the tarball with provenance (`npm stage publish`, npm 11.21.1).
+- Provenance comes from the workflow's `--provenance`, not from `publishConfig`.
 - Staging needs npm 11.15.0 or later. Trusted publishing needs Node 22.14.0 or later.
 - Check name, version and publisher. Then approve with two-factor authentication:
 
@@ -80,6 +81,7 @@ npm stage approve <stage-id>   # or: npm stage reject <stage-id>
 
 - You can also approve on npmjs.com, account settings, tab Staged Packages.
 - No workflow token can approve. An unapproved version never goes live.
+- If nobody approves it, the next tag's `check-release.js --published` fails. The GitHub release waits too.
 
 ### 5. GitHub release
 
@@ -106,11 +108,11 @@ docker buildx imagetools inspect <image>:<tag>   # shows the index digest
 
 ## One-time setup
 
-Done once. A new package needs steps 2 and 3 at its first release.
+Done once. A new package needs steps 1 and 2 at its first release.
 `npm view <package>` answers E404 when a package is not on npm yet.
+All eight packages publish through staging: their trusted publishers have "Allow npm publish" unchecked.
 
-1. Make the repository public. npm gives no provenance for private repositories.
-2. Publish the first version of each package by hand, in publish order:
+1. Publish the first version of each package by hand, in publish order:
 
    ```bash
    npm ci --ignore-scripts && npm run build && npm pack -w <package>
@@ -118,15 +120,15 @@ Done once. A new package needs steps 2 and 3 at its first release.
    ```
 
    Use an npm account with two-factor authentication.
-3. On npm, add a trusted publisher to each package:
+2. On npm, add a trusted publisher to each package:
    - owner `eizedev`, repository `pivotkit`, workflow `release.yml`, environment `npm`
    - "Allow npm publish" unchecked and no dist-tag action. The workflow can then only stage.
    - A new trusted publisher expires unless it publishes within two days.
      Create it when the next release is ready.
    - Then set publishing access to "Require two-factor authentication and disallow tokens" on each package.
-4. Create the environment `npm` with required reviewers. Deploy from tags `*@*` only.
-5. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.
-6. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
+3. Create the environment `npm` with required reviewers. Deploy from tags `*@*` only.
+4. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.
+5. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
 
 For the container image:
 

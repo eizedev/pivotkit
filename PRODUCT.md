@@ -36,7 +36,7 @@ released beyond what the policy allows, to people or to a model.
 
 Every decision is measured against these. When two conflict, the earlier one wins.
 
-1. **Data stays protected.** What the policy hides reaches no report, log or model answer.
+1. **Data stays protected.** What the policy hides reaches no report, log, error or model answer.
    [docs/privacy.md](docs/privacy.md) lists the limits pivotkit cannot close, for example CSV
    without quotes.
 2. **Secure without effort.** The default is the secure one. Loosening it is a deliberate setting.

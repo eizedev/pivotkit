@@ -18,6 +18,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - A new option is a key in its feature's fragment. Never in two places.
 - `composeSlots` refuses a key declared twice.
 - Secrets are `{ env }` or `{ file }` references. `readSecret` reads them on every use.
+- `secretFileWarning` in `src/secrets.js` is check-config's warning for a secret's file.
 - Never log a secret.
 
 ## Secrets and credential commands
@@ -39,7 +40,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Otherwise it refuses a symbolic link, a directory or a missing directory.
 - A replaced file keeps its owner, group and group read bit where it may, else a warning.
 - EBUSY of a mounted file is `MOUNTED`. On SIGINT and SIGTERM it removes the temporary file.
-- `replaceFile` and `writeBackup` write a configuration file. Tests replace system calls through `secretFileMeans`.
+- `replaceFile` and `writeBackup` write a configuration file.
+- `secretFileMeans` lets tests replace `link()`, `rename()` and the user.
 
 ## State directory and first start
 
