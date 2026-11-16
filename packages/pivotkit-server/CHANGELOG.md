@@ -6,6 +6,19 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `token issue` issues a signed token that expires (default one hour, at most
+  `auth.signedTokens.maxDays`). REST and MCP accept it without a restart. The log names it by its ID
+  ([signed tokens](https://pivotkit.eize.dev/reference/rest/#signed-tokens), #485).
+- Several signing keys verify at once: `key new --for signing` rotates, `key remove --for signing`
+  takes an old key away.
+- `token revoke <id or name>` refuses a signed token from the next request on.
+- `token list` shows every token with its ID, name, profile, expiry and status, never a value.
+  `token remove <id or name>` takes a static token out of `auth.tokens` with a backup (#488).
+- `auth.tokens[].expires` ends a static token at a date. `token new --expires` writes it, and
+  `check-config` warns a week ahead.
+
 ## [0.2.0] - 2026-11-16
 
 ### Upgrading from 0.1.1

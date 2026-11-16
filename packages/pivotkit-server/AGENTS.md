@@ -28,6 +28,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `secretValue` is the one normaliser: a token trimmed, a key without one line ending.
 - It reads a regular file only, at most `MAX_SECRET_BYTES`. It names UTF-16 text with `UTF16_TEXT`.
 - `src/credentials.js` holds `token new`, `token show` and `key new`. The runner loads it only for them.
+- `src/token-admin.js` holds `token issue|list|revoke|remove` and `key new|remove --for signing`.
+- `plannedOf` in `credentials.js` resolves the configuration and state for every token command.
 - `--add` puts the token into `auth.tokens`, checked by `validateOptions`, with a backup.
 - `--add` reads the configuration again right before it replaces it. It holds no lock.
 - `--add` with `--if-missing` is done when the same entry is there. It writes nothing then.
@@ -81,6 +83,9 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 
 ## Sign-in and identity
 
+- `src/signed-tokens.js` issues and verifies signed tokens. `createSignedVerifier` takes its keys from a function.
+- A bearer goes through the static tokens first. Only an unmatched JWT reaches the signed check.
+- A signed token's identity is `["signed", id]`. Its ID is the client in the log.
 - `profileOf` in `src/auth.js` is the one order of a caller's profile.
 - `identityKey` is the only identity a cache or binding uses. It is null without a usable subject.
 - A caller's access token leaves `auth.js` only through `exchangeTokenFor`.

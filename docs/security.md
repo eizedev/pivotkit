@@ -569,6 +569,16 @@ and the sign-in above hold for it too. What differs:
     refuses a static token with fewer than 32 characters or 8 different characters, or one that
     repeats one piece.
 
+- **Signed tokens** ([signed tokens](reference/rest.md#signed-tokens)) are JWTs signed with the
+  server's Ed25519 keys. The server checks:
+    - the signature, with `EdDSA` only, and the type `pivotkit+jwt`
+    - the expiry and the lifetime, with `auth.clockTolerance` for the clocks
+    - the deny list, on every request
+
+    A token it cannot check is refused: an unknown key, a scope or profile of the wrong form, or a
+    deny list it cannot read. The keys have mode 0600 and are never printed. A static token is
+    always compared first, so a static token that looks like a JWT keeps working.
+
 - **Errors** are problem documents with a stable code. A message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.
 

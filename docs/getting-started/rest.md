@@ -229,6 +229,18 @@ service again:
     The server reads a file on every request, so you can rotate a file's token without a restart.
     You cannot do that with a variable.
 
+??? note "A token that expires on its own"
+
+    The server can issue a token that works for a while, for example a working day. Add a directory
+    for its keys to `auth` in `pivotkit.json`: `"signedTokens": { "dir": "secrets/signed" }`. Then:
+
+    ```bash
+    npx -y pivotkit-server token issue --config pivotkit.json --expires 8h --name laptop
+    ```
+
+    The token works on the running server at once. `token list` shows it, and `token revoke laptop`
+    ends it early ([signed tokens](../reference/rest.md#signed-tokens)).
+
 In the second terminal, read the two tokens into variables:
 
 === "bash"

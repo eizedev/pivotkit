@@ -154,6 +154,13 @@ With Node, run `npx -y pivotkit-server token new --file secrets/pivotkit_token`.
 Output you save with `>` instead gets the mode your umask gives, often 0644, which everyone can
 read. Run `umask 077` first if you do that.
 
+For a token that expires on its own, issue a [signed token](rest.md#signed-tokens) in the running
+container. It needs no change to the configuration:
+
+```bash
+docker exec pivotkit pivotkit-server token issue --expires 8h --name laptop
+```
+
 `token new --add` writes the token into `auth.tokens` of the configuration file. It needs that file
 writable. With the configuration mounted `:ro`, run it where you edit the file, or add the entry by
 hand.

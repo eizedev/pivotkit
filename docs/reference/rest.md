@@ -436,7 +436,7 @@ The modes are the [MCP server's](mcp.md#auth), from the same `auth` settings:
 | Mode | How | 401 answers with |
 | --- | --- | --- |
 | `none` | No check. Loopback only unless `auth.allowUnauthenticated` | - |
-| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, or named tokens in `auth.tokens` (from a variable or a file read on every request) | `WWW-Authenticate: Bearer realm="pivotkit"` |
+| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, named tokens in `auth.tokens` (from a variable or a file read on every request), or a [signed token](#signed-tokens) the server issued | `WWW-Authenticate: Bearer realm="pivotkit"` |
 | `oauth` | A JWT access token of the issuer for the REST resource | `WWW-Authenticate: Bearer error="invalid_token", ..., resource_metadata="..."` |
 
 The server reads only the `Authorization` header. It refuses a token in the address
@@ -669,7 +669,12 @@ breaking change of the operations' contracts, which is a breaking change for MCP
 | `pivotkit-server healthcheck [url] [--port <port>]` | Exit 0 when `GET /healthz` answers, else 1, also for a usage error such as a url and `--port` together. Without a url it asks `http://127.0.0.1:<port>/healthz`. The port: `--port`, then `http.port` of `$PIVOTKIT_CONFIG`'s file, then `$PIVOTKIT_PORT`, then 3333 |
 | `pivotkit-server token new [--file <path>] [--config <file> --add]` | Make a static token: on stdout, or into a file with mode 0600, and with `--add` into `auth.tokens` ([tokens and keys](#credentials)) |
 | `pivotkit-server token show <name>` | Print the value of a token of `auth.tokens`, as the server reads it. Exit 1 when it is missing or cannot be used, 2 for a name that is not there |
+| `pivotkit-server token issue [--expires 1h] [--name <n>] [--profile <p>] [--scope <s>]` | Issue a [signed token](#signed-tokens) that expires |
+| `pivotkit-server token list` | List every token: ID, name, kind, profile, expiry and status, never a value ([list, revoke, remove](#token-list)) |
+| `pivotkit-server token revoke <id or name>` | Refuse a signed token from the next request on |
+| `pivotkit-server token remove <id or name>` | Take a static token out of `auth.tokens`, or revoke a signed one and take it off the list |
 | `pivotkit-server key new --for downloads\|audit [--file <path>] [--config <file> --add]` | Make a key for `output.downloads.key` or `audit.key` ([tokens and keys](#credentials)) |
+| `pivotkit-server key new --for signing`, `key remove <key id> --for signing` | Add or remove a key that signs tokens ([rotation](#signed-keys)) |
 | `pivotkit-server --version` | The version |
 
 ### Reading check-config { #check-config }
@@ -858,6 +863,7 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 | `--state-dir <dir>` | `token show`: the server's [state directory](#first-start) (default `$PIVOTKIT_STATE_DIR`). With it, `token show admin` prints the token the server made at its first start, without a configuration. Before that start, it exits 1 (`NOT_CREATED`) and makes nothing. `token show token` prints `$PIVOTKIT_TOKEN` where the server uses it, or `$PIVOTKIT_MCP_TOKEN` where only that one is set (pivotkit-mcp, `pivotkit-server mcp`) |
 | `--add` | `token new`: add the token to `auth.tokens` of `--config`. `key new`: name the key as `output.downloads.key` or `audit.key`. Both need `--file`. [Below](#credentials-add) |
 | `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
+| `--expires <when>` | `token new`: when the token stops working, written as `auth.tokens[].expires`. A date (`2027-01-31` means 00:00 UTC that day), a date-time with a zone (`2027-01-31T08:00:00Z`), or a time from now (`90d`, `12h`, `30m`). [Expiry](#token-expires) |
 | `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
 | `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "config", "configured", "backup", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`. It holds the value only where it would be printed |
 
@@ -936,6 +942,107 @@ to your account, run in PowerShell:
 to you alone, so `--force` can still replace the file. `/inheritance:r` also takes away SYSTEM and
 Administrators. A server that runs as a service then needs its own grant (`/grant "<account>:R"`).
 
+#### When a static token expires { #token-expires }
+
+`auth.tokens[].expires` ends a static token at a date. Add it by hand, or with `token new --expires`.
+
+```json
+{ "name": "contractor", "file": "secrets/contractor.token", "expires": "2027-01-31" }
+```
+
+- A date alone means 00:00 UTC of that day. A date-time needs a zone (`Z` or `+01:00`).
+- From then on, a request with the token gets 401 "this token expired".
+- The start logs a warning for a token that has expired.
+- `check-config` warns a week ahead, and again once the token has expired.
+- The server reads the list of tokens at start. A new `expires` needs a restart.
+
+### Signed tokens { #signed-tokens }
+
+The server can issue tokens that expire on their own. You need no sign-in provider for them.
+
+```bash
+pivotkit-server token issue --expires 8h --name laptop --profile staff
+docker exec pivotkit pivotkit-server token issue --expires 7d --scope pivotkit:sales
+```
+
+The token is printed once, on stdout. It works on REST and MCP at once, without a restart.
+
+- It is a JWT signed with Ed25519 (`EdDSA`), of the type `pivotkit+jwt`. Clients send it like any
+  bearer token.
+- The default lifetime is one hour. `--expires` takes `15m`, `8h`, `7d` or a date.
+- `auth.signedTokens.maxDays` caps the lifetime (default 30, at most 365). The server refuses a token
+  that lives longer, even with a valid signature.
+- `--profile` and `--scope` work as for static tokens. Without `--scope`, it holds every scope.
+- A token whose profile is no longer in `policy.profiles` gets 401.
+- The log names the token by its ID, never by its value or its name. Rate limits count per token.
+- Clocks may differ by `auth.clockTolerance` seconds (default 30), at both ends of the lifetime.
+- Signed tokens work with `auth.mode` `"token"` only. A static token is still needed, as for
+  `token new`. With a state directory, that is `admin`.
+
+The files live in `auth.signedTokens.dir`. With a [state directory](#first-start), the default is
+`<state>/secrets/signed`. Without either, `token issue` says what to set. The first `token issue`
+makes the directory:
+
+| What | Where |
+| --- | --- |
+| The signing keys, one line each, mode 0600 | `keys/<key id>.key` |
+| One record per token: ID, name, key, profile, scopes, issued and expiry. No value | `issued/<id>.json` |
+| The deny list, one entry per revoked token | `revoked/<id>.json` |
+
+Keep this directory on a volume, like the other secrets. `token issue` removes records and entries of
+tokens that expired. `check-config` prints the keys and counts the active and revoked tokens under
+`Signed tokens`, once the directory is there.
+
+| Key | Default | What it is |
+| --- | --- | --- |
+| `auth.signedTokens.dir` | `<state>/secrets/signed` | Where the keys, records and the deny list live. Not inside `output.dir` |
+| `auth.signedTokens.maxDays` | 30 | The longest lifetime of a signed token, in days (1 to 365) |
+
+#### Rotating the signing key { #signed-keys }
+
+Every key in `keys/` verifies tokens. The newest key signs new ones. So a new key breaks no client:
+
+1. Run `pivotkit-server key new --for signing`. It prints the new key's ID, never the key.
+2. New tokens are signed with it. Tokens of the older key keep working.
+3. Once those have expired, run `pivotkit-server key remove <old key id> --for signing`.
+
+`key remove` exits 1 while tokens of that key still work, and names when the last one expires.
+`--force` removes it anyway, and those tokens get 401 from the next request on. A key file is never
+printed, and `key new --for signing` refuses `--file`, `--print` and `--add`.
+
+### List, revoke and remove tokens { #token-list }
+
+```bash
+pivotkit-server token list
+pivotkit-server token revoke laptop
+pivotkit-server token remove contractor
+```
+
+`token list` shows every token. It never shows a value.
+
+```text
+ID                NAME     KIND    PROFILE  EXPIRES               STATUS
+admin             admin    static  -        never                 active
+3f2a1b0c9d8e7f60  laptop   signed  staff    2026-11-17 06:00 UTC  active
+```
+
+- A static token's ID is its name. A signed token's ID is the one the log shows.
+- The commands take an ID or a name. A name that two tokens share is refused with both IDs.
+- `token revoke` puts a signed token on the deny list. The server refuses it from the next request
+  on. It also takes an ID that is not in the list, for example one from the log.
+- `token remove` takes a static token out of `auth.tokens` of the configuration file. It keeps the
+  old file as a backup first, as `--add` does.
+    - The token's file is deleted where the server made it (`"create": true`, or in the state
+      directory). The token is then refused from the next request on.
+    - Otherwise the file stays. The token works until the next restart, unless you delete the file.
+    - It refuses the last token of `auth.tokens`, and `admin`. Give `admin` a new value with
+      `token new --file <its file> --force`.
+- `token remove` on a signed token revokes it and takes it off the list.
+- `token revoke` on a static token is refused. Use `token remove`.
+
+They read the configuration as `token show` does: `--config` or `$PIVOTKIT_CONFIG`, and
+`--state-dir` or `$PIVOTKIT_STATE_DIR`. In the container image, they need no flag.
+
 ### Made at the first start { #first-start }
 
 You set the state directory with `--state-dir <dir>` or `$PIVOTKIT_STATE_DIR`. The
@@ -949,6 +1056,7 @@ that survive a restart:
 | The token `admin` (every scope, no profile) | `<dir>/secrets/admin.token` | `auth.mode` is `"token"`, `auth.tokens` is empty and `$PIVOTKIT_TOKEN` (pivotkit-mcp: `$PIVOTKIT_MCP_TOKEN`) is not set |
 | The key of the [download links](delivery.md) | `<dir>/secrets/downloads.key` | Links are on and `output.downloads.key` is not set |
 | The [audit](mcp.md#logging) key | `<dir>/secrets/audit.key` | `audit.subject` is `"hash"` and `audit.key` is not set |
+| The [signed tokens'](#signed-tokens) directory | `<dir>/secrets/signed/` | The first `token issue`, not the start |
 
 - The server never makes the state directory itself. It makes only these in it:
     - `secrets/` (mode 0700), for the files above
