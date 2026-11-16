@@ -192,8 +192,9 @@ may download files.
 }
 ```
 
-Make two tokens, each in a file only you can read. Add them to `auth.tokens`. The command keeps the
-old file as a backup and sets `auth.mode` to `token`. Then start the service again:
+Make two tokens with the command below, each in a file only you can read. It adds them to
+`auth.tokens`, keeps the old file as a backup and sets `auth.mode` to `token`. Then start the
+service again:
 
 === "bash"
 

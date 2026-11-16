@@ -6,8 +6,8 @@ description: Let an AI client (Claude Code, Claude Desktop, VS Code and others) 
 # Getting started with the MCP server
 
 `pivotkit-mcp` lets an AI client build pivot reports for you. You ask for "sales by region per
-quarter as Excel". The server turns that into a view, checks it against your data and writes it into
-a file you open. The model sees the fields of your data, but never reads the data itself. By default
+quarter as Excel". The model builds a view. The server checks it against your data and writes it
+into a file you open. The model sees the fields of your data, but never reads the data itself. By default
 it sees names, types and counts, and no values. The [reference](../reference/mcp.md) has every tool
 and setting.
 
@@ -42,7 +42,7 @@ npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output ~/reports/ou
 
 === "Claude Desktop"
 
-    In `claude_desktop_config.json`. The app's settings open it:
+    Edit `claude_desktop_config.json`. The app's settings open it:
 
     ```json
     { "mcpServers": { "pivotkit": {
@@ -300,8 +300,8 @@ Set-Content -Path 'D:\pivotkit\secrets\psu-token' -Value $Secret:PivotkitToken -
 PSU's scripts and apps send the same secret: `Authorization = "Bearer $Secret:PivotkitToken"`.
 See [the calls in PowerShell](rest.md#powershell).
 
-Scheduled jobs cannot use a secret with roles. See
-[PSU's variables](https://docs.devolutions.net/powershell-universal/platform/variables), so the
+Scheduled jobs cannot use a secret with roles (see
+[PSU's variables](https://docs.devolutions.net/powershell-universal/platform/variables)). So the
 script that writes the file runs on a schedule only with a secret without roles.
 
 Without a token file, `$PIVOTKIT_TOKEN` in the service's environment works too. A service manager

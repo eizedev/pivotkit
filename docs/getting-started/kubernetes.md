@@ -91,8 +91,8 @@ The configuration is a ConfigMap mounted at `/config`, where the image reads
   `X-Forwarded-For`. The ingress controller writes that header. The address appears as `address` in
   the log. The log is JSON lines for the cluster's log agent. See
   [operations and logs](../reference/operations.md#kubernetes). With `http.trustProxy`, only the
-  controller may reach the pod, through the [NetworkPolicy](#networkpolicy) below. Otherwise a
-  client could name any address.
+  controller may reach the pod, through the [NetworkPolicy](#networkpolicy) below. If other clients
+  can reach the pod, a client could name any address.
 - The configuration names no token. At its first start the server makes `admin` in
   `/var/lib/pivotkit/secrets/`, and the key of the download links beside it. To set a new value:
   `kubectl -n pivotkit exec deploy/pivotkit -- pivotkit-server token new --file /var/lib/pivotkit/secrets/admin.token --force`.
@@ -197,8 +197,8 @@ Watch the pod's memory with your own data.
 
 With a limit below the sum, a report that alone would fail with `LIMIT_EXCEEDED` becomes an OOM
 kill of the whole pod, with every report running in it. For a smaller pod, lower
-`compute.memoryMb` or the workers, not the limit alone. With 512 and 2 workers, the pod needs about
-1.4 GB.
+`compute.memoryMb` or the workers, not the limit alone. With `compute.memoryMb` 512 and 2 workers,
+a limit of about 1.4 GB is a starting point.
 
 With code or HTTP sources, the main process also keeps up to `sourceCache.maxMb` of loaded data,
 256 MiB by default ([bounds](../reference/sources.md#code-cache)). Add it to the limit, or lower
@@ -381,7 +381,8 @@ OAuth, add the prefix `/.well-known/oauth-protected-resource`.
 
 The ingress controller may sit behind a LoadBalancer Service. Then the client's address reaches it
 only with `externalTrafficPolicy: Local`, or with the PROXY protocol, depending on the controller.
-Otherwise `X-Forwarded-For` holds a node's address, and so do the server's limits per address.
+Otherwise `X-Forwarded-For` holds a node's address, and the server's per-address limits count the
+node.
 
 ## NetworkPolicy { #networkpolicy }
 
@@ -438,7 +439,7 @@ Other features need more egress:
 - OAuth needs the issuer too. See [below](#oauth-egress).
 - An [HTTP source](../reference/sources.md#http) needs the addresses of its backend on port 443, as
   the issuer does.
-- It also needs its token endpoint when it signs in with client credentials or a token exchange. See
+- It also needs the addresses of its token endpoint when it signs in with client credentials or a token exchange. See
   [backend sign-in](../reference/sources.md#http-auth).
 
 Cluster addresses are private ones, so something inside the cluster needs a setting:
@@ -471,7 +472,7 @@ every key. With [Authentik](https://goauthentik.io/):
        Authentik signs with HS256 and the client secret, which the server refuses.
      - **Encryption Key**: none. With one, Authentik encrypts the access token (JWE), and the server
        cannot read it.
-     - **Access Token Validity**: minutes, e.g. `minutes=10`. The default is one hour. A token stays
+     - **Access Token Validity**: minutes, for example `minutes=10`. The default is one hour. A token stays
        valid until it expires.
      - **Scopes**: add the `pivotkit` mapping to the selected scopes.
 3. On the application's **Policy / Group / User Bindings**, bind the group that may use pivotkit

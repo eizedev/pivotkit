@@ -231,6 +231,7 @@ serves its built-in example and makes the token `admin` at its first start
 
     Download links and audit hashes then stay the same after a restart, as long as the directory is
     on a volume.
+
 - A start with `auth.mode` not set on an address off loopback was refused. With a state directory
   it now starts with the token `admin`. Without one it is refused as before. In the image,
   `-e PIVOTKIT_STATE_DIR=` turns it off.
@@ -343,7 +344,7 @@ All of them are off until you set them ([profiles](../reference/rest.md#profiles
   `hint`.
 - `audit.subject: "hash"` or `"plain"` adds the person (`auth.subjectClaim`) to the `call`,
   `request` and `download` log lines. `"hash"` writes a keyed hash, `"plain"` the claim as it is.
-  `audit.key` has at least 16 characters.
+  `audit.key` must have at least 16 characters.
 
 ### The values level { #values-level }
 
@@ -523,6 +524,7 @@ installation notices:
     | `started` | `sourceIds`, the log's settings, the static tokens' names |
 
     An HTTP server ends with a `stopped` line.
+
 - The client's address is logged by default as `address`:
     - With `http.trustProxy`, it is the forwarded client, as before. A forwarded value that is no IP
       address is logged as `invalid`.
@@ -533,11 +535,12 @@ installation notices:
   is `unknown`, never the caller's text. An alert on a misspelt source id reads `unknown`. No setting
   brings the text back.
 - More refusals get a `refused` line:
-    - at `warn`: the per-caller 429s, `/openapi.json` with a refused token, an MCP body over the cap,
+    - at `warn`: the per-caller 429 answers, `/openapi.json` with a refused token, an MCP body over the cap,
       and requests the HTTP parser refuses
     - at `debug` only: a GET of the MCP endpoint, and a path nobody serves
 
     An alert on refused lines counts them too.
+
 - `--log` takes `warn` and `error` too. `log` in the file may be an object of `level`, `format`
   and `address`. `"log": "debug"` keeps working.
 - Every answer carries an `X-Request-Id` header. CORS exposes it to browsers.
@@ -629,6 +632,7 @@ It applies when they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.
     - `BUSY` when no worker is free within `compute.queueMs`
 
     A host that computed long reports over its own data raises these, or `compute.workers`.
+
 - `checkConfig(options)` first checks the options as `createContext` does, and throws the same
   `ConfigError`. Its second argument is optional. A host that called it with options
   `createContext` refuses gets that error now.

@@ -98,6 +98,7 @@ the file, it holds about twice the CSV's size. For JSON it holds a few times the
       `link`, `image` and the tooltip's element.
 
     So nothing in it is markup, an address or run.
+
 - A bad view does not throw. pivotkit drops what it cannot use and reports it. See
   [Views and saved views](concepts/views.md#a-view-is-user-input).
 - A filter's values are checked like its names:
@@ -118,8 +119,8 @@ the file, it holds about twice the CSV's size. For JSON it holds a few times the
 
 ## Data is text, never markup
 
-React renders field names, values and labels as text. In your own renderer, use `textContent`. A
-value like `<img src=x onerror=alert(1)>` shows as those characters. A browser test checks it with a
+Field names, values and labels are rendered as text: by React, or by `textContent` in your own
+renderer. A value like `<img src=x onerror=alert(1)>` shows as those characters. A browser test checks it with a
 data set of labels that look like HTML.
 
 Field labels and descriptions (`fieldDefaults`) are plain text too, capped in length. A "Learn more"
@@ -143,6 +144,7 @@ link is shown only for an absolute `https:` URL, and it opens with `rel="noopene
     Characters that change the direction of text are left out, as the import leaves them out:
     U+061C, U+200E, U+200F, U+202A to U+202E, U+2066 to U+2069. So a name cannot read as another
     one, and no formula hides behind one.
+
 - **Source data as CSV**: the same guard on every value and on the field names of its header. A field
   named `=x` is written `'=x`, and a script reading the file gets that name.
 - **Source data as JSON**: every text and name as it is. There is no guard, and no bidi controls are
@@ -169,7 +171,7 @@ link is shown only for an absolute `https:` URL, and it opens with `rel="noopene
 ## Loaded files are untrusted input
 
 The browser reads a file a person loads ([Loading files](reference/import.md)). Nothing is uploaded,
-and a hostile file affects only that person's tab. The readers treat every file as hostile:
+and a hostile file affects only that person's tab. Its readers treat it as hostile:
 
 - **Limits before the expensive step**:
     - The file's size is checked before a byte is read.
@@ -342,6 +344,7 @@ gets at each level, and how to set them per client.
 
     A draft (`suggest_view`, a layout) reads no counts or span of a field that is not shown. It reads
     no counts where `counts` is false. A date field there is grouped by quarter, whatever its span.
+
 - **The policy is not confidentiality.**
     - A model can still learn from what it may see: results over `show` fields, the lists of `values`
       fields, and counts.
@@ -349,6 +352,7 @@ gets at each level, and how to set them per client.
     - Field names are data too.
 
     Leave out of the data, or `hide`, what the model must not learn about.
+
 - **Data values are text, never instructions.** Names and values reach the model only inside the
   result's JSON. They are cleaned of control and direction characters and cut at 80 characters. They
   never appear in the sentence a tool answers with, in the tool descriptions or in the instructions.
@@ -438,8 +442,9 @@ gets at each level, and how to set them per client.
     - `http.maxConnectionsPerAddress` bounds one address where clients reach the port directly.
 
     Behind a proxy, the proxy must guard the connections, and only the proxy may reach the port.
-- **Resources**: worker threads compute the reports, with a memory and a time limit. A run over the
-  limit is stopped. At most a few run at once, with pivotkit-core's [limits](concepts/limits.md) and
+
+- **Resources**: worker threads compute the reports under a memory and a time limit, and a run over
+  it is stopped. At most a few run at once. pivotkit-core's [limits](concepts/limits.md) apply, with
   a default of 50 MiB per file.
 - **HTTP**:
     - The server listens on 127.0.0.1 by default. It refuses another address without
@@ -447,7 +452,7 @@ gets at each level, and how to set them per client.
     - It checks the `Host` header against an allow-list, against DNS rebinding.
     - It refuses browser origins it does not know, as the MCP transport spec requires.
     - Bodies are capped at 2 MiB.
-- **Authentication** is one of these:
+- **Authentication** is a static token or OAuth 2.1, or off (`auth` `none`):
     - A static token. The server compares it in constant time and never logs it.
       [`pivotkit-server token new`](reference/rest.md#credentials) makes one: 32 random bytes in a
       file only its owner can read.
@@ -463,22 +468,23 @@ gets at each level, and how to set them per client.
     The quick-start page at `/` is not behind authentication. It shows no source ids unless the
     operator turns that on (`http.page.sources`). Without sign-in (`auth` `none`), it lists them by
     default.
+
 - **The log** names tools, source ids and the client.
     - Source ids include `inline:`, `file:` for a file by path, and `unknown` for anything else a
       caller typed.
     - The client is a token's name or an OAuth client id.
     - The log never names a view, a value, a token or a full path.
     - It names a person's id only when the operator sets `audit.subject`. With `hash`, the id is an
-      HMAC-SHA256 with `audit.key`, which has at least 16 characters. The server reads the key at
-      start, with OAuth only. A rotated key needs a restart and changes every value. With `plain`,
+      HMAC-SHA256 with `audit.key`, which has at least 16 characters. With OAuth, the server reads
+      the key at start. With a static token it does not read it. A rotated key needs a restart and changes every value. With `plain`,
       the id is the claim's text.
     - It never names a person's groups.
 - **Groups to profiles** (`auth.groupProfiles`):
     - A token whose group list is cut, missing or replaced by an overage marker never gets a group's
       or a scope's profile.
-    - A person may be in none of the groups, and no client or scope profile may name them. That
-      person is refused (403), unless `auth.defaultProfile` gives them a narrow profile. They never
-      get the sources' own policy.
+    - A person who is in none of the groups and whom no client or scope profile names is refused
+      (403), unless `auth.defaultProfile` gives them a narrow profile. They never get the sources'
+      own policy.
     - A provider that cuts a list without a marker cannot be detected.
 
 ## The REST service { #rest }
@@ -498,6 +504,7 @@ and the sign-in above hold for it too. What differs:
     caller (`auth.defaultProfile`). The caller never chooses it. A field the source hides stays hidden
     in every profile. A caller without a profile gets `auth.defaultProfile` where it is set.
     Otherwise it gets the server's and the source's policy.
+
 - **Downloads** (`POST /api/v1/views/render/file`) need a policy with `results: true`. Whether a
   download is allowed never depends on the view's fields. The file comes as an attachment with
   `X-Content-Type-Options: nosniff`, `Cache-Control: no-store` and
@@ -528,6 +535,7 @@ and the sign-in above hold for it too. What differs:
     the body is parsed, memory holds it a few times over. A token with `data: true` is trusted with
     that much of the server's time and memory. Give it to programs you run. Keep
     `rest.data.maxBytes` as small as they need, and keep the rate limits.
+
 - **No files by path**: `file:` sources are refused, whatever the MCP server's `files.allowDirs` says.
   Inline results are off unless the operator turns them on, since a program can enumerate through
   them.
@@ -543,6 +551,7 @@ and the sign-in above hold for it too. What differs:
     - per address: refused tokens
 
     The counts live in one process's memory.
+
 - **Errors** are problem documents with a stable code. A message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.
 
@@ -716,9 +725,10 @@ party. It loads only its own chunks from where you host it.
 - pivotkit-core has one runtime dependency: [fflate](https://github.com/101arrowz/fflate) for the XLSX
   zip.
 - pivotkit-xlsx depends on pivotkit-core, fflate and [read-excel-file](https://www.npmjs.com/package/read-excel-file)
-  (MIT). read-excel-file brings saxen, worker-f and unzipper-esm (for its Node entry, not used by
-  pivotkit-xlsx). pivotkit-xlsx's `dist/` bundles read-excel-file and fflate, with
-  their licenses in `dist/THIRD_PARTY_LICENSES.txt`.
+  (MIT). read-excel-file brings saxen, which `dist/` bundles. It also brings worker-f and
+  unzipper-esm, which its browser, web worker and Node entries use. pivotkit-xlsx reads with its
+  universal entry and does not use them. pivotkit-xlsx's `dist/` bundles read-excel-file, saxen and
+  fflate, with their licenses in `dist/THIRD_PARTY_LICENSES.txt`.
 - pivotkit-react depends on pivotkit-core and @dnd-kit. React, ReactDOM and ECharts come from your
   app, so their security updates stay with you.
 - pivotkit-element bundles everything it needs and has no runtime dependency. The licenses of the
