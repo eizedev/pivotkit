@@ -9,9 +9,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { leftovers } from "../scripts/test-run.js";
+import { forwarded, leftovers } from "../scripts/test-run.js";
 import { root, sourceFiles } from "./source-files.js";
-import { RUN_ENV } from "./temp-dir.js";
+import { GRACE_MS, RUN_ENV } from "./temp-dir.js";
 
 const HELPER = fileURLToPath(new URL("./temp-dir.js", import.meta.url));
 const TEST_RUN = fileURLToPath(new URL("../scripts/test-run.js", import.meta.url));
@@ -37,14 +37,16 @@ const maker = (then) => `
 const runMaker = (then, run) => spawnSync(process.execPath, ["--input-type=module", "-e", maker(then)], { encoding: "utf8", env: { ...process.env, [RUN_ENV]: run } });
 
 /**
- * Whether a source makes or finds a temporary directory itself: mkdtemp, os.tmpdir() (also renamed or
- * called through a namespace), the TMPDIR/TEMP/TMP variables or a "/tmp" path. Comments do not count.
+ * Whether a source makes or finds a temporary directory itself: mkdtemp, os.tmpdir() (called, taken
+ * from a namespace, imported or destructured, also renamed), the TMPDIR/TEMP/TMP variables or a
+ * "/tmp/" path. A word in a string or a key, and comments, do not count.
  * @param {string} source
  */
 function makesTempDir(source) {
     // strings first, kept as they are, so a "/*" or "//" inside one starts no comment
     const code = source.replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (match, literal) => literal ?? "");
-    return /\bmkdtemp(Sync)?\b|\btmpdir\b|\bTMPDIR\b|\benv\s*(\.\s*|\[\s*["'`])(TEMP|TMP)\b|["'`]\/tmp\b/.test(code);
+    // a regular expression literal with a quote in it can still look like the start of a string here
+    return /\bmkdtemp(Sync)?\b|\btmpdir\s*\(|\.\s*tmpdir\b|\{[^}]*\btmpdir\b[^}]*\}\s*(from\b|=\s*require\b)|\btmpdir\s+as\b|\benv\s*(\.\s*|\[\s*["'`])(TMPDIR|TEMP|TMP)\b|["'`]\/tmp\//.test(code);
 }
 
 test("the check finds every way to make or find a temporary directory, and not a comment about one", () => {
@@ -70,6 +72,9 @@ test("the check finds every way to make or find a temporary directory, and not a
         'const url = "http://localhost/tmp";',
         "const tmpdirLabel = tempDir(\"probe\");",
         'const page = "https://example.org/a"; // a page',
+        // a word in a string or a key is no temporary directory
+        'const hint = "set TMPDIR or tmpdir to change it";',
+        "const options = { tmpdir: false, label: \"/tmp\" };",
     ];
     for (const source of clean) assert.equal(makesTempDir(source), false, source);
 });
@@ -174,6 +179,29 @@ test("a SIGTERM handler of the process's own (a server's graceful stop) runs to 
     }
 });
 
+test("a SIGTERM handler that never ends the process: tempDir ends it after a grace period, the directories gone", { skip: NO_SIGTERM, timeout: 30_000 }, async () => {
+    const run = newRun();
+    const { child, first: dirs, output, ended, closed } = await started(["--input-type=module", "-e", maker(`process.once("SIGTERM", () => console.log("ignored")); setInterval(() => {}, 1000);`)], { ...process.env, [RUN_ENV]: run });
+    // a deadline of its own, so a process that does not end fails the test instead of holding it
+    let deadline;
+    try {
+        const sent = Date.now();
+        child.kill("SIGTERM");
+        const result = await Promise.race([ended, new Promise((resolve) => (deadline = setTimeout(() => resolve({ code: "still running", signal: null }), GRACE_MS * 3)))]);
+        child.kill("SIGKILL");
+        await closed;
+        assert.deepEqual(result, { code: 128 + 15, signal: null }, output());
+        assert.match(output(), /^ignored$/m);
+        // not at once: the handler had its grace period
+        assert.ok(Date.now() - sent >= GRACE_MS - 100, `ended after ${Date.now() - sent} ms`);
+        for (const dir of dirs) assert.equal(existsSync(dir), false, dir);
+    } finally {
+        clearTimeout(deadline);
+        child.kill("SIGKILL");
+        for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
+    }
+});
+
 test("a test run hands SIGINT and SIGTERM on to its command, then checks for leftovers", { skip: NO_SIGTERM, timeout: 30_000 }, async () => {
     for (const signal of ["SIGTERM", "SIGINT"]) {
         const run = newRun();
@@ -204,6 +232,12 @@ test("a test run hands SIGINT and SIGTERM on to its command, then checks for lef
             for (const dir of leftovers(run)) rmSync(dir, { recursive: true, force: true });
         }
     }
+});
+
+test("a test run hands SIGINT on only without a terminal, whose Ctrl-C reaches the command itself; SIGTERM always", () => {
+    assert.deepEqual(forwarded(true), ["SIGTERM"]);
+    assert.deepEqual(forwarded(false), ["SIGINT", "SIGTERM"]);
+    assert.deepEqual(forwarded(undefined), ["SIGINT", "SIGTERM"]);
 });
 
 test("a test run whose command ends on a signal fails, and a command it cannot start fails after the check", { skip: NO_SIGTERM, timeout: 30_000 }, async () => {
