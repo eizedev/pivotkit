@@ -130,7 +130,8 @@ async function healthcheckCommand(argv, io) {
         }
     }
     if (url !== undefined) {
-        return healthcheck(url, io);
+        // the url names its port: a --port beside it would be left unread
+        return port === undefined ? healthcheck(url, io) : usage("a url or --port, not both");
     }
     if (port === undefined) {
         try {

@@ -200,7 +200,7 @@ test("healthcheck probes the port serve listens on: --port, then http.port of th
         const help = await probe(["--help"], {});
         assert.equal(help.status, 0);
         assert.match(help.stdout, /^Usage: pivotkit-server healthcheck \[url\] \[--port <port>\]\n/);
-        for (const args of [["--port", "abc"], ["--port"], ["--prot", "1"], ["a", "b"]]) {
+        for (const args of [["--port", "abc"], ["--port"], ["--prot", "1"], ["a", "b"], [`http://127.0.0.1:${live}/healthz`, "--port", live]]) {
             const r = await probe(args, {});
             assert.equal(r.status, 1, args.join(" "));
             assert.match(r.stderr, /^pivotkit-server: healthcheck: .+; pivotkit-server healthcheck --help\n$/, args.join(" "));
