@@ -328,12 +328,11 @@ view.
 - **`--filter`** has a short form and a JSON form:
     - `Field=Item` keeps the rows of one item: `--filter Country=Germany`. It splits at the `=` after
       a field of the data, so a name and an item may hold `=`. When two `=` follow field names, the
-      first wins: with fields `a` and `a=b`, `a=b=c` keeps the item `b=c` of `a`. With a server, the
+      first wins. With fields `a` and `a=b`, `a=b=c` keeps the item `b=c` of `a`. With a server, the
       data's fields are not known first, so it splits at the first `=`.
     - Write the item as the data spells it. With local data, an item of a text field in another case,
       or one that is none of its values, is a warning with the item meant. With `--strict`, the
-      warning fails the run. Otherwise, such as for a number field or with a server, watch for
-      `noRowsKept`: the filters keep no row.
+      warning fails the run. For a number field, or with a server, only `noRowsKept` tells you.
     - The same field given again keeps each item: `--filter Country=Germany --filter Country=France`.
       A JSON filter stays its own filter. Filters keep the rows that all of them keep.
     - A value that starts with `{` or `[` is a filter as a [view](view-file.md) writes it, as JSON:

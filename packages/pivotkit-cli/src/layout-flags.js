@@ -116,7 +116,7 @@ export const isJsonFilter = (text) => /^\s*[[{]/.test(text);
  * @param {string} item
  */
 function meantFilter(field, op, item) {
-    const value = op === "!=" || !/^-?\d+(\.\d+)?$/.test(item) ? item : Number(item);
+    const value = op !== "!=" && item.trim() !== "" && Number.isFinite(Number(item)) ? Number(item) : item;
     const json = JSON.stringify(op === "!=" ? { field, type: "in", items: [item], not: true } : { field, type: "compare", op, value });
     const meant = printable(json) === json ? `JSON: ${json}` : `JSON as a view writes it: see ${DOCS}reference/cli/#layout-flags`;
     return `the short form keeps one item: Field=Item. For this filter give ${meant}`;
@@ -136,18 +136,22 @@ export function parseShortFilter(value, fields) {
     const refuse = (text) => new CliError("usage", "BAD_VALUE", `--filter ${shown(value)}: ${text}`);
     const cuts = [...value.matchAll(/=/g)].map((m) => m.index ?? 0);
     const at = cuts.find((i) => i > 0 && fields.has(value.slice(0, i).toLowerCase())) ?? cuts[0];
+    const neither = () => refuse(`give Field=Item, as in --filter "Country=Germany", or a filter as JSON, e.g. ${FILTER_EXAMPLE}`);
     if (at === undefined) {
-        // "<>" is "not equal" in SQL and Excel
-        const sign = /^(.+?)(<>|[<>])(.+)$/.exec(value);
+        // "<>" is "not equal" in SQL and Excel; a field and an item around the operator, or it is no operator form
+        const sign = /^([^<>]+)(<>|<|>)([^<>].*)$/.exec(value);
         if (sign) {
             throw refuse(meantFilter(sign[1], sign[2] === "<>" ? "!=" : sign[2], sign[3]));
         }
-        throw refuse(`give Field=Item, as in --filter "Country=Germany", or a filter as JSON, e.g. ${FILTER_EXAMPLE}`);
+        throw neither();
     }
     const field = value.slice(0, at);
     const item = value.slice(at + 1);
     const sign = /[!<>]$/.exec(field)?.[0];
-    if (sign && field.length > 1 && !fields.has(field.toLowerCase())) {
+    if (sign && !fields.has(field.toLowerCase())) {
+        if (field.length === 1 || item === "") {
+            throw neither();
+        }
         throw refuse(meantFilter(field.slice(0, -1), `${sign}=`, item));
     }
     if (field === "") {

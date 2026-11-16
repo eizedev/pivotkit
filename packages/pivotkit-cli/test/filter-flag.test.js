@@ -6,6 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { DOCS } from "../src/commands.js";
 import { run, tempDir } from "./helpers.js";
 
 const DATA = [
@@ -188,7 +189,7 @@ test("the JSON filter meant is whole for long names; a very long one points to t
     assert.ok(r.stderr.includes(JSON.stringify({ field: "Country", type: "in", items: [long], not: true })), r.stderr);
     const huge = await run([...SUM_BY_COUNTRY, "--filter", `Country!=${"G".repeat(300)}`], { cwd: dir });
     assert.equal(huge.code, 2);
-    assert.match(huge.stderr, /the short form keeps one item: Field=Item\. For this filter give JSON as a view writes it: see https:\/\/pivotkit\.eize\.dev\/reference\/cli\/#layout-flags/);
+    assert.ok(huge.stderr.includes(`the short form keeps one item: Field=Item. For this filter give JSON as a view writes it: see ${DOCS}reference/cli/#layout-flags`), huge.stderr);
 });
 
 test("a field name that starts with { or [ takes the JSON path, and its error says so", async () => {
@@ -196,6 +197,31 @@ test("a field name that starts with { or [ takes the JSON path, and its error sa
     const r = await run([...SUM_BY_COUNTRY, "--filter", "[Q]=1"], { cwd: dir });
     assert.equal(r.code, 2);
     assert.match(r.stderr, /--filter: not JSON.*; a field name that starts with \{ or \[ needs a JSON filter/);
+    // broken JSON with an = inside a string is broken JSON, not a field name: no false cause
+    const broken = await run([...SUM_BY_COUNTRY, "--filter", '{"field":"A","items":["x=y"]'], { cwd: dir });
+    assert.equal(broken.code, 2);
+    assert.match(broken.stderr, /--filter: not JSON/);
+    assert.doesNotMatch(broken.stderr, /field name that starts with/);
+});
+
+test("an operator form without a field or an item gets the plain Field=Item message", async () => {
+    const dir = files();
+    for (const given of ["<>x", "a<>", ">3", "Units>", "Country!=", "Units>="]) {
+        const r = await run([...SUM_BY_COUNTRY, "--filter", given], { cwd: dir });
+        assert.equal(r.code, 2, given);
+        assert.match(r.stderr, /give Field=Item, as in --filter "Country=Germany"/, `${given}: ${r.stderr}`);
+        assert.doesNotMatch(r.stderr, /For this filter give JSON/, given);
+    }
+});
+
+test("a number in the short form's comparison is a number in the JSON meant, in any notation", async () => {
+    const dir = files();
+    for (const [given, value] of [["Units>1e3", 1000], ["Units<.5", 0.5], ["Units>=-2", -2]]) {
+        const r = await run([...SUM_BY_COUNTRY, "--filter", given], { cwd: dir });
+        assert.equal(r.code, 2, given);
+        const json = /give JSON: (\{.*\});/.exec(r.stderr)?.[1];
+        assert.equal(JSON.parse(json ?? "null")?.value, value, `${given}: ${r.stderr}`);
+    }
 });
 
 test("an aggregator of another tool gets the name pivotkit uses: avg is average", async () => {
