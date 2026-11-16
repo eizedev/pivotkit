@@ -141,8 +141,8 @@ read as JSON text, so give a file whose name starts with `{` as `./{name}.json`.
 An option on the command line wins over its environment variable.
 
 Every command checks `--locale`, `--time-zone` and `--now`, from the command line or the
-environment. The message names the variable. So a wrong value in a pipeline's environment fails in
-every step, not only in `render`.
+environment, so a wrong value in a pipeline's environment fails in every step, not only in
+`render`. The message names the variable.
 
 An option given for a format it does nothing in (`--width` with `csv`), or `--sheet` for data that is
 no workbook, is a warning `ignoredOption`.
@@ -161,7 +161,7 @@ stdout carries only a command's output: the rendered report or file without `-o`
 object, `pivotkit example --list`, what `describe` describes, help and completion scripts.
 
 Everything said to a person goes to stderr: the findings, and a line that says what was written or
-checked. So a run in a terminal is never silent, and a pipe gets the output alone. `-q` keeps stderr
+checked, so a run in a terminal is never silent, and a pipe gets the output alone. `-q` keeps stderr
 to errors. `pivotkit example` writes files, so all it says is on stderr.
 
 Commands accept every common option, and `pivotkit help <command>` lists the ones that act in it.
@@ -460,7 +460,7 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
     - The file goes only to `-o` or stdout, never to a name from the answer. An XLSX file is not
       written to a terminal.
     - The CLI writes the file with mode `0600` (only you read it) through a temporary file, once the
-      whole answer is in. So a refused, failed or cut download never replaces a file.
+      whole answer is in, so a refused, failed or cut download never replaces a file.
     - A view with errors (422 `VIEW_HAS_ERRORS`) gives the server's findings and exit 1. `--json`
       has `summary: null`, since the file route gives none.
     - A token the operator lets render but not validate (`auth.toolScopes`) still gets the file,
@@ -491,7 +491,7 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
   `127.255.255.255`, `[::1]`), where nothing leaves the machine. A user name, password, query or
   fragment in the address is a usage error.
 - On every run, the CLI writes the server's origin and where the token came from on stderr
-  (`server: https://reports.example.com (token: PIVOTKIT_TOKEN)`), except with `-q`. So a wrong
+  (`server: https://reports.example.com (token: PIVOTKIT_TOKEN)`), except with `-q`, so a wrong
   target or token shows.
 - Redirects are not followed: "the server redirected (a common cause: http instead of https)". An
   unknown route says "the address should end in /api/v1".

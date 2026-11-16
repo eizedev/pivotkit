@@ -127,7 +127,7 @@ Where the report gets a [download link](delivery.md), the link is in `output.url
 `bound` and `note`, one sentence on how to open it. A report gets a link:
 
 - always, over a source whose fields are all `show`
-- over another source only with `results: true` and a bound link.
+- over another source only with `results: true` and a bound link
 
 The file's name is `name` from the input, else `title`, else the view's name, else the source's.
 `.pivotkit-out.` goes before the format (`sales.pivotkit-out.xlsx`). This is the mark by which the
@@ -135,7 +135,7 @@ server knows its own files. A name that is taken gets `-2`, `-3` and so on, sinc
 replaces a file.
 
 Check `ok` in the answer: a view with errors answers 200 with `ok: false` and `output: null`. The
-caller fetches the file from there or uses the [file route](#downloads).
+caller fetches the file from where `output` says, or uses the [file route](#downloads).
 
 The field names in these examples are those of the `sales.csv` that `pivotkit example` writes, or
 made up. `GET /sources/{id}` lists the fields of your source and views built from them (`fields`,
@@ -324,7 +324,7 @@ As JSON, the table goes into `data`:
 
 - `columns`, the column names
 - `rows`, the rows as lists in the columns' order
-- `rowCount`, the number of rows of the whole table.
+- `rowCount`, the number of rows of the whole table
 
 `rowCount` must match the rows sent, else the answer is 422 `DATA_MISMATCH`. This way the server
 refuses a table cut short on the way:
@@ -364,22 +364,23 @@ curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
 - **No exposure policy.** The rows are the caller's own: every field is `show` to it, whatever the
   server's or its profile's policy says of fields of that name. The profile's `inline` limits still
   apply. A report over such data is no proof that its content came from the operator's data.
-- **Size.** A caller with `data: true` may send a body of up to `rest.data.maxBytes` (default
-  10 MiB, 2 to 64 MiB) on the POST routes that take a source. Every other request keeps 2 MiB, and
-  a 413 says which cap applied.
-- **Size before sign-in.** The larger cap applies only once the token is checked. The server refuses
-  a body declared larger than any caller may send before that.
-- **Large bodies at once.** The server reads at most two bodies over 2 MiB at once over all callers,
-  one per caller. Another caller gets 503 `BUSY` with `Retry-After` and `retryable: true`. A caller
-  here is a token (by its name) or an OAuth client. Programs that share one token, or people who
-  sign in through one OAuth client, send one such body at a time between them.
-- **Shape.** The server refuses a JSON body nested deeper than 64 levels before it parses it. It
-  refuses a multipart body with more than two parts before it reads the parts.
-- **Main thread.** The server parses a JSON body in its main thread. A `data: true` token is trusted
-  with that time and memory ([security](../security.md#rest)).
-- **Import limits.** The server's import limits (`limits.rows`, `limits.importCells`,
-  `limits.fileBytes`) apply as to a file source. The server reads a file in a worker under
-  `compute.timeMs` and `compute.memoryMb`.
+- **Size.**
+    - A caller with `data: true` may send a body of up to `rest.data.maxBytes` (default 10 MiB, 2 to
+      64 MiB) on the POST routes that take a source. Every other request keeps 2 MiB, and a 413 says
+      which cap applied.
+    - The larger cap applies only once the token is checked. The server refuses a body declared
+      larger than any caller may send before that.
+    - The server reads at most two bodies over 2 MiB at once over all callers, one per caller.
+      Another caller gets 503 `BUSY` with `Retry-After` and `retryable: true`. A caller here is a
+      token (by its name) or an OAuth client. Programs that share one token, or people who sign in
+      through one OAuth client, send one such body at a time between them.
+    - The server refuses a JSON body nested deeper than 64 levels before it parses it. It refuses a
+      multipart body with more than two parts before it reads the parts.
+    - The server parses a JSON body in its main thread. A `data: true` token is trusted with that
+      time and memory ([security](../security.md#rest)).
+    - The server's import limits (`limits.rows`, `limits.importCells`, `limits.fileBytes`) apply as
+      to a file source. The server reads a file in a worker under `compute.timeMs` and
+      `compute.memoryMb`.
 - **Downloads.** The file route over `inline:` needs `data: true` only, not `results: true`, since
   there is no operator data to protect. `results` still decides for configured sources.
 - **Not kept.** The server never caches the data, and the data is gone after the request. A report
@@ -468,7 +469,7 @@ Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (R
 then refuses an ID token with the right audience.
 
 The output directory holds at most `output.maxFiles` files and `output.maxMb` megabytes that
-pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them. So any
+pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them, so any
 token that may render can push other callers' older reports out. A link to such a report
 (`output.baseUrl`) then answers 404, and one of the server's own links answers 410 `LINK_EXPIRED`.
 
@@ -536,7 +537,7 @@ Besides pivotkit-core's [limits](../concepts/limits.md) and the workers' (`compu
 
 - the person an OAuth token names (its issuer and subject)
 - a static token, by its name
-- `local`, without sign-in.
+- `local`, without sign-in
 
 An OAuth token without a subject counts for its client. The people of one OAuth client together get
 eight times `rest.rateLimit`. They run at most eight times `rest.concurrency` requests at once. Their
@@ -644,7 +645,7 @@ fetches nothing else. The document of a server with static tokens is also publis
 [pivotkit.eize.dev/openapi.json](https://pivotkit.eize.dev/openapi.json).
 
 The server generates the document from the operation table and the schemas it presents, the same
-ones the MCP tools have. So routes, docs and checks cannot drift apart. `/api/v1` changes only with a
+ones the MCP tools have, so routes, docs and checks cannot drift apart. `/api/v1` changes only with a
 breaking change of the operations' contracts, which is a breaking change for MCP too.
 `info.version` is pivotkit-server's.
 
@@ -930,10 +931,10 @@ Administrators. A server that runs as a service then needs its own grant (`/gran
 
 ### Made at the first start { #first-start }
 
-With a state directory, the server makes what is missing there when it starts over HTTP. So a start
-without any setup has a token and links that survive a restart. You set the state directory with
-`--state-dir <dir>` or `$PIVOTKIT_STATE_DIR`. The [container image](container.md) sets
-`/var/lib/pivotkit`.
+You set the state directory with `--state-dir <dir>` or `$PIVOTKIT_STATE_DIR`. The
+[container image](container.md) sets `/var/lib/pivotkit`. With a state directory, the server makes
+what is missing there when it starts over HTTP, so a start without any setup has a token and links
+that survive a restart:
 
 | What | Where | When |
 | --- | --- | --- |

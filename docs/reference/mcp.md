@@ -82,7 +82,7 @@ A relative path is looked up in each allowed directory in turn. The formats are 
 and XLSX, read as the [command line](cli.md#files) reads them.
 
 A `file:` path to the file of a configured source is that source: its scopes and its policy hold.
-The output directory may not lie inside an allowed directory, nor hold one. So the model cannot read
+The output directory may not lie inside an allowed directory, nor hold one, so the model cannot read
 back a report it was not shown. Put only data files into an allowed directory. The first line of any
 CSV, TSV, TXT or JSON file there becomes field names, which the model sees at every level.
 
@@ -90,7 +90,7 @@ The server checks a file named by `file:` on its real path (symbolic links and `
 against the allowed directories. It then opens the file once, without following a link at its end,
 and checks it again on the open file. A file with a second name (a hard link) is refused unless
 `files.hardLinks` is true. A file that is missing, outside the directories or replaced while it is
-read gets the same answer, `FILE_NOT_AVAILABLE`. So a model cannot probe which files exist
+read gets the same answer, `FILE_NOT_AVAILABLE`, so a model cannot probe which files exist
 elsewhere.
 
 ### Data in the request { #data }
@@ -150,11 +150,12 @@ A column the file gives no name is `hide`, whatever the default, since its value
 another column. Such a column comes from a blank header cell, or from a row with more values than
 the header, which a separator inside a value can cause. The reader names it `Column 7`, for example.
 A rule of `fields` that names it holds. Such a name is a position, not a meaning. When the file gains
-or loses a column, `"Column 6": "show"` shows whatever lands there. So give the column a header
+or loses a column, `"Column 6": "show"` shows whatever lands there, so give the column a header
 instead where you can.
 
 Where a caller sees any field below `show`, a row whose cells may be shifted is left out whole.
-"Below `show`" means that the field's default or a rule is `values`, `summary` or `hide`:
+"Below `show`" means that the field's default or a rule is `values`, `summary` or `hide`. The
+details:
 
 - A row may be shifted when it has more cells than the named header. A uniform file whose every line
   ends with a separator is no shift.
@@ -277,7 +278,7 @@ file. It never saves a file instead. The errors:
 The call's log line has `saved: false`. Without `save` (or with `save: true`), a render is saved as
 above, also when its csv or json comes back inline.
 
-In an inline json result, every row and column has `total`: 0 data, 1 subtotal, 2 grand total. So a
+In an inline json result, every row and column has `total`: 0 data, 1 subtotal, 2 grand total, so a
 sum over the rows takes only those with `total: 0`.
 
 `suggest_view` reads what `describe_source` shows. Its draft and `picks` name fields, never values
@@ -486,7 +487,7 @@ request limits are `mcp.rateLimit`, `mcp.concurrency`, and the REST service's li
 counts. The counts live in the memory of one process.
 
 A tool error is a result with `isError` and the text `CODE: message`. The SDK answers an input the
-tool's schema refuses before the tool runs, as `Input validation error: ...`. The message names a
+tool's schema refuses before the tool runs, as `Input validation error: ...`. A tool error's message names a
 file by its base name only and holds no file content.
 
 Every tool error ends with the call's request id, `CODE: message (request id Ab3_xY9-k2Q)`. The
@@ -702,9 +703,9 @@ Rotating a token without a break:
 3. Remove the old entry and restart.
 
 You can also overwrite a token file in place, without a restart. Every client still on the old value
-gets 401 from that moment. So do it only after steps 1 and 2, or when you mean to cut the old value
+gets 401 from that moment, so do it only after steps 1 and 2, or when you mean to cut the old value
 off. `pivotkit-server token new --file <its file> --force` writes the new value to a temporary file
-in the same directory and renames it over the old one. So the server never reads a half-written
+in the same directory and renames it over the old one, so the server never reads a half-written
 file. The warning for a file that cannot be used names the cause (the file is missing, empty, or has
 N characters), never the value or the path.
 
@@ -728,9 +729,9 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
   `issuer` must match exactly. Its `jwks_uri` must be on the issuer's origin unless `jwksUri` is
   set. The read has a time limit and follows no redirects. Until the server has the metadata, `/mcp`
   answers 503 and the server keeps trying.
-- Every request to the issuer follows the rules of the server's other outbound requests: the
-  metadata, the keys, and a download link's sign-in. The sign-in's token endpoint must be on the
-  issuer's origin unless `output.downloads.signIn.tokenUrl` names it.
+- Every request to the issuer follows the rules of the server's other outbound requests. That
+  covers the metadata, the keys and a download link's sign-in. The sign-in's token endpoint must be
+  on the issuer's origin unless `output.downloads.signIn.tokenUrl` names it.
 - These requests go to `https://` only, follow no redirects and use no proxy from the environment.
   The address is checked where the connection goes. They read at most 256 KiB of metadata and
   256 KiB of keys. A larger key set is refused, and no token verifies against it.
@@ -742,7 +743,7 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
   `NODE_EXTRA_CA_CERTS` to its file.
 - The server reads the metadata again every hour, and when a token names a key the JWKS does not
   hold. So a moved `jwks_uri` works without a restart. After a read that found nothing new, or that
-  failed and kept what is loaded, the next such read waits a minute. So made-up key ids cannot
+  failed and kept what is loaded, the next such read waits a minute, so made-up key ids cannot
   hammer the issuer. A made-up key id sent just before a rotation can delay picking up the moved
   `jwks_uri` by up to that minute.
 - Keys are fetched from the JWKS and kept for 10 minutes. A new key is fetched at most every 30
@@ -799,7 +800,7 @@ provider sets `aud` to the resource the client asked for.
 
 The metadata (`scopes_supported`) lists `auth.requiredScopes`. With `auth.offerSourceScopes: true`,
 it lists every scope a source needs too: `sources.<id>.scopes`, and `files.scopes` when files are
-allowed. So a person and a client can see which scopes exist. A scope of `auth.scopeProfiles` is
+allowed, so a person and a client can see which scopes exist. A scope of `auth.scopeProfiles` is
 never listed by itself, since a client that asks for it would choose its own profile.
 
 The option is off by default. A provider may refuse a sign-in that asks for a scope it does not
@@ -857,7 +858,7 @@ chosen. Groups are never logged otherwise. A refused sign-in's `refused` line na
 app), never the person.
 
 A token stays valid until it expires. Keep the provider's access token lifetime short (minutes), so
-taking a person's access away takes effect soon:
+taking a person's access away takes effect soon. Also:
 
 - Set `requiredScopes`, so not every token the provider issues for this audience works.
 - Set `requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068). An ID token

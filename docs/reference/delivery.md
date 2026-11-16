@@ -168,7 +168,7 @@ the output directory:
   Behind a proxy, set `http.trustProxy`, or every person counts as the proxy's one address.
 - The files go once their link or sign-in expired. They are swept every ten minutes, and on a
   one-time download.
-- Each file is written whole and then hard-linked to its name. So the output directory's file system
+- Each file is written whole and then hard-linked to its name, so the output directory's file system
   must support hard links. Local disks and NFS do. Some network or object-store mounts do not, and a
   one-time download there answers 500.
 
@@ -345,7 +345,7 @@ to the person and check it when they open the link.
   client. Its reports are bound to that client, so only a sign-in as the same service account opens
   them.
 - Over stdio, or when the key cannot be read, no `subject` is sent.
-- Without `output.downloads.key`, the server uses a random key per process. So the value changes on
+- Without `output.downloads.key`, the server uses a random key per process, so the value changes on
   every restart and differs between replicas, and `check-config` warns of it.
 - A `signIn` link is only as strong as the store's own access control. pivotkit declares the
   binding, it does not verify it.

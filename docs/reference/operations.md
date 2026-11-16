@@ -86,7 +86,7 @@ A line written while a request or tool call runs adds its scope:
 | `peerAddress` | The socket's peer, where it differs from `address` (behind a trusted proxy, the proxy) |
 
 `traceId` and `upstreamRequestId` come from the caller's headers. They are checked for their form,
-not for who sent them. So they are hints to join lines with other systems, not proof of where a
+not for who sent them, so they are hints to join lines with other systems, not proof of where a
 request came from.
 
 Lines of calls, requests, downloads and refusals add:
@@ -169,7 +169,7 @@ parameter.
 
 No line holds a view, a value, a token, a person's groups or other claims, or a full path. Text a
 caller or a backend controls is cut, and its control characters (C0, C1, the bidi controls, the line
-separators) are removed in both formats. So it cannot start a line of its own, a field in the text
+separators) are removed in both formats, so it cannot start a line of its own, a field in the text
 format, or a terminal escape in a log viewer.
 
 An example request line in each format:
