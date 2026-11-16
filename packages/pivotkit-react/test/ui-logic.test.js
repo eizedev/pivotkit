@@ -350,6 +350,27 @@ test("chart tooltips follow the pointer: the element alone, a stack's total, eve
     assert.deepEqual(content(north.slice(1), { series: stack("bar") }), { title: "East", lines: [], total: total(30) });
 });
 
+test("chart tooltips: the total is the sum of the parts, none for a value that does not add up; the hovered series first; a long list cut (review of #376)", () => {
+    const fmt = (v) => `${v} u`;
+    const names = ["Software", "Hardware", "Services"];
+    const at = (values) => values.map((value, i) => ({ seriesIndex: i, dataIndex: 0, axisValueLabel: "North", seriesName: names[i], value, color: `#00000${i}` }));
+    const stack = (additive = true) => names.map(() => ({ type: "bar", stack: "total", additive }));
+    const content = (params, options) => tooltipContent(params, { valueFormatter: fmt, totalLabel: "Total", ...options });
+    // a part below zero: the total is the sum of the parts, 30 - 20 + 10
+    assert.deepEqual(content(at([30, -20, 10]), { series: stack(), hover: { seriesIndex: 1, dataIndex: 0 } }).total, { name: "Total", value: "20 u" });
+    // an average does not add up: no total, and between the bars every series instead of the total
+    const averages = content(at([30, 20, 10]), { series: stack(false), hover: null });
+    assert.deepEqual([averages.lines.map((l) => l.name), averages.total], [names, undefined]);
+    assert.deepEqual(content(at([30, 20, 10]), { series: stack(false), hover: { seriesIndex: 2, dataIndex: 0 } }), { title: "North", lines: [{ color: "#000002", name: "Services", value: "10 u" }] });
+    // every series: the hovered one comes first, marked
+    assert.deepEqual(content(at([30, 20, 10]), { mode: "axis", series: stack(), hover: { seriesIndex: 2, dataIndex: 0 } }).lines.map((l) => [l.name, Boolean(l.hovered)]), [["Services", true], ["Software", false], ["Hardware", false]]);
+    // more lines than fit: the first ones and how many more, the hovered one kept first
+    const many = Array.from({ length: 15 }, (_, i) => ({ seriesIndex: i, dataIndex: 0, axisValueLabel: "North", seriesName: `S${i}`, value: i, color: "#000000" }));
+    const cut = tooltipContent(many, { mode: "axis", maxLines: 6, moreLabel: "+{count} more", hover: { seriesIndex: 9, dataIndex: 0 } });
+    assert.deepEqual([cut.lines.map((l) => l.name), cut.more], [["S9", "S0", "S1", "S2", "S3"], "+10 more"]);
+    assert.equal(tooltipContent(many.slice(0, 6), { mode: "axis", maxLines: 6 }).more, undefined);
+});
+
 test("the tooltip's total row and the hovered line: weights and the rule from the tokens, set through the CSSOM", () => {
     const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
     const doc = /** @type {any} */ ({ createElement: () => node() });
@@ -359,10 +380,14 @@ test("the tooltip's total row and the hovered line: weights and the rule from th
     ];
     const series = [{ type: "bar", stack: "total" }, { type: "bar", stack: "total" }];
     const box = /** @type {any} */ (tooltipFormatter(doc, { mode: "axis", series, hover: { seriesIndex: 1, dataIndex: 0 }, totalLabel: "Total" })(params));
-    const [head, software, hardware, sum] = box.children;
+    // the hovered series first (#376 review), then the others in their order
+    const [head, hardware, software, sum] = box.children;
     assert.deepEqual([head.textContent, box.children.length], ["North", 4]);
+    assert.deepEqual([hardware.children[1].textContent, software.children[1].textContent], ["Hardware", "Software"]);
     assert.equal(software.children[1].style.fontWeight, undefined);
     assert.equal(hardware.children[1].style.fontWeight, "var(--pk-weight-strong)");
+    // a long name ends in "…" at the token's width
+    assert.deepEqual([software.children[1].style.maxWidth, software.children[1].style.textOverflow], ["var(--pk-tooltip-name-w)", "ellipsis"]);
     assert.deepEqual([sum.children[1].textContent, sum.children[2].textContent], ["Total", "50"]);
     assert.equal(sum.style.borderTop, "1px solid var(--pk-border)");
     assert.equal(sum.style.fontWeight, "var(--pk-weight-strong)");

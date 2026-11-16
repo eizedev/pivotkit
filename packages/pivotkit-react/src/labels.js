@@ -166,8 +166,10 @@ export const en = {
     chartExtremes: "Highest {max} at {maxAt}; lowest {min} at {minAt}.",
     // the last sentence of the chart's text alternative
     chartTableHint: "Switch to Table to read every value.",
-    // the tooltip's last line on stacked bars and areas: the stack's height
+    // the tooltip's last line on stacked bars and areas: the sum of the stack's parts
     chartTotal: "Total",
+    // the tooltip's line for the series that do not fit
+    chartMore: "+{count} more",
     categories: "categories",
     close: "Close",
     // toasts and live region
@@ -479,6 +481,7 @@ export const de = {
     chartExtremes: "Höchster Wert {max} bei {maxAt}; niedrigster {min} bei {minAt}.",
     chartTableHint: "Zur Tabelle wechseln, um jeden Wert zu lesen.",
     chartTotal: "Gesamt",
+    chartMore: "+{count} weitere",
     categories: "Kategorien",
     close: "Schließen",
     toastRemoved: "{field} entfernt",

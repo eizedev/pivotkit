@@ -33,7 +33,7 @@ const VALUES = [
 ];
 
 /** Mounts a report of ROWS at the top of the host page, with `chart` (and `view`) over VIEW's; mount again to change it. */
-async function mount(page, chart, { theme = "light", view = {} } = {}) {
+async function mount(page, chart, { theme = "light", view = {}, rows = ROWS } = {}) {
     await page.evaluate(
         async ({ rows, view, theme }) => {
             const React = await import("react");
@@ -51,7 +51,7 @@ async function mount(page, chart, { theme = "light", view = {} } = {}) {
             await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
             window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 560, defaultView: view, onViewChange: (v) => window.__tooltipViews.push(v) }));
         },
-        { rows: ROWS, view: { ...VIEW, ...view, chart }, theme }
+        { rows, view: { ...VIEW, ...view, chart }, theme }
     );
     const chartEl = page.locator("#tooltip-report").getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();
@@ -191,6 +191,21 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["East", "Services 12", "Software 40"]);
     });
 
+    test("an average does not add up: a stacked segment shows no total, the gap every series", async ({ page }) => {
+        const chartEl = await mount(page, { type: "bar", stacked: true }, { view: { values: [{ field: "Revenue", agg: "average" }] } });
+        await hover(page, await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Hardware 20.00"]);
+        await hover(page, await pointOf(chartEl, between, { index: NORTH, part: 0.4, value: 3 }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Hardware 20.00", "Services 10.00", "Software 30.00"]);
+    });
+
+    test("a part below zero: the total is the sum of the parts", async ({ page }) => {
+        const rows = ROWS.map((r) => (r.Region === "North" && r.Category === "Services" ? { ...r, Revenue: -10 } : r));
+        const chartEl = await mount(page, { type: "bar", stacked: true }, { rows });
+        await hover(page, await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 40"]);
+    });
+
     test("lines: a point shows that point; the line between points every series, the one without a value left out", async ({ page }) => {
         const chartEl = await mount(page, { type: "line" });
         await hover(page, await pointOf(chartEl, linePoint, { index: NORTH, value: VALUES[SOFTWARE][NORTH] }));
@@ -224,7 +239,7 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await expect.poll(async () => (await tooltipOf(chartEl)).slice(1)).toEqual(["North, Services 10"]);
     });
 
-    test("Display, Tooltip, All series: every series wherever the pointer is, the hovered one first in weight, with the total", async ({ page }) => {
+    test("Display, Tooltip, All series: every series wherever the pointer is, the hovered one first and in the strong weight, with the total", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar", stacked: true });
         const report = page.locator("#tooltip-report");
         await report.getByTestId("chart-type").click();
@@ -232,8 +247,8 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await report.getByTestId("tooltip-axis").click();
         await expect.poll(() => page.evaluate(() => window.__tooltipViews.at(-1)?.chart.tooltip)).toBe("axis");
         await page.keyboard.press("Escape");
-        await hover(page, await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }));
-        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Hardware 20", "Services 10", "Software 30", "Total 60"]);
+        await hover(page, await pointOf(chartEl, barMiddle, { series: SERVICES, index: NORTH }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Services 10", "Hardware 20", "Software 30", "Total 60"]);
         // the hovered series is set in the strong weight
         const weights = await chartEl.evaluate((el) => {
             const tip = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
@@ -243,9 +258,36 @@ test.describe("the chart's tooltip follows the pointer", () => {
         expect(weights).toEqual([strong, weights[1], weights[1]]);
         expect(weights[1]).not.toBe(strong);
         // the hovered bar still lights up alone
-        await expect.poll(() => statesOf(chartEl, HARDWARE, NORTH)).toContain("emphasis");
+        await expect.poll(() => statesOf(chartEl, SERVICES, NORTH)).toContain("emphasis");
         expect(await statesOf(chartEl, SOFTWARE, NORTH)).not.toContain("emphasis");
     });
+});
+
+for (const width of [1440, 390]) test(`15 series with long names at ${width} px: names end in "…", the tooltip stays inside the chart`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("pages/host.html");
+    const names = Array.from({ length: 15 }, (_, i) => `A product category with a rather long name, number ${i + 1}`);
+    const rows = ["North", "South"].flatMap((Region, r) => names.map((Category, i) => ({ Region, Category, Revenue: 10 + i + r })));
+    const chartEl = await mount(page, { type: "bar" }, { rows });
+    // the gap after North: every series there
+    await hover(page, await pointOf(chartEl, between, { index: 0, part: 0.45, value: 1 }));
+    await expect.poll(async () => (await tooltipOf(chartEl)).length).toBeGreaterThan(3);
+    const shown = await tooltipOf(chartEl);
+    expect(shown[0]).toBe("North");
+    // every series, or the first ones and a line that says how many more: never more than 15
+    const more = shown.at(-1).match(/^\+(\d+) more$/);
+    expect(shown.length - 1 - (more ? 1 : 0) + (more ? Number(more[1]) : 0)).toBe(15);
+    // ECharts slides the tooltip to its place: inside the chart once it is there
+    const measure = () => chartEl.evaluate((el) => {
+        const t = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
+        const [c, r] = [el.getBoundingClientRect(), t.getBoundingClientRect()];
+        const nameSpans = [...t.firstElementChild.children].slice(1).map((row) => row.children[1]).filter(Boolean);
+        return { inside: r.left >= c.left - 1 && r.right <= c.right + 1 && r.top >= c.top - 1 && r.bottom <= c.bottom + 1, cut: nameSpans.every((n) => n.scrollWidth > n.clientWidth) };
+    });
+    await expect.poll(async () => (await measure()).inside).toBe(true);
+    const { cut } = await measure();
+    // the long names end in "…"
+    expect(cut).toBe(true);
 });
 
 test("a host that renders again every 200 ms keeps the segment's tooltip under a resting pointer", async ({ page }) => {

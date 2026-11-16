@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useId, useRef, useState } from "react";
-import { fieldLabel, toEChartsOption } from "pivotkit-core";
+import { CATALOG, fieldLabel, toEChartsOption } from "pivotkit-core";
 import { chartSummary } from "./chart-summary.js";
 import { MAX_CATEGORIES, chartTypeOf } from "./chart-types.js";
 import { fill } from "./labels.js";
@@ -142,7 +142,9 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}) });
         // a new option draws new marks: the element under the pointer is reported again when it moves
         hover.current = null;
-        const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal };
+        // a stack's total only where the values add up (a sum, a count; not an average)
+        const additive = (series?.series ?? []).map((x) => CATALOG.additiveAggregators.includes(result.view.values[x.valueIndex]?.agg));
+        const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, additive };
         const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip });
         setEvery(axisEvery);
         // the host's chartOptions win over the view's display settings and the report's own styles:

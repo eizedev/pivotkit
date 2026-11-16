@@ -107,8 +107,8 @@ function Sub({ title, info, children }) {
 
 /**
  * How the chart is drawn: value labels, legend, title, axis and group labels, the tooltip (bars, lines
- * and areas), smooth lines (line and area). Each choice
- * applies at once and the panel stays open, so the chart behind it shows the change.
+ * and areas), smooth lines (line and area). Each choice applies at once and the panel stays open, so
+ * the chart behind it shows the change.
  */
 function ChartDisplay({ view, plan, labels, onDisplay }) {
     const chart = view.chart;

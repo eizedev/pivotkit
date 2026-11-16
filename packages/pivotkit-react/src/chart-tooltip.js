@@ -23,9 +23,12 @@
  * @property {string[]} [categoryNames]  each category's whole name, for an axis that writes them shorter
  * @property {string} [mode]  chart.tooltip: "auto" (the element under the pointer wins) or "axis"
  *   (every series at the category)
- * @property {Array<{ type?: string, stack?: string }>} [series]  each series' type and stack, by index
+ * @property {Array<{ type?: string, stack?: string, additive?: boolean }>} [series]  each series' type,
+ *   stack and whether its values add up (additive false: an average, a median; no total then)
  * @property {{ seriesIndex: number, dataIndex: number } | null} [hover]  the element under the pointer
  * @property {string} [totalLabel]  the name of a stack's total
+ * @property {number} [maxLines]  the most series lines that fit; more are cut, with `moreLabel`
+ * @property {string} [moreLabel]  "+{count} more": the line that says how many were cut
  */
 
 /** A number to show: ECharts hands null (or "-") for a series without a value at the category. */
@@ -34,9 +37,10 @@ const hasValue = (v) => typeof v === "number" && Number.isFinite(v);
 /**
  * The items of a bar, line or area tooltip (trigger "axis": one item per series at the category):
  * - "auto" with an element under the pointer: that element alone
- * - "auto" between stacked bars: none (the total says it)
- * - else every item; the hovered one marked when it is among others
- * A series without a value at the category is left out. A stack adds a "total" of every item in it.
+ * - "auto" between stacked bars: none, the total says it (every item when there is no total)
+ * - else every item, the hovered one first and marked
+ * A series without a value at the category is left out. A stack adds the sum of its parts as its
+ * total, unless a part's values do not add up (an average, a median).
  * @param {any[]} params
  * @param {Required<Pick<TooltipOptions, "valueFormatter" | "mode" | "series" | "totalLabel">> & { hover: TooltipOptions["hover"] }} options
  */
@@ -45,13 +49,16 @@ function axisItems(params, { valueFormatter, mode, series, hover, totalLabel }) 
     const stackOf = (p) => series[p.seriesIndex]?.stack;
     const hit = hover ? items.find((p) => p.seriesIndex === hover.seriesIndex && p.dataIndex === hover.dataIndex) : undefined;
     const auto = mode !== "axis";
-    const shown = auto && hit ? [hit] : auto && items.length > 1 && items.every((p) => series[p.seriesIndex]?.type === "bar" && stackOf(p)) ? [] : items;
+    const stack = (hit ? [hit] : items).map(stackOf).find(Boolean);
+    const parts = stack ? items.filter((p) => stackOf(p) === stack) : [];
+    const sums = parts.length > 0 && parts.every((p) => series[p.seriesIndex]?.additive !== false);
+    const counted = sums ? parts.filter((p) => hasValue(p.value)) : [];
+    const gap = auto && !hit && counted.length > 0 && items.length > 1 && items.every((p) => series[p.seriesIndex]?.type === "bar" && stackOf(p));
+    const shown = auto && hit ? [hit] : gap ? [] : hit ? [hit, ...items.filter((p) => p !== hit)] : items;
     const lines = shown.filter((p) => hasValue(p.value));
-    const stack = (shown.length ? shown : items).map(stackOf).find(Boolean);
-    const parts = stack ? items.filter((p) => stackOf(p) === stack && hasValue(p.value)) : [];
     return {
         lines: lines.map((p) => ({ p, hovered: p === hit && lines.length > 1 })),
-        total: parts.length ? { name: totalLabel, value: valueFormatter(parts.reduce((sum, p) => sum + p.value, 0)) } : null
+        total: counted.length ? { name: totalLabel, value: valueFormatter(counted.reduce((sum, p) => sum + p.value, 0)) } : null
     };
 }
 
@@ -60,17 +67,21 @@ function axisItems(params, { valueFormatter, mode, series, hover, totalLabel }) 
  * for a stack, its total.
  * @param {any} params  one item (trigger "item") or a list (trigger "axis")
  * @param {TooltipOptions} [options]
- * @returns {{ title: string, lines: TooltipLine[], total?: { name: string, value: string } }}
+ * @returns {{ title: string, lines: TooltipLine[], more?: string, total?: { name: string, value: string } }}
  */
-export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total" } = {}) {
+export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}" } = {}) {
     const color = (p) => (typeof p.color === "string" ? p.color : null);
     const text = (v) => (v === null || v === undefined ? "" : String(v));
     if (Array.isArray(params)) {
         const first = params[0];
         const { lines, total } = axisItems(params, { valueFormatter, mode, series, hover, totalLabel });
+        // more lines than fit: the first ones, and a line that says how many more
+        const cut = lines.length > maxLines ? lines.length - Math.max(1, maxLines - 1) : 0;
+        const kept = cut ? lines.slice(0, lines.length - cut) : lines;
         return {
             title: first ? text(categoryNames[first.dataIndex] ?? first.axisValueLabel ?? first.name) : "",
-            lines: lines.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(p.value), ...(hovered ? { hovered } : {}) })),
+            lines: kept.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(p.value), ...(hovered ? { hovered } : {}) })),
+            ...(cut ? { more: moreLabel.replace("{count}", String(cut)) } : {}),
             ...(total ? { total } : {})
         };
     }
@@ -113,6 +124,11 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
         const name = doc.createElement("span");
         name.textContent = line.name;
         name.style.flex = "1";
+        // a long series name ends in "…"; the table and the legend have it whole
+        name.style.maxWidth = "var(--pk-tooltip-name-w)";
+        name.style.overflow = "hidden";
+        name.style.textOverflow = "ellipsis";
+        name.style.whiteSpace = "nowrap";
         if (line.hovered) {
             name.style.fontWeight = "var(--pk-weight-strong)";
         }
@@ -124,7 +140,7 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
         return el;
     };
     return (params) => {
-        const { title, lines, total } = tooltipContent(params, hoverOf ? { ...options, hover: hoverOf() } : options);
+        const { title, lines, more, total } = tooltipContent(params, hoverOf ? { ...options, hover: hoverOf() } : options);
         const box = doc.createElement("div");
         if (title) {
             const head = doc.createElement("div");
@@ -135,6 +151,12 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
         }
         for (const line of lines) {
             box.append(row(line));
+        }
+        if (more) {
+            const rest = doc.createElement("div");
+            rest.textContent = more;
+            rest.style.color = "var(--pk-muted)";
+            box.append(rest);
         }
         if (total) {
             // the stack's total under a rule, all of it in the strong weight; its marker keeps the column.
