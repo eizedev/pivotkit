@@ -217,7 +217,7 @@ export function quotedBreakLine(text, sep, start, line) {
 /**
  * The line in which a file's first quoted value that spans lines starts, or 0: a text format only,
  * split with the encoding pivotkit-core's reader noted (its ENCODING note) and its separator (the
- * "sep=" line, else its SEPARATOR note). A separator it cannot tell gives line 1.
+ * "sep=" line, else its SEPARATOR note). An encoding or a separator it cannot tell gives line 1.
  * @param {Uint8Array} bytes
  * @param {string} format
  * @param {{ notes?: Array<{ code: string, params?: Record<string, unknown> }> }} table  readTable's
@@ -227,7 +227,12 @@ export function quotedBreakOf(bytes, format, table) {
         return 0;
     }
     const paramOf = (code, key) => table.notes?.find((n) => n.code === code)?.params?.[key];
-    const text = new TextDecoder(DECODER_LABELS[/** @type {keyof typeof DECODER_LABELS} */ (String(paramOf("ENCODING", "encoding")))] ?? "utf-8").decode(bytes);
+    const label = DECODER_LABELS[/** @type {keyof typeof DECODER_LABELS} */ (String(paramOf("ENCODING", "encoding")))];
+    if (!label) {
+        // an encoding it cannot tell: refused as a separator it cannot tell is (fail closed)
+        return 1;
+    }
+    const text = new TextDecoder(label).decode(bytes);
     // the reader's order: the "sep=" line, else what it detected (its note drops a control character)
     const hint = /^sep=(.)\r?\n/i.exec(text.slice(0, 8));
     const sep = hint ? hint[1] : paramOf("SEPARATOR", "separator");
@@ -254,7 +259,7 @@ export function checkedRead(levels, bytes, format, read, label) {
     if (!allShown(levels)) {
         const line = quotedBreakOf(bytes, format, read.table);
         if (line) {
-            throw new OperationError("INVALID_FILE", `${label}: ${quotedBreakText(line)}; close the quote, or save the file as xlsx or JSON`);
+            throw new OperationError("INVALID_FILE", `${label}: ${quotedBreakText(line)}. The file needs every quote closed; the operator can fix the quotes or provide the data as xlsx or JSON`);
         }
     }
     return withoutLongRows(levels, read, label);

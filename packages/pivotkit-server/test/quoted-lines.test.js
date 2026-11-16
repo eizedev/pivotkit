@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkConfig } from "pivotkit-server";
+import { quotedBreakOf } from "../src/data.js";
 import { call, factsOf, restServer, workspace } from "./helpers.js";
 
 /** The review's probe: the quote before South is never closed where it should be. */
@@ -35,7 +36,7 @@ test("the review's probe: a source that hides Secret is refused, and no hidden v
     assert.doesNotMatch(got.text, /hid-[2-5]/, got.text);
     assert.equal(got.described.status, 422, got.text);
     assert.equal(got.described.data.code, "INVALID_FILE");
-    assert.equal(got.described.data.detail, "people: a quoted value that starts in line 3 spans several lines; an unclosed quote can pull the rows after it, hidden values too, into one cell, so a source that hides a field is not read from this file; close the quote, or save the file as xlsx or JSON");
+    assert.equal(got.described.data.detail, "people: a quoted value that starts in line 3 spans several lines; an unclosed quote can pull the rows after it, hidden values too, into one cell, so a source that hides a field is not read from this file. The file needs every quote closed; the operator can fix the quotes or provide the data as xlsx or JSON");
     assert.equal(got.region.status, 422);
 });
 
@@ -89,4 +90,14 @@ test("check-config warns of such a file for a source that keeps a field back, an
     assert.match(closed, /a value kept back is safe in CSV only when values that hold the separator are quoted and no quoted value spans lines; xlsx or JSON is safer/);
     const open = factsOf((await checkConfig({ sources: { people: { file: "data/people.csv", policy: { default: "show" } } }, baseDir: dir }, { http: false, env: {} })).text);
     assert.doesNotMatch(open, /spans several lines/);
+});
+
+test("a separator or an encoding the check cannot tell refuses the file (fail closed)", () => {
+    const bytes = new TextEncoder().encode("Region,Secret\nNorth,hid-1\n");
+    const notes = (encoding, separator) => ({ notes: [{ code: "ENCODING", params: { encoding } }, { code: "SEPARATOR", params: { separator } }] });
+    assert.equal(quotedBreakOf(bytes, "csv", notes("UTF-8", ",")), 0);
+    assert.equal(quotedBreakOf(bytes, "csv", notes("EBCDIC", ",")), 1, "an unknown encoding");
+    assert.equal(quotedBreakOf(bytes, "csv", { notes: [{ code: "SEPARATOR", params: { separator: "," } }] }), 1, "no encoding noted");
+    assert.equal(quotedBreakOf(bytes, "csv", notes("UTF-8", "")), 1, "an unknown separator");
+    assert.equal(quotedBreakOf(bytes, "json", notes("EBCDIC", "")), 0, "not a text format");
 });
