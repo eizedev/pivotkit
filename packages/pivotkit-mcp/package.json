@@ -1,7 +1,7 @@
 {
   "name": "pivotkit-mcp",
   "version": "0.2.0",
-  "description": "An MCP server for pivotkit: let an AI client describe data sources, draft and validate pivot views, render reports to files and make links, without reading the data itself. stdio and Streamable HTTP with token or OAuth.",
+  "description": "An MCP server for pivotkit: let an AI client describe data sources, draft and validate pivot views, render reports to files and make links; through pivotkit the model reads only what the policy shows. stdio and Streamable HTTP with token or OAuth.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
   "homepage": "https://pivotkit.eize.dev/reference/mcp/",

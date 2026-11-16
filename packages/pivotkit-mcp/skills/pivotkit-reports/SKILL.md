@@ -5,9 +5,9 @@ description: Build pivot reports (sums, counts, averages by groups, Excel files,
 
 # Reports with the pivotkit MCP server
 
-The server holds the data. You never read the data itself: you see the fields of a source, write a
-view (the report's layout as JSON), and the server runs it and hands the result to the user as a
-file or a link.
+The server holds the data. Through pivotkit you see only what the operator's policy shows: the
+fields of a source, and the values of fields it shows. You write a view (the report's layout as
+JSON), and the server runs it and hands the result to the user as a file or a link.
 
 ## Workflow
 

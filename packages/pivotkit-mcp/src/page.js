@@ -47,7 +47,7 @@ a { color: inherit; }
 </style></head>
 <body><main>
 <h1>pivotkit MCP server</h1>
-<p class="muted">Version ${esc(version)}. An MCP server for pivot reports: an AI client describes data sources, writes and checks report views and has reports made into files or links, without reading the data itself.</p>
+<p class="muted">Version ${esc(version)}. An MCP server for pivot reports: an AI client describes data sources, writes and checks report views and has reports made into files or links. Through pivotkit it reads only what the operator's policy shows.</p>
 <h2>Endpoint</h2>${code(endpoint)}
 <p>${authText}</p>
 <h2>Claude Code</h2>${code(claudeCode)}

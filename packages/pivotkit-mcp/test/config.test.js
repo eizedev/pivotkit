@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
 import { ConfigError, SKILLS_DIR, loadConfig, validateOptions } from "pivotkit-mcp";
 import { BIN, httpServer, workspace } from "./helpers.js";
@@ -133,4 +134,24 @@ test("the MCP server makes a missing output directory at start, as pivotkit-serv
     } finally {
         await server.close();
     }
+});
+
+test("what the package tells people and the model: it reads only what the policy shows, never that it reads no data", async () => {
+    const { INSTRUCTIONS } = await import("../src/context.js");
+    const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+    const texts = {
+        instructions: INSTRUCTIONS,
+        "package.json": JSON.parse(read("../package.json")).description,
+        "plugin.json": JSON.parse(read("../.claude-plugin/plugin.json")).description,
+        "page.js": read("../src/page.js"),
+        "index.js": read("../src/index.js"),
+        "SKILL.md": read("../skills/pivotkit-reports/SKILL.md"),
+        "README.md": read("../README.md")
+    };
+    for (const [where, text] of Object.entries(texts)) {
+        assert.doesNotMatch(text, /data itself|without reading the data|never read/i, where);
+        assert.match(text.replace(/\s+/g, " "), /only what the (operator's )?(exposure )?policy shows/, where);
+    }
+    // the model is not told it cannot read files: allow-dir lets it name files by path
+    assert.doesNotMatch(INSTRUCTIONS, /cannot read|no files?\b/i);
 });
