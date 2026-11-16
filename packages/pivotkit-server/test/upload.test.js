@@ -281,6 +281,27 @@ test("presigned: the presign service gets the report's facts and the credential,
     }
 });
 
+test("render_view with save: false: nothing goes to the store or the output directory; the result is inline", async () => {
+    routes.set("POST /presign", presignRoute());
+    routes.set("PUT *", bucket());
+    const { context, files } = await contextOf(presignOptions());
+    try {
+        const caller = callerOf("none");
+        const { result, link } = await present(context, "render_view", { source: "open", view: BY_REGION, format: "csv", save: false }, caller);
+        assert.equal(result.output, null);
+        assert.match(result.inline.text, /North/);
+        assert.equal(link, undefined);
+        assert.equal(asked.length, 0, "no request to the presign service or the store");
+        assert.deepEqual(files(), []);
+        // without save the same render goes to the store, as before
+        const saved = await present(context, "render_view", { source: "open", view: BY_REGION, format: "csv" }, caller);
+        assert.match(String(saved.result.output?.url), new RegExp(`^${origin("files")}/`));
+        assert.equal(asked.length, 2);
+    } finally {
+        await context.close();
+    }
+});
+
 test("a report over a closed source never goes to a store whose links anyone can open: no request at all, the server's own delivery", async () => {
     routes.set("POST /presign", presignRoute());
     routes.set("PUT *", bucket());

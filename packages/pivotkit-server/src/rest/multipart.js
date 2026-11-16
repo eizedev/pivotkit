@@ -35,9 +35,10 @@ export const MULTIPART_DATA = Object.freeze({
  * `data` as MULTIPART_DATA.
  * @param {string} operation
  * @param {import("../sources/input.js").SurfaceOffers} [offers]
+ * @param {boolean} [fileRoute]  REST's file route (no `save`)
  */
-export function multipartInputSchema(operation, offers) {
-    const schema = /** @type {any} */ (presentedInput(operation, { files: false, offers }));
+export function multipartInputSchema(operation, offers, fileRoute = false) {
+    const schema = /** @type {any} */ (presentedInput(operation, { files: false, offers, fileRoute }));
     return { ...schema, required: (schema.required ?? []).filter((/** @type {string} */ key) => key !== "source"), properties: { ...schema.properties, data: MULTIPART_DATA } };
 }
 
@@ -83,9 +84,10 @@ export function uploadFormatOf(file) {
  * @param {string} contentType  the request's Content-Type, with its boundary
  * @param {string} operation
  * @param {import("../sources/input.js").SurfaceOffers} [offers]
+ * @param {boolean} [fileRoute]  REST's file route (no `save`)
  * @returns {Promise<{ input: Record<string, any>, upload: { bytes: Uint8Array, format: string, sheet?: string, name?: string, asOf?: string } }>}
  */
-export async function readMultipart(bytes, contentType, operation, offers) {
+export async function readMultipart(bytes, contentType, operation, offers, fileRoute = false) {
     // counted before the parts are parsed: thousands of small parts cost the parser
     const parts = multipartParts(bytes, contentType);
     if (parts === null) {
@@ -140,7 +142,7 @@ export async function readMultipart(bytes, contentType, operation, offers) {
             throw new OperationError("INVALID_INPUT", "the part input is a JSON object: the operation's input without data");
         }
     }
-    checkInput(multipartInputSchema(operation, offers), input);
+    checkInput(multipartInputSchema(operation, offers, fileRoute), input);
     if (input.source !== undefined && input.source !== INLINE_ID) {
         throw new OperationError("INVALID_INPUT", `a multipart body's source is the file it carries: leave source out or give "${INLINE_ID}"`);
     }

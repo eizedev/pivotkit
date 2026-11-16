@@ -23,7 +23,7 @@ import { AuthRefusal, bearerOf, groupRefusal, resourceMetadataUrlOf } from "../a
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
 import { BODY_BYTES, SIGNED_IN, isLoopback, peekSignIn, takeSignIn } from "../listen.js";
-import { INPUT_DEPTH, jsonDepth, present, presentedInput, renderFile } from "../present.js";
+import { INPUT_DEPTH, jsonDepth, present, presentedInput, renderFile, saveLogFields } from "../present.js";
 import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, isRestPost, restBodyBytesAt, restBodyBytesFor, restBodyCeilingOf } from "../limits.js";
 import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData, restDataOffered } from "../sources/inline.js";
 import { readMultipart } from "./multipart.js";
@@ -268,7 +268,7 @@ export async function createRestHandler(context, runtime = {}) {
                 if (!maySendData(options, caller, "rest")) {
                     throw dataRefusal("rest", { offered: restDataOffered(options) });
                 }
-                ({ input, upload } = await readMultipart(await readBytes(request, cap, detail), request.headers.get("content-type") ?? "", route.operation, context.offers?.rest));
+                ({ input, upload } = await readMultipart(await readBytes(request, cap, detail), request.headers.get("content-type") ?? "", route.operation, context.offers?.rest, route.answer === "file"));
             } else if (type !== "application/json") {
                 return problem("UNSUPPORTED_MEDIA_TYPE", `send the input as JSON (Content-Type: application/json)${takesSource && maySendData(options, caller, "rest") ? ", or a file with it as multipart/form-data" : ""}`);
             } else {
@@ -289,7 +289,8 @@ export async function createRestHandler(context, runtime = {}) {
         // the log names a configured source or data sent in the request (how much, never a value);
         // anything else a caller typed (a name, a path) is not kept
         entry.source = context.registry.logName(input.source);
-        Object.assign(entry, inlineLogFields(input, upload));
+        // the file route takes no save (its input refuses it): its line never says saved
+        Object.assign(entry, inlineLogFields(input, upload), route.answer === "file" ? {} : saveLogFields(route.operation, input));
         // before the schema's pattern says the same in fewer words
         if (typeof input.source === "string" && input.source.startsWith("file:")) {
             throw new OperationError("FILES_NOT_ALLOWED", "this service reads no files by path: use a source id from GET /sources");
@@ -304,7 +305,7 @@ export async function createRestHandler(context, runtime = {}) {
             if (input.source === INLINE_ID && maySendData(options, caller, "rest")) {
                 checkTableSize(input.data, { limits: context.registry.limits });
             }
-            checkInput(presentedInput(route.operation, { files: false, offers: context.offers?.rest }), input);
+            checkInput(presentedInput(route.operation, { files: false, offers: context.offers?.rest, fileRoute: route.answer === "file" }), input);
         }
         if (route.answer === "file") {
             const { result, file } = await renderFile(context, input, caller, { signal: request.signal, ...(upload ? { upload } : {}) });
