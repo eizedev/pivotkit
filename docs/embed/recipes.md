@@ -5,8 +5,8 @@ description: Tasks developers solve when they embed pivotkit - keep and store th
 
 # Recipes
 
-Each recipe names a task and the page with its worked example, for React (`<PivotReport>`) and the
-web component (`<pivot-report>`).
+Each recipe names a task and the page with its worked example. The recipes cover React
+(`<PivotReport>`) and the web component (`<pivot-report>`).
 
 ## The view
 
@@ -15,13 +15,13 @@ web component (`<pivot-report>`).
 | Start the report with a view | [`defaultView`](../getting-started/react.md#the-first-report) | [`default-view`](../getting-started/web-component.md#the-first-report) |
 | Keep the view in your app, store it, start from a stored one | [controlled `view` with `onViewChange`](../getting-started/react.md#keep-the-view-in-your-app) | [controlled and uncontrolled](../reference/element.md#controlled-and-uncontrolled) |
 | Keep the view across reloads of a tab | [`persistView="session"`](../concepts/sharing.md#keeping-the-view-per-tab) | [`persist-view="session"`](../concepts/sharing.md#keeping-the-view-per-tab) |
-| Check a view from outside (a file, a database) | [`normalize`](../concepts/views.md#a-view-is-user-input) | [`normalize`](../concepts/views.md#a-view-is-user-input) |
+| Check a view from outside, such as from a file or a database | [`normalize`](../concepts/views.md#a-view-is-user-input) | [`normalize`](../concepts/views.md#a-view-is-user-input) |
 
 ## Saved and shared views
 
 | Task | React | Web component |
 | --- | --- | --- |
-| Offer shared views (presets) | [`templates`](../concepts/templates.md#what-a-template-is) | [`templates` property](../concepts/templates.md#what-a-template-is) |
+| Offer shared views as presets | [`templates`](../concepts/templates.md#what-a-template-is) | [`templates` property](../concepts/templates.md#what-a-template-is) |
 | Save the user's views on your server | [`onSaveTemplate`, `onDeleteTemplate`](../concepts/templates.md#your-application-keeps-them-callbacks) | [`pivot-template-save` with `respondWith()`](../getting-started/web-component.md#save-views-on-a-server) |
 | Keep the user's views in the browser, no server | [`templateStore="browser"`](../concepts/templates.md#the-browser-keeps-my-views-templatestorebrowser) | [`template-store="browser"`](../concepts/templates.md#the-browser-keeps-my-views-templatestorebrowser) |
 | Let admins publish a view for everyone | [`canPublish`, `onPublishTemplate`](../concepts/templates.md#your-application-keeps-them-callbacks) | [`can-publish`, `pivot-template-publish`](../concepts/templates.md#your-application-keeps-them-callbacks) |
@@ -50,11 +50,11 @@ web component (`<pivot-report>`).
 | --- | --- |
 | Match your design, light and dark | [Theming](../reference/theming.md) |
 | Change a text, add a language | [Localisation](../reference/localisation.md) |
-| Adjust the chart beyond its menus (font sizes, axis names) | [`chartOptions`](../concepts/charts.md#chartoptions-for-developers) |
+| Adjust the chart beyond its menus, such as font sizes or axis names | [`chartOptions`](../concepts/charts.md#chartoptions-for-developers) |
 | A taller report on phones | [web component](../getting-started/web-component.md#a-taller-report-on-phones), [layout](../reference/react.md#layout) |
 | Keep, log or block every export and copy | [`onExport`](../reference/react.md#prop-onexport) |
 | Let users download the rows behind the report (for the command line) | [`exportData`](../reference/react.md#prop-exportdata) |
-| Keep the rows from being taken home | leave [`exportData`](../reference/react.md#prop-exportdata) off, set [`drillDown`](../reference/react.md#props) to `false`, send only permitted rows ([Security](../security.md#source-data)) |
+| Keep the rows from being taken home | leave [`exportData`](../reference/react.md#prop-exportdata) off, set [`drillDown`](../reference/react.md#props) to `false`, send only permitted rows. See [Security](../security.md#source-data). |
 
 ## Pages and hosts
 
@@ -63,7 +63,7 @@ web component (`<pivot-report>`).
 | PHP and other server-rendered pages | [web component](../getting-started/web-component.md#php-and-other-server-rendered-pages) |
 | Angular | [web component](../getting-started/web-component.md#angular), [zone.js](../reference/element.md#angular-and-zonejs) |
 | PowerShell Universal | [React](../getting-started/react.md#powershell-universal) |
-| A page without a bundler (import map) | [bundlers and import maps](../getting-started/react.md#bundlers-and-import-maps) |
+| A page without a bundler, with an import map | [bundlers and import maps](../getting-started/react.md#bundlers-and-import-maps) |
 | Some viewers may see only some rows | [pivotkit is not access control](../security.md#pivotkit-is-not-access-control) |
 | A strict Content-Security-Policy | [security](../security.md#content-security-policy), [element](../reference/element.md#content-security-policy) |
 | Several reports on one page | [FAQ](../faq.md#several-reports-on-one-page) |
