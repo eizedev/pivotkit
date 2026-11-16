@@ -156,7 +156,9 @@ jobs:
           work="$RUNNER_TEMP/pivotkit"
           mkdir -p "$work/data" "$work/secrets"
           printf 'Region,Product,Customer,Sales\nNorth,A,Alice,10\nSouth,B,Bob,20\nNorth,B,Carol,5\n' > "$work/data/sales.csv"
-          # the image makes its own tokens: one line of 43 characters on stdout, without a configuration
+          # the image makes its own tokens: one line of 43 characters on stdout, without a configuration.
+          # ">" gives the files the umask's mode; fine for this runner, and chmod 0644 follows anyway
+          # (the docs tell operators to use --file or umask 077)
           docker run --rm --read-only --cap-drop ALL pivotkit:test token new > "$work/secrets/pivotkit_token"
           docker run --rm --read-only --cap-drop ALL pivotkit:test token new > "$work/secrets/pivotkit_export_token"
           test "$(wc -c < "$work/secrets/pivotkit_token")" -eq 44

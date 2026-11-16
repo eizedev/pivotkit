@@ -80,11 +80,13 @@ makes no `admin`. Keep them in files (secrets), not in environment variables: `d
 container's environment. The image makes the values, so you need no other tool:
 
 ```bash
-docker run --rm ghcr.io/eizedev/pivotkit:<version> token new > secrets/pivotkit_token
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/secrets:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/pivotkit_token
 ```
 
-(With Node, `npx -y pivotkit-server token new --file secrets/pivotkit_token` writes the file with
-mode 0600 for your own user; [tokens and keys](rest.md#credentials).) A secret file is mounted with
+(With Node, `npx -y pivotkit-server token new --file secrets/pivotkit_token`.) `token new --file`
+writes mode 0600 for your own user ([tokens and keys](rest.md#credentials)); output saved with `>`
+instead gets the mode your umask gives (often 0644, readable by everyone): run `umask 077` first if
+you do that. A secret file is mounted with
 its owner and mode from the host, so it must be readable by the user 10001: owned by 10001 with
 `chmod 0400` (`sudo chown 10001 secrets/*`) keeps it from the host's other users; `chmod 0644` is the
 way without root; `check-config` and the start say so when it is not.

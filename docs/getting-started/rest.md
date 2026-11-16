@@ -147,27 +147,26 @@ upload to your own store instead.
 
 ## 6. Tokens, a profile and downloads { #policy }
 
-Stop the service (Ctrl+C) and write `pivotkit.json` again: Region is shown, two tokens, one of them
-with a profile that may download files.
+Stop the service (Ctrl+C) and write `pivotkit.json` again: Region is shown, and a profile that may
+download files.
 
 ```json
 {
   "sources": { "sales": { "file": "sales.csv", "title": "Sales", "policy": { "fields": { "Region": "show" } } } },
   "output": { "dir": "reports" },
-  "policy": { "profiles": { "export": { "results": true } } },
-  "auth": { "mode": "token", "tokens": [
-    { "name": "scripts", "env": "SCRIPTS_TOKEN" },
-    { "name": "export", "env": "EXPORT_TOKEN", "profile": "export" } ] }
+  "policy": { "profiles": { "export": { "results": true } } }
 }
 ```
 
-Make two tokens and start it again:
+Make two tokens, each in a file only you read, add them to `auth.tokens` (the command keeps the old
+file as a backup and sets `auth.mode` to `token`), and start it again:
 
 === "bash"
 
     ```bash
-    export SCRIPTS_TOKEN="$(npx -y pivotkit-server token new)"
-    export EXPORT_TOKEN="$(npx -y pivotkit-server token new)"
+    mkdir -p secrets
+    npx -y pivotkit-server token new --file secrets/scripts.token --config pivotkit.json --add --name scripts
+    npx -y pivotkit-server token new --file secrets/export.token --config pivotkit.json --add --name export --profile export
     npx -y pivotkit-server check-config --config pivotkit.json
     npx -y pivotkit-server serve --config pivotkit.json
     ```
@@ -175,14 +174,36 @@ Make two tokens and start it again:
 === "PowerShell"
 
     ```powershell
-    $env:SCRIPTS_TOKEN = npx -y pivotkit-server token new
-    $env:EXPORT_TOKEN = npx -y pivotkit-server token new
+    New-Item -ItemType Directory -Force secrets | Out-Null
+    npx -y pivotkit-server token new --file secrets/scripts.token --config pivotkit.json --add --name scripts
+    npx -y pivotkit-server token new --file secrets/export.token --config pivotkit.json --add --name export --profile export
     npx -y pivotkit-server check-config --config pivotkit.json
     npx -y pivotkit-server serve --config pivotkit.json
     ```
 
-`check-config` prints what the service exposes. In the second terminal (with the same two variables
-set), a call without a token is now 401, and only the export token may download the file:
+??? note "Tokens from environment variables instead"
+
+    A token can also come from a variable: `{ "name": "scripts", "env": "SCRIPTS_TOKEN" }` in
+    `auth.tokens`, set with `export SCRIPTS_TOKEN="$(npx -y pivotkit-server token new)"` (PowerShell:
+    `$env:SCRIPTS_TOKEN = npx -y pivotkit-server token new`). A file is read on every request, so it
+    can be rotated without a restart; a variable cannot.
+
+In the second terminal, read the two tokens into variables:
+
+=== "bash"
+
+    ```bash
+    SCRIPTS_TOKEN="$(cat secrets/scripts.token)"; EXPORT_TOKEN="$(cat secrets/export.token)"
+    ```
+
+=== "PowerShell"
+
+    ```powershell
+    $env:SCRIPTS_TOKEN = Get-Content secrets/scripts.token; $env:EXPORT_TOKEN = Get-Content secrets/export.token
+    ```
+
+`check-config` prints what the service exposes. A call without a token is now 401, and only the
+export token may download the file:
 
 === "curl"
 
