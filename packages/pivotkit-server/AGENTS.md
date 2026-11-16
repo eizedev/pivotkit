@@ -128,6 +128,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - A kept data set copies its texts first. A reader's slices would keep the whole file alive.
 - Every read ends with `forgetLastSubject`. V8 keeps the last regular expression's subject.
 - Workers have memory and time limits.
+- `test/compute.test.js` covers the pool's failure paths with a worker of its own (`fixtures/probe-worker.js`).
 
 ## HTTP edge
 
