@@ -5,19 +5,25 @@ description: Render a pivotkit view over rows without a browser - JSON, CSV, XLS
 
 # pivotkit-report
 
-`pivotkit-report` runs a view over data and writes a file: an HTML report to print or save as PDF,
-CSV, JSON, an Excel workbook (.xlsx) or the chart as SVG. It joins pivotkit-core's steps (the view
-file, `normalize`, `computePivot`, `toGrid` and its exporters, `chartPlan` and the chart's marks), so
-the table and the chart are the ones the report shows on the screen. It runs in Node and in the
-browser; the [command line](cli.md) and the report's own Export menu
-([HTML report, SVG, print](../use/export.md)) use it.
+`pivotkit-report` runs a view over data and writes a file:
+
+- an HTML report to print or save as PDF
+- CSV
+- JSON
+- an Excel workbook (.xlsx)
+- the chart as SVG
+
+It joins pivotkit-core's steps: the view file, `normalize`, `computePivot`, `toGrid` and its
+exporters, `chartPlan` and the chart's marks. So the table and the chart are the ones the report
+shows on the screen. It runs in Node and in the browser. The [command line](cli.md) and the report's
+own Export menu ([HTML report, SVG, print](../use/export.md)) use it.
 
 ```bash
 npm install pivotkit-report echarts
 ```
 
-ECharts (`>=6.1.0 <7`) is an optional peer dependency: only the SVG and the chart of an HTML report
-need it, and you pass the module in, so a page uses the copy it already has.
+ECharts (`>=6.1.0 <7`) is an optional peer dependency. Only the SVG and the chart of an HTML report
+need it. You pass the module in, so a page uses the copy it already has.
 
 ```js
 import { writeFile } from "node:fs/promises";
@@ -34,8 +40,13 @@ await writeFile("report.html", result.body);   // Uint8Array, the whole file
 ## render(view, data, options)
 
 `view` is a view, a [view file](view-file.md) or a template `{ name, view }`, as an object or JSON
-text. `data` is rows, columnar data (`{ columns, types, data }`, what
-[`readFile`](import.md) returns) or `encode()`'s result. It returns a promise of:
+text. `data` is one of these:
+
+- rows
+- columnar data (`{ columns, types, data }`, what [`readFile`](import.md) returns)
+- `encode()`'s result
+
+`render` returns a promise of:
 
 | Property | What it is |
 | --- | --- |
@@ -47,7 +58,7 @@ text. `data` is rows, columnar data (`{ columns, types, data }`, what
 | `summary` | `{ rows, columns, sourceRows, keptRows, truncated }`: the table's body rows and columns, the data's rows, the rows its filters keep, whether a part was cut. |
 | `view` | The normalized view that was rendered. |
 
-The whole body is built in memory; the [limits](../concepts/limits.md) keep it bounded.
+`render` builds the whole body in memory. The [limits](../concepts/limits.md) keep it bounded.
 
 ### Options
 
@@ -73,8 +84,8 @@ The whole body is built in memory; the [limits](../concepts/limits.md) keep it b
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
 | `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form, or a time that does not exist, is refused. `html`: "Data as of" in the details and the `{{dataAsOf}}` [placeholder](print-template.md), in the locale and time zone with the zone named; `xlsx`: the custom document property `DataAsOf` (a date). csv, json and svg leave it out. The REST service and the MCP server pass it; the command line passes none for local files. |
 
-Any other option name is refused (`INVALID_OPTION`, with the closest name), so a misspelt one is not
-ignored.
+`render` refuses any other option name with `INVALID_OPTION` and names the closest one. So a
+misspelt option is never ignored.
 
 ### Library and command line
 
@@ -87,14 +98,29 @@ ignored.
 
 ### Errors
 
-A bad view never throws: its issues come back. `PivotkitError` is thrown for a wrong argument
-(`INVALID_ARGUMENT`), a wrong option (`INVALID_OPTION` with `details.option`: an unknown `format`, a
-`size` out of range, an unknown option, a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take, an SVG or `chart: true` without `echarts`, a `now` that is no date, a `dataAsOf` in another form, a `tokens` or `darkTokens` that is no object), a limit (`LIMIT_EXCEEDED`) and
-a refused template (`INVALID_TEMPLATE`, see [print template](print-template.md)). The report's own
-issues are warnings: `chartUnavailable` (a view that shows the chart, rendered as HTML with `chart`
-`"auto"` and without `echarts`: the table is there, the chart is not; pass `strict` and check `ok`, or
-pass `chart: true`, when the chart must be there), `tableCut`, `chartCut` (the first `REPORT_LIMITS.categories` categories, 50) and `viewFile`
-(an error: the input is no view).
+A bad view never throws: its issues come back. `render` throws `PivotkitError` for:
+
+- a wrong argument: `INVALID_ARGUMENT`
+- a wrong option: `INVALID_OPTION` with `details.option`. These are:
+    - an unknown `format`
+    - a `size` out of range
+    - an unknown option
+    - a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take
+    - an SVG or `chart: true` without `echarts`
+    - a `now` that is no date
+    - a `dataAsOf` in another form
+    - a `tokens` or `darkTokens` that is no object
+- a limit: `LIMIT_EXCEEDED`
+- a refused template: `INVALID_TEMPLATE`, see [print template](print-template.md)
+
+The report's own issues are warnings, except `viewFile`:
+
+- `chartUnavailable`: a view that shows the chart, rendered as HTML with `chart` `"auto"` and without
+  `echarts`. The table is there, the chart is not. When the chart must be there, pass `strict` and
+  check `ok`, or pass `chart: true`.
+- `tableCut`
+- `chartCut`: the chart holds the first `REPORT_LIMITS.categories` categories, 50.
+- `viewFile`, an error: the input is no view.
 
 ## The formats
 
@@ -108,44 +134,82 @@ pass `chart: true`, when the chart must be there), `tableCut`, `chartCut` (the f
 
 ## The HTML report
 
-The default template writes a page that loads and runs nothing: its Content-Security-Policy is the
-first element of `<head>` (`default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri
-'none'; form-action 'none'`), the chart is an image (`data:image/svg+xml`), and there is no script.
+The default template writes a page that loads and runs nothing:
 
-- **The table** as the screen shows it: merged headers and row labels, totals and subtotals shaded
-  and bold, colour scales and data bars, a collapsed group marked "+". Numbers as the table writes
-  them. No sorting buttons, toggles or drill-down: a report is read, not used.
+- Its Content-Security-Policy is the first element of `<head>` (`default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri
+  'none'; form-action 'none'`).
+- The chart is an image (`data:image/svg+xml`).
+- There is no script.
+
+The page holds:
+
+- **The table** as the screen shows it:
+    - merged headers and row labels
+    - totals and subtotals shaded and bold
+    - colour scales and data bars
+    - a collapsed group marked "+"
+    - numbers as the table writes them
+
+    It has no sorting buttons, toggles or drill-down. People read a report, they do not use it.
+
+
 - **The chart** above the table when the view shows the chart (`chart: "auto"`), kept whole on a
   page.
-- **The details**: the source, the data's rows, the filters in words and the time it was generated.
-- **On screen** light or dark after the reader's system (a template's root can pin light or ask for
-  dark, [dark mode](print-template.md#dark-mode)): in dark, the page, the table and its totals
-  take the dark theme's tokens with the host's `darkTokens` over them, a colour scale whose view
-  names no colours runs through the dark heat colours (halfway between them in the middle, unless
-  `darkTokens` sets `--pk-scale-mid`; a view's own colours are mixed fainter, so the light text stays readable), and the
-  chart keeps its light card, as it is drawn in the light colours (the note under a cut chart on it
-  in the light muted text). Every text meets WCAG AA in both with the default colours.
-  **On paper** always light, also from a dark screen and in a PDF, with 12 mm
-  margins, the header row on every page, rows never split, landscape from 9 columns and a smaller
-  font (7 pt) from 17. A table wider than a landscape page is cut by the browser: split the view, or
-  export Excel.
+- **The details**: the source, the data's rows, the filters in words and the time the report was
+  generated.
+
+**On screen**, the page is light or dark after the reader's system. A template's root can pin light
+or ask for dark ([dark mode](print-template.md#dark-mode)). In dark:
+
+- The page, the table and its totals take the dark theme's tokens with the host's `darkTokens` over
+  them.
+- A colour scale whose view names no colours runs through the dark heat colours. Its middle is
+  halfway between them, unless `darkTokens` sets `--pk-scale-mid`.
+- A view's own colours are mixed fainter, so the light text stays readable.
+- The chart keeps its light card, since it is drawn in the light colours. The note under a cut chart
+  sits on that card in the light muted text.
+
+With the default colours, every text meets WCAG AA in both themes.
+
+**On paper**, the page is always light, also from a dark screen and in a PDF. It has:
+
+- 12 mm margins
+- the header row on every page
+- rows never split
+- landscape from 9 columns
+- a smaller font (7 pt) from 17 columns
+
+The browser cuts a table wider than a landscape page. Split the view, or export Excel.
 
 ## The chart as SVG
 
-ECharts' server-side renderer (`echarts.init(null, null, { renderer: "svg", ssr: true })`, then
-`renderToSVGString()`) draws it; `cleanSvg` then checks every element and attribute: only the elements
-a chart draws, no event attribute, no link but to a fragment or a `data:` image, no unescaped text,
-control characters left out, every `style` attribute turned into presentation attributes (so the SVG
-also shows under a strict Content-Security-Policy). Anything else is refused with `PivotkitError`
-(`details.reason`). Text from the data is never trusted to the renderer's escaping alone.
+ECharts' server-side renderer draws it: `echarts.init(null, null, { renderer: "svg", ssr: true })`,
+then `renderToSVGString()`. Then `cleanSvg` checks every element and attribute:
+
+- only the elements a chart draws
+- no event attribute
+- no link but to a fragment or a `data:` image
+- no unescaped text
+- control characters left out
+- every `style` attribute turned into presentation attributes, so the SVG also shows under a strict
+  Content-Security-Policy
+
+`cleanSvg` refuses anything else with `PivotkitError` (`details.reason`). pivotkit-report never trusts
+text from the data to the renderer's escaping alone.
 
 ## Operations { #operations }
 
-`pivotkit-report/operations` is the one table of what pivotkit's front ends without a browser offer:
-the [command line](cli.md), the [MCP server](mcp.md) and the [REST service](rest.md). Each entry of
-`OPERATIONS` has its `name`, `title` and `description`, its input and output as JSON Schema (draft
-2020-12, no `$schema` key), its HTTP route under the REST service's `/api/v1` (`http`), the CLI command it is (`cli`), what
-it needs from its front end (`needs`), annotations, and `run(input, env)`:
+`pivotkit-report/operations` is the one table of what pivotkit's front ends without a browser offer.
+These front ends are the [command line](cli.md), the [MCP server](mcp.md) and the
+[REST service](rest.md). Each entry of `OPERATIONS` has:
+
+- its `name`, `title` and `description`
+- its input and output as JSON Schema (draft 2020-12, no `$schema` key)
+- its HTTP route under the REST service's `/api/v1` (`http`)
+- the CLI command it is (`cli`)
+- what it needs from its front end (`needs`)
+- annotations
+- `run(input, env)`
 
 | Operation | CLI | HTTP | What it does |
 | --- | --- | --- | --- |
@@ -169,33 +233,47 @@ const env = { data: async (source) => ({ data: encode(rows), name: source }) };
 const { result, file } = await OPERATIONS.render_view.run({ source: "sales", view, format: "csv" }, env);
 ```
 
-A `layout` is a view by field names, pivotkit-core's [`viewFromLayout`](core.md#view-from-field-names)
-input: `{ rows, cols, values: [{ field, agg }], groups: [{ field, by, size }], filters, chart, map }`,
-checked by its JSON Schema (no other keys, at most 64 entries per list). `viewOfLayout(description,
-layout, { suggest, locale })` is the one way the operations and the command line turn it into a view:
-with `suggest`, suggestLayout's picks first and the layout's parts over them. Its notes become
-findings by `LAYOUT_NOTE_SEVERITY`: `noSuggestion` (nothing to group by) an error, `dateGrouped` an
-`info`, `unusedGroup` and `unusedMap` warnings. A request with both a `view` and a `layout`, or
-neither, is `INVALID_INPUT`.
+A `layout` is a view by field names, the input of pivotkit-core's
+[`viewFromLayout`](core.md#view-from-field-names):
+`{ rows, cols, values: [{ field, agg }], groups: [{ field, by, size }], filters, chart, map }`. Its
+JSON Schema checks it: no other keys, at most 64 entries per list.
 
-`env` gives what the operations need: `data(source)` (encoded data, or only `{ name, type }` fields
-for validate and describe), `sources()`, `link(source)`, `template(source)`, `echarts`, `limits`,
-`locale`, `timeZone`, `now`, and `renderOptions` for a front end's own render options. A view with
-errors is no error (`ok` or `valid` false, with `findings`); what a front end must handle is
-`OperationError` with a `code` of `OPERATION_ERRORS` and its HTTP `status`, and for some codes
-`details` (`requestId` to quote to the operator, `retryable`, `retryAfter` in seconds). When
-`data(source)` gives `asOf` (when the data is from, in UTC to the second), `render_view` passes it to
-`render` as `dataAsOf`. `findingOf` turns a
-pivotkit-core issue into a finding (cleaned, cut at 200 characters); `exampleViews(fields)` builds
-views from a data set's fields.
+`viewOfLayout(description,
+layout, { suggest, locale })` is the one way the operations and the command line turn a layout into
+a view. With `suggest`, it takes suggestLayout's picks first and puts the layout's parts over them.
+`LAYOUT_NOTE_SEVERITY` turns its notes into findings:
+
+- `noSuggestion` (nothing to group by): an error
+- `dateGrouped`: an `info`
+- `unusedGroup` and `unusedMap`: warnings
+
+A request with both a `view` and a `layout`, or neither, is `INVALID_INPUT`.
+
+`env` gives what the operations need:
+
+- `data(source)`: encoded data, or only `{ name, type }` fields for validate and describe
+- `sources()`, `link(source)`, `template(source)`
+- `echarts`, `limits`, `locale`, `timeZone`, `now`
+- `renderOptions`: a front end's own render options
+
+A view with errors is no error: the result has `ok` or `valid` false, with `findings`. A front end
+must handle `OperationError`. It has a `code` of `OPERATION_ERRORS` and its HTTP `status`. Some codes
+also have `details`:
+
+- `requestId`, to quote to the operator
+- `retryable`
+- `retryAfter`, in seconds
+
+`data(source)` may give `asOf`: when the data is from, in UTC to the second. `render_view` then passes
+it to `render` as `dataAsOf`.
+
+`findingOf` turns a pivotkit-core issue into a finding, cleaned and cut at 200 characters.
+`exampleViews(fields)` builds views from a data set's fields.
 
 ## Exports
 
-`render`, `RENDER_FORMATS`, `REPORT_LIMITS` (`template`, `chartWidth`, `chartHeight`, `tableCells`,
-`categories`), `REPORT_ISSUE_CODES`, `CHART_SIZE`, `cleanSvg`, `DEFAULT_TEMPLATE`, `REPORT_CSP`,
-`REPORT_TEXTS`, `LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`, `SHAPE_TOKENS`, `SIZE_TOKENS`; `pivotkit-report/template`: `parseTemplate`,
-`fillTemplate`, `escapeHtml`, `PLACEHOLDERS`, `ATTRIBUTES`, `TEMPLATE_LIMIT`
-([print template](print-template.md)); `pivotkit-report/operations`: `OPERATIONS`, `OPERATION_NAMES`,
-`OPERATION_ERRORS`, `OperationError`, `VIEW_GUIDE`, `exampleViews`, `findingOf`, `findingText`,
-`FINDING_TEXT`, `viewOfLayout`, `LAYOUT_NOTE_SEVERITY`, `checkInput` (an operation's input against its
-JSON Schema) ([operations](#operations)).
+| Entry point | Exports |
+| --- | --- |
+| `pivotkit-report` | `render`, `RENDER_FORMATS`, `REPORT_LIMITS` (`template`, `chartWidth`, `chartHeight`, `tableCells`, `categories`), `REPORT_ISSUE_CODES`, `CHART_SIZE`, `cleanSvg`, `DEFAULT_TEMPLATE`, `REPORT_CSP`, `REPORT_TEXTS`, `LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`, `SHAPE_TOKENS`, `SIZE_TOKENS` |
+| `pivotkit-report/template` ([print template](print-template.md)) | `parseTemplate`, `fillTemplate`, `escapeHtml`, `PLACEHOLDERS`, `ATTRIBUTES`, `TEMPLATE_LIMIT` |
+| `pivotkit-report/operations` ([operations](#operations)) | `OPERATIONS`, `OPERATION_NAMES`, `OPERATION_ERRORS`, `OperationError`, `VIEW_GUIDE`, `exampleViews`, `findingOf`, `findingText`, `FINDING_TEXT`, `viewOfLayout`, `LAYOUT_NOTE_SEVERITY`, `checkInput` (an operation's input against its JSON Schema) |

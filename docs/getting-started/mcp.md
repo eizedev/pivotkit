@@ -5,26 +5,28 @@ description: Let an AI client (Claude Code, Claude Desktop, VS Code and others) 
 
 # Getting started with the MCP server
 
-`pivotkit-mcp` lets an AI client build pivot reports for you: "sales by region per quarter as Excel"
-becomes a view, checked against your data and written into a file you open. The model sees the
-fields of your data (by default names, types and counts, no values) and never reads the data itself.
-See the [reference](../reference/mcp.md) for every tool and setting.
+`pivotkit-mcp` lets an AI client build pivot reports for you. You ask for "sales by region per
+quarter as Excel". The model builds a view. The server checks it against your data and writes it
+into a file you open. The model sees the fields of your data, but never reads the data itself. By default
+it sees names, types and counts, and no values. The [reference](../reference/mcp.md) has every tool
+and setting.
 
-Node 22 or later. A client starts the server itself (stdio), or connects to one that runs (HTTP).
-Without Node, [Server in 5 minutes](server-in-5-minutes.md) starts the container image, the MCP
-endpoint with a token it makes itself, with one command.
+You need Node 22 or later. A client either starts the server itself (stdio) or connects to a server
+that runs (HTTP). Without Node, use [Server in 5 minutes](server-in-5-minutes.md). It starts the
+container image with one command. That gives you the MCP endpoint and a token the server makes
+itself.
 
 ## 1. Your data and a folder for the reports
 
-Put the data where the server may read it; the server makes the folder for what it writes
-(`--output`) when it starts:
+Put the data where the server may read it. When the server starts, it makes the folder for what it
+writes (`--output`):
 
 ```bash
 mkdir -p ~/reports
 cd ~/reports && npx -y pivotkit-cli example   # optional: sample data (sales.csv) from the command line
 ```
 
-Any CSV, TSV, JSON or Excel file works. Check what the server would expose before a client connects:
+Any CSV, TSV, JSON or Excel file works. Before a client connects, check what the server would expose:
 
 ```bash
 npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output ~/reports/out --check-config
@@ -40,7 +42,7 @@ npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output ~/reports/ou
 
 === "Claude Desktop"
 
-    In `claude_desktop_config.json` (the app's settings open it):
+    Edit `claude_desktop_config.json`. The app's settings open it:
 
     ```json
     { "mcpServers": { "pivotkit": {
@@ -65,30 +67,44 @@ npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output ~/reports/ou
     { "mcpServers": { "pivotkit": { "command": "npx", "args": ["-y", "pivotkit-mcp", "--config", "/path/to/pivotkit-mcp.json"] } } }
     ```
 
-Use absolute paths: a client may start the server in another directory (a missing output
-directory is made at start). VS Code also reads the newer `.mcp.json` with `mcpServers`, as
-under "Other clients". Pin a version for a setup others rely on (`pivotkit-mcp@<version>`), and in
-every shared configuration. Without one, `npx -y` runs the newest release at each start, code nobody
-has looked at yet, unless pivotkit-mcp is installed globally or in the folder the client starts it in
-(or a folder above it): then it runs that copy, whatever its version. `pivotkit-mcp@latest` is for a
-setup of your own. See [Update an installation](upgrading.md#update-npx), also for restarting the
-client after an update.
+Use absolute paths. A client may start the server in another directory. The server makes a missing
+output directory at start.
 
-Then ask: "Which sources does pivotkit have?", "Make an Excel report of sales by region per quarter",
-"Make a link to that report". The server answers with the file's place; when the report uses fields
-whose values you did not let the model see, it says that it has not seen the content.
+VS Code also reads the newer `.mcp.json` with `mcpServers`, as under "Other clients".
+
+Pin a version (`pivotkit-mcp@<version>`) for a setup others rely on, and in every shared
+configuration. Without a pinned version, `npx -y` runs the newest release at each start: code nobody
+has looked at yet. One exception: when pivotkit-mcp is installed globally, or in the folder the
+client starts it in or a folder above it, `npx -y` runs that copy, whatever its version.
+`pivotkit-mcp@latest` is for a setup of your own. [Update an installation](upgrading.md#update-npx)
+has the details, and also says how to restart the client after an update.
+
+Then ask, for example:
+
+- "Which sources does pivotkit have?"
+- "Make an Excel report of sales by region per quarter"
+- "Make a link to that report"
+
+The server answers with the file's place. A report can use fields whose values you did not let the
+model see. Then the server says that the model has not seen the content.
 
 ## 3. Choose what the model may see
 
-By default every field is `summary`: name, type and counts. Mark fields whose values may reach the
-model as `show` (the model can then answer questions about them and get small results inline),
-category fields as `values` (the model sees their values as a complete list, so it filters on the
-exact name of a channel or a team, but no result over them), and fields it must not know about as
-`hide` (dropped when the data is read). `"policy": { "autoValues": true }` gives `values` to text
-fields that look like categories by itself ([the rule](../reference/mcp.md#auto-values));
-`--check-config` lists them. Give each source a `description` and explain short or coded field names
-in `fields.<name>.description`: a model chooses and reads sources by these words
-([configuration](../reference/mcp.md#configuration)). In a configuration file:
+By default every field is `summary`: the model sees its name, type and counts. Mark the other fields
+like this:
+
+| Level | Mark these fields | What the model gets |
+| --- | --- | --- |
+| `show` | fields whose values may reach the model | It can answer questions about them and gets small results inline. |
+| `values` | category fields | It sees their values as a complete list. So it filters on the exact name of a channel or a team, but gets no result over them. |
+| `hide` | fields the model must not know about | Nothing. The server drops them when it reads the data. |
+
+`"policy": { "autoValues": true }` gives `values` to text fields that look like categories by
+itself. [The rule](../reference/mcp.md#auto-values) says which ones. `--check-config` lists them.
+
+Give each source a `description`. Explain short or coded field names in
+`fields.<name>.description`. A model chooses and reads sources by these words. See
+[configuration](../reference/mcp.md#configuration). In a configuration file:
 
 ```json
 {
@@ -109,10 +125,12 @@ claude mcp add pivotkit -- npx -y pivotkit-mcp --config /Users/you/reports/pivot
 ```
 
 To let the model open any data file in a folder by path ("file:q3.csv"), add
-`--allow-dir /Users/you/reports` (and `--list-files` to have it listed). Every file in that folder
-can then be read: put only data there that the model may use. [Exposure policy](../reference/mcp.md#policy);
-[what reaches the model](../model-data.md) shows the answers a model gets at each level, and how to
-give each client its own rules.
+`--allow-dir /Users/you/reports`. Add `--list-files` to have the files listed. Every file in that
+folder is then open to the model, so put only data there that the model may use.
+
+- [Exposure policy](../reference/mcp.md#policy) has the rules.
+- [What reaches the model](../model-data.md) shows the answers a model gets at each level. It also
+  shows how to give each client its own rules.
 
 ## 4. For a team: HTTP
 
@@ -130,45 +148,63 @@ give each client its own rules.
     npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token
     ```
 
-The server listens on `http://127.0.0.1:3333/mcp`; open `http://127.0.0.1:3333/` in a browser for
-the quick-start page with the configurations to copy. For other machines, put it behind a reverse
-proxy with TLS and give `--public-url https://reports.example.com` (and `--host 0.0.0.0` or the
-proxy's network). The reports are written on the server, which serves them itself under
-`/downloads/` for 60 minutes: results carry a link, plain for sources whose fields are all `show`,
-and for other sources only one the person opens after signing in with your identity provider (or a
-one-time link you switch on); see [download links](../reference/delivery.md). Clients connect with:
+The server listens on `http://127.0.0.1:3333/mcp`. Open `http://127.0.0.1:3333/` in a browser for
+the quick-start page. It has the configurations to copy.
+
+For other machines, put the server behind a reverse proxy with TLS. Give it
+`--public-url https://reports.example.com`, and `--host 0.0.0.0` or the proxy's network.
+
+The server writes the reports and serves them itself under `/downloads/` for 60 minutes. Results
+carry a link:
+
+- For a source whose fields are all `show`: a plain link.
+- For other sources: only a link the person opens after signing in with your identity provider, or
+  a one-time link you switch on.
+
+See [download links](../reference/delivery.md). Clients connect with:
 
 ```bash
 claude mcp add --transport http pivotkit https://reports.example.com/mcp --header "Authorization: Bearer <token>"
 ```
 
-The token is then on that command line: other users of the machine can see it in the process list
-while the command runs, and your shell keeps it in its history. Claude Code stores it in its
+The token is then on that command line. While the command runs, other users of the machine can see
+it in the process list. Your shell keeps it in its history. Claude Code stores it in its
 configuration either way.
 
-For sign-in with your identity provider (Authentik, Keycloak, Microsoft Entra ID, any OAuth 2.1 /
-OpenID Connect provider), see [OAuth](../reference/mcp.md#oauth); scopes then decide who sees which
-source and may use which tool. A provider without dynamic client registration (Authentik, for
-example) needs a client you create there, given to Claude Code with `--client-id` and
-`--callback-port` ([a client registered in advance](../reference/mcp.md#preregistered-client)). A policy profile per token, OAuth client, group or scope gives a
-cloud assistant less than a model on your own hardware ([per client](../model-data.md#per-client)).
+For sign-in with your identity provider, see [OAuth](../reference/mcp.md#oauth). That works with
+Authentik, Keycloak, Microsoft Entra ID and any OAuth 2.1 / OpenID Connect provider. Scopes then
+decide who sees which source and who may use which tool.
 
-To serve programs too, run `pivotkit-server serve --config pivotkit-mcp.json --auth token` (with
-`pivotkit-mcp` installed beside it) instead: the same `/mcp` endpoint and the
-[REST service](rest.md) at `/api/v1` on one port, also as a [container image](../reference/container.md)
+Some providers, Authentik for example, have no dynamic client registration. There you create a
+client yourself and give it to Claude Code with `--client-id` and `--callback-port`. See
+[a client registered in advance](../reference/mcp.md#preregistered-client).
+
+A policy profile can apply per token, OAuth client, group or scope. With it, a cloud assistant gets
+less than a model on your own hardware. See [per client](../model-data.md#per-client).
+
+To serve programs too, run `pivotkit-server serve --config pivotkit-mcp.json --auth token` instead,
+with `pivotkit-mcp` installed beside it. One port then offers the same `/mcp` endpoint and the
+[REST service](rest.md) at `/api/v1`. This also runs as a [container image](../reference/container.md)
 ([in 5 minutes](server-in-5-minutes.md)) and [on Kubernetes](kubernetes.md).
-Its one static token is `$PIVOTKIT_TOKEN`. With `--state-dir <dir>` (or `$PIVOTKIT_STATE_DIR`), either
-server makes a token of its own there when none is given and it listens off loopback, and keeps the
-download links' key there ([tokens made at the first start](../reference/rest.md#first-start)).
+Its one static token is `$PIVOTKIT_TOKEN`.
+
+Either server takes `--state-dir <dir>` or `$PIVOTKIT_STATE_DIR`. It then keeps the download links'
+key in that folder. When no token is given and the server listens off loopback, it also makes a
+token of its own there. See [tokens made at the first start](../reference/rest.md#first-start).
 
 ## PowerShell Universal { #psu }
 
-PowerShell Universal runs scripts and apps but is no MCP client; its server can host pivotkit and
-feed it data. Run `pivotkit-server serve` there with `pivotkit-mcp` installed beside it: one process
-on one port offers the [REST service](rest.md) at `/api/v1` for PSU's scripts and apps and the MCP
-endpoint at `/mcp` for AI clients, both behind the one token `$PIVOTKIT_TOKEN` (or the tokens of
-`auth.tokens`). The steps below use `D:\pivotkit` with the folders `app`, `data`, `out`, `logs`
-and `secrets`; any other place works the same.
+PowerShell Universal runs scripts and apps, but it is no MCP client. Its server can host pivotkit and
+feed it data. Run `pivotkit-server serve` there with `pivotkit-mcp` installed beside it. One process
+on one port then offers:
+
+- the [REST service](rest.md) at `/api/v1` for PSU's scripts and apps
+- the MCP endpoint at `/mcp` for AI clients
+
+Both use the one token `$PIVOTKIT_TOKEN`, or the tokens of `auth.tokens`.
+
+The steps below use `D:\pivotkit` with the folders `app`, `data`, `out`, `logs` and `secrets`. Any
+other place works the same.
 
 ### Install { #psu-install }
 
@@ -177,9 +213,11 @@ cd D:\pivotkit\app
 npm install pivotkit-server@<version> pivotkit-mcp@<version>
 ```
 
-On a machine without internet, install from the packages' tarballs (`npm pack` on a machine with
-it). To update, run the same command with the new versions and restart the service
-([Update an installation](upgrading.md#update-project)). The configuration, `D:\pivotkit\pivotkit.json`:
+On a machine without internet, install from the packages' tarballs. Make them with `npm pack` on a
+machine with internet. To update, run the same command with the new versions and restart the
+service. See [Update an installation](upgrading.md#update-project).
+
+The configuration, `D:\pivotkit\pivotkit.json`:
 
 ```json
 {
@@ -191,13 +229,13 @@ it). To update, run the same command with the new versions and restart the servi
 ```
 
 Relative paths start at the configuration file's folder. `pivotkit-server check-config --config
-D:\pivotkit\pivotkit.json` prints what the server would expose and says which file or folder is
+D:\pivotkit\pivotkit.json` prints what the server would expose. It also says which file or folder is
 missing.
 
 ### Data from a PSU script { #psu-data }
 
-A scheduled script exports what a source shows into the data folder, written to a temporary name
-first and then moved, so the server never reads half a file:
+A scheduled script exports what a source shows into the data folder. It writes to a temporary name
+first and then moves the file, so the server never reads half a file:
 
 ```powershell
 $rows = Invoke-Sqlcmd -Query 'SELECT Region, Product, Sales, OrderDate FROM dbo.Sales'
@@ -205,15 +243,15 @@ $rows | Export-Csv -Path 'D:\pivotkit\data\sales.tmp' -NoTypeInformation -Encodi
 Move-Item -Path 'D:\pivotkit\data\sales.tmp' -Destination 'D:\pivotkit\data\sales.csv' -Force
 ```
 
-A source's `"link"` is the page of a PSU app that shows the report with pivotkit; `create_link` then
-makes links that open the view there, and the page loads the data with the rights of the person who
+A source's `"link"` is the page of a PSU app that shows the report with pivotkit. `create_link` then
+makes links that open the view there. The page loads the data with the rights of the person who
 opens it.
 
 ### A service account and its file rights { #psu-account }
 
-Run the server as an account of its own with no rights beyond its folders, never as PSU's account
-or as LocalSystem: a local or domain account (here `pivotkit-svc`) that is no administrator (NSSM gives
-it the right *Log on as a service*). What it needs:
+Run the server as an account of its own with no rights beyond its folders. Never run it as PSU's
+account or as LocalSystem. Use a local or domain account that is no administrator, here
+`pivotkit-svc`. NSSM gives it the right *Log on as a service*. The accounts need these rights:
 
 | Folder | The server's account | PSU's account |
 | --- | --- | --- |
@@ -233,36 +271,42 @@ icacls D:\pivotkit\data D:\pivotkit\logs /grant "<PSU's account>:(OI)(CI)M"
 icacls D:\pivotkit\out /grant "<PSU's account>:(OI)(CI)RX"
 ```
 
-`<PSU's account>` is the account the PSU service runs as. `secrets` holds only what the two
-accounts and the administrators may read: remove the inherited rights, then grant them:
+`<PSU's account>` is the account the PSU service runs as. Only the two accounts and the
+administrators may read `secrets`. Remove the inherited rights, then grant theirs:
 
 ```powershell
 icacls D:\pivotkit\secrets /inheritance:r
 icacls D:\pivotkit\secrets /grant "Administrators:(OI)(CI)F" "pivotkit-svc:(OI)(CI)RX" "<PSU's account>:(OI)(CI)M"
 ```
 
-The server refuses to start when the
-output folder is the configuration's folder or holds a source, a print template or a token file.
-Its checks of links and hard links are measured on Linux and macOS
-([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows).
+The server refuses to start in these cases:
+
+- The output folder is the configuration's folder.
+- The output folder holds a source, a print template or a token file.
+
+Its checks of links and hard links are measured on Linux and macOS.
+[#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows.
 
 ### The token from a PSU secret { #psu-token }
 
 The server reads a token file on every request, so a new token takes effect without a restart. A
-PSU script writes the secret (here `PivotkitToken`, a string secret) into that file, at the start
-and whenever the token is changed:
+PSU script writes the secret into that file, at the start and whenever the token changes. Here the
+secret is `PivotkitToken`, a string secret:
 
 ```powershell
 Set-Content -Path 'D:\pivotkit\secrets\psu-token' -Value $Secret:PivotkitToken -NoNewline
 ```
 
-PSU's scripts and apps send the same secret: `Authorization = "Bearer $Secret:PivotkitToken"`
-([the calls in PowerShell](rest.md#powershell)). A secret with roles is not available to scheduled
-jobs ([PSU's variables](https://docs.devolutions.net/powershell-universal/platform/variables)), so
-the script that writes the file runs on a schedule only with a secret without roles. Without a
-token file, `$PIVOTKIT_TOKEN` in the service's environment works too; a service manager keeps it in
-its configuration (NSSM: in the service's registry key; check that key's rights before you put a
-token there).
+PSU's scripts and apps send the same secret: `Authorization = "Bearer $Secret:PivotkitToken"`.
+See [the calls in PowerShell](rest.md#powershell).
+
+Scheduled jobs cannot use a secret with roles (see
+[PSU's variables](https://docs.devolutions.net/powershell-universal/platform/variables)). So the
+script that writes the file runs on a schedule only with a secret without roles.
+
+Without a token file, `$PIVOTKIT_TOKEN` in the service's environment works too. A service manager
+keeps it in its configuration. NSSM keeps it in the service's registry key. Check that key's rights
+before you put a token there.
 
 ### A Windows service with a rotated log { #psu-service }
 
@@ -281,19 +325,25 @@ nssm set pivotkit AppRotateBytes 10485760
 nssm start pivotkit
 ```
 
-The server writes one line per event on stderr, as JSON since the service's stderr is no terminal
-([operations and logs](../reference/operations.md)): no view, value, token or path. NSSM restarts the process when it ends, and with `AppRotateFiles` and
-`AppRotateOnline` renames the log once it is larger than `AppRotateBytes` (10 MiB here), also while
-the service runs.
+The server writes one line per event on stderr. The line is JSON, since the service's stderr is no
+terminal. It holds no view, value, token or path. See [operations and logs](../reference/operations.md).
 
-Set the account before `nssm start pivotkit`: without `ObjectName` the service runs as LocalSystem.
-The password goes from `Get-Credential` to NSSM in a variable, so it is not in the shell's history,
-but it is an argument of `nssm`, visible in the process list while that command runs. To avoid
-that, leave out the `ObjectName` line and set the account in the service's properties instead
-(`services.msc`, **Log On**) before you start it, or install with NSSM's dialog (`nssm install
-pivotkit` without a program), whose **Log on** tab takes the account. A service set up in the dialog
-still needs the folder, the log and its rotation: the `nssm set` lines above, or the dialog's
-**Application** (its **Startup directory**), **I/O** and **File rotation** tabs.
+NSSM restarts the process when it ends. With `AppRotateFiles` and `AppRotateOnline`, NSSM renames
+the log once it is larger than `AppRotateBytes`, here 10 MiB. It does that also while the service
+runs.
+
+Set the account before `nssm start pivotkit`. Without `ObjectName`, the service runs as LocalSystem.
+
+The password goes from `Get-Credential` to NSSM in a variable, so it is not in the shell's history.
+But it is an argument of `nssm`, and the process list shows it while that command runs. To avoid
+that, leave out the `ObjectName` line and use one of these ways before you start the service:
+
+- Set the account in the service's properties: `services.msc`, **Log On**.
+- Install with NSSM's dialog: `nssm install pivotkit` without a program. Its **Log on** tab takes the account.
+
+A service set up in the dialog still needs the folder, the log and its rotation. Set them with the
+`nssm set` lines above, or in the dialog's tabs **Application** (its **Startup directory**),
+**I/O** and **File rotation**.
 
 NSSM keeps every renamed file, so a PSU schedule deletes old ones:
 
@@ -303,15 +353,16 @@ Get-ChildItem 'D:\pivotkit\logs\pivotkit-*.log' | Where-Object LastWriteTime -lt
 
 ### IIS with ARR in front { #psu-iis }
 
-When IIS serves the address (TLS, the certificate), let it forward to the server with URL Rewrite and
-Application Request Routing (ARR), as in Microsoft's
+IIS can serve the address, with TLS and the certificate. Then let it forward to the server with URL
+Rewrite and Application Request Routing (ARR), as in Microsoft's
 [reverse proxy walkthrough](https://learn.microsoft.com/en-us/iis/extensions/url-rewrite-module/reverse-proxy-with-url-rewrite-v2-and-application-request-routing):
 
 1. In IIS Manager, on the server node, open **Application Request Routing**, **Server Proxy
-   Settings**: check **Enable proxy**, and set **Response Buffer Threshold (KB)** to 0, so
-   responses of `/mcp` are not held back
+   Settings**. Check **Enable proxy**. Set **Response Buffer Threshold (KB)** to 0, so ARR does not
+   hold back responses of `/mcp`
    ([why](https://learn.microsoft.com/en-us/archive/blogs/asiatech/transfer-encoding-chunked-is-not-in-the-response-header-when-using-arr)).
-2. A site of its own for the address (`reports.example.com`, HTTPS binding) with this `web.config`:
+2. Make a site of its own for the address, `reports.example.com` with an HTTPS binding. Give it this
+   `web.config`:
 
    ```xml
    <configuration>
@@ -328,26 +379,34 @@ Application Request Routing (ARR), as in Microsoft's
    </configuration>
    ```
 
-3. `http.publicUrl` in `pivotkit.json` is the address IIS serves. The server answers to its own
-   loopback names and the host of `http.publicUrl`, so it takes the request whether or not ARR keeps
+3. Set `http.publicUrl` in `pivotkit.json` to the address IIS serves. The server answers to its own
+   loopback names and the host of `http.publicUrl`. So it takes the request whether or not ARR keeps
    the client's `Host` header.
 
-The server listens on 127.0.0.1, so only IIS reaches it. Set `http.trustProxy` only when ARR writes
-the client's address into `X-Forwarded-For`; the server then counts refused tokens per client and
-logs the client's address ([behind a reverse proxy](../reference/rest.md#running)). ARR ends a
-request that takes longer than its **Time-out** (in the same **Server Proxy Settings**); keep it
-above the longest a request to the server may take (an HTTP request to `/mcp` has 30 seconds,
-[MCP server](../reference/mcp.md#http)), so a long answer is not cut off (not tested with ARR).
+The server listens on 127.0.0.1, so only IIS reaches it.
 
-A server that offers MCP alone runs the same way with `pivotkit-mcp`'s own command
-(`node_modules\pivotkit-mcp\bin\pivotkit-mcp.js --config ... --http --auth token`, the token in
-`$PIVOTKIT_MCP_TOKEN`).
+Set `http.trustProxy` only when ARR writes the client's address into `X-Forwarded-For`. The server
+then counts refused tokens per client and logs the client's address. See
+[behind a reverse proxy](../reference/rest.md#running).
+
+ARR ends a request that takes longer than its **Time-out**, in the same **Server Proxy Settings**.
+Keep it above the longest time a request to the server may take, so ARR does not cut off a long
+answer. An HTTP request to `/mcp` has 30 seconds, as [MCP server](../reference/mcp.md#http) says.
+This is not tested with ARR.
+
+A server that offers MCP alone runs the same way with `pivotkit-mcp`'s own command:
+`node_modules\pivotkit-mcp\bin\pivotkit-mcp.js --config ... --http --auth token`. The token goes in
+`$PIVOTKIT_MCP_TOKEN`.
 
 ## The skill { #skill }
 
-The server teaches the model its workflow through its instructions, the prompt `pivotkit_report`,
-and MCP skills for clients that support them. The same skill is a folder you can install in clients
-that read skills:
+The server teaches the model its workflow in three ways:
+
+- its instructions
+- the prompt `pivotkit_report`
+- MCP skills, for clients that support them
+
+The same skill is a folder. You can install it in clients that read skills:
 
 === "Claude Code plugin"
 
@@ -356,11 +415,13 @@ that read skills:
     /plugin install pivotkit-mcp@pivotkit
     ```
 
-    The plugin holds the skill only; add the server with `claude mcp add` as above. Plugin and server
-    update separately ([Update an installation](upgrading.md#update-plugin)).
+    The plugin holds only the skill. Add the server with `claude mcp add` as above. Plugin and server
+    update separately. See [Update an installation](upgrading.md#update-plugin).
 
 === "A skill folder"
 
-    Copy `skills/pivotkit-reports/` from the installed package (`node_modules/pivotkit-mcp/skills/`)
-    or from [the repository](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-mcp/skills/pivotkit-reports)
-    into your client's skills folder (for Claude Code: `~/.claude/skills/`).
+    Copy `skills/pivotkit-reports/` into your client's skills folder. For Claude Code, that is
+    `~/.claude/skills/`. Take the folder from one of these places:
+
+    - the installed package: `node_modules/pivotkit-mcp/skills/`
+    - [the repository](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-mcp/skills/pivotkit-reports)

@@ -5,226 +5,305 @@ description: Every feature of pivotkit by area - loading files, the field list, 
 
 # Features
 
-Every feature of pivotkit by area. Each area says what people do with it and what a developer sets,
-and links to the page that describes it with all its small behaviours. The [start page](index.md) has
-the short version, the [comparison](compare.md) sets it beside other pivot components.
+Every feature of pivotkit by area. Each area says what people do with it and what a developer sets.
+It links to the page that describes it with all its small behaviours. The [start page](index.md) has
+the short version. The [comparison](compare.md) sets pivotkit beside other pivot components.
 
 ## Load your own data { #import }
 
 <span id="loading-files"></span><span id="data"></span>
 
-- People drop a CSV, TSV, JSON or Excel file onto the report or pick it under **Data**: a preview
-  shows the first rows with a type under each column (change it there), the sheet of a workbook,
-  and notes on what was read how; Undo and **Back to original data** bring the application's data
-  back; views remember the file they were made for, and on a workbook its sheet: a view of another
-  sheet reads that sheet when it is opened ([load your own data](use/load-data.md#after-loading)).
-- Read right: encodings, separators, title lines above the header, German and English numbers and
-  dates, leading zeros kept ("01067"), long identifiers kept as text ([loading files](reference/import.md)).
-- Developers: `allowImport` (off by default), `plugins` ([pivotkit-xlsx](reference/plugins.md#pivotkit-xlsx)
-  for Excel), `importWorker`, `importLimits` apart from the host's `limits`, `onDataLoad`; the
-  application's own data as objects or one array per column, typed, with `dataKey`, `encoded` and
-  `loading` ([React props](reference/react.md#prop-allowimport), [pivotkit-core](reference/core.md#data)).
+- People drop a CSV, TSV, JSON or Excel file onto the report, or pick it under **Data**
+  ([load your own data](use/load-data.md#after-loading)).
+    - A preview shows the first rows with a type under each column. People change the type there.
+    - The preview also shows the sheet of a workbook, and notes on what was read how.
+    - Undo and **Back to original data** bring the application's data back.
+    - Views remember the file they were made for, and on a workbook its sheet. When people open a
+      view of another sheet, it reads that sheet.
+- The file is read right ([loading files](reference/import.md)):
+    - encodings, separators, and title lines above the header
+    - German and English numbers and dates
+    - leading zeros kept ("01067"), and long identifiers kept as text
+- Developers ([React props](reference/react.md#prop-allowimport), [pivotkit-core](reference/core.md#data)):
+    - `allowImport`, off by default
+    - `plugins`, with [pivotkit-xlsx](reference/plugins.md#pivotkit-xlsx) for Excel
+    - `importWorker`, `onDataLoad`, and `importLimits` apart from the host's `limits`
+    - the application's own data as objects or one array per column, typed, with `dataKey`, `encoded`
+      and `loading`
 
 ## The field list and the zones { #zones-and-fields }
 
-- Rows, Columns, Values and Filters; a field is dragged, clicked (numbers to Values, the rest to
-  Rows) or placed through its menu: drag and drop is never the only way; types with icons, a search,
-  chips that show their filter, top N and sort; Swap rows and columns ([fields and zones](use/fields.md)).
-- The table: subtotals and grand totals, expand and collapse, sticky headers, long labels that wrap,
-  fast from 300 rows on ([the table](use/fields.md#the-table)).
-- Developers: field labels, descriptions and links, an aggregator, format and item order per field
-  (`fieldDefaults`), also from a JSON Schema or OpenAPI document ([field descriptions](concepts/fields.md)).
+- Rows, Columns, Values and Filters ([fields and zones](use/fields.md)):
+    - People drag a field, click it, or place it through its menu. Drag and drop is never the only
+      way. A click puts numbers into Values and the rest into Rows.
+    - Types with icons, and a search.
+    - Chips that show their filter, top N and sort.
+    - Swap rows and columns.
+- The table ([the table](use/fields.md#the-table)): subtotals and grand totals, expand and collapse,
+  sticky headers, and long labels that wrap. It is fast from 300 rows on.
+- Developers: per field a label, a description, links, an aggregator, a format and an item order
+  (`fieldDefaults`). They can also come from a JSON Schema or OpenAPI document
+  ([field descriptions](concepts/fields.md)).
 
 <span id="table"></span>
 
 ## Filters { #filters }
 
-- Items with their row counts, a search and **Only**; quick choices for dates in a unit (this, last
-  N, next N, before the last N, rolling) that stay right over time, counted from today, the latest
-  or first record or a date; rules on the item ("from 2022"), its name ("does not begin with") and its
-  total ("Sum of Revenue > 1,000"), each saying what it keeps; items without a value kept or left;
-  top or bottom N within groups, with ties; the same menu in Filters
-  ([filters, top N and sorting](use/filters.md)).
-- Developers: one filter shape with `not` and `blanks` for items, blanks, text, comparisons, relative
-  ranges from hours to years, top N and value conditions ([filters](concepts/filters.md)).
+- The filter menu ([filters, top N and sorting](use/filters.md)):
+    - Items with their row counts, a search and **Only**.
+    - Quick choices for dates in a unit: this, last N, next N, before the last N, and rolling. They
+      stay right over time. They count from today, the latest or first record, or a date.
+    - Rules on the item ("from 2022"), on its name ("does not begin with") and on its total ("Sum of
+      Revenue > 1,000"). Each rule says what it keeps.
+    - Items without a value kept or left out.
+    - Top or bottom N within groups, with ties.
+    - The same menu in Filters.
+- Developers: one filter shape with `not` and `blanks`. It covers items, blanks, text, comparisons,
+  relative ranges from hours to years, top N and value conditions ([filters](concepts/filters.md)).
 
 ## Dates and number ranges { #dates }
 
-- A date is grouped as it is placed, by the span of its values: along the time line (year, quarter,
-  month, week, day, hour) or as the same period every year (quarter, month or week of the year,
-  weekday, hour of the day), with **Years combined** for the years a cyclic grouping joins; numbers
-  into ranges ([dates and number ranges](use/values.md#dates-and-number-ranges), [years combined](use/filters.md#years-combined)).
-- Developers: derived fields in the view, wall-clock dates in the data's `timeZone`
+- A date is grouped by the span of its values as soon as people place it
+  ([dates and number ranges](use/values.md#dates-and-number-ranges), [years combined](use/filters.md#years-combined)):
+    - along the time line: year, quarter, month, week, day, hour
+    - as the same period every year: quarter, month or week of the year, weekday, hour of the day
+    - **Years combined** for the years a cyclic grouping joins
+- Numbers are grouped into ranges.
+- Developers: derived fields in the view, and wall-clock dates in the data's `timeZone`
   ([dates](concepts/dates.md), [time zones](concepts/limits.md)).
 
 ## Values { #values }
 
-- Sum, count, average, median, minimum, maximum, distinct count, statistics, first and last; show
-  values as shares of the grand, row, column or parent total, differences, running totals and ranks;
-  number formats; colour scales and data bars; a name of your own ([values and formats](use/values.md)).
+- Values and formats ([values and formats](use/values.md)):
+    - Sum, count, average, median, minimum, maximum, distinct count, statistics, first and last.
+    - Show values as shares of the grand, row, column or parent total, as differences, running totals
+      and ranks.
+    - Number formats, colour scales and data bars.
+    - A name of your own.
 - Developers: `AGGREGATORS`, `SHOW_AS` and formats as tables of the engine ([values](concepts/values.md)).
 
 ## Totals and sorting { #sorting }
 
-- Subtotals and grand totals on or off per axis; sorting by label, by any value or in a custom
-  order; a click on a header sorts ([sorting](use/filters.md#sorting), [totals](use/fields.md#the-table)).
+- Subtotals and grand totals on or off per axis ([totals](use/fields.md#the-table)).
+- Sorting by label, by any value or in a custom order. A click on a header sorts
+  ([sorting](use/filters.md#sorting)).
 
 ## The rows behind a number { #drill-down }
 
-- Click a value or a chart mark: the rows behind it in a panel, enlarged on request, to copy, copy as
-  JSON, or download as CSV or Excel ([the rows behind a number](use/drill-down.md)).
-- Developers: `drillDown`, `drillDownLimit`, `onCellClick` with the rows ([React props](reference/react.md#props)).
+- Click a value or a chart mark. A panel shows the rows behind it
+  ([the rows behind a number](use/drill-down.md)). People can enlarge it, copy the rows, copy them as
+  JSON, or download them as CSV or Excel.
+- Developers: `drillDown`, `drillDownLimit`, and `onCellClick` with the rows ([React props](reference/react.md#props)).
 
 ## Charts { #chart }
 
-- Table or chart with one switch; the type follows the data (lines over dates, else bars) until
-  people pick bars, stacked or horizontal bars, lines, area, pie, donut or heatmap; value labels,
-  legend, title, smooth lines, axis and group labels; tips that suggest a better type ([charts](use/charts.md)).
-- Developers: the view's `chart` settings, `autoChartType`, `chartOptions` as checked plain JSON
+- Table or chart with one switch ([charts](use/charts.md)):
+    - The type follows the data: lines over dates, else bars. That holds until people pick a type:
+      bars, stacked or horizontal bars, lines, area, pie, donut or heatmap.
+    - Value labels, legend, title, smooth lines, axis and group labels.
+    - Tips that suggest a better type.
+- Developers: the view's `chart` settings, `autoChartType`, and `chartOptions` as checked plain JSON
   ([charts](concepts/charts.md)).
 
 ## Views, saving and sharing { #saved-views }
 
 <span id="sharing"></span>
 
-- Undo and redo every step; Start over (Reset, New); the view's name in the toolbar with a dot for
-  unsaved changes; Save and Save as; shared views and my views; publish where allowed; copy a link,
-  copy the view as JSON, download or open a view file; a view for other data asks first
-  ([views, saving and sharing](use/views.md)).
-- Developers: the view is versioned JSON with published JSON Schemas, controlled or not; `templates`,
-  `onSaveTemplate`, `onDeleteTemplate`, `onPublishTemplate`, `templateStore="browser"`,
-  `x-pivotkit-views` in an OpenAPI document; view files (`toViewFile`, `fromViewFile`), links in the
-  URL fragment (`shareLink`, `readViewLink`), `source`, `sources`, `onSourceSwitch`,
-  `persistView` ([views](concepts/views.md), [templates](concepts/templates.md),
-  [sharing](concepts/sharing.md), [view file format](reference/view-file.md)).
+- People work with views like this ([views, saving and sharing](use/views.md)):
+    - Undo and redo every step. Start over with Reset or New.
+    - The view's name in the toolbar, with a dot for unsaved changes.
+    - Save and Save as. Shared views and my views. Publish where allowed.
+    - Copy a link, copy the view as JSON, download or open a view file.
+    - A view for other data asks first.
+- Developers ([views](concepts/views.md), [templates](concepts/templates.md),
+  [sharing](concepts/sharing.md), [view file format](reference/view-file.md)):
+    - The view is versioned JSON with published JSON Schemas, controlled or not.
+    - `templates`, `onSaveTemplate`, `onDeleteTemplate`, `onPublishTemplate`,
+      `templateStore="browser"`, and `x-pivotkit-views` in an OpenAPI document.
+    - View files (`toViewFile`, `fromViewFile`) and links in the URL fragment (`shareLink`,
+      `readViewLink`).
+    - `source`, `sources`, `onSourceSwitch` and `persistView`.
 
 ## Explanations, tips and messages { #tips }
 
-- An **i** next to each zone, each field the application describes and each setting that needs one;
-  tips one at a time above the result; greyed-out entries that say why; status messages; parts of a
-  view that could not be used, in plain words; menus in levels with a search; an × in every text
-  field ([small screens, menus and tips](use/layout.md), [behaviour reference](use/behaviour.md)).
-- Developers: `tips`, `storageKey`, `dismissedTips`, `onTipDismiss`, `fieldInfo`, `zoneInfo`,
+- Help where people need it ([small screens, menus and tips](use/layout.md), [behaviour reference](use/behaviour.md)):
+    - An **i** next to each zone, each field the application describes and each setting that needs
+      one.
+    - Tips one at a time above the result.
+    - Greyed-out entries that say why.
+    - Status messages.
+    - Parts of a view that could not be used, in plain words.
+    - Menus in levels with a search, and an × in every text field.
+- Developers: `tips`, `storageKey`, `dismissedTips`, `onTipDismiss`, `fieldInfo`, `zoneInfo` and
   `settingInfo` ([tips](reference/react.md#tips)).
 
 ## Keyboard and screen readers { #accessibility }
 
-- Every action by keyboard and by a menu; the field list as one Tab stop; chips moved with the
-  arrow keys and their place announced; the table by arrow keys; a text alternative of the chart;
-  focus kept on purpose; 44 px touch targets on a phone ([keyboard and screen readers](use/keyboard.md)).
-- Both themes meet WCAG contrast ratios, checked by a test; no conformance level is claimed
-  ([theming](reference/theming.md)).
+- Keyboard and screen readers ([keyboard and screen readers](use/keyboard.md)):
+    - Every action by keyboard and by a menu.
+    - The field list as one Tab stop.
+    - Chips moved with the arrow keys, with their place announced.
+    - The table by arrow keys.
+    - A text alternative of the chart.
+    - Focus kept on purpose.
+    - 44 px touch targets on a phone.
+- Both themes meet WCAG contrast ratios, and a test checks them. pivotkit claims no conformance
+  level ([theming](reference/theming.md)).
 
 ## Languages { #languages }
 
-- English and German built in, numbers and dates in the language ([in German](use/layout.md#in-german)).
-- Developers: every text replaceable through `labels`, `locale`; a new language in a few files
+- English and German built in, with numbers and dates in the language ([in German](use/layout.md#in-german)).
+- Developers: every text replaceable through `labels` and `locale`. A new language takes a few files
   ([localisation](reference/localisation.md)).
 
 ## Theming { #theming }
 
 - Light and dark, following the page or the system.
 - Developers: `--pk-*` CSS custom properties for colours, fonts, weights, sizes, corners and chart
-  colours; the chart, the HTML report, print and the Excel export take the same tokens, inside a
+  colours. The chart, the HTML report, print and the Excel export take the same tokens, inside a
   shadow root too ([theming](reference/theming.md)).
 
 ## Exports and the source data { #export }
 
-- The table as an Excel workbook (merged headers, bold totals, number formats, colour scales and
-  data bars as Excel's own conditional formats), a CSV safe to open, an HTML report, the chart as PNG
-  or SVG, print or save as PDF, copy the table or its data as JSON ([export and copy](use/export.md)).
-- Where the application turns it on, **Source data**: every row behind the report as CSV or JSON,
+- Exports and copies ([export and copy](use/export.md)):
+    - The table as an Excel workbook: merged headers, bold totals, number formats, and colour scales
+      and data bars as Excel's own conditional formats.
+    - A CSV safe to open.
+    - An HTML report.
+    - The chart as PNG or SVG.
+    - Print, or save as PDF.
+    - Copy the table, or its data as JSON.
+- **Source data**, where the application turns it on: every row behind the report as CSV or JSON,
   for your own analysis or the command line ([the table or the rows](use/export.md#the-table-or-the-rows-behind-it)).
-- Developers: `fileName`, `exportData`, every file and copy through `onExport`
+- Developers: `fileName`, `exportData`, and every file and copy through `onExport`
   ([React props](reference/react.md#prop-exportdata)).
 
 ## Reports without a browser and the command line { #reports-without-a-browser }
 
-- `pivotkit-report`: a view over rows to an HTML report from a print template, CSV, JSON, XLSX or SVG,
-  in Node and the browser, the same table and chart as on the screen
+- `pivotkit-report` renders a view over rows in Node and in the browser
   ([reports in code](getting-started/report.md), [pivotkit-report](reference/report.md),
-  [print template](reference/print-template.md); two templates to start from, Corporate and Minimal,
-  with `pivotkit example templates`: [your own corporate design](reference/corporate-design.md)).
-- `pivotkit-cli`: `pivotkit example`, `render`, `validate` and `describe`; a draft view from a file's
-  fields (`describe --suggest`) and a report without a view file from layout flags (`render --rows
-  ... --values ...`), `--map` for a renamed column, `--save-view`
-  ([a view from the data's fields](reference/cli.md#a-view-from-the-datas-fields)); with exit codes, `--json`,
-  messages that say what to fix, the sheet of a workbook a view names (`describe` lists a workbook's
-  sheets), shell completion and safe file handling; offline, or on a pivotkit-server's sources with
-  `--url` and `--source` and `pivotkit sources` ([with a server](reference/cli.md#with-a-server))
-  ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)).
-- For programs and reviews: `validate` with "did you mean" hints, `describeSource` and `describeView`
-  in plain words ([views](concepts/views.md)).
+  [print template](reference/print-template.md)):
+    - to an HTML report from a print template, CSV, JSON, XLSX or SVG
+    - with the same table and chart as on the screen
+    - with two templates to start from, Corporate and Minimal, from `pivotkit example templates`
+      ([your own corporate design](reference/corporate-design.md))
+- `pivotkit-cli` ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)):
+    - `pivotkit example`, `render`, `validate` and `describe`.
+    - A draft view from a file's fields (`describe --suggest`), and a report without a view file
+      from layout flags (`render --rows ... --values ...`). `--map` for a renamed column, and
+      `--save-view` ([a view from the data's fields](reference/cli.md#a-view-from-the-datas-fields)).
+    - Exit codes, `--json`, and messages that say what to fix.
+    - The sheet of a workbook a view names. `describe` lists a workbook's sheets.
+    - Shell completion and safe file handling.
+    - Offline, or on a pivotkit-server's sources with `--url`, `--source` and `pivotkit sources`
+      ([with a server](reference/cli.md#with-a-server)).
+- For programs and reviews: `validate` with "did you mean" hints, and `describeSource` and
+  `describeView` in plain words ([views](concepts/views.md)).
 
 ## REST service and container { #rest }
 
-- `pivotkit-server`: the same operations for programs over HTTP under `/api/v1` (list and describe
-  sources, validate, describe and render views, links, schedule drafts), an OpenAPI 3.1 document made
-  from the same table, errors as problem documents; sign-in with tokens or OAuth 2.1; policy
-  profiles per token, OAuth client, group or scope, and a default profile (more values, downloads,
-  data sent with the request as JSON or a csv, tsv, json or xlsx file); the person in the log only
-  when the operator asks for it; CORS off by default; limits per caller; `check-config` says
-  whether the server starts and prints each field's level per source and profile; `token new` and
-  `key new` make its tokens and keys into files only their owner reads, `--add` puts a token into
-  the configuration ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
+- `pivotkit-server` ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
   [tokens and keys](reference/rest.md#credentials),
   [reading check-config](reference/rest.md#check-config), [security](security.md#rest),
-  [privacy](privacy.md)).
-- Sources for both: data files, an operator's API as an HTTP source (its address written once with
-  typed parameters a caller fills, paging, data kept per caller, a sign-in to the backend by a
-  secret header, OAuth client credentials or a token exchange for the signed-in person, parameters
-  bound to a claim of the sign-in, `pivotkit-server check-source` to test it,
-  `pivotkit-server source-from-openapi` to start from the API's OpenAPI document) and a library
-  host's code sources ([data sources](reference/sources.md)).
-- Download links: the server serves each report for a while under a link that expires; for sources
-  whose fields are not all shown only to the person who asked, after signing in with your identity
-  provider ([download links](reference/delivery.md)); or uploaded to a store you run, through a presign
-  service or an address template, with the store's link in the result ([upload](reference/delivery.md#upload)).
-- One container image for the REST service, the MCP server and the command line: distroless Node 22,
-  non-root, read-only, health checks, signed with provenance and an SBOM; one `docker run` serves
-  example data with a token the server makes at its first start and keeps in a volume, with the
-  download links' key, read back with `token show` ([server in 5 minutes](getting-started/server-in-5-minutes.md),
+  [privacy](privacy.md)):
+    - The same operations for programs over HTTP under `/api/v1`: list and describe sources,
+      validate, describe and render views, links, and schedule drafts.
+    - An OpenAPI 3.1 document made from the same table.
+    - Errors as problem documents.
+    - Sign-in with tokens or OAuth 2.1.
+    - Policy profiles per token, OAuth client, group or scope, and a default profile. A profile can
+      allow more values, downloads, and data sent with the request as JSON or as a csv, tsv, json or
+      xlsx file.
+    - The person in the log only when the operator asks for it.
+    - CORS off by default, and limits per caller.
+    - `check-config` says whether the server starts. It prints each field's level per source and
+      profile.
+    - `token new` and `key new` make tokens and keys into files only their owner can read. `--add`
+      puts a token into the configuration.
+- Sources for both services ([data sources](reference/sources.md)):
+    - data files
+    - an operator's API as an HTTP source
+    - a library host's code sources
+- An HTTP source offers:
+    - its address written once, with typed parameters a caller fills
+    - paging, and data kept per caller
+    - a sign-in to the backend by a secret header, OAuth client credentials, or a token exchange for
+      the signed-in person
+    - parameters bound to a claim of the sign-in
+    - `pivotkit-server check-source` to test it
+    - `pivotkit-server source-from-openapi` to start from the API's OpenAPI document
+- Download links ([download links](reference/delivery.md)):
+    - The server serves each report for a while under a link that expires.
+    - For sources whose fields are not all shown, only the person who asked gets the report, after
+      signing in with your identity provider.
+    - Or the report is uploaded to a store you run, through a presign service or an address
+      template. The result holds the store's link ([upload](reference/delivery.md#upload)).
+- One container image for the REST service, the MCP server and the command line
+  ([server in 5 minutes](getting-started/server-in-5-minutes.md),
   [made at the first start](reference/rest.md#first-start), [container image](reference/container.md),
-  [Kubernetes](getting-started/kubernetes.md)).
-- A log for operations: JSON lines (text on a terminal) with level, severity, request and trace ids,
-  the client's address, outcome and a refused request's reason; `X-Request-Id` on every answer, and
-  examples for Docker's `gelf` and `syslog` drivers ([operations and logs](reference/operations.md)).
+  [Kubernetes](getting-started/kubernetes.md)):
+    - Distroless Node 22, non-root, read-only, with health checks.
+    - Signed, with provenance and an SBOM.
+    - One `docker run` serves example data. At its first start the server makes a token and the
+      download links' key and keeps them in a volume. `token show` reads the token back.
+- A log for operations ([operations and logs](reference/operations.md)):
+    - JSON lines, or text on a terminal.
+    - Level, severity, request and trace ids, the client's address, the outcome and a refused
+      request's reason.
+    - `X-Request-Id` on every answer.
+    - Examples for Docker's `gelf` and `syslog` drivers.
 
 ## AI clients (MCP) { #mcp }
 
-- `pivotkit-mcp`: tools to list and describe sources, suggest a draft view, write (or lay out by field names), validate and describe views, render
-  reports into files, make links and draft schedules; the model never reads the data itself
-  ([getting started](getting-started/mcp.md), [pivotkit-mcp](reference/mcp.md), [security](security.md#mcp)).
-- An exposure policy per field: `show` (values and results), `values` (a category's values as a
-  complete list, so the model filters on exact names, but no result), `summary` (name, type and
-  counts; the default) or `hide`; an automatic `values` rule for category fields, off by default,
-  that `check-config` previews; results over fields that are not shown stay in the file
-  ([what reaches an AI model](model-data.md), [exposure policy](reference/mcp.md#policy)).
+- `pivotkit-mcp` ([getting started](getting-started/mcp.md), [pivotkit-mcp](reference/mcp.md), [security](security.md#mcp)):
+    - Tools to list and describe sources, and to suggest a draft view.
+    - Tools to write views, or lay them out by field names, and to validate and describe them.
+    - Tools to render reports into files, make links and draft schedules.
+    - The model never reads the data itself.
+- An exposure policy per field ([what reaches an AI model](model-data.md), [exposure policy](reference/mcp.md#policy)):
+
+    | Level | The model gets |
+    | --- | --- |
+    | `show` | values and results |
+    | `values` | a category's values as a complete list, so the model filters on exact names, but no result |
+    | `summary`, the default | name, type and counts |
+    | `hide` | nothing |
+
+    - An automatic `values` rule for category fields. It is off by default, and `check-config`
+      previews it.
+    - Results over fields that are not shown stay in the file.
 - One server, different rules per client: a profile per token, OAuth client, group or scope, and a
-  default profile, so a cloud assistant sees less than a model on your own hardware
+  default profile. So a cloud assistant sees less than a model on your own hardware
   ([per client](model-data.md#per-client)).
 - A result only in the answer, saved nowhere: `render_view` with `save: false` returns a small csv
-  or json over shown fields inline and writes no file ([inline only](reference/mcp.md#inline-only)).
-- When the data is from (`dataAsOf`) in every result and in the html and xlsx files the services
-  write; a small table of
-  the model's own (`inline:`, capped, switched off with `mcp.data: false`); stdio and Streamable HTTP
-  with a token or OAuth 2.1; a skill that teaches the workflow ([data in the request](reference/mcp.md#data)).
+  or json over shown fields inline. It writes no file ([inline only](reference/mcp.md#inline-only)).
+- More ([data in the request](reference/mcp.md#data)):
+    - When the data is from (`dataAsOf`), in every result and in the html and xlsx files the
+      services write.
+    - A small table of the model's own (`inline:`). It is capped, and `mcp.data: false` switches it
+      off.
+    - stdio and Streamable HTTP with a token or OAuth 2.1.
+    - A skill that teaches the workflow.
 
 ## Security { #security }
 
-- What an AI model and its provider receive is the exposure policy's decision, per field and per
-  client; what is processed where, for how long and for whom is listed for operators
+- The exposure policy decides what an AI model and its provider receive, per field and per client.
+  Operators get a list of what is processed where, for how long and for whom
   ([what reaches an AI model](model-data.md), [privacy for operators](privacy.md)).
-- A view holds names only (and the values chosen in its filters), is checked against fixed lists and
-  limits and cannot run code; a loaded file is checked before it is parsed; exports are safe to open;
-  data is written as text, never markup; a strict CSP works. Not access control: send only the rows a
-  viewer may see ([security](security.md)).
+- What protects the report ([security](security.md)):
+    - A view holds names only, and the values chosen in its filters.
+    - A view is checked against fixed lists and limits, and cannot run code.
+    - A loaded file is checked before it is parsed.
+    - Exports are safe to open.
+    - Data is written as text, never markup.
+    - A strict CSP works.
+- pivotkit is not access control: send only the rows a viewer may see.
 
 ## Limits and performance { #limits }
 
-- Rows, groups, cells and work capped before anything big is allocated; links capped while they are
-  inflated; a loaded file's own limits ([limits](concepts/limits.md#limits)).
-- Measured up to 1,000,000 rows in three browsers on one Mac; heavy parts loaded on first use
+- Rows, groups, cells and work are capped before anything big is allocated. Links are capped while
+  they are inflated. A loaded file has its own limits ([limits](concepts/limits.md#limits)).
+- Measured up to 1,000,000 rows in three browsers on one Mac. Heavy parts load on first use
   ([measured in the browser](concepts/limits.md#measured-in-the-browser),
   [bundle size](reference/element.md#bundle-size)).
 
@@ -232,14 +311,17 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 
 <span id="props-and-attributes"></span>
 
-- `pivotkit-react` (`<PivotReport>`, React 18 and 19), `pivotkit-element` (`<pivot-report>` with its
-  own React, for Angular, PHP and plain HTML; attributes, properties, `pivot-*` events with
-  `respondWith()`), `pivotkit-core` (the engine, browser and Node), `pivotkit-xlsx`,
-  `pivotkit-report`, `pivotkit-cli`, `pivotkit-server`, `pivotkit-mcp` ([Embed pivotkit](embed/index.md), [pivotkit-element](reference/element.md)).
-- Programs over REST and AI clients through MCP, with what a caller may see set per field
+- The packages ([Embed pivotkit](embed/index.md), [pivotkit-element](reference/element.md)):
+    - `pivotkit-react`: `<PivotReport>`, for React 18 and 19.
+    - `pivotkit-element`: `<pivot-report>` with its own React, for Angular, PHP and plain HTML. It
+      has attributes, properties, and `pivot-*` events with `respondWith()`.
+    - `pivotkit-core`: the engine, for the browser and Node.
+    - `pivotkit-xlsx`, `pivotkit-report`, `pivotkit-cli`, `pivotkit-server` and `pivotkit-mcp`.
+- Programs over REST and AI clients through MCP. You set per field what a caller may see
   ([REST service](getting-started/rest.md), [MCP server](getting-started/mcp.md)).
-- Bundlers and import maps, several reports on one page, PowerShell Universal on the React it
-  provides and as the module `New-UDPivotReport` ([recipes](embed/recipes.md),
-  [PowerShell Universal](getting-started/react.md#powershell-universal)).
+- Recipes ([recipes](embed/recipes.md), [PowerShell Universal](getting-started/react.md#powershell-universal)):
+    - bundlers and import maps
+    - several reports on one page
+    - PowerShell Universal, on the React it provides and as the module `New-UDPivotReport`
 - Real data to learn with: weather, countries, earthquakes, Nobel laureates, software end of life
   ([learn with real data](learn.md), [live demo](demo.md)).

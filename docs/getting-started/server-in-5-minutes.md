@@ -7,7 +7,11 @@ description: Start the pivotkit container with one command, read the token it ma
 
 One `docker run` starts the REST service and the MCP server with example data. At its first start
 the server makes a token of its own. It keeps the token in a volume. You read it with one command.
-You need Docker (or Podman) and curl or PowerShell, nothing else.
+
+You need only two things:
+
+- Docker or Podman
+- curl or PowerShell
 
 ## 1. Start it { #start }
 
@@ -16,7 +20,7 @@ docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotk
 ```
 
 The volume `pivotkit` keeps what the server makes: the token `admin`, the key of the download links
-and the reports. Without a configuration the server serves its built-in example. That is the source
+and the reports. Without a configuration, the server serves its built-in example: the source
 `example`, 2000 rows of sales.
 
 ## 2. Get the token { #token }
@@ -33,8 +37,8 @@ and the reports. Without a configuration the server serves its built-in example.
     $token = docker exec pivotkit pivotkit-server token show admin
     ```
 
-The log names this command too (`docker logs pivotkit`). It never shows the token itself. Every
-request without the token gets 401.
+The log also names this command. You see it with `docker logs pivotkit`. The log never shows the
+token itself. Every request without the token gets 401.
 
 ## 3. Call it with curl { #curl }
 
@@ -45,9 +49,9 @@ curl -f -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -o revenue.csv http://127.0.0.1:3333/api/v1/views/render/file
 ```
 
-`revenue.csv` holds the revenue per region. `-f` makes curl fail on an error instead of writing it
-into the file. The [REST reference](../reference/rest.md) has every
-route; `format` takes `xlsx`, `json`, `svg` and `html` too.
+`revenue.csv` holds the revenue per region. With `-f`, curl fails on an error instead of writing it
+into the file. `format` also takes `xlsx`, `json`, `svg` and `html`. The
+[REST reference](../reference/rest.md) has every route.
 
 ## 4. The same in PowerShell { #powershell }
 
@@ -76,7 +80,7 @@ Another client that speaks Streamable HTTP takes the address and the header, for
     "headers": { "Authorization": "Bearer <token>" } } } }
 ```
 
-Ask it "Which sources do you have?", then "Revenue per region of example as an Excel file".
+Ask it: "Which sources do you have?" Then ask: "Revenue per region of example as an Excel file."
 [Getting started: MCP server](mcp.md) shows what the model may see and how to choose it.
 
 ## 6. Your own data { #own-data }
@@ -99,11 +103,11 @@ docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotk
   -v "$PWD/data:/data:ro" -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" ghcr.io/eizedev/pivotkit:0.2.0
 ```
 
-- The user 10001 runs the server. It must be able to read the files (`chmod 0644`).
+- The user 10001 runs the server. It must be able to read the files. `chmod 0644` gives it that.
 - `"results": true` lets callers download rendered files, as in step 3.
-- Each field shows its name, type and counts by default, not its values.
-  `"policy": { "fields": { "Region": "show" } }` in a source shows more
-  ([Getting started: REST service](rest.md#policy)).
+- By default, each field shows its name, type and counts, but not its values.
+  `"policy": { "fields": { "Region": "show" } }` in a source shows more. See
+  [Getting started: REST service](rest.md#policy).
 - The server reads only the files you name. A mounted `/data` alone is not readable by path:
   `"files": { "allowDirs": ["/data"] }` allows it, for every token.
 
@@ -147,9 +151,9 @@ and [pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/pivotkit-se
 ### Keep the volume { #volume }
 
 - `/var/lib/pivotkit` holds the token, the key of the download links and the reports.
-- Without a volume there, the server still starts. It warns that they are lost with the container.
+- Without a volume there, the server still starts. It warns that you lose them with the container.
 - With `--read-only` and no volume, the server does not start.
-- Back the volume up like any other ([Operations](../reference/operations.md#state)).
+- Back the volume up like any other. See [Operations](../reference/operations.md#state).
 
 ### A new token { #new-token }
 
@@ -157,7 +161,7 @@ and [pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/pivotkit-se
 docker exec pivotkit pivotkit-server token new --file /var/lib/pivotkit/secrets/admin.token --force
 ```
 
-- The server reads the file on every request. No restart is needed.
+- The server reads the file on every request. You do not need to restart it.
 - The old token gets 401 at once.
 
 ### Other machines { #other-machines }
@@ -173,7 +177,7 @@ docker exec pivotkit pivotkit-server token new --file /var/lib/pivotkit/secrets/
 
 ### Your own tokens, Kubernetes { #more }
 
-- The server makes `admin` only when nothing else gives a token. A token in `auth.tokens` or
-  `$PIVOTKIT_TOKEN` is used instead.
+- The server makes `admin` only when nothing else gives a token. If `auth.tokens` or
+  `$PIVOTKIT_TOKEN` holds a token, the server uses that one instead.
 - Tokens you manage as secrets: [Container image: managed secrets](../reference/container.md#managed-secrets).
 - A cluster: [Kubernetes](kubernetes.md).

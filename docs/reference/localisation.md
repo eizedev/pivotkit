@@ -7,11 +7,13 @@ description: Languages, number and date formats, and how to change single texts 
 
 Two settings decide how a report reads:
 
-- **`locale`** (prop or attribute, default `"en-US"`): numbers, dates, currency, sorting, and the
-  language of the labels. A locale starting with `de` picks German, every other one English. A view's
-  own `formatting.locale` wins for the numbers and dates of that report. The browser's language is
-  never used, so a report looks the same for everyone; on the web component, the element's own `lang`
-  attribute is used when `locale` is not set.
+- **`locale`** is a prop or attribute, default `"en-US"`. It sets numbers, dates, currency, sorting,
+  and the language of the labels.
+    - A locale starting with `de` picks German. Every other locale picks English.
+    - A view's own `formatting.locale` wins for the numbers and dates of that report.
+    - The report never uses the browser's language, so a report looks the same for everyone.
+    - On the web component, the report uses the element's own `lang` attribute when `locale` is not
+      set.
 - **`labels`**: single texts merged over the language's labels.
 
 ![The report in German](../assets/screenshots/german-light.png#only-light)
@@ -24,48 +26,73 @@ Two settings decide how a report reads:
 | English | every locale not listed below | `LABELS.en` |
 | German | `de`, `de-DE`, `de-AT`, `de-CH`, ... | `LABELS.de` |
 
-`LABELS` is exported by pivotkit-react's subpath `pivotkit-react/labels` (`import { LABELS } from "pivotkit-react/labels"`; a subpath of its own, so the report's first load does not carry the menus' texts); its keys are the
-reference for every text (in the source: `src/labels.js`, `src/menu-labels.js`,
-`src/menu-labels-de.js`, `src/unused-texts.js`, `src/unused-texts-de.js` and `src/import-labels.js` of pivotkit-react). The report's `lang` attribute follows the labels, so screen readers use the
-right voice.
+pivotkit-react exports `LABELS` from its subpath `pivotkit-react/labels`:
+`import { LABELS } from "pivotkit-react/labels"`. It is a subpath of its own, so the report's first
+load does not carry the menus' texts. Its keys are the reference for every text. In pivotkit-react's
+source, they live in `src/labels.js`, `src/menu-labels.js`, `src/menu-labels-de.js`,
+`src/unused-texts.js`, `src/unused-texts-de.js` and `src/import-labels.js`.
 
-The texts only the menus show load with the menus, right after the first render: English with them,
-German as a file of its own that only a German report loads (also when `locale` changes to German
-later). The file follows the labels' language, not the locale alone: `labels` with `lang: "de"` (a
-whole German object of a host's) loads it too, any other `lang` takes the English menu texts under its
-`labels`. A menu waits for its language's texts and shows "Loading…" until then, never English first;
-while the language changes with a menu open, the menu keeps its texts until the new ones are there.
-A host's text for a menu entry wins over the built-in one in every language.
+The report's `lang` attribute follows the labels, so screen readers use the right voice.
 
-The words that say a view's [unused parts](../use/behaviour.md#parts-of-a-view-that-were-not-used)
-(`labels.unused`) load only when a view has such parts: English with German as a second small file
-for a German report. Until they are there, or when they cannot be loaded, each line shows
-pivotkit-core's short English message; German falls back to English. The warning's title
-(`unusedParts`, a count), the prefix of its technical line (`unusedPath`) and its button for the
-lines past the first few (`unusedMore`, a count, and `unusedFewer`) are part of the first load.
-`labels.unused.codes` has one text per issue code (`VIEW_ISSUE_CODES` of pivotkit-core) with the
-placeholders `{field}`, `{value}`, `{agg}`, `{type}`, `{max}`, `{zone}`, `{setting}` and `{dropped}`
-(what the report does instead, from `labels.unused.dropped` by the part of the view); `other` is the
-text for a code it does not know, `item` puts the subject and the text together
-(`"{subject}: {text}"`), `quote` quotes a key of the view (`"“{key}”"`), and `position` tells two
-lines of one name apart (`"{subject} (no. {n} in {part})"`).
+The texts that only the menus show load with the menus, right after the first render:
 
-The texts of [loading data](../use/load-data.md) (`labels.dataImport`: the Data menu, the drop
-overlay, the preview, the notes of the readers per note code in `labels.dataImport.notes`, a file
-over a limit in `overLimit` with the limit's words in `limitWhat`, and `workbookCells` for
-`importCells` reached by a workbook's texts and formats) load with
-the import UI, English and German in one file; a language of a host's own takes English there unless
-its `labels` give `dataImport`. The Data button's text (`data`), its dot's words for a screen reader
-(`dataLoaded`) and the empty report's lines and button (`emptyLoad`, `emptyNoData`, `emptyDrop`,
-`loadData`) are part of the first load. `labels.dataImport.formatNames` names the formats of the
-built-in readers and pivotkit-xlsx by the reader's `name`; another plugin's own `label` is shown as
-it is.
+- The English texts come with the menus.
+- The German texts are a file of their own. Only a German report loads it, also when `locale`
+  changes to German later.
+
+The file follows the labels' language, not the locale alone. `labels` with `lang: "de"`, such as a
+host's whole German object, loads it too. Any other `lang` takes the English menu texts under its
+`labels`.
+
+A menu waits for its language's texts and shows "Loading…" until then. It never shows English first.
+When the language changes while a menu is open, the menu keeps its texts until the new ones are
+there. A host's text for a menu entry wins over the built-in one in every language.
+
+The words that describe a view's [unused parts](../use/behaviour.md#parts-of-a-view-that-were-not-used)
+are `labels.unused`. They load only when a view has such parts. English loads first, and a German
+report loads German as a second small file. Until they arrive, or when they cannot load, each line
+shows pivotkit-core's short English message. German falls back to English.
+
+These parts of the warning are in the first load:
+
+- its title, `unusedParts` (a count)
+- the prefix of its technical line, `unusedPath`
+- its button for the lines past the first few, `unusedMore` (a count) and `unusedFewer`
+
+`labels.unused.codes` has one text per issue code (`VIEW_ISSUE_CODES` of pivotkit-core). The texts
+use the placeholders `{field}`, `{value}`, `{agg}`, `{type}`, `{max}`, `{zone}`, `{setting}` and
+`{dropped}`. `{dropped}` is what the report does instead, taken from `labels.unused.dropped` by the
+part of the view. Further keys:
+
+- `other` is the text for a code the report does not know.
+- `item` puts the subject and the text together (`"{subject}: {text}"`).
+- `quote` quotes a key of the view (`"“{key}”"`).
+- `position` tells two lines of one name apart (`"{subject} (no. {n} in {part})"`).
+
+The texts of [loading data](../use/load-data.md) are `labels.dataImport`. They cover:
+
+- the Data menu, the drop overlay and the preview
+- the readers' notes per note code, in `labels.dataImport.notes`
+- a file over a limit, in `overLimit`, with the limit's words in `limitWhat`
+- `workbookCells`, for when a workbook's texts and formats reach `importCells`
+
+They load with the import UI, English and German in one file. A host's own language takes English
+there unless its `labels` give `dataImport`.
+
+These texts are part of the first load:
+
+- the Data button's text, `data`
+- its dot's words for a screen reader, `dataLoaded`
+- the empty report's lines and button: `emptyLoad`, `emptyNoData`, `emptyDrop`, `loadData`
+
+`labels.dataImport.formatNames` names the formats of the built-in readers and pivotkit-xlsx by the
+reader's `name`. The report shows another plugin's own `label` as it is.
 
 ## Changing single texts
 
-`labels` is merged deeply over the language's labels; an entry of the wrong type is ignored.
-`labels.core` holds the texts pivotkit-core writes into the table and the chart ("Grand Total",
-"(blank)", "Sum of ...").
+The report merges `labels` deeply over the language's labels. It ignores an entry of the wrong type.
+`labels.core` holds the texts pivotkit-core writes into the table and the chart: "Grand Total",
+"(blank)", "Sum of ...".
 
 ```jsx
 <PivotReport
@@ -80,34 +107,42 @@ it is.
 report.labels = { zones: { values: "Kennzahlen" }, core: { grandTotal: "Summe" } };
 ```
 
-`{name}` placeholders in a text are filled in. A count (`rowsCount`, `drillCount`, `chartCategories`,
-`chartSeries`) is an object with one text per plural category of the language, picked with
-`Intl.PluralRules` for the labels' `lang`:
+The report fills in the `{name}` placeholders in a text. A count is an object with one text per
+plural category of the language. The counts are `rowsCount`, `drillCount`, `chartCategories` and
+`chartSeries`. The report picks the text with `Intl.PluralRules` for the labels' `lang`:
 
 ```js
 { rowsCount: { one: "{count} row", other: "{count} rows" } }
 ```
 
-A language with more forms adds them (`few`, `many`); a missing form falls back to `other`.
+A language with more forms adds them (`few`, `many`). A missing form falls back to `other`.
 
-`quote` is how the language quotes a text the user typed or a field's name in a sentence ("Filter:
-contains “an”", "Fields this data does not have: “Country”"), with the placeholder `{text}`:
-`"“{text}”"` in English, `"„{text}“"` in German, `"« {text} »"` for French.
+`quote` is how the language quotes, in a sentence, a text the user typed or a field's name. Examples
+are "Filter: contains “an”" and "Fields this data does not have: “Country”". It uses the placeholder
+`{text}`:
 
-The tips are `labels.tips` (one text per tip id; a text under an earlier key, `topNote`,
-`bottomNote`, `noValuesHint`, `cellHint`, `emptyHint`, `chartManySeries`, `chartDatesOnColumns` or
-`chartCapped`, still applies unless `labels.tips` has the tip's own entry; `labels.tips.showAs` one per percentage
-calculation), their buttons `labels.tipActions`, the keyboard shortcuts of the help section
-`labels.shortcuts` and `labels.keys`.
+- `"“{text}”"` in English
+- `"„{text}“"` in German
+- `"« {text} »"` for French
 
-Field names are not labels: a field's display name in any language comes from `fieldDefaults`
+More groups of texts:
+
+- `labels.tips` holds the tips, one text per tip id. `labels.tips.showAs` has one text per
+  percentage calculation.
+- A text under an earlier key still applies unless `labels.tips` has the tip's own entry. The earlier
+  keys are `topNote`, `bottomNote`, `noValuesHint`, `cellHint`, `emptyHint`, `chartManySeries`,
+  `chartDatesOnColumns` and `chartCapped`.
+- `labels.tipActions` holds the tips' buttons.
+- `labels.shortcuts` and `labels.keys` hold the keyboard shortcuts of the help section.
+
+Field names are not labels. A field's display name in any language comes from `fieldDefaults`
 (`label`), see [Field descriptions and names](../concepts/fields.md). A host that shows German names
-passes German labels there; views keep the field names, so a saved view works in every language.
+passes German labels there. Views keep the field names, so a saved view works in every language.
 
 ## Another language
 
-There is no registry of languages: another language is a whole labels object with its own `lang`,
-passed as `labels`, next to the `locale` for its numbers and dates.
+There is no registry of languages. Another language is a whole labels object with its own `lang`.
+Pass it as `labels`, next to the `locale` for its numbers and dates.
 
 ```jsx
 import { LABELS } from "pivotkit-react/labels";
@@ -117,5 +152,5 @@ const fr = { ...LABELS.en, lang: "fr", zones: { ...LABELS.en.zones, rows: "Ligne
 <PivotReport data={rows} locale="fr-FR" labels={fr} />
 ```
 
-Start from a copy of `LABELS.en` so every key exists, and translate what you need; untranslated keys
-stay English.
+Start from a copy of `LABELS.en`, so every key exists, and translate what you need. Keys you do not
+translate stay English.

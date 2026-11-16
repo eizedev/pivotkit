@@ -5,29 +5,43 @@ description: The chart of a pivotkit report - chart types, value labels and wher
 
 # Charts
 
-The chart is the same view drawn as an [Apache ECharts](https://echarts.apache.org/) chart: the items
-of Rows are the categories, one series per item of Columns and value. What the people who use the
-report see and choose - the chart types, the automatic type, the Display settings, the tips, the
-tooltip and the PNG export - is on [Charts](../use/charts.md) under Use a report. This page is the
-developer's side: the view's `chart` settings, what "auto" stands for, and `chartOptions`.
+The chart draws the same view as an [Apache ECharts](https://echarts.apache.org/) chart:
+
+- The items of Rows are the categories.
+- There is one series per item of Columns and value.
+
+[Charts](../use/charts.md) under Use a report describes what the people who use the report see and
+choose: the chart types, the automatic type, the Display settings, the tips, the tooltip and the PNG
+export. This page is for developers. It covers the view's `chart` settings, what "auto" stands for,
+and `chartOptions`.
 
 ## The chart type
 
-`chart.type` is `"auto"` (the default, also for a view without a type: the data decides), `"bar"`,
-`"line"`, `"area"`, `"pie"`, `"donut"` or `"heatmap"`. What Automatic draws, and the tips that suggest
-another type, are in [Chart types](../use/charts.md#chart-types).
+`chart.type` takes one of these values:
 
-pivotkit-core's `autoChartType(view, data)` says what "auto" stands for (`"line"` with a date along
-the time line on Rows, else `"bar"`) and `toEChartsOption()` draws it; the swap for dates on Columns is
-the UI's (pivotkit-react computes the chart from the swapped view, `chartPlan` in `chart-types.js`).
-A pie and a donut differ only in the hole (pivotkit-core's `DEFAULT_THEME.pieRadius` `["0%", "70%"]`
-and `donutRadius` `["42%", "70%"]`, which a host changes with `toEChartsOption`'s `theme`).
+- `"auto"`, the default: the data decides. A view without a type also gets it.
+- `"bar"`, `"line"`, `"area"`, `"pie"`, `"donut"` or `"heatmap"`.
+
+[Chart types](../use/charts.md#chart-types) describes what Automatic draws and the tips that suggest
+another type.
+
+pivotkit-core's `autoChartType(view, data)` says what "auto" stands for. It is `"line"` when a date
+runs along the time line on Rows, else `"bar"`. `toEChartsOption()` draws it. The UI swaps the axes
+for dates on Columns: pivotkit-react computes the chart from the swapped view (`chartPlan` in
+`chart-types.js`).
+
+A pie and a donut differ only in the hole:
+
+- pivotkit-core's `DEFAULT_THEME.pieRadius` is `["0%", "70%"]`.
+- `donutRadius` is `["42%", "70%"]`.
+
+A host changes them with the `theme` option of `toEChartsOption`.
 
 ## Display settings in the view { #display-settings-for-the-people-who-use-the-report }
 
-The Display settings of the chart type menu ([the table of choices](../use/charts.md#display-settings))
-are part of the view, so a saved view, a link and the PNG export keep them, and they stay when the
-chart type changes:
+The Display settings of the chart type menu are part of the view. [The table of
+choices](../use/charts.md#display-settings) lists them. A saved view, a link and the PNG export keep
+them, and they stay when the chart type changes:
 
 | Key | Values |
 | --- | --- |
@@ -39,20 +53,25 @@ chart type changes:
 | `chart.axisLabels` | `"auto"`, `"all"`, `"nth"` |
 | `chart.groupLabels` | `"auto"`, `"on"`, `"off"` |
 
-A view without them gets the defaults; an unknown value falls back to its default and is reported by
-`normalize()` ([Views](views.md)). "Percent" and "Value and percent" are a pie's and a donut's; another
-type writes the value.
+A view without these keys gets the defaults. An unknown value falls back to its default, and
+`normalize()` reports it ([Views](views.md)). "Percent" and "Value and percent" apply to a pie and a
+donut. Other types write the value.
 
-The chart's colours, its title's size and weight, the size of its other text (at least 14 px) and the
-corners of its bars, slices and tooltip come from the report's `--pk-*` tokens, so a corporate theme
-reaches the chart too ([Theming](../reference/theming.md#chart-colours)). The labels are laid out for
-the text's size, so set sizes there rather than in `chartOptions`.
+The report's `--pk-*` tokens set these parts of the chart, so a corporate theme reaches the chart too
+([Theming](../reference/theming.md#chart-colours)):
+
+- the colours
+- the title's size and weight
+- the size of the other text, at least 14 px
+- the corners of bars, slices and the tooltip
+
+The report lays out the labels for the text's size. Set sizes in the tokens, not in `chartOptions`.
 
 ## `chartOptions` (for developers)
 
-`chartOptions` is a plain JSON object merged over the [Apache ECharts](https://echarts.apache.org/en/option.html)
-option the report builds, for what the menus and the tokens do not offer: axis names, margins, a
-colour. It is a prop of pivotkit-react and a property of `<pivot-report>`.
+`chartOptions` is a plain JSON object. The report merges it over the [Apache ECharts](https://echarts.apache.org/en/option.html)
+option it builds. Use it for what the menus and the tokens do not offer, such as axis names, margins
+or a colour. It is a prop of pivotkit-react and a property of `<pivot-report>`.
 
 ```jsx
 <PivotReport
@@ -70,30 +89,46 @@ colour. It is a prop of pivotkit-react and a property of `<pivot-report>`.
 document.querySelector("pivot-report").chartOptions = { legend: { itemGap: 16 } };
 ```
 
-How it is merged:
+The report merges it like this:
 
-- objects key by key, so `{ title: { left: "left" } }` moves the title and keeps the view's title
-  text;
-- a list entry by entry (`series: [{ ... }, { ... }]`), and an object given for a list into every
-  entry of it: `{ series: { barMaxWidth: 24 } }` sets every series;
-- any other value replaces the report's.
+- Objects merge key by key. `{ title: { left: "left" } }` moves the title and keeps the view's title
+  text.
+- Lists merge entry by entry (`series: [{ ... }, { ... }]`).
+- An object given for a list goes into every entry: `{ series: { barMaxWidth: 24 } }` sets every
+  series.
+- Any other value replaces the report's.
 
-**Precedence.** The report builds the option from the view (its type and display settings), adds its
-own styles (the theme's colours, rounded bars, the tooltip), then merges `chartOptions` over all of
-it: the host wins. `{ legend: { show: false } }` hides the legend even when the user picked "Bottom",
-so keep `chartOptions` to what the user should not change.
+**Precedence.** The report builds the option in three steps, and the host wins:
 
-**Only JSON.** Strings, finite numbers, booleans, `null`, plain objects and arrays pass. Functions
-(formatters), class instances (`Date`, `Map`), symbols, `Infinity`, the keys `__proto__`,
-`constructor` and `prototype`, more than 12 levels and more than 2,000 entries are left out, with one
-console warning that names them, when the chart is drawn (the check loads with ECharts). It is compared by value, so a host may build a new object on every
-render. The report's own formatters (numbers in the user's language) stay.
+1. It builds the option from the view: its type and display settings.
+2. It adds its own styles: the theme's colours, rounded bars, the tooltip.
+3. It merges `chartOptions` over all of it.
 
-**No markup, addresses or templates.** Some ECharts options are not data: ECharts writes a string
-`formatter` of the tooltip, and the tooltip's `content`, into the page as HTML (`innerHTML`), which
-would run what it holds and replace the report's tooltip of plain text nodes (the one a strict
-Content-Security-Policy allows); a title's `link` and `sublink` open a window. So these are left out
-wherever they are in `chartOptions`, each named in the warning:
+`{ legend: { show: false } }` hides the legend even when the user picked "Bottom". Keep
+`chartOptions` to what the user should not change.
+
+**Only JSON.** Strings, finite numbers, booleans, `null`, plain objects and arrays pass. The report
+leaves out the following when it draws the chart:
+
+- functions (formatters)
+- class instances (`Date`, `Map`)
+- symbols and `Infinity`
+- the keys `__proto__`, `constructor` and `prototype`
+- anything beyond 12 levels or 2,000 entries
+
+One console warning names what it left out. The check loads with ECharts. The report compares
+`chartOptions` by value, so a host may build a new object on every render. The report's own
+formatters, which write numbers in the user's language, stay.
+
+**No markup, addresses or templates.** Some ECharts options are not data:
+
+- ECharts writes a string `formatter` of the tooltip, and the tooltip's `content`, into the page as
+  HTML (`innerHTML`). The page would run what they hold. They would also replace the report's tooltip
+  of plain text nodes, the one a strict Content-Security-Policy allows.
+- A title's `link` and `sublink` open a window.
+
+So the report leaves out these keys wherever they are in `chartOptions`, and the warning names each
+one:
 
 | Left out | Why |
 | --- | --- |
@@ -103,6 +138,6 @@ wherever they are in `chartOptions`, each named in the warning:
 | `image` and any text that starts with `image://` (a symbol) | load an address |
 | `extraCssText`, `className`, `appendTo`, `appendToBody`, `renderMode` | change the tooltip's element and where it lives |
 
-What is left of `chartOptions` is styles, sizes, numbers and names; nothing in it is markup or an
-address, and nothing in it is run. The rule follows ECharts 6.1.0 (its `TooltipHTMLContent` and
-`windowOpen`).
+What is left of `chartOptions` is styles, sizes, numbers and names. Nothing in it is markup or an
+address, and nothing in it runs. The rule follows ECharts 6.1.0, its `TooltipHTMLContent` and
+`windowOpen`.
