@@ -8,7 +8,7 @@ description: The chart of a pivotkit report - chart types, value labels and wher
 The chart draws the same view as an [Apache ECharts](https://echarts.apache.org/) chart:
 
 - The items of Rows are the categories.
-- Each item of Columns and each value is a series.
+- There is one series per item of Columns and value.
 
 [Charts](../use/charts.md) under Use a report describes what the people who use the report see and
 choose: the chart types, the automatic type, the Display settings, the tips, the tooltip and the PNG
@@ -30,9 +30,9 @@ runs along the time line on Rows, else `"bar"`. `toEChartsOption()` draws it. Th
 for dates on Columns: pivotkit-react computes the chart from the swapped view (`chartPlan` in
 `chart-types.js`).
 
-A pie and a donut differ only in the hole. pivotkit-core sets the sizes in `DEFAULT_THEME`:
+A pie and a donut differ only in the hole:
 
-- `pieRadius` is `["0%", "70%"]`.
+- pivotkit-core's `DEFAULT_THEME.pieRadius` is `["0%", "70%"]`.
 - `donutRadius` is `["42%", "70%"]`.
 
 A host changes them with the `theme` option of `toEChartsOption`.

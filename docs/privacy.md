@@ -241,7 +241,7 @@ To drop a column, though, the server reads all of the data first:
 - an HTTP source's body and, for JSON, its parsed rows, in the main thread
 - for CSV, the decoded text and every cell, in the worker that reads it
 
-The server frees these once it has read the data. As in any process, freed memory can hold their
+These are freed once the server has read the data. As in any process, freed memory can hold their
 values until the process reuses it. A dump of the server's memory taken meanwhile can show values of
 a hidden column: a core dump, a debugger, a scan by someone with access to the host. Where that
 matters, have the backend or the `load` function leave the column out, as with a file that leaves it
@@ -252,8 +252,8 @@ checks the first part:
 
 - It calls a CSV, a JSON and a code source. It calls each as a signed-in person and as a caller
   without an identity.
-- Each source has hidden text and number columns of unique values. The default level hides some of
-  them, and a field's own rule hides the others.
+- Each source has hidden text and number columns of unique values, hidden by the default level and
+  by a field's own rule.
 - After a garbage collection the test finds none of these values in the kept loads or in the
   worker's data sets. It also finds none among the texts and boxed numbers the main thread and the
   worker still reach (a heap snapshot of each). It does find every shown value and the values kept on
@@ -315,7 +315,7 @@ misbehaving script from a person, and to find a request a person reports. Keep t
 than that needs. Or set `log.address` to `off` (flag `--log-address off`) when the proxy's own log
 covers it.
 
-Some lines hold text a caller or the configuration chooses:
+Other lines:
 
 - A refused request's line holds the `Host` and `Origin` it was sent with, at most 100 characters
   each. A caller chooses them.
@@ -356,7 +356,7 @@ Reports and drafts stay in the output directory until one of these deletes them:
       pivotkit alone.
 - **Count and size.** The limits are `output.maxFiles` files (1000 by default) or `output.maxMb`
   megabytes (1024 by default) of pivotkit's. When the directory holds that much, a new report
-  deletes the oldest reports, whoever asked for them. This rule never deletes drafts. Drafts may take at
+  deletes the oldest reports, whoever asked for them. This rule does not delete drafts. Drafts may take at
   most half of `output.maxFiles`, and the server refuses a draft over that.
 - **You**, on a schedule of your own.
 
@@ -394,8 +394,8 @@ pivotkit cannot see whether a code source answers differently per caller. If you
 `perPerson: true`. Otherwise reports over it get plain links and, with `output.baseUrl`, a permanent
 address.
 
-A link is in the browser's history and a proxy's log until it expires. Nobody can tie two sign-in
-links of one person to each other: each holds the person only as a digest with its own random
+A link is in the browser's history and a proxy's log until it expires. Two sign-in links of one
+person cannot be tied to each other: each holds the person only as a digest with its own random
 part.
 
 ## The AI client { #ai-client }

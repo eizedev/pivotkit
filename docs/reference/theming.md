@@ -264,7 +264,7 @@ and no transition of the report starts. On `pivot-report` the element shows the 
 
 - The element's `data-pk-theme` changes to `light` and back within that task. A `MutationObserver` of
   the page sees this as two records.
-- A transition the page itself puts on `pivot-report` still runs.
+- A transition the page itself puts on `pivot-report` is not stopped.
 
 Your dark rules stay out when you write them for `[data-pk-theme="dark"]` ([above](#light-and-dark)).
 
