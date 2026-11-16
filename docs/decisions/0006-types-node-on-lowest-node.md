@@ -18,7 +18,7 @@ repository use?
 
 ## Considered Options
 
-- The newest `@types/node`.
+- The newest `@types/node`, as Dependabot proposes.
 - The `@types/node` of the lowest supported Node major.
 
 ## Decision Outcome

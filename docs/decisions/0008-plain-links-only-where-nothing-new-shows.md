@@ -10,8 +10,6 @@ date: 2026-11-16
 Sources: [#510](https://github.com/eizedev/pivotkit/issues/510),
 [#539](https://github.com/eizedev/pivotkit/pull/539)
 
-Status: proposed. It becomes accepted with the merge of #539.
-
 ## Context and Problem Statement
 
 A plain download link works for whoever holds it. The server checks no sign-in for it. So the

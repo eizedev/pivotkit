@@ -5,7 +5,7 @@ status: accepted
 date: 2026-11-16
 ---
 
-# 0010 CPU time for work, wall time only for waits, in tests
+# 0011 CPU time for work, wall time only for waits, in tests
 
 Sources: [#436](https://github.com/eizedev/pivotkit/issues/436),
 [#532](https://github.com/eizedev/pivotkit/pull/532)
@@ -13,16 +13,17 @@ Sources: [#436](https://github.com/eizedev/pivotkit/issues/436),
 ## Context and Problem Statement
 
 Some tests check that work finishes within a time, for example that the code handles hostile
-input in linear time. They measured wall time. When all workspace suites ran at once on a busy machine, they
-failed now and then. The code under test worked. The process only waited for a core.
+input in linear time. They measured wall time. When all workspace suites ran at once on a busy
+machine, they failed now and then. The code under test worked. The process only waited for a core.
 
 ## Considered Options
 
-- Loosen the bounds.
-- Ratio bounds, or interleaved best-of-N rounds.
+- Ratio bounds.
+- Interleaved best-of-N rounds.
 - Bound work by CPU time, and keep wall time only for what CPU time cannot measure.
 
-#436 named the first two. #532 built the third.
+#436 names ratio bounds and interleaved best-of-N rounds, without loosening what the tests detect.
+#532 built the third option.
 
 ## Decision Outcome
 

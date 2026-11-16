@@ -15,7 +15,7 @@ The [upgrading page](getting-started/upgrading.md) says what changed between two
 pivotkit is 0.x and under active development.
 
 - A minor release, from 0.y to 0.(y+1), can break things.
-- We break as little as possible.
+- pivotkit breaks as little as possible.
 - The upgrading page lists every break, with what to do.
 
 In a project's `package.json`, a caret range on a 0.x release covers patch releases only. `npm update`
@@ -47,24 +47,34 @@ A security fix may close an unsafe default in a minor or patch release. Such a c
 
 These are the parts a break can hit. A change to them follows [the promise](#the-promise).
 
-- The view file format and its JSON Schemas.
-- The JavaScript exports of each package, with their parameters and results.
-- The React props, and the web component's attributes, properties and events.
-- The plugin API.
+- The view file format.
+- The JavaScript exports of each package.
 - The REST routes and the OpenAPI document.
-- The MCP tool names, their input schemas and their output schemas.
-- The command line: commands, flags and exit codes.
+- The MCP tool names and their schemas.
+- The command line flags.
 - Configuration keys of the services.
 - Environment variables.
 - Error codes, such as `LIMIT_EXCEEDED` or `INVALID_INPUT`.
-- The lowest supported Node.js version.
 
 These are not public interface. They can change in any release:
 
-- The look: layout, colours, spacing and CSS details.
-- The wording of messages, hints and errors. Match on the code, not on the text.
-- Modules that no package exports.
-- The layout of an exported workbook beyond its values, such as styles and column widths.
+- The look and CSS details.
+- The wording of messages. Match on the code, not on the text.
+- Internal modules, the ones no package exports.
+- The layout of an exported workbook beyond its values.
+
+### Open: proposed additions { #open-additions }
+
+These are not decided yet. Until they are, they are not part of the promise.
+
+- React props, and the web component's attributes, properties and events: hosts set them like
+  exports.
+- The plugin API: reader plugins of other authors build on it.
+- CLI exit codes: scripts and CI pipelines branch on them.
+- The lowest supported Node.js version: raising it is a break, says
+  [#519](https://github.com/eizedev/pivotkit/issues/519).
+- Open question: do the lowest supported React and browser versions count?
+- Open question: do the theme tokens (`--pk-*`) count, or are they CSS details?
 
 ## How a deprecation works
 
@@ -72,8 +82,9 @@ From 1.0.0, nothing public goes away without a deprecation first.
 
 1. **An id.** Each deprecation gets a number of its own, `PK-DEP-NNNN`, counted up from
    `PK-DEP-0001`. An id never changes, even if the deprecation is withdrawn.
-2. **A warning.** Using the old form logs a warning at run time. The warning names the id and the
-   replacement.
+2. **A warning.** Using the old form warns at run time, in the way that fits the interface. A
+   JavaScript export can log a warning, a view key can give a finding, a configuration key can give
+   a log line. Every warning names the id and the replacement.
 3. **A `check-config` line.** For the services, `check-config` names the id where the configuration
    uses the old form.
 4. **Old input keeps working.** Where possible, pivotkit reads the old form and turns it into the new
@@ -88,7 +99,14 @@ says what a pull request that deprecates something delivers.
 
 ## Register { #register }
 
-There are no deprecations yet.
+There are no deprecations yet. A withdrawn deprecation stays listed with its id.
+
+<!-- An entry looks like this:
+| PK-DEP-0001 | the view key `oldKey` | `newKey` | 1.2.0 | 2.0.0 |
+-->
+
+| Id | Deprecated | Replacement | Since | Earliest removal |
+| --- | --- | --- | --- | --- |
 
 ## Where this comes from
 
@@ -96,10 +114,10 @@ The rules follow what other projects do:
 
 - [Node.js](https://nodejs.org/api/deprecations.html) numbers each deprecation (`DEP0001`) and never
   changes an id, even when it withdraws a deprecation.
-- [Kubernetes](https://kubernetes.io/docs/reference/using-api/deprecation-policy/) removes a stable
-  API element only with a new major version.
+- [Kubernetes](https://kubernetes.io/docs/reference/using-api/deprecation-policy/) removes an API
+  element only by incrementing the version of its API group.
 - [Angular](https://angular.dev/reference/releases) keeps a deprecated API for at least one major
   version and announces it in the changelog.
 
-The decision record [Versioning before and after 1.0.0](decisions/0011-versioning-policy.md) says
+The decision record [Versioning before and after 1.0.0](decisions/0012-versioning-policy.md) says
 why pivotkit chose these rules.

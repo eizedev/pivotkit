@@ -19,7 +19,7 @@ link would make the server hold data. Should pivotkit keep data or reports of it
 
 ## Considered Options
 
-- A database, data warehouse or file store in pivotkit.
+- A database, data warehouse or file store in pivotkit (not discussed in a source).
 - Data stays in its systems, and pivotkit reads it per request.
 
 ## Decision Outcome
@@ -30,7 +30,7 @@ Chosen option: data stays in its systems.
 - It is no file store for teams. Download links expire. Lasting copies live in the operator's store.
 - The services have no database of their own.
 
-The reason recorded in #165: hosts own scheduling, storage and rights.
+#165 gives one reason: hosts own scheduling, storage and rights. No source says more.
 
 ### Consequences
 

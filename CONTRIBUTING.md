@@ -138,10 +138,14 @@ The removal waits for the next major release.
 A lasting decision gets a record in `docs/decisions/`. Reversible choices with little impact do not.
 
 1. Copy the layout of an existing record: front matter with `title`, `description`, `status` and
-   `date`, then the sections of MADR's minimal template.
+   `date`, then the sections of MADR's minimal template. `date` is the day the record was accepted,
+   or the day it was proposed.
 2. Take the next free number. Link the issue or pull request the decision comes from.
 3. Write "reason not recorded" where no source gives the reason. Never guess one.
 4. Run `node scripts/decisions.js`. It writes the index. `tests/decisions.test.js` checks both.
+
+A record stays `proposed` while its behaviour is not on main. The pull request that merges the
+behaviour sets it to `accepted` and sets the date.
 
 An accepted record is not edited. To change a decision, write a new record. Set the old one to
 `status: superseded` with `superseded_by: <new file>`, and link both ways.

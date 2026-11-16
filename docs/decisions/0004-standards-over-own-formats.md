@@ -18,7 +18,7 @@ standard or be a format of its own.
 
 ## Considered Options
 
-- Formats and mechanisms of our own where they fit pivotkit better.
+- Formats and mechanisms of our own (not discussed in a source).
 - Existing standards.
 
 ## Decision Outcome

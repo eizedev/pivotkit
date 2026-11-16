@@ -17,7 +17,7 @@ const REPOSITORY = JSON.parse(readFileSync(new URL("packages/pivotkit-core/packa
 /** What each status means. The index and AGENTS.md say the same. */
 export const STATUSES = Object.freeze({
     accepted: "binding",
-    proposed: "context, not binding yet",
+    proposed: "context",
     superseded: "history",
 });
 

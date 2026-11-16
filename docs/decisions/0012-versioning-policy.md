@@ -5,7 +5,7 @@ status: accepted
 date: 2026-11-16
 ---
 
-# 0011 Versioning before and after 1.0.0
+# 0012 Versioning before and after 1.0.0
 
 Source: [#491](https://github.com/eizedev/pivotkit/issues/491)
 
@@ -27,11 +27,16 @@ The sources name no other options.
     - Major: the only place where deprecated things are removed.
 - One exception: a security fix may close an unsafe default in a minor or patch release. It
   carries the mark "Security" in the release notes, with a way to detect it and a way back.
-- 0.x stays as it is. A minor release can break, and the upgrading page lists every break. We still
-  break as little as possible.
+- 0.x stays as it is. A minor release can break, and the upgrading page lists every break. pivotkit
+  still breaks as little as possible.
 - All packages start 1.0.0 together. Reason not recorded.
 - Each deprecation gets an id `PK-DEP-NNNN`, a runtime warning, a `check-config` line, an entry on
   the upgrading page and an entry in the register.
+- #491 decided what counts as public interface: the view file format, JavaScript exports, REST and
+  OpenAPI, MCP tool names and schemas, CLI flags, configuration keys, environment variables and
+  error codes. It also decided what does not: the look and CSS details, message wording, internal
+  modules and an exported workbook's layout beyond its values.
+- Additions to that list are open. [Versioning](../versioning.md#open-additions) lists them.
 
 The reason recorded in #491 is the goal in the context: no break without a warning.
 [Versioning](../versioning.md) holds the policy, the public interface and the register.

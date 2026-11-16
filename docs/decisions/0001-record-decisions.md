@@ -12,7 +12,7 @@ Source: [#493](https://github.com/eizedev/pivotkit/issues/493)
 ## Context and Problem Statement
 
 Lasting decisions lived in issues, in PRODUCT.md and in old discussions. People and AI agents could
-not see the reasons. Some undid a decision by accident. "pivotkit has no scheduler"
+not see the reasons. They could undo a decision by accident. "pivotkit has no scheduler"
 was one example: it lived in [#165](https://github.com/eizedev/pivotkit/issues/165) and PRODUCT.md.
 
 Some decisions span pivotkit and its host integrations, such as the PowerShell Universal module.
@@ -20,7 +20,7 @@ They need one place too.
 
 ## Considered Options
 
-- Keep decisions in issues and PRODUCT.md.
+- Keep decisions in issues and PRODUCT.md (not discussed in a source).
 - Record each decision as an Architecture Decision Record in `docs/decisions/`.
 
 ## Decision Outcome
@@ -45,6 +45,9 @@ Status means:
 | superseded | history. It links the record that replaced it |
 
 Where no source gives the reason, a record says "reason not recorded".
+
+A record's `date` is the day it was accepted. A proposed record carries the day it was proposed. The
+pull request that brings its behaviour to main sets it to `accepted` and updates the date.
 
 ### Consequences
 

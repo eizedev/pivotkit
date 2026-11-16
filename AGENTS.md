@@ -2,8 +2,8 @@
 
 Read [PRODUCT.md](PRODUCT.md) before you plan or build anything.
 It says what pivotkit is, who it is for and what it is not. A feature issue answers its five questions.
-Read the [decision records](docs/decisions/index.md) too. Accepted binds, proposed is context, superseded is history.
-A task that conflicts with an accepted record stops. Propose a new record in its issue instead.
+Read the [decision records](docs/decisions/index.md) too: accepted is binding, proposed is context,
+superseded is history. A task that conflicts with an accepted record stops and proposes a new one.
 
 This file holds what you need on every task. Packages and some folders have their own `AGENTS.md`.
 

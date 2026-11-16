@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { checkRecords, indexText, parseRecords, readRecords } from "../scripts/decisions.js";
+import { STATUSES, checkRecords, indexText, parseRecords, readRecords } from "../scripts/decisions.js";
 
 const INDEX = new URL("../docs/decisions/index.md", import.meta.url);
 const ISSUE = "https://github.com/eizedev/pivotkit/issues/1";
@@ -55,4 +55,13 @@ test("a superseded record and its successor link each other", () => {
     ]);
     assert.match(checkRecords(parseRecords({ "0001-a.md": record({ status: "superseded" }) })).join("\n"), /superseded_by names no record/);
     assert.match(checkRecords(parseRecords({ "0001-a.md": record({ extra: "superseded_by: 0002-b.md\n" }) })).join("\n"), /superseded_by is set, but the status is "accepted"/);
+});
+
+test("AGENTS.md, record 0001 and the index give each status the same meaning", () => {
+    const agents = readFileSync(new URL("../AGENTS.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+    const rules = readFileSync(new URL("../docs/decisions/0001-record-decisions.md", import.meta.url), "utf8");
+    for (const [status, meaning] of Object.entries(STATUSES)) {
+        assert.match(agents, new RegExp(`\\b${status} is ${meaning}\\b`, "i"), `AGENTS.md does not say "${status} is ${meaning}"`);
+        assert.match(rules, new RegExp(`^\\| ${status} \\| ${meaning}\\b`, "m"), `0001 does not give ${status} the meaning "${meaning}"`);
+    }
 });
