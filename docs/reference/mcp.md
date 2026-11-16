@@ -356,7 +356,7 @@ one probably meant.
 | `http.allowOrigins` | `--allow-origin name` | none | Browser origins (host names) allowed to call |
 | - | `--state-dir dir` | `$PIVOTKIT_STATE_DIR` | `--http`: where the server makes, at its first start, the token and keys it needs when none is given ([made at the first start](rest.md#first-start)). Nothing over stdio |
 | `http.page` | - | on | The quick-start page. `{ "sources": true }` lists source ids on it. `false` turns it off |
-| `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
+| `http.graceMs` | - | 25000 | How long a stop (SIGTERM or SIGINT, [stopping](rest.md#running)) waits for running requests |
 | `http.maxConnectionsPerAddress` | - | 0 (no bound) | Connections one address may hold, loopback excepted ([Streamable HTTP](#http)) |
 | `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller, with up to `burst` at once after a pause. A caller is the person an OAuth token names, a static token's name, or `local` without sign-in. An OAuth token without a subject counts for its client. The people of one OAuth client together get eight times both |
 | `mcp.rateLimit.failedAuthPerMinute` | - | 30 | HTTP: refused tokens per address and minute. Beyond that, a wrong token from that address gets 429 instead of 401. A right one still works |
@@ -627,8 +627,8 @@ body.
   timeouts, its limits per client, and the server's port reachable from the proxy only.
 - A request target must be a path, or the absolute form `http://host/path`, read by its path.
   `OPTIONS *` answers 400.
-- On SIGTERM, the server takes no new connection and lets running requests finish for up to
-  `http.graceMs`.
+- On SIGTERM or SIGINT, the server takes no new connection and lets running requests finish for
+  up to `http.graceMs` ([on Windows](rest.md#running)).
 
 Without authentication, the server answers:
 

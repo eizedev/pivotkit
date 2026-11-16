@@ -138,7 +138,7 @@ test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST woul
     assert.match(bad.stderr, /http\.enable\[1\]: must be one of mcp, rest/);
 });
 
-test("serve from the command line: REST and MCP on one port, /healthz for healthcheck, and SIGTERM stops it", async () => {
+test("serve from the command line: REST and MCP on one port, /healthz for healthcheck, and SIGTERM stops it", async (t) => {
     const dir = workspace();
     const child = spawn(process.execPath, [BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0", "--auth", "token"], { cwd: dir, env: { PATH: process.env.PATH ?? "", PIVOTKIT_TOKEN: TOKEN } });
     const lines = [];
@@ -162,10 +162,15 @@ test("serve from the command line: REST and MCP on one port, /healthz for health
         const ok = spawnSync(process.execPath, [BIN, "healthcheck"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "", PIVOTKIT_PORT: port } });
         assert.equal(ok.status, 0, ok.stderr);
         const exited = new Promise((resolve) => child.once("exit", (c) => resolve(c)));
-        child.kill("SIGTERM");
-        // Windows has no SIGTERM to catch: kill() ends the process at once, without its graceful stop
-        if (process.platform !== "win32") assert.equal(await exited, 0);
-        else await exited;
+        if (process.platform === "win32") {
+            // not tested on Windows: it has no SIGTERM to catch, and CI sends no console Ctrl+C
+            t.diagnostic("the graceful stop is not tested on Windows");
+            child.kill();
+            await exited;
+        } else {
+            child.kill("SIGTERM");
+            assert.equal(await exited, 0);
+        }
         const dead = spawnSync(process.execPath, [BIN, "healthcheck", `http://127.0.0.1:${port}/healthz`], { encoding: "utf8" });
         assert.equal(dead.status, 1);
     } finally {

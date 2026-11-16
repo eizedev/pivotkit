@@ -190,7 +190,7 @@ time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source fail
 | `event` | When |
 | --- | --- |
 | `info` with `msg` `started` | The server listens: `version`, `transport`, `url`, what it serves, the auth mode, `sources` (how many) and `sourceIds`, `logLevel`, `logFormat`, over HTTP `logAddress`, and with static tokens their names (`tokens`), never a value. Ids and names at most 64 characters |
-| `info` with `msg` `stopped` | The HTTP server has stopped after the running requests finished or the grace time ended (`ms`). Written after SIGTERM, before the process ends |
+| `info` with `msg` `stopped` | The HTTP server has stopped after the running requests finished or the grace time ended (`ms`). Written after SIGTERM or SIGINT, before the process ends |
 | `call` | An MCP tool call |
 | `request` | A REST request that reached an operation |
 | `download` | A file handed out: by the REST file route or a [download link](delivery.md) (`via: "link"`) |

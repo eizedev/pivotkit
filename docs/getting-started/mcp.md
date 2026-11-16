@@ -343,7 +343,8 @@ runs.
 
 To stop the service, NSSM first sends Ctrl+C. The server then lets running requests finish for up
 to `http.graceMs`, 25 seconds by default. NSSM waits 1500 ms by default, then ends the process.
-`AppStopMethodConsole 30000` gives it 30 seconds.
+`AppStopMethodConsole 30000` gives it 30 seconds. CI does not test this stop on Windows
+([stopping](../reference/rest.md#running)).
 
 Set the account before `nssm start pivotkit`. Without `ObjectName`, the service runs as LocalSystem.
 

@@ -773,8 +773,12 @@ An output directory the server's user cannot write is also a warning at start, a
 `check-config`, and 409 `NO_OUTPUT` for a report.
 
 On SIGTERM or SIGINT, the server takes no new connection. It lets running requests finish for up to
-`http.graceMs` (25 seconds by default). Windows has no SIGTERM. There, Ctrl+C stops the server this
-way, also the Ctrl+C event of a service manager. Any other stop ends it at once.
+`http.graceMs` (25 seconds by default).
+
+Windows has no SIGTERM. There, Ctrl+C stops the server this way, also the Ctrl+C event of a service
+manager. CI does not test this stop on Windows. Closing the console window sends SIGHUP instead: the
+server ends without waiting for running requests, and Windows ends it about 10 seconds
+later at the latest. So does a forced end of the process.
 
 | Key | Default | What it is |
 | --- | --- | --- |
