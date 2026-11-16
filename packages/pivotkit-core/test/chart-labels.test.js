@@ -116,8 +116,8 @@ test("#230 horizontal bars keep the room of their longest value label on the rig
     const view = { rows: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", horizontal: true, valueLabels: "value" } };
     const bars = decorated(SALES, view, { width: 330, height: 376 });
     // "34,880" (6 characters at 14 px, estimated) and 5 px from the bar's end, past the 24 px margin
+    assert.equal(bars.grid.right, 24 + Math.ceil(6 * fontSize * 0.55 + 5));
     assert.equal(valueLabelRoom(bars.series, fontSize), Math.ceil(6 * fontSize * 0.55 + 5));
-    assert.equal(bars.grid.right, 24 + valueLabelRoom(bars.series, fontSize));
     // without value labels, or with them inside stacked bars, nothing changes
     assert.equal(decorated(SALES, { ...view, chart: { type: "bar", horizontal: true } }, { width: 330, height: 376 }).grid.right, 24);
     assert.equal(decorated(SALES, { ...view, chart: { type: "bar", horizontal: true, stacked: true, valueLabels: "value" } }, { width: 330, height: 376 }).grid.right, 24);

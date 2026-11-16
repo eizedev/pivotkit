@@ -178,7 +178,7 @@ for (const theme of ["light", "dark"]) {
             test("#228 slanted category names leave the plot most of the height, the top value tick stays", async ({ page }, testInfo) => {
                 const view = { rows: ["Region", "Country"], values: [{ field: "Population", agg: "sum", format: "compact" }], display: "chart" };
                 // the whole paths ("auto" group labels have no room on a phone), and group labels under the names
-                for (const [name, chart] of [["paths", { type: "bar" }], ["groups", { type: "bar", groupLabels: "on" }]]) {
+                for (const [name, chart] of [["groups", { type: "bar", groupLabels: "on" }], ["paths", { type: "bar" }]]) {
                     const locator = await mount(page, { width, theme, data: COUNTRIES, view: { ...view, chart }, height: HEIGHT[width] });
                     const d = await drawn(locator);
                     await locator.screenshot({ path: testInfo.outputPath(`228-${name}-${theme}-${width}.png`) });
