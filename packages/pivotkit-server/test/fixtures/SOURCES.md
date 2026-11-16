@@ -9,3 +9,9 @@
   reads it); no third-party content.
 - `need-worker.js` and `probe-worker.js`: compute workers written for the pool's tests
   (`test/code-sources.test.js`, `test/compute.test.js`); no third-party content.
+- `check-config.txt`: the expected output of `check-config` for `test/options.test.js` (a golden
+  file); no third-party content.
+- `option-keys-before-fragments.json`: the options table as it was before `src/options/` split it into
+  fragments, for `test/options.test.js`; no third-party content.
+- `mcp-other-release/`: a stand-in pivotkit-mcp of another release with its loader hook, for
+  `test/runner.test.js`; no third-party content.
