@@ -6,8 +6,9 @@ description: Run pivotkit-server over a CSV file, call it with curl and PowerShe
 # Getting started: REST service
 
 In ten minutes you run the REST service over a CSV file on your machine, call it with curl or
-PowerShell, check a view, render it into an Excel file and download it. You need Node 22 or later;
-for the container image, see [Container image](../reference/container.md).
+PowerShell, check a view, render it into an Excel file and download it. You need Node 22 or later.
+Without Node, [Server in 5 minutes](server-in-5-minutes.md) starts the container image with one
+command and a token it makes itself; [Container image](../reference/container.md) has the details.
 
 ## 1. Install and start it { #start }
 

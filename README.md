@@ -17,7 +17,8 @@ report by dragging fields, and take it to Excel; the same report renders again i
   --suggest` a first view from a file's fields ([command line](https://pivotkit.eize.dev/getting-started/cli/)).
 - Reports for other programs: a REST service with an OpenAPI document and a container image
   ([REST](https://pivotkit.eize.dev/getting-started/rest/)), and an MCP server for AI clients that
-  never hands the model the rows ([MCP](https://pivotkit.eize.dev/getting-started/mcp/)).
+  never hands the model the rows ([MCP](https://pivotkit.eize.dev/getting-started/mcp/)); one
+  `docker run` starts both with a token of their own ([server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/)).
 - Live data: the REST service and the MCP server read a file, or call an HTTP API or run your own
   code with the caller's parameters ([sources](https://pivotkit.eize.dev/reference/sources/)); a model gets rows only
   where the policy shows them ([what reaches an AI model](https://pivotkit.eize.dev/model-data/)).
@@ -102,6 +103,14 @@ The command line, on example files it writes itself:
 npx pivotkit-cli example                 # sales.csv and two views
 npx pivotkit-cli render sales.pivotkit.json --data sales.csv -o sales.html
 npx pivotkit-cli render sales.csv --rows Region --values sum:Revenue -o by-region.html   # no view file
+```
+
+The REST service and the MCP server in a container, with example data and a token made at the first
+start ([server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/)):
+
+```bash
+docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:<version>
+curl -H "Authorization: Bearer $(docker exec pivotkit pivotkit-server token show admin)" http://127.0.0.1:3333/api/v1/sources
 ```
 
 The view passed to `computePivot` is plain JSON: the same object is the saved template, the undo

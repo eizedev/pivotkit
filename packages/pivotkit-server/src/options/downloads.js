@@ -9,7 +9,7 @@
  */
 
 import { isLoopback } from "pivotkit-cli/rest";
-import { ConfigError, SECRET_REF } from "./shared.js";
+import { ConfigError, CREATABLE_SECRET_REF, SECRET_REF } from "./shared.js";
 
 export const NAME = "downloads";
 
@@ -30,7 +30,7 @@ export const KEYS = Object.freeze({
                 enabled: "boolean",
                 expiresMinutes: "integer",
                 bind: { enum: BINDINGS },
-                key: SECRET_REF,
+                key: CREATABLE_SECRET_REF,
                 allowInsecureUrl: "boolean",
                 signIn: { object: { clientId: "string", clientSecret: SECRET_REF, issuer: "string", scopes: "strings", tokenUrl: "string" } }
             }
@@ -43,7 +43,7 @@ export const KEYS = Object.freeze({
  * @property {boolean} [enabled]  the server's own links (default true; off with output.baseUrl)
  * @property {number} [expiresMinutes]  how long a link works, 1 to 1440 (default 60)
  * @property {"signIn" | "once" | "none"} [bind]  how links to reports over closed sources are bound (default "signIn" with OAuth and signIn.clientId, else "none")
- * @property {{ env?: string, file?: string }} [key]  the link key, at least 32 bytes (default a random key per process)
+ * @property {{ env?: string, file?: string, create?: boolean }} [key]  the link key, at least 32 bytes (default a random key per process); create: make a missing file at start
  * @property {boolean} [allowInsecureUrl]  links under an http:// http.publicUrl on a host other than loopback (default false: refused)
  * @property {{ clientId: string, clientSecret?: { env?: string, file?: string }, issuer?: string, scopes?: string[], tokenUrl?: string }} [signIn]  the browser client of the sign-in; tokenUrl: its token endpoint when the metadata names one on another origin
  */

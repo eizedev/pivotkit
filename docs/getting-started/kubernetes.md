@@ -26,46 +26,19 @@ holds every part shown below; the sections explain each one.
    Ingress's `ingressClassName` (when the cluster has no default class), the certificate's Secret
    `pivotkit-tls` (made by hand or by a tool such as cert-manager), and the `storageClassName` of
    `pivotkit-data` (when the default class offers no ReadWriteMany).
-3. Create the namespace, the token and the download key, then apply the manifest and fetch the data
-   once. The image makes the two files (each a file only you read); the lines are for bash on Linux
-   or macOS, the PowerShell tab shows the two that differ:
-
-    === "bash"
-
-        ```bash
-        docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
-        docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> key new --for downloads --file /out/download.key
-        ```
-
-    === "PowerShell"
-
-        ```powershell
-        # the image writes as its user 10001; whether it may write this folder depends on Docker
-        # Desktop's file sharing: check afterwards that the two files are there and you can read them
-        docker run --rm -v "${PWD}:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
-        docker run --rm -v "${PWD}:/out" ghcr.io/eizedev/pivotkit:<version> key new --for downloads --file /out/download.key
-        ```
-
-    Then, in either shell:
+3. Apply the manifest, fetch the data once, and read the token the server made at its first start:
 
     ```bash
-    kubectl create namespace pivotkit
-    kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
-    kubectl -n pivotkit create secret generic pivotkit-download-key --from-file=key=./download.key
     kubectl apply -f kubernetes.example.yaml
     kubectl -n pivotkit create job --from=cronjob/pivotkit-fetch-data pivotkit-fetch-data-first
     kubectl -n pivotkit rollout status deployment/pivotkit
+    TOKEN=$(kubectl -n pivotkit exec deploy/pivotkit -- pivotkit-server token show admin)
     ```
 
-    `apply` warns once that the namespace has no `last-applied-configuration` annotation and adds
-    it. A token has at least 32 characters. Keep it out of the manifest and out of environment
-    variables (`kubectl describe` shows those). With Node, `npx -y pivotkit-server token new --file
-    reports.token` and `key new --for downloads --file download.key` do the same
-    ([tokens and keys](../reference/rest.md#credentials)). `pivotkit-download-key` is the key of the
-    [download links](../reference/delivery.md): at least 32 bytes, and kept, so links survive a restart.
-    A Secret mounted in the pod is a symbolic link: `token new --file <it> --if-missing` only reads
-    it to check the value; the commands never write through a link, so a new value goes into the
-    Secret (`kubectl create secret ... --dry-run=client -o yaml | kubectl apply -f -`).
+    The server makes the token `admin` and the key of the [download links](../reference/delivery.md)
+    on the volume `pivotkit-state` ([made at the first start](../reference/rest.md#first-start)), so
+    both survive a restart; the pod's log names the same `kubectl exec` command, never the token.
+    Tokens of your own as Secrets: [managed secrets](#managed-secrets).
 
 ## Check it { #check }
 
@@ -75,7 +48,7 @@ answers):
 ```bash
 kubectl -n pivotkit port-forward svc/pivotkit 3333:3333 &
 curl -s http://localhost:3333/readyz
-curl -s -H "Authorization: Bearer $(cat reports.token)" http://localhost:3333/api/v1/sources
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3333/api/v1/sources
 kill %1   # ends the port forward
 ```
 
@@ -84,11 +57,10 @@ answers 404 `FILE_NOT_AVAILABLE` until the job has written the file
 (`kubectl -n pivotkit logs job/pivotkit-fetch-data-first`). Then the same through the Ingress:
 
 ```bash
-curl -s -H "Authorization: Bearer $(cat reports.token)" https://reports.example.com/api/v1/sources
+curl -s -H "Authorization: Bearer $TOKEN" https://reports.example.com/api/v1/sources
 ```
 
-Give the token to its users the way you hand out secrets, then delete the local file
-(`rm reports.token`).
+Give the token to its users the way you hand out secrets.
 
 ## Configuration and token { #config }
 
@@ -108,14 +80,35 @@ The configuration is a ConfigMap mounted at `/config`, where the image reads
   `X-Forwarded-For`, which the ingress controller writes (the log's `address`; the log
   is JSON lines for the cluster's log agent, [operations and logs](../reference/operations.md#kubernetes)). Only the controller may reach the pod then
   (the [NetworkPolicy](#networkpolicy) below), or a client could name any address.
-- The token comes from the Secret `pivotkit-tokens`, mounted as a directory at
-  `/run/secrets/pivotkit`. The server reads a token file on every request: after
-  `kubectl create secret ... --dry-run=client -o yaml | kubectl apply -f -` with a new token, the
-  kubelet updates the file after a short delay (its sync period and cache) and the new token works
-  without a restart. That holds only without `subPath`: a file mounted with `subPath` never changes.
-- With [OAuth](#oauth) instead of tokens, remove the `tokens` volume and its mount.
+- The configuration names no token: the server makes `admin` in `/var/lib/pivotkit/secrets/` at its
+  first start, and the key of the download links beside it. A new value:
+  `kubectl -n pivotkit exec deploy/pivotkit -- pivotkit-server token new --file /var/lib/pivotkit/secrets/admin.token --force`;
+  the server reads the file on every request, so the old token gets 401 at once, without a restart.
+- `output.dir` is `/var/lib/pivotkit/out`, on the same volume.
+- With [OAuth](#oauth) instead of tokens, add `auth` as shown there; no token is made then.
 - A changed ConfigMap is not read again: restart the Deployment
   (`kubectl -n pivotkit rollout restart deployment/pivotkit`).
+
+### Managed secrets { #managed-secrets }
+
+To hand out tokens of your own (several, with scopes or profiles), keep them in a Secret and name
+them in `auth.tokens`; the server then makes no `admin`. The image makes the values, so no tool is
+needed on your machine:
+
+```bash
+kubectl -n pivotkit exec deploy/pivotkit -- pivotkit-server token new \
+  | kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=/dev/stdin
+```
+
+Mount the Secret as a directory (`/run/secrets/pivotkit`, `defaultMode: 0440`, readable through
+`fsGroup`) and add `"auth": { "mode": "token", "tokens": [ { "name": "reports", "file": "/run/secrets/pivotkit/reports" } ] }`
+to the ConfigMap; after a restart `kubectl -n pivotkit exec deploy/pivotkit -- pivotkit-server token show reports`
+prints the token for its users. The server reads a token file on every request: after
+`kubectl create secret ... --dry-run=client -o yaml | kubectl apply -f -` with a new token, the
+kubelet updates the file after a short delay (its sync period and cache) and the new token works
+without a restart. That holds only without `subPath`: a file mounted with `subPath` never changes.
+A token has at least 32 characters; keep it out of the manifest and out of environment variables
+(`kubectl describe` shows those).
 
 ## The Deployment { #deployment }
 
@@ -127,13 +120,13 @@ What each setting is for:
 
 | Setting | Why |
 | --- | --- |
-| `replicas: 1`, `strategy: Recreate` | One server process per output directory (`/out`): the count of its files and their clean-up are kept within one process ([output directory](../reference/rest.md#auth)). A rolling update would run two pods on it for a while |
+| `replicas: 1`, `strategy: Recreate` | One server process per state volume (`pivotkit-state`, ReadWriteOnce): the count of the reports' files and their clean-up are kept within one process ([output directory](../reference/rest.md#auth)). A rolling update would run two pods on it for a while |
 | `enableServiceLinks: false` | With it on, Kubernetes sets `PIVOTKIT_PORT=tcp://<address>:3333` in every pod of the namespace for the Service named `pivotkit`, and the server stops with `PIVOTKIT_PORT is "tcp://...", which Kubernetes sets for a Service named pivotkit`. `PIVOTKIT_PORT` is set to 3333 as well |
 | `automountServiceAccountToken: false` | pivotkit calls no Kubernetes API |
-| User and group 10001, `fsGroup: 10001` | The image's user; `fsGroup` makes the volumes and the Secret's files (mode 0440) readable and `/out` writable for it. `fsGroupChangePolicy: OnRootMismatch` changes the owner of a volume's files only when its top directory does not match yet, so a start does not walk a large volume every time |
+| User and group 10001, `fsGroup: 10001` | The image's user; `fsGroup` makes the volumes readable and `/var/lib/pivotkit` writable for it (and a Secret's files, mode 0440, readable: [managed secrets](#managed-secrets)). `fsGroupChangePolicy: OnRootMismatch` changes the owner of a volume's files only when its top directory does not match yet, so a start does not walk a large volume every time |
 | The namespace's label `pod-security.kubernetes.io/enforce: restricted` | Kubernetes refuses any pod in the namespace that does not meet the restricted Pod Security Standard (non-root, no privilege escalation, no capabilities, a seccomp profile); every pod of the example meets it |
 | `readOnlyRootFilesystem`, no capabilities, `RuntimeDefault` seccomp | As `--read-only --cap-drop ALL` in [Run it](../reference/container.md#run); `/tmp` is an `emptyDir` |
-| Probes with `Host: localhost` | A probe sends the pod's IP address as `Host`, which the server refuses. `/healthz` answers while the process runs (liveness, startup); `/readyz` answers 200 only when the server can take work: the OAuth issuer loaded, the workers up, `/out` writable ([Health](../reference/container.md#health)) |
+| Probes with `Host: localhost` | A probe sends the pod's IP address as `Host`, which the server refuses. `/healthz` answers while the process runs (liveness, startup); `/readyz` answers 200 only when the server can take work: the OAuth issuer loaded, the workers up, the output directory writable ([Health](../reference/container.md#health)) |
 | `terminationGracePeriodSeconds: 30` | After SIGTERM the server takes no new connection and lets running reports finish for up to 25 seconds (`http.graceMs`) |
 
 A source whose file is missing does not stop the server or `/readyz`: a call to that source answers
@@ -142,16 +135,14 @@ as a `PROBLEM` the server starts with and exits with 1. Run it with the flags of
 `serve` (`--host 0.0.0.0`, and `--enable` where you set it), or it checks another surface.
 
 The limits on callers (`rest.rateLimit`, `mcp.rateLimit`, the refused tokens per address) are counted
-in the memory of one process. With more than one replica, each counts on its own, and each needs an
-output directory of its own (a StatefulSet with a volume claim template, or an `emptyDir` when the
-reports need not survive a restart). The MCP endpoint keeps no sessions, so any replica can answer
-any request. A [download link](../reference/delivery.md) only works on the replica that wrote its
-report unless the replicas share one output directory (a ReadWriteMany volume) and one link key: put
-`output.downloads.key` in a Secret and pass it as an environment variable
-(`"key": { "env": "PIVOTKIT_DOWNLOAD_KEY" }`). With one replica, set the key all the same, so links
-survive a restart. A key from a variable changes only with a restart of the pod; to rotate it without
-one, mount the Secret as a file (`"key": { "file": "/run/secrets/download-key" }`), which the server
-reads again within a second of a change.
+in the memory of one process. With more than one replica, each counts on its own. The MCP endpoint
+keeps no sessions, so any replica can answer any request. Replicas need one state volume they all
+share (ReadWriteMany): starting together they end with one token and one link key, and a
+[download link](../reference/delivery.md) works on every replica. A volume per pod (a StatefulSet's
+volume claim template) is not supported with the token made at the first start: each pod would make
+its own. Give such replicas tokens and a link key of your own instead ([managed secrets](#managed-secrets),
+`"output": { "downloads": { "key": { "file": "/run/secrets/download-key" } } }`, which the server reads
+again within a second of a change).
 
 ## Memory and workers { #sizing }
 
