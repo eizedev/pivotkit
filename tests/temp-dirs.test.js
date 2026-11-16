@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -341,4 +341,36 @@ test("CI's check names the pivotkit-* directories that are new after the tests, 
     const log = "pivotkit-old-p9-aaaaaa\n";
     assert.deepEqual(leftBehind({ names: before, swept: log.length }, { names: before, swept: log }), []);
     assert.deepEqual(leftBehind({ names: before, swept: log.length }, { names: before, swept: `${log}pivotkit-cli-p13-bbbbbb\n` }), ["pivotkit-cli-p13-bbbbbb (removed by a sweep: its process was killed)"]);
+});
+
+test("a test run fails when a sweep removed a directory of its own that a killed process left", () => {
+    const root = tempDir("sweep-run");
+    const run = newRun();
+    const command = `
+        import { spawn } from "node:child_process";
+        import { tempDir } from ${JSON.stringify(HELPER)};
+        const child = spawn(process.execPath, ["--input-type=module", "-e", ${JSON.stringify(`import { tempDir } from ${JSON.stringify(HELPER)}; console.log(tempDir("killed")); setInterval(() => {}, 1000);`)}], { stdio: ["ignore", "pipe", "inherit"] });
+        child.stdout.once("data", () => {
+            child.once("exit", () => tempDir("sweeper"));
+            child.kill("SIGKILL");
+        });
+    `;
+    const result = spawnSync(process.execPath, [TEST_RUN, "node", "--input-type=module", "-e", command], { encoding: "utf8", env: { ...process.env, [RUN_ENV]: run, [ROOT_ENV]: root } });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, new RegExp(`A sweep removed 1 temporary directory of run ${run} that a killed process left behind:\\n {2}pivotkit-${run}-killed-h${HOST}p\\d+-\\w{6}\\n`));
+});
+
+test("a sweep never writes its note through a symbolic link, and says so", { skip: process.platform === "win32" && "symbolic links need rights on Windows" }, () => {
+    const root = tempDir("sweep-link");
+    const target = join(tempDir("sweep-target"), "elsewhere.txt");
+    writeFileSync(target, "kept\n");
+    symlinkSync(target, join(root, SWEPT_LOG));
+    // a directory of a process that is gone (no process has this id)
+    const orphan = `pivotkit-x-h${HOST}p999999-abcdef`;
+    mkdirSync(join(root, orphan));
+    const next = spawnSync(process.execPath, ["--input-type=module", "-e", maker("")], { encoding: "utf8", env: { ...process.env, [RUN_ENV]: "", [ROOT_ENV]: root } });
+    assert.equal(next.status, 0, next.stderr);
+    assert.equal(existsSync(join(root, orphan)), false, "removed");
+    assert.match(next.stderr, new RegExp(`^could not note them in ${join(root, SWEPT_LOG).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}: `, "m"));
+    assert.equal(readFileSync(target, "utf8"), "kept\n");
 });

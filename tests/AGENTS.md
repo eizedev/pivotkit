@@ -24,10 +24,12 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - A Playwright spec calls `removeTempDirs()` in `test.afterAll`.
 - The directories are removed at process end, also after a failure, `exit()` or a signal.
 - Each name holds a mark of its host and its process id. SIGKILL or a crash leaves the directories.
+- The mark hashes the host name and, on Linux, the PID namespace.
+  On macOS the host name can change with the network. Directories with an old mark stay; remove them by hand.
 - The next `tempDir()` on the same host removes those of processes that are gone.
   It says so on stderr and notes them in `pivotkit-swept.log` in the temporary directory.
 - `$PIVOTKIT_TEMP_ROOT` names another directory for them. The test of the sweep uses it.
-- `scripts/test-run.js` fails a run that leaves one of its directories behind.
+- `scripts/test-run.js` fails a run that leaves one of its directories behind, or whose directories a sweep removed.
 - CI's Linux test job also fails when any `pivotkit-*` directory is new after the tests.
   So it does when a sweep removed one meanwhile (`scripts/temp-dirs.js`).
 - `tests/temp-dirs.test.js` fails on `mkdtemp`, `tmpdir()`, `TMPDIR` or `"/tmp/"` elsewhere.

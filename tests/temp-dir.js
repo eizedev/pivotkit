@@ -9,7 +9,7 @@
 // first tempDir() of any later process on the same host removes the directories of processes that
 // are gone, and notes them in SWEPT_LOG (#526).
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs";
+import { closeSync, constants, lstatSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -25,14 +25,55 @@ export const ROOT_ENV = "PIVOTKIT_TEMP_ROOT";
 /** Where tempDir() makes its directories. */
 export const tempRoot = () => process.env[ROOT_ENV] || tmpdir();
 
+/** The PID namespace's inode where Linux shows it: containers with one host name differ by it. */
+function pidNamespace() {
+    try {
+        return String(statSync("/proc/self/ns/pid").ino);
+    } catch {
+        return "";
+    }
+}
+
 /**
- * This host's mark in each name. A sweep removes only directories with this mark: another host or
- * container that shares the directory has other process ids. A foreign tool's name never has it.
+ * This host's mark in each name: its host name and, on Linux, its PID namespace. A sweep removes
+ * only directories with this mark: another host or container that shares the directory has other
+ * process ids. A foreign tool's name never has it.
  */
-export const HOST = createHash("sha256").update(hostname()).digest("hex").slice(0, 8);
+export const HOST = createHash("sha256").update(`${hostname()}\n${pidNamespace()}`).digest("hex").slice(0, 8);
 
 /** The file in the temporary root where a sweep notes what it removed. CI fails when it grew. */
 export const SWEPT_LOG = "pivotkit-swept.log";
+
+/**
+ * What the sweeps noted so far in a temporary root, or "" without a note.
+ * @param {string} [dir]
+ */
+export function sweptLog(dir = tempRoot()) {
+    try {
+        return readFileSync(join(dir, SWEPT_LOG), "utf8");
+    } catch {
+        return "";
+    }
+}
+
+/**
+ * Appends to SWEPT_LOG, never through a symbolic link (O_NOFOLLOW; Windows has no such flag, so the
+ * file is looked at first there).
+ * @param {string} dir
+ * @param {string} text
+ */
+function noteSwept(dir, text) {
+    const file = join(dir, SWEPT_LOG);
+    if (constants.O_NOFOLLOW === undefined && lstatSync(file, { throwIfNoEntry: false })?.isSymbolicLink()) {
+        throw new Error("it is a symbolic link");
+    }
+    const fd = openSync(file, constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT | (constants.O_NOFOLLOW ?? 0), 0o600);
+    try {
+        writeSync(fd, text);
+    } finally {
+        closeSync(fd);
+    }
+}
 
 /**
  * Where the names of a run's directories start: "pivotkit-<run>-", or "pivotkit-" without a run.
@@ -86,9 +127,9 @@ export function removeOrphans(dir = tempRoot()) {
     // said and noted: a run whose processes were killed fails CI's check (scripts/temp-dirs.js)
     process.stderr.write(`removed ${removed.length} temporary director${removed.length === 1 ? "y" : "ies"} of ended processes: ${removed.join(", ")}\n`);
     try {
-        appendFileSync(join(dir, SWEPT_LOG), removed.map((name) => `${name}\n`).join(""));
-    } catch {
-        // the line on stderr stays
+        noteSwept(dir, removed.map((name) => `${name}\n`).join(""));
+    } catch (error) {
+        process.stderr.write(`could not note them in ${join(dir, SWEPT_LOG)}: ${/** @type {Error} */ (error).message}\n`);
     }
 }
 

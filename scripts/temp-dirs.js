@@ -1,14 +1,13 @@
 // CI's check that a test run leaves no directory of tempDir() behind (#526), of any run or process.
 // test-run.js counts only its own run's directories. A process killed without its exit event, or
 // started without the run's id, escapes that count. Its directories go with the next sweep of
-// tests/temp-dir.js, which notes them in SWEPT_LOG. So the check fails on two things: a pivotkit-*
+// tests/temp-dir.js, which notes them in its log. So the check fails on two things: a pivotkit-*
 // name that is new since `save`, and a line the sweep noted since `save`.
 //   node scripts/temp-dirs.js save <file>
 //   node scripts/temp-dirs.js check <file>    # exit code 1, with the names, when there are any
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { isMain } from "./is-main.js";
-import { SWEPT_LOG, tempDirNames, tempRoot } from "../tests/temp-dir.js";
+import { sweptLog, tempDirNames } from "../tests/temp-dir.js";
 
 /**
  * The names now that were not there before.
@@ -20,14 +19,6 @@ export function newNames(before, now) {
     return now.filter((name) => !old.has(name));
 }
 
-/** What the sweeps noted so far, or "" without a note. */
-function swept() {
-    try {
-        return readFileSync(join(tempRoot(), SWEPT_LOG), "utf8");
-    } catch {
-        return "";
-    }
-}
 
 /**
  * What a run left: the new names, and the directories a sweep removed during the run.
@@ -42,9 +33,9 @@ export function leftBehind(before, now) {
 if (isMain(import.meta.url)) {
     const [action, file] = process.argv.slice(2);
     if (action === "save" && file) {
-        writeFileSync(file, JSON.stringify({ names: tempDirNames(), swept: swept().length }));
+        writeFileSync(file, JSON.stringify({ names: tempDirNames(), swept: sweptLog().length }));
     } else if (action === "check" && file) {
-        const left = leftBehind(JSON.parse(readFileSync(file, "utf8")), { names: tempDirNames(), swept: swept() });
+        const left = leftBehind(JSON.parse(readFileSync(file, "utf8")), { names: tempDirNames(), swept: sweptLog() });
         if (left.length > 0) {
             process.stderr.write(`The tests left ${left.length} temporary director${left.length === 1 ? "y" : "ies"} behind (make them with tempDir() of tests/temp-dir.js):\n${left.map((name) => `  ${name}\n`).join("")}`);
             process.exitCode = 1;
