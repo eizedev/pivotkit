@@ -181,7 +181,7 @@ For agents and the maintainer. See also [PRODUCT.md](PRODUCT.md#what-a-contribut
 
 - Write `Fixes #n` only in the pull request description, never in intermediate commits.
 - A changed MCP tool description or schema: the upgrading page says clients must reconnect.
-- A public interface change follows [docs/versioning.md](docs/versioning.md), deprecations included.
+- A public interface change follows [docs/versioning.md](docs/versioning.md). Deprecate as [CONTRIBUTING.md](CONTRIBUTING.md#deprecate-something) says.
 - A product decision that changes PRODUCT.md updates it in the same pull request.
 
 ## Where details live

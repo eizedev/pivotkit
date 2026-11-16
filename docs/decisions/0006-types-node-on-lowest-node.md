@@ -28,7 +28,6 @@ Chosen option: the lowest supported Node major.
 - `@types/node` stays on 22.x while Node 22 is the floor.
 - Dependabot ignores its major updates. Minor and patch updates of 22.x still come.
 - The floor and the types rise together, in one change.
-  [#519](https://github.com/eizedev/pivotkit/issues/519) plans the move to Node 24.
 
 The reason recorded in #520: types of a newer Node would let code use APIs that Node 22 lacks. Only
 users on Node 22 would notice.

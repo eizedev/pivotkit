@@ -51,4 +51,3 @@ Where no source gives the reason, a record says "reason not recorded".
 - Good: anyone can check a task against the accepted records before it starts.
 - Good: one place for decisions of pivotkit and its host integrations.
 - Bad: the records and the index need upkeep.
-  [#493](https://github.com/eizedev/pivotkit/issues/493) plans a review of whether they help.

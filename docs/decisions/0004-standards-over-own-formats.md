@@ -14,8 +14,7 @@ Sources: [PRODUCT.md, principle 3](https://github.com/eizedev/pivotkit/blob/main
 ## Context and Problem Statement
 
 pivotkit needs sign-in, output files and interfaces for programs. Each could follow an existing
-standard or be a format of its own. A format of its own can fit pivotkit better. But everyone who uses it has to
-learn it, and the project has to document and keep it.
+standard or be a format of its own.
 
 ## Considered Options
 

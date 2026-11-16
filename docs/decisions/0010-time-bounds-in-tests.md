@@ -39,5 +39,5 @@ Each converted bound must still fail on its defect.
 
 ### Consequences
 
-- Good: bounds keep their old values and stop failing under load.
+- Good: the converted bounds keep their old values.
 - Bad: a wall-time bound needs a written reason.

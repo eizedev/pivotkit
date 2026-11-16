@@ -125,7 +125,7 @@ upgrading page. From 1.0.0, nothing public goes away without a deprecation first
 A pull request that deprecates something delivers:
 
 - the next free id `PK-DEP-NNNN` from the register on the versioning page
-- a warning, once per process, when code uses the old form. It names the id and the replacement
+- a warning at run time when code uses the old form. It names the id and the replacement
 - for the services, a `check-config` line that names the id
 - where possible, the old form keeps working. pivotkit turns it into the new one
 - a test that uses the old form and checks the warning and the result

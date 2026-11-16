@@ -14,12 +14,12 @@ The [upgrading page](getting-started/upgrading.md) says what changed between two
 
 pivotkit is 0.x and under active development.
 
-- A minor release (0.7 to 0.8) can break things.
+- A minor release, from 0.y to 0.(y+1), can break things.
 - We break as little as possible.
 - The upgrading page lists every break, with what to do.
 
-In 0.x, npm's caret range covers patch releases only. `npm update` therefore never takes the next
-minor release on its own.
+In a project's `package.json`, a caret range on a 0.x release covers patch releases only. `npm update`
+in that project therefore stays on the same minor release.
 
 ### From 1.0.0
 
@@ -39,7 +39,7 @@ All packages start 1.0.0 together.
 
 A security fix may close an unsafe default in a minor or patch release. Such a change:
 
-- carries the mark **Security** in the changelog and on the upgrading page
+- is marked **Security** in the release notes
 - comes with a way to detect it, for example a `check-config` line or a log line
 - comes with a way back to the old behaviour
 
@@ -57,23 +57,23 @@ These are the parts a break can hit. A change to them follows [the promise](#the
 - Configuration keys of the services.
 - Environment variables.
 - Error codes, such as `LIMIT_EXCEEDED` or `INVALID_INPUT`.
-- The lowest supported Node.js, React and browser versions.
+- The lowest supported Node.js version.
 
 These are not public interface. They can change in any release:
 
 - The look: layout, colours, spacing and CSS details.
 - The wording of messages, hints and errors. Match on the code, not on the text.
 - Modules that no package exports.
-- The layout of an exported workbook beyond its values: styles, column widths and sheet order.
+- The layout of an exported workbook beyond its values, such as styles and column widths.
 
 ## How a deprecation works
 
 From 1.0.0, nothing public goes away without a deprecation first.
 
 1. **An id.** Each deprecation gets a number of its own, `PK-DEP-NNNN`, counted up from
-   `PK-DEP-0001`. An id never changes and is never used again, even if the deprecation is withdrawn.
-2. **A warning.** Using the old form logs a warning once per process. The warning names the id and
-   the replacement.
+   `PK-DEP-0001`. An id never changes, even if the deprecation is withdrawn.
+2. **A warning.** Using the old form logs a warning at run time. The warning names the id and the
+   replacement.
 3. **A `check-config` line.** For the services, `check-config` names the id where the configuration
    uses the old form.
 4. **Old input keeps working.** Where possible, pivotkit reads the old form and turns it into the new
@@ -95,7 +95,7 @@ There are no deprecations yet.
 The rules follow what other projects do:
 
 - [Node.js](https://nodejs.org/api/deprecations.html) numbers each deprecation (`DEP0001`) and never
-  changes an id. Its warnings print once per process.
+  changes an id, even when it withdraws a deprecation.
 - [Kubernetes](https://kubernetes.io/docs/reference/using-api/deprecation-policy/) removes a stable
   API element only with a new major version.
 - [Angular](https://angular.dev/reference/releases) keeps a deprecated API for at least one major

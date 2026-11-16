@@ -39,5 +39,3 @@ The reason recorded in #165: hosts own scheduling, storage and rights.
 ### Consequences
 
 - Good: the services stay thin hosts around the engine, without a scheduler of their own.
-- Good: the host's own approval and sending rules apply.
-- Bad: a setup without a host that schedules needs another tool for regular reports.

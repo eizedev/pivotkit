@@ -38,4 +38,3 @@ and not 18.0: reason not recorded.
 
 - Good: pivotkit works in PowerShell Universal and in apps on React 18 or 19.
 - Bad: pivotkit cannot use features that only React 19 has.
-- Raising the floor is a break under the [versioning policy](../versioning.md).

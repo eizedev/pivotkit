@@ -37,5 +37,3 @@ The default is also checked where the export runs, not only in the menu.
 
 - Good: an existing host hands out nothing new after an update.
 - Bad: a host that wants the download must turn it on.
-- The drill-down still hands out rows when `exportData` is off
-  ([#263](https://github.com/eizedev/pivotkit/issues/263)).

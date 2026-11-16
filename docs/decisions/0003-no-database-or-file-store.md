@@ -34,6 +34,5 @@ The reason recorded in #165: hosts own scheduling, storage and rights.
 
 ### Consequences
 
-- Good: the operator's systems stay the only place that keeps the data.
 - Bad: pivotkit builds no feature that needs stored data. #335, an upload link that creates a
   source on the server, ended as not planned for this reason. Large files stay with the host or a source.
