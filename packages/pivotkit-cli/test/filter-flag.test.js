@@ -216,11 +216,13 @@ test("an operator form without a field or an item gets the plain Field=Item mess
 
 test("a number in the short form's comparison is a number in the JSON meant, in any notation", async () => {
     const dir = files();
-    for (const [given, value] of [["Units>1e3", 1000], ["Units<.5", 0.5], ["Units>=-2", -2]]) {
+    // decimal notation only: 0x10 stays text; spaces around the operator are not part of the names
+    for (const [given, value] of [["Units>1e3", 1000], ["Units<.5", 0.5], ["Units>=-2", -2], ["Units>0x10", "0x10"], ["Units >= 3", 3], ["Units > +2.5E1", 25]]) {
         const r = await run([...SUM_BY_COUNTRY, "--filter", given], { cwd: dir });
         assert.equal(r.code, 2, given);
         const json = /give JSON: (\{.*\});/.exec(r.stderr)?.[1];
         assert.equal(JSON.parse(json ?? "null")?.value, value, `${given}: ${r.stderr}`);
+        assert.equal(JSON.parse(json ?? "null")?.field, "Units", `${given}: ${r.stderr}`);
     }
 });
 

@@ -111,12 +111,16 @@ export const isJsonFilter = (text) => /^\s*[[{]/.test(text);
 /**
  * The message for a short form with a comparison or a negation: the JSON filter it means, whole so
  * it works as written; a pointer to the reference when that filter is too long or not printable.
- * @param {string} field
+ * @param {string} rawField
  * @param {string} op  "!=", "<", "<=", ">" or ">="
- * @param {string} item
+ * @param {string} rawItem
  */
-function meantFilter(field, op, item) {
-    const value = op !== "!=" && item.trim() !== "" && Number.isFinite(Number(item)) ? Number(item) : item;
+function meantFilter(rawField, op, rawItem) {
+    // "Revenue >= 3": the spaces around the operator belong to neither part
+    const field = rawField.trim();
+    const item = rawItem.trim();
+    // a decimal number only ("1e3", ".5"); "0x10" stays text
+    const value = op !== "!=" && /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(item) ? Number(item) : item;
     const json = JSON.stringify(op === "!=" ? { field, type: "in", items: [item], not: true } : { field, type: "compare", op, value });
     const meant = printable(json) === json ? `JSON: ${json}` : `JSON as a view writes it: see ${DOCS}reference/cli/#layout-flags`;
     return `the short form keeps one item: Field=Item. For this filter give ${meant}`;
