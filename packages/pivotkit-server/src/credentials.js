@@ -108,7 +108,7 @@ function parse(command, argv, positionals = false) {
         return parseArgs({ args: argv, options: /** @type {any} */ (flags), allowPositionals: positionals, strict: true });
     } catch (e) {
         const flag = /'(-{1,2}[^'\s]+)'/.exec(String(e.message))?.[1] ?? "";
-        const near = closest(flag.replace(/^-+/, ""), Object.keys(flags));
+        const near = flag ? closest(flag.replace(/^-+/, ""), Object.keys(flags)) : null;
         const what = e.code === "ERR_PARSE_ARGS_UNKNOWN_OPTION" ? `unknown option ${JSON.stringify(flag.slice(0, 40))}` : String(e.message).split("\n")[0].replace(/^./, (c) => c.toLowerCase());
         // a flag without its value is named by the error itself: no "did you mean" of the same flag
         const hint = near && near !== flag.replace(/^-+/, "") ? `did you mean --${near}? ` : "";
@@ -201,7 +201,7 @@ async function configFor(values, cwd, what) {
  * @param {string} config  as given, for messages
  * @param {any} options  the file as loadConfig read it
  * @param {(raw: any) => { next: any, notes: string[] } | { done: true }} change  `done`: the configuration has it already
- * @returns {Promise<{ path: string, before: string, text: string, mode: number, notes: string[], size: number, mtimeMs: number } | { done: true, path: string }>}
+ * @returns {Promise<{ path: string, bytes: Buffer, text: string, mode: number, notes: string[], size: number, mtimeMs: number } | { done: true, path: string }>}
  */
 async function changedConfig(path, config, options, change) {
     // replaceFile renames over it: a link (a mounted ConfigMap is one) or a directory that cannot be
@@ -214,7 +214,9 @@ async function changedConfig(path, config, options, change) {
     if (!writable) {
         throw usage("CONFIG_NOT_WRITABLE", `${config}: its directory cannot be written (the backup and the new file go there); add the entry by hand`);
     }
-    const before = await readFile(path, "utf8");
+    // the bytes as they are, for the backup and the check before the replace; the text for parsing
+    const bytes = await readFile(path);
+    const before = bytes.toString("utf8");
     const bom = before.startsWith("\uFEFF") ? "\uFEFF" : "";
     const changed = change(JSON.parse(before.slice(bom.length)));
     if ("done" in changed) {
@@ -229,35 +231,36 @@ async function changedConfig(path, config, options, change) {
     const indent = /^([ \t]+)"/m.exec(before)?.[1] ?? "  ";
     const eol = before.includes("\r\n") ? "\r\n" : "\n";
     const body = JSON.stringify(next, null, indent).replace(/\n/g, eol);
-    return { path, before, text: `${bom}${body}${/\r?\n$/.test(before) ? eol : ""}`, mode: info.mode & 0o777, notes, size: info.size, mtimeMs: info.mtimeMs };
+    return { path, bytes, text: `${bom}${body}${/\r?\n$/.test(before) ? eol : ""}`, mode: info.mode & 0o777, notes, size: info.size, mtimeMs: info.mtimeMs };
 }
 
 /**
  * Writes a changed configuration with its backup, unless it changed since it was read (its content,
  * read again right before the replace; its size and time before that): then nothing is replaced and
- * the backup goes again. When that fails, says that the secret's file is written and the
+ * the backup goes again. A best effort, no lock: an edit in the moment between that last read and
+ * the rename is lost. When the write fails, says that the secret's file is written and the
  * configuration is not.
- * @param {{ path: string, before: string, text: string, mode: number, size: number, mtimeMs: number }} changed
+ * @param {{ path: string, bytes: Buffer, text: string, mode: number, size: number, mtimeMs: number }} changed
  * @param {Record<string, any>} values
- * @returns {Promise<string>}  the backup's path
+ * @returns {Promise<{ backup: string, warnings: string[] }>}  the backup's path, and what the configuration could not keep of its owner, group or mode
  */
 async function writeConfig(changed, values) {
     const unchanged = async () => {
         const now = await lstat(changed.path);
-        return now.size === changed.size && now.mtimeMs === changed.mtimeMs && (await readFile(changed.path, "utf8")) === changed.before;
+        return now.size === changed.size && now.mtimeMs === changed.mtimeMs && (await readFile(changed.path)).equals(changed.bytes);
     };
     if (!(await unchanged())) {
         throw new CommandError(1, "CONFIG_CHANGED", `${values.config} changed since it was read and was not replaced; the file ${values.file} is written: run the same command with --if-missing to add it now`);
     }
     try {
-        const backup = await writeBackup(changed.path, changed.before, changed.mode);
+        const backup = await writeBackup(changed.path, changed.bytes, changed.mode);
         // the last look right before the replace: the window that stays is this one step
         if (!(await unchanged())) {
             await unlink(backup).catch(() => undefined);
             throw new CommandError(1, "CONFIG_CHANGED", `${values.config} changed since it was read and was not replaced; the file ${values.file} is written: run the same command with --if-missing to add it now`);
         }
-        await replaceFile(changed.path, changed.text, changed.mode, values.config);
-        return backup;
+        const warnings = await replaceFile(changed.path, changed.text, changed.mode, values.config);
+        return { backup, warnings };
     } catch (e) {
         if (e instanceof CommandError) {
             throw e;
@@ -302,8 +305,9 @@ async function tokenNew(argv, io) {
     if (secret.replaced) {
         warnings.push(`${values.file} replaced: clients that still send the old token get 401 from now on`);
     }
-    const backup = added && !("done" in added) ? await writeConfig(added, values) : null;
-    warnings.push(...(added && "notes" in added ? added.notes : []));
+    const written = added && !("done" in added) ? await writeConfig(added, values) : null;
+    const backup = written?.backup ?? null;
+    warnings.push(...(added && "notes" in added ? added.notes : []), ...(written?.warnings ?? []));
     const hints = added && "done" in added ? [`${secret.created ? "created" : `kept`} ${values.file}${secret.created ? "" : " (usable)"}; already configured in ${values.config}`] : tokenHints({ values, entry, options, backup, secret });
     const json = { name, ...(file ? { file: secret.file, created: secret.created, replaced: secret.replaced } : {}), ...(added ? { config: added.path, configured: "done" in added ? "already" : "added", backup } : {}) };
     return { json, value: secret.value, hints, warnings, printValue: !file || Boolean(values.print), field: "token" };
@@ -422,8 +426,9 @@ async function keyNew(argv, io) {
     if (secret.replaced && values.for === "downloads") {
         warnings.push(`${values.file} replaced: download links made with the old key stop working within a second`);
     }
-    const backup = added && !("done" in added) ? await writeConfig(added, values) : null;
-    warnings.push(...(added && "notes" in added ? added.notes : []));
+    const written = added && !("done" in added) ? await writeConfig(added, values) : null;
+    const backup = written?.backup ?? null;
+    warnings.push(...(added && "notes" in added ? added.notes : []), ...(written?.warnings ?? []));
     let hints;
     if (added && "done" in added) {
         hints = [`${secret.created ? "created" : "kept"} ${values.file}${secret.created ? "" : " (usable)"}; already configured in ${values.config}`];

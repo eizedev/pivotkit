@@ -40,7 +40,8 @@ holds every part shown below; the sections explain each one.
     === "PowerShell"
 
         ```powershell
-        # Docker Desktop on Windows: the folder is writable from the container without --user
+        # the image writes as its user 10001; whether it may write this folder depends on Docker
+        # Desktop's file sharing: check afterwards that the two files are there and you can read them
         docker run --rm -v "${PWD}:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
         docker run --rm -v "${PWD}:/out" ghcr.io/eizedev/pivotkit:<version> key new --for downloads --file /out/download.key
         ```
