@@ -137,7 +137,8 @@ row whose cells may be shifted (more cells than the named header; a uniform file
 with a separator is no shift) is left out whole, with a
 `ROWS_DROPPED` note that counts such rows: the values after a stray separator shift one column to the
 right, so a value kept back would land in the next column, which may be shown. `check-config` counts
-such rows per source. A shifted row as wide as the header cannot be told; see
+such rows per source by the source's own policy, so a caller whose profile sees fewer fields can lose
+rows `check-config` does not warn about. A shifted row as wide as the header cannot be told; see
 [privacy](../privacy.md#defaults) for CSV sources with fields kept back.
 `"default": "show"` with fields set to `hide` is a deny list: a column the data gains later is shown
 unless someone hides it, and `check-config` warns of it. Prefer `summary` by default and name the

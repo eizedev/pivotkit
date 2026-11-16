@@ -44,10 +44,11 @@ the data is read. Leaving a column out of the data file is safer still.
 
 In CSV, a hidden (or `summary`, `values`) column is protected only when the file is well formed: a
 separator inside an unquoted value moves the values after it into the next columns, and pivotkit
-catches that only where the row gets wider than the header (it then leaves the row out). A shifted
-row whose writer dropped a cell at the end has the header's width and cannot be told from the data,
-nor can a shifted row in a file whose every line ends with a separator, where the shift fills the
-empty last cell.
+catches that only where the row gets wider than the named header (its empty cells at the end left
+out; it then leaves the row out). One exception: a file whose every row has the same width and holds
+nothing beyond the named header is read as a separator that ends every line, and keeps its rows. Two
+shifts cannot be told from the data: a row whose writer dropped a cell at the end, which has the
+header's width, and a row in such a uniform file whose shift fills the empty last cell.
 For sources with fields kept back, write CSV with quoted values, or use xlsx or JSON;
 `check-config` says this under each such CSV source.
 

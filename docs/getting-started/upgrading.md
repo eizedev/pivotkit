@@ -356,9 +356,11 @@ inside a value is left out whole, and the answer's notes say how many with `ROWS
 after the stray separator shift one column to the right, so a value kept back would land in a shown
 column. Such a row has more cells than the named header (its empty cells at the end left out). A file
 whose every row is as wide and ends with a separator (with or without one in the header) is no shift
-and keeps its rows; once widths differ, every row wider than the named header goes. A source whose
-fields are all `show` keeps every row, extra values in a hidden `Column N`. `check-config` counts such
-rows per source. Quote values that hold the separator to keep the rows; a shifted row as wide as the
+and keeps its rows. In a file with mixed row widths every row wider than the named header is left
+out: a file where only some rows end with a separator loses those rows, or all of them if every row is
+wider; `ROWS_DROPPED` gives the count. A source whose fields are all `show` keeps every row, extra
+values in a hidden `Column N`. `check-config` counts such rows per source by the source's own policy,
+so a caller whose profile sees fewer fields can lose rows `check-config` does not warn about. Quote values that hold the separator to keep the rows; a shifted row as wide as the
 header cannot be caught, so use quoted CSV, xlsx or JSON for sources with fields kept back.
 
 ### Request limits per person { #limits-per-person }
