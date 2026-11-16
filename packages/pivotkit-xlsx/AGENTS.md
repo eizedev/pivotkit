@@ -20,10 +20,16 @@ Run `size` and `bench` after a change of the reader.
 - Check before parsing. `zip.js` checks the ZIP directory against `archiveEntries` and `unpackedBytes`.
 - Unpack parts as a stream, never beyond their stated size.
 - `xml.js` refuses `<!DOCTYPE` and `<!ENTITY`.
+
+## XML guard
+
 - Every part read-excel-file gets passes `createXmlGuard`.
 - The guard cuts whitespace runs and refuses over-long tags and tokens.
 - Reason: read-excel-file re-reads an unfinished token with every piece. That is quadratic.
 - Shared strings and formats count against `importCells`.
+
+## Parsing
+
 - read-excel-file runs on an uncompressed ZIP of only the needed parts (`createStoredZip`).
 - So it starts no worker. A strict CSP blocks fflate's `blob:` workers.
 - The table is built with pivotkit-core's `createTable`.

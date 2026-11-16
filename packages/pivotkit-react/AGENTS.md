@@ -67,7 +67,8 @@ The first load holds only what the first render needs. Everything else loads on 
 - No inline `style` attributes. The chart's tooltip is built as DOM nodes.
 - Printing uses a frame sandboxed without scripts, filled as DOM (`print-frame.js`).
 - `print()` runs inside the click. Do not await a promise that is not yet resolved.
-- Opening the Export menu preloads the report's modules (`prepareExport`).
+- Opening the Export menu readies the print frame (`prepareExport` in `export-run.js`).
+- Pointing at, pressing or focusing Print starts loading the report's modules.
 - The print specs check this with `inClick` in all three engines.
 
 ## UI rules
@@ -91,6 +92,9 @@ Visual values come from `--pk-*` tokens. A host can then match its design withou
 - The printed report uses `--pk-print-size` and `--pk-print-small`, in pt.
 - A new visual value gets a token. A literal becomes one when its rule is touched.
 - Shapes such as `999px` pills, `50%` circles and `0` are not theme values.
+
+### Checks and consumers
+
 - Document each token in `docs/reference/theming.md`.
 - `test/tokens.test.js` fails on literals. `test/contrast.test.js` checks both themes.
 - The chart reads tokens through pivotkit-core's `chartThemeFrom` and `decorateOption`.
@@ -101,10 +105,16 @@ Visual values come from `--pk-*` tokens. A host can then match its design withou
 - A host may render the report on every change of its state.
 - Compare props by value: `labels`, `limits`, `importLimits`, `fieldDefaults`.
 - Compare data by `dataKey`.
+
+### Field labels and outside input
+
 - `fieldDefaults` are optional. A field without them looks and works as if there were none.
 - Labels are display only. Views keep field names.
 - A view from outside passes `normalize()` with pivotkit-core's `outsideLimits`.
 - The host's `chartOptions` is checked as plain JSON (`chart-options.js`). Nothing in it runs.
+
+### Exports and kept data
+
 - Exporting source data (`exportData`) is off by default.
 - Every file and copy passes `onExport` first.
 - Data loaded from a file is kept in memory only, per `storageKey` (`data-keep.js`).

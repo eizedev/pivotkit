@@ -18,7 +18,7 @@ npm run size -w pivotkit-element    # what a page loads, gzip; fails above SIZE_
 - `build.js` bundles React, ReactDOM, pivotkit-core, pivotkit-react and @dnd-kit into `dist/`.
 - Every bundled package is an exact devDependency. The package has no runtime dependency.
 - `build.js` writes `dist/THIRD_PARTY_LICENSES.txt` through `scripts/third-party-licenses.js`.
-- `SIZE_BUDGET_KIB` in `build.js` sets the size budget per group.
+- `SIZE_BUDGET_KIB` in `build.js` sets a gzip budget for each load group.
 
 ## First load and groups
 
@@ -28,6 +28,9 @@ The first load holds only the first render and what a click outside a menu does 
 - A click outside a menu: a commit with its status note, Undo, reading a link at start.
 - Work after a click in a menu goes into pivotkit-react's `menus.js`.
 - What only a drawn chart needs goes into `echarts.js`.
+
+### Lazy groups
+
 - Group "unused": the texts of a view's unused parts. Loaded only when a view has some.
 - Group "import": loading data. Loaded on first use.
 - Group "report": HTML report, SVG and printing. Loaded on first use.

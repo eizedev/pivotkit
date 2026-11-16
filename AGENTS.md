@@ -7,8 +7,7 @@ This file holds what you need on every task. Packages and some folders have thei
 
 ## Packages
 
-pivotkit is a pivot report builder for the web, with Excel's PivotTable as the reference.
-It is a set of npm packages in one repository, with npm workspaces.
+pivotkit is a pivot report builder in the spirit of Excel's PivotTable, as npm workspaces:
 
 | Package | What it is |
 | --- | --- |
@@ -32,7 +31,7 @@ The root `package.json` lists the workspaces in build order. `npm run types` and
 - `scripts/` - generators and checks. Each script says in its header what it does.
 - `docker/` - the container image and its examples.
 - `docs/` - the documentation site, built with Zensical.
-- `assets/` - icon, header and social preview. They are made in eizedev/brand; never change them here.
+- `assets/` - icon, header and social preview. They are made in eizedev/brand. Never change them here.
 
 ## Commands
 
@@ -47,7 +46,7 @@ npm run coverage       # the tests with a coverage report
 npm run pack:check     # what npm pack would publish, checked
 ```
 
-Work on one package:
+Work on one package. Its `AGENTS.md` lists its size and benchmark commands:
 
 ```bash
 npm test -w pivotkit-server        # any workspace name works
@@ -58,23 +57,10 @@ UI and browser:
 
 ```bash
 npm run playground                          # http://localhost:5173 with rebuilds
-npx playwright install                      # once, for the browser tests
-npm run test:browser                        # Playwright in Chromium, Firefox and WebKit
-PLAYGROUND_PORT=4195 npm run test:browser   # when port 4173 is taken
-PIVOTKIT_REACT=19 npm run test:browser      # on React 19, after npm ci --prefix tests/react19
+npm run test:browser                        # three browsers. React 19 and ports: tests/AGENTS.md
 ```
 
-Size and speed:
-
-```bash
-npm run size -w pivotkit-element    # what a page loads, against the size budget
-npm run size -w pivotkit-xlsx       # the plugin and its reader, against the size budget
-npm run bench -w pivotkit-core      # engine timings for 2k, 4k and 100k rows
-npm run bench -w pivotkit-xlsx      # a generated 94,000-row workbook (-- --browser for Chromium)
-npm run bench:browser               # the report in three browsers, 100k to 1M rows
-```
-
-Generated files. Run the generator after a change; a test fails until you do:
+Generated files. Run the generator after a change. A test fails until you do:
 
 ```bash
 node scripts/schemas.js                                 # pivotkit-core's JSON Schemas
@@ -88,7 +74,6 @@ Docs site:
 ```bash
 npm run docs:demo           # the live demo, schemas, social preview, robots.txt
 npm run docs:screenshots    # take docs/assets/screenshots/ again
-npm run docs:data           # fetch the playground's real data again (network)
 curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css
 uvx zensical@<version> build --strict     # version: eizedev/brand docs-site/requirements.txt
 node scripts/check-readme-links.js site   # after the build: README links resolve
@@ -108,7 +93,7 @@ node scripts/check-readme-links.js site   # after the build: README links resolv
 
 ## Code rules for every package
 
-Input from outside:
+### Views and files from outside
 
 - A view is user input. It holds names only.
 - Resolve names against fixed lists or the data's schema. Never evaluate a string from a view.
@@ -116,10 +101,13 @@ Input from outside:
 - A loaded file is user input too. Never evaluate or fetch anything a file names.
 - A view from a link, pasted JSON, storage or an API passes `normalize()` with `outsideLimits()`.
 - Cap its size before you decode or parse it. Say in plain words what was dropped.
+
+### Limits
+
 - Whatever grows with the view or the data counts against `LIMITS` before it is allocated.
 - A new structure that grows gets a limit. `docs/concepts/limits.md` explains each one.
 
-Errors and API shape:
+### Errors and API shape
 
 - A bad view never throws: `normalize()` reports issues.
 - A programmer error or a limit throws `PivotkitError` with a code.
@@ -128,14 +116,14 @@ Errors and API shape:
 - Dates are wall clock. Instants use `encode`'s `timeZone`, default `"UTC"`. Never the machine's zone.
 - Caches are bounded (`createCache` in pivotkit-core's `util.js`).
 
-Dependencies:
+### Dependencies
 
-- Pin every third-party package exactly. CI installs with `npm ci --ignore-scripts`.
+- Pin every third-party package exactly. CI runs `npm ci --ignore-scripts`.
 - A package of this repository takes a caret range on another one. `tests/ci.test.js` checks it.
 - Prefer a small wrapper of our own over a chart wrapper package. Those have been hijacked on npm.
 - Licences and the rest: [CONTRIBUTING.md](CONTRIBUTING.md#dependencies).
 
-Never:
+### Never
 
 - Add a runtime dependency to `pivotkit-core` other than `fflate`.
 - Bundle React or ECharts into `pivotkit-react`. `pivotkit-element` is the package that bundles them.
@@ -146,18 +134,21 @@ Never:
 - Docs describe the current state. History goes into changelogs, commits and pull requests.
 - Add an `[Unreleased]` entry to the `CHANGELOG.md` of each package you change.
 - Use Conventional Commits with the package as scope: `feat(core): ...`.
-- Document every change people see on the site, on its detail page. Small behaviour too.
+- Document every change people see on its detail page of the site. Small behaviour too.
 - Update the overview pages with it: README top, `docs/index.md`, `docs/features.md`,
   `docs/compare.md`, the package READMEs and the getting-started pages.
 - The commands and examples on those pages still run as written.
 
-The site has two audiences:
+### Audiences
 
 - `docs/use/` is for people who build reports. Plain words, one task per page.
 - `docs/embed/`, `getting-started/`, `concepts/` and `reference/` are for developers.
 - `docs/features.md` links to the pages. It never copies the behaviour.
+- A `use/` page gives the task in a few lines, then steps, then details folded in `???` blocks.
+- Prop names appear in `use/` only in a "For developers" box.
+- A props table has one short line per prop. The full text goes under "Props in detail".
 
-Pages, screenshots and links:
+### Pages and screenshots
 
 - A new page goes into one `llmstxt` section in `zensical.toml` (`tests/llms-sections.test.js`).
 - A page or anchor that moves keeps its address with a redirect in `zensical.toml`.
@@ -165,20 +156,29 @@ Pages, screenshots and links:
 - The Excel screenshot `xlsx-result-*.png` is taken by hand. Its steps are in `scripts/docs-screenshots.js`.
 - Facts in `docs/compare.md` are linked and dated. Check them again when they change.
 - Docs name no version of pivotkit. `tests/ci.test.js` lists the few exceptions.
+
+### READMEs and build output
+
 - Package READMEs are short npm pages. Their install facts must match `package.json` and the site.
 - README links are absolute and are a contract: a published README cannot change.
 - `docs/playground/`, `docs/schema/`, `site.css`, the social preview and `robots.txt` are build output.
 
 ## Working rules
 
-These apply to AI agents and to the maintainer.
-[PRODUCT.md](PRODUCT.md#what-a-contribution-delivers) lists what every contribution delivers.
+For agents and the maintainer. See also [PRODUCT.md](PRODUCT.md#what-a-contribution-delivers).
 
-- The agent that wrote a change does not review it. Another agent or person reviews it first.
+### Reviews
+
+- The agent that wrote a change does not review it.
+- Another agent or person reviews it before the pull request is opened.
 - A larger feature gets reviews as user, operator and developer, run with the packed packages.
 - A change to what a caller may see gets an adversarial privacy review until it finds nothing new.
 - Limits that cannot be closed go into `docs/privacy.md`.
+
+### Pull requests and interfaces
+
 - Write `Fixes #n` only in the pull request description, never in intermediate commits.
+- A changed MCP tool description or schema: the upgrading page says clients must reconnect.
 - A public interface change follows PRODUCT.md's versioning promise.
   In 0.x, list every break on the upgrading page.
   From 1.0.0, deprecate first with a numbered `PK-DEP-NNNN` warning, remove only in a major (#491).
@@ -197,4 +197,4 @@ These apply to AI agents and to the maintainer.
 - [tests/AGENTS.md](tests/AGENTS.md) - browser tests, temporary directories, repository checks
 - [examples/AGENTS.md](examples/AGENTS.md) - playground, Angular, templates
 - [docker/AGENTS.md](docker/AGENTS.md) - the container image
-- [CONTRIBUTING.md](CONTRIBUTING.md) - how to contribute; [RELEASING.md](RELEASING.md) - releases
+- [CONTRIBUTING.md](CONTRIBUTING.md) - how to contribute, [RELEASING.md](RELEASING.md) - releases

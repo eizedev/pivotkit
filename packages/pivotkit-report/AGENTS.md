@@ -17,11 +17,15 @@ npx playwright test tests/browser/report-               # after a stylesheet or 
 - `render()` normalizes the view with `outsideLimits` unless the caller passes `trusted`.
 - The HTML table never writes a `style` attribute. Colours are class rules.
 - The table is cut at `tableCells`.
+
+## Print templates
+
 - A print template placeholder is allowed only in text and allowed attributes.
 - Anything else is `INVALID_TEMPLATE`.
 - The SVG comes from ECharts' server-side renderer. The ECharts module is passed in.
 - `cleanSvg` checks and cleans it. ECharts is an optional peer dependency.
 - `template-style.js` loads only for a host's own template. It imports nothing.
+- The default template carries a strict CSP (`REPORT_CSP` in `default-template.js`). Keep it strict.
 
 ## Tokens and contrast
 

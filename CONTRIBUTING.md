@@ -104,6 +104,9 @@ uvx zensical@<version> serve
 - In 0.x a caret range spans patch versions only. `^0.y.z` matches later 0.y patches.
 - A host that uses pivotkit-core directly must stay inside that range.
 - `pivotkit-core` has no runtime dependency except `fflate`. Keep it that way.
+
+### Bundles and overrides
+
 - `pivotkit-element` and `pivotkit-xlsx` bundle their dependencies.
   Their licences land in `dist/THIRD_PARTY_LICENSES.txt` by themselves.
 - React 19 for the browser tests has its own install and lock file in `tests/react19/`.

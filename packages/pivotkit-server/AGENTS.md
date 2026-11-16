@@ -35,6 +35,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - HTTP sources, uploads and the OAuth issuer all go through it.
 - Private addresses need the operator's `intranet` setting.
 - A source's URL template keeps its origin and shape (`sources/template.js`).
+- HTTP sources page only on the same host and path. JSON nesting is capped at `MAX_DEPTH`.
+- Upload links are checked against the operator's `linkOrigins`.
 
 ## Sign-in and identity
 
@@ -43,13 +45,25 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - A caller's access token leaves `auth.js` only through `exchangeTokenFor`.
 - Only `src/sources/auth.js` may import it. An ESLint rule enforces this.
 - Sources that only a signed-in person sees are never schedulable.
+- A code source gets the caller only as the frozen `callerView`.
+- Rate limits count per person (`limitKeyOf`), one set per front end.
+
+## Scopes
+
+- `offeredScopes` lists the scopes in the metadata. It never offers a `scopeProfiles` scope.
+- The 401 challenge names the required scopes only.
 
 ## Policy and privacy
 
 - Levels are `show`, `values`, `summary` and `hide` (`POLICY_LEVELS`), in order of strictness.
 - `stats.js` counts per field. It never keeps a value.
 - A source the caller may not use answers "not found".
+- REST callers never get `file:` paths (`files: false` in the registry).
+- Delivery decides a report's link before the file is written (`linkFor` in `delivery.js`).
 - `isClosedForDelivery` is the one rule for which reports get only bound links.
+
+### Caches, inline data and memory
+
 - Cache keys hold a caller's values, groups and claims only as a keyed digest (`sources/keys.js`).
 - Inline data (`inline:`) is never kept, linked or scheduled.
 - `test/memory.test.js` proves no kept data holds a hidden column.
@@ -73,11 +87,18 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Every read ends with `forgetLastSubject`. V8 keeps the last regular expression's subject.
 - Workers have memory and time limits.
 
+## HTTP edge
+
+- `serveFetch` in `listen.js` checks headers before the body is read.
+- Connections are bounded in all and per address. Slots stay free for loopback (`connectionGate`).
+- A stranger's body cap is `BODY_BYTES`. A signed-in caller's cap is at most `MAX_BODY_BYTES`.
+
 ## Untrusted documents
 
 - `source-from-openapi` reads an operator's OpenAPI document as hostile input.
 - The server never imports `openapi-source.js`. Only the runner's command does.
 - Its `TODO` values are refused at start (`todoPaths` in `options/base.js`).
+- Read a print template only through `readTemplateFile` in `print-template.js`.
 
 ## REST
 

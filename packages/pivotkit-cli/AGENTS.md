@@ -15,11 +15,19 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 - Exit codes: 0 done, 1 findings, 2 usage, file, limit or template error.
 - `--json` writes one object on stdout.
 - The contract is documented in `docs/reference/cli.md`. Keep both in step.
+
+## Commands table
+
 - `src/commands.js` is the one table of commands and options.
 - The parser, the help and the shell completions are all made from it.
 - Each option's `where` says if it acts locally, remotely or both.
+
+## Layouts and views
+
 - `validate`, `describe` and `render` run pivotkit-report's operations.
 - A layout becomes a view only through pivotkit-report's `viewOfLayout`.
+- In the layout flags (`--rows`, `--cols`, `--values` and so on) one value names one thing.
+- So field names may hold commas and colons (`src/layout-flags.js`).
 - A view file's `source.fields` decide a column's type only when every value fits.
 
 ## Files
