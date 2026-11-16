@@ -96,6 +96,11 @@ The rows behind ONE number (a cell's drill-down) are in the [drill-down](drill-d
     it, a note says so: "This page does not allow printing the report. Download the HTML report
     instead."
 
+    In Safari, after you cancel the print dialog, the next print in that tab first asks "This webpage
+    is trying to print. Do you want to print it?". That is Safari's own rule: print or save as PDF
+    once instead of cancelling, or press Enter in the address bar, and the next print opens the dialog
+    directly.
+
 ??? info "Copy table"
     The table as it is shown: headers, labels and totals, every number as the table writes it
     ("1,234.5", "35.7%"), tab-separated, a row label repeated on every row it spans. Pasted into

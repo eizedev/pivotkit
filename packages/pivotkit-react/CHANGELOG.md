@@ -14,10 +14,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `--pk-scale-mid` on a dark screen is the one your dark theme resolves (pivotkit-report no longer
   takes the light one there) ([#385](https://github.com/eizedev/pivotkit/issues/385)).
 - Print or save as PDF opens the print dialog in the click itself: the Export menu makes the print
-  frame ready when it opens, and the report's modules load when Print is pointed at or focused.
-  Safari asked "This webpage is trying to print" from the second print on while the dialog came an
-  animation frame after the click; a page hidden while it printed (it gets no animation frame) did
-  not print at all ([#210](https://github.com/eizedev/pivotkit/issues/210)).
+  frame ready when it opens, and the report's modules load when Print is pointed at or focused. A
+  page hidden while it printed (it gets no animation frame) did not print at all. Safari still asks
+  "This webpage is trying to print" after a cancelled print dialog: that is Safari's own rule
+  ([print or save as PDF](https://pivotkit.eize.dev/use/export/)) ([#210](https://github.com/eizedev/pivotkit/issues/210)).
 - A second click on a menu's button closes the menu in Safari and other WebKit browsers, as in the
   others: the toolbar's menus (Export, Views, Data, Start over, More) and a field's chip menu. WebKit
   does not focus a clicked button, so the press moved the focus out of the menu, which closed it,
