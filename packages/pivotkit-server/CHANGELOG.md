@@ -10,18 +10,22 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Upgrading from 0.1.1
 
-- The container image starts without a configuration and makes its token `admin` at the first
-  start in `/var/lib/pivotkit`: mount a volume there (`-v pivotkit:/var/lib/pivotkit`); with
-  `--read-only` and no volume the start is refused. A start off loopback without `auth.mode` that was
-  refused starts with that token where a state directory is set. `docker/compose.example.yml` and
-  `docker/pivotkit.example.json` are the minimal setup; the tokens as secret files moved to
-  `compose.secrets.example.yml` and `pivotkit.secrets.example.json`. The image declares no `VOLUME`
-  any more: a `--read-only` run without `-v ...:/out` can no longer write reports to `/out` (the
-  start warns of the read-only file system, reports fail with `NO_OUTPUT`); mount a named volume
-  there. Reports of earlier runs stay in the old anonymous volume (`docker volume ls`).
-  `auth.mode` `"token"` that resolves no token is still refused, with how to fix it. A read-only container without the state volume
-  warns at every start that the download key cannot be made
+- The container image starts without a configuration. It makes its token `admin` at the first start
+  in `/var/lib/pivotkit`: mount a volume there (`-v pivotkit:/var/lib/pivotkit`)
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#first-start-0-7)).
+- With `--read-only` and no volume at `/var/lib/pivotkit`, the start is refused, since the token
+  cannot be made. With `$PIVOTKIT_TOKEN` or tokens of your own it starts, and warns at every start
+  that the download key cannot be made.
+- A start off loopback without `auth.mode` was refused. With a state directory it now starts with
+  the token `admin`.
+- A written `auth.mode` `"token"` that resolves no token is still refused. The message says how to
+  fix it.
+- `docker/compose.example.yml` and `docker/pivotkit.example.json` are the minimal setup. The tokens
+  as secret files moved to `compose.secrets.example.yml` and `pivotkit.secrets.example.json`.
+- The image declares no `VOLUME` any more. A `--read-only` run without `-v ...:/out` can no longer
+  write reports to `/out`: the start warns of the read-only file system, and reports fail with
+  `NO_OUTPUT`. Mount a named volume there.
+- Reports of earlier runs stay in the old anonymous volume of `/out` (`docker volume ls`).
 - Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still
   waiting for approval (`*.pivotkit-out.report.json`) are deleted with reports older than
   `output.maxAgeDays` (30 by default) at the first start; this release's `check-config` counts them

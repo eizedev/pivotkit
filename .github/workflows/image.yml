@@ -123,6 +123,13 @@ jobs:
       - name: What a start refuses
         run: |
           set -eu
+          # the containers this step starts are removed however it ends
+          trap 'docker rm -f pk-ro-out pk-layer > /dev/null 2>&1 || true' EXIT
+          # waits for a container's "started" line; fails with its log when it never comes
+          wait_started() {
+            for i in $(seq 1 30); do docker logs "$1" 2>&1 | grep -q '"started"' && return 0; sleep 1; done
+            echo "::error::$1 did not start within 30 seconds"; docker logs "$1"; return 1
+          }
           work="$RUNNER_TEMP/refused"
           mkdir -p "$work/stray" "$work/explicit"
           # without a configuration and without a state directory: auth none on every address is refused
@@ -147,14 +154,14 @@ jobs:
           echo '{"output":{"dir":"/out"}}' > "$work/ro-out/pivotkit.json"
           chmod 0644 "$work/ro-out/pivotkit.json"
           docker run -d --name pk-ro-out --read-only --tmpfs /tmp -v "$work/ro-out:/config:ro" -v pk-state:/var/lib/pivotkit pivotkit:test
-          for i in $(seq 1 30); do docker logs pk-ro-out 2>&1 | grep -q '"started"' && break; sleep 1; done
-          docker logs pk-ro-out 2>&1 | grep -q "read-only file system"
+          wait_started pk-ro-out
+          docker logs pk-ro-out 2>&1 | grep -q "read-only file system" || { echo "::error::no read-only warning for output.dir"; docker logs pk-ro-out; exit 1; }
           docker logs pk-ro-out 2>&1 | grep -q "mount a writable volume at output.dir"
           docker rm -f pk-ro-out
           # without --read-only and without a volume the state lies on the container's layer: a warning
           docker run -d --name pk-layer pivotkit:test
-          for i in $(seq 1 30); do docker logs pk-layer 2>&1 | grep -q '"started"' && break; sleep 1; done
-          docker logs pk-layer 2>&1 | grep -q "lost when the container is removed"
+          wait_started pk-layer
+          docker logs pk-layer 2>&1 | grep -q "lost when the container is removed" || { echo "::error::no container-layer warning"; docker logs pk-layer; exit 1; }
           docker rm -f pk-layer
       - name: Run it as an operator would, with tokens of your own
         # read-only root, /tmp in memory, no capabilities, no new privileges, the image's own user,

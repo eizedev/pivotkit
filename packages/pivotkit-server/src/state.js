@@ -53,6 +53,15 @@ export const IMAGE_PATHS = Object.freeze({ config: "/config/pivotkit.json", stat
  */
 export const openAddressRefusal = (host) => `--host ${host}: an address other than loopback needs --auth token or oauth (or --allow-unauthenticated for a network you trust); with --state-dir or $${STATE_ENV} the server makes a token itself`;
 
+/**
+ * Why a written auth.mode "token" that resolves no token is refused, and how to fix it: the start's
+ * and check-config's words. The generated token is offered only with a state directory.
+ * @param {string} tokenEnv
+ * @param {string | null | undefined} stateDir
+ */
+export const noTokenText = (tokenEnv, stateDir) =>
+    `auth.mode is "token", but neither auth.tokens nor $${tokenEnv} gives a token; set $${tokenEnv} or list tokens in auth.tokens${stateDir ? `, or remove auth.mode (and --auth token) to let the server make the token "${DEFAULT_TOKEN_NAME}" in ${join(stateDir, STATE_PARTS.secrets)}` : ""}`;
+
 /** The name of the token the state directory holds when auth needs one and none is given. */
 export const DEFAULT_TOKEN_NAME = "admin";
 
@@ -379,7 +388,7 @@ export async function secretState(secret, plan) {
 export async function prepareHttpServe(options, { env, host, tokenEnv, stateDir = null }) {
     if (stateDir && options.auth?.mode === "token" && !options.auth.tokens?.length && !env[tokenEnv]) {
         // fail closed: a typo in the variable's name must not become a generated token with every scope
-        throw new ConfigError(`auth.mode is "token", but neither auth.tokens nor $${tokenEnv} gives a token; set $${tokenEnv} or list tokens in auth.tokens, or remove auth.mode (and --auth token) to let the server make the token "${DEFAULT_TOKEN_NAME}" in ${join(stateDir, STATE_PARTS.secrets)}`);
+        throw new ConfigError(noTokenText(tokenEnv, stateDir));
     }
     const plan = planState(options, { env, host, tokenEnv, stateDir });
     /** @type {StateNote[]} */

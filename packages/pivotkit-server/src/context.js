@@ -380,7 +380,7 @@ export const writable = async (dir) => (await notWritable(dir)) === null;
  * or mode.
  * @param {string} code  of notWritable
  */
-export const notWritableText = (code) => (code === "EROFS" ? "output.dir is on a read-only file system (a container started with --read-only and no volume there): mount a writable volume at output.dir" : `output.dir is not writable by the user ${process.getuid?.() ?? ""} the server runs as`);
+export const notWritableText = (code) => (code === "EROFS" ? "output.dir is on a read-only file system (for example a container started with --read-only and no volume there): mount a writable volume at output.dir" : `output.dir is not writable by the user ${process.getuid?.() ?? ""} the server runs as`);
 
 /** What the start and check-config say of an output directory that holds the operator's own files. */
 export const SHARED_OUTPUT_TEXT = "output.dir is the configuration's directory or holds a source, template or token file: reports there are never deleted to make room, so a full directory refuses new ones; give the reports a directory of their own";

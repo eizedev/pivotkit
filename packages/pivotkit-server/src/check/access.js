@@ -22,6 +22,7 @@ import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "../auth.js";
 import { isLoopback } from "../listen.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, unreadable } from "../secrets.js";
 import { personBound } from "../sources/auth.js";
+import { noTokenText } from "../state.js";
 import { signInItems } from "./operator.js";
 import { heading, plain, problem, secretText, warning } from "./format.js";
 
@@ -35,7 +36,10 @@ export async function section(options, _registry, runtime) {
     if (runtime.http && mode === "none" && !auth.allowUnauthenticated && !isLoopback(options.http?.host ?? "127.0.0.1")) {
         items.push(problem(`${options.http?.host} is not loopback: it needs auth token or oauth (or auth.allowUnauthenticated)`, stop));
     }
-    if (mode === "token") {
+    if (mode === "token" && runtime.http && !auth.tokens?.length && !runtime.env[runtime.tokenEnv]) {
+        // the start's own words (state.js prepareHttpServe, auth.js): no "the token token"
+        items.push(problem(noTokenText(runtime.tokenEnv, runtime.state?.stateDir), stop));
+    } else if (mode === "token") {
         for (const t of auth.tokens?.length ? auth.tokens : [{ name: "token", env: runtime.tokenEnv }]) {
             items.push(plain(`token ${t.name} from ${secretText(options, t)}: ${t.scopes ? `scopes ${t.scopes.join(" ") || "none"}` : "all scopes"}${t.profile ? `, profile ${t.profile}` : ""}`));
             const readable = await secretFileWarning(t, options, `the token ${t.name}'s file ${t.file}`);

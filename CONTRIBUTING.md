@@ -220,7 +220,8 @@ For each release:
    `generator` in `docs/reference/view-file.md`, the pivotkit-core minor that pivotkit-xlsx needs
    in the official plugins table of `docs/reference/plugins.md`, and the image tag of
    `docs/getting-started/server-in-5-minutes.md` (pivotkit-server's version in full, at every image
-   tag, release tag `pivotkit-server@<version>` and `PIVOTKIT_VERSION`). Docs and READMEs name no other
+   tag, release tag `pivotkit-server@<version>` and `PIVOTKIT_VERSION`), and the example version
+   ("e.g. <version>") of `docker/compose*.example.yml` and `docker/kubernetes.example.yaml`. Docs and READMEs name no other
    version of their own. Two files carry a package's version and are checked by its tests:
    `docs/openapi.json` (pivotkit-server's, made again with `node scripts/openapi.js`) and
    `packages/pivotkit-mcp/.claude-plugin/plugin.json` (pivotkit-mcp's).

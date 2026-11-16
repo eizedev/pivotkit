@@ -169,7 +169,7 @@ test("an output directory on a read-only file system (a container's --read-only 
     try {
         const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir });
         await server.close();
-        assert.ok(server.log.some((l) => l.event === "warning" && /output\.dir is on a read-only file system/.test(l.message) && /mount a writable volume at/.test(l.message)), JSON.stringify(server.log.map((l) => l.message)));
+        assert.ok(server.log.some((l) => l.event === "warning" && /output\.dir is on a read-only file system \(for example a container started with --read-only/.test(l.message) && /mount a writable volume at/.test(l.message)), JSON.stringify(server.log.map((l) => l.message)));
         const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
         assert.match(factsOf(result.text), /PROBLEM: output\.dir is on a read-only file system .*mount a writable volume/);
     } finally {

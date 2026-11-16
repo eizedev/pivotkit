@@ -378,6 +378,14 @@ test("auth.mode token written without a token and without the variable is refuse
     // token show and check-config see no admin there
     const shown = run(["token", "show", "admin", "--state-dir", state, "--config", join(dir, "token.json")], { env: {} });
     assert.equal(shown.status, 2);
+    // check-config says the same as the start, and never "the token token"
+    const checked = await checkConfig({ sources, auth: { mode: "token" }, http: { host: OPEN }, baseDir: dir }, { http: true, env: {}, tokenEnv: "PIVOTKIT_TOKEN", stateDir: state });
+    const facts = factsOf(checked.text);
+    assert.match(facts, /PROBLEM: auth\.mode is "token", but neither auth\.tokens nor \$PIVOTKIT_TOKEN gives a token; set \$PIVOTKIT_TOKEN or list tokens in auth\.tokens, or remove auth\.mode .* to let the server make the token "admin" .* -> the server does not start/);
+    assert.doesNotMatch(facts, /token token/);
+    // without a state directory there is no admin to point to
+    const plainCheck = factsOf((await checkConfig({ sources, auth: { mode: "token" }, http: { host: OPEN }, baseDir: dir }, { http: true, env: {}, tokenEnv: "PIVOTKIT_TOKEN" })).text);
+    assert.match(plainCheck, /PROBLEM: auth\.mode is "token", but neither auth\.tokens nor \$PIVOTKIT_TOKEN gives a token; set \$PIVOTKIT_TOKEN or list tokens in auth\.tokens -> the server does not start/);
     // auth not set at all: the generated admin, as before
     const other = setup();
     const unset = await prepareHttpServe({ sources, baseDir: other.dir }, { env: {}, host: OPEN, tokenEnv: "PIVOTKIT_TOKEN", stateDir: other.state });

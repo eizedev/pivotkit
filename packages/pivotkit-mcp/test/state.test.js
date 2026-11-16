@@ -50,6 +50,16 @@ test("--http off loopback with a state directory: the token admin is made, /mcp 
     assert.ok(!existsSync(other.tokenFile));
 });
 
+test("--http with auth.mode token and no token: refused, fail closed; pivotkit-server's variable is not pivotkit-mcp's", async () => {
+    const { dir, state } = setup();
+    // $PIVOTKIT_TOKEN is pivotkit-server's: pivotkit-mcp reads $PIVOTKIT_MCP_TOKEN, so this resolves no token
+    await assert.rejects(
+        listen({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, http: { host: "0.0.0.0", port: 0 }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: "a-test-token-that-is-long-enough-0123456789" }, stateDir: state, stderr: { write: () => true } }),
+        /auth\.mode is "token", but neither auth\.tokens nor \$PIVOTKIT_MCP_TOKEN gives a token; set \$PIVOTKIT_MCP_TOKEN/
+    );
+    assert.deepEqual(readdirSync(state), []);
+});
+
 test("the runner reads $PIVOTKIT_STATE_DIR over --http; stdio makes nothing", async () => {
     const { dir, state, tokenFile } = setup();
     const { client, close, stderr } = await stdioClient(["--source", "sales=data/sales.csv", "--output", join(state, "out"), "--host", "0.0.0.0"], { cwd: dir, env: { PIVOTKIT_STATE_DIR: state } });
