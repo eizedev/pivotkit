@@ -18,12 +18,12 @@
  */
 
 import { unlink } from "node:fs/promises";
-import { dirname } from "node:path";
+import { basename, dirname } from "node:path";
 import { closest } from "pivotkit-core";
 import { pathOf } from "./config.js";
 import { CommandError, TOKEN_NAME, changedConfig, parse, plannedOf, rewrittenLine, usage, writeConfig } from "./credentials.js";
 import { maxLifetimeOf } from "./options/signed.js";
-import { SIGNED_TOKEN, TOKEN_ID, OWN_KEY_ID, expiryOf, signedStore } from "./signed-tokens.js";
+import { SIGNED_TOKEN, SignedTokenError, TOKEN_ID, OWN_KEY_ID, expiryOf, signedStore } from "./signed-tokens.js";
 import { DEFAULT_TOKEN_NAME } from "./state.js";
 
 /** The clock tolerance the server verifies with: a revoked token stays on the list that much past its expiry. */
@@ -75,12 +75,15 @@ const shortTime = (ms) => `${new Date(ms).toISOString().slice(0, 16).replace("T"
 async function rowsOf(planned, nowMs) {
     const rows = staticOf(planned.options, planned.tokenEnv).map((t) => {
         const expiresAt = t.expires ? expiryOf(t.expires, { durations: false }) : null;
-        return { id: t.name, name: t.name, kind: "static", source: t.file ? `file ${pathOf(planned.options, t.file)}` : `$${t.env}`, profile: t.profile ?? null, scopes: t.scopes ?? null, expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString(), status: expiresAt !== null && nowMs >= expiresAt ? "expired" : "active", entry: t };
+        return { id: t.name, name: t.name, kind: "static", source: t.file ? `file ${basename(t.file)}` : `$${t.env}`, profile: t.profile ?? null, scopes: t.scopes ?? null, expiresAt: expiresAt === null ? null : new Date(expiresAt).toISOString(), status: expiresAt !== null && nowMs >= expiresAt ? "expired" : "active", entry: t };
     });
     if (planned.store) {
         const revoked = await planned.store.revokedIds();
+        // a token whose key is gone (key remove --force) gets 401 like a revoked one
+        const kids = await planned.store.loadKeys().then((r) => new Set(r.keys.keys()), () => null);
         for (const r of await planned.store.issued()) {
-            rows.push({ id: r.id, name: r.name, kind: "signed", key: r.kid, profile: r.profile, scopes: r.scopes, issuedAt: r.issuedAt, expiresAt: r.expiresAt, status: revoked.has(r.id) ? "revoked" : Date.parse(r.expiresAt) <= nowMs ? "expired" : "active" });
+            const status = revoked.has(r.id) ? "revoked" : Date.parse(r.expiresAt) <= nowMs ? "expired" : kids && !kids.has(r.kid) ? "key removed" : "active";
+            rows.push({ id: r.id, name: r.name, kind: "signed", key: r.kid, profile: r.profile, scopes: r.scopes, issuedAt: r.issuedAt, expiresAt: r.expiresAt, status });
         }
     }
     return rows;
@@ -137,6 +140,10 @@ async function tokenIssue(argv, io) {
         const near = closest(values.profile, profiles);
         throw usage("PROFILE", `--profile: no profile "${values.profile.slice(0, 60)}" in policy.profiles of ${planned.config}${near ? `; did you mean "${near}"?` : ""}`);
     }
+    const spaced = (values.scope ?? []).find((scope) => !scope || /\s/.test(scope));
+    if (spaced !== undefined) {
+        throw usage("SCOPE", `--scope ${JSON.stringify(spaced.slice(0, 40))}: a scope is one word without spaces; give --scope once per scope`);
+    }
     const maxSec = maxLifetimeOf(planned.options);
     const expiresMs = values.expires === undefined ? nowMs + SIGNED_TOKEN.defaultSeconds * 1000 : expiryOf(values.expires, { nowMs });
     if (expiresMs === null) {
@@ -155,14 +162,23 @@ async function tokenIssue(argv, io) {
         }
     }
     await planned.ready();
-    await planned.store.prune(toleranceOf(planned.options));
+    await planned.store.pruneSometimes(toleranceOf(planned.options));
     const keysBefore = (await planned.store.loadKeys()).keys.size;
-    const { token, record } = await planned.store.issue({ name, profile: values.profile ?? null, scopes: values.scope?.length ? values.scope : null, expiresAt: Math.floor(expiresMs / 1000) });
+    let issued;
+    try {
+        issued = await planned.store.issue({ name, profile: values.profile ?? null, scopes: values.scope?.length ? values.scope : null, expiresAt: Math.floor(expiresMs / 1000) });
+    } catch (e) {
+        if (e instanceof SignedTokenError && e.code === "TOO_LONG") {
+            throw usage("TOO_LONG", `${e.message}: too many or too long scopes (--scope); give fewer, or shorter ones`);
+        }
+        throw e;
+    }
+    const { token, record, problems } = issued;
     const hints = [`The token ${record.id} works until ${shortTime(Date.parse(record.expiresAt))} on REST and MCP. The log names it by its ID.`, `Revoke it before then with: pivotkit-server token revoke ${record.name ?? record.id}`];
     if (!keysBefore) {
         hints.unshift(`Made the first signing key in ${planned.path} (keep this directory on a volume).`);
     }
-    return { json: { id: record.id, name: record.name, profile: record.profile, scopes: record.scopes, expiresAt: record.expiresAt }, value: token, printValue: true, field: "token", hints, warnings: [] };
+    return { json: { id: record.id, name: record.name, profile: record.profile, scopes: record.scopes, expiresAt: record.expiresAt }, value: token, printValue: true, field: "token", hints, warnings: problems.map((p) => `a signing key ${p}`) };
 }
 
 /**
@@ -206,7 +222,8 @@ async function tokenRevoke(argv, io) {
     const until = row ? Date.parse(row.expiresAt) + tolerance : nowMs + maxLifetimeOf(planned.options) * 1000 + tolerance;
     await planned.ready();
     const already = await planned.store.revoke(id, until);
-    return { json: { id, revoked: true, already }, value: "", printValue: false, field: "token", hints: [already ? `${id} was revoked already.` : `Revoked ${id}: the server refuses it from the next request on.`], warnings: [] };
+    const warnings = row ? [] : [`${id} is not in the register; written to the deny list anyway`];
+    return { json: { id, revoked: true, already, known: Boolean(row) }, value: "", printValue: false, field: "token", hints: [already ? `${id} was revoked already.` : `Revoked ${id}: the server refuses it from the next request on.`], warnings };
 }
 
 /**
@@ -275,12 +292,10 @@ async function removeStatic(planned, row, values) {
             (e) => (e?.code === "ENOENT" ? false : Promise.reject(new CommandError(1, "NOT_DELETED", `${planned.config} no longer lists "${row.id}", but its file ${file} could not be deleted (${e?.code ?? e}); delete it by hand`)))
         );
     }
-    const out = [...warnings];
-    if (!deleted) {
-        out.push(file ? `${file} is kept (the server did not make it): the server refuses the token after a restart; delete the file to refuse it now` : `the token came from $${entry.env}: restart the server to refuse it`);
-    }
+    // the running server read auth.tokens at start: what it still accepts comes first, on stdout
+    const still = deleted ? "" : `The running server still accepts this token until it restarts. Restart it now${file ? `, or delete ${file}` : ""}.\n`;
     const hints = [`Took "${row.id}" out of auth.tokens. ${rewrittenLine({ config: planned.config }, backup)}`, ...(deleted ? [`Deleted ${file}: the server refuses the token from the next request on.`] : [])];
-    return { json: { id: row.id, kind: "static", removed: true, config: planned.configFile, backup, deleted }, value: "", printValue: false, field: /** @type {const} */ ("token"), hints, warnings: out };
+    return { json: { id: row.id, kind: "static", removed: true, config: planned.configFile, backup, deleted, stillAccepted: !deleted }, value: "", printValue: false, field: /** @type {const} */ ("token"), hints, warnings, text: still };
 }
 
 /**

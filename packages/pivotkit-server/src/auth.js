@@ -357,14 +357,15 @@ function signedCheckOf(options, log) {
     const store = signedStore(pathOf(options, /** @type {string} */ (options.auth?.signedTokens?.dir)));
     // a stranger's made-up token reaches these before any check: each text at most once a minute
     /** @type {Map<string, number>} */
-    const warned = new Map();
-    const warn = (text) => {
+    const said = new Map();
+    const limited = (level, text) => {
         const now = Date.now();
-        if (now - (warned.get(text) ?? -Infinity) >= SHORT_TOKEN_WARN_MS) {
-            warned.set(text, now);
-            log.warn(text);
+        if (now - (said.get(text) ?? -Infinity) >= SHORT_TOKEN_WARN_MS) {
+            said.set(text, now);
+            log[level](text);
         }
     };
+    const warn = (text) => limited("warn", text);
     const verifier = createSignedVerifier({
         keyFor: keyring(store, { onProblem: (text) => warn(`auth: signed tokens: ${text}`) }),
         isRevoked: (id) => store.isRevoked(id),
@@ -382,7 +383,11 @@ function signedCheckOf(options, log) {
             if (!(e instanceof SignedTokenError)) {
                 throw e;
             }
-            log.debug("auth: signed token refused", { reason: e.code });
+            if (e.code === "REVOKED") {
+                limited("info", `auth: the revoked signed token ${e.id} was refused`);
+            } else {
+                log.debug("auth: signed token refused", { reason: e.code });
+            }
             throw new AuthRefusal(401, "invalid_token", SIGNED_REFUSALS[/** @type {keyof typeof SIGNED_REFUSALS} */ (e.code)] ?? UNKNOWN_TOKEN_TEXT);
         }
         if (claims.profile !== null && !profiles.has(claims.profile)) {

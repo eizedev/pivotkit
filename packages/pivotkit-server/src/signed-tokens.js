@@ -28,7 +28,7 @@
  */
 
 import { createPrivateKey, createPublicKey, generateKeyPairSync, randomBytes } from "node:crypto";
-import { mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, readFile, stat, unlink, utimes, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { SignJWT, decodeProtectedHeader, jwtVerify } from "jose";
 import { readSecretFile, secretValue } from "./secrets.js";
@@ -44,8 +44,10 @@ export const SIGNED_TOKEN = Object.freeze({
     /** auth.signedTokens.maxDays without a value, and its highest value */
     maxDays: 30,
     maxDaysLimit: 365,
-    /** the longest bearer tried as a signed token */
+    /** the longest bearer tried as a signed token; `token issue` refuses to sign a longer one */
     maxLength: 2048,
+    /** how often `token issue` removes records of expired tokens, at most */
+    pruneMs: 3_600_000,
     /** how often the server reads the keys again, at most */
     reloadMs: 1000
 });
@@ -82,6 +84,8 @@ export class SignedTokenError extends Error {
         super(message);
         this.name = "SignedTokenError";
         this.code = code;
+        /** @type {string | undefined} the ID of a revoked token, which is genuinely signed */
+        this.id = undefined;
     }
 }
 
@@ -98,10 +102,10 @@ const refused = (code, message) => new SignedTokenError(code, message);
 /**
  * A verifier of signed tokens. Fails closed: a key that cannot be found, a claim of the wrong type
  * and a deny list that cannot be read all refuse.
- * @param {{ keyFor: (kid: string) => Promise<import("node:crypto").KeyObject | null>, isRevoked: (id: string) => Promise<boolean>, issuer: string, typ: string, clockToleranceSec: number, maxLifetimeSec: number, now?: () => number }} how
+ * @param {{ keyFor: (kid: string) => Promise<import("node:crypto").KeyObject | null>, isRevoked: (id: string) => Promise<boolean>, issuer: string, typ: string, clockToleranceSec: number, maxLifetimeSec: number, tokenId?: RegExp, now?: () => number }} how  tokenId: the form of a token's ID (jti), TOKEN_ID by default; another issuer may have its own
  * @returns {{ verify(token: string): Promise<SignedClaims> }}
  */
-export function createSignedVerifier({ keyFor, isRevoked, issuer, typ, clockToleranceSec, maxLifetimeSec, now = Date.now }) {
+export function createSignedVerifier({ keyFor, isRevoked, issuer, typ, clockToleranceSec, maxLifetimeSec, tokenId = TOKEN_ID, now = Date.now }) {
     return {
         async verify(token) {
             if (!looksSigned(token)) {
@@ -144,7 +148,7 @@ export function createSignedVerifier({ keyFor, isRevoked, issuer, typ, clockTole
                 throw refused("TOO_LONG", "the token lives longer than the server allows");
             }
             const id = payload.jti;
-            if (typeof id !== "string" || !TOKEN_ID.test(id)) {
+            if (typeof id !== "string" || !tokenId.test(id)) {
                 throw refused("INVALID", "the token's ID is not valid");
             }
             // a claim that is there must be right: a broken scope never becomes every scope
@@ -163,7 +167,8 @@ export function createSignedVerifier({ keyFor, isRevoked, issuer, typ, clockTole
                 throw refused("DENY_LIST", "the deny list cannot be read");
             }
             if (denied) {
-                throw refused("REVOKED", "the token was revoked");
+                // the ID of a genuinely signed token: the log may name it
+                throw Object.assign(refused("REVOKED", "the token was revoked"), { id });
             }
             return { id, scopes: scope === undefined ? null : scope.split(/\s+/).filter(Boolean), profile: profile ?? null, expiresAt: exp };
         }
@@ -218,7 +223,10 @@ export function signedStore(dir, { now = Date.now } = {}) {
 
     /**
      * The keys of keys/, by kid, and the files that cannot be used (never their values). A missing
-     * directory has none; one that cannot be read throws.
+     * directory has none; one that cannot be read throws. For this server's own private keys only:
+     * a key held elsewhere (an issuer's public key) comes to the verifier through its own keyFor.
+     * A symbolic link and a file the group or others may read are not used (a planted key with a
+     * newer kid would sign); Windows has no such mode bits.
      * @returns {Promise<{ keys: Map<string, { private: import("node:crypto").KeyObject, public: import("node:crypto").KeyObject, path: string }>, problems: string[] }>}
      */
     async function loadKeys() {
@@ -231,6 +239,15 @@ export function signedStore(dir, { now = Date.now } = {}) {
                 continue;
             }
             const path = join(part("keys"), name);
+            const info = await lstat(path).catch(() => null);
+            if (info?.isSymbolicLink()) {
+                problems.push(`${path}: is a symbolic link; not used (keys are files of their own)`);
+                continue;
+            }
+            if (info && process.platform !== "win32" && info.mode & 0o077) {
+                problems.push(`${path}: readable by the group or others (mode ${(info.mode & 0o777).toString(8).padStart(4, "0")}); not used: chmod 600 it`);
+                continue;
+            }
             const text = await readSecretFile(path).catch((e) => ({ error: e?.code ?? "UNREADABLE" }));
             const read = typeof text === "string" ? privateKeyOf(secretValue(text, "key")) : { problem: `cannot be read (${text.error})` };
             if ("problem" in read) {
@@ -321,13 +338,13 @@ export function signedStore(dir, { now = Date.now } = {}) {
         /**
          * Signs a token with the newest key (made first when there is none) and keeps its record.
          * @param {{ name: string | null, profile: string | null, scopes: string[] | null, expiresAt: number }} what  expiresAt: seconds since 1970
-         * @returns {Promise<{ token: string, record: IssuedRecord }>}
+         * @returns {Promise<{ token: string, record: IssuedRecord, problems: string[] }>}  problems: key files that were not used
          */
         async issue({ name, profile, scopes, expiresAt }) {
-            let { keys } = await loadKeys();
+            let { keys, problems } = await loadKeys();
             if (!keys.size) {
                 await newKey();
-                ({ keys } = await loadKeys());
+                ({ keys, problems } = await loadKeys());
             }
             const kid = [...keys.keys()].sort().at(-1);
             const signing = /** @type {any} */ (keys.get(/** @type {string} */ (kid)));
@@ -335,10 +352,14 @@ export function signedStore(dir, { now = Date.now } = {}) {
             const iat = Math.floor(now() / 1000);
             const claims = { jti: id, ...(scopes ? { scope: scopes.join(" ") } : {}), ...(profile ? { profile } : {}) };
             const token = await new SignJWT(claims).setProtectedHeader({ alg: SIGNED_TOKEN.alg, kid, typ: SIGNED_TOKEN.typ }).setIssuer(SIGNED_TOKEN.issuer).setIssuedAt(iat).setNotBefore(iat).setExpirationTime(expiresAt).sign(signing.private);
+            // the verifier tries no longer bearer (looksSigned): such a token would never work
+            if (token.length > SIGNED_TOKEN.maxLength) {
+                throw new SignedTokenError("TOO_LONG", `the token would have ${token.length} characters, and the server takes at most ${SIGNED_TOKEN.maxLength}`);
+            }
             /** @type {IssuedRecord} */
             const record = { id, name, kid: /** @type {string} */ (kid), profile, scopes, issuedAt: new Date(iat * 1000).toISOString(), expiresAt: new Date(expiresAt * 1000).toISOString() };
             await writeFile(recordPath("issued", id), `${JSON.stringify(record, null, 2)}\n`, { flag: "wx", mode: 0o600 });
-            return { token, record };
+            return { token, record, problems };
         },
 
         /**
@@ -365,6 +386,21 @@ export function signedStore(dir, { now = Date.now } = {}) {
                 throw new TypeError("not a key ID");
             }
             await unlink(join(part("keys"), `${kid}.key`));
+        },
+
+        /**
+         * prune, at most once every SIGNED_TOKEN.pruneMs: a marker file's change time says when it last ran.
+         * @param {number} graceSec
+         */
+        async pruneSometimes(graceSec) {
+            const marker = join(dir, ".pruned");
+            const last = await stat(marker).then((i) => i.mtimeMs, () => -Infinity);
+            if (now() - last < SIGNED_TOKEN.pruneMs) {
+                return;
+            }
+            await this.prune(graceSec);
+            const at = new Date(now());
+            await writeFile(marker, "", { mode: 0o600 }).then(() => utimes(marker, at, at));
         },
 
         /** Removes records and deny-list entries of tokens that expired more than `graceSec` ago. */

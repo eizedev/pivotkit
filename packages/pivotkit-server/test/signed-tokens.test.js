@@ -175,7 +175,7 @@ test("token issue: a signed token works on REST and MCP at once, its value is in
         assert.ok(server.log.some((l) => l.event === "call" && l.client === out.id), text);
         assert.ok(!text.includes(token) && !text.includes(token.split(".")[2]), "the value in the log");
         // the register holds no value
-        for (const sub of readdirSync(signed)) {
+        for (const sub of readdirSync(signed).filter((n) => statSync(join(signed, n)).isDirectory())) {
             for (const name of readdirSync(join(signed, sub))) {
                 assert.ok(!readFileSync(join(signed, sub, name), "utf8").includes(token.split(".")[2]), `${sub}/${name} holds the value`);
             }
@@ -382,7 +382,7 @@ test("token new --expires writes the expiry into auth.tokens with --add; token r
     assert.ok(readdirSync(dir).some((n) => n.startsWith("pivotkit.json.bak-")));
     // token new made that file, not the server: it stays, and the command says how to refuse it now
     assert.equal(existsSync(join(dir, "bot.token")), true);
-    assert.match(removed.stderr, /restart/i);
+    assert.match(removed.stdout, /restart/i);
     // a file the server makes (create: true) goes with its entry
     const raw = JSON.parse(readFileSync(config, "utf8"));
     raw.auth.tokens.push({ name: "made", file: "made.token", create: true });
@@ -505,4 +505,131 @@ test("keys that cannot be read refuse every signed token, and say so on the log 
         chmodSync(join(signed, "keys"), 0o700);
         await server.close();
     }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Findings of the security review
+
+test("token issue: many scopes round-trip through the server; a token over the server's length limit is refused at issue", async () => {
+    const { config } = setup();
+    const server = await serverOf(config);
+    try {
+        const many = Array.from({ length: 20 }, (_, i) => ["--scope", `pivotkit:scope-${i}`]).flat();
+        const ok = run(["token", "issue", "--config", config, ...many, "--json"]);
+        assert.equal(ok.status, 0, ok.stderr);
+        assert.equal((await call(`${server.api}/sources`, { token: JSON.parse(ok.stdout).token })).status, 200);
+        const tooMany = Array.from({ length: 40 }, (_, i) => ["--scope", `pivotkit:a-rather-long-scope-name-${i}`]).flat();
+        const refused = run(["token", "issue", "--config", config, ...tooMany]);
+        assert.equal(refused.status, 2);
+        assert.equal(refused.stdout, "");
+        assert.match(refused.stderr, /too many or too long scopes/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("token issue: a scope with whitespace inside is refused", () => {
+    const { config } = setup();
+    const r = run(["token", "issue", "--config", config, "--scope", "pivotkit:a pivotkit:b"]);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /--scope/);
+});
+
+test("token remove of a static token whose file stays: the first line says the running server still accepts it", () => {
+    const { dir, config } = setup();
+    assert.equal(run(["token", "new", "--file", join(dir, "leaked.token"), "--config", config, "--add", "--name", "leaked"]).status, 0);
+    const r = run(["token", "remove", "leaked", "--config", config]);
+    assert.equal(r.status, 0, r.stderr);
+    const first = r.stdout.split("\n")[0];
+    assert.match(first, /^The running server still accepts this token until it restarts\. Restart it now, or delete .*leaked\.token\.$/);
+});
+
+test("token list shows key removed for a token whose key was removed with --force", () => {
+    const { config } = setup();
+    const t = JSON.parse(run(["token", "issue", "--config", config, "--json"]).stdout);
+    const kid = JSON.parse(Buffer.from(t.token.split(".")[0], "base64url").toString()).kid;
+    assert.equal(run(["key", "remove", kid, "--for", "signing", "--config", config, "--force"]).status, 0);
+    const list = JSON.parse(run(["token", "list", "--config", config, "--json"]).stdout);
+    assert.equal(list.tokens.find((x) => x.id === t.id).status, "key removed");
+    assert.match(run(["token", "list", "--config", config]).stdout, new RegExp(`${t.id}.*key removed`));
+});
+
+test("token revoke of a well-formed ID the register does not know says so", () => {
+    const { config } = setup();
+    const r = run(["token", "revoke", "fedcba9876543210", "--config", config]);
+    assert.equal(r.status, 0);
+    assert.match(r.stderr, /not in the register; written to the deny list anyway/);
+});
+
+test("key loading refuses a symlinked key file and a key file others may read; token issue warns and signs with a good key", { skip: !POSIX }, async () => {
+    const { chmodSync, copyFileSync, symlinkSync } = await import("node:fs");
+    const { config, signed } = setup();
+    const first = JSON.parse(run(["token", "issue", "--config", config, "--json"]).stdout);
+    const keys = join(signed, "keys");
+    const [good] = readdirSync(keys);
+    // a planted key with a newer kid, readable by the group, and one behind a symbolic link
+    copyFileSync(join(keys, good), join(keys, "k99990101000000000-aaaa.key"));
+    chmodSync(join(keys, "k99990101000000000-aaaa.key"), 0o640);
+    copyFileSync(join(keys, good), join(signed, "elsewhere.key"));
+    chmodSync(join(signed, "elsewhere.key"), 0o600);
+    symlinkSync(join(signed, "elsewhere.key"), join(keys, "k99990101000000001-bbbb.key"));
+    const r = run(["token", "issue", "--config", config, "--json"]);
+    assert.equal(r.status, 0, r.stderr);
+    const out = JSON.parse(r.stdout);
+    const kidOf = (token) => JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString()).kid;
+    assert.equal(kidOf(out.token), good.slice(0, -4));
+    assert.ok(out.warnings.some((w) => /k99990101000000000-aaaa.*readable/.test(w)), JSON.stringify(out.warnings));
+    assert.ok(out.warnings.some((w) => /k99990101000000001-bbbb.*symbolic link/.test(w)), JSON.stringify(out.warnings));
+    const options = await loadConfig(config);
+    const { text } = await checkConfig(options, { http: true, env: { OPS_TOKEN: TOKEN }, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true, mcp: false });
+    assert.match(factsOf(text), /k99990101000000000-aaaa.*readable/);
+    assert.ok(first.token);
+});
+
+test("a refused revoked token is logged at info, by its ID, at most once a minute", async () => {
+    const { config } = setup();
+    const server = await serverOf(config);
+    try {
+        const t = JSON.parse(run(["token", "issue", "--config", config, "--json"]).stdout);
+        assert.equal(run(["token", "revoke", t.id, "--config", config]).status, 0);
+        for (let i = 0; i < 3; i++) {
+            assert.equal((await call(`${server.api}/sources`, { token: t.token })).status, 401);
+        }
+        const lines = server.log.filter((l) => l.level === "info" && /revoked/.test(l.msg) && l.msg.includes(t.id));
+        assert.equal(lines.length, 1, JSON.stringify(server.log));
+    } finally {
+        await server.close();
+    }
+});
+
+test("verifier: the token ID's rule is a parameter, for an issuer with IDs of its own", async () => {
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    const verifier = createSignedVerifier({ keyFor: async () => publicKey, isRevoked: async () => false, issuer: SIGNED_TOKEN.issuer, typ: SIGNED_TOKEN.typ, clockToleranceSec: 30, maxLifetimeSec: 3600, tokenId: /^psu-[0-9]{4}$/ });
+    const token = await new SignJWT({ jti: "psu-0042" }).setProtectedHeader({ alg: "EdDSA", kid: "k1", typ: SIGNED_TOKEN.typ }).setIssuer(SIGNED_TOKEN.issuer).setIssuedAt().setExpirationTime("5m").sign(privateKey);
+    assert.equal((await verifier.verify(token)).id, "psu-0042");
+});
+
+test("token issue prunes expired records at most once an hour", async () => {
+    const { utimesSync } = await import("node:fs");
+    const { config, signed } = setup();
+    assert.equal(run(["token", "issue", "--config", config]).status, 0);
+    const stale = join(signed, "issued", "00000000000000aa.json");
+    const record = { id: "00000000000000aa", name: null, kid: "k1", profile: null, scopes: null, issuedAt: "2020-01-01T00:00:00.000Z", expiresAt: "2020-01-01T01:00:00.000Z" };
+    writeFileSync(stale, JSON.stringify(record));
+    assert.equal(run(["token", "issue", "--config", config]).status, 0);
+    assert.equal(existsSync(stale), true, "pruned again within the hour");
+    const marker = readdirSync(signed).find((n) => n.startsWith("."));
+    assert.ok(marker, "a marker file");
+    const old = new Date(Date.now() - 2 * 3_600_000);
+    utimesSync(join(signed, marker), old, old);
+    assert.equal(run(["token", "issue", "--config", config]).status, 0);
+    assert.equal(existsSync(stale), false);
+});
+
+test("token list --json names a static token's file by its base name, never its full path", () => {
+    const { dir, config } = setup();
+    assert.equal(run(["token", "new", "--file", join(dir, "bot.token"), "--config", config, "--add", "--name", "bot"]).status, 0);
+    const out = run(["token", "list", "--config", config, "--json"]).stdout;
+    assert.ok(!out.includes(dir), out);
+    assert.equal(JSON.parse(out).tokens.find((t) => t.id === "bot").source, "file bot.token");
 });
