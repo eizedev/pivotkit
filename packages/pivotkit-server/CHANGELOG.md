@@ -16,8 +16,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
-- A field at `hide` no longer closes a source for delivery: it is dropped when the data is read and
-  reaches no report. A source that hides a field for every caller, with no field at `values` or
+- A field at `hide` no longer closes a source for delivery. The server drops it when it reads the
+  data, so it reaches no report. A source that hides a field for every caller, with no field at `values` or
   `summary`, is open. Its reports get plain download links, an `output.baseUrl` address and plain
   store links. A field hidden for some callers and shown to others still closes it. `check-config`
   names that case ([#510](https://github.com/eizedev/pivotkit/issues/510),
@@ -29,7 +29,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   none with `trustProxy` ([#511](https://github.com/eizedev/pivotkit/issues/511),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#per-address-default)).
 - Schedule drafts may take at most half of `output.maxMb`, as they take at most half of
-  `output.maxFiles`. A draft over it answers 409 `NO_OUTPUT`; renders keep working.
+  `output.maxFiles`. A draft over it answers 409 `NO_OUTPUT`. Renders keep working.
   `check-config` prints both caps and warns of a directory whose drafts are already over the byte
   cap ([#513](https://github.com/eizedev/pivotkit/issues/513),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota)).

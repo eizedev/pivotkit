@@ -171,8 +171,8 @@ before you start it. It says what applies to your configuration.
 
 ### Hidden fields keep a source open { #hidden-open }
 
-A field at `hide` is dropped when the data is read, so it reaches no report. Such a field no longer
-closes a source for [delivery](../reference/delivery.md). A source that shows everything except a
+The server drops a field at `hide` when it reads the data, so the field reaches no report. Such a
+field no longer closes a source for [delivery](../reference/delivery.md). A source that shows everything except a
 personal column is open:
 
 - Its reports get plain download links.
@@ -180,8 +180,8 @@ personal column is open:
 - With an upload store, they go to the store under its plain links.
 
 A source stays closed when a field or the default is `values` or `summary` for anyone. It also stays
-closed when a field is hidden for some callers and shown to others. `check-config` lists under
-`Delivery:` which sources are open and why the others are closed.
+closed when some callers see a field that others have hidden. `check-config` lists under
+`Delivery:` which sources are open, and what closes each of the others.
 
 ### A byte quota and an age limit for drafts { #draft-quota }
 
@@ -200,7 +200,7 @@ approval after that many days. The server sweeps at start and every hour, also w
 ### 32 connections per address { #per-address-default }
 
 One address on the network may hold at most 32 connections at once. Before, there was no such
-bound. The server counts the socket's peer, and loopback is never bounded:
+bound. The server counts the socket's peer. Loopback clients are not counted per address:
 
 - Without `http.trustProxy`, the default is 32.
 - With `http.trustProxy`, there is no bound by default. Every client has the proxy's address, and

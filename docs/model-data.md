@@ -260,7 +260,7 @@ A source is open when both of these hold:
   under every profile
 - the automatic values rule is off for it
 
-A hidden field is dropped when the data is read, so it reaches no report. Data that belongs to one
+The server drops a hidden field when it reads the data, so the field reaches no report. Data that belongs to one
 person is never open:
 
 - data sent in the request
