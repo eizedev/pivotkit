@@ -19,7 +19,7 @@ kubeconform -strict docker/kubernetes.example.yaml # after a change of the manif
 - The launcher `docker/pivotkit-server` puts `pivotkit-server` on the PATH.
 - The image's paths are `IMAGE_PATHS` in pivotkit-server's `state.js`. `test/state.test.js` compares them with the Dockerfile.
 - The image unpacks `sales.csv` from the CLI's example files for the built-in configuration.
-- `pivotkit.example.json` and `compose.example.yml` are the minimal setup of "Server in 5 minutes".
+- `pivotkit.example.json` and `compose.example.yml` are the minimal setup of the page "Server in 5 minutes" in the docs.
   The token comes from the first start. CI runs the Compose example.
 - `pivotkit.secrets.example.json` and `compose.secrets.example.yml` use tokens of your own as secret files.
   CI's operator run uses them.
