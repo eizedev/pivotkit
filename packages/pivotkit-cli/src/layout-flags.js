@@ -5,7 +5,7 @@
  * "=". Pure: --filter @file is read by the caller (`filtersOf` in layout-view.js).
  */
 
-import { CATALOG, closest } from "pivotkit-core";
+import { AGGREGATOR_ALIASES, CATALOG, closest } from "pivotkit-core";
 import { CliError, printable } from "./errors.js";
 
 /** The flags that make a layout; any of them given turns render into the flags mode. */
@@ -32,7 +32,7 @@ const shown = (text) => JSON.stringify(printable(String(text).slice(0, 60)));
 /** Our aggregator for another tool's name of it ("avg": average), else null. */
 function aliasOf(name) {
     const key = name.trim().toLowerCase();
-    return Object.hasOwn(CATALOG.aggregatorAliases, key) ? CATALOG.aggregatorAliases[key] : null;
+    return Object.hasOwn(AGGREGATOR_ALIASES, key) ? AGGREGATOR_ALIASES[key] : null;
 }
 
 /**

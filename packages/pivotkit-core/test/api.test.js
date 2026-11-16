@@ -9,13 +9,13 @@ import * as links from "pivotkit-core/link";
 import * as templates from "pivotkit-core/templates";
 import * as importer from "pivotkit-core/import";
 import * as charts from "pivotkit-core/chart";
-import { CATALOG, aggregatorsFor, encode, validate } from "pivotkit-core";
+import { AGGREGATOR_ALIASES, CATALOG, aggregatorsFor, encode, validate } from "pivotkit-core";
 
 const src = fileURLToPath(new URL("../src/", import.meta.url));
 
 test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(core).sort(), [
-        "CATALOG", "CHART_COLORS", "DEFAULT_LABELS", "DEFAULT_THEME", "DESCRIBE_LIMITS", "GROUPING_NAMES", "HINT_LIMITS", "ISSUE_CAP", "LAYOUT_LIMITS", "LIMITS", "MATCH_DEFAULTS", "MAX_DATE_MS", "OUTSIDE_LIMITS", "PivotkitError", "REPORT_LABELS", "SUGGEST_LIMITS", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUES", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
+        "AGGREGATOR_ALIASES", "CATALOG", "CHART_COLORS", "DEFAULT_LABELS", "DEFAULT_THEME", "DESCRIBE_LIMITS", "GROUPING_NAMES", "HINT_LIMITS", "ISSUE_CAP", "LAYOUT_LIMITS", "LIMITS", "MATCH_DEFAULTS", "MAX_DATE_MS", "OUTSIDE_LIMITS", "PivotkitError", "REPORT_LABELS", "SUGGEST_LIMITS", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUES", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
         "cellRows", "chartPlan", "chartThemeFrom", "closest", "computePivot", "createHistory", "dateUnitFor", "describeSource", "describeView", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "foldText", "formatter", "fromViewFile", "groupingName", "isDateMs", "isFormat", "isIdentifierName", "linkFragment", "linkParam",
         "migrate", "normalize", "outsideLimits", "relativeDateRange", "renameFields", "reportLabels", "suggestDateUnit", "suggestLayout", "swapAxes", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText", "viewFromLayout", "withLinkFragment"
     ]);
@@ -98,10 +98,10 @@ test("the catalog lists exactly what normalize accepts", () => {
     assert.ok(Object.isFrozen(CATALOG));
     // the UI's sub-lists name only entries of the full lists
     for (const agg of CATALOG.commonAggregators) assert.ok(CATALOG.aggregators.includes(agg), agg);
-    // other tools' names point at ours and are never ours themselves (hints only)
-    assert.equal(CATALOG.aggregatorAliases.avg, "average");
-    for (const [alias, agg] of Object.entries(CATALOG.aggregatorAliases)) assert.ok(CATALOG.aggregators.includes(agg) && !CATALOG.aggregators.includes(alias), alias);
-    assert.ok(Object.isFrozen(CATALOG.aggregatorAliases));
+    // other tools' names of aggregators point at ours and are never ours themselves (hints only)
+    assert.equal(AGGREGATOR_ALIASES.avg, "average");
+    for (const [alias, agg] of Object.entries(AGGREGATOR_ALIASES)) assert.ok(CATALOG.aggregators.includes(agg) && !CATALOG.aggregators.includes(alias), alias);
+    assert.ok(Object.isFrozen(AGGREGATOR_ALIASES));
     assert.deepEqual([...CATALOG.timelineUnits, ...CATALOG.cyclicUnits].sort(), CATALOG.deriveUnits.filter((u) => u !== "bin").sort());
 });
 

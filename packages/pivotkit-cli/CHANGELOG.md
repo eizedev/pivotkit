@@ -10,6 +10,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 - `--filter Field=Item` keeps the rows of one item: `--filter Country=Germany`. Given again for
   the same field, it keeps each item. JSON and `@file.json` work as before (#508).
+- With layout flags, an item of an `in` filter that is none of the field's values is a warning
+  `itemUnknown` with the item meant (#508).
 
 ### Changed
 
@@ -17,6 +19,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   means. A value in neither form gets an example of each (#508).
 - `--values avg:Revenue` asks "did you mean average?", as do `mean`, `cnt`, `total`, `distinct`
   and `stddev` (#508).
+- A finding whose message names the item meant (`itemCase`) says "did you mean" once (#508).
 
 ## [0.3.0] - 2026-11-16
 

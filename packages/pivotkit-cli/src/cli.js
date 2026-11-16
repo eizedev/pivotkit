@@ -261,7 +261,9 @@ export async function main(argv, io) {
                         continue;
                     }
                     printed++;
-                    say(`${f.severity} ${f.code}${f.path ? ` at ${f.path}` : ""}: ${f.message}${f.suggestion ? ` (did you mean "${f.suggestion}"?)` : ""}`);
+                    // a message that names the suggestion itself (itemCase) gets no second "did you mean"
+                    const hint = f.suggestion && !String(f.message).includes("did you mean") ? ` (did you mean "${f.suggestion}"?)` : "";
+                    say(`${f.severity} ${f.code}${f.path ? ` at ${f.path}` : ""}: ${f.message}${hint}`);
                     for (const line of f.details ?? []) {
                         say(`  ${line}`);
                     }
@@ -835,6 +837,8 @@ async function renderCommand(positionals, values, ctx) {
     const height = intOption("height", values.height, 100, 8000);
     const env = {
         ...operationEnv(ctx, data),
+        // a view from the layout flags: an item of --filter that is none of the field's values is a warning with the one meant
+        ...(made ? { unknownItems: true } : {}),
         ...(echarts ? { echarts } : {}),
         // the command line's own render options: the template file, --lenient, the byte order mark, the chart's size
         renderOptions: {

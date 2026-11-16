@@ -8,7 +8,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
-- `CATALOG.aggregatorAliases`: other tools' names of aggregators (`avg`) and the ones they mean
+- `AGGREGATOR_ALIASES`: other tools' names of aggregators (`avg`) and the ones they mean
   (`average`), for "did you mean". A view never accepts them (#508).
 
 ### Changed

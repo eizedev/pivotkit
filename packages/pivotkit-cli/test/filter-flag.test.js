@@ -9,12 +9,12 @@ import { join } from "node:path";
 import { run, tempDir } from "./helpers.js";
 
 const DATA = [
-    "Country,Region,Units,Month,a=b",
-    "Germany,North,3,2025-01-01,x=1",
-    "Germany,South,4,2025-02-01,y",
-    "France,North,2,2025-02-01,x=1",
-    "Spain,West,5,2025-03-01,y",
-    "Italy,South,7,2025-03-01,y"
+    "Country,Region,Units,Month,a=b,Paid",
+    "Germany,North,3,2025-01-01,x=1,true",
+    "Germany,South,4,2025-02-01,y,false",
+    "France,North,2,2025-02-01,x=1,false",
+    "Spain,West,5,2025-03-01,y,true",
+    "Italy,South,7,2025-03-01,y,false"
 ].join("\n");
 
 /** A directory with the table as data.csv. */
@@ -52,6 +52,25 @@ test("--filter given again for one field keeps each item; for two fields, the ro
     assert.deepEqual(lines(number.stdout), ["Country,Sum of Units", "Germany,4", "Grand Total,4"]);
     const date = await run([...SUM_BY_COUNTRY, "--filter", "Month=2025-03-01"], { cwd: dir });
     assert.deepEqual(lines(date.stdout), ["Country,Sum of Units", "Italy,7", "Spain,5", "Grand Total,12"]);
+    const yes = await run([...SUM_BY_COUNTRY, "--filter", "Paid=true"], { cwd: dir });
+    assert.deepEqual(lines(yes.stdout), ["Country,Sum of Units", "Germany,3", "Spain,5", "Grand Total,8"]);
+});
+
+test("an item spelt otherwise than the data spells it is a warning with the item meant, said once", async () => {
+    const dir = files();
+    const lower = await run([...SUM_BY_COUNTRY, "--filter", "Country=germany"], { cwd: dir });
+    assert.equal(lower.code, 0, lower.stderr);
+    assert.match(lower.stderr, /warning itemCase at filters\[0\]\.items: item "germany" is no item of "Country"; did you mean "Germany"\?$/m);
+    const typo = await run([...SUM_BY_COUNTRY, "--filter", "Country=Germny"], { cwd: dir });
+    assert.equal(typo.code, 0, typo.stderr);
+    assert.match(typo.stderr, /^warning itemUnknown at filters\[0\]\.items: item "Germny" is not one of the listed values of "Country" \(did you mean "Germany"\?\)$/m);
+    // with --strict a warning fails the run, so a misspelt item never gives a silent table of zeros in CI
+    const strict = await run([...SUM_BY_COUNTRY, "--filter", "Country=Germny", "--strict"], { cwd: dir });
+    assert.equal(strict.code, 1);
+    // an item that is right gives no warning, also with --strict
+    const right = await run([...SUM_BY_COUNTRY, "--filter", "Country=Germany", "--strict"], { cwd: dir });
+    assert.equal(right.code, 0, right.stderr);
+    assert.equal(right.stderr, "");
 });
 
 test("--filter splits at the = after a field of the data, so names and items may hold =", async () => {

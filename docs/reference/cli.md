@@ -329,6 +329,8 @@ view.
     - `Field=Item` keeps the rows of one item: `--filter Country=Germany`. It splits at the `=` after
       a field of the data, so a name and an item may hold `=`. With a server, the data's fields are
       not known first, so it splits at the first `=`.
+    - Write the item as the data spells it. Another case, or an item that is none of the field's
+      values, is a warning with the item meant. With `--strict`, the warning fails the run.
     - The same field given again keeps each item: `--filter Country=Germany --filter Country=France`.
       Filters of different fields keep the rows that all of them keep.
     - A value that starts with `{` or `[` is a filter as a [view](view-file.md) writes it, as JSON:
