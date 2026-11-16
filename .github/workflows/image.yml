@@ -61,8 +61,12 @@ jobs:
           work="$RUNNER_TEMP/pivotkit"
           mkdir -p "$work/data" "$work/secrets"
           printf 'Region,Product,Customer,Sales\nNorth,A,Alice,10\nSouth,B,Bob,20\nNorth,B,Carol,5\n' > "$work/data/sales.csv"
-          node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" > "$work/secrets/pivotkit_token"
-          node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" > "$work/secrets/pivotkit_export_token"
+          # the image makes its own tokens: one line of 43 characters on stdout, without a configuration.
+          # ">" gives the files the umask's mode; fine for this runner, and chmod 0644 follows anyway
+          # (the docs tell operators to use --file or umask 077)
+          docker run --rm --read-only --cap-drop ALL pivotkit:test token new > "$work/secrets/pivotkit_token"
+          docker run --rm --read-only --cap-drop ALL pivotkit:test token new > "$work/secrets/pivotkit_export_token"
+          test "$(wc -c < "$work/secrets/pivotkit_token")" -eq 44
           chmod 0644 "$work/secrets/"*
           cp docker/pivotkit.example.json "$work/pivotkit.json"
           docker volume create pivotkit-out
@@ -95,6 +99,8 @@ jobs:
             "$api/views/render/file" | grep -q North
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{}' http://localhost:3333/mcp)" = "401"
           curl -fsS http://localhost:3333/readyz | grep -q '"ok":true'
+          # token show inside the running container gives the value the server reads (the docs' kubectl exec line)
+          test "$(docker exec pivotkit /nodejs/bin/node /app/packages/pivotkit-server/bin/pivotkit-server.js token show reports)" = "$token"
           # the report was written to the volume by the image's user
           docker run --rm -v pivotkit-out:/out --entrypoint /nodejs/bin/node pivotkit:test -e "const f=require('fs').readdirSync('/out');console.log(f);if(!f.some(n=>n.endsWith('.xlsx')))process.exit(1)"
           # without a configuration (auth none) on every address it refuses to start, and says why

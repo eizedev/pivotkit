@@ -545,6 +545,9 @@ pivotkit-server's.
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit` |
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |
+| `pivotkit-server token new [--file <path>] [--config <file> --add]` | Make a static token: on stdout, or into a file with mode 0600, and with `--add` into `auth.tokens` ([tokens and keys](#credentials)) |
+| `pivotkit-server token show <name>` | Print the value of a token of `auth.tokens`, as the server reads it; 1 when it is missing or cannot be used, 2 for a name that is not there |
+| `pivotkit-server key new --for downloads\|audit [--file <path>] [--config <file> --add]` | Make a key for `output.downloads.key` or `audit.key` ([tokens and keys](#credentials)) |
 | `pivotkit-server --version` | The version |
 
 ### Reading check-config { #check-config }
@@ -663,6 +666,112 @@ Universal, `pivotkit-server serve` runs as a service with a service manager of y
 rights, the token from a PSU secret, a rotated log, IIS with ARR in front). Its file checks are
 measured on Linux and macOS ([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions
 and hard links on Windows).
+
+### Tokens and keys { #credentials }
+
+`pivotkit-server` makes the secrets the server needs, so you need no other tool. A token is 32
+random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
+
+=== "bash"
+
+    ```bash
+    # a token in a file only you can read, added to auth.tokens of pivotkit.json (a backup pivotkit.json.bak first)
+    npx -y pivotkit-server token new --file secrets/reports.token --config pivotkit.json --add --name reports
+    # the key of the download links
+    npx -y pivotkit-server key new --for downloads --file secrets/download.key
+    # a token on stdout, for a variable
+    export SCRIPTS_TOKEN="$(npx -y pivotkit-server token new)"
+    ```
+
+=== "PowerShell"
+
+    ```powershell
+    npx -y pivotkit-server token new --file secrets/reports.token --config pivotkit.json --add --name reports
+    npx -y pivotkit-server key new --for downloads --file secrets/download.key
+    $env:SCRIPTS_TOKEN = npx -y pivotkit-server token new
+    ```
+
+    Let the command write the file (`--file`): PowerShell 5.1's `>` writes UTF-16, which the server
+    cannot read as a token.
+
+| Option | What it does |
+| --- | --- |
+| `--file <path>` | Write the value to this file: one line ending in LF, mode 0600, never through a symbolic link, never into a directory that is not there. The value is not printed (`--print` prints it too) |
+| `--if-missing` | Keep a file that is there and exit 0, if the server can use its value; else exit 1. [Below](#credentials-if-missing) |
+| `--force` | Replace a file that is there, atomically. [Below](#credentials-force) |
+| `--config <file>` | `token new`: check `--profile` against `policy.profiles`, refuse a file inside `output.dir`, and use `http.publicUrl` in the hints. `token new` and `key new` read no configuration without it, not even `$PIVOTKIT_CONFIG`; `token show` reads `$PIVOTKIT_CONFIG` by default |
+| `--add` | `token new`: add the token to `auth.tokens` of `--config`. `key new`: name the key as `output.downloads.key` or `audit.key`. Both need `--file`; [below](#credentials-add) |
+| `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
+| `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
+| `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "config", "configured", "backup", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`; the value only where it would be printed |
+
+#### What `--if-missing` does { #credentials-if-missing }
+
+- It reads the file and checks the value by the server's rules. A value it cannot use is exit 1.
+- A file of yours that everyone may read loses those bits. It says so.
+- A file a group may read keeps that bit, since a group may share it on purpose. It warns you.
+- A file of another user than you or root is kept too, with a warning.
+- A symbolic link, such as a mounted Kubernetes Secret, is only read through. Nothing behind it is
+  changed, and `--print` is refused there; `token show` prints a configured token.
+- Several runs at once end with one value.
+
+#### What `--force` does { #credentials-force }
+
+- It writes the new value to a temporary file and renames it over the old one. A reader never sees
+  half a value.
+- It keeps the old file's owner and group where it may. As root it keeps both. As another user it
+  keeps the group when you are in it, and the owner is yours.
+- With the old group kept, the group's read bit stays. A write bit never does, nor any bit for
+  everyone else.
+- It warns you of an owner, group or read bit it could not keep. Then check that the server's user
+  can still read the file.
+- Clients that still send the old token get 401 from then on. The server reads a token's file on
+  every request and the download key within a second, so neither needs a restart.
+- A file mounted on its own (a bind mount of one file, a Kubernetes `subPath`) cannot be replaced
+  (`MOUNTED`). Change it where it comes from.
+
+#### What `--add` does { #credentials-add }
+
+- It writes `{ "name", "file", "scopes", "profile" }` into `auth.tokens`, or `{ "file" }` as the key.
+  The file's path is relative to the configuration when the file lies below it.
+- It checks the new configuration first. A name that is there, a key that is set, an unknown
+  profile, `auth.mode` `none` or `oauth` stop it before anything is written.
+- It sets `auth.mode` to `token` when the file has none, and says so.
+- Once `auth.tokens` lists a token, `$PIVOTKIT_TOKEN` is no longer read. The first `--add` warns
+  you.
+- With `--if-missing`, an entry with the same name, file, scopes and profile counts as done: the
+  run exits 0 and writes nothing.
+- It keeps the old configuration byte for byte as `<file>.bak-<UTC time>`, one per run, readable by
+  you only. Remove old backups when you
+  no longer need them.
+- It writes the configuration again as pretty-printed JSON. The indentation and the file's mode
+  stay; a compact one-line object is spread over lines.
+- It reads the configuration, writes the secret's file, then replaces the configuration. Right
+  before the replace it reads the configuration again. If someone changed it in between, it does
+  not replace it and says so; run it again with `--if-missing`. This is a best effort, not a lock:
+  an edit saved in the moment between that last read and the rename is lost. Do not run `--add`
+  while someone edits the file.
+- The new configuration keeps the old one's owner and group where it may, as `--force` does. Where
+  it cannot (you are not root and not in its group), it is yours and readable by you only, and a
+  warning says so: check that the server's user can still read it.
+- It refuses a configuration that is a symbolic link (a mounted ConfigMap) or in a folder it
+  cannot write.
+- Restart the server afterwards: it reads the list of tokens and the audit key at start.
+
+Without `--file` the value is the only line on stdout. On a terminal the commands write on stderr
+what to add to the configuration and how to try the token with curl, PowerShell and
+`claude mcp add --header`. The exit code is 0 when done, 1 for a file that is there, missing or not
+usable (`EXISTS`, `NOT_REGULAR_FILE`, `NO_DIRECTORY`, `READ_ONLY`, `MOUNTED`, `UNUSABLE`), 2 for a
+usage or configuration error. No message holds a value. A file in UTF-16 (what PowerShell 5.1's `>`
+writes) is named as such by these commands, `check-config` and the start; so is a token or key file
+that is not a regular file or longer than 4096 bytes, which is never waited for. A temporary file is
+removed when the command is stopped (Ctrl+C) during a write.
+
+On Windows the mode does not apply: the file takes the permissions of its folder. To keep it to your
+account, in PowerShell: `icacls secrets\reports.token /inheritance:r /grant:r "${env:USERNAME}:F"`
+(full control for you alone, so `--force` can still replace it). `/inheritance:r` also takes away
+SYSTEM and Administrators: a server that runs as a service needs its own grant
+(`/grant "<account>:R"`).
 
 ## Logging { #logging }
 

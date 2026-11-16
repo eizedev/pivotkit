@@ -38,6 +38,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- `--help` names where a token for `--auth token` comes from: `npx -y pivotkit-server token new`
+  ([tokens and keys](https://pivotkit.eize.dev/reference/rest/#credentials)).
 - `render_view` takes `save: false`: the csv or json result comes back inline only, with no file,
   no upload and no link, for a result asked for in the chat; csv when no format is given. Where it
   cannot come back inline (xlsx, html or svg, inline results off, a field that is not `show`, a result over the `inline` limits) the call

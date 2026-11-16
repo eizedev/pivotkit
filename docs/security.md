@@ -316,7 +316,7 @@ each level and how to set them per client):
 - **HTTP**: it listens on 127.0.0.1 by default and refuses another address without authentication
   unless told the network is trusted; it checks the `Host` header against an allow-list (DNS
   rebinding) and refuses browser origins it does not know, as the MCP transport spec requires; bodies
-  are capped at 2 MiB. Authentication is a static token (compared in constant time, never logged) or
+  are capped at 2 MiB. Authentication is a static token (compared in constant time, never logged; [`pivotkit-server token new`](reference/rest.md#credentials) makes one, 32 random bytes in a file only its owner reads) or
   OAuth 2.1 as the [MCP authorization spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
   describes: JWT access tokens checked for signature, issuer, audience (the server itself), expiry and
   algorithm, never passed on; scopes per tool and per source. The issuer's metadata, its keys and the

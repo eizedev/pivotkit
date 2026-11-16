@@ -26,13 +26,32 @@ holds every part shown below; the sections explain each one.
    Ingress's `ingressClassName` (when the cluster has no default class), the certificate's Secret
    `pivotkit-tls` (made by hand or by a tool such as cert-manager), and the `storageClassName` of
    `pivotkit-data` (when the default class offers no ReadWriteMany).
-3. Create the namespace and the token, then apply the manifest and fetch the data once:
+3. Create the namespace, the token and the download key, then apply the manifest and fetch the data
+   once. The image makes the two files (each a file only you read); the lines are for bash on Linux
+   or macOS, the PowerShell tab shows the two that differ:
+
+    === "bash"
+
+        ```bash
+        docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
+        docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" ghcr.io/eizedev/pivotkit:<version> key new --for downloads --file /out/download.key
+        ```
+
+    === "PowerShell"
+
+        ```powershell
+        # the image writes as its user 10001; whether it may write this folder depends on Docker
+        # Desktop's file sharing: check afterwards that the two files are there and you can read them
+        docker run --rm -v "${PWD}:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/reports.token
+        docker run --rm -v "${PWD}:/out" ghcr.io/eizedev/pivotkit:<version> key new --for downloads --file /out/download.key
+        ```
+
+    Then, in either shell:
 
     ```bash
     kubectl create namespace pivotkit
-    openssl rand -base64 32 | tr -d '/+=\n' > reports.token   # about 42 characters
     kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
-    kubectl -n pivotkit create secret generic pivotkit-download-key --from-literal=key="$(openssl rand -base64 48)"
+    kubectl -n pivotkit create secret generic pivotkit-download-key --from-file=key=./download.key
     kubectl apply -f kubernetes.example.yaml
     kubectl -n pivotkit create job --from=cronjob/pivotkit-fetch-data pivotkit-fetch-data-first
     kubectl -n pivotkit rollout status deployment/pivotkit
@@ -40,8 +59,13 @@ holds every part shown below; the sections explain each one.
 
     `apply` warns once that the namespace has no `last-applied-configuration` annotation and adds
     it. A token has at least 32 characters. Keep it out of the manifest and out of environment
-    variables (`kubectl describe` shows those). `pivotkit-download-key` is the key of the
+    variables (`kubectl describe` shows those). With Node, `npx -y pivotkit-server token new --file
+    reports.token` and `key new --for downloads --file download.key` do the same
+    ([tokens and keys](../reference/rest.md#credentials)). `pivotkit-download-key` is the key of the
     [download links](../reference/delivery.md): at least 32 bytes, and kept, so links survive a restart.
+    A Secret mounted in the pod is a symbolic link: `token new --file <it> --if-missing` only reads
+    it to check the value; the commands never write through a link, so a new value goes into the
+    Secret (`kubectl create secret ... --dry-run=client -o yaml | kubectl apply -f -`).
 
 ## Check it { #check }
 

@@ -27,7 +27,7 @@ export const FLAGS = Object.freeze({
 /** The help text, from the table. */
 export function helpText() {
     const lines = flagLines(FLAGS);
-    return `pivotkit-mcp ${VERSION}: an MCP server for pivotkit reports.\n\nUsage: pivotkit-mcp [options]\n       pivotkit-mcp --version\n\nOptions:\n${lines.join("\n")}\n\nDocs: https://pivotkit.eize.dev/reference/mcp/\n`;
+    return `pivotkit-mcp ${VERSION}: an MCP server for pivotkit reports.\n\nUsage: pivotkit-mcp [options]\n       pivotkit-mcp --version\n\nOptions:\n${lines.join("\n")}\n\nA token for --auth token ($PIVOTKIT_MCP_TOKEN or auth.tokens): npx -y pivotkit-server token new [--file <path>].\nDocs: https://pivotkit.eize.dev/reference/mcp/\n`;
 }
 
 /**

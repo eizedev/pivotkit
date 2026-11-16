@@ -957,7 +957,7 @@ test("check-config: where links point, which sources get which link, the redirec
     assert.match(once.text, /reports over closed sources \(sales\): one-time links/);
     assert.match(factsOf(once.text), /WARNING \(Delivery\): one-time links: anyone who sees the link can use it once, including an assistant with a browser or code tool; use bind "signIn" where that matters/);
     // the server starts with a short key (it logs it), and reports get no links until it is fixed
-    assert.match(factsOf(once.text), /PROBLEM: output\.downloads\.key is shorter than 32 bytes; make one with: openssl rand -base64 48 -> the server starts; reports get no download links until it can be read/);
+    assert.match(factsOf(once.text), /PROBLEM: output\.downloads\.key is shorter than 32 bytes; make one with: pivotkit-server key new --for downloads --file <path> -> the server starts; reports get no download links until it can be read/);
     assert.equal(once.problems, 1);
     assert.equal(once.stops, 0);
 

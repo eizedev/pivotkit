@@ -61,6 +61,9 @@ export const SERVER_FLAGS = Object.freeze({
     help: SHARED_FLAGS.help
 });
 
+/** The variable that names pivotkit-server's configuration file (the runner, check-config, token show). */
+export const CONFIG_ENV = "PIVOTKIT_CONFIG";
+
 /** The log's settings: the flag, the variable and the values of each (options/log.js). */
 export const LOG_SETTINGS = Object.freeze({
     level: { flag: "log", env: "PIVOTKIT_LOG_LEVEL", values: LOG_LEVELS },

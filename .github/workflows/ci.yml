@@ -66,7 +66,7 @@ jobs:
 
   windows:
     # pivotkit-cli's file handling on Windows: drive letters, junctions (reparse points), no
-    # O_NOFOLLOW. Its tests only; the other jobs run on Linux
+    # O_NOFOLLOW; and pivotkit-server's secret files. Those tests only; the other jobs run on Linux
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -82,6 +82,10 @@ jobs:
         run: npm run build
       - name: pivotkit-cli tests
         run: npm test -w pivotkit-cli
+      - name: pivotkit-server's credential commands
+        # token new, token show and key new write secret files: no replacing, --json, UTF-8 with LF,
+        # several runs at once, a round trip through the server (mode bits and links are POSIX only)
+        run: node scripts/test-run.js node --test packages/pivotkit-server/test/credentials.test.js
 
   angular:
     # The Angular example (examples/angular): a standalone component with <pivot-report>, built by

@@ -114,10 +114,19 @@ give each client its own rules.
 
 ## 4. For a team: HTTP
 
-```bash
-export PIVOTKIT_MCP_TOKEN="$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))")"
-npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token
-```
+=== "bash"
+
+    ```bash
+    export PIVOTKIT_MCP_TOKEN="$(npx -y pivotkit-server token new)"
+    npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token
+    ```
+
+=== "PowerShell"
+
+    ```powershell
+    $env:PIVOTKIT_MCP_TOKEN = npx -y pivotkit-server token new
+    npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token
+    ```
 
 The server listens on `http://127.0.0.1:3333/mcp`; open `http://127.0.0.1:3333/` in a browser for
 the quick-start page with the configurations to copy. For other machines, put it behind a reverse
@@ -130,6 +139,10 @@ one-time link you switch on); see [download links](../reference/delivery.md). Cl
 ```bash
 claude mcp add --transport http pivotkit https://reports.example.com/mcp --header "Authorization: Bearer <token>"
 ```
+
+The token is then on that command line: other users of the machine can see it in the process list
+while the command runs, and your shell keeps it in its history. Claude Code stores it in its
+configuration either way.
 
 For sign-in with your identity provider (Authentik, Keycloak, Microsoft Entra ID, any OAuth 2.1 /
 OpenID Connect provider), see [OAuth](../reference/mcp.md#oauth); scopes then decide who sees which

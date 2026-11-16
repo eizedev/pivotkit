@@ -9,6 +9,7 @@
  */
 
 import { CALLBACK_PATH, DOWNLOADS_PATH, KEY_MIN_BYTES } from "../downloads.js";
+import { makeKey } from "../auth.js";
 import { EXPIRES_MINUTES, insecurePublicHost, insecureUrlText, settingsOf } from "../options/downloads.js";
 import { uploadSettingsOf } from "../options/upload.js";
 import { isLoopback } from "../listen.js";
@@ -229,7 +230,7 @@ async function links(options, registry, runtime) {
         try {
             const value = await readSecret(settings.key, options, runtime.env);
             if (Buffer.byteLength(value) < KEY_MIN_BYTES) {
-                items.push(problem(`output.downloads.key is shorter than ${KEY_MIN_BYTES} bytes; make one with: openssl rand -base64 48`, noLinks));
+                items.push(problem(`output.downloads.key is shorter than ${KEY_MIN_BYTES} bytes; make one with: ${makeKey("downloads")}`, noLinks));
             }
         } catch (e) {
             items.push(problem(`output.downloads.key: ${String(/** @type {any} */ (e)?.message ?? e)}`, noLinks));

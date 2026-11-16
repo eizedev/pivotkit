@@ -9,16 +9,17 @@
  *   pivotkit-server mcp [flags]            pivotkit-mcp's runner (stdio by default)
  *   pivotkit-server cli <command> ...      the command line pivotkit (pivotkit-cli)
  *   pivotkit-server healthcheck [url]      exit 0 when the server answers /healthz (the image's HEALTHCHECK)
+ *   pivotkit-server token new|show, key new   make and show credentials (credentials.js)
  */
 
 import { ConfigError, loadConfig } from "./config.js";
 import { VERSION } from "./context.js";
-import { SERVER_FLAGS, flagLines, helpPointer, optionsFrom, startFormatOf } from "./flags.js";
+import { CONFIG_ENV, SERVER_FLAGS, flagLines, helpPointer, optionsFrom, startFormatOf } from "./flags.js";
 import { flushed, startErrorLine } from "./log.js";
 import { DEFAULT_PORT, TOKEN_ENV, loadMcp } from "./serve.js";
 
-/** The variable that names the configuration file. */
-export const CONFIG_ENV = "PIVOTKIT_CONFIG";
+/** The variable that names the configuration file (flags.js's). */
+export { CONFIG_ENV };
 
 /** The subcommands, for the help. */
 const COMMANDS = Object.freeze({
@@ -28,7 +29,11 @@ const COMMANDS = Object.freeze({
     "source-from-openapi <file|url>": "Propose an HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (--operation <operationId or 'GET /path'>, --id, --backend); TODO values for you to fill in.",
     mcp: "Run pivotkit-mcp (stdio by default; its own flags, pivotkit-mcp --help).",
     cli: "Run the command line pivotkit (pivotkit-server cli --help).",
-    healthcheck: `Exit 0 when the server answers GET /healthz (default http://127.0.0.1:${DEFAULT_PORT}/healthz).`
+    healthcheck: `Exit 0 when the server answers GET /healthz (default http://127.0.0.1:${DEFAULT_PORT}/healthz).`,
+    // credentials.js (loaded only for these)
+    "token new": "Make a token for auth.tokens (--file, --add to put it into --config; pivotkit-server token --help).",
+    "token show <name>": "Print the value of a token of auth.tokens (1 when it cannot be used).",
+    "key new --for downloads|audit": "Make a key for output.downloads.key or audit.key (pivotkit-server key --help)."
 });
 
 /** --version, which the runner takes in place of a command (not one of serve's flags). */
@@ -155,6 +160,10 @@ export async function run(argv, io) {
             const configured = io.env[CONFIG_ENV] ? await loadConfig(io.env[CONFIG_ENV]).then((o) => o.http?.port, () => undefined) : undefined;
             const port = fromEnv ?? String(configured ?? DEFAULT_PORT);
             return healthcheck(`http://127.0.0.1:${port}/healthz`, io);
+        }
+        if (command === "token" || command === "key") {
+            const { credentialsCommand } = await import("./credentials.js");
+            return await credentialsCommand(command, rest, io);
         }
         if (command === "check-source") {
             return await checkSourceCommand(rest, io);

@@ -4,10 +4,13 @@
  * CR LF) is trimmed; a value with another line break or a NUL, or an empty one, is refused. A
  * SecretError names the reference (the variable, the file as configured), never the value or a full
  * path; nothing here logs. check-config warns of a secret file other users can read
- * (secretFileWarning).
+ * (secretFileWarning). readSecretFile is the one read of a secret's file (static tokens too): a
+ * regular file only (a FIFO or a device is never waited for), at most MAX_SECRET_BYTES, and a file
+ * in UTF-16 (PowerShell 5.1's ">") named as such.
  */
 
-import { readFile, stat } from "node:fs/promises";
+import { constants } from "node:fs";
+import { open, stat } from "node:fs/promises";
 import { pathOf } from "./config.js";
 
 export class SecretError extends Error {
@@ -19,8 +22,61 @@ export class SecretError extends Error {
     }
 }
 
-/** Why a file could not be read, in words (never the error's own message, which holds the path). */
-const unreadable = (code) => (code === "ENOENT" ? "no such file" : code === "EACCES" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : "unreadable");
+/** The longest secret file read; a secret is one short line. */
+export const MAX_SECRET_BYTES = 4096;
+
+/** What a secret file in UTF-16 is told. */
+export const UTF16_TEXT = "looks like UTF-16 (PowerShell 5.1's > writes it); write it with pivotkit-server token new --file <path> --force (a key: key new --for downloads|audit)";
+
+/**
+ * Whether a file's bytes are UTF-16 rather than UTF-8: a byte order mark FF FE or FE FF, or NUL bytes
+ * in a quarter or more of them (UTF-16 without a mark: ASCII text has one in every other byte). A
+ * lone NUL is no UTF-16: readSecret refuses it as such.
+ * @param {Uint8Array} bytes
+ */
+export const looksUtf16 = (bytes) => (bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff) || (bytes.length > 1 && bytes.filter((b) => b === 0).length * 4 >= bytes.length);
+
+/**
+ * Why a file could not be read, in words (never the error's own message, which holds the path).
+ * @param {string | undefined} code  a system error's code or readSecretFile's
+ */
+export const unreadable = (code) =>
+    code === "ENOENT" ? "no such file" : code === "EACCES" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : code === "NOT_REGULAR_FILE" ? "not a regular file" : code === "TOO_LARGE" ? `longer than ${MAX_SECRET_BYTES} bytes` : code === "UTF16" ? UTF16_TEXT : "unreadable";
+
+/**
+ * A secret file's text: a regular file (a link to one is followed, as a mounted Secret is), opened
+ * without waiting for a writer, at most MAX_SECRET_BYTES, UTF-8. An error with the code
+ * NOT_REGULAR_FILE, TOO_LARGE or UTF16, or the system's (ENOENT, EACCES, ...); `unreadable` words it.
+ * @param {string} path
+ * @returns {Promise<string>}
+ */
+export async function readSecretFile(path) {
+    const handle = await open(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
+    try {
+        const info = await handle.stat();
+        if (!info.isFile()) {
+            throw Object.assign(new Error("not a regular file"), { code: "NOT_REGULAR_FILE" });
+        }
+        const buffer = Buffer.alloc(MAX_SECRET_BYTES + 1);
+        let length = 0;
+        for (;;) {
+            const { bytesRead } = await handle.read(buffer, length, buffer.length - length, null);
+            if (bytesRead === 0 || (length += bytesRead) > MAX_SECRET_BYTES) {
+                break;
+            }
+        }
+        if (length > MAX_SECRET_BYTES) {
+            throw Object.assign(new Error("too large"), { code: "TOO_LARGE" });
+        }
+        const bytes = buffer.subarray(0, length);
+        if (looksUtf16(bytes)) {
+            throw Object.assign(new Error("UTF-16"), { code: "UTF16" });
+        }
+        return bytes.toString("utf8");
+    } finally {
+        await handle.close();
+    }
+}
 
 /**
  * The value of a secret reference, read now.
@@ -39,9 +95,10 @@ export async function readSecret(ref, options, env = process.env) {
         }
     } else {
         try {
-            text = await readFile(pathOf(options, /** @type {string} */ (ref.file)), "utf8");
+            text = await readSecretFile(pathOf(options, /** @type {string} */ (ref.file)));
         } catch (e) {
-            throw new SecretError(`${where} cannot be read (${unreadable(/** @type {any} */ (e)?.code)})`);
+            const code = /** @type {any} */ (e)?.code;
+            throw new SecretError(code === "UTF16" ? `${where} ${UTF16_TEXT}` : `${where} cannot be read (${unreadable(code)})`);
         }
     }
     const value = text.replace(/\r?\n$/, "");

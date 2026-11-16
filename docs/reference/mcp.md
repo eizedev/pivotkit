@@ -479,7 +479,7 @@ token's `client` already.
 
 With `plain`, and with `hash` while you keep the key, the log holds personal data: say so where the
 log goes, and keep it no longer than you need it. Keep `audit.key` as a secret (a file only the
-server's user reads). The key is read at start, and only with OAuth (a static token's caller is
+server's user reads; `pivotkit-server key new --for audit --file <path>` makes one). The key is read at start, and only with OAuth (a static token's caller is
 named by its token); a key that cannot be read, or one shorter than 16 characters, stops the start.
 A rotated key takes effect at the next restart and changes every person's value, so lines from
 before and after no longer match.
@@ -565,8 +565,8 @@ The token comes from `$PIVOTKIT_MCP_TOKEN`, or several named tokens from `auth.t
 an environment variable or a file (read on every request, so a token is rotated without a restart),
 each with its own `scopes` (a token without `scopes` holds every scope). A token has at least 32
 characters, only those a bearer token can carry (letters, digits, `-._~+/`, `=` at the end; the
-start refuses another); make one with
-`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Tokens are compared
+start refuses another); make one with `npx -y pivotkit-server token new`, or into a file with
+`--file <path>` ([tokens and keys](rest.md#credentials)). Tokens are compared
 as SHA-256 digests in constant time, never logged, and refused in the address (`?access_token=`) and
 when a request carries two `Authorization` headers.
 The token's name is the client in the log. A token file that is missing, empty or shorter than 32
@@ -582,14 +582,16 @@ naming the token and the cause, at most once a minute.
 Rotating a token without a break:
 
 1. Add a second entry to `auth.tokens` for the new token, with the same `scopes` and `profile`, from
-   a file of its own, and restart once (the list of tokens is read at start).
+   a file of its own (`pivotkit-server token new --file <new file> --config <file> --add --name <new
+   name>`, with `--scope` and `--profile` as the old one), and restart once (the list of tokens is
+   read at start).
 2. Give the clients the new token, one after the other; both work meanwhile.
 3. Remove the old entry and restart.
 
 A token file can also be overwritten in place, without a restart: every client still on the old value
 gets 401 from that moment, so do it only after steps 1 and 2, or when you mean to cut the old value
-off. Write the new value to a temporary file in the same directory and rename it over the old one
-(`mv`), so the server never reads a half-written file. The warning for a file that cannot be used
+off. `pivotkit-server token new --file <its file> --force` writes the new value to a temporary file
+in the same directory and renames it over the old one, so the server never reads a half-written file. The warning for a file that cannot be used
 names the cause (the file is missing, empty, or has N characters), never the value or the path.
 
 ### OAuth 2.1 { #oauth }
