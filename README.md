@@ -10,7 +10,7 @@ build a report by dragging fields and take it to Excel. The same report renders 
 
 | Who you are | What you want | Quickest start |
 | --- | --- | --- |
-| A user | a report from your data, by clicking | Try the [live demo](https://pivotkit.eize.dev/playground/), then build a first report in six steps with the [quick start](https://pivotkit.eize.dev/use/quick-start/). |
+| A user | a report from your data, by clicking | Try the [live demo](https://pivotkit.eize.dev/demo/), then build a first report in six steps with the [quick start](https://pivotkit.eize.dev/use/quick-start/). |
 | An operator | the REST service and the MCP server in your environment | Start the container with one `docker run`: [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/). |
 | A developer | the report in your application, or reports from your code | Pick the package that fits and put a first report on it: [Embed pivotkit](https://pivotkit.eize.dev/embed/). |
 
@@ -80,7 +80,7 @@ the MCP server run in Node 22 or later.
 | [pivotkit-report](packages/pivotkit-report/) | [Reports without a browser](https://pivotkit.eize.dev/reference/report/), in Node and the browser. It makes a view over rows into JSON, CSV, XLSX, an SVG chart or a printable HTML report from a template. | `npm install pivotkit-report echarts` |
 | [pivotkit-cli](packages/pivotkit-cli/) | The [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`. It renders, validates and describes views in CI, with exit codes and `--json`. | `npm install --global pivotkit-cli` |
 | [pivotkit-server](packages/pivotkit-server/) | A [REST service](https://pivotkit.eize.dev/reference/rest/) over the same operations, with an OpenAPI 3.1 document. Sign-in with tokens or OAuth, and policy profiles. Sources are files or an operator's API: [HTTP sources](https://pivotkit.eize.dev/reference/sources/#http). It is the shared core of the MCP server. One command runs REST, MCP and the CLI, and so does the [container image](https://pivotkit.eize.dev/reference/container/). | `npm install --global pivotkit-server` |
-| [pivotkit-mcp](packages/pivotkit-mcp/) | An [MCP server](https://pivotkit.eize.dev/reference/mcp/). An AI client describes data sources, writes and checks views, and has reports made into files or links. It does not read the data. It runs over stdio and Streamable HTTP, with a token or OAuth. | `npx -y pivotkit-mcp` |
+| [pivotkit-mcp](packages/pivotkit-mcp/) | An [MCP server](https://pivotkit.eize.dev/reference/mcp/). An AI client describes data sources, writes and checks views, and has reports made into files or links. The client does not read the data. The server runs over stdio and Streamable HTTP, with a token or OAuth. | `npx -y pivotkit-mcp` |
 
 ## Example
 
