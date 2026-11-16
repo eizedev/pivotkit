@@ -20,7 +20,7 @@ import { connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./liste
 import { bodyBytesOf } from "./limits.js";
 import { DOWNLOADS_PATH, DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
-import { problem } from "./rest/problem.js";
+import { hostProblem, problem } from "./rest/problem.js";
 import { logUnanswered, noteAnswered, refusalReason, startFields } from "./log.js";
 import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 import { logNotes, openAddressRefusal, prepareHttpServe } from "./state.js";
@@ -155,8 +155,7 @@ export async function createServerHandler(options, runtime) {
             }
             const refused = hostRefusal(request, hosts);
             if (refused) {
-                context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
-                return problem("FORBIDDEN_HOST", refused);
+                return hostProblem(context.log, request, refused);
             }
             // a probe's answer is not a refusal: no line of its own, none from the HTTP edge's check
             noteAnswered();
@@ -190,8 +189,7 @@ export async function createServerHandler(options, runtime) {
                 if (!mcp) {
                     const refused = hostRefusal(request, hosts);
                     if (refused) {
-                        context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
-                        return problem("FORBIDDEN_HOST", refused);
+                        return hostProblem(context.log, request, refused);
                     }
                     const declared = Number(request.headers.get("content-length") ?? 0);
                     if (declared > REST_BODY_BYTES) {
@@ -217,11 +215,12 @@ export async function createServerHandler(options, runtime) {
                     return mcp.fetch(request, info);
                 }
                 const refused = hostRefusal(request, hosts);
-                if (!refused) {
-                    // a path nobody serves: on the debug log only, so a scan does not fill the log
-                    context.log.refused({ status: 404, reason: refusalReason("NOT_FOUND") }, { level: "debug" });
+                if (refused) {
+                    return hostProblem(context.log, request, refused);
                 }
-                return refused ? problem("FORBIDDEN_HOST", refused) : problem("NOT_FOUND", "no such route; the REST service is at /api/v1 (GET /openapi.json)");
+                // a path nobody serves: on the debug log only, so a scan does not fill the log
+                context.log.refused({ status: 404, reason: refusalReason("NOT_FOUND") }, { level: "debug" });
+                return problem("NOT_FOUND", "no such route; the REST service is at /api/v1 (GET /openapi.json)");
             }
         };
 

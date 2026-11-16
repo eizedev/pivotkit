@@ -17,7 +17,7 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
-import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, callerOf, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
+import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, callerOf, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
 import { MCP_TOKEN_ENV, createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
 import { quickStartPage } from "./page.js";
@@ -170,14 +170,24 @@ export async function createHttpHandler(context, runtime = {}) {
     }
 
     /**
-     * The SDK's answer to a Host or Origin that is not allowed, with its refused line; null when both pass.
+     * The answer to a Host or Origin that is not allowed, with its refused line; null when both pass.
+     * A refused Host gets pivotkit-server's words with the fix: JSON-RPC on the MCP endpoint, a
+     * problem (problem+json) on the other routes. The Origin keeps the SDK's answer.
      * @param {Request} request
      */
     function hostOrOrigin(request) {
         const byHost = hostHeaderValidationResponse(request, hosts);
-        const refused = byHost ?? originValidationResponse(request, origins);
+        if (byHost) {
+            const refused = hostRefusal(request, hosts) ?? `${request.headers.get("host") ? "Invalid Host header" : "Missing Host header"}`;
+            if (new URL(request.url).pathname !== ENDPOINT) {
+                return hostProblem(context.log, request, refused);
+            }
+            context.log.refused({ ...hostRefusedLine(request, refused, { path: ENDPOINT }), origin: String(request.headers.get("origin") ?? "").slice(0, 100) });
+            return rpcError(403, -32000, refused);
+        }
+        const refused = originValidationResponse(request, origins);
         if (refused) {
-            context.log.refused({ status: refused.status, reason: refusalReason(byHost ? "FORBIDDEN_HOST" : "FORBIDDEN_ORIGIN"), host: String(request.headers.get("host") ?? "").slice(0, 100), origin: String(request.headers.get("origin") ?? "").slice(0, 100) });
+            context.log.refused({ status: refused.status, reason: refusalReason("FORBIDDEN_ORIGIN"), host: String(request.headers.get("host") ?? "").slice(0, 100), origin: String(request.headers.get("origin") ?? "").slice(0, 100) });
         }
         return refused ?? null;
     }

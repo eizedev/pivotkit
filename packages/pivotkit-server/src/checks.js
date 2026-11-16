@@ -4,6 +4,8 @@
  * browser's Origin against an allow list.
  */
 
+import { refusalReason } from "./log.js";
+
 /** A Host header as RFC 9110 allows it: a name or an IP address (IPv6 in brackets), and a port. */
 export const HOST_SYNTAX = /^(?:[A-Za-z0-9._~%!$&'()*+,;=-]+|\[[0-9A-Fa-f:.]+\])(?::\d{1,5})?$/;
 
@@ -19,8 +21,12 @@ export function allowedHosts(options) {
     return [...LOCAL_HOSTS, ...(http.publicUrl ? [new URL(http.publicUrl).hostname] : []), ...(http.allowHosts ?? [])];
 }
 
+/** What a refused Host's answer and refused line say to do. */
+export const HOST_HINT = "add the name with http.allowHosts or --allow-host, or set http.publicUrl";
+
 /**
- * Why a request's Host is refused, or null when it is allowed (the port does not count).
+ * Why a request's Host is refused, or null when it is allowed (the port does not count). A name the
+ * server does not answer to gets HOST_HINT.
  * @param {Request} request
  * @param {string[]} hosts
  */
@@ -39,8 +45,17 @@ export function hostRefusal(request, hosts) {
     } catch {
         return "Invalid Host header";
     }
-    return hosts.includes(hostname) ? null : `Invalid Host: ${hostname.slice(0, 100)}`;
+    return hosts.includes(hostname) ? null : `Invalid Host: ${hostname.slice(0, 100)}; ${HOST_HINT}`;
 }
+
+/**
+ * The refused line of a request whose Host is refused: the Host as sent, and HOST_HINT where the
+ * refusal names it.
+ * @param {Request} request
+ * @param {string} refused  hostRefusal's
+ * @param {{ path?: string }} [more]
+ */
+export const hostRefusedLine = (request, refused, more = {}) => ({ status: 403, ...more, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100), ...(refused.endsWith(HOST_HINT) ? { hint: HOST_HINT } : {}) });
 
 /**
  * A client's address for the log and the limits: the socket's, or with http.trustProxy the last

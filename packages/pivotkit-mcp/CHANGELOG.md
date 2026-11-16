@@ -128,6 +128,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Fixed
 
+- A request with a Host the server does not answer to got the SDK's JSON-RPC "Invalid Host: <name>"
+  on every route. `/mcp` still answers JSON-RPC, the other routes (`/`, `/healthz`,
+  `/.well-known/...`) answer problem+json, and both add "add the name with http.allowHosts or
+  --allow-host, or set http.publicUrl". The `refused` line carries it as `hint`.
+- Over HTTP on loopback with `$PIVOTKIT_MCP_TOKEN` set and no `auth.mode`, the start warns:
+  "PIVOTKIT_MCP_TOKEN is set but auth is none; use --auth token (or auth.mode token)".
+
 - Every refusal of the protocol layer is one `refused` line with its status, a reason, the path
   `/mcp`, the error's class and the SDK's name for it (its message only at debug, on the same line):
   a body that is not JSON, an unsupported `mcp-protocol-version`, a wrong `Content-Type` (415) or

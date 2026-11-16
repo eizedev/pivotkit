@@ -151,3 +151,33 @@ test("refusals at start: no auth on another address than loopback, a short token
     await assert.rejects(listen({ http: { port: 0 }, auth: { mode: "token", tokens: [{ name: "analysts", env: "T_ANALYSTS" }] } }, quiet), /the token "analysts" \(\$T_ANALYSTS\) is missing/);
     await assert.rejects(listen({ http: { port: 0, hots: "x" } }, quiet), /unknown key "hots"; did you mean "host"\?/);
 });
+
+test("a Host the server does not answer to: JSON-RPC on /mcp, problem+json elsewhere, both with the hint", async () => {
+    const dir = workspace();
+    const server = await listen({ sources: { sales: { file: "data/sales.csv" } }, http: { port: 0 }, baseDir: dir, log: "off" }, { env: {}, stderr: { write() {} } });
+    const said = "Invalid Host: evil.example; add the name with http.allowHosts or --allow-host, or set http.publicUrl";
+    try {
+        const ask = (path, init = {}) =>
+            new Promise((resolve, reject) => {
+                const u = new URL(path, server.url);
+                const req = httpRequest({ host: u.hostname, port: u.port, path: u.pathname, method: init.method ?? "GET", headers: { host: "evil.example", ...(init.headers ?? {}) } }, (res) => {
+                    let text = "";
+                    res.on("data", (c) => (text += c));
+                    res.on("end", () => resolve({ status: res.statusCode, type: String(res.headers["content-type"]), data: JSON.parse(text) }));
+                });
+                req.on("error", reject);
+                req.end(init.body);
+            });
+        for (const path of ["/", "/healthz", "/.well-known/oauth-protected-resource/mcp"]) {
+            const res = await ask(path);
+            assert.equal(res.status, 403, path);
+            assert.match(res.type, /^application\/problem\+json/, path);
+            assert.deepEqual([res.data.code, res.data.detail], ["FORBIDDEN_HOST", said], path);
+        }
+        const mcp = await ask("/mcp", { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" }, body: "{}" });
+        assert.equal(mcp.status, 403);
+        assert.deepEqual(mcp.data, { jsonrpc: "2.0", error: { code: -32000, message: said }, id: null });
+    } finally {
+        await server.close();
+    }
+});

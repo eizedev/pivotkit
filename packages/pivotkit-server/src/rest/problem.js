@@ -10,6 +10,7 @@
 import { OPERATION_ERRORS, OperationError } from "pivotkit-report/operations";
 import { isRequestId, requestId } from "../request-id.js";
 import { REST_ERRORS } from "pivotkit-cli/rest";
+import { hostRefusedLine } from "../checks.js";
 
 /** The codes the REST layer adds to the operations', with their status, and every code a problem can carry: pivotkit-cli/rest's, which the CLI's remote mode checks answers against. */
 export { REST_ERRORS, PROBLEM_CODES } from "pivotkit-cli/rest";
@@ -56,6 +57,17 @@ export function problem(code, detail, more = {}) {
     const status = statusOf(code);
     const body = { type: typeOf(code), title: titleOf(code), status, code, detail: status >= 500 ? serverTextOf(code, more.reason) : String(detail).slice(0, 1000), ...(more.extra ?? {}) };
     return new Response(JSON.stringify(body), { status, headers: { ...SAFE_HEADERS, "content-type": "application/problem+json", ...(more.headers ?? {}) } });
+}
+
+/**
+ * The answer to a request whose Host is refused, as problem+json, with its refused line.
+ * @param {{ refused(entry: Record<string, unknown>): void }} log
+ * @param {Request} request
+ * @param {string} refused  hostRefusal's
+ */
+export function hostProblem(log, request, refused) {
+    log.refused(hostRefusedLine(request, refused));
+    return problem("FORBIDDEN_HOST", refused);
 }
 
 /** The codes whose problem says when to try again, without details of their own. */

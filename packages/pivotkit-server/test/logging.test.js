@@ -579,3 +579,32 @@ test("/readyz: one line when the server is no longer ready (warn) and one when i
         await server.close();
     }
 });
+
+test("a Host the server does not answer to: the answer and the refused line say how to add it; problem+json except on /mcp, which answers JSON-RPC", async () => {
+    const dir = workspace();
+    const lines = [];
+    const server = await serve({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, http: { port: 0 }, log: { format: "json" }, baseDir: dir }, { env: {}, stderr: { write: (t) => lines.push(...String(t).trim().split("\n").map((l) => JSON.parse(l))) } });
+    const hint = "add the name with http.allowHosts or --allow-host, or set http.publicUrl";
+    const said = `Invalid Host: evil.example; ${hint}`;
+    const headers = { host: "evil.example" };
+    try {
+        assert.deepEqual(server.enable, ["rest", "mcp"]);
+        for (const path of ["/api/v1/sources", "/", "/healthz", "/readyz", "/.well-known/oauth-protected-resource/mcp", "/nope"]) {
+            const res = await raw(`${server.url}${path}`, { headers });
+            assert.equal(res.status, 403, path);
+            assert.match(String(res.headers["content-type"]), /^application\/problem\+json/, path);
+            assert.deepEqual([res.data.code, res.data.detail], ["FORBIDDEN_HOST", said], path);
+        }
+        const mcp = await raw(`${server.url}/mcp`, { method: "POST", headers: { ...headers, "content-type": "application/json", accept: "application/json, text/event-stream" }, body: "{}" });
+        assert.equal(mcp.status, 403);
+        assert.match(String(mcp.headers["content-type"]), /^application\/json/);
+        assert.deepEqual(mcp.data, { jsonrpc: "2.0", error: { code: -32000, message: said }, id: null });
+    } finally {
+        await server.close();
+    }
+    const refused = lines.filter((l) => l.event === "refused" && l.reason === "host");
+    assert.equal(refused.length, 7, JSON.stringify(lines));
+    for (const line of refused) {
+        assert.deepEqual([line.host, line.hint], ["evil.example", hint], JSON.stringify(line));
+    }
+});

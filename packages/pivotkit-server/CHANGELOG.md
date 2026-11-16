@@ -474,6 +474,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- A request with a Host the server does not answer to got 403 "Invalid Host: <name>" without a way
+  out. The answer and its `refused` line now add "add the name with http.allowHosts or --allow-host,
+  or set http.publicUrl"; the line carries it as `hint`. On a server with MCP, the routes other than
+  `/mcp` answer this with problem+json instead of JSON-RPC.
 - `serve` (and pivotkit-mcp over HTTP) on loopback with `$PIVOTKIT_TOKEN` (`$PIVOTKIT_MCP_TOKEN`) set
   and no `auth.mode` started with auth none and said nothing. The start and `check-config` now warn:
   "PIVOTKIT_TOKEN is set but auth is none; use --auth token (or auth.mode token)". The mode is not

@@ -15,12 +15,12 @@ export { present, presentedInput, presentedOutput, renderFile, findingsText, sav
 export { ConfigError, loadConfig, validateOptions, pathOf, restResourceOf, OPTION_KEYS, SERVER_LIMITS, COMPUTE_DEFAULTS, DEFAULT_ALGORITHMS, ENDPOINTS, REST_BASE, SOURCE_ID } from "./config.js";
 export { POLICY_LEVELS, POLICY_DEFAULTS } from "./policy.js";
 export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, groupRefusal, groupsOf, GROUPS_REFUSED, NOT_IN_GROUP, resourceMetadataUrlOf, TOKEN_MIN } from "./auth.js";
-export { allowedHosts, hostRefusal, clientAddress, LOCAL_HOSTS } from "./checks.js";
+export { allowedHosts, hostRefusal, hostRefusedLine, HOST_HINT, clientAddress, LOCAL_HOSTS } from "./checks.js";
 export { createLimits, REQUEST_LIMITS, bodyBytesOf, limitKeyOf } from "./limits.js";
 export { serveFetch, isLoopback, connectionLimitsOf, refusedText, GRACE_MS, CONNECTION_LIMITS, BODY_BYTES, MAX_BODY_BYTES, SIGNED_IN, takeSignIn, peekSignIn, bodyCapOf } from "./listen.js";
 export { callerFields, CALLER_LOG_FIELDS, flushed, LOG_DEFAULTS, LOG_LEVELS, LOG_FORMATS, REFUSED_REASONS, SEVERITY, SOURCE_LOG_TEXT, logSettingsOf, logUnanswered, noteAnswered, noteProtocolRefusal, refusalReason, startErrorLine, startFields } from "./log.js";
 export { newRequestId, withRequestId, requestId, errorDetails, isRequestId, REQUEST_ID, requestScope, requestScopeFor, withRequestScope, withRequestIdHeader, traceIdOf, upstreamRequestIdOf } from "./request-id.js";
-export { serverTextOf } from "./rest/problem.js";
+export { hostProblem, serverTextOf } from "./rest/problem.js";
 export { offeredScopes } from "./scopes.js";
 export { INLINE_ID, MCP_DATA_CAP, REST_DATA_BYTES, inlineLogFields } from "./sources/inline.js";
 export { readSecret, secretFileWarning, SecretError } from "./secrets.js";

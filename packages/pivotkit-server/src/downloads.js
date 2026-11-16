@@ -28,7 +28,7 @@ import { DEFAULT_ALGORITHMS } from "./config.js";
 import { insecurePublicHost, insecureUrlText, settingsOf } from "./options/downloads.js";
 import { makeKey, subjectOf } from "./auth.js";
 import { discover, ISSUER_LIMITS, issuerFetch, issuerHint, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
-import { allowedHosts, hostRefusal } from "./checks.js";
+import { allowedHosts, hostRefusal, hostRefusedLine } from "./checks.js";
 import { isLoopback } from "./listen.js";
 import { OUTPUT_MARK, outputDir } from "./output.js";
 import { newRequestId, requestId, requestScope, withRequestId } from "./request-id.js";
@@ -1024,7 +1024,7 @@ export function createDownloadHandler(context, runtime = {}) {
         async precheck(request) {
             const refused = hostRefusal(request, hosts);
             if (refused) {
-                context.log.refused({ status: 403, path: DOWNLOADS_PATH, reason: "host", host: String(request.headers.get("host") ?? "").slice(0, 100) });
+                context.log.refused(hostRefusedLine(request, refused, { path: DOWNLOADS_PATH }));
                 return answer(request, "FORBIDDEN_HOST");
             }
             if (Number(request.headers.get("content-length") ?? 0) > DOWNLOAD_BODY_BYTES) {

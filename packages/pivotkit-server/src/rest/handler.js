@@ -28,7 +28,7 @@ import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, isRest
 import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData, restDataOffered } from "../sources/inline.js";
 import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
-import { SAFE_HEADERS, json, problem, problemOf, withRequestIdMember } from "./problem.js";
+import { SAFE_HEADERS, hostProblem, json, problem, problemOf, withRequestIdMember } from "./problem.js";
 import { callerFields, logUnanswered, refusalReason } from "../log.js";
 import { requestId, requestScopeFor, withRequestIdHeader, withRequestScope } from "../request-id.js";
 import { offeredScopes } from "../scopes.js";
@@ -331,8 +331,7 @@ export async function createRestHandler(context, runtime = {}) {
         const url = new URL(request.url);
         const refusedHost = hostRefusal(request, hosts);
         if (refusedHost) {
-            context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
-            return problem("FORBIDDEN_HOST", refusedHost);
+            return hostProblem(context.log, request, refusedHost);
         }
         const origin = request.headers.get("origin");
         if (origin && !origins.has(origin)) {
@@ -503,8 +502,7 @@ export async function createRestHandler(context, runtime = {}) {
     async function check(request, info) {
         const refusedHost = hostRefusal(request, hosts);
         if (refusedHost) {
-            context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_HOST"), host: String(request.headers.get("host") ?? "").slice(0, 100) });
-            return problem("FORBIDDEN_HOST", refusedHost);
+            return hostProblem(context.log, request, refusedHost);
         }
         const origin = request.headers.get("origin");
         if (origin && !origins.has(origin)) {
