@@ -86,15 +86,15 @@ A view made on a sheet of a workbook loaded in the report names that sheet in
 
 - pivotkit-react writes it only for the sheet of a loaded workbook, in the browser store, the files
   and the links. It writes a host's own `source` as the host gives it.
-- You open such a view while another sheet of a file with that name is shown: the report reads the
-  named sheet first. If the workbook has no such sheet, the report says so and loads the view on the
+- When such a view opens while another sheet of a file with that name is shown, the report reads
+  the named sheet first. If the workbook has no such sheet, the report says so and loads the view on the
   sheet shown.
 - [pivotkit-cli](cli.md#the-sheet-of-a-workbook) reads that sheet of `--data` unless `--sheet` names
   another.
 - `sheet` is the only parameter name pivotkit itself reads. If a host names a parameter of its own
   data `sheet`, the CLI reads it as a workbook's sheet when it renders a workbook.
-- A view file without `sheet`, such as an older file, opens on the sheet shown in the report, and on
-  the first visible sheet in the CLI. To give such a file its sheet, do one of these:
+- Every file written before sheets existed has no `sheet`. Such a file opens on the sheet shown in
+  the report, and on the first visible sheet in the CLI. To give such a file its sheet, do one of these:
     - Open it in the report on that sheet and download it again.
     - Save a view of the browser store on that sheet.
     - Add `"params": { "sheet": "<name>" }` to its `source` by hand.

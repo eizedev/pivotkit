@@ -64,7 +64,7 @@ pivotkit-react's `build.js`). pivotkit does not support older browsers.
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. The panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`). The ids are in the [React reference](react.md#tips). |
 | `storageKey` | `storage-key` | `string` |  | Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`. Give each element on a page its own. [More](#prop-storagekey) |
-| `dismissedTips` |  | `string[]` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`). `"*"`: all tips off. `"-explanations"`: "Show explanations" off. `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded. |
+| `dismissedTips` |  | `string[]` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`). `"*"`: all tips off. `"-explanations"`: "Show explanations" off. `"-fields"`: the field list collapsed to the rail. The report drops entries of other shapes. |
 | `fieldInfo` | `field-info` | `"on"` or `"off"` |  | `"on"` or `"off"` decides the "i" of the field descriptions. Unset, the user's "Show explanations" in Options, Help decides. Screen readers keep the descriptions. |
 | `zoneInfo` | `zone-info` | `"on"` or `"off"` |  | The same for the "i" next to the zone titles. |
 | `settingInfo` | `setting-info` | `"on"` or `"off"` |  | The same for the "i" next to the settings that need explaining ("Show explanations"). |
@@ -302,7 +302,7 @@ data it shows, keep those scripts off the page, as you would for the data itself
 | `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu. `scope` is its group (`"shared"` or `"user"`). Not sent for a view of the browser store.<br><small>`detail`: `{ name, scope, respondWith }`</small> |
 | `pivot-template-publish` | "Publish as shared view" on one of the user's views, or Save on a shared view (with `can-publish`), after the user confirmed: add it to the shared views, or replace the one of that name, and set `templates`.<br><small>`detail`: `{ name, view, source, respondWith }`. `source` the data the view was made for: the data shown, as for `pivot-template-save`, for a view that names no data of its own. The data a view file or a view of the browser store names (its `id`, `params.sheet`, and `name` when it is the data shown)</small> |
 | `pivot-export` | Every exported file before its download and every copy before it goes on the clipboard. Cancelable. [More](#event-pivot-export)<br><small>`detail`: `{ kind, fileName, blob, text, rows }`</small> |
-| `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
+| `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), the field list collapsed or opened (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 | `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data with `view` as its start view. [More](#event-pivot-source-switch)<br><small>`detail`: `{ source, view, name }`</small> |
 | `pivot-data-load` | The data shown changed (with `allow-import`): a file loaded (cancelable), the page's data again, one of those undone or redone, or the file shown again after the element was put back. [More](#event-pivot-data-load)<br><small>`detail`: `{ cause, source, file, sheet, rows, columns, notes }`</small> |
 
@@ -435,13 +435,13 @@ Where the browser has the Popover API, menus, bottom sheets and popups open in t
 
 Without the API they are `position: fixed` in the report's layer, stacked by `--pk-layer-z`. Inside
 an ancestor with a `transform`, a `filter` or `contain`, the browser places fixed elements relative
-to that ancestor. Router animations, dialogs and carousels often use these. The report handles this
-case:
+to that ancestor. The report handles this case:
 
 - It measures the ancestor's origin and still places them at their button. A browser test with a
   transformed wrapper covers this.
-- The narrow layout's bottom sheets cover that ancestor, not the window.
 - The field drawer and the drill-down are part of the report's box.
+
+The narrow layout's bottom sheets cover that ancestor, not the window.
 
 The report does not correct the drag preview, which is also `position: fixed`, inside such an
 ancestor, and this is not tested. It does not correct a scaled ancestor (`scale()`) either.

@@ -428,7 +428,7 @@ settings change, so check the current documentation of your provider's version.
 
     The token file is the pod's service account token, for example a projected
     `serviceAccountToken` volume. Group and others can usually read such files: Kubernetes' default
-    mode for a projected volume is 0644. So expect `check-config`'s warning about a secret file
+    mode for a projected volume is 0644, so expect `check-config`'s warning about a secret file
     other users can read. The pod has no other users.
 
     With the provider's client secret instead, Authentik issues the token for a service account it
@@ -610,7 +610,7 @@ FAILED
 ## Code sources { #code }
 
 A host that embeds pivotkit-server or pivotkit-mcp as a library can give a source a function instead
-of a file. A configuration file cannot hold a function. So code sources exist only in options that
+of a file. A configuration file cannot hold a function, so code sources exist only in options that
 code passes to `createContext`, `createMcpContext` or `listen`.
 
 ```js
@@ -669,7 +669,7 @@ The example compiles with strict TypeScript. pivotkit-server's types give `load`
 | `sources.<id>.perPerson` | `false` | The data differs per caller (each person sees their own): its reports count as closed for [download links](delivery.md), so only the person who asked can open them (a sign-in link) or no link is given. Not with `cacheShared` |
 
 `checkConfig` lists each code source with its time limit, how its data is kept, and whether last
-good data may stand in. It first checks the options as `createContext` does. So it throws the same
+good data may stand in. It first checks the options as `createContext` does, so it throws the same
 `ConfigError` for options the server would refuse:
 
 ```js
@@ -780,7 +780,7 @@ become JSON text, and every text is cut at `limits.textLength`.
   goes away stops waiting. pivotkit aborts the load only when every caller waiting for it went away.
   That is no failure of the source, and nothing kept is dropped.
 - **Load limits.** At most 4 loads of one source run at once, and at most 2 of them for one person.
-  Callers without an identity count per client. So one person trying many values cannot take every
+  Callers without an identity count per client, so one person trying many values cannot take every
   slot. A call over the limit answers `SOURCE_UNAVAILABLE` with `retryable: true` and
   `Retry-After: 1`. A load that ignores the abort keeps its slot until it ends.
 - **Time limit.** After `timeMs`, pivotkit aborts the signal. The call answers `SOURCE_UNAVAILABLE`
@@ -839,7 +839,7 @@ the table while it keeps it. Each worker keeps the data of its last four runs, a
 `compute.memoryMb`.
 
 Reading a million rows of eight columns takes about 0.5 s of the host's thread on a laptop. A call
-over kept data takes a few milliseconds. So keep the data a code source returns to what a report
+over kept data takes a few milliseconds, so keep the data a code source returns to what a report
 needs.
 
 A code source is your code. pivotkit hands it a frozen copy of the caller and never a token. That

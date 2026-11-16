@@ -232,8 +232,8 @@ sizes and the marks' corners in px. An HTML report's chart also takes the tokens
 
 The HTML report of the Export menu, and of [pivotkit-report](report.md), takes its font sizes from
 tokens too. The Export menu passes the report's `--pk-font-size` and `--pk-small` as the screen shows
-them, in px. So the file's text is as large as the report's. Three tokens only the HTML report uses.
-They take effect when you set them on the report, or on `pivot-report`:
+them, in px. So the file's text is as large as the report's. Three tokens that only the HTML report uses take
+effect when you set them on the report, or on `pivot-report`:
 
 | Token | What | Default |
 | --- | --- | --- |
@@ -268,8 +268,8 @@ and no transition of the report starts. On `pivot-report` the element shows the 
 
 Your dark rules stay out when you write them for `[data-pk-theme="dark"]` ([above](#light-and-dark)).
 
-Some tokens the browser cannot write as an sRGB colour, `oklch()` outside sRGB for example. Such a
-token keeps pivotkit-core's default (`DEFAULT_THEME`, the default light theme's: light blue to blue,
+A token the browser cannot write as an sRGB colour, such as `oklch()` outside sRGB, keeps
+pivotkit-core's default (`DEFAULT_THEME`, the default light theme's: light blue to blue,
 and blue bars).
 
 The report itself shows a colour scale lighter than the workbook: mixed with the background, so the

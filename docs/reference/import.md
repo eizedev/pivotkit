@@ -184,8 +184,8 @@ ISO dates, as in `encode`: JSON says what is a number. A number field named ID, 
 stays a number. The report counts it instead of summing it
 ([identifier fields](../concepts/fields.md#identifier-fields)).
 
-`retype(table, types)` gives the table with other types. It reads the values as they were read, which
-the table keeps in `table.raw`. So a preview can let a person change a column's type without reading
+`retype(table, types)` gives the table with other types. It works from the values as the reader
+first read them, which the table keeps in `table.raw`. So a preview can let a person change a column's type without reading
 the file again. Text read as a number goes back to the text the file holds (`1.234,5`). A value that
 does not convert is blank, with a note that counts them.
 

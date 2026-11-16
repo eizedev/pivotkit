@@ -175,8 +175,8 @@ it to the current `VIEW_VERSION` (`migrate`, which `normalize` runs first).
 
 Store views as they come from `onViewChange`. They always carry the current version.
 
-From version 1 to 2, only the filters change ([Filters](filters.md)). Every version-1 view keeps the
-rows it kept.
+From version 1 to 2, only the filters change ([Filters](filters.md)). Every version-1 view keeps what it
+kept, apart from the exception below.
 
 | Version 1 | Version 2 |
 | --- | --- |

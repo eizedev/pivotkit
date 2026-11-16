@@ -24,10 +24,11 @@ Dates are **wall-clock time**. pivotkit groups and shows a value as it was writt
 the value to the reader's zone.
 
 - pivotkit takes an ISO string without an offset (`"2026-03-04T10:00"`, `"2026-03-04"`) as written.
-- A year before 0 or after 9999 is written as ECMAScript writes it, with a sign and six digits:
+- Write a year before 0 or after 9999 as ECMAScript does, with a sign and six digits:
   `"+010000-01-01"`, or `"-000001-12-31"` for 2 BC. This works within what a `Date` holds
-  (`MAX_DATE_MS`: the years -271821 to 275760). A compare filter's day at the edges of that range is
-  written the same way. It reads the same when you save the view and load it again.
+  (`MAX_DATE_MS`: the years -271821 to 275760). pivotkit writes such years the same way, in exports
+  and in a compare filter's day at the edges of that range. The day reads the same when you save the
+  view and load it again. pivotkit refuses `"-000000"`, which is not a year.
 - A `Date`, epoch milliseconds, or an ISO string with an offset (`"2026-03-04T10:00:00Z"`) is an
   **instant**. pivotkit reads it at the wall clock of the zone given to `encode(rows, { timeZone })`.
   In the UI, that is the `timeZone` prop or the `time-zone` attribute. The zone is one of:
@@ -235,16 +236,17 @@ Measured in Node 26 on arm64. Other engines and machines differ.
   about 200 MB.
 - `fileBytes`, `importCells`: A loaded table keeps each value twice until it is encoded, as read and
   as typed. The encoded columns keep it once more. A CSV file of 100 MiB or 10 million values is
-  about what a tab handles without slowing to a crawl. A workbook of 94,000 rows x 20 columns (12 MB)
-  took about 650 MB of memory while it was read ([measured](../reference/plugins.md#pivotkit-xlsx)).
-  Its parser keeps about 100 bytes per shared string and per format, so they count against
-  `importCells` too. A sheet cannot name more strings than it has cells. 11 million strings cost about 1 GB,
-  less than a table at that limit ([measured](../security.md#untrusted-workbooks)).
+  about what a tab handles without slowing to a crawl. A workbook of 94,000 rows x 20 columns (12
+  MB) took about 650 MB of memory while it was read
+  ([measured](../reference/plugins.md#pivotkit-xlsx)). Its parser keeps about 100 bytes per shared
+  string and per format, so they count against `importCells` too. A sheet cannot name more strings
+  than it has cells. 11 million shared strings cost about 1 GB, less than a table at that limit
+  ([measured](../security.md#untrusted-workbooks)).
 - `textLength`: Excel's own limit per cell. Longer text in a CSV file is more likely an error than a
   value.
 - `archiveEntries`, `unpackedBytes`: A workbook has a few dozen parts. 94,000 rows x 20 columns
   unpack to about 100 MB. 500 MiB leaves room for a used range of formatted empty cells: a sheet
-  formatted to row 900,000 unpacks to about 300 MB. It refuses a ZIP bomb, which unpacks to
+  formatted to row 900,000 unpacks to about 300 MB. The limit refuses a ZIP bomb, which unpacks to
   gigabytes, before anything is unpacked. It bounds what is unpacked, not the memory. What the
   reader keeps costs a few times its size ([measured](../security.md#untrusted-workbooks)), so lower
   it for files from people you do not trust.

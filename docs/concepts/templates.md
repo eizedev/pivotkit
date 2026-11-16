@@ -88,8 +88,8 @@ shows the error's message. Then pass the new list as `templates`.
     confirmed "Replace it?". Replace the view of that name: an upsert by name, per user for
     `scope: "user"`. A second entry would leave two views of one name. The report sends the view it
     shows, normalized against the data and with your custom orders (`fieldDefaults.order`). Save and
-    Publish send the same. Who may publish or delete shared views is your decision:
-    pass `canPublish` and mark shared entries `deletable` only for the people who may, an admin role for
+    Publish send the same. Who may publish or delete shared views is your decision: pass
+    `canPublish` and mark shared entries `deletable` only for the people who may, an admin role for
     example. The report only shows what you allow. Your server must check who may save, publish or
     delete, and validate every view it receives as user input. The report sends a published view
     normalized against the data, never as it was stored.
@@ -168,8 +168,8 @@ Without a server of your own, the report can keep the user's own views itself:
 
 An API that describes its data with OpenAPI or JSON Schema can carry its shared views next to it.
 They go in the extension `x-pivotkit-views`: a list of view files, `{ name, view }` entries or views
-with a `name`. This is **pivotkit's own convention**, not part of OpenAPI or JSON Schema. Both leave an
-`x-` key as the place for extensions. The views name the fields of the rows the report gets.
+with a `name`. This is **pivotkit's own convention**, not part of OpenAPI or JSON Schema. Both leave
+an `x-` key as the place for extensions. The views name the fields of the rows the report gets.
 
 ```yaml
 components:

@@ -32,8 +32,13 @@ Along the time line, each value is one period of one year:
 | `yearWeek` | 2025-W03 | ISO 8601 week and its year |
 | `day` | the date | |
 
-Across years, each value repeats every year, or every day. Use these units to compare
-periods. The rows of every year of the data land in the same item: `quarter` 1 holds Q1 2024 and
+Use the units below to compare periods:
+
+- `quarter`, `month` and `week` repeat every year.
+- `weekday` repeats every week.
+- `hour` repeats every day.
+
+The rows of every year of the data land in the same item: `quarter` 1 holds Q1 2024 and
 Q1 2025. Nothing in the result says which years it spans.
 
 - To show one year, keep a `year` grouping of the same column in `filters`.
@@ -77,8 +82,7 @@ picks the unit:
 | longer | year |
 
 The chip names the unit ("Created by month"). Its menu changes the unit or takes the grouping off.
-`suggestDateUnit(data,
-field)` in pivotkit-core makes the same choice.
+`suggestDateUnit(data, field)` in pivotkit-core makes the same choice.
 
 ## Number ranges
 

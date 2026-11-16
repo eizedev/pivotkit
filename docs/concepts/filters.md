@@ -58,6 +58,7 @@ Every filter has one shape: `{ field, type, ..., not, blanks }`.
     So `not` never brings the blanks back on its own. Excel's and AG Grid's filters behave the same
     way.
 
+Which filters have which key:
 
 - `blank` has `not` only.
 - `value` has `not`. A group without a number never matches.
@@ -173,7 +174,7 @@ such as an archive or a closed year. For them, `anchor` sets another starting po
 On a grouping, the latest and first dates are those of the source dates. An anchor that is none of
 these is the issue `filterRelativeAnchor`, and the engine leaves the filter out.
 
-`relativeDateRange` takes the same `anchor`. With `latest` and `first` it also takes the data's
+`relativeDateRange` takes the same `anchor`. With the options `latest` and `first` it also takes the data's
 latest and first date: a `Date`, epoch milliseconds, an ISO string or the wall-clock milliseconds a
 date column holds.
 
@@ -269,8 +270,8 @@ The menus offer no rule for these:
 - `blanks: "only"`. To keep only the blanks, use Select none, then "(blank)" in Pick items.
 - a comparison of dates by another `precision` than the day
 - a `relative` range in hours
-- a text rule that is case-sensitive, not yet
-  ([#168](https://github.com/eizedev/pivotkit/issues/168))
+- a case-sensitive text rule (not available yet,
+  [#168](https://github.com/eizedev/pivotkit/issues/168))
 
 A view that has one of them shows it among the rules, and you can remove it there. The rules show a
 `not` the menus have no word for as "not (…)".

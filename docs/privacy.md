@@ -82,7 +82,8 @@ For sources with fields kept back, write CSV with quoted values, or use xlsx or 
   sign-in.
 - **Downloads**: a caller whose policy has `results: true` may read every value of every field that
   is not hidden, in a file, whatever level the field has.
-- **Names match** without regard to case, Unicode form or the kind of whitespace:
+- **Names match** like this:
+    - Case, Unicode form and the kind of whitespace do not matter.
     - A no-break space or doubled spaces in a header match one space in the policy.
     - Two rules for the same field keep the stricter level.
     - The reader renames a column whose header repeats a hidden one ("Email (2)"). That column is
@@ -146,9 +147,9 @@ itself goes to no source.
 
 The server keeps the data a code source loaded in its memory per person until newer loads push it
 out. The cap is 64 loads and `sourceCache.maxMb` in all, default 256 MiB, a quarter per person or
-shared source. The data stays even after its `maxStale` has passed or the person lost access. The server
-does not give it to anyone then, but it stays in memory until newer loads push it out or the process
-restarts.
+shared source. The data stays even after its `maxStale` has passed or the person lost access. The
+server does not give it to anyone then, but it stays in memory until newer loads push it out or the
+process restarts.
 
 Each compute worker (`compute.workers`) keeps the data sets of its last four runs in memory, of any
 source, without hidden fields. They take at most a quarter of `compute.memoryMb`. They stay until
@@ -186,8 +187,8 @@ What reaches other services, in short:
 - **An [upload store](reference/delivery.md#upload)** receives the whole report file. Its name comes
   from the report's name: a source's title, or a name the caller gave.
     - In presign mode the presign service also gets the file's size and SHA-256.
-    - With `bind: "signIn"` the presign service also gets an HMAC of the person's sign-in, never the name itself. The
-      HMAC is the same for one person across reports.
+    - With `bind: "signIn"` the presign service also gets an HMAC of the person's sign-in, never the
+      name itself. The HMAC is the same for one person across reports.
     - The presign service sees one request per report, so it knows when and how often reports are
       made.
     - With `bind: "none"` anyone holding a link can open the file until the link expires. In
@@ -209,7 +210,9 @@ The server keeps in its memory, never on disk:
     - until newer loads push it out or the process restarts
     - even after `maxStale` passed or the person lost access. The server does not give it to anyone
       then.
-    - An HTTP source's answer, JSON or CSV, without the columns the caller's policy hides.
+
+    The server keeps an HTTP source's answer, JSON or CSV, without the columns the caller's policy
+    hides.
 - **In each compute worker**, the data sets of its last four runs without hidden fields. They take
   at most a quarter of `compute.memoryMb` and stay until newer ones push them out or the server
   replaces the worker.
@@ -224,7 +227,7 @@ The server keeps in its memory, never on disk:
       when it was last used, and the number of its requests running
 
     Once a minute the server drops an address whose refused tokens are all older than a minute. It
-    also drops a client whose bucket is full again. So the server keeps an address at most about two
+    also drops a client whose bucket is full again, so the server keeps an address at most about two
     minutes after its last refused token. A running count goes when its requests end. Each map holds
     at most 10,000 keys.
 
@@ -356,8 +359,8 @@ Reports and drafts stay in the output directory until one of these deletes them:
       pivotkit alone.
 - **Count and size.** The limits are `output.maxFiles` files (1000 by default) or `output.maxMb`
   megabytes (1024 by default) of pivotkit's. When the directory holds that much, a new report
-  deletes the oldest reports, whoever asked for them. This rule does not delete drafts. Drafts may take at
-  most half of `output.maxFiles`, and the server refuses a draft over that.
+  deletes the oldest reports, whoever asked for them. This rule does not delete drafts. Drafts may
+  take at most half of `output.maxFiles`, and the server refuses a draft over that.
 - **You**, on a schedule of your own.
 
 A link that expires does not remove its file. You cannot search reports per person. To remove a

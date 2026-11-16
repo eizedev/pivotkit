@@ -50,14 +50,14 @@ means nothing, and 27,880 reads worse than 27880. The report treats a field as a
 
 How the report finds the last word:
 
+- First it leaves out a part in parentheses at the end and digits at the end. So `ID (Asset)`,
+  `Asset ID (old) (2)`, `userID2`, `user_id_2` and `Ticket No.2` end in their identifier word.
 - It splits words at these places:
     - a space, `_`, `-`, `.`, `/`, `:`
     - a change from a small letter or a digit to a capital (`CustomerId`, `CustomerID`)
     - before the last capital of a run of capitals that a small letter follows (`HTTPId` is `HTTP Id`)
     - a change from a letter to a digit (`userID2`)
 - A `#` is a word of its own (`Serial#` is `Serial #`).
-- First it leaves out a part in parentheses at the end and digits at the end. So `ID (Asset)`,
-  `Asset ID (old) (2)`, `userID2`, `user_id_2` and `Ticket No.2` end in their identifier word.
 - Identifiers: `ID`, `id`, `CustomerId`, `CustomerID`, `HTTPId`, `customer_id`, `Asset Nr.`, `Order No`,
   `OrderNumber`, `Primary key`, `Serial #`, `#`.
 - Not identifiers: `Paid`, `PAID`, `UUID`, `UUID2` (one word, not one ending in "id"), `Keys`,

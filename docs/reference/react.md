@@ -240,7 +240,7 @@ Examples that match: `ID`, `CustomerId`, `customer_id`, `Order No`, `Serial #`, 
 `ID (Asset)`. Examples that do not: `Paid`, `UUID`, `Number of items`. The exact rule is under
 [identifier fields](../concepts/fields.md#identifier-fields).
 
-Such a field gets `agg: "count"` and `drillFormat: "text"`. So the report counts it when it is added
+Such a field gets `agg: "count"` and `drillFormat: "text"`, so the report counts it when it is added
 to Values, from the field list, by a drag or by Move to. Its numbers show as they are in the
 drill-down. Any of the three entries overrides this: `{ ID: { agg: "sum" } }`,
 `{ ID: { drillFormat: "number" } }`. See [Identifier fields](../concepts/fields.md#identifier-fields).
@@ -372,10 +372,12 @@ Remembers the dismissed tips and the help switches in the browser's `localStorag
 
 Type: `string[]`.
 
-Dismissed tip ids from the host's own storage. Two entries are switches:
+Dismissed tip ids from the host's own storage. Three entries are switches:
 
 - `"*"`: the user switched all tips off.
 - `"-explanations"`: the user switched off "Show explanations" (Options, Help).
+- `"-fields"`: the user collapsed the field list to the rail. Without [`fieldList`](#prop-fieldlist)
+  this entry stores that choice.
 
 The report drops entries of other shapes: `"open:<section>"` and `"closed:<section>"`, of the menu
 sections that folded before. A new list replaces the report's. The report compares lists by value.
@@ -390,6 +392,8 @@ Store the list and pass it back as `dismissedTips`. The changes and their `id`:
 - a dismissal: the tip's id
 - "Show tips" off: `"*"`
 - "Show explanations" off: `"-explanations"`
+- the field list collapsed to the rail, or opened again, without `fieldList`: `null`, with
+  `"-fields"` added to or removed from `dismissed`
 - a switch on, or "Show dismissed tips again": `null`. "Show dismissed tips again" keeps the switches.
 
 ### `fieldInfo` { #prop-fieldinfo }
@@ -554,7 +558,7 @@ Without a `dataKey`, the same column names and types count. Otherwise the report
 host's data and lets the file go.
 
 The report keeps the file in the page's memory only, never in `localStorage` or
-`sessionStorage`. So a reload still shows the host's data.
+`sessionStorage`, so a reload still shows the host's data.
 
 - It keeps the latest state per `storageKey`, for at most four reports. The one written longest
   ago goes first.
@@ -596,7 +600,7 @@ The import limits hold for everything about the file: the readers (also in the
 is shown. "Back to original data" goes back to `limits`.
 
 `limits` does not cap a key of `importLimits`. A file may get more than the host's data where the
-host says so (`importLimits={{ rows: 200_000 }}` over `limits={{ rows: 1_000 }}`). So set only the
+host says so (`importLimits={{ rows: 200_000 }}` over `limits={{ rows: 1_000 }}`), so set only the
 keys a file should have differently. The report compares `importLimits` by value, as `limits`.
 
 ### `plugins` { #prop-plugins }
@@ -653,7 +657,7 @@ a worker in these cases:
 - The worker does not say it is ready within 10 seconds. The page then reads the file.
 - The worker answers with something that is no table. The report shows an error.
 
-A worker that does not start leaves the read to the page, without a message. Causes are a
+A worker that does not start leaves the read to the page, without a message. For example a
 Content-Security-Policy without `worker-src` for it, a browser without module workers, or a file that
 is not there.
 
@@ -722,7 +726,7 @@ The host's view is `view`, else the first `defaultView`. When the data cannot us
 as a field the data lacks or an unknown format, a warning shows above the result. It works as for a
 loaded view ([parts of a view that were not used](../use/behaviour.md#parts-of-a-view-that-were-not-used)):
 
-- It shows once per distinct view. So a host that passes the same view on every render keeps it
+- It shows once per distinct view, so a host that passes the same view on every render keeps it
   folded or dismissed.
 - It does not show while `loading`.
 - A view the user loads later replaces it.
@@ -799,7 +803,7 @@ box before the first paint:
 - below 820 px in the narrow layout, where the zones stack (`COMPACT_HEIGHT_NARROW`)
 
 In the compact layout, the zones fold into one line that says what is in them ("Rows: Team ·
-Columns: Priority · Values: Count of Ticket"). So the table keeps its room. At most one tip shows.
+Columns: Priority · Values: Count of Ticket"), so the table keeps its room. At most one tip shows.
 
 - A click on that line, or Layout in the toolbar, opens the zones. Layout folds them again.
 - Layout keeps its text and shows its state with `aria-pressed` (pressed: the zones are open).
@@ -840,7 +844,7 @@ Whatever is taller than the result's area scrolls inside it, with or without `he
 - `"calc(100svh - 24px)"` for a page that holds one report. The page scrolls to the report, and the
   table scrolls inside it.
 
-In the narrow layout, the zones sit above the table. So a report of a fixed 640 px leaves little room
+In the narrow layout, the zones sit above the table, so a report of a fixed 640 px leaves little room
 for the table on a phone. Give it more height there.
 
 **Enlarge** and **Full screen** stand at the top right of the result. Neither is part of the view.
@@ -955,8 +959,8 @@ says why:
 
 Every `input`, `select` and `textarea` of the report has a label (its text, `aria-label`). It also
 has a `name` of its own report: `pk-`, then a part chosen once per report in the browser, then
-React's `useId` (`pk-x3k9q1-r1f`). So two reports on one page share no name, and neither do two web
-components. Browsers fill and restore fields by name. Their developer tools list a field without a
+React's `useId` (`pk-x3k9q1-r1f`), so two reports on one page share no name, and neither do two web
+components. Browsers fill and restore fields by name. Browsers' developer tools flag a field without a
 name or an id. The names are not stable across page loads. Do not select the fields by them. The
 `data-testid`s are for tests.
 
@@ -1004,7 +1008,7 @@ them, and other machines differ.
 | 100,000 | 93-117 | 8-31 | 0-18 | 18-64 |
 | 100,000, 100,000 distinct row labels | 114 | 72 | 29 | 112 |
 
-Up to 100,000 rows, a change stays within a frame or two. So the engine runs on the main thread. A
+Up to 100,000 rows, a change stays within a frame or two, so the engine runs on the main thread. A
 Web Worker would add copying the columns and the grid between threads, for no visible gain.
 
 Above 100,000 rows, the first table takes longer, and the page is frozen while the report builds it.
