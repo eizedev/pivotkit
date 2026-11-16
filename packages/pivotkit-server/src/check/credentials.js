@@ -14,7 +14,7 @@
 
 import { access, constants, stat } from "node:fs/promises";
 import { secretFileWarning } from "../secrets.js";
-import { DEFAULT_TOKEN_NAME, onContainerLayer, secretState, tokenShowHint } from "../state.js";
+import { DEFAULT_TOKEN_NAME, STATE_ENV, onContainerLayer, secretState, tokenShowHint } from "../state.js";
 import { heading, plain, problem, warning } from "./format.js";
 
 /** @type {import("./index.js").Section} */
@@ -50,7 +50,10 @@ export async function section(options, _registry, runtime) {
     if (plan.defaultToken) {
         items.push(plain(`read the token with: ${tokenShowHint(DEFAULT_TOKEN_NAME, { env: runtime.env, stateDir: plan.stateDir })}`));
     }
-    return { items, upgrade: [] };
+    // what an installation of the version before notices: a start that made nothing (or was refused) makes these
+    const made = plan.secrets.filter((s) => s.fromState);
+    const upgrade = made.length ? [`${made.map((s) => s.words).join(", ")} made at the first start in ${plan.secretsDir} (an empty $${STATE_ENV} keeps the start as before)`] : [];
+    return { items, upgrade };
 }
 
 /** The state directory in a few words: missing, writable or not. */

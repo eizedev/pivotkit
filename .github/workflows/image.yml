@@ -89,9 +89,10 @@ jobs:
           curl -fsS -H "authorization: Bearer $token" -H 'content-type: application/json' \
             -d '{"source":"example","view":{"rows":["Region"],"values":[{"field":"Revenue","agg":"sum"}]},"format":"xlsx"}' \
             "$api/views/render" | grep -q '"ok":true'
-          curl -fsS -H "authorization: Bearer $token" -H 'content-type: application/json' \
-            -d '{"source":"example","view":{"rows":["Region"],"values":[{"agg":"count"}]},"format":"csv"}' \
-            "$api/views/render/file" | grep -q West
+          # the request of docs/getting-started/server-in-5-minutes.md
+          curl -fsS -H "authorization: Bearer $token" -H "Content-Type: application/json" \
+            -d '{"source":"example","view":{"rows":["Region"],"values":[{"field":"Revenue","agg":"sum"}]},"format":"csv"}' \
+            "$api/views/render/file" | grep -q '^West,'
           mcp=http://localhost:3334/mcp
           init='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}'
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d "$init" "$mcp")" = "401"

@@ -351,7 +351,11 @@ test("on the container's own layer the state directory is still used, with a war
 });
 
 test("check-config resolves the same files without making them, and has no PROBLEM before the first start", async () => {
+    const { stateMeans } = await import("../src/state.js");
+    const { container } = stateMeans;
     const { dir, state } = setup();
+    // the hint as outside a container, also where the tests run in one
+    stateMeans.container = () => null;
     const result = await checkConfig({ sources, output: { dir: "out" }, http: { host: OPEN }, baseDir: dir }, { http: true, env: {}, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", stateDir: state, rest: true });
     const text = factsOf(result.text);
     assert.equal(result.problems, 0, text);
@@ -360,6 +364,8 @@ test("check-config resolves the same files without making them, and has no PROBL
     assert.match(text, /the download links' key \(default of the state directory\): .*downloads\.key, made at the first start/);
     assert.match(text, /read the token with: pivotkit-server token show admin --state-dir /);
     assert.match(text, /Auth: token/);
+    assert.match(text, /^New in this version: .*the token "admin", the download links' key made at the first start in .*secrets \(an empty \$PIVOTKIT_STATE_DIR keeps the start as before\)/m);
+    stateMeans.container = container;
     assert.deepEqual(readdirSync(state), []);
     // the runner, as the image runs it: exit 0, nothing made
     const r = run(["check-config", "--host", OPEN, "--source", `s=${join(dir, "data", "sales.csv")}`], { env: { [STATE_ENV]: state } });
