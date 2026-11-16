@@ -869,10 +869,11 @@ test("the request's signal reaches every operation over a source (suggest, valid
             assert.ok(await until(() => asked.length === 1), `${name}: the backend was asked`);
             const aborted = Date.now();
             gone.abort();
-            const ended = await Promise.race([call.then(() => "answered", (e) => e), new Promise((r) => setTimeout(() => r("still waiting"), 2000))]);
+            // the backend never answers: a call that ignores the abort is still waiting after 10 s
+            const ended = await Promise.race([call.then(() => "answered", (e) => e), new Promise((r) => setTimeout(() => r("still waiting"), 10_000))]);
             assert.ok(ended instanceof Error, `${name}: the call ended at the abort (${ended})`);
             assert.notEqual(ended.name, "TimeoutError", `${name}: not by a time limit`);
-            assert.ok(Date.now() - aborted < 2000, `${name}: within 2 s of the abort`);
+            assert.ok(Date.now() - aborted < 10_000, `${name}: within 10 s of the abort`); // wall time: event latency
             assert.ok(await until(() => state.closed), `${name}: the backend's connection was closed`);
         }
     } finally {

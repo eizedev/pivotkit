@@ -201,7 +201,7 @@ test("a file over fileBytes is refused before it is read (a sparse file of 101 M
     const r = await run(["describe", "huge.csv"], { cwd: dir });
     assert.equal(r.code, 2);
     assert.match(r.stderr, /huge\.csv: 105,906,176 bytes exceed the limit of 104,857,600 \(limits\.fileBytes\)/);
-    assert.ok(Date.now() - started < 10_000);
+    assert.ok(Date.now() - started < 10_000); // wall time: event latency (a child process)
 });
 
 test("--allow-dir is a hard limit: a link out of it, .. and an output outside are refused; inside works", async () => {

@@ -15,6 +15,7 @@ import { openApiDocument } from "pivotkit-server/rest";
 import { BODY_BYTES, MAX_BODY_BYTES } from "../src/listen.js";
 import { MCP_DATA_CAP, REST_DATA_BYTES } from "../src/sources/inline.js";
 import { BIN, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace } from "./helpers.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const LOCAL = callerOf("none", undefined);
 const BY_REGION = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -546,12 +547,12 @@ test("a body nested deeply is refused before it is parsed, in a fixed time; brac
     const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } } }), restEnv);
     try {
         for (const bomb of [`{"source":"inline:","data":${"[".repeat(3 * 1_048_576)}`, `{"source":"inline:","view":${"[".repeat(1_000_000)}${"]".repeat(1_000_000)}}`]) {
-            const started = Date.now();
+            const cpu = cpuClock();
             const answer = await call(`${server.api}/sources/describe`, { token: TOKEN, body: bomb });
             assert.equal(answer.status, 400);
             // the nesting, not "not valid JSON": counted before JSON.parse saw the unclosed brackets
             assert.equal(answer.data.detail, "the input is nested deeper than 64 levels");
-            assert.ok(Date.now() - started < 1500, `${Date.now() - started} ms`);
+            assert.ok(cpu() < 1500, `${Math.round(cpu())} ms of CPU`);
         }
     } finally {
         await server.close();
