@@ -17,11 +17,11 @@ The packages target **ES2022** and these browsers or newer:
 
 Older browsers are not supported. Every browser test runs in Chromium, Firefox and WebKit (the engine of
 Safari) from Playwright. The Safari app was checked by hand for printing: in Safari 27 on macOS and on
-iOS 27.2 (in the simulator), the table and the chart print; after a cancelled print dialog Safari
-asks to allow the next print first, which is Safari's own rule
-([#210](https://github.com/eizedev/pivotkit/issues/210)). Not yet checked in the Safari app: whether
-the hidden print frame is removed after a print, and the HTML report on a dark screen and as a PDF
-([#370](https://github.com/eizedev/pivotkit/issues/370)). Everything else in the Safari app and on
+iOS 27.2 (in the simulator), the table and the chart print. Safari's own rule, as seen in Safari 27
+on macOS and iOS: after a cancelled print dialog, the next print asks first; printing in the click
+does not change it. Not yet checked in the Safari app: whether the hidden print frame is removed
+after a print ([#210](https://github.com/eizedev/pivotkit/issues/210)), and the HTML report on a dark
+screen and as a PDF ([#370](https://github.com/eizedev/pivotkit/issues/370)). Everything else in the Safari app and on
 iOS is tested through Playwright's WebKit only.
 
 Features it relies on include ES modules, container queries (its layout follows its own width), `Intl` for numbers, dates and plural rules, and for the web component custom

@@ -461,21 +461,21 @@ most, never its content. A 5xx answer carries a fixed text, never an error's mes
 carry `Retry-After`.
 
 Every problem also carries `requestId`, the id on the request's [log lines](#logging): a person
-gives it to the operator. An error of a source that failed or refused, and of an upload to the
-operator's store, adds `retryable`, whether the same request may work when tried again;
-`Retry-After` says when, where it is known:
+gives it to the operator. These errors add `retryable`, whether the same request may work when
+tried again; `Retry-After` says when, where it is known:
 
-- `SOURCE_UNAVAILABLE`: `true` for a failure that may pass (a network error, the source's time
-  limit, a backend's 429, 502, 503 or 504, too many loads of the source running); `false` for
-  anything else (the backend refused pivotkit's access or answered another error such as 500, a
-  source not set up correctly, any other error a code source's `load` throws);
+- `SOURCE_UNAVAILABLE`: `true` for a failure that may pass: an error with a network code
+  (`ECONNRESET`, `ETIMEDOUT` and the like), the source's time limit, a backend's 429, 502, 503 or
+  504, a `SourceError` marked `transient`, too many loads of the source running; `false` for any
+  other error (the backend refused pivotkit's access or answered another status such as 500, a
+  source not set up correctly, an error of a code source's `load` without a network code);
 - `NOT_ALLOWED`, `INVALID_INPUT` and `DATA_NOT_AVAILABLE` from a source (a code source's
   `SourceError`; an HTTP source's backend that answered 400 or 422, or 401, 403 or 404 for a source
   with parameters): `false`;
 - `UPLOAD_FAILED`: as the store's failure is;
 - 503 `BUSY` for a [large body](#data) while two are read already: `true`.
 
-pivotkit's own errors carry none, a limit of a source's settings (`LIMIT_EXCEEDED`, `http.maxBytes`
+Every other error carries none, a limit of a source's settings (`LIMIT_EXCEEDED`, `http.maxBytes`
 or `http.maxPages`) included.
 
 ```json

@@ -1182,7 +1182,7 @@
           },
           "retryable": {
             "type": "boolean",
-            "description": "For an error of a source or a store that failed: whether the same request may work when tried again (Retry-After says when, where known)."
+            "description": "For an error of a source (SOURCE_UNAVAILABLE; NOT_ALLOWED, INVALID_INPUT or DATA_NOT_AVAILABLE from a source), of an upload (UPLOAD_FAILED) and for BUSY of a large body: whether the same request may work when tried again (Retry-After says when, where known)."
           }
         }
       },

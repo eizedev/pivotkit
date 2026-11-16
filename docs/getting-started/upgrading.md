@@ -180,7 +180,8 @@ callers notice:
 | [The log](#log) | you read the log on a terminal, parse it, alert on it, or ship it to a log server | JSON lines gain fields and the client's address is logged by default (`log.address: "off"` keeps it out); levels and `msg` are new, and more refusals get a line; on a terminal the log is text unless `log.format` is `json`; a start error is a JSON line where stderr is no terminal |
 | [check-config's layout](#check-config-layout) | you read `check-config`'s output in a script | use its exit code, or its first line, which says whether the server starts |
 | [Print templates checked at start](#template-at-start) | a source has `sources.<id>.template` | run `check-config`; fix a template it reports as a PROBLEM |
-| [HTML reports on a dark screen](#dark-mid-colour) | your reports or print templates set a colour scale's middle colour (`--pk-scale-mid`), or pass `tokens` with quoted strings, or your code passes `tokens` or `darkTokens` that is no object | pass the middle colour in `darkTokens` to keep one on a dark screen; pass the tokens as an object |
+| [HTML reports on a dark screen](#dark-mid-colour) | your reports or print templates set a colour scale's middle colour (`--pk-scale-mid`), or pass `tokens` with quoted strings | pass the middle colour in `darkTokens` to keep one on a dark screen |
+| **Breaking:** [`tokens` and `darkTokens` that are no object](#tokens-object) | your code passes pivotkit-report's `render` a `tokens` or `darkTokens` that is a text, a list, `null` or a number | pass an object, or leave the option out |
 | [Loopback addresses](#loopback) | the server listens on `127.1`, `127.0.1` or a host name that starts with `127.` | write `127.0.0.1`, or set `auth` |
 | [Report file names](#report-names) | a script finds reports in `output.dir` by name | match the name with its parentheses |
 | [Command line](#cli-next) | a script reads `pivotkit`'s error text | read the exit code or `--json` |
@@ -366,9 +367,12 @@ light. To keep a middle colour on a dark screen, pass it in pivotkit-report's `d
 A host's `tokens` (and `darkTokens`) value that holds a quoted string is left out, and the default
 stands in, except in `font-family`. Write such a colour without quotes.
 
-pivotkit-report's `render` refuses `tokens` or `darkTokens` that is no object (a CSS text, a list,
-`null`, a number) with `INVALID_OPTION` and `details.option`; such a value gave the default colours
-without a word. Pass an object of `--pk-*` names and values, or leave the option out.
+### `tokens` and `darkTokens` that are no object { #tokens-object }
+
+**Breaking** for code that passes such a value. pivotkit-report's `render` refuses `tokens` or
+`darkTokens` that is no object (a CSS text, a list, `null`, a number) with `INVALID_OPTION` and
+`details.option`; such a value gave the default colours without a word. Pass an object of `--pk-*`
+names and values, or leave the option out (`undefined`, not `null`).
 
 ### Loopback addresses { #loopback }
 

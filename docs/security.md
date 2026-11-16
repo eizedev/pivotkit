@@ -418,7 +418,9 @@ an [upload to a store](reference/delivery.md#upload), and an OpenAPI document by
   carries an IPv4 one) are refused always. Loopback and private addresses are refused unless the
   operator marks that target as internal: `intranet` on an HTTP source's backend, its token
   endpoint or the upload store, `auth.intranet` for the issuer. An IP address written in a source's
-  address needs `httpSources.allowIpLiterals`. The OpenAPI document, whose address the operator
+  address needs `httpSources.allowIpLiterals` (a backend's token endpoint follows the same switch,
+  [backend sign-in](reference/sources.md#http-auth)); an upload store's address is refused as an IP
+  address always, and the issuer follows its own rules ([OAuth](reference/mcp.md#oauth)). The OpenAPI document, whose address the operator
   types on the command line, may be on a private address.
 - Each request has its own connection and uses no proxy of the environment, so no proxy connects
   past the address check. The body is counted while it arrives, after decompression, and the whole

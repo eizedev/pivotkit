@@ -68,7 +68,7 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
    same report from it on the command line or in CI, as HTML, CSV or Excel, and `pivotkit describe
    --suggest` a first view from a CSV or Excel file's fields
    ([command line](getting-started/cli.md)).
-6. **Live data, kept from the model.** The REST service and the MCP server, which you run, read a
+6. **Live data from files, HTTP APIs and code.** The REST service and the MCP server, which you run, read a
    file, or call an [HTTP API](reference/sources.md#http) or run your [own code](reference/sources.md#code)
    with the caller's parameters, and keep a load for a short time per caller. An AI model gets field names and counts; rows
    only where the policy shows them ([what reaches an AI model](model-data.md)). Every result says
