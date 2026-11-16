@@ -1,12 +1,13 @@
 /*
  * check-config's section for the output directory (output.*): where reports go, whether the
  * directory is there or will be made, what the start refuses (createContext in context.js: the same
- * checks, so a PROBLEM here that stops the start is one there), how full it may get and how long
- * reports stay.
+ * checks, so a PROBLEM here that stops the start is one there), how full it may get, the drafts'
+ * share of it, and how long reports and drafts stay.
  *
  *   Output: reports
  *     /srv/pivotkit/reports
  *     will be created at start
+ *     at most 1000 files and 1024 MiB of pivotkit's; schedule drafts at most 500 files and 512 MiB
  *     when full, the oldest reports are deleted to make room; drafts are kept
  *     reports older than 30 days are deleted; schedule drafts stay until a person approves or removes them
  *
@@ -17,8 +18,8 @@ import { lstat, realpath } from "node:fs/promises";
 import { isInside } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf } from "../config.js";
 import { OUTPUT_INSIDE_ALLOWED, SHARED_OUTPUT_TEXT, cannotCreate, entryOf, notWritable, notWritableText, outputRefusal, ownFileDirs, plannedPath } from "../context.js";
-import { expiredIn } from "../output.js";
-import { draftCap } from "../present.js";
+import { draftBytesCap, draftCap, expiredIn, reportsIn } from "../output.js";
+import { bytesText } from "../sources/inline.js";
 import { heading, plain, problem, warning } from "./format.js";
 
 /** @type {import("./index.js").Section} */
@@ -71,28 +72,44 @@ export async function section(options, registry) {
     const real = await realpath(dir).catch(() => dir);
     const shared = (await ownFileDirs(options)).includes(real);
     const maxFiles = out.maxFiles ?? OUTPUT_DEFAULTS.maxFiles;
-    items.push(plain(`at most ${maxFiles} files of pivotkit's (${draftCap(maxFiles)} of them schedule drafts) and ${out.maxMb ?? OUTPUT_DEFAULTS.maxMb} MB`));
+    const maxMb = out.maxMb ?? OUTPUT_DEFAULTS.maxMb;
+    const draftBytes = draftBytesCap(maxMb);
+    items.push(plain(`at most ${maxFiles} files and ${bytesText(maxMb * 1_048_576)} of pivotkit's; schedule drafts at most ${draftCap(maxFiles)} files and ${bytesText(draftBytes)}`));
+    // drafts written under a larger output.maxMb, or before drafts had a byte quota: new ones are refused (makeRoom)
+    const draftsNow = (await reportsIn(dir)).filter((f) => f.draft).reduce((sum, f) => sum + f.size, 0);
+    if (draftsNow > draftBytes) {
+        items.push(warning(`schedule drafts take ${bytesText(draftsNow)}, more than the ${bytesText(draftBytes)} they may (half of output.maxMb): new drafts are refused until a person approves or removes some, or you raise output.maxMb`));
+    }
     if (shared) {
         items.push(plain("no age limit: the directory holds other files"));
-        if (out.maxAgeDays) {
-            items.push(problem("output.maxAgeDays in a directory that holds the configuration or a source, template or token file; give the reports a directory of their own", stop));
-        } else {
+        const limits = /** @type {const} */ (["maxAgeDays", "draftMaxAgeDays"]).filter((key) => out[key]);
+        for (const key of limits) {
+            items.push(problem(`output.${key} in a directory that holds the configuration or a source, template or token file; give the reports a directory of their own`, stop));
+        }
+        if (!limits.length) {
             // the start warns of it too (createContext)
             items.push(warning(SHARED_OUTPUT_TEXT));
         }
     } else {
         items.push(plain("when full, the oldest reports are deleted to make room; drafts are kept"));
         const days = maxAgeDaysOf(options, shared);
-        items.push(plain(days > 0 ? `reports older than ${days} days are deleted; schedule drafts stay until a person approves or removes them` : "no age limit (output.maxAgeDays 0)"));
-        // what the next start's sweep deletes (output.js expiredIn): never a draft that waits
-        if (days > 0) {
-            const old = await expiredIn(dir, days);
-            const drafts = old.filter((f) => f.draft).length;
-            const reports = old.length - drafts;
-            if (old.length) {
-                const parts = [...(reports ? [`${reports} report${reports === 1 ? "" : "s"}`] : []), ...(drafts ? [`${drafts} schedule draft${drafts === 1 ? "" : "s"} no longer waiting for approval`] : [])];
-                items.push(warning(`${parts.join(" and ")} ${old.length === 1 ? "is" : "are"} older than ${days} days and ${old.length === 1 ? "is" : "are"} deleted at the next start; copy them away or set output.maxAgeDays: 0`));
-            }
+        const draftDays = out.draftMaxAgeDays ?? OUTPUT_DEFAULTS.draftMaxAgeDays;
+        const reportsLine = days > 0 ? `reports older than ${days} days are deleted` : "no age limit for reports (output.maxAgeDays 0)";
+        const draftsLine = draftDays > 0 ? `schedule drafts that wait for approval are deleted after ${draftDays} days` : "schedule drafts stay until a person approves or removes them";
+        items.push(plain(`${reportsLine}; ${draftsLine}`));
+        // what the next start's sweep deletes (output.js expiredIn)
+        const old = await expiredIn(dir, days, draftDays);
+        const aged = old.filter((f) => !f.waiting);
+        const drafts = aged.filter((f) => f.draft).length;
+        const reports = aged.length - drafts;
+        if (aged.length) {
+            const parts = [...(reports ? [`${reports} report${reports === 1 ? "" : "s"}`] : []), ...(drafts ? [`${drafts} schedule draft${drafts === 1 ? "" : "s"} no longer waiting for approval`] : [])];
+            items.push(warning(`${parts.join(" and ")} ${aged.length === 1 ? "is" : "are"} older than ${days} days and ${aged.length === 1 ? "is" : "are"} deleted at the next start; copy them away or set output.maxAgeDays: 0`));
+        }
+        const waiting = old.length - aged.length;
+        if (waiting) {
+            const one = waiting === 1;
+            items.push(warning(`${waiting} schedule draft${one ? "" : "s"} waiting for approval ${one ? "is" : "are"} older than ${draftDays} days and ${one ? "is" : "are"} deleted at the next start; copy ${one ? "it" : "them"} away or set output.draftMaxAgeDays: 0`));
         }
     }
     return { items, upgrade: [] };

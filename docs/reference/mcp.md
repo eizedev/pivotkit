@@ -341,6 +341,7 @@ one probably meant.
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold. A new report deletes the oldest reports, whoever made them. Drafts are never deleted this way. A draft that waits for approval is not deleted by age either (see [REST](rest.md#running) for the trade-off) |
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold. A new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | 30 | Delete reports, and schedule drafts no longer waiting for approval, older than this many days from the top level of the output directory, at start and every hour. Also delete the temporary files of writes the server was killed in (older than an hour). `0`: no age limit. The default applies only to a directory of the reports' own (see [REST](rest.md#running)) |
+| `output.draftMaxAgeDays` | - | 0 (never) | Delete schedule drafts that still wait for approval when they are older than this many days, at start and every hour |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `policy.data`, `policy.profiles.<name>.data` | - | MCP: on | `false`: the caller may not send [its own data](#data) (`inline:`). REST needs `true` |
 | `mcp.data` | - | 500 rows, 5000 cells, 262144 bytes | `false` switches [data in the request](#data) off. `{ "rows", "cells", "bytes" }` lowers the cap. A value above the built-in one is an error |
@@ -370,10 +371,11 @@ one probably meant.
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print whether the server would start and what it would expose, then exit. It shows the sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output and auth. Exit 1 when it finds a problem ([reading it](rest.md#check-config)). A policy rule that names no column of the data is a warning (exit 0) |
 
-Waiting drafts never expire. They count against the drafts cap (half of `output.maxFiles`, 500 by
-default) and against `output.maxMb`, and the server never deletes them to make room. Once the
-directory is full of them, the server refuses new drafts, and renders too when only drafts are
-left, until a person approves or removes drafts. So approve or reject drafts by changing their
+Waiting drafts do not expire unless you set `output.draftMaxAgeDays`. They count against the drafts
+cap: half of `output.maxFiles` (500 by default) and half of `output.maxMb` (512 MiB by default). The
+server never deletes them to make room. Once they reach the cap, the server refuses new drafts until
+a person approves or removes drafts. Renders keep working, unless drafts written under larger
+limits fill the directory alone. So approve or reject drafts by changing their
 `status`, or remove them. A host may also delete or move a draft instead of rewriting its `status`.
 A draft file that cannot be read or parsed, is over 1 MiB, or has no `status` that is a string
 counts as waiting.

@@ -390,11 +390,12 @@ gets at each level, and how to set them per client.
     - When the directory is full, a new report deletes the oldest reports, so one caller cannot stop
       rendering for everyone. But any token that may render can push other callers' reports out. A
       link to such a report then answers 404, or 410 for the server's own links.
-    - This never deletes drafts awaiting approval. Drafts may take at most half of `maxFiles`. A
-      draft over that is refused.
+    - This never deletes drafts awaiting approval. Drafts may take at most half of `maxFiles` and
+      half of `maxMb`. A draft over that is refused.
     - Set `maxFiles` high. Give `render_view` and `draft_schedule` scopes of their own. Keep
-      `output.maxAgeDays` on, 30 days by default. It never deletes drafts that wait. Keep the
-      rate limits ([REST](reference/rest.md#auth)).
+      `output.maxAgeDays` on, 30 days by default. It never deletes drafts that wait.
+      `output.draftMaxAgeDays` does, where you set it. Keep the rate limits
+      ([REST](reference/rest.md#auth)).
 - **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) belongs to the
   model, not the operator:
     - No exposure policy applies to it.

@@ -166,6 +166,7 @@ before you start it. It says what applies to your configuration.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | [Hidden fields keep a source open](#hidden-open) | a source hides a field for every caller and has no field at `values` or `summary` | nothing, or a policy at `summary` where its reports must not get plain links |
+| [A byte quota and an age limit for drafts](#draft-quota) | callers make schedule drafts (`draft_schedule`, `POST /schedules/draft`) | nothing; run `check-config`; set `output.draftMaxAgeDays` if waiting drafts should expire |
 | [32 connections per address](#per-address-default) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
 
 ### Hidden fields keep a source open { #hidden-open }
@@ -181,6 +182,20 @@ personal column is open:
 A source stays closed when a field or the default is `values` or `summary` for anyone. It also stays
 closed when a field is hidden for some callers and shown to others. `check-config` lists under
 `Delivery:` which sources are open and why the others are closed.
+
+### A byte quota and an age limit for drafts { #draft-quota }
+
+Schedule drafts may take at most half of `output.maxMb`, as they take at most half of
+`output.maxFiles`. With the default 1024, that is 512 MiB. A draft over it answers 409 `NO_OUTPUT`.
+Renders keep working, and no draft is deleted to make room.
+
+A directory may already hold more drafts than that, for example from a host that never changes a
+draft's `status`. `check-config` warns of it under `Output`. New drafts are refused until a person
+approves or removes some, or you raise `output.maxMb`.
+
+`output.draftMaxAgeDays` is new and off by default. Set it to delete drafts that still wait for
+approval after that many days. The server sweeps at start and every hour, also with
+`output.maxAgeDays: 0`. `check-config` counts the drafts the next start deletes.
 
 ### 32 connections per address { #per-address-default }
 

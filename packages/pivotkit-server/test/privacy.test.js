@@ -150,7 +150,7 @@ test("check-config: warns only when output.maxAgeDays is 0 while closed sources 
     const warned = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text);
     assert.match(warned, /^Retention:\n {2}no age limit: reports stay in output\.dir until output\.maxFiles \(1000\) or output\.maxMb \(1024 MB\) push them out, also after their link expired$/m);
     assert.match(warned, /^WARNING \(Retention\): output\.maxAgeDays is 0 \(no age limit\) and reports over closed sources \(sales\) and data sent in requests can hold data about people; leave out output\.maxAgeDays \(the default deletes reports after 30 days\) or set a number of days$/m);
-    assert.match(warned, /^ {2}no age limit \(output\.maxAgeDays 0\)$/m);
+    assert.match(warned, /^ {2}no age limit for reports \(output\.maxAgeDays 0\); schedule drafts stay until a person approves or removes them$/m);
     // data sent in requests alone: an open source, MCP on
     const inlineOnly = factsOf((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text);
     assert.match(inlineOnly, /WARNING \(Retention\): output\.maxAgeDays is 0 \(no age limit\) and data sent in requests can hold/);

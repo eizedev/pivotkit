@@ -16,6 +16,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   default, none with `http.trustProxy` (`http.maxConnectionsPerAddress`)
   ([#511](https://github.com/eizedev/pivotkit/issues/511),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#per-address-default)).
+- Behaviour change from pivotkit-server: schedule drafts may take at most half of `output.maxMb`,
+  and `output.draftMaxAgeDays` lets waiting drafts expire
+  ([#513](https://github.com/eizedev/pivotkit/issues/513),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota)).
 
 ## [0.2.0] - 2026-11-16
 
