@@ -10,7 +10,7 @@ With **Export** in the toolbar you can:
 - download the table as an Excel workbook, a CSV file or an HTML report
 - download the chart as a picture
 - print the report, or save it as PDF
-- copy the table, so you can paste it into a spreadsheet.
+- copy the table, so you can paste it into a spreadsheet
 
 The Excel file keeps every number with all its decimals, and the formats. The CSV, the HTML report
 and the copy hold the numbers as the table shows them. Where the application offers it,
@@ -55,7 +55,7 @@ They are Excel, Table as CSV, the HTML report and the copies.
 - every row of the data as it came in, one line per row
 - every field under its own name
 - no grouping and no totals
-- the report's filters not applied. A view applies them when it is used.
+- the report's filters not applied: a view applies them when it is used
 
 | You want | Take |
 | --- | --- |
@@ -85,7 +85,7 @@ For the rows behind ONE number, a cell's drill-down, see the [drill-down](drill-
 
     - bytes and durations as plain numbers
     - compact numbers in languages that group by ten thousand, such as Japanese, as general numbers
-    - dates before 1900 as text.
+    - dates before 1900 as text
 
     Number labels, such as a year on rows, stay numbers.
 
@@ -103,7 +103,7 @@ For the rows behind ONE number, a cell's drill-down, see the [drill-down](drill-
     - the chart, when the chart is shown
     - the table as it is shown: merged headers, bold totals, colour scales and data bars, collapsed
       groups marked "+", and every number as the table writes it
-    - below the table: the data's name, its rows, the filters in words and when the report was made.
+    - below the table: the data's name, its rows, the filters in words and when the report was made
 
     On screen it is light or dark, after your system. On paper it is always light. It loads and runs
     nothing: no script, no address it fetches. A very large table is cut after 200,000 cells, and the
@@ -129,7 +129,7 @@ For the rows behind ONE number, a cell's drill-down, see the [drill-down](drill-
     HTML report instead."
 
     In Safari, after you cancel the print dialog, the next print in that tab first asks
-    "This webpage is trying to print. Do you want to print it?". That is Safari's own rule. To get the
+    "This webpage is trying to print. Do you want to print it?" That is Safari's own rule. To get the
     dialog directly again, print or save as PDF once instead of cancelling, or press Enter in the
     address bar.
 
@@ -144,7 +144,7 @@ For the rows behind ONE number, a cell's drill-down, see the [drill-down](drill-
     These files hold the data the view was made on:
 
     - every row of the data the report shows: the application's data, or a file you loaded
-    - every field except the groupings a view adds, such as a date by month or ranges.
+    - every field except the groupings a view adds, such as a date by month or ranges
 
     The fields keep the names the data gives them, not the report's display names, since a view uses
     those names.
@@ -157,7 +157,7 @@ For the rows behind ONE number, a cell's drill-down, see the [drill-down](drill-
     - numbers with all their digits
     - dates as `2026-07-03` or `2026-07-03T08:15:00`
     - yes/no as `true` and `false`
-    - a blank as an empty value.
+    - a blank as an empty value
 
     A text or a field name a spreadsheet would run as a formula gets a leading `'`, as in every CSV.
     See [Safe to open](#safe-to-open) below. The JSON keeps text as it is, without a `'`. It keeps
@@ -172,7 +172,7 @@ For the rows behind ONE number, a cell's drill-down, see the [drill-down](drill-
     - the header texts above each value column
     - per row, its labels and its values with all their decimals
     - a percentage of "Show as" as the fraction: 0.25 for 25%
-    - a collapsed group marked as such.
+    - a collapsed group marked as such
 
     It is not the view. **Views**, **Copy view as JSON** copies how the report is built, not its
     numbers. See [sharing](views.md#share-a-view).
@@ -182,7 +182,7 @@ For the rows behind ONE number, a cell's drill-down, see the [drill-down](drill-
 The files take the application's report name. When it gives none, they use "pivot":
 
 - `pivot.xlsx`, `pivot.csv`, `pivot.html`, `pivot.png`, `pivot.svg`
-- the source data: `pivot-data.csv` and `pivot-data.json`.
+- the source data: `pivot-data.csv` and `pivot-data.json`
 
 A downloaded view is `<name>.pivotkit.json`, after the view's or the data's name. See
 [views](views.md#share-a-view). The rows behind a number take the cell's name. See

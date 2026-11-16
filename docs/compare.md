@@ -275,9 +275,9 @@ project's own docs name.
 ## How this page was made
 
 Each fact comes from the project's own documentation, its npm entry or its GitHub repository. The
-table links it, and it was checked on the date given. Some pages only summarised themselves to the
-tool that read them, because Flexmonster's site refuses plain downloads. Those pages are linked all
-the same, but they are worth a second look in a browser. Prices are left out. The licence links lead
+table links it, and it was checked on the date given. One page only summarised itself to the tool
+that read it: Flexmonster's site refuses plain downloads. That page is linked all the same, but it is
+worth a second look in a browser. Prices are left out. The licence links lead
 to them.
 
 The comparison on 2026-11-06 also covered other components. These were not checked again for this

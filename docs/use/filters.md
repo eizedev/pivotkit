@@ -38,8 +38,33 @@ three sections that fold: **Quick choices** (dates only), **Pick items** and **R
 | --- | --- |
 | The summary | Says what the table shows of the field and why not the rest. It has **Reset filter**. See [below](#the-summary). |
 | Quick choices | Only for a date along the time line: a date field, or a grouping by year, quarter, month, week or day. Open at first. It offers **All**, **This [unit]** and **Last [N] [unit]**. Folded under **More choices** are **Next [N] [unit]**, **Before the last [N] [unit]** and rolling periods. Each choice shows the days it keeps and its rows. See [below](#quick-choices-for-dates). A grouping that combines the years (month of the year, weekday, hour) has **Years combined** instead. |
-| Pick items | Its header says what is picked ("3 of 12 picked", "all 12 picked"). **Clear** beside it ticks every value again. Inside are a search, **Select all**, **Select none** and the values with their row counts. The section lists at most 300 values. Below them, "300 of 1,045 values; search to find more" says that the search finds the rest. The items a quick choice or a rule leaves out are not among them. They stand muted in a folded group at the end: "Left out by the rules (24) – their ticks apply again once they go". Their ticks are kept, and you can still change them. The section is open when the field has no rule and folded once it has one. |
-| Rules | Its header says "No rules" or "● 1 rule". The quick choice does not count as a rule. **Remove** beside the header takes the rules off, and the quick choice stays. Inside are the rules as sentences that must all be true. See [below](#value-filter). The quick choice stands first among them as a line to read: "Quick choice: last 2 years (2025; 2026 has no data) – change it above". The section is folded while the field has no rule. The first rule or quick choice opens it and folds Pick items. When the last one goes, the reverse happens. This repeats every time the field goes from none to one and back. A fold by hand wins until the next such change. "Change it above" scrolls to the quick choice, unfolds its section and puts the focus on the choice that is set. |
+| Pick items | The values with their row counts, to tick. See **Pick items** below the table. |
+| Rules | The rules as sentences that must all be true. See **Rules** below the table. |
+
+**Pick items**
+
+- Its header says what is picked ("3 of 12 picked", "all 12 picked"). **Clear** beside it ticks
+  every value again.
+- Inside are a search, **Select all**, **Select none** and the values with their row counts.
+- The section lists at most 300 values. Below them, "300 of 1,045 values; search to find more" says
+  that the search finds the rest.
+- The items a quick choice or a rule leaves out are not among them. They stand muted in a folded
+  group at the end: "Left out by the rules (24) – their ticks apply again once they go". Their ticks
+  are kept, and you can still change them.
+- The section is open when the field has no rule and folded once it has one.
+
+**Rules**
+
+- Its header says "No rules" or "● 1 rule". The quick choice does not count as a rule. **Remove**
+  beside the header takes the rules off, and the quick choice stays.
+- Inside are the rules as sentences that must all be true. See [below](#value-filter). The quick
+  choice stands first among them as a line to read: "Quick choice: last 2 years (2025; 2026 has no
+  data) – change it above".
+- The section is folded while the field has no rule. The first rule or quick choice opens it and
+  folds Pick items. When the last one goes, the reverse happens. This repeats every time the field
+  goes from none to one and back. A fold by hand wins until the next such change.
+- "Change it above" scrolls to the quick choice, unfolds its section and puts the focus on the
+  choice that is set.
 
 Details:
 
@@ -113,11 +138,24 @@ the grouping:
 | Choice | Keeps |
 | --- | --- |
 | **All** | Every date. It takes the quick choice away, and the rules stay. The line under it shows the data's first and last date and all rows. |
-| **This [unit]** | The dates of the current year, quarter, month, week or day, also those later in it. Only the units whose current period has data are offered. When no unit has data, This is missing, and a line names it and says why: "This year (2026) is not offered: the data end Dec 31, 2025." |
-| **Last [N] [unit]** | The current unit and the N - 1 before it, as whole calendar periods: "Last 3 months" in November is September to November. Type N, from 1 to 500. A larger number says "Enter a whole number up to 500." and changes nothing. N applies a moment after you stop typing, or with Enter. The words follow the number: "Last 1 year", "Letztes 1 Jahr". While Last is set, **Include the current month** under it decides whether the current period counts. For other units it reads year, quarter or week, or "Include today". When it is off, "Last 3 months" in November is August to October. When the current period has no data, the checkbox says so: "Include the current month (Nov 2026 has no data)". A button under it, **Count back from the latest record (Dec 31, 2025) instead**, sets **Counted back from** to the latest record. Then "Last 2 years" are the last two years of the data. |
+| **This [unit]** | The dates of the current year, quarter, month, week or day, also those later in it. Only the units whose current period has data are offered. With none, a line names it and why: "This year (2026) is not offered: the data end Dec 31, 2025." |
+| **Last [N] [unit]** | The current unit and the N - 1 before it, as whole calendar periods: "Last 3 months" in November is September to November. See **Last [N] [unit]** below the table. |
 | **Next [N] [unit]** (More choices) | The current unit and the N - 1 after it. With the current unit left out, the N after it. Use it for EOL dates, licences or planned work. |
 | **Before the last [N] [unit]** (More choices) | Every date before the last N units, such as what is older than the last 2 years. |
 | **Rolling instead of whole calendar periods** (More choices) | Last, Next and Before count from the moment itself instead of whole periods. Rolling, "Last 3 months" on Nov 12 is Aug 12 to Nov 12. There is no current period then, so its checkbox goes away. If you tick it while All or This is set, it waits for the next counted choice. |
+
+**Last [N] [unit]**
+
+- Type N, from 1 to 500. A larger number says "Enter a whole number up to 500." and changes nothing.
+  N applies a moment after you stop typing, or with Enter.
+- The words follow the number: "Last 1 year", "Letztes 1 Jahr".
+- While Last is set, **Include the current month** under it decides whether the current period
+  counts. For other units it reads year, quarter or week, or "Include today". When it is off,
+  "Last 3 months" in November is August to October.
+- When the current period has no data, the checkbox says so: "Include the current month (Nov 2026
+  has no data)". A button under it, **Count back from the latest record (Dec 31, 2025) instead**,
+  sets **Counted back from** to the latest record. Then "Last 2 years" are the last two years of the
+  data.
 
 ![The Filter level of Date by month on the weather data: the summary, the quick choices with the data's share of each and their rows, This year not offered, and Counted back from today or the latest record](../assets/screenshots/filter-dates-light.png#only-light)
 ![The Filter level of Date by month on the weather data: the summary, the quick choices with the data's share of each and their rows, This year not offered, and Counted back from today or the latest record](../assets/screenshots/filter-dates-dark.png#only-dark)

@@ -109,7 +109,7 @@ The chart type menu has its **Display** settings under the chart types, in one f
     bars write their names straight, every one while a line fits each bar.
 
 ??? info "Group labels"
-    Take two or more fields in Rows, such as Region, then Country. The axis names each category by
+    With two or more fields in Rows, such as Region, then Country, the axis names each category by
     its inner field, the country. It writes the outer field's item, the region, once under its
     categories, with a line between two groups. Horizontal bars put the groups left of the names.
 
@@ -139,7 +139,7 @@ The chart type menu has its **Display** settings under the chart types, in one f
 
 **Export**, **Chart image (.png)** saves the chart as it is drawn, at twice the screen's resolution,
 on the report's background colour. The picture has the chart's title, legend, value labels and group
-labels. While the table is shown, the entry is greyed out with "Switch to Chart first.". See
+labels. While the table is shown, the entry is greyed out and says "Switch to Chart first." See
 [export](export.md).
 
 !!! note "For developers"

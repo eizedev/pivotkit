@@ -74,7 +74,7 @@ and what changed. In the report itself, **Options**, **Help**, **Keyboard shortc
 !!! note "For developers"
     The [pivotkit-react reference](../reference/react.md#escape-and-the-host-page) explains how
     Escape works when the report sits in a dialog of the host page. `label` names the report's
-    region, so a screen reader can tell several reports on a page apart. The region is not a
+    region, so several reports on a page can be told apart. The region is not a
     `<main>`, so it fits inside the host page's own main landmark. The sorted header carries
     `aria-sort`. The view loaded in the Views menu carries `aria-current`. The sizes are `--pk-*`
     tokens: see [theming](../reference/theming.md).

@@ -216,9 +216,9 @@ const deleteTemplate = async (name, scope) => {   // scope: the group of the vie
 - Shared views: the presets.
 - My views: the `deletable` ones.
 
-`onSaveTemplate` adds "Save current view", and Save for a loaded view of the user's. Your callback
-may get a name that exists already. Then replace that view. Both callbacks may return a promise. The report shows
-"Saved" when the promise resolves and an error when it rejects.
+`onSaveTemplate` adds "Save current view", and Save for a loaded view of the user's. A name may
+already exist. Then replace that view. Both callbacks may return a promise. The report shows "Saved"
+when the promise resolves and an error when it rejects.
 
 Without a server, `templateStore="browser"` keeps the user's views in the browser.
 [Templates and shared views](../concepts/templates.md) covers shared views, publishing and views

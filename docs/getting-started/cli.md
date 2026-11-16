@@ -72,8 +72,8 @@ Next:
 Other examples: pivotkit example weather, pivotkit example templates
 ```
 
-Run what it prints, and open `sales.html` in a browser. The same view also gives a chart and a
-workbook:
+Run what it prints, and open `sales.html` in a browser. Two more commands give a chart and a
+workbook: the chart from the second view file, the workbook from the same view.
 
 ```bash
 pivotkit render sales.pivotkit.json --data sales.csv -o sales.html

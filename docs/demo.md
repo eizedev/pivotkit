@@ -37,7 +37,7 @@ engine timings of the last change.
 Its **Data** button [loads your own data](use/load-data.md): drop a CSV, JSON or Excel file onto the
 report. This uses `allowImport` with the Excel plugin and the import worker, and the footer shows
 `onDataLoad`. The file stays in your browser. With `?import=off` in the address, the report has no
-Data button, as in an application that does not offer it.
+import, as in an application that does not offer it.
 
 **Export**, **Source data** downloads the rows behind the report (`exportData`). With these rows and
 the view (**Views**, **Download view**), the [command line](reference/cli.md#try-it) renders the same

@@ -7,8 +7,8 @@ description: What an AI model sees through pivotkit's MCP server, and what a pro
 
 The model never reads your data. It reads what the [exposure policy](reference/mcp.md#policy) shows
 of each field. By default, that is a field's name, type and counts. Everything a model reads goes to
-the provider that runs it, so the policy decides what that provider receives. This page shows what
-each kind of client gets and which setting changes it.
+the provider that runs it, so the policy decides what that provider receives. This page shows, for
+each kind of client, exactly what it gets and which setting changes it.
 
 | Client | How it connects | Who it is to pivotkit | What decides what it sees |
 | --- | --- | --- | --- |
@@ -198,7 +198,7 @@ Besides the fields, a model reads:
   model cannot read back a report as a source.
 - **Counts**: the source's row count and each listed field's distinct and blank counts.
   `rows: false` keeps back the row count, `counts: false` the field counts. `suggest_view` and
-  `layout` group a shown date by its span, for example by month for a span of up to two years. That
+  `layout` group a shown date by its span, by month for a span of up to two years. That
   grouping tells the span.
 - **Example views** of `describe_source` and the draft of `suggest_view`. pivotkit builds them from
   the fields' names and types, never from values.

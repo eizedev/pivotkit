@@ -91,7 +91,7 @@ More about the menu:
 | Group | What |
 | --- | --- |
 | **This view** | **Save “…”** for the view you loaded, and **Save current view…** (**Save as…** once a view is loaded), which opens the name field. |
-| **Shared views** | The same for everyone who uses the report: the views the application provides. Where someone can change them, an **i** next to one says who. By default it says "Only admins can change shared views.". |
+| **Shared views** | The same for everyone who uses the report: the views the application provides. Where someone can change them, an **i** next to one says who. Its default text is "Only admins can change shared views." |
 | **My views** | Your own. **Save current view…** saves the report under a name. You can delete your views. Where the application allows it, you can publish them for everyone. |
 | **Share this view** | **Copy link**, **Copy view as JSON**, **Download view** and **Open view file…**. See [Share a view](#share-a-view). |
 
@@ -119,7 +119,7 @@ The report saves the view under its name, in its place in My views, and the menu
 | "Add a field first." | The report is empty. An empty report is never saved over a view. |
 
 Where you may publish views, **Save** on a shared view asks first, in a level of its own:
-"Replace the shared view “…” for everyone?". **Replace** saves it for everyone. **Cancel** goes
+"Replace the shared view “…” for everyone?" **Replace** saves it for everyone. **Cancel** goes
 back and changes nothing.
 
 ### Save under a name
@@ -146,7 +146,7 @@ name is shown as plain text.
 
 ### Delete or publish one of your views
 
-- The delete button next to one of your views asks first, in a level of its own: "Delete “…”?".
+- The delete button next to one of your views asks first, in a level of its own: "Delete “…”?"
   Then the view goes. The arrow keys reach the button right after the view's name.
 - Where the application allows it, the arrow next to one of your views publishes it as a shared view,
   for everyone. It asks the same kind of question first.
@@ -223,9 +223,9 @@ Names from the file are shown as text only. The question takes the focus when it
 ![A view file made for other data: asked before it is loaded, with Load anyway, Cancel and Switch](../assets/screenshots/load-check-light.png#only-light)
 ![A view file made for other data: asked before it is loaded, with Load anyway, Cancel and Switch](../assets/screenshots/load-check-dark.png#only-dark)
 
-A link does the same. Take a link in the page's address that was made for other data, or that uses
-fields this data does not have. It opens only after the same question, shown above the result:
-"The link's view may not fit this data". The choices are:
+A link does the same. A link in the page's address that was made for other data, or that uses
+fields this data does not have, opens only after the same question. The question is shown above the
+result: "The link's view may not fit this data". The choices are:
 
 - **Load anyway**
 - **Cancel**: the report keeps its start view. The same link given again asks again.

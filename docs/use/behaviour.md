@@ -25,8 +25,8 @@ over and More work the same way.
 | Export, **Chart image (.png)** | the chart is shown and drawn ("Switch to Chart first.") |
 | Options, Help, **Show dismissed tips again** | you dismissed a tip |
 | Options, **Expand all**, **Collapse all** | it changes something. Otherwise the line under it says why not: "Nothing is collapsed.", "Needs two or more fields in Rows." or "Every group is collapsed already." |
-| Options, **Grand total row**, **Grand total column**, **Row subtotals**, **Column subtotals** | it changes something in this layout, which includes a field in Values. Otherwise the line under it says what it needs, and the greyed-out switch has no tick. |
-| Views, **Save “…”** | a saved view is loaded and you may change it. It is greyed out:<br>- for a shared view you may not change ("Shared view: you cannot change it. Use Save as.")<br>- for a view opened from a file or a link ("Not saved yet. Use Save as.")<br>- while no field is placed ("Add a field first.") |
+| Options, **Grand total row**, **Grand total column**, **Row subtotals**, **Column subtotals** | it changes something in this layout, and the layout has a field in Values. Otherwise the line under it says what it needs, and the greyed-out switch has no tick. |
+| Views, **Save “…”** | a saved view is loaded and you may change it. It is greyed out<br>for a shared view you may not change ("Shared view: you cannot change it. Use Save as."),<br>for a view opened from a file or a link ("Not saved yet. Use Save as."),<br>while no field is placed ("Add a field first.") |
 | Views, the button next to the name field (**Save**, **Save as**) | the name holds text |
 | Chart type, Display, **Labels** (pie and donut) | value labels are not Off |
 | Open view file, **Load** | the box holds text. A file you choose loads at once. |
@@ -105,7 +105,7 @@ not know. The report leaves those parts out and shows the rest. It puts a warnin
     The plain words load with the warning, as a small file of their own, when a view has such parts.
     Until they arrive, which takes a moment, each line shows pivotkit-core's short message in English
     instead. The same happens when the file cannot be loaded. With a pivotkit-core older than the
-    plain words, each line also shows that message. For developers: that is a pivotkit-core whose
+    plain words, each line shows that message. For developers: that is a pivotkit-core whose
     issues have no `code`.
 
 ## When the report cannot show anything

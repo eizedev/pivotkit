@@ -118,7 +118,7 @@ These features are off by default, so a host decides:
 | `allowImport` | People load their own file into the report. | [Load your own data](../use/load-data.md) |
 | `exportData` | Export → Source data: every row as CSV or JSON. | [Export](../use/export.md#the-table-or-the-rows-behind-it) |
 | `shareLink`, `persistView` | Links, and the tab's view. | [Sharing](../concepts/sharing.md) |
-| `templateStore` | Views in the browser. | |
+| `templateStore` | Views in the browser. | [Templates and shared views](../concepts/templates.md) |
 
 These are on by default, and a prop switches them off: `drillDown`, the rows behind a value, and the
 tips (`tips`). Every file and copy passes `onExport` first. See

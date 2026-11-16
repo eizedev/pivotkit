@@ -237,7 +237,7 @@ output:
 The element looks for the worker at `../import-worker.js` from the file its code is in. From
 Angular's `main-*.js`, that is `/import-worker.js` of the site.
 
-An app served under a path of its own, a `baseHref` such as `/reports/`, does it differently:
+An app served under a path of its own, such as a `baseHref` of `/reports/`, needs two more steps:
 
 1. It copies the worker under that path instead (`"output": "/assets"`).
 2. It tells the element where, with `[importWorkerUrl]="'assets/import-worker.js'"` on the element.

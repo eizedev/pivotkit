@@ -92,7 +92,8 @@ shows up to 60 columns. The others keep the type the report found.
   the report does not open the view:
   "“Q3 by region” was not opened: it was made for the sheet “Q3”."
 - **Cancel** while the report reads the sheet, or in its preview, keeps the sheet and the view you
-  had. The report does not open the view you chose. If you drop a file meanwhile, it takes the place
+  had. The view you chose is dropped, so loading that sheet later does not open it. If you drop a
+  file meanwhile, it takes the place
   of the read, and the report does not open the view on it.
 - An application that checks the files you load checks that sheet too, and may refuse it. Then the
   report does not open the view, and a note says so.

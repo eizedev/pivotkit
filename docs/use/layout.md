@@ -127,8 +127,8 @@ result need. The least height is 240 px, 280 px on a narrow report. In that case
 
 - A setting that needs explaining has an **i** next to it. Pointing at it or moving the focus to it
   shows the explanation. A tap opens it.
-    - It is the same **i** everywhere, so every menu row stays one line: totals, Show as, the export
-      formats, the chart's Labels and Group labels.
+    - It is the same **i** everywhere: at totals, Show as, the export formats, the chart's Labels and
+      Group labels. So every menu row stays one line.
     - Next to an item of Options the **i** is for the pointer. A screen reader reads the explanation
       with the item.
     - **Options**, **Help**, **Show explanations** hides them all.

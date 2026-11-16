@@ -112,8 +112,8 @@ year only.
 ## Does the Excel file contain formulas?
 
 No. pivotkit writes values as typed cells with number formats and text as inline strings. Totals are
-values too. Colour scales and data bars are Excel's native conditional formats. A few formats Excel
-cannot show the same way. [Values](concepts/values.md#export) lists them.
+values too. Colour scales and data bars are Excel's native conditional formats. Excel cannot show a
+few formats the same way. [Values](concepts/values.md#export) lists them.
 
 ## Can I use my own chart library?
 

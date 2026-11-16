@@ -53,7 +53,7 @@ Each recipe names a task and the page with its worked example. The recipes cover
 | Adjust the chart beyond its menus, such as font sizes or axis names | [`chartOptions`](../concepts/charts.md#chartoptions-for-developers) |
 | A taller report on phones | [web component](../getting-started/web-component.md#a-taller-report-on-phones), [layout](../reference/react.md#layout) |
 | Keep, log or block every export and copy | [`onExport`](../reference/react.md#prop-onexport) |
-| Let users download the rows behind the report (for the command line) | [`exportData`](../reference/react.md#prop-exportdata) |
+| Let users download the rows behind the report, so the command line can render the same report | [`exportData`](../reference/react.md#prop-exportdata) |
 | Keep the rows from being taken home | leave [`exportData`](../reference/react.md#prop-exportdata) off, set [`drillDown`](../reference/react.md#props) to `false`, send only permitted rows. See [Security](../security.md#source-data). |
 
 ## Pages and hosts
