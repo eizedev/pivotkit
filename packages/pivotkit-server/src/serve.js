@@ -20,6 +20,7 @@ import { connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./liste
 import { bodyBytesOf } from "./limits.js";
 import { DOWNLOADS_PATH, DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
+import { bytesText } from "./sources/inline.js";
 import { hostProblem, problem } from "./rest/problem.js";
 import { logUnanswered, noteAnswered, refusalReason, startFields } from "./log.js";
 import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
@@ -27,6 +28,9 @@ import { logNotes, openAddressRefusal, prepareHttpServe } from "./state.js";
 
 /** The default port. */
 export const DEFAULT_PORT = 3333;
+
+/** The answer to a body over REST_BODY_BYTES that no front end answers itself. */
+const BODY_TOO_LARGE_TEXT = `the body is larger than ${bytesText(REST_BODY_BYTES)}, the most this service takes`;
 
 
 /** The MCP server's package: imported by name at run time, so pivotkit-server does not depend on it. */
@@ -194,7 +198,7 @@ export async function createServerHandler(options, runtime) {
                     const declared = Number(request.headers.get("content-length") ?? 0);
                     if (declared > REST_BODY_BYTES) {
                         context.log.refused({ status: 413, reason: refusalReason("BODY_TOO_LARGE"), limit: REST_BODY_BYTES, size: declared });
-                        return problem("BODY_TOO_LARGE", "the body is larger than 2 MiB, the most this service takes");
+                        return problem("BODY_TOO_LARGE", BODY_TOO_LARGE_TEXT);
                     }
                     return null;
                 }
@@ -244,7 +248,7 @@ export async function createServerHandler(options, runtime) {
             },
             /** @type {import("./listen.js").FetchHandler["release"]} */
             release: (info) => rest?.release(info),
-            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than 2 MiB, the most this service takes" : "the request cannot be read")),
+            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? BODY_TOO_LARGE_TEXT : "the request cannot be read")),
             async close() {
                 downloads.close();
                 await rest?.close();

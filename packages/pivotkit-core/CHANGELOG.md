@@ -6,6 +6,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `limitText(value, max, what, where)` words a limit that a value ran over. `checkLimit`, the view
+  link, pivotkit-cli and pivotkit-server use it, so one function holds the message. The text stays
+  the same ([#509](https://github.com/eizedev/pivotkit/issues/509)).
+
 ## [0.7.0] - 2026-11-16
 
 ### Added

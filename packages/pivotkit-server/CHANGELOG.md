@@ -37,6 +37,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   server has no source that takes params; leave params out (GET /sources lists the sources)",
   instead of `input has no key "params"`. JSON and multipart bodies alike
   ([#516](https://github.com/eizedev/pivotkit/issues/516)).
+- Each duplicated helper now exists once: one shell quote for printed commands, pivotkit-core's
+  `limitText` for limits, the body cap's size from `REST_BODY_BYTES`. The messages stay the same
+  ([#509](https://github.com/eizedev/pivotkit/issues/509)).
 
 ## [0.2.0] - 2026-11-16
 

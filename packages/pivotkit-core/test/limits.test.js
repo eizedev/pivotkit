@@ -1,6 +1,8 @@
 import { test } from "node:test";
+import { randomBytes } from "node:crypto";
 import assert from "node:assert/strict";
-import { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, PivotkitError, validate, computePivot, encode, normalize, outsideLimits, toEChartsOption, toGrid, toSeries } from "../src/index.js";
+import { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, PivotkitError, validate, computePivot, encode, limitText, normalize, outsideLimits, toEChartsOption, toGrid, toSeries } from "../src/index.js";
+import { encodeViewLink } from "../src/link.js";
 import { toCsv, toXlsx } from "../src/export.js";
 import { derivedColumn } from "../src/derive.js";
 import { ITEM_LENGTH } from "../src/limits.js";
@@ -11,6 +13,15 @@ const isError = (code, limit) => (e) => e instanceof PivotkitError && e.code ===
 function square(n) {
     return encode(Array.from({ length: n }, (_, i) => ({ A: `a${i}`, W: `w${i}`, v: i })));
 }
+
+test("limitText: one wording of a limit for every package, numbers in en-US whatever the runtime's locale", () => {
+    assert.equal(limitText(1001, 1000, "rows", "limits.rows"), "1,001 rows exceed the limit of 1,000 (limits.rows)");
+    assert.equal(limitText(2_500_000, 2_000_000, "grid cells", "limits.cells"), "2,500,000 grid cells exceed the limit of 2,000,000 (limits.cells)");
+    // the view link says it alike
+    // names that do not compress: the deflated link runs over LINK_LIMITS.text
+    const long = { rows: Array.from({ length: 1000 }, () => randomBytes(32).toString("base64")) };
+    assert.throws(() => encodeViewLink(long), (e) => e instanceof PivotkitError && /^[\d,]+ characters of the (view|link) exceed the limit of [\d,]+ \(LINK_LIMITS\)$/.test(e.message));
+});
 
 test("a 5k x 5k pivot is refused before the dense grid is allocated", () => {
     const result = computePivot(square(5000), { rows: ["A"], cols: ["W"], values: [{ agg: "count" }] });

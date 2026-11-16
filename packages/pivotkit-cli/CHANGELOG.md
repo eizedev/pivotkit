@@ -6,6 +6,11 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Changed
+
+- pivotkit-core's `limitText` words a file over its limit. The text stays the same
+  ([#509](https://github.com/eizedev/pivotkit/issues/509)).
+
 ## [0.3.0] - 2026-11-16
 
 ### Upgrading from 0.2

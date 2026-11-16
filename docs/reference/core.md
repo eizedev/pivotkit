@@ -532,6 +532,7 @@ files contain and where Excel's number formats cannot follow the grid.
 | `ISSUE_CAP` | `{ perCode: 100, total: 1000 }`: the most issues of one code, and in all, that `normalize` and `validate` list for one view. The warning `tooManyIssues` counts the rest ([Views from outside](../concepts/limits.md#views-from-outside)). |
 | `OUTSIDE_LIMITS`, `outsideLimits(limits)` | `OUTSIDE_LIMITS`: the tighter limits of a view from outside (a link, pasted JSON, an API, an LLM), `{ filters: 50, json: 1000000 }`. `outsideLimits(limits)`: the host's limits with each of these at most its preset value, to pass as `normalize`'s `limits` ([Views from outside](../concepts/limits.md#views-from-outside)). |
 | `PivotkitError` | The error class. `code` is `INVALID_ARGUMENT`, `INVALID_OPTION`, `LIMIT_EXCEEDED` or `INVALID_FILE`, a file that cannot be read ([Loading files](import.md#errors)). `details` holds `{ limit, value, max }` for a limit, plus `file` and `what` (what was counted) for a file's limit. It holds `{ reason, file }` for a file that cannot be read. |
+| `limitText(value, max, what, where)` | The words of a limit that a value ran over, as pivotkit's packages write them: `limitText(1001, 1000, "rows", "limits.rows")` is "1,001 rows exceed the limit of 1,000 (limits.rows)". Numbers are in en-US.<br><small>Returns `string`</small> |
 
 ## Types
 

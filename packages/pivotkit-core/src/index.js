@@ -80,7 +80,7 @@ export { DEFAULT_LABELS, GROUPING_NAMES, REPORT_LABELS, fieldLabel, groupingName
 export { fieldDefaultsFromSchema } from "./schema.js";
 export { DEFAULT_THEME } from "./defaults.js";
 export { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, outsideLimits } from "./limits.js";
-export { PivotkitError } from "./errors.js";
+export { PivotkitError, limitText } from "./errors.js";
 export { linkFragment, linkParam, withLinkFragment } from "./link-fragment.js";
 export { suggestLayout, viewFromLayout, isIdentifierName, SUGGEST_LIMITS, LAYOUT_LIMITS } from "./suggest.js";
 export { toViewFile, fromViewFile, viewFileText, viewFileName, viewFileFields, renameFields, VIEW_FILE_FORMAT, VIEW_FILE_VERSION, VIEW_FILE_SCHEMA, VIEW_FILE_LIMITS } from "./view-file.js";
