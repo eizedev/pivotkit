@@ -116,7 +116,11 @@ A source with parameters takes their values as `params` with its id in a POST bo
   `POST /sources/describe`.
 - `GET /sources` lists the parameters.
 - The routes take `params` only when a configured source declares any
-  ([parameters](mcp.md#configuration)).
+  ([parameters](mcp.md#configuration)). Otherwise a request with `params` answers `INVALID_INPUT`
+  with the `detail` "this server has no source that takes params; leave params out (GET /sources
+  lists the sources)".
+- Where another source declares parameters, a source without them answers `params` with
+  `INVALID_INPUT`, for example "the source sales takes no params".
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where:
 

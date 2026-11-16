@@ -404,6 +404,7 @@ test("REST multipart: csv, tsv, json and xlsx files with the input beside them; 
             [[["data", [new Blob([csv]), "a.exe"]], ["input", input()]], 415, /csv, tsv, json or xlsx/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ data: { rows: [["x"]] } })]], 400, /has no key "rows"/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ data: { rowCount: 3 } })]], 400, /has no key "rowCount"/],
+            [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ params: { a: "1" } })]], 400, /^this server has no source that takes params; leave params out \(GET \/sources lists the sources\)$/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ source: "sales" })]], 400, /leave source out or give "inline:"/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", "{not json"]], 400, /not valid JSON/],
             [[["data", [new Blob(["{not json"]), "a.json"]], ["input", input()]], 422, /^"Data sent with the request\.json": this is no valid JSON/]

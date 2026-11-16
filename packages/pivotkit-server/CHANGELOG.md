@@ -33,6 +33,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `check-config` prints both caps and warns of a directory whose drafts are already over the byte
   cap ([#513](https://github.com/eizedev/pivotkit/issues/513),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota)).
+- REST answers `params` on a server where no source takes parameters with `INVALID_INPUT` "this
+  server has no source that takes params; leave params out (GET /sources lists the sources)",
+  instead of `input has no key "params"`. JSON and multipart bodies alike
+  ([#516](https://github.com/eizedev/pivotkit/issues/516)).
 
 ## [0.2.0] - 2026-11-16
 

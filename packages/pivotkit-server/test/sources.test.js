@@ -13,7 +13,7 @@ import { asOfMembers, asOfSentence, asOfText } from "../src/sources/as-of.js";
 import { INLINE_ID, kindOf } from "../src/sources/index.js";
 import { canonicalJson, tableKeyOf } from "../src/sources/keys.js";
 import { MATCH_MS, declaredProblems, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
-import { TOKEN, call, restServer, workspace } from "./helpers.js";
+import { BY_REGION, TOKEN, call, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
 const VIEW = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -166,7 +166,7 @@ test("params end to end: offered only when a source declares them; the code sour
     }
 });
 
-test("params over REST: accepted where offered, refused by the schema where not", async () => {
+test("params over REST: accepted where offered; where no source takes params, refused with words that say so, for every operation that takes a source", async () => {
     const offered = await restServer({ sources: { tickets: { load: async (params) => [{ Team: params.team, Open: 1 }], params: { team: { type: "string", enum: ["blue"] } } } }, auth: { mode: "token" } }, { env: { PIVOTKIT_TOKEN: TOKEN } });
     try {
         const ok = await call(`${offered.api}/sources/describe`, { token: TOKEN, body: { source: "tickets", params: { team: "blue" } } });
@@ -182,9 +182,23 @@ test("params over REST: accepted where offered, refused by the schema where not"
     const dir = workspace();
     const plain = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: TOKEN } });
     try {
-        const refused = await call(`${plain.api}/sources/describe`, { token: TOKEN, body: { source: "sales", params: { a: "1" } } });
-        assert.equal(refused.status, 400);
-        assert.match(refused.data.detail, /has no key "params"/);
+        // the request is well formed: the server has no source to take them (#516). The words stay
+        // recognisable for host modules: "takes params" with the sources' route
+        const asked = [
+            ["sources/describe", { source: "sales", params: { a: "1" } }],
+            ["views/render", { source: "sales", view: BY_REGION, format: "csv", params: { a: "1" } }],
+            ["views/validate", { source: "sales", view: BY_REGION, params: {} }],
+            ["views/render", { source: "nope", view: BY_REGION, params: { a: "1" } }]
+        ];
+        for (const [path, body] of asked) {
+            const refused = await call(`${plain.api}/${path}`, { token: TOKEN, body });
+            assert.equal(refused.status, 400, path);
+            assert.equal(refused.data.code, "INVALID_INPUT");
+            assert.equal(refused.data.detail, "this server has no source that takes params; leave params out (GET /sources lists the sources)", path);
+        }
+        // another unknown key keeps the schema's words
+        const other = await call(`${plain.api}/sources/describe`, { token: TOKEN, body: { source: "sales", parms: { a: "1" } } });
+        assert.match(other.data.detail, /^input has no key "parms"$/);
     } finally {
         await plain.close();
     }
