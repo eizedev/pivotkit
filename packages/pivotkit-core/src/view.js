@@ -710,7 +710,8 @@ function context(schema, limits, add, strict) {
             const items = itemsOf(field.name);
             const match = items && !items.exact.has(item) ? items.byFold.get(foldText(item)) : undefined;
             if (match !== undefined) {
-                ctx.warn(path, `item ${JSON.stringify(item)} is no item of "${field.name}"; did you mean ${JSON.stringify(match)}?`, "itemCase", { field: field.name, value: shown(item), suggestion: match });
+                // the item meant is the suggestion, which front ends show as their "did you mean"
+                ctx.warn(path, `item ${JSON.stringify(item)} is no item of "${field.name}": the data spells it otherwise`, "itemCase", { field: field.name, value: shown(item), suggestion: match });
             }
         },
         text: (value) => {

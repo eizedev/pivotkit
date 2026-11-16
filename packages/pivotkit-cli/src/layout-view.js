@@ -52,7 +52,8 @@ export async function filtersOf(list, ctx, fields = []) {
             const bytes = await ctx.readInput(path, "the filter", FILTER_BYTES, "json");
             out.push(...parseFilter(textOfFile(bytes), `--filter @${shortName(path)}`));
         } else if (isJsonFilter(value)) {
-            out.push(...parseFilter(value, "--filter"));
+            // "[Q]=1" reads as JSON: say why the short form did not apply
+            out.push(...parseFilter(value, "--filter", value.includes("=") ? "a field name that starts with { or [ needs a JSON filter" : ""));
         } else {
             const filter = parseShortFilter(value, names);
             const same = short.get(filter.field.toLowerCase());

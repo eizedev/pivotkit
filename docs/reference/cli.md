@@ -317,7 +317,7 @@ view.
   aggregator (`sum`, `average`, `count`, `countUnique`, `median`, `min`, `max`, …, any case). So
   `"sum:Time: start"` sums the field `Time: start`. A field named exactly as the whole value wins.
   A misspelt aggregator before a field of the data (`summ:Revenue`) is a usage error with the one
-  meant. So is another tool's name: `avg:Revenue` asks "did you mean average?".
+  meant. A name from another tool, such as `avg`, gets a hint: did you mean average?
   `count` alone counts the rows.
 - **`--group`**: `<field>:<unit>`, the unit after the last colon, or `<field>:bin:<size>` for number
   ranges. The units are the view file's: `year`, `yearQuarter`, `yearMonth`, `yearWeek`, `day` along
@@ -327,19 +327,23 @@ view.
   by its span, as the report groups a date it places. An `info` finding `dateGrouped` says so.
 - **`--filter`** has a short form and a JSON form:
     - `Field=Item` keeps the rows of one item: `--filter Country=Germany`. It splits at the `=` after
-      a field of the data, so a name and an item may hold `=`. With a server, the data's fields are
-      not known first, so it splits at the first `=`.
-    - Write the item as the data spells it. Another case, or an item that is none of the field's
-      values, is a warning with the item meant. With `--strict`, the warning fails the run.
+      a field of the data, so a name and an item may hold `=`. When two `=` follow field names, the
+      first wins: with fields `a` and `a=b`, `a=b=c` keeps the item `b=c` of `a`. With a server, the
+      data's fields are not known first, so it splits at the first `=`.
+    - Write the item as the data spells it. With local data, an item of a text field in another case,
+      or one that is none of its values, is a warning with the item meant. With `--strict`, the
+      warning fails the run. Otherwise, such as for a number field or with a server, watch for
+      `noRowsKept`: the filters keep no row.
     - The same field given again keeps each item: `--filter Country=Germany --filter Country=France`.
-      Filters of different fields keep the rows that all of them keep.
+      A JSON filter stays its own filter. Filters keep the rows that all of them keep.
     - A value that starts with `{` or `[` is a filter as a [view](view-file.md) writes it, as JSON:
       `'{"field":"Revenue","type":"compare","op":">","value":1000}'`. A list of filters works too.
     - `@file.json` reads that JSON from a file. In PowerShell, where quoting JSON is awkward, use
       `--filter '@revenue.json'`.
-    - `Field=Item` is the only short form. `Revenue>1000` or `Country!=Germany` is a usage error
-      that gives the JSON filter it means. A value in neither form is a usage error with an example
-      of each.
+    - `Field=Item` is the only short form. `Revenue>1000`, `Country!=Germany` or `Country<>Germany`
+      is a usage error that gives the JSON filter it means. A value in neither form is a usage error
+      with an example of each.
+    - A field name that starts with `{` or `[` needs a JSON filter.
 - **`--chart-type`** shows the chart of that type: the SVG, and the HTML report above the table.
   `--chart auto|on|off` keeps its meaning. With a view file, it is a usage error, since the view sets
   its chart.

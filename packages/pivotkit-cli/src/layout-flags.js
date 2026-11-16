@@ -6,6 +6,7 @@
  */
 
 import { AGGREGATOR_ALIASES, CATALOG, closest } from "pivotkit-core";
+import { DOCS } from "./commands.js";
 import { CliError, printable } from "./errors.js";
 
 /** The flags that make a layout; any of them given turns render into the flags mode. */
@@ -108,25 +109,25 @@ const FILTER_EXAMPLE = '{"field":"Region","type":"in","items":["North"]}';
 export const isJsonFilter = (text) => /^\s*[[{]/.test(text);
 
 /**
- * The JSON filter a short form with a comparison or a negation means, for its message.
+ * The message for a short form with a comparison or a negation: the JSON filter it means, whole so
+ * it works as written; a pointer to the reference when that filter is too long or not printable.
  * @param {string} field
  * @param {string} op  "!=", "<", "<=", ">" or ">="
  * @param {string} item
  */
 function meantFilter(field, op, item) {
-    const name = printable(field.slice(0, 60));
-    const text = printable(item.slice(0, 60));
-    if (op === "!=") {
-        return JSON.stringify({ field: name, type: "in", items: [text], not: true });
-    }
-    const value = /^-?\d+(\.\d+)?$/.test(text) ? Number(text) : text;
-    return JSON.stringify({ field: name, type: "compare", op, value });
+    const value = op === "!=" || !/^-?\d+(\.\d+)?$/.test(item) ? item : Number(item);
+    const json = JSON.stringify(op === "!=" ? { field, type: "in", items: [item], not: true } : { field, type: "compare", op, value });
+    const meant = printable(json) === json ? `JSON: ${json}` : `JSON as a view writes it: see ${DOCS}reference/cli/#layout-flags`;
+    return `the short form keeps one item: Field=Item. For this filter give ${meant}`;
 }
 
 /**
  * --filter's short form "Field=Item": a filter that keeps the rows of one item. It splits at the "="
  * whose left part is a field of the data, else at the first "=", so a name and an item may hold "=".
- * A comparison or a negation ("Units>=3", "Country!=Germany") is refused with the JSON filter it means.
+ * When two "=" follow names of fields (fields "a" and "a=b"), the first wins: "a=b=c" filters "a".
+ * A comparison or a negation ("Units>=3", "Country!=Germany", "Country<>Germany") is refused with the
+ * JSON filter it means.
  * @param {string} value
  * @param {Set<string>} fields  the data's field names, lower case; empty when the data is the server's
  * @returns {{ field: string, type: "in", items: string[] }}
@@ -136,9 +137,10 @@ export function parseShortFilter(value, fields) {
     const cuts = [...value.matchAll(/=/g)].map((m) => m.index ?? 0);
     const at = cuts.find((i) => i > 0 && fields.has(value.slice(0, i).toLowerCase())) ?? cuts[0];
     if (at === undefined) {
-        const sign = /^(.+?)([<>])(.+)$/.exec(value);
+        // "<>" is "not equal" in SQL and Excel
+        const sign = /^(.+?)(<>|[<>])(.+)$/.exec(value);
         if (sign) {
-            throw refuse(`the short form keeps one item: Field=Item. For this filter give JSON: ${meantFilter(sign[1], sign[2], sign[3])}`);
+            throw refuse(meantFilter(sign[1], sign[2] === "<>" ? "!=" : sign[2], sign[3]));
         }
         throw refuse(`give Field=Item, as in --filter "Country=Germany", or a filter as JSON, e.g. ${FILTER_EXAMPLE}`);
     }
@@ -146,7 +148,7 @@ export function parseShortFilter(value, fields) {
     const item = value.slice(at + 1);
     const sign = /[!<>]$/.exec(field)?.[0];
     if (sign && field.length > 1 && !fields.has(field.toLowerCase())) {
-        throw refuse(`the short form keeps one item: Field=Item. For this filter give JSON: ${meantFilter(field.slice(0, -1), `${sign}=`, item)}`);
+        throw refuse(meantFilter(field.slice(0, -1), `${sign}=`, item));
     }
     if (field === "") {
         throw refuse(`give the field before =, as in --filter "Country=Germany"`);
@@ -161,15 +163,16 @@ export function parseShortFilter(value, fields) {
  * A --filter: a filter object as JSON text.
  * @param {string} text
  * @param {string} where  for the message ("--filter", "--filter @f.json")
+ * @param {string} [hint]  added to the message of text that is not JSON
  */
-export function parseFilter(text, where) {
+export function parseFilter(text, where, hint = "") {
     let filter;
     try {
         filter = JSON.parse(text);
     } catch (e) {
         // where the JSON stops, never the text itself (it may be a file's content)
         const at = /position (\d+)/.exec(String(e.message))?.[1];
-        throw new CliError("usage", "BAD_VALUE", `${where}: not JSON${at ? ` (at character ${Number(at) + 1})` : ""}; give one filter as in a view, e.g. ${FILTER_EXAMPLE}`);
+        throw new CliError("usage", "BAD_VALUE", `${where}: not JSON${at ? ` (at character ${Number(at) + 1})` : ""}; give one filter as in a view, e.g. ${FILTER_EXAMPLE}${hint ? `; ${hint}` : ""}`);
     }
     const list = Array.isArray(filter) ? filter : [filter];
     if (!list.length || list.some((f) => !f || typeof f !== "object" || Array.isArray(f))) {

@@ -60,10 +60,12 @@ test("an item spelt otherwise than the data spells it is a warning with the item
     const dir = files();
     const lower = await run([...SUM_BY_COUNTRY, "--filter", "Country=germany"], { cwd: dir });
     assert.equal(lower.code, 0, lower.stderr);
-    assert.match(lower.stderr, /warning itemCase at filters\[0\]\.items: item "germany" is no item of "Country"; did you mean "Germany"\?$/m);
+    // the hint comes from the finding's suggestion, once (core's message names no item meant)
+    assert.match(lower.stderr, /^warning itemCase at filters\[0\]\.items: .*\(did you mean "Germany"\?\)$/m);
+    assert.equal(lower.stderr.match(/did you mean/g)?.length, 1);
     const typo = await run([...SUM_BY_COUNTRY, "--filter", "Country=Germny"], { cwd: dir });
     assert.equal(typo.code, 0, typo.stderr);
-    assert.match(typo.stderr, /^warning itemUnknown at filters\[0\]\.items: item "Germny" is not one of the listed values of "Country" \(did you mean "Germany"\?\)$/m);
+    assert.match(typo.stderr, /^warning itemUnknown at filters\[0\]\.items: .*\(did you mean "Germany"\?\)$/m);
     // with --strict a warning fails the run, so a misspelt item never gives a silent table of zeros in CI
     const strict = await run([...SUM_BY_COUNTRY, "--filter", "Country=Germny", "--strict"], { cwd: dir });
     assert.equal(strict.code, 1);
@@ -78,6 +80,43 @@ test("--filter splits at the = after a field of the data, so names and items may
     const r = await run([...SUM_BY_COUNTRY, "--filter", "a=b=x=1"], { cwd: dir });
     assert.equal(r.code, 0, r.stderr);
     assert.deepEqual(lines(r.stdout), ["Country,Sum of Units", "France,2", "Germany,3", "Grand Total,5"]);
+});
+
+test("with fields a and a=b, the first = after a field's name wins: a=b=x=1 filters a on b=x=1", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "data.csv"), "Country,Units,a,a=b\nGermany,3,b=x=1,y\nFrance,2,c,x=1\n");
+    const r = await run([...SUM_BY_COUNTRY, "--filter", "a=b=x=1", "--save-view", "tie.pivotkit.json"], { cwd: dir });
+    assert.equal(r.code, 0, r.stderr);
+    const saved = JSON.parse(readFileSync(join(dir, "tie.pivotkit.json"), "utf8"));
+    assert.deepEqual(saved.view.filters.map((f) => [f.field, f.items]), [["a", ["b=x=1"]]]);
+    assert.deepEqual(lines(r.stdout), ["Country,Sum of Units", "Germany,3", "Grand Total,3"]);
+});
+
+test("a misspelt field is the data mismatch of any view, with the field meant", async () => {
+    const dir = files();
+    const r = await run([...SUM_BY_COUNTRY, "--filter", "Contry=Germany"], { cwd: dir });
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, /^error dataMismatch: /m);
+    assert.match(r.stderr, /missing: "Contry" \(did you mean "Country"\?\)/);
+});
+
+test("an item of a number field that is none of its values names no item: noRowsKept says the table is empty", async () => {
+    const dir = files();
+    const r = await run([...SUM_BY_COUNTRY, "--filter", "Units=99"], { cwd: dir });
+    assert.equal(r.code, 0, r.stderr);
+    assert.match(r.stderr, /^warning noRowsKept: /m);
+    assert.doesNotMatch(r.stderr, /itemUnknown/);
+});
+
+test("a JSON filter stays its own filter next to short forms of the same field: the rows all of them keep", async () => {
+    const dir = files();
+    writeFileSync(join(dir, "spain.json"), JSON.stringify({ field: "Country", type: "in", items: ["Spain", "Germany"] }));
+    const both = await run([...SUM_BY_COUNTRY, "--filter", "@spain.json", "--filter", "Country=Germany", "--filter", "Country=Italy"], { cwd: dir });
+    assert.equal(both.code, 0, both.stderr);
+    assert.deepEqual(lines(both.stdout), ["Country,Sum of Units", "Germany,7", "Grand Total,7"]);
+    const none = await run([...SUM_BY_COUNTRY, "--filter", '{"field":"Country","type":"in","items":["Spain"]}', "--filter", "Country=Germany"], { cwd: dir });
+    assert.equal(none.code, 0, none.stderr);
+    assert.match(none.stderr, /^warning noRowsKept: /m);
 });
 
 test("--filter with --save-view: the saved view holds the filter as JSON and renders the same", async () => {
@@ -127,7 +166,8 @@ test("a comparison or a negation in the short form is refused with the JSON filt
         ["Units>=3", '{"field":"Units","type":"compare","op":">=","value":3}'],
         ["Units<=3", '{"field":"Units","type":"compare","op":"<=","value":3}'],
         ["Month<2025-02-01", '{"field":"Month","type":"compare","op":"<","value":"2025-02-01"}'],
-        ["Country!=Germany", '{"field":"Country","type":"in","items":["Germany"],"not":true}']
+        ["Country!=Germany", '{"field":"Country","type":"in","items":["Germany"],"not":true}'],
+        ["Country<>Germany", '{"field":"Country","type":"in","items":["Germany"],"not":true}']
     ];
     for (const [given, meant] of cases) {
         const r = await run([...SUM_BY_COUNTRY, "--filter", given], { cwd: dir });
@@ -138,6 +178,24 @@ test("a comparison or a negation in the short form is refused with the JSON filt
         const json = await run([...SUM_BY_COUNTRY, "--filter", meant], { cwd: dir });
         assert.equal(json.code, 0, `${meant}: ${json.stderr}`);
     }
+});
+
+test("the JSON filter meant is whole for long names; a very long one points to the reference", async () => {
+    const dir = files();
+    const long = "G".repeat(80);
+    const r = await run([...SUM_BY_COUNTRY, "--filter", `Country!=${long}`], { cwd: dir });
+    assert.equal(r.code, 2);
+    assert.ok(r.stderr.includes(JSON.stringify({ field: "Country", type: "in", items: [long], not: true })), r.stderr);
+    const huge = await run([...SUM_BY_COUNTRY, "--filter", `Country!=${"G".repeat(300)}`], { cwd: dir });
+    assert.equal(huge.code, 2);
+    assert.match(huge.stderr, /the short form keeps one item: Field=Item\. For this filter give JSON as a view writes it: see https:\/\/pivotkit\.eize\.dev\/reference\/cli\/#layout-flags/);
+});
+
+test("a field name that starts with { or [ takes the JSON path, and its error says so", async () => {
+    const dir = files();
+    const r = await run([...SUM_BY_COUNTRY, "--filter", "[Q]=1"], { cwd: dir });
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /--filter: not JSON.*; a field name that starts with \{ or \[ needs a JSON filter/);
 });
 
 test("an aggregator of another tool gets the name pivotkit uses: avg is average", async () => {

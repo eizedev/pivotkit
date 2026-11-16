@@ -261,9 +261,7 @@ export async function main(argv, io) {
                         continue;
                     }
                     printed++;
-                    // a message that names the suggestion itself (itemCase) gets no second "did you mean"
-                    const hint = f.suggestion && !String(f.message).includes("did you mean") ? ` (did you mean "${f.suggestion}"?)` : "";
-                    say(`${f.severity} ${f.code}${f.path ? ` at ${f.path}` : ""}: ${f.message}${hint}`);
+                    say(`${f.severity} ${f.code}${f.path ? ` at ${f.path}` : ""}: ${f.message}${f.suggestion ? ` (did you mean "${f.suggestion}"?)` : ""}`);
                     for (const line of f.details ?? []) {
                         say(`  ${line}`);
                     }
