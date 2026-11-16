@@ -409,7 +409,9 @@ const VERSION_STATEMENTS = [
     { file: "docs/compare.md", pattern: /^\| \*\*pivotkit\*\* \| [^|]+ \| (\d+\.\d+\.\d+) on \d{4}-\d{2}-\d{2} \|/m, pkg: "pivotkit-core" },
     { file: "docs/reference/view-file.md", pattern: /"generator": \{ "name": "pivotkit-react", "version": "(\d+\.\d+\.\d+)" \}/, pkg: "pivotkit-react" },
     // the official plugins table: the pivotkit-core version pivotkit-xlsx needs (its caret range on core)
-    { file: "docs/reference/plugins.md", pattern: /^\| <span id="pivotkit-xlsx"><\/span>.*\| (\d+\.\d+(?:\.\d+)?) \(plugin API \d+\) \|$/m, pkg: "pivotkit-core" }
+    { file: "docs/reference/plugins.md", pattern: /^\| <span id="pivotkit-xlsx"><\/span>.*\| (\d+\.\d+(?:\.\d+)?) \(plugin API \d+\) \|$/m, pkg: "pivotkit-core" },
+    // the image the "Server in 5 minutes" commands start, copied as they are (its tag is pivotkit-server's version)
+    { file: "docs/getting-started/server-in-5-minutes.md", pattern: /ghcr\.io\/eizedev\/pivotkit:(\d+\.\d+\.\d+)/, pkg: "pivotkit-server" }
 ];
 const minorOf = (version) => version.split(".").slice(0, 2).join(".");
 

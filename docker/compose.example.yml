@@ -1,7 +1,9 @@
-# An example for Docker Compose (docs/reference/container.md): the REST service and the MCP server
-# on 127.0.0.1:3333, data read-only, reports in a volume, tokens as secrets (not environment
-# variables, which `docker inspect` shows; the files must be readable by the user 10001, e.g.
-# chown 10001 secrets/* with chmod 0400, or chmod 0644 without root). Set PIVOTKIT_VERSION to a release of pivotkit-server.
+# An example for Docker Compose (docs/getting-started/server-in-5-minutes.md): the REST service and the
+# MCP server on 127.0.0.1:3333, data read-only, the token and keys the server makes at its first start
+# and the reports in the volume pivotkit. Read the token with:
+#   docker compose exec pivotkit pivotkit-server token show admin
+# Tokens of your own as secret files instead: compose.secrets.example.yml. Set PIVOTKIT_VERSION to a
+# release of pivotkit-server.
 services:
   pivotkit:
     image: ghcr.io/eizedev/pivotkit:${PIVOTKIT_VERSION:?set PIVOTKIT_VERSION to a pivotkit-server release, e.g. 0.2.0}
@@ -14,34 +16,15 @@ services:
     volumes:
       - ./data:/data:ro
       - ./pivotkit.json:/config/pivotkit.json:ro
-      - pivotkit-out:/out
-    secrets: [pivotkit_token, pivotkit_export_token]
+      - pivotkit:/var/lib/pivotkit
     stop_grace_period: 30s
     # the log is JSON lines on stderr (the image sets PIVOTKIT_LOG_FORMAT=json): keep it bounded
-    # locally, or send it to a log server with one of the commented drivers instead
-    # (docs/reference/operations.md); map pivotkit's own "level" there, not the driver's
+    # locally, or send it to a log server (docs/reference/operations.md, compose.secrets.example.yml)
     logging:
       driver: local
       options:
         max-size: "10m"
         max-file: "5"
-    # logging:
-    #   driver: gelf
-    #   options:
-    #     gelf-address: "udp://graylog.example.com:12201"
-    #     tag: "pivotkit"
-    # logging:
-    #   driver: syslog
-    #   options:
-    #     syslog-address: "tcp+tls://logs.example.com:6514"
-    #     syslog-format: "rfc5424"
-    #     tag: "pivotkit"
 
 volumes:
-  pivotkit-out: {}
-
-secrets:
-  pivotkit_token:
-    file: ./secrets/pivotkit_token
-  pivotkit_export_token:
-    file: ./secrets/pivotkit_export_token
+  pivotkit: {}

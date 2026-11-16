@@ -124,9 +124,11 @@ test("options: params, ttl, maxStale and timeMs belong to a code source; a field
     assert.throws(() => validateOptions({ sources: { s: { file, ttl: 1 } } }), ConfigError);
 });
 
-test("options: the docker example configuration still validates", () => {
-    const example = JSON.parse(readFileSync(new URL("../../../docker/pivotkit.example.json", import.meta.url), "utf8"));
-    assert.ok(validateOptions(example));
+test("options: the docker example configurations still validate", () => {
+    for (const name of ["pivotkit.example.json", "pivotkit.secrets.example.json"]) {
+        const example = JSON.parse(readFileSync(new URL(`../../../docker/${name}`, import.meta.url), "utf8"));
+        assert.ok(validateOptions(example), name);
+    }
 });
 
 test("check sections: each section's items in its order; problems first under the verdict, then the warnings named by their heading, New in this version in one line", async () => {

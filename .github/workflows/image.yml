@@ -2,8 +2,9 @@ name: Container image
 
 # The container image ghcr.io/eizedev/pivotkit (docker/Dockerfile): the REST service, the MCP server
 # and the command line. Every pull request that touches what goes into it builds it for linux/amd64
-# and runs it as an operator would (read-only, non-root, no capabilities, a token from a secret file);
-# nothing is pushed. A tag pivotkit-server@<version> builds it for linux/amd64 and linux/arm64, pushes
+# and runs it as an operator would (read-only, non-root, no capabilities): started without any
+# configuration (the token made at the first start), with tokens from secret files, and with the
+# Compose example; nothing is pushed. A tag pivotkit-server@<version> builds it for linux/amd64 and linux/arm64, pushes
 # it as <version> and <major>.<minor> with a provenance and an SBOM attestation, and signs it with
 # cosign (keyless, the workflow's OIDC identity), but only after the maintainer has
 #   1. checked, after the first publishing run created ghcr.io/eizedev/pivotkit, that the package is
@@ -11,8 +12,8 @@ name: Container image
 #   2. set the repository variable IMAGE_RELEASE_ENABLED to "true".
 # See CONTRIBUTING.md, "Releasing".
 on:
+  # every base branch: a pull request stacked on another one is tested too
   pull_request:
-    branches: ["main"]
     paths:
       - "docker/**"
       - ".dockerignore"
@@ -53,9 +54,102 @@ jobs:
           load: true
           push: false
           tags: pivotkit:test
-      - name: Run it as an operator would
+      - name: The command on the PATH
+        # distroless has no shell and no /usr/bin/env: the launcher names /nodejs/bin/node
+        run: |
+          set -eu
+          docker run --rm --entrypoint /nodejs/bin/node pivotkit:test -e "process.exit(require('fs').existsSync('/usr/bin/env') ? 1 : 0)"
+          docker inspect --format '{{json .Config.Env}}' pivotkit:test | grep -q '/usr/local/bin'
+          docker run --rm --entrypoint pivotkit-server pivotkit:test --version | grep -q '^pivotkit-server '
+          docker run --rm --entrypoint pivotkit-server pivotkit:test token new | grep -Eq '^[A-Za-z0-9_-]{43}$'
+          # the state directory: the image's user's only
+          docker run --rm --entrypoint /nodejs/bin/node pivotkit:test -e "const s=require('fs').statSync('/var/lib/pivotkit');if((s.mode&0o777)!==0o700||s.uid!==10001)process.exit(1)"
+      - name: First start without any configuration
+        # the built-in example configuration; the token "admin" and the download key made in the
+        # state volume; read with token show; the same after a restart; never on the log
+        run: |
+          set -eu
+          wait_healthy() {
+            for i in $(seq 1 30); do
+              test "$(docker inspect --format '{{.State.Health.Status}}' "$1")" = "healthy" && return 0
+              sleep 2
+            done
+            docker logs "$1"; return 1
+          }
+          docker volume create pk-state
+          docker run -d --name pk --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+            -p 127.0.0.1:3334:3333 -v pk-state:/var/lib/pivotkit pivotkit:test
+          wait_healthy pk
+          token="$(docker exec pk pivotkit-server token show admin)"
+          test "${#token}" -eq 43
+          api=http://localhost:3334/api/v1
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$api/sources")" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "authorization: Bearer $token" "$api/sources")" = "200"
+          curl -fsS -H "authorization: Bearer $token" "$api/sources" | grep -q '"id":"example"'
+          curl -fsS -H "authorization: Bearer $token" -H 'content-type: application/json' \
+            -d '{"source":"example","view":{"rows":["Region"],"values":[{"field":"Revenue","agg":"sum"}]},"format":"xlsx"}' \
+            "$api/views/render" | grep -q '"ok":true'
+          curl -fsS -H "authorization: Bearer $token" -H 'content-type: application/json' \
+            -d '{"source":"example","view":{"rows":["Region"],"values":[{"agg":"count"}]},"format":"csv"}' \
+            "$api/views/render/file" | grep -q West
+          mcp=http://localhost:3334/mcp
+          init='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d "$init" "$mcp")" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "authorization: Bearer $token" -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d "$init" "$mcp")" = "200"
+          docker logs pk 2>&1 | grep -q 'created the token \\"admin\\"'
+          docker logs pk 2>&1 | grep -q 'read it with: docker exec'
+          if docker logs pk 2>&1 | grep -qF "$token"; then echo "the token is on the log"; exit 1; fi
+          # the token's file: 0600, the image's user's
+          docker run --rm -v pk-state:/state --entrypoint /nodejs/bin/node pivotkit:test -e "const fs=require('fs');const f=fs.statSync('/state/secrets/admin.token');const d=fs.statSync('/state/secrets');if((f.mode&0o777)!==0o600||f.uid!==10001||(d.mode&0o777)!==0o700)process.exit(1)"
+          # a restart keeps it
+          docker restart pk
+          wait_healthy pk
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "authorization: Bearer $token" "$api/sources")" = "200"
+          test "$(docker exec pk pivotkit-server token show admin)" = "$token"
+          if docker logs pk 2>&1 | grep -c 'created the token' | grep -qv '^1$'; then echo "made twice"; exit 1; fi
+          docker rm -f pk
+          # two containers starting on one new volume get one token, and both take it
+          docker volume create pk-race
+          for n in r1 r2; do docker run -d --name "$n" --read-only --tmpfs /tmp -v pk-race:/var/lib/pivotkit pivotkit:test; done
+          wait_healthy r1
+          wait_healthy r2
+          raced="$(docker exec r1 pivotkit-server token show admin)"
+          test "$(docker exec r2 pivotkit-server token show admin)" = "$raced"
+          for n in r1 r2; do
+            docker exec "$n" /nodejs/bin/node -e "fetch('http://127.0.0.1:3333/api/v1/sources',{headers:{authorization:'Bearer '+process.argv.at(-1)}}).then(r=>process.exit(r.status===200?0:1),()=>process.exit(1))" "$raced"
+          done
+          docker rm -f r1 r2
+      - name: What a start refuses
+        run: |
+          set -eu
+          work="$RUNNER_TEMP/refused"
+          mkdir -p "$work/stray" "$work/explicit"
+          # without a configuration and without a state directory: auth none on every address is refused
+          if docker run --rm -e PIVOTKIT_STATE_DIR= -e PIVOTKIT_CONFIG= pivotkit:test 2> "$work/open.txt"; then exit 1; fi
+          grep -q "needs --auth token or oauth" "$work/open.txt"
+          # read-only without a state volume: no token can be made, the start names the volume and never listens
+          if docker run --rm --read-only --tmpfs /tmp pivotkit:test 2> "$work/ro.txt"; then exit 1; fi
+          grep -q "mount a writable volume at /var/lib/pivotkit" "$work/ro.txt"
+          if grep -q '"started"' "$work/ro.txt"; then exit 1; fi
+          # a /config with a misnamed file is not served as the example: the file is named
+          echo '{}' > "$work/stray/pivotkit.jsn"
+          if docker run --rm -v "$work/stray:/config:ro" -v pk-state:/var/lib/pivotkit pivotkit:test 2> "$work/stray.txt"; then exit 1; fi
+          grep -q "pivotkit.jsn" "$work/stray.txt"
+          # a token file without create: true is never made
+          echo '{"auth":{"mode":"token","tokens":[{"name":"mine","file":"/var/lib/pivotkit/mine.token"}]}}' > "$work/explicit/pivotkit.json"
+          chmod 0644 "$work/explicit/pivotkit.json"
+          if docker run --rm -v "$work/explicit:/config:ro" -v pk-state:/var/lib/pivotkit pivotkit:test 2> "$work/explicit.txt"; then exit 1; fi
+          grep -q 'the token \\"mine\\"' "$work/explicit.txt"
+          docker run --rm -v pk-state:/state --entrypoint /nodejs/bin/node pivotkit:test -e "process.exit(require('fs').existsSync('/state/mine.token') ? 1 : 0)"
+          # without --read-only and without a volume the state lies on the container's layer: a warning
+          docker run -d --name pk-layer pivotkit:test
+          for i in $(seq 1 30); do docker logs pk-layer 2>&1 | grep -q '"started"' && break; sleep 1; done
+          docker logs pk-layer 2>&1 | grep -q "lost when the container is removed"
+          docker rm -f pk-layer
+      - name: Run it as an operator would, with tokens of your own
         # read-only root, /tmp in memory, no capabilities, no new privileges, the image's own user,
-        # the token from a secret file, data read-only, reports in a volume
+        # the tokens from secret files (docker/pivotkit.secrets.example.json), data read-only,
+        # reports in a volume
         run: |
           set -eu
           work="$RUNNER_TEMP/pivotkit"
@@ -66,14 +160,14 @@ jobs:
           docker run --rm --read-only --cap-drop ALL pivotkit:test token new > "$work/secrets/pivotkit_export_token"
           test "$(wc -c < "$work/secrets/pivotkit_token")" -eq 44
           chmod 0644 "$work/secrets/"*
-          cp docker/pivotkit.example.json "$work/pivotkit.json"
+          cp docker/pivotkit.secrets.example.json "$work/pivotkit.json"
           docker volume create pivotkit-out
           docker run -d --name pivotkit --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
             -p 127.0.0.1:3333:3333 \
             -v "$work/data:/data:ro" -v "$work/pivotkit.json:/config/pivotkit.json:ro" \
             -v "$work/secrets/pivotkit_token:/run/secrets/pivotkit_token:ro" \
             -v "$work/secrets/pivotkit_export_token:/run/secrets/pivotkit_export_token:ro" \
-            -v pivotkit-out:/out pivotkit:test
+            -v pivotkit-out:/out -v pivotkit-keys:/var/lib/pivotkit pivotkit:test
           for i in $(seq 1 30); do
             status="$(docker inspect --format '{{.State.Health.Status}}' pivotkit)"
             test "$status" = "healthy" && break
@@ -98,17 +192,39 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{}' http://localhost:3333/mcp)" = "401"
           curl -fsS http://localhost:3333/readyz | grep -q '"ok":true'
           # token show inside the running container gives the value the server reads (the docs' kubectl exec line)
-          test "$(docker exec pivotkit /nodejs/bin/node /app/packages/pivotkit-server/bin/pivotkit-server.js token show reports)" = "$token"
+          test "$(docker exec pivotkit pivotkit-server token show reports)" = "$token"
+          # the configuration names its tokens: no token admin is made
+          if docker logs pivotkit 2>&1 | grep -q 'created the token'; then exit 1; fi
           # the report was written to the volume by the image's user
           docker run --rm -v pivotkit-out:/out --entrypoint /nodejs/bin/node pivotkit:test -e "const f=require('fs').readdirSync('/out');console.log(f);if(!f.some(n=>n.endsWith('.xlsx')))process.exit(1)"
-          # without a configuration (auth none) on every address it refuses to start, and says why
-          if docker run --rm -e PIVOTKIT_CONFIG= pivotkit:test 2> "$work/refused.txt"; then exit 1; fi
-          grep -q "needs --auth token or oauth" "$work/refused.txt"
           docker run --rm pivotkit:test cli --version
           docker run --rm pivotkit:test mcp --version
           docker run --rm --read-only -v "$work/data:/data:ro" pivotkit:test cli describe /data/sales.csv | grep -q Region
           docker stop --time 30 pivotkit
           test "$(docker inspect --format '{{.State.ExitCode}}' pivotkit)" = "0"
+          docker rm pivotkit
+      - name: The Compose example
+        # docker/compose.example.yml and docker/pivotkit.example.json as the docs use them: the image
+        # tagged as the example names it, the token read with docker compose exec
+        run: |
+          set -eu
+          work="$RUNNER_TEMP/compose"
+          mkdir -p "$work/data"
+          cp docker/compose.example.yml "$work/compose.yml"
+          cp docker/pivotkit.example.json "$work/pivotkit.json"
+          chmod 0644 "$work/pivotkit.json"
+          printf 'Region,Product,Sales\nNorth,A,10\nSouth,B,20\n' > "$work/data/sales.csv"
+          docker tag pivotkit:test ghcr.io/eizedev/pivotkit:ci
+          cd "$work"
+          export PIVOTKIT_VERSION=ci
+          docker compose up -d --wait || { docker compose logs; exit 1; }
+          token="$(docker compose exec -T pivotkit pivotkit-server token show admin)"
+          test "${#token}" -eq 43
+          curl -fsS -H "authorization: Bearer $token" http://localhost:3333/api/v1/sources | grep -q '"id":"sales"'
+          curl -fsS -H "authorization: Bearer $token" -H 'content-type: application/json' \
+            -d '{"source":"sales","view":{"rows":["Region"],"values":[{"agg":"count"}]},"format":"csv"}' \
+            http://localhost:3333/api/v1/views/render | grep -q '"ok":true'
+          docker compose down
 
   publish:
     if: github.event_name == 'push' && vars.IMAGE_RELEASE_ENABLED == 'true'

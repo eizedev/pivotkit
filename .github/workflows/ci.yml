@@ -3,8 +3,8 @@ name: CI
 on:
   push:
     branches: ["main"]
+  # every base branch: a pull request stacked on another one is tested too
   pull_request:
-    branches: ["main"]
 
 permissions:
   contents: read

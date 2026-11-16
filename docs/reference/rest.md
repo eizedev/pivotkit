@@ -700,6 +700,7 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 | `--if-missing` | Keep a file that is there and exit 0, if it holds a value the server can use (else 1); its mode is set to 0600 again when it is yours. Several runs at once end with one value |
 | `--force` | Replace a file that is there, atomically. Clients that still send the old token get 401 from then on; the server reads a token's file on every request and the download key within a second, so neither needs a restart |
 | `--config <file>` | `token new`: check `--profile` against `policy.profiles`, refuse a file inside `output.dir`, and use `http.publicUrl` in the hints. `token new` and `key new` read no configuration without it, not even `$PIVOTKIT_CONFIG`; `token show` reads `$PIVOTKIT_CONFIG` by default |
+| `--state-dir <dir>` | `token show`: the server's [state directory](#first-start) (default `$PIVOTKIT_STATE_DIR`), so `token show admin` prints the token the server made at its first start, without a configuration; before that start it exits 1 (`NOT_CREATED`) and makes nothing. `token show token` prints `$PIVOTKIT_TOKEN` where the server uses it |
 | `--add` | `token new`: add `{ "name", "file", "scopes", "profile" }` to `auth.tokens` of `--config` (and `auth.mode` `"token"` when the file sets none, with a warning). Once `auth.tokens` lists a token, `$PIVOTKIT_TOKEN` is no longer read: the first `--add` warns that its clients need a token of the list. The new configuration is checked first; a name that is there, an unknown profile, `auth.mode` `none` or `oauth`, and a configuration that is a symbolic link or in a directory that cannot be written are refused before anything is written. The old file is kept as `<file>.bak` (`.bak.1`, ... when that exists), the indentation and the file's mode stay; the token's file is written relative to the configuration when it lies below it. Restart the server: it reads the list of tokens at start |
 | `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
 | `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
@@ -715,6 +716,40 @@ On Windows the mode does not apply: the file takes the permissions of its folder
 account, in PowerShell: `icacls secrets\reports.token /inheritance:r /grant:r "${env:USERNAME}:F"`
 (full control for you alone, so `--force` can still replace it). The server's account needs read
 access too when it is another one.
+
+### Made at the first start { #first-start }
+
+With a state directory (`--state-dir <dir>` or `$PIVOTKIT_STATE_DIR`; the [container image](container.md)
+sets `/var/lib/pivotkit`) the server makes what is missing there when it starts over HTTP, so a start
+without any setup has a token and links that survive a restart:
+
+| What | Where | When |
+| --- | --- | --- |
+| `auth.mode` `"token"` | | `auth.mode` is not set, the address is not loopback and `auth.allowUnauthenticated` is not set (such a start is refused without a state directory) |
+| The token `admin` (every scope, no profile) | `<dir>/secrets/admin.token` | `auth.mode` is `"token"`, `auth.tokens` is empty and `$PIVOTKIT_TOKEN` (pivotkit-mcp: `$PIVOTKIT_MCP_TOKEN`) is not set |
+| The key of the [download links](delivery.md) | `<dir>/secrets/downloads.key` | Links are on and `output.downloads.key` is not set |
+| The [audit](mcp.md#logging) key | `<dir>/secrets/audit.key` | `audit.subject` is `"hash"` and `audit.key` is not set |
+
+The server never makes the state directory itself, only `secrets/` (mode 0700) in it; each file is
+one line with mode 0600. A file that is there is read and never written. The start logs
+`created the token "admin" in <path>` once, and at every start the command that prints it
+(`docker exec <container> pivotkit-server token show admin`, `kubectl exec`, or
+`pivotkit-server token show admin --state-dir <dir>`); never the value. When the token cannot be
+made (the directory is read-only or missing), the start is refused; it never serves without auth
+instead. A key that cannot be made is a warning, and the key is a random one per process. Over stdio
+nothing is made. `check-config` says under `Credentials` whether each file is there, will be made, or
+cannot be, and makes nothing.
+
+Several processes that start at once on one directory end with one value each (the first one's).
+Run one replica, or several on one shared volume; replicas with a volume each would each make their
+own token. `output.dir` may not be the state directory or hold its `secrets/`.
+
+`"create": true` on a file reference asks for the same where you name the file:
+`auth.tokens[]` (`{ "name": "bot", "file": "bot.token", "create": true }`), `output.downloads.key`
+and `audit.key` (`{ "file": "download.key", "create": true }`). The file is made where it is missing,
+also without a state directory; its directory must be there. `create` with `env` is refused (pivotkit
+cannot set a variable), and so is `create` on a secret another system issues (a sign-in's
+`clientSecret`, a backend's header or client secret).
 
 ## Logging { #logging }
 

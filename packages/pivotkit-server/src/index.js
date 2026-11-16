@@ -25,7 +25,7 @@ export { offeredScopes } from "./scopes.js";
 export { INLINE_ID, MCP_DATA_CAP, REST_DATA_BYTES, inlineLogFields } from "./sources/inline.js";
 export { readSecret, secretFileWarning, SecretError } from "./secrets.js";
 export { SECRET_REF, CREATABLE_SECRET_REF } from "./options/shared.js";
-export { prepareHttpServe, logNotes, planState, stateDirOf, configFrom, builtInConfig, tokenShowHint, IMAGE_PATHS, STATE_ENV, DEFAULT_TOKEN_NAME } from "./state.js";
+export { prepareHttpServe, logNotes, openAddressRefusal, planState, stateDirOf, configFrom, builtInConfig, tokenShowHint, IMAGE_PATHS, STATE_ENV, DEFAULT_TOKEN_NAME } from "./state.js";
 export { checkConfig } from "./check.js";
 export { createDownloadHandler, linksOf, DOWNLOADS_PATH, CALLBACK_PATH, DOWNLOAD_BODY_BYTES } from "./downloads.js";
 export { OperationError } from "pivotkit-report/operations";

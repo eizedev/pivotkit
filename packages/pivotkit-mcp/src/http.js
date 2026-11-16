@@ -17,7 +17,7 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
-import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, callerOf, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, prepareHttpServe, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
+import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, callerOf, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
 import { MCP_TOKEN_ENV, createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
 import { quickStartPage } from "./page.js";
@@ -371,7 +371,7 @@ export async function listen(given, runtime) {
     const port = given.http?.port ?? DEFAULT_PORT;
     const { options, notes } = await prepareHttpServe(given, { env: runtime.env, host, tokenEnv: MCP_TOKEN_ENV, stateDir: runtime.stateDir });
     if (!isLoopback(host) && (options.auth?.mode ?? "none") === "none" && !options.auth?.allowUnauthenticated) {
-        throw new ConfigError(`--host ${host}: an address other than loopback needs --auth token or oauth (or --allow-unauthenticated for a network you trust)`);
+        throw new ConfigError(openAddressRefusal(host));
     }
     const context = await createMcpContext(options, { showPaths: false, stderr: runtime.stderr, env: runtime.env });
     logNotes(context.log, notes);

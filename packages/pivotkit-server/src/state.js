@@ -46,6 +46,13 @@ export const STATE_ENV = "PIVOTKIT_STATE_DIR";
  */
 export const IMAGE_PATHS = Object.freeze({ config: "/config/pivotkit.json", stateDir: "/var/lib/pivotkit", example: "/app/examples/sales.csv", data: "/data" });
 
+/**
+ * Why a start on an open address without auth is refused (serve() and pivotkit-mcp's listen()), with
+ * what makes it start.
+ * @param {string} host
+ */
+export const openAddressRefusal = (host) => `--host ${host}: an address other than loopback needs --auth token or oauth (or --allow-unauthenticated for a network you trust); with --state-dir or $${STATE_ENV} the server makes a token itself`;
+
 /** The name of the token the state directory holds when auth needs one and none is given. */
 export const DEFAULT_TOKEN_NAME = "admin";
 

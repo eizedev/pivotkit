@@ -38,6 +38,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- `--state-dir` (`$PIVOTKIT_STATE_DIR`): with `--http` off loopback and no token, the server makes the
+  token `admin` there at its first start instead of refusing, and keeps the download links' key and
+  the audit key there; over stdio nothing is made
+  ([made at the first start](https://pivotkit.eize.dev/reference/rest/#first-start)). Needs
+  pivotkit-server 0.2.0 (`prepareHttpServe`).
 - `--help` names where a token for `--auth token` comes from: `npx -y pivotkit-server token new`
   ([tokens and keys](https://pivotkit.eize.dev/reference/rest/#credentials)).
 - `render_view` takes `save: false`: the csv or json result comes back inline only, with no file,

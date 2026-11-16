@@ -11,6 +11,8 @@ fields of your data (by default names, types and counts, no values) and never re
 See the [reference](../reference/mcp.md) for every tool and setting.
 
 Node 22 or later. A client starts the server itself (stdio), or connects to one that runs (HTTP).
+Without Node, [Server in 5 minutes](server-in-5-minutes.md) starts the container image, the MCP
+endpoint with a token it makes itself, with one command.
 
 ## 1. Your data and a folder for the reports
 
@@ -151,8 +153,10 @@ cloud assistant less than a model on your own hardware ([per client](../model-da
 To serve programs too, run `pivotkit-server serve --config pivotkit-mcp.json --auth token` (with
 `pivotkit-mcp` installed beside it) instead: the same `/mcp` endpoint and the
 [REST service](rest.md) at `/api/v1` on one port, also as a [container image](../reference/container.md)
-and [on Kubernetes](kubernetes.md).
-Its one static token is `$PIVOTKIT_TOKEN`.
+([in 5 minutes](server-in-5-minutes.md)) and [on Kubernetes](kubernetes.md).
+Its one static token is `$PIVOTKIT_TOKEN`. With `--state-dir <dir>` (or `$PIVOTKIT_STATE_DIR`), either
+server makes a token of its own there when none is given and it listens off loopback, and keeps the
+download links' key there ([tokens made at the first start](../reference/rest.md#first-start)).
 
 ## PowerShell Universal { #psu }
 

@@ -1,15 +1,7 @@
 {
   "sources": {
-    "sales": { "file": "/data/sales.csv", "title": "Sales", "policy": { "fields": { "Region": "show", "Product": "show", "Customer": "hide" } } }
+    "sales": { "file": "/data/sales.csv", "title": "Sales" }
   },
-  "output": { "dir": "/out", "maxAgeDays": 7 },
-  "auth": {
-    "mode": "token",
-    "tokens": [
-      { "name": "reports", "file": "/run/secrets/pivotkit_token" },
-      { "name": "exports", "file": "/run/secrets/pivotkit_export_token", "profile": "export" }
-    ]
-  },
-  "policy": { "profiles": { "export": { "results": true } } },
+  "output": { "dir": "/var/lib/pivotkit/out" },
   "http": { "allowHosts": ["pivotkit"] }
 }

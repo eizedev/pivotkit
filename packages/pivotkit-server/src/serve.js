@@ -22,7 +22,7 @@ import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { problem } from "./rest/problem.js";
 import { logUnanswered, noteAnswered, refusalReason, startFields } from "./log.js";
 import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
-import { logNotes, prepareHttpServe } from "./state.js";
+import { logNotes, openAddressRefusal, prepareHttpServe } from "./state.js";
 
 /** The default port. */
 export const DEFAULT_PORT = 3333;
@@ -253,7 +253,7 @@ export async function serve(given, runtime) {
     const port = given.http?.port ?? DEFAULT_PORT;
     const { options, notes } = await prepareHttpServe(given, { env: runtime.env, host, tokenEnv: TOKEN_ENV, stateDir: runtime.stateDir });
     if (!isLoopback(host) && (options.auth?.mode ?? "none") === "none" && !options.auth?.allowUnauthenticated) {
-        throw new ConfigError(`--host ${host}: an address other than loopback needs --auth token or oauth (or --allow-unauthenticated for a network you trust)`);
+        throw new ConfigError(openAddressRefusal(host));
     }
     const handler = await createServerHandler(options, { env: runtime.env, stderr: runtime.stderr, loopback: isLoopback(host) });
     logNotes(handler.context.log, notes);
