@@ -254,7 +254,10 @@ export function barExtent(series) {
         let up = 0;
         let down = 0;
         for (const s of bars) {
-            const v = s.data?.[i];
+            // toEChartsOption writes a bar's value as a number (or null); an item object, as ECharts
+            // also takes it, is read by its value
+            const item = s.data?.[i];
+            const v = item !== null && typeof item === "object" ? item.value : item;
             if (typeof v !== "number") continue;
             if (stacked) {
                 if (v > 0) up += v;

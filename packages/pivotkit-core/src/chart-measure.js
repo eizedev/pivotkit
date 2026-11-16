@@ -11,14 +11,17 @@ import { CHART_GRID, DEFAULT_THEME } from "./defaults.js";
 const CHAR_WIDTH = 0.55;
 /** Width of a capital letter (A to Z), estimated. */
 const CAPITAL_WIDTH = 0.7;
-/** Width of a CJK or fullwidth character: a whole em. */
+/** Width of a CJK or fullwidth character or an emoji: a whole em. */
 const WIDE_WIDTH = 1;
-/** Hangul, CJK (with kana and the CJK symbols), CJK compatibility and the fullwidth forms. */
-const WIDE = /[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦]/u;
+/**
+ * Hangul, CJK (with kana and the CJK symbols), CJK compatibility, the fullwidth forms, the CJK
+ * extensions B to G (planes 2 and 3) and emoji.
+ */
+const WIDE = /[\u{1100}-\u{115f}\u{2e80}-\u{a4cf}\u{ac00}-\u{d7a3}\u{f900}-\u{faff}\u{fe30}-\u{fe4f}\u{ff00}-\u{ff60}\u{ffe0}-\u{ffe6}\u{20000}-\u{3ffff}\p{Extended_Pictographic}]/u;
 
 /**
- * Width (px) of a text at `fontSize` px, estimated per character: a whole em for CJK and fullwidth
- * characters, 0.7 em for a capital letter, 0.55 em for the others.
+ * Width (px) of a text at `fontSize` px, estimated per character: a whole em for CJK, fullwidth
+ * characters and emoji, 0.7 em for a capital letter, 0.55 em for the others.
  * @param {unknown} text
  * @param {number} fontSize
  */

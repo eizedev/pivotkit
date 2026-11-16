@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { DEFAULT_THEME, computePivot, encode, toEChartsOption } from "pivotkit-core";
 import { CATEGORY_LABEL_WIDTH, categoryLabelLayout, decorateOption, rowLabelInterval } from "pivotkit-core/chart";
 // the layout's internal parts: "pivotkit-core/chart" does not export them
-import { PIE_MIN_SCALE, pieLabelFit, valueLabelRoom } from "../src/chart-fit.js";
+import { PIE_MIN_SCALE, barExtent, pieLabelFit, valueLabelRoom } from "../src/chart-fit.js";
 import { heatmapFrame, textWidth } from "../src/chart-measure.js";
 
 const NO_TOKENS = { getPropertyValue: () => "" };
@@ -163,7 +163,7 @@ test("#229 with a legend each side writes as many labels as its height holds, th
     assert.ok(on.series[0].data.some((d) => d.label?.show === false));
 });
 
-test("#3 CJK and fullwidth names count a whole em: they slant where Latin names of their length would not", () => {
+test("CJK and fullwidth names count a whole em: they slant where Latin names of their length would not", () => {
     const names = ["東京都千代田区丸の内", "大阪府大阪市北区梅田", "愛知県名古屋市中村区"];
     // three slots of 120 px: 10 characters at 14 px take 140 px (77 px at the Latin average)
     assert.equal(textWidth(names[0], 14), 140);
@@ -171,6 +171,15 @@ test("#3 CJK and fullwidth names count a whole em: they slant where Latin names 
     assert.equal(categoryLabelLayout(["abcdefghij", "abcdefghij", "abcdefghij"], { width: 80 + 3 * 120, height: 400 }).rotate, 0);
     // capitals weigh more than small letters
     assert.ok(textWidth("WWWW", 14) > textWidth("wwww", 14));
+    // CJK extension B (plane 2) and emoji: a whole em each, one character though two UTF-16 units
+    assert.equal(textWidth("\u{2000b}\u{2123d}", 14), 28);
+    assert.equal(textWidth("\u{1f4c8}\u{1f30d}", 14), 28);
+    assert.equal(textWidth("a\u{1f4c8}", 10), 15.5);
+});
+
+test("the extent of horizontal bars reads a value given as an item object too", () => {
+    assert.deepEqual(barExtent([{ type: "bar", data: [3, { value: 9 }, null, { value: -2 }] }]), [-2, 9]);
+    assert.deepEqual(barExtent([{ type: "bar", stack: "s", data: [{ value: 4 }, 1] }, { type: "bar", stack: "s", data: [5, { value: -3 }] }]), [-3, 9]);
 });
 
 test("#230 horizontal bars keep the room of their longest value label on the right", () => {

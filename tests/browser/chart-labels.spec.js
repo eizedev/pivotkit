@@ -274,7 +274,7 @@ for (const theme of ["light", "dark"]) {
                 }
             });
 
-            test("#3 CJK names on the category axis: slanted where they need it, never on top of each other", async ({ page }, testInfo) => {
+            test("CJK names on the category axis: slanted where they need it, never on top of each other", async ({ page }, testInfo) => {
                 const data = ["東京都千代田区丸の内", "大阪府大阪市北区梅田", "愛知県名古屋市中村区", "福岡県福岡市博多区"].map((Place, i) => ({ Place, Visitors: 1200 + i * 350 }));
                 const view = { rows: ["Place"], values: [{ field: "Visitors", agg: "sum" }], display: "chart", chart: { type: "bar" } };
                 const locator = await mount(page, { width, theme, data, view, height: HEIGHT[width] });
