@@ -471,12 +471,18 @@ Their names are letters, digits and `_`.
 - A `pattern` is matched against the whole value, as if written `^(?:...)$`. It may not repeat a
   group (`(a|b)*`, `(ab)+`, `(ab){1,3}`). Repeat a character or a class instead (`[ab]*`), or make
   the group optional (`(-x)?`).
-- Every match of a request runs with a time limit of 75 ms. A match that runs out of time is tried
-  once more, since a busy host can pause a fast one.
-- At start and in `check-config`, each pattern is tried on values made to be slow, with 200 ms per
-  value and the same one retry. A pattern that still takes longer is refused.
-- A value that runs out of time twice is `INVALID_INPUT`: "could not be checked in time; the server
-  may be busy, try again".
+- Every match runs with a time limit of 75 ms. A busy host can pause a fast match, so a match that
+  runs out of time is tried once more in a request.
+- At start and in `check-config`, each pattern is tried on values made to be slow, under the same
+  75 ms. A value that ends in time on one of three tries counts as fast. A pattern that runs out of
+  time on every try, or whose check takes over 1 second in all, is refused. So the start never takes
+  a pattern that requests cannot match.
+- A value that runs out of time twice answers `BUSY` (503, `retryable: true`, `Retry-After: 1`):
+  "params could not be checked in time; the server may be busy, try again". It is the same for a
+  value from a claim.
+- The pattern checks of one request take 150 ms at most, over every parameter and retry. Then the
+  request answers `BUSY` too. This bounds how long one request holds the server's event loop for
+  pattern checks. On a server without sign-in, every caller who reaches it can cause this.
 - A string without `pattern` or `enum` takes letters, digits and `. _ ~ -` only. No string value may
   hold `..` or a control character.
 - `list_sources` lists a source's parameters. The tools that take a source take `params` only when a
@@ -536,7 +542,7 @@ since the same call does not work when tried again.
 | `DATA_MISMATCH` | [Data sent](#data) whose `rowCount` differs from the rows sent |
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source, data sent in the request, or a source with a token exchange or a parameter bound to a claim ([backend sign-in](sources.md#http-claims)) |
-| `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
+| `BUSY`, `TIMEOUT` | No worker free within `queueMs`, or a parameter's pattern [could not be checked in time](#configuration); a call over `timeMs` |
 | `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)). The text is one of pivotkit's fixed texts (not available right now, the backend refused pivotkit's access, not set up correctly), with the source's id and whether trying again may work |
 | `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`); an HTTP source's backend answered 401, 403 or 404 for the values given |
 | `UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload). A fixed text with the request id and whether trying again may work. The report stays in the output directory |

@@ -23,9 +23,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Fixed
 
-- From pivotkit-server: on a busy host, a parameter pattern's time limit no longer refuses fast,
-  valid values and patterns. A timed-out match is tried once more, the limits are 75 ms per request
-  and 200 ms at start ([#528](https://github.com/eizedev/pivotkit/issues/528)).
+- Behaviour change from pivotkit-server: on a busy host, a parameter pattern's time limit no longer
+  refuses fast, valid values and patterns. Matches run under 75 ms with retries. A value that runs
+  out of time twice, or a request whose pattern checks take over 150 ms, answers `BUSY`
+  ([#528](https://github.com/eizedev/pivotkit/issues/528)).
 
 ## [0.2.0] - 2026-11-16
 

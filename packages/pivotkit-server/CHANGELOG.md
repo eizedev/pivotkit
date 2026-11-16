@@ -52,12 +52,17 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
-- On a busy host, a parameter pattern's time limit no longer refuses fast, valid values and
-  patterns. A match that runs out of time is tried once more, in a request as at start. A request's
-  limit is 75 ms instead of 25 ms. The start's and check-config's check of a pattern gets 200 ms.
-  A value that runs out of time twice is refused with "could not be checked in time; the server may
-  be busy, try again", instead of asking for a shorter value
-  ([#528](https://github.com/eizedev/pivotkit/issues/528)).
+- Behaviour change: on a busy host, a parameter pattern's time limit no longer refuses fast, valid
+  values and patterns.
+    - Every match runs under 75 ms instead of 25 ms, in a request as at start, so the start never
+      takes a pattern that requests cannot match.
+    - A request tries a match that ran out of time once more. The start's check tries a value up
+      to three times and counts it as fast if any try ends in time. One pattern's check takes 1
+      second at most, else the pattern counts as slow.
+    - A value that runs out of time twice answers 503 `BUSY` with `retryable: true` and
+      `Retry-After: 1`, also for a value from a claim, instead of `INVALID_INPUT`.
+    - The pattern checks of one request take 150 ms at most in all. Past that the request answers
+      `BUSY` ([#528](https://github.com/eizedev/pivotkit/issues/528)).
 - The drafts' caps count only drafts that still wait for approval. A draft the host approved or
   rejected (another `status`) no longer takes a waiting draft's place in the count of half of
   `output.maxFiles` ([#513](https://github.com/eizedev/pivotkit/issues/513)).

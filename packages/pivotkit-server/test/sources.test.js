@@ -12,7 +12,7 @@ import { errorDetails, newRequestId, requestId, withRequestId } from "../src/req
 import { asOfMembers, asOfSentence, asOfText } from "../src/sources/as-of.js";
 import { INLINE_ID, kindOf } from "../src/sources/index.js";
 import { canonicalJson, tableKeyOf } from "../src/sources/keys.js";
-import { CHECK_MS, MATCH_MS, declaredProblems, matchMeans, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
+import { MATCH_MS, declaredProblems, matchMeans, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
 import { BY_REGION, TOKEN, call, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
@@ -497,31 +497,79 @@ test("a code source with params keeps its data per client and groups too, not on
     }
 });
 
-test("params on a busy host (#528): a timed-out match is tried once more; the start check gets a longer limit than a request; the refusal does not blame the value", () => {
-    // a busy host, simulated: the time limit runs out on the first try of each value, then the match runs
-    const real = matchMeans.run;
-    const limits = [];
-    let tries = 0;
-    matchMeans.run = (re, text, ms) => (limits.push(ms), tries++ % 2 === 0 ? null : re.test(text));
+/** Runs `fn` with matchMeans replaced, then puts the real one back. */
+async function withMatchMeans(means, fn) {
+    const real = { ...matchMeans };
+    Object.assign(matchMeans, means);
     try {
+        return await fn();
+    } finally {
+        Object.assign(matchMeans, real);
+    }
+}
+
+test("params at start (#528, real vm): a pattern too slow for a request's limit is refused, so the start never takes a pattern requests refuse", () => {
+    // about 250 ms on "1" x 63 + "!" even once V8 has compiled it: over MATCH_MS on every try
+    const problems = declaredProblems({ x: { type: "string", pattern: "\\d*\\d*\\d*\\d*\\d*\\d*x", maxLength: 64 } });
+    assert.match(problems.join(), /takes too long on some values \(over 75 ms, a request's limit\)/);
+});
+
+// The tests below replace matchMeans to simulate a busy host deterministically. They cover the retry
+// and budget logic only; the real time limit is covered by the real-vm tests around them.
+
+test("params on a busy host (#528): a fast pattern passes the start and a request when the first try of each value runs out of time", async () => {
+    let tries = 0;
+    await withMatchMeans({ run: (re, text) => (tries++ % 2 === 0 ? null : re.test(text)) }, () => {
         const declared = { team: { type: "string", pattern: "[a-z0-9-]{1,64}" } };
-        // the start check: a fast, valid pattern is not refused
         assert.deepEqual(declaredProblems(declared), []);
-        assert.ok(limits.length > 0 && limits.every((ms) => ms === CHECK_MS), JSON.stringify([...new Set(limits)]));
-        // a request: a valid value is taken, with the request's shorter limit
-        limits.length = 0;
         tries = 0;
         assert.deepEqual({ ...normalizeParams(declared, { team: "blue-7" }, null, "s") }, { team: "blue-7" });
-        assert.deepEqual(limits, [MATCH_MS, MATCH_MS]);
-        // out of time on every try: refused, in words that do not call the value too long or complex
-        matchMeans.run = (re, text, ms) => (limits.push(ms), null);
-        assert.throws(() => normalizeParams(declared, { team: "blue-7" }, null, "s"), (e) => e.code === "INVALID_INPUT" && /could not be checked in time; the server may be busy, try again/.test(e.message) && !/shorter|simpler/.test(e.message));
-    } finally {
-        matchMeans.run = real;
-    }
-    // the limits: generous for a busy host, still short for a slow pattern; the start check's longer
-    assert.ok(MATCH_MS >= 50 && MATCH_MS <= 100, String(MATCH_MS));
-    assert.ok(CHECK_MS > MATCH_MS, String(CHECK_MS));
+    });
+});
+
+test("params on a busy host (#528): the start's check counts a value as fast when any of its three tries ends in time, and a pattern whose check runs past its budget as slow", async () => {
+    const declared = { team: { type: "string", pattern: "[a-z0-9-]{1,64}" } };
+    let tries = 0;
+    await withMatchMeans({ run: (re, text) => (tries++ % 3 < 2 ? null : re.test(text)) }, () => assert.deepEqual(declaredProblems(declared), []));
+    // a clock that moves 400 ms per match: the check of one pattern runs past its budget
+    let clock = 0;
+    await withMatchMeans({ run: (re, text) => ((clock += 400), re.test(text)), now: () => clock }, () => {
+        assert.match(declaredProblems(declared).join(), /team: pattern could not be checked within 1000 ms at start, so it counts as slow/);
+    });
+});
+
+test("params on a busy host (#528): a value that runs out of time twice is BUSY, 503 and retryable, over real HTTP; a claim's value too", async () => {
+    const declared = { team: { type: "string", pattern: "[a-z0-9-]{1,64}" } };
+    // the server starts on a quiet host; the busy one comes after
+    const server = await restServer({ sources: { tickets: { load: async (params) => [{ Team: params.team, Open: 1 }], params: declared } }, auth: { mode: "token" } }, { env: { PIVOTKIT_TOKEN: TOKEN } });
+    await withMatchMeans({ run: () => null }, async () => {
+        assert.throws(() => normalizeParams(declared, { team: "blue-7" }, null, "s"), (e) => e.code === "BUSY" && e.status === 503 && e.details?.retryable === true && e.message === "params could not be checked in time; the server may be busy, try again");
+        const claimed = { team: { type: "string", pattern: "[a-z0-9-]{1,64}", claim: "team" } };
+        assert.throws(() => normalizeParams(claimed, {}, { claims: { team: "blue-7" } }, "s"), (e) => e.code === "BUSY");
+        try {
+            const busy = await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "tickets", params: { team: "blue-7" } } });
+            assert.equal(busy.status, 503, JSON.stringify(busy.data));
+            assert.equal(busy.data.code, "BUSY");
+            assert.equal(busy.data.retryable, true);
+            assert.equal(busy.headers.get("retry-after"), "1");
+            assert.equal(busy.data.detail, "params could not be checked in time; the server may be busy, try again");
+        } finally {
+            await server.close();
+        }
+    });
+});
+
+test("params on a busy host (#528): the pattern checks of one request share a budget; when it runs out the request is BUSY", async () => {
+    // each try takes what it was given (the clock moves by its limit); a try ends in time every second time
+    let clock = 0;
+    const limits = [];
+    let tries = 0;
+    await withMatchMeans({ run: (re, text, ms) => ((clock += ms), limits.push(ms), tries++ % 2 === 0 ? null : re.test(text)), now: () => clock }, () => {
+        const declared = { a: { type: "string", pattern: "[a-z]+" }, b: { type: "string", pattern: "[a-z]+" } };
+        assert.throws(() => normalizeParams(declared, { a: "x", b: "y" }, null, "s"), (e) => e.code === "BUSY" && e.message === "params could not be checked in time; the server may be busy, try again");
+        // a: two tries of 75 ms use the 150 ms; b gets no try
+        assert.deepEqual(limits, [75, 75]);
+    });
 });
 
 test("params: an operator's pattern never runs unbounded: a slow one is refused at start, a slow match at run time", () => {
@@ -536,9 +584,10 @@ test("params: an operator's pattern never runs unbounded: a slow one is refused 
     }
     assert.equal(matchWithin(/^[a-z]+$/u, "abc"), true);
     assert.equal(matchWithin(/^[a-z]+$/u, "ab1"), false);
-    // a declaration that skipped the check (a host's own code): the value is refused, in time
+    // a declaration that skipped the check (a host's own code): the value is refused, in time, as BUSY
+    // (#528: a match that runs out of time twice cannot tell a slow pattern from a busy server)
     const started = Date.now();
-    assert.throws(() => normalizeParams({ x: { type: "string", pattern: "(a|a){1,60}b", maxLength: 64 } }, { x: `${"a".repeat(40)}!` }, null, "s"), (e) => e.code === "INVALID_INPUT" && /could not be checked/.test(e.message));
+    assert.throws(() => normalizeParams({ x: { type: "string", pattern: "(a|a){1,60}b", maxLength: 64 } }, { x: `${"a".repeat(40)}!` }, null, "s"), (e) => e.code === "BUSY" && /could not be checked/.test(e.message));
     assert.ok(Date.now() - started < 1000);
 });
 

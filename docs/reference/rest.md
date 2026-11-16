@@ -121,6 +121,8 @@ A source with parameters takes their values as `params` with its id in a POST bo
   lists the sources)".
 - Where another source declares parameters, a source without them answers `params` with
   `INVALID_INPUT`, for example "the source sales takes no params".
+- A parameter's pattern runs under a time limit. A value it cannot check in time, also on a busy
+  server, answers 503 `BUSY` with `retryable: true` ([the limits](mcp.md#configuration)).
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where:
 
@@ -598,7 +600,8 @@ when, where it is known.
   code source's `SourceError`, or from an HTTP source's backend that answered 400 or 422, or 401,
   403 or 404 for a source with parameters.
 - `UPLOAD_FAILED`: as the store's failure is.
-- 503 `BUSY` for a [large body](#data) while two are read already: `true`.
+- 503 `BUSY` for a [large body](#data) while two are read already, or for a parameter's pattern that
+  could not be checked in time: `true`.
 
 Every other error carries no `retryable`. This includes a limit of a source's settings
 (`LIMIT_EXCEEDED`, `http.maxBytes` or `http.maxPages`).
@@ -636,7 +639,7 @@ Rows go by status, then by code. The answers of the download links come last.
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else. The details are only in the log, with `--log debug` |
 | 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused pivotkit's access, or the source is not set up correctly. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 502 | <a id="error-upload-failed"></a>`UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload) (`retryable` says whether trying again may help); the report stays in the output directory |
-| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, or two [large bodies](#data) read already; starting or stopping; the OAuth issuer not loaded yet |
+| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, or a parameter's pattern not checked in time; starting or stopping; the OAuth issuer not loaded yet |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 | 400, 403, 409, 410, 503 | <a id="error-link-expired"></a>`LINK_EXPIRED`, <a id="error-link-used"></a>`LINK_USED`, <a id="error-link-not-yours"></a>`LINK_NOT_YOURS`, <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED`, <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | Answers of the server's own [download links](delivery.md#answers) (`/downloads/`), not of `/api/v1` |
 

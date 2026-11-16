@@ -75,27 +75,33 @@ export function repeatsGroup(pattern) {
 }
 
 /**
- * The longest an operator's pattern may run on one value of a request, in ms. The limit is wall-clock
+ * The longest an operator's pattern may run on one value, in ms, in a request and in the start's
+ * check alike, so a pattern the start takes is one a request can match. The limit is wall-clock
  * time, so a busy host (another process, a garbage collection) eats into it: a fast pattern takes
- * microseconds, and 75 ms leaves room for such a pause. A slow pattern is still cut within 75 ms, and
- * with the one retry (matchRetried) it holds the server's main thread for at most about 150 ms.
+ * microseconds, and 75 ms leaves room for such a pause.
  */
 export const MATCH_MS = 75;
 
 /**
- * The limit of the start's and check-config's check of a pattern (slowOn), in ms: longer than a
- * request's, since a pattern refused there keeps the server from starting. A slow pattern runs out
- * of time on its first slow value, so the check stays short.
+ * The most time the pattern checks of one request may take in all, in ms, over every parameter and
+ * retry: what one request may hold the server's main thread for. Past it the request is BUSY.
  */
-export const CHECK_MS = 200;
+export const REQUEST_MATCH_MS = 150;
+
+/** How often the start's check tries a value that ran out of time before the pattern counts as slow. */
+const CHECK_TRIES = 3;
+
+/** The most time the start's check of one pattern may take in all, in ms. Past it the pattern counts as slow. */
+export const PATTERN_CHECK_MS = 1000;
 
 /** Where operator patterns run: a context of their own, so the time limit can stop one. */
 const sandbox = createContext(Object.create(null));
 const MATCH = new Script("re.test(text)");
 
 /**
- * How a match runs: `run(re, text, ms)` is true, false or null when it ran out of time. Tests replace
- * it to simulate a busy host; nothing else does.
+ * How a match runs and what time it is. `run(re, text, ms)` is true, false or null when it ran out of
+ * time; `now()` is a monotonic clock in ms. Tests replace them to simulate a busy host; nothing else
+ * does.
  */
 export const matchMeans = {
     /**
@@ -118,7 +124,8 @@ export const matchMeans = {
             sandbox.re = undefined;
             sandbox.text = undefined;
         }
-    }
+    },
+    now: () => performance.now()
 };
 
 /**
@@ -132,40 +139,67 @@ export const matchMeans = {
 export const matchWithin = (re, text, ms = MATCH_MS) => matchMeans.run(re, text, ms);
 
 /**
- * A match that ran out of time, tried once more: null only when both tries ran out. A host busy for a
- * moment does not refuse a value or a pattern that is fast. The request (normalizeParams) and the
- * start's check (slowOn) share this rule.
- * @param {(re: RegExp, text: string) => boolean | null} match
+ * A time budget in ms (Infinity: none), spent by the matches that run under it.
+ * @typedef {{ left: number }} MatchBudget
+ */
+
+/**
+ * A match tried up to `tries` times while it runs out of time, each try at most MATCH_MS and at most
+ * what is left of the budget: true or false at the first try that ends in time, else null (every try
+ * ran out, or the budget did).
  * @param {RegExp} re
  * @param {string} text
+ * @param {number} tries
+ * @param {MatchBudget} budget
+ * @returns {boolean | null}
  */
-const matchRetried = (match, re, text) => {
-    const first = match(re, text);
-    return first === null ? match(re, text) : first;
-};
+function matchTried(re, text, tries, budget) {
+    for (let i = 0; i < tries && budget.left > 0; i++) {
+        const started = matchMeans.now();
+        // node:vm takes whole milliseconds, at least 1
+        const matched = matchWithin(re, text, Math.max(1, Math.ceil(Math.min(MATCH_MS, budget.left))));
+        budget.left -= matchMeans.now() - started;
+        if (matched !== null) {
+            return matched;
+        }
+    }
+    return null;
+}
 
 /**
  * Whether a pattern is slow on some value of up to `length` characters: tried on runs of letters,
  * digits, spaces, punctuation and each character the pattern names, each followed by a character
- * that ends a match late ("!"). Each value runs under CHECK_MS, and one that runs out of time is
- * tried once more (matchRetried) before the pattern counts as slow, so a host busy at start does not
- * refuse a pattern that is fast.
+ * that ends a match late ("!"). Each value runs under MATCH_MS, a request's limit, so a pattern the
+ * start takes is one a request can match. A value that runs out of time is tried up to CHECK_TRIES
+ * times and counts as fast if any try ends in time, so a host busy at start does not refuse a fast
+ * pattern. The whole check of a pattern has PATTERN_CHECK_MS.
  * @param {RegExp} re
  * @param {number} length
- * @param {(re: RegExp, text: string) => boolean | null} [match]  matchWithin under CHECK_MS (tests pass their own)
+ * @returns {false | "slow" | "budget"}  false: fast; "slow": a value ran out of time on every try; "budget": the check ran out of PATTERN_CHECK_MS
  */
-export function slowOn(re, length, match = (r, text) => matchWithin(r, text, CHECK_MS)) {
+export function slowOn(re, length) {
     const chars = new Set(["a", "1", " ", "-", "_", ".", ...String(re.source).replace(/\\./gu, "").replace(/[\\^$.|?*+()[\]{}]/gu, "")]);
+    const budget = { left: PATTERN_CHECK_MS };
     for (const c of chars) {
         for (const tail of ["!", "\u0000", ""]) {
             const text = `${c.repeat(Math.max(length - 1, 1))}${tail}`;
-            if (matchRetried(match, re, text) === null) {
-                return true;
+            if (matchTried(re, text, CHECK_TRIES, budget) === null) {
+                return budget.left > 0 ? "slow" : "budget";
             }
         }
     }
-    return false;
+    return budget.left > 0 ? false : "budget";
 }
+
+/**
+ * The answer to a value whose pattern check ran out of time: the server was busy, not the caller
+ * wrong (503, retryable, try again after a second). It names no parameter, so a claim-bound one
+ * stays unnamed; REST says the same through its reason "params" (rest/problem.js).
+ */
+export const PARAMS_BUSY_TEXT = "params could not be checked in time; the server may be busy, try again";
+
+/** The BUSY error of a pattern check that ran out of time. */
+const busyCheck = () => Object.assign(new OperationError("BUSY", PARAMS_BUSY_TEXT, { retryable: true, retryAfter: 1 }), { reason: "params" });
 
 /** The compiled patterns of a declaration, made once. */
 const compiled = new WeakMap();
@@ -242,8 +276,11 @@ export function declaredProblems(declared) {
                 } catch {
                     fail("pattern is not a valid regular expression");
                 }
-                if (re && slowOn(re, Number.isSafeInteger(p.maxLength) ? Math.min(p.maxLength, PARAM_LIMITS.length) : PARAM_LIMITS.defaultLength)) {
-                    fail(`pattern takes too long on some values (over ${CHECK_MS} ms); write it so that one value can match it in one way only`);
+                const slow = re ? slowOn(re, Number.isSafeInteger(p.maxLength) ? Math.min(p.maxLength, PARAM_LIMITS.length) : PARAM_LIMITS.defaultLength) : false;
+                if (slow === "slow") {
+                    fail(`pattern takes too long on some values (over ${MATCH_MS} ms, a request's limit); write it so that one value can match it in one way only`);
+                } else if (slow === "budget") {
+                    fail(`pattern could not be checked within ${PATTERN_CHECK_MS} ms at start, so it counts as slow; write it so that one value can match it in one way only, or check again when the host is less busy`);
                 }
             }
         }
@@ -344,6 +381,8 @@ export function normalizeParams(declared, given, caller, id) {
     }
     /** @type {Record<string, string | number | boolean>} */
     const out = Object.create(null);
+    // what this request's pattern checks may take in all (REQUEST_MATCH_MS)
+    const budget = { left: REQUEST_MATCH_MS };
     for (const p of entries) {
         let value;
         if (p.claim !== undefined) {
@@ -367,8 +406,12 @@ export function normalizeParams(declared, given, caller, id) {
             continue;
         }
         try {
-            out[p.name] = valueOf(p.name, p, value);
+            out[p.name] = valueOf(p.name, p, value, budget);
         } catch (e) {
+            // a busy server, for a claim's value too: nothing the caller sent was wrong
+            if (e instanceof OperationError && e.code === "BUSY") {
+                throw e;
+            }
             if (p.claim !== undefined && e instanceof OperationError) {
                 // the sign-in's value, not the caller's: never said back, and nothing the caller can fix
                 throw new OperationError("NOT_ALLOWED", `your sign-in's ${p.claim} claim is not a value the source ${id} takes; ask the operator`);
@@ -409,9 +452,10 @@ export const rerunText = (p) => `re-run with params.${p.name}=${p.example ?? p.e
  * @param {string} name
  * @param {any} p  the declaration, with its compiled pattern as regex
  * @param {unknown} value
+ * @param {MatchBudget} [budget]  what the request's pattern checks may still take (none: the start's check of an example)
  * @returns {string | number | boolean}
  */
-function valueOf(name, p, value) {
+function valueOf(name, p, value, budget = { left: Infinity }) {
     const fail = (what) => {
         throw new OperationError("INVALID_INPUT", `params.${name} ${what}`);
     };
@@ -445,9 +489,10 @@ function valueOf(name, p, value) {
             if (!day || Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== text) fail("must be a date (YYYY-MM-DD)");
         } else if (p.regex) {
             // an operator's pattern, anchored, runs on at most PARAM_LIMITS.length characters (maxLength holds)
-            const matched = matchRetried(matchWithin, p.regex, text);
-            // the value fits maxLength and the pattern passed the start's check: a busy server is the likely cause
-            if (matched === null) fail("could not be checked in time; the server may be busy, try again");
+            // tried twice: the value fits maxLength and the pattern passed the start's check under the
+            // same limit, so a busy server is the likely cause
+            const matched = matchTried(p.regex, text, 2, budget);
+            if (matched === null) throw busyCheck();
             if (!matched) fail("is not in the expected form");
         } else if (!p.enum && !SAFE_TEXT.test(text)) {
             fail('may hold letters, digits and . _ ~ - only (the operator sets a pattern for other values)');
