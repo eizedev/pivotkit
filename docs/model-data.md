@@ -269,7 +269,7 @@ open:
 - a source with a parameter bound to a claim or a token exchange
 - a code source with `perPerson: true`
 
-`check-config` lists the sources with withheld fields under `Delivery:`.
+`check-config` lists the closed sources and why under `Delivery:`.
 
 A report over an open source comes with a link. The model reads that link, and so does its
 provider. The link is shortened here:

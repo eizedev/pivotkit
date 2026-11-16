@@ -49,7 +49,7 @@ export function whyClosed(options, id) {
 
 /**
  * Whether a source's policy hides fields by default, for a caller without a profile or under any
- * profile: such an open source was closed before 0.8 (#510).
+ * profile: such an open source was closed in pivotkit-server 0.2.0 (#510).
  * @param {import("../config.js").ServerOptions} options
  * @param {string} id
  */
@@ -190,11 +190,16 @@ async function links(options, registry, runtime) {
     const byField = ownClosed.filter((id) => !personal.has(id) || whyClosed(options, id) !== NO_FIELD_REASON);
     const inline = !storeTakesClosed && inlineOffered(options, runtime);
     if (byField.length) {
-        // why each is closed (registry.js closedReason); a deny list gets the way to plain links
+        // why each is closed (registry.js closedReason), and for each kind of reason the way to plain links
         items.push(plain(`closed for plain links: ${idsText(byField.map((id) => `${id} (${whyClosed(options, id)})`))}`));
-        if (byField.some((id) => closedReason(options, options.sources?.[id]?.policy)?.denyList)) {
-            items.push(plain("for plain links, set the source's default to hide and list the fields to show", 2));
-        }
+        const reasons = byField.map((id) => closedReason(options, options.sources?.[id]?.policy)).filter((r) => r !== null);
+        const ways = [
+            [reasons.some((r) => r.denyList), "for plain links, set the source's default to hide and list the fields to show"],
+            [reasons.some((r) => !r.denyList && !r.others && !r.auto), "for plain links, set the fields at values or summary to show, or set the default to hide and list the fields to show"],
+            [reasons.some((r) => r.others), "for plain links, give every caller the same levels: the server's policy, the source's and every profile's"],
+            [reasons.some((r) => r.auto), "for plain links, write a policy: the automatic values rule decides levels by the data, so it closes the source"]
+        ];
+        items.push(...ways.filter(([applies]) => applies).map(([, text]) => plain(/** @type {string} */ (text), 2)));
     }
     if (personal.size || inline) {
         items.push(perPersonItem(personal, inline));

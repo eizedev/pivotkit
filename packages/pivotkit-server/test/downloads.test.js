@@ -984,6 +984,14 @@ test("check-config: where links point, which sources get which link, the redirec
     assert.match(signIn.text, /^ {2}closed for plain links: sales \(fields summary by default\)$/m);
     const why = await checkConfig({ sources: { listed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "values" } } }, profiled: { file: "data/sales.csv", policy: { default: "show" } } }, policy: { profiles: { reader: { default: "summary" } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
     assert.match(factsOf(why.text), /closed for plain links: listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
+    // each kind of reason has its way to plain links
+    assert.match(factsOf(why.text), /^ {4}for plain links, set the fields at values or summary to show, or set the default to hide and list the fields to show$/m);
+    assert.doesNotMatch(why.text, /give every caller the same levels|write a policy:/);
+    const others = factsOf((await checkConfig({ sources: { shown: { file: "data/sales.csv", policy: { default: "hide", fields: { Region: "show" } } } }, policy: { profiles: { reader: { fields: { region: "hide" } } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} })).text);
+    assert.match(others, /^ {4}for plain links, give every caller the same levels: the server's policy, the source's and every profile's$/m);
+    const auto = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, policy: { autoValues: true }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} })).text);
+    assert.match(auto, /closed for plain links: sales \(the automatic values rule\)/);
+    assert.match(auto, /^ {4}for plain links, write a policy: the automatic values rule decides levels by the data, so it closes the source$/m);
     assert.match(signIn.text, /^WARNING \(Delivery\): output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
     // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
     assert.doesNotMatch(signIn.text, /download links under \/downloads\/, answered without a token/);

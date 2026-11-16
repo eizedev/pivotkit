@@ -22,7 +22,7 @@ async function newIn(options, runtime) {
     return notes;
 }
 
-/** A source hidden by default with the fields it shows listed: closed before 0.8, open now. */
+/** A source hidden by default with the fields it shows listed: closed in pivotkit-server 0.2.0, open now. */
 const HIDES = { file: "data/sales.csv", policy: { default: "hide", fields: { Region: "show", Sales: "show" } } };
 
 test("New in this version: the 0.2.0 notes are gone; each note links to its own section", async () => {
@@ -42,7 +42,7 @@ test("New in this version: the per-address note only off loopback without either
     assert.equal((await newIn({}, { http: false })).some(([, anchor]) => anchor === "per-address"), false, "stdio");
 });
 
-test("New in this version: the hidden-field note only for open sources that hide a field, where reports get links", async () => {
+test("New in this version: the note for sources hidden by default, only where they are open and reports get links", async () => {
     const anchors = async (options, runtime) => (await newIn(options, runtime)).map(([, anchor]) => anchor);
     assert.ok((await anchors({ sources: { sales: HIDES } }, { http: true })).includes("hidden-open"));
     assert.ok(!(await anchors({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } } }, { http: true })).includes("hidden-open"), "every field shown: open as before");

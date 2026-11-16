@@ -169,8 +169,8 @@ details:
   sources with fields kept back.
 
 `"default": "show"` with fields set to `hide` is a deny list. A column the data gains later is shown
-unless someone hides it, and `check-config` warns of it. Prefer `summary` by default and name the
-fields to show.
+unless someone hides it, and `check-config` warns of it. Prefer `hide` by default and name the
+fields to show. Such a source also gets plain [download links](delivery.md).
 
 A field asked for `values` is `summary` where a list would not be complete and exact:
 

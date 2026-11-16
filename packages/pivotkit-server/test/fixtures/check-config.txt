@@ -6,8 +6,8 @@ PROBLEM: sources.gone.file: data/missing.csv is not there -> the server
 
 WARNING (Sources): sources.sales.policy: "show" by default with hidden fields
     is a deny list: a column the data gains later is shown unless someone
-    hides it; prefer "summary" by default and give the fields to show the
-    level show
+    hides it; prefer "hide" by default and give the fields to show the level
+    show
 WARNING (Auth): the token bot's scope "typo:scope" is named by no source, tool
     or required scope
 
@@ -69,6 +69,8 @@ Delivery:
       code (fields summary by default)
     for plain links, set the source's default to hide and list the fields to
         show
+    for plain links, set the fields at values or summary to show, or set the
+        default to hide and list the fields to show
   per person (counted as closed): data sent in requests (inline:)
   reports over closed sources (sales, gone, code): no links (the file is kept;
       the person asks you for it)

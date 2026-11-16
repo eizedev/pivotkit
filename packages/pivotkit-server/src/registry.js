@@ -66,7 +66,7 @@ const DELIVERY_OPEN = new Set(["show", "hide"]);
  * #510):
  *
  * - hidden by default, every field it names "show" or "hide" (an allow list); or
- * - every field "show", nothing hidden (open as before 0.8).
+ * - every field "show", nothing hidden (open as in pivotkit-server 0.2.0).
  *
  * Closed, under the server's policy with the source's or under any profile's: a field or the default
  * at "values" or "summary"; the automatic "values" rule (decided by the data at run time); a field at

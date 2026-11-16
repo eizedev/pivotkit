@@ -187,7 +187,7 @@ test("check-config: every warning is listed after the problems, named by its own
     assert.deepEqual(lines.slice(1, 6), [
         "0 problems, 3 warnings.",
         "",
-        'WARNING (Sources): sources.sales.policy: "show" by default with hidden fields is a deny list: a column the data gains later is shown unless someone hides it; prefer "summary" by default and give the fields to show the level show',
+        'WARNING (Sources): sources.sales.policy: "show" by default with hidden fields is a deny list: a column the data gains later is shown unless someone hides it; prefer "hide" by default and give the fields to show the level show',
         "WARNING (Delivery): output.downloads.key is not set: links stop working on a restart and on another replica",
         "WARNING (Retention): output.maxAgeDays is 0 (no age limit) and reports over closed sources (sales, summarized) and data sent in requests can hold data about people; leave out output.maxAgeDays (the default deletes reports after 30 days) or set a number of days"
     ]);
