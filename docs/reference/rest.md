@@ -496,8 +496,9 @@ make room. With `output.maxAgeDays: 0`, it stays until you remove it.
 
 The server holds at most 256 connections. It keeps 16 of them for loopback clients, such as the
 health check or a proxy on the same host. A client has 5 seconds to send its headers
-([MCP](mcp.md#http) has the details). `http.maxConnectionsPerAddress` bounds the connections of one
-address. On a network you do not trust, put a reverse proxy in front.
+([MCP](mcp.md#http) has the details). One address may hold at most 32 connections
+(`http.maxConnectionsPerAddress`). With `http.trustProxy` there is no such bound by default. On a
+network you do not trust, put a reverse proxy in front.
 
 With `auth.mode: oauth` and neither required scopes nor `auth.toolScopes`, the start warns. Any token
 of the issuer for the REST audience then gets everything its profile allows.
@@ -778,7 +779,7 @@ lets running requests finish for up to `http.graceMs` (25 seconds by default).
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
 | `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log's `address` (the proxy is then `peerAddress`) |
 | `log.level`, `log.format`, `log.address` | info, auto, on | The log's level, its format (text on a terminal, JSON otherwise) and whether lines name the client's address. Flags `--log`, `--log-format`, `--log-address`. Variables `PIVOTKIT_LOG_LEVEL`, `PIVOTKIT_LOG_FORMAT`, `PIVOTKIT_LOG_ADDRESS` ([operations](operations.md#settings)) |
-| `http.maxConnectionsPerAddress` | 0 (no bound) | Connections one address may hold (loopback excepted). Set it (for example 32) when clients reach the port directly with addresses of their own. Leave it off behind NAT, a published port or a proxy, where every client has one address |
+| `http.maxConnectionsPerAddress` | 32, none with `http.trustProxy` | Connections one address may hold (loopback excepted), counted by the socket's peer. `0` switches the bound off. Raise it where many clients share one address without a proxy, such as an office behind one NAT ([MCP](mcp.md#http) has the details) |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
 | `output.create` | true | Make a missing `output.dir` at start, with its parents and mode 0700. When `output.baseUrl` is set, the mode is 0755 narrowed by the umask. The start logs a warning when it makes the directory. `false` makes a missing directory an error. A relative `output.dir` without a configuration file is relative to the working directory. `check-config` says whether the directory exists, will be made, or cannot be made, and why: a parent the server's user may not write, a name too long, a symbolic link loop |
 | `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted. They may take at most half of `output.maxFiles`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |

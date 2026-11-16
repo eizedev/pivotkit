@@ -166,6 +166,7 @@ before you start it. It says what applies to your configuration.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | [Hidden fields keep a source open](#hidden-open) | a source hides a field for every caller and has no field at `values` or `summary` | nothing, or a policy at `summary` where its reports must not get plain links |
+| [32 connections per address](#per-address-default) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
 
 ### Hidden fields keep a source open { #hidden-open }
 
@@ -180,6 +181,21 @@ personal column is open:
 A source stays closed when a field or the default is `values` or `summary` for anyone. It also stays
 closed when a field is hidden for some callers and shown to others. `check-config` lists under
 `Delivery:` which sources are open and why the others are closed.
+
+### 32 connections per address { #per-address-default }
+
+One address on the network may hold at most 32 connections at once. Before, there was no such
+bound. The server counts the socket's peer, and loopback is never bounded:
+
+- Without `http.trustProxy`, the default is 32.
+- With `http.trustProxy`, there is no bound by default. Every client has the proxy's address, and
+  the proxy limits its clients.
+- `http.maxConnectionsPerAddress` overrides both. `0` switches the bound off.
+
+Many clients can share one address without a proxy, for example an office behind one NAT. A
+published container port can also hand every connection over from Docker's gateway
+([container](../reference/container.md#per-address)). Raise the bound there. `check-config` prints
+it under `HTTP:`, and refused connections get a log line with `perAddress`.
 
 ## From 0.6 to 0.7 { #from-0-6-1 }
 

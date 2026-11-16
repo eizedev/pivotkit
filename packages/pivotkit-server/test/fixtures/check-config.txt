@@ -74,6 +74,8 @@ Delivery:
   reports over open sources (sales): plain links
 
 HTTP: 127.0.0.1:3333
+  connections per address: at most 32 (the default; clients reach the server
+      directly)
 
 Auth: token
   token bot from $BOT_TOKEN: scopes sales:read typo:scope, profile analyst

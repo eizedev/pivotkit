@@ -449,7 +449,7 @@ gets at each level, and how to set them per client.
     - at most 256 at once
     - 16 of them kept for loopback clients, for the health check
     - 5 seconds for the headers
-    - `http.maxConnectionsPerAddress` bounds one address where clients reach the port directly.
+    - 32 per address where clients reach the port directly (`http.maxConnectionsPerAddress`).
 
     Behind a proxy, the proxy must guard the connections, and only the proxy may reach the port.
 

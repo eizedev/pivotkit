@@ -14,6 +14,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   store links. A field hidden for some callers and shown to others still closes it. `check-config`
   names that case ([#510](https://github.com/eizedev/pivotkit/issues/510),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open)).
+- One address may hold at most 32 connections by default. With `http.trustProxy` there is no bound
+  by default, since every client has the proxy's address. `http.maxConnectionsPerAddress` overrides
+  both, and `0` switches the bound off. `check-config` prints the bound under `HTTP:`.
+  `CONNECTION_LIMITS.perAddress` is 32, and `serveFetch` without `limits.perAddress` takes 32, or
+  none with `trustProxy` ([#511](https://github.com/eizedev/pivotkit/issues/511),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#per-address-default)).
 
 ## [0.2.0] - 2026-11-16
 

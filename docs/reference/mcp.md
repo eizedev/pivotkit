@@ -357,7 +357,7 @@ one probably meant.
 | - | `--state-dir dir` | `$PIVOTKIT_STATE_DIR` | `--http`: where the server makes, at its first start, the token and keys it needs when none is given ([made at the first start](rest.md#first-start)). Nothing over stdio |
 | `http.page` | - | on | The quick-start page. `{ "sources": true }` lists source ids on it. `false` turns it off |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
-| `http.maxConnectionsPerAddress` | - | 0 (no bound) | Connections one address may hold, loopback excepted ([Streamable HTTP](#http)) |
+| `http.maxConnectionsPerAddress` | - | 32, none with `http.trustProxy` | Connections one address may hold, loopback excepted. `0`: no bound ([Streamable HTTP](#http)) |
 | `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller, with up to `burst` at once after a pause. A caller is the person an OAuth token names, a static token's name, or `local` without sign-in. An OAuth token without a subject counts for its client. The people of one OAuth client together get eight times both |
 | `mcp.rateLimit.failedAuthPerMinute` | - | 30 | HTTP: refused tokens per address and minute. Beyond that, a wrong token from that address gets 429 instead of 401. A right one still works |
 | `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once. An answer that streams holds its place until it ends. The same setting holds the people of one OAuth client together to eight times this (the refusal's `limit` is `clientShare`) |
@@ -616,10 +616,15 @@ body.
   health check or a proxy on the same host, so clients on the network that hold connections without
   sending cannot lock them out. A process on the same host can.
 - A client has 5 seconds for its headers and 30 for its request.
-- `http.maxConnectionsPerAddress` (default 0, no bound) caps the connections of one address. Set it
-  where clients reach the port directly with addresses of their own. Behind NAT, a published port or
-  a proxy, every client has one address, so leave it off there. An IPv6 address counts as it is,
-  not by its network.
+- `http.maxConnectionsPerAddress` caps the connections of one address. It counts the socket's peer.
+  An IPv6 address counts as it is, not by its network. The default depends on `http.trustProxy`:
+    - Without it, clients reach the server directly. The default is 32.
+    - With it, every client has the proxy's address. There is no bound by default, and the proxy
+      limits its clients.
+- A number you set in `http.maxConnectionsPerAddress` wins in both cases. `0` switches the bound off.
+- Raise it where many clients share one address without a proxy, such as an office behind one NAT,
+  or a published port that hands every connection over from Docker's gateway
+  ([container](container.md#per-address)). `check-config` says which bound applies.
 - Refused connections are logged at most once a minute: the first at once, the rest when the minute
   ends. The line names each bound that refused a connection since the last line (`total`,
   `loopbackReserve`, `perAddress`), the last address and the counts.

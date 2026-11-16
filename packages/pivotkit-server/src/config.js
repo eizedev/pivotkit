@@ -392,7 +392,7 @@ export function validateOptions(options) {
         urlOf(options.output.baseUrl, "output.baseUrl");
     }
     if (options.http?.maxConnectionsPerAddress !== undefined && options.http.maxConnectionsPerAddress > 256) {
-        throw new ConfigError("http.maxConnectionsPerAddress: 0 (no bound, the default) to 256");
+        throw new ConfigError("http.maxConnectionsPerAddress: 0 (no bound) to 256");
     }
     if (options.compute?.workers !== undefined && options.compute.workers > 16) {
         throw new ConfigError("compute.workers: at most 16");

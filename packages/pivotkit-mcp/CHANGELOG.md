@@ -12,6 +12,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   at `values` or `summary`, is open, and its reports get plain download links
   ([#510](https://github.com/eizedev/pivotkit/issues/510),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open)).
+- Behaviour change from pivotkit-server: over HTTP, one address may hold at most 32 connections by
+  default, none with `http.trustProxy` (`http.maxConnectionsPerAddress`)
+  ([#511](https://github.com/eizedev/pivotkit/issues/511),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#per-address-default)).
 
 ## [0.2.0] - 2026-11-16
 
