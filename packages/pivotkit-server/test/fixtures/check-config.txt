@@ -21,7 +21,7 @@ Sources (3):
     policy: show by default; Customer hide
     scopes: sales:read
     a value kept back is safe in CSV only when values that hold the separator
-        are quoted; xlsx or JSON is safer
+        are quoted and no quoted value spans lines; xlsx or JSON is safer
     field levels (automatic values: not applied, a default is written):
       Region: show (the default)
       Product: show (the default)
@@ -31,7 +31,7 @@ Sources (3):
     <dir>/data/missing.csv
     policy: summary by default
     a value kept back is safe in CSV only when values that hold the separator
-        are quoted; xlsx or JSON is safer
+        are quoted and no quoted value spans lines; xlsx or JSON is safer
   code: a code source, described under Code sources
     policy: summary by default
     fields: known only after a load
@@ -57,7 +57,8 @@ Output: out
   <dir>/out
   at most 1000 files of pivotkit's (500 of them schedule drafts) and 1024 MB
   when full, the oldest reports are deleted to make room; drafts are kept
-  reports and drafts older than 30 days are deleted
+  reports older than 30 days are deleted; schedule drafts stay until a person
+      approves or removes them
 
 Delivery:
   download links: http://127.0.0.1:3333/downloads/<token>

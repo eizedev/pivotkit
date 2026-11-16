@@ -44,6 +44,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   value that spans lines is refused with `INVALID_FILE`. An unclosed quote pulled the rows after it,
   hidden values too, into one shown cell. A line break inside a quoted value is refused too, since
   it cannot be told from an unclosed quote. `check-config` warns of such a file.
+- Breaking: a static token (`auth.tokens`, `$PIVOTKIT_TOKEN`) with fewer than 8 different
+  characters, or one that repeats one piece (`abcabc...`), keeps the server from starting: "is too
+  easy to guess". `check-config` names it, `token new --if-missing` does not keep such a file, and a
+  token file rotated to one after the start is refused like a short one. Make a new token with
+  `pivotkit-server token new`. Random tokens pass, hex tokens of 32 characters too.
 - Behaviour change: the request limits (`rest.*`, `mcp.*` `rateLimit` and `concurrency`) count per
   person, no longer per OAuth client; one client's people together get eight times the rate and run
   at most eight times `concurrency` at once; `auth.subjectClaim` must name a claim users cannot change

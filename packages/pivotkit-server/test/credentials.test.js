@@ -455,6 +455,32 @@ test("secret-rules: the server's rules for a token and a key", async () => {
     assert.match(String(keyProblem("audit")("two\nlines-two-lines")), /line break/);
 });
 
+test("a token too easy to guess: fewer than 8 different characters or one piece repeated is refused by every check; random tokens pass", async () => {
+    const { tokenProblem } = await import("../src/secret-rules.js");
+    const { SECRET_BYTES, newSecret } = await import("../src/secret-file.js");
+    for (const weak of ["x".repeat(40), "passwordpasswordpasswordpassword", "changemechangemechangemechangeme", "0123456789abcdef0123456789abcdef", "12345678901234567890123456789012", "abcdefgh".repeat(4)]) {
+        assert.match(String(tokenProblem(weak)), /^too easy to guess \((\d different characters?, at least 8|one piece repeated)\)$/, weak);
+    }
+    assert.equal(tokenProblem("x".repeat(40)), "too easy to guess (1 different character, at least 8)");
+    assert.equal(tokenProblem("abcdefgh".repeat(4)), "too easy to guess (one piece repeated)");
+    // what people make: token new, hex from openssl rand -hex 16, a UUID without dashes
+    assert.equal(tokenProblem("9f86d081884c7d659a2feaa0c55ad015"), null);
+    assert.equal(tokenProblem("0f8fad5bd9cb469fa16570867728950e"), null);
+    for (let i = 0; i < 2000; i++) {
+        assert.equal(tokenProblem(newSecret(SECRET_BYTES.token, tokenProblem)), null);
+    }
+    // the start refuses it, check-config says so, token new --if-missing does not keep it
+    const dir = workspace();
+    const weak = "x".repeat(40);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: weak } }), /^ConfigError: auth: the token \(\$PIVOTKIT_TOKEN\) is too easy to guess \(1 different character, at least 8\); make one with: /);
+    const check = spawnSync(process.execPath, [BIN, "check-config", "--source", "sales=data/sales.csv", "--auth", "token"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", PIVOTKIT_TOKEN: weak } });
+    assert.match(factsOf(check.stdout), /^PROBLEM: the token token \(\$PIVOTKIT_TOKEN\) is too easy to guess \(1 different character, at least 8\) -> the server does not start$/m);
+    writeFileSync(join(dir, "weak.token"), `${weak}\n`, { mode: 0o600 });
+    const kept = spawnSync(process.execPath, [BIN, "token", "new", "--file", "weak.token", "--if-missing"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "" } });
+    assert.equal(kept.status, 1, kept.stderr);
+    assert.match(kept.stderr, /weak\.token: is there but not a usable token \(too easy to guess \(1 different character, at least 8\)\); replace it with --force/);
+});
+
 /** A token file as PowerShell 5.1's ">" writes it: UTF-16 with a BOM. */
 const utf16 = (text) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(`${text}\r\n`, "utf16le")]);
 

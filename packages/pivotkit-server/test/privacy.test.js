@@ -15,7 +15,7 @@ import { isClosedForDelivery } from "../src/registry.js";
 import { createDownloadHandler } from "../src/downloads.js";
 import { createLimits } from "../src/limits.js";
 import { NO_LINK_NOTE } from "../src/delivery.js";
-import { BY_REGION, call, factsOf, restServer, workspace } from "./helpers.js";
+import { BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 
 const OAUTH = Object.freeze({ mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" });
 const ROWS = [
@@ -358,6 +358,6 @@ test("serve: a start that fails after the download links (or REST) were made sto
     assert.ok(made.size > 0, "the start made a timer");
     assert.deepEqual([...made].filter((h) => !cleared.has(h)).length, 0, "no timer of the failed start runs on");
     // the host retries with the variable set
-    const handler = await createServerHandler(/** @type {any} */ (options), { ...runtime, env: { BOT_TOKEN: "t".repeat(40) } });
+    const handler = await createServerHandler(/** @type {any} */ (options), { ...runtime, env: { BOT_TOKEN: TOKEN } });
     await handler.close();
 });

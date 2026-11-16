@@ -11,7 +11,7 @@ import { SLOTS, SECRET_REF } from "../src/options/shared.js";
 import { SECTIONS, runSections } from "../src/check/index.js";
 import { heading, plain, problem, render, warning, wrap } from "../src/check/format.js";
 import { readSecret, secretFileWarning, SecretError } from "../src/secrets.js";
-import { factsOf, tempDir, workspace } from "./helpers.js";
+import { OTHER_TOKEN, TOKEN, factsOf, tempDir, workspace } from "./helpers.js";
 
 /** An options table as a plain tree: a function (a custom check) as "fn". */
 const treeOf = (schema) =>
@@ -191,7 +191,7 @@ test("check-config: the whole text of a configuration of every kind of source, w
         auth: { mode: "token", tokens: [{ name: "bot", env: "BOT_TOKEN", scopes: ["sales:read", "typo:scope"], profile: "analyst" }] },
         rest: { cors: { origins: ["https://app.example.com"] } }
     };
-    const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: "x".repeat(40) }, name: "pivotkit-server", rest: true });
+    const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: TOKEN }, name: "pivotkit-server", rest: true });
     const golden = readFileSync(new URL("./fixtures/check-config.txt", import.meta.url), "utf8");
     assert.equal(result.text.split(dir).join("<dir>"), golden);
     assert.deepEqual([result.problems, result.warnings, result.stops], [1, 2, 0]);
@@ -244,8 +244,8 @@ test("secrets: check-config warns of a secret file other users can read (a stati
     const dir = workspace();
     const open = join(dir, "open-token");
     const closed = join(dir, "closed-token");
-    writeFileSync(open, `${"o".repeat(40)}\n`);
-    writeFileSync(closed, `${"c".repeat(40)}\n`);
+    writeFileSync(open, `${TOKEN}\n`);
+    writeFileSync(closed, `${OTHER_TOKEN}\n`);
     chmodSync(open, 0o644);
     chmodSync(closed, 0o600);
     assert.equal(await secretFileWarning({ file: "open-token" }, { baseDir: dir }), "the file open-token can be read by other users of this machine (mode 644); make it readable by the server's user only (chmod 600)");

@@ -44,8 +44,21 @@ import { MAX_SECRET_BYTES, UTF16_TEXT, looksUtf16 } from "./secrets.js";
 /** The random bytes of each kind of secret: a token of 43 base64url characters, a key of 64. */
 export const SECRET_BYTES = Object.freeze({ token: 32, key: 48 });
 
-/** A new random secret of `bytes` random bytes, base64url (no padding: only characters a bearer token and a file line carry). */
-export const newSecret = (bytes) => randomBytes(bytes).toString("base64url");
+/**
+ * A new random secret of `bytes` random bytes, base64url (no padding: only characters a bearer token
+ * and a file line carry), drawn again until `usable` takes it: a token that is too easy to guess
+ * (secret-rules.js tokenProblem) is never handed out, though one comes up about never.
+ * @param {number} bytes
+ * @param {(value: string) => string | null} [usable]  why a value cannot be used, or null
+ */
+export function newSecret(bytes, usable = () => null) {
+    for (;;) {
+        const value = randomBytes(bytes).toString("base64url");
+        if (!usable(value)) {
+            return value;
+        }
+    }
+}
 
 /** The mode of a secret file: its owner reads and writes it, nobody else. */
 export const SECRET_MODE = 0o600;

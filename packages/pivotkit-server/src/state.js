@@ -342,7 +342,7 @@ async function ensure(secret) {
         throw new SecretFileError("NOT_REGULAR_FILE", `${secret.path} is a symbolic link to nothing; not written`);
     }
     const { kind, bytes, usable } = KINDS[secret.use];
-    const placed = await placeSecret(secret.path, newSecret(bytes), { keep: true, usable, kind, label: secret.path });
+    const placed = await placeSecret(secret.path, newSecret(bytes, usable), { keep: true, usable, kind, label: secret.path });
     return placed.created;
 }
 

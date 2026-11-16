@@ -36,6 +36,40 @@ import { claimNamesOf, claimsOf } from "./sources/params.js";
 /** The fewest characters of a static token. */
 export const TOKEN_MIN = 32;
 
+/**
+ * The fewest different characters of a static token. A random token has far more: `token new`
+ * gives 43 characters of 64, and a hex token of 32 characters (openssl rand -hex 16) had at least 8
+ * in a million tries.
+ */
+export const TOKEN_DISTINCT_MIN = 8;
+
+/**
+ * Why a static token is too easy to guess, or null: fewer than TOKEN_DISTINCT_MIN different
+ * characters, or one piece repeated (the token repeats with a period of at most half its length,
+ * such as abcabc...). The failed-token limit slows guessing per address only, so a token must not be
+ * guessable.
+ * @param {string} value
+ * @returns {string | null}
+ */
+export function tokenGuessable(value) {
+    const distinct = new Set(value).size;
+    if (distinct < TOKEN_DISTINCT_MIN) {
+        return `too easy to guess (${distinct} different character${distinct === 1 ? "" : "s"}, at least ${TOKEN_DISTINCT_MIN})`;
+    }
+    // the shortest period: the length less the longest border (Knuth-Morris-Pratt's prefix function)
+    const border = new Int32Array(value.length);
+    for (let i = 1, k = 0; i < value.length; i++) {
+        while (k > 0 && value[i] !== value[k]) {
+            k = border[k - 1];
+        }
+        if (value[i] === value[k]) {
+            k++;
+        }
+        border[i] = k;
+    }
+    return value.length - border[value.length - 1] <= value.length / 2 ? "too easy to guess (one piece repeated)" : null;
+}
+
 /** What a bearer token may hold and why another one does not work: pivotkit-cli/rest's, which the CLI checks a token against before it sends it. */
 export { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
 
@@ -124,6 +158,10 @@ async function staticTokens(auth, env, options, tokenEnv) {
         }
         if (!TOKEN_SYNTAX.test(value)) {
             throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) ${TOKEN_SYNTAX_TEXT}; make one with: ${MAKE_TOKEN}`);
+        }
+        const guessable = tokenGuessable(value);
+        if (guessable) {
+            throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) is ${guessable}; make one with: ${MAKE_TOKEN}`);
         }
         out.push({ name: t.name, which, file: t.file ? pathOf(options, t.file) : null, scopes: t.scopes ?? null, profile: t.profile ?? null, read: t.file ? read : async () => value });
     }
@@ -307,10 +345,10 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                 warned.set(t.name, now);
                 // the cause, never the value or the path
                 const cause = await readSecretFile(/** @type {string} */ (t.file)).then(
-                    (v) => (v.trim() === "" ? "its file is empty" : `its file has ${v.trim().length} characters`),
+                    (v) => (v.trim() === "" ? "its file is empty" : v.trim().length < TOKEN_MIN ? `its file has ${v.trim().length} characters` : `its file holds a token ${tokenGuessable(v.trim()) ?? "that cannot be used"}`),
                     (e) => (e?.code === "ENOENT" ? "its file is missing" : e?.code === "UTF16" ? `its file ${UTF16_TEXT}` : "its file cannot be read")
                 );
-                log.warn(`auth: ${t.which} cannot be used (${cause}): a token has at least ${TOKEN_MIN} characters, so requests with it are refused; write the token to the file again (write it whole, then rename it into place)`);
+                log.warn(`auth: ${t.which} cannot be used (${cause}): a token has at least ${TOKEN_MIN} characters and ${TOKEN_DISTINCT_MIN} different ones, so requests with it are refused; write the token to the file again (write it whole, then rename it into place)`);
             }
         };
         return {
@@ -331,7 +369,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                 // every token compared, so the time does not tell which one is close
                 for (const t of tokens) {
                     const value = await t.read();
-                    if (value.length < TOKEN_MIN) {
+                    if (value.length < TOKEN_MIN || tokenGuessable(value)) {
                         await unusable(t);
                     } else if (timingSafeEqual(given, digest(value)) && !match) {
                         match = t;

@@ -326,7 +326,7 @@ test("the Host check refuses a name the server does not answer to (DNS rebinding
     }
 });
 
-test("output.maxAgeDays: old reports and drafts, and temporary files of killed writes after an hour, go at start (and hourly); files pivotkit did not write, newer ones and subdirectories stay", async () => {
+test("output.maxAgeDays: old reports, and temporary files of killed writes after an hour, go at start (and hourly); drafts waiting for approval, files pivotkit did not write, newer ones and subdirectories stay", async () => {
     const dir = workspace();
     const { utimesSync } = await import("node:fs");
     const old = new Date(Date.now() - 3 * 86_400_000);
@@ -355,7 +355,7 @@ test("output.maxAgeDays: old reports and drafts, and temporary files of killed w
     utimesSync(join(dir, "out", "keep", "old.pivotkit-out.csv"), old, old);
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 2 }, baseDir: dir });
     try {
-        assert.deepEqual(readdirSync(join(dir, "out")).sort(), [".a1b2-sales.pivotkit-out.csv.4243-p0o9i8u7.tmp", ".notes.txt.4244-a1b2c3d4.tmp", "keep", "notes.txt", "operator.csv", "recent.pivotkit-out.xlsx"]);
+        assert.deepEqual(readdirSync(join(dir, "out")).sort(), [".a1b2-sales.pivotkit-out.csv.4243-p0o9i8u7.tmp", ".notes.txt.4244-a1b2c3d4.tmp", "keep", "notes.txt", "old.pivotkit-out.report.json", "operator.csv", "recent.pivotkit-out.xlsx"]);
         assert.deepEqual(readdirSync(join(dir, "out", "keep")), ["old.pivotkit-out.csv"]);
         const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION } });
         assert.equal(res.status, 200);
