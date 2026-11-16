@@ -473,7 +473,7 @@ a `hint`.
 Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068). The server
 then refuses an ID token with the right audience.
 
-The output directory holds at most `output.maxFiles` files and `output.maxMb` megabytes that
+The output directory holds at most `output.maxFiles` files and `output.maxMb` MiB that
 pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them, so any
 token that may render can push other callers' older reports out. A link to such a report
 (`output.baseUrl`) then answers 404, and one of the server's own links answers 410 `LINK_EXPIRED`.
@@ -727,14 +727,9 @@ Sources (1):
 Auth: token
   token export from $PIVOTKIT_TOKEN: all scopes, profile export
 
-New in this version: data in the request (inline:; mcp.data: false switches it
-    off), download links under /downloads/, answered without a token (the link
-    is the credential; output.downloads.enabled: false switches them off),
-    reports deleted after 30 days (output.maxAgeDays: 0 keeps them), the
-    client's IP address on the log's request lines (log.address: "off" leaves
-    it out), a start error as a JSON line where stderr is no terminal
-    (log.format: "text" keeps the plain line)
-    -> https://pivotkit.eize.dev/getting-started/upgrading/
+New in this version:
+  at most 32 connections per address (http.maxConnectionsPerAddress)
+    -> https://pivotkit.eize.dev/getting-started/upgrading/#per-address
 ```
 
 Each line holds one fact. A fact under another is two spaces further in, a wrapped line four. Lines
@@ -749,8 +744,8 @@ its full path, never by its value.
 Over stdio (`pivotkit-mcp` without `--http`), there are no download links and no signed-in person.
 The `Transport:` section says which sources therefore cannot be used.
 
-"New in this version" names the changes of this release that apply to the configuration, with the
-setting that switches each off. It links to the [upgrading page](../getting-started/upgrading.md).
+"New in this version" names the changes of this release that apply to the configuration, one per
+line. Each links to its section of the [upgrading page](../getting-started/upgrading.md).
 
 The flags of `serve` are the [MCP runner's](mcp.md#configuration) without `--http`, `--allow-dir`
 and `--list-files`, plus `--enable rest,mcp`. `--enable` sets `http.enable`, what to serve. The
@@ -787,7 +782,7 @@ lets running requests finish for up to `http.graceMs` (25 seconds by default).
 | `http.maxConnectionsPerAddress` | 32, none with `http.trustProxy` | Connections one address may hold (loopback excepted), counted by the socket's peer. `0` switches the bound off. Raise it where many clients share one address without a proxy, such as an office behind one NAT ([MCP](mcp.md#http) has the details) |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
 | `output.create` | true | Make a missing `output.dir` at start, with its parents and mode 0700. When `output.baseUrl` is set, the mode is 0755 narrowed by the umask. The start logs a warning when it makes the directory. `false` makes a missing directory an error. A relative `output.dir` without a configuration file is relative to the working directory. `check-config` says whether the directory exists, will be made, or cannot be made, and why: a parent the server's user may not write, a name too long, a symbolic link loop |
-| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted to make room. They may take at most half of `output.maxFiles` and half of `output.maxMb`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
+| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their MiB (1,048,576 bytes each) the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted to make room. They may take at most half of `output.maxFiles` and half of `output.maxMb`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
 | `output.maxAgeDays` | 30 | `0`: no age limit. Otherwise the server deletes reports (the files marked `.pivotkit-out.`) and schedule drafts no longer waiting for approval (`.pivotkit-out.report.json` whose `status` is not `"draft"`) older than this many days from the top level of the output directory, at start and every hour. It also deletes the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour). Other files and subdirectories stay. Use a directory of its own. The server refuses to start with a limit you write when the output directory is the configuration file's directory or holds a source, print template or token file. There the default does not apply (no age limit) |
 | `output.draftMaxAgeDays` | 0 (never) | Delete schedule drafts that still wait for approval (`status` `"draft"`) when they are older than this many days, at start and every hour. It works with `output.maxAgeDays: 0` too. Like `output.maxAgeDays`, the server refuses to start with it where the output directory holds the operator's own files |
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |

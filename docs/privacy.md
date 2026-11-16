@@ -383,7 +383,7 @@ Reports and drafts stay in the output directory until one of these deletes them:
       template or token file. Nothing is deleted by age there. Give the output directory to
       pivotkit alone.
 - **Count and size.** The limits are `output.maxFiles` files (1000 by default) or `output.maxMb`
-  megabytes (1024 by default) of pivotkit's. When the directory holds that much, a new report
+  MiB (1024 by default) of pivotkit's. When the directory holds that much, a new report
   deletes the oldest reports, whoever asked for them. This rule does not delete drafts. Drafts may
   take at most half of `output.maxFiles` and half of `output.maxMb`. The server refuses a draft
   over that.

@@ -384,7 +384,7 @@ gets at each level, and how to set them per client.
     - In a directory a web server serves, names start with 22 random characters. Protect that server
       as you would the data. Note that a report gets an address there only when it is over a source
       whose fields are all `show` or hidden for every caller.
-    - The directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's
+    - The directory holds at most `output.maxFiles` files and `output.maxMb` MiB of pivotkit's
       files. pivotkit's reports and drafts carry `.pivotkit-out.` in their names. Other files are
       neither counted nor deleted. A file named with `.pivotkit-out.` by hand counts as pivotkit's.
     - When the directory is full, a new report deletes the oldest reports, so one caller cannot stop

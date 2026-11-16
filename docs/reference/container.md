@@ -94,9 +94,22 @@ forwards the published port on that host:
   all clients share the 32.
 
 `check-config` prints the bound under `HTTP:`. The log line for refused connections names the
-address (`perAddress`). If it names the gateway, or an office's one NAT address, raise
-`http.maxConnectionsPerAddress`, or set it to `0` for no bound. Behind a proxy with
-`http.trustProxy` there is no bound by default ([below](#oauth)).
+address (`perAddress`). If it names the gateway, or an office's one NAT address, raise the bound.
+Behind a proxy with `http.trustProxy` there is no bound by default ([below](#oauth)).
+
+These settings live only in the configuration file. There is no flag or variable for them. Add
+them to the `pivotkit.json` you mount at `/config/pivotkit.json` ([above](#run)). A file with only
+these keys has no sources, since the built-in example applies only when `/config` is empty. `0`
+switches the bound off:
+
+```json
+{
+  "sources": { "sales": { "file": "/data/sales.csv", "title": "Sales" } },
+  "http": { "maxConnectionsPerAddress": 128 }
+}
+```
+
+Behind a proxy that writes `X-Forwarded-For`, set `"http": { "trustProxy": true }` instead.
 
 ### The state directory { #state-dir }
 

@@ -16,30 +16,45 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
-- A field at `hide` no longer closes a source for delivery. The server drops it when it reads the
-  data, so it reaches no report. A source that hides a field for every caller, with no field at `values` or
-  `summary`, is open. Its reports get plain download links, an `output.baseUrl` address and plain
-  store links. A field hidden for some callers and shown to others still closes it. `check-config`
-  names that case ([#510](https://github.com/eizedev/pivotkit/issues/510),
+- Behaviour change: a field at `hide` no longer closes a source for delivery. The server drops it
+  when it reads the data, so it reaches no report. A source that hides a field for every caller,
+  with no field at `values` or `summary`, is open. Its reports get plain download links, an
+  `output.baseUrl` address and plain store links. A field hidden for some callers and shown to
+  others still closes it. `check-config` names that case
+  ([#510](https://github.com/eizedev/pivotkit/issues/510),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open)).
-- One address may hold at most 32 connections by default. With `http.trustProxy` there is no bound
-  by default, since every client has the proxy's address. `http.maxConnectionsPerAddress` overrides
-  both, and `0` switches the bound off. `check-config` prints the bound under `HTTP:`.
-  `CONNECTION_LIMITS.perAddress` is 32, and `serveFetch` without `limits.perAddress` takes 32, or
-  none with `trustProxy` ([#511](https://github.com/eizedev/pivotkit/issues/511),
-  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#per-address-default)).
-- Schedule drafts may take at most half of `output.maxMb`, as they take at most half of
-  `output.maxFiles`. A draft over it answers 409 `NO_OUTPUT`. Renders keep working.
-  `check-config` prints both caps and warns of a directory whose drafts are already over the byte
-  cap ([#513](https://github.com/eizedev/pivotkit/issues/513),
+- Behaviour change: one address may hold at most 32 connections by default. With
+  `http.trustProxy` there is no bound by default, since every client has the proxy's address.
+  `http.maxConnectionsPerAddress` overrides both, and `0` switches the bound off. `check-config`
+  prints the bound under `HTTP:`. `CONNECTION_LIMITS.perAddress` is 32, and `serveFetch` without
+  `limits.perAddress` takes 32, or none with `trustProxy`
+  ([#511](https://github.com/eizedev/pivotkit/issues/511),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#per-address)).
+- Behaviour change: schedule drafts that wait for approval may take at most half of
+  `output.maxMb`, as they take at most half of `output.maxFiles`. A draft over it answers 409
+  `NO_OUTPUT`. Renders keep working. A single draft larger than the whole byte cap gets its own
+  answer, which says the operator must raise `output.maxMb`. `check-config` prints both caps and
+  warns of a directory whose waiting drafts are already over the byte cap
+  ([#513](https://github.com/eizedev/pivotkit/issues/513),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota)).
-- REST answers `params` on a server where no source takes parameters with `INVALID_INPUT` "this
-  server has no source that takes params; leave params out (GET /sources lists the sources)",
-  instead of `input has no key "params"`. JSON and multipart bodies alike
+- Behaviour change: REST answers `params` on a server where no source takes parameters with
+  `INVALID_INPUT` "this server has no source that takes params; leave params out (GET /sources
+  lists the sources)", instead of `input has no key "params"`. JSON and multipart bodies alike
   ([#516](https://github.com/eizedev/pivotkit/issues/516)).
-- Each duplicated helper now exists once: one shell quote for printed commands, pivotkit-core's
-  `limitText` for limits, the body cap's size from `REST_BODY_BYTES`. The messages stay the same
+- `check-config` closes with this release's changes that apply to the configuration, one per line,
+  each with the link to its section on the upgrading page. The notes of 0.2.0 are gone.
+- Each duplicated helper exists once: one shell quote for printed commands, pivotkit-core's
+  internal limit helper for limits, the body cap's size from `REST_BODY_BYTES`, and `bytesText`
+  in `src/text.js`. The messages stay the same. pivotkit-report and pivotkit-xlsx keep their own
+  limit wording ("the view has N characters; at most M", "the part ... is N bytes"). Those texts
+  say different things, so they are not merged on purpose
   ([#509](https://github.com/eizedev/pivotkit/issues/509)).
+
+### Fixed
+
+- The drafts' caps count only drafts that still wait for approval. A draft the host approved or
+  rejected (another `status`) no longer takes a waiting draft's place in the count of half of
+  `output.maxFiles` ([#513](https://github.com/eizedev/pivotkit/issues/513)).
 
 ## [0.2.0] - 2026-11-16
 

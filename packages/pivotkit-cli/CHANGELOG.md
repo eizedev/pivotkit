@@ -8,7 +8,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
-- pivotkit-core's `limitText` words a file over its limit. The text stays the same
+- pivotkit-core's internal limit helper words a file over its limit. The text stays the same
   ([#509](https://github.com/eizedev/pivotkit/issues/509)).
 
 ## [0.3.0] - 2026-11-16

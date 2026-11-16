@@ -339,7 +339,7 @@ one probably meant.
 | `output.downloads` | - | on over HTTP | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` (`clientId`, `clientSecret`, `issuer`, `scopes`) |
 | `output.upload` | - | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method` (PUT), `timeMs` (30000), `maxBytes`, `keepLocal` (true), `bind` (`none`), `intranet` |
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold. A new report deletes the oldest reports, whoever made them. Drafts are never deleted this way. A draft that waits for approval is not deleted by age either (see [REST](rest.md#running) for the trade-off) |
-| `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold. A new report deletes the oldest reports until it fits |
+| `output.maxMb` | - | 1024 | MiB of reports and drafts the directory may hold. A new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | 30 | Delete reports, and schedule drafts no longer waiting for approval, older than this many days from the top level of the output directory, at start and every hour. Also delete the temporary files of writes the server was killed in (older than an hour). `0`: no age limit. The default applies only to a directory of the reports' own (see [REST](rest.md#running)) |
 | `output.draftMaxAgeDays` | - | 0 (never) | Delete schedule drafts that still wait for approval when they are older than this many days, at start and every hour |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
