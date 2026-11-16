@@ -11,6 +11,7 @@ import { AUTO_VALUES, AUTO_VALUES_DEFAULT, POLICY_LEVELS, autoLevel, deniedWord,
 import { ConfigError, checkConfig, validateOptions } from "pivotkit-server";
 import { LOOKS_LIKE, sourceStats } from "../src/stats.js";
 import { OTHER_TOKEN, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 /**
  * Tickets of a made-up help desk, `n` rows: Status (3 values) and Team (12) qualify for the
@@ -397,13 +398,13 @@ test("a column whose values are 30,000 characters without a space: describe_sour
         lines.push(`${i},${String.fromCharCode(97 + i).repeat(15_000)}@${"b".repeat(15_000)}`);
     }
     const data = `${lines.join("\n")}\n`;
-    let start = Date.now();
+    const cpu = cpuClock();
     const stats = sourceStats(encode(lines.slice(1).map((l) => ({ Blob: l.split(",")[1] }))));
-    assert.ok(Date.now() - start < 1000, `stats in ${Date.now() - start} ms`);
+    assert.ok(cpu() < 1000, `stats in ${Math.round(cpu())} ms of CPU`);
     assert.equal(stats.fields.blob.maxLength, 30_001);
     const { server, dir } = await ticketServer({ sources: { tickets: { file: "data/tickets.csv", policy: { fields: { Blob: "values" } } } }, compute: { timeMs: 10_000 } }, data);
     try {
-        start = Date.now();
+        const start = Date.now();
         const described = await call(`${server.api}/sources/tickets`);
         assert.equal(described.status, 200, JSON.stringify(described.data).slice(0, 300));
         assert.equal(described.data.fields.find((f) => f.name === "Blob").level, "summary", "values over 80 characters are no exact list");

@@ -14,6 +14,7 @@ import { INLINE_ID, kindOf } from "../src/sources/index.js";
 import { canonicalJson, tableKeyOf } from "../src/sources/keys.js";
 import { MATCH_MS, declaredProblems, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
 import { TOKEN, call, restServer, workspace } from "./helpers.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const LOCAL = callerOf("none", undefined);
 const VIEW = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -489,16 +490,16 @@ test("params: an operator's pattern never runs unbounded: a slow one is refused 
     assert.match(declaredProblems({ x: { type: "string", pattern: slow, maxLength: 256 } }).join(), /takes too long/);
     // the time limit really interrupts a running regular expression (here one the rules would refuse)
     for (const [pattern, text] of [["(a|a){1,60}b", `${"a".repeat(40)}!`], ["(?:a{1,40}){1,40}b", `${"a".repeat(40)}!`], [slow, `${"1".repeat(256)}!`]]) {
-        const started = Date.now();
+        const cpu = cpuClock();
         assert.equal(matchWithin(new RegExp(`^(?:${pattern})$`, "u"), text), null, pattern);
-        assert.ok(Date.now() - started < MATCH_MS * 10, `${pattern}: cut after ${Date.now() - started} ms`);
+        assert.ok(cpu() < MATCH_MS * 10, `${pattern}: cut after ${Math.round(cpu())} ms of CPU`);
     }
     assert.equal(matchWithin(/^[a-z]+$/u, "abc"), true);
     assert.equal(matchWithin(/^[a-z]+$/u, "ab1"), false);
     // a declaration that skipped the check (a host's own code): the value is refused, in time
-    const started = Date.now();
+    const again = cpuClock();
     assert.throws(() => normalizeParams({ x: { type: "string", pattern: "(a|a){1,60}b", maxLength: 64 } }, { x: `${"a".repeat(40)}!` }, null, "s"), (e) => e.code === "INVALID_INPUT" && /could not be checked/.test(e.message));
-    assert.ok(Date.now() - started < 1000);
+    assert.ok(again() < 1000);
 });
 
 test("a refused value: the parameter's words in one parenthesis at the end, its pattern after a semicolon", async () => {

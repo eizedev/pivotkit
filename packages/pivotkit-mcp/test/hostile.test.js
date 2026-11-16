@@ -129,17 +129,19 @@ test("too large an input: a view over the size limit, too many elements, unknown
 });
 
 test("a worker over its time is stopped and replaced; the next call works", async () => {
+    // compute.timeMs holds for every call, the next small one too: on a busy machine a limit of a few
+    // tens of ms ended that one as well. The limit lies far from both calls instead: describing the
+    // 1,000,000 rows (the rows limit) took 1.6 s on an idle machine, the small file 30 ms.
     const rows = ["Region,Product,Sales"];
-    for (let i = 0; i < 200_000; i++) {
+    for (let i = 0; i < 1_000_000; i++) {
         rows.push(`R${i % 5000},P${i % 3000},${i}`);
     }
     const dir = workspace({ "sales.csv": SALES_CSV, "huge.csv": `${rows.join("\n")}\n` });
-    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" }, huge: { file: "data/huge.csv" } }, output: { dir: "out" }, compute: { workers: 1, timeMs: 50 }, baseDir: dir });
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" }, huge: { file: "data/huge.csv" } }, output: { dir: "out" }, compute: { workers: 1, timeMs: 500 }, baseDir: dir });
     try {
         const { client, close } = await httpClient(server.url);
-        // reading and encoding 200,000 rows takes far longer than 50 ms
         const slow = await call(client, "describe_source", { source: "huge" });
-        assert.match(slow.text, /^TIMEOUT: the report took longer than 0.05 s/);
+        assert.match(slow.text, /^TIMEOUT: the report took longer than 0.5 s/);
         const next = await call(client, "describe_source", { source: "sales" });
         assert.equal(next.isError, false, next.text);
         await close();

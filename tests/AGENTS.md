@@ -27,6 +27,12 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `tests/temp-dirs.test.js` fails on `mkdtemp`, `tmpdir()`, `TMPDIR` or `"/tmp/"` elsewhere.
 - `tests/source-files.js` lists the files such checks scan.
 
+## Time bounds
+
+- A test that bounds how long work takes measures CPU time with `cpuClock()` from `tests/cpu-time.js`.
+- Wall time fails when other test suites share the machine. CPU time does not grow then.
+- CPU time misses waits for a timer, the network or a child process. Bound those by events instead.
+
 ## Scripts
 
 - A script that can also be imported checks `isMain(import.meta.url)` from `scripts/is-main.js`.
