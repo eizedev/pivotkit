@@ -28,7 +28,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - Reports of earlier runs stay in the old anonymous volume of `/out` (`docker volume ls`).
 - Copy the reports you want to keep out of `output.dir` before you update: reports older than
   `output.maxAgeDays` (30 by default) are deleted at the first start; this release's `check-config`
-  counts them. Schedule drafts (`*.pivotkit-out.report.json`) stay
+  counts them. Schedule drafts (`*.pivotkit-out.report.json`) that still wait for approval stay
   ([upgrading, from 0.6.1 / 0.1.1](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1)).
 - Breaking: with download links on, an `http://` `http.publicUrl` on a host other than loopback
   keeps the server from starting; use `https://`, or set `output.downloads.allowInsecureUrl: true`
@@ -63,9 +63,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   where stderr is no terminal.
 
 - Behaviour change: `output.maxAgeDays` is 30 by default, so reports older than 30 days are deleted
-  from `output.dir` at start and every hour. Schedule drafts are never deleted by age: a draft waits
-  in `output.dir` until a person approves or removes it in the host. `output.maxAgeDays: 0` keeps
-  reports with no age limit, as before. The default does not apply where `output.dir` holds the
+  from `output.dir` at start and every hour. A schedule draft waits for approval while its `status`
+  is `"draft"` and is never deleted by age. A draft the host gave another status (approved,
+  rejected) goes by age like a report. `output.maxAgeDays: 0` keeps them with no age limit, as before. The default does not apply where `output.dir` holds the
   configuration or a source, template or token file ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#max-age-default)).
 
 Every field keeps its level and the automatic rule is off; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
@@ -146,15 +146,15 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - `check-config` warns of `"default": "show"` with hidden fields (a deny list), of
   `output.downloads.expiresMinutes` under 5 ([#468](https://github.com/eizedev/pivotkit/issues/468)),
   of an `output.dir` that holds the configuration or a source, template or token file (as the start
-  does), and counts the reports the next start's age sweep deletes; one line under
+  does), and counts the reports and drafts no longer waiting that the next start's age sweep deletes; one line under
   `Sources` names the sources without a `description`, which a model chooses sources by
   ([#471](https://github.com/eizedev/pivotkit/issues/471)).
 - A refusal by the client's share of the request limits logs `limit: clientRate` or `limit: clientShare`.
 - Download sign-in callbacks are limited to 20 a minute per address (each writes a marker); over that
   the page asks to wait (429 `RATE_LIMITED`). Behind a proxy, set `http.trustProxy`, or all people
   share the proxy's address.
-- An `info` line for each `output.maxAgeDays` sweep that deleted something, with the count of
-  `reports`.
+- An `info` line for each `output.maxAgeDays` sweep that deleted something, with the counts of
+  `reports` and `drafts` (drafts no longer waiting).
 - A `warning` when a static token's file is missing, empty or shorter than 32 characters while the
   server runs, naming the token and the cause (never its value or path), at most once a minute.
 - `limitKeyOf(caller)`: whom a caller's request limits count for (pivotkit-mcp uses it).

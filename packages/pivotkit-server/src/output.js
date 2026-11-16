@@ -2,11 +2,11 @@
  * The output directory: pivotkit writes reports and schedule drafts there under names marked as its
  * own (OUTPUT_MARK), one write at a time per directory, makes room by deleting the oldest reports
  * (never schedule drafts awaiting approval, never where the operator's own files lie) and cleans up
- * reports older than output.maxAgeDays. A schedule draft in the directory waits for a person to
- * approve it in the host, which takes it away; pivotkit deletes none.
+ * reports older than output.maxAgeDays. A schedule draft waits for a person to approve it in the
+ * host while its status is "draft"; only one the host gave another status goes by age (expiredIn).
  */
 
-import { readdir, stat, unlink } from "node:fs/promises";
+import { readFile, readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { TEMP_FILE_NAME, writeNew } from "pivotkit-cli/files";
@@ -41,6 +41,45 @@ export async function reportsIn(dir) {
     return /** @type {Array<{ path: string, size: number, mtimeMs: number, draft: boolean }>} */ (files.filter(Boolean)).sort((a, b) => a.mtimeMs - b.mtimeMs);
 }
 
+/** The most bytes of a schedule draft read to tell whether it still waits; a larger one is kept. */
+const DRAFT_READ_BYTES = 1_048_576;
+
+/**
+ * Whether a schedule draft still waits for approval: its status is "draft", as pivotkit writes it.
+ * A host that approves or rejects a draft in place gives it another status. A draft that cannot be
+ * read or parsed, or is larger than DRAFT_READ_BYTES, counts as waiting: nothing waiting is deleted.
+ * @param {{ path: string, size: number }} file
+ */
+async function stillWaiting(file) {
+    if (file.size > DRAFT_READ_BYTES) {
+        return true;
+    }
+    try {
+        const status = JSON.parse(await readFile(file.path, "utf8"))?.status;
+        return typeof status !== "string" || status === "draft";
+    } catch {
+        return true;
+    }
+}
+
+/**
+ * The files the age limit deletes: pivotkit's reports and the schedule drafts no longer waiting
+ * (stillWaiting), older than `days`. The sweep (prune) and check-config share this rule.
+ * @param {string} dir
+ * @param {number} days
+ * @returns {Promise<Array<{ path: string, size: number, mtimeMs: number, draft: boolean }>>}
+ */
+export async function expiredIn(dir, days) {
+    const before = Date.now() - days * 86_400_000;
+    const expired = [];
+    for (const file of await reportsIn(dir)) {
+        if (file.mtimeMs < before && (!file.draft || !(await stillWaiting(file)))) {
+            expired.push(file);
+        }
+    }
+    return expired;
+}
+
 /** A write's temporary file older than this was left by a server killed during the write. */
 const TEMP_MAX_AGE_MS = 3_600_000;
 
@@ -58,10 +97,10 @@ async function leftoverTempFiles(dir) {
 }
 
 /**
- * Removes the reports older than output.maxAgeDays from the output directory (its top level; a
- * schedule draft, which waits for approval, a file of another kind and a subdirectory stay), and the
- * temporary files of its writes older than an hour, at most once an hour; an info line says how many
- * reports went.
+ * Removes what the age limit deletes (expiredIn: reports and drafts no longer waiting, older than
+ * output.maxAgeDays) from the output directory (its top level; a draft that waits for approval, a
+ * file of another kind and a subdirectory stay), and the temporary files of its writes older than an
+ * hour, at most once an hour; an info line says how many reports and drafts went.
  * @param {any} context
  */
 export async function prune(context) {
@@ -74,16 +113,15 @@ export async function prune(context) {
     }
     pruned.set(dir, Date.now());
     const now = Date.now();
-    const before = now - days * 86_400_000;
-    let reports = 0;
-    for (const file of await reportsIn(dir)) {
-        if (!file.draft && file.mtimeMs < before && (await unlink(file.path).then(() => true, () => false))) {
-            reports++;
+    const deleted = { reports: 0, drafts: 0 };
+    for (const file of await expiredIn(dir, days)) {
+        if (await unlink(file.path).then(() => true, () => false)) {
+            deleted[file.draft ? "drafts" : "reports"]++;
         }
     }
-    // one line per sweep that deleted something: the operator must be able to tell where reports went
-    if (reports) {
-        context.log?.info(`output.maxAgeDays: reports older than ${days} days deleted`, { reports, maxAgeDays: days });
+    // one line per sweep that deleted something: the operator must be able to tell where they went
+    if (deleted.reports || deleted.drafts) {
+        context.log?.info(`output.maxAgeDays: reports and schedule drafts no longer waiting older than ${days} days deleted`, { ...deleted, maxAgeDays: days });
     }
     for (const file of await leftoverTempFiles(dir)) {
         if (file.mtimeMs < now - TEMP_MAX_AGE_MS) {

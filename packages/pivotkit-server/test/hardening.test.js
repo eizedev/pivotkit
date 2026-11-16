@@ -169,9 +169,8 @@ test("output.maxAgeDays: a sweep deletes old reports, never a schedule draft wai
     await prune({ output: { dir, maxAgeDays: 1, cleanUp: true }, log });
     assert.deepEqual(readdirSync(dir).sort(), ["Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"], "the draft waits for a person");
     assert.equal(lines.length, 1, JSON.stringify(lines));
-    assert.equal(lines[0].msg, "output.maxAgeDays: reports older than 1 days deleted");
-    assert.equal(lines[0].reports, 2);
-    assert.equal(lines[0].drafts, undefined);
+    assert.equal(lines[0].msg, "output.maxAgeDays: reports and schedule drafts no longer waiting older than 1 days deleted");
+    assert.deepEqual([lines[0].reports, lines[0].drafts], [2, 0]);
     // a directory of old drafts only: nothing deleted, nothing said
     const drafts = tempDir();
     writeFileSync(join(drafts, "Old.pivotkit-out.report.json"), "x");
@@ -181,6 +180,24 @@ test("output.maxAgeDays: a sweep deletes old reports, never a schedule draft wai
     const empty = tempDir();
     await prune({ output: { dir: empty, maxAgeDays: 1, cleanUp: true }, log });
     assert.equal(lines.length, 1, "nothing deleted, nothing said");
+});
+
+test("output.maxAgeDays: a draft whose status the host changed from \"draft\" no longer waits and goes by age; one still \"draft\" or unreadable stays; check-config counts the ones that go", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const old = (Date.now() - 40 * 86_400_000) / 1000;
+    const draft = (status) => JSON.stringify({ format: "pivotkit-report-draft", version: 0, status, name: "Weekly" });
+    const files = { "waiting.pivotkit-out.report.json": draft("draft"), "approved.pivotkit-out.report.json": draft("approved"), "rejected.pivotkit-out.report.json": draft("rejected"), "broken.pivotkit-out.report.json": "{not json", "old.pivotkit-out.csv": "x" };
+    for (const [name, text] of Object.entries(files)) {
+        writeFileSync(join(out, name), text);
+        utimesSync(join(out, name), old, old);
+    }
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.match(text, /^WARNING \(Output\): 1 report and 2 schedule drafts no longer waiting for approval are older than 30 days and are deleted at the next start; copy them away or set output\.maxAgeDays: 0$/m);
+    const lines = [];
+    await prune({ output: { dir: out, maxAgeDays: 30, cleanUp: true }, log: { info: (msg, fields) => lines.push({ msg, ...fields }) } });
+    assert.deepEqual(readdirSync(out).sort(), ["broken.pivotkit-out.report.json", "waiting.pivotkit-out.report.json"]);
+    assert.deepEqual(lines, [{ msg: "output.maxAgeDays: reports and schedule drafts no longer waiting older than 30 days deleted", reports: 1, drafts: 2, maxAgeDays: 30 }]);
 });
 
 // --- a static token's file that went missing, empty or short says so on the log ---------------------
