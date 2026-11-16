@@ -46,6 +46,9 @@ async function mount(page, chart, { theme = "light", view = {} } = {}) {
                 window.__tooltipRoot = createRoot(el);
                 window.__tooltipViews = [];
             }
+            // the report before is gone first, so nothing below reads its chart
+            window.__tooltipRoot.render(null);
+            await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
             window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 560, defaultView: view, onViewChange: (v) => window.__tooltipViews.push(v) }));
         },
         { rows: ROWS, view: { ...VIEW, ...view, chart }, theme }
@@ -150,6 +153,27 @@ test.describe("the chart's tooltip follows the pointer", () => {
         // East has no hardware: its total adds what it has
         await hover(page, await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: EAST }));
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["East", "Software 40", "Total 52"]);
+        // Software hidden in the legend: the total is the stack as it is drawn
+        await chartEl.evaluate(async (el) => {
+            const { getInstanceByDom } = await import("echarts/core");
+            getInstanceByDom(el).dispatchAction({ type: "legendUnSelect", name: "Software" });
+        });
+        await page.mouse.move(10, 10);
+        await hover(page, await pointOf(chartEl, between, { index: NORTH, part: 0.4, value: 3 }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Total 30"]);
+    });
+
+    test("the total line has the size of the other lines, also in a report with a larger font", async ({ page }) => {
+        await page.addStyleTag({ content: "#tooltip-report .pk-root { --pk-font-size: 18px; }" });
+        const chartEl = await mount(page, { type: "bar", stacked: true });
+        await hover(page, await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Hardware 20", "Total 60"]);
+        const sizes = await chartEl.evaluate((el) => {
+            const tip = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
+            return [...tip.firstElementChild.children].slice(1).map((row) => getComputedStyle(row.children[1]).fontSize);
+        });
+        expect(sizes[1]).toBe(sizes[0]);
+        expect(parseFloat(sizes[0])).toBeGreaterThan(16);
     });
 
     test("grouped bars: a bar shows its series only; between bars every series that has a value", async ({ page }) => {
@@ -260,7 +284,9 @@ test("on a phone, a tap on a stacked segment shows that segment and the total, i
     await context.close();
 });
 
-test("under a strict Content-Security-Policy: segments, the gap, lines and slices, without a violation", async ({ page }) => {
+test("under a strict Content-Security-Policy: segments, the gap, bars, lines, areas and slices, without a violation", async ({ page }) => {
+    // six charts swept by the pointer: slower than one hover
+    test.setTimeout(180_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("pages/element-csp.html");
     const el = page.locator("#strict");
@@ -272,7 +298,7 @@ test("under a strict Content-Security-Policy: segments, the gap, lines and slice
         const box = await chartEl.boundingBox();
         const seen = new Set();
         for (const fy of rows) {
-            for (let x = box.x + 40; x < box.x + box.width - 20; x += 10) {
+            for (let x = box.x + 40; x < box.x + box.width - 20; x += 14) {
                 await page.mouse.move(x, box.y + box.height * fy);
                 const tip = await tooltipOf(chartEl);
                 if (tip.length) seen.add(tip.join(" | "));
@@ -294,11 +320,20 @@ test("under a strict Content-Security-Policy: segments, the gap, lines and slice
     expect(bars).toContain("North | Total 60");
     expect(bars.some((t) => /^North \| (Hardware 20|Services 10|Software 30) \| Total 60$/.test(t)), bars.join("\n")).toBe(true);
     expect(bars.some((t) => t.includes("|  |") || /Hardware $/.test(t)), bars.join("\n")).toBe(false);
+    await show({ type: "bar" });
+    const grouped = await sweep([0.6, 0.8]);
+    expect(grouped).toContain("East | Services 12 | Software 40");
+    expect(grouped.some((t) => /^North \| (Hardware 20|Services 10|Software 30)$/.test(t)), grouped.join("\n")).toBe(true);
     await show({ type: "line" });
     const lines = await sweep([0.3, 0.45, 0.6, 0.75]);
     expect(lines).toContain("East | Services 12 | Software 40");
-    await show({ type: "pie" }, { cols: [] });
-    const slices = await sweep([0.4, 0.5, 0.6]);
-    expect(slices.some((t) => /^Sum of Revenue \| (North 60|South 45|East 52)$/.test(t)), slices.join("\n")).toBe(true);
+    await show({ type: "area", stacked: true });
+    const areas = await sweep([0.7, 0.85]);
+    expect(areas).toContain("North | Hardware 20 | Services 10 | Software 30 | Total 60");
+    for (const type of ["pie", "donut"]) {
+        await show({ type }, { cols: [] });
+        const slices = await sweep([0.4, 0.5, 0.6]);
+        expect(slices.some((t) => /^Sum of Revenue \| (North 60|South 45|East 52)$/.test(t)), `${type}: ${slices.join("\n")}`).toBe(true);
+    }
     expect(await page.evaluate(() => window.__violations)).toEqual([]);
 });

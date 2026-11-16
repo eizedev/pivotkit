@@ -25,7 +25,7 @@ export const de = {
         drillCopy: "Die Zeilen wie im Bereich angezeigt, mit einer Überschriftenzeile: tabulatorgetrennt, wird in Excel oder Google Sheets in Spalten eingefügt.",
         drillJson: "Die Zeilen als JSON-Objekte, mit den Feldnamen und Rohwerten der Daten, für ein Programm.",
         groupLabels: "Mit zwei oder mehr Feldern in Zeilen: die Einträge des äußeren Felds einmal unter der Achse, unter ihren Kategorien.",
-        tooltip: "Automatisch: der Balken, das Segment oder der Punkt unter dem Zeiger, mit der Summe seines Stapels. Dazwischen jede Reihe an dieser Stelle. Alle Reihen: jede Reihe an der Kategorie des Zeigers.",
+        tooltip: "Automatisch: der Balken, das Segment oder der Punkt unter dem Zeiger, mit dem Gesamtwert seines Stapels. Dazwischen jede Reihe an dieser Stelle. Alle Reihen: jede Reihe an der Kategorie des Zeigers.",
         labelPosition: "Außen: Name und Zahl jedes Segments daneben. Innen: die Zahl auf dem Segment, die Namen in der Legende; außen, wenn der Ring eines Donuts dafür zu schmal ist.",
         sharedView: "Nur Admins können gemeinsame Ansichten ändern.",
         valuesFilter: "Werte werden hier nicht gefiltert: Ein Feld in Zeilen oder Spalten über sein Menü filtern oder ein Feld in Filter ziehen."

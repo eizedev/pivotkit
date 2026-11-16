@@ -366,7 +366,8 @@ test("the tooltip's total row and the hovered line: weights and the rule from th
     assert.deepEqual([sum.children[1].textContent, sum.children[2].textContent], ["Total", "50"]);
     assert.equal(sum.style.borderTop, "1px solid var(--pk-border)");
     assert.equal(sum.style.fontWeight, "var(--pk-weight-strong)");
-    assert.equal(sum.style.fontSize, "var(--pk-chart-text-size)");
+    // the tooltip's size, as every line: no size of its own
+    assert.equal(sum.style.fontSize, undefined);
     // the total's marker keeps the column but shows no colour
     assert.equal(sum.children[0].style.backgroundColor, undefined);
 });

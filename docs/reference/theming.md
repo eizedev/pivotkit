@@ -198,7 +198,7 @@ The chart reads these tokens in the current theme:
 | Its other text: the axes, the legend, the labels on bars, slices and cells, the heatmap's scale | `--pk-chart-text-size` |
 | The corners of bars and pie slices | `--pk-radius-chart` |
 | The corners of the tooltip | `--pk-radius-card` |
-| The tooltip's total line and the series under the pointer | `--pk-border`, `--pk-weight-strong`, `--pk-chart-text-size` |
+| The tooltip's total line and the series under the pointer | `--pk-border`, `--pk-weight-strong` |
 
 By default, `--pk-chart-text-size` is the secondary text's size, at least 14 px. The report takes a
 host's own size as it is, so keep it at 14 px or more.

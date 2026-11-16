@@ -137,13 +137,13 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
             box.append(row(line));
         }
         if (total) {
-            // the stack's total under a rule, all of it in the strong weight; its marker keeps the column
+            // the stack's total under a rule, all of it in the strong weight; its marker keeps the column.
+            // Its size is the tooltip's, as every line's: the chart's text size, resolved in px
             const sum = row(total);
             sum.style.borderTop = "1px solid var(--pk-border)";
             sum.style.marginTop = "4px";
             sum.style.paddingTop = "4px";
             sum.style.fontWeight = "var(--pk-weight-strong)";
-            sum.style.fontSize = "var(--pk-chart-text-size)";
             box.append(sum);
         }
         return box;
