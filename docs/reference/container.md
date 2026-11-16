@@ -50,17 +50,22 @@ A minimal configuration (paths are inside the container):
 }
 ```
 
-Without a configuration (nothing in `/config`) the image serves its built-in example: the source
-`example` (the command line's sales data), reports in `/var/lib/pivotkit/out`, files may be
-downloaded (`policy.results`) and callers may send data (`policy.data`), and `/data` readable by
-path where it is mounted. A `/config` that holds other files but no `pivotkit.json` (a typo such as
-`pivotkit.jsn`) is refused, naming them.
+Without a configuration (nothing in `/config`) the image serves its built-in example:
+
+- the source `example`, the command line's sales data;
+- reports in `/var/lib/pivotkit/out`;
+- files may be downloaded (`policy.results`), and callers may send data (`policy.data`).
+
+A mounted `/data` is not readable by path then. The token `admin` holds every scope, so opening a
+directory is a choice you make in a configuration: `"files": { "allowDirs": ["/data"] }`. A
+`/config` that holds other files but no `pivotkit.json` (a typo such as `pivotkit.jsn`) is refused,
+naming them.
 
 | Path | What goes there |
 | --- | --- |
 | `/config/pivotkit.json` | The configuration (`$PIVOTKIT_CONFIG` names another) |
 | `/data` | The data files, mounted read-only |
-| `/var/lib/pivotkit` | The state directory (`$PIVOTKIT_STATE_DIR`): the token and keys made at the first start in `secrets/` (0700, each file 0600), and the reports in `out/` when `output.dir` names it. Mount a named volume there; it takes the image's owner (10001) and mode (0700) when it is new. The image declares no `VOLUME` for it: without a volume the server starts but warns that the token and keys are lost with the container, and with `--read-only` it does not start, since it cannot make the token. One container per volume, or several on one shared volume (they end with one token) |
+| `/var/lib/pivotkit` | The state directory (`$PIVOTKIT_STATE_DIR`): the token and keys made at the first start in `secrets/` (0700, each file 0600), and the reports in `out/` when `output.dir` names it. Mount a named volume there; it takes the image's owner (10001) and mode (0700) when it is new. The image declares no `VOLUME`: without a volume the server starts but warns that the token and keys are lost with the container, and with `--read-only` it does not start, since it cannot make the token. One container per volume, or several on one shared volume (they end with one token) |
 | `/out` | An output directory for a configuration that names it, writable by the user 10001 (a named volume is; a host folder needs `chown 10001:10001`, and Docker makes a missing one as root, so make it yourself first; `check-config` and the start say so when it is not writable). A directory below it in `output.dir` is made at start, with mode 0700 (0755 narrowed by the umask when `output.baseUrl` is set): only the user 10001 reads it, so a second reader (a web server, a backup) needs `output.baseUrl` or a directory you make yourself. The server's own [download links](delivery.md) keep which one-time links were used in `.pivotkit-downloads/` there |
 | `/run/secrets/` | Token files of your own, readable by the user 10001 ([managed secrets](#managed-secrets)) |
 | `/tmp` | A tmpfs: the root file system stays read-only |
@@ -110,6 +115,7 @@ The image's entry point is `pivotkit-server`; the command after the image name i
 docker run --rm ghcr.io/eizedev/pivotkit:<version> --help
 docker run --rm ghcr.io/eizedev/pivotkit:<version> token new   # a token on stdout (key new --for downloads: the download key)
 docker exec pivotkit pivotkit-server token show admin   # a token's value as the running server reads it (kubectl exec deploy/pivotkit -- the same)
+docker exec pivotkit pivotkit-server token show token   # the one of $PIVOTKIT_TOKEN, or of $PIVOTKIT_MCP_TOKEN where only that is set (pivotkit-server mcp)
 docker run --rm -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/data:/data:ro" -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:<version> check-config --host 0.0.0.0   # the mounts of the example above
 docker run --rm --read-only -v "$PWD:/work" -w /work ghcr.io/eizedev/pivotkit:<version> cli render view.json --data sales.csv -o report.xlsx
 docker run --rm -i -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/data:/data:ro" ghcr.io/eizedev/pivotkit:<version> mcp

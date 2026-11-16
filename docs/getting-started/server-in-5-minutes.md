@@ -6,8 +6,8 @@ description: Start the pivotkit container with one command, read the token it ma
 # Server in 5 minutes
 
 One `docker run` starts the REST service and the MCP server with example data. At its first start
-the server makes a token of its own and keeps it in a volume; you read it with one command. You need
-Docker (or Podman) and curl or PowerShell, nothing else.
+the server makes a token of its own. It keeps the token in a volume. You read it with one command.
+You need Docker (or Podman) and curl or PowerShell, nothing else.
 
 ## 1. Start it { #start }
 
@@ -16,8 +16,8 @@ docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotk
 ```
 
 The volume `pivotkit` keeps what the server makes: the token `admin`, the key of the download links
-and the reports. Without a configuration the server serves its built-in example, the source
-`example` (2000 rows of sales).
+and the reports. Without a configuration the server serves its built-in example. That is the source
+`example`, 2000 rows of sales.
 
 ## 2. Get the token { #token }
 
@@ -33,19 +33,20 @@ and the reports. Without a configuration the server serves its built-in example,
     $token = docker exec pivotkit pivotkit-server token show admin
     ```
 
-The log names the same command (`docker logs pivotkit`), never the token itself. Every request
-without it gets 401.
+The log names this command too (`docker logs pivotkit`). It never shows the token itself. Every
+request without the token gets 401.
 
 ## 3. Call it with curl { #curl }
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3333/api/v1/sources
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+curl -f -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"source":"example","view":{"rows":["Region"],"values":[{"field":"Revenue","agg":"sum"}]},"format":"csv"}' \
   -o revenue.csv http://127.0.0.1:3333/api/v1/views/render/file
 ```
 
-`revenue.csv` holds the revenue per region. The [REST reference](../reference/rest.md) has every
+`revenue.csv` holds the revenue per region. `-f` makes curl fail on an error instead of writing it
+into the file. The [REST reference](../reference/rest.md) has every
 route; `format` takes `xlsx`, `json`, `svg` and `html` too.
 
 ## 4. The same in PowerShell { #powershell }
@@ -80,16 +81,17 @@ Ask it "Which sources do you have?", then "Revenue per region of example as an E
 
 ## 6. Your own data { #own-data }
 
-Put your files in a folder `data` and name them in a `pivotkit.json` beside it:
+Put your files in a folder `data`. Name them in a `pivotkit.json` beside it:
 
 ```json
 {
   "sources": { "sales": { "file": "/data/sales.csv", "title": "Sales" } },
-  "output": { "dir": "/var/lib/pivotkit/out" }
+  "output": { "dir": "/var/lib/pivotkit/out" },
+  "policy": { "results": true }
 }
 ```
 
-Start the container again with both mounted (the same volume keeps the token):
+Start the container again with both mounted. The same volume keeps the token:
 
 ```bash
 docker rm -f pivotkit
@@ -97,29 +99,81 @@ docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotk
   -v "$PWD/data:/data:ro" -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" ghcr.io/eizedev/pivotkit:0.2.0
 ```
 
-The files must be readable by the user 10001 the image runs as (`chmod 0644`). By default each
-field shows its name, type and counts, not its values: `"policy": { "fields": { "Region": "show" } }`
-in a source shows more ([Getting started: REST service](rest.md#policy)), and
-`"policy": { "results": true }` lets callers download rendered files as above.
-[docker/compose.example.yml](https://github.com/eizedev/pivotkit/blob/main/docker/compose.example.yml)
-is the same setup for Docker Compose (`docker compose exec pivotkit pivotkit-server token show admin`).
+- The user 10001 runs the server. It must be able to read the files (`chmod 0644`).
+- `"results": true` lets callers download rendered files, as in step 3.
+- Each field shows its name, type and counts by default, not its values.
+  `"policy": { "fields": { "Region": "show" } }` in a source shows more
+  ([Getting started: REST service](rest.md#policy)).
+- The server reads only the files you name. A mounted `/data` alone is not readable by path:
+  `"files": { "allowDirs": ["/data"] }` allows it, for every token.
+
+### With Docker Compose { #compose }
+
+The same setup as a Compose project. Download the two example files of this release:
+
+=== "bash"
+
+    ```bash
+    mkdir pivotkit && cd pivotkit && mkdir data
+    curl -fsSL -o compose.yml https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.2.0/docker/compose.example.yml
+    curl -fsSL -o pivotkit.json https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.2.0/docker/pivotkit.example.json
+    export PIVOTKIT_VERSION=0.2.0
+    ```
+
+=== "PowerShell"
+
+    ```powershell
+    mkdir pivotkit; cd pivotkit; mkdir data
+    Invoke-WebRequest -OutFile compose.yml https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.2.0/docker/compose.example.yml
+    Invoke-WebRequest -OutFile pivotkit.json https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.2.0/docker/pivotkit.example.json
+    $env:PIVOTKIT_VERSION = "0.2.0"
+    ```
+
+Put your files into `data/`. Name them in `pivotkit.json`. Then start it and read the token:
+
+```bash
+docker compose up -d --wait
+docker compose exec pivotkit pivotkit-server token show admin
+```
+
+Make `data/` and `pivotkit.json` before the first `up`. Docker makes a missing mount source as an
+empty directory, owned by root. `pivotkit.json` would then be a directory, and the server does not
+start. The files are
+[compose.example.yml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.2.0/docker/compose.example.yml)
+and [pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.2.0/docker/pivotkit.example.json).
 
 ## What to know { #know }
 
-- **Keep the volume.** `/var/lib/pivotkit` holds the token, the key of the download links and the
-  reports. Without a volume there the server still starts, warns that they are lost when the
-  container is removed, and makes new ones next time; with `--read-only` and no volume it does not
-  start. Back the volume up like any other ([Operations](../reference/operations.md#state)).
-- **A new token.** `docker exec pivotkit pivotkit-server token new --file /var/lib/pivotkit/secrets/admin.token --force`
-  replaces it; the server reads the file on every request, so the old token gets 401 at once and no
-  restart is needed.
-- **Other machines.** Publish the port on an address they reach (`-p 3333:3333`) and name the host
-  name they use, in the file (`"http": { "allowHosts": ["reports.example.com"] }`) or as a command
-  after the image name, which replaces the image's own `serve --host 0.0.0.0`:
-  `ghcr.io/eizedev/pivotkit:0.2.0 serve --host 0.0.0.0 --allow-host reports.example.com`. The server
-  answers no other host name. Behind a proxy with HTTPS, set `--public-url https://reports.example.com/`
-  (`http.publicUrl`): download links point there.
-- **Tokens of your own, Kubernetes.** For tokens you manage as secrets, see
-  [Container image: managed secrets](../reference/container.md#managed-secrets); for a cluster,
-  [Kubernetes](kubernetes.md). The defaults apply only where nothing is configured: a token in
-  `auth.tokens` or `$PIVOTKIT_TOKEN` is used instead of `admin`.
+### Keep the volume { #volume }
+
+- `/var/lib/pivotkit` holds the token, the key of the download links and the reports.
+- Without a volume there, the server still starts. It warns that they are lost with the container.
+- With `--read-only` and no volume, the server does not start.
+- Back the volume up like any other ([Operations](../reference/operations.md#state)).
+
+### A new token { #new-token }
+
+```bash
+docker exec pivotkit pivotkit-server token new --file /var/lib/pivotkit/secrets/admin.token --force
+```
+
+- The server reads the file on every request. No restart is needed.
+- The old token gets 401 at once.
+
+### Other machines { #other-machines }
+
+- The token `admin` holds every scope. Anyone who reads it can use everything the server offers.
+- Over plain HTTP the token crosses the network unencrypted. Use it from other machines only behind
+  a proxy with HTTPS, or on a network you trust.
+- Publish the port on an address they reach: `-p 3333:3333`.
+- Name the host name they use: `"http": { "allowHosts": ["reports.example.com"] }`. The server
+  answers no other host name.
+- Behind the proxy, set `"http": { "publicUrl": "https://reports.example.com/" }`. Download links
+  point there.
+
+### Your own tokens, Kubernetes { #more }
+
+- The server makes `admin` only when nothing else gives a token. A token in `auth.tokens` or
+  `$PIVOTKIT_TOKEN` is used instead.
+- Tokens you manage as secrets: [Container image: managed secrets](../reference/container.md#managed-secrets).
+- A cluster: [Kubernetes](kubernetes.md).

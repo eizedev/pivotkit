@@ -39,7 +39,9 @@ LABEL org.opencontainers.image.title="pivotkit" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.documentation="https://pivotkit.eize.dev/reference/container/"
 COPY --from=build /app /app
-# the output directory, owned by the user that writes it (a volume created from it keeps that owner)
+# an output directory for a configuration that names /out, owned by the user that writes it (a named
+# volume mounted there takes that owner). No VOLUME, as for the state directory below: an anonymous
+# volume nobody named keeps nothing anyone finds again
 COPY --from=build --chown=10001:10001 /out /out
 # the state directory: the token and keys made at the first start (state.js), only this user's. No
 # VOLUME: an anonymous volume would hide that nothing keeps it; mount a named one (-v pivotkit:/var/lib/pivotkit),
@@ -59,7 +61,6 @@ ENV NODE_ENV=production \
 # a fixed user and group, not the base image's: the operator owns /out by this id
 USER 10001:10001
 EXPOSE 3333
-VOLUME ["/out"]
 HEALTHCHECK --interval=30s --timeout=6s --start-period=15s --retries=3 \
     CMD ["/nodejs/bin/node", "/app/packages/pivotkit-server/bin/pivotkit-server.js", "healthcheck"]
 ENTRYPOINT ["/nodejs/bin/node", "/app/packages/pivotkit-server/bin/pivotkit-server.js"]

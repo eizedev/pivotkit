@@ -41,6 +41,9 @@ export { callerOf, identityKey };
 /** The variable of the one static token when auth.tokens is empty. */
 export const TOKEN_ENV = "PIVOTKIT_TOKEN";
 
+/** pivotkit-mcp's variable of its one static token, defined here so `token show` knows it too. */
+export const MCP_TOKEN_ENV = "PIVOTKIT_MCP_TOKEN";
+
 /** The package's version. */
 export const VERSION = createRequire(import.meta.url)("../package.json").version;
 

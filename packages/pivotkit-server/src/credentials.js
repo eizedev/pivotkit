@@ -29,6 +29,7 @@ import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, unreadable } from "./secrets.js";
 import { CONFIG_ENV } from "./flags.js";
 import { DEFAULT_PORT, TOKEN_ENV } from "./serve.js";
+import { MCP_TOKEN_ENV } from "./context.js";
 import { SECRET_BYTES, SecretFileError, newSecret, placeSecret, replaceFile, writeBackup } from "./secret-file.js";
 
 
@@ -485,9 +486,9 @@ function withKey(raw, use, ref, config, same) {
  * @param {string} config  the file as given, for messages
  * @returns {Promise<string>}
  */
-async function configuredToken(options, name, env, config) {
+async function configuredToken(options, name, env, config, tokenEnv = TOKEN_ENV) {
     // auth.js staticTokens: the variable's token, named "token", while auth.tokens lists none
-    const tokens = options.auth?.tokens?.length ? options.auth.tokens : options.auth?.mode === "token" ? [{ name: "token", env: TOKEN_ENV }] : [];
+    const tokens = options.auth?.tokens?.length ? options.auth.tokens : options.auth?.mode === "token" ? [{ name: "token", env: tokenEnv }] : [];
     const token = tokens.find((t) => t.name === name);
     if (!token) {
         const near = closest(name, tokens.map((t) => t.name));
@@ -535,15 +536,18 @@ async function tokenShow(argv, io) {
     if (!config && !stateDir) {
         throw usage("NO_CONFIG", `token show reads the configuration file or the state directory: give --config <file> or --state-dir <dir>, or set $${CONFIG_ENV} or $${STATE_ENV}`);
     }
+    // the one token of a variable: pivotkit-server's, else pivotkit-mcp's where only that is set
+    // (pivotkit-server mcp in the image takes $PIVOTKIT_MCP_TOKEN)
+    const tokenEnv = !io.env[TOKEN_ENV] && io.env[MCP_TOKEN_ENV] ? MCP_TOKEN_ENV : TOKEN_ENV;
     let options;
     try {
         options = (await configFrom({ flag: values.config && resolve(cwd, values.config), fromEnv: io.env[CONFIG_ENV] && resolve(cwd, io.env[CONFIG_ENV]), stateDir }))?.options ?? { baseDir: cwd };
         // the address is not known here (the image passes --host to serve): taken as off loopback
-        options = planState(options, { env: io.env, host: null, tokenEnv: TOKEN_ENV, stateDir }).options;
+        options = planState(options, { env: io.env, host: null, tokenEnv, stateDir }).options;
     } catch (e) {
         throw e instanceof ConfigError ? usage("CONFIG", e.message) : e;
     }
-    const value = await configuredToken(options, name, io.env, config ?? stateDir);
+    const value = await configuredToken(options, name, io.env, config ?? stateDir, tokenEnv);
     return { json: { name }, value, hints: [], warnings: [], printValue: true, field: "token" };
 }
 

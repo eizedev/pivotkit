@@ -700,7 +700,7 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 | `--if-missing` | Keep a file that is there and exit 0, if the server can use its value; else exit 1. [Below](#credentials-if-missing) |
 | `--force` | Replace a file that is there, atomically. [Below](#credentials-force) |
 | `--config <file>` | `token new`: check `--profile` against `policy.profiles`, refuse a file inside `output.dir`, and use `http.publicUrl` in the hints. `token new` and `key new` read no configuration without it, not even `$PIVOTKIT_CONFIG`; `token show` reads `$PIVOTKIT_CONFIG` by default |
-| `--state-dir <dir>` | `token show`: the server's [state directory](#first-start) (default `$PIVOTKIT_STATE_DIR`), so `token show admin` prints the token the server made at its first start, without a configuration; before that start it exits 1 (`NOT_CREATED`) and makes nothing. `token show token` prints `$PIVOTKIT_TOKEN` where the server uses it |
+| `--state-dir <dir>` | `token show`: the server's [state directory](#first-start) (default `$PIVOTKIT_STATE_DIR`), so `token show admin` prints the token the server made at its first start, without a configuration; before that start it exits 1 (`NOT_CREATED`) and makes nothing. `token show token` prints `$PIVOTKIT_TOKEN` where the server uses it, or `$PIVOTKIT_MCP_TOKEN` where only that one is set (pivotkit-mcp, `pivotkit-server mcp`) |
 | `--add` | `token new`: add the token to `auth.tokens` of `--config`. `key new`: name the key as `output.downloads.key` or `audit.key`. Both need `--file`; [below](#credentials-add) |
 | `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
 | `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
@@ -781,15 +781,22 @@ without any setup has a token and links that survive a restart:
 | The key of the [download links](delivery.md) | `<dir>/secrets/downloads.key` | Links are on and `output.downloads.key` is not set |
 | The [audit](mcp.md#logging) key | `<dir>/secrets/audit.key` | `audit.subject` is `"hash"` and `audit.key` is not set |
 
-The server never makes the state directory itself, only `secrets/` (mode 0700) in it; each file is
-one line with mode 0600. A file that is there is read and never written. The start logs
-`created the token "admin" in <path>` once, and at every start the command that prints it
-(`docker exec <container> pivotkit-server token show admin`, `kubectl exec`, or
-`pivotkit-server token show admin --state-dir <dir>`); never the value. When the token cannot be
-made (the directory is read-only or missing), the start is refused; it never serves without auth
-instead. A key that cannot be made is a warning, and the key is a random one per process. Over stdio
-nothing is made. `check-config` says under `Credentials` whether each file is there, will be made, or
-cannot be, and makes nothing.
+- The server never makes the state directory itself. It makes only `secrets/` (mode 0700) in it.
+- Each file is one line with mode 0600. A file that is there is read and never written.
+- The start logs `created the token "admin" in <path>` once. It never logs a value.
+- Every start logs the command that prints the token. In Docker or Podman that is
+  `docker exec <container> pivotkit-server token show admin`. In Kubernetes it names the namespace
+  and the pod: `kubectl -n <namespace> exec <pod> -- pivotkit-server token show admin` (add
+  `-c <container>` in a pod with more than one). Elsewhere it is
+  `pivotkit-server token show admin --state-dir <dir>`.
+- With `auth.mode` `"token"` written in the configuration and no token given, the server uses
+  `admin` and warns. Such a start was refused before there was a state directory.
+- When the token cannot be made, the start is refused. It never serves without auth instead. The
+  message says what helps: a writable volume in a container, else the directory itself.
+- A key that cannot be made is a warning. The key is then a random one per process.
+- Over stdio nothing is made.
+- `check-config` says under `Credentials` whether each file is there, will be made, or cannot be. It
+  makes nothing.
 
 Several processes that start at once on one directory end with one value each (the first one's).
 Run one replica, or several on one shared volume; replicas with a volume each would each make their

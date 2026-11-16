@@ -84,8 +84,9 @@ export const stateDirOf = (flag, env, cwd = process.cwd()) => {
 
 /**
  * The image's built-in configuration: the example data as the source "example", its reports in
- * <state>/out, results and data in the request allowed, and /data readable by path where it is
- * mounted. Without a state directory there is no output directory.
+ * <state>/out, results and data in the request allowed. Files by path (a mounted /data) are never a
+ * default: the token "admin" holds every scope, so a configuration names them (files.allowDirs).
+ * Without a state directory there is no output directory.
  * @param {string | null} stateDir
  * @param {typeof IMAGE_PATHS} [paths]
  * @returns {import("./config.js").ServerOptions}
@@ -95,7 +96,6 @@ export function builtInConfig(stateDir, paths = IMAGE_PATHS) {
         sources: { example: { file: paths.example, title: "Example sales" } },
         ...(stateDir ? { output: { dir: join(stateDir, STATE_PARTS.out) } } : {}),
         policy: { results: true, data: true },
-        ...(existsSync(paths.data) ? { files: { allowDirs: [paths.data] } } : {}),
         baseDir: dirname(paths.config)
     };
 }
@@ -227,7 +227,9 @@ export const stateMeans = {
     container: (env = process.env) => (env.KUBERNETES_SERVICE_HOST ? "kubernetes" : existsSync("/.dockerenv") ? "docker" : existsSync("/run/.containerenv") ? "podman" : null),
     /** @returns {Promise<string | null>} */
     mountinfo: () => (process.platform === "linux" ? readFile("/proc/self/mountinfo", "utf8").catch(() => null) : Promise.resolve(null)),
-    hostname: () => hostname()
+    hostname: () => hostname(),
+    /** The pod's namespace (the service account's mount), or null. @returns {Promise<string | null>} */
+    namespace: () => readFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "utf8").then((t) => t.trim() || null, () => null)
 };
 
 /** A path of the mount table with its escapes (\040 for a space) read back. */
@@ -257,24 +259,34 @@ export async function onContainerLayer(dir, env) {
 const quoted = (text) => (/^[\w./-]+$/.test(text) ? text : `'${text.replace(/'/g, "'\\''")}'`);
 
 /**
- * The command that prints a token of the state directory, for where the server runs: through
- * kubectl, docker or podman inside a container, else the command itself with --state-dir unless
+ * The command that prints a token of the state directory, for where the server runs: kubectl with the
+ * pod's namespace and name (its own hostname), `docker exec <container>` or `podman exec <container>`
+ * (a container's hostname is not always its name), else the command itself with --state-dir unless
  * $PIVOTKIT_STATE_DIR names it.
  * @param {string} name
  * @param {{ env: Record<string, string | undefined>, stateDir: string | null }} where
+ * @returns {Promise<string>}
  */
-export function tokenShowHint(name, { env, stateDir }) {
+export async function tokenShowHint(name, { env, stateDir }) {
     const command = `pivotkit-server token show ${name}`;
     const container = stateMeans.container(env);
-    const host = stateMeans.hostname();
     if (container === "kubernetes") {
-        return `kubectl exec ${host} -- ${command}`;
+        const namespace = await stateMeans.namespace();
+        return `kubectl${namespace ? ` -n ${namespace}` : ""} exec ${stateMeans.hostname()} -- ${command}`;
     }
     if (container) {
-        return `${container} exec ${host} ${command}`;
+        return `${container} exec <container> ${command}`;
     }
     return env[STATE_ENV] || !stateDir ? command : `${command} --state-dir ${quoted(stateDir)}`;
 }
+
+/**
+ * What makes the state directory usable, for a message: a writable volume in a container, else the
+ * directory itself.
+ * @param {string} stateDir
+ * @param {Record<string, string | undefined>} env
+ */
+export const stateDirFix = (stateDir, env) => (stateMeans.container(env) ? `mount a writable volume at ${stateDir} (docker run -v pivotkit:${stateDir})` : `create ${stateDir} and make it writable for the user this runs as`);
 
 /** Why a file cannot be written where it would go, in words, from an error of mkdir or placeSecret. */
 function whyNot(e) {
@@ -384,7 +396,7 @@ export async function prepareHttpServe(options, { env, host, tokenEnv, stateDir 
         } catch (e) {
             const why = e instanceof ConfigError ? e.message : whyNot(e);
             if (secret.fromState && secret.use !== "token") {
-                notes.push({ level: "warn", text: `${secret.words} cannot be made in ${secret.path} (${why}): a random key is used, so ${secret.use === "downloads" ? "download links stop working on a restart" : "the same person gets another hash after a restart"}; mount a writable volume at ${plan.stateDir}` });
+                notes.push({ level: "warn", text: `${secret.words} cannot be made in ${secret.path} (${why}): a random key is used, so ${secret.use === "downloads" ? "download links stop working on a restart" : "the same person gets another hash after a restart"}; ${stateDirFix(/** @type {string} */ (plan.stateDir), env)}` });
                 if (secret.use === "downloads") {
                     next.output = { ...next.output, downloads: { ...next.output?.downloads, key: undefined } };
                 } else {
@@ -393,7 +405,7 @@ export async function prepareHttpServe(options, { env, host, tokenEnv, stateDir 
                 continue;
             }
             if (secret.fromState) {
-                throw new ConfigError(`auth: ${secret.words} cannot be made in ${secret.path} (${why}); mount a writable volume at ${plan.stateDir} (docker run -v pivotkit:${plan.stateDir}), or give the token in $${tokenEnv} or auth.tokens`);
+                throw new ConfigError(`auth: ${secret.words} cannot be made in ${secret.path} (${why}); ${stateDirFix(/** @type {string} */ (plan.stateDir), env)}, or give the token in $${tokenEnv} or auth.tokens`);
             }
             throw new ConfigError(`${secret.at}: ${secret.path} cannot be made (${why}); create: true makes a missing file, its directory must exist and be writable`);
         }
@@ -404,7 +416,7 @@ export async function prepareHttpServe(options, { env, host, tokenEnv, stateDir 
     if (plan.outInState) {
         await mkdir(join(/** @type {string} */ (plan.stateDir), STATE_PARTS.out), { mode: 0o700 }).catch((e) => {
             if (e?.code !== "EEXIST") {
-                throw new ConfigError(`output.dir: ${join(/** @type {string} */ (plan.stateDir), STATE_PARTS.out)} cannot be made (${e?.code === "ENOENT" ? `the state directory ${plan.stateDir} does not exist` : whyNot(e)}); mount a writable volume at ${plan.stateDir}`);
+                throw new ConfigError(`output.dir: ${join(/** @type {string} */ (plan.stateDir), STATE_PARTS.out)} cannot be made (${e?.code === "ENOENT" ? `the state directory ${plan.stateDir} does not exist` : whyNot(e)}); ${stateDirFix(/** @type {string} */ (plan.stateDir), env)}`);
             }
         });
     }
@@ -413,7 +425,11 @@ export async function prepareHttpServe(options, { env, host, tokenEnv, stateDir 
         notes.push({ level: "warn", text: `the state directory ${plan.stateDir} is on the container's own layer: its tokens, keys and reports are lost when the container is removed; mount a volume there (docker run -v pivotkit:${plan.stateDir})` });
     }
     if (plan.defaultToken && next.auth?.tokens?.some((t) => t.file === plan.defaultToken?.path)) {
-        notes.push({ level: "info", text: `auth: token "${DEFAULT_TOKEN_NAME}" from ${plan.defaultToken.path}; read it with: ${tokenShowHint(DEFAULT_TOKEN_NAME, { env, stateDir: plan.stateDir })}` });
+        notes.push({ level: "info", text: `auth: token "${DEFAULT_TOKEN_NAME}" from ${plan.defaultToken.path}; read it with: ${await tokenShowHint(DEFAULT_TOKEN_NAME, { env, stateDir: plan.stateDir })}` });
+        if (options.auth?.mode === "token") {
+            // a configuration that asked for tokens and gave none was refused before; say what clients need now
+            notes.push({ level: "warn", text: `auth.mode is "token", but neither auth.tokens nor $${tokenEnv} gives a token: clients need the token "${DEFAULT_TOKEN_NAME}" from ${plan.defaultToken.path}; set $${tokenEnv} or auth.tokens to use a token of your own` });
+        }
     }
     return { options: next, notes };
 }

@@ -15,7 +15,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `--read-only` and no volume the start is refused. A start off loopback without `auth.mode` that was
   refused starts with that token where a state directory is set. `docker/compose.example.yml` and
   `docker/pivotkit.example.json` are the minimal setup; the tokens as secret files moved to
-  `compose.secrets.example.yml` and `pivotkit.secrets.example.json`
+  `compose.secrets.example.yml` and `pivotkit.secrets.example.json`. The image declares no `VOLUME`
+  any more: mount a named volume where reports go. A read-only container without the state volume
+  warns at every start that the download key cannot be made
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#first-start-0-7)).
 - Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still
   waiting for approval (`*.pivotkit-out.report.json`) are deleted with reports older than
@@ -109,7 +111,8 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   `token show admin` prints it without a configuration
   ([server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/),
   [made at the first start](https://pivotkit.eize.dev/reference/rest/#first-start)).
-- The container image: a built-in example configuration when `/config` is empty, the state
+- The container image: a built-in example configuration when `/config` is empty (the example data
+  only; a mounted `/data` needs `files.allowDirs`), the state
   directory `/var/lib/pivotkit` (0700, user 10001), and `pivotkit-server` on its `PATH` for
   `docker exec` and `kubectl exec`.
 - `pivotkit-server token new`, `token show` and `key new --for downloads|audit`: a token (32 random

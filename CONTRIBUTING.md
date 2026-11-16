@@ -219,7 +219,8 @@ For each release:
    checks against it: the pivotkit row of `docs/compare.md` (version and date), the example's
    `generator` in `docs/reference/view-file.md`, the pivotkit-core minor that pivotkit-xlsx needs
    in the official plugins table of `docs/reference/plugins.md`, and the image tag of
-   `docs/getting-started/server-in-5-minutes.md` (pivotkit-server's version, every occurrence). Docs and READMEs name no other
+   `docs/getting-started/server-in-5-minutes.md` (pivotkit-server's version, every occurrence: the
+   image tag and the release tag `pivotkit-server@<version>` of its download links). Docs and READMEs name no other
    version of their own. Two files carry a package's version and are checked by its tests:
    `docs/openapi.json` (pivotkit-server's, made again with `node scripts/openapi.js`) and
    `packages/pivotkit-mcp/.claude-plugin/plugin.json` (pivotkit-mcp's).

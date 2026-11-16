@@ -218,14 +218,22 @@ serves its built-in example and makes the token `admin` at its first start
   token and none is given, the key of the download links when `output.downloads.key` is not set, the
   audit key for `audit.subject` `"hash"` without `audit.key`. Download links and audit hashes then
   stay the same after a restart, as long as the directory is on a volume.
-- A start that was refused, `auth.mode` not set on an address off loopback, starts with a token
-  instead when there is a state directory. Without one it is refused as before; in the image,
-  `-e PIVOTKIT_STATE_DIR=` turns it off. A configuration that names its tokens, or `$PIVOTKIT_TOKEN`,
-  gets no `admin`.
+- Two starts that were refused now start with the token `admin` when there is a state directory:
+  `auth.mode` not set on an address off loopback, and `auth.mode` `"token"` with neither
+  `auth.tokens` nor `$PIVOTKIT_TOKEN`. The second one logs a warning that says so. Without a state
+  directory both are refused as before. In the image, `-e PIVOTKIT_STATE_DIR=` turns it off.
+- A configuration that names its tokens, or `$PIVOTKIT_TOKEN`, gets no `admin`.
+- A read-only container without a volume at `/var/lib/pivotkit` warns at every start that the
+  download links' key cannot be made. Add `-v pivotkit:/var/lib/pivotkit` to keep links across
+  restarts.
+- The image declares no `VOLUME` any more. A `docker run` without `-v ...:/out` wrote reports into
+  an anonymous volume that nothing named; now they stay in the container. Mount a named volume where
+  your configuration writes reports (`/var/lib/pivotkit/out` in the examples).
 - The token cannot be made on a read-only root without a volume at `/var/lib/pivotkit`: the start is
   refused and says which volume to mount. Without `--read-only` and without a volume it starts and
   warns that the token and keys are lost with the container.
-- An empty `/config` (nothing mounted there) starts the built-in example instead of refusing; a
+- An empty `/config` (nothing mounted there) starts the built-in example instead of refusing. It
+  serves the example data only; a mounted `/data` needs `files.allowDirs` in a configuration. A
   `/config` with other files but no `pivotkit.json` is refused and names them.
 - `pivotkit-server` is on the image's `PATH`: `docker exec <container> pivotkit-server token show admin`.
 - `docker/compose.example.yml` and `docker/pivotkit.example.json` are the minimal setup now, with the

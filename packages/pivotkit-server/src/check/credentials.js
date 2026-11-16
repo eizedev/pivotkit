@@ -48,7 +48,7 @@ export async function section(options, _registry, runtime) {
         }
     }
     if (plan.defaultToken) {
-        items.push(plain(`read the token with: ${tokenShowHint(DEFAULT_TOKEN_NAME, { env: runtime.env, stateDir: plan.stateDir })}`));
+        items.push(plain(`read the token with: ${await tokenShowHint(DEFAULT_TOKEN_NAME, { env: runtime.env, stateDir: plan.stateDir })}`));
     }
     // what an installation of the version before notices: a start that made nothing (or was refused) makes these
     const made = plan.secrets.filter((s) => s.fromState);

@@ -99,10 +99,17 @@ test("on loopback, with $PIVOTKIT_TOKEN, or with allowUnauthenticated no token i
 });
 
 test("a state directory that cannot be written stops the start when the token is needed, never listening; the key alone is a warning", { skip: (!POSIX || ROOT) && "needs a POSIX user that is not root" }, async () => {
+    const { stateMeans } = await import("../src/state.js");
+    const { container } = stateMeans;
     const { dir, state } = setup();
     chmodSync(state, 0o500);
     try {
-        await assert.rejects(openServer({ sources, baseDir: dir }, { stateDir: state }), (e) => e instanceof ConfigError && /the token "admin" cannot be made/.test(e.message) && /mount a writable volume at/.test(e.message) && /\$PIVOTKIT_TOKEN/.test(e.message));
+        // outside a container the fix is the directory itself; inside one, a volume
+        stateMeans.container = () => null;
+        await assert.rejects(openServer({ sources, baseDir: dir }, { stateDir: state }), (e) => e instanceof ConfigError && /the token "admin" cannot be made/.test(e.message) && /create .*state and make it writable for the user this runs as/.test(e.message) && !/volume/.test(e.message) && /\$PIVOTKIT_TOKEN/.test(e.message));
+        stateMeans.container = () => "docker";
+        await assert.rejects(openServer({ sources, baseDir: dir }, { stateDir: state }), (e) => e instanceof ConfigError && /mount a writable volume at .*state/.test(e.message));
+        stateMeans.container = container;
         // the runner: exit 2 and no listening line
         const r = run(["serve", "--host", OPEN, "--port", "0", "--source", `s=${join(dir, "data", "sales.csv")}`, "--log-format", "json"], { env: { [STATE_ENV]: state } });
         assert.equal(r.status, 2);
@@ -113,15 +120,25 @@ test("a state directory that cannot be written stops the start when the token is
         assert.equal(options.output?.downloads?.key, undefined);
         assert.ok(notes.some((n) => n.level === "warn" && /the download links' key cannot be made/.test(n.text) && /random key/.test(n.text)), JSON.stringify(notes));
     } finally {
+        stateMeans.container = container;
         chmodSync(state, 0o700);
     }
     assert.deepEqual(readdirSync(state), []);
 });
 
 test("a state directory that does not exist is not made: the start says so", async () => {
+    const { stateMeans } = await import("../src/state.js");
+    const { container } = stateMeans;
     const { dir } = setup();
     const missing = join(dir, "no-such-state");
-    await assert.rejects(openServer({ sources, baseDir: dir }, { stateDir: missing }), /the state directory .*no-such-state does not exist/);
+    try {
+        stateMeans.container = () => null;
+        await assert.rejects(openServer({ sources, baseDir: dir }, { stateDir: missing }), (e) => /the state directory .*no-such-state does not exist/.test(e.message) && /create .*no-such-state/.test(e.message) && !/volume/.test(e.message));
+        stateMeans.container = () => "docker";
+        await assert.rejects(openServer({ sources, baseDir: dir }, { stateDir: missing }), /mount a writable volume at .*no-such-state/);
+    } finally {
+        stateMeans.container = container;
+    }
     assert.ok(!existsSync(missing));
 });
 
@@ -266,11 +283,14 @@ test("the image's built-in configuration: only for the image's path from the var
     assert.equal(missing?.builtIn, true);
     assert.deepEqual(missing?.options, { sources: { example: { file: paths.example, title: "Example sales" } }, output: { dir: join(state, "out") }, policy: { results: true, data: true }, baseDir: join(root, "config") });
     validateOptions(/** @type {any} */ (missing).options);
-    // /config empty (an empty ConfigMap's ..data does not count), /data there
+    // /config empty (an empty ConfigMap's ..data does not count), /data mounted: still only the
+    // example; files by path are a setting of a configuration (files.allowDirs), never a default
     mkdirSync(join(root, "config"));
     mkdirSync(join(root, "config", "..data"));
     mkdirSync(paths.data);
-    assert.deepEqual((await configFrom({ fromEnv: paths.config, stateDir: state, paths }))?.options.files, { allowDirs: [paths.data] });
+    const withData = await configFrom({ fromEnv: paths.config, stateDir: state, paths });
+    assert.equal(withData?.builtIn, true);
+    assert.equal(withData?.options.files, undefined);
     // without a state directory: no output directory
     assert.equal(builtInConfig(null, paths).output, undefined);
     // a typo is refused with its name
@@ -290,18 +310,19 @@ test("the Dockerfile sets the paths state.js names", () => {
     assert.match(dockerfile, new RegExp(`${STATE_ENV}=${IMAGE_PATHS.stateDir}\\b`));
     assert.ok(dockerfile.includes(IMAGE_PATHS.example), "the example data is unpacked where the built-in configuration reads it");
     assert.ok(dockerfile.includes(` ${IMAGE_PATHS.stateDir}`), "the state directory is made in the image");
-    assert.doesNotMatch(dockerfile, /^VOLUME[^\n]*\/var\/lib\/pivotkit/m, "no anonymous volume for the state directory");
+    assert.doesNotMatch(dockerfile, /^VOLUME/m, "no anonymous volume: the state directory and /out are named volumes the operator mounts");
 });
 
 test("the log: created lines once, the token's line with the command for where it runs, never a value", async () => {
     const { stateMeans } = await import("../src/state.js");
-    const { container, hostname } = stateMeans;
+    const { container, hostname, namespace } = stateMeans;
     try {
         stateMeans.hostname = () => "pivotkit-7d9f";
+        stateMeans.namespace = async () => "team-a";
         for (const [where, env, hint] of /** @type {const} */ ([
-            ["kubernetes", { KUBERNETES_SERVICE_HOST: "10.0.0.1" }, "kubectl exec pivotkit-7d9f -- pivotkit-server token show admin"],
-            ["docker", {}, "docker exec pivotkit-7d9f pivotkit-server token show admin"],
-            ["podman", {}, "podman exec pivotkit-7d9f pivotkit-server token show admin"]
+            ["kubernetes", { KUBERNETES_SERVICE_HOST: "10.0.0.1" }, "kubectl -n team-a exec pivotkit-7d9f -- pivotkit-server token show admin"],
+            ["docker", {}, "docker exec <container> pivotkit-server token show admin"],
+            ["podman", {}, "podman exec <container> pivotkit-server token show admin"]
         ])) {
             stateMeans.container = (e = {}) => (e.KUBERNETES_SERVICE_HOST ? "kubernetes" : /** @type {any} */ (where === "kubernetes" ? null : where));
             const { dir, state } = setup();
@@ -324,10 +345,28 @@ test("the log: created lines once, the token's line with the command for where i
         const plain = await openServer({ sources, baseDir: dir }, { stateDir: state });
         await plain.close();
         assert.ok(plain.log.some((l) => l.message?.endsWith(`read it with: pivotkit-server token show admin --state-dir ${state}`)), JSON.stringify(plain.log.map((l) => l.message)));
+        // a pod whose namespace file cannot be read: the pod's name alone
+        stateMeans.namespace = async () => null;
+        stateMeans.container = () => "kubernetes";
+        const k8s = setup();
+        const noNs = await openServer({ sources, baseDir: k8s.dir }, { stateDir: k8s.state, env: { KUBERNETES_SERVICE_HOST: "10.0.0.1" } });
+        await noNs.close();
+        assert.ok(noNs.log.some((l) => l.message?.endsWith("read it with: kubectl exec pivotkit-7d9f -- pivotkit-server token show admin")), JSON.stringify(noNs.log.map((l) => l.message)));
     } finally {
         stateMeans.container = container;
         stateMeans.hostname = hostname;
+        stateMeans.namespace = namespace;
     }
+});
+
+test("auth.mode token without a token and without the variable: the token admin with a warning that says so", async () => {
+    const { dir, state } = setup();
+    const { notes } = await prepareHttpServe({ sources, auth: { mode: "token" }, baseDir: dir }, { env: {}, host: "127.0.0.1", tokenEnv: "PIVOTKIT_TOKEN", stateDir: state });
+    assert.ok(notes.some((n) => n.level === "warn" && /auth\.mode is "token", but neither auth\.tokens nor \$PIVOTKIT_TOKEN gives a token: clients need the token "admin"/.test(n.text)), JSON.stringify(notes));
+    // auth.mode unset off loopback: that start was refused before, no such warning
+    const other = setup();
+    const unset = await prepareHttpServe({ sources, baseDir: other.dir }, { env: {}, host: OPEN, tokenEnv: "PIVOTKIT_TOKEN", stateDir: other.state });
+    assert.ok(!unset.notes.some((n) => /neither auth\.tokens/.test(n.text)));
 });
 
 test("on the container's own layer the state directory is still used, with a warning", async () => {
@@ -409,6 +448,12 @@ test("token show: not made before the first start (exit 1, nothing made), then t
     // the token of $PIVOTKIT_TOKEN is "token"; then no admin is made or shown
     const variable = run(["token", "show", "token", "--state-dir", state], { env: { PIVOTKIT_TOKEN: "a-test-token-that-is-long-enough-0123456789" } });
     assert.equal(variable.stdout, "a-test-token-that-is-long-enough-0123456789\n");
+    // pivotkit-mcp's variable, where only it is set: "token" is that one, and no admin is made for it
+    const mcpVariable = run(["token", "show", "token", "--state-dir", state], { env: { PIVOTKIT_MCP_TOKEN: "an-mcp-test-token-that-is-long-enough-012345" } });
+    assert.equal(mcpVariable.stdout, "an-mcp-test-token-that-is-long-enough-012345\n", mcpVariable.stderr);
+    const mcpAdmin = run(["token", "show", "admin", "--state-dir", state], { env: { PIVOTKIT_MCP_TOKEN: "an-mcp-test-token-that-is-long-enough-012345" } });
+    assert.equal(mcpAdmin.status, 2, mcpAdmin.stderr);
+    assert.match(mcpAdmin.stderr, /no token "admin"/);
     // neither a configuration nor a state directory
     const none = run(["token", "show", "admin"]);
     assert.equal(none.status, 2);
