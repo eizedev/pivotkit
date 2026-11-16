@@ -80,7 +80,7 @@ jobs:
       - name: Live demo
         run: npm run docs:demo
       # the shared design and the pinned Zensical version (eizedev/brand, docs-site/); the site lands in site/
-      - uses: eizedev/brand/docs-site@c68d7f551c57943f66f5f68f49856d52c33a1550 # main
+      - uses: eizedev/brand/docs-site@69688095a8ce7030f247388560cc7f53ee7b0a9f # main
       # the npm READMEs link into the site; a published README cannot change, so its links must resolve
       - name: README links
         run: node scripts/check-readme-links.js site

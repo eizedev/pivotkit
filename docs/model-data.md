@@ -81,7 +81,7 @@ The excerpts show only the parts that change. They leave out keys such as `aggre
     ```
 
     A filter on `"direct"` gets the data's spelling back. The finding is `itemCase`, "item "direct" is
-    no item of "Channel"; did you mean "Direct"?", with `"suggestion": "Direct"`.
+    no item of "Channel": the data spells it otherwise", with `"suggestion": "Direct"`.
 
 === "values"
 

@@ -67,7 +67,7 @@ const LAYOUT_OPTIONS = Object.freeze({
     cols: { type: "string", multiple: true, value: "field", text: "A field on the columns." },
     values: { type: "string", multiple: true, value: "agg:field", text: 'A value: sum:Revenue, "average:Mean °C", count (rows), or a field alone (a number summed, else counted).' },
     group: { type: "string", multiple: true, value: "field:unit", text: "Group a field where it is placed: Date:yearMonth, Date:month (Jan to Dec of every year), Revenue:bin:500." },
-    filter: { type: "string", multiple: true, value: "json", text: 'A filter as a view writes it, as JSON or @file.json: {"field":"Region","type":"in","items":["North"]}.' },
+    filter: { type: "string", multiple: true, value: "field=item|json", text: 'Keep the rows of one item: Country=Germany (again for more items). Any other filter as a view writes it, as JSON or @file.json: {"field":"Units","type":"compare","op":">","value":3}.' },
     "chart-type": { type: "string", value: "type", choices: [...CATALOG.chartTypes], text: "Show the chart of this type (with layout flags or --suggest)." },
     map: { type: "string", multiple: true, value: "old=new", text: "The view's field old is the data's new (a column renamed since the view was made): --map Revenue=Turnover." }
 });
