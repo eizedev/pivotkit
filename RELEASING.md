@@ -71,12 +71,16 @@ Release packages in this order. It follows their run-time dependencies.
 
 ### 4. Approve on npm
 
-- The `build` job checks tag, version, main and CI. It runs the checks and packs the tarball.
+- The `build` job checks tag, version, main and CI.
+- It packs the tarball right after the install, then runs lint, types and tests.
+  A compromised dev dependency in those checks cannot change the tarball.
+- It records the tarball's integrity right after the pack. `publish` refuses a tarball with another one.
 - The `publish` job waits for an environment reviewer.
 - Before approving, read `.github/workflows/release.yml` at the tag. That version runs.
 - `publish` stages the tarball with provenance (`npm stage publish`, npm 11.21.1).
 - Provenance comes from the workflow's `--provenance`, not from `publishConfig`.
 - Staging needs npm 11.15.0 or later. Trusted publishing needs Node 22.14.0 or later.
+- The run's summary names the tarball and its integrity.
 - Check name, version and publisher. Then approve with two-factor authentication:
 
 ```bash
@@ -86,6 +90,7 @@ npm stage approve <stage-id>   # or: npm stage reject <stage-id>
 
 - You can also approve on npmjs.com, account settings, tab Staged Packages.
 - No workflow token can approve. An unapproved version never goes live.
+- After approval, `npm view <package>@<version> dist.integrity` shows the integrity from the summary.
 - If nobody approves it, the next tag's `check-release.js --published` fails. The GitHub release waits too.
 - Approve pivotkit-server promptly. Then push, and approve, pivotkit-mcp right away. The image is
   public as soon as you push the pivotkit-server tag ([below](#the-container-image)).
@@ -151,7 +156,8 @@ For the container image:
 - No npm token is stored in GitHub.
 - The `build` job has no publishing right. Only `publish` holds the OIDC token.
 - Provenance attests the workflow and the commit. It does not prove `dist/` is unaltered.
-- `publish` only checks that the tarball's name and version match the tag.
+- `build` packs before lint, types and tests run. Only the package's own build runs before the pack.
+- `publish` checks the tarball's integrity, and that its name and version match the tag.
 - No check compares a package's imports with the lowest core version its range admits.
   Exact ranges and `check-release.js` cover that instead.
 - `npm run pack:check` shows what would be published. It fails while a package is `"private": true`.

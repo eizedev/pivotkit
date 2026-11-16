@@ -277,6 +277,25 @@ test("the release workflow runs check-release for the tagged package before it p
     assert.ok(check < release.indexOf("npm pack --workspace"), "check-release runs after the pack");
 });
 
+// a compromised dev dependency runs in lint, types and tests: the tarball is packed and uploaded
+// before any of them, and the publish job stages only a tarball with the integrity the Pack step
+// recorded (#506)
+test("the release packs and uploads the tarball before lint, types and tests, and publish checks its integrity", () => {
+    const build = jobOf(".github/workflows/release.yml", "build");
+    const signatures = build.indexOf("run: npm audit signatures");
+    const pack = build.indexOf("npm pack --workspace");
+    const upload = build.indexOf("uses: actions/upload-artifact@");
+    const checks = build.indexOf("npm run lint");
+    assert.ok(signatures !== -1 && pack > signatures, "the pack follows the install and its signature check");
+    assert.ok(upload > pack, "the upload follows the pack");
+    assert.ok(checks > upload, "lint, types and tests run after the tarball is uploaded");
+    assert.equal(build.indexOf("npm run", signatures), build.indexOf("npm run lint"), "no npm script runs before the pack");
+    assert.match(build, /integrity: \$\{\{ steps\.pack\.outputs\.integrity \}\}/);
+    const publish = jobOf(".github/workflows/release.yml", "publish");
+    assert.match(publish, /INTEGRITY: \$\{\{ needs\.build\.outputs\.integrity \}\}/);
+    assert.ok(publish.indexOf("INTEGRITY:") < publish.indexOf("npm stage publish"), "the integrity is checked before the tarball is staged");
+});
+
 test("every package of this repository is checked, packed and released", () => {
     const pkg = JSON.parse(readFileSync(new URL("package.json", root), "utf8"));
     const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
