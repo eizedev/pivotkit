@@ -158,6 +158,27 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
+## From 0.7 to 0.8 { #from-0-7 }
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [Chart layout functions measure differently](#chart-layout-0-8) | your code calls `rowLabelInterval`, `heatmapCellLabels`, `columnLabelLayout` or `categoryLabelLayout` of `pivotkit-core/chart` | check the results you rely on. Pass `frame` to keep the old heatmap frame |
+
+### Chart layout functions measure differently { #chart-layout-0-8 }
+
+The same arguments can give other results than in 0.7:
+
+- `rowLabelInterval` and `heatmapCellLabels` measure the heatmap's frame from its grid and column
+  names: 102 px for straight names at 14 px, where 0.7 took 120 px. So more row names and cell
+  numbers fit.
+- `rowLabelInterval` writes a row name where the row is a px higher than the text. 0.7 asked for
+  4/3 of the text's height.
+- Every function that measures text weighs a Chinese, Japanese or Korean (CJK) or fullwidth
+  character a whole em and a capital 0.7 em. The layout slants or cuts such names sooner.
+- `categoryLabelLayout` cuts slanted names shorter in a low chart.
+
+To keep 0.7's heatmap frame, pass `{ x: 80, y: 120 }` as the last argument `frame`.
+
 ## From 0.6 to 0.7 { #from-0-6-1 }
 
 !!! warning "Copy old reports out of `output.dir` first"

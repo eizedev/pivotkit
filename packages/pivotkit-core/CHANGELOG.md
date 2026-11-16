@@ -10,9 +10,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 - `AGGREGATOR_ALIASES`: other tools' names of aggregators (`avg`) and the ones they mean
   (`average`), for "did you mean". A view never accepts them (#508).
-- `pivotkit-core/chart` exports `heatmapFrame`, `pieLabelFit`, `pieLabelTexts` and `valueLabelRoom`, the
-  layout `decorateOption` uses for the fixes below. `rowLabelInterval` and `heatmapCellLabels` take the
-  frame as an optional last argument; `categoryLabelLayout` takes `reserved` in its box.
+- `rowLabelInterval` and `heatmapCellLabels` of `pivotkit-core/chart` take the heatmap's frame as an
+  optional last argument; `categoryLabelLayout` takes `reserved` in its box.
 
 ### Changed
 
@@ -21,6 +20,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `itemCase`'s message no longer names the item meant: it is in `suggestion`, as for every other
   finding, so a front end that shows both says it once. A client that shows only `message` should
   show `suggestion` too (#508).
+- `rowLabelInterval` and `heatmapCellLabels` give other results for the same arguments: the frame
+  comes from the grid and the column names (102 px for straight names at 14 px, was 120 px), and a
+  row name needs a px more than the text (was 4/3 of it). Every layout function weighs CJK and
+  fullwidth characters a whole em and capitals 0.7 em. The
+  [upgrading page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-7) has the details.
 
 ### Fixed
 
@@ -28,10 +32,14 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   such as on a phone, they are cut shorter, so the plot keeps its room and its top value tick
   ([#228](https://github.com/eizedev/pivotkit/issues/228)).
 - A pie's or a donut's labels outside stay whole and inside the chart. On a narrow chart the pie
-  gets smaller and a long label goes on lines. Each side writes as many labels as its height holds,
-  those of the larger slices first ([#229](https://github.com/eizedev/pivotkit/issues/229)).
+  gets smaller, down to 40 % of its radius, and a long label goes on lines; where a word still has
+  no room, the labels go on the slices. With a legend, each side writes as many labels as its
+  height holds, those of the larger slices first; without one, every label stays
+  ([#229](https://github.com/eizedev/pivotkit/issues/229)).
 - The value at the end of a horizontal bar is no longer cut at the right edge: the plot keeps the
-  room of the longest one. The value axis leaves out tick labels that would overlap ([#230](https://github.com/eizedev/pivotkit/issues/230)).
+  room of the longest one, on a desktop too, so the plot of such a chart is a little narrower on
+  screen and in the SVG. A narrow value axis writes fewer, even ticks from 0
+  ([#230](https://github.com/eizedev/pivotkit/issues/230)).
 - A heatmap names every row while each row is a pixel higher than the text. The room that is not
   cells comes from the grid and the column names as drawn, not a fixed 120 px ([#231](https://github.com/eizedev/pivotkit/issues/231)).
 

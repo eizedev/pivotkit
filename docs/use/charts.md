@@ -80,10 +80,15 @@ The chart type menu has its **Display** settings under the chart types, in one f
     **Outside** writes each slice's name with what is chosen, on a line to the slice. On a narrow
     chart, such as on a phone, the labels get room beside the pie:
 
-    - The pie gets smaller, down to 40 % of its width.
+    - The pie gets smaller, down to 40 % of its radius.
     - A long label goes on two or more lines, broken at its spaces.
-    - Each side writes as many labels as its height holds, those of the larger slices first. The
-      legend and the tooltip name every slice.
+    - If a word still has no room at that size, the labels go on the slices where they fit there,
+      as with **Inside**. This needs a legend.
+
+    With a legend, each side of the pie writes as many labels as its height holds, those of the
+    larger slices first. A smaller slice can then lose its label on the chart, in the chart image
+    and in the HTML report. The legend still names it, and on screen the tooltip does too. With
+    the legend **Off**, every slice keeps its label, even where two labels touch.
 
     ![A donut on a phone: a smaller ring, each region's name and revenue on two lines beside it](../assets/screenshots/donut-phone-light.png#only-light){ width="300" }
     ![A donut on a phone: a smaller ring, each region's name and revenue on two lines beside it](../assets/screenshots/donut-phone-dark.png#only-dark){ width="300" }
@@ -113,10 +118,14 @@ The chart type menu has its **Display** settings under the chart types, in one f
       "One label in every 3 is shown".
 
     **All (slanted)** always writes every label. **Every n-th** keeps them straight and leaves out as
-    many as needed. A name longer than 120 px ends in "…", and the tooltip has it whole. Slanted names
-    take at most 40 % of the height the plot and they share. In a low chart they end in "…" sooner,
-    so the plot keeps its room. Horizontal bars write their names straight, every one while a line
-    fits each bar. The value at the end of a horizontal bar keeps its room on the right.
+    many as needed. A name longer than 120 px ends in "…", and the tooltip has it whole.
+
+    Slanted names never take more than 40 % of the chart's height, not counting its margins and
+    the group labels. In a low chart they end in "…" sooner, so the plot keeps its room.
+
+    Horizontal bars write their names straight, every one while a line fits each bar. The value at
+    the end of a horizontal bar keeps its room on the right. On a narrow chart the value axis
+    writes fewer numbers, at even steps from 0, so they do not run into each other.
 
 ??? info "Heatmap row names"
     A heatmap names every row while each row is at least a pixel higher than the text. In a lower
