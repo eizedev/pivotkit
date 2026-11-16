@@ -339,6 +339,9 @@ export async function auditOf(options, { env, log }) {
     return { subject, key: Buffer.from(key, "utf8") };
 }
 
+/** The most texts the signed-token log limit remembers before it drops those past their minute. */
+const SAID_MAX = 1000;
+
 /** What a request with a token the server does not know is told. */
 const UNKNOWN_TOKEN_TEXT = "unknown token; check the token the operator gave you";
 
@@ -361,6 +364,14 @@ function signedCheckOf(options, log) {
     const limited = (level, text) => {
         const now = Date.now();
         if (now - (said.get(text) ?? -Infinity) >= SHORT_TOKEN_WARN_MS) {
+            if (said.size >= SAID_MAX) {
+                // an entry past the limit's minute holds nothing back any more
+                for (const [key, at] of said) {
+                    if (now - at >= SHORT_TOKEN_WARN_MS) {
+                        said.delete(key);
+                    }
+                }
+            }
             said.set(text, now);
             log[level](text);
         }

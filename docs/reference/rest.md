@@ -998,9 +998,15 @@ Keep this directory on a volume, like the other secrets. Never copy it to anothe
 server signs with the same issuer and no audience, so servers with the same keys take each other's
 tokens. Run `pivotkit-server key new --for signing` on each server instead.
 
-The server uses only key files of their own with mode 0600. It skips a symbolic link and a file the
-group or others may read, logs it, and `check-config` shows it. A planted key therefore never signs.
-On Windows the mode is not checked.
+The server uses a key file only when it is a file of its own, has mode 0600 and belongs to the user
+the server runs as. A planted key therefore never signs. On Windows, mode and owner are not checked.
+
+!!! warning "A key file with a wider mode is skipped"
+
+    A restore with another umask, or some bind mounts, can leave a key file with mode 0640 or 0644.
+    The server then skips the key, and every token it signed gets 401. The log and `check-config`
+    name the file and the fix: `chmod 600 <file>`. `token list` shows its tokens as `key unusable`.
+    A key that should not be there goes with `pivotkit-server key remove <key id> --for signing`.
 
  `token issue` removes records and entries of
 tokens that expired, at most once an hour. `check-config` prints the keys and counts the active and revoked tokens under
@@ -1019,7 +1025,8 @@ Every key in `keys/` verifies tokens. The newest key signs new ones. So a new ke
 2. New tokens are signed with it. Tokens of the older key keep working.
 3. Once those have expired, run `pivotkit-server key remove <old key id> --for signing`.
 
-`token list` shows a token of a removed key as `key removed`: it gets 401.
+`token list` shows a token of a removed key as `key removed`, and one of a skipped key file as
+`key unusable`. Both get 401.
 
 `key remove` exits 1 while tokens of that key still work, and names when the last one expires.
 `--force` removes it anyway, and those tokens get 401 from the next request on. A key file is never

@@ -28,10 +28,10 @@
  */
 
 import { createPrivateKey, createPublicKey, generateKeyPairSync, randomBytes } from "node:crypto";
-import { lstat, mkdir, readdir, readFile, stat, unlink, utimes, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { constants, lstat, mkdir, open, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { SignJWT, decodeProtectedHeader, jwtVerify } from "jose";
-import { readSecretFile, secretValue } from "./secrets.js";
+import { readSecretHandle, secretValue } from "./secrets.js";
 import { placeSecret } from "./secret-file.js";
 
 /** The fixed parts of a signed token, and its lifetimes. */
@@ -176,6 +176,70 @@ export function createSignedVerifier({ keyFor, isRevoked, issuer, typ, clockTole
 }
 
 /**
+ * A file opened without following a symbolic link: O_NOFOLLOW where the system has it; elsewhere
+ * (Windows) a link found by lstat first is refused (ELOOP).
+ * @param {string} path
+ * @param {number} flags
+ * @param {number} [mode]
+ */
+async function openNoFollow(path, flags, mode) {
+    if (constants.O_NOFOLLOW === undefined) {
+        if ((await lstat(path).catch(() => null))?.isSymbolicLink()) {
+            throw Object.assign(new Error("a symbolic link"), { code: "ELOOP" });
+        }
+        return open(path, flags, mode);
+    }
+    return open(path, flags | constants.O_NOFOLLOW, mode);
+}
+
+/**
+ * Why an opened key file is not used, or null: not a regular file; on POSIX, any bit for the group
+ * or others, or another owner than the user the server runs as. With the fix, for the messages.
+ * @param {import("node:fs").Stats} info
+ * @param {string} path
+ * @returns {{ problem: string, fix: string | null } | null}
+ */
+function keyFileProblem(info, path) {
+    if (!info.isFile()) {
+        return { problem: "not a regular file", fix: null };
+    }
+    if (process.platform === "win32") {
+        return null;
+    }
+    if (info.mode & 0o077) {
+        return { problem: `readable by the group or others (mode ${(info.mode & 0o777).toString(8).padStart(4, "0")}, for example after a restore with another umask or on a bind mount)`, fix: `chmod 600 ${path}` };
+    }
+    const uid = process.getuid?.();
+    if (uid !== undefined && info.uid !== uid) {
+        return { problem: `owned by the user ${info.uid}, not ${uid} that the server runs as`, fix: `chown ${uid} ${path}` };
+    }
+    return null;
+}
+
+/**
+ * A key file's text, read in one step from one handle: opened without following a link, checked
+ * (keyFileProblem), then read (secrets.js readSecretHandle). Or why it is not used.
+ * @param {string} path
+ * @returns {Promise<string | { problem: string, fix: string | null }>}
+ */
+async function readKeyFile(path) {
+    let handle;
+    try {
+        handle = await openNoFollow(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
+    } catch (e) {
+        return e?.code === "ELOOP" ? { problem: "a symbolic link (a key is a file of its own)", fix: `remove it: pivotkit-server key remove ${basename(path, ".key")} --for signing` } : { problem: `cannot be read (${e?.code ?? "UNREADABLE"})`, fix: null };
+    }
+    try {
+        const why = keyFileProblem(await handle.stat(), path);
+        return why ?? (await readSecretHandle(handle)).text;
+    } catch (e) {
+        return { problem: `cannot be read (${e?.code ?? "UNREADABLE"})`, fix: null };
+    } finally {
+        await handle.close();
+    }
+}
+
+/**
  * The key of a key file's value, or why it cannot be used: an Ed25519 private key in PKCS#8 DER,
  * base64url.
  * @param {string} value
@@ -225,38 +289,32 @@ export function signedStore(dir, { now = Date.now } = {}) {
      * The keys of keys/, by kid, and the files that cannot be used (never their values). A missing
      * directory has none; one that cannot be read throws. For this server's own private keys only:
      * a key held elsewhere (an issuer's public key) comes to the verifier through its own keyFor.
-     * A symbolic link and a file the group or others may read are not used (a planted key with a
-     * newer kid would sign); Windows has no such mode bits.
-     * @returns {Promise<{ keys: Map<string, { private: import("node:crypto").KeyObject, public: import("node:crypto").KeyObject, path: string }>, problems: string[] }>}
+     * A key file is checked on the handle it is read from (keyFileProblem), so it cannot change
+     * between the check and the read. One that fails is skipped, and its kid is in `skipped`.
+     * @returns {Promise<{ keys: Map<string, { private: import("node:crypto").KeyObject, public: import("node:crypto").KeyObject, path: string }>, problems: string[], skipped: Set<string> }>}
      */
     async function loadKeys() {
         const names = await readdir(part("keys")).catch((e) => (e?.code === "ENOENT" ? [] : Promise.reject(e)));
         const keys = new Map();
         const problems = [];
+        const skipped = new Set();
         for (const name of names.sort()) {
             const kid = name.endsWith(".key") ? name.slice(0, -4) : "";
             if (!OWN_KEY_ID.test(kid)) {
                 continue;
             }
             const path = join(part("keys"), name);
-            const info = await lstat(path).catch(() => null);
-            if (info?.isSymbolicLink()) {
-                problems.push(`${path}: is a symbolic link; not used (keys are files of their own)`);
-                continue;
-            }
-            if (info && process.platform !== "win32" && info.mode & 0o077) {
-                problems.push(`${path}: readable by the group or others (mode ${(info.mode & 0o777).toString(8).padStart(4, "0")}); not used: chmod 600 it`);
-                continue;
-            }
-            const text = await readSecretFile(path).catch((e) => ({ error: e?.code ?? "UNREADABLE" }));
-            const read = typeof text === "string" ? privateKeyOf(secretValue(text, "key")) : { problem: `cannot be read (${text.error})` };
+            const text = await readKeyFile(path);
+            const read = typeof text === "string" ? privateKeyOf(secretValue(text, "key")) : text;
             if ("problem" in read) {
-                problems.push(`${path}: ${read.problem}`);
+                const fix = "fix" in read ? read.fix : null;
+                problems.push(`${path}: ${read.problem}; skipped, so its tokens get 401${fix ? `: ${fix}` : ""}`);
+                skipped.add(kid);
                 continue;
             }
             keys.set(kid, { private: read.key, public: createPublicKey(read.key), path });
         }
-        return { keys, problems };
+        return { keys, problems, skipped };
     }
 
     /** The register's records, parsed; a file that is not one is skipped. @returns {Promise<IssuedRecord[]>} */
@@ -394,13 +452,19 @@ export function signedStore(dir, { now = Date.now } = {}) {
          */
         async pruneSometimes(graceSec) {
             const marker = join(dir, ".pruned");
-            const last = await stat(marker).then((i) => i.mtimeMs, () => -Infinity);
-            if (now() - last < SIGNED_TOKEN.pruneMs) {
+            const last = await lstat(marker).then((i) => i.mtimeMs, () => -Infinity);
+            // a time in the future (a clock set back, a touched file) counts as stale
+            if (last <= now() && now() - last < SIGNED_TOKEN.pruneMs) {
                 return;
             }
             await this.prune(graceSec);
             const at = new Date(now());
-            await writeFile(marker, "", { mode: 0o600 }).then(() => utimes(marker, at, at));
+            // never through a link: it would empty the file it points to; a marker that cannot be
+            // written only means the next run prunes again
+            const handle = await openNoFollow(marker, constants.O_WRONLY | constants.O_CREAT, 0o600).catch(() => null);
+            if (handle) {
+                await handle.utimes(at, at).finally(() => handle.close());
+            }
         },
 
         /** Removes records and deny-list entries of tokens that expired more than `graceSec` ago. */

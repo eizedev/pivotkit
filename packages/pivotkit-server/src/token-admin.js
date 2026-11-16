@@ -80,9 +80,9 @@ async function rowsOf(planned, nowMs) {
     if (planned.store) {
         const revoked = await planned.store.revokedIds();
         // a token whose key is gone (key remove --force) gets 401 like a revoked one
-        const kids = await planned.store.loadKeys().then((r) => new Set(r.keys.keys()), () => null);
+        const loaded = await planned.store.loadKeys().catch(() => null);
         for (const r of await planned.store.issued()) {
-            const status = revoked.has(r.id) ? "revoked" : Date.parse(r.expiresAt) <= nowMs ? "expired" : kids && !kids.has(r.kid) ? "key removed" : "active";
+            const status = revoked.has(r.id) ? "revoked" : Date.parse(r.expiresAt) <= nowMs ? "expired" : loaded && loaded.skipped.has(r.kid) ? "key unusable" : loaded && !loaded.keys.has(r.kid) ? "key removed" : "active";
             rows.push({ id: r.id, name: r.name, kind: "signed", key: r.kid, profile: r.profile, scopes: r.scopes, issuedAt: r.issuedAt, expiresAt: r.expiresAt, status });
         }
     }
@@ -329,10 +329,12 @@ async function keyRemove(argv, io) {
     }
     const kid = oneArgument("key remove", positionals, "key id");
     const signed = await signedOf(values, io, "key remove");
-    const { keys } = await signed.store.loadKeys();
-    if (!OWN_KEY_ID.test(kid) || !keys.has(kid)) {
-        const near = closest(kid, [...keys.keys()]);
-        throw usage("UNKNOWN_KEY", `no signing key "${kid.slice(0, 40)}" in ${signed.path}${near ? `; did you mean "${near}"?` : keys.size ? `; there are ${[...keys.keys()].join(", ")}` : ""}`);
+    // a skipped key file (a link, a wider mode) can be removed too: a planted or bad key goes with the CLI
+    const { keys, skipped } = await signed.store.loadKeys();
+    const known = [...keys.keys(), ...skipped];
+    if (!OWN_KEY_ID.test(kid) || !known.includes(kid)) {
+        const near = closest(kid, known);
+        throw usage("UNKNOWN_KEY", `no signing key "${kid.slice(0, 40)}" in ${signed.path}${near ? `; did you mean "${near}"?` : known.length ? `; there are ${known.join(", ")}` : ""}`);
     }
     const live = (await rowsOf(signed, Date.now())).filter((r) => r.kind === "signed" && r.key === kid && r.status === "active");
     if (live.length && !values.force) {

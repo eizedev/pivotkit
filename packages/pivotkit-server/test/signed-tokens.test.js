@@ -633,3 +633,54 @@ test("token list --json names a static token's file by its base name, never its 
     assert.ok(!out.includes(dir), out);
     assert.equal(JSON.parse(out).tokens.find((t) => t.id === "bot").source, "file bot.token");
 });
+
+test("the prune marker is never written through a symbolic link, and a marker from the future counts as stale", { skip: !POSIX }, async () => {
+    const { symlinkSync, utimesSync } = await import("node:fs");
+    const { dir, config, signed } = setup();
+    assert.equal(run(["token", "issue", "--config", config]).status, 0);
+    const marker = join(signed, ".pruned");
+    // a marker from the future: pruning runs anyway
+    const stale = join(signed, "issued", "00000000000000bb.json");
+    writeFileSync(stale, JSON.stringify({ id: "00000000000000bb", name: null, kid: "k1", profile: null, scopes: null, issuedAt: "2020-01-01T00:00:00.000Z", expiresAt: "2020-01-01T01:00:00.000Z" }));
+    const future = new Date(Date.now() + 86_400_000);
+    utimesSync(marker, future, future);
+    assert.equal(run(["token", "issue", "--config", config]).status, 0);
+    assert.equal(existsSync(stale), false, "a future marker held pruning back");
+    // a marker that is a link to another file: the file keeps its content
+    const victim = join(dir, "victim.txt");
+    writeFileSync(victim, "keep me\n");
+    const old = new Date(Date.now() - 2 * 3_600_000);
+    utimesSync(victim, old, old);
+    const { unlinkSync } = await import("node:fs");
+    unlinkSync(marker);
+    symlinkSync(victim, marker);
+    assert.equal(run(["token", "issue", "--config", config]).status, 0);
+    assert.equal(readFileSync(victim, "utf8"), "keep me\n");
+});
+
+test("a key file with a wider mode is skipped: the log, check-config and token list say so and give the fix; key remove takes it away", { skip: !POSIX }, async () => {
+    const { chmodSync } = await import("node:fs");
+    const { config, signed } = setup();
+    const t = JSON.parse(run(["token", "issue", "--config", config, "--json"]).stdout);
+    const [file] = readdirSync(join(signed, "keys"));
+    const kid = file.slice(0, -4);
+    chmodSync(join(signed, "keys", file), 0o640);
+    const server = await serverOf(config);
+    try {
+        assert.equal((await call(`${server.api}/sources`, { token: t.token })).status, 401);
+        const line = server.log.find((l) => l.level === "warn" && l.msg.includes(kid));
+        assert.ok(line, JSON.stringify(server.log));
+        assert.match(line.msg, /its tokens get 401/);
+        assert.match(line.msg, /chmod 600 /);
+    } finally {
+        await server.close();
+    }
+    const { text } = await checkConfig(await loadConfig(config), { http: true, env: { OPS_TOKEN: TOKEN }, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true, mcp: false });
+    assert.match(factsOf(text), /its tokens get 401.*chmod 600/s);
+    const list = JSON.parse(run(["token", "list", "--config", config, "--json"]).stdout);
+    assert.equal(list.tokens.find((x) => x.id === t.id).status, "key unusable");
+    const removed = run(["key", "remove", kid, "--for", "signing", "--config", config]);
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.deepEqual(readdirSync(join(signed, "keys")), []);
+    assert.equal(JSON.parse(run(["token", "list", "--config", config, "--json"]).stdout).tokens.find((x) => x.id === t.id).status, "key removed");
+});
