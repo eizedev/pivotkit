@@ -167,7 +167,8 @@ Its `request` line has `saved: false`. The file route sends the file and saves n
 The server decides findings per field. A finding about a field's items carries the field in
 `field`:
 
-- An item spelt differently (`itemCase`) is named for a `show` or `values` field.
+- An item spelt differently (`itemCase`) is named for a `show` or `values` field. The item meant is
+  in `suggestion`, not in `message`.
 - An item that is none of a field's values (`itemUnknown`, with the closest one) is named where the
   field's list is complete.
 

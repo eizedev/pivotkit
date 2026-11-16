@@ -96,7 +96,7 @@ async function infoBoxes(page, { ms = 700, rect = false } = {}) {
                         boxes.push(rect ? [r.left, r.top, r.width, r.height].map(Math.round).join() : [el.style.left, el.style.top, el.offsetWidth, el.offsetHeight].join());
                     }
                     // at least `ms` and at least 12 frames: a slow engine (WebKit in CI) draws fewer frames in the same time
-                    if (start !== null && performance.now() - start > ms && boxes.length >= 12) {
+                    if (start !== null && performance.now() - start > ms && boxes.length >= 12) { // wall time: a polling deadline
                         done(boxes);
                     } else {
                         requestAnimationFrame(frame);

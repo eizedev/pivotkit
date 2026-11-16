@@ -360,6 +360,12 @@ const unitOfField = (f, view) => (f.derived ? view.derived.find((d) => d.name ==
 /** Whether a filter's value is a calendar day (text), so a date grouping is compared by its source dates. */
 const byDay = (f) => typeof f.value === "string";
 
+/** A comparison written out, for the message of one that lacks its operator or value. */
+function compareExample(twin, dated) {
+    const [from, to] = dated ? ['"2025-01-01"', '"2025-12-31"'] : ["1000", "2000"];
+    return twin ? `"op": "between", "value": ${from}, "value2": ${to}` : `"op": ">=", "value": ${from}`;
+}
+
 /**
  * A comparison of the item itself: a number (also a grouping's key, year 2022, month 202503) or a
  * date, kept as its calendar day "2022-03-01". A date grouping takes a day too: then the source
@@ -397,7 +403,7 @@ function normalizeCompare(flt, spec, f, path, ctx, view) {
     const value2 = twin ? read(get(flt, "value2")) : null;
     if (!op || value === null || (twin && value2 === null)) {
         const hint = op || opIn === undefined ? {} : { value: shown(opIn), ...ctx.suggest(opIn, COMPARE_OPS) };
-        return ctx.issue(path, `needs an operator and ${twin ? "two values" : "a value"} of the ${f.type} field`, "filterCompareValue", { type: f.type, ...hint });
+        return ctx.issue(path, `needs an operator and ${twin ? "two values" : "a value"} of the ${f.type} field; the operators: ${COMPARE_OPS.join(", ")}; e.g. ${compareExample(twin, dated)}`, "filterCompareValue", { type: f.type, ...hint });
     }
     Object.assign(spec, { op, value }, twin ? { value2 } : {}, dated ? { precision } : {});
     return notAndBlanks(flt, spec, path, ctx);
