@@ -7,7 +7,10 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 ## Changes
 
 1. Fork, create a branch named after the change (`feat/...`, `fix/...`, `docs/...`).
-2. Follow [AGENTS.md](AGENTS.md): layout, commands and the rules that keep the packages safe and small.
+2. Read [PRODUCT.md](PRODUCT.md): what pivotkit is and is not, the five questions a new feature answers
+   and what every pull request delivers, with or without an AI assistant. Follow
+   [AGENTS.md](AGENTS.md): layout, commands and the rules that keep the packages safe and small; AI
+   assistants read it on their own.
 3. Run `npm ci`, `npm run lint`, `npm run types` and `npm test`; for engine changes also
    `npm run bench -w pivotkit-core` and compare with the baseline on the documentation site
    ([pivotkit-core reference, Performance](https://pivotkit.eize.dev/reference/core/#performance),

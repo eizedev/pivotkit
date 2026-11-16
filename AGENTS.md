@@ -1,5 +1,8 @@
 # AGENTS.md
 
+Read [PRODUCT.md](PRODUCT.md) before you propose, plan or build anything: it says what pivotkit is,
+who it is for, its principles and what it is not. Every feature issue answers its five questions.
+
 pivotkit is a pivot report builder for the web (Excel's PivotTable is the reference) as npm
 packages in this repository with npm workspaces: the engine `pivotkit-core`, the React UI
 `pivotkit-react`, the web component `pivotkit-element`, the reader plugin `pivotkit-xlsx`, the
@@ -657,3 +660,25 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   data of `examples/playground/data/` (and the weather example built from it for pivotkit-cli, with
   `weather-SOURCE.txt`) and the excerpts of public exports in
   `packages/pivotkit-core/test/import-fixtures/`, each with its licence and attribution in `SOURCES.md`.
+
+## Working rules
+
+These apply to AI agents and to the maintainer's own workflow; PRODUCT.md lists what every
+contribution delivers.
+
+- The agent that wrote a change does not review it: a separate agent or person that did not write it
+  reviews it before the pull request is opened.
+- A change that touches what a caller may see (policy levels, hidden columns, inline results, logs)
+  gets an adversarial privacy review that tries to break it with crafted input; the review is repeated
+  until it finds nothing new. Limits that cannot be closed go into docs/privacy.md.
+- Nothing is merged with a red check, a dependency update included: CI must be green on the exact
+  head.
+- Write `Fixes #n` only in the pull request description, not in the messages of intermediate
+  commits: a squash merge carries them into main and closes the issue too early.
+- A change to an MCP tool's description or schema says in the upgrading page that clients reconnect
+  to see it; they keep the old tool list until then.
+- A change to a public interface (view format, exports, REST, MCP tools, CLI flags, config keys,
+  environment variables, error codes) follows PRODUCT.md's versioning promise: in 0.x every break is
+  listed on the upgrading page; from 1.0.0 something old is deprecated with a numbered
+  `PK-DEP-NNNN` warning first and removed only in a major release (#491).
+- A product decision that changes PRODUCT.md goes into PRODUCT.md in the same pull request.

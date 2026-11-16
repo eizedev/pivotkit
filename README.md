@@ -119,6 +119,9 @@ details. The package READMEs are short npm pages that link there.
 
 ## Development
 
+To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md) and [PRODUCT.md](PRODUCT.md) (what pivotkit is
+and is not). AI assistants and agents start with [AGENTS.md](AGENTS.md).
+
 ```bash
 npm ci
 npm run lint
