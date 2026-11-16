@@ -6,6 +6,19 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
+### Upgrading from 0.2
+
+What a script that runs `pivotkit` checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#cli-next) has the details.
+
+- Usage errors end with `run "pivotkit <command> --help"` (was `see "pivotkit help <command>"`),
+  and unknown options and commands read `unknown option "--bogus"`. Scripts read the exit code or
+  `--json`, not the text.
+- `--json` errors may have the new `kind` `remote`, with `status` and `retryAfter`.
+- `writeNew` (`pivotkit-cli/files`) keeps parentheses in file names
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#report-names)).
+
 ### Added
 
 - `pivotkit example templates` writes two print templates for the HTML report, Corporate (a company
@@ -43,6 +56,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   `Orders -fake backend.pivotkit-out.xlsx`; `pivotkit render -o` writes the name it is given, as
   before
   ([#448](https://github.com/eizedev/pivotkit/issues/448)).
+- Depends on `pivotkit-core` `^0.7.0`, `pivotkit-report` `^0.3.0` and `pivotkit-xlsx` `^0.4.0`.
 
 ## [0.2.1] - 2026-11-14
 
@@ -202,7 +216,8 @@ First release.
   usage error instead of HTML in a `.pdf`.
 - An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.3.0...HEAD
+[0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.1...pivotkit-cli@0.3.0
 [0.2.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.0...pivotkit-cli@0.2.1
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.1.0...pivotkit-cli@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-cli@0.1.0

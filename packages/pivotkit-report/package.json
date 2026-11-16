@@ -1,6 +1,6 @@
 {
   "name": "pivotkit-report",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Render pivotkit views without a browser: JSON, CSV, XLSX, SVG charts and a printable HTML report from a template, in Node and in the browser.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
@@ -67,11 +67,11 @@
     }
   },
   "dependencies": {
-    "pivotkit-core": "^0.6.1"
+    "pivotkit-core": "^0.7.0"
   },
   "devDependencies": {
     "echarts": "6.1.0",
-    "pivotkit-xlsx": "0.3.1"
+    "pivotkit-xlsx": "0.4.0"
   },
   "types": "./types/index.d.ts",
   "publishConfig": {

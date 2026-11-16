@@ -6,6 +6,13 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
+### Changed
+
+- Depends on `pivotkit-core` `^0.7.0` (was `^0.6.1`): a host updates both together, or it gets
+  two copies of pivotkit-core.
+
 ## [0.3.1] - 2026-11-14
 
 ### Fixed
@@ -85,7 +92,8 @@ First release.
   worker is started and a strict Content-Security-Policy works. `dist/` holds a bundle for pages
   without a bundler, with `THIRD_PARTY_LICENSES.txt`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.4.0...HEAD
+[0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.1...pivotkit-xlsx@0.4.0
 [0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.0...pivotkit-xlsx@0.3.1
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.2.0...pivotkit-xlsx@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.1.0...pivotkit-xlsx@0.2.0

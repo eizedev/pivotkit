@@ -145,15 +145,16 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
-## From 0.6.1 to the next release { #from-0-6-1 }
+## From 0.6 to 0.7 { #from-0-6-1 }
 
 !!! warning "Copy schedule drafts out of `output.dir` first"
-    This applies to pivotkit-server and pivotkit-mcp from 0.1.1 too, which come with this release.
-    The new release deletes reports **and schedule drafts still waiting for approval** older than 30
-    days from `output.dir` at its first start ([why](#max-age-default)): drafts are the files
+    This applies to pivotkit-server and pivotkit-mcp 0.1.1 too, which move to 0.2.0 with pivotkit
+    0.7. pivotkit-server 0.2.0 and pivotkit-mcp 0.2.0 delete reports **and schedule drafts still
+    waiting for approval** older than 30 days from `output.dir` at their first start
+    ([why](#max-age-default)): drafts are the files
     `*.pivotkit-out.report.json`, reports the other `*.pivotkit-out.*` files. Copy those you want to
-    keep elsewhere before you update, or set `output.maxAgeDays: 0`. Run the new release's
-    `check-config` first: it counts the drafts and reports the first start would delete.
+    keep elsewhere before you update, or set `output.maxAgeDays: 0`. Run the `check-config` of 0.2.0
+    first: it counts the drafts and reports the first start would delete.
 
 Operators of pivotkit-server and pivotkit-mcp need not act for the exposure policy: every field
 keeps its level, and the automatic values rule and the new operator controls are off. Library hosts
@@ -172,6 +173,7 @@ callers notice:
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| [Versions move together](#versions-0-7) | you also install pivotkit-core, pivotkit-report or pivotkit-xlsx yourself, or pivotkit-server and pivotkit-mcp side by side | update them to the same release |
 | [Data as of in files](#data-as-of-files) | people read html or xlsx reports from the REST service or the MCP server, or your code passes `dataAsOf` | nothing; a print template of your own may add `{{dataAsOf}}` |
 | [Groups, a default profile, source scopes, the person in the log](#operator-controls) | you want profiles by group, a profile for everyone else, the sources' scopes in the OAuth metadata, or the person in the log | set `auth.groupProfiles` with `auth.defaultProfile`, `auth.offerSourceScopes`, `audit.subject` |
 | [The values level](#values-level) | a model or a program should find the exact names of a category | give such fields `values`, or switch on `policy.autoValues`, then run `check-config` |
@@ -201,6 +203,14 @@ callers notice:
 Before you connect a cloud model to a server you upgraded, read [what reaches an AI
 model](../model-data.md): it shows the answers a model gets at each level and how to give each
 client its own profile.
+
+### Versions move together { #versions-0-7 }
+
+Each package depends on the others of the same release, and in 0.x a caret range admits one minor
+only. A host that also lists pivotkit-core, pivotkit-report or pivotkit-xlsx itself updates them to
+the versions released with pivotkit-react 0.7 (pivotkit-core 0.7.0, pivotkit-report 0.3.0,
+pivotkit-xlsx 0.4.0), or npm installs two copies. pivotkit-server 0.2.0 and pivotkit-mcp 0.2.0 belong
+together the same way: [update them in one command](#update-global).
 
 ### Data as of in files { #data-as-of-files }
 
@@ -458,7 +468,7 @@ request's `filename` follow. Files `pivotkit render -o` writes keep the name you
 ### Code sources { #code-sources }
 
 For library hosts whose sources have `load` ([code sources](../reference/sources.md#code)), when
-they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to the next release:
+they update pivotkit-server from 0.1.x or pivotkit-mcp from 0.1.x to 0.2.0:
 
 - `load` is called as `load(params, { caller, signal })` and `version` as `version(params,
   { caller })`, also without declared `params` (then `{}`). A `load()` that takes no arguments works
@@ -540,7 +550,7 @@ endpoint has request limits. Each package's `CHANGELOG.md` has the full list.
 
 ### Versions move together { #versions-0-6-1 }
 
-The packages of this release depend on each other at its versions (pivotkit-core 0.6.1,
+The packages of 0.6.1 depend on each other at its versions (pivotkit-core 0.6.1,
 pivotkit-react 0.6.1, pivotkit-report 0.2.1, pivotkit-xlsx 0.3.1, ...). A host that also lists
 pivotkit-core, pivotkit-report or pivotkit-xlsx itself updates them with pivotkit-react, or npm may
 install two copies.

@@ -6,6 +6,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-16
+
 ### Upgrading from 0.1.1
 
 - Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still
@@ -14,7 +16,7 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   ([upgrading, from 0.6.1 / 0.1.1](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1)).
 - Behaviour change: `mcp.rateLimit` and `mcp.concurrency` count per person, no longer per OAuth
   client; one client's people together get eight times both ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#limits-per-person)).
-  Needs the pivotkit-server of this release (`limitKeyOf`).
+  Needs pivotkit-server 0.2.0 (`limitKeyOf`).
 - The log ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#log)): on a terminal it
   is text unless `log.format` is `json`; JSON lines only gain fields; over HTTP the client's address
   is logged by default (`log.address: "off"` keeps it out).
@@ -53,7 +55,7 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - Reports can go to the operator's store (pivotkit-server's `output.upload`,
   [#332](https://github.com/eizedev/pivotkit/issues/332)): render_view then carries the store's link
   in its text and as a `resource_link`; a failed upload is the tool error `UPLOAD_FAILED` with a
-  fixed text and the request id. Needs the pivotkit-server release of the same round.
+  fixed text and the request id. Needs pivotkit-server 0.2.0.
 
 - pivotkit-server's operator controls ([#331](https://github.com/eizedev/pivotkit/issues/331)):
   groups to profiles (`auth.groupProfiles`), `auth.defaultProfile`, the person on `call` lines
@@ -66,16 +68,15 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   `sources.<id>.http`, with their parameters in `list_sources`. A `SOURCE_UNAVAILABLE` tool error says
   the fixed text its reason picks (not available right now, the backend refused pivotkit's access,
   the source is not set up correctly). A call over HTTP whose connection closed stops waiting for a source's load,
-  and the load is aborted when no other call waits for it. Needs the pivotkit-server release of the
-  same round (`serverTextOf` with a reason).
+  and the load is aborted when no other call waits for it. Needs pivotkit-server
+  0.2.0 (`serverTextOf` with a reason).
 
 - Data in the request ([#326](https://github.com/eizedev/pivotkit/issues/326)): the tools that take
   a source offer `data`, a small table of the model's own with `source` `inline:` (at most 500 rows,
   5,000 cells and 256 KiB; `mcp.data` lowers the cap or switches it off). Its description says that
   the operator's exposure policy does not apply to it. The `call` log line counts its rows and
-  columns. The instructions and the skill explain it where it is offered. Needs the pivotkit-server
-  release of the same round (it imports `inlineLogFields`): release pivotkit-server first and raise
-  the range in the release PR.
+  columns. The instructions and the skill explain it where it is offered. Needs pivotkit-server
+  0.2.0 (it imports `inlineLogFields`); the range is `^0.2.0` and pivotkit-server is released first.
 - render_view and draft_schedule results with a download link carry it in the text and, after it, as
   a `resource_link` for clients of protocol 2025-06-18 or later (`size` only for a report the
   assistant was shown in full); the message names the file, the address is `output.url`
@@ -116,6 +117,7 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   `--log debug` ([#422](https://github.com/eizedev/pivotkit/issues/422)).
 - The README links the page on what reaches an AI model at each level of the exposure policy, and
   how to give each client its own profile ([#338](https://github.com/eizedev/pivotkit/issues/338)).
+- Depends on `pivotkit-report` `^0.3.0` and `pivotkit-server` `^0.2.0`.
 
 ### Fixed
 
@@ -206,6 +208,7 @@ First release.
   two `Authorization` headers are refused, also when node:http would keep only the first; an input
   nested deeper than 64 levels is `INVALID_INPUT` before it reaches a worker.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.2.0...HEAD
+[0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.1...pivotkit-mcp@0.2.0
 [0.1.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.0...pivotkit-mcp@0.1.1
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-mcp@0.1.0

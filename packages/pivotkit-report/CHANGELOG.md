@@ -6,6 +6,21 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
+### Upgrading from 0.2
+
+What code that calls `render` checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
+
+- **Breaking:** `render` refuses `tokens` or `darkTokens` that is no object (a CSS text, a list,
+  `null`, a number) with `INVALID_OPTION`; pass an object, or leave the option out
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#tokens-object)).
+- On a dark screen `--pk-scale-mid` is `initial` unless `darkTokens` sets it: pass the middle
+  colour there to keep one ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#dark-mid-colour)).
+- A token's value with a quoted string is left out, except in `font-family`, in the host's
+  `tokens` too.
+- pivotkit-core moves to `^0.7.0` with it.
+
 ### Added
 
 - `list_sources`' output schema takes a parameter's `pattern`, `format`, `minLength`, `maxLength`,
@@ -51,6 +66,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
   with `INVALID_OPTION` and `details.option`, as its other options; such a value gave the default
   colours without a word. A token inside the object that cannot be used is still left out on its own
   ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+- Depends on `pivotkit-core` `^0.7.0` (was `^0.6.1`).
 
 ### Fixed
 
@@ -159,7 +175,8 @@ First release.
   (`chart`, `chartEmbed`, `bom`, `strict`, `trusted`) takes only those, and `chart: true` without
   `echarts` is an error. `bom: false` writes CSV without a byte order mark.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.3.0...HEAD
+[0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.1...pivotkit-report@0.3.0
 [0.2.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.0...pivotkit-report@0.2.1
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.1.0...pivotkit-report@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-report@0.1.0

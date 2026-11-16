@@ -6,6 +6,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-16
+
 ### Upgrading from 0.1.1
 
 - Copy the schedule drafts you want to keep out of `output.dir` before you update: drafts still
@@ -417,10 +419,11 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - `REST_BASE`, `SOURCE_ID`, `TOKEN_SYNTAX`, `TOKEN_SYNTAX_TEXT`, `REST_ERRORS`, `PROBLEM_CODES` and
   `isLoopback` come from `pivotkit-cli/rest`, which the command line's remote mode checks against
   ([#306](https://github.com/eizedev/pivotkit/issues/306)); the exports keep their names.
-  pivotkit-server needs the pivotkit-cli release that has `pivotkit-cli/rest` (its release raises
-  the `pivotkit-cli` range).
+  pivotkit-server needs pivotkit-cli 0.3.0, which has `pivotkit-cli/rest`.
 - The sources sit behind one dispatch by kind (`src/sources/`); file sources read as before. The
   output directory's code moved to `src/output.js`.
+- Depends on `pivotkit-core` `^0.7.0`, `pivotkit-report` `^0.3.0`, `pivotkit-cli` `^0.3.0` and
+  `pivotkit-xlsx` `^0.4.0`.
 
 ### Fixed
 
@@ -632,6 +635,7 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.2.0...HEAD
+[0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.1...pivotkit-server@0.2.0
 [0.1.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.0...pivotkit-server@0.1.1
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-server@0.1.0

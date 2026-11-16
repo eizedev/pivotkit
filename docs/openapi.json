@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "pivotkit REST",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "summary": "Describe data sources, validate and render pivot views, make links and draft schedules.",
     "description": "The operations of pivotkit's MCP server over HTTP for programs. Errors are RFC 9457 problem details. The routes are RPC-style (POST /views/validate); /api/v1 changes only with a breaking change. Docs: https://pivotkit.eize.dev/reference/rest/",
     "license": {

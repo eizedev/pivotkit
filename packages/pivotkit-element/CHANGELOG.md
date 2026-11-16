@@ -6,8 +6,27 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-16
+
+### Upgrading from 0.6
+
+What a page checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
+
+- Export → HTML report carries the dark colours set on the element. On a dark screen a colour
+  scale's middle colour (`--pk-scale-mid`) is the one the dark theme sets, not the light one
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#dark-mid-colour)).
+- A field's Filter level shows its rules in a single column as wide as the menu, in every browser.
+  Tests or screenshots of that form take the new layout.
+
+### Changed
+
+- Bundles pivotkit-core 0.7.0, pivotkit-react 0.7.0 and pivotkit-report 0.3.0.
+
 ### Fixed
 
+- The element bundles pivotkit-react's fix of a field's Filter level: its rules show in the WebKit
+  of Playwright 1.65 (build 2388), in a single column as wide as the menu, in every browser
+  ([#474](https://github.com/eizedev/pivotkit/issues/474)).
 - The element bundles pivotkit-react's Export → HTML report with the dark colours set on the element
   (`pivot-report[data-pk-theme="dark"]`), for a reader on a dark screen
   ([#385](https://github.com/eizedev/pivotkit/issues/385)).
@@ -389,7 +408,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.7.0...HEAD
+[0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.1...pivotkit-element@0.7.0
 [0.6.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.0...pivotkit-element@0.6.1
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.5.0...pivotkit-element@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.4.0...pivotkit-element@0.5.0

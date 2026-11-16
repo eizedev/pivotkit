@@ -6,6 +6,24 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-16
+
+### Upgrading from 0.6
+
+What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
+
+- Export → HTML report carries the host's dark colours too. On a dark screen a colour scale's middle
+  colour (`--pk-scale-mid`) is the one your dark theme sets, not the light one; without it the cells
+  run halfway between the dark low and high colours ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#dark-mid-colour)).
+- A field's Filter level shows its rules in a single column as wide as the menu, in every browser.
+  Tests or screenshots of that form take the new layout.
+- pivotkit-core moves to `^0.7.0` and pivotkit-report to `^0.3.0` with it.
+
+### Changed
+
+- Depends on `pivotkit-core` `^0.7.0` (was `^0.6.1`) and `pivotkit-report` `^0.3.0` (was `^0.2.1`): a host
+  that also lists pivotkit-core updates both together, or it gets two copies.
+
 ### Fixed
 
 - The rules in a field's Filter level show in the WebKit of Playwright 1.65 (build 2388): the rule
@@ -1075,7 +1093,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.7.0...HEAD
+[0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.1...pivotkit-react@0.7.0
 [0.6.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.0...pivotkit-react@0.6.1
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.5.0...pivotkit-react@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.4.0...pivotkit-react@0.5.0

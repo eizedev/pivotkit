@@ -201,7 +201,7 @@ dependency), `pivotkit-xlsx` (core), `pivotkit-report` (core), `pivotkit-react` 
 changed), `pivotkit-mcp` (report, server: released after pivotkit-server whenever that changed).
 pivotkit-server loads pivotkit-mcp by name when it is installed beside it and does not depend on it,
 so there is no cycle. A package that depends on pivotkit-core takes `^<its version>`,
-which in 0.x admits that minor only: when core's minor moves (0.5 to 0.6), pivotkit-xlsx,
+which in 0.x admits that minor only: when core's minor moves (0.6 to 0.7), pivotkit-xlsx,
 pivotkit-report, pivotkit-react, pivotkit-cli, pivotkit-server and pivotkit-mcp are released too, even without a change of their
 own, or their published ranges keep the old core and a host gets two copies (`tests/ci.test.js`
 requires every range to be the version in this repository).
