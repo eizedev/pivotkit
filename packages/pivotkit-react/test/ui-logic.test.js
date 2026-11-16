@@ -344,13 +344,14 @@ test("heatmap cells show their numbers only when the formatted numbers fit", () 
 });
 
 test("heatmap row names: every one when a line fits each row, else every n-th", () => {
-    // a line of 14 px text takes 19 px: 15 rows in 440 px, 21 px each, hold every name
+    // a row needs a px more than 14 px text; the cells get the height less 102 px of frame (straight
+    // column names): 15 rows in 440 px, 22 px each, hold every name
     assert.equal(rowLabelInterval(15, 440), 0);
-    // 15 rows in 300 px: 12 px each, every second name
+    // 15 rows in 300 px: 13 px each, every second name
     assert.equal(rowLabelInterval(15, 300), 1);
-    // 45 rows in 300 px: 4 px each, every fifth (every fourth at 12 px, a line of 16 px)
-    assert.equal(rowLabelInterval(45, 300), 4);
-    assert.equal(rowLabelInterval(45, 300, 12), 3);
+    // 45 rows in 300 px: 4.4 px each, every fourth (every third at 12 px, rows of 13 px)
+    assert.equal(rowLabelInterval(45, 300), 3);
+    assert.equal(rowLabelInterval(45, 300, 12), 2);
     assert.equal(rowLabelInterval(0, 300), 0);
 });
 

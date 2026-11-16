@@ -366,7 +366,8 @@ export function toEChartsOption(result, options) {
     const valueAxis = {
         type: "value",
         axisLine,
-        axisLabel: { ...axisText, formatter: (v) => compact(v) },
+        // a narrow plot (a phone, the room of value labels) leaves out the ticks' labels that would overlap
+        axisLabel: { ...axisText, hideOverlap: true, formatter: (v) => compact(v) },
         splitLine: { lineStyle: { color: theme.gridColor } }
     };
     // value labels: at the end of a bar, inside a stacked one, above a point of a line

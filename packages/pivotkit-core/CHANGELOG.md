@@ -6,6 +6,25 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `pivotkit-core/chart` exports `heatmapFrame`, `pieLabelFit`, `pieLabelTexts` and `valueLabelRoom`, the
+  layout `decorateOption` uses for the fixes below. `rowLabelInterval` and `heatmapCellLabels` take the
+  frame as an optional last argument; `categoryLabelLayout` takes `reserved` in its box.
+
+### Fixed
+
+- Slanted category names take at most 40 % of the height left for the plot and them. In a low chart,
+  such as on a phone, they are cut shorter, so the plot keeps its room and its top value tick
+  ([#228](https://github.com/eizedev/pivotkit/issues/228)).
+- A pie's or a donut's labels outside stay whole and inside the chart. On a narrow chart the pie
+  gets smaller and a long label goes on lines. Each side writes as many labels as its height holds,
+  those of the larger slices first ([#229](https://github.com/eizedev/pivotkit/issues/229)).
+- The value at the end of a horizontal bar is no longer cut at the right edge: the plot keeps the
+  room of the longest one. The value axis leaves out tick labels that would overlap ([#230](https://github.com/eizedev/pivotkit/issues/230)).
+- A heatmap names every row while each row is a pixel higher than the text. The room that is not
+  cells comes from the grid and the column names as drawn, not a fixed 120 px ([#231](https://github.com/eizedev/pivotkit/issues/231)).
+
 ## [0.7.0] - 2026-11-16
 
 ### Added

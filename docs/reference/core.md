@@ -406,18 +406,21 @@ a report's marks on `toEChartsOption`'s option:
   it. The default is `DEFAULT_THEME.markRadius`, 4.
 - A tooltip with `--pk-radius-card` corners, default 8 px.
 - 2 px lines.
-- The room around a pie.
+- The room around a pie, and room beside it for the labels outside (`pieLabelFit`).
 - A legend moved below a narrow chart.
 - The category axis laid out for the chart's size (`categoryLabelLayout`: straight, slanted or every
   n-th, `chart.axisLabels`). The option's `axisEvery` says when every n-th label is written.
+- Room on the right for the values at the end of horizontal bars (`valueLabelRoom`).
+- A heatmap's row names and cell numbers where its cells have room (`heatmapFrame`).
 
 pivotkit-react adds its DOM tooltip through `tooltipFormatter`. [pivotkit-report](report.md) draws the
 SVG with `decorateOption`. The layout measures the labels at the option's text size
 (`textStyle.fontSize`, the theme's `textSize`).
 
 The entry exports the layout functions and their constants too: `categoryLabelLayout`,
-`categoryLabelWidth`, `columnLabelLayout`, `groupLabelsFit`, `heatmapCellLabels`, `pieLabelRoom`,
-`ringLabelsFit` and `rowLabelInterval`. Those that measure text take its size in px as `fontSize`,
+`categoryLabelWidth`, `columnLabelLayout`, `groupLabelsFit`, `heatmapCellLabels`, `heatmapFrame`,
+`pieLabelFit`, `pieLabelRoom`, `pieLabelTexts`, `ringLabelsFit`, `rowLabelInterval` and
+`valueLabelRoom`. Those that measure text take its size in px as `fontSize`,
 `DEFAULT_THEME.textSize` by default. The entry imports nothing, so a report's first load does not
 carry it.
 

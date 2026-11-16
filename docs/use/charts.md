@@ -78,7 +78,15 @@ The chart type menu has its **Display** settings under the chart types, in one f
 
 ??? info "Pie and donut labels"
     **Outside** writes each slice's name with what is chosen, on a line to the slice. On a narrow
-    chart, the chart shortens long labels to fit.
+    chart, such as on a phone, the labels get room beside the pie:
+
+    - The pie gets smaller, down to 40 % of its width.
+    - A long label goes on two or more lines, broken at its spaces.
+    - Each side writes as many labels as its height holds, those of the larger slices first. The
+      legend and the tooltip name every slice.
+
+    ![A donut on a phone: a smaller ring, each region's name and revenue on two lines beside it](../assets/screenshots/donut-phone-light.png#only-light){ width="300" }
+    ![A donut on a phone: a smaller ring, each region's name and revenue on two lines beside it](../assets/screenshots/donut-phone-dark.png#only-dark){ width="300" }
 
     **Inside** writes only the number on the slice, in a colour that reads on it. For Automatic, the
     number is the share. The legend names the slices. A slice narrower than 12 degrees gets no
@@ -105,8 +113,15 @@ The chart type menu has its **Display** settings under the chart types, in one f
       "One label in every 3 is shown".
 
     **All (slanted)** always writes every label. **Every n-th** keeps them straight and leaves out as
-    many as needed. A name longer than 120 px ends in "…", and the tooltip has it whole. Horizontal
-    bars write their names straight, every one while a line fits each bar.
+    many as needed. A name longer than 120 px ends in "…", and the tooltip has it whole. Slanted names
+    take at most 40 % of the height the plot and they share. In a low chart they end in "…" sooner,
+    so the plot keeps its room. Horizontal bars write their names straight, every one while a line
+    fits each bar. The value at the end of a horizontal bar keeps its room on the right.
+
+??? info "Heatmap row names"
+    A heatmap names every row while each row is at least a pixel higher than the text. In a lower
+    chart it names every second row, or every n-th one, so the names never overlap. The tooltip
+    names the row of every cell.
 
 ??? info "Group labels"
     With two or more fields in Rows, such as Region, then Country, the axis names each category by
