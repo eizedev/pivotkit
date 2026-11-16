@@ -24,6 +24,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 ## Secrets and credential commands
 
 - `readSecretFile` in `src/secrets.js` is the one read of a secret's file, static tokens too.
+- `readSecretHandle` is its read of an open file. A kept secret (`secret-file.js`) reads through it.
+- `secretValue` is the one normaliser: a token trimmed, a key without one line ending.
 - It reads a regular file only, at most `MAX_SECRET_BYTES`. It names UTF-16 text with `UTF16_TEXT`.
 - `src/credentials.js` holds `token new`, `token show` and `key new`. The runner loads it only for them.
 - `--add` puts the token into `auth.tokens`, checked by `validateOptions`, with a backup.
@@ -32,10 +34,12 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `--json` follows pivotkit-cli's contract. `configuredToken` is the one lookup of `token show`.
 - The messages name the commands through `MAKE_TOKEN` and `makeKey` in `auth.js`.
 - `src/secret-rules.js` has `tokenProblem` and `keyProblem`: whether the server can use a value.
+- `tokenGuessable` in `auth.js` refuses a token with few different characters or one piece repeated.
+- `newSecret` draws again until its `usable` check passes.
 - Code that creates a missing secret uses `placeSecret` in `src/secret-file.js`.
 - It writes with mode 0600 through a temporary file and `link()`. It never replaces a file without `replace`.
 - `keep` reads the file that is there. It reads an empty one again for about a second:
-  without hard links, another process creates the file in place.
+  without hard links, another process creates the file in place. `untilFilled` is that wait.
 - A kept file loses only its world bits. A kept symbolic link is only read through, never written.
 - Otherwise it refuses a symbolic link, a directory or a missing directory.
 - A replaced file keeps its owner, group and group read bit where it may, else a warning.
@@ -95,6 +99,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Levels are `show`, `values`, `summary` and `hide` (`POLICY_LEVELS`), in order of strictness.
 - `stats.js` counts per field. It never keeps a value.
 - A source the caller may not use gets the same answer as a missing one: not found.
+- Below `show`, a text file with a quoted value over several lines is refused (`checkedRead`).
 - REST callers never get `file:` paths (`files: false` in the registry).
 - Delivery decides a report's link before the file is written (`linkFor` in `delivery.js`).
 - `isClosedForDelivery` is the one rule for which reports get only bound links.
@@ -129,6 +134,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `serveFetch` in `listen.js` checks headers before the body is read.
 - Connections are bounded in all and per address. Slots stay free for loopback (`connectionGate`).
 - A stranger's body cap is `BODY_BYTES`. A signed-in caller's cap is at most `MAX_BODY_BYTES`.
+- A refused Host is answered and logged with `HOST_HINT` (`hostProblem`, `hostRefusedLine`).
 
 ## Untrusted documents
 
@@ -151,6 +157,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `serve` runs REST and, when pivotkit-mcp is installed, MCP on one port.
 - pivotkit-mcp is imported by name, not as a dependency.
 - A pivotkit-mcp that needs exports this version lacks is refused with both versions.
+- So is one whose declared `pivotkit-server` range does not hold this version (`version-range.js`).
+- `stopOnSignals` in `src/stop.js` ends both runners on SIGINT and SIGTERM.
 - Release pivotkit-server before pivotkit-mcp, see [RELEASING.md](../../RELEASING.md).
 
 ## Tests
