@@ -171,7 +171,7 @@ is blank, with a note that counts them.
 | `notes` | `{ code, params, message }` for each thing worth saying (table below). |
 | `hints` | How text was read (`decimal`, `dateOrder`), so `retype` reads it the same way. |
 | `unnamed` | The columns the file gives no name, as named here (`Column 7`): a blank header cell, or a row with more values than the header. Such a column's values may belong to another column, shifted by a separator inside a value; pivotkit-server hides them. A name such as `Column 7` is its position, so a host's rule for it follows whatever column lands there. A reader plugin's own table may leave it out. |
-| `longRows` | The rows (0-based) with more cells than the header, an empty cell at the end counted: their values may be shifted. pivotkit-server leaves such rows out of a source with a field below `show`. A reader plugin's own table may leave it out. |
+| `longRows` | The rows (0-based) with more cells than the header whose values may be shifted: a value beyond the header, or a width other than the file's usual one (a separator that ends every line is no shift). pivotkit-server leaves such rows out of a source with a field below `show`. A reader plugin's own table may leave it out. |
 
 A reader plugin's table built by hand may leave out `raw`, `detected`, `rowCount` and `hints`:
 `readFile` fills them in (`raw` as `data`, `detected` as `types`, the row count, `hints` as

@@ -172,8 +172,12 @@ test("unnamed lists the columns the file gives no name: a blank header cell and 
     assert.deepEqual(t.longRows, [1], "the second row is longer than the header");
     const y = await readFile(text("y.csv", "A;B\n1;2\n"));
     assert.deepEqual([y.unnamed, y.longRows], [[], []]);
-    // a row longer only by an empty last cell is long too: its values may be shifted all the same
+    // a row longer only by an empty last cell, where the other rows are not, is long: its values may be shifted
     assert.deepEqual((await readFile(text("z.csv", "A,B,C\n1,2,3\nb,12,3,\n"))).longRows, [1]);
+    // every row ending with a separator the header lacks is a trailing separator, no shift
+    assert.deepEqual((await readFile(text("t.csv", "A,B,C\n1,2,3,\n4,5,6,\n7,8,9,\n"))).longRows, []);
+    // where every line ends with one, a row one cell wider still is long
+    assert.deepEqual((await readFile(text("u.csv", "A,B,C,\n1,2,3,\nb,12,3,x,\n7,8,9,\n"))).longRows, [1]);
 });
 
 test("types from text: dates before numbers, leading zeros and long numbers stay text, the notation per column", async () => {

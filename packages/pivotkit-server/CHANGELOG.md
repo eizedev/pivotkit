@@ -18,8 +18,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - Behaviour change: a column a file gives no header (a blank header cell, a row longer than the
   header) is `hide` whatever the policy's default; a rule that names it still holds
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#columns-without-header)).
-- Behaviour change: where a caller sees a field below `show`, a row with more cells than its header
-  (an empty last cell counted) is left out whole, with a `ROWS_DROPPED` note that counts such rows;
+- Behaviour change: where a caller sees a field below `show`, a row whose cells may be shifted (a
+  value beyond the header, or wider than the file's other rows) is left out whole, with a `ROWS_DROPPED` note that counts such rows;
   `check-config` counts them ([#479](https://github.com/eizedev/pivotkit/issues/479),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#long-rows)).
 - Behaviour change: the request limits (`rest.*`, `mcp.*` `rateLimit` and `concurrency`) count per

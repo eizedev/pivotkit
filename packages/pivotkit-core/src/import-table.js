@@ -67,7 +67,7 @@ export const IMPORT_NOTE_CODES = Object.freeze([
  * @property {ImportNote[]} notes
  * @property {ImportHints} hints
  * @property {string[]} [unnamed]  the columns the file gives no name (a blank header cell, a row longer than the header) as they are named here ("Column 7"); a plugin's own table may leave it out
- * @property {number[]} [longRows]  the rows (0-based, in `data`) with more cells than the header, empty ones at the end counted: their cells may be shifted (a separator inside a value); a plugin's own table may leave it out
+ * @property {number[]} [longRows]  the rows (0-based, in `data`) with more cells than the header whose cells may be shifted (a separator inside a value): a value beyond the header, or a width other than the file's usual one (so a separator that ends every line is no shift, while `b,12,3,` among rows of three is); a plugin's own table may leave it out
  *
  * @typedef {object} ImportProgress
  * @property {"read" | "unpack" | "parse" | "type"} phase
@@ -622,8 +622,10 @@ export function createTable(options) {
     /** @type {ImportNote[]} */
     const notes = [];
     const counts = { removed: 0, cut: 0, empty: 0, extraRows: 0 };
-    /** @type {number[]} the rows with more cells than the header, by the cells read (an empty one at the end too) */
-    const longRows = [];
+    /** @type {Array<{ row: number, width: number, beyond: boolean }>} the rows with more cells than the header (finishTable decides which are long) */
+    const wideRows = [];
+    /** @type {Map<number, number>} how many rows have each width, by the cells read: the file's usual width */
+    const widths = new Map();
     /** @type {unknown[][]} */
     const columns = [];
     /** @type {unknown[] | null} */
@@ -653,8 +655,9 @@ export function createTable(options) {
         if (filled > headerWidth) {
             counts.extraRows++;
         }
+        widths.set(cells.length, (widths.get(cells.length) ?? 0) + 1);
         if (cells.length > headerWidth) {
-            longRows.push(rowCount);
+            wideRows.push({ row: rowCount, width: cells.length, beyond: filled > headerWidth });
         }
         if (filled > columns.length) {
             // a wide row late in a long file: the limits before a column of rowCount values is allocated
@@ -731,9 +734,29 @@ export function createTable(options) {
          */
         finish(types) {
             if (sample !== null) flushSample();
-            return finishTable({ header: header ?? [], columns, rowCount, notes, counts, hints, limits, types, longRows });
+            return finishTable({ header: header ?? [], columns, rowCount, notes, counts, hints, limits, types, longRows: longRowsOf(wideRows, widths) });
         }
     };
+}
+
+/**
+ * The rows whose cells may be shifted: of the rows wider than the header, those with a value beyond
+ * it, or a width other than the file's usual one (the most common). Empty cells beyond the header in
+ * rows of the usual width are a separator that ends every line, not a shift.
+ * @param {Array<{ row: number, width: number, beyond: boolean }>} wideRows
+ * @param {Map<number, number>} widths
+ * @returns {number[]}
+ */
+function longRowsOf(wideRows, widths) {
+    let usual = -1;
+    let most = 0;
+    for (const [width, n] of widths) {
+        if (n > most) {
+            most = n;
+            usual = width;
+        }
+    }
+    return wideRows.filter((r) => r.beyond || r.width !== usual).map((r) => r.row);
 }
 
 /** Column names: cleaned, "Column N" for an empty one, "Name (2)" for a repeated one (case-insensitive). */

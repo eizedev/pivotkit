@@ -443,7 +443,7 @@ test("#479: a summary field shifted into a shown column is left out as a hidden 
 });
 
 test("#479: check-config says how many rows are longer than the header and who does not get them", async () => {
-    const dir = workspace({ "people.csv": "name,ssn,city\nann,11,Berlin\nbob,12,3,\ncid,13,4,x\n" });
+    const dir = workspace({ "people.csv": "name,ssn,city\nann,11,Berlin\ndan,14,Bonn\neve,15,Kiel\nbob,12,3,\ncid,13,4,x\n" });
     const text = factsOf((await checkConfig({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { ssn: "hide" } } } }, baseDir: dir }, { http: false, env: {} })).text);
     assert.match(text, /^WARNING \(Sources\): sources\.people: 2 rows have more values than the header \(a separator inside a value\); they are left out for callers who do not see every field as show$/m);
 });
@@ -458,4 +458,19 @@ test("auth token: a token file that cannot be read (a directory in its place) is
     mkdirSync(file);
     await assert.rejects(core.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } })));
     assert.match(seen.join("\n"), /\(its file cannot be read\)/);
+});
+
+test("#479: a file whose every line ends with a separator the header lacks keeps all its rows; a row wider than the others is still left out", async () => {
+    const dir = workspace({ "trailing.csv": "name,ssn,city\nann,11,Berlin,\ncid,13,Hamburg,\n", "wider.csv": "name,ssn,city,\nann,11,Berlin,\nbob,12,3,Munich,\ncid,13,Hamburg,\n" });
+    const server = await restServer({ sources: { trailing: { file: "data/trailing.csv", policy: { fields: { name: "show", city: "show" } } }, wider: { file: "data/wider.csv", policy: { fields: { name: "show", city: "show" } } } }, baseDir: dir });
+    try {
+        const trailing = await call(`${server.api}/sources/describe`, { body: { source: "trailing" } });
+        assert.equal(trailing.data.rows, 2, "a trailing separator on every line is no shift");
+        assert.ok(!trailing.data.notes.some((n) => n.code === "ROWS_DROPPED"));
+        const wider = await call(`${server.api}/sources/describe`, { body: { source: "wider" } });
+        assert.equal(wider.data.rows, 2, "the row wider than the others goes");
+        assert.doesNotMatch(JSON.stringify(wider.data), /Munich|"3"/);
+    } finally {
+        await server.close();
+    }
 });

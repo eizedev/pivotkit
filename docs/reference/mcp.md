@@ -133,7 +133,8 @@ default, since its values may belong to another column; a rule of `fields` that 
 Such a name is a position, not a meaning: when the file gains or loses a column, `"Column 6": "show"`
 shows whatever lands there, so give the column a header instead where you can.
 Where a caller sees any field below `show` (its default or a rule is `values`, `summary` or `hide`), a
-row with more cells than the header (an empty cell at the end counts) is left out whole, with a
+row whose cells may be shifted (a value beyond the header, or more cells than the header and than the
+file's other rows; a separator that ends every line is no shift) is left out whole, with a
 `ROWS_DROPPED` note that counts such rows: the values after a stray separator shift one column to the
 right, so a value kept back would land in the next column, which may be shown. `check-config` counts
 such rows per source.
