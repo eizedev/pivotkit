@@ -3,12 +3,16 @@
 // whose callers went away while it waited for a worker, and an input the structured clone cannot copy.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createComputer } from "../src/compute.js";
-import { tempDir } from "./helpers.js";
+import { tempDir, workspace } from "./helpers.js";
 
 const PROBE = new URL("./fixtures/probe-worker.js", import.meta.url);
+
+/** The pool's module, for a script that runs outside the package (in a temporary directory). */
+const COMPUTE = new URL("../src/compute.js", import.meta.url).href;
 
 /** The thread id of the worker that answers the next run. */
 const threadOf = async (computer) => (await computer.run("echo", null, {})).outcome.threadId;
@@ -95,4 +99,21 @@ test("the pool: an input the structured clone cannot copy is INVALID_INPUT, and 
     } finally {
         await computer.close();
     }
+});
+
+test("a host's script that waits on the pool runs to its end: a worker that dies while it starts, then a run", FAST, () => {
+    // nothing but the pool holds the process, and an idle worker is unref'd: the run must keep its
+    // worker ref'd, or Node 22 ends the script while it waits (an unsettled top-level await)
+    const dir = workspace();
+    writeFileSync(join(dir, "host.mjs"), `
+        import { createComputer } from ${JSON.stringify(COMPUTE)};
+        process.env.PIVOTKIT_TEST_FAIL_START = ${JSON.stringify(join(dir, "failed-once"))};
+        const computer = createComputer({ workers: 1, timeMs: 30_000 }, { worker: new URL(${JSON.stringify(PROBE.href)}) });
+        const failed = await computer.run("echo", null, {}).then(() => null, (e) => e);
+        const next = await computer.run("echo", null, {});
+        console.log(JSON.stringify([failed?.code, typeof next.outcome.threadId]));
+    `);
+    const result = spawnSync(process.execPath, [join(dir, "host.mjs")], { cwd: dir, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout.trim()), ["INTERNAL", "number"]);
 });
