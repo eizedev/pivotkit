@@ -282,7 +282,9 @@ A client of protocol 2025-06-18 or later also gets the link as a `resource_link`
 
 A report over a source with withheld fields gets a link only where the link is bound. A link that
 the client or the model could open would hand over what was withheld. With static tokens there is no
-person to bind it to. Such a report gets no link, and its result says to ask you for the file.
+person to bind it to. Such a report gets no link, and its result says to ask you for the file. A
+bound link still reaches a client with a browser tool in the person's signed-in session
+([what the policy does not cover](#beyond-policy)).
 
 The report page that a link from `create_link` opens is your application's, not pivotkit's. It loads
 the data with the rights of the person who opens it, and the exposure policy does not limit it. The

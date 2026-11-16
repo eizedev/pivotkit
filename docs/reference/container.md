@@ -126,9 +126,10 @@ file in the state volume ([made at the first start](rest.md#first-start)):
 
 ```json
 { "auth": { "mode": "token", "tokens": [
-  { "name": "reports", "file": "/var/lib/pivotkit/reports.token", "create": true },
-  { "name": "exports", "file": "/var/lib/pivotkit/exports.token", "create": true, "profile": "export" }
-] } }
+    { "name": "reports", "file": "/var/lib/pivotkit/reports.token", "create": true },
+    { "name": "exports", "file": "/var/lib/pivotkit/exports.token", "create": true, "profile": "export" }
+  ] },
+  "policy": { "profiles": { "export": { "results": true } } } }
 ```
 
 At its next start, the server makes each missing file as the user 10001, with mode 0600. Print a

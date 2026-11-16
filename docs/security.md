@@ -483,7 +483,7 @@ gets at each level, and how to set them per client.
     - Source ids include `inline:`, `file:` for a file by path, and `unknown` for anything else a
       caller typed.
     - The client is a token's name or an OAuth client id.
-    - A request's or a call's line never names a view, a value, a token or a path. Lines at start
+    - A request's or a call's line never names a view, a value, a token or a file path. Lines at start
       can name the operator's own file paths.
     - It names a person's id only when the operator sets `audit.subject`. With `hash`, the id is an
       HMAC-SHA256 with `audit.key`, which has at least 16 characters. With OAuth, the server reads

@@ -169,7 +169,7 @@ A warning's text (`msg`) is free text and may change between versions. Query by 
 parameter.
 
 No line holds a view, a value, a token, or a person's groups or other claims. A request's or a
-call's line holds no path. Lines at start can name the operator's own file paths. Text a
+call's line holds no file path. Lines at start can name the operator's own file paths. Text a
 caller or a backend controls is cut, and its control characters (C0, C1, the bidi controls, the line
 separators) are removed in both formats, so it cannot start a line of its own, a field in the text
 format, or a terminal escape in a log viewer.

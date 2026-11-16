@@ -26,7 +26,7 @@ getting-started page step by step.
 | [`pivotkit-report`](../reference/report.md) | A view over rows as a file without a browser: HTML report, CSV, JSON, XLSX, SVG. | A script, a job or a server makes report files. |
 | [`pivotkit-cli`](../reference/cli.md) | The command line `pivotkit`: render, validate and describe views. | Reports and view checks in a terminal or CI, without code. |
 | [`pivotkit-server`](../reference/rest.md) | A REST service over the same operations, with an OpenAPI document, sign-in and per-caller policy. It also comes as a [container image](../reference/container.md), which runs [on Kubernetes](../getting-started/kubernetes.md). | Programs such as scripts, PowerShell, schedulers or other apps ask for reports over HTTP. |
-| [`pivotkit-mcp`](../reference/mcp.md) | An MCP server: an AI client builds reports without reading the data. | People ask an AI client such as Claude or VS Code for reports. |
+| [`pivotkit-mcp`](../reference/mcp.md) | An MCP server: an AI client builds reports and reads only what the policy shows. | People ask an AI client such as Claude or VS Code for reports. |
 
 <div class="cards" markdown>
 

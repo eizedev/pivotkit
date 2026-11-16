@@ -1,6 +1,6 @@
 ---
 title: pivotkit-mcp
-description: The pivotkit MCP server - tools for an AI client to describe data sources, write and validate views, render reports into files and make links without reading the data; exposure policy, configuration, limits, errors, logging, HTTP transport and authentication (token, OAuth 2.1).
+description: The pivotkit MCP server - tools for an AI client to describe data sources, write and validate views, render reports into files and make links, reading only what the policy shows; exposure policy, configuration, limits, errors, logging, HTTP transport and authentication (token, OAuth 2.1).
 ---
 
 # pivotkit-mcp
@@ -554,7 +554,7 @@ differs, the line names it as `peerAddress`.
 
 The client is the static token's name or the OAuth token's client id. A line holds the person only
 where you ask for it with `audit.subject`, as `subject`, and never their groups or other claims. No
-line holds a view, a value or a token. A call's line holds no path. Lines at start can name the
+line holds a view, a value or a token. A call's line holds no file path. Lines at start can name the
 operator's own file paths. The log is the supervisor's to keep and rotate.
 
 `audit.subject` names the person of an OAuth token (its `auth.subjectClaim`) on `call`, `request`

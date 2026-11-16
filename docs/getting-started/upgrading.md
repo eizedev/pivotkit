@@ -203,7 +203,7 @@ What callers notice:
 | [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | copy the reports you want to keep out of `output.dir` before you update, or set `output.maxAgeDays: 0`; schedule drafts stay |
 | **Breaking:** [download links over plain http](#download-links-http) | `http.publicUrl` is `http://` on a host other than loopback, with `output.dir` | use `https://`, or set `output.downloads.allowInsecureUrl: true` for a network you trust, or `output.downloads.enabled: false` |
 | [Columns without a header](#columns-without-header) | a file source has rows longer than its header, or a blank header cell, under `"default": "show"` | name such a column in `fields` if it should be shown; run `check-config` |
-| **Breaking:** [Tokens that are easy to guess](#weak-tokens) | you wrote a token by hand, in `auth.tokens`, a token file or `$PIVOTKIT_TOKEN` | make it again with `pivotkit-server token new` |
+| **Breaking:** [Tokens that are easy to guess](#weak-tokens) | you wrote a static token by hand | make it again with `pivotkit-server token new` |
 | **Breaking:** [CSV with a quote never closed](#unclosed-quote) | a CSV source has a field below `show` | fix the quote in the file; until then the server refuses it |
 | [Rows longer than the header](#long-rows) | a file or CSV answer has rows wider than its named header (other than a separator that ends every line), and a caller sees a field below `show` | fix those rows (quote values with the separator in them); until then they are left out, with a `ROWS_DROPPED` note; `check-config` counts them |
 | [Request limits per person](#limits-per-person) | people sign in through one OAuth client | nothing; each person gets `rateLimit` and `concurrency` of their own |
@@ -243,7 +243,6 @@ serves its built-in example and makes the token `admin` at its first start
   message says how to fix it: set the variable, or remove `auth.mode` to use the generated `admin`.
   A misspelt variable never turns into a token with every scope.
 - A configuration that names its tokens, or `$PIVOTKIT_TOKEN`, gets no `admin`.
-- A start with `$PIVOTKIT_TOKEN` set but `auth.mode` not set logs a warning.
 - A read-only container without a volume at `/var/lib/pivotkit` warns at every start that the
   download links' key cannot be made. Add `-v pivotkit:/var/lib/pivotkit` to keep links across
   restarts.

@@ -1004,7 +1004,7 @@ A request line is `info` when it worked, `warn` for 4xx and `error` for 5xx. `re
 
 The client is the static token's name or the OAuth client id. The person is on `request` and
 `download` lines only with `audit.subject` ([audit](mcp.md#logging)). Their groups and other claims
-never appear. No line holds a view, a value or a token. A request's line holds no path. Lines at
+never appear. No line holds a view, a value or a token. A request's line holds no file path. Lines at
 start can name the operator's own file paths. The client's address is on a request's lines by
 default. It is personal data. `log.address: "off"` leaves it out.
 
