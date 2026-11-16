@@ -5,10 +5,17 @@ description: Install pivotkit-report, read a CSV file in Node, render a view ove
 
 # Getting started with reports without a browser
 
-`pivotkit-report` turns a [view](../concepts/views.md) and rows into a file, in Node or the browser:
-an HTML report to print or save as PDF, CSV, JSON, an Excel workbook (.xlsx) or the chart as SVG. The
-table and the chart are the ones the report shows on the screen. The [command line](cli.md) is built
-on it; use this package when your own code makes the reports (a scheduled job, a server, a test).
+`pivotkit-report` turns a [view](../concepts/views.md) and rows into a file, in Node or the browser.
+The file is one of these:
+
+- an HTML report to print or save as PDF
+- CSV or JSON
+- an Excel workbook (.xlsx)
+- the chart as SVG
+
+The table and the chart are the ones the report shows on the screen. The [command line](cli.md) is
+built on pivotkit-report. Use this package when your own code makes the reports, such as a scheduled
+job, a server or a test.
 
 ## 1. Install { #install }
 
@@ -18,9 +25,10 @@ npm init -y && npm pkg set type=module
 npm install pivotkit-report pivotkit-core echarts
 ```
 
-ECharts is needed only for the chart (an SVG, or the chart of an HTML report); you pass the module in.
-pivotkit-core reads data files (step 3); install the version pivotkit-report depends on, so the
-project has one copy (`npm ls pivotkit-core` lists them).
+You need ECharts only for the chart: an SVG, or the chart of an HTML report. You pass the module in.
+
+pivotkit-core reads data files (step 3). Install the version pivotkit-report depends on, so the
+project has one copy. `npm ls pivotkit-core` lists the copies.
 
 ## 2. Render rows you have in code { #rows-in-code }
 
@@ -52,8 +60,8 @@ console.log(`report.html: ${result.summary.rows} rows x ${result.summary.columns
 node report.js      # then open report.html
 ```
 
-`format` is `"html"`, `"csv"`, `"json"`, `"xlsx"` or `"svg"`; `body` is the file as bytes, `text`
-the same as text for the text formats.
+`format` is `"html"`, `"csv"`, `"json"`, `"xlsx"` or `"svg"`. `body` is the file as bytes. For the
+text formats, `text` holds the same file as text.
 
 ## 3. Render a data file and a view file { #files }
 
@@ -61,9 +69,13 @@ the same as text for the text formats.
 npx pivotkit-cli example      # sales.csv and two views in this directory, to try it with
 ```
 
-The files the report downloads (**Views**, **Download view**; **Export**, **Source data**, **All rows
-as CSV**) or the example files (`npx pivotkit-cli example`) work as they are. pivotkit-core reads the
-CSV:
+These files work as they are:
+
+- the files the report downloads: **Views**, **Download view** and **Export**, **Source data**,
+  **All rows as CSV**
+- the example files of `npx pivotkit-cli example`
+
+pivotkit-core reads the CSV:
 
 ```js
 import { readFile as readBytes, writeFile } from "node:fs/promises";
@@ -80,14 +92,15 @@ if (!result.ok) throw new Error(result.issues.map((i) => i.message).join("; "));
 await writeFile("sales.xlsx", result.body);
 ```
 
-Excel workbooks are read with the plugin [pivotkit-xlsx](../reference/plugins.md):
+To read Excel workbooks, use the plugin [pivotkit-xlsx](../reference/plugins.md):
 `readFile(file, { plugins: [xlsxReader] })` with `import xlsxReader from "pivotkit-xlsx"`.
 
 ## Next
 
 - Every option of `render()`, the formats, limits and issues: [pivotkit-report reference](../reference/report.md).
-- Your own layout around the table: [print template](../reference/print-template.md); your company's
-  design from a template to copy: [your own corporate design](../reference/corporate-design.md).
+- Your own layout around the table: [print template](../reference/print-template.md).
+- Your company's design from a template to copy:
+  [your own corporate design](../reference/corporate-design.md).
 - The views themselves, written by hand or by a program: [views](../concepts/views.md),
   [view file format](../reference/view-file.md).
 - The same from a terminal or CI without writing code: [getting started with the command line](cli.md).

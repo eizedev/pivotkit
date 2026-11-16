@@ -64,7 +64,7 @@ jobs:
         if: github.event_name == 'release'
         # the release tag nearest to main's head: every package's tags of one release sit on one commit,
         # and release.yml publishes only commits on main. A tag is pushed only after the one before it
-        # is published (CONTRIBUTING.md, "Releasing"), so the nearest tag is published or about to be.
+        # is published (RELEASING.md), so the nearest tag is published or about to be.
         env:
           STARTED_BY: ${{ github.event.release.tag_name }}
         run: |

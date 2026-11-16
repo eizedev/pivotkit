@@ -10,6 +10,13 @@
 // `<name>-light.png` and `<name>-dark.png`, which the pages show with `#only-light` and `#only-dark`.
 // The generated data has a fixed seed and the real data is a committed snapshot, so the numbers are
 // the same on every run.
+//
+// One picture is not taken here: xlsx-result-light.png and xlsx-result-dark.png (one image twice,
+// since a workbook has no dark theme). Take it again by hand when the export's look changes:
+//   1. pivotkit render weather.pivotkit.json --data weather.csv -o weather.xlsx
+//   2. Open it in Microsoft Excel for Mac at 100 % on a Retina screen. Set Excel's region to one that
+//      writes a decimal point (en_US): Excel formats numbers by its region (AppleLocale).
+//   3. Capture Excel's window only (screencapture -o -l <window id>) and crop it to cells A1:N16.
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";

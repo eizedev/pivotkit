@@ -1,6 +1,6 @@
 /*
  * Filters, one table entry per type: the field types it works on, its keys, how normalize() reads it
- * from a view and how the pivot applies it. A new filter type is one entry here (see CONTRIBUTING.md,
+ * from a view and how the pivot applies it. A new filter type is one entry here (see packages/pivotkit-core/AGENTS.md,
  * "Adding a view feature").
  *
  * Every filter has one shape: { field, type, ..., not?, blanks? }. `not` inverts which items with a

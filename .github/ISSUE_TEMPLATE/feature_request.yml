@@ -1,14 +1,37 @@
 name: Feature request
-description: An aggregation, a chart type, an export option or something the report builder should let people do.
+description: An aggregation, a chart type, an export option or something pivotkit should let people do.
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: "Please read [PRODUCT.md](https://github.com/eizedev/pivotkit/blob/main/PRODUCT.md) first: what pivotkit is, for whom, and what it is not. Short answers are fine."
   - type: textarea
     id: need
     attributes:
-      label: What you want to show or do
-      description: The data you have and what the report should let people do with it.
+      label: What should be possible, and for whom
+      description: The data you have, what people should be able to do with it, and whether it is for users, operators or developers.
     validations:
       required: true
+  - type: textarea
+    id: core
+    attributes:
+      label: Does it fit?
+      description: How it helps a user, operator or developer build, get or deliver a pivot report. Is it on PRODUCT.md's "not" list?
+  - type: textarea
+    id: promise
+    attributes:
+      label: Does it keep the promise?
+      description: Same view, same numbers in every output; no data beyond what the policy allows.
+  - type: textarea
+    id: start
+    attributes:
+      label: Getting started
+      description: Does it work with the defaults and without other tools? What would a user or operator have to do?
+  - type: textarea
+    id: cost
+    attributes:
+      label: Cost and who notices
+      description: New settings, dependencies, docs or tests it needs, and what existing installations would notice.
   - type: textarea
     id: reference
     attributes:

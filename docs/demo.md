@@ -7,46 +7,68 @@ hide:
 
 # Live demo
 
-The playground below is `<PivotReport>` from pivotkit-react with five real public data sets - the
-daily weather of 14 cities, population, GDP and CO2 per country, the earthquakes of 2025, the
-Nobel Prize laureates and the end-of-life dates of 489 software products - and three generated ones: IT tickets, sales and assets per source system.
-Each real data set starts with a template phrased as a question; [Learn with real data](learn.md)
-walks through all of them with tasks to try. Drag fields, open the menus on the chips, click a value,
-switch to the chart, export. The Views menu lists the shared views (the questions, and for
-endoflife.date the views of its OpenAPI document, a demo extension); views you save stay in this browser
-(`templateStore="browser"`), and the playground lets you publish one as a shared view, kept in this
-browser too ([Templates and shared views](concepts/templates.md)).
+The playground below is `<PivotReport>` from pivotkit-react. It has five real public data sets:
+
+- the daily weather of 14 cities
+- population, GDP and CO2 per country
+- the earthquakes of 2025
+- the Nobel Prize laureates
+- the end-of-life dates of 489 software products
+
+It also has three generated data sets: IT tickets, sales and assets per source system.
+
+Each real data set starts with a template phrased as a question.
+[Learn with real data](learn.md) walks through all of them with tasks to try. Drag fields, open the
+menus on the chips, click a value, switch to the chart and export.
+
+The Views menu lists the shared views. These are the questions, and for endoflife.date also the views
+of its OpenAPI document, a demo extension. Views you save stay in this browser
+(`templateStore="browser"`). The playground lets you publish a view as a shared view, which is kept
+in this browser too. See [Templates and shared views](concepts/templates.md).
 
 <p><a class="md-button md-button--primary" href="playground/" target="_blank" rel="noopener">Open the playground full screen</a> <a class="md-button" href="playground/examples/element/" target="_blank" rel="noopener">Open the web component example</a></p>
 
 <iframe class="pk-demo" src="playground/?data=weather&height=720" title="pivotkit playground" loading="lazy" style="width: 100%; height: 860px; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 8px;"></iframe>
 
-The playground's header picks the data set, a start template, the language and the theme, and for a
-generated data set the number of rows (2,000, 4,000 or 100,000). Its footer shows the engine timings
-of the last change. Its **Data** button [loads your own data](use/load-data.md) (`allowImport`,
-with the Excel plugin and the import worker; the footer shows `onDataLoad`): drop a CSV, JSON or Excel
-file onto the report. The file stays in your browser; `?import=off` in the address shows the report
-without it, as an application that does not offer it. **Export**, **Source data** downloads the rows
-behind the report (`exportData`): with the view (**Views**, **Download view**) the
-[command line](reference/cli.md#try-it) renders the same report, `pivotkit render <view> --data <rows>`.
+The playground's header picks the data set, a start template, the language and the theme. For a
+generated data set, it also picks the number of rows: 2,000, 4,000 or 100,000. Its footer shows the
+engine timings of the last change.
 
-The real data are snapshots stored with the playground; the page calls none of the sources, and its source line says the day a snapshot was fetched ("as of"), the "now" of templates such as the end-of-life ones. Weather
-data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0; contains modified Copernicus Climate
-Change Service information, see [Learn with real data](learn.md#query-it-live)); countries from the
-[World Bank](https://data.worldbank.org/), World Development Indicators (CC BY 4.0); earthquakes from
-the [U.S. Geological Survey](https://earthquake.usgs.gov/) (public domain); laureates from
-[Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/) (CC0); release cycles from
-[endoflife.date](https://endoflife.date/) (MIT). The generated rows
-come from a fixed seed, so everyone sees the same numbers.
+Its **Data** button [loads your own data](use/load-data.md): drop a CSV, JSON or Excel file onto the
+report. This uses `allowImport` with the Excel plugin and the import worker, and the footer shows
+`onDataLoad`. The file stays in your browser. With `?import=off` in the address, the report has no
+import, as in an application that does not offer it.
+
+**Export**, **Source data** downloads the rows behind the report (`exportData`). With these rows and
+the view (**Views**, **Download view**), the [command line](reference/cli.md#try-it) renders the same
+report: `pivotkit render <view> --data <rows>`.
+
+The real data are snapshots stored with the playground. The page calls none of the sources. Its
+source line says the day a snapshot was fetched ("as of"). That day is the "now" of templates such as
+the end-of-life ones. The sources:
+
+- Weather data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0). It contains modified
+  Copernicus Climate Change Service information, see [Learn with real data](learn.md#query-it-live).
+- Countries from the [World Bank](https://data.worldbank.org/), World Development Indicators
+  (CC BY 4.0).
+- Earthquakes from the [U.S. Geological Survey](https://earthquake.usgs.gov/) (public domain).
+- Laureates from [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/) (CC0).
+- Release cycles from [endoflife.date](https://endoflife.date/) (MIT).
+
+The generated rows come from a fixed seed, so everyone sees the same numbers.
 
 ## The playground's URL parameters
 
-The playground's address says what it shows, and it changes with it: the Data and Start dropdowns
-write `data` and `start`, and every change of the report writes the view into the fragment. A reload
-keeps the report; **Views**, **Copy link** copies `data`, `start` (and `rows` for generated data)
-and the view, so a link opens exactly that report; the language, theme and height stay the viewer's
-own (the playground passes that URL as `shareLink`). The query parameters are the playground's own; the fragment `#pivot-playground=` is
-pivotkit's share format, the part a host (React, the web component, PowerShell Universal) uses too:
+The playground's address says what it shows and changes with it. The Data and Start dropdowns write
+`data` and `start`. Every change of the report writes the view into the fragment. A reload keeps the
+report.
+
+**Views**, **Copy link** copies `data`, `start` and the view, plus `rows` for generated data. A link
+opens exactly that report. The language, theme and height stay the viewer's own. The playground
+passes that URL as `shareLink`.
+
+The query parameters are the playground's own. The fragment `#pivot-playground=` is pivotkit's share
+format. A host such as React, the web component or PowerShell Universal uses it too. See
 [Sharing and keeping a view](concepts/sharing.md).
 
 | Parameter | Values | What |
@@ -70,7 +92,13 @@ opens the earthquakes per month as a chart in the dark theme.
 ## The web component example
 
 [The example](playground/examples/element/){ target="_blank" } is a plain HTML page without a build
-step: `<pivot-report>` with its start view in an attribute, rows and templates set from a script, a
-theme switch, and the last event shown under the report. Its source is in
-[`examples/element/`](https://github.com/eizedev/pivotkit/tree/main/examples/element) and
+step. It has:
+
+- `<pivot-report>` with its start view in an attribute
+- rows and templates set from a script
+- a theme switch
+- the last event shown under the report
+
+Its source is in
+[`examples/element/`](https://github.com/eizedev/pivotkit/tree/main/examples/element).
 [Getting started with the web component](getting-started/web-component.md) walks through it.

@@ -7,9 +7,11 @@ description: Undo and redo every step, start over (reset or an empty report), pi
 
 A report you built is a **view**: which fields are where, the filters, the chart settings. You can
 undo every step, save the view under a name, pick one someone else saved, and share it as a link or a
-file. A view holds the names of fields and settings and, in its filters, the values chosen there (a
-customer, a country), but none of the other data: whoever opens it sees the report on their own data.
-Share it only where those filter values may be seen.
+file.
+
+A view holds the names of fields and settings. In its filters it also holds the values chosen there,
+such as a customer or a country. It holds none of the other data: whoever opens it sees the report on
+their own data. Share it only where those filter values may be seen.
 
 ## Undo, redo, start over
 
@@ -17,61 +19,71 @@ Share it only where those filter values may be seen.
 | --- | --- | --- |
 | **Undo** | Ctrl+Z, on a Mac Cmd+Z | Takes back the last change. |
 | **Redo** | Ctrl+Shift+Z or Ctrl+Y, on a Mac Cmd+Shift+Z | Repeats it. |
-| **Start over** | | Opens a menu with **Reset** and **New, empty report** (below). |
+| **Start over** | | Opens a menu with **Reset** and **New, empty report**. See below. |
 
-Every change is a step: placing a field, a filter, a chart setting, loading a view. Saved views are
-not changed by any of them, only by saving.
+Every change is a step: placing a field, a filter, a chart setting, loading a view. None of them
+changes a saved view. Only saving does.
 
 ### Start over
 
-**Start over**, next to Redo, has the two ways to begin again. Each says under its name what it does,
-or, while it is greyed out, why:
+**Start over**, next to Redo, has the two ways to begin again. Each says under its name what it does.
+While it is greyed out, it says why:
 
 | Entry | Does | Greyed out |
 | --- | --- | --- |
-| **Reset** | "Back to the start view. Your data stays." The view the report started with, as one step you can undo; a note "Back to the start view" appears with **Undo**. | "Already at the start view."; or, when the report started empty, "The start view is empty: use New, empty report." (both would do the same) |
-| **New, empty report** | "No fields. Undo brings it back. Your data stays." The three first steps and up to three saved views to start from; a note "New, empty report" appears with **Undo**, which brings the report back. | "The report is empty already." |
+| **Reset** | "Back to the start view. Your data stays." It brings back the view the report started with, as one step you can undo. A note "Back to the start view" appears with **Undo**. | "Already at the start view." When the report started empty, it says "The start view is empty: use New, empty report.", since both would do the same. |
+| **New, empty report** | "No fields. Undo brings it back. Your data stays." It shows the three first steps and up to three saved views to start from. A note "New, empty report" appears with **Undo**, which brings the report back. | "The report is empty already." |
 
-When both are greyed out (the report started empty and is empty), **Start over** itself is greyed
-out and says why when you point at it or reach it with Tab: "The report is empty already."
+Both are greyed out when the report started empty and is empty. Then **Start over** itself is
+greyed out. It says why when you point at it or reach it with Tab: "The report is empty already."
 
-Saved views are not changed by either. On a narrow report, where Start over is in **More**, Reset
-and New, empty report are entries of their own there, first in the list.
+Neither changes a saved view. On a narrow report, Start over is in **More**. There, Reset and New,
+empty report are entries of their own, first in the list.
 
 ![Start over in the toolbar, open: Reset greyed out at the start view, New, empty report with what it does](../assets/screenshots/start-over-light.png#only-light)
 ![Start over in the toolbar, open: Reset greyed out at the start view, New, empty report with what it does](../assets/screenshots/start-over-dark.png#only-dark)
 
 ## The view you are working on
 
-When you load a saved view, open a view file or a link, its name stands in the toolbar next to
-**Views** (before **Export** when Views is in **More**). A dot after the name means the report has changes you have not saved yet; it goes when you
-save, or when Undo brings the report back to the view as it was saved. While Views is in **More**
-(on a phone), **More** shows the same dot.
+When you load a saved view, or open a view file or a link, its name stands in the toolbar next to
+**Views**. When Views is in **More**, the name stands before **Export**.
+
+A dot after the name means the report has changes you have not saved yet. The dot goes when you
+save, or when Undo brings the report back to the view as it was saved. While Views is in **More**,
+as on a phone, **More** shows the same dot.
 
 ![The toolbar with the name of the loaded view and the dot for unsaved changes](../assets/screenshots/view-name-light.png#only-light)
 ![The toolbar with the name of the loaded view and the dot for unsaved changes](../assets/screenshots/view-name-dark.png#only-dark)
 
 - A click on the name opens **Views**, where **Save** is the first entry. On a phone the name stands
-  at the end of the toolbar and is shortened with "…"; pointing at it shows the whole name.
-- **New** and **Reset** take the name away: the report no longer shows that view, so a Save cannot
-  write an empty report or the start view over it. **Undo** brings the view back and its name with it;
-  **Redo** takes both away again.
+  at the end of the toolbar, shortened with "…". Point at it to see the whole name.
+- **New** and **Reset** take the name away. The report no longer shows that view, so a Save cannot
+  write an empty report or the start view over it. **Undo** brings the view back, and its name with
+  it. **Redo** takes both away again.
 - When the application switches to other data, the report keeps your fields but not the name.
-- After a reload of the page the report can come back with your view, but without its name: open the
-  saved view again from **Views** to save changes into it.
+- After a reload of the page, the report can come back with your view, but without its name. To
+  save changes into the view, open the saved view again from **Views**.
 
 ## The Views menu
 
-**Views** in the toolbar holds what is kept: one list to scan in four groups, each under its title
-with a line between them - **This view** (save it), the saved reports in two groups, then **Share
-this view**. Each saved view loads with one click; the first three are also offered in the empty
-report. The view you loaded has a check mark in its group. **Save as…** (**Save current view…**
-before a view is loaded), **Open view file…** and the questions before a delete or a publish open a
-level of their own in the menu's place, titled "Views › Open view file" and so on; **‹ Back** or
-Escape goes back to the entry it came from. Starting over is not here: it is **Start over** in the
-toolbar. The keys are those of the other menus
-([keyboard](keyboard.md#keys)): the arrow keys move through the list, Enter loads a view or opens a
-level, Tab closes the menu.
+**Views** in the toolbar holds what is kept. It is one list to scan, in four groups. Each group has
+its title, with a line between groups. In this order:
+
+- **This view**, to save it
+- the saved reports, in two groups
+- **Share this view**.
+
+More about the menu:
+
+- Each saved view loads with one click. The empty report also offers the first three.
+- The view you loaded has a check mark in its group.
+- Some entries open a level of their own in the menu's place: **Save as…** (**Save current view…**
+  before a view is loaded), **Open view file…**, and the questions before a delete or a publish.
+  The level has a title such as "Views › Open view file". **‹ Back** or Escape goes back to the
+  entry it came from.
+- Starting over is not here: it is **Start over** in the toolbar.
+- The keys are those of the other menus: the arrow keys move through the list, Enter loads a view or
+  opens a level, Tab closes the menu. See [keyboard](keyboard.md#keys).
 
 ![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share this view with its entries](../assets/screenshots/views-menu-light.png#only-light)
 ![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share this view with its entries](../assets/screenshots/views-menu-dark.png#only-dark)
@@ -79,11 +91,11 @@ level, Tab closes the menu.
 | Group | What |
 | --- | --- |
 | **This view** | **Save “…”** for the view you loaded, and **Save current view…** (**Save as…** once a view is loaded), which opens the name field. |
-| **Shared views** | The same for everyone who uses the report: the views the application provides. Where someone can change them, an **i** next to one says who (by default "Only admins can change shared views."). |
-| **My views** | Your own. **Save current view…** saves the report under a name; your views can be deleted, and published for everyone where the application allows it. |
-| **Share this view** | **Copy link**, **Copy view as JSON**, **Download view** and **Open view file…** ([Share a view](#share-a-view)). |
+| **Shared views** | The same for everyone who uses the report: the views the application provides. Where someone can change them, an **i** next to one says who. Its default text is "Only admins can change shared views." |
+| **My views** | Your own. **Save current view…** saves the report under a name. You can delete your views. Where the application allows it, you can publish them for everyone. |
+| **Share this view** | **Copy link**, **Copy view as JSON**, **Download view** and **Open view file…**. See [Share a view](#share-a-view). |
 
-A group without entries is not shown; My views shows while you can save.
+A group without entries is not shown. My views shows while you can save.
 
 ![This view in the Views menu: Save for the loaded view and Save as…](../assets/screenshots/views-this-view-light.png#only-light)
 ![This view in the Views menu: Save for the loaded view and Save as…](../assets/screenshots/views-this-view-dark.png#only-dark)
@@ -92,61 +104,72 @@ A group without entries is not shown; My views shows while you can save.
 
 You loaded one of your views and changed it:
 
-1. Open **Views** (or click the view's name in the toolbar).
+1. Open **Views**, or click the view's name in the toolbar.
 2. Click **Save “…”**.
 
-The view is saved under its name, in its place in My views, and the menu closes: "View “…” saved".
-Quick enough to keep a report for later before you leave.
+The report saves the view under its name, in its place in My views, and the menu closes:
+"View “…” saved". It is quick enough to keep a report for later before you leave.
 
-**Save** is greyed out, with the reason under it:
+**Save** can be greyed out. The reason stands under it:
 
 | Reason | What to do |
 | --- | --- |
 | "Shared view: you cannot change it. Use Save as." | A shared view only someone who may publish views can change. Save it as your own under a name. |
-| "Not saved yet. Use Save as." | The view came from a file or a link: it is not among the saved views. |
-| "Add a field first." | The report is empty; an empty report is never saved over a view. |
+| "Not saved yet. Use Save as." | The view came from a file or a link, so it is not among the saved views. |
+| "Add a field first." | The report is empty. An empty report is never saved over a view. |
 
-Where you may publish views, **Save** on a shared view asks first, in a level of its own: "Replace the
-shared view “…” for everyone?" - **Replace** saves it for everyone, **Cancel** goes back and changes
-nothing.
+Where you may publish views, **Save** on a shared view asks first, in a level of its own:
+"Replace the shared view “…” for everyone?" **Replace** saves it for everyone. **Cancel** goes
+back and changes nothing.
 
 ### Save under a name
 
 1. Open **Views**.
-2. Choose **Save current view…** (**Save as…** once a view is loaded) and type a name, up to 120
-   characters.
+2. Choose **Save current view…** and type a name, up to 120 characters. Once a view is loaded, the
+   entry is called **Save as…**.
 3. Press **Save** (**Save as**) or Enter. The button is greyed out while the name is empty.
 
-When one of your views already has that name, the report asks in place of the field: "“…” exists.
-Replace it?" **Replace** writes over that view; **Cancel**, which has the focus so that Enter does
-not replace anything, brings the field back with the name in it, so you can change it. A shared view
-of the same name stays as it is: Save as saves your own.
+When one of your views already has that name, the report asks in place of the field:
+"“…” exists. Replace it?"
 
-Every save closes the menu, the same for **Save “…”**, **Save current view** and **Save as**, and the
-focus goes back to **Views** (or **More**); a note says "View “…” saved". The name field has an **×**; Escape in it empties it first, then goes back to the list. Every name is shown
-as plain text.
+- **Replace** writes over that view.
+- **Cancel** brings the field back with the name in it, so you can change it. **Cancel** has the
+  focus, so Enter does not replace anything.
+
+A shared view of the same name stays as it is: Save as saves your own.
+
+Every save closes the menu: **Save “…”**, **Save current view** and **Save as** alike. The focus
+goes back to **Views**, or to **More**. A note says "View “…” saved".
+
+The name field has an **×**. Escape in the field empties it first, then goes back to the list. Every
+name is shown as plain text.
 
 ### Delete or publish one of your views
 
-- The delete button next to one of your views asks first, in a level of its own ("Delete “…”?"),
-  before the view goes. The arrow keys reach it right after the view's name.
+- The delete button next to one of your views asks first, in a level of its own: "Delete “…”?"
+  Then the view goes. The arrow keys reach the button right after the view's name.
 - Where the application allows it, the arrow next to one of your views publishes it as a shared view,
-  for everyone, after the same kind of question.
-- After a publish or Cancel the focus goes back to where you asked; after a delete to the view that
-  takes its place in the list (the one after it, else the one before).
+  for everyone. It asks the same kind of question first.
+- After a publish or Cancel, the focus goes back to where you asked. After a delete, it goes to the
+  view that takes its place in the list: the one after it, else the one before.
 
 ### Views kept in this browser
 
-When the report keeps your views in the browser, the menu says so: they are only in this browser on
-this device, and gone when the site's data is cleared. Before the first one is saved, My views is one
-line: "None yet. Saved views stay in this browser only." At most 100 views are kept. When the views were
-changed in another tab since you opened the menu, a delete here deletes nothing and says so: "The view
-could not be deleted: the views were changed in another tab; open the menu again".
+When the report keeps your views in the browser, the menu says so. They are only in this browser on
+this device, and they are gone when the site's data is cleared.
 
-Views saved on a file you loaded belong to that file, and on a workbook to its sheet: while that
-workbook is shown, a view of another of its sheets says which ("Sheet “Q3”") and opens on that sheet
-([Load your own data](load-data.md#after-loading)). The file's name decides which views belong to it:
-another workbook of the same name offers them too (its own sheets are read).
+- Before you save the first one, My views is one line:
+  "None yet. Saved views stay in this browser only."
+- The browser keeps at most 100 views.
+- Another tab may have changed the views since you opened the menu. Then a delete here deletes
+  nothing and says so:
+  "The view could not be deleted: the views were changed in another tab; open the menu again".
+
+Views saved on a file you loaded belong to that file. Views saved on a workbook belong to its sheet.
+While that workbook is shown, a view of another of its sheets says which sheet, such as
+"Sheet “Q3”", and opens on that sheet. See [Load your own data](load-data.md#after-loading). The
+file's name decides which views belong to it. Another workbook of the same name offers them too, and
+its own sheets are read.
 
 ## Share a view
 
@@ -154,10 +177,10 @@ another workbook of the same name offers them too (its own sheets are read).
 
 | Entry | Gives |
 | --- | --- |
-| **Copy link** | An address with the view in it, when the application allows links. Whoever opens it sees the same report on the same data; Reset still goes to the application's start view. A view too large for a link says so: share it as a file. |
+| **Copy link** | An address with the view in it, when the application allows links. Whoever opens it sees the same report on the same data. Reset still goes to the application's start view. A view too large for a link says so: share it as a file. |
 | **Copy view as JSON** | The view file as text, for a message or a ticket. |
-| **Download view (.pivotkit.json)** | The view as a file, named `<name>.pivotkit.json` after the view's name (the saved view or file it came from), else the data's name, else the application's file name (`pivot.pivotkit.json` without one). |
-| **Open view file…** | Opens a view from a file, pasted text or a link (below). |
+| **Download view (.pivotkit.json)** | The view as a file, named `<name>.pivotkit.json`. The name is the view's name, from the saved view or file it came from. Else it is the data's name, else the application's file name. Without one, the file is `pivot.pivotkit.json`. |
+| **Open view file…** | Opens a view from a file, pasted text or a link. See below. |
 
 Under the entries a line says what a shared view gives away: "A view holds the names of fields and,
 in its filters, the values chosen there: share it only where those may be seen." Where a page does not
@@ -165,12 +188,13 @@ allow the clipboard, the report says so and points to Download view.
 
 ## Open a view file
 
-1. **Views**, **Open view file…** (a level of its own; **‹ Back** goes back to the list).
-2. Paste a view file, a view's JSON or a link and press **Load** (greyed out while the box is empty),
-   or press **Choose file…**, which loads the file at once.
+1. Choose **Views**, **Open view file…**. It opens a level of its own, and **‹ Back** goes back to
+   the list.
+2. Paste a view file, a view's JSON or a link and press **Load**. **Load** is greyed out while the
+   box is empty. Or press **Choose file…**, which loads the file at once.
 
-Nothing changes until it is loaded; the load is one step Undo takes back. The box has an **×** that
-empties it.
+Nothing changes until the view is loaded. The load is one step that Undo takes back. The box has an
+**×** that empties it.
 
 - A text of more than 1,000,000 characters, or a file of more than 1,000,000 bytes, is refused before
   it is read: "This is too large for a view."
@@ -180,45 +204,58 @@ empties it.
 
 ### Before a view for other data is loaded
 
-When the view was made for other data, or uses fields this data does not have or has with another
-type, the report asks before anything changes: "This view may not fit this data", with what does not
-fit ("It was made for “Weather”.", "Fields this data does not have: “City”.", "Fields of another type
-here: “Units”."). Names from the file are shown as text only. The question takes the focus when it
-appears.
+A view may not fit this data. It may have been made for other data, or it may use fields this data
+does not have or has with another type. Then the report asks before anything changes:
+"This view may not fit this data". The question lists what does not fit, for example:
+
+- "It was made for “Weather”."
+- "Fields this data does not have: “City”."
+- "Fields of another type here: “Units”."
+
+Names from the file are shown as text only. The question takes the focus when it appears.
 
 | Choice | Does |
 | --- | --- |
-| **Load anyway** | Loads it; what does not fit is left out. |
+| **Load anyway** | Loads the view and leaves out what does not fit. |
 | **Cancel** | Back to the form. |
-| **Switch to “Weather” and load** | Where the application can show that data: shows the other data with the view on it. That starts the report on that data anew (a new history: Undo begins there); the question says so under its button. |
+| **Switch to “Weather” and load** | Where the application can show that data: shows the other data with the view on it. That starts the report on that data anew, with a new history: Undo begins there. The question says so under its button. |
 
 ![A view file made for other data: asked before it is loaded, with Load anyway, Cancel and Switch](../assets/screenshots/load-check-light.png#only-light)
 ![A view file made for other data: asked before it is loaded, with Load anyway, Cancel and Switch](../assets/screenshots/load-check-dark.png#only-dark)
 
-A link does the same: one in the page's address made for other data, or using fields this data does
-not have, opens only after the same question, shown above the result ("The link's view may not fit
-this data"): **Load anyway**, **Cancel** (the report keeps its start view; the same link given again
-asks again) and **Switch to … and load** where the application allows. A link at the page's load does
-not take the focus; one opened later in the tab is a step Undo takes back once loaded.
+A link does the same. A link in the page's address that was made for other data, or that uses
+fields this data does not have, opens only after the same question. The question is shown above the
+result: "The link's view may not fit this data". The choices are:
+
+- **Load anyway**
+- **Cancel**: the report keeps its start view. The same link given again asks again.
+- **Switch to … and load**, where the application allows it.
+
+A link at the page's load does not take the focus. A link opened later in the tab is a step that Undo
+takes back once it is loaded.
 
 ### After the load
 
-- A note says it was loaded, with **Undo**, and goes after a few seconds: "View loaded", "Opened the
-  view from the link", or "View loaded; some parts did not fit this data" (a warning, not an error).
-- What was left out stays above the result as a warning, "2 parts of this view could not be used",
-  open with one line per part in plain words, until you dismiss it with its **×** or load another
-  view; a line goes once you change its part by hand ([details](behaviour.md#parts-of-a-view-that-were-not-used)).
-  A saved view from **Views** that the data cannot fully use (a field that is gone) shows the same
-  warning, as does one that has more fields in a zone than the limits allow. Warning counts
-  keep the report’s number formatting even when a calculation limit prevents the result.
-- Real errors (a damaged link, an application that could not save) stay in the status line until
-  you close them.
+- A note with **Undo** says the view was loaded, and goes after a few seconds. It says
+  "View loaded", "Opened the view from the link", or
+  "View loaded; some parts did not fit this data". The last one is a warning, not an error.
+- What was left out stays above the result as a warning: "2 parts of this view could not be used".
+  It is open, with one line per part in plain words. It stays until you dismiss it with its **×**
+  or load another view. A line goes once you change its part by hand. See
+  [details](behaviour.md#parts-of-a-view-that-were-not-used).
+- A saved view from **Views** shows the same warning when the data cannot fully use it, such as
+  when a field is gone. So does a view with more fields in a zone than the limits allow.
+- Warning counts keep the report’s number formatting, even when a calculation limit prevents the
+  result.
+- Real errors stay in the status line until you close them. Examples are a damaged link, or an
+  application that could not save.
 
 !!! note "For developers"
-    Where views are kept (`templates`, `onSaveTemplate`, `onDeleteTemplate`, `onPublishTemplate` with
-    `canPublish`, `templateStore="browser"`) is in [Templates and shared views](../concepts/templates.md);
-    Save and Save as call `onSaveTemplate` or `onPublishTemplate` with a name that exists, which your
-    application replaces ([the contract](../reference/react.md#prop-onsavetemplate));
-    links, `source`, `sources`, `onSourceSwitch` and keeping the view per tab (`persistView`) in
-    [Sharing and keeping a view](../concepts/sharing.md); the file itself in the
-    [view file format](../reference/view-file.md).
+    - [Templates and shared views](../concepts/templates.md) describes where views are kept:
+      `templates`, `onSaveTemplate`, `onDeleteTemplate`, `onPublishTemplate` with `canPublish`, and
+      `templateStore="browser"`.
+    - Save and Save as call `onSaveTemplate` or `onPublishTemplate` with a name that exists, which
+      your application replaces. See [the contract](../reference/react.md#prop-onsavetemplate).
+    - [Sharing and keeping a view](../concepts/sharing.md) describes links, `source`, `sources`,
+      `onSourceSwitch` and keeping the view per tab (`persistView`).
+    - The [view file format](../reference/view-file.md) describes the file itself.

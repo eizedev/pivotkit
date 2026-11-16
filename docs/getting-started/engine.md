@@ -7,15 +7,15 @@ description: Use pivotkit-core without UI - encode rows, compute a pivot table, 
 
 `pivotkit-core` is the pivot engine in plain JavaScript, without UI and without a framework. Use it
 to draw your own table, to build ECharts options, or to export a report on a server. It runs in
-browsers and in Node 22 or later; the only dependency is [fflate](https://github.com/101arrowz/fflate)
-(MIT) for the XLSX zip, loaded only by the `pivotkit-core/export` entry. TypeScript declarations are
-generated from the JSDoc types.
+browsers and in Node 22 or later. Its only dependency is [fflate](https://github.com/101arrowz/fflate)
+(MIT) for the XLSX zip. Only the `pivotkit-core/export` entry loads it. The TypeScript declarations
+come from the JSDoc types.
 
 ```bash
 npm install pivotkit-core
 ```
 
-pivotkit-core is an ES module package (`import`, no `require`). In Node, write the examples in a
+pivotkit-core is an ES module package: use `import`, not `require`. In Node, write the examples in a
 `.mjs` file or in a package with `"type": "module"` in its `package.json`.
 
 ## From rows to a table
@@ -52,21 +52,22 @@ The steps:
 1. **`encode(rows)`** turns an array of objects into typed columns once: text, numbers, booleans and
    dates (including ISO strings). Column names match case-insensitively, so `Region` and `region`
    above are one field.
-2. **`normalize(view, data)`** checks a view against the data: unknown fields, aggregators or formats
-   are dropped and listed in `issues`, each with its path and a `code` to say it in your own words
-   ([Issues](../concepts/views.md#issues-for-developers)). You do not have to call it; every function that takes a view
-   normalizes it first.
+2. **`normalize(view, data)`** checks a view against the data. It drops unknown fields, aggregators
+   or formats and lists them in `issues`. Each issue has its path and a `code`, so you can say it in
+   your own words. See [Issues](../concepts/views.md#issues-for-developers). You do not have to call
+   `normalize`: every function that takes a view normalizes it first.
 3. **`computePivot(data, view)`** builds the row and column trees with subtotals and totals.
 4. **`toGrid(result)`** lays the result out as table rows with merged header cells, formatted text and
    raw values, for any table renderer and for the export.
 5. **`toEChartsOption(result)`** returns a plain option object for an
-   [Apache ECharts](https://echarts.apache.org/) instance; pivotkit-core does not import ECharts.
+   [Apache ECharts](https://echarts.apache.org/) instance. pivotkit-core does not import ECharts.
 6. **`toXlsx(grid)`** and **`toCsv(grid)`** export what the grid shows.
 
 ## Drawing the grid
 
-`grid.rows` holds header rows first (`grid.headerRows` of them), then the body. A cell covered by a
-merge is `null`; the others carry `rowSpan` and `colSpan`. A minimal HTML table:
+`grid.rows` holds the header rows first, then the body. `grid.headerRows` says how many header rows
+there are. A cell covered by a merge is `null`. The other cells carry `rowSpan` and `colSpan`. A
+minimal HTML table:
 
 ```js
 function renderTable(grid) {
@@ -87,14 +88,19 @@ function renderTable(grid) {
 }
 ```
 
-Each cell has `kind` (`"corner"`, `"colHeader"`, `"rowHeader"` or `"value"`), `total` (0 none,
-1 subtotal, 2 grand total), the formatted `text` and the raw `value`; value cells also carry
-`rowPath`, `colPath` and `valueIndex`, which [`cellRows`](../reference/core.md#drill-down) turns into
-the source rows behind them.
+Each cell has these keys:
+
+- `kind`: `"corner"`, `"colHeader"`, `"rowHeader"` or `"value"`
+- `total`: 0 none, 1 subtotal, 2 grand total
+- `text`: the formatted text
+- `value`: the raw value
+
+Value cells also carry `rowPath`, `colPath` and `valueIndex`.
+[`cellRows`](../reference/core.md#drill-down) turns them into the source rows behind the cell.
 
 ## On a server
 
-Everything except the browser download works in Node: build the workbook and send it.
+Everything except the browser download works in Node. Build the workbook and send it:
 
 ```js
 import { createServer } from "node:http";
@@ -112,8 +118,8 @@ createServer((request, response) => {
 ```
 
 A view from a browser is user input. It cannot run code, and the [limits](../concepts/limits.md)
-keep its memory use bounded; a view that would need more throws `PivotkitError` with the code
-`LIMIT_EXCEEDED`, which a server answers with an error instead of a report.
+keep its memory use bounded. A view that would need more throws `PivotkitError` with the code
+`LIMIT_EXCEEDED`. A server then answers with an error instead of a report.
 
 ## Next steps { #next }
 

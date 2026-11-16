@@ -128,22 +128,20 @@ details. The package READMEs are short npm pages that link there.
 
 ## Development
 
+Start with these:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) - how to set up, change, test and open a pull request.
+- [PRODUCT.md](PRODUCT.md) - what pivotkit is and is not.
+- [AGENTS.md](AGENTS.md) - layout, commands and code rules. AI assistants start here.
+- [RELEASING.md](RELEASING.md) - how maintainers release.
+
 ```bash
 npm ci
 npm run lint
-npm run types                    # type check, generated .d.ts, TypeScript consumer test
+npm run types
 npm test
-npm run pack:check               # what npm pack would publish (every package)
-npm run bench -w pivotkit-core
-npm run bench -w pivotkit-xlsx   # reading a generated 94,000-row workbook (-- --browser: also Chromium)
-npm run bench:browser            # the report in Chromium, Firefox and WebKit with 100,000 to 1,000,000 rows
-npm run playground               # the playground on http://localhost:5173
-npm run docs:data                # fetch the playground's real data sets again (network)
-npm run test:browser             # Playwright in Chromium, Firefox and WebKit: playground, host pages, shadow root, web component
-PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (after npm ci --prefix tests/react19)
+npm run playground   # http://localhost:5173
 ```
-
-Releasing is described in [CONTRIBUTING.md](CONTRIBUTING.md#releasing).
 
 ## Releases and changelogs
 
