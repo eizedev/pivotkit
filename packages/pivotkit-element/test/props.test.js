@@ -62,6 +62,10 @@ test("drill-down is on unless it says false; save-templates is a boolean attribu
     // the drill-down's copy and download while export-data is off (#263): a boolean attribute
     assert.equal(fromAttribute(def("drill-down-export"), null), false);
     assert.equal(fromAttribute(def("drill-down-export"), ""), true);
+    // it lets rows out: "false" is off, as export-data="false"
+    assert.equal(fromAttribute(def("drill-down-export"), "false"), false);
+    assert.equal(fromAttribute(def("drill-down-export"), " FALSE "), false);
+    assert.equal(fromAttribute(def("drill-down-export"), "true"), true);
     assert.equal(toAttribute(def("drill-down-export"), true), "");
     assert.equal(toAttribute(def("drill-down-export"), false), null);
     assert.equal(fromAttribute(def("save-templates"), ""), true);

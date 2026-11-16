@@ -63,7 +63,8 @@ it as user input and checks it against the data. A view cannot run code.
 Two more features are off until the host turns them on:
 
 - `allowImport`: people load their own CSV, JSON or Excel file, with a preview.
-- `exportData`: people download the rows behind the report for the command line.
+- `exportData`: people download the rows behind the report for the command line. It also gives
+  the drill-down its copy and download. `drillDownExport` gives the drill-down those alone.
 
 ## Where in the docs
 
