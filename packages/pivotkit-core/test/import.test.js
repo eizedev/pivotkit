@@ -176,8 +176,12 @@ test("unnamed lists the columns the file gives no name: a blank header cell and 
     assert.deepEqual((await readFile(text("z.csv", "A,B,C\n1,2,3\nb,12,3,\n"))).longRows, [1]);
     // every row ending with a separator the header lacks is a trailing separator, no shift
     assert.deepEqual((await readFile(text("t.csv", "A,B,C\n1,2,3,\n4,5,6,\n7,8,9,\n"))).longRows, []);
-    // where every line ends with one, a row one cell wider still is long
-    assert.deepEqual((await readFile(text("u.csv", "A,B,C,\n1,2,3,\nb,12,3,x,\n7,8,9,\n"))).longRows, [1]);
+    // a header that ends with one too: a uniform file keeps its rows
+    assert.deepEqual((await readFile(text("v.csv", "A,B,C,\n1,2,3,\n7,8,9,\n"))).longRows, []);
+    // where rows differ in width, every row wider than the named header counts (which one shifted cannot be told)
+    assert.deepEqual((await readFile(text("u.csv", "A,B,C,\n1,2,3,\nb,12,3,x,\n7,8,9,\n"))).longRows, [0, 1, 2]);
+    // a value beyond the named header in a file of one width is a shift
+    assert.deepEqual((await readFile(text("w.csv", "A,B,C\n1,2,3,\nSm,ith,9,x\n"))).longRows, [0, 1]);
 });
 
 test("types from text: dates before numbers, leading zeros and long numbers stay text, the notation per column", async () => {

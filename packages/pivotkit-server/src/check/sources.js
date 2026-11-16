@@ -28,6 +28,7 @@ import { findingText } from "pivotkit-report/operations";
 import { serverLimitsOf } from "../config.js";
 import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "../policy.js";
 import { sourceStats } from "../stats.js";
+import { allShown } from "../data.js";
 import { checkTemplates } from "../print-template.js";
 import { HTTP_HEADING } from "./http.js";
 import { heading, plain, problem, warning } from "./format.js";
@@ -107,9 +108,15 @@ export async function section(options, registry, runtime) {
                 items.push(problem(`sources.${s.id}.template: ${template.missing}`, { effect: `the server starts; html reports of ${s.id} fail until it can be read` }));
             }
         }
-        // rows longer than the header (data.js withoutLongRows): left out wherever a field is below show
-        if (columns.longRows) {
+        // rows longer than the header (data.js withoutLongRows): left out wherever a field is below show;
+        // with the source's own policy all show, no caller of it loses them (profiles aside)
+        const shownAll = allShown(s.policy);
+        if (columns.longRows && !shownAll) {
             items.push(warning(`sources.${s.id}: ${columns.longRows} row${columns.longRows === 1 ? " has" : "s have"} more values than the header (a separator inside a value); ${columns.longRows === 1 ? "it is" : "they are"} left out for callers who do not see every field as show`));
+        }
+        // a value can move into another column only in text formats: the limit of the check above
+        if (s.file && !shownAll && /\.(csv|tsv|txt)$/i.test(s.file)) {
+            items.push(plain("a value kept back is safe in CSV only when values that hold the separator are quoted; xlsx or JSON is safer", 2));
         }
         if (columns.why) {
             items.push(warning(`sources.${s.id}: its columns could not be read to check the policy (${columns.why})`));

@@ -20,6 +20,8 @@ Sources (3):
     <dir>/data/sales.csv
     policy: show by default; Customer hide
     scopes: sales:read
+    a value kept back is safe in CSV only when values that hold the separator
+        are quoted; xlsx or JSON is safer
     field levels (automatic values: not applied, a default is written):
       Region: show (the default)
       Product: show (the default)
@@ -28,6 +30,8 @@ Sources (3):
   gone: a file
     <dir>/data/missing.csv
     policy: summary by default
+    a value kept back is safe in CSV only when values that hold the separator
+        are quoted; xlsx or JSON is safer
   code: a code source, described under Code sources
     policy: summary by default
     fields: known only after a load

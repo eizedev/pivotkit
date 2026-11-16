@@ -468,9 +468,48 @@ test("#479: a file whose every line ends with a separator the header lacks keeps
         assert.equal(trailing.data.rows, 2, "a trailing separator on every line is no shift");
         assert.ok(!trailing.data.notes.some((n) => n.code === "ROWS_DROPPED"));
         const wider = await call(`${server.api}/sources/describe`, { body: { source: "wider" } });
-        assert.equal(wider.data.rows, 2, "the row wider than the others goes");
+        assert.equal(wider.data.rows, 0, "rows of different widths: every row wider than the named header goes (which one shifted cannot be told)");
         assert.doesNotMatch(JSON.stringify(wider.data), /Munich|"3"/);
     } finally {
         await server.close();
     }
+});
+
+// --- privacy probe of 44532f38 ---------------------------------------------------------------------
+
+/** describe and a render by city of `people.csv` under ssn hidden: the text a caller gets. */
+async function cityAnswers(csv) {
+    const dir = workspace({ "people.csv": csv });
+    const server = await restServer({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { ssn: "hide" } } } }, baseDir: dir });
+    try {
+        const described = await call(`${server.api}/sources/describe`, { body: { source: "people" } });
+        const city = await call(`${server.api}/views/render`, { body: { source: "people", view: { rows: ["city"], values: [{ agg: "count" }] }, format: "json" } });
+        return { rows: described.data.rows, text: JSON.stringify(described.data) + JSON.stringify(city.data) };
+    } finally {
+        await server.close();
+    }
+}
+
+test("#479 probe 1: most rows shifted, each with an empty last cell, among a row of the header's width: no SSN shows", async () => {
+    const got = await cityAnswers("name,ssn,city\nSm,ith,111-SECRET,\nJo,hn,222-SECRET,\nann,33,Berlin\n");
+    assert.doesNotMatch(got.text, /SECRET/);
+    assert.equal(got.rows, 1);
+});
+
+test("#479 probe 2: a header with a trailing separator counts by its named width: a shifted row that leaves the file uneven is caught", async () => {
+    const got = await cityAnswers("name,ssn,city,\nann,11,Berlin,\nSm,ith,999-SECRET,x\n");
+    assert.doesNotMatch(got.text, /SECRET/);
+});
+
+test("#479: a uniform export that ends every line with a separator (the header too, or not) keeps all its rows", async () => {
+    assert.equal((await cityAnswers("name,ssn,city\nann,11,Berlin,\ncid,13,Hamburg,\n")).rows, 2);
+    assert.equal((await cityAnswers("name,ssn,city,\nann,11,Berlin,\ncid,13,Hamburg,\n")).rows, 2);
+});
+
+test("#479 probe 3 and 5: check-config names the CSV limit for a source with a field below show, and no long-row warning where every field is show", async () => {
+    const dir = workspace({ "people.csv": "name,ssn,city\nann,11,Berlin\nbob,12,3,x\n" });
+    const closed = factsOf((await checkConfig({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { ssn: "hide" } } } }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.equal(closed.match(/a value kept back is safe in CSV only when values that hold the separator are quoted/g)?.length, 1, closed);
+    const open = factsOf((await checkConfig({ sources: { people: { file: "data/people.csv", policy: { default: "show" } } }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.doesNotMatch(open, /more values than the header|safe in CSV only/);
 });

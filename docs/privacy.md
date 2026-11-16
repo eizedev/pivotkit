@@ -42,6 +42,15 @@ are off. Open up field by field
 (`show`) for what a purpose needs, and `hide` what no caller needs: a hidden column is dropped when
 the data is read. Leaving a column out of the data file is safer still.
 
+In CSV, a hidden (or `summary`, `values`) column is protected only when the file is well formed: a
+separator inside an unquoted value moves the values after it into the next columns, and pivotkit
+catches that only where the row gets wider than the header (it then leaves the row out). A shifted
+row whose writer dropped a cell at the end has the header's width and cannot be told from the data,
+nor can a shifted row in a file whose every line ends with a separator, where the shift fills the
+empty last cell.
+For sources with fields kept back, write CSV with quoted values, or use xlsx or JSON;
+`check-config` says this under each such CSV source.
+
 ## What counts as personal data { #personal-data }
 
 - **Values** of a field about people (names, e-mail addresses, IDs) are personal data; so can be dates
