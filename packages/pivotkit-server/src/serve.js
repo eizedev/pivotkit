@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ConfigError } from "./config.js";
+import { fitsRange } from "./version-range.js";
 import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 
 export { TOKEN_ENV };
@@ -33,13 +34,15 @@ export const MCP_PACKAGE = "pivotkit-mcp";
 
 /**
  * pivotkit-mcp, when it is installed beside this package; null when not. A pivotkit-mcp of another
- * release, which imports a name the pivotkit-server it finds does not export, is a ConfigError that
- * names both versions (releaseMismatch).
+ * release is a ConfigError that names both versions (releaseMismatch): one whose declared range of
+ * pivotkit-server does not hold this version, and one that imports a name this pivotkit-server does
+ * not export. A range that cannot be read (a path, a tag) is not refused.
  * @returns {Promise<any>}
  */
 export async function loadMcp() {
+    let mcp;
     try {
-        return await import(MCP_PACKAGE);
+        mcp = await import(MCP_PACKAGE);
     } catch (e) {
         // only pivotkit-mcp itself missing; a pivotkit-mcp whose own dependency is missing is an error
         if (e?.code === "ERR_MODULE_NOT_FOUND" && String(e.message).includes(`Cannot find package '${MCP_PACKAGE}'`)) {
@@ -52,6 +55,12 @@ export async function loadMcp() {
         }
         throw e;
     }
+    const versions = installedVersions();
+    const needs = versions.mcp?.dependencies?.["pivotkit-server"];
+    if (typeof needs === "string" && fitsRange(needs, VERSION) === false) {
+        throw await releaseMismatch(null, { ...versions, server: { version: VERSION } });
+    }
+    return mcp;
 }
 
 /** The package.json nearest above a file, or null. */
@@ -68,12 +77,11 @@ function packageOf(file) {
 }
 
 /**
- * The error for a pivotkit-mcp that does not fit the pivotkit-server it finds: its version, that
- * pivotkit-server's version, the range pivotkit-mcp declares, and the update guide. A version it
- * cannot read is left out, the import's own message kept.
- * @param {SyntaxError} e
+ * The package.json of the installed pivotkit-mcp and of the pivotkit-server it imports, where they
+ * can be read.
+ * @returns {{ mcp: any, server: any }}
  */
-async function releaseMismatch(e) {
+function installedVersions() {
     let mcp = null;
     let server = null;
     try {
@@ -83,10 +91,22 @@ async function releaseMismatch(e) {
     } catch {
         // the versions it could read
     }
+    return { mcp, server };
+}
+
+/**
+ * The error for a pivotkit-mcp that does not fit the pivotkit-server it finds: its version, that
+ * pivotkit-server's version, the range pivotkit-mcp declares, and the update guide. A version it
+ * cannot read is left out; an import's own message is kept.
+ * @param {SyntaxError | null} e  the import's error; null when only the declared range does not fit
+ * @param {{ mcp: any, server: any }} [versions]
+ */
+async function releaseMismatch(e, { mcp, server } = installedVersions()) {
     const needs = mcp?.dependencies?.["pivotkit-server"];
+    const why = [...(needs ? [`it needs pivotkit-server ${needs}`] : []), ...(e ? [e.message] : [])].join("; ");
     const { UPGRADING_URL } = await import("./check/index.js");
     return new ConfigError(
-        `pivotkit-mcp ${mcp?.version ?? "(version unknown)"} does not fit pivotkit-server ${server?.version ?? VERSION} (${needs ? `it needs pivotkit-server ${needs}; ` : ""}${e.message}). ` +
+        `pivotkit-mcp ${mcp?.version ?? "(version unknown)"} does not fit pivotkit-server ${server?.version ?? VERSION}${why ? ` (${why})` : ""}. ` +
             `Install pivotkit-server and pivotkit-mcp of one release in one command: ${UPGRADING_URL}#update`
     );
 }

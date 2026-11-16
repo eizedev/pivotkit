@@ -474,6 +474,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- `serve` and `mcp` started with a pivotkit-mcp of another release whose imports all resolved, and
+  served MCP with its old code. A pivotkit-mcp whose declared `pivotkit-server` range does not hold
+  this version is now refused with both versions and the update guide
+  ([#382](https://github.com/eizedev/pivotkit/issues/382)).
 - An unclosed quote in a shown cell of a CSV file pulled the rows after it, values of hidden columns
   too, into that cell, so `describe_source` and reports showed them. Such a file is now refused
   where a field is below `show`.

@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { serve } from "pivotkit-server";
+import { fitsRange } from "../src/version-range.js";
 import { BIN, BY_REGION, TOKEN, call, factsOf, workspace } from "./helpers.js";
 
 const { version: VERSION } = createRequire(import.meta.url)("../package.json");
@@ -72,6 +73,43 @@ test("a pivotkit-mcp of another release: serve and mcp say so with both versions
     const other = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "core-export.js" }, timeout: 30_000 });
     assert.equal(other.status, 2, other.stderr);
     assert.equal(startError(other.stderr).split("\n")[0], "pivotkit-server: could not start: The requested module 'pivotkit-core' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'");
+});
+
+test("a pivotkit-mcp of another release whose imports resolve: its declared range refuses it, for serve and mcp", () => {
+    const hook = fileURLToPath(new URL("./fixtures/mcp-other-release/hook.js", import.meta.url));
+    const dir = workspace();
+    for (const args of [["mcp", "--version"], ["check-config", "--source", "sales=data/sales.csv"]]) {
+        const r = spawnSync(process.execPath, ["--import", hook, BIN, ...args], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "imports-fine.js" }, timeout: 30_000 });
+        if (args[0] === "check-config") {
+            // check-config does not load pivotkit-mcp: it starts nothing
+            assert.equal(r.status, 0, r.stderr);
+            continue;
+        }
+        assert.equal(r.status, 2, `${args[0]}: ${r.stdout}${r.stderr}`);
+        assert.equal(
+            startError(r.stderr).split("\n")[0],
+            `pivotkit-server: pivotkit-mcp 0.0.1 does not fit pivotkit-server ${VERSION} (it needs pivotkit-server ^0.0.1). Install pivotkit-server and pivotkit-mcp of one release in one command: https://pivotkit.eize.dev/getting-started/upgrading/#update`
+        );
+    }
+    // serve the same, before it listens
+    const serving = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "imports-fine.js" }, timeout: 30_000 });
+    assert.equal(serving.status, 2, serving.stderr);
+    assert.match(startError(serving.stderr).split("\n")[0], /^pivotkit-server: pivotkit-mcp 0\.0\.1 does not fit pivotkit-server [^ ]+ \(it needs pivotkit-server \^0\.0\.1\)\. Install/);
+});
+
+test("fitsRange reads the ranges npm writes: caret, tilde, exact, comparisons, ||; null for one it cannot read", () => {
+    const cases = [
+        ["^0.2.0", "0.2.0", true], ["^0.2.0", "0.2.5", true], ["^0.2.0", "0.3.0", false], ["^0.2.0", "0.1.1", false],
+        ["^0.0.3", "0.0.3", true], ["^0.0.3", "0.0.4", false], ["^1.2.0", "1.9.0", true], ["^1.2.0", "2.0.0", false],
+        ["~0.2.1", "0.2.9", true], ["~0.2.1", "0.3.0", false], ["0.2.0", "0.2.0", true], ["=0.2.0", "0.2.1", false],
+        [">=0.2.0 <0.3.0", "0.2.4", true], [">=0.2.0 <0.3.0", "0.3.0", false], ["^0.1.0 || ^0.2.0", "0.2.1", true],
+        ["0.2.x", "0.2.7", true], ["0.2.x", "0.3.0", false], ["*", "0.2.0", true],
+        ["^0.2.0", "0.2.0-rc.1", false], ["^0.2.0-rc.1", "0.2.0", true],
+        ["file:../pivotkit-server", "0.2.0", null], ["latest", "0.2.0", null], ["", "0.2.0", null]
+    ];
+    for (const [range, version, fits] of cases) {
+        assert.equal(fitsRange(range, version), fits, `${range} ${version}`);
+    }
 });
 
 test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST would expose; 1 when a file is missing", () => {
