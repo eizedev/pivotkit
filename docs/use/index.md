@@ -6,14 +6,15 @@ description: For the people who build reports with pivotkit in an application - 
 # Use a report
 
 These pages are for the people who build reports with pivotkit in an application. You need no
-programming: you drag fields, pick from menus and read the result. Everything here works the same in
-every application that uses pivotkit; the [live demo](../demo.md) is a good place to follow along.
+programming. You drag fields, pick from menus and read the result. Everything here works the same in
+every application that uses pivotkit. You can follow along in the [live demo](../demo.md).
 
 ## Where to start
 
 1. [Quick start](quick-start.md): your first report in six steps, with a picture of each.
-2. [Learn with real data](../learn.md): questions to answer on real public data (weather, countries,
-   earthquakes, Nobel laureates, software end of life), each with "Read it" and "Try this".
+2. [Learn with real data](../learn.md): questions to answer on real public data about weather,
+   countries, earthquakes, Nobel laureates and software end of life. Each question comes with
+   "Read it" and "Try this".
 3. Then look up what you need below.
 
 ## One page per task
@@ -38,8 +39,8 @@ every application that uses pivotkit; the [live demo](../demo.md) is a good plac
 <small>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information ([attribution](../learn.md#query-it-live)).</small>
 
 !!! note "For developers"
-    These pages hold for the React component and the web component alike. Putting the report into
-    your application is described under [Embed pivotkit](../embed/index.md);
-    every setting named on these pages in a "For developers" box is in the
+    These pages hold for the React component and the web component alike.
+    [Embed pivotkit](../embed/index.md) describes how you put the report into your application.
+    Every setting that a "For developers" box on these pages names is in the
     [pivotkit-react reference](../reference/react.md#props) and the
     [element reference](../reference/element.md#properties-and-attributes).

@@ -5,111 +5,137 @@ description: Put fields into Rows, Columns, Values and Filters by drag and drop,
 
 # Fields, zones and the table
 
-You build a report by putting the fields of your data into four zones. **Rows** and **Columns** say
-how the table is split, **Values** what is computed in its cells, **Filters** what is left out of the
-whole report. A field in a zone is a **chip**; its menu changes how it is shown.
+You build a report by putting the fields of your data into four zones:
+
+- **Rows** and **Columns** say how the table is split.
+- **Values** says what the table computes in its cells.
+- **Filters** says what the whole report leaves out.
+
+A field in a zone is a **chip**. Its menu changes how the report shows the field.
 
 ## The parts
 
 | Part | Where | What it does |
 | --- | --- | --- |
-| **Fields** | left | Every column of the data, with an icon for its type (text, number, date, yes/no) and a search. A mark next to a field shows which zone it is in. When the application describes a field, an **i** next to it says what the field means. A long field name takes two lines and breaks between words only; a word too long for its line ends in "…", and pointing at the name shows it whole. |
-| **The zones** | top | **Rows**, **Columns**, **Values** and **Filters**. The **i** next to a zone's title says what it does, with an example; Options, Help, **Show explanations** switches these off and on. |
-| **The toolbar** | above the zones | Table or Chart, the chart type, Undo, Redo, Start over (Reset, New), Layout, Options, the name of the view you loaded, Views and Export. What does not fit moves into **More** ([small screens](layout.md#small-screens)). |
+| **Fields** | left | Every column of the data, with a search and an icon for its type: text, number, date or yes/no. A mark next to a field shows which zone it is in. When the application describes a field, an **i** next to it says what the field means. A long field name takes two lines and breaks between words only. A word too long for its line ends in "…", and pointing at the name shows it whole. |
+| **The zones** | top | **Rows**, **Columns**, **Values** and **Filters**. The **i** next to a zone's title says what the zone does, with an example. Options, Help, **Show explanations** switches these off and on. |
+| **The toolbar** | above the zones | Table or Chart, the chart type, Undo, Redo, Start over (Reset, New), Layout, Options, the name of the view you loaded, Views and Export. What does not fit moves into **More**. See [small screens](layout.md#small-screens). |
 | **The result** | below | The table or the chart, with tips above it, **Enlarge** and **Full screen** at its top right, and a status line below it. |
 
 ## Adding fields
 
 | To put a field into a zone | How |
 | --- | --- |
-| Drag | Drag the field into a zone. The lists and the page scroll while you drag, and the field you drag is drawn above everything. |
-| Click | Click the field, or press Enter on it: numbers go to Values, everything else to Rows. |
-| Menu | Open the field's menu (the three dots, or a click on the grip left of the field, which says "Drag into a zone") and choose **Add to Rows**, **Columns**, **Values** or **Filters**. |
+| Drag | Drag the field into a zone. The lists and the page scroll while you drag, and the field you drag stays above everything. |
+| Click | Click the field, or press Enter on it. Numbers go to Values, everything else to Rows. |
+| Menu | Open the field's menu and choose **Add to Rows**, **Columns**, **Values** or **Filters**. To open the menu, click the three dots, or the grip left of the field, which says "Drag into a zone". |
 
 All three give the same result. Details:
 
 - A click on a field in Columns or Filters moves it to Rows. A field that is in that zone already
-  stays, and the status line says so ("Region is already in Rows", "Revenue is already in Values"),
-  so a second click or Enter never adds it twice.
-- For a field in Values already the menu entry reads **Add to Values again**: it adds a second value
-  of the field (a second "Sum of Revenue", to show it as a share, say).
-- A number field that is an identifier is counted, not summed: its name ends in the word ID, Nr, No,
-  Number, Key or "#" ("ID", "CustomerId", "customer_id", "Order No", "Serial #", "userID2", "ID
-  (Asset)") and it holds whole numbers. "Count
-  of ID" instead of a sum no one needs; **Sum** stays a choice of its menu. Its numbers show as they
-  are, 27000 and not 27,000, on Rows and Columns and in the rows behind a value. The application can
-  set this otherwise ([field settings](../concepts/fields.md#identifier-fields)).
-- **Add to Filters** opens the field's filter first: **Apply** puts the field into Filters with what
-  you chose, **Cancel** places nothing. See
+  stays, and the status line says so, for example "Region is already in Rows" or
+  "Revenue is already in Values". So a second click or Enter never adds it twice.
+- For a field that is in Values already, the menu entry reads **Add to Values again**. It adds a
+  second value of the field, for example a second "Sum of Revenue" to show it as a share.
+- The report counts a number field that is an identifier instead of summing it. A field is an
+  identifier when it holds whole numbers and its name ends in the word ID, Nr, No, Number, Key or
+  "#". Examples: "ID", "CustomerId", "customer_id", "Order No", "Serial #", "userID2",
+  "ID (Asset)".
+    - You get "Count of ID" instead of a sum no one needs. **Sum** stays a choice of its menu.
+    - Its numbers show as they are, 27000 and not 27,000: on Rows and Columns and in the rows behind
+      a value.
+    - The application can set this otherwise. See
+      [field settings](../concepts/fields.md#identifier-fields).
+- **Add to Filters** opens the field's filter first. **Apply** puts the field into Filters with what
+  you chose. **Cancel** places nothing. See
   [Filters](filters.md#add-a-field-to-filters-from-the-field-list).
 - An empty report shows three first steps and up to three saved views to start from.
-- A date is grouped as soon as it is placed, by the span of its values: up to 62 days by day, up to
-  two years by month ("Jan 2025"), up to six years by quarter, longer by year. The chip says so:
-  "Created by month" ([dates and number ranges](values.md#dates-and-number-ranges)).
+- The report groups a date as soon as you place it, by the span of its values:
+    - up to 62 days: by day
+    - up to two years: by month ("Jan 2025")
+    - up to six years: by quarter
+    - longer: by year
+
+    The chip says so: "Created by month". See
+    [dates and number ranges](values.md#dates-and-number-ranges).
 
 ## What a field means
 
 When the application describes its fields, an **i** stands next to such a field in the list and on
-its chips. Point at it, or move the focus to it with Tab, and the description appears; click or tap it
-to keep it open, with **Learn more** when there is a page about the field. Escape closes it.
+its chips. Point at it, or move the focus to it with Tab, and the description appears. Click or tap
+it to keep it open. When there is a page about the field, the description has **Learn more**.
+Escape closes it.
 
-- On a phone a chip has no **i**; the chip's menu has it at its top, next to the field's name, and the
+- On a phone a chip has no **i**. The chip's menu has it at its top, next to the field's name. The
   field's headers in the table and in the drill-down carry the same text.
 - The field search finds a field by its name, by the name the application gives it and by words of
   its description. Its **×** and Escape empty the search.
-- The application may give a field a clearer name than the data's; the report uses that name
+- The application may give a field a clearer name than the data's. The report uses that name
   everywhere, also in the exported files.
 
 ![A field's description next to the field list: what the World Bank counts as population, with Learn more](../assets/screenshots/field-info-light.png#only-light)
 ![A field's description next to the field list: what the World Bank counts as population, with Learn more](../assets/screenshots/field-info-dark.png#only-dark)
 
 !!! note "For developers"
-    Labels, descriptions and links come from `fieldDefaults` or a JSON Schema or OpenAPI document:
-    [Field descriptions and names](../concepts/fields.md).
+    Labels, descriptions and links come from `fieldDefaults` or a JSON Schema or OpenAPI document.
+    See [Field descriptions and names](../concepts/fields.md).
 
 ## Chips
 
-Every field in a zone is a chip. A chip shows what is set on it: "3 of 4" for a filter, "Top 5", a
-value condition ("Sum of Revenue > 1,000"; a long one ends in "…"), the sort. Screen readers hear the
-same.
+Every field in a zone is a chip. A chip shows what is set on it:
+
+- "3 of 4" for a filter
+- "Top 5"
+- a value condition such as "Sum of Revenue > 1,000". A long condition ends in "…".
+- the sort
+
+Screen readers hear the same.
 
 | To | Do |
 | --- | --- |
-| Reorder a chip or move it to another zone | Drag it. A press inside its open menu (selecting text, choosing in a list) never moves it. |
-| Remove it | Drag it back to the field list, or press its **x**. A note in the status line offers Undo ("Region removed"); the focus goes to the neighbouring chip, or to the zone. |
-| Change everything else | Open its menu (the arrow). |
+| Reorder a chip or move it to another zone | Drag it. A press inside its open menu never moves it, for example when you select text or choose in a list. |
+| Remove it | Drag it back to the field list, or press its **x**. A note in the status line offers Undo ("Region removed"). The focus goes to the neighbouring chip, or to the zone. |
+| Change everything else | Open its menu: the arrow. |
 
-A field that leaves the report (its **x**, **Remove field**, or dragged to the field list) takes its
-filters and its sort with it.
+A field that leaves the report takes its filters and its sort with it. A field leaves by its **x**,
+by **Remove field**, or when you drag it to the field list.
 
 ### The menu of a row or column field
 
-The menu is in levels. Its first level is short: the field's name (with an **i** when the field has a
-description), a search, and one row per topic with what is set on its right ("Filter · All",
-"Top items · Off"). A row opens the topic's own level in the menu's place, titled with the field's
-name ("Month › Group"); **‹ Back**, Escape or the left arrow key go back to the row it came from.
-A setting that is not the one the report starts with has a dot before it ("Filter · ● 4 of 12"), and
-a screen reader hears ", changed" after it.
+The menu is in levels. Its first level is short:
+
+- the field's name, with an **i** when the field has a description
+- a search
+- one row per topic, with what is set on its right: "Filter · All", "Top items · Off"
+
+A row opens the topic's own level in the menu's place. The level's title names the field:
+"Month › Group". **‹ Back**, Escape or the left arrow key go back to the row it came from. A setting
+that differs from the one the report starts with has a dot before it: "Filter · ● 4 of 12". A
+screen reader hears ", changed" after it.
 
 ![A field's menu: sort A to Z and Z to A side by side, sort by the value, then Filter, Top items and Move to, each with what is set](../assets/screenshots/field-menu-light.png#only-light)
 ![A field's menu: sort A to Z and Z to A side by side, sort by the value, then Filter, Top items and Move to, each with what is set](../assets/screenshots/field-menu-dark.png#only-dark)
 
 | Topic | What it offers |
 | --- | --- |
-| **Sort** | A to Z and Z to A side by side (a date: Oldest and Newest), on the first level; while it sorts by a value, the row says by which ("Largest Sum of Revenue first"). |
-| Sort by value | "Largest Sum of Revenue first" and "Smallest Sum of Revenue first", on the first level when the report has one value; with more values, or a custom order, a level **Sort by value** with a pair for each value that gives a number and "Custom order" and "Custom order, reversed" when the field has one, such as the seasons in the order of the year ([sorting](filters.md#sorting)). Its row names the sort in use. |
-| **Filter** | A level with a summary of what shows, then, for a date, its quick choices ("Last 2 years"; the years combined for a month-of-the-year grouping), the values to keep, and its rules: the item itself compared, its total compared, a rule on its name, as sentences with what each keeps ([filters](filters.md)). Its row says what the filter keeps: "4 of 12", "last 2 years (2025; 2026 has no data)", "from 2022", "Sum of Revenue > 1,000". A chip in **Filters** has a menu of its own: Filter, Move to and Remove field. |
-| **Group** (dates) | A level: along the time line year, quarter, month, week, day; the same period every year: quarter, month, week of the year, weekday, hour; or no grouping ([dates](values.md#dates-and-number-ranges)). |
-| **Number ranges** (numbers) | A level with the size of the ranges and where they start ([ranges](values.md#number-ranges)). |
-| **Top items** | A level: Off, Top 3, Top 5, Top 10, or **Top N…** with a count of your own, top or bottom, by a value you choose ([top N](filters.md#top-n)). |
+| **Sort** | A to Z and Z to A side by side on the first level. For a date they read Oldest and Newest. While the field sorts by a value, the row says by which: "Largest Sum of Revenue first". |
+| Sort by value | With one value in the report: "Largest Sum of Revenue first" and "Smallest Sum of Revenue first" on the first level. With more values, or a custom order: a level **Sort by value**. It has a pair for each value that gives a number. When the field has a custom order, such as the seasons in the order of the year, it also has "Custom order" and "Custom order, reversed". See [sorting](filters.md#sorting). Its row names the sort in use. |
+| **Filter** | A level that starts with a summary of what shows. Then come, for a date, its quick choices, such as "Last 2 years". For a month-of-the-year grouping these are the years combined. Then the values to keep, and its rules as sentences with what each keeps: the item itself compared, its total compared, a rule on its name. See [filters](filters.md). Its row says what the filter keeps: "4 of 12", "last 2 years (2025; 2026 has no data)", "from 2022", "Sum of Revenue > 1,000". A chip in **Filters** has a menu of its own: Filter, Move to and Remove field. |
+| **Group** (dates) | A level with three kinds of choice. Along the time line: year, quarter, month, week, day. The same period every year: quarter, month, week of the year, weekday, hour. Or no grouping. See [dates](values.md#dates-and-number-ranges). |
+| **Number ranges** (numbers) | A level with the size of the ranges and where they start. See [ranges](values.md#number-ranges). |
+| **Top items** | A level: Off, Top 3, Top 5, Top 10, or **Top N…**. **Top N…** takes a count of your own, top or bottom, by a value you choose. See [top N](filters.md#top-n). |
 | **Move to** | A level: another zone, left or right. |
 | **Remove field** | The menu's last entry. |
 
-Every choice applies at once: the table behind the menu changes while it is open, and each change
-is one step Undo takes back. A choice in a list goes back to the first level, with the focus on the
-row, which now says the new setting; a choice that makes the chip another one (a grouping, which
-renames the field, or a move) closes the menu, since the chip it belongs to is replaced. The menu's
-head and its levels' titles name the field as the chip does ("Created by month").
+Every choice applies at once. The table behind the menu changes while the menu is open, and Undo
+takes back each change as one step.
+
+- A choice in a list goes back to the first level. The focus is on the row, which then says the new
+  setting.
+- A choice that makes the chip another one closes the menu, because the report replaces the chip
+  the menu belongs to. Examples are a grouping, which renames the field, and a move.
+
+The menu's head and its levels' titles name the field as the chip does: "Created by month".
 
 The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 
@@ -117,45 +143,57 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 
 - The header and the row labels stay in place (sticky) while you scroll.
 - Groups expand and collapse with the arrow next to them. **Options** has **Expand all** and
-  **Collapse all** for the groups of Rows (groups of Columns open and close with their arrows only).
-  Each is offered only when it changes something; otherwise a line under it says why ("Nothing is
-  collapsed.", "Needs two or more fields in Rows.", "Every group is collapsed already."), and after a
-  click the status line says what it did ("5 groups collapsed").
-- **Swap rows and columns** (above Columns) swaps the fields, which groups are collapsed, and the
-  direction of calculations: "% of row total" becomes "% of column total", a running total along Rows
-  runs along Columns. Where the zone is narrow the button drops its text.
-- Subtotals and grand totals are switched on and off in **Options**, each with an **i** that says what
-  it does. A new report has the grand totals and the row subtotals; the column subtotals are off. A
-  switch that would change nothing in this layout is greyed out, without a tick, with the reason under
-  it: the grand total row needs a field in Rows, the grand total column a field in Columns, row
-  subtotals two or more fields in Rows, column subtotals two or more fields in Columns, and every total
-  a field in Values.
+  **Collapse all** for the groups of Rows. Groups of Columns open and close with their arrows only.
+    - The report offers each of the two only when it changes something. Otherwise a line under it
+      says why: "Nothing is collapsed.", "Needs two or more fields in Rows.",
+      "Every group is collapsed already."
+    - After a click, the status line says what it did: "5 groups collapsed".
+- **Swap rows and columns**, above Columns, swaps the fields, which groups are collapsed, and the
+  direction of calculations. "% of row total" becomes "% of column total", and a running total along
+  Rows runs along Columns. Where the zone is narrow, the button drops its text.
+- You switch subtotals and grand totals on and off in **Options**. Each switch has an **i** that
+  says what it does. A new report has the grand totals and the row subtotals. The column subtotals
+  are off.
+- A switch that would change nothing in this layout is greyed out, without a tick, with the reason
+  under it:
+
+    | Total | Needs |
+    | --- | --- |
+    | Grand total row | a field in Rows |
+    | Grand total column | a field in Columns |
+    | Row subtotals | two or more fields in Rows |
+    | Column subtotals | two or more fields in Columns |
+    | Every total | a field in Values |
+
 - A subtotal (“North Total”) adds up a group of the outer field. A group with a single item has
-  none, since it would repeat that item; its arrow still collapses it.
-- With column subtotals on, a subtotal column has a line before it and a darker background, and its
-  header's tooltip says what it adds up. While a Total column shows, a tip says the same, with **Hide
-  column subtotals**; on a phone, where there is no tooltip, the tip is where you read it.
+  none, because it would repeat that item. Its arrow still collapses it.
+- With column subtotals on, a subtotal column has a line before it and a darker background. Its
+  header's tooltip says what it adds up. While a Total column shows, a tip says the same, with
+  **Hide column subtotals**. On a phone there is no tooltip, so you read it in the tip.
 
     ![Tickets per team by priority and channel with column subtotals: a line before each Total column, and the tip that says what it adds up](../assets/screenshots/column-subtotals-light.png#only-light)
     ![Tickets per team by priority and channel with column subtotals: a line before each Total column, and the tip that says what it adds up](../assets/screenshots/column-subtotals-dark.png#only-dark)
 
 - A collapsed column group shows only its total: one column under the group's name.
-- Fields in Rows without a value show their labels only: no empty column after them and no total
-  rows, since a total would have no number. The labels take most of the report's width then, so on a
-  phone a name stays whole. The arrows still collapse the groups.
-- Field names and value names in the header can be dragged into a zone. A click on a value's name
-  or on a field's name in Rows sorts the rows ([sort with a click on a header](filters.md#sort-with-a-click-on-a-header)).
+- Fields in Rows without a value show their labels only. There is no empty column after them and no
+  total rows, because a total would have no number. The labels then take most of the report's
+  width, so on a phone a name stays whole. The arrows still collapse the groups.
+- You can drag field names and value names from the header into a zone. A click on a value's name
+  or on a field's name in Rows sorts the rows. See
+  [sort with a click on a header](filters.md#sort-with-a-click-on-a-header).
 - With one value, its name stands once over all of its columns.
 - The table is as wide as its columns and scrolls sideways when it is wider than the report.
 - Long row labels wrap between words, so on a phone numbers stay in view next to them. On a phone a
-  row label keeps at least 5.5em, so a common word is never cut; a longer word breaks at a hyphen of
-  its own, and a word longer than the column breaks anywhere as a last resort.
-- From 300 rows on the table draws only the rows in view (it stays fast), and a row label is cut to
-  one line; the status line under the table shows the whole label of the row the focus is on, or of a
-  label you tap, and the cut label's tooltip shows it too. The row label column is as wide as its
-  longest labels (at most 28em) and keeps that width while the table scrolls; it is measured again
-  when the font or its size changes. "Longest" counts characters: a label of fewer but wider
-  characters (Chinese, emoji) can end in "…" although it would fit, with its whole text in the tooltip.
+  row label keeps at least 5.5em, so a common word is never cut. A longer word breaks at a hyphen of
+  its own. As a last resort, a word longer than the column breaks anywhere.
+- From 300 rows on, the table draws only the rows in view, so it stays fast. A row label is then cut
+  to one line:
+    - The status line under the table shows the whole label of the row the focus is on, or of a label
+      you tap. The cut label's tooltip shows it too.
+    - The row label column is as wide as its longest labels, at most 28em. It keeps that width while
+      the table scrolls. The report measures it again when the font or its size changes.
+    - "Longest" counts characters. A label of fewer but wider characters, such as Chinese or emoji,
+      can end in "…" although it would fit. Its whole text is in the tooltip.
 
 ![Options: the totals, each with an "i", a total that changes nothing greyed out with what it needs, and the Help switches](../assets/screenshots/explanations-light.png#only-light)
 ![Options: the totals, each with an "i", a total that changes nothing greyed out with what it needs, and the Help switches](../assets/screenshots/explanations-dark.png#only-dark)

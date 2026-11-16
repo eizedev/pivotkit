@@ -7,9 +7,9 @@ description: Install pivotkit-react, render <PivotReport> with your rows, keep t
 
 `pivotkit-react` is the report builder as the React component `<PivotReport>`, for React 18 and 19.
 
-You put a report into a React app in a few steps: install the package, render `<PivotReport>` with
-your rows, then add what your app needs - keep the view, save views, react to clicks. Each step adds
-one or two props to the one before it.
+You put a report into a React app in a few steps. Install the package and render `<PivotReport>`
+with your rows. Then add what your app needs, such as keeping the view, saving views or reacting to
+clicks. Each step adds one or two props to the one before it.
 
 ## 1. Install { #install }
 
@@ -17,27 +17,28 @@ one or two props to the one before it.
 npm install pivotkit-react react react-dom echarts
 ```
 
-React, ReactDOM and Apache ECharts are **peer dependencies**: your app provides them, so the page has
-one copy of each. pivotkit-core and pivotkit-report (caret ranges; pivotkit-report is loaded for the
-HTML report, the SVG and printing) and `@dnd-kit/core` and `@dnd-kit/sortable` (pinned exactly) come
-with the package.
+React, ReactDOM and Apache ECharts are **peer dependencies**. Your app provides them, so the page has
+one copy of each. These dependencies come with the package:
+
+- pivotkit-core and pivotkit-report, as caret ranges. The report loads pivotkit-report for the HTML
+  report, the SVG and printing.
+- `@dnd-kit/core` and `@dnd-kit/sortable`, pinned exactly.
 
 | Peer | Range | Why it is a peer |
 | --- | --- | --- |
 | `react`, `react-dom` | `>=18.2 <20` | Hooks break with two copies of React in one page. Every browser test runs on React 18 and on React 19. |
-| `echarts` | `>=6.1.0 <7` | About 1 MB; an app that draws its own charts has it already. It is loaded on the first chart, so a report that never shows one does not load it. |
+| `echarts` | `>=6.1.0 <7` | About 1 MB. An app that draws its own charts has it already. The report loads it on the first chart, so a report that never shows one does not load it. |
 
 !!! note "Using pivotkit-core directly as well"
     pivotkit-react depends on a caret range of pivotkit-core: the version it was released with, in
-    its `package.json`. In 0.x a caret range spans patch versions only (`^0.y.z` is 0.y.z and later
-    0.y patches), so an app that imports pivotkit-core itself must use a
-    version inside that range; npm shares one copy only when the ranges overlap
-    (`npm ls pivotkit-core` lists the copies).
+    its `package.json`. In 0.x a caret range spans patch versions only: `^0.y.z` is 0.y.z and later
+    0.y patches. An app that imports pivotkit-core itself must use a version inside that range. npm
+    shares one copy only when the ranges overlap. `npm ls pivotkit-core` lists the copies.
 
 ## A complete app to copy { #a-complete-app }
 
-A new project with [Vite](https://vite.dev/), four files, runs in a minute. Each step below adds to
-`Report.jsx`.
+A new project with [Vite](https://vite.dev/) and four files runs in a minute. Each step below adds
+to `Report.jsx`.
 
 === "Terminal"
 
@@ -132,18 +133,19 @@ export function SalesReport() {
 }
 ```
 
-- `data` is an array of plain objects. Every key is a field; numbers, text, booleans and dates
-  (`Date` objects or ISO strings such as `"2026-01-05"`) are recognised by themselves.
-- `defaultView` is the start: a [view](../concepts/views.md), plain JSON. Leave it out and the report
-  starts empty with a short guide.
-- Import `pivotkit-react/styles.css` once (it ships its own type declaration, so a strict TypeScript
-  project takes the import without a bundler's CSS types). Every colour, size and font weight is a
+- `data` is an array of plain objects. Every key is a field. The report recognises numbers, text,
+  booleans and dates by itself. Dates can be `Date` objects or ISO strings such as `"2026-01-05"`.
+- `defaultView` is the start: a [view](../concepts/views.md), plain JSON. Leave it out, and the
+  report starts empty with a short guide.
+- Import `pivotkit-react/styles.css` once. It ships its own type declaration, so a strict TypeScript
+  project takes the import without a bundler's CSS types. Every colour, size and font weight is a
   `--pk-*` token you can [override](../reference/theming.md).
-- `height` is the report's height (default 640 px); the table and the field list scroll inside it.
+- `height` is the report's height, 640 px by default. The table and the field list scroll inside
+  it.
 
 ## 3. Keep the view in your app { #keep-the-view-in-your-app }
 
-To store the report, or start it from a saved one, make it **controlled**: pass `view` and set it
+To store the report, or start it from a saved one, make it **controlled**. Pass `view`, and set it
 from `onViewChange`. The undo history stays inside the report however often your app renders.
 `Report.jsx` of the app above becomes:
 
@@ -165,7 +167,7 @@ export function Report() {
 
 The steps below add props to this `<PivotReport>` inside `Report`.
 
-Store `view` wherever your app keeps settings; it is plain JSON.
+`view` is plain JSON. Store it wherever your app keeps settings.
 
 ## 4. Tell the report when the data is new { #data-key }
 
@@ -174,7 +176,7 @@ Store `view` wherever your app keeps settings; it is plain JSON.
 ```
 
 `dataKey` tells the report when the data is new. An app that builds a new array on every render
-passes a key, and the rows are encoded again only when it changes.
+passes a key. The report then encodes the rows again only when the key changes.
 
 ## 5. Offer saved views { #saved-views }
 
@@ -184,8 +186,8 @@ Without a server, the browser keeps them:
 <PivotReport data={rows} dataKey="sales" view={view} onViewChange={setView} templates={presets} templateStore="browser" storageKey="sales" />
 ```
 
-With a server, your app keeps them and the report calls back. Inside `Report`, next to `view`
-(`fetch` to your API where the comments say so):
+With a server, your app keeps them and the report calls back. Add this inside `Report`, next to
+`view`. Call your API with `fetch` where the comments say so:
 
 ```jsx
 const [saved, setSaved] = useState([]);   // the user's views, as your server returns them: [{ name, view }]
@@ -209,11 +211,18 @@ const deleteTemplate = async (name, scope) => {   // scope: the group of the vie
 />
 ```
 
-`templates` fill the Views menu, in two groups: Shared views (the presets) and My views (the
-`deletable` ones); `onSaveTemplate` adds "Save current view" and Save for a loaded view of the user's (it may get a name that exists: replace that view). Both callbacks may return a promise: the
-report shows "Saved" when it resolves and an error when it rejects. Without a server,
-`templateStore="browser"` keeps the user's views in the browser; shared views, publishing and views
-from an OpenAPI document are in [Templates and shared views](../concepts/templates.md).
+`templates` fill the Views menu in two groups:
+
+- Shared views: the presets.
+- My views: the `deletable` ones.
+
+`onSaveTemplate` adds "Save current view", and Save for a loaded view of the user's. A name may
+already exist. Then replace that view. Both callbacks may return a promise. The report shows "Saved"
+when the promise resolves and an error when it rejects.
+
+Without a server, `templateStore="browser"` keeps the user's views in the browser.
+[Templates and shared views](../concepts/templates.md) covers shared views, publishing and views
+from an OpenAPI document.
 
 ## 6. Set what a field gets { #field-defaults }
 
@@ -224,9 +233,9 @@ from an OpenAPI document are in [Templates and shared views](../concepts/templat
 />
 ```
 
-`fieldDefaults` set the aggregator and format a field gets when someone adds it to Values, and the
-custom order of its items (`order`) on Rows or Columns. Labels, descriptions and links of fields are
-in [Field descriptions and names](../concepts/fields.md).
+`fieldDefaults` set the aggregator and format a field gets when someone adds it to Values. They
+also set the custom order of its items on Rows or Columns (`order`). Labels, descriptions and links
+of fields are in [Field descriptions and names](../concepts/fields.md).
 
 ## 7. React to clicks { #cell-clicks }
 
@@ -242,25 +251,34 @@ in [Field descriptions and names](../concepts/fields.md).
 <PivotReport data={rows} locale="de-DE" source={{ id: "sales", name: "Sales" }} />
 ```
 
-- `locale` sets numbers, dates and sorting, and the language of the labels (`de-*` is German).
-- `source` (`{ id, name }`) names the data: shared views carry it, and a view made for other data
-  asks before it is loaded ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).
+- `locale` sets numbers, dates and sorting, and the language of the labels. `de-*` is German.
+- `source` (`{ id, name }`) names the data. Shared views carry it. A view made for other data asks
+  before the report loads it. See
+  [Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers).
 
 All props are listed in the [pivotkit-react reference](../reference/react.md).
 
 ## Bundlers and import maps
 
-`dist/index.js` is an ES module whose imports stay bare: `react`, `react-dom`, `pivotkit-core`,
-`pivotkit-core/export`, `pivotkit-core/link`, `pivotkit-core/templates` (with the menus),
-`pivotkit-core/import` (with [`allowImport`](../reference/react.md#prop-allowimport), on the first
-use of loading data), `pivotkit-report` (on the first HTML report, SVG or print of the Export menu),
-`@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
-`./echarts.js` next to it, which imports `echarts/core`, `echarts/charts`, `echarts/components` and
-`echarts/renderers` by name, so a bundler keeps only the four chart types the report draws, and
-`pivotkit-core/chart` (the chart's marks and label layout). Any
-bundler that understands ES modules resolves them. A page without a bundler maps each bare name to a
-file with an [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap);
-the browser tests load the package that way.
+`dist/index.js` is an ES module whose imports stay bare:
+
+- `react`, `react-dom`, `pivotkit-core`, `pivotkit-core/export` and `pivotkit-core/link`
+- `pivotkit-core/templates`, with the menus
+- `pivotkit-core/import`, with [`allowImport`](../reference/react.md#prop-allowimport), on the first
+  use of loading data
+- `pivotkit-report`, on the first HTML report, SVG or print of the Export menu
+- `@dnd-kit/core` and `@dnd-kit/sortable`
+
+On the first chart it loads `./echarts.js` next to it. That file imports two things:
+
+- `echarts/core`, `echarts/charts`, `echarts/components` and `echarts/renderers` by name, so a
+  bundler keeps only the four chart types the report draws
+- `pivotkit-core/chart`: the chart's marks and label layout
+
+Any bundler that understands ES modules resolves these imports. A page without a bundler maps each
+bare name to a file with an
+[import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap).
+The browser tests load the package that way.
 
 The build compiles JSX to `React.createElement`, so the app needs `react` and `react-dom` only, no
 JSX runtime.
@@ -268,16 +286,21 @@ JSX runtime.
 ## PowerShell Universal
 
 PowerShell Universal renders custom components with React 18.3.1, which it provides at runtime.
-pivotkit-react fits that model: React and ECharts stay outside the package, the report follows the
-`data-theme="light|dark"` attribute that PowerShell Universal sets on `<html>`, and it keeps its undo
-history when the host renders it again on every change. The browser tests run it on a host page that
-takes React from an import map and renders again all the time, the way PowerShell Universal does.
+pivotkit-react fits that model:
+
+- React and ECharts stay outside the package.
+- The report follows the `data-theme="light|dark"` attribute that PowerShell Universal sets on
+  `<html>`.
+- The report keeps its undo history when the host renders it again on every change.
+
+The browser tests run it on a host page that takes React from an import map and renders again all
+the time, the way PowerShell Universal does.
 
 A ready-made module is
 [PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/)
-(`New-UDPivotReport`, a separate project): the report with saved and shared views, roles, and the app's
-theme. A component of your own bundles pivotkit-react with pivotkit-core, @dnd-kit and ECharts, and
-leaves React and ReactDOM to PowerShell Universal.
+(`New-UDPivotReport`), a separate project. It has the report with saved and shared views, roles, and
+the app's theme. A component of your own bundles pivotkit-react with pivotkit-core, @dnd-kit and
+ECharts. It leaves React and ReactDOM to PowerShell Universal.
 
 ## Next steps { #next }
 
