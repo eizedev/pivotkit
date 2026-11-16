@@ -8,27 +8,32 @@ description: Templates are named views in two groups - shared views for everyone
 A **template** is a [view](views.md) with a name: "Open work per team", "Revenue by region". The
 report's **Views** menu lists them in two groups:
 
-- **Shared views** - the same for everyone who uses the report: the views your application provides
-  (presets, a team's standard reports).
-- **My views** - the user's own: saved with **Save current view**, kept by your application or by the
-  browser.
+- **Shared views** are the same for everyone who uses the report. Your application provides them,
+  for example presets or a team's standard reports.
+- **My views** are the user's own. The user saves them with **Save current view**. Your application
+  or the browser keeps them.
 
 ![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-light.png#only-light)
 ![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-dark.png#only-dark)
 
-Each entry loads its view with one click. An entry that can be deleted has a delete button (asked
-in place before it goes). Where someone can change shared views here (a shared entry is `deletable`,
-or Publish is offered), a shared view that cannot be deleted has an "i": "Only admins can change shared
-views." (`labels.settingInfo.sharedView`, so a host names its own role; shown while **Show
-explanations** in Options is on). When your application allows it, each of
-the user's views has **Publish as shared view** (asked in place too). A group without entries is not
-shown; "My views" shows while people can save. The first three entries are also offered in the empty
-report. Every view that comes in this way is user input: the report checks it against the data
+Each entry loads its view with one click.
+
+- An entry the user may delete has a delete button. The report asks in place before it deletes.
+- Someone may be able to change shared views here: a shared entry is `deletable`, or the report offers
+  Publish. Then a shared view without a delete button has an "i": "Only admins can change shared
+  views." The text is `labels.settingInfo.sharedView`, so a host names its own role. The "i" shows
+  while **Show explanations** in Options is on.
+- When your application allows it, each of the user's views has **Publish as shared view**. The
+  report asks in place here too.
+- The menu hides a group without entries. "My views" shows while people can save.
+- The empty report also offers the first three entries.
+
+Every view that comes in this way is user input. The report checks it against the data
 ([a view is user input](views.md#a-view-is-user-input)).
 
 ## What a template is
 
-The `templates` prop (a property on the element) is a list of entries:
+The `templates` prop is a list of entries. On the element it is a property.
 
 | Key | What |
 | --- | --- |
@@ -38,15 +43,15 @@ The `templates` prop (a property on the element) is a list of entries:
 | `scope` | `"shared"` (Shared views) or `"user"` (My views). Without it, an entry marked `deletable` is the user's own and every other one is shared. Set it on every entry: a deletable shared view without it would be listed under "My views" (the console says so once). |
 | `deletable` | `true` shows a delete button, when the report has a delete to call (`onDeleteTemplate`). |
 
-An entry without a name or without a usable view is left out. Names need not be unique: every entry
-is shown in order, and a delete or publish asks about that entry.
+The report leaves out an entry without a name or without a usable view. Names need not be unique.
+The menu shows every entry in order, and a delete or publish asks about that entry.
 
 ## Where they are kept
 
 ### Your application keeps them (callbacks)
 
-You keep the templates where you keep other data (a database, a settings service) and pass them as
-`templates`. The report asks you to change them:
+You keep the templates where you keep other data, such as a database or a settings service. You
+pass them as `templates`. The report asks you to change them:
 
 | React | Element | When |
 | --- | --- | --- |
@@ -55,30 +60,39 @@ You keep the templates where you keep other data (a database, a settings service
 | `onPublishTemplate(name, view, { source })` with `canPublish` | `can-publish`, event `pivot-template-publish` (`{ name, view, source }`) | **Publish as shared view** on one of the user's views, and **Save** on a shared view loaded, each after the user confirmed. |
 
 `source` is the data the view was made on, as a [view file](../reference/view-file.md) names it:
-`{ id, name, params }` - your `source`, or a file the user loaded in the report (`allowImport`), whose
-`params.sheet` is the sheet of a workbook; `null` without a source id. To have a view of a workbook's
-sheet open on that sheet again, keep `source` with the view and pass it back as a view file:
-`{ name, scope: "user", deletable: true, file: toViewFile(view, { name, source }) }` in `templates`
-(an entry `{ name, view }` names no data and opens on the data shown). Views you kept without it work
-as before, on the sheet shown; the sheet they were made on is not known, so they get it only when
-the user saves them again on that sheet, or by hand ([view file](../reference/view-file.md#the-sheet-of-a-workbook)).
-Your `templates` are listed whatever data is shown: filter them by `source` yourself where that
-matters.
+`{ id, name, params }`. It is one of these:
 
-Each callback may return a promise (the element: `event.detail.respondWith(promise)`): the report
-says "saved", "deleted" or "published" when it resolves, and the error's message when it rejects.
-Then pass the new list as `templates`.
+- your `source`
+- a file the user loaded in the report (`allowImport`). Its `params.sheet` is the sheet of a workbook.
+- `null` without a source id
+
+A view of a workbook's sheet can open on that sheet again. Keep `source` with the view and pass it
+back as a view file:
+`{ name, scope: "user", deletable: true, file: toViewFile(view, { name, source }) }` in `templates`.
+An entry `{ name, view }` names no data and opens on the data shown.
+
+Views you kept without `source` open on the sheet shown. The report cannot tell the sheet they were
+made on.
+They get it only when the user saves them again on that sheet, or when you add it by hand
+([view file](../reference/view-file.md#the-sheet-of-a-workbook)).
+
+The menu lists your `templates` whatever data the report shows. Filter them by `source` yourself
+where that matters.
+
+Each callback may return a promise. On the element, use `event.detail.respondWith(promise)`. The
+report says "saved", "deleted" or "published" when the promise resolves. When it rejects, the report
+shows the error's message. Then pass the new list as `templates`.
 
 !!! warning "Save by name: replace, do not add"
-    **Save** sends the loaded view's own name, and **Save as** a name that exists once the user
-    confirmed "Replace it?". Replace the view of that name (an upsert by name, per user for
-    `scope: "user"`); adding a second entry would leave two views of one name. The view sent is the
-    one shown: normalized against the data, with your custom orders (`fieldDefaults.order`), the
-    same for Save and Publish. Who may publish or delete shared views is your decision:
-pass `canPublish` and mark shared entries `deletable` only for the people who may (an admin role,
-say). The report only shows what you allow: your server must check who may save, publish or delete,
-and validate every view it receives as user input. A published view is sent normalized against the
-data, never as it was stored.
+    **Save** sends the loaded view's own name. **Save as** sends a name that exists once the user
+    confirmed "Replace it?". Replace the view of that name: an upsert by name, per user for
+    `scope: "user"`. A second entry would leave two views of one name. The report sends the view it
+    shows, normalized against the data and with your custom orders (`fieldDefaults.order`). Save and
+    Publish send the same. Who may publish or delete shared views is your decision:
+    pass `canPublish` and mark shared entries `deletable` only for the people who may, an admin role for
+    example. The report only shows what you allow. Your server must check who may save, publish or
+    delete, and validate every view it receives as user input. The report sends a published view
+    normalized against the data, never as it was stored.
 
 ```jsx
 function Report({ rows, user }) {
@@ -98,7 +112,7 @@ function Report({ rows, user }) {
 }
 ```
 
-A sketch of the REST side, in any language; the paths are an example:
+A sketch of the REST side, in any language. The paths are an example:
 
 | Request | Answer |
 | --- | --- |
@@ -107,8 +121,8 @@ A sketch of the REST side, in any language; the paths are an example:
 | `POST /api/views/shared` | `{ name, view }`: publishes a shared view; admins only |
 | `DELETE /api/views/mine/{name}`, `DELETE /api/views/shared/{name}` | deletes one; shared ones for admins only |
 
-Read what comes back as user input: pivotkit-core's `parseTemplates` (below) checks a list and caps
-it, and the report checks every view against the data before it shows it.
+Read what comes back as user input. pivotkit-core's `parseTemplates` (below) checks a list and caps
+it. The report checks every view against the data before it shows it.
 
 ### The browser keeps "My views" (`templateStore="browser"`)
 
@@ -122,35 +136,40 @@ Without a server of your own, the report can keep the user's own views itself:
 <pivot-report template-store="browser" storage-key="sales" source-id="sales"></pivot-report>
 ```
 
-- The views are kept in the browser's `localStorage` under `pivotkit:views:<storageKey>`
-  (`pivotkit:views` without one; give each report on a page its own `storageKey`), as view files
-  that name the data they were made for (`source`): a report shows the views of its own data and
-  those made for no named data.
-- They are **only in this browser on this device**, gone when the site's data is cleared, and not
-  shared with anyone. The menu says so under "My views".
-- At most 100 views and 500,000 characters; a save beyond that, or one the browser refuses (storage
-  blocked or full), says why and keeps nothing. Deletes are never refused by the caps, so a store
-  over them (older caps, changed by hand) can always shrink; a stored text over 500,000 characters is
-  not read at all (one console warning) and the next save replaces it. A delete whose view was
-  changed in another tab meanwhile says so and deletes nothing. Saving a view under a name it
-  already has for the same data replaces it.
+- The report keeps the views in the browser's `localStorage` under `pivotkit:views:<storageKey>`.
+  Without a `storageKey` the key is `pivotkit:views`. Give each report on a page its own
+  `storageKey`.
+- It stores them as view files that name the data they were made for (`source`). A report shows the
+  views of its own data and those made for no named data.
+- The views are **only in this browser on this device**. They are gone when the site's data is
+  cleared, and nobody else sees them. The menu says so under "My views".
+- The store holds at most 100 views and 500,000 characters. A save beyond that says why and keeps
+  nothing. So does a save the browser refuses because storage is blocked or full.
+- The caps never refuse a delete, so a store over them can always shrink. A store gets over them
+  through older caps or a change by hand.
+- The report does not read a stored text over 500,000 characters at all. It writes one console
+  warning, and the next save replaces the text.
+- When another tab changed a view meanwhile, a delete of it says so and deletes nothing.
+- Saving a view under a name it already has for the same data replaces it.
 - A file the user loaded (`allowImport`) is data of its own ([how a loaded file is
-  named](../reference/import.md#how-a-loaded-file-is-named)); a view saved on a workbook's sheet also
-  names the sheet, so the store keeps a view of a name per sheet. While a workbook is shown, the views
-  of its other sheets are listed too, with their sheet, and open on it
-  ([Load your own data](../use/load-data.md#after-loading)). A view stored before views named their
-  sheet gets it when it is saved again on its sheet.
-- What is stored is read as user input (`parseTemplates`), and it is read after the first render, so a
-  report rendered on the server hydrates without a mismatch.
-- `onSaveTemplate` wins: with it, saves go to your application, and views stored earlier are still
-  listed and can be deleted. Your `templates` (shared views, say) are listed with the stored ones.
+  named](../reference/import.md#how-a-loaded-file-is-named)). A view saved on a workbook's sheet also
+  names the sheet, so the store keeps a view of a name per sheet.
+- While the report shows a workbook, the menu also lists the views of its other sheets, with their
+  sheet. Each opens on its sheet ([Load your own data](../use/load-data.md#after-loading)).
+- A view stored before views named their sheet gets its sheet when the user saves it again on that
+  sheet.
+- The report reads the store as user input (`parseTemplates`). It reads it after the first render, so
+  a report rendered on the server hydrates without a mismatch.
+- `onSaveTemplate` wins. With it, saves go to your application. The menu still lists views stored
+  earlier, and the user can delete them. The menu lists your `templates`, shared views for example,
+  with the stored ones.
 
 ## Templates in an OpenAPI document (`x-pivotkit-views`)
 
-An API that describes its data with OpenAPI or JSON Schema can carry its shared views next to it, in
-the extension `x-pivotkit-views`: a list of view files, `{ name, view }` entries or views with a
-`name`. This is **pivotkit's own convention**, not part of OpenAPI or JSON Schema (an `x-` key is the
-place both leave for extensions). The views name the fields of the rows the report gets.
+An API that describes its data with OpenAPI or JSON Schema can carry its shared views next to it.
+They go in the extension `x-pivotkit-views`: a list of view files, `{ name, view }` entries or views
+with a `name`. This is **pivotkit's own convention**, not part of OpenAPI or JSON Schema. Both leave an
+`x-` key as the place for extensions. The views name the fields of the rows the report gets.
 
 ```yaml
 components:
@@ -182,11 +201,14 @@ const { templates, issues } = templatesFromSchema(openapi, { schema: "Release" }
 // <PivotReport templates={templates.map((t) => ({ ...t, scope: "shared" }))} fieldDefaults={fieldDefaults} ... />
 ```
 
-`templatesFromSchema` reads the extension of the schema `options.schema` names (a schema of
-`components.schemas` or `definitions`, or a local `$ref`), else of the document's root. It follows
-references inside the document only and fetches nothing. The [live demo](../demo.md) shows it with
-the endoflife.date data: the playground adds two views to its copy of the API's OpenAPI document (a
-demo extension; the API's own document has none) and lists them under Shared views.
+`templatesFromSchema` reads the extension of the schema that `options.schema` names. That is a
+schema of `components.schemas` or `definitions`, or a local `$ref`. Without it, it reads the
+extension of the document's root. It follows references inside the document only and fetches
+nothing.
+
+The [live demo](../demo.md) shows it with the endoflife.date data. The playground adds two views to
+its copy of the API's OpenAPI document and lists them under Shared views. This is a demo extension:
+the API's own document has none.
 
 ## Reading a list of templates (`parseTemplates`)
 
@@ -197,9 +219,15 @@ const { templates, issues } = parseTemplates(await response.text());
 // templates: [{ name, view, description?, source? }]; issues: what was left out and why
 ```
 
-It takes a list (or its JSON text) of view files, `{ name, view }` entries and views with a `name`,
-and never throws. It caps the text and the number of templates before it reads them
-(`TEMPLATE_LIMITS`: 5,000,000 characters, 500 templates), reads every key as an own property, makes
-names and descriptions plain text, and leaves out an entry without a name or a usable view, or of a
-newer format or view version, with an issue. The views are still user input: the report (or
-`normalize()`) checks them against the data. See the [pivotkit-core reference](../reference/core.md#templates).
+`parseTemplates` takes a list, or its JSON text, of view files, `{ name, view }` entries and views
+with a `name`. It never throws. It does the following:
+
+- It caps the text and the number of templates before it reads them (`TEMPLATE_LIMITS`: 5,000,000
+  characters, 500 templates).
+- It reads every key as an own property.
+- It makes names and descriptions plain text.
+- It leaves out, with an issue, an entry without a name or a usable view, or of a newer format or
+  view version.
+
+The views are still user input. The report, or `normalize()`, checks them against the data. See the
+[pivotkit-core reference](../reference/core.md#templates).

@@ -7,9 +7,12 @@ description: Item filters, text conditions, value conditions and top N in a pivo
 
 ## Filters
 
-A view's `filters` are a list; every filter names a field and a `type`, and all of them apply
-together (and). Item, blank, text, comparison and date range filters drop source rows before anything
-is computed; value filters and top N drop whole groups after the values are aggregated.
+A view's `filters` are a list. Every filter names a field and a `type`. All filters apply together
+(and):
+
+- Item, blank, text, comparison and date range filters drop source rows before the engine computes
+  anything.
+- Value filters and top N drop whole groups after the engine aggregates the values.
 
 ```json
 "filters": [
@@ -34,72 +37,94 @@ is computed; value filters and top N drop whole groups after the values are aggr
 | `value` | A condition on an aggregated value. `op` as `compare`'s. | any |
 | `top` | Keep the `count` largest items, or with `bottom: true` the smallest; `ties` `"first"` (the default) or `"all"`. | any |
 
-`value` and `top` rank by `by`, a value reference such as `{ "field": "Sales", "agg": "sum" }`; without
-it they use the view's first value. A filter type on a field it does not fit is the issue
-`filterFieldType`, with the type that fits in `params.suggestion`; `CATALOG.filterFields` lists the
-field types of each filter type.
+`value` and `top` rank by `by`, a value reference such as `{ "field": "Sales", "agg": "sum" }`.
+Without it they use the view's first value.
+
+A filter type on a field it does not fit is the issue `filterFieldType`. Its `params.suggestion`
+holds the type that fits. `CATALOG.filterFields` lists the field types of each filter type.
 
 ### Not and blanks
 
 Every filter has one shape: `{ field, type, ..., not, blanks }`.
 
-- `not: true` inverts which items **with a value** a filter keeps: `{ "type": "text", "op":
+- `not: true` inverts which items **with a value** a filter keeps. `{ "type": "text", "op":
   "contains", "value": "test", "not": true }` keeps every item that does not contain "test".
-  `compare` and `value` write "not equal" and "not between" so: `"op": "between", "not": true`.
-- `blanks` alone decides the blank items (no value): `"exclude"` (the default) drops them,
-  `"include"` keeps them too, `"only"` keeps them and nothing else. So `not` never brings the blanks
-  back on its own, as Excel's and AG Grid's filters behave. `blank` has `not` only; `value` has `not`
-  (a group without a number never matches); `top` has neither.
+  `compare` and `value` write "not equal" and "not between" this way: `"op": "between", "not": true`.
+- `blanks` alone decides the blank items, the items without a value:
+    - `"exclude"`, the default, drops them.
+    - `"include"` keeps them too.
+    - `"only"` keeps them and nothing else.
 
-`normalize` writes both keys on every filter that has them. `validate` warns when a filter leaves
-`blanks` out (`blanksUnspecified`), so a generated view says what it means, and when an `in` filter
-keeps nothing (`filterEmpty`: no items, no `not`, no blanks).
+    So `not` never brings the blanks back on its own. Excel's and AG Grid's filters behave the same
+    way.
+
+
+- `blank` has `not` only.
+- `value` has `not`. A group without a number never matches.
+- `top` has neither.
+
+`normalize` writes both keys on every filter that has them. `validate` warns in two cases:
+
+- A filter leaves `blanks` out (`blanksUnspecified`). A generated view then has to say what it means.
+- An `in` filter keeps nothing (`filterEmpty`): no items, no `not`, no blanks.
 
 ### Text matching
 
-`text` folds the item's text and its `value` alike before it compares them, as `match` says:
+`text` folds the item's text and its `value` alike before it compares them. `match` says how:
 
-- `case`: `"insensitive"` (the default) lower-cases both with JavaScript's `toLowerCase()`, which
-  does not depend on the runtime's locale, so a server and every browser agree; `"sensitive"` keeps
-  the case.
-- `whitespace`: `"collapse"` (the default) turns every run of whitespace into one space and trims
-  the ends, a no-break space (U+00A0), a narrow no-break space and tabs among it, so "ACTIVE
-  DIRECTORY" typed matches an item copied from a web page; `"exact"` compares the spaces as they are.
+- `case`:
+    - `"insensitive"`, the default, lower-cases both with JavaScript's `toLowerCase()`. It does not
+      depend on the runtime's locale, so a server and every browser agree.
+    - `"sensitive"` keeps the case.
+- `whitespace`:
+    - `"collapse"`, the default, turns every run of whitespace into one space and trims the ends.
+      Whitespace includes a no-break space (U+00A0), a narrow no-break space and tabs. So "ACTIVE
+      DIRECTORY" typed matches an item copied from a web page.
+    - `"exact"` compares the spaces as they are.
 
 The search of a field's items in the UI and the "did you mean" hints fold text the same way
 (`foldText` in pivotkit-core). A text filter migrated from view version 1 (`label`) keeps
-`whitespace: "exact"`, so it keeps what it kept.
+`whitespace: "exact"`, so it keeps the same items as before.
 
 ### Compare an item
 
-`compare` keeps the items of a number or date field that pass a comparison: `=`, `>`, `>=`, `<`,
-`<=` and `between` (both bounds included, in either order, as a value condition), each inverted with
-`not: true`.
-What is compared:
+`compare` keeps the items of a number or date field that pass a comparison. The operators are `=`,
+`>`, `>=`, `<`, `<=` and `between`. `between` includes both bounds, in either order, as a value
+condition does. `not: true` inverts each of them.
 
-- A number field: the number (a text of one, `"2022"`, is read as the number). A grouping of numbers (ranges) compares each range by its lower bound.
-- A date field: the calendar day. `value` is a date, `"2022-03-01"`; a time in it is left out, so
-  "before 2022-03-01" keeps every row of 28 February and none of 1 March, whatever its clock time.
-  `precision` compares by another unit: `"year"`, `"quarter"`, `"month"`, `"day"` (the default) or
-  `"hour"`; both the date and `value` are taken as the start of their unit, so `{ "op": "=", "value":
-  "2025-03-17", "precision": "month" }` keeps every day of March 2025. `normalize` writes `value` as
-  that start (`"2025-03-01"`, with `"hour"` `"2025-03-17T14:00"`). A precision on a number is the
-  issue `filterPrecision`.
-- A date grouping: its key, the number the grouping gives each item: a year `2022`, a month `202503`
-  (year × 100 + month), a quarter `20251` (year × 10 + quarter), a week `202512` (ISO year × 100 +
-  week), the cyclic ones their number (month `3`, weekday `1` for Monday); a day is a date. With a
-  calendar day as the value (`"2025-01-01"`) the grouping is compared by its **source dates**
-  instead, as a relative range filters them: `between "2025-01-01" and "2025-12-31"` on a
-  month-of-the-year grouping keeps the rows of 2025, so January is January 2025 alone (the Filter
-  level's Years combined writes these). A day and a key in one comparison is no comparison.
+What `compare` compares depends on the field:
 
-A blank item (no value) is kept only with `blanks: "include"` or `"only"`, `not` or not. Only number
-and date fields can be compared; a text field has the `text` conditions.
+- **A number field:** the number. A text of one, such as `"2022"`, counts as the number. A grouping
+  of numbers (ranges) compares each range by its lower bound.
+- **A date field:** the calendar day. `value` is a date, `"2022-03-01"`. The filter ignores a time in
+  it, so "before 2022-03-01" keeps every row of 28 February and none of 1 March, whatever its clock
+  time.
+    - `precision` compares by another unit: `"year"`, `"quarter"`, `"month"`, `"day"` (the default) or
+      `"hour"`.
+    - The filter takes both the date and `value` as the start of their unit. So
+      `{ "op": "=", "value": "2025-03-17", "precision": "month" }` keeps every day of March 2025.
+    - `normalize` writes `value` as that start: `"2025-03-01"`, or with `"hour"`
+      `"2025-03-17T14:00"`.
+    - A precision on a number is the issue `filterPrecision`.
+- **A date grouping:** its key, the number the grouping gives each item:
+    - a year: `2022`
+    - a month: `202503` (year × 100 + month)
+    - a quarter: `20251` (year × 10 + quarter)
+    - a week: `202512` (ISO year × 100 + week)
+    - the cyclic ones: their number (month `3`, weekday `1` for Monday)
+    - a day: a date
+
+    With a calendar day as the value (`"2025-01-01"`), the filter compares the grouping's **source
+    dates** instead, as a relative range does. `between "2025-01-01" and "2025-12-31"` on a
+    month-of-the-year grouping keeps the rows of 2025, so January is January 2025 alone. The Filter
+    level's Years combined writes these filters. A day and a key in one comparison is no comparison.
+
+The filter keeps a blank item (no value) only with `blanks: "include"` or `"only"`, with or without
+`not`. Only number and date fields have `compare`. A text field has the `text` conditions.
 
 ### Relative date ranges
 
-`relative` keeps the dates of a range that moves with today, so a saved report stays right next
-year:
+`relative` keeps the dates of a range that moves with today. A saved report stays right next year:
 
 | Key | What | Default |
 | --- | --- | --- |
@@ -116,45 +141,55 @@ year:
 { "field": "Due", "type": "relative", "direction": "this", "unit": "week", "blanks": "exclude" }
 ```
 
-The first is this year and the four before it; the second every item created more than 30 days ago,
-the items without a date too; the third this week. A range ends with the end of the current year,
-month or day, so later dates of this year are in "this year". A week starts on the view's
-`formatting.weekStart`: 1 (Monday, the default, as ISO 8601) to 7 (Sunday). A month or a year
-counted back from the 31st ends on the last day of a shorter month.
+The three filters keep:
 
-On a date grouping ("Released by year") the range filters the grouping's **source dates**: with
-"the last 18 months" on a year grouping, the oldest year keeps only its months in the range, and its
+1. this year and the four before it
+2. every item created more than 30 days ago, and the items without a date too
+3. this week
+
+A range ends with the end of the current year, month or day, so later dates of this year are in
+"this year". A week starts on the view's `formatting.weekStart`: 1 (Monday, the default, as ISO 8601)
+to 7 (Sunday). A month or a year counted back from the 31st ends on the last day of a shorter month.
+
+On a date grouping ("Released by year"), the range filters the grouping's **source dates**. Take
+"the last 18 months" on a year grouping: the oldest year keeps only its months in the range, and its
 total counts only those.
 
-Today is the wall clock of `computePivot`'s `options.now` in the data's time zone (the `timeZone` of
-`encode()`, default UTC), never the machine's zone: the same data and `now` give the same result
-everywhere. Without `now` it is the current time. `relativeDateRange(unit, count, { now, timeZone,
-direction, calendar, includeCurrent, anchor, weekStart })` says which dates a range keeps, for a UI's
-"last 5 years (2022–2026)".
+Today is the wall clock of `computePivot`'s `options.now` in the data's time zone, never the
+machine's zone. The data's time zone is the `timeZone` of `encode()`, default UTC. The same data and
+`now` give the same result everywhere. Without `now`, today is the current time.
+`relativeDateRange(unit, count, { now, timeZone, direction, calendar, includeCurrent, anchor,
+weekStart })` says which dates a range keeps, for a UI's "last 5 years (2022–2026)".
 
-A range counts from today by default: a saved report refreshes with the calendar. For data that end -
-an archive, a closed year - `anchor: "latest"` counts from the latest date of the field's data:
-`{ "unit": "month", "count": 12, "anchor": "latest" }` on data that end on 2025-12-31 is January to
-December 2025, whatever the day. `"first"` counts from the field's first date, a date of its own
-makes a report give the same result on every run. On a grouping, the latest and first dates are the
-source dates'. An anchor that is none of these is the issue `filterRelativeAnchor`, and the filter is
-left out. `relativeDateRange` takes the same `anchor`, with `latest` and `first`, the data's latest
-and first date (a `Date`, epoch milliseconds, an ISO string or the wall-clock milliseconds a date
-column holds).
+A range counts from today by default, so a saved report refreshes with the calendar. Some data end,
+such as an archive or a closed year. For them, `anchor` sets another starting point:
 
-A filter on a field that is on rows or columns filters that axis. A filter on any other field - in
-the UI, a field in the **Filters** zone - filters the whole report.
+- `anchor: "latest"` counts from the latest date of the field's data.
+  `{ "unit": "month", "count": 12, "anchor": "latest" }` on data that end on 2025-12-31 is January to
+  December 2025, whatever the day.
+- `"first"` counts from the field's first date.
+- A date of its own makes a report give the same result on every run.
+
+On a grouping, the latest and first dates are those of the source dates. An anchor that is none of
+these is the issue `filterRelativeAnchor`, and the engine leaves the filter out.
+
+`relativeDateRange` takes the same `anchor`. With `latest` and `first` it also takes the data's
+latest and first date: a `Date`, epoch milliseconds, an ISO string or the wall-clock milliseconds a
+date column holds.
+
+A filter on a field that is on rows or columns filters that axis. A filter on any other field filters
+the whole report. In the UI, that is a field in the **Filters** zone.
 
 ### Top N and value filters work within groups
 
-A value filter on a field of an axis works **within each item of the field above it**, as in Excel:
-with Region and Country on rows, "top 3 countries" keeps three countries per region. Totals then add up
-the visible items only, so a region's total is the total of its top three countries.
+A value filter on a field of an axis works **within each item of the field above it**, as in Excel.
+With Region and Country on rows, "top 3 countries" keeps three countries per region. Totals then add
+up the visible items only, so a region's total is the total of its top three countries.
 
-Top N keeps exactly N items by default (`ties: "first"`): a tie at the cut keeps the item that
-appears first in the data. With `ties: "all"` every item with the value at the cut stays too, so a
-top 3 may keep four items; Excel may keep all tied items. The report says what a top N does to totals and percentages in a note above the
-table ("Country shows the top 5 only: ...").
+Top N keeps exactly N items by default (`ties: "first"`). At a tie at the cut, it keeps the item that
+appears first in the data. With `ties: "all"`, every item with the value at the cut stays too, so a
+top 3 may keep four items. Excel may keep all tied items. A note above the table says what a top N
+does to totals and percentages ("Country shows the top 5 only: ...").
 
 ## Sorting
 
@@ -166,35 +201,52 @@ table ("Country shows the top 5 only: ...").
 ]
 ```
 
-Each field on rows or columns is sorted on its own:
+Each field on rows or columns has its own sort:
 
-- `by: "label"` sorts by the item's label: text in natural order for the locale ("Item 2" before
-  "Item 10"), numbers and dates by value. This is the default. Blank sorts last.
-- `by: "value"` sorts by an aggregated value, `value` naming which one (default: the view's first).
-  Items are sorted within their parent group.
-- `by: "custom"` sorts in an order of your own, like Excel's custom lists: the `items` (named as
-  filter items name them) first, in their order, then the field's other items by label. `order:
+- `by: "label"` sorts by the item's label. Text sorts in natural order for the locale ("Item 2" before
+  "Item 10"). Numbers and dates sort by value. This is the default. Blank sorts last.
+- `by: "value"` sorts by an aggregated value. `value` names which one. The default is the view's
+  first. Items sort within their parent group.
+- `by: "custom"` sorts in an order of your own, like Excel's custom lists. The `items` come first, in
+  their order, named as filter items name them. The field's other items follow by label. `order:
   "desc"` reverses both. Blank sorts last unless it is listed (`null`).
 
 The menu of a row or column field writes these entries ([Sorting](../use/filters.md#sorting) has the
-menu as people see it): "A to Z" and "Z to A" a `label` sort, "Largest … first" and "Smallest …
-first" a `value` sort naming the value (without a value the sort counts rows), "Custom order" a
-`custom` sort. A click on a header of the table writes the same entries
-([sort with a click on a header](../use/filters.md#sort-with-a-click-on-a-header)): a value's name a
-`value` sort of the innermost row field (`desc`, then `asc`, then no entry), a row field's name a
-`label` sort. "Custom order" is offered when the view has a custom sort for the field or the host
-gives the field an order: `fieldDefaults: { Season: { order: ["Spring", "Summer", "Autumn", "Winter"]
-} }`. A field with such an order is sorted in it as soon as it is placed on Rows or Columns, as a
-`custom` sort in the view, so a saved template keeps it. A view or template that has the field on
-Rows or Columns without a sort entry for it gets the same `custom` sort when the report shows it; "A
-to Z" in the menu is then kept as a sort entry of its own, so the host's order does not come back.
+menu as people see it):
+
+| Menu entry | Sort entry |
+| --- | --- |
+| "A to Z", "Z to A" | a `label` sort |
+| "Largest … first", "Smallest … first" | a `value` sort naming the value. Without a value the sort counts rows. |
+| "Custom order" | a `custom` sort |
+
+A click on a header of the table writes the same entries
+([sort with a click on a header](../use/filters.md#sort-with-a-click-on-a-header)):
+
+- A value's name writes a `value` sort of the innermost row field: `desc`, then `asc`, then no entry.
+- A row field's name writes a `label` sort.
+
+The menu offers "Custom order" when the view has a custom sort for the field, or when the host gives
+the field an order: `fieldDefaults: { Season: { order: ["Spring", "Summer", "Autumn", "Winter"]
+} }`. The report sorts a field with such an order in it as soon as you place it on Rows or Columns.
+The order is a `custom` sort in the view, so a saved template keeps it.
+
+A view or template may have the field on Rows or Columns without a sort entry for it. It gets the
+same `custom` sort when the report shows it. If you then pick "A to Z" in the menu, the view keeps it
+as a sort entry of its own, so the host's order does not come back.
 
 ## Filters in the UI
 
-The filter and Top N as people use them - the list of values with their row counts, the quick
-choices of a date, the rules, **Top items**, numbers typed in the report's language, what Clear picks
-and Remove the rules take away - are on [Filters, top N and sorting](../use/filters.md) under Use a
-report. What they write into the view:
+[Filters, top N and sorting](../use/filters.md) under Use a report describes the filter and Top N
+as people use them:
+
+- the list of values with their row counts
+- the quick choices of a date
+- the rules and **Top items**
+- numbers typed in the report's language
+- what Clear takes away of the picks, and what Remove takes away of the rules
+
+This is what they write into the view:
 
 | In the UI | In the view |
 | --- | --- |
@@ -208,12 +260,20 @@ report. What they write into the view:
 | Top items (Top 3, Top 5, Top 10, Top N…) | A `top` filter, `by` the value chosen; "Also show items with the same value as the last one" is `ties: "all"` (kept when the count or the value changes); Off removes it. |
 | Remove (beside Rules in the Filter level) | Removes the field's `text`, `compare`, `relative` and `value` filters except the quick choice's `relative` filter (or Years combined's `compare` filters); Clear (beside Pick items) its `in` filters; Reset filter (in the summary) all of them and a `blank` filter; `top` stays. |
 
-The rules write `blanks: "exclude"` unless the field keeps its blank items; a rule loaded with other
-`blanks` keeps them when it is edited. The menus offer no rule for `blank`, `blanks: "only"` (only the
-blanks: Select none, then "(blank)" in Pick items), a comparison of dates by another `precision` than
-the day, a `relative` range in hours, or a text rule that is case-sensitive yet
-([#168](https://github.com/eizedev/pivotkit/issues/168)): a view that has one shows it among the
-rules (a `not` the menus have no word for as "not (…)"), and it can be removed there.
+The rules write `blanks: "exclude"` unless the field keeps its blank items. A rule loaded with
+other `blanks` keeps them when you edit it.
+
+The menus offer no rule for these:
+
+- `blank`
+- `blanks: "only"`. To keep only the blanks, use Select none, then "(blank)" in Pick items.
+- a comparison of dates by another `precision` than the day
+- a `relative` range in hours
+- a text rule that is case-sensitive, not yet
+  ([#168](https://github.com/eizedev/pivotkit/issues/168))
+
+A view that has one of them shows it among the rules, and you can remove it there. The rules show a
+`not` the menus have no word for as "not (…)".
 
 A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
-report takes its filters and its sort with it; moved to Values, it leaves its filters behind.
+report takes its filters and its sort with it. A field moved to Values leaves its filters behind.

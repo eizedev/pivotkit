@@ -5,17 +5,21 @@ description: pivotkit-core/import reads CSV, TSV, text and JSON files (and Excel
 
 # Loading files
 
-`pivotkit-core/import` reads a file a person picks into a table the report can use: CSV, TSV and
-text, JSON, and Excel workbooks with the [pivotkit-xlsx](plugins.md#pivotkit-xlsx) plugin. It runs in
-the browser (nothing is uploaded) and in Node. The table it returns is `encode`'s
+`pivotkit-core/import` reads a file a person picks into a table the report can use. It reads:
+
+- CSV, TSV and text
+- JSON
+- Excel workbooks, with the [pivotkit-xlsx](plugins.md#pivotkit-xlsx) plugin
+
+It runs in the browser, where nothing is uploaded, and in Node. The table it returns is `encode`'s
 [columnar input](core.md#columnar-input), so it goes into the engine without an object per row.
 
 !!! note "In the report"
     This page describes the readers. The report uses them itself with
-    [`allowImport`](react.md#prop-allowimport) (the element's `allow-import`): a Data menu, a file
-    dropped onto the report and a preview where the person picks the column types
+    [`allowImport`](react.md#prop-allowimport), the element's `allow-import`. The person then gets a
+    Data menu, can drop a file onto the report, and picks the column types in a preview
     ([Load your own data](../use/load-data.md)). A host that reads a file itself passes the table as
-    `data` (`{ columns, types, data }` is the columnar input both take).
+    `data`. Both take the columnar input `{ columns, types, data }`.
 
 ```js
 import { readFile, retype } from "pivotkit-core/import";
@@ -32,7 +36,7 @@ const data = encode(table);                            // { columns, types, data
 const asText = retype(table, { Zip: "string" });       // another type, without reading the file again
 ```
 
-In Node, a file on disk becomes a `File` with its bytes and its name (the name picks the reader):
+In Node, make a `File` from the file's bytes and its name. The name picks the reader:
 
 ```js
 import { readFile as readBytes } from "node:fs/promises";
@@ -50,66 +54,89 @@ const table = await readFile(new File([await readBytes("sales.xlsx")], "sales.xl
 | JSON | built in (`jsonReader`) | `.json` | An array of objects; an array of arrays (the first holds the names); `{ columns, rows }`; the columnar `{ columns, types, data }`; or one of these under a property (`{ "data": [...] }`). |
 | Excel | [pivotkit-xlsx](plugins.md#pivotkit-xlsx) | `.xlsx` | One sheet of a workbook: the first visible one, or the one asked for. |
 
-The reader is picked by the file name's extension, then by its media type; the host's plugins come
-before the built-in readers (`readerFor`). The built-in readers are plugins too: their code loads when
-the first file of their kind is read, so `pivotkit-core/import` itself stays small, and the main entry
+`readerFor` picks the reader by the file name's extension, then by its media type. The host's
+plugins come before the built-in readers. The built-in readers are plugins too. Their code loads when
+the first file of their kind is read. So `pivotkit-core/import` itself stays small, and the main entry
 `pivotkit-core` does not load any of it.
 
 ## How a CSV file is read
 
-- **Encoding**: a byte order mark decides (UTF-8, UTF-16 little or big endian); without one the file
-  is read as strict UTF-8, and if a byte is not valid UTF-8 the whole file is read as Windows-1252,
-  which Excel writes as "CSV" on a Western Windows. Invalid bytes never become replacement characters.
-- **Separator**: Excel's first line `sep=;` names it; else comma, semicolon, tab or vertical bar,
-  whichever splits the first 100 lines into the same number of fields most often (a tab first for
-  `.tsv`).
+- **Encoding**: a byte order mark decides: UTF-8, or UTF-16 little or big endian. Without one, the
+  reader reads the file as strict UTF-8. If a byte is not valid UTF-8, it reads the whole file as
+  Windows-1252, which Excel writes as "CSV" on a Western Windows. Invalid bytes never become
+  replacement characters.
+- **Separator**: Excel's first line `sep=;` names it. Else the reader takes comma, semicolon, tab or
+  vertical bar, whichever splits the first 100 lines into the same number of fields most often. For
+  `.tsv` it tries a tab first.
 - **Quotes**: a value in double quotes may hold the separator, line breaks and doubled quotes (`""`).
   A quote that is never closed stops the read with the line it opened in.
 - **The header**: the first row with at least half as many values as the fullest of the first 50
-  rows. Lines above it (a title, a date, a licence line, as official exports have) are skipped, with a
-  note.
+  rows. The reader skips the lines above it, with a note. Official exports often have a title, a
+  date or a licence line there.
 
 ## Column names and values
 
-Every reader gives the same table for the same content: the readers parse their format into rows,
+Every reader gives the same table for the same content. The readers parse their format into rows,
 and one shared part (`createTable`) does the rest.
 
-- **Names** are trimmed; control characters and the characters that turn text around (U+202E and its
-  kind) are taken out; line breaks and tabs become spaces. An empty name becomes `Column 3` (its
-  position); a name that repeats, compared without case, becomes `Name (2)`. Each change is a note.
-- **Values** lose control and direction characters; tabs and line breaks become a space; text is
-  trimmed and cut at `limits.textLength` characters. Text that looks like a formula (`=`, `+`, `-`,
-  `@`) stays as it is: the [exports](../security.md#exports) guard it.
-- **Empty rows** are left out; a column without a name and without a single value is left out; a row
-  with more values than there are names adds columns named `Column N`. Each is a note.
+- **Names**: `createTable` trims them. It takes out control characters and the characters that turn
+  text around (U+202E and its kind). Line breaks and tabs become spaces. An empty name becomes
+  `Column 3`, its position. A name that repeats, compared without case, becomes `Name (2)`. Each
+  change is a note.
+- **Values**: `createTable` takes out control and direction characters. Tabs and line breaks become a
+  space. It trims text and cuts it at `limits.textLength` characters. Text that looks like a formula
+  (`=`, `+`, `-`, `@`) stays as it is: the [exports](../security.md#exports) guard it.
+- **Empty rows and columns**: `createTable` leaves out empty rows, and a column without a name and
+  without a single value. A row with more values than there are names adds columns named `Column N`.
+  Each is a note.
 
 ## How a loaded file is named { #how-a-loaded-file-is-named }
 
 A file loaded in the report ([`allowImport`](react.md#prop-allowimport)) becomes the report's
-[`source`](react.md#prop-source) while its data is shown. Its `id` names the views saved for it in the
-browser store (`templateStore="browser"`) and in the view files and links shared from it, so the same
-file loaded again finds its views and other data does not. The rule, in this order:
+[`source`](react.md#prop-source) while its data is shown. Its `id` names the views saved for it:
 
-1. **The name** is the file's `File.name` as the browser gives it, cleaned as a column name is:
-   control characters (but tabs and line breaks), the characters that turn text around and the
-   invisible ones (zero-width characters, the soft hyphen, the byte order mark, tag characters, a
-   lone half of a surrogate pair) taken out, each run of tabs and line breaks as one space, trimmed;
-   then cut to 256 characters (UTF-16 code units, a fixed cut that `limits` does not change, and not
-   trimmed again). An empty name becomes `file`. Two names that differ only in characters taken out
-   are the same name.
+- in the browser store (`templateStore="browser"`)
+- in the view files and links shared from it
+
+So the same file loaded again finds its views, and other data does not. pivotkit builds the id in
+this order:
+
+1. **The name** is the file's `File.name` as the browser gives it. pivotkit cleans it as it cleans a
+   column name:
+    - It takes out control characters, except tabs and line breaks.
+    - It takes out the characters that turn text around.
+    - It takes out the invisible ones: zero-width characters, the soft hyphen, the byte order mark,
+      tag characters, a lone half of a surrogate pair.
+    - Each run of tabs and line breaks becomes one space.
+    - It trims the name.
+    - Then it cuts the name to 256 characters, counted as UTF-16 code units. The cut is fixed:
+      `limits` does not change it, and pivotkit does not trim the name again.
+
+    An empty name becomes `file`. Two names that differ only in characters taken out are the same
+    name.
+
+
 2. **The columns** are the names of the table after the readers' cleanup
-   ([above](#column-names-and-values)): cleaned the same way and cut to `limits.name` characters (256
-   by default); a number or date in the header row as its text (a date in ISO form); columns without a
-   name and without a value left out; an empty name `Column N` (N its place among the columns kept);
-   a name that repeats, compared without case, `Name (2)` ("Team" and "team" become "Team" and
-   "team (2)"); nested JSON as `a.b`. A type picked in the preview changes nothing.
-3. **The hash**: SHA-256 of the UTF-8 bytes of the name and the column names in their order, joined
-   with U+0000. The browser's `crypto.subtle` computes it; a page without it (plain `http` on a host
-   other than `localhost`) uses pivotkit-core's own implementation, which gives the same digest.
+   ([above](#column-names-and-values)):
+    - pivotkit cleans them the same way and cuts them to `limits.name` characters, 256 by default.
+    - A number or date in the header row counts as its text. A date counts in ISO form.
+    - It leaves out columns without a name and without a value.
+    - An empty name is `Column N`, where N is its place among the columns kept.
+    - A name that repeats, compared without case, is `Name (2)`. "Team" and "team" become "Team" and
+      "team (2)".
+    - Nested JSON is `a.b`.
+
+    A type picked in the preview changes nothing.
+
+
+3. **The hash** is SHA-256 of the UTF-8 bytes of the name and the column names in their order,
+   joined with U+0000. The browser's `crypto.subtle` computes it. A page over plain `http` on a host
+   other than `localhost` has no `crypto.subtle`. There pivotkit-core uses its own implementation,
+   which gives the same digest.
 4. **`source.id`** is the shown name, `#` and the first 16 hex digits of the hash.
-   **`source.name`** is the shown name: the name itself, or, above 120 characters, its first 117
-   followed by `...` (116 when the 117th is the first half of a surrogate pair, so no character is
-   split). The hash always covers the whole name.
+   **`source.name`** is the shown name. That is the name itself, or, above 120 characters, its first
+   117 followed by `...`. It takes 116 when the 117th is the first half of a surrogate pair, so no
+   character is split. The hash always covers the whole name.
 
 | File | Columns | `source.id` |
 | --- | --- | --- |
@@ -117,23 +144,27 @@ file loaded again finds its views and other data does not. The rule, in this ord
 | `tickets.csv` | `Team`, `Id`, `Opened`, `Hours`, `Zip` | `tickets.csv#d11fe64346f1d906` |
 
 The first row is SHA-256 of `tickets.csv\0Id\0Team\0Opened\0Hours\0Zip`
-(`e51bd4bc21e98ee818b3a8efcb49347b…`). Reordered, renamed or added columns, or another file name
-(`Tickets.csv` too: the name is compared as it is), make other data. The sheet of a workbook is not
-part of it: the views saved, downloaded and linked from a workbook name their sheet next to the id,
-in `source.params.sheet` ([view file](view-file.md#the-sheet-of-a-workbook)), so two sheets with the
-same columns keep their views apart, and a view of another sheet of the same file reads that sheet
-again when it is opened ([saved views](../use/load-data.md#after-loading)). The rows are not part of it
-either: a newer export of the same table keeps its views.
+(`e51bd4bc21e98ee818b3a8efcb49347b…`). These make other data:
 
-`sourceIdOf(name, columns)` of `pivotkit-core/import` computes it (a promise of the id; `shownName`
-and `SHOWN_MAX` give the shown name). The command line names the files it writes a view for the same
-way (`describe --suggest`, `render --save-view`), so the report opens such a view as a view of that
-file, on its sheet.
+- reordered, renamed or added columns
+- another file name, `Tickets.csv` too, since the name is compared as it is
+
+The sheet of a workbook is not part of the id. The views saved, downloaded and linked from a workbook
+name their sheet next to the id, in `source.params.sheet`
+([view file](view-file.md#the-sheet-of-a-workbook)). So two sheets with the same columns keep their
+views apart. A view of another sheet of the same file reads that sheet again when you open it
+([saved views](../use/load-data.md#after-loading)). The rows are not part of the id either, so a newer
+export of the same table keeps its views.
+
+`sourceIdOf(name, columns)` of `pivotkit-core/import` computes the id and returns a promise of it.
+`shownName` and `SHOWN_MAX` give the shown name. The command line names the files it writes a view
+for the same way (`describe --suggest`, `render --save-view`). So the report opens such a view as a
+view of that file, on its sheet.
 
 ## Types
 
-A column's type is inferred from all its values, unless the caller names it (`types`, by position or
-by column name).
+The reader infers a column's type from all its values, unless the caller names it. The caller names
+it with `types`, by position or by column name.
 
 | Values | Type | Notes |
 | --- | --- | --- |
@@ -147,16 +178,16 @@ by column name).
 | A whole number of more than 15 digits | string | An identifier; a number would lose digits. |
 | Anything else, or a mix | string | |
 
-Values with a type of their own (a spreadsheet's cells, JSON's numbers and booleans) keep it; a column
-of one kind is that type, a mix is text. JSON strings stay text unless they are ISO dates, as in
-`encode`: JSON says what is a number. A number field named ID, Nr, No, Number or Key stays a number;
-the report counts it instead of summing it
+Values with a type of their own keep it, such as a spreadsheet's cells or JSON's numbers and
+booleans. A column of one kind is that type. A mix is text. JSON strings stay text unless they are
+ISO dates, as in `encode`: JSON says what is a number. A number field named ID, Nr, No, Number or Key
+stays a number. The report counts it instead of summing it
 ([identifier fields](../concepts/fields.md#identifier-fields)).
 
-`retype(table, types)` gives the table with other types from the values as they were read (kept in
-`table.raw`), so a preview can let a person change a column's type without reading the file again;
-text read as a number goes back to the text the file holds (`1.234,5`). A value that does not convert
-is blank, with a note that counts them.
+`retype(table, types)` gives the table with other types. It reads the values as they were read, which
+the table keeps in `table.raw`. So a preview can let a person change a column's type without reading
+the file again. Text read as a number goes back to the text the file holds (`1.234,5`). A value that
+does not convert is blank, with a note that counts them.
 
 ## The table
 
@@ -173,12 +204,18 @@ is blank, with a note that counts them.
 | `unnamed` | The columns the file gives no name, as named here (`Column 7`): a blank header cell, or a row with more values than the header. Such a column's values may belong to another column, shifted by a separator inside a value; pivotkit-server hides them. A name such as `Column 7` is its position, so a host's rule for it follows whatever column lands there. A reader plugin's own table may leave it out. |
 | `longRows` | The rows (0-based) with more cells than the named header (its empty cells at the end left out), whose values may be shifted. None where the file is uniform: every row as wide, every cell beyond the named header empty (a separator that ends every line). In a file with mixed row widths every row wider than the named header counts: a file where only some rows end with a separator has those rows here, or all of them if every row is wider (pivotkit-server's `ROWS_DROPPED` note gives the count). A shifted row of the header's width (a cell at the end dropped), or one in such a uniform file that fills its empty last cell, cannot be told: hidden columns in CSV are safe only in well-formed files. pivotkit-server leaves such rows out of a source with a field below `show`. A reader plugin's own table may leave it out. |
 
-A reader plugin's table built by hand may leave out `raw`, `detected`, `rowCount` and `hints`:
-`readFile` fills them in (`raw` as `data`, `detected` as `types`, the row count, `hints` as
-`createTable` sets them for the locale). Without `raw`, a type changed in the preview is read from
-the typed values, not from the text as the file had it. A field that is given must be right
-(`hints` too: `decimal` `"."` or `","`, `dateOrder` `"dmy"` or `"mdy"`), and the table counts
-against the limits below; otherwise `readFile` throws ([Errors](#errors)).
+A reader plugin's table built by hand may leave out `raw`, `detected`, `rowCount` and `hints`.
+`readFile` fills them in:
+
+- `raw` as `data`
+- `detected` as `types`
+- the row count
+- `hints` as `createTable` sets them for the locale
+
+Without `raw`, a type changed in the preview is read from the typed values, not from the text as the
+file had it. A field that is given must be right. This holds for `hints` too: `decimal` is `"."` or
+`","`, `dateOrder` is `"dmy"` or `"mdy"`. The table also counts against the limits below. Otherwise
+`readFile` throws ([Errors](#errors)).
 
 | Note `code` | When | `params` |
 | --- | --- | --- |
@@ -200,15 +237,15 @@ against the limits below; otherwise `readFile` throws ([Errors](#errors)).
 | `USED_RANGE` | A workbook's used range reaches far below its values | `usedRow`, `lastRow` |
 | `ERROR_CELLS` | Cells with an Excel error (`#N/A`) | `count` |
 
-`message` is the English text (`noteMessage(code, params)`); a UI shows its own text per code.
-`params` can quote the file (a sheet name, a JSON key, a separator), cleaned and at most 256
-characters: show them as text, never as HTML.
+`message` is the English text (`noteMessage(code, params)`). A UI shows its own text per code.
+`params` can quote the file, such as a sheet name, a JSON key or a separator. They are cleaned and at
+most 256 characters. Show them as text, never as HTML.
 
 ## Limits
 
-Each file is checked against [`LIMITS`](../concepts/limits.md#limits) (the `limits` option merged
-over them; in the report, [`importLimits`](react.md#prop-importlimits) over `limits`) before the
-step it guards, so a file that is too large costs no memory first:
+pivotkit checks each file against [`LIMITS`](../concepts/limits.md#limits) before the step each
+limit guards, so a file that is too large costs no memory first. The `limits` option is merged over
+them. In the report, [`importLimits`](react.md#prop-importlimits) is merged over `limits`.
 
 | Limit | Default | When |
 | --- | --- | --- |
@@ -221,21 +258,26 @@ step it guards, so a file that is too large costs no memory first:
 | `unpackedBytes` | 500 MiB | What the parts unpack to, from the directory, before anything is unpacked (a ZIP bomb). |
 
 A file over a limit throws `PivotkitError` `LIMIT_EXCEEDED` with `details` `{ limit, value, max,
-file, what }` and a message that names the file, the limit and what to change: `"tickets.csv" has
+file, what }`. The message names the file, the limit and what to change: `"tickets.csv" has
 more than 1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this
 limit`. `what` is what was counted, in English, as the message says it. The previous data stays.
-pivotkit-react says it in the report's language from `details` (the limits `rows`, `columns`,
-`fileBytes`, `importCells`, `archiveEntries` and `unpackedBytes`; `labels.dataImport.overLimit` and
-`limitWhat`; `importCells` reached by a workbook's shared strings and formats, which `details.what`
-names, in the words of `workbookCells`, "different texts and formats"), after the file's name:
-"big.csv could not be loaded: it has more than 1,000 rows (limits.rows): …"; the key is the one of
-`limits` also where the host set `importLimits`. Any other error is the reader's message without the
-file's name in front.
+
+pivotkit-react says it in the report's language from `details`, after the file's name:
+"big.csv could not be loaded: it has more than 1,000 rows (limits.rows): …".
+
+- It does so for the limits `rows`, `columns`, `fileBytes`, `importCells`, `archiveEntries` and
+  `unpackedBytes`.
+- The texts are `labels.dataImport.overLimit` and `limitWhat`.
+- When a workbook's shared strings and formats reach `importCells`, `details.what` names them. The
+  report uses the words of `workbookCells`, "different texts and formats".
+- The key is the one of `limits`, also where the host set `importLimits`.
+
+Any other error is the reader's message without the file's name in front.
 
 ## Errors
 
 A file that cannot be read throws `PivotkitError` with the code `INVALID_FILE`, `details.file` and
-`details.reason`; the message names the file and says what to do.
+`details.reason`. The message names the file and says what to do.
 
 | `reason` | When |
 | --- | --- |
@@ -252,26 +294,33 @@ A file that cannot be read throws `PivotkitError` with the code `INVALID_FILE`, 
 | `XML_DECLARATION` | A part of a workbook declares a document type or entities, which a workbook never needs. |
 | `DAMAGED` | A workbook is damaged, cut off, a part unpacks to more than its directory states, or an XML part holds a text of more than 1 MiB or a tag of more than 256 KiB (an Excel cell holds at most 32,767 characters). |
 
-A reader plugin that returns a table of another shape, a field given wrong (`rowCount`, `raw`,
-`detected`, `hints`), a note without a `code`, or a table whose fields throw when read, is a bug of
-the plugin: `INVALID_ARGUMENT`, the message naming the plugin and the field.
+`readFile` throws `INVALID_ARGUMENT` when a reader plugin returns one of these. Each is a bug of the
+plugin, and the message names the plugin and the field.
+
+- a table of another shape
+- a field given wrong (`rowCount`, `raw`, `detected`, `hints`)
+- a note without a `code`
+- a table whose fields throw when read
 
 ## Progress, cancel and workers
 
-`onProgress({ phase, done, total })` reports `read` (bytes), `unpack` (a workbook's bytes), `parse`
-(characters or rows) and is called between steps; `signal` (an `AbortSignal`) stops a read between
-steps with the signal's `AbortError`. The readers give the event loop a turn every 16,384 rows, so a
-page stays responsive enough to show progress and a Cancel button; for files of tens of megabytes a
-host can run `readFile` in a module worker of its own: the readers use no DOM, and the table is plain
-arrays, which `postMessage` copies.
+`onProgress({ phase, done, total })` is called between steps. It reports these phases:
 
-The readers start no worker themselves; the report runs the built-in ones in a worker where the host
-gives one ([`importWorker`](react.md#prop-importworker); pivotkit-element brings its own,
-`dist/import-worker.js`). pivotkit-xlsx hands read-excel-file an uncompressed archive of
-the parts it needs, so no `blob:` worker is started (fflate, which read-excel-file unpacks with, would
-start one for parts over 512 KiB), and a strict Content-Security-Policy without `worker-src blob:`
-works. A host that runs the readers in its own worker needs `worker-src 'self'` (or the worker's
-origin).
+- `read`: bytes
+- `unpack`: a workbook's bytes
+- `parse`: characters or rows
+
+`signal`, an `AbortSignal`, stops a read between steps with the signal's `AbortError`. The readers
+give the event loop a turn every 16,384 rows. So a page stays responsive enough to show progress and a
+Cancel button. For files of tens of megabytes, a host can run `readFile` in a module worker of its
+own. The readers use no DOM, and the table is plain arrays, which `postMessage` copies.
+
+The readers start no worker themselves. The report runs the built-in ones in a worker where the host
+gives one ([`importWorker`](react.md#prop-importworker)). pivotkit-element brings its own,
+`dist/import-worker.js`. pivotkit-xlsx hands read-excel-file an uncompressed archive of the parts it
+needs, so no `blob:` worker starts. read-excel-file unpacks with fflate, which would start one for
+parts over 512 KiB. So a strict Content-Security-Policy without `worker-src blob:` works. A host that
+runs the readers in its own worker needs `worker-src 'self'`, or the worker's origin.
 
 ## Functions
 
