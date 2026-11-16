@@ -331,6 +331,10 @@ test("the release packs and uploads the tarball before lint and tests, and publi
     // the one step between the signature check and the pack, whatever form another one takes
     // (a run block, a run without a name, an action): only the declarations are built there
     assert.deepEqual(steps.slice(signatures + 1, pack), [{ name: "Types", run: "npm run types --workspaces --if-present" }]);
+    // nothing changes how these two run: no env, working-directory, continue-on-error or if
+    assert.deepEqual(Object.keys(steps[signatures]).sort(), ["name", "run"]);
+    assert.deepEqual(Object.keys(steps[pack]).sort(), ["env", "id", "name", "run"]);
+    assert.deepEqual(steps[pack].env, "PACKAGE: ${{ steps.package.outputs.name }}");
     assert.equal(steps[pack].id, "pack");
     const build = jobOf(".github/workflows/release.yml", "build");
     assert.match(build, /integrity: \$\{\{ steps\.pack\.outputs\.integrity \}\}/);
