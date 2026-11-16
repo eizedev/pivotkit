@@ -60,7 +60,7 @@ const RENAME_RETRY = Object.freeze({ tries: 3, waitMs: 50 });
 export const EMPTY_RETRY = Object.freeze({ tries: 20, waitMs: 50 });
 
 /** The calls tests replace: a file system without hard links, a mounted file, another user. */
-export const secretFileMeans = { link, rename, lstat, uid: () => process.getuid?.(), chown: (handle, uid, gid) => handle.chown(uid, gid) };
+export const secretFileMeans = { link, rename, lstat, uid: () => process.getuid?.(), chown: (handle, uid, gid) => handle.chown(uid, gid), stat: (handle) => handle.stat() };
 
 /** The signals during which a temporary file is removed. */
 const SIGNALS = Object.freeze(["SIGINT", "SIGTERM"]);
@@ -128,16 +128,17 @@ function writeRefusal(e, label) {
 /**
  * Creates a new file with exactly `mode` and writes `bytes` into it, synced; the file is removed again
  * when the write fails. With `owner` (the file it replaces), the owner and group are set to its where
- * this process may (root; else the group alone, with the owner -1, where this user is in it); the
- * group's read bit is added only where the group is the old one's.
+ * this process may (root; else the group alone, with the owner -1, where this user is in it);
+ * `groupBits` are added only where the group is the old one's, so no other group gets them.
  * @param {string} path
  * @param {Uint8Array | string} bytes
- * @param {number} mode
+ * @param {number} mode  the owner's bits; never a group's or the world's
  * @param {string} label
  * @param {{ uid: number, gid: number, mode: number } | null} [owner]
+ * @param {number} [groupBits]  the bits of the old group (and the world's) the file keeps with its group
  * @returns {Promise<{ uid: number, gid: number, mode: number } | null>}  the new file's owner, group and mode (null on Windows)
  */
-async function createWith(path, bytes, mode, label, owner = null) {
+async function createWith(path, bytes, mode, label, owner = null, groupBits = 0) {
     let handle;
     try {
         handle = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), mode);
@@ -157,14 +158,14 @@ async function createWith(path, bytes, mode, label, owner = null) {
                 }
             }
         }
-        const made = process.platform === "win32" ? null : await handle.stat();
-        if (made && owner && made.gid === owner.gid && owner.mode & 0o040) {
-            // the group that may read it is the old one: it keeps the group's read bit, never a write bit
-            await handle.chmod(mode | 0o040);
+        const made = process.platform === "win32" ? null : await secretFileMeans.stat(handle);
+        if (made && owner && made.gid === owner.gid && groupBits) {
+            // the group that may read it is the old one: it gets the bits it had
+            await handle.chmod(mode | groupBits);
         }
         await handle.writeFile(bytes);
         await handle.sync();
-        const after = made ? await handle.stat() : null;
+        const after = made ? await secretFileMeans.stat(handle) : null;
         await handle.close();
         return after ? { uid: after.uid, gid: after.gid, mode: after.mode & 0o777 } : null;
     } catch (e) {
@@ -378,7 +379,8 @@ export async function placeSecret(path, value, { replace = false, keep = false, 
 
 /** placeSecret's write, from the temporary file to its name; the temporary file is gone after it. */
 async function placeNew(temp, target, dir, bytes, { value, existing, replace, keep, usable, kind, label }) {
-    const made = await createWith(temp, bytes, SECRET_MODE, label, existing && replace ? existing : null);
+    // a secret keeps the old group's read bit, never a write bit, never the world's
+    const made = await createWith(temp, bytes, SECRET_MODE, label, existing && replace ? existing : null, existing ? existing.mode & 0o040 : 0);
     try {
         if (replace) {
             await renameOver(temp, target, label);
@@ -440,19 +442,21 @@ async function lost(target, label, keep, usable, kind) {
 }
 
 /**
- * Replaces a file (a configuration) with `bytes` atomically: a temporary file next to it with `mode`,
- * synced, renamed over it.
+ * Replaces a file (a configuration) with `bytes` atomically: a temporary file next to it, synced,
+ * renamed over it. It gets the old file's owner and group where this process may; its group's and
+ * the world's bits of `mode` only with the old group, else the owner's alone.
  * @param {string} path
  * @param {string} bytes
- * @param {number} mode
+ * @param {number} mode  the old file's
  * @param {string} [label]
+ * @returns {Promise<string[]>}  what it could not keep of the old file's owner, group or mode
  */
 export async function replaceFile(path, bytes, mode, label = path) {
     const { dir, target } = await targetOf(resolve(path), label);
     const existing = await existingFile(target, label);
     const temp = join(dir, tempName(basename(target)));
-    await cleaningUp(temp, async () => {
-        await createWith(temp, bytes, mode, label, existing);
+    return cleaningUp(temp, async () => {
+        const made = await createWith(temp, bytes, mode & 0o700, label, existing, mode & 0o077);
         try {
             await renameOver(temp, target, label);
             await syncDir(dir);
@@ -460,14 +464,16 @@ export async function replaceFile(path, bytes, mode, label = path) {
             await unlink(temp).catch(() => undefined);
             throw writeRefusal(e, label);
         }
+        return existing && made ? keptWarnings(label, existing, made) : [];
     });
 }
 
 /**
  * A copy of a file's old content beside it that nothing replaces: `<path>.bak-<UTC time>` (such as
  * `pivotkit.json.bak-20261116T093000Z`), with `-2`, `-3` ... for another one in the same second.
+ * Readable by this user only: it is this user's file, whoever owned the old one.
  * @param {string} path
- * @param {string} bytes
+ * @param {Uint8Array} bytes  the old file's bytes as they were
  * @param {number} mode
  * @returns {Promise<string>}  the backup's path
  */
@@ -476,7 +482,7 @@ export async function writeBackup(path, bytes, mode) {
     for (let n = 1; n <= 100; n++) {
         const name = `${path}.bak-${stamp}${n > 1 ? `-${n}` : ""}`;
         try {
-            await createWith(name, bytes, mode, name);
+            await createWith(name, bytes, mode & 0o700, name);
             return name;
         } catch (e) {
             if (e?.code !== "EEXIST") {

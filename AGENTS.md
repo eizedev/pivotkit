@@ -314,7 +314,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   `key new`, loaded by the runner only for them: a value on stdout or into a file, `--add` into
   `auth.tokens` checked by `validateOptions` with a backup, `--json` as pivotkit-cli's;
   `configuredToken`, the one lookup of `token show`; `--add` with `--if-missing` done when the same
-  entry is there, the configuration's size and time checked again right before it is replaced; `MAKE_TOKEN` and `makeKey` in auth.js are the
+  entry is there, the configuration's content read again right before it is replaced (a best effort, no lock); `MAKE_TOKEN` and `makeKey` in auth.js are the
   commands the messages name), `src/secret-rules.js` (`tokenProblem`, `keyProblem`: whether a value
   is one the server can use, by auth.js's, downloads.js's and log.js's rules), `src/secret-file.js`
   (`placeSecret`: a secret into a file with mode 0600 through a temporary file and link(), never

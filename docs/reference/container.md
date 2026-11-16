@@ -88,7 +88,7 @@ container's environment. The image makes the values, so you need no other tool:
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/secrets:/out" ghcr.io/eizedev/pivotkit:<version> token new --file /out/pivotkit_token
 ```
 
-In PowerShell, mount `"${PWD}/secrets:/out"` and leave `--user` out.
+In PowerShell, mount `"${PWD}/secrets:/out"` and leave `--user` out. The image then writes as its user 10001. Whether it may write the folder depends on Docker Desktop's file sharing: check afterwards that the file is there and that you can read it.
 
 (With Node, `npx -y pivotkit-server token new --file secrets/pivotkit_token`.) `token new --file`
 writes mode 0600 for your own user ([tokens and keys](rest.md#credentials)); output saved with `>`

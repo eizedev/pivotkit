@@ -742,13 +742,19 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
   you.
 - With `--if-missing`, an entry with the same name, file, scopes and profile counts as done: the
   run exits 0 and writes nothing.
-- It keeps the old configuration as `<file>.bak-<UTC time>`, one per run. Remove old backups when you
+- It keeps the old configuration byte for byte as `<file>.bak-<UTC time>`, one per run, readable by
+  you only. Remove old backups when you
   no longer need them.
 - It writes the configuration again as pretty-printed JSON. The indentation and the file's mode
   stay; a compact one-line object is spread over lines.
 - It reads the configuration, writes the secret's file, then replaces the configuration. Right
   before the replace it reads the configuration again. If someone changed it in between, it does
-  not replace it and says so; run it again with `--if-missing`.
+  not replace it and says so; run it again with `--if-missing`. This is a best effort, not a lock:
+  an edit saved in the moment between that last read and the rename is lost. Do not run `--add`
+  while someone edits the file.
+- The new configuration keeps the old one's owner and group where it may, as `--force` does. Where
+  it cannot (you are not root and not in its group), it is yours and readable by you only, and a
+  warning says so: check that the server's user can still read it.
 - It refuses a configuration that is a symbolic link (a mounted ConfigMap) or in a folder it
   cannot write.
 - Restart the server afterwards: it reads the list of tokens and the audit key at start.

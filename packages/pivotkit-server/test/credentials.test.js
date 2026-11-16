@@ -642,23 +642,35 @@ test("--force over another user's file: the group kept by chown(-1, gid), only i
     const file = join(dir, "theirs.token");
     writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
     chmodSync(file, 0o660);
-    const gid = statSync(file).gid;
+    const me = process.getuid?.() ?? 0;
+    // the old file's owner and group, neither this user's nor its default group
+    const old = { uid: me + 4242, gid: statSync(file).gid + 4242 };
     const calls = [];
-    const { chown } = secretFileMeans;
+    let groupSet = null;
+    const { chown, stat } = secretFileMeans;
     try {
-        // not root: changing the owner is refused, keeping the owner (-1) and setting a group of one's own is not
+        // not root: changing the owner is refused; keeping the owner (-1) and setting a group this user is in works
         secretFileMeans.chown = async (handle, uid, group) => {
             calls.push([uid, group]);
-            return uid === -1 ? handle.chown(-1, group) : Promise.reject(Object.assign(new Error("not permitted"), { code: "EPERM" }));
+            if (uid !== -1) {
+                throw Object.assign(new Error("not permitted"), { code: "EPERM" });
+            }
+            groupSet = group;
         };
-        const placed = await withOldOwner(secretFileMeans, file, { uid: (process.getuid?.() ?? 0) + 4242 }, () => placeSecret(file, "a-new-token-that-is-long-enough-01234567890", { replace: true, label: "theirs.token" }));
-        assert.deepEqual(calls, [[(process.getuid?.() ?? 0) + 4242, gid], [-1, gid]], "the owner tried, then the group alone");
-        assert.equal(statSync(file).gid, gid);
+        // what the new file reports after that chown: the group it was given
+        secretFileMeans.stat = async (handle) => {
+            const info = await handle.stat();
+            return groupSet === null ? info : Object.assign(Object.create(Object.getPrototypeOf(info)), info, { gid: groupSet });
+        };
+        const placed = await withOldOwner(secretFileMeans, file, old, () => placeSecret(file, "a-new-token-that-is-long-enough-01234567890", { replace: true, label: "theirs.token" }));
+        assert.deepEqual(calls, [[old.uid, old.gid], [-1, old.gid]], "the owner tried, then the group alone with -1");
+        assert.equal(groupSet, old.gid, "the old group asked for");
         assert.equal(statSync(file).mode & 0o777, 0o640, "the group's read bit, never its write bit");
-        assert.ok(placed.warnings.some((w) => /theirs\.token: owner or group not kept/.test(w)), placed.warnings.join("\n"));
+        assert.ok(placed.warnings.some((w) => w.includes(`theirs.token: owner or group not kept (now ${me}:${old.gid}, was ${old.uid}:${old.gid})`)), placed.warnings.join("\n"));
         assert.ok(placed.warnings.some((w) => /mode 640, was 660/.test(w)), placed.warnings.join("\n"));
     } finally {
         secretFileMeans.chown = chown;
+        secretFileMeans.stat = stat;
     }
 });
 
@@ -812,4 +824,50 @@ test("a flag without its value names that flag, without a 'did you mean' of itse
     assert.equal(r.status, 2);
     assert.match(r.stderr, /--file/);
     assert.doesNotMatch(r.stderr, /did you mean/);
+});
+
+test("--add over a configuration of another user and group: a warning, and no group or world bits for this user's group", { skip: !POSIX && "owners and modes are POSIX" }, async () => {
+    const { credentialsCommand } = await import("../src/credentials.js");
+    const { secretFileMeans } = await import("../src/secret-file.js");
+    const dir = workspace();
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } } }, null, 2));
+    chmodSync(config, 0o644);
+    const { chown } = secretFileMeans;
+    let err = "";
+    try {
+        secretFileMeans.chown = async () => Promise.reject(Object.assign(new Error("not permitted"), { code: "EPERM" }));
+        const code = await withOldOwner(secretFileMeans, config, { uid: (process.getuid?.() ?? 0) + 4242, gid: statSync(config).gid + 4242 }, () =>
+            credentialsCommand("token", ["new", "--file", "a.token", "--config", "pivotkit.json", "--add"], { env: {}, cwd: dir, stdout: { write() {} }, stderr: { write: (t) => (err += t) } })
+        );
+        assert.equal(code, 0, err);
+    } finally {
+        secretFileMeans.chown = chown;
+    }
+    assert.match(err, /warning: pivotkit\.json: owner or group not kept/);
+    assert.match(err, /pivotkit\.json: read access narrowed \(mode 600, was 644\)/);
+    assert.equal(statSync(config).mode & 0o777, 0o600);
+    assert.equal(JSON.parse(readFileSync(config, "utf8")).auth.tokens[0].name, "a");
+});
+
+test("--add keeps the configuration's bytes as they were in the backup", () => {
+    const dir = workspace();
+    const config = join(dir, "pivotkit.json");
+    // a byte that is no UTF-8 inside a title: JSON.parse reads it as U+FFFD, the backup must not
+    const original = Buffer.concat([Buffer.from('{ "sources": { "sales": { "file": "data/sales.csv", "title": "Sales '), Buffer.from([0xff]), Buffer.from('" } } }\n')]);
+    writeFileSync(config, original);
+    const r = run(["token", "new", "--file", join(dir, "a.token"), "--config", config, "--add"]);
+    assert.equal(r.status, 0, r.stderr);
+    const backup = readdirSync(dir).find((n) => n.startsWith("pivotkit.json.bak-"));
+    assert.ok(backup);
+    assert.ok(readFileSync(join(dir, /** @type {string} */ (backup))).equals(original), "byte for byte");
+});
+
+test("a flag at the end without its value: named, no suggestion", () => {
+    for (const args of [["token", "new", "--file"], ["key", "new", "--for"], ["token", "show", "--config"]]) {
+        const r = run(args);
+        assert.equal(r.status, 2, args.join(" "));
+        assert.match(r.stderr, new RegExp(`'${args.at(-1)} <value>' argument missing`));
+        assert.doesNotMatch(r.stderr, /did you mean/, args.join(" "));
+    }
 });
