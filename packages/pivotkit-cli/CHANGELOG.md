@@ -6,6 +6,10 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Changed
+
+- The example views (`pivotkit example`) name the chart's `tooltip` setting, `"auto"`.
+
 ## [0.3.0] - 2026-11-16
 
 ### Upgrading from 0.2

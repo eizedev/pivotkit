@@ -228,6 +228,7 @@ export function autoChartType(view, data) {
 /**
  * A plain ECharts option for the view's chart, themed by the host. The view's display settings
  * (chart.valueLabels, legend, title, smooth) are part of it, so an image of the chart shows them.
+ * What the tooltip lists (chart.tooltip) is up to the UI's formatter (pivotkit-react's).
  * @param {import("./pivot.js").PivotResult} result
  * @param {object} [options]
  * @param {Partial<import("./view.js").ChartSpec>} [options.chart]  overrides the view's chart settings
@@ -377,7 +378,11 @@ export function toEChartsOption(result, options) {
         ...base,
         ...title,
         ...legendPart,
+        // the tooltip covers the category under the pointer; a UI's formatter narrows it to the element
+        // under the pointer (chart.tooltip). The category lights up no bar: only the one under the
+        // pointer does (decorateOption: a bar's focus is "self")
         tooltip: { trigger: "axis", valueFormatter },
+        ...(type === "bar" ? { axisPointer: { triggerEmphasis: false } } : {}),
         // room for the title and the legend; ECharts keeps its own defaults for the label margins
         grid: { top: 16 + titleRoom + room.top, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
         xAxis: chart.horizontal ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,

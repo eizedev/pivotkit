@@ -53,6 +53,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const lib = useRef(/** @type {any} */ (null));
     // the chartOptions whose problems were said: once per value, not on every redraw
     const warned = useRef(/** @type {unknown} */ (undefined));
+    // the bar, segment or line point under the pointer: the tooltip names it (chart-tooltip.js)
+    const hover = useRef(/** @type {{ seriesIndex: number, dataIndex: number } | null} */ (null));
     useEffect(() => {
         latest.current = { series, onPoint, onInstance, type };
     });
@@ -81,6 +83,32 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                     if (seriesEntry && s.categoryPaths[row]) {
                         cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value: kind === "heatmap" ? p.value[2] : p.value });
                     }
+                });
+                // ECharts draws the tooltip before it reports the element under the pointer: the
+                // element is kept, and the tooltip drawn again at the pointer. hideTip first: at the
+                // same category ECharts keeps what it drew and would not call the formatter again.
+                // An area's fill and a line between its points have no dataIndex: no element.
+                const redraw = (/** @type {any} */ e) => {
+                    const at = e?.event;
+                    if (at && typeof at.offsetX === "number") {
+                        instance.dispatchAction({ type: "hideTip" });
+                        instance.dispatchAction({ type: "showTip", x: at.offsetX, y: at.offsetY });
+                    }
+                };
+                instance.on("mouseover", (/** @type {any} */ e) => {
+                    if (e.componentType === "series" && (e.seriesType === "bar" || e.seriesType === "line") && typeof e.dataIndex === "number") {
+                        hover.current = { seriesIndex: e.seriesIndex, dataIndex: e.dataIndex };
+                        redraw(e);
+                    }
+                });
+                instance.on("mouseout", (/** @type {any} */ e) => {
+                    if (hover.current) {
+                        hover.current = null;
+                        redraw(e);
+                    }
+                });
+                instance.on("globalout", () => {
+                    hover.current = null;
                 });
                 ro =
                     typeof ResizeObserver === "function"
@@ -112,7 +140,10 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         const style = lib.current.chartStyle(root.current);
         // the series of the summary and the hints, not computed a second time
         const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}) });
-        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels });
+        // a new option draws new marks: the element under the pointer is reported again when it moves
+        hover.current = null;
+        const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal };
+        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip });
         setEvery(axisEvery);
         // the host's chartOptions win over the view's display settings and the report's own styles:
         // plain JSON only; what is dropped is a developer's mistake, said in the console

@@ -16,12 +16,19 @@ import { tooltipFormatter } from "./chart-tooltip.js";
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string }} [extra]  the categories' whole names (the
- *   tooltip's title when the axis writes them shorter) and the view's chart.axisLabels
+ * @param {{ categoryNames?: string[], axisLabels?: string, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string } }} [extra]
+ *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
+ *   chart.axisLabels; tooltip: the view's chart.tooltip, the chart's hover state (chart.jsx writes the
+ *   element under the pointer into `current`, the formatter reads it) and the name of a stack's total
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
 export function decorate(option, style, height = 480, doc = undefined, width = 800, extra = {}) {
-    return decorateOption(option, style, { height, width, ...extra, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, context) : undefined });
+    const { tooltip = {}, ...rest } = extra;
+    // each series' type and stack, by index: the tooltip's totals and the gap between stacked bars
+    const series = (option.series || []).map((/** @type {any} */ s) => ({ type: s.type, stack: s.stack }));
+    const hover = tooltip.hover;
+    const options = { series, mode: tooltip.mode, totalLabel: tooltip.totalLabel, hoverOf: () => hover?.current ?? null };
+    return decorateOption(option, style, { height, width, ...rest, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
 }
 
 /**

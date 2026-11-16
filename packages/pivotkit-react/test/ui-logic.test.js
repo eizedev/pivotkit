@@ -284,10 +284,11 @@ test("a limit of the core is a message in words with what to change, any other e
 
 test("chart tooltips: a title and a line per series or slice, values in the core's format", () => {
     const fmt = (v) => (typeof v === "number" ? `${v.toFixed(1)} u` : "");
-    // trigger "axis" (bar, line, area): the category, then each series
+    // trigger "axis" (bar, line, area): the category, then each series with a value there (#376: a
+    // series without one is left out, no empty line)
     assert.deepEqual(
-        tooltipContent([{ axisValueLabel: "North", name: "North", seriesName: "2025", value: 3, color: "#123456" }, { name: "North", seriesName: "2026", value: null, color: { type: "linear" } }], { valueFormatter: fmt }),
-        { title: "North", lines: [{ color: "#123456", name: "2025", value: "3.0 u" }, { color: null, name: "2026", value: "" }] }
+        tooltipContent([{ axisValueLabel: "North", name: "North", seriesName: "2025", value: 3, color: "#123456" }, { name: "North", seriesName: "2026", value: 4, color: { type: "linear" } }, { name: "North", seriesName: "2027", value: null, color: "#654321" }], { valueFormatter: fmt }),
+        { title: "North", lines: [{ color: "#123456", name: "2025", value: "3.0 u" }, { color: null, name: "2026", value: "4.0 u" }] }
     );
     // pie: the value's name, then the slice
     assert.deepEqual(tooltipContent({ seriesType: "pie", seriesName: "Sum of Units", name: "<b>x</b>", value: 2, color: "#abc" }, { valueFormatter: fmt }), {
@@ -312,6 +313,62 @@ test("chart tooltips are nodes with texts and CSSOM styles, never markup", () =>
     assert.equal(name.textContent, "<script>");
     assert.equal(value.textContent, "1");
     assert.equal(JSON.stringify(box).includes("innerHTML"), false);
+});
+
+test("chart tooltips follow the pointer: the element alone, a stack's total, every series between elements (#376)", () => {
+    const fmt = (v) => `${v} u`;
+    const names = ["Software", "Hardware", "Services"];
+    // the axis items ECharts hands the formatter at one category: one per series, null where it has no value
+    const at = (dataIndex, values) => values.map((value, i) => ({ seriesIndex: i, dataIndex, axisValueLabel: "East", name: "East", seriesName: names[i], value, color: `#00000${i}` }));
+    const stack = (type) => names.map(() => ({ type, stack: "total" }));
+    const own = (type) => names.map(() => ({ type }));
+    const line = (i, value) => ({ color: `#00000${i}`, name: names[i], value: `${value} u` });
+    const total = (value) => ({ name: "Total", value: `${value} u` });
+    const north = at(0, [30, 20, 10]);
+    const east = at(2, [40, null, 12]);
+    const content = (params, options) => tooltipContent(params, { valueFormatter: fmt, totalLabel: "Total", ...options });
+
+    // stacked bars: a segment shows its series and the stack's total
+    assert.deepEqual(content(north, { series: stack("bar"), hover: { seriesIndex: 1, dataIndex: 0 } }), { title: "East", lines: [line(1, 20)], total: total(60) });
+    // the gap between stacked bars: the total only; so does an element of another category
+    assert.deepEqual(content(north, { series: stack("bar"), hover: null }), { title: "East", lines: [], total: total(60) });
+    assert.deepEqual(content(north, { series: stack("bar"), hover: { seriesIndex: 1, dataIndex: 2 } }), { title: "East", lines: [], total: total(60) });
+    // grouped bars: a bar alone, no total; between bars every series with a value
+    assert.deepEqual(content(east, { series: own("bar"), hover: { seriesIndex: 2, dataIndex: 2 } }), { title: "East", lines: [line(2, 12)] });
+    assert.deepEqual(content(east, { series: own("bar"), hover: null }), { title: "East", lines: [line(0, 40), line(2, 12)] });
+    // lines: a point alone; the line between points every series, the one without a value left out
+    assert.deepEqual(content(east, { series: own("line"), hover: { seriesIndex: 0, dataIndex: 2 } }), { title: "East", lines: [line(0, 40)] });
+    assert.deepEqual(content(east, { series: own("line") }), { title: "East", lines: [line(0, 40), line(2, 12)] });
+    // stacked area: the fill every series and the total; a point that point and the total
+    assert.deepEqual(content(east, { series: stack("line") }), { title: "East", lines: [line(0, 40), line(2, 12)], total: total(52) });
+    assert.deepEqual(content(east, { series: stack("line"), hover: { seriesIndex: 2, dataIndex: 2 } }), { title: "East", lines: [line(2, 12)], total: total(52) });
+
+    // "axis" (every series): all of them wherever the pointer is, the hovered one marked, and the total
+    assert.deepEqual(content(north, { mode: "axis", series: stack("bar"), hover: { seriesIndex: 0, dataIndex: 0 } }), { title: "East", lines: [{ ...line(0, 30), hovered: true }, line(1, 20), line(2, 10)], total: total(60) });
+    assert.deepEqual(content(north, { mode: "axis", series: own("bar") }), { title: "East", lines: [line(0, 30), line(1, 20), line(2, 10)] });
+    // a legend that hides a series: ECharts leaves it out of the items, so the total is what is drawn
+    assert.deepEqual(content(north.slice(1), { series: stack("bar") }), { title: "East", lines: [], total: total(30) });
+});
+
+test("the tooltip's total row and the hovered line: weights and the rule from the tokens, set through the CSSOM", () => {
+    const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
+    const doc = /** @type {any} */ ({ createElement: () => node() });
+    const params = [
+        { seriesIndex: 0, dataIndex: 0, axisValueLabel: "North", seriesName: "Software", value: 30, color: "#111111" },
+        { seriesIndex: 1, dataIndex: 0, axisValueLabel: "North", seriesName: "Hardware", value: 20, color: "#222222" }
+    ];
+    const series = [{ type: "bar", stack: "total" }, { type: "bar", stack: "total" }];
+    const box = /** @type {any} */ (tooltipFormatter(doc, { mode: "axis", series, hover: { seriesIndex: 1, dataIndex: 0 }, totalLabel: "Total" })(params));
+    const [head, software, hardware, sum] = box.children;
+    assert.deepEqual([head.textContent, box.children.length], ["North", 4]);
+    assert.equal(software.children[1].style.fontWeight, undefined);
+    assert.equal(hardware.children[1].style.fontWeight, "var(--pk-weight-strong)");
+    assert.deepEqual([sum.children[1].textContent, sum.children[2].textContent], ["Total", "50"]);
+    assert.equal(sum.style.borderTop, "1px solid var(--pk-border)");
+    assert.equal(sum.style.fontWeight, "var(--pk-weight-strong)");
+    assert.equal(sum.style.fontSize, "var(--pk-chart-text-size)");
+    // the total's marker keeps the column but shows no colour
+    assert.equal(sum.children[0].style.backgroundColor, undefined);
 });
 
 test("heatmap column names: straight when they fit, slanted and cut when they would overlap", () => {

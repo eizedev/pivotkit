@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- The chart's tooltip names the element under the pointer, with a stack's total. Display →
+  **Tooltip**, **All series** lists every series at the category
+  ([#376](https://github.com/eizedev/pivotkit/issues/376), [#106](https://github.com/eizedev/pivotkit/issues/106)).
+
 ## [0.7.0] - 2026-11-16
 
 ### Upgrading from 0.6

@@ -30,6 +30,7 @@ export const en = {
         drillCopy: "The rows as the panel shows them, with a header row: tab-separated, pastes into Excel or Google Sheets as columns.",
         drillJson: "The rows as JSON objects, with the data's field names and raw values, for a program.",
         groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
+        tooltip: "Automatic: the bar, segment or point under the pointer, with its stack's total. Between them, every series there. All series: every series at the pointer's category.",
         labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend; outside when a donut's ring is too thin for it.",
         sharedView: "Only admins can change shared views.",
         valuesFilter: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters."
@@ -377,6 +378,8 @@ export const en = {
     axisLabelNames: { auto: "Automatic", all: "All (slanted)", nth: "Every n-th" },
     groupLabels: "Group labels under the axis",
     groupLabelNames: { auto: "Automatic", on: "On", off: "Off" },
+    tooltip: "Tooltip",
+    tooltipNames: { auto: "Automatic", axis: "All series" },
     defaultName: "Use the default name",
     // sharing a view (the Views menu): the group's title
     shareThisView: "Share this view",

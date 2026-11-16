@@ -6,6 +6,19 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `chart.tooltip` in the view: what the tooltip of bars, lines and areas covers. `"auto"`, the
+  default, is the element under the pointer. `"axis"` is every series at the pointer's category.
+  `CATALOG.chartTooltips` lists both ([#106](https://github.com/eizedev/pivotkit/issues/106)).
+
+### Changed
+
+- A bar lights up alone under the pointer: `decorateOption` sets `emphasis.focus: "self"` on bars,
+  and `toEChartsOption` sets `axisPointer.triggerEmphasis: false` for them. The category under the
+  pointer no longer lights up every bar. Lines keep `focus: "series"`
+  ([#376](https://github.com/eizedev/pivotkit/issues/376)).
+
 ## [0.7.0] - 2026-11-16
 
 ### Added

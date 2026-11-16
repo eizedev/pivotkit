@@ -6,6 +6,24 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- Display → **Tooltip** in the chart type menu, for bars, lines and areas: **Automatic** or **All
+  series** (`chart.tooltip`, [#106](https://github.com/eizedev/pivotkit/issues/106)). All series lists
+  every series at the pointer's category, the hovered one in the strong weight.
+- `labels.chartTotal`, the tooltip's "Total" line (German "Gesamt").
+
+### Changed
+
+- The chart's tooltip names the element under the pointer
+  ([#376](https://github.com/eizedev/pivotkit/issues/376)):
+  - A bar or a line point shows that series alone.
+  - A segment of stacked bars, or a point of a stacked area, adds the stack's total.
+  - Between the elements it lists every series at the category. Between stacked bars it shows the
+    total only.
+  - A series without a value at the category is left out, not shown as an empty line.
+  - Pie, donut and heatmap keep the tooltip of the slice or cell.
+
 ## [0.7.0] - 2026-11-16
 
 ### Upgrading from 0.6

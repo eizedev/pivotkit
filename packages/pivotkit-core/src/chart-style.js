@@ -61,11 +61,12 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         extraCssText: `box-shadow: ${v("--pk-shadow") || "none"}; border-radius: ${v("--pk-radius-card") || `${DEFAULT_THEME.cardRadius}px`};`,
         ...(tooltipFormatter ? { formatter: tooltipFormatter({ valueFormatter: option.tooltip?.valueFormatter, xNames: first(option.xAxis)?.data, yNames: first(option.yAxis)?.data, categoryNames: extra.categoryNames }) } : {})
     };
+    // a bar lights up alone, as the tooltip names it alone; a line lights up as a whole
     const series = (option.series || []).map((s) => {
         if (s.type === "bar") {
             const horizontal = first(option.yAxis)?.type === "category";
             const corners = horizontal ? [0, r, r, 0] : [r, r, 0, 0];
-            return { ...s, barMaxWidth: 48, itemStyle: { borderRadius: s.stack ? 0 : corners, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "series" } };
+            return { ...s, barMaxWidth: 48, itemStyle: { borderRadius: s.stack ? 0 : corners, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "self" } };
         }
         if (s.type === "line") {
             return { ...s, lineStyle: { width: 2 }, symbolSize: 7, smooth: Boolean(s.smooth), areaStyle: s.areaStyle ? { opacity: 0.18 } : undefined, emphasis: { focus: "series" } };

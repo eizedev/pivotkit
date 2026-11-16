@@ -52,7 +52,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `onTipDismiss` | `({ id, dismissed }) => void` |  | Every change of the dismissed tips, with the whole list to store and pass back as `dismissedTips`. [More](#prop-ontipdismiss) |
 | `fieldInfo` | `"on"` or `"off"` |  | The "i" of the field descriptions (field list, chips; the tooltip of the table headers): `"on"` or `"off"` decides it, whatever the user's switch says. [More](#prop-fieldinfo) |
 | `zoneInfo` | `"on"` or `"off"` |  | The "i" next to each zone's title that says what the zone does, with an example: as `fieldInfo`. |
-| `settingInfo` | `"on"` or `"off"` |  | The "i" next to the settings that need explaining (the totals, Show as, Along, the export formats, the chart's Labels and Group labels): as `fieldInfo`. [More](#prop-settinginfo) |
+| `settingInfo` | `"on"` or `"off"` |  | The "i" next to the settings that need explaining (the totals, Show as, Along, the export formats, the chart's Labels, Group labels and Tooltip): as `fieldInfo`. [More](#prop-settinginfo) |
 | `source` | `{ id, name? }` |  | The data the report shows: its `id` and `name` go into the [view files](view-file.md) and links it shares, and a view made for another `id` asks before it is loaded. [More](#prop-source) |
 | `schemaUrl` | `string` or `null` |  | The `$schema` of the [view files](view-file.md) the report writes: by default `https://pivotkit.eize.dev/schema/view-file-2.json`, a host's own copy of the schema (it ships as `pivotkit-core/schema/view-file-2.json`), or `null` / `""` to leave it out. [More](#prop-schemaurl) |
 | `sources` | `{ id, name? }[]` |  | The other data the host can show: a view made for one of them offers "Switch to “name” and load" (with `onSourceSwitch`). |
