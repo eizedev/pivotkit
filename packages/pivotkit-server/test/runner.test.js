@@ -247,7 +247,7 @@ test("close() lets a running report finish before the server stops", async () =>
     assert.equal(res.data.valid, true);
 });
 
-test("/readyz says 503 when the output directory is not writable", { skip: process.getuid?.() === 0 ? "root writes anywhere" : false }, async () => {
+test("/readyz says 503 when the output directory is not writable", { skip: process.getuid?.() === 0 ? "root writes anywhere" : process.platform === "win32" ? "POSIX modes" : false }, async () => {
     const dir = workspace();
     const server = await serve({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, http: { port: 0, enable: ["rest"] }, baseDir: dir, log: "off" }, { env: {}, stderr: { write() {} } });
     try {

@@ -64,11 +64,21 @@ jobs:
         if: matrix.node == '24'
         run: npm run size -w pivotkit-xlsx
 
-  windows:
-    # pivotkit-cli's file handling on Windows: drive letters, junctions (reparse points), no
-    # O_NOFOLLOW; and pivotkit-server's secret files. Those tests only; the other jobs run on Linux
-    runs-on: windows-latest
-    timeout-minutes: 15
+  platforms:
+    # pivotkit-cli and pivotkit-server on Windows and macOS; the other jobs run on Linux. Windows:
+    # drive letters, junctions (reparse points), no O_NOFOLLOW, no POSIX modes. macOS: its own file
+    # system and signals. The server's tests cover the workers, the output directory, download
+    # markers (hard links), listen, the state directory, sign-in and the secret files; the tests of
+    # POSIX modes, owners and FIFOs skip themselves on Windows
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows, os: windows-latest }
+          - { name: macos, os: macos-latest }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -82,10 +92,8 @@ jobs:
         run: npm run build
       - name: pivotkit-cli tests
         run: npm test -w pivotkit-cli
-      - name: pivotkit-server's credential commands
-        # token new, token show and key new write secret files: no replacing, --json, UTF-8 with LF,
-        # several runs at once, a round trip through the server (mode bits and links are POSIX only)
-        run: node scripts/test-run.js node --test packages/pivotkit-server/test/credentials.test.js
+      - name: pivotkit-server tests
+        run: npm test -w pivotkit-server
 
   angular:
     # The Angular example (examples/angular): a standalone component with <pivot-report>, built by

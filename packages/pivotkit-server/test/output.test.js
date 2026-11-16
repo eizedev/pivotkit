@@ -181,7 +181,7 @@ test("an output directory on a read-only file system (a container's --read-only 
     assert.match(outputErrorOf(Object.assign(new Error("x"), { code: "EACCES" })).message, /not writable by the server's user/);
 });
 
-test("an output directory the server cannot write: a warning at start, 409 NO_OUTPUT with a hint, a problem in check-config", { skip: process.getuid?.() === 0 ? "root writes anywhere" : false }, async () => {
+test("an output directory the server cannot write: a warning at start, 409 NO_OUTPUT with a hint, a problem in check-config", { skip: process.getuid?.() === 0 ? "root writes anywhere" : process.platform === "win32" ? "POSIX modes" : false }, async () => {
     const dir = workspace();
     const out = join(dir, "out");
     chmodSync(out, 0o555);
