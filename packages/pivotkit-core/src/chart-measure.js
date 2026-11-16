@@ -5,7 +5,7 @@
  * chart-fit.js and chart-style.js use them; "pivotkit-core/chart" does not export this module.
  */
 
-import { CHART_GRID, DEFAULT_THEME } from "./defaults.js";
+import { DEFAULT_THEME, GRID_TOP, HEATMAP_GRID_BOTTOM } from "./defaults.js";
 
 /** Width of a character as a share of the font size, estimated: most letters, digits and signs. */
 const CHAR_WIDTH = 0.55;
@@ -86,7 +86,7 @@ export function columnsSlanted(names, width, fontSize) {
  * @param {{ top?: number, bottom?: number, names?: unknown[], width?: number, fontSize?: number }} [chart]
  * @returns {{ x: number, y: number }}
  */
-export function heatmapFrame({ top = CHART_GRID.top, bottom = CHART_GRID.heatmapBottom, names = [], width = 800, fontSize = DEFAULT_THEME.textSize } = {}) {
+export function heatmapFrame({ top = GRID_TOP, bottom = HEATMAP_GRID_BOTTOM, names = [], width = 800, fontSize = DEFAULT_THEME.textSize } = {}) {
     const columnNames = columnsSlanted(names, width, fontSize) ? (Math.min(SLANTED_LABEL_WIDTH, longestWidth(names, fontSize)) + fontSize) * SLANT : fontSize;
     return { x: HEATMAP_FRAME_X, y: Math.round(top + bottom + AXIS_LABEL_MARGIN + columnNames) };
 }

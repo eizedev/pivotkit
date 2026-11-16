@@ -30,11 +30,13 @@ export const DEFAULT_THEME = Object.freeze({
 });
 
 /**
- * The margins (px) of a chart's grid that pivotkit-core sets: `top` above the plot (before the title's
- * and the legend's room), `heatmapBottom` below a heatmap's cells for its colour scale. Internal:
- * toEChartsOption and the label layout (chart-measure.js) share them.
+ * The margins (px) of a chart's grid that pivotkit-core sets: above the plot (before the title's and
+ * the legend's room), and below a heatmap's cells for its colour scale. Internal: toEChartsOption and
+ * the label layout (chart-measure.js) share them. Plain numbers, so a bundler writes them in place and
+ * a report's first load does not grow.
  */
-export const CHART_GRID = Object.freeze({ top: 16, heatmapBottom: 64 });
+export const GRID_TOP = 16;
+export const HEATMAP_GRID_BOTTOM = 64;
 
 /**
  * A theme's size from a token, as a number of px: "16px" or "16" (a token resolved by the report, or a

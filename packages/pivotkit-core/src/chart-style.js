@@ -6,7 +6,7 @@
  * chart needs it, so a report's first load does not.
  */
 
-import { CHART_GRID, DEFAULT_THEME, pxOf } from "./defaults.js";
+import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 import { barExtent, pieLabelFit, pieLabelTexts, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
 import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame } from "./chart-measure.js";
@@ -106,7 +106,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         return s;
     });
     const legend = option.legend ? { ...option.legend, icon: "roundRect", itemWidth: 12, itemHeight: 12, textStyle: { ...option.legend.textStyle, color: v("--pk-text") || undefined } } : undefined;
-    const grid = option.grid ? { left: 12, right: 24, bottom: option.visualMap ? CHART_GRID.heatmapBottom : 12, containLabel: true, ...option.grid } : undefined;
+    const grid = option.grid ? { left: 12, right: 24, bottom: option.visualMap ? HEATMAP_GRID_BOTTOM : 12, containLabel: true, ...option.grid } : undefined;
     // the values past the end of horizontal bars keep their room on the right (valueLabelRoom)
     if (grid) grid.right += valueLabelRoom(series, fontSize);
     // a heatmap names every column: slanted where they would overlap (columnLabelLayout)
