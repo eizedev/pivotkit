@@ -476,9 +476,9 @@ token that may render can push other callers' older reports out. A link to such 
 
 Schedule drafts are never deleted this way. They may take at most half of `output.maxFiles` (none at
 1). A draft over that answers 409 `NO_OUTPUT`, while reports keep working. `output.maxAgeDays` does
-not delete a draft that waits for approval either. So give `draft_schedule` a scope of its own too, and remove the drafts
-nobody approved. A file you name with
-`.pivotkit-out.` yourself counts as pivotkit's and may be deleted.
+not delete a draft that waits for approval either. So give `draft_schedule` a scope of its own too,
+and remove the drafts nobody approved. A file you name with `.pivotkit-out.` yourself counts as
+pivotkit's and may be deleted.
 
 A quota per caller was the other choice. It was not taken because a caller is no stable owner: with
 auth `none` every caller is the same, and files written before a restart have none. The directory
@@ -751,7 +751,9 @@ and `--list-files`, plus `--enable rest,mcp`. `--enable` sets `http.enable`, wha
 default is REST, and MCP when pivotkit-mcp is installed.
 
 - The configuration file is `--config` or `$PIVOTKIT_CONFIG`.
-- The one static token without `auth.tokens` is `$PIVOTKIT_TOKEN`.
+- The one static token without `auth.tokens` is `$PIVOTKIT_TOKEN`. Set while auth is `none`, it gets
+  a warning at start and in `check-config`, over HTTP only: "PIVOTKIT_TOKEN is set but auth is none;
+  use --auth token (or auth.mode token)". A written `auth.mode: "none"` gives no warning.
 - `$PIVOTKIT_PORT` sets the port when neither the flag nor the file does.
 - An unknown flag is a usage error (exit 2) that points to `--help`.
 
@@ -1080,7 +1082,9 @@ A configured source may be an operator's backend, an [HTTP source](sources.md#ht
 
 More about the handler:
 
-- The one static token without `auth.tokens` is `$PIVOTKIT_TOKEN`.
+- The one static token without `auth.tokens` is `$PIVOTKIT_TOKEN`. Set while auth is `none`, it gets
+  a warning at start and in `check-config`, over HTTP only: "PIVOTKIT_TOKEN is set but auth is none;
+  use --auth token (or auth.mode token)". A written `auth.mode: "none"` gives no warning.
   `createContext(options, { tokenEnv })` names another. Tokens are read from `env` of
   `createRestHandler`.
 - `loopback` says whether the server listens on loopback only. It decides whether `auth: none` is

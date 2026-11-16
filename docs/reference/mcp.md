@@ -7,7 +7,7 @@ description: The pivotkit MCP server - tools for an AI client to describe data s
 
 `pivotkit-mcp` is an [MCP](https://modelcontextprotocol.io) server. An AI client (Claude Code,
 Claude Desktop, VS Code and others) uses it to build pivot reports over data the operator names.
-Through the server, the model reads only what the policy shows, not the data itself. A client with
+Through the server, the model sees the fields and, at the levels you set, their values. A client with
 file tools can [reach more](../model-data.md#beyond-policy). The model works like this:
 
 - It sees what the operator allows of each source. By default, that is names, types and counts.
@@ -370,6 +370,14 @@ one probably meant.
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print whether the server would start and what it would expose, then exit. It shows the sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output and auth. Exit 1 when it finds a problem ([reading it](rest.md#check-config)). A policy rule that names no column of the data is a warning (exit 0) |
 
+Waiting drafts never expire. They count against the drafts cap (half of `output.maxFiles`, 500 by
+default) and against `output.maxMb`, and the server never deletes them to make room. Once the
+directory is full of them, the server refuses new drafts, and renders too when only drafts are
+left, until a person approves or removes drafts. So approve or reject drafts by changing their
+`status`, or remove them. A host may also delete or move a draft instead of rewriting its `status`.
+A draft file that cannot be read or parsed, is over 1 MiB, or has no `status` that is a string
+counts as waiting.
+
 When the server is killed during a write, the write leaves its temporary file
 (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). It is not a report. It is neither counted
 toward `output.maxFiles` and `output.maxMb` nor deleted to make room. With `output.maxAgeDays: 0`, it
@@ -671,7 +679,10 @@ location ~ ^/(mcp|\.well-known/|downloads/|healthz$|$) {
 ### Static tokens { #token }
 
 The token comes from `$PIVOTKIT_MCP_TOKEN`, or several named tokens come from `auth.tokens`, each
-from an environment variable or a file, each with its own `scopes`.
+from an environment variable or a file, each with its own `scopes`. `pivotkit-mcp --http` with
+`$PIVOTKIT_MCP_TOKEN` set but auth `none` warns at start and in `--check-config`: "PIVOTKIT_MCP_TOKEN
+is set but auth is none; use --auth token (or auth.mode token)". A written `auth.mode: "none"` gives
+no warning.
 
 - A token file is read on every request, so a token is rotated without a restart. `"create": true`
   makes a missing file at start.

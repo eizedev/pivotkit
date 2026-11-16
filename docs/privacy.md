@@ -325,7 +325,9 @@ A line holds:
 - a random request id. It names nothing. It lets you find the line a person quotes from an error.
 - a trace id
 - `upstreamRequestId`: the `X-Request-Id` the request came with, up to 128 characters. The caller
-  or a proxy chooses it. A proxy may put a user id or a session id there.
+  or a proxy chooses it. A proxy may put a user id or a session id there. It is on every line of the
+  request, and no setting leaves it out, `log.address: "off"` neither. To keep it out, have the
+  proxy strip or rewrite the header.
 - the status and the time
 
 At the default level a line never holds a view, a value or a token.

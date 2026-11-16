@@ -60,6 +60,10 @@ Release packages in this order. It follows their run-time dependencies.
 - Wait for CI on main.
 - Tag the merge commit `<package>@<version>`.
 - Push one tag at a time, in publish order. Push the next only after the previous one is live.
+- Push the pivotkit-server tag right after the release pull request is merged. The docs site deploys
+  on every push to main, and `docs/getting-started/server-in-5-minutes.md` and
+  `docs/getting-started/kubernetes.md` link files at the tag `pivotkit-server@<version>`. Until the
+  tag exists, those links fail.
 - The `build` job runs `scripts/check-release.js --published`. It fails when:
   - a dependency of this repository still has `[Unreleased]` entries, or
   - that dependency is not on npm at this commit's version.

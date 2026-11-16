@@ -207,6 +207,7 @@ What callers notice:
 | [Reports deleted after 30 days](#max-age-default) | the server has `output.dir` in a directory of its own and no `output.maxAgeDays` | copy the reports you want to keep out of `output.dir` before you update, or set `output.maxAgeDays: 0`; drafts waiting for approval stay |
 | **Breaking:** [download links over plain http](#download-links-http) | `http.publicUrl` is `http://` on a host other than loopback, with `output.dir` | use `https://`, or set `output.downloads.allowInsecureUrl: true` for a network you trust, or `output.downloads.enabled: false` |
 | [Columns without a header](#columns-without-header) | a file source has rows longer than its header, or a blank header cell, under `"default": "show"` | name such a column in `fields` if it should be shown; run `check-config` |
+| [The health check's port](#healthcheck-port) | you run your own `HEALTHCHECK` or probe with `pivotkit-server healthcheck` and set `http.port` in the file | nothing; it now takes `http.port` before `$PIVOTKIT_PORT` |
 | **Breaking:** [Tokens that are easy to guess](#weak-tokens) | you wrote a static token by hand | make it again with `pivotkit-server token new` |
 | **Breaking:** [CSV with a quote never closed](#unclosed-quote) | a caller sees a field below `show` of a CSV source, upload, data sent in a request or HTTP source's CSV answer | close the quote, or use xlsx or JSON; a correct value over several lines is refused too |
 | [Rows longer than the header](#long-rows) | a file or CSV answer has rows wider than its named header (other than a separator that ends every line), and a caller sees a field below `show` | fix those rows (quote values with the separator in them); until then they are left out, with a `ROWS_DROPPED` note; `check-config` counts them |
@@ -428,11 +429,20 @@ old behaviour.
 A schedule draft waits for approval while its file's `status` is `"draft"`, as `draft_schedule`
 writes it. `output.maxAgeDays` never deletes a waiting draft, and neither do `output.maxFiles` and
 `output.maxMb`. A host that approves or rejects a draft should change its `status`. The draft then
-goes by age like a report. Remove the drafts nobody approved yourself.
+goes by age like a report.
+
+Waiting drafts never expire. They count against the drafts cap (half of `output.maxFiles`, 500 by
+default) and against `output.maxMb`, and the server never deletes them to make room. Once the
+directory is full of them, the server refuses new drafts, and renders too when only drafts are
+left, until a person approves or removes drafts. So approve or reject drafts by changing their
+`status`, or remove them. A host may also delete or move a draft instead of rewriting its `status`.
+
+A draft file that cannot be read or parsed, is over 1 MiB, or has no `status` that is a string
+counts as waiting.
 
 `check-config` warns when the next start would delete reports or drafts no longer waiting: "<n>
-report(s) and <m> schedule draft(s) no longer waiting for approval ... are deleted at the next
-start; copy them away or set output.maxAgeDays: 0".
+reports and <m> schedule drafts no longer waiting for approval ... are deleted at the next start;
+copy them away or set output.maxAgeDays: 0".
 
 The default applies only to a directory of the reports' own. `output.dir` may hold the configuration
 or a source, template or token file. Then nothing is deleted by age, and the server starts as
@@ -512,18 +522,34 @@ file; close the quote, or save the file as xlsx or JSON
 - `check-config` warns: "sources.<id>: a quoted value that starts in line N spans several lines;
   the source is refused for callers who do not see every field as show".
 
-Close the quote in the file, or save the file as xlsx or JSON.
-
 ### Tokens that are easy to guess { #weak-tokens }
 
-A static token needs at least 32 characters and at least 8 different characters, and must not
-repeat one piece (such as `abcabc...`). The server checks this at start, in `check-config`, for
-`token new --if-missing` and when it reads a token file again. A start with such a token stops:
-"auth: the token "<name>" (...) is too easy to guess (N different character(s), at least 8); make
-one with: ...". Make every token with `pivotkit-server token new`: 32 random bytes, which always
-pass. The limit on refused tokens does not slow down
-guessing, since a right token still works beyond it. Only a token nobody can guess protects the
-server.
+A static token must pass three rules:
+
+- It has at least 32 characters.
+- It has at least 8 different characters.
+- It does not repeat one piece, such as `abcabc...`.
+
+The server checks this at start, in `check-config`, for `token new --if-missing` and when it reads
+a token file again. A start with such a token stops with "auth: the token "<name>" (...) is too easy
+to guess (<n> different characters, at least 8); make one with: ...".
+
+Make every token with `pivotkit-server token new`. Its 32 random bytes always pass. A hex token of
+32 characters, such as one from `openssl rand -hex 16`, passes too.
+
+The limit on refused tokens does not slow down guessing. A right token still works beyond it. Only a
+token nobody can guess protects the server.
+
+### The health check's port { #healthcheck-port }
+
+`pivotkit-server healthcheck [url] [--port <port>]` takes the port from `--port`, then `http.port`
+of the file `$PIVOTKIT_CONFIG` names, then `$PIVOTKIT_PORT`, then 3333. A usage error exits 1. A
+custom `HEALTHCHECK` that relied on `$PIVOTKIT_PORT` while the file sets another `http.port` now
+asks the file's port.
+
+The warning for a token variable that does nothing covers both servers: `$PIVOTKIT_TOKEN` for
+pivotkit-server and `$PIVOTKIT_MCP_TOKEN` for `pivotkit-mcp --http`. It shows at start and in
+`check-config` when auth is `none` without a written `auth.mode: "none"`.
 
 ### Request limits per person { #limits-per-person }
 

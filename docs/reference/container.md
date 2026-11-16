@@ -202,8 +202,10 @@ or cannot be made (a read-only state directory). `check-config` itself makes not
 ## Health { #health }
 
 The image has a `HEALTHCHECK` that runs `pivotkit-server healthcheck` every 30 seconds. It asks
-`/healthz`, which answers while the process runs. It takes the port from `http.port` of the
-configuration, then `$PIVOTKIT_PORT`, then 3333 ([commands](rest.md#running)).
+`/healthz`, which answers while the process runs. It takes the port from `http.port` of the file
+`$PIVOTKIT_CONFIG` names (the image sets `/config/pivotkit.json`), then `$PIVOTKIT_PORT`, then 3333
+([commands](rest.md#running)). It does not see a `--config` or `--port` flag of the start command.
+Use one of these two ways for the port.
 
 `/readyz` answers 200 only when the server can take work, and 503 otherwise. The server can take
 work when the OAuth issuer is loaded, the workers are up and the output directory is writable. Use

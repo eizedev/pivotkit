@@ -7,9 +7,9 @@ description: Let an AI client (Claude Code, Claude Desktop, VS Code and others) 
 
 `pivotkit-mcp` lets an AI client build pivot reports for you. You ask for "sales by region per
 quarter as Excel". The model builds a view. The server checks it against your data and writes it
-into a file you open. Through pivotkit, the model sees the fields of your data, not the data itself.
-By default it sees names, types and counts, and no values. The [reference](../reference/mcp.md) has
-every tool and setting.
+into a file you open. Through pivotkit, the model sees the fields of your data and, at the levels
+you set, their values. By default it sees names, types and counts, and no values. The
+[reference](../reference/mcp.md) has every tool and setting.
 
 You need Node 22 or later. A client either starts the server itself (stdio) or connects to a server
 that runs (HTTP). Without Node, use [Server in 5 minutes](server-in-5-minutes.md). It starts the

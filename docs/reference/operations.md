@@ -82,7 +82,7 @@ A line written while a request or tool call runs adds its scope:
 | --- | --- |
 | `requestId` | 11 random characters, the same on every line of the request, in its `X-Request-Id` answer header and in its error ([correlation](#correlation)) |
 | `traceId` | 32 hex characters: the trace id of a valid W3C `traceparent` header, else a new one |
-| `upstreamRequestId` | The `X-Request-Id` the request came with (a proxy's id), 1 to 128 letters, digits and `_ . : + / = -`. Any other value is not logged. The caller or a proxy chooses it, so it can hold a user id or a session id |
+| `upstreamRequestId` | The `X-Request-Id` the request came with (a proxy's id), 1 to 128 letters, digits and `_ . : + / = -`. Any other value is not logged. The caller or a proxy chooses it, so it can hold a user id or a session id. No setting leaves it out ([privacy](../privacy.md#logs)) |
 | `address` | The client as best known, unless `log.address` is `off`. With `http.trustProxy`, the last entry of `X-Forwarded-For`, or `invalid` when that is no IP address (the request is never put on the proxy's address). Without it, the socket's peer |
 | `peerAddress` | The socket's peer, where it differs from `address` (behind a trusted proxy, the proxy) |
 
