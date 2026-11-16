@@ -12,7 +12,7 @@ import { errorDetails, newRequestId, requestId, withRequestId } from "../src/req
 import { asOfMembers, asOfSentence, asOfText } from "../src/sources/as-of.js";
 import { INLINE_ID, kindOf } from "../src/sources/index.js";
 import { canonicalJson, tableKeyOf } from "../src/sources/keys.js";
-import { MATCH_MS, declaredProblems, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
+import { CHECK_MS, MATCH_MS, declaredProblems, matchMeans, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
 import { BY_REGION, TOKEN, call, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
@@ -495,6 +495,33 @@ test("a code source with params keeps its data per client and groups too, not on
     } finally {
         await context.close();
     }
+});
+
+test("params on a busy host (#528): a timed-out match is tried once more; the start check gets a longer limit than a request; the refusal does not blame the value", () => {
+    // a busy host, simulated: the time limit runs out on the first try of each value, then the match runs
+    const real = matchMeans.run;
+    const limits = [];
+    let tries = 0;
+    matchMeans.run = (re, text, ms) => (limits.push(ms), tries++ % 2 === 0 ? null : re.test(text));
+    try {
+        const declared = { team: { type: "string", pattern: "[a-z0-9-]{1,64}" } };
+        // the start check: a fast, valid pattern is not refused
+        assert.deepEqual(declaredProblems(declared), []);
+        assert.ok(limits.length > 0 && limits.every((ms) => ms === CHECK_MS), JSON.stringify([...new Set(limits)]));
+        // a request: a valid value is taken, with the request's shorter limit
+        limits.length = 0;
+        tries = 0;
+        assert.deepEqual({ ...normalizeParams(declared, { team: "blue-7" }, null, "s") }, { team: "blue-7" });
+        assert.deepEqual(limits, [MATCH_MS, MATCH_MS]);
+        // out of time on every try: refused, in words that do not call the value too long or complex
+        matchMeans.run = (re, text, ms) => (limits.push(ms), null);
+        assert.throws(() => normalizeParams(declared, { team: "blue-7" }, null, "s"), (e) => e.code === "INVALID_INPUT" && /could not be checked in time; the server may be busy, try again/.test(e.message) && !/shorter|simpler/.test(e.message));
+    } finally {
+        matchMeans.run = real;
+    }
+    // the limits: generous for a busy host, still short for a slow pattern; the start check's longer
+    assert.ok(MATCH_MS >= 50 && MATCH_MS <= 100, String(MATCH_MS));
+    assert.ok(CHECK_MS > MATCH_MS, String(CHECK_MS));
 });
 
 test("params: an operator's pattern never runs unbounded: a slow one is refused at start, a slow match at run time", () => {

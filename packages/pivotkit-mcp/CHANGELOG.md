@@ -21,6 +21,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   ([#513](https://github.com/eizedev/pivotkit/issues/513),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota)).
 
+### Fixed
+
+- From pivotkit-server: on a busy host, a parameter pattern's time limit no longer refuses fast,
+  valid values and patterns. A timed-out match is tried once more, the limits are 75 ms per request
+  and 200 ms at start ([#528](https://github.com/eizedev/pivotkit/issues/528)).
+
 ## [0.2.0] - 2026-11-16
 
 ### Upgrading from 0.1.1

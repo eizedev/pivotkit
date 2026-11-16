@@ -471,8 +471,12 @@ Their names are letters, digits and `_`.
 - A `pattern` is matched against the whole value, as if written `^(?:...)$`. It may not repeat a
   group (`(a|b)*`, `(ab)+`, `(ab){1,3}`). Repeat a character or a class instead (`[ab]*`), or make
   the group optional (`(-x)?`).
-- Every match runs with a time limit of 25 ms. A pattern that takes longer on values made to be slow
-  is refused at start. A value the pattern cannot check in time is `INVALID_INPUT`.
+- Every match of a request runs with a time limit of 75 ms. A match that runs out of time is tried
+  once more, since a busy host can pause a fast one.
+- At start and in `check-config`, each pattern is tried on values made to be slow, with 200 ms per
+  value and the same one retry. A pattern that still takes longer is refused.
+- A value that runs out of time twice is `INVALID_INPUT`: "could not be checked in time; the server
+  may be busy, try again".
 - A string without `pattern` or `enum` takes letters, digits and `. _ ~ -` only. No string value may
   hold `..` or a control character.
 - `list_sources` lists a source's parameters. The tools that take a source take `params` only when a
