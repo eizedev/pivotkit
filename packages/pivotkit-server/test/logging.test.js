@@ -7,6 +7,7 @@
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { connect } from "node:net";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { REFUSED_REASONS, SEVERITY, createContext, flushed, logSettingsOf, optionsFrom, refusalReason, startFields, serve, startErrorLine, traceIdOf, upstreamRequestIdOf, validateOptions, withRequestScope, SERVER_FLAGS } from "pivotkit-server";
@@ -257,6 +258,39 @@ test("log.address off: no address and no forwarded client on any line", async ()
     const all = text.join("");
     assert.ok(all.includes('"event":"request"'));
     assert.doesNotMatch(all, /"address"|"peerAddress"|203\.0\.113\.9/);
+});
+
+test("log.address off: no address on the start, request, MCP call, refused, parser-error and refused-connection lines, in JSON and in text", async () => {
+    const forwarded = { "x-forwarded-for": "203.0.113.9" };
+    for (const format of ["json", "text"]) {
+        const dir = workspace();
+        const { server, text, api } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, http: { trustProxy: true, enable: ["rest", "mcp"] }, log: { format, level: "debug", address: "off" }, baseDir: dir }, { PIVOTKIT_TOKEN: TOKEN });
+        try {
+            await call(`${api}/sources`, { token: TOKEN, headers: forwarded });
+            await call(`${api}/sources`, { token: OTHER_TOKEN, headers: forwarded });
+            await raw(`${api}/sources`, { headers: { ...forwarded, host: "evil.example" } });
+            const rpc = { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-06-18", authorization: `Bearer ${TOKEN}`, ...forwarded };
+            await fetch(`${server.url}/mcp`, { method: "POST", headers: rpc, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_sources", arguments: {} } }) }).then((r) => r.text());
+            await fetch(`${server.url}/mcp`, { method: "POST", headers: { ...rpc, authorization: `Bearer ${OTHER_TOKEN}` }, body: "{}" }).then((r) => r.text());
+            // a request the HTTP parser refuses
+            const { port } = new URL(server.url);
+            await new Promise((resolve) => {
+                const socket = connect(Number(port), "127.0.0.1", () => socket.end("NOT HTTP\r\n\r\n"));
+                socket.on("close", resolve).on("error", resolve).resume();
+            });
+        } finally {
+            await server.close();
+        }
+        // refused connections (serve's onRefused) are a warning with the address as a field: a loopback
+        // client is never refused, so the line is written here as serve writes it
+        const log = createLog({ format, address: "off" }, { write: (t) => text.push(String(t)) });
+        log.warn("connections refused since the last report: an address held as many as http.maxConnectionsPerAddress allows", { address: "203.0.113.9", limits: ["perAddress"], open: 9, fromAddress: 1, refused: 2 });
+        const all = text.join("");
+        for (const event of format === "json" ? ['"event":"request"', '"event":"call"', '"event":"refused"', '"msg":"started"', '"parserError"', "connections refused since the last report"] : ["event=request", "event=call", "event=refused", "msg=started", "parserError=", "connections refused since the last report"]) {
+            assert.ok(all.includes(event), `${format}: ${event} in\n${all}`);
+        }
+        assert.doesNotMatch(all, format === "json" ? /"address"|"peerAddress"|203\.0\.113\.9/ : /\baddress=|peerAddress=|203\.0\.113\.9/, format);
+    }
 });
 
 test("redaction: no token, value, claim or path on any line, in JSON and in text, at info (and no token at debug)", async () => {
