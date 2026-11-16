@@ -1,6 +1,6 @@
-// What exportData lets out (#259): off (the default), no Source data, and the drill-down's exports
-// hold every column as before; with { columns }, both hold only those columns, in that order, and
-// with none that matches both are off. A host page (tests/browser/pages/host.jsx) with 2,000 sales rows.
+// What exportData lets out (#259, #263): off (the default), no Source data, and the drill-down shows
+// its rows but has no copy and no download; drillDownExport turns those back on with every column;
+// with { columns }, both hold only those columns, in that order, and with none that matches both are off. A host page (tests/browser/pages/host.jsx) with 2,000 sales rows.
 import { readFile } from "node:fs/promises";
 import { captureClipboard, copied, expect, test, toolbar } from "./fixtures.js";
 
@@ -17,8 +17,7 @@ test.use({ ignoreConsole: [/^pivotkit: exportData\.columns (names no column of t
 
 const csvLines = async (download) => (await readFile(await download.path(), "utf8")).replace(/^\uFEFF/, "").trimEnd().split("\r\n");
 
-test("exportData off (the default): no Source data; the drill-down's exports hold every column", async ({ page }) => {
-    await captureClipboard(page);
+test("exportData off (the default): no Source data; the drill-down shows its rows but has no copy and no download", async ({ page }) => {
     await page.goto("pages/host.html");
     await expect(page.locator(".pk-root")).toBeVisible();
     await toolbar(page, "export");
@@ -26,9 +25,40 @@ test("exportData off (the default): no Source data; the drill-down's exports hol
     await expect(page.getByTestId("export-data-csv")).toHaveCount(0);
     await page.keyboard.press("Escape");
     const panel = await openDrill(page);
+    // the rows on screen, every column, but no Export menu
+    expect(await panel.locator(".pk-drill-table thead th").allTextContents()).toEqual(["Region", "Country", "Product", "Category", "Channel", "Month", "Units", "Revenue", "Discount"]);
+    await expect(panel.getByTestId("drill-enlarge")).toBeVisible();
+    await expect(panel.getByTestId("drill-export")).toHaveCount(0);
+});
+
+test("drillDownExport with exportData off: the drill-down's copy and download hold every column; no Source data", async ({ page }) => {
+    await captureClipboard(page);
+    await page.goto("pages/host.html?drillexport");
+    await expect(page.locator(".pk-root")).toBeVisible();
+    await toolbar(page, "export");
+    await expect(page.getByTestId("export-csv")).toBeVisible();
+    await expect(page.getByTestId("export-data-csv")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    const panel = await openDrill(page);
+    const count = await panel.locator(".pk-drill-table tbody tr").count();
     await panel.getByTestId("drill-export").click();
     await page.getByTestId("drill-copy").click();
-    expect((await copied(page)).split("\r\n")[0].split("\t")).toEqual(["Region", "Country", "Product", "Category", "Channel", "Month", "Units", "Revenue", "Discount"]);
+    const lines = (await copied(page)).trimEnd().split("\r\n");
+    expect(lines[0].split("\t")).toEqual(["Region", "Country", "Product", "Category", "Channel", "Month", "Units", "Revenue", "Discount"]);
+    expect(lines).toHaveLength(count + 1);
+    await panel.getByTestId("drill-export").click();
+    const [csv] = await Promise.all([page.waitForEvent("download"), page.getByTestId("drill-csv").click()]);
+    expect((await csvLines(csv))[0]).toBe("Region,Country,Product,Category,Channel,Month,Units,Revenue,Discount");
+});
+
+test("drillDownExport with exportData columns: the drill-down keeps to those columns", async ({ page }) => {
+    await captureClipboard(page);
+    await page.goto("pages/host.html?drillexport&exportcolumns=Revenue,Region");
+    await expect(page.locator(".pk-root")).toBeVisible();
+    const panel = await openDrill(page);
+    await panel.getByTestId("drill-export").click();
+    await page.getByTestId("drill-copy").click();
+    expect((await copied(page)).split("\r\n")[0].split("\t")).toEqual(["Revenue", "Region"]);
 });
 
 test("exportData with columns that name nothing of the data: off, the drill-down's Export menu too, said once in the console", async ({ page }) => {

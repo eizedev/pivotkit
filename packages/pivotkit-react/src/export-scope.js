@@ -1,6 +1,6 @@
 /*
- * What the host's `exportData` lets out of the report: Source data in the Export menu, and which
- * columns the drill-down panel's exports hold (#259). Loaded with the menus: the Export menu, the
+ * What the host's `exportData` lets out of the report: Source data in the Export menu, whether the
+ * drill-down panel copies and downloads its rows (#263), and which columns those hold (#259). Loaded with the menus: the Export menu, the
  * drill-down panel and the export read it when they are used, so the first load does not carry it.
  */
 
@@ -14,8 +14,8 @@
 
 /**
  * The host's `exportData` against the data's own columns (not the derived fields a view adds):
- * - off (false, absent, or a shape it does not know): no Source data; the drill-down's exports as
- *   they are, every column;
+ * - off (false, absent, or a shape it does not know): no Source data; the drill-down's exports
+ *   only with the host's `drillDownExport` (drillExportOn), every column;
  * - `{ columns }` that is no list (`"Region"`, a function): both off, as an empty list, so a mistake
  *   hands out nothing;
  * - true or `{}`: Source data with every column;
@@ -45,6 +45,21 @@ export function dataExportOf(exportData, names) {
     const known = new Set(picked.map((n) => n.toLowerCase()));
     const unknown = wanted.filter((w) => !known.has(w.toLowerCase()));
     return { source: picked.length > 0, columns: picked, unknown };
+}
+
+/**
+ * Whether the drill-down panel offers its copies and downloads: with `exportData` on and a column
+ * left, or with `drillDownExport` while `exportData` is off (#263). `drillDownExport` never widens
+ * the host's columns: none left stays off.
+ * @param {DataExport} scope  dataExportOf's answer
+ * @param {{ drillDownExport?: boolean }} [options]
+ * @returns {boolean}
+ */
+export function drillExportOn(scope, { drillDownExport = false } = {}) {
+    if (scope.columns) {
+        return scope.columns.length > 0;
+    }
+    return scope.source || drillDownExport === true;
 }
 
 /**

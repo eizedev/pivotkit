@@ -158,6 +158,22 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
+## From 0.7 to 0.8 { #from-0-7 }
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| **Breaking:** [the drill-down's copy and download follow `exportData`](#drill-export) | you embed the report with `exportData` off, the default, and people copy or download a drill-down's rows | set `drillDownExport` (`drill-down-export`) to keep that |
+
+### The drill-down's copy and download follow `exportData` { #drill-export }
+
+With `exportData` off, the drill-down panel shows the rows behind a value but has no **Export**
+menu. People can no longer copy the rows or download them as CSV or Excel from there.
+
+- To keep that menu without Source data, set `drillDownExport` on pivotkit-react, or
+  `drill-down-export` on pivotkit-element. Its copies and files hold every column.
+- With `exportData` on, nothing changes.
+- `onCellClick` and `pivot-cell-click` still get the rows.
+
 ## From 0.6 to 0.7 { #from-0-6-1 }
 
 !!! warning "Copy old reports out of `output.dir` first"

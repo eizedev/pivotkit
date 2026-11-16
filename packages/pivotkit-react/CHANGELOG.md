@@ -6,6 +6,22 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Upgrading from 0.7
+
+- With `exportData` off, the default, the drill-down panel has no Export menu: no copy and no
+  download of its rows. Set `drillDownExport` to keep it
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
+
+### Added
+
+- `drillDownExport`: the drill-down panel's copy and download while `exportData` is off, with every
+  column. Off by default.
+
+### Changed
+
+- The drill-down panel's copy and download follow `exportData`. With it off, the panel shows the
+  rows but offers no copy and no download (#263).
+
 ## [0.7.0] - 2026-11-16
 
 ### Upgrading from 0.6

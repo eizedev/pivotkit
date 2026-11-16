@@ -6,6 +6,22 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Upgrading from 0.7
+
+- Without `export-data`, the default, the drill-down panel has no Export menu: no copy and no
+  download of its rows. Set `drill-down-export` to keep it
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
+
+### Added
+
+- `drill-down-export` (boolean attribute) and the `drillDownExport` property: the drill-down panel's
+  copy and download while `export-data` is off. As pivotkit-react's `drillDownExport`.
+
+### Changed
+
+- The drill-down panel's copy and download follow `export-data`. Without it, the panel shows the
+  rows but offers no copy and no download (#263).
+
 ## [0.7.0] - 2026-11-16
 
 ### Upgrading from 0.6

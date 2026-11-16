@@ -44,6 +44,8 @@ The panel has an **Export** menu with two groups, **Copy** and **Download**:
 | **Copy as JSON** | The rows as objects for a program, with the data's field names and raw values: numbers as numbers, dates as ISO dates, a blank as `null`. |
 | **Download CSV**, **Download Excel** | The rows with the headers the panel shows. Each value has the format it has in the panel: a field's format, numbers with up to 6 decimals, dates as their day. The Excel file keeps numbers and dates as numbers and freezes the header row. |
 
+- The application decides whether the panel has the Export menu. Without it, the panel shows the
+  rows but offers no copy and no download.
 - The file and its sheet take the cell's name: `Central – Jul 2026.csv`.
 - With more rows behind the value than the panel shows, every export holds the rows shown. The menu
   says "Holds the first 1,000 of 4,212 rows, as shown here.", and the note after a copy says
@@ -59,6 +61,7 @@ The panel has an **Export** menu with two groups, **Copy** and **Download**:
     - `fieldDefaults.drillFormat` sets a field's format in the panel.
     - Every copy and file passes `onExport` first: `drill-copy`, `drill-json`, `drill-csv`,
       `drill-xlsx`.
+    - The Export menu follows `exportData`. With `exportData` off, `drillDownExport` turns it on.
     - `exportData={{ columns }}` keeps its copies and files to those columns.
 
     See the [pivotkit-react reference](../reference/react.md#props).
