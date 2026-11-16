@@ -7,7 +7,7 @@
  */
 
 import { validateOptions } from "./config.js";
-import { planState } from "./state.js";
+import { planState, unusedTokenText } from "./state.js";
 import { createRegistry } from "./registry.js";
 import { SECTIONS, UPGRADING_URL, runSections } from "./check/index.js";
 import { render } from "./check/format.js";
@@ -25,7 +25,7 @@ export async function checkConfig(given, { http = false, env = {}, name = "pivot
     const state = http ? planState(given, { env, host: given.http?.host ?? "127.0.0.1", tokenEnv, stateDir }) : null;
     const options = state?.options ?? given;
     const registry = await createRegistry(options);
-    const runtime = { http, env, name, tokenEnv, rest, mcp, discover, state, columns: new Map(), everyColumn: null };
+    const runtime = { http, env, name, tokenEnv, rest, mcp, discover, state, unusedToken: http ? unusedTokenText(given, options, env, tokenEnv) : null, columns: new Map(), everyColumn: null };
     const said = await runSections(sections, options, registry, runtime);
     return render(name, said.sections, said.upgrade, UPGRADING_URL);
 }

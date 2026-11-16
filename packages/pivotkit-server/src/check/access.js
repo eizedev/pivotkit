@@ -33,6 +33,10 @@ export async function section(options, _registry, runtime) {
     const mode = auth.mode ?? "none";
     const stop = { stops: /** @type {const} */ (true) };
     items.push(heading(`Auth: ${mode}${mode === "none" && auth.allowUnauthenticated ? " (also off loopback)" : ""}`));
+    if (runtime.unusedToken) {
+        // the start's own words (state.js unusedTokenText)
+        items.push(warning(runtime.unusedToken));
+    }
     if (runtime.http && mode === "none" && !auth.allowUnauthenticated && !isLoopback(options.http?.host ?? "127.0.0.1")) {
         items.push(problem(`${options.http?.host} is not loopback: it needs auth token or oauth (or auth.allowUnauthenticated)`, stop));
     }

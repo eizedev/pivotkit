@@ -489,3 +489,26 @@ test("token show: not made before the first start (exit 1, nothing made), then t
     assert.equal(own.status, 2);
     assert.match(own.stderr, /no token "admin"/);
 });
+
+test("PIVOTKIT_TOKEN set while auth is none on loopback: the start and check-config say so; the mode stays none", async () => {
+    const dir = workspace();
+    const lines = [];
+    const env = { PIVOTKIT_TOKEN: "a-test-token-that-is-long-enough-0123456789" };
+    const server = await serve({ sources: { sales: { file: "data/sales.csv" } }, http: { port: 0, enable: ["rest"] }, log: { format: "json" }, baseDir: dir }, { env, stderr: { write: (t) => lines.push(...String(t).trim().split("\n").map((l) => JSON.parse(l))) } });
+    try {
+        assert.equal(server.context.options.auth?.mode ?? "none", "none");
+        assert.equal((await call(`${server.url}/api/v1/sources`)).status, 200, "no token needed: the mode is not switched");
+    } finally {
+        await server.close();
+    }
+    const said = lines.filter((l) => l.level === "warn").map((l) => l.msg);
+    assert.ok(said.includes("PIVOTKIT_TOKEN is set but auth is none; use --auth token (or auth.mode token)"), JSON.stringify(said));
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { http: true, env, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true })).text);
+    assert.match(text, /^WARNING \([^)]+\): PIVOTKIT_TOKEN is set but auth is none; use --auth token \(or auth\.mode token\)$/m);
+    // a written mode, the variable unset, or stdio: no such line
+    for (const [options, runtime] of [[{ auth: { mode: "none" } }, { env }], [{}, { env: {} }]]) {
+        const quiet = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir, ...options }, { http: true, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true, ...runtime })).text);
+        assert.doesNotMatch(quiet, /is set but auth is none/);
+    }
+    assert.doesNotMatch(factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { http: false, env: { PIVOTKIT_MCP_TOKEN: env.PIVOTKIT_TOKEN } })).text), /is set but auth is none/);
+});

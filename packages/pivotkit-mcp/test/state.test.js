@@ -87,3 +87,12 @@ test("the runner reads $PIVOTKIT_STATE_DIR over --http; stdio makes nothing", as
         await new Promise((resolve) => child.once("exit", resolve));
     }
 });
+
+test("PIVOTKIT_MCP_TOKEN set while auth is none on loopback: listen says so, and the mode stays none", async () => {
+    const dir = workspace();
+    const lines = [];
+    const server = await listen({ sources: { sales: { file: "data/sales.csv" } }, http: { port: 0 }, log: { format: "json" }, baseDir: dir }, { env: { PIVOTKIT_MCP_TOKEN: "a-test-token-that-is-long-enough-0123456789" }, stderr: { write: (t) => lines.push(...String(t).trim().split("\n").map((l) => JSON.parse(l))) } });
+    await server.close();
+    assert.ok(lines.some((l) => l.level === "warn" && l.msg === "PIVOTKIT_MCP_TOKEN is set but auth is none; use --auth token (or auth.mode token)"), JSON.stringify(lines.map((l) => l.msg)));
+    assert.ok(lines.some((l) => l.msg === "started" && l.auth === "none"));
+});

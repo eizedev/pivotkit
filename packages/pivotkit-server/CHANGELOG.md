@@ -474,6 +474,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- `serve` (and pivotkit-mcp over HTTP) on loopback with `$PIVOTKIT_TOKEN` (`$PIVOTKIT_MCP_TOKEN`) set
+  and no `auth.mode` started with auth none and said nothing. The start and `check-config` now warn:
+  "PIVOTKIT_TOKEN is set but auth is none; use --auth token (or auth.mode token)". The mode is not
+  switched.
 - `healthcheck` asked `$PIVOTKIT_PORT` before the configuration's `http.port`. The image sets the
   variable, so it probed 3333 while the server listened on the configured port. It now takes the
   port in the order `serve` does: `--port`, `http.port`, `$PIVOTKIT_PORT`, 3333
