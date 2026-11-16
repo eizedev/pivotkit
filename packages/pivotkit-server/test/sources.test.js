@@ -538,6 +538,16 @@ test("params on a busy host (#528): the start's check counts a value as fast whe
     });
 });
 
+test("params at start (#528): the example, default and enum values of one parameter share a 1 s budget; past it the declaration is refused", async () => {
+    // a clock that moves 400 ms per match of a one-letter value (the start's probes are long runs and
+    // stay fast): the third value runs past the budget, the fourth gets no try
+    let clock = 0;
+    await withMatchMeans({ run: (re, text) => ((clock += text.length === 1 ? 400 : 0), re.test(text)), now: () => clock }, () => {
+        const problems = declaredProblems({ team: { type: "string", pattern: "[a-z]+", enum: ["a", "b", "c", "d", "e"] } });
+        assert.ok(problems.some((p) => /team: the pattern could not check the example, default and enum values within 1000 ms at start/.test(p)), JSON.stringify(problems));
+    });
+});
+
 test("params on a busy host (#528): a value that runs out of time twice is BUSY, 503 and retryable, over real HTTP; a claim's value too", async () => {
     const declared = { team: { type: "string", pattern: "[a-z0-9-]{1,64}" } };
     // the server starts on a quiet host; the busy one comes after
@@ -551,7 +561,7 @@ test("params on a busy host (#528): a value that runs out of time twice is BUSY,
             assert.equal(busy.status, 503, JSON.stringify(busy.data));
             assert.equal(busy.data.code, "BUSY");
             assert.equal(busy.data.retryable, true);
-            assert.equal(busy.headers.get("retry-after"), "1");
+            assert.equal(busy.headers.get("retry-after"), "2", "as the large-body BUSY");
             assert.equal(busy.data.detail, "params could not be checked in time; the server may be busy, try again");
         } finally {
             await server.close();

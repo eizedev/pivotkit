@@ -58,9 +58,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
       takes a pattern that requests cannot match.
     - A request tries a match that ran out of time once more. The start's check tries a value up
       to three times and counts it as fast if any try ends in time. One pattern's check takes 1
-      second at most, else the pattern counts as slow.
+      second at most, else the pattern counts as slow. Its example, default and enum values share
+      another second.
     - A value that runs out of time twice answers 503 `BUSY` with `retryable: true` and
-      `Retry-After: 1`, also for a value from a claim, instead of `INVALID_INPUT`.
+      `Retry-After: 2`, also for a value from a claim, instead of `INVALID_INPUT`.
     - The pattern checks of one request take 150 ms at most in all. Past that the request answers
       `BUSY` ([#528](https://github.com/eizedev/pivotkit/issues/528)).
 - The drafts' caps count only drafts that still wait for approval. A draft the host approved or

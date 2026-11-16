@@ -475,13 +475,16 @@ Their names are letters, digits and `_`.
   runs out of time is tried once more in a request.
 - At start and in `check-config`, each pattern is tried on values made to be slow, under the same
   75 ms. A value that ends in time on one of three tries counts as fast. A pattern that runs out of
-  time on every try, or whose check takes over 1 second in all, is refused. So the start never takes
-  a pattern that requests cannot match.
-- A value that runs out of time twice answers `BUSY` (503, `retryable: true`, `Retry-After: 1`):
+  time on every try, or whose check takes over 1 second in all, is refused. The example, default
+  and enum values of one parameter also share 1 second. Under normal conditions, a value the start
+  matches in time a request matches in time too. That holds per value, not per request: a pattern
+  near the limit can still answer `BUSY` on a cold first request.
+- A value that runs out of time twice answers `BUSY` (503, `retryable: true`, `Retry-After: 2`):
   "params could not be checked in time; the server may be busy, try again". It is the same for a
-  value from a claim.
+  value from a claim. A claim value that stays slow keeps getting `BUSY`, since the person cannot
+  change it: check the pattern against such values.
 - The pattern checks of one request take 150 ms at most, over every parameter and retry. Then the
-  request answers `BUSY` too. This bounds how long one request holds the server's event loop for
+  request answers `BUSY` too, also when two slow but matching values use up the 150 ms together. This bounds how long one request holds the server's event loop for
   pattern checks. On a server without sign-in, every caller who reaches it can cause this.
 - A string without `pattern` or `enum` takes letters, digits and `. _ ~ -` only. No string value may
   hold `..` or a control character.

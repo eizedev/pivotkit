@@ -76,9 +76,11 @@ export function repeatsGroup(pattern) {
 
 /**
  * The longest an operator's pattern may run on one value, in ms, in a request and in the start's
- * check alike, so a pattern the start takes is one a request can match. The limit is wall-clock
- * time, so a busy host (another process, a garbage collection) eats into it: a fast pattern takes
- * microseconds, and 75 ms leaves room for such a pause.
+ * check alike: under normal conditions, a value the start's check matches in time a request matches
+ * in time too. That holds per value, not per request: a pattern near the limit can still run out of
+ * time on a cold first request, and a request's values share REQUEST_MATCH_MS. The limit is
+ * wall-clock time, so a busy host (another process, a garbage collection) eats into it: a fast
+ * pattern takes microseconds, and 75 ms leaves room for such a pause.
  */
 export const MATCH_MS = 75;
 
@@ -193,13 +195,13 @@ export function slowOn(re, length) {
 
 /**
  * The answer to a value whose pattern check ran out of time: the server was busy, not the caller
- * wrong (503, retryable, try again after a second). It names no parameter, so a claim-bound one
+ * wrong (503, retryable, try again after 2 seconds, as for a large body). It names no parameter, so a claim-bound one
  * stays unnamed; REST says the same through its reason "params" (rest/problem.js).
  */
 export const PARAMS_BUSY_TEXT = "params could not be checked in time; the server may be busy, try again";
 
 /** The BUSY error of a pattern check that ran out of time. */
-const busyCheck = () => Object.assign(new OperationError("BUSY", PARAMS_BUSY_TEXT, { retryable: true, retryAfter: 1 }), { reason: "params" });
+const busyCheck = () => Object.assign(new OperationError("BUSY", PARAMS_BUSY_TEXT, { retryable: true, retryAfter: 2 }), { reason: "params" });
 
 /** The compiled patterns of a declaration, made once. */
 const compiled = new WeakMap();
@@ -298,10 +300,16 @@ export function declaredProblems(declared) {
         if (problems.some((x) => x.startsWith(`${name}:`))) {
             continue;
         }
+        // the values' pattern checks share PATTERN_CHECK_MS per parameter
+        const budget = { left: PATTERN_CHECK_MS };
         for (const [key, value] of values) {
             try {
-                valueOf(name, { ...p, regex: p.pattern ? compilePattern(p.pattern) : null, enum: key.startsWith("enum") ? [value] : p.enum }, value);
+                valueOf(name, { ...p, regex: p.pattern ? compilePattern(p.pattern) : null, enum: key.startsWith("enum") ? [value] : p.enum }, value, budget);
             } catch (e) {
+                if (e instanceof OperationError && e.code === "BUSY") {
+                    fail(budget.left > 0 ? `${key}: the pattern could not check it in time (over ${MATCH_MS} ms on every try)` : `the pattern could not check the example, default and enum values within ${PATTERN_CHECK_MS} ms at start; use fewer or shorter values, or a faster pattern`);
+                    break;
+                }
                 fail(`${key}: ${String(e.message).replace(/^params\.\w+ /, "")}`);
             }
         }
