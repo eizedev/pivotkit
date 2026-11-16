@@ -126,7 +126,7 @@ A source with parameters takes their values as `params` with its id in a POST bo
 Where the report gets a [download link](delivery.md), the link is in `output.url`, with `expiresAt`,
 `bound` and `note`, one sentence on how to open it. A report gets a link:
 
-- always, over a source whose fields are all `show`
+- always, over an open source, whose fields are all `show` or hidden for every caller
 - over another source only with `results: true` and a bound link
 
 The file's name is `name` from the input, else `title`, else the view's name, else the source's.

@@ -17,11 +17,14 @@ no link. Its csv or json result comes back [inline only](mcp.md#inline-only).
 
 Which report gets which link depends on the source:
 
-- A source is **open** when its policy has `"default": "show"` and no field below `show`. This must
-  hold for the server's policy, the source's and every profile. Listing every column as `show` is
-  not enough, since a column the data gains later would take the default.
-- A source with a field at `values`, `summary` or `hide` for anyone, or whose default is not `show`,
-  is **closed**, since its report may hold what the model was not shown.
+- A source is **open** when every field and the default are `show` or `hide`, the same for every
+  caller. This must hold for the server's policy, the source's and every profile. A hidden field
+  is dropped when the data is read, so it reaches no report. "Show everything except the personal
+  column" is open.
+- A source is **closed** when a field or the default is `values` or `summary` for anyone, since its
+  report may hold what the model was not shown. The automatic `values` rule closes it too.
+- A field hidden for some callers and shown to others also closes it. One caller's report would
+  hold what another caller may not see.
 - Data that belongs to one person counts as closed too, whatever its fields' levels. That is data
   sent in the request (`inline:`), a source bound to a person (a
   [parameter bound to a claim](sources.md#http-claims) or a backend's

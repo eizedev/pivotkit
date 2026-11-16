@@ -27,6 +27,8 @@ async function starts(options, env) {
 }
 
 const sales = { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } } };
+/** A source at the default summary: closed for delivery. */
+const summarized = { file: "data/sales.csv" };
 const vms = { http: { url: "https://platform.example.com/v1/vms", rows: "/items", auth: { header: { name: "authorization", value: { env: "PLATFORM_TOKEN" } } } }, policy: { default: "hide", fields: { name: "show" } } };
 
 /** Each case: options, and whether serve refuses it. */
@@ -176,7 +178,7 @@ test("check-config: an issuer that accepts and never answers is a WARNING after 
 
 test("check-config: every warning is listed after the problems, named by its own heading, also when a section prints two (Delivery: and Retention:)", async () => {
     const dir = workspace();
-    const options = { sources: { sales, open: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir };
+    const options = { sources: { sales, summarized, open: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir };
     const result = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server" });
     const lines = factsOf(result.text).split("\n");
     assert.equal(result.warnings, 3);
@@ -187,7 +189,7 @@ test("check-config: every warning is listed after the problems, named by its own
         "",
         'WARNING (Sources): sources.sales.policy: "show" by default with hidden fields is a deny list: a column the data gains later is shown unless someone hides it; prefer "summary" by default and give the fields to show the level show',
         "WARNING (Delivery): output.downloads.key is not set: links stop working on a restart and on another replica",
-        "WARNING (Retention): output.maxAgeDays is 0 (no age limit) and reports over closed sources (sales) and data sent in requests can hold data about people; leave out output.maxAgeDays (the default deletes reports after 30 days) or set a number of days"
+        "WARNING (Retention): output.maxAgeDays is 0 (no age limit) and reports over closed sources (summarized) and data sent in requests can hold data about people; leave out output.maxAgeDays (the default deletes reports after 30 days) or set a number of days"
     ]);
     // and not again inside the sections
     assert.equal(lines.filter((l) => l.includes("WARNING")).length, 3);
@@ -215,7 +217,7 @@ test("check-config: secret files are named as written and by their full path, ne
     mkdirSync(join(dir, "secrets"));
     writeFileSync(join(dir, "secrets", "key"), `${"k".repeat(64)}\n`, { mode: 0o600 });
     writeFileSync(join(dir, "secrets", "client"), "the-client-secret-value\n", { mode: 0o600 });
-    const options = { sources: { sales }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: "https://reports.example.com/mcp" }, http: { publicUrl: "https://reports.example.com" }, output: { dir: "out", downloads: { key: { file: "secrets/key" }, signIn: { clientId: "pivotkit-downloads", clientSecret: { file: "secrets/client" } } } }, baseDir: dir };
+    const options = { sources: { summarized }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: "https://reports.example.com/mcp" }, http: { publicUrl: "https://reports.example.com" }, output: { dir: "out", downloads: { key: { file: "secrets/key" }, signIn: { clientId: "pivotkit-downloads", clientSecret: { file: "secrets/client" } } } }, baseDir: dir };
     const text = factsOf((await checkConfig(options, { http: true, env: {}, name: "pivotkit-server" })).text);
     assert.ok(text.includes(`key from the file secrets/key (${join(dir, "secrets", "key")})`), text);
     assert.ok(text.includes(`client secret from the file secrets/client (${join(dir, "secrets", "client")})`), text);

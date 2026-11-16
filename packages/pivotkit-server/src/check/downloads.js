@@ -14,7 +14,7 @@ import { EXPIRES_MINUTES, insecurePublicHost, insecureUrlText, settingsOf } from
 import { uploadSettingsOf } from "../options/upload.js";
 import { isLoopback } from "../listen.js";
 import { madeAtStart, readSecret, secretFileWarning } from "../secrets.js";
-import { resolvePolicy } from "../policy.js";
+import { closedReason } from "../registry.js";
 import { realpath } from "node:fs/promises";
 import { OUTPUT_DEFAULTS, pathOf } from "../config.js";
 import { ownFileDirs } from "../context.js";
@@ -23,39 +23,25 @@ import { mcpCapOf, restDataOffered } from "../sources/inline.js";
 import { heading, idsText, plain, problem, secretText, warning } from "./format.js";
 
 
-/** What makes a policy closed, in words, or null where every field is shown; a field by its written name. */
-function closedBy(policy, written = []) {
-    if (policy.default !== "show") {
-        return `fields ${policy.default} by default`;
-    }
-    const field = [...policy.fields.entries()].find(([, level]) => level !== "show");
-    if (field) {
-        const name = written.find((w) => w.toLowerCase() === field[0].toLowerCase()) ?? field[0];
-        return `${name.slice(0, 60)} ${field[1]}`;
-    }
-    return policy.auto ? "the automatic values rule" : null;
-}
-
 /**
- * Why a source counts as closed: the first field that is not shown under its policy (with the
- * server's), else under a profile. Open needs `default: "show"` and no field below it, everywhere.
+ * Why a source counts as closed (registry.js closedReason), in words: the level that closes it, of a
+ * field by its written name or of the default, and the profile where that is not the policy of a
+ * caller without one. Open needs no field at "values" or "summary" and a hidden field hidden for
+ * every caller.
  * @param {import("../config.js").ServerOptions} options
  * @param {string} id
  */
 export function whyClosed(options, id) {
     const source = options.sources?.[id]?.policy;
+    const reason = closedReason(options, source);
+    if (!reason) {
+        return NO_FIELD_REASON;
+    }
     const written = [options.policy, source, ...Object.values(options.policy?.profiles ?? {})].flatMap((p) => Object.keys(p?.fields ?? {}));
-    const own = closedBy(resolvePolicy(options.policy, source), written);
-    if (own) {
-        return own;
-    }
-    for (const [name, profile] of Object.entries(options.policy?.profiles ?? {})) {
-        const by = closedBy(resolvePolicy(options.policy, source, profile), written);
-        if (by) {
-            return `profile ${name.slice(0, 40)}: ${by}`;
-        }
-    }
-    return NO_FIELD_REASON;
+    const { field } = reason;
+    const name = field ? (written.find((w) => w.toLowerCase() === field.toLowerCase()) ?? field).slice(0, 60) : null;
+    const what = reason.auto ? "the automatic values rule" : name ? `${name} ${reason.level}` : `fields ${reason.level} by default`;
+    return `${reason.profile !== null ? `profile ${reason.profile.slice(0, 40)}: ` : ""}${what}${reason.others ? ", shown to other callers" : ""}`;
 }
 
 /** Whether callers may send data of their own (inline:), whose reports count as closed: over MCP unless off, over REST where a profile allows it. */
@@ -195,8 +181,9 @@ async function links(options, registry, runtime) {
     const byField = ownClosed.filter((id) => !personal.has(id) || whyClosed(options, id) !== NO_FIELD_REASON);
     const inline = !storeTakesClosed && inlineOffered(options, runtime);
     if (byField.length) {
-        // why: open needs default "show" and no field below it, for the server, the source and every profile
-        items.push(plain(`closed (a field not shown for someone): ${idsText(byField.map((id) => `${id} (${whyClosed(options, id)})`))}`));
+        // why: open needs no field at values or summary, for the server, the source and every profile,
+        // and a hidden field hidden for every caller
+        items.push(plain(`closed (a field summarized, listed or shown to some callers only): ${idsText(byField.map((id) => `${id} (${whyClosed(options, id)})`))}`));
     }
     if (personal.size || inline) {
         items.push(perPersonItem(personal, inline));

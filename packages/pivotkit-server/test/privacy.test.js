@@ -87,6 +87,26 @@ test("isClosedForDelivery: closed by a field, inline data, a claim parameter, a 
     assert.equal(isClosedForDelivery(/** @type {any} */ ({ ...options, policy: { profiles: { reader: { default: "summary" } } } }), "shown"), true);
 });
 
+test("isClosedForDelivery: a field hidden for every caller keeps a source open, since a hidden column reaches no report; hidden for some and shown for others closes it", () => {
+    const sourceOf = (policy) => ({ sources: { s: { file: "data/sales.csv", policy } } });
+    const closed = (options) => isClosedForDelivery(/** @type {any} */ (options), "s");
+    // "show everything except the personal column"
+    assert.equal(closed(sourceOf({ default: "show", fields: { Customer: "hide" } })), false, "one field hidden");
+    assert.equal(closed(sourceOf({ default: "hide", fields: { Region: "show", Sales: "show" } })), false, "hidden by default, some fields shown");
+    assert.equal(closed({ ...sourceOf({ default: "show" }), policy: { fields: { Customer: "hide" } } }), false, "hidden by the server's policy");
+    assert.equal(closed({ ...sourceOf({ default: "show", fields: { Customer: "hide" } }), policy: { profiles: { reader: { default: "show" } } } }), false, "a profile cannot show what the source hides");
+    assert.equal(closed({ ...sourceOf({ default: "show", fields: { Customer: "hide" } }), policy: { profiles: { reader: { fields: { Customer: "show" } } } } }), false, "a profile's show does not lift a base hide");
+    // still closed: a level that lets a report hold more than the model saw, or a field shown to some callers only
+    assert.equal(closed(sourceOf({ default: "show", fields: { Customer: "hide", Product: "summary" } })), true, "summary next to hide");
+    assert.equal(closed(sourceOf({ default: "show", fields: { Customer: "values" } })), true, "values");
+    assert.equal(closed(sourceOf({ default: "hide", fields: { Region: "summary" } })), true, "summary under a hidden default");
+    assert.equal(closed(sourceOf(undefined)), true, "the default summary");
+    assert.equal(closed({ ...sourceOf({ default: "show" }), policy: { profiles: { reader: { fields: { Customer: "hide" } } } } }), true, "hidden for one profile, shown to other callers");
+    assert.equal(closed({ ...sourceOf({ default: "show" }), policy: { profiles: { reader: { default: "hide" } } } }), true, "hidden by one profile's default, shown to other callers");
+    assert.equal(closed({ ...sourceOf({ default: "show", fields: { Customer: "hide" } }), policy: { profiles: { reader: { default: "summary" } } } }), true, "a profile at summary");
+    assert.equal(isClosedForDelivery(/** @type {any} */ ({ files: { allowDirs: ["data"], policy: { default: "show", fields: { Customer: "hide" } } } }), "file:sales.csv"), false, "a file by a files.policy that hides a field");
+});
+
 test("perPerson: a code source only, and not with cacheShared (one copy for all callers is no data per person)", () => {
     assert.doesNotThrow(() => validateOptions({ sources: { mine: { load: async () => [], perPerson: true } } }));
     assert.throws(() => validateOptions({ sources: { f: { file: "data/x.csv", perPerson: true } } }), /sources\.f\.perPerson: only a code source \(load\) takes perPerson/);
@@ -118,7 +138,7 @@ test("check-config: per-person sources and data sent in requests are named with 
     assert.match(text, /^ {2}reports over closed sources \(team, mine, sales\): no links/m);
     assert.match(text, /^ {2}reports over open sources \(open\): plain links$/m);
     // a code source open by its fields: pivotkit cannot see whether load answers per caller
-    assert.match(text, /^ {2}open: load up to 30000 ms\n(?: {4}[^\n]*\n)*? {4}reports over it get plain links \(every field is shown\)\n {4}if load answers each caller differently, set perPerson: true/m);
+    assert.match(text, /^ {2}open: load up to 30000 ms\n(?: {4}[^\n]*\n)*? {4}reports over it get plain links \(every field is shown or hidden\)\n {4}if load answers each caller differently, set perPerson: true/m);
     assert.match(text, /^ {2}mine: load up to 30000 ms\n {4}loaded on every call\n {4}data per caller, per person \(perPerson: no plain links to its reports\)/m);
     assert.doesNotMatch(text, /^ {2}(team|mine): load[^\n]*\n(?: {4}[^\n]*\n)*? {4}reports over it get plain links/m);
 });

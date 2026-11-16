@@ -383,7 +383,7 @@ gets at each level, and how to set them per client.
       spaces, dots, underscores, dashes and parentheses.
     - In a directory a web server serves, names start with 22 random characters. Protect that server
       as you would the data. Note that a report gets an address there only when it is over a source
-      whose fields are all `show`.
+      whose fields are all `show` or hidden for every caller.
     - The directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's
       files. pivotkit's reports and drafts carry `.pivotkit-out.` in their names. Other files are
       neither counted nor deleted. A file named with `.pivotkit-out.` by hand counts as pivotkit's.
@@ -412,8 +412,8 @@ gets at each level, and how to set them per client.
   a link that expires, by default after 60 minutes.
     - The link is an HMAC-signed token with 128 random bits. The server checks it in constant time.
       A forged and an unknown link get the same 404. The link names no file.
-    - A source can have a field that is not `show` for someone. A report over that source gets a link
-      only where the link is bound in one of two ways:
+    - A source can have a field at `values` or `summary`, or one hidden for some callers only. A
+      report over that source gets a link only where the link is bound in one of two ways:
         - to the person's sign-in: OpenID Connect code flow with PKCE, `state` and `nonce`. Only a
           sign-in with the issuer and subject that asked gets the file. The token holds them as an
           HMAC.

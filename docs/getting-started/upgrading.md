@@ -158,6 +158,29 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
+## From 0.7 to 0.8 { #from-0-7 }
+
+This applies to pivotkit-server and pivotkit-mcp 0.2.0 too. Run `check-config` of the new release
+before you start it. It says what applies to your configuration.
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [Hidden fields keep a source open](#hidden-open) | a source hides a field for every caller and has no field at `values` or `summary` | nothing, or a policy at `summary` where its reports must not get plain links |
+
+### Hidden fields keep a source open { #hidden-open }
+
+A field at `hide` is dropped when the data is read, so it reaches no report. Such a field no longer
+closes a source for [delivery](../reference/delivery.md). A source that shows everything except a
+personal column is open:
+
+- Its reports get plain download links.
+- With `output.baseUrl`, they carry an address there.
+- With an upload store, they go to the store under its plain links.
+
+A source stays closed when a field or the default is `values` or `summary` for anyone. It also stays
+closed when a field is hidden for some callers and shown to others. `check-config` lists under
+`Delivery:` which sources are open and why the others are closed.
+
 ## From 0.6 to 0.7 { #from-0-6-1 }
 
 !!! warning "Copy old reports out of `output.dir` first"

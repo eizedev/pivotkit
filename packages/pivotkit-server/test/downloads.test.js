@@ -341,6 +341,35 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
     }
 });
 
+test("a source that hides one field: a plain link, and the file behind it holds no value of the hidden field; a view that names it gets no file", async () => {
+    const dir = workspace();
+    const hidden = { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } } };
+    const server = await restServer({ sources: { hidden }, output: { dir: "out", downloads: { key: { env: "DL_KEY" } } }, baseDir: dir }, { env: { DL_KEY } });
+    try {
+        for (const format of ["csv", "html"]) {
+            const r = await call(`${server.api}/views/render`, { body: { source: "hidden", view: { rows: ["Region", "Product"], values: [{ field: "Sales", agg: "sum" }] }, format } });
+            assert.equal(r.status, 200, JSON.stringify(r.data));
+            assert.equal(r.data.output.bound, "none", format);
+            const got = await fetch(r.data.output.url);
+            assert.equal(got.status, 200);
+            const text = await got.text();
+            assert.match(text, /North/);
+            assert.doesNotMatch(text, /Customer|Alice|Bob|Carol|Dan Example|Eve/, format);
+        }
+        const named = await call(`${server.api}/views/render`, { body: { source: "hidden", view: { rows: ["Customer"], values: [{ field: "Sales", agg: "sum" }] }, format: "csv" } });
+        assert.equal(named.data.output, null, JSON.stringify(named.data));
+        assert.doesNotMatch(JSON.stringify(named.data), /Alice|Bob/);
+        const checked = await checkConfig({ sources: { hidden }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
+        assert.match(factsOf(checked.text), /^ {2}reports over open sources \(hidden\): plain links$/m);
+        assert.doesNotMatch(checked.text, /closed \(a field/);
+        // hidden for one profile only: another caller's report holds the field, so the link is bound
+        const split = await checkConfig({ sources: { shown: { file: "data/sales.csv", policy: { default: "show" } } }, policy: { profiles: { reader: { fields: { customer: "hide" } } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
+        assert.match(factsOf(split.text), /^ {2}closed \(a field summarized, listed or shown to some callers only\): shown \(profile reader: customer hide, shown to other callers\)$/m);
+    } finally {
+        await server.close();
+    }
+});
+
 test("a body over 1 KiB and a foreign Host are refused before anything else; the log holds no path", async () => {
     const dir = workspace();
     const server = await restServer({ sources: SOURCES, output: { dir: "out" }, baseDir: dir });
@@ -947,9 +976,9 @@ test("check-config: where links point, which sources get which link, the redirec
     assert.match(signIn.text, /^ {2}reports over closed sources \(sales\): download links \(signed in\)\n {4}register https:\/\/reports\.example\.com\/downloads\/callback at the provider for the client pivotkit-downloads\n {4}it must give the same subject \(claim sub\) as the MCP client\n {4}REST programs get them only with results: true$/m);
     assert.match(signIn.text, /^ {2}reports over open sources \(open\): plain links$/m);
     // why a source counts as closed: open needs default "show" and no field below it
-    assert.match(signIn.text, /^ {2}closed \(a field not shown for someone\): sales \(fields summary by default\)$/m);
+    assert.match(signIn.text, /^ {2}closed \(a field summarized, listed or shown to some callers only\): sales \(fields summary by default\)$/m);
     const why = await checkConfig({ sources: { listed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "values" } } }, profiled: { file: "data/sales.csv", policy: { default: "show" } } }, policy: { profiles: { reader: { default: "summary" } } }, output: { dir: "out" }, baseDir: dir }, { http: true, env: {} });
-    assert.match(factsOf(why.text), /closed \(a field not shown for someone\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
+    assert.match(factsOf(why.text), /closed \(a field summarized, listed or shown to some callers only\): listed \(Customer values\), profiled \(profile reader: fields summary by default\)/);
     assert.match(signIn.text, /^WARNING \(Delivery\): output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
     assert.match(signIn.text, /\nNew in this version: [^\n]*download links under \/downloads/);
 

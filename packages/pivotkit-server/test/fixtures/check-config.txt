@@ -1,5 +1,5 @@
 pivotkit-server: the server starts, but not everything will work.
-1 problem, 2 warnings.
+1 problem, 3 warnings.
 
 PROBLEM: sources.gone.file: data/missing.csv is not there -> the server
     starts; gone answers FILE_NOT_AVAILABLE
@@ -8,6 +8,8 @@ WARNING (Sources): sources.sales.policy: "show" by default with hidden fields
     is a deny list: a column the data gains later is shown unless someone
     hides it; prefer "summary" by default and give the fields to show the
     level show
+WARNING (Delivery): output.downloads.key is not set: links stop working on a
+    restart and on another replica
 WARNING (Auth): the token bot's scope "typo:scope" is named by no source, tool
     or required scope
 
@@ -63,12 +65,13 @@ Output: out
 Delivery:
   download links: http://127.0.0.1:3333/downloads/<token>
     expire after 60 minutes
-  closed (a field not shown for someone): sales (Customer hide), gone (fields
-      summary by default), code (fields summary by default)
+  closed (a field summarized, listed or shown to some callers only): gone
+      (fields summary by default), code (fields summary by default)
   per person (counted as closed): data sent in requests (inline:)
-  reports over closed sources (sales, gone, code): no links (the file is kept;
-      the person asks you for it)
+  reports over closed sources (gone, code): no links (the file is kept; the
+      person asks you for it)
     set output.downloads.signIn for links only the person can open
+  reports over open sources (sales): plain links
 
 HTTP: 127.0.0.1:3333
 
@@ -92,9 +95,9 @@ Log:
 New in this version: code sources with a time limit and data per caller, data
     in the request (inline:; mcp.data: false switches it off), download links
     under /downloads/, answered without a token (the link is the credential;
-    output.downloads.enabled: false switches them off), reports deleted after
-    30 days (output.maxAgeDays: 0 keeps them), the client's IP address on the
-    log's request lines (log.address: "off" leaves it out), a start error as a
-    JSON line where stderr is no terminal (log.format: "text" keeps the plain
-    line)
+    output.downloads.enabled: false switches them off), reports with a link
+    stored with a random prefix (output.name), reports deleted after 30 days
+    (output.maxAgeDays: 0 keeps them), the client's IP address on the log's
+    request lines (log.address: "off" leaves it out), a start error as a JSON
+    line where stderr is no terminal (log.format: "text" keeps the plain line)
     -> https://pivotkit.eize.dev/getting-started/upgrading/

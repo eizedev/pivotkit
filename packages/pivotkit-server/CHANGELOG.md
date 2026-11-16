@@ -6,6 +6,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- A field at `hide` no longer closes a source for delivery: it is dropped when the data is read and
+  reaches no report. A source that hides a field for every caller, with no field at `values` or
+  `summary`, is open. Its reports get plain download links, an `output.baseUrl` address and plain
+  store links. A field hidden for some callers and shown to others still closes it. `check-config`
+  names that case ([#510](https://github.com/eizedev/pivotkit/issues/510),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open)).
+
 ## [0.2.0] - 2026-11-16
 
 ### Upgrading from 0.1.1

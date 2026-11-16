@@ -120,10 +120,10 @@ function presignRoute(more = {}) {
 /** The bucket: takes the body, answers 200. */
 const bucket = (status = 200) => json({ ok: true }, status);
 
-/** A source whose fields are all shown, and one with a hidden field. */
+/** A source whose fields are all shown, and one with a field at summary. */
 const SOURCES = {
     open: { file: "data/sales.csv", policy: { default: "show" } },
-    closed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } } }
+    closed: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "summary" } } }
 };
 
 /** The options of a store reached by presigning. */

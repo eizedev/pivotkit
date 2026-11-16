@@ -6,6 +6,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Changed
+
+- Behaviour change from pivotkit-server: a source that hides a field for every caller, with no field
+  at `values` or `summary`, is open, and its reports get plain download links
+  ([#510](https://github.com/eizedev/pivotkit/issues/510),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#hidden-open)).
+
 ## [0.2.0] - 2026-11-16
 
 ### Upgrading from 0.1.1
