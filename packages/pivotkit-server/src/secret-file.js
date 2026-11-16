@@ -38,6 +38,15 @@ const MAX_SECRET_BYTES = 4096;
 /** How often, and how long apart, a rename is tried again on Windows while another process holds the file. */
 const RENAME_RETRY = Object.freeze({ tries: 3, waitMs: 50 });
 
+/**
+ * How long a kept file that is still empty is read again: another process that created it in place
+ * (no hard links) may not have written its value yet. About a second.
+ */
+const EMPTY_RETRY = Object.freeze({ tries: 20, waitMs: 50 });
+
+/** The file system calls tests replace (a file system without hard links). */
+export const secretFileMeans = { link };
+
 /** The codes of link() where a file system has no hard links. */
 const NO_HARD_LINKS = new Set(["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"]);
 
@@ -185,6 +194,9 @@ async function readKept(target, label, usable, kind) {
             throw new SecretFileError("UNUSABLE", `${label}: is there but not a usable ${kind} (more than ${MAX_SECRET_BYTES} bytes); replace it with --force`);
         }
         const value = (await handle.readFile("utf8")).replace(/\r?\n$/, "");
+        if (!value) {
+            throw new EmptyFile();
+        }
         const why = usable(value);
         if (why) {
             throw new SecretFileError("UNUSABLE", `${label}: is there but not a usable ${kind} (${why}); replace it with --force`);
@@ -195,6 +207,34 @@ async function readKept(target, label, usable, kind) {
         return value;
     } finally {
         await handle.close();
+    }
+}
+
+/** A kept file that is empty so far. */
+class EmptyFile extends Error {}
+
+/**
+ * readKept, read again while the file is empty (another process may be between creating it and
+ * writing it), up to EMPTY_RETRY; then UNUSABLE.
+ * @param {string} target
+ * @param {string} label
+ * @param {(value: string) => string | null} usable
+ * @param {string} kind
+ */
+async function readSettled(target, label, usable, kind) {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            return await readKept(target, label, usable, kind);
+        } catch (e) {
+            if (!(e instanceof EmptyFile)) {
+                throw e;
+            }
+            if (attempt >= EMPTY_RETRY.tries) {
+                throw new SecretFileError("UNUSABLE", `${label}: is there but empty; replace it with --force`);
+            }
+            // a ref'd timer: the process waits for it
+            await new Promise((done) => setTimeout(done, EMPTY_RETRY.waitMs));
+        }
     }
 }
 
@@ -218,7 +258,7 @@ export async function placeSecret(path, value, { replace = false, keep = false, 
     const { dir, target } = await targetOf(resolve(path), label);
     const existing = await existingFile(target, label);
     if (existing && keep) {
-        return { path: target, value: await readKept(target, label, usable, kind), created: false, replaced: false };
+        return { path: target, value: await readSettled(target, label, usable, kind), created: false, replaced: false };
     }
     if (existing && !replace) {
         throw new SecretFileError("EXISTS", `${label}: is already there; not replaced (--force replaces it, --if-missing keeps it)`);
@@ -234,7 +274,7 @@ export async function placeSecret(path, value, { replace = false, keep = false, 
         }
         try {
             // link() never replaces: a file made since the check stays as it is
-            await link(temp, target);
+            await secretFileMeans.link(temp, target);
         } catch (e) {
             if (e?.code === "EEXIST") {
                 return lost(target, label, keep, usable, kind);
@@ -264,7 +304,7 @@ async function lost(target, label, keep, usable, kind) {
     if (!keep) {
         throw new SecretFileError("EXISTS", `${label}: is already there; not replaced (--force replaces it, --if-missing keeps it)`);
     }
-    return { path: target, value: await readKept(target, label, usable, kind), created: false, replaced: false };
+    return { path: target, value: await readSettled(target, label, usable, kind), created: false, replaced: false };
 }
 
 /**

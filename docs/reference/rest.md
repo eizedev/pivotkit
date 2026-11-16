@@ -700,7 +700,7 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 | `--if-missing` | Keep a file that is there and exit 0, if it holds a value the server can use (else 1); its mode is set to 0600 again when it is yours. Several runs at once end with one value |
 | `--force` | Replace a file that is there, atomically. Clients that still send the old token get 401 from then on; the server reads a token's file on every request and the download key within a second, so neither needs a restart |
 | `--config <file>` | `token new`: check `--profile` against `policy.profiles`, refuse a file inside `output.dir`, and use `http.publicUrl` in the hints. `token new` and `key new` read no configuration without it, not even `$PIVOTKIT_CONFIG`; `token show` reads `$PIVOTKIT_CONFIG` by default |
-| `--add` | `token new`: add `{ "name", "file", "scopes", "profile" }` to `auth.tokens` of `--config` (and `auth.mode` `"token"` when the file sets none). The new configuration is checked first; a name that is there, an unknown profile, `auth.mode` `none` or `oauth` are refused before anything is written. The old file is kept as `<file>.bak` (`.bak.1`, ... when that exists), the indentation and the file's mode stay; the token's file is written relative to the configuration when it lies below it. Restart the server: it reads the list of tokens at start |
+| `--add` | `token new`: add `{ "name", "file", "scopes", "profile" }` to `auth.tokens` of `--config` (and `auth.mode` `"token"` when the file sets none, with a warning). Once `auth.tokens` lists a token, `$PIVOTKIT_TOKEN` is no longer read: the first `--add` warns that its clients need a token of the list. The new configuration is checked first; a name that is there, an unknown profile, `auth.mode` `none` or `oauth`, and a configuration that is a symbolic link or in a directory that cannot be written are refused before anything is written. The old file is kept as `<file>.bak` (`.bak.1`, ... when that exists), the indentation and the file's mode stay; the token's file is written relative to the configuration when it lies below it. Restart the server: it reads the list of tokens at start |
 | `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
 | `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
 | `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`; the value only where it would be printed |
@@ -711,8 +711,10 @@ what to add to the configuration and how to try the token with curl, PowerShell 
 usable (`EXISTS`, `NOT_REGULAR_FILE`, `NO_DIRECTORY`, `READ_ONLY`, `UNUSABLE`), 2 for a usage or
 configuration error. No message holds a value.
 
-On Windows the mode does not apply: the file takes the permissions of its folder. To let only your
-account read it: `icacls secrets\reports.token /inheritance:r /grant:r "%USERNAME%:R"`.
+On Windows the mode does not apply: the file takes the permissions of its folder. To keep it to your
+account, in PowerShell: `icacls secrets\reports.token /inheritance:r /grant:r "${env:USERNAME}:F"`
+(full control for you alone, so `--force` can still replace it). The server's account needs read
+access too when it is another one.
 
 ## Logging { #logging }
 

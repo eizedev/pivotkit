@@ -311,12 +311,16 @@ root `package.json`: `npm run types` and the builds depend on it.
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source,
   source-from-openapi, mcp, cli, healthcheck, token, key), `src/credentials.js` (`token new`, `token show`,
   `key new`, loaded by the runner only for them: a value on stdout or into a file, `--add` into
-  `auth.tokens` checked by `validateOptions` with a backup, `--json` as pivotkit-cli's; a value's
-  rules are auth.js's, downloads.js's and log.js's; `MAKE_TOKEN` and `makeKey` in auth.js are the
-  commands the messages name), `src/secret-file.js` (`placeSecret`: a secret into a file with mode
-  0600 through a temporary file and link(), never replacing one without `replace`, `keep` reading the
-  one there, a symbolic link, directory or missing directory refused; `replaceFile` and
-  `writeBackup` for a configuration file; for any code that creates a missing secret),
+  `auth.tokens` checked by `validateOptions` with a backup, `--json` as pivotkit-cli's;
+  `configuredToken`, the one lookup of `token show`; `MAKE_TOKEN` and `makeKey` in auth.js are the
+  commands the messages name), `src/secret-rules.js` (`tokenProblem`, `keyProblem`: whether a value
+  is one the server can use, by auth.js's, downloads.js's and log.js's rules), `src/secret-file.js`
+  (`placeSecret`: a secret into a file with mode 0600 through a temporary file and link(), never
+  replacing one without `replace`, `keep` reading the one there (an empty one read again for about a
+  second, for a file system without hard links, where the file is created in place;
+  `secretFileMeans.link` lets tests take link() away), a symbolic link, directory or missing
+  directory refused; `replaceFile` and `writeBackup` for a configuration file; for any code that
+  creates a missing secret),
   `src/check-source.js` (`check-source`: one load of an
   HTTP source, never a value printed), `src/openapi-source.js` (`source-from-openapi`: an HTTP source
   block from one GET operation of an operator's OpenAPI document, read as hostile input; imported by

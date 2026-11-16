@@ -341,3 +341,98 @@ test("the help lists token and key; their own help names every flag", () => {
     assert.match(run(["key", "--help"]).stdout, /--for downloads\|audit/);
     assert.equal(run(["token", "renew"]).status, 2);
 });
+
+test("on a terminal: what to add, the profile, the restart and how to try it, with http.publicUrl; never the value on stderr", async () => {
+    const { credentialsCommand } = await import("../src/credentials.js");
+    const dir = tempDir();
+    writeFileSync(join(dir, "pivotkit.json"), JSON.stringify({ policy: { profiles: { export: { results: true } } }, http: { publicUrl: "https://reports.example.com/" } }, null, 2));
+    let out = "";
+    let err = "";
+    const io = { env: {}, cwd: dir, stdout: { write: (t) => (out += t) }, stderr: { isTTY: true, write: (t) => (err += t) } };
+    assert.equal(await credentialsCommand("token", ["new", "--file", "reports.token", "--config", "pivotkit.json"], io), 0);
+    const value = fileValue(join(dir, "reports.token"));
+    assert.equal(out, "");
+    assert.match(err, /Add it to auth\.tokens of pivotkit\.json/);
+    assert.match(err, /\{"name":"reports","file":"reports\.token"\}/);
+    assert.match(err, /--profile gives it one of export/);
+    assert.match(err, /Restart the server/);
+    assert.match(err, /curl -H "Authorization: Bearer \$\(cat 'reports\.token'\)" https:\/\/reports\.example\.com\/api\/v1\/sources/);
+    assert.match(err, /Get-Content -Raw 'reports\.token'/);
+    assert.match(err, /claude mcp add --transport http pivotkit https:\/\/reports\.example\.com\/mcp --header/);
+    assert.ok(!err.includes(value));
+    err = "";
+    assert.equal(await credentialsCommand("token", ["new", "--file", "reports.token", "--force"], io), 0);
+    assert.match(err, /warning: reports\.token replaced.*401/);
+    assert.match(err, /no restart/);
+    assert.ok(!err.includes(fileValue(join(dir, "reports.token"))) && !err.includes(value));
+    err = "";
+    assert.equal(await credentialsCommand("key", ["new", "--for", "downloads", "--file", "download.key"], io), 0);
+    assert.match(err, /"output": \{ "downloads": \{ "key": \{ "file": "download\.key" \} \} \}/);
+    assert.ok(!err.includes(fileValue(join(dir, "download.key"))));
+});
+
+test("--add warns where it changes what the server accepts: auth.mode set, $PIVOTKIT_TOKEN no longer read", () => {
+    const dir = workspace();
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } } }));
+    const first = run(["token", "new", "--file", join(dir, "a.token"), "--config", config, "--add", "--json"]);
+    assert.equal(first.status, 0, first.stderr);
+    const { warnings } = JSON.parse(first.stdout);
+    assert.ok(warnings.some((w) => /had no auth\.mode: it is "token" now/.test(w)), warnings.join("\n"));
+    assert.ok(warnings.some((w) => /\$PIVOTKIT_TOKEN .*no longer read/.test(w)), warnings.join("\n"));
+    const second = run(["token", "new", "--file", join(dir, "b.token"), "--config", config, "--add"]);
+    assert.equal(second.status, 0, second.stderr);
+    assert.equal(second.stderr, "", "no warning once the list had a token and the mode");
+});
+
+test("--add refuses a configuration it could not replace before it writes the token", { skip: !POSIX && "symbolic links need rights on Windows" }, () => {
+    const dir = workspace();
+    const real = join(dir, "real.json");
+    writeFileSync(real, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } } }));
+    const config = join(dir, "pivotkit.json");
+    symlinkSync(real, config);
+    const r = run(["token", "new", "--file", join(dir, "a.token"), "--config", config, "--add"]);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /symbolic link/);
+    assert.ok(!existsSync(join(dir, "a.token")), "no token file left behind");
+});
+
+test("without hard links: the file is created in place, and a run that loses waits for the other's value", async () => {
+    const { placeSecret, secretFileMeans } = await import("../src/secret-file.js");
+    const { link } = secretFileMeans;
+    const noLinks = Object.assign(new Error("operation not permitted"), { code: "EPERM" });
+    try {
+        const dir = tempDir();
+        secretFileMeans.link = async () => Promise.reject(noLinks);
+        const made = await placeSecret(join(dir, "made.token"), "a-test-token-that-is-long-enough-0123456789");
+        assert.equal(made.created, true);
+        assert.equal(fileValue(join(dir, "made.token")), "a-test-token-that-is-long-enough-0123456789");
+        if (POSIX) {
+            assert.equal(statSync(join(dir, "made.token")).mode & 0o777, 0o600);
+        }
+        // another process creates the name first and writes its value 200 ms later
+        const target = join(dir, "raced.token");
+        secretFileMeans.link = async () => {
+            writeFileSync(target, "");
+            setTimeout(() => writeFileSync(target, "the-other-process-token-long-enough-012345\n"), 200);
+            throw noLinks;
+        };
+        const kept = await placeSecret(target, "mine-mine-mine-mine-mine-mine-mine-mine-01", { keep: true });
+        assert.deepEqual([kept.created, kept.value], [false, "the-other-process-token-long-enough-012345"]);
+        assert.deepEqual(tempFiles(dir), []);
+    } finally {
+        secretFileMeans.link = link;
+    }
+});
+
+test("secret-rules: the server's rules for a token and a key", async () => {
+    const { tokenProblem, keyProblem } = await import("../src/secret-rules.js");
+    assert.equal(tokenProblem("a-test-token-that-is-long-enough-0123456789"), null);
+    assert.match(String(tokenProblem("short")), /at least 32/);
+    assert.ok(tokenProblem("a test token that is long enough 0123456789"), "a space is no bearer token");
+    assert.equal(keyProblem("downloads")("x".repeat(32)), null);
+    assert.match(String(keyProblem("downloads")("x".repeat(31))), /32 bytes/);
+    assert.equal(keyProblem("audit")("x".repeat(16)), null);
+    assert.match(String(keyProblem("audit")("x".repeat(15))), /16 characters/);
+    assert.match(String(keyProblem("audit")("two\nlines-two-lines")), /line break/);
+});

@@ -17,23 +17,21 @@
  * only where it would be printed. No message and no error holds a value.
  */
 
-import { readFile, stat } from "node:fs/promises";
-import { basename, extname, isAbsolute, relative, resolve, sep } from "node:path";
+import { access, constants as fsConstants, lstat, readFile } from "node:fs/promises";
+import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
 import { isInside } from "pivotkit-cli/files";
 import { ConfigError, REST_BASE, loadConfig, pathOf, validateOptions } from "./config.js";
-import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
-import { KEY_MIN_BYTES } from "./downloads.js";
-import { AUDIT_KEY_MIN } from "./log.js";
-import { DEFAULT_PORT } from "./serve.js";
+import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";
+import { DEFAULT_PORT, TOKEN_ENV } from "./serve.js";
 import { SECRET_BYTES, SecretFileError, newSecret, placeSecret, replaceFile, writeBackup } from "./secret-file.js";
 
 /** The variable that names the configuration file (the runner's CONFIG_ENV, defined there). */
 const CONFIG_ENV = "PIVOTKIT_CONFIG";
 
-/** What a key is for, and where the configuration names it. */
-const KEY_USES = Object.freeze({
+/** Where the configuration names a key of each use (secret-rules.js KEY_USES), for the hints. */
+const KEY_OPTIONS = Object.freeze({
     downloads: { option: "output.downloads.key", snippet: (file) => `"output": { "downloads": { "key": { "file": ${JSON.stringify(file)} } } }`, after: "The server reads it again within a second: no restart. Links made with an earlier key stop working." },
     audit: { option: "audit.key", snippet: (file) => `"audit": { "subject": "hash", "key": { "file": ${JSON.stringify(file)} } }`, after: "The server reads it at start: restart it." }
 });
@@ -94,20 +92,6 @@ class CommandError extends Error {
 }
 
 const usage = (code, message) => new CommandError(2, code, message);
-
-/** Why a token cannot be used by the server, or null (auth.js's rules). */
-const tokenProblem = (value) => (value.length < TOKEN_MIN ? `${value.length} characters, at least ${TOKEN_MIN}` : TOKEN_SYNTAX.test(value) ? null : TOKEN_SYNTAX_TEXT);
-
-/** Why a key cannot be used for `use`, or null (downloads.js's and log.js's rules, secrets.js's one line). */
-const keyProblem = (use) => (value) => {
-    if (!value || /[\r\n\0]/.test(value)) {
-        return value ? "a line break or NUL inside" : "empty";
-    }
-    if (use === "downloads" && Buffer.byteLength(value) < KEY_MIN_BYTES) {
-        return `shorter than ${KEY_MIN_BYTES} bytes`;
-    }
-    return use === "audit" && value.length < AUDIT_KEY_MIN ? `shorter than ${AUDIT_KEY_MIN} characters` : null;
-};
 
 /**
  * The flags of a command parsed; a usage error with "did you mean" for an unknown one.
@@ -223,8 +207,14 @@ async function tokenNew(argv, io) {
     }
     let backup = null;
     if (added) {
-        backup = await writeBackup(added.path, added.before, added.mode);
-        await replaceFile(added.path, added.text, added.mode, values.config);
+        try {
+            backup = await writeBackup(added.path, added.before, added.mode);
+            await replaceFile(added.path, added.text, added.mode, values.config);
+        } catch (e) {
+            const why = String(e?.message ?? e).slice(0, 200);
+            throw new CommandError(1, "CONFIG_NOT_WRITTEN", `${values.config} was not changed (${why}); the token's file ${values.file} is written: run the same command with --if-missing instead of a new token`);
+        }
+        warnings.push(...added.notes);
     }
     const hints = tokenHints({ values, entry, options, added: Boolean(added), backup, secret });
     const json = { name, ...(file ? { file: secret.file, created: secret.created, replaced: secret.replaced } : {}), ...(added ? { config: added.path, backup } : {}) };
@@ -240,9 +230,19 @@ async function tokenNew(argv, io) {
  * @param {any} options  the file as loadConfig read it
  */
 async function withToken(path, config, entry, options) {
+    // replaceFile renames over it: a link (a mounted ConfigMap is one) or a directory that cannot be
+    // written is refused now, before the token's file is written
+    const info = await lstat(path);
+    if (!info.isFile()) {
+        throw usage("CONFIG_NOT_WRITABLE", `${config}: is ${info.isSymbolicLink() ? "a symbolic link (a mounted ConfigMap is one)" : "not a regular file"}; --add replaces the file, so add the entry where the file comes from`);
+    }
+    const writable = await access(dirname(path), fsConstants.W_OK).then(() => true, () => false);
+    if (!writable) {
+        throw usage("CONFIG_NOT_WRITABLE", `${config}: its directory cannot be written (the backup and the new file go there); add the entry by hand`);
+    }
     const before = await readFile(path, "utf8");
-    const mode = (await stat(path)).mode & 0o777;
-    const bom = before.startsWith("﻿") ? "﻿" : "";
+    const mode = info.mode & 0o777;
+    const bom = before.startsWith("\uFEFF") ? "\uFEFF" : "";
     const raw = JSON.parse(before.slice(bom.length));
     const auth = raw.auth ?? {};
     const tokens = auth.tokens ?? [];
@@ -254,6 +254,14 @@ async function withToken(path, config, entry, options) {
         throw usage("AUTH_MODE", `auth.mode is "${auth.mode}" in ${config}: static tokens are used with auth.mode "token" only${auth.mode === "none" ? '; set it to "token" first' : ""}`);
     }
     const next = { ...raw, auth: { ...auth, mode: "token", tokens: [...tokens, entry] } };
+    const notes = [];
+    if (auth.mode === undefined) {
+        notes.push(`${config} had no auth.mode: it is "token" now, so every request needs a token`);
+    }
+    if (!tokens.length) {
+        // auth.js staticTokens: the variable's token counts only while auth.tokens is empty
+        notes.push(`$${TOKEN_ENV} (pivotkit-mcp: $PIVOTKIT_MCP_TOKEN) is no longer read once auth.tokens lists a token: clients that send it get 401 after the restart; give them a token of auth.tokens`);
+    }
     try {
         validateOptions({ ...structuredClone(next), baseDir: options.baseDir });
     } catch (e) {
@@ -263,7 +271,7 @@ async function withToken(path, config, entry, options) {
     const eol = before.includes("\r\n") ? "\r\n" : "\n";
     const body = JSON.stringify(next, null, indent).replace(/\n/g, eol);
     const text = `${bom}${body}${/\r?\n$/.test(before) ? eol : ""}`;
-    return { path, before, text, mode };
+    return { path, before, text, mode, notes };
 }
 
 /** What to do next with a new token, for a terminal. */
@@ -295,7 +303,7 @@ function tokenHints({ values, entry, options, added, backup, secret }) {
             `  claude mcp add --transport http pivotkit ${url}/mcp --header "Authorization: Bearer $(cat ${quoted(file)})"`
         );
         if (process.platform === "win32") {
-            hints.push(`On Windows the file takes the permissions of its folder; to let only you read it: icacls ${JSON.stringify(file)} /inheritance:r /grant:r "%USERNAME%:R"`);
+            hints.push(`On Windows the file takes the permissions of its folder; to keep it to your account (PowerShell): icacls ${JSON.stringify(file)} /inheritance:r /grant:r "\${env:USERNAME}:F"`);
         } else if (!secret.created && !secret.replaced) {
             // kept: nothing to say about its owner
         } else {
@@ -311,18 +319,56 @@ function tokenHints({ values, entry, options, added, backup, secret }) {
  */
 async function keyNew(argv, io) {
     const { values } = parse("key new", argv);
-    const uses = Object.keys(KEY_USES);
+    const uses = [...KEY_USES];
     if (!values.for || !uses.includes(values.for)) {
         const near = values.for ? closest(values.for, uses) : null;
         throw usage("FOR", `--for must be ${uses.join(" or ")}${values.for ? `, not ${JSON.stringify(values.for.slice(0, 40))}` : ""}${near ? `; did you mean "${near}"?` : ""}`);
     }
     checkWriteFlags(values);
-    const use = KEY_USES[/** @type {keyof typeof KEY_USES} */ (values.for)];
+    const use = KEY_OPTIONS[/** @type {keyof typeof KEY_OPTIONS} */ (values.for)];
     const secret = await secretOf(values, SECRET_BYTES.key, "key", keyProblem(values.for), io.cwd ?? process.cwd());
     const warnings = secret.replaced && values.for === "downloads" ? [`${values.file} replaced: download links made with the old key stop working within a second`] : [];
     const hints = values.file ? [`Name it as ${use.option} in your configuration:`, `  ${use.snippet(values.file)}`, use.after] : [`Keep it in a file only the server reads (pivotkit-server key new --for ${values.for} --file <path>) and name it as ${use.option}: { "file": "<path>" }.`];
     const json = { for: values.for, ...(values.file ? { file: secret.file, created: secret.created, replaced: secret.replaced } : {}) };
     return { json, value: secret.value, hints, warnings, printValue: !values.file || Boolean(values.print), field: "key" };
+}
+
+/**
+ * The value of the token `name` of auth.tokens as the server reads it (auth.js staticTokens: a file
+ * trimmed, a variable as it is), checked by its rules; a usage error for a name that is not there, a
+ * CommandError (1) for one that cannot be read or used.
+ * @param {any} options  as loadConfig read them
+ * @param {string} name
+ * @param {Record<string, string | undefined>} env
+ * @param {string} config  the file as given, for messages
+ * @returns {Promise<string>}
+ */
+async function configuredToken(options, name, env, config) {
+    const tokens = options.auth?.tokens ?? [];
+    const token = tokens.find((t) => t.name === name);
+    if (!token) {
+        const near = closest(name, tokens.map((t) => t.name));
+        throw usage("UNKNOWN_TOKEN", `no token "${name.slice(0, 60)}" in auth.tokens of ${config}${near ? `; did you mean "${near}"?` : tokens.length ? `; there are ${tokens.map((t) => t.name).join(", ")}` : ""}`);
+    }
+    let value;
+    if (token.file) {
+        value = await readFile(pathOf(options, token.file), "utf8").then(
+            (text) => text.trim(),
+            (e) => {
+                throw new CommandError(1, "UNREADABLE", `the token "${name}" (${token.file}) cannot be read (${e?.code === "ENOENT" ? "no such file" : e?.code === "EACCES" ? "permission denied" : "unreadable"})`);
+            }
+        );
+    } else {
+        value = env[/** @type {string} */ (token.env)] ?? "";
+        if (!value) {
+            throw new CommandError(1, "UNSET", `the token "${name}" comes from $${token.env}, which is not set here`);
+        }
+    }
+    const why = tokenProblem(value);
+    if (why) {
+        throw new CommandError(1, "UNUSABLE", `the token "${name}" (${token.file ?? `$${token.env}`}) cannot be used: ${why}; make a new one with pivotkit-server token new${token.file ? " --file <its file> --force" : ""}`);
+    }
+    return value;
 }
 
 /**
@@ -340,31 +386,7 @@ async function tokenShow(argv, io) {
         throw usage("NO_CONFIG", `token show reads the configuration file: give --config <file> or set $${CONFIG_ENV}`);
     }
     const options = await configOf(resolve(io.cwd ?? process.cwd(), config));
-    const tokens = options.auth?.tokens ?? [];
-    const token = tokens.find((t) => t.name === name);
-    if (!token) {
-        const near = closest(name, tokens.map((t) => t.name));
-        throw usage("UNKNOWN_TOKEN", `no token "${name.slice(0, 60)}" in auth.tokens of ${config}${near ? `; did you mean "${near}"?` : tokens.length ? `; there are ${tokens.map((t) => t.name).join(", ")}` : ""}`);
-    }
-    // as the server reads it (auth.js staticTokens): a file trimmed, a variable as it is
-    let value;
-    if (token.file) {
-        value = await readFile(pathOf(options, token.file), "utf8").then(
-            (text) => text.trim(),
-            (e) => {
-                throw new CommandError(1, "UNREADABLE", `the token "${name}" (${token.file}) cannot be read (${e?.code === "ENOENT" ? "no such file" : e?.code === "EACCES" ? "permission denied" : "unreadable"})`);
-            }
-        );
-    } else {
-        value = io.env[/** @type {string} */ (token.env)] ?? "";
-        if (!value) {
-            throw new CommandError(1, "UNSET", `the token "${name}" comes from $${token.env}, which is not set here`);
-        }
-    }
-    const why = tokenProblem(value);
-    if (why) {
-        throw new CommandError(1, "UNUSABLE", `the token "${name}" (${token.file ?? `$${token.env}`}) cannot be used: ${why}; make a new one with pivotkit-server token new${token.file ? ` --file <its file> --force` : ""}`);
-    }
+    const value = await configuredToken(options, name, io.env, config);
     return { json: { name }, value, hints: [], warnings: [], printValue: true, field: "token" };
 }
 
