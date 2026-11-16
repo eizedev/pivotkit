@@ -6,11 +6,13 @@
  * - "string", "number", "theme", "height": the attribute is the property's storage (reflected), as
  *   with a native element: setting the property sets the attribute, null or undefined removes it.
  * - "flag": a boolean attribute (present = true). "on-unless-false": true unless the attribute is
- *   "false" (drill-down defaults to on). "off-unless-set": present = true, but "false" is off, for a
- *   switch that lets rows out (drill-down-export), as export-data reads "false". "flag-or-url": present = true, a value other than "" and
- *   "true" is a URL ("false" turns it off). "flag-or-json": present = true, "false" off, a JSON object
- *   that object (Source data's `{ "columns": [...] }`); any other text is off, so a mistake hands
- *   out nothing, and said once in the console.
+ *   "false" (drill-down defaults to on). "off-unless-set": present = true, but "false" is off, for
+ *   a switch that lets rows out (drill-down-export), as export-data reads "false".
+ * - "flag-or-url": present = true, a value other than "" and "true" is a URL ("false" turns it
+ *   off).
+ * - "flag-or-json": present = true, "false" off, a JSON object that object (Source data's
+ *   `{ "columns": [...] }`); any other text is off, so a mistake hands out nothing, and said once
+ *   in the console.
  * - "json": the attribute is parsed into the property (a view); setting the property does not write
  *   the attribute back, since a view is an object.
  */

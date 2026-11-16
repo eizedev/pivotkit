@@ -1,13 +1,13 @@
 ---
 title: The rows behind a number
-description: Click a value of a pivotkit report to see the source rows behind it, enlarge the panel, and copy or download those rows as tab-separated text, JSON, CSV or Excel.
+description: Click a value of a pivotkit report to see the source rows behind it, enlarge the panel, and, where the application allows it, copy or download those rows as tab-separated text, JSON, CSV or Excel.
 ---
 
 # The rows behind a number
 
 Click a value in the table or a mark in the chart. A panel shows the rows of the data behind it:
-which tickets make up "648", or which sales add up to a region's revenue. From there you can copy
-the rows or download them.
+which tickets make up "648", or which sales add up to a region's revenue. Where the application
+allows it, you can copy the rows or download them from there.
 
 ![The rows behind the value Service Desk, P3 Medium: 648 rows with all their fields](../assets/screenshots/drill-down-light.png#only-light)
 ![The rows behind the value Service Desk, P3 Medium: 648 rows with all their fields](../assets/screenshots/drill-down-dark.png#only-dark)

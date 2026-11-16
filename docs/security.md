@@ -52,7 +52,9 @@ for the drill-down's copies and files.
 The drill-down hands out rows too. It shows up to `drillDownLimit` rows behind a value, with every
 column, in its panel and in `onCellClick`. The grand total's drill-down holds every row. Its copy
 and download follow `exportData`: with it off, the panel has none. `drillDownExport` turns them on
-alone. Where rows must stay in, turn the drill-down off with `drillDown={false}`.
+alone. This removes the Export menu, not the rows on screen. A person can still select and copy
+the panel's text in the browser, and `onCellClick` still gets the rows. Where rows must stay in,
+turn the drill-down off with `drillDown={false}`.
 
 `onExport` sees the file first, with `kind` `"data-csv"` or `"data-json"`. On the element it is
 `pivot-export`. Your code can log the file, upload it or refuse it (`false`). It is a hook for your

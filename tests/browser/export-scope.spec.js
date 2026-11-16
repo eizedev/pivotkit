@@ -1,6 +1,7 @@
 // What exportData lets out (#259, #263): off (the default), no Source data, and the drill-down shows
 // its rows but has no copy and no download; drillDownExport turns those back on with every column;
-// with { columns }, both hold only those columns, in that order, and with none that matches both are off. A host page (tests/browser/pages/host.jsx) with 2,000 sales rows.
+// with { columns }, both hold only those columns, in that order, and with none that matches both
+// are off. A host page (tests/browser/pages/host.jsx) with 2,000 sales rows.
 import { readFile } from "node:fs/promises";
 import { captureClipboard, copied, expect, test, toolbar } from "./fixtures.js";
 

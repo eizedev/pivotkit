@@ -345,7 +345,9 @@ file counts against `limits.cells` (rows times fields).
 
 `exportData` also decides the drill-down panel's **Export** menu: its copies and downloads. With
 `exportData` off, the panel shows the rows behind a value but has no Export menu.
-[`drillDownExport`](#prop-drilldownexport) turns that menu on alone.
+[`drillDownExport`](#prop-drilldownexport) turns that menu on alone. Only the menu goes: a person
+can still select and copy the panel's text in the browser, and `onCellClick` still gets the rows.
+To keep the rows in, set `drillDown={false}`.
 
 `exportData={{ columns: ["Region", "Revenue"] }}` keeps Source data to these columns, in this order:
 

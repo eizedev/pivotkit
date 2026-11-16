@@ -1,7 +1,8 @@
 /*
  * What the host's `exportData` lets out of the report: Source data in the Export menu, whether the
- * drill-down panel copies and downloads its rows (#263), and which columns those hold (#259). Loaded with the menus: the Export menu, the
- * drill-down panel and the export read it when they are used, so the first load does not carry it.
+ * drill-down panel copies and downloads its rows (#263), and which columns those hold (#259).
+ * Loaded with the menus: the Export menu, the drill-down panel and the export read it when they are
+ * used, so the first load does not carry it.
  */
 
 /**
