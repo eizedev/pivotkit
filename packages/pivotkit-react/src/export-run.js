@@ -12,7 +12,7 @@
 
 import { chartThemeFrom, toGrid } from "pivotkit-core";
 import { dataExportFor } from "./export-scope.js";
-import { copyText, dataUrlToBlob, safeFileName, saveBlob } from "./files.js";
+import { copyImage, copyText, dataUrlToBlob, safeFileName, saveBlob } from "./files.js";
 import { dropPrintFrame, preparePrintFrame, printHtml, releasePrintFrame, takePrintFrame } from "./print-frame.js";
 import { themeTokens } from "./theme-tokens.js";
 import { fill, messageOf } from "./labels.js";
@@ -215,14 +215,15 @@ function reportTokens(root, report, chart, dark) {
 /**
  * @typedef {{ fileName: string, result: import("pivotkit-core").PivotResult | null, encoded?: import("pivotkit-core").Encoded | null, exportData?: unknown, locale: string,
  *   labels: import("./labels.js").UiLabels, limits: object | undefined, root: React.RefObject<HTMLElement | null>,
- *   chartRef: React.RefObject<any>, announce: (text: string, extra?: { tone?: "error" }) => void,
- *   onExport?: (file: ExportFile) => unknown, title?: string | null, source?: string | null, loadECharts?: () => Promise<any> }} ExportContext
+ *   chartRef: React.RefObject<any>, announce: (text: string, extra?: { tone?: "error", action?: { label: string, run: () => void } }) => void,
+ *   onExport?: (file: ExportFile) => unknown, title?: string | null, source?: string | null, loadECharts?: () => Promise<any>, colorMap?: unknown }} ExportContext
  *   `title`: the report's title in an HTML report (the loaded view's name); `source`: the data's name;
  *   `encoded`: the data shown (the host's or a loaded file's), which the source data exports, only
  *   with the host's `exportData` (read by export-scope.js: the menu hides it otherwise, and no other
  *   way reaches it; `{ columns }`: only those);
  *   `loadECharts`: chart.jsx's loader of dist/echarts.js (passed in: a module of the menus that
- *   imported chart.jsx would move it out of the first load into a shared chunk)
+ *   imported chart.jsx would move it out of the first load into a shared chunk);
+ *   `colorMap`: the host's colour per series or slice name; the SVG and the HTML report take its light colours
  */
 
 /**
@@ -233,21 +234,44 @@ const MIXED_TOKENS = Object.freeze(["--pk-heat-low", "--pk-heat-high", "--pk-sca
 
 /**
  * One export of the Export menu.
- * @param {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "copy-table" | "copy-json" | "data-csv" | "data-json"} kind
+ * @param {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "copy-table" | "copy-json" | "copy-chart" | "data-csv" | "data-json"} kind
  * @param {ExportContext} context
  */
-export async function runExport(kind, { fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title, source, loadECharts }) {
+export async function runExport(kind, { fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title, source, loadECharts, colorMap }) {
     // the menus' texts (the copies' notes) over the report's
     labels = menuLabels(labels);
     const base = safeFileName(fileName);
     // the page of the report (a download in a shadow root, a frame); the global one by default
     const doc = root.current?.ownerDocument;
     try {
-        if (kind === "png") {
+        if (kind === "png" || kind === "copy-chart") {
             const surface = root.current ? getComputedStyle(root.current).getPropertyValue("--pk-surface").trim() : "";
             // the picture of what is drawn, without the zoom slider (a control, not part of the chart)
             const url = chartRef.current?.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: surface || undefined, excludeComponents: ["dataZoom"] });
             const file = `${base}.png`;
+            if (kind === "copy-chart") {
+                if (!url) {
+                    announce(labels.toastChartNotDrawn, { tone: "error" });
+                    return;
+                }
+                // the image is made in the click (getDataURL is synchronous), so the clipboard takes it
+                const blob = dataUrlToBlob(url);
+                if (onExport?.({ kind, fileName: file, blob }) === false) {
+                    return;
+                }
+                if (await copyImage(blob)) {
+                    announce(labels.toastChartCopied);
+                    return;
+                }
+                // refused: the same picture as a download, one click away
+                const download = () => {
+                    if (deliver(blob, { kind: "png", fileName: file, doc, onExport })) {
+                        announce(fill(labels.toastExported, { file }));
+                    }
+                };
+                announce(labels.toastImageCopyBlocked, { tone: "error", action: { label: labels.downloadPng, run: download } });
+                return;
+            }
             // the host that kept the file says itself what became of it
             if (url && deliver(dataUrlToBlob(url), { kind, fileName: file, doc, onExport })) {
                 announce(fill(labels.toastExported, { file }));
@@ -302,6 +326,8 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
                     ...(source ? { source } : {}),
                     ...(size ? { size } : {}),
                     ...reportTokens(root.current, report, echarts, kind === "html"),
+                    // the host's fixed colours, as the light chart draws them (a file is light)
+                    ...(echarts.colorMapFor(colorMap, "light") ? { colorMap: echarts.colorMapFor(colorMap, "light") } : {}),
                     chartEmbed: kind === "print" ? "inline" : "image"
                 });
                 const file = `${base}.${kind === "svg" ? "svg" : "html"}`;

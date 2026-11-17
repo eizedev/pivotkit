@@ -30,6 +30,8 @@ export const de = {
         zoom: "Zoom-Schieber",
         stackPercent: "100-%-Stapel",
         hidden: "ausgeblendete Reihen",
+        colors: "Farben",
+        tooltipShare: "Anteil im Tooltip",
         target: "Ziellinie",
         other: "Einstellung"
     },

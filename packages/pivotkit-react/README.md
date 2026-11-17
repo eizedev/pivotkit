@@ -79,7 +79,7 @@ Two more features are off until the host turns them on:
 | The view | [Views and saved views](https://pivotkit.eize.dev/concepts/views/) |
 | Saved and shared views, links | [Templates and shared views](https://pivotkit.eize.dev/concepts/templates/), [Sharing](https://pivotkit.eize.dev/concepts/sharing/), [View file format](https://pivotkit.eize.dev/reference/view-file/) |
 | Field names, descriptions, defaults | [Field descriptions and names](https://pivotkit.eize.dev/concepts/fields/) |
-| Charts and `chartOptions` | [Charts](https://pivotkit.eize.dev/concepts/charts/#chartoptions-for-developers) |
+| Charts, `colorMap` and `chartOptions` | [Charts](https://pivotkit.eize.dev/concepts/charts/#chartoptions-for-developers) |
 | Theming: the `--pk-*` tokens | [Theming](https://pivotkit.eize.dev/reference/theming/) |
 | Languages and labels | [Localisation](https://pivotkit.eize.dev/reference/localisation/) |
 | Limits | [Locale, time zones, limits and errors](https://pivotkit.eize.dev/concepts/limits/#limits) |

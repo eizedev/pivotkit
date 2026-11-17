@@ -76,6 +76,7 @@ pivotkit-react's `build.js`). pivotkit does not support older browsers.
 | `fieldList` | `field-list` | `"open"` or `"collapsed"` |  | `"open"` or `"collapsed"`: the field list of a wide report open or collapsed to a rail, over the user's stored choice. The user can still change it until the page is loaded again. |
 | `sources` |  | `{ id, name? }[]` |  | The other data the page can show: a view made for one of them offers "Switch to “name” and load", a `pivot-source-switch` event. |
 | `chartOptions` |  | `object` |  | Plain JSON merged over the chart's ECharts option. It wins over the view's chart settings. Functions and values that are not JSON are left out ([Charts](../concepts/charts.md#chartoptions-for-developers)). |
+| `colorMap` |  | `object` |  | A fixed colour per series or slice name across charts: `{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }`, one colour or one for light and one for dark. The view's own colours win ([Charts](../concepts/charts.md#fixed-colours)). |
 | `shareLink` | `share-link` | `boolean` or `string` | off | "Copy link" and opening shared links: the attribute alone (or `"true"`) links to the page's address without its query, a value is the base URL as it is, `"false"` is off ([Sharing](../concepts/sharing.md)). |
 | `persistView` | `persist-view` | `"session"` |  | `"session"` keeps the view for this tab (`sessionStorage`, per `storage-key`). |
 | `loading` | `loading` (boolean) | `boolean` | `false` | The page is loading the data: the skeleton before the first data, the result covered on later loads. |
@@ -349,6 +350,7 @@ clipboard. `kind` is one of these:
 - `"data-csv"` and `"data-json"`: Source data (with `export-data`)
 - `"print"`: the HTML report before the print dialog opens. `preventDefault()` prints nothing.
 - `"copy-table"` and `"copy-json"`: the copies Export, Copy table and Copy data as JSON
+- `"copy-chart"`: Export, Copy chart image, with the PNG before it goes on the clipboard
 - `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`: the drill-down panel's exports
 
 A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`). A drill-down
@@ -549,9 +551,9 @@ They are approximate and change with every dependency update.
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 176.1 KiB, about 0.5 KiB more than CI measures (175.6 KiB). A split of
+- The first load's budget is 176.4 KiB, about 0.5 KiB more than CI measures (175.9 KiB). A split of
   the first load is planned ([#546](https://github.com/eizedev/pivotkit/issues/546)).
-- The budgets of the groups loaded later are 1 to 7 per cent more than CI measures.
+- The budgets of the groups loaded later leave a little room above what CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.
 
 | Loaded | Files | Size | gzip |

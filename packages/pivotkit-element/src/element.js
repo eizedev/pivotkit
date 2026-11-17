@@ -69,11 +69,12 @@ export { EVENTS };
 /**
  * @typedef {object} ExportFile  the detail of pivot-export: a file before its download, or a text
  *   before it goes on the clipboard
- * @property {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "json" | "data-csv" | "data-json" | "copy-table" | "copy-json" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
+ * @property {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "json" | "data-csv" | "data-json" | "copy-table" | "copy-json" | "copy-chart" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
  *   "html": the HTML report; "svg": the chart as SVG; "print": the HTML report before it is printed
  *   (respondWith(false) prints nothing); "json": the view file (Views, "Download view"); "data-csv",
  *   "data-json": Export → Source data, every row of the data shown as it is; "copy-table",
- *   "copy-json": Export → Copy table, Copy data as JSON; "drill-*": the drill-down panel's Export menu
+ *   "copy-json": Export → Copy table, Copy data as JSON; "copy-chart": Export → Copy chart image, the
+ *   PNG before it goes on the clipboard; "drill-*": the drill-down panel's Export menu
  * @property {string} fileName  with the extension ("pivot.xlsx"); for a copy the name it would have as a file
  * @property {Blob} blob
  * @property {string} [text]  a copy's text
@@ -596,6 +597,17 @@ export class PivotReportElement extends Base {
     }
 
     /**
+     * A fixed colour per series or slice name across charts: `{ Failed: "#e3000f", Success:
+     * ["#287233", "#4caf50"] }`, one colour or one for light and one for dark. The view's own colours win.
+     */
+    get colorMap() {
+        return /** @type {Record<string, string | [string, string]> | undefined} */ (this.#values.colorMap);
+    }
+    set colorMap(value) {
+        this.#set("colorMap", value);
+    }
+
+    /**
      * The other data the page can show, as { id, name }: a view made for one of them offers "Switch to
      * <name> and load" (event pivot-source-switch).
      */
@@ -775,6 +787,7 @@ export class PivotReportElement extends Base {
             dismissedTips: Array.isArray(v.dismissedTips) ? v.dismissedTips : undefined,
             onTipDismiss: this.#onTipDismiss,
             chartOptions: v.chartOptions,
+            colorMap: v.colorMap,
             shareLink: this.shareLink,
             persistView: this.persistView,
             loading: this.loading,

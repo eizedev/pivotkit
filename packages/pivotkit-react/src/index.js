@@ -80,12 +80,12 @@
 /**
  * @typedef {object} ExportFile  a file the report made, before it is downloaded, or a text before it
  *   goes on the clipboard
- * @property {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "json" | "data-csv" | "data-json" | "copy-table" | "copy-json" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
+ * @property {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "json" | "data-csv" | "data-json" | "copy-table" | "copy-json" | "copy-chart" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
  *   "html": the HTML report; "svg": the chart as SVG; "print": the HTML report before it is printed
  *   (returning false prints nothing: the host prints it, e.g. as a PDF of its own);
  *   "json": the view file (Views, "Download view"); "data-csv", "data-json": Export → Source data, every
  *   row of the data shown as it is (`<fileName>-data.csv`, `<fileName>-data.json`); "copy-table", "copy-json": Export → Copy table,
- *   Copy data as JSON; "drill-*": the drill-down panel's Export menu (Copy, Copy as JSON, Download
+ *   Copy data as JSON; "copy-chart": Export → Copy chart image, the PNG before it goes on the clipboard; "drill-*": the drill-down panel's Export menu (Copy, Copy as JSON, Download
  *   CSV, Download Excel)
  * @property {string} fileName  with the extension ("pivot.xlsx"), made safe; for a copy the name it
  *   would have as a file ("pivot.tsv", "Central – Jul 2026.json")
@@ -171,6 +171,10 @@
  *   it wins over the view's chart settings. Functions, values that are not plain JSON and the
  *   options that are markup or addresses (a string `formatter`, `rich`, `link`, `image`) are left out
  *   with a console warning
+ * @property {Record<string, string | [string, string]>} [colorMap]  a fixed colour per series or
+ *   slice name across charts: `{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }` (one colour,
+ *   or one for light and one for dark). Names match without regard to case; hex, rgb(), hsl() or a
+ *   CSS name. The view's own colours (Display → Colours) win over it
  * @property {boolean | string} [shareLink]  "Copy link" in the Views menu and opening a shared
  *   link: `true` links to the page's own address without its query, a string is the base URL as it is; the view travels in the
  *   URL fragment (`#pivot=`, `#pivot-<storageKey>=` with a storageKey). Off by default

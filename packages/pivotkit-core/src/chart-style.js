@@ -184,10 +184,10 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         if (s.type === "bar") {
             const horizontal = first(option.yAxis)?.type === "category";
             const corners = horizontal ? [0, r, r, 0] : [r, r, 0, 0];
-            return { ...s, barMaxWidth: 48, itemStyle: { borderRadius: s.stack ? 0 : corners, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "self" } };
+            return { ...s, barMaxWidth: 48, itemStyle: { ...s.itemStyle, borderRadius: s.stack ? 0 : corners, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "self" } };
         }
         if (s.type === "line") {
-            return { ...s, lineStyle: { width: 2 }, symbolSize: 7, smooth: Boolean(s.smooth), areaStyle: s.areaStyle ? { opacity: 0.18 } : undefined, emphasis: { focus: "series" } };
+            return { ...s, lineStyle: { ...s.lineStyle, width: 2 }, symbolSize: 7, smooth: Boolean(s.smooth), areaStyle: s.areaStyle ? { ...s.areaStyle, opacity: 0.18 } : undefined, emphasis: { focus: "series" } };
         }
         if (s.type === "pie") {
             // the pie's box: below the legend (the core's top), with room for the labels above and below
@@ -210,7 +210,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
             // labels outside: room beside the pie, on lines where they are long, left out where a side has no room (pieLabelFit)
             const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: Boolean(option.legend) && option.legend.show !== false });
             label = fit.label ?? label;
-            return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
+            return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { ...s.itemStyle, borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one

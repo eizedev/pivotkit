@@ -19,7 +19,7 @@ import { fill, messageOf } from "./labels.js";
 
 /**
  * @param {import("./export-run.js").ExportContext} context
- * @returns {{ run: (kind: "xlsx" | "csv" | "png" | "html" | "svg" | "print" | "copy-table" | "copy-json" | "data-csv" | "data-json") => Promise<void>,
+ * @returns {{ run: (kind: "xlsx" | "csv" | "png" | "html" | "svg" | "print" | "copy-table" | "copy-json" | "copy-chart" | "data-csv" | "data-json") => Promise<void>,
  *   prepare: (what: "menu" | "print") => (() => void) | undefined }}
  *   `prepare`: the Export menu's, when it opens ("menu"; it returns what ends the menu's print frame)
  *   and when Print is pointed at or focused ("print"); one function for the report's lifetime

@@ -306,9 +306,19 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * load cleanly: the menus need them from pivotkit-core's main entry, and a new entry point would be
  * one more bare import for a host's import map. The maintainer raised the budget for 0.8.0, about
  * 0.5 KiB above CI: 176.1; the split of the first load is #546 (0.9.0).
+ * Fixed colours, the share in the tooltip and the chart image on the clipboard (#54), measured
+ * before #48 with Homebrew's zlib: the colours and the share in the chart's option take the chart
+ * group 0.8 up; the colour beside each series, the share switch and Copy chart image take the menus
+ * 1.3 and the German menu texts 0.2 up; two words for unused parts take unused to 5.5. The first
+ * load grows 0.19 (the view's colours through the same list check as the hidden series, one memo for
+ * chartOptions and colorMap); the report group gets render's colorMap and the light colour of a pair.
+ * With #48 and #54 together, CI's zlib measures: initial 175.85, chart 242.45, menus 51.04, texts
+ * 7.80, unused 5.53, report 23.70. The first load may grow in 0.8.0, its split is #546 (0.9.0):
+ * initial goes to 176.4, CI's measure plus about 0.5 KiB; chart to 243.5, menus to 52, texts to 8,
+ * unused to 6 and report to 24.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 176.1, chart: 242.6, export: 12.6, link: 7.5, menus: 50.5, texts: 7.8, unused: 5.5, import: 22, report: 23.8, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 176.4, chart: 243.5, export: 12.6, link: 7.5, menus: 52, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

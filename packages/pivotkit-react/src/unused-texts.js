@@ -43,6 +43,8 @@ export const en = {
         zoom: "zoom slider",
         stackPercent: "100 % stack",
         hidden: "hidden series",
+        colors: "colours",
+        tooltipShare: "share in the tooltip",
         target: "target line",
         other: "setting"
     },

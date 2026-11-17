@@ -124,15 +124,17 @@ export function chartKeeper(instance, { categories, onLegend, redraw, onWindow }
 
 /**
  * What the chart's text alternative counts (chart-summary.js): the series shown, without the legend
- * entries hidden (series, or for a pie and a donut categories), and whether it is a 100 % stack (the
- * option has a share formatter only then, pivotkit-core's chart.js).
+ * entries hidden (series, or for a pie and a donut categories), and whether it is a 100 % stack (its
+ * parts carry their value as `raw`, pivotkit-core's chart.js).
  * @param {ReturnType<typeof import("pivotkit-core").toSeries>} s
  * @param {any} option  toEChartsOption's
  * @param {readonly string[] | undefined} hidden  the view's chart.hidden
  * @param {boolean} slices  a pie or a donut
  */
 export function shownOf(s, option, hidden, slices) {
-    return { series: shownOnly(s, hidden ?? [], slices), shares: Boolean(option.tooltip?.shareFormatter) };
+    // a 100 % stack's parts are { value: share, raw: value } (pivotkit-core's chart.js)
+    const shares = (option.series ?? []).some((/** @type {any} */ x) => Array.isArray(x.data) && x.data.some((/** @type {any} */ d) => d !== null && typeof d === "object" && typeof d.raw === "number"));
+    return { series: shownOnly(s, hidden ?? [], slices), shares };
 }
 
 /**
@@ -213,14 +215,14 @@ export function zoomKeyProps({ start, end, count, beside, offset, size, move }, 
         // its place, through the CSSOM, which a strict Content-Security-Policy allows
         // the pair of the other orientation is cleared: the same element may have been the other one
         ref: (/** @type {HTMLElement | null} */ el) => {
-            el?.style.setProperty(beside ? "right" : "bottom", `${offset}px`);
-            el?.style.setProperty(beside ? "width" : "height", `${size}px`);
-            el?.style.removeProperty(beside ? "bottom" : "right");
-            el?.style.removeProperty(beside ? "height" : "width");
+            const set = (/** @type {Record<string, string>} */ props) => Object.entries(props).forEach(([k, v]) => el?.style.setProperty(k, v));
+            // over the slider's row (beside the plot for horizontal bars); the mouse passes through to ECharts' slider
+            set({ position: "absolute", "pointer-events": "none" });
+            set(beside ? { top: "0", bottom: "0", right: `${offset}px`, width: `${size}px`, left: "auto", height: "auto" } : { left: "0", right: "0", bottom: `${offset}px`, height: `${size}px`, top: "auto", width: "auto" });
         },
         role: "slider",
         tabIndex: 0,
-        className: `pk-zoom-keys${beside ? " pk-zoom-keys-beside" : ""}`,
+        className: "pk-zoom-keys",
         "aria-label": labels.chartZoom,
         "aria-orientation": /** @type {"vertical" | "horizontal"} */ (beside ? "vertical" : "horizontal"),
         "aria-valuemin": 1,

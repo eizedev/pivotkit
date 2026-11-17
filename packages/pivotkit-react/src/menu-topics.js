@@ -22,11 +22,13 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  * away). `checkbox`: a switch (`checked` on or off) instead of one of several; `disabled` with the
  * `reason`; `info`: the id of its explanation (labels.settingInfo). `open`: the id of a topic whose
  * level it opens (after `run`; Back puts the focus on `backTo`, else on the choice), instead of applying; `actions`: an entry's own actions next to it
- * (choices themselves, drawn as icon buttons with `label`); `current`: the entry shown now. A switch
+ * (choices themselves, drawn as icon buttons with `label`); `color`: a colour field beside it, a menu
+ * item that opens the browser's colour picker (`pick` gets #rrggbb); `current`: the entry shown now. A switch
  * (`checkbox`) keeps its level open after it, so people flip several in a row.
  * @typedef {{ id: string, text: string, change?: () => { view: any, note: any } | null, run?: () => void, checked?: boolean,
  *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
- *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string }} Choice
+ *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string,
+ *   color?: { id: string, value: string, label: string, pick: (color: string) => void } }} Choice
  */
 
 /**
@@ -467,18 +469,20 @@ const VALUE_LABELS = Object.freeze({ slices: ["auto", "off", "value", "percent",
 /**
  * The topics of the chart type menu's Display settings (#106), each a row with what is set that opens
  * its level: Value labels, Legend, Title (a form), Axis (axis and group labels, the zoom slider),
- * Tooltip, Reference lines (a form), Series (one switch per series or slice) and Layout (100 % stacks,
- * smooth lines, a pie's label position). A topic the chart has nothing for is left out. Every choice applies `act.display(patch)`
+ * Tooltip (and the share in it), Reference lines (a form), Series (one switch and one colour per
+ * series or slice) and Layout (100 % stacks, smooth lines, a pie's label position). A topic the chart
+ * has nothing for is left out. Every choice applies `act.display(patch)`
  * (pivotkit-core's chart settings); the type stays. Reference lines come after Tooltip: a level with
  * a form (toolbar-panels.jsx), its row saying which lines are on.
- * @param {{ view: any, drawn: string, labels: any, names: string[], act: { display: (patch: object) => void },
+ * @param {{ view: any, drawn: string, labels: any, names: string[], act: { display: (patch: object) => void }, drawnColors?: Map<string, string>,
  *   lines?: { rules: { average: boolean, trend: boolean, target: boolean, notes?: string[] }, targetText: string } }} input
  *   `drawn`: the picker entry drawn (chart-types.js); `names`: the legend's entries (series, a pie's slices);
  *   `lines`: which reference lines the chart can draw (pivotkit-core's referenceLineChecks, or its
- *   view's rules with the note "table"), and the target as the locale writes it
+ *   view's rules with the note "table"), and the target as the locale writes it;
+ *   `drawnColors`: the colour the chart draws each name with, as #rrggbb (the colour fields start from it)
  * @returns {Topic[]}
  */
-export function chartTopics({ view, drawn, labels, names, act, lines = { rules: { average: true, trend: true, target: true, notes: [] }, targetText: "" } }) {
+export function chartTopics({ view, drawn, labels, names, act, lines = { rules: { average: true, trend: true, target: true, notes: [] }, targetText: "" }, drawnColors = new Map() }) {
     const chart = view.chart;
     const pie = SLICE_TYPES.includes(drawn);
     const axis = CHART_TYPES[drawn]?.axis ?? false;
@@ -516,14 +520,19 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
                 { title: labels.zoom, choices: ["auto", "on", "off"].map((v) => pickOf("zoom", v, labels.zoomNames[v], `zoom-${v}`, v === "auto" ? "zoom" : undefined)) }
             ]
         });
+    }
+    if (drawn !== "heatmap") {
+        // what the tooltip covers (bars, lines, areas) and the share of the total in it (#54)
+        const mode = chart.tooltip ?? "auto";
+        const state = [axis ? labels.tooltipNames[mode] : null, chart.tooltipShare ? labels.tooltipShare : null].filter(Boolean).join(", ");
         topics.push({
             id: "tooltip",
             title: labels.tooltip,
             kind: "menu",
-            info: "tooltip",
-            state: labels.tooltipNames[chart.tooltip ?? "auto"],
-            changed: (chart.tooltip ?? "auto") !== "auto",
-            groups: [{ choices: ["auto", "axis"].map((v) => pickOf("tooltip", v, labels.tooltipNames[v], `tooltip-${v}`)) }]
+            info: axis ? "tooltip" : undefined,
+            state: state || null,
+            changed: mode !== "auto" || Boolean(chart.tooltipShare),
+            groups: [...(axis ? [{ choices: ["auto", "axis"].map((v) => pickOf("tooltip", v, labels.tooltipNames[v], `tooltip-${v}`)) }] : []), { choices: [flip("tooltipShare", labels.tooltipShare, "chart-tooltip-share")] }]
         });
     }
     if (axis) {
@@ -553,17 +562,45 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
         topics.push({ id: "lines", title: labels.referenceLines, kind: "menu", state: on.length ? on.join(", ") : labels.linesOff, changed: on.length > 0, groups: [{ choices }], note, noteId: "lines-note" });
         topics.push({ id: "linesTarget", title: words.target, kind: "panel", hidden: true, levelTitle: `${labels.referenceLines} › ${words.target}` });
     }
-    if (names.length > 1) {
+    // one series too: its colour; its switch only says it is always shown
+    if (names.length > 0) {
+        const only = names.length === 1;
         const hidden = (chart.hidden ?? []).filter((/** @type {string} */ n) => names.includes(n)).length;
         const now = chart.hidden ?? [];
+        // a fixed colour per name (chart.colors, #54): the view's, else the colour the chart draws
+        /** @type {Array<{ name: string, color: string }>} */
+        const own = chart.colors ?? [];
+        const same = (/** @type {string} */ a, /** @type {string} */ b) => a.toLowerCase() === b.toLowerCase();
+        const recolor = (/** @type {string} */ name, /** @type {string | null} */ color) => act.display({ colors: [...own.filter((c) => !same(c.name, name)), ...(color ? [{ name, color }] : [])] });
+        const stale = own.filter((c) => !names.some((n) => same(n, c.name)));
         topics.push({
             id: "series",
             title: labels.shownSeries,
             kind: "menu",
+            info: "chartColors",
             state: fill(labels.seriesShownOf, { shown: String(names.length - hidden), count: String(names.length) }),
-            changed: hidden > 0,
-            // every series or slice, the level scrolls; a switch keeps the level open for the next one
-            groups: [{ choices: names.map((name, i) => ({ id: `series-${i}`, text: name, checkbox: true, checked: !now.includes(name), run: () => act.display({ hidden: hiddenAfter(now, name, now.includes(name)) }) })) }]
+            changed: hidden > 0 || own.length > 0,
+            // every series or slice, the level scrolls; a switch keeps the level open for the next one;
+            // beside each its colour, and Default where the view fixes one
+            groups: [
+                {
+                    choices: names.map((name, i) => {
+                        const mine = own.find((c) => same(c.name, name));
+                        return {
+                            id: `series-${i}`,
+                            text: name,
+                            checkbox: true,
+                            checked: only || !now.includes(name),
+                            ...(only ? { disabled: true, reason: labels.seriesOnly } : {}),
+                            run: () => act.display({ hidden: hiddenAfter(now, name, now.includes(name)) }),
+                            color: { id: `series-${i}-color`, value: mine?.color ?? drawnColors.get(name) ?? "", label: fill(labels.colorOf, { name }), pick: (/** @type {string} */ c) => recolor(name, c) },
+                            ...(mine ? { actions: [{ id: `series-${i}-default`, text: labels.colorDefault, label: `${labels.colorDefault}: ${name}`, icon: "reset", run: () => recolor(name, null) }] } : {})
+                        };
+                    })
+                },
+                // a view's colour for a name the chart does not show: Remove
+                ...(stale.length ? [{ title: labels.colorsNotShown, choices: stale.map((c, i) => ({ id: `color-stale-${i}`, text: c.name, label: `${labels.colorRemove}: ${c.name}`, icon: "x", run: () => recolor(c.name, null) })) }] : [])
+            ]
         });
     }
     /** @type {Choice[]} */

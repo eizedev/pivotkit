@@ -309,6 +309,7 @@ function Report(props) {
         dismissedTips,
         onTipDismiss,
         chartOptions,
+        colorMap,
         shareLink,
         persistView,
         fieldInfo: fieldInfoProp,
@@ -511,11 +512,11 @@ function Report(props) {
     const viewName = loadedView?.name ?? null;
     const unsaved = Boolean(loadedView) && savedKeys[savedKeyOf(loadedView)] !== history.viewKey;
 
-    // the host's chartOptions, compared by value (a function or another value JSON cannot hold counts
-    // as its kind); the chart checks them (chart-options.js, loaded with ECharts) before it draws
-    const chartOptionsKey = optionsKey(chartOptions);
+    // the host's chartOptions and colorMap, compared by value (a function or another value JSON cannot
+    // hold counts as its kind); the chart checks them (chart-options.js, loaded with ECharts) before it draws
+    const chartHostKey = optionsKey([chartOptions, colorMap]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const stableChartOptions = useMemo(() => chartOptions, [chartOptionsKey]);
+    const [stableChartOptions, stableColorMap] = useMemo(() => [chartOptions, colorMap], [chartHostKey]);
 
     const stepText = useCallback(
         (note) => {
@@ -997,7 +998,7 @@ function Report(props) {
         [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
 
-    const { run: doExport, prepare: prepareExport } = useExport({ fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts });
+    const { run: doExport, prepare: prepareExport } = useExport({ fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts, colorMap: stableColorMap });
 
     // loading data (allowImport): the import UI (import-host.jsx) loads on first use (the Data menu, a
     // file dragged over the report, the empty report's button) and renders the file input, the drop
@@ -1481,6 +1482,7 @@ function Report(props) {
                                 lineChecks={lineChecks?.view === view ? lineChecks.checks : null}
                                 locale={locale}
                                 chartSeries={series}
+                                chartColors={{ chart: chartRef }}
                                 labels={labels}
                                 size={size}
                                 canUndo={history.canUndo || dataSteps.past.length > 0}
@@ -1619,6 +1621,7 @@ function Report(props) {
                                         root={root}
                                         valueNames={view.values.map((v) => valueLabel(v, labels))}
                                         chartOptions={stableChartOptions}
+                                        colorMap={stableColorMap}
                                         // a legend entry hidden or shown: kept in the view, said to a screen reader
                                         onLegend={({ name, shown }) => {
                                             commit(setChartDisplay(view, { hidden: hiddenAfter(view.chart.hidden, name, shown) }), { step: "chartDisplay" });

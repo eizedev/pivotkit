@@ -25,9 +25,9 @@ const TOOLTIP_OTHER_LINES = 3;
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean, pixelOf?: (value: number) => number, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
+ * @param {{ categoryNames?: string[], axisLabels?: string, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean, pixelOf?: (value: number) => number, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, share?: boolean, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
  *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
- *   chart.axisLabels and chart.zoom (the slider, pivotkit-core's chart-zoom.js); tooltip: the view's chart.tooltip, the chart's hover state (chart.jsx writes the
+ *   chart.axisLabels and chart.zoom (the slider, pivotkit-core's chart-zoom.js); tooltip: the view's chart.tooltip and chart.tooltipShare, the chart's hover state (chart.jsx writes the
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
  *   the lines that say how many series were cut, each series' value (whether it adds up) and the
  *   chart's reference lines (pivotkit-core's referenceLines), named at the category;
@@ -42,10 +42,15 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
     // the lines that fit the chart's height, with the title, the total and the tooltip's padding
     const line = Math.round((typeof option.textStyle?.fontSize === "number" ? option.textStyle.fontSize : DEFAULT_THEME.textSize) * TOOLTIP_LINE);
     const maxLines = Math.max(2, Math.floor((height - TOOLTIP_PADDING) / line) - TOOLTIP_OTHER_LINES);
+    // each series' total over its categories, for the share of a chart with one series (none with a part below zero)
+    const seriesTotals = (option.series || []).map((/** @type {any} */ s) => {
+        const values = (Array.isArray(s.data) ? s.data : []).filter((/** @type {unknown} */ v) => typeof v === "number");
+        return values.some((/** @type {number} */ v) => v < 0) ? NaN : values.reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0);
+    });
     // the reference lines at the category; a line of no series in --pk-chart-reference, as it is drawn
     const reference = style.getPropertyValue("--pk-chart-reference").trim() || style.getPropertyValue("--pk-muted").trim() || null;
     const references = tooltip.lines?.length ? tooltipReferences(tooltip.lines, (option.series || []).map((/** @type {any} */ s) => String(s.name ?? "")), reference) : [];
-    const options = { series, mode: tooltip.mode, totalLabel: tooltip.totalLabel, moreLabel: tooltip.moreLabel, moreInTotalLabel: tooltip.moreInTotalLabel, maxLines, references, hoverOf: () => hover?.current ?? null };
+    const options = { series, share: Boolean(tooltip.share), seriesTotals, mode: tooltip.mode, totalLabel: tooltip.totalLabel, moreLabel: tooltip.moreLabel, moreInTotalLabel: tooltip.moreInTotalLabel, maxLines, references, hoverOf: () => hover?.current ?? null };
     const readColor = doc && parseColor ? screenColor(doc, parseColor) : undefined;
     const drawn = decorateOption(option, style, { height, width, ...rest, readColor, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
     // on the screen the tooltip stays inside the chart

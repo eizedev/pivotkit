@@ -35,6 +35,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   hears it, and Undo takes it back. Display › Series does the same by keyboard ([#36](https://github.com/eizedev/pivotkit/issues/36)).
 - Display › Layout › Stacked to 100 % for stacked bars and areas of sums and counts. The tooltip
   shows each part's value and share, and the total of the values ([#36](https://github.com/eizedev/pivotkit/issues/36)).
+- Export › **Copy chart image**: the chart as a PNG on the clipboard. `onExport` sees it first as
+  `"copy-chart"` ([#54](https://github.com/eizedev/pivotkit/issues/54)).
+- The `colorMap` prop: a fixed colour per series or slice name across charts, one colour or one per
+  theme. Display › Series has a colour beside each series or slice, a view's own colour
+  ([#54](https://github.com/eizedev/pivotkit/issues/54)).
+- Display › Tooltip › Share in the tooltip: each value's share of the category's total, of a single
+  series' total, or of a pie ([#54](https://github.com/eizedev/pivotkit/issues/54)).
 - Display › **Reference lines** in the chart type menu, for bars, lines and areas: a level with
   **Average**, **Trend** and a **Target** (`chart.referenceLines`, [#48](https://github.com/eizedev/pivotkit/issues/48)).
   Its row says which lines are on. The level offers only the lines the chart can draw, with a note

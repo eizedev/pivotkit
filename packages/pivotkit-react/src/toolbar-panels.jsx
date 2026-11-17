@@ -22,6 +22,7 @@ import { SHORTCUTS } from "./tips.js";
 import { LevelMenu } from "./levels.jsx";
 import { afterDelete, chartTopics, entryIds, optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
+import { hexColor } from "./export-run.js";
 import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
@@ -90,6 +91,28 @@ function ChartTitle({ title, labels, onDisplay }) {
             </button>
         </form>
     );
+}
+
+/**
+ * The colour each series or slice is drawn with, by name, from the chart's ECharts option: its own
+ * colour where it has one (a fixed one, chart.colors or the host's colorMap), else the palette's of its
+ * place, as ECharts gives it.
+ * @param {any} instance  the chart's ECharts instance
+ * @returns {Map<string, string>}
+ */
+function colorsDrawn(instance) {
+    const out = new Map();
+    const option = instance.getOption?.();
+    const palette = Array.isArray(option?.color) ? option.color : [];
+    const of = (/** @type {any} */ item, /** @type {number} */ i) => item?.itemStyle?.color ?? palette[i % Math.max(1, palette.length)];
+    for (const [i, s] of (option?.series ?? []).entries()) {
+        if (s.type === "pie") {
+            (s.data ?? []).forEach((/** @type {any} */ d, /** @type {number} */ j) => out.set(String(d.name), of(d, j)));
+        } else {
+            out.set(String(s.name), of(s, i));
+        }
+    }
+    return out;
 }
 
 /**
@@ -170,7 +193,7 @@ function TargetField({ target, labels, locale, format, onTarget }) {
  * opening its level (Value labels, Legend, Title, Axis, Tooltip, Reference lines with its Target, Series, Layout). Each choice applies at once and the menu stays
  * open, so the chart behind it shows the change.
  */
-export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale, onChart, onDisplay, close, series }) {
+export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale, onChart, onDisplay, close, series, colors }) {
     const drawn = plan ? plan.name : chartTypeOf(view.chart);
     const names = legendNames(drawn, series);
     // which reference lines the chart can draw: the drawn chart's checks with its numbers, else the
@@ -178,7 +201,20 @@ export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale
     const lines = view.chart.referenceLines;
     const plain = plan?.chart && encoded ? referenceLineRules(plan.swap ? swapAxes(view) : view, { ...view.chart, ...plan.chart }, encoded) : { average: true, trend: true, target: true };
     const rules = lineChecks ?? { ...plain, notes: ["table"] };
-    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay }, lines: { rules, targetText: numberText(lines?.target, locale) } });
+    // the colour each series or slice is drawn with, as #rrggbb, read again after each draw of the chart
+    const [drawnColors, setDrawnColors] = useState(/** @type {Map<string, string>} */ (new Map()));
+    useEffect(() => {
+        const instance = colors?.chart?.current;
+        if (!instance) {
+            return undefined;
+        }
+        const ctx = instance.getDom?.()?.ownerDocument?.createElement("canvas").getContext("2d") ?? null;
+        const read = () => setDrawnColors(new Map([...colorsDrawn(instance)].map(([name, c]) => [name, hexColor(String(c), ctx) ?? ""])));
+        read();
+        instance.on("finished", read);
+        return () => instance.off("finished", read);
+    }, [colors?.chart]);
+    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay }, lines: { rules, targetText: numberText(lines?.target, locale) }, drawnColors });
     const head = (
         <Section title={labels.chartType}>
             <div className="pk-choice-grid">
@@ -805,6 +841,7 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
             <Section title={labels.exportCopy}>
                 <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} {...off} testId="export-copy-table" />
                 <ExportOption icon="copy" text={labels.copyDataJson} info="copyDataJson" onSelect={run("copy-json")} {...off} testId="export-copy-json" />
+                <ExportOption icon="image" text={labels.copyChart} disabled={empty || !chartReady} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("copy-chart")} testId="export-copy-chart" />
             </Section>
             {source ? (
                 <Section title={labels.exportDataGroup}>
