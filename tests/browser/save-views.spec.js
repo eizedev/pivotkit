@@ -58,7 +58,7 @@ test("on a phone, with Views in More: More carries the dot for unsaved changes t
     await expect(page.getByTestId("view-name")).toHaveText("Median lead time by month");
     await expect(page.getByTestId("more-changed")).toHaveCount(0);
     // a change: the other of Table and Chart
-    const chart = (await page.getByTestId("show-chart").getAttribute("aria-pressed")) === "true";
+    const chart = (await page.getByTestId("show-chart").getAttribute("aria-selected")) === "true";
     await page.getByTestId(chart ? "show-table" : "show-chart").click();
     await expect(page.getByTestId("more").getByTestId("more-changed")).toHaveText("Unsaved changes");
     await expect(page.getByTestId("view-changed")).toHaveCount(1);

@@ -121,7 +121,7 @@ test.describe("keyboard and focus", () => {
         await expect(page.locator(".pk-popover [data-pk-option]").first()).toBeFocused();
         await page.getByTestId("swap").focus();
         await expect(page.locator(".pk-popover")).toHaveCount(0);
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         await expect(page.locator(".pk-popover")).toHaveCount(1);
         await page.evaluate(() => document.body.focus());
         await page.keyboard.press("Escape");
@@ -145,7 +145,7 @@ test.describe("names, roles and sizes", () => {
     test("Table | Chart are toggle buttons; the table has a name and a described hint", async ({ page }) => {
         await page.goto("?data=sales");
         await expect(page.getByRole("radio")).toHaveCount(0);
-        await expect(page.getByRole("button", { name: "Table" })).toHaveAttribute("aria-pressed", "true");
+        await expect(page.getByRole("tab", { name: "Table" })).toHaveAttribute("aria-selected", "true");
         const table = page.getByRole("table", { name: "Pivot table" });
         await expect(table).toBeVisible();
         const hint = await table.getAttribute("aria-describedby");

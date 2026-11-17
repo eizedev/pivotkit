@@ -190,7 +190,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
 
     test("options: a pointer that came to rest beside the i, on the way to its tip, closes the tip after a while", async ({ page }) => {
         await page.goto("?data=tickets");
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         const button = page.getByTestId("setting-info-rowSubtotals");
         await button.hover();
         const tip = page.locator(".pk-info-pop");

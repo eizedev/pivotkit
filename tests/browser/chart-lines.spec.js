@@ -83,11 +83,11 @@ const drawnLines = (chartEl) =>
             });
     });
 
-/** Opens Display › Reference lines: the chart type menu, then the topic's row, by real clicks. */
+/** Opens Display › Reference lines: Chart settings, then the topic's row, by real clicks. */
 async function openLines(report) {
-    await report.getByTestId("chart-type").click();
+    await report.getByTestId("view-settings").click();
     await report.getByTestId("topic-lines").click();
-    await expect(report.getByTestId("level-title")).toHaveText("Display › Reference lines");
+    await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Reference lines");
 }
 
 /** The middle of a legend entry's text in the page, from the legend's own drawing. */
@@ -113,7 +113,7 @@ async function legendEntry(chartEl, name) {
 async function openTarget(report) {
     await openLines(report);
     await report.getByTestId("line-target").click();
-    await expect(report.getByTestId("level-title")).toHaveText("Display › Reference lines › Target");
+    await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Reference lines › Target");
 }
 
 /** Whether two boxes overlap (by more than a pixel). */
@@ -284,10 +284,10 @@ test.describe("reference lines", () => {
     test("Display › Reference lines: a level; Average and Trend by a click stay open, a target typed; its row says what is on; a pie offers none, regions no trend", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar" });
         const report = page.locator("#lines-report");
-        await report.getByTestId("chart-type").click();
+        await report.getByTestId("view-settings").click();
         await expect(report.getByTestId("topic-state-lines")).toHaveText("Off");
         await report.getByTestId("topic-lines").click();
-        await expect(report.getByTestId("level-title")).toHaveText("Display › Reference lines");
+        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Reference lines");
         await report.getByTestId("line-average").click();
         await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: false, target: null });
         // a switch keeps its level open: the next one is there to click
@@ -296,7 +296,7 @@ test.describe("reference lines", () => {
         // the Target row says it has none and opens its form
         await expect(report.getByTestId("line-target")).toContainText("No target");
         await report.getByTestId("line-target").click();
-        await expect(report.getByTestId("level-title")).toHaveText("Display › Reference lines › Target");
+        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Reference lines › Target");
         const target = report.getByTestId("chart-target");
         await target.click();
         await page.keyboard.type("80");
@@ -325,7 +325,7 @@ test.describe("reference lines", () => {
         await expect(report.getByTestId("topic-state-lines")).toContainText("Average, Trend");
         // a pie has no value axis: no row for lines; its Tooltip row holds the share (#54)
         await report.getByTestId("chart-pie").click();
-        await report.getByTestId("chart-type").click();
+        await report.getByTestId("view-settings").click();
         await expect(report.getByTestId("topic-tooltip")).toHaveCount(1);
         await expect(report.getByTestId("topic-lines")).toHaveCount(0);
         await page.keyboard.press("Escape");
@@ -340,11 +340,11 @@ test.describe("reference lines", () => {
     test("Display › Reference lines by keyboard: Enter opens it, Space and Enter flip a switch and keep the level, the Target row opens its form, Escape goes back", async ({ page }) => {
         await mount(page, { type: "line" });
         const report = page.locator("#lines-report");
-        await report.getByTestId("chart-type").click();
+        await report.getByTestId("view-settings").click();
         const row = report.getByTestId("topic-lines");
         await row.focus();
         await page.keyboard.press("Enter");
-        await expect(report.getByTestId("level-title")).toHaveText("Display › Reference lines");
+        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Reference lines");
         await expect(report.getByTestId("line-average")).toBeFocused();
         await page.keyboard.press("Space");
         await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.average)).toBe(true);

@@ -49,7 +49,7 @@ test("lines with the dates on Columns get a hint to swap", async ({ page }) => {
     await page.getByTestId("field-menu-Created").click();
     await page.getByRole("menuitem", { name: "Add to Columns" }).click();
     await page.locator('.pk-field[data-field="Lead hours"] .pk-field-name').click();
-    await toolbar(page, "chart-type");
+    await toolbar(page, "chart-settings");
     await page.getByTestId("chart-line").click();
     await expect(page.locator('[data-tip="chartDates"]')).toBeVisible();
     await page.locator('[data-tip="chartDates"]').getByRole("button", { name: "Swap rows and columns" }).click();
@@ -158,22 +158,18 @@ test("text from the data is never markup: table, filter list, drill-down and cha
     expect(await page.locator(".pk-root img, .pk-root script").count()).toBe(0);
 });
 
-test("a panel opened from More keeps the focus on a switch; it closes when its button fits again", async ({ page }) => {
-    await page.setViewportSize({ width: 800, height: 900 });
+test("a panel opened from More closes when its button fits again", async ({ page }) => {
+    // a phone: Views is in More
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("?data=sales");
     await page.getByTestId("more").click();
-    await page.getByTestId("more-options").click();
-    // the panel has taken the focus (on its first option) before the user moves it
+    await page.getByTestId("more-views").click();
+    // the panel has taken the focus before the user moves it
     await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover")))).toBe(true);
-    const sw = page.getByTestId("total-rowSubtotals");
-    await sw.focus();
-    await page.keyboard.press("Space");
-    await expect(sw).not.toBeChecked();
-    await page.waitForTimeout(300);
-    await expect(sw).toBeFocused();
-    // wider: Options is a button of its own again, the panel of the More menu goes
+    await expect(page.locator(".pk-popover").getByTestId("save-as")).toBeVisible();
+    // wider: Views is a button of its own again, the panel of the More menu goes
     await page.setViewportSize({ width: 1920, height: 900 });
-    await expect(page.getByTestId("options")).toBeVisible();
+    await expect(page.getByTestId("views")).toBeVisible();
     await expect(page.locator(".pk-popover")).toHaveCount(0);
 });
 
@@ -237,7 +233,7 @@ test("where the Columns zone is too narrow, the swap button is an icon with its 
     expect(box.x + box.width).toBeLessThanOrEqual(head.x + head.width + 0.5);
 });
 
-test("a low report (520 px) folds its zones into one line; Layout and the line open them, a drag still drops", async ({ page }) => {
+test("a low report (520 px) folds its zones under their heading; the heading row opens and folds them, a drag still drops", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("?data=tickets&height=520");
     const line = page.getByTestId("layout-summary");
@@ -264,53 +260,40 @@ test("a low report (520 px) folds its zones into one line; Layout and the line o
     await page.mouse.up();
     await page.waitForTimeout(100);
     await expect(line).toHaveText(/Filters: Channel/);
-    // the line opens them and the focus goes to the first zone
-    await line.click();
-    await expect(page.locator(".pk-zone")).toHaveCount(4);
-    await expect(page.locator('[data-zone="filters"]')).toBeFocused();
-    await expect.poll(rowsInView).toBeLessThan(rowsFolded);
-    // Layout in the toolbar (or in More) folds them again; the choice holds
-    await page.setViewportSize({ width: 1920, height: 800 });
-    const layout = page.getByTestId("layout");
-    await expect(layout).toHaveAttribute("aria-pressed", "true");
-    // from the keyboard (WebKit does not focus a button on a click): the focus stays on the button
-    await layout.focus();
+    // the heading row opens them; it stays, so the focus stays on it (from the keyboard: WebKit does
+    // not focus a button on a click)
+    await line.focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
-    await expect(layout).toHaveAttribute("aria-pressed", "false");
-    await expect(layout).toBeFocused();
+    await expect(page.locator(".pk-zone")).toHaveCount(4);
+    await expect(line).toHaveAttribute("aria-expanded", "true");
+    await expect(line).toBeFocused();
+    await expect.poll(rowsInView).toBeLessThan(rowsFolded);
+    // the same button folds them again; the choice holds when the window gets wider
+    await page.setViewportSize({ width: 1920, height: 800 });
+    await expect(line).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Enter");
+    await expect(line).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator(".pk-zone")).toHaveCount(0);
+    await expect(line).toBeFocused();
 });
 
-test("Layout keeps its text and its place: pressed or not, it never moves into More by itself", async ({ page }) => {
+test("folding the zones keeps the heading row, Swap and every toolbar button in their place", async ({ page }) => {
     for (const width of [1600, 1000]) {
         await page.setViewportSize({ width, height: 800 });
         await page.goto("?data=tickets&height=700");
-        const where = async () => ((await page.getByTestId("layout").count()) ? "toolbar" : "more");
-        const before = await where();
-        const flip = async () => {
-            if (before === "toolbar") {
-                await page.getByTestId("layout").click();
-            } else {
-                await page.getByTestId("more").click();
-                await page.getByTestId("more-layout").click();
-            }
-        };
-        await flip();
-        await expect(page.getByTestId("layout-summary")).toBeVisible();
-        expect(await where(), `at ${width} px`).toBe(before);
-        if (before === "toolbar") {
-            await expect(page.getByTestId("layout")).toHaveText("Layout");
-            await expect(page.getByTestId("layout")).toHaveAttribute("aria-pressed", "false");
-        } else {
-            // in More it is the same entry, checked or not
-            await page.getByTestId("more").click();
-            await expect(page.getByTestId("more-layout")).toHaveText("Layout");
-            await expect(page.getByTestId("more-layout")).toHaveAttribute("aria-checked", "false");
-            await page.keyboard.press("Escape");
-        }
-        await flip();
-        await expect(page.locator(".pk-zone")).toHaveCount(4);
-        expect(await where()).toBe(before);
+        const fold = page.getByTestId("layout-summary");
+        const overflow = () => page.locator(".pk-toolbar").getAttribute("data-overflow");
+        const before = { overflow: await overflow(), fold: await fold.boundingBox(), swap: await page.getByTestId("swap").boundingBox() };
+        const open = await fold.getAttribute("aria-expanded");
+        await fold.click();
+        await expect(fold).not.toHaveAttribute("aria-expanded", open);
+        expect(await overflow(), `at ${width} px`).toBe(before.overflow);
+        // the heading row and Swap stay where they were
+        expect((await fold.boundingBox()).y).toBeCloseTo(before.fold.y, 0);
+        expect((await page.getByTestId("swap").boundingBox()).x).toBeCloseTo(before.swap.x, 0);
+        await fold.click();
+        await expect(fold).toHaveAttribute("aria-expanded", open);
+        expect(await overflow()).toBe(before.overflow);
     }
 });
 
@@ -329,14 +312,14 @@ test("a report that gets lower while a chip menu is open folds after the menu cl
     await expect(menu).toBeVisible();
     await expect(page.locator(".pk-zone")).toHaveCount(4);
     await page.keyboard.press("Escape");
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     await expect(page.getByTestId("layout-summary")).toBeFocused();
 });
 
 test("a tall report starts with its zones open", async ({ page }) => {
     await page.goto("?data=tickets&height=720");
     await expect(page.locator(".pk-zone")).toHaveCount(4);
-    await expect(page.getByTestId("layout-summary")).toHaveCount(0);
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "true");
 });
 
 test("a pie in a low report is drawn inside its box, labels included", async ({ page }) => {
@@ -344,7 +327,7 @@ test("a pie in a low report is drawn inside its box, labels included", async ({ 
     await page.goto("?data=tickets&height=480");
     await page.getByTestId("layout-summary").click();
     await page.getByTestId("show-chart").click();
-    await toolbar(page, "chart-type");
+    await toolbar(page, "chart-settings");
     await page.getByTestId("chart-pie").click();
     const canvas = page.locator('[data-testid="pivot-chart"] canvas');
     await expect(canvas).toBeVisible();
@@ -396,13 +379,13 @@ test("chart tooltips show labels from the data as text: category, series and sli
     expect(await hoverUntil(across, "<b>bold")).toBe(true);
     await markupShown();
     // pie: the slices are the labels
-    await toolbar(page, "chart-type");
+    await toolbar(page, "chart-settings");
     await page.getByTestId("chart-pie").click();
     const ring = Array.from({ length: 36 }, (_, i) => [0.5 + 0.18 * Math.cos((i * Math.PI) / 18), 0.55 + 0.3 * Math.sin((i * Math.PI) / 18)]);
     expect(await hoverUntil(ring, "<img src=x onerror")).toBe(true);
     await markupShown();
     // rows and columns swapped: the series are the labels
-    await toolbar(page, "chart-type");
+    await toolbar(page, "chart-settings");
     await page.getByTestId("chart-bar").click();
     await page.getByTestId("swap").click();
     await expect.poll(() => chips(page, "cols")).toEqual(["Label"]);
@@ -428,7 +411,7 @@ test("Enlarge lets the result fill the report; Escape or the button brings the z
     await expect(page.getByTestId("enlarged-fields")).toHaveText("Rows: Team · Columns: Priority · Values: Count of Ticket");
     expect((await result.boundingBox()).height).toBeGreaterThan(before + 100);
     // Escape closes an open menu of the report first; the result stays enlarged
-    await toolbar(page, "options");
+    await toolbar(page, "table-settings");
     await expect(page.locator(".pk-popover")).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect(page.locator(".pk-popover")).toHaveCount(0);
@@ -469,7 +452,7 @@ test("without a height of the host's (or with grow on) a report too low for itse
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("?data=tickets&height=360&grow=on");
     const root = page.locator(".pk-root");
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     await expect.poll(async () => (await root.boundingBox()).height).toBeGreaterThan(360);
     const result = await page.locator(".pk-result").boundingBox();
     expect(result.height).toBeGreaterThanOrEqual(239);
@@ -482,7 +465,7 @@ test("a fixed 420 px card keeps the report inside: nothing is cut, the result sc
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("?data=tickets&height=420");
     const root = page.locator(".pk-root");
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     await expect(root).toHaveAttribute("data-pk-fit", "contain");
     await page.waitForTimeout(300);
     const report = await root.boundingBox();
@@ -499,6 +482,6 @@ test("a fixed 420 px card keeps the report inside: nothing is cut, the result sc
 test("a narrow report folds its zones earlier and keeps one tip", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 700 });
     await page.goto("?data=tickets&height=700");
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     expect(await page.locator(".pk-tip").count()).toBeLessThanOrEqual(1);
 });

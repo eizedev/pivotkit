@@ -121,15 +121,9 @@ const tooltipOf = (chartEl) =>
         return box ? [...box.children].map((row) => [...(row.children.length ? row.children : [row])].map((c) => c.textContent.trim()).filter(Boolean).join(" ")) : [];
     });
 
-/** Opens the chart type menu: its button, or its entry in "More" on a narrow report. */
+/** Opens Chart settings: the button beside the tabs, also on a narrow report (its icon there). */
 async function chartMenu(report) {
-    const own = report.getByTestId("chart-type");
-    if (await own.isVisible()) {
-        await own.click();
-    } else {
-        await report.getByTestId("more").click();
-        await report.getByTestId("more-chart-type").click();
-    }
+    await report.getByTestId("view-settings").click();
     await expect(report.locator(".pk-popover")).toBeVisible();
 }
 
@@ -207,7 +201,7 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await report.getByTestId("chart-stack-percent").click();
         await expect.poll(() => lastView(page).then((c) => c?.stackPercent)).toBe(true);
         // a switch keeps its level open, as Series does: Escape goes back, a second Escape closes
-        await expect(report.getByTestId("level-title")).toHaveText("Display › Layout");
+        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Layout");
         await expect(report.getByTestId("chart-stack-percent")).toHaveAttribute("aria-checked", "true");
         await expect(report.getByTestId("chart-stack-percent")).toBeFocused();
         await page.keyboard.press("Escape");
@@ -343,7 +337,7 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
         // into the Display list, down to Axis, and open it
         await axisRow.focus();
         await page.keyboard.press("Enter");
-        await expect(report.getByTestId("level-title")).toHaveText("Display › Axis");
+        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Axis");
         await expect(report.getByTestId("axis-auto")).toBeFocused();
         // down to the zoom slider's Off, and pick it
         await page.keyboard.press("End");
@@ -357,7 +351,7 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
         await page.keyboard.press("ArrowDown");
         await expect(report.getByTestId("topic-tooltip")).toBeFocused();
         await page.keyboard.press("ArrowRight");
-        await expect(report.getByTestId("level-title")).toHaveText("Display › Tooltip");
+        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Tooltip");
         await page.keyboard.press("Escape");
         await expect(report.getByTestId("topic-tooltip")).toBeFocused();
         // Reference lines (#48) next, then Series: a switch per series; Space and Enter flip one, the level stays with the focus on it
@@ -365,7 +359,7 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
         await expect(report.getByTestId("topic-lines")).toBeFocused();
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("Enter");
-        await expect(report.getByTestId("level-title")).toHaveText("Display › Series");
+        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Series");
         const hardware = report.getByRole("menuitemcheckbox", { name: "Hardware" });
         await expect(hardware).toBeFocused();
         await page.keyboard.press("Space");
@@ -383,7 +377,7 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
         // Escape on the first level closes the menu, the focus back on its button
         await page.keyboard.press("Escape");
         await expect(report.locator(".pk-popover")).toHaveCount(0);
-        await expect(report.getByTestId("chart-type")).toBeFocused();
+        await expect(report.getByTestId("view-settings")).toBeFocused();
     });
 
     test("on a phone each level fits the window: Axis, Series and Layout, and Back returns", async ({ page }) => {

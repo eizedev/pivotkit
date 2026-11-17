@@ -246,7 +246,7 @@ test.describe("menus explain themselves", () => {
         // without a description and with the explanations off, no i
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
-        await toolbar(page, "options");
+        await toolbar(page, "help");
         await page.getByTestId("show-explanations").focus();
         await page.getByTestId("show-explanations").press("Space");
         await expect(page.getByTestId("show-explanations")).not.toBeChecked();
@@ -260,19 +260,19 @@ test.describe("menus explain themselves", () => {
 
     test("Expand all and Collapse all: enabled only when they change something, with why not, and a status", async ({ page }) => {
         await page.goto("?data=sales");
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         await expect(page.getByTestId("expand-all")).toBeDisabled();
         await expect(page.getByTestId("expand-all")).toContainText("Nothing is collapsed.");
         await page.getByTestId("collapse-all").click();
         await expect(page.locator(".pk-toasts")).toContainText(/\d+ groups collapsed/);
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         await expect(page.getByTestId("collapse-all")).toBeDisabled();
         await expect(page.getByTestId("collapse-all")).toContainText("Every group is collapsed already.");
         await page.getByTestId("expand-all").click();
         await expect(page.locator(".pk-toasts")).toContainText(/\d+ groups expanded/);
         // one field in Rows: nothing to collapse
         await page.getByRole("button", { name: "Remove Country" }).click();
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         await expect(page.getByTestId("collapse-all")).toContainText("Needs two or more fields in Rows.");
     });
 });
@@ -280,11 +280,11 @@ test.describe("menus explain themselves", () => {
 // Options' totals that would change nothing, with their reasons: texts that load with the menus, in the report's language
 test("a total that would change nothing is off and says why, in English and in German", async ({ page }) => {
     await page.goto("?data=sales");
-    await toolbar(page, "options");
+    await toolbar(page, "table-settings");
     await expect(page.getByTestId("total-colSubtotals")).toBeDisabled();
     await expect(page.getByTestId("total-colSubtotals-reason")).toHaveText("Needs two or more fields in Columns.");
     await page.goto("?data=sales&lang=de");
-    await toolbar(page, "options");
+    await toolbar(page, "table-settings");
     await expect(page.getByTestId("total-colSubtotals-reason")).toHaveText("Braucht zwei oder mehr Felder in Spalten.");
     await expect(page.getByText("Teilergebnisse der Spalten")).toBeVisible();
 });
@@ -566,21 +566,21 @@ test.describe("menus in levels", () => {
         await chipMenu(page, "Region");
         await expect(page.locator(".pk-chip-menu [data-section]")).toHaveCount(0);
         await page.keyboard.press("Escape");
-        for (const menu of ["options", "views", "export", "chart-type"]) {
+        for (const menu of ["table-settings", "more", "views", "export", "chart-settings"]) {
             await toolbar(page, menu);
             // no title is a button that folds
             await expect(page.locator(".pk-popover [data-section], .pk-popover button.pk-section-title")).toHaveCount(0);
             await page.keyboard.press("Escape");
         }
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         await expect(page.getByTestId("reset-sections")).toHaveCount(0);
         await page.keyboard.press("Escape");
-        // the chart type's Display settings are a menu in levels, its first level shown at once (#106)
-        await toolbar(page, "chart-type");
-        await expect(page.getByRole("menu", { name: "Display" })).toBeVisible();
+        // Chart settings with its Display topics is a menu in levels, its first level shown at once (#106)
+        await toolbar(page, "chart-settings");
+        await expect(page.getByRole("menu", { name: "Chart settings" })).toBeVisible();
         await page.keyboard.press("Escape");
         // Show tips off writes the list: the stored folds are not in it
-        await toolbar(page, "options");
+        await toolbar(page, "help");
         await page.getByTestId("show-tips").click();
         await expect.poll(() => page.evaluate(() => localStorage.getItem("pivotkit:tips:playground"))).toBe(JSON.stringify(["*"]));
     });
@@ -588,7 +588,7 @@ test.describe("menus in levels", () => {
     test("the wheel over a menu never scrolls the table or the page behind it", async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 520 });
         await page.goto("?data=countries&height=1200");
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         const menu = page.locator(".pk-popover");
         await expect(menu).toBeVisible();
         const before = await page.evaluate(() => window.scrollY);
@@ -605,7 +605,7 @@ test.describe("menus in levels", () => {
 
     test("an i explains a setting; Show explanations hides them all; a switch that changes nothing says why", async ({ page }) => {
         await page.goto("?data=tickets");
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         // one row field, one column field: subtotals would change nothing
         await expect(page.getByTestId("total-rowSubtotals")).toBeDisabled();
         await expect(page.getByTestId("total-rowSubtotals-reason")).toHaveText("Needs two or more fields in Rows.");
@@ -630,7 +630,7 @@ test.describe("menus in levels", () => {
         await expect(page.getByTestId("setting-info-exportXlsx")).toHaveCount(0);
         await page.keyboard.press("Escape");
         // back on: the export formats explain themselves with an i, one line each
-        await toolbar(page, "options");
+        await toolbar(page, "help");
         // the menu has taken the focus (from More it opens a frame later), so it does not take it back
         await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover")))).toBe(true);
         await page.getByTestId("show-explanations").focus();

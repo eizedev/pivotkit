@@ -74,7 +74,7 @@ export async function openZonesIn(report) {
     await expect(report.locator(".pk-zone").first()).toBeVisible();
 }
 
-/** Opens a toolbar menu of one report of several: its button, or its entry in "More" (toolbar() for a page of one). */
+/** Opens a menu of one report of several: its button (the toolbar's, or "view-settings" beside the tabs), or its entry in "More" (toolbar() for a page of one). */
 export async function toolbarIn(report, testId) {
     const own = report.getByTestId(testId);
     if (await own.count()) {

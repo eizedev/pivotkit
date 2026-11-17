@@ -1,6 +1,6 @@
 // The groups of the toolbar's menus as people see them: each group under a title in the weight of
 // Export's titles, a rule between groups (none above the first), and what each group holds, in order.
-// Options, Views, the chart type, More, a value's menu; the Views menu holds only what persists.
+// Table settings, Views, Chart settings, More, a value's menu; the Views menu holds only what persists.
 import { chipMenu, expect, test, toolbar } from "./fixtures.js";
 
 /**
@@ -26,18 +26,18 @@ async function groupsOf(scope) {
 /** A rule above every group but the first. */
 const ruled = (groups) => groups.map((g) => g.rule);
 
-test("Options: Totals, Rows and Help under bold titles, a rule between them", async ({ page }) => {
+test("Table settings: Totals and Rows under bold titles, a rule between them", async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1000 });
     await page.goto("?data=sales");
-    await toolbar(page, "options");
-    const menu = page.getByRole("menu", { name: "Options" });
+    await toolbar(page, "table-settings");
+    const menu = page.getByRole("menu", { name: "Table settings" });
     const groups = await groupsOf(menu);
-    expect(groups.map((g) => g.title)).toEqual(["Totals", "Rows", "Help"]);
-    expect(ruled(groups)).toEqual([false, true, true]);
+    expect(groups.map((g) => g.title)).toEqual(["Totals", "Rows"]);
+    expect(ruled(groups)).toEqual([false, true]);
     expect(groups.every((g) => g.bold)).toBe(true);
     // the groups keep their names for a screen reader
     await expect(menu.getByRole("group", { name: "Totals" })).toBeVisible();
-    await expect(menu.getByRole("group", { name: "Help" })).toBeVisible();
+    await expect(menu.getByRole("group", { name: "Rows" })).toBeVisible();
 });
 
 test("Views: only what persists - This view, Shared views, My views, Share this view - each with a rule", async ({ page }) => {
@@ -75,10 +75,10 @@ test("Views in German: the same groups, Ansichtsdatei öffnen…", async ({ page
     await expect(menu.getByTestId("load-view")).toHaveText("Ansichtsdatei öffnen…");
 });
 
-test("the chart type menu: Chart type, then a row per Display topic that opens its level (#106)", async ({ page }) => {
+test("Chart settings: Chart type, then a row per Display topic that opens its level (#106)", async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1100 });
     await page.goto("?data=sales&preset=1");
-    await toolbar(page, "chart-type");
+    await toolbar(page, "chart-settings");
     const menu = page.locator(".pk-chart-menu");
     const groups = await groupsOf(menu);
     expect(groups.map((g) => g.title)).toEqual(["Chart type"]);
@@ -86,31 +86,35 @@ test("the chart type menu: Chart type, then a row per Display topic that opens i
     // the rows that open levels, each with what is set: lines over months have every topic
     const rows = await menu.locator("[data-pk-level]").evaluateAll((els) => els.map((el) => el.dataset.testid));
     expect(rows).toEqual(["topic-valueLabels", "topic-legend", "topic-title", "topic-axis", "topic-tooltip", "topic-lines", "topic-series", "topic-layout"]);
-    await expect(menu.getByRole("menu", { name: "Display" })).toBeVisible();
+    await expect(menu.getByRole("menu", { name: "Chart settings" })).toBeVisible();
 });
 
-test("More: Start over's two actions, then Layout, Chart type and Options, then Views - rules, no titles", async ({ page }) => {
+test("More: Help first, then Start over's two actions, then Views - rules, no titles", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     // a report without the Data button (the next test has it)
     await page.goto("?data=sales&import=off");
     await toolbar(page, "more");
     const menu = page.getByRole("menu", { name: "More" });
     const groups = await groupsOf(menu);
-    expect(groups.map((g) => g.title)).toEqual([null, null, null]);
-    expect(ruled(groups)).toEqual([false, true, true]);
-    expect(groups.map((g) => g.items)).toEqual([["more-reset", "more-new-report"], ["more-layout", "more-chart-type", "more-options"], ["more-views"]]);
+    const items = await menu.locator('[role^="menuitem"]').evaluateAll((els) => els.map((el) => el.dataset.testid));
+    expect(items[0]).toBe("more-help");
+    expect(groups.map((g) => g.title)).toEqual([null, null]);
+    expect(ruled(groups)).toEqual([false, true]);
+    expect(groups.map((g) => g.items)).toEqual([["more-reset", "more-new-report"], ["more-views"]]);
+    // a rule parts Help from the buttons that moved
+    await expect(menu.locator('[role="separator"]')).toHaveCount(1);
     // Start over's group keeps its name for a screen reader
     await expect(menu.getByRole("group", { name: "Start over" })).toBeVisible();
 });
 
-test("More with the Data button (allowImport): Data in a group of its own between the layout's and Views", async ({ page }) => {
+test("More with the Data button (allowImport): Data in a group of its own between Start over's and Views", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("?data=sales&import");
     await toolbar(page, "more");
     const menu = page.getByRole("menu", { name: "More" });
     const groups = await groupsOf(menu);
-    expect(ruled(groups)).toEqual([false, true, true, true]);
-    expect(groups.map((g) => g.items)).toEqual([["more-reset", "more-new-report"], ["more-layout", "more-chart-type", "more-options"], ["more-data"], ["more-views"]]);
+    expect(ruled(groups)).toEqual([false, true, true]);
+    expect(groups.map((g) => g.items)).toEqual([["more-reset", "more-new-report"], ["more-data"], ["more-views"]]);
     // its entry opens the Data menu in More's place
     await page.getByTestId("more-data").click();
     await expect(page.getByRole("dialog", { name: "Data" }).getByTestId("data-menu")).toBeVisible();
@@ -169,19 +173,19 @@ async function ruleContrasts(scope) {
 }
 
 for (const theme of ["light", "dark"]) {
-    test(`the rules between groups stand 3:1 against the menu in the ${theme} theme: More, whose groups have no titles, and Options`, async ({ page }) => {
+    test(`the rules between groups stand 3:1 against the menu in the ${theme} theme: More, whose groups have no titles, and Table settings`, async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
-        // without the Data button: More's three groups have two rules
+        // without the Data button: More's two groups below Help have one rule
         await page.goto(`?data=sales&theme=${theme}&import=off`);
         await toolbar(page, "more");
         const more = await ruleContrasts(page.getByRole("menu", { name: "More" }));
-        expect(more).toHaveLength(2);
+        expect(more).toHaveLength(1);
         for (const ratio of more) expect(ratio, `More: ${more.join(", ")}`).toBeGreaterThanOrEqual(3);
         await page.keyboard.press("Escape");
         await page.setViewportSize({ width: 1920, height: 1000 });
-        await toolbar(page, "options");
-        const options = await ruleContrasts(page.getByRole("menu", { name: "Options" }));
-        expect(options).toHaveLength(2);
-        for (const ratio of options) expect(ratio, `Options: ${options.join(", ")}`).toBeGreaterThanOrEqual(3);
+        await toolbar(page, "table-settings");
+        const options = await ruleContrasts(page.getByRole("menu", { name: "Table settings" }));
+        expect(options).toHaveLength(1);
+        for (const ratio of options) expect(ratio, `Table settings: ${options.join(", ")}`).toBeGreaterThanOrEqual(3);
     });
 }

@@ -64,11 +64,16 @@ export async function tableRows(page) {
 /** The actions of Start over's menu ("reset", "new-report"): entries of their own in "More". */
 export const START_OVER = ["reset", "new-report"];
 
+/** The menus beside the tabs: the settings of the table or of the chart, opened on their tab. */
+export const SETTINGS = { "table-settings": "table", "chart-settings": "chart" };
+
 /**
  * Clicks a toolbar action: its own button, or its entry in "More" when the report is too narrow for
- * all buttons. `testId` is the button's ("redo", "options", "views", "chart-type"), or an action of
- * Start over ("reset", "new-report": its menu, then the action). A menu that is open already (Views
- * stays open after a save) stays open: a click on its button would close it.
+ * all buttons. `testId` is the button's ("redo", "views", "more"), an action of Start over
+ * ("reset", "new-report": its menu, then the action), "help" (More, then its Help level), or a menu
+ * beside the tabs ("table-settings", "chart-settings": its tab is shown first, with a click, when it is
+ * not). A menu that is open already (Views stays open after a save) stays open: a click on its button
+ * would close it.
  */
 export async function toolbar(page, testId) {
     // the report has its data (a real data set loads as a chunk of its own) and its toolbar has settled
@@ -76,7 +81,16 @@ export async function toolbar(page, testId) {
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
     const button = START_OVER.includes(testId) ? "start-over" : testId;
     const own = page.getByTestId(button);
-    if (await own.count()) {
+    if (Object.hasOwn(SETTINGS, testId)) {
+        const tab = page.getByTestId(`show-${SETTINGS[testId]}`);
+        if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
+        const settings = page.getByTestId("view-settings");
+        if ((await settings.getAttribute("aria-expanded")) !== "true") await settings.click();
+    } else if (testId === "help") {
+        await page.getByTestId("more").click();
+        await page.getByTestId("more-help").click();
+        await expect(page.getByTestId("level-help")).toBeVisible();
+    } else if (await own.count()) {
         if ((await own.getAttribute("aria-expanded")) !== "true") await own.click();
         if (button !== testId) await page.getByTestId(testId).click();
     } else {
@@ -85,12 +99,28 @@ export async function toolbar(page, testId) {
     }
     // a menu takes the focus a frame after it opens (from More once its panel is there): wait for it,
     // so a test that moves the focus inside does not lose it to that
-    if (!["redo", "layout", ...START_OVER].includes(testId)) {
+    if (!["redo", ...START_OVER].includes(testId)) {
         await expect.poll(() => page.evaluate(() => {
             const deep = (root) => (root.activeElement?.shadowRoot ? deep(root.activeElement.shadowRoot) : root.activeElement);
             return Boolean(deep(document)?.closest(".pk-popover"));
         })).toBe(true);
     }
+}
+
+/**
+ * Checks the chart type chosen, as Chart settings names its group of types ("Chart type: Pie") and
+ * marks it pressed, then closes the menu again; `scope` is the page or one report.
+ * @param {string} name  the type's name, "Automatic" for the automatic type
+ * @param {string} id  its picker id ("auto", "pie")
+ */
+export async function expectChartType(scope, name, id) {
+    const settings = scope.getByTestId("view-settings");
+    await expect(settings).toHaveText(/Chart settings/);
+    await settings.click();
+    await expect(scope.getByTestId("chart-types")).toHaveAccessibleName(`Chart type: ${name}`);
+    await expect(scope.getByTestId(`chart-${id}`)).toHaveAttribute("aria-pressed", "true");
+    await settings.press("Escape");
+    await expect(settings).toHaveAttribute("aria-expanded", "false");
 }
 
 /**

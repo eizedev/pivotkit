@@ -283,7 +283,7 @@ test.describe("the chart's tooltip follows the pointer", () => {
     test("Display, Tooltip, All series: every series wherever the pointer is, the hovered one first and in the strong weight, with the total", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar", stacked: true });
         const report = page.locator("#tooltip-report");
-        await report.getByTestId("chart-type").click();
+        await report.getByTestId("view-settings").click();
         await report.getByTestId("topic-tooltip").click();
         await expect(report.getByTestId("tooltip-auto")).toHaveAttribute("aria-checked", "true");
         await report.getByTestId("tooltip-axis").click();
@@ -344,7 +344,7 @@ test("a host that renders again every 200 ms keeps the segment's tooltip under a
     await page.goto("pages/host.html");
     const report = page.getByTestId("first");
     await report.getByTestId("show-chart").click();
-    await report.getByTestId("chart-type").click();
+    await report.getByTestId("view-settings").click();
     await report.getByTestId("chart-stacked").click();
     const chartEl = report.getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();

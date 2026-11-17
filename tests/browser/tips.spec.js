@@ -36,7 +36,7 @@ test("a notice that the result is cut stays: no x, with tips off, and next to a 
     await expect(top).toContainText("Country shows the top 3 only");
     await expect(top).toHaveAttribute("data-kind", "notice");
     await expect(top.getByRole("button", { name: "Dismiss tip" })).toHaveCount(0);
-    await toolbar(page, "options");
+    await toolbar(page, "help");
     const sw = page.getByTestId("show-tips");
     await sw.focus();
     await page.keyboard.press("Space");
@@ -53,7 +53,7 @@ test("Options: Show tips off hides every tip, Show dismissed tips again brings t
     await page.goto("?data=sales");
     await page.getByTestId("tip-cells").getByRole("button", { name: "Dismiss tip" }).click();
     await expect(page.getByTestId("tips")).toHaveCount(0);
-    await toolbar(page, "options");
+    await toolbar(page, "help");
     await page.getByTestId("reset-tips").click();
     await expect(page.getByTestId("tip-cells")).toBeVisible();
     const sw = page.getByTestId("show-tips");

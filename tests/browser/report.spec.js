@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
-import { chipMenu, chips, drag, expect, openLevel, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, drag, expect, expectChartType, openLevel, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
 
 test.describe("building a report", () => {
     test("the empty state explains the first steps; fields are added by drag and by menu", async ({ page }) => {
@@ -155,7 +155,7 @@ test.describe("filter, table and chart", () => {
         await expect.poll(async () => (await tableRows(page)).length).toBe(before - 3);
         await page.getByRole("button", { name: "Expand Central" }).click();
         await expect.poll(async () => (await tableRows(page)).length).toBe(before);
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         await page.getByText("Row subtotals").click();
         await expect.poll(async () => (await tableRows(page)).some((r) => r[0].endsWith(" Total") && r[0] !== "Grand Total")).toBe(false);
     });
@@ -178,19 +178,17 @@ test.describe("filter, table and chart", () => {
     });
 
     test("table and chart, chart types, and the PNG export", async ({ page }) => {
-        // a window wide enough for the chart type's button (narrower, or with the Data button, it is in
-        // "More", after Views): the report without the Data button (import=off)
+        // the report without the Data button (import=off)
         await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto("?data=tickets&import=off");
         await page.getByTestId("show-chart").click();
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
-        // no type chosen yet: the data decides (bars for teams); the button says so, its name says what it is
-        await expect(page.getByTestId("chart-type")).toHaveText("Automatic");
-        await expect(page.getByTestId("chart-type")).toHaveAccessibleName("Chart type: Automatic");
-        await page.getByTestId("chart-type").click();
+        // no type chosen yet: the data decides (bars for teams); Chart settings names its group of types so
+        await expectChartType(page, "Automatic", "auto");
+        await page.getByTestId("view-settings").click();
         await page.getByTestId("chart-pie").click();
-        await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-pressed", "true");
-        await expect(page.getByTestId("chart-type")).toHaveAccessibleName("Chart type: Pie");
+        await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-selected", "true");
+        await expectChartType(page, "Pie", "pie");
         // the canvas has a text alternative
         await expect(page.getByTestId("chart-summary")).toContainText("Pie: Count of Ticket by Team.");
         await page.getByTestId("export").click();
@@ -234,7 +232,7 @@ test.describe("filter, table and chart", () => {
         // a preset of the host has no delete button
         await expect(page.getByRole("menuitem", { name: "Delete Open work per team (chart)" })).toHaveCount(0);
         await page.getByTestId("saved-view-Open work per team (chart)").click();
-        await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-pressed", "true");
+        await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-selected", "true");
         await toolbar(page, "views");
         await page.getByTestId("saved-view-Teams only").click();
         await expect.poll(() => chips(page, "cols")).toEqual([]);

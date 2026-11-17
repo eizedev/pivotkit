@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { readSheet } from "read-excel-file/node";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openLevel, tableRows, test } from "./fixtures.js";
+import { chipMenu, chips, expect, expectChartType, openLevel, tableRows, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
 const load = (name) => unpack(JSON.parse(readFileSync(new URL(`../../examples/playground/data/${name}.json`, import.meta.url), "utf8")));
@@ -114,12 +114,11 @@ test.describe("countries", () => {
     });
 
     test("population per income group: chart and its table", async ({ page }) => {
-        // a window wide enough for the chart type's button (narrower, or with the Data button, it is in
-        // "More", after Views): the report without the Data button (import=off)
+        // the report without the Data button (import=off), as before the chart's settings moved to the tabs
         await page.setViewportSize({ width: 1440, height: 900 });
         await open(page, "data=countries&preset=3&import=off");
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
-        await expect(page.getByTestId("chart-type")).toContainText("Stacked bars");
+        await expectChartType(page, "Stacked bars", "stacked");
         await page.getByTestId("show-table").click();
         const r = await row(page, "2024");
         const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
@@ -425,15 +424,16 @@ test.describe("learning tasks", () => {
     });
 
     test("end of life: category as a heatmap; the median instead of the average", async ({ page }) => {
-        // a window wide enough for the chart type's button (narrower, or with the Data button, it is in
-        // "More", after Views): the report without the Data button (import=off)
+        // the report without the Data button (import=off), as before the chart's settings moved to the tabs
         await page.setViewportSize({ width: 1440, height: 900 });
         await open(page, "data=endoflife&preset=0&import=off");
         await page.getByTestId("field-menu-Category").click();
         await page.getByRole("menuitem", { name: "Add to Columns" }).click();
-        await page.getByTestId("chart-type").click();
+        // the chart's settings: on the tab Chart
+        await page.getByTestId("show-chart").click();
+        await page.getByTestId("view-settings").click();
         await page.getByTestId("chart-heatmap").click();
-        await expect(page.getByTestId("chart-type")).toHaveAccessibleName("Chart type: Heatmap");
+        await expectChartType(page, "Heatmap", "heatmap");
         // ECharts draws a heatmap with a slider on more than one canvas
         await expect(page.locator('[data-testid="pivot-chart"] canvas').first()).toBeVisible();
         await page.getByTestId("show-table").click();

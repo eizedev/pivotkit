@@ -5,7 +5,7 @@
 // without its change.
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openSaveAs, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, expectChartType, openSaveAs, test, toolbar } from "./fixtures.js";
 
 /** The playground's address of a view (its link parameter). */
 const withView = (query, view) => `?${query}#pivot-playground=${encodeViewLink(toViewFile(view, {}, { link: true }))}`;
@@ -13,13 +13,12 @@ const BY_MONTH = { name: "Month by month", field: "Month", by: "yearMonth" };
 
 test.describe("the chart type the data suggests", () => {
     test("no type chosen: dates on Columns draw lines with the months along the axis; the table keeps its layout", async ({ page }) => {
-        // a window wide enough for the chart type's button (narrower, or with the Data button, it is in
-        // "More", after Views): the report without the Data button (import=off)
+        // the report without the Data button (import=off)
         await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto(withView("data=sales&import=off", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart" }));
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
         await expect(page.getByTestId("chart-summary")).toContainText(/^Lines: Sum of Revenue by Month by month\./);
-        await expect(page.getByTestId("chart-type")).toHaveText("Automatic");
+        await expectChartType(page, "Automatic", "auto");
         await expect(page.getByTestId("tips").locator('[data-tip^="chart"]')).toHaveCount(0);
         // the view is not changed: Region stays on Rows
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
@@ -28,8 +27,7 @@ test.describe("the chart type the data suggests", () => {
     });
 
     test("a type the user chose stays, with a one-click suggestion that draws lines over time", async ({ page }) => {
-        // a window wide enough for the chart type's button (narrower, or with the Data button, it is in
-        // "More", after Views): the report without the Data button (import=off)
+        // the report without the Data button (import=off)
         await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto(withView("data=sales&import=off", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "bar" } }));
         await expect(page.getByTestId("chart-summary")).toContainText(/^Bars: /);
@@ -37,7 +35,7 @@ test.describe("the chart type the data suggests", () => {
         await expect(tip).toContainText("Month by month is a date: lines show how the values change over time.");
         await tip.getByRole("button", { name: "Show as lines over time" }).click();
         await expect(page.getByTestId("chart-summary")).toContainText(/^Lines: Sum of Revenue by Month by month\./);
-        await expect(page.getByTestId("chart-type")).toHaveAccessibleName("Chart type: Automatic");
+        await expectChartType(page, "Automatic", "auto");
         await expect(page.getByTestId("tip-chartOverTime")).toHaveCount(0);
         // one step Undo takes back
         await page.getByTestId("undo").click();

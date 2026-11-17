@@ -46,9 +46,9 @@ test("chip menus, the value filter, Views and Options stay inside a 1280 x 720 w
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("?data=tickets&rows=100000");
     await page.locator('[data-testid="pivot-table"]').waitFor();
-    // a window this low folds the zones into one line: open them
+    // a window this low folds the zones under their heading: open them
     if (!(await page.getByTestId("chip-menu-Team").isVisible())) {
-        await toolbar(page, "layout");
+        await page.getByTestId("layout-summary").click();
     }
     for (const chip of ["Team", "Priority"]) {
         await page.getByTestId(`chip-menu-${chip}`).click();

@@ -36,7 +36,7 @@ test("text fields in Rows without values: the labels alone, no empty column, no 
     await expect.poll(async () => (await tableRows(page)).length).toBe(13);
     expect((await tableRows(page)).find((r) => r[0] === "Central")).toEqual(["Central"]);
     // Options: every total needs a value here, so its switch is disabled and shows no tick
-    await toolbar(page, "options");
+    await toolbar(page, "table-settings");
     for (const key of ["grandTotalRow", "rowSubtotals"]) {
         const sw = page.getByTestId(`total-${key}`);
         await expect(sw).toBeDisabled();
@@ -70,7 +70,7 @@ test("column subtotals are off by default; switched on, a tip and the header's t
     await expect(header.filter({ hasText: /^P\d \w+ Total$/ })).toHaveCount(0);
     await expect(page.getByTestId("tip-colSubtotals")).toHaveCount(0);
 
-    await toolbar(page, "options");
+    await toolbar(page, "table-settings");
     const sw = page.getByTestId("total-colSubtotals");
     await expect(sw).toHaveAttribute("aria-checked", "false");
     await sw.click();

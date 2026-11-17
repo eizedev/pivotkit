@@ -22,7 +22,7 @@ test.describe("form fields have names of their own per report (#115)", () => {
                 seen.push(...(await formFields(report)));
                 await everyTopic(page, report, () => report.getByTestId("chip-menu-Environment").click(), seen);
                 await everyTopic(page, report, () => report.getByTestId("chip-menu-Sum of Cost").click(), seen);
-                for (const menu of ["options", "views", "export"]) {
+                for (const menu of ["view-settings", "more", "views", "export"]) {
                     await everyTopic(page, report, () => toolbarIn(report, menu), seen);
                 }
                 // the filter of a field not in the report, from the field list
