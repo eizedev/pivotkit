@@ -245,6 +245,28 @@ function fieldsOf(data) {
 }
 
 /**
+ * The chart keys newer than the view files of pivotkit 0.7. A file leaves each one out while it holds
+ * its default, so a reader of 0.7 takes the file without an `unknownKey` warning unless the view sets
+ * one; reading a file puts them back. The keys 0.7 knows are written as they are.
+ */
+export const NEWER_CHART_KEYS = Object.freeze(["tooltip", "zoom", "stackPercent", "hidden"]);
+
+/**
+ * A view with the newer chart keys at their defaults left out (`back` false), or put back where a file
+ * left them out (`back` true). The view given stays as it is.
+ */
+function newerChartKeys(view, back) {
+    const chart = view.chart;
+    if (!isPlainObject(chart)) {
+        return view;
+    }
+    const defaults = /** @type {Record<string, unknown>} */ (emptyView().chart);
+    const kept = Object.entries(chart).filter(([key, value]) => back || !NEWER_CHART_KEYS.includes(key) || JSON.stringify(value) !== JSON.stringify(defaults[key]));
+    const added = back ? NEWER_CHART_KEYS.filter((key) => !Object.hasOwn(chart, key)).map((key) => [key, defaults[key]]) : [];
+    return { ...view, chart: Object.fromEntries([...kept, ...added]) };
+}
+
+/**
  * A view as a view file (an object; viewFileText() writes it). Keys in their canonical order:
  * $schema (unless `meta.schemaUrl` is null), format, formatVersion, name, description (only when not empty), createdAt (only when
  * given), generator (when given), source, extensions, view. `options.link` gives the profile a link
@@ -256,38 +278,11 @@ function fieldsOf(data) {
  * @param {{ link?: boolean }} [options]
  * @returns {Record<string, unknown>}
  */
-/**
- * The chart keys newer than the view files of pivotkit 0.7. A file leaves each one out while it holds
- * its default, so a reader of 0.7 takes the file without an `unknownKey` warning unless the view sets
- * one. The keys 0.7 knows are written as they are.
- */
-export const NEWER_CHART_KEYS = Object.freeze(["tooltip", "zoom", "stackPercent", "hidden"]);
-
-/** A view without the newer chart keys that hold their default (NEWER_CHART_KEYS); the view given stays as it is. */
-function withoutNewDefaults(view) {
-    if (!isPlainObject(view.chart)) {
-        return view;
-    }
-    const defaults = /** @type {Record<string, unknown>} */ (emptyView().chart);
-    const chart = Object.fromEntries(Object.entries(view.chart).filter(([key, value]) => !(NEWER_CHART_KEYS.includes(key) && JSON.stringify(value) === JSON.stringify(defaults[key]))));
-    return { ...view, chart };
-}
-
-/** A file's view with the newer chart keys it leaves out (NEWER_CHART_KEYS) at their defaults again. */
-function withNewDefaults(view) {
-    const chart = view.chart;
-    if (!isPlainObject(chart) || NEWER_CHART_KEYS.every((key) => Object.hasOwn(chart, key))) {
-        return view;
-    }
-    const defaults = /** @type {Record<string, unknown>} */ (emptyView().chart);
-    return { ...view, chart: { ...chart, ...Object.fromEntries(NEWER_CHART_KEYS.filter((key) => !Object.hasOwn(chart, key)).map((key) => [key, defaults[key]])) } };
-}
-
 export function toViewFile(view, meta = {}, options = {}) {
     if (!isPlainObject(view)) {
         throw new TypeError("toViewFile(view): view must be an object");
     }
-    view = withoutNewDefaults(view);
+    view = newerChartKeys(view, false);
     const name = plainText(meta.name, VIEW_FILE_LIMITS.name);
     const sourceId = plainText(meta.source?.id, VIEW_FILE_LIMITS.name);
     const params = sourceId ? paramsOf(meta.source?.params, LIMITS, () => {}) : null;
@@ -431,7 +426,7 @@ export function fromViewFile(input, options = {}) {
         return fail("newerView", `view version ${viewVersion} is newer than ${VIEW_VERSION}`);
     }
     // a view file leaves the newer chart keys out at their defaults: its view gets them back; a bare view stays as given
-    read.view = /** @type {Record<string, unknown>} */ (read.envelope ? withNewDefaults(view) : view);
+    read.view = /** @type {Record<string, unknown>} */ (read.envelope ? newerChartKeys(view, true) : view);
     if (options.data) {
         read.compatible = compatibility(read, options.data, options.sourceId);
     }

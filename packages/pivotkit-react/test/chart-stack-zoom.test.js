@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, toSeries } from "pivotkit-core";
 import { toEChartsOption } from "pivotkit-core/chart";
 import { tooltipContent } from "../src/chart-tooltip.js";
-import { keptWindow } from "../src/chart-legend.js";
+import { keptWindow, shownOnly } from "../src/chart-legend.js";
 import { hiddenAfter } from "../src/view-ops.js";
 
 const SALES = encode([
@@ -67,10 +67,10 @@ test("the chart's text alternative counts the series and slices shown; a 100 % s
     const all = chartSummary(s, { type: "stacked", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US" });
     assert.match(all, /2 categories, 3 series\. Highest 30 at North \/ Software/);
     // Software hidden: two series, its 30 no longer the highest
-    const shown = chartSummary(s, { type: "stacked", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US", hidden: ["Software"] });
+    const shown = chartSummary(shownOnly(s, ["Software"], false), { type: "stacked", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US" });
     assert.match(shown, /2 categories, 2 series\. Highest 20 at North \/ Hardware/);
     // a pie's hidden slice leaves its category out
-    const pie = chartSummary(s, { type: "pie", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US", hidden: ["North"], slices: true });
+    const pie = chartSummary(shownOnly(s, ["North"], true), { type: "pie", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US" });
     assert.match(pie, /1 category, 3 series\./);
     assert.doesNotMatch(pie, /North/);
     const shares = chartSummary(s, { type: "stacked", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US", shares: true });

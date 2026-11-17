@@ -580,29 +580,10 @@ function collapsedSection(raw, view, ctx) {
     }
 }
 
-/**
- * A list of names (legend entries): texts up to ITEM_LENGTH characters, each once, at most
- * `limits.items`. Anything else is left out and reported.
- */
-function nameList(value, path, ctx) {
-    if (value === undefined || value === null) {
-        return [];
-    }
-    if (!Array.isArray(value)) {
-        ctx.issue(path, "not a list of names", "unknownSetting", { value: shown(value) });
-        return [];
-    }
-    if (value.length > ctx.limits.items) {
-        ctx.issue(path, `more than ${ctx.limits.items} items`, "tooManyItems", { max: ctx.limits.items });
-    }
+/** A list of names (legend entries) at `key`: texts up to ITEM_LENGTH characters, each once, at most `limits.items`. */
+function nameList(raw, key, ctx) {
     const out = new Set();
-    for (const name of value.slice(0, ctx.limits.items)) {
-        if (typeof name === "string" && name.length <= ITEM_LENGTH) {
-            out.add(name);
-        } else {
-            ctx.issue(path, `not a name: ${JSON.stringify(shown(name))}`, "unknownSetting", { value: shown(name) });
-        }
-    }
+    listOf(raw, key, ctx.limits.items, ctx, (name, path) => (typeof name === "string" && name.length <= ITEM_LENGTH ? out.add(name) : ctx.issue(path, "not a name", "unknownSetting", { value: shown(name) })));
     return [...out];
 }
 
@@ -638,7 +619,7 @@ function displaySection(raw, view, ctx) {
             tooltip: own("tooltip", CHART_TOOLTIPS, "auto"),
             zoom: own("zoom", CHART_ZOOMS, "auto"),
             stackPercent: bool(get(chart, "stackPercent"), false),
-            hidden: nameList(get(chart, "hidden"), "chart.hidden", ctx)
+            hidden: nameList(raw, "chart.hidden", ctx)
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
             ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`, "badTitle", { max: ctx.limits.name });

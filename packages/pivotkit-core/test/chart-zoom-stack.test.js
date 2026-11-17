@@ -40,7 +40,7 @@ test("the view keeps zoom, stackPercent and the hidden legend entries, checked a
     }
     // unknown values fall back and are reported; a name that is not a text is left out
     const bad = validate({ chart: { zoom: "always", hidden: ["North", 3, { a: 1 }] } }, fields);
-    assert.deepEqual(bad.errors.map((e) => e.path), ["chart.zoom", "chart.hidden", "chart.hidden"]);
+    assert.deepEqual(bad.errors.map((e) => e.path), ["chart.zoom", "chart.hidden[1]", "chart.hidden[2]"]);
     assert.deepEqual(norm({ chart: { hidden: "North" } }).chart.hidden, []);
     // a key named like a prototype is a name like any other
     assert.deepEqual(norm({ chart: JSON.parse('{"hidden":["__proto__"]}') }).chart.hidden, ["__proto__"]);
