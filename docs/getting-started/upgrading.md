@@ -176,6 +176,7 @@ configuration, under "New in this version", with a link to each section below.
 | [The report's row counts take plural forms](#report-count-forms) | your code reads `REPORT_TEXTS.<lang>.rowsCount` or `rowsFiltered` as a text, or a test expects "1 rows" | read them as forms (`.other` for the old text); expect "1 row" |
 | [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` or the report's `texts` set `rowsCount`, your `labels` add a language, or a test reads the row count under the result or in a printed report | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
 | **Breaking:** [csv and json results, request ids and file names](#results-0-8) | a script or host parses the inline csv or json of the REST service or the MCP server, or finds saved reports or drafts by their names | expect rounded inline numbers, inline json on one line and file names like `sales-by-region.pivotkit-out.xlsx`; pass `numbers: "full"` for all digits. Reconnect MCP clients to see the new inputs |
+| [On a touch screen, the chart opens the rows on the second tap](../use/charts.md#read-the-chart) | your app runs on phones or tablets and uses `onCellClick` or the drill-down from the chart | nothing for people; the first tap on an element shows its tooltip, the second calls `onCellClick` and opens the rows. Your own touch tests now tap twice |
 
 ### Sources hidden by default can be open { #hidden-open }
 

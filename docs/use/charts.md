@@ -163,8 +163,10 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 - A series without a value at the category is left out.
 - A long series name ends in "…". When more series are there than fit, the last line says how many
   more there are, and whether the total includes them.
-- On a phone, tap a bar or a point to see its tooltip.
-- A pie's tooltip shows the value's name, the slice and its value.
+- On a phone, tap a bar, a point or a heatmap cell to see its tooltip. Tap it again to open the rows
+  behind it.
+- A pie's tooltip shows the value's name, the slice and its value. With a field on Columns, a slice
+  adds up every column.
 - A heatmap's tooltip shows the value's name, the cell's row and column and its value.
 - The tooltip is plain text: nothing from the data is read as markup.
 - A heatmap's colour scale writes its ends in the value's number format.
