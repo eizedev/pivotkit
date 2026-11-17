@@ -27,7 +27,7 @@ async function onceServer(name = "Sales once") {
     return { dir, server, output };
 }
 
-test("a one-time link: the page's Download button saves the file once; the link is used for another browser", async ({ page, browser, browserName }) => {
+test("a one-time link: the page's Download button saves the file once; the link is used for another browser", async ({ page, browser }) => {
     const { dir, server, output } = await onceServer();
     try {
         expect(output.bound).toBe("once");
@@ -45,12 +45,13 @@ test("a one-time link: the page's Download button saves the file once; the link 
         await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
         const answer = await posted;
         expect(answer.status()).toBe(200);
-        expect(answer.headers()["content-disposition"]).toBe(`attachment; filename="Sales once.csv"; filename*=UTF-8''Sales%20once.csv`);
+        // the saved report's name: the title "Sales once" in lower case without spaces (pivotkit-server's fileSlug)
+        expect(answer.headers()["content-disposition"]).toBe(`attachment; filename="sales-once.csv"; filename*=UTF-8''sales-once.csv`);
         const download = await downloading;
         await expect(page.getByRole("status")).toHaveText("Downloaded once. You can repeat it for 2 minutes, in this browser.");
         await expect(page.getByText(/It can be downloaded once, until/)).toHaveCount(0);
-        // the name the answer gives; the WebKit of Playwright 1.65 (build 2388) on Linux writes "_" for its space
-        expect(download.suggestedFilename()).toBe(browserName === "webkit" && process.platform === "linux" ? "Sales_once.csv" : "Sales once.csv");
+        // the name the answer gives, the same in every engine (it has no space)
+        expect(download.suggestedFilename()).toBe("sales-once.csv");
         expect(readFileSync(await download.path())).toEqual(stored);
         // another browser (no cookie of the first download) finds the link used as soon as it opens it
         const other = await browser.newContext();
