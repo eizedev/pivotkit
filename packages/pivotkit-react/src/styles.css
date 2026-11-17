@@ -60,15 +60,16 @@
     --pk-panel-w: 288px;
     --pk-rail-w: 40px;
     /* the section of the zones ("Fields in the report"): the rules above and below it, the space
-       between a rule and its heading row, the chevron's size, the heading's size, the open panel's
-       indent (to the heading's text), background and padding */
+       between a rule and its heading row (and between the row and the open panel), the chevron's
+       size, the heading's size, the open panel's indent (to the heading's text), background and
+       padding */
     --pk-section-rule: var(--pk-border);
-    --pk-section-space: 8px;
+    --pk-section-space: 4px;
     --pk-section-chevron: 16px;
     --pk-section-title-size: max(15px, 1.07em);
     --pk-section-indent: 26px;
     --pk-section-bg: var(--pk-surface-2);
-    --pk-section-pad: 8px;
+    --pk-section-pad: 6px;
     /* the line on top of the tab shown (Table, Chart) */
     --pk-tab-mark: 3px;
     /* the chart tooltip's series names: a longer one ends in "…" */
@@ -857,42 +858,43 @@
 .pk-zone-section {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--pk-section-space);
     padding-block: var(--pk-section-space);
     border-block: 1px solid var(--pk-section-rule);
 }
 
+/* one line in every state and size: the fold button, the "i", the folded summary, Swap */
 .pk-section-row {
+    container: pk-section-row / inline-size;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
 }
 
-/* one button: the chevron, the heading and the line under it; no background of its own */
+/* the chevron and the heading; no background of its own; the chevron centred in the indent, so the
+   heading starts where the open panel does */
 .pk-section-fold {
-    display: grid;
-    flex: 1 1 auto;
-    grid-template-columns: var(--pk-section-indent) minmax(0, 1fr);
+    display: inline-flex;
+    flex: none;
     align-items: center;
-    min-width: 0;
     min-height: var(--pk-target);
-    padding: 2px 8px 2px 0;
+    padding: 0 6px 0 0;
     border: 0;
     border-radius: var(--pk-radius-sm);
     background: none;
     color: var(--pk-text);
     font: inherit;
-    line-height: 1.3;
     text-align: start;
+    white-space: nowrap;
     cursor: pointer;
 }
 
 .pk-section-chevron {
-    grid-row: 1;
-    justify-self: center;
+    flex: none;
     width: var(--pk-section-chevron);
     height: var(--pk-section-chevron);
+    margin-inline: calc((var(--pk-section-indent) - var(--pk-section-chevron)) / 2);
     color: var(--pk-muted);
     transition: transform var(--pk-duration);
 }
@@ -902,38 +904,29 @@
 }
 
 .pk-section-heading {
-    grid-row: 1;
-    grid-column: 2;
     font-size: var(--pk-section-title-size);
     font-weight: var(--pk-weight-strong);
 }
 
-/* folded: what is placed, cut with "…"; open: what the section is for */
+.pk-section-info {
+    flex: none;
+}
+
+/* folded: what is placed, after the heading in the same line, cut with "…" */
 .pk-section-sub {
-    grid-row: 2;
-    grid-column: 2;
+    flex: 1 1 auto;
+    min-width: 0;
     overflow: hidden;
     color: var(--pk-muted);
     font-size: var(--pk-small);
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.pk-section-fold[aria-expanded="true"] .pk-section-sub {
-    white-space: normal;
+    cursor: pointer;
 }
 
 .pk-zones-summary-zone {
     color: var(--pk-text);
     font-weight: var(--pk-weight-medium);
-}
-
-/* the narrow layout: the folded line may take two lines */
-.pk-root[data-pk-size="narrow"] .pk-section-fold[aria-expanded="false"] .pk-section-sub {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    white-space: normal;
 }
 
 .pk-zone-section .pk-zones {
@@ -1001,14 +994,17 @@
     white-space: nowrap;
 }
 
-/* the narrow layout: its icon only, with its name for assistive technology and as a tooltip (title) */
-.pk-root[data-pk-size="narrow"] .pk-swap .pk-btn-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
+/* a heading row with no room for its text (a phone, a narrow column next to the field list): its icon
+   only, with its name for assistive technology and as a tooltip (title) */
+@container pk-section-row (width < 36em) {
+    .pk-swap .pk-btn-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
 }
 
 .pk-btn.pk-swap:disabled {
@@ -2466,9 +2462,9 @@
 
 .pk-tabs {
     display: flex;
+    flex: none;
     align-items: flex-end;
     gap: 4px;
-    min-width: 0;
 }
 
 .pk-tab {
@@ -2511,8 +2507,19 @@
     content: "";
 }
 
+/* a phone: the tabs, Settings and the two icons share one line */
 .pk-root[data-pk-size="narrow"] .pk-tab {
-    padding: 0 0.85em;
+    gap: 0.35em;
+    padding: 0 0.6em;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-result-head {
+    gap: 4px;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-result-head > .pk-btn {
+    gap: 0.35em;
+    padding-inline: 0.5em;
 }
 
 .pk-result-head .pk-btn.pk-small-btn {

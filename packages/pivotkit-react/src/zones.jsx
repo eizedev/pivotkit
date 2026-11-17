@@ -4,8 +4,8 @@
  * is set on it in words: the grouping in its name ("Created by month"), "3 of 4" for a filter,
  * "Top 5", the sort; screen readers get the same in its name. After a chip is removed the focus goes
  * to its neighbour, or to the zone. The zones sit in a section "Fields in the report": its heading
- * row is one fold button (a chevron, the heading, a line under it: what is placed while folded, what
- * the section is for while open) and, beside it, Swap rows and columns, which works folded too. A drag
+ * row (SectionHead) folds them, says what is placed while they are folded, and holds Swap rows and
+ * columns, which works folded too. A drag
  * opens the folded zones while it lasts, so a field can still be dropped.
  */
 
@@ -243,35 +243,53 @@ export function zoneEntries(view, types, labels) {
 }
 
 /**
- * The section's heading row: the fold button (a chevron, the heading, the line under it) and Swap
- * rows and columns beside it, two buttons side by side. The fold button is named by its heading and
- * described by the line: what is placed while folded ("Rows: Region · Values: Sum of Revenue"), what
- * the section is for while open. In the narrow layout Swap shows its icon only.
+ * The section's heading row, one line in every state and size: the fold button (a chevron and the
+ * heading), the section's "i" (the zones' own InfoButton: what the section is for, while
+ * explanations show), the summary while folded (what is placed, cut with "…"; a click on it folds or
+ * opens too) and Swap rows and columns at the end. The fold button is named by its heading and,
+ * folded, described by the summary, which is its tooltip too. Three buttons side by side, none
+ * inside another; the Tab order is fold, "i", Swap. In the narrow layout Swap shows its icon only.
  */
-function SectionHead({ entries, labels, id, open, onFold, onSwap, canSwap, buttonRef }) {
+function SectionHead({ entries, labels, id, open, onFold, onSwap, canSwap, buttonRef, explain }) {
     const own = useId();
     const parts = layoutSummary(entries, labels);
+    const text = parts.length ? parts.map((p) => `${p.title}: ${p.fields}`).join(" · ") : labels.layoutEmpty;
     return (
         <div className="pk-section-row">
-            <button ref={buttonRef} type="button" className="pk-section-fold" aria-expanded={open} aria-controls={open ? id : undefined} aria-labelledby={`${own}-t`} aria-describedby={`${own}-s`} onClick={onFold} data-testid="layout-summary">
+            <button
+                ref={buttonRef}
+                type="button"
+                className="pk-section-fold"
+                aria-expanded={open}
+                aria-controls={open ? id : undefined}
+                aria-labelledby={`${own}-t`}
+                aria-describedby={open ? undefined : `${own}-s`}
+                title={open ? undefined : text}
+                onClick={onFold}
+                data-testid="layout-summary"
+            >
                 <Icon name="chevronRight" className="pk-section-chevron" />
                 <span id={`${own}-t`} className="pk-section-heading">
                     {labels.zonesTitle}
                 </span>
-                <span id={`${own}-s`} className="pk-section-sub" data-testid="zones-sub">
-                    {open
-                        ? labels.zonesHint
-                        : parts.length
-                          ? parts.map((p, i) => (
-                                <React.Fragment key={p.zone}>
-                                    {/* read too: the description is the line as it shows */}
-                                    {i ? " · " : null}
-                                    <span className="pk-zones-summary-zone">{p.title}:</span> {p.fields}
-                                </React.Fragment>
-                            ))
-                          : labels.layoutEmpty}
-                </span>
             </button>
+            {explain ? <InfoButton info={{ description: labels.zonesHint }} name={labels.zonesTitle} labels={labels} className="pk-section-info" testId="zones-info" /> : null}
+            {open ? (
+                <span className="pk-grow" />
+            ) : (
+                // the button's description and a larger target for the pointer; the keys use the button
+                <span id={`${own}-s`} className="pk-section-sub" onClick={onFold} data-testid="zones-sub">
+                    {parts.length
+                        ? parts.map((p, i) => (
+                              <React.Fragment key={p.zone}>
+                                  {/* read too: the description is the line as it shows */}
+                                  {i ? " · " : null}
+                                  <span className="pk-zones-summary-zone">{p.title}:</span> {p.fields}
+                              </React.Fragment>
+                          ))
+                        : labels.layoutEmpty}
+                </span>
+            )}
             {/* the text goes in the narrow layout (styles.css): the title keeps it as a tooltip */}
             <button type="button" className="pk-btn pk-small-btn pk-swap" onClick={onSwap} disabled={!canSwap} data-testid="swap" title={labels.swap}>
                 <Icon name="swap" size={14} />
@@ -341,7 +359,7 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
     const open = !folded || dragging;
     return (
         <div className="pk-zone-section" data-pk-open={open ? "" : undefined} data-testid="zone-section">
-            <SectionHead entries={entries} labels={labels} id={id} open={open} onFold={onFold} onSwap={onSwap} canSwap={view.rows.length + view.cols.length > 0} buttonRef={summary} />
+            <SectionHead entries={entries} labels={labels} id={id} open={open} onFold={onFold} onSwap={onSwap} canSwap={view.rows.length + view.cols.length > 0} buttonRef={summary} explain={explain} />
             {open ? (
                 <div
                     className="pk-zones"
