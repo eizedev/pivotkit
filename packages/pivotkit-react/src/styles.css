@@ -987,6 +987,7 @@
     min-width: var(--pk-target);
     color: var(--pk-accent);
     font-size: var(--pk-small);
+    font-weight: var(--pk-weight-strong);
     white-space: nowrap;
 }
 
