@@ -142,7 +142,8 @@ An option on the command line wins over its environment variable.
 
 Every command checks `--locale`, `--time-zone` and `--now`, from the command line or the
 environment, so a wrong value in a pipeline's environment fails in every step, not only in
-`render`. When the value came from the environment, the message names the variable.
+`render`. When the value came from the environment, the message names the variable. A locale counts
+only when the runtime has data for it: `xx-XX` is refused.
 
 An option given for a format it does nothing in (`--width` with `csv`), or `--sheet` for data that is
 no workbook, is a warning `ignoredOption`.

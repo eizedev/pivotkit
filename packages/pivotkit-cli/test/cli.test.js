@@ -111,6 +111,10 @@ test("--locale, --time-zone and --now are checked by every command, and name the
         assert.equal(flag.code, 2, command[0]);
         assert.match(flag.stderr, /--locale "not_a_locale" is not a locale tag/);
         assert.ok(!flag.stderr.includes("options.locale") && !flag.stderr.includes("from PIVOTKIT"));
+        // well-formed, but no locale this runtime knows: Intl would take the machine's (#552)
+        const unknown = await run([...command, "--locale", "xx-XX"], { cwd: dir });
+        assert.equal(unknown.code, 2, command[0]);
+        assert.match(unknown.stderr, /--locale "xx-XX" is not a locale tag/);
         const zone = await run([...command, "--time-zone", "Mars/Olympus"], { cwd: dir });
         assert.equal(zone.code, 2, command[0]);
         assert.match(zone.stderr, /--time-zone "Mars\/Olympus" is not a time zone/);

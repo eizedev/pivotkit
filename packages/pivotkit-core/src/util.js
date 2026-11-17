@@ -131,7 +131,8 @@ export function createCache(limit) {
 }
 
 /**
- * The canonical form of a locale tag; null for anything that is not one.
+ * The canonical form of a locale tag; null for anything that is not one, and for a tag the runtime has
+ * no number format for (such as "xx-XX"): Intl would take the machine's locale for it.
  * @param {unknown} locale
  */
 export function canonicalLocale(locale) {
@@ -139,7 +140,8 @@ export function canonicalLocale(locale) {
         return null;
     }
     try {
-        return Intl.getCanonicalLocales(locale)[0] ?? null;
+        const canonical = Intl.getCanonicalLocales(locale)[0];
+        return canonical && Intl.NumberFormat.supportedLocalesOf(canonical).length > 0 ? canonical : null;
     } catch {
         return null;
     }
@@ -161,7 +163,7 @@ export function resolveLocale(viewLocale, optionLocale) {
     }
     const canonical = canonicalLocale(optionLocale);
     if (!canonical) {
-        throw new PivotkitError("INVALID_OPTION", `options.locale ${JSON.stringify(optionLocale)} is not a locale`);
+        throw new PivotkitError("INVALID_OPTION", `options.locale ${JSON.stringify(optionLocale)} is not a locale this runtime knows`);
     }
     return canonical;
 }
