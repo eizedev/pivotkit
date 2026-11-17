@@ -8,6 +8,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Added
 
+- The example views name the chart's `zoom`, `stackPercent` and `hidden` settings ([#36](https://github.com/eizedev/pivotkit/issues/36)).
 - `pivotkit login --url <server> --client-id <id>` signs in at the server's sign-in provider with
   the OAuth 2.0 device code flow. It keeps the refresh token in the system's keychain, else in a
   file only you read. `pivotkit token` prints a fresh access token, and `pivotkit logout` removes

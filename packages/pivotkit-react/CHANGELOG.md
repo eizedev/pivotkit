@@ -8,6 +8,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Upgrading from 0.7
 
+- A chart of bars, lines or areas whose axis cannot name every category gets a zoom slider. A
+  click on the legend changes the view, so Undo takes it back. Display → Zoom slider → Off draws
+  every category as before
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-7)).
 - With `exportData` off, the default, the drill-down panel has no Export menu: no copy and no
   download of its rows. Set `drillDownExport` to keep it
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
@@ -17,6 +21,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- A zoom slider under a long category axis, Display → **Zoom slider** (Automatic, On, Off). It
+  keeps its place when the chart is drawn again. The PNG image leaves it out ([#36](https://github.com/eizedev/pivotkit/issues/36)).
+- A click on the legend hides or shows a series, or a slice. The view keeps it, a screen reader
+  hears it, and Undo takes it back. Display → **Series shown** does the same by keyboard ([#36](https://github.com/eizedev/pivotkit/issues/36)).
+- Display → **Stacked to 100 %** for stacked bars and areas. The tooltip shows each part's value
+  and share, and the total of the values ([#36](https://github.com/eizedev/pivotkit/issues/36)).
 - Display → **Tooltip** in the chart type menu, for bars, lines and areas: **Automatic** or **All
   series** (`chart.tooltip`, [#106](https://github.com/eizedev/pivotkit/issues/106)). All series lists
   every series at the pointer's category, the hovered one first, its name in the strong weight.

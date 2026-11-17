@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the tooltip of the element under the pointer and the chart image.
+description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, the tooltip of the element under the pointer and the chart image.
 ---
 
 # Charts
@@ -61,7 +61,7 @@ The chart type menu has its **Display** settings under the chart types, in one f
 - Each choice applies at once, and the menu stays open, so the chart behind it shows the change.
 - The settings stay with the report: in saved views, links and the chart image. They also stay when
   the chart type changes.
-- An **i** next to Labels, Group labels and Tooltip explains them.
+- An **i** next to Labels, Group labels, Tooltip and Zoom slider explains them.
 
 ![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-light.png#only-light)
 ![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-dark.png#only-dark)
@@ -76,6 +76,9 @@ The chart type menu has its **Display** settings under the chart types, in one f
 | Axis labels | Automatic, All (slanted), Every n-th. Bars, lines and areas only. | Automatic |
 | Group labels under the axis | Automatic, On, Off. Only with two or more fields in Rows. | Automatic: shown while the chart has room for them |
 | Tooltip | Automatic, All series. Bars, lines and areas only. | Automatic: the element under the pointer |
+| Zoom slider | Automatic, On, Off. Bars, lines and areas only. | Automatic: when the axis cannot name every category |
+| Stacked to 100 % | on, off. Stacked bars and area only. | off |
+| Series shown, Slices shown | A checkbox per series, or per slice of a pie or a donut. Up to 50 are listed. | all shown |
 
 ??? info "Pie and donut labels"
     **Outside** writes each slice's name with what is chosen, on a line to the slice. On a narrow
@@ -147,6 +150,36 @@ The chart type menu has its **Display** settings under the chart types, in one f
 
     ![Bars of the three largest countries per region, the regions as group labels under the country names](../assets/screenshots/chart-groups-light.png#only-light)
     ![Bars of the three largest countries per region, the regions as group labels under the country names](../assets/screenshots/chart-groups-dark.png#only-dark)
+
+## Zoom and series { #zoom-and-series }
+
+A chart with many categories, such as 40 countries on a phone, gets a **zoom slider** under the axis.
+
+- The slider shows as many categories as the axis can name. Drag it to move along the axis, or drag
+  its ends to show more or fewer.
+- The chart keeps the slider's place when it is drawn again, for example in a narrower window.
+- **Display**, **Zoom slider**, **Off** draws every category instead. Then the axis may name only
+  every n-th one. **On** always shows the slider.
+- Horizontal bars get the slider on the right.
+- The chart image, the SVG, the HTML report and a print show every category, without a slider.
+
+![Bars of 40 countries on a phone: the zoom slider under the axis, each country in its window named](../assets/screenshots/chart-zoom-light.png#only-light){ width="300" }
+![Bars of 40 countries on a phone: the zoom slider under the axis, each country in its window named](../assets/screenshots/chart-zoom-dark.png#only-dark){ width="300" }
+
+Click a series in the legend to hide it. Click it again to show it.
+
+- A screen reader hears "Software hidden" or "Software shown".
+- The view keeps it: in saved views, links and the chart image. **Undo** takes it back.
+- **Display**, **Series shown** has the same with a checkbox per series, for the keyboard. A pie and
+  a donut list their slices.
+
+**Display**, **Stacked to 100 %** makes each stack as high as the axis. Each part shows its share.
+
+- It applies to stacked bars and to areas. An area is stacked by it.
+- The axis runs from 0 % to 100 %. With parts below zero, it runs from -100 %.
+- The tooltip shows a part's value and its share, such as "Hardware 20 33.3%". The **Total** adds the
+  values, not the shares.
+- A hidden series does not count. The other parts share the stack.
 
 ## Read the chart
 

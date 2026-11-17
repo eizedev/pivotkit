@@ -345,7 +345,7 @@ load it with the chart, not with the first load.
 
 | Option | Of | What |
 | --- | --- | --- |
-| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition, tooltip }`, over the view's chart ([Charts](../concepts/charts.md)). |
+| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition, tooltip, zoom, stackPercent, hidden }`, over the view's chart ([Charts](../concepts/charts.md)). |
 | `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `titleSize` (the title's font size in px, default 16), `textSize` (the font size of every other text, the axes, the legend and the labels, in px, default 14), `heatmapColors` (low, high), `pieRadius` (inner and outer radius of a pie, default a whole circle, `0%`, `70%`), `donutRadius` (of a donut, default a ring, `42%`, `70%`). |
 | `locale` | `toEChartsOption` | Used when the view names none. Default: the pivot's locale. |
 | `labels`, `limits` | both | `labels`: texts. `limits`: `cells` caps the data points. |
@@ -439,7 +439,12 @@ and fullwidth characters, 0.7 em for a capital, 0.55 em for the others.
 `heatmapCellLabels` and `rowLabelInterval` take an optional last argument `frame`, `{ x, y }`: the
 px of the chart that are not cells, beside them (`x`) and above and below them (`y`). By default it
 is a heatmap of pivotkit-core with straight column names. `categoryLabelLayout` takes `reserved` in
-its box: the px of the height that are neither plot nor category labels. The entry imports nothing, so a report's first load does not
+its box: the px of the height that are neither plot nor category labels.
+
+`decorateOption` takes `zoom`, the view's `chart.zoom`, for a chart on a screen. With it, bars, lines
+and areas get an ECharts `dataZoom` slider when the axis cannot write every label, or always for
+`"on"`. The labels are laid out for the categories the slider shows first. Without `zoom`, as in an
+SVG, every category is drawn. The entry imports nothing, so a report's first load does not
 carry it.
 
 `toSeries` gives these members:
@@ -455,6 +460,10 @@ The view's display settings are part of the option:
 - Value labels (`label` of the series). A pie or a donut writes them outside. With
   `chart.labelPosition` `"inside"`, it writes them on the slices without a label line.
 - `smooth` lines.
+- With `chart.stackPercent`, stacked bars and areas as shares of their stack. Each part is
+  `{ value: share, raw: value }`, and `tooltip.shareFormatter` writes a share in the locale's way.
+- The hidden legend entries of `chart.hidden` as `legend.selected`. Without a legend, the option has
+  one that is not shown.
 - A second category axis with the outer field's items, once per group at its middle, with a
   separator tick where a group starts. It needs `chart.groupLabels` (`"auto"` or `"on"`) and two or
   more row fields. The UI hides `"auto"` ones in a small chart. `xAxis` or `yAxis` is then a list of
@@ -540,7 +549,7 @@ files contain and where Excel's number formats cannot follow the grid.
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `MAX_DATE_MS`, `isDateMs(ms)` | `MAX_DATE_MS`: the most milliseconds from the epoch a `Date` holds either way (`8.64e15`, the years -271821 to 275760). `isDateMs`: whether a value is a number within it. `new Date(ms)` of any other is invalid, and formatting it throws. For a host that builds dates or a `now` of its own. |
 | `isFormat(format)` | Whether a name is a known format. |
-| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `comparePrecisions`, `topTies`, `relativeUnits`, `relativeDirections`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `chartTooltips`, `additiveAggregators`, `additiveShowAs`, `displayModes`, `conditionalTypes`. |
+| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `comparePrecisions`, `topTies`, `relativeUnits`, `relativeDirections`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `chartTooltips`, `chartZooms`, `additiveAggregators`, `additiveShowAs`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `AGGREGATOR_ALIASES` | Other tools' names of aggregators and the ones they mean: `avg` and `mean` are `average`, `cnt` is `count`, `total` is `sum`, `distinct` is `countUnique`, `stddev` is `stdev`. For "did you mean" only: a view never accepts them. |
 | `foldText(text, match?)` | A text folded as text filters compare it. `match` is `{ case: "insensitive" \| "sensitive", whitespace: "collapse" \| "exact" }`, default `MATCH_DEFAULTS`. `insensitive` lower-cases with `toLowerCase()`, which does not depend on the runtime's locale. `collapse` turns every run of whitespace, a no-break space (U+00A0) among them, into one space and trims the ends. A UI's search over a field's items folds with it, so a search and a text filter agree. |

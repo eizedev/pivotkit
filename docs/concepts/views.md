@@ -59,7 +59,9 @@ later.
         valueLabels: "auto", legend: "auto", title: null,      // how it is drawn, see Charts
         smooth: false, axisLabels: "auto", groupLabels: "auto",
         labelPosition: "outside",                              // pie and donut: "outside" or "inside"
-        tooltip: "auto"                                        // or "axis": every series at the category
+        tooltip: "auto",                                       // or "axis": every series at the category
+        zoom: "auto", stackPercent: false,                     // the zoom slider, stacks to 100 %
+        hidden: []                                             // legend entries hidden, by name
     },
     formatting: { locale: "de-DE", timeZone: null, weekStart: 1 }   // weekStart: 1 Monday to 7 Sunday
 }

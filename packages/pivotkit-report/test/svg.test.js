@@ -67,3 +67,18 @@ test("every text of a chart is at least 14 px, and a host's --pk-chart-text-size
         assert.deepEqual(host.filter((t) => t.text !== "Units" && t.size !== 18), [], `${name}: the host's size`);
     }
 });
+
+test("100 % stacked bars and hidden series reach the SVG (#36)", async () => {
+    const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] };
+    const stacked = await render({ ...view, chart: { type: "bar", stacked: true, stackPercent: true, zoom: "on" } }, SALES, { format: "svg", echarts, ...FIXED });
+    const texts = svgTexts(stacked.text);
+    // the value axis runs from 0 % to 100 %
+    assert.ok(texts.includes("100%") && texts.includes("0%"), texts.join(" | "));
+    const plain = await render({ ...view, chart: { type: "bar", stacked: true } }, SALES, { format: "svg", echarts, ...FIXED });
+    assert.ok(!svgTexts(plain.text).includes("100%"));
+    // B hidden: its bars are not drawn, the legend shows it greyed out
+    const all = await render({ ...view, chart: { type: "bar" } }, SALES, { format: "svg", echarts, ...FIXED });
+    const hidden = await render({ ...view, chart: { type: "bar", hidden: ["B"] } }, SALES, { format: "svg", echarts, ...FIXED });
+    assert.ok(tags(hidden.text, "path") < tags(all.text, "path"));
+    assert.ok(svgTexts(hidden.text).includes("B"));
+});

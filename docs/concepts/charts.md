@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels and the tooltip in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks and hidden series in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -53,6 +53,9 @@ them, and they stay when the chart type changes:
 | `chart.axisLabels` | `"auto"`, `"all"`, `"nth"` |
 | `chart.groupLabels` | `"auto"`, `"on"`, `"off"` |
 | `chart.tooltip` | `"auto"`, `"axis"` |
+| `chart.zoom` | `"auto"`, `"on"`, `"off"` |
+| `chart.stackPercent` | `true`, `false` |
+| `chart.hidden` | a list of legend entries by name, at most `limits.items` |
 
 A view without these keys gets the defaults. An unknown value falls back to its default, and
 `normalize()` reports it ([Views](views.md)). "Percent" and "Value and percent" apply to a pie and a
@@ -68,6 +71,26 @@ only when `CATALOG.additiveShowAs` lists its type: a share of the grand or the r
 difference or a running total along the rows. A rank or a percent difference gets no total.
 
 A pie, a donut and a heatmap always show the slice or cell under the pointer.
+
+`chart.zoom` puts a slider under the category axis of bars, lines and areas:
+
+- `"auto"` adds it when the axis cannot write every label. The slider then shows as many categories
+  as the axis can name.
+- `"on"` always adds it. `"off"` never does.
+- An SVG, an HTML report and a print draw every category. The PNG image leaves the slider out.
+
+`chart.stackPercent` stacks bars and areas to 100 %:
+
+- It applies to stacked bars and to areas. An area is stacked by it. Lines and bars side by side
+  stay as they are.
+- Each part is its share of the category's stack. The stack is the sum of its parts' sizes, so a
+  part below zero takes its share below the axis.
+- The tooltip shows each part's value and share. The total adds the values.
+
+`chart.hidden` names the legend entries that are hidden: series of bars, lines and areas, or slices
+of a pie or a donut. A click on the legend adds or removes a name. A name no entry has is kept and
+does nothing. Names are the labels the chart shows, so they follow the data and its labels. A
+hidden series does not count in a 100 % stack.
 
 The report's `--pk-*` tokens set these parts of the chart, so a corporate theme reaches the chart too
 ([Theming](../reference/theming.md#chart-colours)):

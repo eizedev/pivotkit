@@ -8,6 +8,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- Three chart settings in the view, with their schema and `CATALOG.chartZooms` ([#36](https://github.com/eizedev/pivotkit/issues/36)):
+  - `chart.zoom` (`"auto"`, `"on"`, `"off"`): `decorateOption` takes it as `zoom` and adds a zoom
+    slider (ECharts `dataZoom`) under the category axis, with the labels laid out for its window.
+  - `chart.stackPercent`: stacked bars and areas as shares of their stack. Each part is
+    `{ value: share, raw: value }`, and `tooltip.shareFormatter` writes a share.
+  - `chart.hidden`: the legend entries hidden, by name, as `legend.selected`. They count against
+    `limits.items`.
 - `decorateOption` takes `readColor`: a heatmap's colours as ECharts can mix them. An end it returns
   `null` for takes `DEFAULT_THEME.colorScale`'s colour, so a form such as `oklch()` no longer turns
   the cells black ([#386](https://github.com/eizedev/pivotkit/issues/386)).
