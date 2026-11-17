@@ -299,6 +299,11 @@ way ([delivery](../reference/delivery.md#configuration)).
 - An MCP `resource_link` keeps the title as its `title`.
 - The file route saves nothing and still names its download by the title.
 
+**A CSV in a locale whose own decimal mark is `٫`** (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`, `ps-AF`
+and others) writes the mark the locale uses with Latin digits. `ar-EG` writes `9.6`, not `9٫6`.
+`ps-AF` writes `9,6` and puts `;` between cells. This also holds for the browser's "Table as CSV"
+and for pivotkit-cli.
+
 **The PowerShell Universal module** calls the file route and saves the download with `-OutFile`. It
 keeps full precision, and the new file names do not reach it.
 

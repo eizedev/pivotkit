@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, reportLabels, toGrid } from "../src/index.js";
-import { shownZeros, toCsv, toJson } from "../src/export.js";
+import { toCsv, toJson } from "../src/export.js";
 
 /** 64 rows of 0.1 and 0.2: their sum is 9.599999999999994 in floating point, not 9.6. */
 const ROWS = Array.from({ length: 64 }, (_, i) => ({ Region: ["East", "North"][(i >> 1) % 2], Product: ["A", "B"][(i >> 2) % 2], Amount: [0.1, 0.2][i % 2] }));
@@ -73,12 +73,4 @@ test("shown for a format without plain decimals (compact, bytes, duration): abou
     assert.match(toCsv(grid), /9\.59999999999999\r\n$/);
     assert.match(toCsv(grid, { numbers: "shown" }), /,9\.6\r\n$/);
     assert.equal(JSON.parse(toJson(grid, { numbers: "shown" })).rows.at(-1).values.at(-1), 9.6);
-});
-
-test("shownZeros: the values that shown writes as 0 though they are not 0", () => {
-    const tiny = encode([{ R: "a", V: 1e-9 }, { R: "b", V: 0 }, { R: "c", V: 2 }]);
-    const grid = toGrid(computePivot(tiny, { rows: ["R"], values: [{ field: "V", agg: "sum", format: "number:2" }] }, { locale: "en-US" }), { locale: "en-US" });
-    // only a (1e-9): b is 0 already, and the grand total 2.000000001 is shown as 2
-    assert.equal(shownZeros(grid), 1);
-    assert.equal(shownZeros(gridOf(BY_REGION)), 0);
 });

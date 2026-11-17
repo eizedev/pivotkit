@@ -7,7 +7,7 @@
  */
 
 import { PivotkitError, closest, computePivot, describeView, encode, fromViewFile, normalize, outsideLimits, reportLabels, toGrid } from "pivotkit-core";
-import { isDataAsOf, shownZeros, toCsv, toCsvBytes, toJson, toXlsx } from "pivotkit-core/export";
+import { isDataAsOf, toCsvBytes, toJson, toXlsx } from "pivotkit-core/export";
 import { DEFAULT_TEMPLATE } from "./default-template.js";
 import { htmlTable } from "./html-table.js";
 import { reportCss } from "./report-css.js";
@@ -69,14 +69,13 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {boolean} [bom]  csv: start with a byte order mark, so Excel reads it as UTF-8 (default true)
  * @property {"full" | "shown"} [numbers]  csv and json: "full" (default) writes numbers with full precision, "shown" rounds each to the decimals the view shows
  * @property {boolean} [flatHeader]  csv: one header row instead of one per column field (default false)
- * @property {{ numbers?: "full" | "shown", maxCells?: number }} [inline]  csv and json: also the result as text for a reader (RenderResult.inline), with its own `numbers` (default "shown"), when the table has at most `maxCells` cells (default 10,000)
  */
 
 /** @type {Readonly<Record<string, ReadonlyArray<unknown>>>} The options that take one of a few values. */
 const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false], numbers: ["full", "shown"], flatHeader: [true, false] });
 
 /** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
-const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf", "numbers", "flatHeader", "inline"]);
+const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf", "numbers", "flatHeader"]);
 
 /**
  * @typedef {object} RenderResult
@@ -89,7 +88,7 @@ const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limit
  * @property {boolean} ok  no issue of severity "error"
  * @property {{ rows: number, columns: number, sourceRows: number, keptRows: number, truncated: boolean } | null} summary  the table's body rows and columns, the data's rows, the rows its filters keep, whether a part was cut
  * @property {import("pivotkit-core").View | null} view  the normalized view that was rendered
- * @property {{ text: string, zeros: number }} [inline]  with options.inline: the csv without a byte order mark, or the json on one line, numbers as options.inline.numbers says; `zeros`: the values "shown" writes as 0 though they are not 0
+ * @property {import("pivotkit-core").Grid} [grid]  the table as pivotkit-core's toGrid made it, for another export of the same result (toCsv, toJson); absent when `strict` gave no body
  */
 
 /** @param {string} key  @param {string} message */
@@ -172,7 +171,6 @@ export async function render(view, data, options = {}) {
     if ((format === "svg" || (format === "html" && options.chart === true)) && typeof options.echarts?.init !== "function") {
         throw badOption("echarts", `${format === "svg" ? "an SVG" : "a report with chart: true"} needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts`);
     }
-    const inlineWanted = inlineOption(options.inline);
     if (options.dataAsOf !== undefined && !isDataAsOf(options.dataAsOf)) {
         throw badOption("dataAsOf", 'dataAsOf is a time in UTC to the second: "2026-11-15T08:00:00Z"');
     }
@@ -239,9 +237,9 @@ export async function render(view, data, options = {}) {
     /** @type {Uint8Array} */
     let body;
     if (format === "json") {
-        body = new TextEncoder().encode(toJson(grid, { numbers: options.numbers ?? "full" }));
+        body = new TextEncoder().encode(toJson(grid, { numbers: options.numbers }));
     } else if (format === "csv") {
-        body = toCsvBytes(grid, { bom: options.bom !== false, numbers: options.numbers ?? "full", flatHeader: options.flatHeader === true });
+        body = toCsvBytes(grid, { bom: options.bom !== false, numbers: options.numbers, flatHeader: options.flatHeader });
     } else if (format === "xlsx") {
         body = toXlsx(grid, { sheetName: title, theme: conditionalColors(theme), ...(options.dataAsOf ? { dataAsOf: options.dataAsOf } : {}) });
     } else if (format === "svg") {
@@ -291,32 +289,8 @@ export async function render(view, data, options = {}) {
         };
         body = new TextEncoder().encode(fillTemplate(/** @type {any} */ (template), { ...values, ...markup }));
     }
-    const out = { ...base, body, issues, ok, summary, view: normalized.view };
-    if (inlineWanted && (format === "csv" || format === "json") && summary.rows * summary.columns <= inlineWanted.maxCells) {
-        const shown = inlineWanted.numbers === "shown";
-        const text = format === "json" ? toJson(grid, { numbers: inlineWanted.numbers, space: 0 }) : toCsv(grid, { numbers: inlineWanted.numbers, flatHeader: options.flatHeader === true });
-        Object.assign(out, { inline: { text, zeros: shown ? shownZeros(grid) : 0 } });
-    }
+    const out = { ...base, body, issues, ok, summary, view: normalized.view, grid };
     return kind.text ? { ...out, text: new TextDecoder().decode(body) } : out;
-}
-
-/** The most cells of an inline text by default (RenderOptions.inline.maxCells). */
-const INLINE_CELLS = 10_000;
-
-/**
- * RenderOptions.inline, checked: null when not asked for.
- * @param {unknown} inline
- * @returns {{ numbers: "full" | "shown", maxCells: number } | null}
- */
-function inlineOption(inline) {
-    if (inline === undefined) {
-        return null;
-    }
-    const given = /** @type {any} */ (inline);
-    if (given === null || typeof given !== "object" || Array.isArray(given) || (given.numbers !== undefined && given.numbers !== "full" && given.numbers !== "shown") || (given.maxCells !== undefined && !(Number.isInteger(given.maxCells) && given.maxCells >= 0))) {
-        throw badOption("inline", 'inline is { numbers: "full" or "shown", maxCells: a whole number }');
-    }
-    return { numbers: given.numbers ?? "shown", maxCells: given.maxCells ?? INLINE_CELLS };
 }
 
 /** The English texts, for the issues (a program reads them, not the report's reader). */

@@ -57,6 +57,7 @@ text. `data` is one of these:
 | `ok` | `false` when an issue has the severity `error`. |
 | `summary` | `{ rows, columns, sourceRows, keptRows, truncated }`: the table's body rows and columns, the data's rows, the rows its filters keep, whether a part was cut. |
 | `view` | The normalized view that was rendered. |
+| `grid` | The table as pivotkit-core's `toGrid` made it, for another export of the same result (`toCsv`, `toJson`). Absent when `strict` gave no body. |
 
 `render` builds the whole body in memory. The [limits](../concepts/limits.md) keep it bounded.
 
@@ -83,7 +84,6 @@ text. `data` is one of these:
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
 | `numbers` | `"full"` | `csv` and `json`: `"shown"` rounds each number to the decimals the view shows ([`toCsv`](core.md)). |
-| `inline` | none | `csv` and `json`: `{ numbers, maxCells }`. The result also comes back as `inline: { text, zeros }`: the csv without a byte order mark or the json on one line, with its own `numbers` (default `"shown"`), when the table has at most `maxCells` cells (default 10,000). `zeros` counts the values `"shown"` writes as 0 though they are not 0. The REST service and the MCP server ask for it for an inline result. |
 | `flatHeader` | `false` | `csv`: one header row instead of one per column field. |
 | `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form, or a time that does not exist, is refused. `html`: "Data as of" in the details and the `{{dataAsOf}}` [placeholder](print-template.md), in the locale and time zone with the zone named; `xlsx`: the custom document property `DataAsOf` (a date). csv, json and svg leave it out. The REST service and the MCP server pass it; the command line passes none for local files. |
 
@@ -108,7 +108,7 @@ A bad view never throws: its issues come back. `render` throws `PivotkitError` f
     - an unknown `format`
     - a `size` out of range
     - an unknown option
-    - a `chart`, `chartEmbed`, `bom`, `strict`, `trusted`, `numbers`, `flatHeader` or `inline` of a value it does not take
+    - a `chart`, `chartEmbed`, `bom`, `strict`, `trusted`, `numbers` or `flatHeader` of a value it does not take
     - an SVG or `chart: true` without `echarts`
     - a `now` that is no date
     - a `dataAsOf` in another form
@@ -269,6 +269,11 @@ also have `details`:
 
 `data(source)` may give `asOf`: when the data is from, in UTC to the second. `render_view` then passes
 it to `render` as `dataAsOf`.
+
+`render_view`'s `inline` input is for front ends: it asks for the result as text for a reader beside
+the file, `{ numbers, maxCells }`, with a count of the values `"shown"` writes as 0 though they are
+not 0. pivotkit-server sets it from the caller's policy and leaves it out of
+the schemas its callers see.
 
 `findingOf` turns a pivotkit-core issue into a finding, cleaned and cut at 200 characters.
 `exampleViews(fields)` builds views from a data set's fields.

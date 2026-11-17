@@ -151,6 +151,11 @@ test("saved files are named without spaces; the file route's download keeps the 
         assert.notEqual(await named("日本の売上"), await named("中国の売上"), "two titles without Latin letters get two names");
         assert.equal(await named("CON"), "_con.csv");
         assert.equal(await named("lpt1"), "_lpt1.csv");
+        assert.equal(await named("nul.txt"), "_nul.txt.csv", "a device name with an extension");
+        // letters dropped beside what is kept: the hash keeps two titles apart
+        assert.match(await named("日本語2"), /^2-[0-9a-f]{8}\.csv$/);
+        assert.notEqual(await named("日本語2"), await named("中文2"));
+        assert.equal(await named("Q3 2026"), "q3-2026.csv", "nothing dropped: no hash");
     } finally {
         await server.close();
     }

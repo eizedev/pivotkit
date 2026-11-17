@@ -33,24 +33,29 @@ export const OUTPUT_MARK = "pivotkit-out";
 const LATIN_LETTERS = Object.freeze({ ß: "ss", Æ: "AE", æ: "ae", Ø: "O", ø: "o", Œ: "OE", œ: "oe", Ł: "L", ł: "l", Þ: "TH", þ: "th", Đ: "D", đ: "d", Ð: "D", ð: "d", Ħ: "H", ħ: "h", ı: "i", Ŀ: "L", ŀ: "l", Ŧ: "T", ŧ: "t", ĸ: "q", Ŋ: "NG", ŋ: "ng" });
 const LATIN_LETTER = new RegExp(`[${Object.keys(LATIN_LETTERS).join("")}]`, "g");
 
-/** Names Windows keeps for devices, with any extension ("con.pivotkit-out.csv" too). */
-const WINDOWS_DEVICE = /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])$/;
+/** Names Windows keeps for devices, also with an extension ("nul.txt", "con.pivotkit-out.csv"). */
+const WINDOWS_DEVICE = /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/;
+
+/** The most characters of a slug before its hash: nameSlug's 80, less "-" and 8 hex characters. */
+const HASHED_MAX = 71;
 
 /**
  * The name of a file the services make, from a report's title, so a link and a shell take it as it
  * is: upload.js nameSlug (the store's name part) in lower case, after the Latin letters NFKD keeps
- * whole ("Ærø Łódź" is "aero-lodz"). A title without Latin letters or digits is "report-" and 8 hex
- * characters of its SHA-256, so two such titles get two names. A Windows device name gets a "_"
- * first. The title stays the report's own (resource_link's title).
+ * whole ("Ærø Łódź" is "aero-lodz"). Where letters of another script are left out, "-" and 8 hex
+ * characters of the title's SHA-256 follow ("日本語2" is "2-cf1c61f6"; one without anything left is
+ * "report-1b501f78"), so two such titles get two names. A Windows device name gets a "_" first.
+ * The title stays the report's own (resource_link's title).
  * @param {unknown} title
  */
 export function fileSlug(title) {
     const text = String(title ?? "");
-    const slug = nameSlug(text.replace(LATIN_LETTER, (c) => LATIN_LETTERS[/** @type {keyof typeof LATIN_LETTERS} */ (c)])).toLowerCase();
-    if (slug === "report" && text.trim() !== "" && text.trim().toLowerCase() !== "report") {
-        return `report-${createHash("sha256").update(text).digest("hex").slice(0, 8)}`;
-    }
-    return WINDOWS_DEVICE.test(slug) ? `_${slug}` : slug;
+    const latin = text.replace(LATIN_LETTER, (c) => LATIN_LETTERS[/** @type {keyof typeof LATIN_LETTERS} */ (c)]);
+    const slug = nameSlug(latin).toLowerCase();
+    // a letter that is not A to Z once accents are taken off: nameSlug leaves it out
+    const dropped = /\p{L}/u.test(latin.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[A-Za-z]/g, ""));
+    const named = dropped ? `${slug === "report" ? "report" : slug.slice(0, HASHED_MAX).replace(/[-.]+$/, "")}-${createHash("sha256").update(text).digest("hex").slice(0, 8)}` : slug;
+    return WINDOWS_DEVICE.test(named) ? `_${named}` : named;
 }
 
 /** A report pivotkit wrote; a schedule draft it wrote. */

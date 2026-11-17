@@ -15,6 +15,7 @@
 
 import { CATALOG, LAYOUT_LIMITS, OUTSIDE_LIMITS, PivotkitError, closest, describeSource, describeView, foldText, fromViewFile, isIdentifierName, normalize, outsideLimits, suggestLayout, toViewFile, validate, viewFileFields, viewFromLayout, withLinkFragment } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
+import { toCsv, toJson } from "pivotkit-core/export";
 import { encodeViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "./render.js";
 
@@ -156,7 +157,7 @@ export function findingOf(issue) {
  * @typedef {object} OperationOutcome
  * @property {Record<string, any>} result  what the output schema describes
  * @property {{ bytes: Uint8Array, mediaType: string, extension: string, name: string }} [file]  a file the front end writes, sends or shows
- * @property {{ text: string, zeros: number }} [inline]  render_view with input.inline: the result as text for a reader (render's `inline`)
+ * @property {{ text: string, zeros: number }} [inline]  render_view with input.inline: the result as text for a reader (inlineOf)
  */
 
 /**
@@ -237,9 +238,34 @@ const LOCALE = { type: "string", maxLength: 35, pattern: "^[A-Za-z]{2,3}(-[A-Za-
 /**
  * render_view's `inline`, for a front end that may put the result into its answer (pivotkit-server;
  * it leaves it out of the schemas callers see): the result also as text for a reader, csv or json,
- * with its own `numbers`, up to `maxCells` cells (pivotkit-report's render `inline`).
+ * with its own `numbers` (default "shown"), up to `maxCells` cells (inlineOf).
  */
 const INLINE_INPUT = { type: "object", additionalProperties: false, properties: { numbers: { enum: ["shown", "full"] }, maxCells: { type: "integer", minimum: 0 } } };
+
+/**
+ * render_view's text for a reader (input.inline), from the rendered grid: the csv without a byte
+ * order mark, or the json on one line, with `zeros`, the values "shown" writes as 0 though they are
+ * not 0; none for another format or over `maxCells` cells.
+ * @param {import("pivotkit-core").Grid} grid
+ * @param {string} format
+ * @param {{ inline: { numbers?: "full" | "shown", maxCells?: number }, flatHeader?: boolean }} input
+ * @returns {{ inline?: { text: string, zeros: number } }}
+ */
+function inlineOf(grid, format, input) {
+    const numbers = input.inline.numbers ?? "shown";
+    if ((format !== "csv" && format !== "json") || grid.bodyRows.length * grid.columnCount > (input.inline.maxCells ?? Infinity)) {
+        return {};
+    }
+    const text = format === "json" ? toJson(grid, { numbers, space: 0 }) : toCsv(grid, { numbers, flatHeader: input.flatHeader === true });
+    return { inline: { text, zeros: numbers === "shown" ? shownZeros(grid) : 0 } };
+}
+
+/** The values "shown" writes as 0 though they are not 0 (a sum of 1e-9 at two decimals): json's values shown against full. */
+function shownZeros(grid) {
+    const values = (numbers) => JSON.parse(toJson(grid, { numbers, space: 0 })).rows.flatMap((/** @type {{ values: unknown[] }} */ row) => row.values);
+    const full = values("full");
+    return values("shown").filter((v, i) => v === 0 && typeof full[i] === "number" && full[i] !== 0).length;
+}
 
 /** How csv and json write numbers (pivotkit-core's toCsv and toJson `numbers`). */
 const NUMBERS = { enum: ["shown", "full"], description: "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits." };
@@ -807,7 +833,6 @@ export const OPERATIONS = Object.freeze({
                 ...(typeof source.asOf === "string" ? { dataAsOf: source.asOf } : {}),
                 ...(input.numbers ? { numbers: input.numbers } : {}),
                 ...(input.flatHeader !== undefined ? { flatHeader: input.flatHeader } : {}),
-                ...(input.inline ? { inline: input.inline } : {}),
                 ...extra
             });
             const findings = [...(source.notes ?? []), ...given.notes, ...result.issues.map(findingOf), ...(read.failed ? [] : unknownItems(read.view, source.data, env))];
@@ -817,7 +842,7 @@ export const OPERATIONS = Object.freeze({
             return {
                 result: { ok: result.ok && !given.notes.some((f) => f.severity === "error"), findings, uses: result.view ? viewFileFields(result.view) : [], ...(given.fromLayout && result.view ? { view: result.view } : {}), format, mediaType: kind.mediaType, summary: result.summary },
                 ...(result.body ? { file: { bytes: result.body, mediaType: kind.mediaType, extension: kind.extension, name } } : {}),
-                ...(result.body && result.inline ? { inline: result.inline } : {})
+                ...(result.body && result.grid && input.inline ? inlineOf(result.grid, format, input) : {})
             };
         }
     },

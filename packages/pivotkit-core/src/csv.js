@@ -90,19 +90,18 @@ function rounded(v, decimals) {
     return r === 0 ? 0 : r;
 }
 
-/** How the text exports write numbers: with full precision, or rounded as the table shows them. */
-const NUMBERS = Object.freeze(["full", "shown"]);
-
 /**
- * The `numbers` option of a text export, checked: "full" (the default) or "shown".
+ * The `numbers` option of a text export, checked: true for "shown", false for "full" (the default).
  * @param {unknown} numbers
  * @param {string} fn
- * @returns {"full" | "shown"}
  */
-function numbersOf(numbers, fn) {
-    expect(numbers === undefined || NUMBERS.includes(/** @type {string} */ (numbers)), `${fn}: numbers is "full" or "shown"`);
-    return numbers === "shown" ? "shown" : "full";
+function numbersShown(numbers, fn) {
+    expect(numbers === undefined || /^(full|shown)$/.test(String(numbers)), `${fn}: numbers is "full" or "shown"`);
+    return numbers === "shown";
 }
+
+/** The significant digits "shown" keeps of a number whose format has no plain decimals (compact, bytes, duration). */
+const SHOWN_DIGITS = 12;
 
 /**
  * A value cell's number. A percent and a "show values as" value are written as the table shows them:
@@ -178,7 +177,7 @@ export const isNumberCell = (cell) => cell.kind === "value" && typeof cell.value
 export function toCsv(grid, options) {
     options = optionsOf(options, "toCsv");
     expect(isGrid(grid), "toCsv(grid): grid must come from toGrid()");
-    numbersOf(options.numbers, "toCsv");
+    numbersShown(options.numbers, "toCsv");
     return csvText(grid, options);
 }
 
@@ -193,8 +192,9 @@ export function csvText(grid, options) {
         return /["\r\n]/.test(safe) || safe.includes(separator) ? `"${safe.replace(/"/g, '""')}"` : safe;
     };
     const cells = filledCells(grid, options.repeatLabels !== false);
-    const flat = options.flatHeader === true && grid.headerRows > 1;
-    const header = flat ? [[...lastHeaderTexts(grid, cells), ...columnLabels(grid, cells).map((labels) => labels.join(" / "))].map(quote).join(separator)] : [];
+    const flat = options.flatHeader === true;
+    // with one value, its name over every column says nothing
+    const header = flat ? [[...lastHeaderTexts(grid, cells), ...columnLabels(grid, cells).map((labels) => (grid.valueNames.length === 1 && labels.length > 1 ? labels.slice(0, -1) : labels).join(" / "))].map(quote).join(separator)] : [];
     const lines = cells.slice(flat ? grid.headerRows : 0).map((row) =>
         row
             .map((source) => {
@@ -246,29 +246,6 @@ export function toTsv(table) {
 }
 
 /**
- * How many value cells `numbers: "shown"` writes as 0 though their value is not 0 (a sum near 1e-9
- * at two decimals), so a caller can say that a 0 may hide a small value.
- * @param {import("./grid.js").Grid} grid  from toGrid()
- * @returns {number}
- */
-export function shownZeros(grid) {
-    expect(isGrid(grid), "shownZeros(grid): grid must come from toGrid()");
-    const locale = grid.locale ?? DEFAULT_LOCALE;
-    let count = 0;
-    for (const row of grid.rows) {
-        for (const cell of row) {
-            if (cell && isNumberCell(cell) && cell.valueType !== "date" && cell.value !== 0 && shownNumber(cell.value, cell.format, locale) === 0) {
-                count++;
-            }
-        }
-    }
-    return count;
-}
-
-/** The significant digits "shown" keeps of a number whose format has no plain decimals (compact, bytes, duration). */
-const SHOWN_DIGITS = 12;
-
-/**
  * A value of a value cell as JSON: the number, a date as its ISO date, text as it is, blank null. With
  * `shown` a number is rounded to the decimals its format shows (a percent's of the percentage: 0.257
  * for 25.7%).
@@ -278,19 +255,20 @@ function jsonValue(cell, shown, locale) {
         return null;
     }
     if (isNumberCell(cell)) {
-        return cell.valueType === "date" ? isoOf(cell.value) : shown ? shownNumber(cell.value, cell.format, locale) : Number(cell.value.toPrecision(15));
+        return cell.valueType === "date" ? isoOf(cell.value) : shown ? shownNumber(cell, locale) : Number(cell.value.toPrecision(15));
     }
     return typeof cell.value === "number" ? null : cell.value;
 }
 
-/** A number rounded to the decimals its format shows, as a number (a percent as the fraction); full precision where the format has no plain decimals. */
-function shownNumber(v, format, locale) {
-    const decimals = formatDecimals(format, locale);
-    if (decimals === null) {
-        return Number(v.toPrecision(SHOWN_DIGITS));
-    }
-    const percent = parseFormat(format)?.name === "percent";
-    return percent ? Number((rounded(v * 100, decimals) / 100).toPrecision(15)) : rounded(v, decimals);
+/**
+ * A value cell's number as "shown" writes it in the CSV (numberText), as a number: a percent as the
+ * fraction again (0.257 for 25.7%).
+ * @param {import("./grid.js").GridCell & { value: number }} cell
+ * @param {string} locale
+ */
+function shownNumber(cell, locale) {
+    const n = Number(numberText(cell.value, cell.format, ".", false, locale, true).replace("%", ""));
+    return parseFormat(cell.format)?.name === "percent" ? Number((n / 100).toPrecision(15)) : n;
 }
 
 /**
@@ -305,14 +283,12 @@ function lastHeaderTexts(grid, cells) {
 
 /**
  * Each value column's header texts from the top down: a header cell merged sideways or down is the
- * label of every column under it, a corner and an empty text are left out. With one value only, its
- * name is left out after other labels (it would be the same over every column).
+ * label of every column under it, a corner and an empty text are left out.
  * @param {import("./grid.js").Grid} grid
  * @param {Array<Array<import("./grid.js").GridCell | null>>} cells  filledCells
- * @param {{ keepValue?: boolean }} [how]  keepValue: the value's name stays (the JSON's labels)
  * @returns {string[][]}
  */
-function columnLabels(grid, cells, how = {}) {
+function columnLabels(grid, cells) {
     const headerCell = cells.slice(0, grid.headerRows).map((row) => row.slice());
     for (const m of grid.merges) {
         for (let r = m.row; r < Math.min(m.row + m.rowSpan, grid.headerRows); r++) {
@@ -321,8 +297,7 @@ function columnLabels(grid, cells, how = {}) {
             }
         }
     }
-    const oneValue = !how.keepValue && grid.valueNames.length === 1;
-    return grid.dataColumns.map((column, i) => {
+    return grid.dataColumns.map((_, i) => {
         const c = grid.rowHeaderColumns + i;
         const labels = [];
         let previous = null;
@@ -334,8 +309,7 @@ function columnLabels(grid, cells, how = {}) {
             }
             previous = cell;
         }
-        const valueName = column.valueIndex >= 0 ? grid.valueNames[column.valueIndex] : undefined;
-        return oneValue && labels.length > 1 && labels.at(-1) === valueName ? labels.slice(0, -1) : labels;
+        return labels;
     });
 }
 
@@ -359,12 +333,12 @@ function columnLabels(grid, cells, how = {}) {
 export function toJson(grid, options) {
     options = optionsOf(options, "toJson");
     expect(isGrid(grid), "toJson(grid): grid must come from toGrid()");
-    const shown = numbersOf(options.numbers, "toJson") === "shown";
+    const shown = numbersShown(options.numbers, "toJson");
     const locale = grid.locale ?? DEFAULT_LOCALE;
     const cells = filledCells(grid, true);
     const k = grid.rowHeaderColumns;
     const text = (cell) => (cell ? cell.text : "");
-    const labels = columnLabels(grid, cells, { keepValue: true });
+    const labels = columnLabels(grid, cells);
     const data = {
         rowHeaders: lastHeaderTexts(grid, cells),
         columns: grid.dataColumns.map((column, i) => ({ labels: labels[i], value: column.valueIndex >= 0 ? (grid.valueNames[column.valueIndex] ?? null) : null, total: column.total })),

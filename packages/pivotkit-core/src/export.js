@@ -9,6 +9,6 @@
  */
 
 export { isDataAsOf, toXlsx } from "./xlsx.js";
-export { shownZeros, toCsv, toCsvBytes, toTsv, toJson } from "./csv.js";
+export { toCsv, toCsvBytes, toTsv, toJson } from "./csv.js";
 export { dataToCsv, dataToCsvBytes, dataToCsvParts, dataToJson, rowsToCsv, rowsToCsvBytes, rowsToXlsx } from "./rows.js";
 export { scaleColor } from "./grid.js";

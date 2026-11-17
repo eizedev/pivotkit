@@ -24,6 +24,12 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 - pivotkit-core's internal limit helper words a file over its limit. The text stays the same
   ([#509](https://github.com/eizedev/pivotkit/issues/509)).
 
+### Fixed
+
+- `--format csv` in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
+  `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:
+  `9.6`, not `9٫6`, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).
+
 ## [0.3.0] - 2026-11-16
 
 ### Upgrading from 0.2
