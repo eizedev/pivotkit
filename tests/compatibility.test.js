@@ -65,6 +65,6 @@ test("the browser builds target the lowest browsers the compatibility page names
 
 test("the compatibility page names pivotkit-react's React and ECharts ranges as package.json has them", () => {
     const peers = json("packages/pivotkit-react/package.json").peerDependencies;
-    assert.match(page(), new RegExp(`^\\| React for pivotkit-react \\| \`${peers.react}\` \\|`, "m"));
-    assert.match(page(), new RegExp(`^\\| Apache ECharts for pivotkit-react \\| \`${peers.echarts}\` \\|`, "m"));
+    assert.match(page(), new RegExp(`^\\| React for pivotkit-react: \`${peers.react}\` \\|`, "m"));
+    assert.match(page(), new RegExp(`^\\| Apache ECharts for pivotkit-react: \`${peers.echarts}\` \\|`, "m"));
 });

@@ -54,11 +54,11 @@ The report runs in these browsers or newer:
 
 ## React and ECharts { #react }
 
-| Package | Supported | Status | How |
-| --- | --- | --- | --- |
-| React for pivotkit-react | `>=18.2 <20` | Tested in CI | On the React 18 and React 19 this repository pins, not on each version of the range |
-| Apache ECharts for pivotkit-react | `>=6.1.0 <7` | Tested in CI | On the version this repository pins |
-| pivotkit-element | its own React and ECharts | Tested in CI | On pages without React and on pages with React 18 or 19 |
+| Package | Status | How |
+| --- | --- | --- |
+| React for pivotkit-react: `>=18.2 <20` | Tested in CI | On the React 18 and React 19 this repository pins, not on each version of the range |
+| Apache ECharts for pivotkit-react: `>=6.1.0 <7` | Tested in CI | On the version this repository pins |
+| pivotkit-element, with its own React and ECharts | Tested in CI | On pages without React and on pages with React 18 or 19 |
 
 ## Host applications { #hosts }
 
@@ -68,11 +68,11 @@ A host is the application the report runs in.
 | --- | --- | --- |
 | A React application | Tested in CI | The playground and host pages in Chromium, Firefox and WebKit |
 | A plain HTML page | Tested in CI | The web component on test pages, a strict Content-Security-Policy among them |
-| Angular | Tested in CI | CI builds the zoneless Angular 22 example in `examples/angular/` and runs its browser test |
+| Angular | Tested in CI | CI builds the zoneless Angular 22 example and runs its browser test |
 | PowerShell Universal apps | Tested by hand | The report in a PowerShell Universal app, on release 0.3.0. [#118](https://github.com/eizedev/pivotkit/pull/118) fixed the findings. CI tests host pages that render as PowerShell Universal does. |
 | PowerShell Universal scripts with the REST service or the MCP server | Documented, not tested | [PowerShell Universal](getting-started/mcp.md#psu) |
 | A Node program, engine only | Tested in CI | pivotkit-core's tests |
-| Your own Node server with pivotkit-server inside | Tested in CI | `createContext` and `createRestHandler` with requests as a framework passes them |
+| Your own Node server with pivotkit-server inside | Tested in CI | The REST handler with requests as a framework passes them |
 
 The settings each host needs:
 
@@ -122,7 +122,7 @@ What a provider must do:
 
 | Provider | Status | How |
 | --- | --- | --- |
-| None: a static token | Tested in CI | `--auth token` and `$PIVOTKIT_TOKEN`, or named tokens in `auth.tokens` |
+| None: a static token | Tested in CI | One token, or several named ones |
 | The server's checks of OAuth tokens | Tested in CI | Tokens of a test issuer: metadata, keys, challenges and refused tokens. No real provider |
 | Authentik | Tested by hand | MCP over HTTP with a real sign-in, REST with client credentials, per-person backend tokens: [#448](https://github.com/eizedev/pivotkit/issues/448), tested at commit f3cde815 |
 | Keycloak | Documented, not tested | [Keycloak](reference/mcp.md#oauth) |
@@ -237,7 +237,7 @@ The settings each client needs:
 | Files: CSV, TSV, TXT and JSON | Tested in CI | The readers built into pivotkit-core |
 | Excel workbooks (XLSX) | Tested in CI | The reader plugin pivotkit-xlsx |
 | Any HTTP API that answers JSON or CSV | Tested in CI | A stand-in backend over `https://` |
-| HTTP sources made from an OpenAPI document | Tested in CI | `pivotkit-server source-from-openapi` |
+| HTTP sources made from an OpenAPI document | Tested in CI | The server's command that writes them |
 | A code source: a function of your Node server | Tested in CI | The `load` function of a library host |
 | Data the caller sends with the request | Tested in CI | `inline:` on REST and MCP |
 
@@ -249,11 +249,11 @@ This is how pivotkit signs in to the backend an HTTP source reads.
 
 | Sign-in | Status | How |
 | --- | --- | --- |
-| A static header, such as an API key or a bearer token | Tested in CI | `http.auth.header` |
-| Basic sign-in with user and password | Documented, not tested | A static header with `prefix: "Basic "` |
-| A service account: OAuth client credentials, with a client secret or a JWT | Tested in CI | `http.auth.clientCredentials` against a stand-in token endpoint |
+| A static header, such as an API key or a bearer token | Tested in CI | A stand-in backend |
+| Basic sign-in with user and password | Documented, not tested | A static header with the prefix Basic |
+| A service account: OAuth client credentials, with a client secret or a JWT | Tested in CI | A stand-in token endpoint |
 | Per person: the signed-in person's own backend token | Tested in CI and by hand | CI: a stand-in token endpoint. By hand: Authentik to a stand-in backend, [#448](https://github.com/eizedev/pivotkit/issues/448), tested at commit f3cde815 |
-| Per person with Keycloak | Documented, not tested | [Keycloak: token exchange](reference/sources.md#http-auth-provider) |
+| Per person with Keycloak | Documented, not tested | [Keycloak](reference/sources.md#http-auth-provider) |
 | Per person with Microsoft Entra ID | Not supported | [#484](https://github.com/eizedev/pivotkit/issues/484) is open for it. Use a service account with a parameter bound to a claim, or a code source |
 
 The settings each kind needs:
