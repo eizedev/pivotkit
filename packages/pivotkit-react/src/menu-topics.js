@@ -30,8 +30,9 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string,
  *   color?: { id: string, value: string, label: string, pick: (color: string) => void },
  *   tags?: Array<{ icon: string, text: string }>, className?: string, note?: string }} Choice
- * `tags`: small marks after the text (the zones a field is in), hidden from assistive technology,
- * which reads `note` instead; `className`: the item's own class (a field's type).
+ * `tags`: small marks after the text (the zones a field is in), hidden from assistive technology;
+ * `note`: a line under the text that says what choosing it does, read with it; `className`: the
+ * item's own class (a field's type).
  */
 
 /**

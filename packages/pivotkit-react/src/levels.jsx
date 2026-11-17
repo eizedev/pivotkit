@@ -153,15 +153,18 @@ export function MenuList({ label, labelledBy, className, close, children, testId
  * @param {{ id: string, text: React.ReactNode, onSelect: () => void, checked?: boolean, checkbox?: boolean,
  *   hint?: string, icon?: string, danger?: boolean, testId?: string, start?: boolean, plain?: string,
  *   label?: string, className?: string, disabled?: boolean, reason?: string, haspopup?: "menu" | "dialog", level?: string,
- *   description?: string | null, current?: boolean, children?: React.ReactNode }} props
+ *   description?: string | null, current?: boolean, note?: string, children?: React.ReactNode }} props
  *   `plain`: the text type-ahead matches; `start`: takes Tab first; `level`: the topic it opens;
+ *   `note`: a line under the text of an entry that can be chosen, read with it (what a pick does);
  *   `description`: an explanation a screen reader reads with it (the "i" next to it shows it);
  *   `current`: the entry shown now (the view loaded), with a check and aria-current
  */
-export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, danger, testId, start, plain, label, className, disabled, reason, haspopup, level, description, current, children }) {
+export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, danger, testId, start, plain, label, className, disabled, reason, haspopup, level, description, current, note, children }) {
     const role = checked === undefined ? "menuitem" : checkbox ? "menuitemcheckbox" : "menuitemradio";
     const reasonId = useId();
-    const describedBy = [disabled && reason ? reasonId : null, description ? `${reasonId}-d` : null].filter(Boolean).join(" ") || undefined;
+    // the line under the text: why it is off, or what choosing it does
+    const sub = disabled ? reason : note;
+    const describedBy = [sub ? reasonId : null, description ? `${reasonId}-d` : null].filter(Boolean).join(" ") || undefined;
     return (
         <button
             type="button"
@@ -185,9 +188,9 @@ export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, da
             <span className="pk-option-icon">{checked || current ? <Icon name="check" /> : icon ? <Icon name={/** @type {any} */ (icon)} /> : null}</span>
             <span className="pk-option-text">
                 {text}
-                {disabled && reason ? (
-                    <span id={reasonId} className="pk-option-hint" data-testid={`${testId ?? id}-reason`}>
-                        {reason}
+                {sub ? (
+                    <span id={reasonId} className="pk-option-hint" data-testid={`${testId ?? id}-${disabled ? "reason" : "note"}`}>
+                        {sub}
                     </span>
                 ) : null}
             </span>
@@ -213,7 +216,7 @@ function ChoiceItem({ choice: c, onPick, start }) {
     const text = c.info && explain && labels?.settingInfo && Object.hasOwn(labels.settingInfo, c.info) ? labels.settingInfo[c.info] : null;
     const className = [c.open ? "pk-topic-row" : null, c.className].filter(Boolean).join(" ") || undefined;
     const item = (
-        <MenuItem id={c.id} testId={c.testId} text={c.text} label={c.label} hint={c.hint} icon={c.icon} checked={c.checked} checkbox={c.checkbox} current={c.current} disabled={c.disabled} reason={c.reason} description={text ?? c.note} start={start} haspopup={c.open ? "dialog" : undefined} className={className} onSelect={() => onPick(c)}>
+        <MenuItem id={c.id} testId={c.testId} text={c.text} label={c.label} hint={c.hint} icon={c.icon} checked={c.checked} checkbox={c.checkbox} current={c.current} disabled={c.disabled} reason={c.reason} description={text} note={c.note} start={start} haspopup={c.open ? "dialog" : undefined} className={className} onSelect={() => onPick(c)}>
             {(c.tags ?? []).map((t) => (
                 <span key={t.text} className="pk-tag" aria-hidden="true">
                     <Icon name={/** @type {any} */ (t.icon)} size={12} />
