@@ -26,7 +26,7 @@
 
 import { CliError, RemoteError, printable } from "./errors.js";
 import { checkTls, send, serverOf } from "./remote.js";
-import { TOKEN_SYNTAX, isLoopback, resourceMetadataUrlOf } from "./rest-contract.js";
+import { CLIENT_ID_SYNTAX, SIGN_IN_CLIENT_FIELD, TOKEN_SYNTAX, isLoopback, resourceMetadataUrlOf } from "./rest-contract.js";
 import { credentialStore, fileStoreText } from "./credential-store.js";
 
 /** The most bytes of a metadata document or token answer. */
@@ -59,9 +59,6 @@ const ERROR_HINTS = Object.freeze({
 
 /** The device grant's type (RFC 8628 3.4). */
 const DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
-
-/** A client id as the CLI takes it: printable, no spaces, at most 200 characters. */
-const CLIENT_ID = /^[\x21-\x7e]{1,200}$/;
 
 /** A scope token (RFC 6749 3.3). */
 const SCOPE_TOKEN = /^[\x21\x23-\x5b\x5d-\x7e]{1,200}$/;
@@ -207,7 +204,9 @@ export async function resourceOf(server, env) {
     }
     checkedUrl(issuers[0], "the server's issuer", server.loopback);
     const scopes = Array.isArray(data.scopes_supported) ? data.scopes_supported.filter((s) => typeof s === "string" && SCOPE_TOKEN.test(s)) : [];
-    return { resource: data.resource, issuer: issuers[0], scopes };
+    // the client the server names for pivotkit login (rest.signIn.clientId), as it is: checked where it is used
+    const published = Object.hasOwn(data, SIGN_IN_CLIENT_FIELD) ? data[SIGN_IN_CLIENT_FIELD] : undefined;
+    return { resource: data.resource, issuer: issuers[0], scopes, published };
 }
 
 /** A server that publishes no sign-in metadata. */
@@ -265,16 +264,29 @@ export function scopeOf(given, serverScopes, issuerScopes) {
     return [...new Set([...serverScopes, ...offline])].join(" ");
 }
 
-/** The client id: --client-id, else PIVOTKIT_CLIENT_ID. */
-function clientIdOf(values, env) {
+/**
+ * The client id: --client-id, else PIVOTKIT_CLIENT_ID, else the one the server publishes in its
+ * metadata (rest.signIn.clientId).
+ * @param {Record<string, any>} values
+ * @param {Record<string, string | undefined>} env
+ * @param {unknown} published  the metadata's SIGN_IN_CLIENT_FIELD, undefined without one
+ * @returns {{ id: string, published: boolean }}
+ */
+function clientIdOf(values, env, published) {
     const id = values["client-id"] ?? env.PIVOTKIT_CLIENT_ID;
-    if (!id) {
-        throw new CliError("usage", "NO_CLIENT_ID", "the issuer's client id is needed: --client-id <id>, or PIVOTKIT_CLIENT_ID (the operator names it)");
+    if (id) {
+        if (!CLIENT_ID_SYNTAX.test(id)) {
+            throw new CliError("usage", "BAD_VALUE", "--client-id takes printable characters without spaces, at most 200");
+        }
+        return { id, published: false };
     }
-    if (!CLIENT_ID.test(id)) {
-        throw new CliError("usage", "BAD_VALUE", "--client-id takes printable characters without spaces, at most 200");
+    if (published === undefined) {
+        throw new CliError("usage", "NO_CLIENT_ID", "the issuer's client id is needed: --client-id <id>, or PIVOTKIT_CLIENT_ID; the server publishes none (the operator names it)");
     }
-    return id;
+    if (typeof published !== "string" || !CLIENT_ID_SYNTAX.test(published)) {
+        throw new RemoteError("BAD_METADATA", "the client ID the server publishes is not usable; give one with --client-id");
+    }
+    return { id: published, published: true };
 }
 
 /** A token answer's tokens, checked. */
@@ -349,9 +361,13 @@ export async function loginCommand(values, ctx) {
     const env = ctx.io.env;
     const say = (text) => ctx.io.stderr.write(`${text}\n`);
     const want = values.store ?? "auto";
-    const clientId = clientIdOf(values, env);
     const server = serverOf(values, env);
-    const { resource, issuer, scopes: serverScopes } = await resourceOf(server, env);
+    const { resource, issuer, scopes: serverScopes, published } = await resourceOf(server, env);
+    const client = clientIdOf(values, env, published);
+    const clientId = client.id;
+    if (client.published) {
+        say(`Using the client ID ${printable(clientId)} that the server publishes.`);
+    }
     const endpoints = await issuerOf(issuer, env, server.loopback);
     const scope = scopeOf(values.scope, serverScopes, endpoints.scopes);
     const started = await call(endpoints.device, { client_id: clientId, ...(scope ? { scope } : {}) }, env);

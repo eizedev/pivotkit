@@ -8,6 +8,15 @@
 import { isIPv4 } from "node:net";
 import { OPERATION_ERRORS } from "pivotkit-report/operations";
 
+/**
+ * The extra field of the REST service's protected-resource metadata (RFC 9728 lets a resource add
+ * its own) that names the public client `pivotkit login` signs in with (rest.signIn.clientId).
+ */
+export const SIGN_IN_CLIENT_FIELD = "pivotkit_client_id";
+
+/** A sign-in client's ID: printable, no spaces, at most 200 characters. */
+export const CLIENT_ID_SYNTAX = /^[\x21-\x7e]{1,200}$/;
+
 /** The REST service's path under its origin. */
 export const REST_BASE = "/api/v1";
 

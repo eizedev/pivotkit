@@ -8,6 +8,9 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Added
 
+- `pivotkit login` takes the client ID the server publishes (`rest.signIn.clientId`) when neither
+  `--client-id` nor `PIVOTKIT_CLIENT_ID` gives one, and says so. `pivotkit-cli/rest` exports
+  `SIGN_IN_CLIENT_FIELD` and `CLIENT_ID_SYNTAX` (#486).
 - `pivotkit login --url <server> --client-id <id>` signs in at the server's sign-in provider with
   the OAuth 2.0 device code flow. It keeps the refresh token in the system's keychain, else in a
   file only you read. `pivotkit token` prints a fresh access token, and `pivotkit logout` removes
