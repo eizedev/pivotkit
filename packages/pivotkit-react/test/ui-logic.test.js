@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, toEChartsOption, toGrid, toSeries } from "pivotkit-core";
 import { decorate, screenColor } from "../src/chart-decorate.js";
 import { chartSummary } from "../src/chart-summary.js";
-import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
+import { tooltipContent, tooltipFormatter, tooltipReferences } from "../src/chart-tooltip.js";
 import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "pivotkit-core/chart";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
@@ -730,4 +730,68 @@ test("screenColor: a colour ECharts reads as it is, another as the canvas draws 
     }
     // without CSS.supports (no browser) nothing is drawn
     assert.equal(screenColor(/** @type {any} */ (doc), hexOnly)("oklch(0.5 0.1 200)"), null);
+});
+
+// Reference lines (#48): revenue per month and product, A 10, 20, 30, 40 (average 25, trend 10 to 40),
+// B 5, 5, 7, 3 (average 5, trend 5.6 to 4.4), a target of 35.
+const LINE_ROWS = [10, 20, 30, 40].flatMap((a, i) => [
+    { Date: `2026-0${i + 1}-15`, Product: "A", Revenue: a },
+    { Date: `2026-0${i + 1}-15`, Product: "B", Revenue: [5, 5, 7, 3][i] }
+]);
+const linePivot = (chart, locale = "en-US") => computePivot(encode(LINE_ROWS), { derived: [{ name: "Month", field: "Date", by: "yearMonth" }], rows: ["Month"], cols: ["Product"], values: [{ field: "Revenue", agg: "sum" }], formatting: { locale }, chart });
+
+test("the tooltip names the reference lines: the hovered series' own and the lines of no series, a trend at its category", async () => {
+    const { referenceLines } = await import("pivotkit-core/chart");
+    const r = linePivot({ type: "line", referenceLines: { average: true, trend: true, target: 35 } });
+    const s = toSeries(r);
+    const names = s.series.map((x) => x.name);
+    const context = tooltipReferences(referenceLines(r, { series: s }), names, "#abcdef");
+    const params = s.series.map((x, i) => ({ seriesIndex: i, dataIndex: 2, axisValueLabel: "Mar 2026", seriesName: x.name, value: x.data[2], color: ["#111111", "#222222"][i] }));
+    const fmt = (v) => String(v);
+    // every series at the category: every line in its series' colour, a trend at the category (A: 30, B: 4.8)
+    const all = tooltipContent(params, { valueFormatter: fmt, mode: "axis", references: context });
+    assert.deepEqual(
+        all.references.map((l) => [l.name, l.value, l.color]),
+        [
+            ["Average (A)", "25", "#111111"],
+            ["Average (B)", "5", "#222222"],
+            ["Trend (A)", "30", "#111111"],
+            ["Trend (B)", "4.8", "#222222"],
+            ["Target", "35", "#abcdef"]
+        ]
+    );
+    // the point of B under the pointer: B's lines and the target
+    const b = tooltipContent(params, { valueFormatter: fmt, references: context, hover: { seriesIndex: 1, dataIndex: 2 } });
+    assert.deepEqual(b.references.map((l) => l.name), ["Average (B)", "Trend (B)", "Target"]);
+    // one series: the lines go by their names alone
+    assert.deepEqual(tooltipReferences(referenceLines(r, { series: s }), ["A"], null).map((l) => l.name), ["Average", "Average", "Trend", "Trend", "Target"]);
+    // no lines: no part of the tooltip
+    assert.equal(tooltipContent(params, { valueFormatter: fmt }).references, undefined);
+    // decorate hands them to the tooltip: the lines' colour of no series from --pk-chart-reference
+    const drawn = decorate(toEChartsOption(r, { series: s }), { getPropertyValue: (n) => ({ "--pk-chart-reference": "#abcdef" })[n] ?? "" }, 480, /** @type {any} */ ({ createElement: () => ({ style: {}, children: [], append() {} }) }), 800, { tooltip: { lines: referenceLines(r, { series: s }) } });
+    assert.equal(typeof drawn.tooltip.formatter, "function");
+});
+
+test("the tooltip's reference lines as nodes, below a rule in the tokens' colours", () => {
+    const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
+    const doc = /** @type {any} */ ({ createElement: () => node() });
+    const format = tooltipFormatter(doc, { valueFormatter: String, mode: "axis", references: [{ name: "Target", color: "#abcdef", series: null, value: () => "35" }] });
+    const box = /** @type {any} */ (format([{ seriesIndex: 0, dataIndex: 0, axisValueLabel: "Jan", seriesName: "A", value: 10, color: "#111111" }]));
+    const [, a, target] = box.children;
+    assert.equal(a.children[1].textContent, "A");
+    assert.deepEqual([target.children[0].style.backgroundColor, target.children[1].textContent, target.children[2].textContent], ["#abcdef", "Target", "35"]);
+    assert.equal(target.style.borderTop, "1px solid var(--pk-border)");
+});
+
+test("the chart's text alternative names the reference lines with their values", async () => {
+    const { referenceLines } = await import("pivotkit-core/chart");
+    const r = linePivot({ type: "line", referenceLines: { average: true, trend: true, target: 35 } });
+    const s = toSeries(r);
+    const text = chartSummary(s, { type: "line", rows: ["Month"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US", lines: referenceLines(r, { series: s }) });
+    assert.match(text, /Reference lines: Average \(A\) 25; Average \(B\) 5; Trend \(A\) from 10 to 40; Trend \(B\) from 5\.6 to 4\.4; Target 35\. Switch to Table/);
+    const de = linePivot({ type: "line", referenceLines: { average: true, trend: false, target: 35 } }, "de-DE");
+    const deText = chartSummary(toSeries(de), { type: "line", rows: ["Monat"], valueNames: ["Summe von Revenue"], labels: LABELS.de, locale: "de-DE", lines: referenceLines(de, { words: LABELS.de.core.referenceLines }) });
+    assert.match(deText, /Bezugslinien: Durchschnitt \(A\) 25; Durchschnitt \(B\) 5; Ziel 35\./);
+    // no lines: the text stays as it was
+    assert.doesNotMatch(chartSummary(s, { type: "line", rows: ["Month"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US" }), /Reference/);
 });

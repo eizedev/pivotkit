@@ -1475,6 +1475,8 @@ function Report(props) {
                             <Toolbar
                                 view={view}
                                 chartPlan={plan}
+                                encoded={encoded}
+                                locale={locale}
                                 labels={labels}
                                 size={size}
                                 canUndo={history.canUndo || dataSteps.past.length > 0}

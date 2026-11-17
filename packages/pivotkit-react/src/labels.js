@@ -167,6 +167,9 @@ export const en = {
     chartCategories: { one: "{count} category", other: "{count} categories" },
     chartSeries: { one: "{count} series", other: "{count} series" },
     chartExtremes: "Highest {max} at {maxAt}; lowest {min} at {minAt}.",
+    // the chart's reference lines in its text alternative: "Average 25; Trend from 10 to 40"
+    chartLines: "Reference lines: {lines}.",
+    chartTrendSpan: "from {from} to {to}",
     // the last sentence of the chart's text alternative
     chartTableHint: "Switch to Table to read every value.",
     // the tooltip's last line on stacked bars and areas: the sum of the stack's parts
@@ -484,6 +487,8 @@ export const de = {
     chartCategories: { one: "{count} Kategorie", other: "{count} Kategorien" },
     chartSeries: { one: "{count} Reihe", other: "{count} Reihen" },
     chartExtremes: "Höchster Wert {max} bei {maxAt}; niedrigster {min} bei {minAt}.",
+    chartLines: "Bezugslinien: {lines}.",
+    chartTrendSpan: "von {from} bis {to}",
     chartTableHint: "Zur Tabelle wechseln, um jeden Wert zu lesen.",
     chartTotal: "Gesamt",
     chartMore: "+{count} weitere",

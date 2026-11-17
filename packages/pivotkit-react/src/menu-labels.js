@@ -372,6 +372,11 @@ export const en = {
     chartTitle: "Title",
     chartTitleNone: "No title",
     smoothLines: "Smooth lines",
+    // the chart's reference lines (Average, Trend and Target are pivotkit-core's words, labels.core)
+    referenceLines: "Reference lines",
+    targetNone: "No target",
+    linesNoStack: "A stack of values that do not add up has no total, so it gets no lines. Bars show them.",
+    linesNoTrend: "A trend needs dates on Rows, in date order.",
     labelPosition: "Labels",
     labelPositionNames: { outside: "Outside", inside: "Inside" },
     axisLabels: "Axis labels",

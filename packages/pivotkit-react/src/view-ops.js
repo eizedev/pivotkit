@@ -634,10 +634,10 @@ export function setChart(view, name) {
 }
 
 /**
- * Changes how the chart is drawn: { valueLabels, legend, title, smooth } (pivotkit-core's chart
- * settings); the chart type stays.
+ * Changes how the chart is drawn: { valueLabels, legend, title, smooth, referenceLines, ... }
+ * (pivotkit-core's chart settings); the chart type stays.
  * @param {any} view
- * @param {{ valueLabels?: string, legend?: string, title?: string | null, smooth?: boolean }} patch
+ * @param {{ valueLabels?: string, legend?: string, title?: string | null, smooth?: boolean, referenceLines?: { average: boolean, trend: boolean, target: number | null } }} patch
  */
 export function setChartDisplay(view, patch) {
     const next = clone(view);

@@ -7,7 +7,11 @@
  * tooltipFormatter() builds the nodes in the chart's document.
  */
 
-import { CATALOG } from "pivotkit-core";
+import { valueAddsUp } from "pivotkit-core";
+
+// whether a value adds up, so a stack of it has a total: pivotkit-core's rule, which also decides a
+// stack's reference lines
+export { valueAddsUp };
 
 /**
  * @typedef {object} TooltipLine
@@ -15,6 +19,14 @@ import { CATALOG } from "pivotkit-core";
  * @property {string} name
  * @property {string} value
  * @property {boolean} [hovered]  the element under the pointer, among other lines
+ */
+
+/**
+ * @typedef {object} TooltipReference  a reference line of the chart (pivotkit-core's referenceLines)
+ * @property {string} name  "Average", "Average (A)" when the chart has more than one series
+ * @property {number | null} series  the series it belongs to; null for a target or a stack's total
+ * @property {string | null} color  for a line of no series; a series' line takes its series' colour
+ * @property {(dataIndex: number) => string | null} value  its value at a category, null where it has none
  */
 
 /**
@@ -32,20 +44,30 @@ import { CATALOG } from "pivotkit-core";
  * @property {number} [maxLines]  the most series lines that fit; more are cut, with `moreLabel`
  * @property {string} [moreLabel]  "+{count} more": the line that says how many were cut
  * @property {string} [moreInTotalLabel]  the same line when a total is shown: the cut ones are in it
+ * @property {TooltipReference[]} [references]  the chart's reference lines (tooltipReferences)
  */
 
 /**
- * Whether a value's results add up across a category's series, so a stack of them has a total: an
- * additive aggregator (sum, count), shown as itself or as a show-as type that adds up
- * (CATALOG.additiveShowAs; one that walks an axis only along the rows, the chart's categories).
- * @param {{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined} value  the view's value
+ * The reference lines as the tooltip names them: a series' line by its name and the series' name
+ * when there is more than one series ("Average (A)"); a trend's value at a category between its
+ * first and last, an average's and a target's everywhere.
+ * @param {ReturnType<typeof import("pivotkit-core/chart").referenceLines>} lines  pivotkit-core's referenceLines
+ * @param {string[]} seriesNames  the chart's series, by index
+ * @param {string | null} color  the colour of a line of no series (--pk-chart-reference)
+ * @returns {TooltipReference[]}
  */
-export function valueAddsUp(value) {
-    if (!value || !CATALOG.additiveAggregators.includes(/** @type {string} */ (value.agg))) {
-        return false;
-    }
-    const showAs = value.showAs;
-    return !showAs || (CATALOG.additiveShowAs.includes(showAs.type) && (!CATALOG.showAsAlongAxis.includes(showAs.type) || showAs.axis === "rows"));
+export function tooltipReferences(lines, seriesNames, color) {
+    return lines.map((line) => ({
+        name: line.series !== null && seriesNames.length > 1 ? `${line.name} (${seriesNames[line.series]})` : line.name,
+        series: line.series,
+        color: line.series === null ? color : null,
+        value: (i) => {
+            if (line.kind !== "trend") {
+                return line.format(/** @type {number} */ (line.value));
+            }
+            return i >= /** @type {number} */ (line.first) && i <= /** @type {number} */ (line.last) && line.at ? line.format(line.at(i)) : null;
+        }
+    }));
 }
 
 /** A number to show: ECharts hands null (or "-") for a series without a value at the category. */
@@ -80,13 +102,40 @@ function axisItems(params, { valueFormatter, mode, series, hover, totalLabel }) 
 }
 
 /**
+ * The reference lines a tooltip of bars, lines and areas names at the category of `params`: with an
+ * element under the pointer ("auto"), its series' lines and the lines of no series; else every line.
+ * A series' line takes the colour its series is drawn in.
+ * @param {any[]} params
+ * @param {TooltipReference[]} references
+ * @param {string} mode
+ * @param {TooltipOptions["hover"]} hover
+ * @returns {TooltipLine[]}
+ */
+function referenceItems(params, references, mode, hover) {
+    const at = params.find(Boolean);
+    if (!at || !references.length) {
+        return [];
+    }
+    const hit = mode !== "axis" && hover ? params.find((p) => p && p.seriesIndex === hover.seriesIndex && p.dataIndex === hover.dataIndex) : undefined;
+    const colorOf = (/** @type {number} */ i) => params.find((p) => p && p.seriesIndex === i)?.color;
+    return references.flatMap((r) => {
+        const value = r.value(at.dataIndex);
+        if (value === null || (hit && r.series !== null && r.series !== hit.seriesIndex)) {
+            return [];
+        }
+        const color = r.series === null ? r.color : colorOf(r.series);
+        return [{ color: typeof color === "string" ? color : null, name: r.name, value }];
+    });
+}
+
+/**
  * What a tooltip shows for ECharts' formatter parameters: a title, one line per series or slice and,
- * for a stack, its total.
+ * for a stack, its total; on bars, lines and areas the reference lines at the category.
  * @param {any} params  one item (trigger "item") or a list (trigger "axis")
  * @param {TooltipOptions} [options]
- * @returns {{ title: string, lines: TooltipLine[], more?: string, total?: { name: string, value: string } }}
+ * @returns {{ title: string, lines: TooltipLine[], more?: string, total?: { name: string, value: string }, references?: TooltipLine[] }}
  */
-export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}", moreInTotalLabel = moreLabel } = {}) {
+export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}", moreInTotalLabel = moreLabel, references = [] } = {}) {
     const color = (p) => (typeof p.color === "string" ? p.color : null);
     const text = (v) => (v === null || v === undefined ? "" : String(v));
     if (Array.isArray(params)) {
@@ -95,11 +144,13 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
         // more lines than fit: the first ones, and a line that says how many more
         const cut = lines.length > maxLines ? lines.length - Math.max(1, maxLines - 1) : 0;
         const kept = cut ? lines.slice(0, lines.length - cut) : lines;
+        const refs = referenceItems(params, references, mode, hover);
         return {
             title: first ? text(categoryNames[first.dataIndex] ?? first.axisValueLabel ?? first.name) : "",
             lines: kept.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(p.value), ...(hovered ? { hovered } : {}) })),
             ...(cut ? { more: (total ? moreInTotalLabel : moreLabel).replace("{count}", String(cut)) } : {}),
-            ...(total ? { total } : {})
+            ...(total ? { total } : {}),
+            ...(refs.length ? { references: refs } : {})
         };
     }
     if (params && params.seriesType === "heatmap" && Array.isArray(params.value)) {
@@ -157,7 +208,7 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
         return el;
     };
     return (params) => {
-        const { title, lines, more, total } = tooltipContent(params, hoverOf ? { ...options, hover: hoverOf() } : options);
+        const { title, lines, more, total, references } = tooltipContent(params, hoverOf ? { ...options, hover: hoverOf() } : options);
         const box = doc.createElement("div");
         if (title) {
             const head = doc.createElement("div");
@@ -175,16 +226,22 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
             rest.style.color = "var(--pk-muted)";
             box.append(rest);
         }
+        /** A line below a rule: the total, the first reference line. */
+        const ruled = (/** @type {HTMLElement} */ el) => {
+            el.style.borderTop = "1px solid var(--pk-border)";
+            el.style.marginTop = "4px";
+            el.style.paddingTop = "4px";
+            return el;
+        };
         if (total) {
             // the stack's total under a rule, all of it in the strong weight; its marker keeps the column.
             // Its size is the tooltip's, as every line's: the chart's text size, resolved in px
-            const sum = row(total);
-            sum.style.borderTop = "1px solid var(--pk-border)";
-            sum.style.marginTop = "4px";
-            sum.style.paddingTop = "4px";
+            const sum = ruled(row(total));
             sum.style.fontWeight = "var(--pk-weight-strong)";
             box.append(sum);
         }
+        // the reference lines under a rule of their own
+        (references ?? []).forEach((line, i) => box.append(i === 0 ? ruled(row(line)) : row(line)));
         return box;
     };
 }

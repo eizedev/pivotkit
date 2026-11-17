@@ -138,7 +138,7 @@ test("sort, values, collapse, chart", () => {
     assert.deepEqual(toggleCollapsed(v, "rows", ["North"]).collapsed.rows, []);
     assert.deepEqual(reorder(v, "rows", 0, 1).collapsed.rows, [], "collapsed paths belong to the old field order");
     const c = setChart(v, "stacked");
-    assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto" }]);
+    assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", referenceLines: { average: false, trend: false, target: null } }]);
     assert.equal(chartTypeOf(c.chart), "stacked");
     assert.equal(isEmptyView(empty), true);
     assert.equal(defaultAgg("date"), "count");
@@ -291,7 +291,7 @@ test("chart display settings change without the type, and stay when the type cha
     const v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
     const shown = setChartDisplay(v, { valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis" });
     // the type stays the view's default: automatic, until the user picks one
-    assert.deepEqual(shown.chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis" });
+    assert.deepEqual(shown.chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis", referenceLines: { average: false, trend: false, target: null } });
     // the display mode is the user's: a setting does not switch to the chart
     assert.equal(shown.display, "table");
     const line = setChart(shown, "line");
@@ -301,6 +301,20 @@ test("chart display settings change without the type, and stay when the type cha
     const auto = setChart(line, "auto");
     assert.deepEqual([auto.chart.type, auto.chart.stacked, auto.chart.horizontal, auto.chart.title], ["auto", false, false, "Units"]);
     assert.deepEqual(norm(auto).chart, auto.chart);
+});
+
+test("reference lines: a display setting, the chart type stays; a pie keeps them for later (#48)", () => {
+    const v = setChart(norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }), "bar");
+    const average = setChartDisplay(v, { referenceLines: { ...v.chart.referenceLines, average: true } });
+    assert.deepEqual(average.chart.referenceLines, { average: true, trend: false, target: null });
+    const target = setChartDisplay(average, { referenceLines: { ...average.chart.referenceLines, target: 1500 } });
+    assert.deepEqual(target.chart.referenceLines, { average: true, trend: false, target: 1500 });
+    assert.equal(target.chart.type, "bar");
+    assert.deepEqual(v.chart.referenceLines, { average: false, trend: false, target: null }, "the view itself is not changed");
+    // a pie keeps them for when the chart has bars again
+    const pie = setChart(target, "pie");
+    assert.deepEqual(setChart(pie, "line").chart.referenceLines, target.chart.referenceLines);
+    assert.deepEqual(norm(target).chart, target.chart);
 });
 
 test("the menu says what a filter keeps, in short: shown of total, the text condition, the value condition", () => {

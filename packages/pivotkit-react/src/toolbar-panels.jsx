@@ -6,10 +6,11 @@
  */
 
 import React, { useEffect, useId, useRef, useState } from "react";
-import { VIEW_FILE_LIMITS } from "pivotkit-core";
+import { VIEW_FILE_LIMITS, referenceLineRules, swapAxes } from "pivotkit-core";
 import { CHART_TYPES, CHART_TYPE_NAMES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
 import { ClearInput } from "./clear-input.jsx";
 import { useFormName } from "./dom.js";
+import { numberText, parseNumber } from "./numbers.js";
 import { dataExportFor } from "./export-scope.js";
 import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
@@ -85,6 +86,85 @@ function ChartTitle({ title, labels, onDisplay }) {
     );
 }
 
+/** The target line's value: applied with Enter or Apply; the × removes it at once. */
+function TargetField({ target, labels, locale, onTarget }) {
+    const [text, setText] = useState(numberText(target, locale));
+    // a target changed elsewhere (Undo, a link) shows here; the field keeps its element and the focus
+    const [last, setLast] = useState(target);
+    if (target !== last) {
+        setLast(target);
+        setText(numberText(target, locale));
+    }
+    const value = parseNumber(text, locale);
+    const bad = text.trim() !== "" && value === null;
+    return (
+        <form
+            className="pk-inline-form"
+            onSubmit={(e) => {
+                e.preventDefault();
+                if (!bad) {
+                    onTarget(value);
+                }
+            }}
+        >
+            <ClearInput
+                type="text"
+                inputMode="decimal"
+                value={text}
+                onChange={setText}
+                onClear={() => (target !== null ? onTarget(null) : undefined)}
+                clearLabel={labels.clearText}
+                placeholder={labels.targetNone}
+                aria-label={labels.core.referenceLines.target}
+                aria-invalid={bad || undefined}
+                data-testid="chart-target"
+            />
+            <button type="submit" className="pk-btn pk-primary" disabled={bad || value === target}>
+                {labels.apply}
+            </button>
+        </form>
+    );
+}
+
+/**
+ * The chart's reference lines: an average and a trend, switched on or off, and a target. Only what
+ * the chart can draw shows (pivotkit-core's referenceLineRules); a note says why the rest does not.
+ * A setting that does not show stays in the view and draws again when the chart can.
+ */
+function ReferenceLines({ view, plan, encoded, labels, locale, onDisplay }) {
+    const lines = view.chart.referenceLines;
+    // the rules of what is drawn: rows and columns swapped where the chart swaps them
+    const rules = encoded && plan?.chart ? referenceLineRules(plan.swap ? swapAxes(view) : view, plan.chart, encoded) : { average: true, trend: true, target: true };
+    const set = (patch) => onDisplay({ referenceLines: { ...lines, ...patch } });
+    const words = labels.core.referenceLines;
+    const note = !rules.average ? labels.linesNoStack : !rules.trend ? labels.linesNoTrend : null;
+    return (
+        <Sub title={labels.referenceLines}>
+            {rules.average ? (
+                <Switch checked={lines.average} onChange={(on) => set({ average: on })} testId="line-average">
+                    {words.average}
+                </Switch>
+            ) : null}
+            {rules.trend ? (
+                <Switch checked={lines.trend} onChange={(on) => set({ trend: on })} testId="line-trend">
+                    {words.trend}
+                </Switch>
+            ) : null}
+            {rules.target ? (
+                <>
+                    <div className="pk-hint">{words.target}</div>
+                    <TargetField target={lines.target} labels={labels} locale={locale} onTarget={(target) => set({ target })} />
+                </>
+            ) : null}
+            {note ? (
+                <p className="pk-hint" data-testid="lines-note">
+                    {note}
+                </p>
+            ) : null}
+        </Sub>
+    );
+}
+
 /**
  * One group of the chart's Display (Value labels, Legend, ...): its title, with an "i" where it needs
  * explaining, and its choices; a dashed rule between the groups (styles.css: .pk-subsection).
@@ -107,10 +187,10 @@ function Sub({ title, info, children }) {
 
 /**
  * How the chart is drawn: value labels, legend, title, axis and group labels, the tooltip (bars, lines
- * and areas), smooth lines (line and area). Each choice applies at once and the panel stays open, so
+ * and areas), smooth lines (line and area), reference lines (bars, lines and areas). Each choice applies at once and the panel stays open, so
  * the chart behind it shows the change.
  */
-function ChartDisplay({ view, plan, labels, onDisplay }) {
+function ChartDisplay({ view, plan, encoded, labels, locale, onDisplay }) {
     const chart = view.chart;
     // the type drawn: an automatic chart's is the one the data chose
     const drawn = plan ? plan.name : chartTypeOf(chart);
@@ -194,12 +274,13 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
                     </Switch>
                 </Sub>
             ) : null}
+            {axis ? <ReferenceLines view={view} plan={plan} encoded={encoded} labels={labels} locale={locale} onDisplay={onDisplay} /> : null}
         </Section>
     );
 }
 
 /** The chart type menu: the types (a pick closes it) and how the chart is drawn. */
-export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close }) {
+export function ChartTypePanel({ view, plan, encoded, labels, locale, onChart, onDisplay, close }) {
     return (
         <>
             <Section title={labels.chartType}>
@@ -207,7 +288,7 @@ export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close }
                     <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
                 </div>
             </Section>
-            <ChartDisplay view={view} plan={plan} labels={labels} onDisplay={onDisplay} />
+            <ChartDisplay view={view} plan={plan} encoded={encoded} labels={labels} locale={locale} onDisplay={onDisplay} />
         </>
     );
 }
@@ -235,7 +316,7 @@ function Shortcuts({ labels, mod }) {
 }
 
 /**
- * A switch: a checkbox drawn as a track, on one line (the chart's smooth lines).
+ * A switch: a checkbox drawn as a track, on one line (the chart's smooth lines and reference lines).
  * @param {{ checked: boolean, onChange: (on: boolean) => void, testId?: string, children: React.ReactNode }} props
  */
 function Switch({ checked, onChange, testId, children }) {
