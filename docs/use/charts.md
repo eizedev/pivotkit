@@ -167,9 +167,11 @@ target you set.
 | Trend | dotted, in the series' colour | a straight line fitted through the series' values, from its first to its last point |
 | Target | solid, in a neutral colour | the number you typed, once for the whole chart |
 
-- Each line has a label right of the plot with its name and its value, written short as on the
-  axis, such as "Target 500K". Labels of lines close together move apart. On a chart narrower than
-  480 px, such as on a phone, the labels name the lines only.
+- Each line has a label right of the plot, at the line's height. It starts with a short sample of
+  the line's dash in the line's colour, then the name and the value, written short as on the axis,
+  such as "Target 500K". A label of a line close to another moves just below it.
+- On a chart narrower than 480 px, such as on a phone, the labels name the lines only. A label
+  that cannot sit near its line is left out there; the tooltip still names the line.
 - The value axis reaches every line. A target higher than every bar still shows.
 - The tooltip lists the lines at the category with their whole values: a trend with its value there.
 - The chart image, the HTML report and the chart as SVG draw the lines too.
@@ -193,7 +195,9 @@ target you set.
       formats, no single target fits, so the chart draws none.
 
     A setting that does not apply stays in the view. When you switch back to a chart that can draw
-    the line, it is there again.
+    the line, it is there again. A target that no longer applies can still be removed in the menu.
+    While the table is shown, the menu offers what the view allows and asks you to show the chart,
+    which knows its numbers.
 
 ??? info "What the numbers are"
     - pivotkit works out the lines from the categories the chart draws. A chart draws at most 50.
@@ -205,8 +209,10 @@ target you set.
       A gap of 8 months counts as 8 months, so the line bends where the axis leaves the gap out.
       When a category has no date, such as "(blank)", the trend counts the categories as evenly
       spaced, and the menu says so.
-    - The target is a number in the value's own unit. For a value shown as a percentage, type
-      "25%" or the share, 0.25. The menu shows a hint under the field for such a value.
+    - The target is a number in the value's own unit. For a value shown as a share in percent,
+      type "25%" or the share, 0.25. A plain 25 there means 2,500 %, and the menu warns about it.
+      For a value that counts in percent itself, type 25 or "25%". "%" works only for values shown
+      in percent.
     - The tooltip and the text for screen readers write the numbers in the value's format. An
       average of whole numbers keeps its decimals.
 

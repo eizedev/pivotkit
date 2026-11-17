@@ -84,8 +84,11 @@ A pie, a donut and a heatmap always show the slice or cell under the pointer.
   `pivotkit-core/chart`) and draws them as ECharts `markLine`s on the series.
 - The lines are silent: a click opens no rows. The tooltip names them.
 - The value axis reaches every line (`dataMin` and `dataMax`).
-- A label writes the value as the value axis does. `decorateOption` puts the labels right of the
-  plot and keeps them a line apart. Below 480 px it writes the names only.
+- A label writes a sample of its line's dash in the line's colour, then the value as the value
+  axis does. `decorateOption` puts the labels right of the plot and keeps them a line apart. With
+  `pixelOf`, the real height of a value after a first draw, they sit at their lines. Below 480 px
+  it writes the names only and leaves out a label far from its line.
+- A trend over the categories' order, when a category has no date, is one straight segment.
 
 Two functions decide which chart draws which line. The chart, the menu and the report's SVG use
 them:
