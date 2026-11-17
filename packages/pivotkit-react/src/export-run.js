@@ -193,7 +193,9 @@ function xlsxTheme(root) {
  * whose screen is dark (paper, a print and the SVG are light).
  * @param {HTMLElement | null} root
  * @param {{ REPORT_TOKENS: readonly string[], REPORT_DARK_TOKENS: readonly string[], REPORT_LENGTHS: readonly string[] }} report
- * @param {{ LENGTH_TOKENS: readonly string[], tokenLengths: (root: HTMLElement, names: readonly string[]) => Record<string, string> }} chart
+ * @param {{ LENGTH_TOKENS: readonly string[], tokenLengths: (root: HTMLElement, names: readonly string[]) => Record<string, string>,
+ *   screenColor: (doc: Document, parse: (color: string) => unknown) => (color: string) => string | null, color: { parse: (color: string) => unknown } }} chart
+ *   the chart's module (echarts.js); the heatmap's colours go as the screen draws them (screenColor)
  * @param {boolean} dark  whether the file is shown on a screen (the HTML report)
  * @returns {{ tokens?: Record<string, string>, darkTokens?: Record<string, string> }}
  */
@@ -201,8 +203,11 @@ function reportTokens(root, report, chart, dark) {
     if (!root) {
         return {};
     }
-    const tokens = themeTokens(root, "light", report.REPORT_TOKENS, () => chart.tokenLengths(root, [...chart.LENGTH_TOKENS, ...report.REPORT_LENGTHS]));
-    const darkTokens = dark ? themeTokens(root, "dark", report.REPORT_DARK_TOKENS) : {};
+    // a heatmap colour ECharts cannot mix (oklch()) as the screen draws it, so the file shows it too
+    const heat = chart.screenColor(root.ownerDocument, chart.color.parse);
+    const mixable = (/** @type {Record<string, string>} */ found) => Object.fromEntries(Object.entries(found).map(([name, value]) => [name, HEAT_TOKENS.includes(name) ? (heat(value) ?? value) : value]));
+    const tokens = mixable(themeTokens(root, "light", report.REPORT_TOKENS, () => chart.tokenLengths(root, [...chart.LENGTH_TOKENS, ...report.REPORT_LENGTHS])));
+    const darkTokens = dark ? mixable(themeTokens(root, "dark", report.REPORT_DARK_TOKENS)) : {};
     return { ...(Object.keys(tokens).length ? { tokens } : {}), ...(Object.keys(darkTokens).length ? { darkTokens } : {}) };
 }
 
@@ -218,6 +223,9 @@ function reportTokens(root, report, chart, dark) {
  *   `loadECharts`: chart.jsx's loader of dist/echarts.js (passed in: a module of the menus that
  *   imported chart.jsx would move it out of the first load into a shared chunk)
  */
+
+/** The tokens of a heatmap's colours, which ECharts mixes itself. */
+const HEAT_TOKENS = Object.freeze(["--pk-heat-low", "--pk-heat-high"]);
 
 /**
  * One export of the Export menu.

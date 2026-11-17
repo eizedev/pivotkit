@@ -193,6 +193,21 @@ test.describe("a heatmap's colours in a form ECharts cannot mix (#386)", () => {
                 expect(least[2] - least[0], String(least)).toBeGreaterThan(15);
                 expect(Math.min(most[0], most[1]) - most[2], String(most)).toBeGreaterThan(80);
             }
+            // the SVG of the Export menu (light, as paper) draws the cells in the host's light colours too
+            const shownLight = await chart.evaluate(async (el) => {
+                const { getInstanceByDom } = await import("echarts/core");
+                return getInstanceByDom(el).getOption().visualMap[0].inRange.color;
+            });
+            await page.locator("#heat-chart").getByTestId("export").click();
+            const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-svg").click()]);
+            const svg = await readFile(await download.path(), "utf8");
+            const fills = [...svg.matchAll(/<path d="M[^"]*" fill="([^"]+)"/g)].map((m) => m[1].toLowerCase());
+            expect(fills.some((f) => /^(#000|#000000|rgb\(0,\s*0,\s*0\)|black)$/.test(f)), fills.join(" ")).toBe(false);
+            if (theme === "light") {
+                // the least and the largest cell: the scale's two ends, as the screen draws them
+                const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")})`;
+                expect(fills).toEqual(expect.arrayContaining(shownLight.map(rgb)));
+            }
         });
     }
 });

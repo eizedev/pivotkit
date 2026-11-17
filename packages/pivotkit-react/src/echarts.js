@@ -16,9 +16,9 @@ import { CanvasRenderer } from "echarts/renderers";
 
 register([BarChart, LineChart, PieChart, HeatmapChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent, VisualMapComponent, CanvasRenderer]);
 
-export { init };
-/** ECharts' own colour parser: what it gives nothing for, it cannot mix (a heatmap's colours, chart-decorate.js). */
-export const parseColor = color.parse;
+// color: ECharts' own colour parser (color.parse). What it gives nothing for, ECharts cannot mix: a
+// heatmap's colours on the screen (chart-decorate.js) and in pivotkit-report's SVG, which gets this module
+export { color, init };
 export { toEChartsOption } from "pivotkit-core/chart";
 export { cleanChartOptions, mergeChartOptions } from "./chart-options.js";
 export { LENGTH_TOKENS, chartStyle, decorate, screenColor, tokenLengths } from "./chart-decorate.js";

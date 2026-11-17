@@ -126,6 +126,12 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 instance.on("globalout", () => {
                     hover.current = null;
                 });
+                // a tap beside every element: the next tap on an element shows its tooltip first again
+                instance.getZr().on("click", (/** @type {any} */ e) => {
+                    if (!e.target) {
+                        tapped.current = null;
+                    }
+                });
                 ro =
                     typeof ResizeObserver === "function"
                         ? new ResizeObserver(() => {
@@ -164,7 +170,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         // each series' value: a stack's total only where the values add up (chart-tooltip.js valueAddsUp)
         const values = (series?.series ?? []).map((x) => result.view.values[x.valueIndex]);
         const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values };
-        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.parseColor });
+        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.color.parse });
         setEvery(axisEvery);
         // the host's chartOptions win over the view's display settings and the report's own styles:
         // plain JSON only; what is dropped is a developer's mistake, said in the console

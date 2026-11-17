@@ -391,6 +391,13 @@ for (const type of ["bar", "heatmap"]) test(`on a phone, the first tap on a ${ty
     // the first tap only shows the tooltip: no panel, also a moment later
     await page.waitForTimeout(400);
     await expect(panel).toHaveCount(0);
+    // a tap beside every element (the chart's top left corner), then on the same element: its tooltip again, no panel
+    const box = await chartEl.boundingBox();
+    await page.touchscreen.tap(box.x + 6, box.y + 6);
+    await page.touchscreen.tap(at.x, at.y);
+    await expect.poll(() => tooltipOf(chartEl)).toEqual(tip);
+    await page.waitForTimeout(400);
+    await expect(panel).toHaveCount(0);
     // another element first: its tooltip; then a second tap on it opens its rows
     const other = type === "bar" ? await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }) : await pointOf(chartEl, cellMiddle, { x: HARDWARE, y: NORTH });
     await page.touchscreen.tap(other.x, other.y);
