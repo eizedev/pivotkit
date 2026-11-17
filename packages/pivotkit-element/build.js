@@ -283,10 +283,11 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * and pluralForm shared with pivotkit-core (#547): report 23.0 with Homebrew's zlib (22.8 before);
  * with #478's writer 23.3, at that budget: report goes to 23.5.
  * The zoom slider, the legend toggle and 100 % stacks (#36): ECharts' slider component (dataZoom)
- * takes the chart group to 230.3 with Homebrew's zlib (221.5 before): chart goes to 231.5. The
- * Display settings' zoom, 100 % switch and series list take menus to 48.0 (47.6 before) and the German
- * menu texts to 7.1 (7.0): menus goes to 48.5, texts to 7.5. The first load grows 0.5 (the view keys
- * and the legend's announcement), within its budget.
+ * takes the chart group to 231.1 with Homebrew's zlib (221.5 before): chart goes to 231.5. The
+ * Display settings' zoom, 100 % switch with its explanation and series list take menus to 48.4 (47.6
+ * before) and the German menu texts to 7.2 (7.0): menus goes to 48.5, texts to 7.5. The first load
+ * grows 0.7 to 174.45 (the view keys, a view file's newer keys, the legend's announcement); the zoom
+ * and legend logic stays in the chart group (chart-legend.js).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
 export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 231.5, export: 12.6, link: 7.5, menus: 48.5, texts: 7.5, unused: 5.5, import: 22, report: 23.5, template: 3 };
