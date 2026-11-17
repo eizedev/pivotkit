@@ -72,6 +72,9 @@ All four give the same result. Details:
     The chip says so: "Created by month". See
     [dates and number ranges](values.md#dates-and-number-ranges).
 
+![+ Add of Rows open: a search, every field with its type, Category marked Columns, Region and Country unavailable as they are in Rows](../assets/screenshots/add-menu-light.png#only-light)
+![+ Add of Rows open: a search, every field with its type, Category marked Columns, Region and Country unavailable as they are in Rows](../assets/screenshots/add-menu-dark.png#only-dark)
+
 ## What a field means
 
 When the application describes its fields, an **i** stands next to such a field in the list and on
