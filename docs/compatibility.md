@@ -23,7 +23,7 @@ tests use a test issuer of their own, not a real identity provider.
 
 ## Node.js { #node }
 
-Every package runs in **Node 22 or later**.
+The engine, the reports, the CLI, the REST service and the MCP server run in **Node 22 or later**.
 
 | Where | Status | What runs |
 | --- | --- | --- |
@@ -67,7 +67,7 @@ A host is the application the report runs in.
 | A React application | Tested in CI | The playground and host pages in Chromium, Firefox and WebKit |
 | A plain HTML page | Tested in CI | The web component on test pages, a strict Content-Security-Policy among them |
 | Angular | Tested in CI | CI builds the zoneless Angular 22 example in `examples/angular/` and runs its browser test |
-| PowerShell Universal apps | Tested by hand | The report in a PowerShell Universal app. [#118](https://github.com/eizedev/pivotkit/pull/118) fixed the findings. CI tests host pages that render as PowerShell Universal does. |
+| PowerShell Universal apps | Tested by hand | The report in a PowerShell Universal app, on an earlier release. [#118](https://github.com/eizedev/pivotkit/pull/118) fixed the findings. CI tests host pages that render as PowerShell Universal does. |
 | PowerShell Universal scripts with the REST service or the MCP server | Documented, not tested | [PowerShell Universal](getting-started/mcp.md#psu) |
 | A Node program, engine only | Tested in CI | pivotkit-core's tests |
 | Your own Node server with pivotkit-server inside | Tested in CI | `createContext` and `createRestHandler` with requests as a framework passes them |
@@ -121,7 +121,7 @@ What a provider must do:
 | Provider | Status | How |
 | --- | --- | --- |
 | None: a static token | Tested in CI | `--auth token` and `$PIVOTKIT_TOKEN`, or named tokens in `auth.tokens` |
-| Any OAuth or OpenID Connect provider | Tested in CI | Against a test issuer of the test suite |
+| The server's checks of OAuth tokens | Tested in CI | Tokens of a test issuer: metadata, keys, challenges and refused tokens. No real provider |
 | Authentik | Tested by hand | MCP over HTTP with a real sign-in, REST with client credentials, per-person backend tokens: [#448](https://github.com/eizedev/pivotkit/issues/448) |
 | Keycloak | Documented, not tested | [Keycloak](reference/mcp.md#oauth) |
 | Microsoft Entra ID | Documented, not tested | [Microsoft Entra ID](reference/mcp.md#oauth). Per-person backend tokens are not supported, see [below](#backend-sign-in) |
@@ -179,8 +179,8 @@ The full list of settings is in [OAuth](reference/mcp.md#oauth) and [REST sign-i
 
 | Client | Status | How |
 | --- | --- | --- |
-| Any MCP client, over stdio or Streamable HTTP | Tested in CI | The client of the MCP SDK, with the 2025 handshake and with protocol version 2026-07-28 |
-| An MCP client that signs in with OAuth | Tested in CI, and by hand | CI: a test issuer. By hand: Authentik ([#448](https://github.com/eizedev/pivotkit/issues/448)) |
+| The MCP SDK's own client, over stdio or Streamable HTTP | Tested in CI | With the 2025 handshake and with protocol version 2026-07-28 |
+| An MCP client that signs in with OAuth | Tested by hand | Through Authentik: [#448](https://github.com/eizedev/pivotkit/issues/448). CI tests only the server's side, with tokens of a test issuer |
 | A program with a bearer token over HTTP | Tested in CI | The MCP and REST tests |
 | Claude Code | Documented, not tested | [Add it to your client](getting-started/mcp.md#2-add-it-to-your-client) |
 | Claude Desktop | Documented, not tested | [Add it to your client](getting-started/mcp.md#2-add-it-to-your-client) |
@@ -301,10 +301,10 @@ A report can go to a store you run. You give pivotkit an upload address or a pre
 
 | Store | Status | How |
 | --- | --- | --- |
-| A presign service of your own | Tested in CI, and by hand | CI: a stand-in store over `https://`. By hand: a throwaway store ([#448](https://github.com/eizedev/pivotkit/issues/448)) |
+| A presign service of your own | Tested in CI, and by hand | CI: a stand-in store over `https://`. By hand: a throwaway store with a presign service ([#448](https://github.com/eizedev/pivotkit/issues/448)) |
 | A plain PUT or POST address | Tested in CI | `output.upload.url` against a stand-in store |
-| Amazon S3 | Documented, not tested | Through a presign service that you run |
-| Azure Blob Storage | Documented, not tested | Through a presign service that you run |
+| Amazon S3 | Not tested | [Upload to your store](reference/delivery.md#upload) names it. The docs give no settings for it by name |
+| Azure Blob Storage | Not tested | [Upload to your store](reference/delivery.md#upload) names it. The docs give no settings for it by name |
 
 The settings each kind needs:
 
@@ -376,7 +376,7 @@ Both drivers give every line the same level. Let the log server parse the JSON a
 | The container image on linux/arm64 | Tested in CI, at release only | The release of an image starts it once on each platform |
 | Docker Compose | Tested in CI | The Compose example in `docker/` |
 | Kubernetes | Documented, not tested | [Kubernetes](getting-started/kubernetes.md) |
-| Behind a reverse proxy | Tested by hand | Behind an HTTP/2 proxy: [#456](https://github.com/eizedev/pivotkit/issues/456). Settings: [Behind a proxy](reference/delivery.md#proxy) |
+| Behind a reverse proxy | Tested by hand | A live review ran behind an HTTP/2 proxy: [#456](https://github.com/eizedev/pivotkit/issues/456). Settings: [Behind a proxy](reference/delivery.md#proxy) |
 | A Windows service with IIS in front | Documented, not tested | [PowerShell Universal](getting-started/mcp.md#psu-service) |
 
 ## Something missing? { #missing }

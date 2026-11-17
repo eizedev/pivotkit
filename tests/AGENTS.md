@@ -85,3 +85,5 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `tests/deprecations.test.js` checks that every `PK-DEP-NNNN` in `packages/*/src` is in the register.
 - `tests/llms-sections.test.js` checks that every docs page is in one `llmstxt` section.
 - `tests/docs-lists.test.js` checks that every list in the docs starts after a blank line.
+- `tests/compatibility.test.js` checks the lowest versions in `docs/compatibility.md` against `package.json`,
+  `docs/browser-support.md` and the CI matrix.
