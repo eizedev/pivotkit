@@ -336,7 +336,7 @@ runs the readers in its own worker needs `worker-src 'self'`, or the worker's or
 | `validatePlugin(plugin)` | Checks a plugin against the [contract](write-a-plugin.md#the-contract); throws `INVALID_ARGUMENT` that says what is wrong. |
 | `csvReader`, `jsonReader`, `BUILT_IN_READERS` | The built-in reader plugins. |
 | `PLUGIN_API_VERSION` | `1`. |
-| `createTable`, `bytesOf`, `readOptions`, `fileName`, `fileError`, `limitError`, `checkFileLimit`, `dateToIso`, `noteMessage` | The shared part of every reader, for [plugins](write-a-plugin.md#the-helpers). |
+| `createTable`, `bytesOf`, `readOptions`, `fileName`, `fileError`, `limitError`, `checkFileLimit`, `dateToIso`, `noteMessage`, `cleanText` | The shared part of every reader, for [plugins](write-a-plugin.md#the-helpers). |
 | `IMPORT_NOTE_CODES`, `IMPORT_TYPES` | The note codes and column types. |
 
 Types: `ImportTable`, `PluginTable` (what a plugin's `read` returns), `ImportNote`, `ImportType`,

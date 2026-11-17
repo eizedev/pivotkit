@@ -1209,10 +1209,14 @@ workers. `createRestHandler(context)` from `pivotkit-server/rest` returns a fetc
 import { createContext, serveFetch } from "pivotkit-server";
 import { createRestHandler } from "pivotkit-server/rest";
 
+// your data, and a value that changes when the data does
+let rows = [{ Region: "North", Revenue: 120 }, { Region: "South", Revenue: 80 }];
+let rowsVersion = 1;
+
 const context = await createContext({
     sources: { sales: { load: async () => rows, version: () => rowsVersion, cacheShared: true, policy: { fields: { Region: "show" } } } },
     output: { dir: "/srv/reports" },
-    auth: { mode: "token" }
+    auth: { mode: "token" } // the token is $PIVOTKIT_TOKEN, or list several in auth.tokens
 });
 const rest = await createRestHandler(context, { env: process.env, loopback: true });
 
@@ -1220,6 +1224,14 @@ const rest = await createRestHandler(context, { env: process.env, loopback: true
 const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes: 2_097_152 });
 // or in a framework: return rest.fetch(request, { address });
 ```
+
+Run it with a token of at least 32 characters in `PIVOTKIT_TOKEN`:
+
+```bash
+PIVOTKIT_TOKEN="$(npx -y pivotkit-server token new)" node server.js
+```
+
+Without a token, `createRestHandler` throws a `ConfigError` that says how to make one.
 
 - `bodyBytes` is a number, or `(request, info) => number`. A function is called once per request,
   after the precheck. There `peekSignIn(info)` gives the sign-in the precheck kept (`{ caller }`, or

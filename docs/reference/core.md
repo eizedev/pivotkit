@@ -239,7 +239,9 @@ uses. pivotkit-react shares it as JSON, as a file and, in its link profile, as a
 ### `computePivot(data, view, options?)`
 
 Builds the row and column key trees with subtotals and totals. It normalizes the view first, so raw
-user input is fine. Options:
+user input is fine. It never throws for a bad view. It leaves out a filter it cannot use, and the
+result then keeps every row. Check `issues` for `severity: "error"` before you trust the numbers
+([engine](../getting-started/engine.md#check-issues)). Options:
 
 - `locale`.
 - `limits`. It computes `work` before the aggregation starts. It counts `groups` and `pivotCells`
@@ -429,6 +431,16 @@ The entry exports the layout functions and their constants too: `categoryLabelLa
 `ringLabelsFit` and `rowLabelInterval`. Those that measure text take its size in px as `fontSize`,
 `DEFAULT_THEME.textSize` by default. They estimate a text's width per character: a whole em for CJK
 and fullwidth characters, 0.7 em for a capital, 0.55 em for the others.
+
+The constants, in px:
+
+| Name | Value | What |
+| --- | --- | --- |
+| `RIGHT_LEGEND_MIN_WIDTH` | 480 | The narrowest chart that keeps a legend on its right. A narrower one gets the legend at the bottom. |
+| `BOTTOM_LEGEND_ROOM` | 32 | The room a legend at the bottom of a chart takes. |
+| `CATEGORY_LABEL_WIDTH` | 120 | The widest category label of bars, lines and areas. A longer one ends in "…". |
+| `SLANTED_LABEL_WIDTH` | 120 | The widest slanted column name of a heatmap. A longer one ends in "…". |
+| `GROUP_LABEL_ROOM` | `{ along: 56, across: 28, width: 420, height: 260 }` | What "auto" group labels need (`groupLabelsFit`). `along`: the room per group under a horizontal axis. `across`: the room per group beside a vertical axis. `width` and `height`: the smallest chart. |
 
 `heatmapCellLabels` and `rowLabelInterval` take an optional last argument `frame`, `{ x, y }`: the
 px of the chart that are not cells, beside them (`x`) and above and below them (`y`). By default it

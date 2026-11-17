@@ -532,6 +532,11 @@ So `document.createElement("pivot-report")` is a `PivotReportElement`.
 the document.
 
 The view type is a structural `PivotView`. The full one is pivotkit-core's `View`.
+pivotkit-react's `ViewInput` has the same role: a view as a host passes it. The two differ in how
+much they check:
+
+- `PivotView` types `rows`, `cols` and `values`, and lets any other key through.
+- `ViewInput` types every key of a view, each part optional.
 `pivotkit-element/jsx`, types only, adds the element to React's JSX ([above](#react-on-the-page)).
 
 ## Bundle size
