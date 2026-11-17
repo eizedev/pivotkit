@@ -402,7 +402,7 @@ A token that is missing or not readable keeps `DEFAULT_THEME`'s value. `CHART_CO
 
 This entry point exports `toEChartsOption` too, so a bundle loads the option with the chart.
 
-`decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter })` puts
+`decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter, readColor })` puts
 a report's marks on `toEChartsOption`'s option:
 
 - The theme's colours from the `--pk-*` tokens of `style`.
@@ -418,8 +418,14 @@ a report's marks on `toEChartsOption`'s option:
 - Room on the right for the values at the end of horizontal bars, and fewer value ticks where a
   narrow axis needs them.
 - A heatmap's row names and cell numbers where its cells have room.
+- With `readColor`, a heatmap's colours as ECharts can mix them. ECharts' own parser reads hex,
+  `rgb()`, `hsl()` and some names only. Another form, such as `oklch()`, turns the cells black.
+  `readColor(color)` returns a colour ECharts reads, or `null`. An end with `null` takes
+  `DEFAULT_THEME.colorScale`'s colour.
 
-pivotkit-react adds its DOM tooltip through `tooltipFormatter`. It follows the view's `chart.tooltip`
+pivotkit-react adds its DOM tooltip through `tooltipFormatter`. Its `readColor` turns any colour the
+browser reads into `#rrggbb`. pivotkit-report's keeps the colours ECharts reads. Any other one
+takes the default. It follows the view's `chart.tooltip`
 ([Charts](../concepts/charts.md#display-settings-for-the-people-who-use-the-report)). [pivotkit-report](report.md) draws the
 SVG with `decorateOption`. The layout measures the labels at the option's text size
 (`textStyle.fontSize`, the theme's `textSize`).
@@ -542,6 +548,8 @@ files contain and where Excel's number formats cannot follow the grid.
 | `closest(name, candidates)` | "Did you mean": the name of `candidates` closest to `name` as `foldText` folds both, else `null`. The edit distance is at most a third of the name's length, at least 1 and at most 3. A swap of two neighbours is one edit. `HINT_LIMITS` (`{ candidates: 1000, length: 64, distance: 3 }`) bounds it, so a hint costs a few thousand steps per name at most. The view's hints, pivotkit-report's template check and pivotkit-cli's options use it. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `REPORT_LABELS`, `reportLabels(locale)` | The same texts as a report shows them, per language. `en` has yes/no as words and the aggregators' longer names ("Distinct count"). `de` has "Gesamtergebnis" and "Summe von Units". `reportLabels` gives a locale's texts: German for `"de-DE"`, English for any other. pivotkit-react's report and pivotkit-report use them. |
+| `ROW_COUNT_TEXTS` | The row count in words, English and German, with one form per plural category: `rowsCount` ("8 rows") and `rowsFiltered` ("6 of 8 rows") for when filters leave rows out. pivotkit-react's line under the result and pivotkit-report's HTML report both use them. |
+| `pluralForm(forms, count, lang)`, `PLURAL_CATEGORIES` | The form of a count's words for `count` in the language `lang`, after `Intl.PluralRules`: `forms[category]`, else `forms.other`. `PLURAL_CATEGORIES` lists the categories a count's forms may have. pivotkit-react's labels and pivotkit-report's texts use them. |
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names. The view keeps the field names. |
 | `DEFAULT_THEME` | The defaults for charts and conditional formats. Colours for colour scales and data bars are those of pivotkit-react's light theme: `colorScale` `["#eaf1fb", "#2a78d6"]`, light for low and strong for high, and `dataBar` `"#2a78d6"`. A chart's title has the font weight `strongWeight`, 600, and the size `titleSize`, 16 px. Its other text has `textSize`, 14 px. The corners of its marks are `markRadius`, 4 px, and of its tooltip `cardRadius`, 8 px. It also holds the radius of a pie and of a donut. |
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |

@@ -61,6 +61,20 @@ test("pie uses the row totals and drops empty slices", () => {
     assert.deepEqual(pie.series[0].data, [{ name: "North", value: 10 }, { name: "South", value: 8 }, { name: "West", value: 4 }, { name: "(blank)", value: 6 }]);
 });
 
+test("a pie, a donut and a heatmap with a field on Columns name their series by the value, not by the first column (#537)", () => {
+    // the slices are the row totals over every column, the cells name their row and column themselves
+    for (const type of ["pie", "donut", "heatmap"]) {
+        assert.equal(toEChartsOption(r, { chart: { type } }).series[0].name, "Sum of Units", type);
+    }
+    // the value's own label, and the caller's words for the aggregator
+    const labelled = computePivot(data, { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum", label: "Units sold" }] });
+    assert.equal(toEChartsOption(labelled, { chart: { type: "pie" } }).series[0].name, "Units sold");
+    assert.equal(toEChartsOption(r, { chart: { type: "heatmap" }, labels: { aggregators: { sum: "Summe" }, valueName: "{agg} von {field}" } }).series[0].name, "Summe von Units");
+    // a second value: the pie and the heatmap draw the first one and name it
+    const two = computePivot(data, { rows: ["Region"], cols: ["Product"], values: [{ agg: "count" }, { field: "Units", agg: "sum" }] });
+    assert.equal(toEChartsOption(two, { chart: { type: "pie" } }).series[0].name, "Count");
+});
+
 test("heatmap: column keys across, row keys down, a visual map over the values", () => {
     const heat = toEChartsOption(r, { chart: { type: "heatmap" }, theme: { heatmapColors: ["#ffffff", "#003366"] } });
     assert.deepEqual(heat.xAxis.data, ["A", "B"]);

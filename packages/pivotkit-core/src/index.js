@@ -77,7 +77,7 @@ export { formatter, isFormat } from "./format.js";
 export { aggregatorsFor, AGGREGATOR_ALIASES } from "./aggregators.js";
 export { CATALOG } from "./catalog.js";
 export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";
-export { DEFAULT_LABELS, GROUPING_NAMES, REPORT_LABELS, fieldLabel, groupingName, reportLabels } from "./labels.js";
+export { DEFAULT_LABELS, GROUPING_NAMES, PLURAL_CATEGORIES, REPORT_LABELS, ROW_COUNT_TEXTS, fieldLabel, groupingName, pluralForm, reportLabels } from "./labels.js";
 export { fieldDefaultsFromSchema } from "./schema.js";
 export { DEFAULT_THEME } from "./defaults.js";
 export { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, outsideLimits } from "./limits.js";

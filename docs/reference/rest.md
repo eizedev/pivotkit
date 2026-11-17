@@ -558,6 +558,232 @@ missing one (404 `SOURCE_NOT_FOUND`).
 | `rest.audience` | `[rest.resource]` | The `aud` values a REST token may carry |
 | `rest.requiredScopes` | `auth.requiredScopes` | Scopes every REST call needs |
 
+## Sign in from the command line { #sign-in-cli }
+
+With `auth.mode: oauth`, a person gets a REST token from the sign-in provider with a code in the
+browser. This is the OAuth 2.0 device authorization grant
+([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)). The token goes from the provider to the
+person. The server takes no part in the sign-in. It only publishes its metadata.
+
+=== "pivotkit"
+
+    ```bash
+    pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli
+    pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources
+    ```
+
+    curl reads the header from stdin (`-H @-`), so the token is in no argument. Other users of the
+    machine can read arguments in the process list.
+
+=== "PowerShell"
+
+    ```powershell
+    pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli
+    Invoke-RestMethod https://reports.example.com/api/v1/sources -Headers @{ Authorization = "Bearer $(pivotkit token)" }
+    ```
+
+`pivotkit login` prints an address and a code. Open the address, enter the code and sign in.
+`pivotkit token` then prints a fresh access token whenever you need one.
+[pivotkit-cli](cli.md#sign-in) describes both commands and where they keep the refresh token.
+
+### What the operator sets up { #sign-in-cli-operator }
+
+1. Create a client at the provider for the command line:
+    - It is a public client. `pivotkit login` sends no client secret.
+    - It may use the device authorization grant.
+    - It may get refresh tokens. Authentik and Entra ID give one only with the scope `offline_access`.
+2. Make its access tokens fit the REST service, as for any other client ([Sign-in](#auth)):
+    - their `aud` is in `rest.audience`
+    - they carry `rest.requiredScopes`
+3. Tell the users the client ID. They pass it with `--client-id` or `PIVOTKIT_CLIENT_ID`.
+
+The command line asks for the scopes in the server's metadata. It adds `offline_access` when the
+provider lists it or lists no scopes. `--scope` replaces both.
+
+=== "Authentik"
+
+    - Its discovery names the device endpoint
+      ([source](https://github.com/goauthentik/authentik/blob/version/2026.8.5/authentik/providers/oauth2/views/provider.py)).
+    - Set a **Device code flow** on the brand. Without it, Authentik offers no device code
+      ([device code flow](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/device_code/),
+      [brands](https://docs.goauthentik.io/customize/branding/)).
+    - The device endpoint is `/application/o/device/`, the same for every application.
+      The issuer stays the application's: `https://auth.example.com/application/o/<slug>/`
+      ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
+    - Add the `offline_access` scope mapping to the provider. Without it, there is no refresh
+      token ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
+    - Authentik puts the client ID into `aud`. Add the command line's client ID to `rest.audience`
+      ([Sign-in with Authentik](../getting-started/kubernetes.md#oauth)).
+
+=== "Keycloak"
+
+    - Under **Capability config**, turn on the device authorization grant
+      ([client settings](https://github.com/keycloak/keycloak/blob/main/docs/documentation/server_admin/topics/clients/oidc/con-basic-settings.adoc)).
+      Turn off client authentication, which makes it a public client.
+    - The device endpoint is `/realms/<realm>/protocol/openid-connect/auth/device`. The realm's
+      discovery names it only while the device flow feature of the server is on
+      ([source](https://github.com/keycloak/keycloak/blob/main/services/src/main/java/org/keycloak/protocol/oidc/OIDCWellKnownProvider.java)).
+    - Keycloak returns refresh tokens by default
+      ([server administration guide](https://www.keycloak.org/docs/latest/server_admin/index.html)).
+      When the realm lists `offline_access`, `pivotkit login` asks for it too. Give `--scope`
+      without it if users should not get that scope.
+    - An **Audience** mapper puts the REST resource into `aud`
+      ([audience support](https://github.com/keycloak/keycloak/blob/main/docs/documentation/server_admin/topics/clients/oidc/con-audience.adoc)).
+
+=== "Microsoft Entra ID"
+
+    - The device code endpoint is `https://login.microsoftonline.com/<tenant>/oauth2/v2.0/devicecode`
+      ([device code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code)).
+      The server's issuer names the tenant, as for the [MCP endpoint](mcp.md#oauth).
+    - Set **Allow public client flows** to **Yes** under the app registration's advanced settings
+      ([desktop app registration](https://learn.microsoft.com/en-us/entra/identity-platform/scenario-desktop-app-registration)).
+    - Ask for the API's `.default` scope and `offline_access`:
+      `--scope "api://<application id>/.default offline_access"`
+      ([scopes](https://learn.microsoft.com/en-us/entra/identity-platform/scopes-oidc)).
+      Entra gives a refresh token only with `offline_access`.
+    - Set `requestedAccessTokenVersion` to `2` in the API's manifest. Its tokens then have the issuer
+      `https://login.microsoftonline.com/<tenant id>/v2.0`
+      ([manifest](https://learn.microsoft.com/en-us/entra/identity-platform/reference-app-manifest)).
+    - A Conditional Access policy can block the device code flow. Microsoft recommends blocking it
+      where it is not used. Check your tenant's policies
+      ([authentication flows](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-authentication-flows)).
+    - A person in more than 200 groups gets no `groups` claim, only a marker
+      ([claims](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference)).
+      See [groups](mcp.md#groups).
+
+Labels and defaults change between releases of the providers. These notes follow their
+documentation and source code as of November 2026. Decode an access token of your own to see what
+your setup issues.
+
+### Without the command line { #sign-in-cli-manual }
+
+The same steps work with curl or PowerShell:
+
+1. Read the server's metadata at `/.well-known/oauth-protected-resource/api/v1`. Check that its
+   `resource` is the address you use. Its `authorization_servers` names the issuer.
+2. Read the issuer's metadata ([RFC 8414](https://www.rfc-editor.org/rfc/rfc8414)) at
+   `/.well-known/oauth-authorization-server` before the issuer's path. Where that fails, read
+   `<issuer>/.well-known/openid-configuration`. Check that its `issuer` is the one the server named.
+   It names the `device_authorization_endpoint` and the `token_endpoint`. Both must be https.
+3. Post `client_id` and `scope` to the device endpoint. The answer has the `verification_uri`, the
+   `user_code`, the `device_code` and the `interval`.
+4. Check that the address is on your sign-in provider's site. Open it and enter the code.
+5. Post `grant_type=urn:ietf:params:oauth:grant-type:device_code`, the `device_code` and the
+   `client_id` to the token endpoint every `interval` seconds:
+    - `authorization_pending` (HTTP 400): ask again.
+    - `slow_down` (HTTP 400): wait 5 seconds longer from now on.
+    - Any other error ends the sign-in.
+    - HTTP 200 holds the `access_token`.
+
+The token endpoint answers 400 while it waits. So `curl -f` fails there, and `Invoke-RestMethod`
+throws. The scripts below handle that, and they check the addresses as steps 1 and 2 say.
+
+=== "PowerShell"
+
+    Save it as `Get-PivotkitToken.ps1`. It needs no module.
+
+    ```powershell
+    <#
+    .SYNOPSIS
+    Signs in to a pivotkit REST service with a device code and returns an access token.
+    .EXAMPLE
+    $token = ./Get-PivotkitToken.ps1 -Api https://reports.example.com/api/v1 -ClientId pivotkit-cli
+    Invoke-RestMethod "https://reports.example.com/api/v1/sources" -Headers @{ Authorization = "Bearer $token" }
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [uri] $Api,
+        [Parameter(Mandatory)] [string] $ClientId,
+        [string] $Scope
+    )
+    $ErrorActionPreference = 'Stop'
+    function Assert-Https([string] $Address, [string] $What) {
+        if (([uri]$Address).Scheme -ne 'https') { throw "$What is no https:// address: $Address" }
+    }
+    $base = $Api.AbsoluteUri.TrimEnd('/')
+    Assert-Https $base 'The server'
+    $resource = Invoke-RestMethod ($Api.GetLeftPart([UriPartial]::Authority) + '/.well-known/oauth-protected-resource' + $Api.AbsolutePath.TrimEnd('/'))
+    if ($resource.resource.TrimEnd('/') -ne $base) { throw "The server's metadata is for $($resource.resource), not $base." }
+    $issuerName = $resource.authorization_servers[0]
+    Assert-Https $issuerName 'The issuer'
+    $issuerUri = [uri]$issuerName
+    $issuer = $null
+    foreach ($at in @(($issuerUri.GetLeftPart([UriPartial]::Authority) + '/.well-known/oauth-authorization-server' + $issuerUri.AbsolutePath.TrimEnd('/')), ($issuerName.TrimEnd('/') + '/.well-known/openid-configuration'))) {
+        try { $issuer = Invoke-RestMethod $at -MaximumRedirection 0; break } catch { $issuer = $null }
+    }
+    if (-not $issuer -or $issuer.issuer -ne $issuerName) { throw "The issuer's metadata cannot be read, or names another issuer." }
+    Assert-Https $issuer.device_authorization_endpoint 'The device endpoint'
+    Assert-Https $issuer.token_endpoint 'The token endpoint'
+    if (-not $Scope) {
+        $Scope = (@($resource.scopes_supported | Where-Object { $_ }) + 'offline_access') -join ' '
+    }
+    $start = Invoke-RestMethod $issuer.device_authorization_endpoint -Method Post -Body @{ client_id = $ClientId; scope = $Scope }
+    Assert-Https $start.verification_uri 'The code page'
+    Write-Host "Sign in at $($issuerUri.Host). Open $($start.verification_uri) and enter the code $($start.user_code)"
+    $interval = if ($start.interval) { [int]$start.interval } else { 5 }
+    $deadline = (Get-Date).AddSeconds([int]$start.expires_in)
+    while ((Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds $interval
+        try {
+            $body = @{ grant_type = 'urn:ietf:params:oauth:grant-type:device_code'; device_code = $start.device_code; client_id = $ClientId }
+            return (Invoke-RestMethod $issuer.token_endpoint -Method Post -Body $body).access_token
+        } catch {
+            $answer = $_.ErrorDetails.Message | ConvertFrom-Json
+            switch ($answer.error) {
+                'authorization_pending' { }
+                'slow_down' { $interval += 5 }
+                default { throw "The sign-in did not finish: $($answer.error)" }
+            }
+        }
+    }
+    throw 'The code expired before the sign-in finished.'
+    ```
+
+=== "curl"
+
+    It needs [jq](https://jqlang.org/) to read the JSON answers. The device code and the token go to
+    curl on stdin (`@-`), never as an argument, since other users of the machine can read arguments
+    in the process list.
+
+    ```bash
+    set -eu
+    API=https://reports.example.com/api/v1
+    CLIENT_ID=pivotkit-cli
+    https() { case "$1" in https://*) ;; *) echo "$2 is no https:// address: $1" >&2; exit 1 ;; esac; }
+    https "$API" "The server"
+    ORIGIN=${API%/api/v1}
+    PRM=$(curl -fsS "$ORIGIN/.well-known/oauth-protected-resource/api/v1")
+    [ "$(echo "$PRM" | jq -r '.resource | rtrimstr("/")')" = "$API" ] || { echo "The server's metadata is for another address" >&2; exit 1; }
+    ISSUER=$(echo "$PRM" | jq -r '.authorization_servers[0]')
+    https "$ISSUER" "The issuer"
+    ISSUER_ORIGIN=$(echo "$ISSUER" | sed -E 's#^(https://[^/]+).*#\1#')
+    ISSUER_PATH=${ISSUER#"$ISSUER_ORIGIN"}
+    META=$(curl -fsS "$ISSUER_ORIGIN/.well-known/oauth-authorization-server${ISSUER_PATH%/}" || curl -fsS "${ISSUER%/}/.well-known/openid-configuration")
+    [ "$(echo "$META" | jq -r .issuer)" = "$ISSUER" ] || { echo "The issuer's metadata names another issuer" >&2; exit 1; }
+    DEVICE_URL=$(echo "$META" | jq -r .device_authorization_endpoint); https "$DEVICE_URL" "The device endpoint"
+    TOKEN_URL=$(echo "$META" | jq -r .token_endpoint); https "$TOKEN_URL" "The token endpoint"
+    SCOPE=$(echo "$PRM" | jq -r '(.scopes_supported // []) + ["offline_access"] | join(" ")')
+    START=$(curl -fsS -d "client_id=$CLIENT_ID" --data-urlencode "scope=$SCOPE" "$DEVICE_URL")
+    https "$(echo "$START" | jq -r .verification_uri)" "The code page"
+    echo "$START" | jq -r --arg host "${ISSUER_ORIGIN#https://}" '"Sign in at \($host). Open \(.verification_uri) and enter the code \(.user_code)"'
+    INTERVAL=$(echo "$START" | jq -r '.interval // 5')
+    while :; do
+      sleep "$INTERVAL"
+      ANSWER=$(echo "$START" | jq -j .device_code | curl -sS -d grant_type=urn:ietf:params:oauth:grant-type:device_code \
+        -d "client_id=$CLIENT_ID" --data-urlencode device_code@- "$TOKEN_URL")
+      case "$(echo "$ANSWER" | jq -r '.error // "done"')" in
+        done) break ;;
+        authorization_pending) ;;
+        slow_down) INTERVAL=$((INTERVAL + 5)) ;;
+        *) echo "The sign-in did not finish: $(echo "$ANSWER" | jq -r .error)" >&2; exit 1 ;;
+      esac
+    done
+    echo "$ANSWER" | jq -r '"Authorization: Bearer \(.access_token)"' | curl -fsS -H @- "$API/sources"
+    ```
+
+Both scripts keep no refresh token. Run them again when the access token expires, or use
+`pivotkit login`, which keeps the refresh token for you.
+
 ## CORS { #cors }
 
 CORS is off by default. The server refuses a request with an `Origin` header (from a browser) with

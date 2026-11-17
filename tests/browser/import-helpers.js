@@ -45,10 +45,28 @@ export async function dataMenu(scope) {
     await expect(scope.getByTestId("data-menu")).toBeVisible();
 }
 
+/** The pages that keep a file chooser listener for their whole life (nextFileChooser). */
+const choosing = new WeakSet();
+
+/**
+ * The page's next file chooser. Call it before the action that opens one, as `waitForEvent`.
+ * Playwright intercepts file choosers only while the page has a listener. With Firefox in Playwright
+ * 1.65, removing the listener after one chooser can turn the interception off too late: the next
+ * pick opens the native picker and no event comes (microsoft/playwright#44143). So the page keeps
+ * one listener that does nothing, and the interception stays on. Remove it once Playwright fixes that.
+ */
+export function nextFileChooser(page) {
+    if (!choosing.has(page)) {
+        choosing.add(page);
+        page.on("filechooser", () => {});
+    }
+    return page.waitForEvent("filechooser");
+}
+
 /** Picks a file through the Data menu's "Load data…" and the browser's file chooser. */
 export async function pickThroughMenu(page, scope, file) {
     await dataMenu(scope);
-    const chooser = page.waitForEvent("filechooser");
+    const chooser = nextFileChooser(page);
     await scope.getByTestId("load-file").click();
     await (await chooser).setFiles({ name: file.name, mimeType: file.type, buffer: file.base64 ? Buffer.from(file.base64, "base64") : Buffer.from(file.text) });
 }

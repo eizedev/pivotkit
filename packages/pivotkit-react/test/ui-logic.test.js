@@ -3,13 +3,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toEChartsOption, toGrid, toSeries } from "pivotkit-core";
-import { decorate } from "../src/chart-decorate.js";
+import { decorate, screenColor } from "../src/chart-decorate.js";
 import { chartSummary } from "../src/chart-summary.js";
 import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
 import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "pivotkit-core/chart";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels, rowCount } from "../src/labels.js";
+import { ROW_COUNT_TEXTS } from "pivotkit-core";
+import { REPORT_TEXTS } from "pivotkit-report";
 import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, answered, createState, record, redo, reset, settle, tagFor, told, undo } from "../src/view-history.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
@@ -124,6 +126,15 @@ test("the row count under the result: the data's rows, or the rows a filter keep
     assert.equal(rowCount(4386, 4386, LABELS.de, "de-DE"), "4.386 Zeilen");
     // a host's text for the filtered count, one text for every count
     assert.equal(rowCount(3, 10, resolveLabels("en", { rowsFiltered: "{shown}/{count} records" }), "en-US"), "3/10 records");
+});
+
+test("the row count's words are pivotkit-core's: the component and the HTML report say the same (#547)", () => {
+    for (const lang of /** @type {const} */ (["en", "de"])) {
+        assert.equal(LABELS[lang].rowsCount, ROW_COUNT_TEXTS[lang].rowsCount, lang);
+        assert.equal(LABELS[lang].rowsFiltered, ROW_COUNT_TEXTS[lang].rowsFiltered, lang);
+        assert.equal(REPORT_TEXTS[lang].rowsCount, ROW_COUNT_TEXTS[lang].rowsCount, lang);
+        assert.equal(REPORT_TEXTS[lang].rowsFiltered, ROW_COUNT_TEXTS[lang].rowsFiltered, lang);
+    }
 });
 
 test("value names: plain aggregator words, show-as renames the value", () => {
@@ -682,4 +693,41 @@ test("the views a controlled host has not passed back: at most HISTORY_LIMIT, th
     assert.deepEqual(answered(["a", "b", "c"], "c"), []);
     // a view it was not told is a change of its own: nothing waits
     assert.deepEqual(answered(["a", "b"], "x"), []);
+});
+
+test("screenColor: a colour ECharts reads as it is, another as the canvas draws it, null for one the canvas does not take (#386)", () => {
+    // a 2D context as a browser's: fillStyle keeps its colour when it is given one it does not take,
+    // and a pixel is what the last fillStyle it took paints
+    const DRAWN = { transparent: [0, 0, 0, 0], "oklch(0.96 0.02 250)": [232, 243, 255, 255], "rgb(178 34 34)": [178, 34, 34, 255] };
+    const SHOWN = { transparent: "rgba(0, 0, 0, 0)", "oklch(0.96 0.02 250)": "oklch(0.96 0.02 250)", "rgb(178 34 34)": "#b22222" };
+    let style = "#000000";
+    const ctx = {
+        get fillStyle() {
+            return Object.hasOwn(SHOWN, style) ? SHOWN[style] : style;
+        },
+        set fillStyle(v) {
+            if (Object.hasOwn(DRAWN, v)) style = v;
+        },
+        clearRect() {},
+        fillRect() {},
+        getImageData: () => ({ data: Uint8ClampedArray.from(DRAWN[style]) })
+    };
+    const doc = { createElement: () => ({ getContext: () => ctx }) };
+    const hexOnly = (c) => /^#[\da-f]{6}$/i.test(c);
+    const kept = globalThis.CSS;
+    // CSS.supports takes all of these, light-dark() and an unresolved var() included
+    globalThis.CSS = { supports: () => true };
+    try {
+        const read = screenColor(/** @type {any} */ (doc), hexOnly);
+        assert.equal(read("#003366"), "#003366");
+        assert.equal(read("oklch(0.96 0.02 250)"), "#e8f3ff");
+        assert.equal(read("rgb(178 34 34)"), "#b22222");
+        // the canvas does not take them: fillStyle stays the sentinel, never the colour drawn before
+        assert.equal(read("light-dark(#fff, #000)"), null);
+        assert.equal(read("var(--pk-missing)"), null);
+    } finally {
+        globalThis.CSS = kept;
+    }
+    // without CSS.supports (no browser) nothing is drawn
+    assert.equal(screenColor(/** @type {any} */ (doc), hexOnly)("oklch(0.5 0.1 200)"), null);
 });

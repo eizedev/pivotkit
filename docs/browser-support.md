@@ -5,6 +5,9 @@ description: Which browsers, React versions and Node versions pivotkit supports 
 
 # Browser support
 
+[What works with pivotkit](compatibility.md) has the other areas: hosts, sign-in providers, MCP
+clients, data sources and platforms.
+
 ## Browsers
 
 The packages target **ES2022** and these browsers or newer:
@@ -71,4 +74,4 @@ tests run it in Chromium, Firefox and WebKit through pivotkit-react.
 The report adapts to its own width. Below 640 px the field list is a drawer, and menus open as sheets
 from the bottom. Drag and drop works with a pointer. Every action is also in a menu, so a touch screen
 that does not drag well loses nothing. The browser tests check the narrow layout in windows 390 px and
-340 px wide, with a mouse. Real phones and touch input are not tested.
+340 px wide, with a mouse. They tap the chart with emulated touch input. Real phones are not tested.

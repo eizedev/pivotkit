@@ -8,6 +8,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `decorateOption` takes `readColor`: a heatmap's colours as ECharts can mix them. An end it returns
+  `null` for takes `DEFAULT_THEME.colorScale`'s colour, so a form such as `oklch()` no longer turns
+  the cells black ([#386](https://github.com/eizedev/pivotkit/issues/386)).
 - `chart.tooltip` in the view: what the tooltip of bars, lines and areas covers. `"auto"`, the
   default, is the element under the pointer. `"axis"` is every series at the pointer's category.
   `CATALOG.chartTooltips` lists both ([#106](https://github.com/eizedev/pivotkit/issues/106)).
@@ -25,6 +28,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   optional last argument; `categoryLabelLayout` takes `reserved` in its box.
 - `toEChartsOption` is also exported from `pivotkit-core/chart`. A bundle that imports it from there
   loads it with the chart, not first (#546).
+- `ROW_COUNT_TEXTS`: the row count in words, English and German ("8 rows", "6 of 8 rows").
+  pivotkit-react and pivotkit-report share it ([#547](https://github.com/eizedev/pivotkit/issues/547)).
+- `pluralForm(forms, count, lang)` picks the form of a count's words, and `PLURAL_CATEGORIES` lists
+  the categories. pivotkit-react and pivotkit-report share them
+  ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 ### Changed
 
@@ -49,6 +57,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- With a field on Columns, a pie's, a donut's and a heatmap's series is named by the value, such
+  as "Sum of Revenue", not by the first column. The tooltip shows it as its title
+  ([#537](https://github.com/eizedev/pivotkit/issues/537)).
 - A CSV in a locale with digits of its own, such as `ar-EG`, writes the decimal mark the locale uses
   with Latin digits (`.`), not `٫` beside Latin digits, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).
 - Slanted category names take at most 40 % of the height left for the plot and them. In a low chart,

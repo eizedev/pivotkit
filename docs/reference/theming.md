@@ -204,6 +204,12 @@ The chart reads these tokens in the current theme:
 | The corners of the tooltip | `--pk-radius-card` |
 | The tooltip's total line and the series under the pointer | `--pk-border`, `--pk-weight-strong` |
 
+The heatmap's colours work in any form the browser reads, `oklch()` too. The chart mixes the colour
+of each cell from them. It takes them as plain sRGB colours: a colour's alpha is dropped, and a
+colour outside sRGB, such as a P3 one, is clipped to its nearest sRGB colour. The HTML report and the SVG of the Export menu get them as the screen draws
+them. pivotkit-report on its own needs a form ECharts reads, see
+[print template](print-template.md#template-design).
+
 By default, `--pk-chart-text-size` is the secondary text's size, at least 14 px. The report takes a
 host's own size as it is, so keep it at 14 px or more.
 

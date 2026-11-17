@@ -205,15 +205,8 @@ export function scopesOf(payload, claim) {
     return Array.isArray(raw) ? raw.filter((s) => typeof s === "string") : typeof raw === "string" ? raw.split(/\s+/).filter(Boolean) : [];
 }
 
-/** The RFC 9728 metadata address of a resource: /.well-known/oauth-protected-resource before its path. */
-export function resourceMetadataUrlOf(resource) {
-    const url = new URL(resource);
-    const path = url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname;
-    url.pathname = `/.well-known/oauth-protected-resource${path === "/" ? "" : path}`;
-    url.hash = "";
-    url.search = "";
-    return url.href;
-}
+/** The RFC 9728 metadata address of a resource: pivotkit-cli/rest's, which the CLI reads it with. */
+export { resourceMetadataUrlOf } from "pivotkit-cli/rest";
 
 /**
  * @typedef {object} AuthInfo

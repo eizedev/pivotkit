@@ -13,6 +13,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   public key, issuer name and type. Each issuer's `scopes` (required) and `profiles` cap what its
   tokens get. A private key or an unusable key stops the start, and `check-config` lists each issuer
   ([tokens from another system](https://pivotkit.eize.dev/reference/rest/#external-issuers), #487).
+- The REST reference describes how people sign in from the command line, with curl or with
+  PowerShell at the server's sign-in provider. `resourceMetadataUrlOf` now comes from
+  `pivotkit-cli/rest` and is the same function
+  ([sign in from the command line](https://pivotkit.eize.dev/reference/rest/#sign-in-cli), #486).
 - `render_view` (`POST /views/render`) takes `locale`, `numbers` and `flatHeader`. Every answer
   that works carries `requestId` in its body, the id of its log line ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481)).
 - `token issue` issues a signed token that expires (default one hour, at most
@@ -108,6 +112,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   reach the workers, such as `--require` and `--conditions`. Only the V8 and process-wide flags
   that Node refuses in a worker stay out, such as `--max-old-space-size`
   ([#542](https://github.com/eizedev/pivotkit/issues/542)).
+
+### Security
+
+- The HTML report leaves out the row count where the policy withholds it (`rows: false`). To show
+  the count again, the policy sets `rows: true` ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 ## [0.2.0] - 2026-11-16
 

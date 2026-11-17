@@ -214,6 +214,9 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       ([signed tokens](reference/rest.md#signed-tokens)). It also takes short-lived tokens another
       system issues for its signed-in person, such as PowerShell Universal
       ([tokens from another system](reference/rest.md#external-issuers)).
+    - With OAuth, people sign in from the command line with a code in the browser: `pivotkit login`,
+      then `pivotkit token` for curl or PowerShell
+      ([sign in from the command line](reference/rest.md#sign-in-cli)).
     - Policy profiles per token, OAuth client, group or scope, and a default profile. A profile can
       allow more values, downloads, and data sent with the request as JSON or as a csv, tsv, json or
       xlsx file.
