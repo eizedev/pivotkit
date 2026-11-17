@@ -29,6 +29,7 @@ test("New in this version: the 0.2.0 notes are gone; each note links to its own 
     const notes = await newIn({ sources: { sales: HIDES }, http: { host: "0.0.0.0" }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] } }, { http: true, env: { BOT: "x".repeat(40) } });
     assert.deepEqual(notes, [
         ["schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays lets waiting drafts expire)", "draft-quota"],
+        ["csv and json reports round numbers as the view shows them; report files are named in lower case without spaces", "results-0-8"],
         ["a source hidden by default whose listed fields are shown counts as open for links (sales)", "hidden-open"],
         ["at most 32 connections per address (http.maxConnectionsPerAddress)", "per-address"]
     ]);
@@ -61,4 +62,11 @@ test("New in this version: the draft note wherever reports and drafts are writte
     const bound = { http: { url: "https://platform.example.com/v1/{customer}/vms", rows: "/items" }, params: { customer: { type: "string", claim: "customer", required: true, pattern: "^[a-z0-9-]{1,40}$" } }, policy: { default: "hide" } };
     const notes = await newIn({ sources: { mine: bound }, auth: { mode: "oauth", issuer: "https://auth.example.com/", resource: "https://reports.example.com/mcp" } }, { http: false });
     assert.ok(!notes.some(([, anchor]) => anchor === "draft-quota"), JSON.stringify(notes));
+});
+
+test("New in this version: the note on csv and json numbers and file names wherever reports are written", async () => {
+    assert.ok((await newIn({}, { http: false })).some(([, anchor]) => anchor === "results-0-8"));
+    const dir = workspace();
+    const { text } = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { env: {}, http: false });
+    assert.doesNotMatch(text, /results-0-8/, "no output directory: no file is written");
 });

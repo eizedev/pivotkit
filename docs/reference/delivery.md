@@ -95,13 +95,19 @@ Without `http.publicUrl`:
   link never shows an internal address.
 
 The reports that get a link are stored with the link's 22 random characters before their name
-(`Q3vB0rD3cE1fG9hI2jK4lM-Sales by region.pivotkit-out.xlsx`). The result's `output.name` is that
-stored name, and `output.filename` the name the person sees (`Sales by region.xlsx`). Reports without
+(`Q3vB0rD3cE1fG9hI2jK4lM-sales-by-region.pivotkit-out.xlsx`). The result's `output.name` is that
+stored name, and `output.filename` the name the person sees (`sales-by-region.xlsx`). Reports without
 a link keep their names.
 
-A report's name keeps letters, digits, spaces, `.`, `_`, `-` and parentheses. Any other character
-becomes `-`, accents are dropped, and the name is cut at 80 characters. For example, `Orders (fake backend)` is
-stored as `Orders (fake backend).pivotkit-out.xlsx`.
+A report's file name comes from its title, written so links and shells take it as it is:
+
+- in lower case, with letters, digits, `.`, `_` and `-` only
+- `-` for spaces, parentheses and any other character
+- accents dropped, `ß` as `ss`
+- cut at 80 characters
+
+For example, `Orders (fake backend)` is stored as `orders-fake-backend.pivotkit-out.xlsx`. The title
+stays the report's own: an MCP `resource_link` carries it as its `title`.
 
 A key that cannot be read (a missing variable or file, shorter than 32 bytes) is a warning at start.
 Until it can be read, reports get no link and keep their names, and their result says to ask the
@@ -184,8 +190,8 @@ the output directory:
 
 ```json
 "output": {
-  "name": "Q3vB0rD3cE1fG9hI2jK4lM-Sales by region.pivotkit-out.xlsx",
-  "filename": "Sales by region.xlsx",
+  "name": "Q3vB0rD3cE1fG9hI2jK4lM-sales-by-region.pivotkit-out.xlsx",
+  "filename": "sales-by-region.xlsx",
   "url": "https://reports.example.com/downloads/eyJ2IjoxLC...Q.k3Jx...",
   "expiresAt": "2026-11-15T09:00:00Z",
   "bound": "signIn",
@@ -200,7 +206,7 @@ result adds a [resource link](https://modelcontextprotocol.io/specification/2026
 (Tool Result, Resource Links):
 
 ```json
-{ "type": "resource_link", "uri": "https://reports.example.com/downloads/eyJ2...", "name": "Sales by region.xlsx", "title": "Sales by region", "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "annotations": { "audience": ["user"] } }
+{ "type": "resource_link", "uri": "https://reports.example.com/downloads/eyJ2...", "name": "sales-by-region.xlsx", "title": "Sales by region", "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "annotations": { "audience": ["user"] } }
 ```
 
 It carries `size` only for a report the assistant was shown in full. `audience` is a hint to the
@@ -270,11 +276,11 @@ result shows the store's link. You configure the store. A caller cannot name an 
 ```
 
 Here pivotkit sends `POST https://store.example.com/presign` with the `authorization` header and the
-JSON `{ "filename": "Sales by region.xlsx", "mediaType": "...", "bytes": 18234, "sha256": "<hex>" }`.
+JSON `{ "filename": "sales-by-region.xlsx", "mediaType": "...", "bytes": 18234, "sha256": "<hex>" }`.
 For a `bind: "signIn"` store, it adds `"subject"` (below).
 
-`filename` is the report's stored name without its mark: spaces and parentheses kept, other special
-characters replaced by `-`. A caller can choose it, so treat it as untrusted text. Never use it
+`filename` is the report's stored name without its mark: lower case, letters, digits, `.`, `_` and
+`-` only. A caller can choose it, so treat it as untrusted text. Never use it
 unchecked as an object key or a path.
 
 A presign service you run answers, for example:

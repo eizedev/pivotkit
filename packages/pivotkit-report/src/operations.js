@@ -230,6 +230,28 @@ const DESCRIBED_VIEW = {
 /** An input or output object: its properties, the required ones, no others. */
 const object = (properties, required = []) => ({ type: "object", properties, required, additionalProperties: false });
 
+/** render_view's locale: a language tag the caller asks for (localeOf checks it). */
+const LOCALE = { type: "string", maxLength: 35, pattern: "^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$", description: "The language of the report's labels and its number format, such as de-DE, for a view or layout that names none." };
+
+/** How csv and json write numbers (pivotkit-core's toCsv and toJson `numbers`). */
+const NUMBERS = { enum: ["shown", "full"], description: "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits." };
+
+/**
+ * A caller's locale as Intl writes it; INVALID_INPUT for one that is no language tag.
+ * @param {string} locale
+ */
+function localeOf(locale) {
+    try {
+        const [canonical] = Intl.getCanonicalLocales(locale);
+        if (canonical) {
+            return canonical;
+        }
+    } catch {
+        // no language tag
+    }
+    throw new OperationError("INVALID_INPUT", "locale is no language tag; give one such as de-DE or en-US");
+}
+
 // ---------------------------------------------------------------------------------------------
 // Helpers
 
@@ -719,7 +741,10 @@ export const OPERATIONS = Object.freeze({
                 format: { enum: FORMATS, default: "xlsx", description: "xlsx for Excel, html for a report to read or print, csv, json, svg for the chart." },
                 title: { type: "string", maxLength: 200, description: "The report's title (default the view's name)." },
                 chart: { enum: ["auto", "on", "off"], description: "html: the chart above the table (auto: when the view shows the chart)." },
-                name: { type: "string", maxLength: 80, description: "The file's name without extension (default from the title)." }
+                name: { type: "string", maxLength: 80, description: "The file's name without extension (default from the title)." },
+                locale: LOCALE,
+                numbers: NUMBERS,
+                flatHeader: { type: "boolean", description: 'csv: one header row instead of one per column field; each column says its labels joined with " / " (without the value\'s name when the view has one value).' }
             },
             ["source"]
         ),
@@ -741,6 +766,8 @@ export const OPERATIONS = Object.freeze({
                 throw new OperationError("INVALID_INPUT", `format is one of ${FORMATS.join(", ")}`);
             }
             checkViewOrLayout(input);
+            // the caller's locale stands in for the front end's: for a view or layout that names none
+            env = input.locale === undefined ? env : { ...env, locale: localeOf(input.locale) };
             const source = await sourceData(env, input.source);
             if (!isEncoded(source.data)) {
                 throw new OperationError("INVALID_INPUT", "rendering needs the data, not only its fields");
@@ -762,6 +789,8 @@ export const OPERATIONS = Object.freeze({
                 ...(input.title !== undefined ? { title: input.title } : {}),
                 ...(input.chart ? { chart: input.chart === "auto" ? "auto" : input.chart === "on" } : {}),
                 ...(typeof source.asOf === "string" ? { dataAsOf: source.asOf } : {}),
+                ...(input.numbers ? { numbers: input.numbers } : {}),
+                ...(input.flatHeader !== undefined ? { flatHeader: input.flatHeader } : {}),
                 ...extra
             });
             const findings = [...(source.notes ?? []), ...given.notes, ...result.issues.map(findingOf), ...(read.failed ? [] : unknownItems(read.view, source.data, env))];

@@ -146,9 +146,10 @@ test("request ids: every REST error answer carries its request's id, the same as
         assert.equal(answers.unavailable.data.retryable, false);
         assert.doesNotMatch(JSON.stringify(answers.unavailable.data), /10\.1\.2\.3/);
         assert.equal(server.log.find((l) => l.event === "error").requestId, answers.unavailable.data.requestId);
-        // a successful answer has no id in its body (it is not a problem)
+        // a successful answer names its id too, the one on its log line
         const ok = await call(`${server.api}/sources`, { token: TOKEN });
-        assert.equal(ok.data.requestId, undefined);
+        assert.match(ok.data.requestId, REQUEST_ID);
+        assert.equal(ok.data.requestId, ok.headers.get("x-request-id"));
     } finally {
         await server.close();
     }

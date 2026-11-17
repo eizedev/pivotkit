@@ -38,16 +38,16 @@ for (const era of Object.keys(ERAS)) {
             await close();
             const output = r.data.output;
             assert.equal(output.bound, "none");
-            assert.equal(output.filename, "Sales by region.csv");
+            assert.equal(output.filename, "sales-by-region.csv");
             assert.ok(output.url.startsWith(`${new URL(server.url).origin}/downloads/`), output.url);
             assert.match(r.raw.content[0].text, /Open the link in your browser; it works for 60 minutes\./);
             // the sentence once in words: in the message, not again in the summary line before it
             const [summary] = r.raw.content[0].text.split("\n");
-            assert.match(summary, /^Done: csv, saved as Sales by region\.csv\. /);
+            assert.match(summary, /^Done: csv, saved as sales-by-region\.csv\. /);
             assert.doesNotMatch(summary, /Open the link/);
             assert.equal(r.data.message.split("Open the link in your browser").length, 2, r.data.message);
             const link = r.raw.content[1];
-            assert.deepEqual(link, { type: "resource_link", uri: output.url, name: "Sales by region.csv", title: "Sales by region", mimeType: "text/csv;charset=utf-8", size: readFileSync(join(dir, "out", output.name)).length, annotations: { audience: ["user"] } });
+            assert.deepEqual(link, { type: "resource_link", uri: output.url, name: "sales-by-region.csv", title: "Sales by region", mimeType: "text/csv;charset=utf-8", size: readFileSync(join(dir, "out", output.name)).length, annotations: { audience: ["user"] } });
             const got = await fetch(output.url);
             assert.equal(got.status, 200);
             assert.deepEqual(Buffer.from(await got.arrayBuffer()), readFileSync(join(dir, "out", output.name)));
@@ -120,8 +120,8 @@ test("draft_schedule over an open source: the draft is stored under the link's p
         const { client, close } = await httpClient(server.url);
         const r = await call(client, "draft_schedule", { source: "sales", view: BY_REGION, name: "Weekly sales", formats: ["xlsx"], every: { unit: "week", weekday: "mon", at: "07:00" }, recipients: ["Sales team"] });
         await close();
-        assert.match(r.data.output.name, /^[A-Za-z0-9_-]{22}-Weekly sales\.pivotkit-out\.report\.json$/);
-        assert.equal(r.data.output.filename, "Weekly sales.report.json");
+        assert.match(r.data.output.name, /^[A-Za-z0-9_-]{22}-weekly-sales\.pivotkit-out\.report\.json$/);
+        assert.equal(r.data.output.filename, "weekly-sales.report.json");
         assert.equal(r.data.output.bound, "none");
         const got = await fetch(onServer(server, r.data.output.url));
         assert.equal(got.status, 200);
@@ -139,7 +139,7 @@ test("stdio: no HTTP server, so no link and no resource_link; the result names t
         const r = await call(client, "render_view", { source: "sales", view: BY_REGION, format: "csv", name: "Local" });
         assert.equal(r.data.output.url, undefined);
         assert.equal(r.data.output.bound, undefined);
-        assert.equal(r.data.output.path, join(dir, "out", "Local.pivotkit-out.csv"));
+        assert.equal(r.data.output.path, join(dir, "out", "local.pivotkit-out.csv"));
         assert.deepEqual(r.raw.content.map((c) => c.type), ["text"]);
     } finally {
         await close();

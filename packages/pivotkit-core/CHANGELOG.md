@@ -8,6 +8,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `toCsv` and `toJson` take `numbers: "shown"`: each number rounded to the decimals its format
+  shows, without float noise such as `9.59999999999999`. The default `"full"` keeps 15 significant
+  digits. `toCsv` takes `flatHeader: true` for one header row ([#478](https://github.com/eizedev/pivotkit/issues/478)).
 - `AGGREGATOR_ALIASES`: other tools' names of aggregators (`avg`) and the ones they mean
   (`average`), for "did you mean". A view never accepts them (#508).
 - `rowLabelInterval` and `heatmapCellLabels` of `pivotkit-core/chart` take the heatmap's frame as an

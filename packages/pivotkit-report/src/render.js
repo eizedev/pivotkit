@@ -67,13 +67,15 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {{ width?: number, height?: number }} [size]  of the chart in px, default 800 x 480
  * @property {number} [tableCells]  html: cells of the table at most, default REPORT_LIMITS.tableCells
  * @property {boolean} [bom]  csv: start with a byte order mark, so Excel reads it as UTF-8 (default true)
+ * @property {"full" | "shown"} [numbers]  csv and json: "full" (default) writes numbers with full precision, "shown" rounds each to the decimals the view shows
+ * @property {boolean} [flatHeader]  csv: one header row instead of one per column field (default false)
  */
 
 /** @type {Readonly<Record<string, ReadonlyArray<unknown>>>} The options that take one of a few values. */
-const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false] });
+const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false], numbers: ["full", "shown"], flatHeader: [true, false] });
 
 /** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
-const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf"]);
+const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf", "numbers", "flatHeader"]);
 
 /**
  * @typedef {object} RenderResult
@@ -234,9 +236,9 @@ export async function render(view, data, options = {}) {
     /** @type {Uint8Array} */
     let body;
     if (format === "json") {
-        body = new TextEncoder().encode(toJson(grid));
+        body = new TextEncoder().encode(toJson(grid, { numbers: options.numbers ?? "full" }));
     } else if (format === "csv") {
-        body = toCsvBytes(grid, { bom: options.bom !== false });
+        body = toCsvBytes(grid, { bom: options.bom !== false, numbers: options.numbers ?? "full", flatHeader: options.flatHeader === true });
     } else if (format === "xlsx") {
         body = toXlsx(grid, { sheetName: title, theme: conditionalColors(theme), ...(options.dataAsOf ? { dataAsOf: options.dataAsOf } : {}) });
     } else if (format === "svg") {

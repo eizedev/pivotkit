@@ -8,6 +8,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- `render_view` (`POST /views/render`) takes `locale`, `numbers` and `flatHeader`. Every answer
+  that works carries `requestId` in its body, the id of its log line ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481)).
 - `token issue` issues a signed token that expires (default one hour, at most
   `auth.signedTokens.maxDays`). REST and MCP accept it without a restart. The log names it by its ID
   ([signed tokens](https://pivotkit.eize.dev/reference/rest/#signed-tokens), #485).
@@ -26,6 +28,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- Breaking for scripts that parse csv or json results: numbers are rounded to the decimals the view
+  shows (`numbers: "full"` keeps the old form), and inline json is on one line. Saved report files
+  are named in lower case without spaces (`sales-by-region.pivotkit-out.xlsx`), the file route's
+  download too ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481), [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#results-0-8)).
 - Behaviour change: a source is open for plain links only where nothing new can become visible,
   for every caller alike. A source hidden by default whose named fields are all `show` or `hide`
   is open now: its reports get plain download links, an `output.baseUrl` address and plain store
@@ -64,6 +70,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- A store address's `{name}` cut at 80 characters no longer ends in `-`.
 - Behaviour change: on a busy host, a parameter pattern's time limit no longer refuses fast, valid
   values and patterns.
     - Every match runs under 75 ms instead of 25 ms, in a request as at start, so the start never

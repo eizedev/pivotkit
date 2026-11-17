@@ -244,14 +244,15 @@ async function toStore(context, file, store, subject) {
 /**
  * The MCP resource_link of a delivered report, or null without an address. Its size only for an
  * open source: the size of a report the assistant was not shown is withheld (render_view's withheld "bytes").
+ * Its title is the report's own ("Umsatz pro Produkt"), its name the file's ("umsatz-pro-produkt.xlsx").
  * @param {Delivered | null} output
- * @param {{ bytes: number, closed: boolean }} how
+ * @param {{ bytes: number, closed: boolean, title?: string }} how  title: the report's (the file's name before fileSlug); default the file's name without its extension
  */
-export function resourceLinkOf(output, { bytes, closed }) {
+export function resourceLinkOf(output, { bytes, closed, title: given }) {
     if (!output?.url) {
         return null;
     }
     // only the output's own extension comes off ("Q3.2026.xlsx" keeps "Q3.2026")
-    const title = output.filename.replace(/\.(report\.json|xlsx|html|csv|json|svg)$/i, "");
+    const title = given?.trim() || output.filename.replace(/\.(report\.json|xlsx|html|csv|json|svg)$/i, "");
     return { type: "resource_link", uri: output.url, name: output.filename, title, mimeType: output.mediaType, ...(closed ? {} : { size: bytes }), annotations: { audience: ["user"] } };
 }

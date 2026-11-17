@@ -279,8 +279,19 @@ file. It never saves a file instead. The errors:
 The call's log line has `saved: false`. Without `save` (or with `save: true`), a render is saved as
 above, also when its csv or json comes back inline.
 
-In an inline json result, every row and column has `total`: 0 data, 1 subtotal, 2 grand total, so a
-sum over the rows takes only those with `total: 0`.
+An inline result is ready to read or paste:
+
+- Numbers are rounded to the decimals the view shows (`numbers: "shown"`, the default). A sum of
+  0.1 and 0.2 values is `9.6`, not `9.59999999999999`. `numbers: "full"` keeps 15 significant
+  digits.
+- `locale`, such as `de-DE`, gives the labels and the number format of that language for a view or
+  layout that names none. A csv in `de-DE` uses `;` and the decimal comma.
+- `flatHeader: true` gives a csv with one header row. Each column says its labels joined with ` / `,
+  without the value's name when the view has one value.
+- The json is on one line. Every row and column has `total`: 0 data, 1 subtotal, 2 grand total, so
+  a sum over the rows takes only those with `total: 0`.
+
+The saved file holds the same numbers. [REST](rest.md#routes) describes the shapes.
 
 `suggest_view` reads what `describe_source` shows. Its draft and `picks` name fields, never values
 (not those of a `values` field either) or counts. The one thing they tell about a shown field's
@@ -518,8 +529,9 @@ A tool error is a result with `isError` and the text `CODE: message`. The SDK an
 tool's schema refuses before the tool runs, as `Input validation error: ...`. A tool error's message names a
 file by its base name only and holds no file content.
 
-Every tool error ends with the call's request id, `CODE: message (request id Ab3_xY9-k2Q)`. The
-person gives it to the operator, who finds the call's [log line](#logging) by it.
+Every tool result carries the call's request id in `requestId`. Every tool error ends with it,
+`CODE: message (request id Ab3_xY9-k2Q)`. The person gives it to the operator, who finds the call's
+[log line](#logging) by it.
 
 An error of status 500 or more says the same fixed text as the REST service, never its own words.
 The same parenthesis holds the source and whether trying again may work
@@ -568,8 +580,8 @@ request and trace ids and how to ship the log.
 | `stopped` | Written after an HTTP server stops |
 
 A call line is `info` when it worked, `warn` for an error a REST caller would get as 4xx, and `error`
-for 5xx. `requestId` is random (11 characters). It is the same on every line of one call, at the end
-of its error and, over HTTP, in the answer's `X-Request-Id` header.
+for 5xx. `requestId` is random (11 characters). It is the same on every line of one call, in its
+result's `requestId`, at the end of its error and, over HTTP, in the answer's `X-Request-Id` header.
 
 Over HTTP, a request's lines name the client's `address` unless `log.address` is `off`. With
 `http.trustProxy`, that is the forwarded client, else the socket's peer. Where the socket's peer

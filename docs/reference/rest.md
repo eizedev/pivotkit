@@ -85,7 +85,8 @@ withholds its content:
   "withheld": ["rows", "columns", "bytes", "content"],
   "output": { "name": "sales.pivotkit-out.xlsx", "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "filename": "sales.xlsx", "note": "The report is saved on the server; ask the operator how to open it.", "format": "xlsx" },
-  "message": "The report is saved on the server; ask the operator how to open it. Its content is not part of this answer: results over fields that are not fully shown (Region, Revenue) stay in the file. Data as of 2026-11-16 00:19 UTC." }
+  "message": "The report is saved on the server; ask the operator how to open it. Its content is not part of this answer: results over fields that are not fully shown (Region, Revenue) stay in the file. Data as of 2026-11-16 00:19 UTC.",
+  "requestId": "Ab3_xY9-k2Q" }
 ```
 
 Over an open source (`"policy": { "default": "show" }`, title Sales), the same request gets a
@@ -96,11 +97,15 @@ Over an open source (`"policy": { "default": "show" }`, title Sales), the same r
   "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "dataAsOf": "2026-11-16T00:19:40Z",
   "summary": { "rows": 6, "columns": 2, "sourceRows": 2000, "keptRows": 2000, "truncated": false },
-  "output": { "name": "LBYgghNzgES9CtH50Kz7nQ-Sales.pivotkit-out.xlsx", "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "filename": "Sales.xlsx", "url": "http://127.0.0.1:3333/downloads/eyJ2IjoxLC...qjt4hRZV3X", "expiresAt": "2026-11-16T01:19:54Z",
+  "output": { "name": "LBYgghNzgES9CtH50Kz7nQ-sales.pivotkit-out.xlsx", "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "filename": "sales.xlsx", "url": "http://127.0.0.1:3333/downloads/eyJ2IjoxLC...qjt4hRZV3X", "expiresAt": "2026-11-16T01:19:54Z",
     "bound": "none", "note": "Open the link in your browser; it works for 60 minutes.", "format": "xlsx" },
-  "message": "The report is saved as \"Sales.xlsx\". Open the link in your browser; it works for 60 minutes. Data as of 2026-11-16 00:19 UTC." }
+  "message": "The report is saved as \"sales.xlsx\". Open the link in your browser; it works for 60 minutes. Data as of 2026-11-16 00:19 UTC.",
+  "requestId": "Ab3_xY9-k2Q" }
 ```
+
+Every answer that works carries `requestId`, the id of the request's [log lines](#logging) and its
+`X-Request-Id` header. Give it to the operator when an answer looks wrong.
 
 Every answer over a source's data carries `dataAsOf`. That is every route but `GET /sources` and
 `GET /views/guide`. `dataAsOf` says when the data is from, in UTC to the second. It is a file's
@@ -137,7 +142,9 @@ Where the report gets a [download link](delivery.md), the link is in `output.url
 - over another source only with `results: true` and a bound link
 
 The file's name is `name` from the input, else `title`, else the view's name, else the source's.
-`.pivotkit-out.` goes before the format (`sales.pivotkit-out.xlsx`). This is the mark by which the
+It is written in lower case with `-` for spaces (`Sales by region` is `sales-by-region`), as
+[delivery](delivery.md#configuration) describes. `.pivotkit-out.` goes before the format
+(`sales-by-region.pivotkit-out.xlsx`). The file route's download has the same name. This is the mark by which the
 server knows its own files. A name that is taken gets `-2`, `-3` and so on, since the server never
 replaces a file.
 
@@ -152,6 +159,19 @@ A csv result is the report's layout, as the HTML report and the workbook show it
 column field, a row of labels, then a row per group with a total row and column. The file starts
 with a UTF-8 byte order mark, so a spreadsheet opens it as UTF-8. The inline `inline.text` has no
 byte order mark.
+
+These inputs change how a csv or json result reads:
+
+- `numbers`: `shown`, the default, rounds each number to the decimals the view shows. A sum of
+  0.1 and 0.2 values is `9.6`, not `9.59999999999999`. `full` keeps 15 significant digits. The
+  workbook always keeps full precision.
+- `locale`: the language of the labels and the number format, such as `de-DE`, for a view or layout
+  that names none. A csv in `de-DE` uses `;` and the decimal comma, and says "Gesamtergebnis".
+- `flatHeader: true`: csv with one header row. Each column says its labels joined with ` / `, without
+  the value's name when the view has one value: `Product,East,North,Grand Total`.
+
+The inline json is on one line. The saved json file keeps its indentation. In both, every row and
+column has `total`: 0 data, 1 subtotal, 2 grand total.
 
 A csv or json result comes back inline (`inline.text`) only when the operator sets
 `rest.inline: true` and every field the view uses is `show`.
@@ -1144,8 +1164,8 @@ to ship the log.
 | `stopped` | Written after a stop |
 
 A request line is `info` when it worked, `warn` for 4xx and `error` for 5xx. `requestId` is random
-(11 characters). It is the same on every line of one request, in its error answer and in the
-`X-Request-Id` header of every answer.
+(11 characters). It is the same on every line of one request, in its answer's body (`requestId`)
+and in the `X-Request-Id` header of every answer.
 
 The client is the static token's name or the OAuth client id. The person is on `request` and
 `download` lines only with `audit.subject` ([audit](mcp.md#logging)). Their groups and other claims

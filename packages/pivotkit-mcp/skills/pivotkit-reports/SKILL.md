@@ -31,7 +31,9 @@ JSON), and the server runs it and hands the result to the user as a file or a li
    can come back to you inline; xlsx, html and svg are files for the user, and you have not seen them.
    A csv or json result that fits comes back inline and is saved as a file too. When the user wants
    the table in the chat and no file, pass `save: false` (csv by default, much smaller than json):
-   nothing is saved, and where the result may not come back inline the error says so. In inline json,
+   nothing is saved, and where the result may not come back inline the error says so. Pass the
+   user's `locale` (such as `de-DE`) for their language and number format, and `flatHeader: true`
+   for a csv with one header row. Numbers come rounded as the view shows them. In inline json,
    `total` is 0 for data, 1 for a subtotal, 2 for the grand total: do not add up rows with total > 0.
 7. When the user wants the report regularly ("every Monday to the sales team"): `draft_schedule` with
    when, the formats and the recipients by name (never addresses). It only writes a draft; tell the

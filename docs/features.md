@@ -281,9 +281,12 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
   ([per client](model-data.md#per-client)).
 - A result only in the answer, saved nowhere: `render_view` with `save: false` returns a small csv
   or json over shown fields inline. It writes no file ([inline only](reference/mcp.md#inline-only)).
+  Its numbers are rounded as the view shows them, in the caller's `locale`, and a csv can have one
+  header row.
 - More ([data in the request](reference/mcp.md#data)):
     - When the data is from (`dataAsOf`), in every result and in the html and xlsx files the
       services write.
+    - The request id in every result, to find its log line.
     - A small table of the model's own (`inline:`). It is capped, and `mcp.data: false` switches it
       off.
     - stdio and Streamable HTTP with a token or OAuth 2.1.

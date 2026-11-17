@@ -20,6 +20,7 @@ import { asOfMembers, asOfSentence } from "./sources/as-of.js";
 import { runResolved } from "./sources/index.js";
 import { INLINE_SOURCE_TEXT, extraInputs, listExtras } from "./sources/input.js";
 import { inlineHow } from "./sources/inline.js";
+import { requestId } from "./request-id.js";
 
 export { OUTPUT_MARK, draftCap, prune } from "./output.js";
 
@@ -46,6 +47,21 @@ const AS_OF_OUTPUT = {
     suppliedAsOf: { type: "string", description: 'Data sent with the request (source "inline:"): when it is from as its sender states it (ISO 8601 in UTC, to the second), not checked by the server; dataAsOf is when it arrived.' }
 };
 
+/** What every result adds: the request's id, as an error names it, for the operator to find its log line. */
+const REQUEST_ID_OUTPUT = { type: "string", description: "This answer's request id: give it to the operator to find the answer in the log." };
+
+/** render_view's inline result: the text and how to read it. */
+const INLINE_OUTPUT = {
+    type: "object",
+    properties: {
+        format: { type: "string" },
+        text: {
+            type: "string",
+            description: 'The result as text. Numbers are rounded as the view shows them unless numbers is "full". csv: the separator and decimal mark of the locale (";" and "," for de-DE). json, on one line: { rowHeaders, columns: [{ labels, value, total }], rows: [{ labels, total, collapsed, values }] }; total is 0 for data, 1 for a subtotal, 2 for a grand total: do not add up rows or columns whose total is more than 0.'
+        }
+    }
+};
+
 /** The operations whose results carry dataAsOf. */
 const OVER_DATA = new Set(["describe_source", "suggest_view", "validate_view", "describe_view", "render_view", "create_link", "draft_schedule"]);
 
@@ -56,7 +72,7 @@ const OVER_DATA = new Set(["describe_source", "suggest_view", "validate_view", "
 export function presentedOutput(name) {
     const base = /** @type {any} */ (OPERATIONS[name].output);
     /** @type {Record<string, unknown>} */
-    const extra = {};
+    const extra = { requestId: REQUEST_ID_OUTPUT };
     if (OVER_DATA.has(name)) {
         Object.assign(extra, AS_OF_OUTPUT);
     }
@@ -66,7 +82,7 @@ export function presentedOutput(name) {
     if (name === "render_view") {
         Object.assign(extra, {
             output: OUTPUT_FILE,
-            inline: { type: "object", properties: { format: { type: "string" }, text: { type: "string" } } },
+            inline: INLINE_OUTPUT,
             withheld: { type: "array", items: { type: "string" }, description: "What is not shown because the view uses a field that is not fully shown (values or summary): results over it stay in the file." },
             message: { type: "string", description: "One sentence to tell the user." }
         });
@@ -119,11 +135,17 @@ const SAVE_INPUT = Object.freeze({ type: "boolean", default: true, description: 
 const INLINE_ONLY_FORMAT = "csv";
 
 /**
- * render_view's input for the operation: without `save`, with the format decided.
+ * How csv and json write numbers for a caller of the services when it names none: as the view shows
+ * them, ready to read or paste ("full" keeps pivotkit-core's full precision).
+ */
+const NUMBERS_DEFAULT = "shown";
+
+/**
+ * render_view's input for the operation: without `save`, with the format and how numbers are written decided.
  * @param {Record<string, any>} input
  * @param {string} format
  */
-const renderInput = ({ save: _save, ...input }, format) => ({ ...input, format });
+const renderInput = ({ save: _save, ...input }, format) => ({ ...input, format, numbers: input.numbers ?? NUMBERS_DEFAULT });
 
 /**
  * The log fields of a call that asked for no file (render_view with save: false): `saved: false`,
@@ -146,6 +168,9 @@ export function presentedInput(name, how = {}) {
     const input = /** @type {any} */ (OPERATIONS[name].input);
     // the server's own inputs before the extras a surface offers
     const properties = { ...input.properties, ...(name === "render_view" && !how.fileRoute ? { save: SAVE_INPUT } : {}), ...extraInputs(name, how.offers) };
+    if (name === "render_view") {
+        properties.numbers = { ...properties.numbers, default: NUMBERS_DEFAULT };
+    }
     if (name === "describe_source") {
         delete properties.items;
     }
@@ -333,6 +358,17 @@ const savedText = (what, output) => {
     return where ? `${what} saved as ${where}.` : output.note;
 };
 
+/**
+ * A rendered file as inline text: csv without its byte order mark, json on one line (the saved file
+ * keeps its indentation for a person; a model reads the same data in fewer tokens).
+ * @param {string} format  csv or json
+ * @param {Uint8Array} bytes
+ */
+function inlineText(format, bytes) {
+    const text = new TextDecoder().decode(bytes).replace(/^\uFEFF/, "");
+    return format === "json" ? JSON.stringify(JSON.parse(text)) : text;
+}
+
 /** "valid: 0 errors, 1 warning" in words. */
 export function findingsText(valid, findings) {
     const errors = findings.filter((f) => f.severity === "error").length;
@@ -429,7 +465,9 @@ const STEPS = {
         // no summary: no size known, so not inline
         const cells = result.summary ? result.summary.rows * result.summary.columns : Infinity;
         const caps = policy.inline || null;
-        const fits = caps !== null && cells <= caps.cells && file.bytes.length <= caps.bytes;
+        // the text that would come back inline (only where it may and its cells fit): its bytes are what the cap counts
+        const text = inlinable && !closed && caps !== null && cells <= caps.cells ? inlineText(format, file.bytes) : null;
+        const fits = caps !== null && cells <= caps.cells && (text === null ? file.bytes.length : new TextEncoder().encode(text).length) <= caps.bytes;
         if (inlineOnly && closed) {
             // nothing of the result is said: not its size, not whether it would fit
             throw new OperationError("NOT_ALLOWED", `a field the view uses is at level values or summary, so its numbers cannot ${how.surface === "rest" ? "come back in the answer" : "be shown in the chat"}: leave out save to get it as a file`);
@@ -437,8 +475,8 @@ const STEPS = {
         if (inlineOnly && !fits) {
             throw new OperationError("LIMIT_EXCEEDED", `the result is larger than may come back inline (${caps?.cells} cells, ${caps?.bytes} bytes): filter more, or leave out save to get it as a file`);
         }
-        if (inlinable && !closed && fits) {
-            out.inline = { format, text: new TextDecoder().decode(file.bytes).replace(/^\uFEFF/, "") };
+        if (text !== null && fits) {
+            out.inline = { format, text };
         }
         // save: false: never written, so no file in the output directory, no upload and no link
         const output = inlineOnly ? null : await deliver(context, file, { caller, sourceClosed: resolved.sourceClosed, surface: how.surface ?? "mcp", policy });
@@ -455,7 +493,7 @@ const STEPS = {
         // summary line leaves it out, since the message after it says it
         const note = output?.note && whereText(output) ? ` ${output.note}` : "";
         out.message = `${output ? `${savedText("The report is", output)}${closed ? withheldText : ""}` : "The result is shown inline; it was not saved as a file."}${note}${when ? ` ${when}` : ""}`;
-        const link = resourceLinkOf(output, { bytes: file.bytes.length, closed });
+        const link = resourceLinkOf(output, { bytes: file.bytes.length, closed, title: file.name });
         return { text: `${result.ok ? "Done" : "Done with errors"}: ${format}${output ? `, saved as ${output.filename}` : ", inline"}${closed ? "; content withheld" : ""}. ${findingsText(result.ok, findings)}${when ? ` ${when}` : ""}`, result: out, ...(link ? { link } : {}) };
     },
 
@@ -475,7 +513,7 @@ const STEPS = {
         const output = await deliver(context, outcome.file, { caller, sourceClosed: resolved.sourceClosed, surface: how.surface ?? "mcp", policy, draft: true });
         const where = output ? whereText(output) : null;
         const message = `The draft "${result.draft?.name}" is ready for approval${where ? `, saved as ${where}` : ""}. Nothing runs until a person approves it in the host.${output?.note ? ` ${output.note}` : ""}`;
-        const link = resourceLinkOf(output, { bytes: outcome.file.bytes.length, closed: false });
+        const link = resourceLinkOf(output, { bytes: outcome.file.bytes.length, closed: false, title: outcome.file.name });
         return { text: message, result: { ...result, output: output ? { ...output, format: "json" } : null, message }, ...(link ? { link } : {}) };
     }
 };
@@ -495,7 +533,10 @@ export async function present(context, name, input, caller, how = {}) {
         throw new OperationError("INTERNAL", "unknown operation");
     }
     checkDepth(input);
-    return STEPS[name](input ?? {}, context, caller, how);
+    const presented = await STEPS[name](input ?? {}, context, caller, how);
+    // the id the request's log line and an error name, so a caller can point the operator at this answer
+    const id = requestId();
+    return id ? { ...presented, result: { ...presented.result, requestId: id } } : presented;
 }
 
 /**

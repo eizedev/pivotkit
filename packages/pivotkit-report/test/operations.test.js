@@ -253,3 +253,20 @@ test("env.unknownItems: an item of an in filter that is none of a text field's v
 test("checkInput: a text over its length says the limit, its own length and to shorten it", () => {
     assert.throws(() => checkInput(OPERATIONS.render_view.input, { source: "s", view: "{}", format: "csv", name: "n".repeat(81) }), (e) => e.code === "INVALID_INPUT" && e.message === "input.name must have at most 80 characters, not 81; shorten it");
 });
+
+test("render_view for a reader: numbers as the view shows them, one header row, the caller's locale for a layout", async () => {
+    // 64 amounts of 0.1 and 0.2: their sum is 9.599999999999994 in floating point
+    const rows = Array.from({ length: 64 }, (_, i) => ({ Region: ["East", "North"][(i >> 1) % 2], Product: ["A", "B"][(i >> 2) % 2], Amount: [0.1, 0.2][i % 2] }));
+    const amounts = { data: async () => ({ data: encode(rows), name: "amounts.csv", notes: [] }) };
+    const layout = { rows: ["Product"], cols: ["Region"], values: [{ field: "Amount", agg: "sum" }] };
+    const full = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv" }, amounts);
+    assert.match(new TextDecoder().decode(full.file.bytes), /Grand Total,4\.8,4\.8,9\.59999999999999\r\n$/, "full precision unless asked");
+    const shown = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", numbers: "shown", flatHeader: true, locale: "de-DE" }, amounts);
+    conforms("render_view", shown.result);
+    assert.equal(new TextDecoder().decode(shown.file.bytes), "Product;East;North;Gesamtergebnis\r\nA;2,4;2,4;4,8\r\nB;2,4;2,4;4,8\r\nGesamtergebnis;4,8;4,8;9,6\r\n");
+    // a view's own locale comes first; the caller's is for a view that names none
+    const english = await OPERATIONS.render_view.run({ source: "amounts", view: { version: 2, ...layout, formatting: { locale: "en-US" } }, format: "json", numbers: "shown", locale: "de-DE" }, amounts);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(english.file.bytes)).rows.at(-1), { labels: ["Grand Total"], total: 2, collapsed: false, values: [4.8, 4.8, 9.6] });
+    await assert.rejects(OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", locale: "not a locale!" }, amounts), (e) => e instanceof OperationError && e.code === "INVALID_INPUT" && /locale/.test(e.message));
+    assert.throws(() => checkInput(OPERATIONS.render_view.input, { source: "amounts", numbers: "rounded" }), /numbers/);
+});

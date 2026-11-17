@@ -257,15 +257,15 @@ test("presigned: the presign service gets the report's facts and the credential,
         assert.match(String(out?.url), new RegExp(`^${origin("files")}/f/report-1\\?sig=`));
         assert.match(String(out?.expiresAt), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
         assert.equal(out?.bound, "none");
-        assert.equal(out?.filename, "Sales by region.csv");
+        assert.equal(out?.filename, "sales-by-region.csv");
         assert.match(String(out?.note), /^Open the link in your browser; it works until \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\.$/);
         // the file stays in the output directory (keepLocal) under its plain name: no built-in link's prefix
-        assert.deepEqual(files(), ["Sales by region.pivotkit-out.csv"]);
+        assert.deepEqual(files(), ["sales-by-region.pivotkit-out.csv"]);
         const [presign, put] = asked;
         assert.deepEqual([presign.method, presign.host, presign.path], ["POST", "store.example.test", "/presign"]);
         assert.equal(presign.headers.authorization, `Bearer ${STORE_TOKEN}`);
         assert.equal(presign.headers["content-type"], "application/json");
-        assert.deepEqual(JSON.parse(presign.body.toString("utf8")), { filename: "Sales by region.csv", mediaType: "text/csv;charset=utf-8", bytes: CSV.length, sha256: createHash("sha256").update(CSV).digest("hex") });
+        assert.deepEqual(JSON.parse(presign.body.toString("utf8")), { filename: "sales-by-region.csv", mediaType: "text/csv;charset=utf-8", bytes: CSV.length, sha256: createHash("sha256").update(CSV).digest("hex") });
         assert.deepEqual([put.method, put.host], ["PUT", "bucket.example.test"]);
         assert.equal(put.headers.authorization, undefined, "the operator's credential goes to the presign address only");
         assert.ok(!JSON.stringify(put.headers).includes(STORE_TOKEN));
@@ -517,7 +517,7 @@ test("keepLocal false: the local copy is removed once the store has it, and kept
         routes.set("PUT *", bucket(500));
         await assert.rejects(deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }), /^OperationError: the report could not be stored$/);
         assert.equal(log.findLast((l) => l.upload)?.upload, "STORE_500");
-        assert.deepEqual(files(), ["Sales by region.pivotkit-out.csv"]);
+        assert.deepEqual(files(), ["sales-by-region.pivotkit-out.csv"]);
     } finally {
         await context.close();
     }
@@ -768,7 +768,7 @@ test("keepLocal false: a 2xx with a link that is not shown keeps the local copy 
     const r = await failing({ keepLocal: false });
     assert.equal(r.code, "LINK_ORIGIN");
     assert.equal(asked.filter((a) => a.method === "PUT").length, 1, "the store took the report");
-    assert.deepEqual(r.files, ["Sales by region.pivotkit-out.csv"]);
+    assert.deepEqual(r.files, ["sales-by-region.pivotkit-out.csv"]);
 });
 
 test("check-config: a target on a loopback, private or IP address without intranet is a problem, as the upload would refuse it", async () => {

@@ -14,6 +14,7 @@ import { randomBytes } from "node:crypto";
 import { TEMP_FILE_NAME, writeNew } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
 import { bytesText, countText } from "./text.js";
+import { nameSlug } from "./upload.js";
 
 /** The output directory's real path, or null. */
 export const outputDir = (context) => context.output?.dir ?? null;
@@ -27,6 +28,14 @@ const pruned = new Map();
  * Only such files are counted, cleaned up and deleted to make room; an operator's own files are not.
  */
 export const OUTPUT_MARK = "pivotkit-out";
+
+/**
+ * The name of a file the services make, from a report's title: upload.js nameSlug (the store's name
+ * part) in lower case, "ss" for "ß" ("Umsatz pro Produkt" is "umsatz-pro-produkt"), so a link and a
+ * shell take it as it is. The title stays the report's own (resource_link's title).
+ * @param {unknown} title
+ */
+export const fileSlug = (title) => nameSlug(String(title ?? "").replace(/ß/g, "ss")).toLowerCase();
 
 /** A report pivotkit wrote; a schedule draft it wrote. */
 const REPORT_NAME = new RegExp(`\\.${OUTPUT_MARK}\\.(xlsx|html|csv|json|svg)$`, "i");
@@ -300,7 +309,7 @@ export async function writeOutput(context, file, draft = false, how = {}) {
         if (deleted) {
             context.log.info("output directory full: the oldest reports deleted", { deleted });
         }
-        return writeNew(dir, file.name, `${OUTPUT_MARK}.${file.extension}`, file.bytes, { prefix }).catch((e) => Promise.reject(outputErrorOf(e)));
+        return writeNew(dir, fileSlug(file.name), `${OUTPUT_MARK}.${file.extension}`, file.bytes, { prefix }).catch((e) => Promise.reject(outputErrorOf(e)));
     });
     return {
         name,

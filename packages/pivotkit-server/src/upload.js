@@ -101,8 +101,9 @@ export function nameSlug(name) {
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^A-Za-z0-9._-]+/g, "-")
         .replace(/-{2,}/g, "-")
-        .replace(/^[-.]+|-+$/g, "")
-        .slice(0, NAME_MAX);
+        .slice(0, NAME_MAX)
+        // after the cut, so a name cut after a "-" does not end in one
+        .replace(/^[-.]+|-+$/g, "");
     return slug === "" || slug === "." || slug === ".." ? "report" : slug;
 }
 
