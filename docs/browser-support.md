@@ -17,6 +17,9 @@ The packages target **ES2022** and these browsers or newer:
 
 Older browsers are not supported.
 
+The lowest supported browser, React and Node versions are part of the
+[versioning promise](versioning.md#what-is-public-interface). From 1.0.0, only a major release raises them.
+
 Every browser test runs in Chromium, Firefox and WebKit from Playwright. WebKit is the engine of
 Safari. In the Safari app itself, printing was checked by hand: in Safari 27 on macOS and on iOS 27.2
 in the simulator, the table and the chart print. Safari has its own rule, seen in Safari 27 on macOS
