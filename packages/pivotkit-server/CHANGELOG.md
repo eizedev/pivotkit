@@ -61,6 +61,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   day" in the singular. pivotkit-report and pivotkit-xlsx keep their own limit wording ("the view
   has N characters; at most M", "the part ... is N bytes"). Those texts say different things, so
   they are not merged on purpose ([#509](https://github.com/eizedev/pivotkit/issues/509)).
+- The load runner tells this repository's tests what it does through a hook the package does not
+  export. The tests wait for that instead of a fixed time. Nothing changes for callers
+  ([#527](https://github.com/eizedev/pivotkit/issues/527)).
 
 ### Fixed
 

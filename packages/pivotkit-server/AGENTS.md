@@ -128,6 +128,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 
 - `src/sources/` holds one module per kind of source. `runResolved` is the one way to run one.
 - Loads have time limits, coalescing and per-source and per-identity limits (`sources/run.js`).
+- Tests wait for the load runner's events (`LOAD_HOOKS`), never for a fixed time.
 - Last good data is served only after a transient failure.
 - The process cache and kept data sets are bounded in entries and bytes.
 - A kept data set copies its texts first. A reader's slices would keep the whole file alive.
