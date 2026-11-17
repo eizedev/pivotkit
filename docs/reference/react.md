@@ -35,7 +35,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `exportData` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row of the data as a CSV or JSON file, for the user's own analysis or the command line. It also gives the drill-down its copy and download. `{ columns }` keeps both to some columns. [More](#prop-exportdata) |
 | `drillDownExport` | `boolean` | `false` | The drill-down's copy and download while `exportData` is off, with every column. [More](#prop-drilldownexport) |
 | `drillDownLimit` | `number` | `1000` | Rows passed to the panel and to `onCellClick`; the panel's exports (Copy, Copy as JSON, Download CSV and Excel) hold these rows and say when there are more ("1,000 of 4,212 rows"). |
-| `locale` | `string` | `"en-US"` | Numbers, dates and sorting (a view's own `formatting.locale` wins), and the language of the labels: `de-*` picks German. A locale the browser has no data for, such as `xx-XX`, is an error the report shows. |
+| `locale` | `string` | `"en-US"` | Numbers, dates and sorting (a view's own `formatting.locale` wins), and the language of the labels: `de-*` picks German. A locale the browser has no data for, such as `xx-XX`, takes `en-US` with a warning. |
 | `timeZone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
 | `labels` | partial labels |  | Texts merged over the language's labels, see [Localisation](localisation.md). |
 | `theme` | `"auto"` or `"light"` or `"dark"` | `"auto"` | `auto` follows the nearest `data-theme="light"` or `data-theme="dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them. |

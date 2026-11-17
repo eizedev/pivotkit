@@ -131,17 +131,21 @@ const { computePivot, encode, normalize, toGrid } = await import(${JSON.stringif
 const data = encode([{ r: "a", v: 1234.5 }]);
 const { view, issues } = normalize({ rows: ["r"], values: [{ field: "v", agg: "sum", format: "number:1" }], formatting: { locale: "xx-XX" } }, data);
 const result = computePivot(data, view);
-let option;
+const byOption = computePivot(data, { rows: ["r"], values: [{ field: "v", agg: "sum", format: "number:1" }] }, { locale: "xx-XX" });
+const option = { issues: byOption.issues.map((i) => [i.code, i.path, i.severity]), resolved: byOption.locale, text: toGrid(byOption, { locale: "xx-XX" }).rows[1][1].text };
+// the view's own locale wins: an unknown option is not used, so nothing is said about it
+const viewWins = computePivot(data, { rows: ["r"], values: [{ field: "v", agg: "sum" }], formatting: { locale: "de-DE" } }, { locale: "xx-XX" });
+let malformed;
 try {
-    computePivot(data, { rows: ["r"], values: [{ field: "v", agg: "sum" }] }, { locale: "xx-XX" });
-    option = "accepted";
+    computePivot(data, { rows: ["r"], values: [{ field: "v", agg: "sum" }] }, { locale: "not a locale!" });
+    malformed = "accepted";
 } catch (e) {
-    option = e.code;
+    malformed = e.code;
 }
-console.log(JSON.stringify({ issues: issues.map((i) => [i.code, i.path]), locale: view.formatting.locale, resolved: result.locale, text: toGrid(result).rows[1][1].text, option }));
+console.log(JSON.stringify({ issues: issues.map((i) => [i.code, i.path]), locale: view.formatting.locale, resolved: result.locale, text: toGrid(result).rows[1][1].text, option, viewWins: [viewWins.locale, viewWins.issues.length], malformed }));
 `;
 
-test("a view's locale the runtime does not know is reported, and the report takes the default on every machine (#552)", () => {
+test("a view's or an option's locale the runtime does not know is reported, and the report takes the default on every machine (#552)", () => {
     const outputs = [{ LANG: "de_DE.UTF-8", LC_ALL: "de_DE.UTF-8" }, { LANG: "en_US.UTF-8", LC_ALL: "en_US.UTF-8" }, { LANG: "fr_FR.UTF-8", LC_ALL: "fr_FR.UTF-8" }].map((env) =>
         execFileSync(process.execPath, ["--input-type=module", "-e", unknownLocaleScript], { env: { ...process.env, ...env }, encoding: "utf8" })
     );
@@ -153,7 +157,10 @@ test("a view's locale the runtime does not know is reported, and the report take
         locale: null,
         resolved: "en-US",
         text: "1,234.5",
-        // an option names a locale as a programmer does: one the runtime does not know is an error
-        option: "INVALID_OPTION"
+        // an unknown locale option takes the default too, with a warning: the report still shows
+        option: { issues: [["unknownLocale", "locale", "warning"]], resolved: "en-US", text: "1,234.5" },
+        viewWins: ["de-DE", 0],
+        // a text that is no locale tag at all stays a programmer error
+        malformed: "INVALID_OPTION"
     });
 });

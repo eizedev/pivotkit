@@ -19,7 +19,9 @@ opens it, and on a server. A locale counts only when the runtime has data for it
 
 - A view's locale that it does not know, such as `xx-XX`, gets the issue `unknownLocale`, and the
   next step applies.
-- A `locale` option that it does not know throws `INVALID_OPTION`.
+- A `locale` option or prop that it does not know takes `"en-US"`. `computePivot` reports it as the
+  warning `unknownLocale` at the path `locale`, and the report still shows.
+- A `locale` option that is no locale tag at all throws `INVALID_OPTION`.
 
 The CSV and XLSX exports use the grid's locale too. In the UI, `locale` also picks the language of
 the labels. See [Localisation](../reference/localisation.md).

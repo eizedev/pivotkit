@@ -136,22 +136,41 @@ export function createCache(limit) {
  * @param {unknown} locale
  */
 export function canonicalLocale(locale) {
+    const tag = localeTag(locale);
+    return tag && Intl.NumberFormat.supportedLocalesOf(tag).length > 0 ? tag : null;
+}
+
+/**
+ * The canonical form of a locale tag, whether the runtime knows it or not; null for anything that is
+ * not one.
+ * @param {unknown} locale
+ */
+function localeTag(locale) {
     if (typeof locale !== "string" || locale.length === 0 || locale.length > 64) {
         return null;
     }
     try {
-        const canonical = Intl.getCanonicalLocales(locale)[0];
-        return canonical && Intl.NumberFormat.supportedLocalesOf(canonical).length > 0 ? canonical : null;
+        return Intl.getCanonicalLocales(locale)[0] ?? null;
     } catch {
         return null;
     }
 }
 
 /**
+ * Whether options.locale is a well-formed tag the runtime has no data for ("xx-XX"): resolveLocale
+ * takes "en-US" for it, and computePivot reports it as a warning.
+ * @param {unknown} optionLocale
+ */
+export function unknownOptionLocale(optionLocale) {
+    return optionLocale !== undefined && optionLocale !== null && localeTag(optionLocale) !== null && canonicalLocale(optionLocale) === null;
+}
+
+/**
  * The one locale precedence of pivotkit-core: the view's locale, then the caller's option, then
  * "en-US". The runtime's locale is never used, so a report looks the same on every machine.
  * @param {string | null | undefined} viewLocale  view.formatting.locale (already normalized)
- * @param {unknown} optionLocale  options.locale; an invalid tag is a programmer error
+ * @param {unknown} optionLocale  options.locale; a text that is no locale tag is a programmer error,
+ *   a tag the runtime has no data for ("xx-XX") takes "en-US" (unknownOptionLocale)
  * @returns {string}
  */
 export function resolveLocale(viewLocale, optionLocale) {
@@ -161,9 +180,12 @@ export function resolveLocale(viewLocale, optionLocale) {
     if (optionLocale === undefined || optionLocale === null) {
         return DEFAULT_LOCALE;
     }
+    if (unknownOptionLocale(optionLocale)) {
+        return DEFAULT_LOCALE;
+    }
     const canonical = canonicalLocale(optionLocale);
     if (!canonical) {
-        throw new PivotkitError("INVALID_OPTION", `options.locale ${JSON.stringify(optionLocale)} is not a locale this runtime knows`);
+        throw new PivotkitError("INVALID_OPTION", `options.locale ${JSON.stringify(optionLocale)} is not a locale`);
     }
     return canonical;
 }

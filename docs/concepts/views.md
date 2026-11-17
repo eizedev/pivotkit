@@ -138,7 +138,7 @@ An issue is `{ path, message, code, severity, params }`:
 | `unknownFilterType`, `filterFieldType`, `filterNoItems`, `filterTextOp`, `filterText`, `filterMatch`, `filterNot`, `filterBlanks`, `filterNotNumber`, `filterCount`, `filterTies`, `filterPrecision`, `filterValue`, `filterValue2`, `filterCompareValue`, `filterRelativeDirection`, `filterRelativeUnit`, `filterRelativeCount`, `filterRelativeAnchor` | A filter. `filterFieldType`: the filter type does not work on the field's type (`params.allowed`, and the type that does in `params.suggestion`). A version-1 type or operator in a version-2 view names version 2's in `params.suggestion`. |
 | `blanksUnspecified`, `filterEmpty` | Warnings of `validate` only: a filter that does not say what happens to blank items, or an `in` filter that keeps nothing. |
 | `sortNoItems` | A custom sort order without items. |
-| `badTotals`, `collapsedPath`, `unknownSetting`, `badTitle`, `unknownLocale`, `unknownTimeZone` | Totals, collapsed groups, display and chart settings, formatting. |
+| `badTotals`, `collapsedPath`, `unknownSetting`, `badTitle`, `unknownLocale`, `unknownTimeZone` | Totals, collapsed groups, display and chart settings, formatting. `computePivot` also gives `unknownLocale` as a warning at the path `locale`, for a `locale` option the runtime does not know. |
 | `timeZoneMismatch` | `computePivot` only: the view's time zone is not the data's. |
 | `tooManyIssues` | A warning, last in the list: pivotkit left out the issues beyond `ISSUE_CAP` (100 of one code, 1,000 in all). `params.value` counts them. |
 

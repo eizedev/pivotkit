@@ -15,3 +15,23 @@ for (const [hostLocale, viewLocale, expectedLocale] of [["ar-EG", undefined, "ar
         await expect(host.getByTestId("unused-title")).toContainText(new Intl.NumberFormat(expectedLocale).format(1));
     });
 }
+
+test("a locale prop the browser has no data for: the report shows in en-US and says so (#552)", async ({ page }) => {
+    await page.goto("pages/host.html");
+    await page.evaluate(async () => {
+        const React = await import("react");
+        const { createRoot } = await import("react-dom/client");
+        const { PivotReport } = await import("pivotkit-react");
+        const el = document.createElement("section");
+        el.id = "unknown-locale";
+        document.body.prepend(el);
+        const view = { rows: ["Region"], values: [{ field: "Revenue", agg: "sum", format: "number:1" }] };
+        createRoot(el).render(React.createElement(PivotReport, { locale: "xx-XX", data: [{ Region: "North", Revenue: 1234.5 }], defaultView: view, height: 420 }));
+    });
+    const report = page.locator("#unknown-locale");
+    // the numbers as en-US writes them, whatever the machine's locale
+    await expect(report.getByTestId("pivot-table")).toContainText("1,234.5");
+    await expect(report.getByTestId("pivot-table")).not.toContainText("1.234,5");
+    // a warning names the locale and what is used instead
+    await expect(report).toContainText("the language “xx-XX” is unknown");
+});

@@ -51,8 +51,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 - A view's locale that the runtime has no data for, such as `xx-XX`, gets the issue
   `unknownLocale`, and the report takes the `locale` option or `"en-US"`. Such a `locale` option
-  throws `INVALID_OPTION`. Before, `Intl` took the machine's locale for it, so the same view
-  formatted differently on different machines ([#552](https://github.com/eizedev/pivotkit/issues/552)).
+  takes `"en-US"`, and `computePivot` reports the warning `unknownLocale` at the path `locale`.
+  Before, `Intl` took the machine's locale for both, so the same view formatted differently on
+  different machines ([#552](https://github.com/eizedev/pivotkit/issues/552)).
 - A CSV in a locale with digits of its own, such as `ar-EG`, writes the decimal mark the locale uses
   with Latin digits (`.`), not `٫` beside Latin digits, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).
 - Slanted category names take at most 40 % of the height left for the plot and them. In a low chart,
