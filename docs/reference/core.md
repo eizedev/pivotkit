@@ -345,7 +345,7 @@ load it with the chart, not with the first load.
 
 | Option | Of | What |
 | --- | --- | --- |
-| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition }`, over the view's chart ([Charts](../concepts/charts.md)). |
+| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition, tooltip }`, over the view's chart ([Charts](../concepts/charts.md)). |
 | `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `titleSize` (the title's font size in px, default 16), `textSize` (the font size of every other text, the axes, the legend and the labels, in px, default 14), `heatmapColors` (low, high), `pieRadius` (inner and outer radius of a pie, default a whole circle, `0%`, `70%`), `donutRadius` (of a donut, default a ring, `42%`, `70%`). |
 | `locale` | `toEChartsOption` | Used when the view names none. Default: the pivot's locale. |
 | `labels`, `limits` | both | `labels`: texts. `limits`: `cells` caps the data points. |
@@ -409,6 +409,7 @@ a report's marks on `toEChartsOption`'s option:
 - Bars and pie slices with `--pk-radius-chart` corners in px. A heatmap's cells get three quarters of
   it. The default is `DEFAULT_THEME.markRadius`, 4.
 - A tooltip with `--pk-radius-card` corners, default 8 px.
+- A bar that lights up alone under the pointer. A line lights up as a whole.
 - 2 px lines.
 - The room around a pie, and room beside it for the labels outside.
 - A legend moved below a narrow chart.
@@ -418,7 +419,8 @@ a report's marks on `toEChartsOption`'s option:
   narrow axis needs them.
 - A heatmap's row names and cell numbers where its cells have room.
 
-pivotkit-react adds its DOM tooltip through `tooltipFormatter`. [pivotkit-report](report.md) draws the
+pivotkit-react adds its DOM tooltip through `tooltipFormatter`. It follows the view's `chart.tooltip`
+([Charts](../concepts/charts.md#display-settings-for-the-people-who-use-the-report)). [pivotkit-report](report.md) draws the
 SVG with `decorateOption`. The layout measures the labels at the option's text size
 (`textStyle.fontSize`, the theme's `textSize`).
 
@@ -532,7 +534,7 @@ files contain and where Excel's number formats cannot follow the grid.
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `MAX_DATE_MS`, `isDateMs(ms)` | `MAX_DATE_MS`: the most milliseconds from the epoch a `Date` holds either way (`8.64e15`, the years -271821 to 275760). `isDateMs`: whether a value is a number within it. `new Date(ms)` of any other is invalid, and formatting it throws. For a host that builds dates or a `now` of its own. |
 | `isFormat(format)` | Whether a name is a known format. |
-| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `comparePrecisions`, `topTies`, `relativeUnits`, `relativeDirections`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
+| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `comparePrecisions`, `topTies`, `relativeUnits`, `relativeDirections`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `chartTooltips`, `additiveAggregators`, `additiveShowAs`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `AGGREGATOR_ALIASES` | Other tools' names of aggregators and the ones they mean: `avg` and `mean` are `average`, `cnt` is `count`, `total` is `sum`, `distinct` is `countUnique`, `stddev` is `stdev`. For "did you mean" only: a view never accepts them. |
 | `foldText(text, match?)` | A text folded as text filters compare it. `match` is `{ case: "insensitive" \| "sensitive", whitespace: "collapse" \| "exact" }`, default `MATCH_DEFAULTS`. `insensitive` lower-cases with `toLowerCase()`, which does not depend on the runtime's locale. `collapse` turns every run of whitespace, a no-break space (U+00A0) among them, into one space and trims the ends. A UI's search over a field's items folds with it, so a search and a text filter agree. |

@@ -59,6 +59,8 @@
     /* the field list: room for a name of about 16 characters next to its grip, type, zone mark and menu */
     --pk-panel-w: 288px;
     --pk-rail-w: 40px;
+    /* the chart tooltip's series names: a longer one ends in "…" */
+    --pk-tooltip-name-w: 12em;
     --pk-duration: 180ms;
     --pk-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     /* the stacking of the menus' layer where the browser has no Popover API (no top layer): a host

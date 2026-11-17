@@ -22,6 +22,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- The chart's tooltip names the element under the pointer, with a stack's total. Display →
+  **Tooltip**, **All series** lists every series at the category
+  ([#376](https://github.com/eizedev/pivotkit/issues/376), [#106](https://github.com/eizedev/pivotkit/issues/106)).
+
 - The drill-down panel's copy and download follow `export-data`. Without it, the panel shows the
   rows but offers no copy and no download (#263).
 - The first load is about 1.7 KiB smaller: pivotkit-core's ECharts option loads with the chart

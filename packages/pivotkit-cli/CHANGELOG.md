@@ -16,6 +16,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- The example views (`pivotkit example`) name the chart's `tooltip` setting, `"auto"`.
+
 - `--filter Revenue>1000`, `Country!=Germany` or `Country<>Germany` is a usage error that gives
   the JSON filter it means. A value in neither form gets an example of each (#508).
 - `--values avg:Revenue` asks "did you mean average?", as do `mean`, `cnt`, `total`, `distinct`

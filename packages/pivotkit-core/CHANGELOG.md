@@ -8,6 +8,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `chart.tooltip` in the view: what the tooltip of bars, lines and areas covers. `"auto"`, the
+  default, is the element under the pointer. `"axis"` is every series at the pointer's category.
+  `CATALOG.chartTooltips` lists both ([#106](https://github.com/eizedev/pivotkit/issues/106)).
+- `CATALOG.additiveAggregators`: the aggregators whose values add up (`count`, `sum`), so a UI
+  knows when the parts of a stack have a total. `CATALOG.additiveShowAs` (from the new `addsUp` of
+  `SHOW_AS`): the "show values as" types whose results still add up, a share of the grand or the
+  row total, a difference and a running total.
 - `toCsv` and `toJson` take `numbers: "shown"`: each number rounded to the decimals its format
   shows, without float noise such as `9.59999999999999`. The default `"full"` keeps 15 significant
   digits; a format without plain decimals keeps 12. `toCsv` takes `flatHeader: true` for one header
@@ -20,6 +27,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   loads it with the chart, not first (#546).
 
 ### Changed
+
+- A bar lights up alone under the pointer: `decorateOption` sets `emphasis.focus: "self"` on bars,
+  and `toEChartsOption` sets `axisPointer.triggerEmphasis: false` for them. The category under the
+  pointer no longer lights up every bar. Lines keep `focus: "series"`
+  ([#376](https://github.com/eizedev/pivotkit/issues/376)).
 
 - `unknownFilterType` lists the filter types for an unknown type too (#508).
 - `filterCompareValue` names the operators and shows a comparison written out (#508).

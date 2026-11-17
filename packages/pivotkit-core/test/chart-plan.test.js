@@ -123,3 +123,39 @@ test("the room of the title, the legend and the group labels grows with the text
     assert.deepEqual(at({}), { gridTop: 16 + 32 + 24, legendTop: 32, groupOffset: 26 });
     assert.deepEqual(at({ titleSize: 24, textSize: 20 }), { gridTop: 16 + 40 + 30, legendTop: 40, groupOffset: 32 });
 });
+
+test('chart.tooltip: "auto" (the element under the pointer) by default, "axis" (every series); an unknown mode is reported', async () => {
+    const { CATALOG, emptyView } = await import("pivotkit-core");
+    assert.deepEqual(CATALOG.chartTooltips, ["auto", "axis"]);
+    assert.equal(emptyView().chart.tooltip, "auto");
+    assert.equal(view({ chart: { tooltip: "axis" } }).chart.tooltip, "axis");
+    const bad = normalize({ chart: { tooltip: "item" } }, data);
+    assert.equal(bad.view.chart.tooltip, "auto");
+    assert.deepEqual(bad.issues.map((i) => [i.path, i.code]), [["chart.tooltip", "unknownSetting"]]);
+});
+
+test("the tooltip's marks: a bar lights up alone, the axis position lights up no bar; a line lights up as a whole", () => {
+    const style = { getPropertyValue: () => "" };
+    const of = (chart) => decorateOption(toEChartsOption(computePivot(data, { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart })), style, { width: 600, height: 300 });
+    const stacked = of({ type: "bar", stacked: true });
+    assert.equal(stacked.tooltip.trigger, "axis");
+    assert.deepEqual(stacked.series.map((s) => s.emphasis.focus), stacked.series.map(() => "self"));
+    assert.deepEqual(stacked.axisPointer, { triggerEmphasis: false });
+    // with every series in the tooltip too: the hovered bar is the one that lights up
+    assert.deepEqual(of({ type: "bar", tooltip: "axis" }).axisPointer, { triggerEmphasis: false });
+    // a line lights up as a whole; pie, donut and heatmap keep the item tooltip
+    const line = of({ type: "line" });
+    assert.deepEqual([line.series[0].emphasis.focus, line.axisPointer], ["series", undefined]);
+    for (const type of ["pie", "donut", "heatmap"]) {
+        const o = of({ type });
+        assert.deepEqual([o.tooltip.trigger, o.axisPointer], ["item", undefined], type);
+    }
+});
+
+test("CATALOG.additiveAggregators: the aggregators whose values add up (a stack's total means something)", async () => {
+    const { CATALOG } = await import("pivotkit-core");
+    assert.deepEqual(CATALOG.additiveAggregators, ["count", "sum"]);
+    // shown as: shares of the grand or the row total, a difference and a running total still add up
+    // across a category's series; a rank, a percent difference or a share of another base does not
+    assert.deepEqual(CATALOG.additiveShowAs, ["percentOfGrandTotal", "percentOfRowTotal", "differenceFromPrevious", "runningTotal"]);
+});

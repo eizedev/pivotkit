@@ -48,6 +48,16 @@ const GROUPED = encodeViewLink({
     chart: { type: "bar", title: "The three largest countries of each region (2024)" }
 });
 
+/** Revenue per region, stacked by category: the tooltip of one segment names it with the stack's total. */
+const STACKED = encodeViewLink({
+    rows: ["Region"],
+    cols: ["Category"],
+    values: [{ field: "Revenue", agg: "sum", format: "currency:EUR" }],
+    sort: [{ field: "Region", by: "value", order: "desc" }],
+    display: "chart",
+    chart: { type: "bar", stacked: true }
+});
+
 /** Regions with more than 2 million revenue, by the second value of two: the chip says so, the menu has the form open. */
 const VALUE_FILTER = encodeViewLink({
     rows: ["Region", "Product"],
@@ -283,6 +293,27 @@ const SHOTS = [
         }
     },
     { name: "chart-groups", query: "data=countries", hash: GROUPED, size: WIDE, chart: true },
+    {
+        // the pointer on a segment of stacked bars: the tooltip names it and adds the stack's total
+        name: "chart-tooltip",
+        query: "data=sales",
+        hash: STACKED,
+        size: WIDE,
+        chart: true,
+        open: async (page) => {
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            const chart = page.getByTestId("pivot-chart");
+            const box = await chart.boundingBox();
+            // along a line through the middle of the bars until the pointer is on a segment: the
+            // tooltip then has three lines, the region, the segment and the total
+            const lines = chart.locator(":scope > div:not(:first-child) > div > div");
+            for (let x = box.x + box.width * 0.2; x < box.x + box.width; x += 8) {
+                await page.mouse.move(x, box.y + box.height * 0.6);
+                await page.waitForTimeout(40);
+                if ((await lines.count()) === 3 && (await chart.locator(":scope > div:not(:first-child)").isVisible())) break;
+            }
+        }
+    },
     {
         // Start over open at the start view: Reset greyed out with its reason, New with what it does;
         // a window of 1920 px, where Start over is in the toolbar with the field list open

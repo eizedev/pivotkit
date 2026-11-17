@@ -48,6 +48,7 @@ const LABEL_POSITIONS = ["outside", "inside"];
 const LEGENDS = ["auto", "bottom", "right", "off"];
 const AXIS_LABELS = ["auto", "all", "nth"];
 const GROUP_LABELS = ["auto", "on", "off"];
+const TOOLTIPS = ["auto", "axis"];
 
 /** The chart's title: applied with Enter or Apply; the × removes it at once. */
 function ChartTitle({ title, labels, onDisplay }) {
@@ -105,8 +106,9 @@ function Sub({ title, info, children }) {
 }
 
 /**
- * How the chart is drawn: value labels, legend, title, smooth lines (line and area). Each choice
- * applies at once and the panel stays open, so the chart behind it shows the change.
+ * How the chart is drawn: value labels, legend, title, axis and group labels, the tooltip (bars, lines
+ * and areas), smooth lines (line and area). Each choice applies at once and the panel stays open, so
+ * the chart behind it shows the change.
  */
 function ChartDisplay({ view, plan, labels, onDisplay }) {
     const chart = view.chart;
@@ -169,6 +171,17 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
                         {GROUP_LABELS.map((v) => (
                             <Option key={v} checked={chart.groupLabels === v} onSelect={() => onDisplay({ groupLabels: v })} testId={`groups-${v}`}>
                                 {labels.groupLabelNames[v]}
+                            </Option>
+                        ))}
+                    </div>
+                </Sub>
+            ) : null}
+            {axis ? (
+                <Sub title={labels.tooltip} info="tooltip">
+                    <div className="pk-choice-grid">
+                        {TOOLTIPS.map((v) => (
+                            <Option key={v} checked={(chart.tooltip ?? "auto") === v} onSelect={() => onDisplay({ tooltip: v })} testId={`tooltip-${v}`}>
+                                {labels.tooltipNames[v]}
                             </Option>
                         ))}
                     </div>

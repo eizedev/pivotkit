@@ -78,7 +78,8 @@
       "smooth": false,
       "axisLabels": "auto",
       "groupLabels": "auto",
-      "labelPosition": "outside"
+      "labelPosition": "outside",
+      "tooltip": "auto"
     },
     "formatting": {
       "locale": null,

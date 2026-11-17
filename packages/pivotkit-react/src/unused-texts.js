@@ -39,6 +39,7 @@ export const en = {
         axisLabels: "axis labels",
         groupLabels: "group labels",
         labelPosition: "label position",
+        tooltip: "tooltip",
         other: "setting"
     },
     // what the report does instead, by the part of the view ({dropped} in a text)
