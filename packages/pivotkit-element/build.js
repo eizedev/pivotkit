@@ -267,6 +267,11 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * by the first load's toEChartsOption and the chart's label layout) add 40 bytes to the first load:
  * a chunk cannot inline a constant another chunk imports. 174.38 to 174.41 on a Mac; CI measured
  * main at 175.0, so initial goes to 175.1.
+ * Why CI measured more than a Mac (#546): Homebrew's Node uses the system's zlib, CI's official Node
+ * the zlib bundled in it. An official Node 24 on a Mac measures what CI does (zlibNote, SIZE_NODE); the
+ * numbers from here on are its. The ECharts option (pivotkit-core's chart.js, toEChartsOption) then
+ * left the first load for the chart (chartOffBarrel): first load 175.1 to 173.4, chart 218.8 to
+ * 220.8. The budgets stay.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
 export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 3 };
@@ -354,20 +359,27 @@ async function sizes(metafile) {
     return out;
 }
 
+/** The Node major of CI's size step (.github/workflows/ci.yml; tests/ci.test.js checks it). */
+export const SIZE_NODE = "24";
+
 /**
- * The zlib that measures the gzip sizes, and a warning when it is not Node's own. CI runs the size
- * check on an official Node build, which compresses with the zlib bundled in Node. A Node built
- * against the system's zlib (Homebrew's, for one) compresses the same bytes differently: on a Mac,
- * Homebrew's Node 26 measured the first load 0.6 KiB smaller than CI. Only an official Node build
- * gives CI's numbers.
+ * Which zlib measured the gzip sizes, and a warning when CI would measure other ones. CI runs the
+ * size check on an official Node build, which compresses with the zlib bundled in Node. A Node built
+ * against the system's zlib (Homebrew's, for one) compresses the same bytes differently: Homebrew's
+ * Node 26 on a Mac measured the first load 0.6 KiB smaller than CI. Another Node major bundles
+ * another zlib build. An official Node of SIZE_NODE gives CI's numbers.
+ * @param {{ version: string, versions: { zlib?: string }, config: { variables: Record<string, unknown> } }} [node]  process, or a stand-in
  * @returns {string[]}
  */
-export function zlibNote() {
-    const line = `gzip level 9 with zlib ${process.versions.zlib} (Node ${process.version})`;
-    if (!process.config.variables.node_shared_zlib) {
+export function zlibNote(node = process) {
+    const line = `gzip level 9 with zlib ${node.versions.zlib}, Node ${node.version}`;
+    const shared = Boolean(node.config.variables.node_shared_zlib);
+    const major = node.version.replace(/^v/, "").split(".")[0];
+    if (!shared && major === SIZE_NODE) {
         return [line];
     }
-    return [line, "This Node uses the system's zlib, not the one bundled in Node: CI measures other sizes. Use an official Node build (nodejs.org) to get CI's numbers."];
+    const why = shared ? "this Node uses the system's zlib" : `this is Node ${major}`;
+    return [line, `CI measures with an official Node ${SIZE_NODE} build and its bundled zlib; ${why}, so the sizes can differ from CI's.`];
 }
 
 if (isMain(import.meta.url)) {

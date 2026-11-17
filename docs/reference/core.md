@@ -340,6 +340,8 @@ The view's `totals` decide the total rows and columns, with two rules of their o
 
 `toSeries` gives chart data. `toEChartsOption` gives a plain [Apache ECharts](https://echarts.apache.org/)
 option for bar, stacked bar, line, area, pie, donut and heatmap. Neither imports ECharts itself.
+`toEChartsOption` is also exported from [`pivotkit-core/chart`](#chart-marks). Import it from there to
+load it with the chart, not with the first load.
 
 | Option | Of | What |
 | --- | --- | --- |

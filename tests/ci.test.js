@@ -261,6 +261,16 @@ test("CI's test job and the release build verify the registry signatures right a
     }
 });
 
+// the web component's size step runs on the Node major its size check names (zlibNote): that Node's
+// bundled zlib gives the numbers CI checks against the budgets
+test("CI measures the web component's size on the Node major pivotkit-element's build.js names", async () => {
+    const { SIZE_NODE } = await import("../packages/pivotkit-element/build.js");
+    const job = jobOf(".github/workflows/ci.yml", "test");
+    const step = job.slice(job.indexOf("- name: Web component size"));
+    assert.match(step.slice(0, step.indexOf("run:")), new RegExp(`if: matrix\\.node == '${SIZE_NODE}'`));
+    assert.match(job, new RegExp(`node: \\[[^\\]]*"${SIZE_NODE}"`));
+});
+
 // pivotkit-cli's file handling is tested on Windows too (junctions, drive letters, device names)
 test("CI runs pivotkit-cli's tests and pivotkit-server's credential commands on Windows", () => {
     const job = jobOf(".github/workflows/ci.yml", "windows");

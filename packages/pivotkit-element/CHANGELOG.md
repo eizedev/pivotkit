@@ -21,6 +21,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - The drill-down panel's copy and download follow `export-data`. Without it, the panel shows the
   rows but offers no copy and no download (#263).
+- The first load is about 1.7 KiB smaller: pivotkit-core's ECharts option loads with the chart
+  (#546).
+- `npm run size` names the zlib it measures with. It says when the sizes can differ from CI's, as
+  with a Node that uses the system's zlib (#546).
 
 ### Fixed
 

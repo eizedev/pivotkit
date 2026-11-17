@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import * as esbuild from "esbuild";
-import { bundledPackages, loadGroups, options } from "../build.js";
+import { SIZE_NODE, bundledPackages, loadGroups, options, zlibNote } from "../build.js";
 import { hostStyles } from "../src/host-css.js";
 import { options as reactOptions } from "../../pivotkit-react/build.js";
 
@@ -187,6 +187,13 @@ test("a bundled import of toEChartsOption from pivotkit-core's index.js fails th
     await assert.rejects(bundle('import { toEChartsOption } from "pivotkit-core"; console.log(toEChartsOption);'), /toEChartsOption/);
     const ok = await bundle('import { toEChartsOption } from "pivotkit-core/chart"; console.log(toEChartsOption);');
     assert.equal(ok.errors.length, 0);
+});
+
+test("the size check says when its gzip sizes can differ from CI's", () => {
+    const node = (version, shared) => ({ version, versions: { zlib: "1.3.2" }, config: { variables: { node_shared_zlib: shared } } });
+    assert.deepEqual(zlibNote(node(`v${SIZE_NODE}.1.0`, false)), [`gzip level 9 with zlib 1.3.2, Node v${SIZE_NODE}.1.0`]);
+    assert.match(zlibNote(node(`v${SIZE_NODE}.1.0`, true))[1], /system's zlib/);
+    assert.match(zlibNote(node("v22.1.0", false))[1], /this is Node 22/);
 });
 
 test("the HTML report, the SVG and printing load on first use: pivotkit-report is no part of the first load or the menus", () => {

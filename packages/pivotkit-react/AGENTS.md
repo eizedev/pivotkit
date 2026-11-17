@@ -58,6 +58,7 @@ The first load holds only what the first render needs. Everything else loads on 
 - A text only a menu shows goes into `menu-labels.js`.
 - A text the first render shows stays in `labels.js`. No report may show English first.
 - A menus module never imports `chart.jsx`. `export-run.js` gets `loadECharts` through its context.
+- `echarts.js` brings pivotkit-core's `toEChartsOption`, from `pivotkit-core/chart`. `chart.jsx` never imports it.
 - The import UI loads on first use through `lazy-import.js`.
 - The HTML report, SVG and printing load on first use through `report-run.js`.
 - pivotkit-element's `test/build.test.js` checks the split.
