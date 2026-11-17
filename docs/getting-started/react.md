@@ -186,7 +186,7 @@ from `onViewChange`. The undo history stays inside the report however often your
     ```
 
 In TypeScript, type the state as `ViewInput`. Without it, TypeScript infers the preset's own type,
-and `tsc` refuses `onViewChange={setView}`.
+and `tsc` refuses `onViewChange={setView}`. The web component's type for the same is `PivotView`.
 
 The steps below add props to this `<PivotReport>` inside `Report`.
 

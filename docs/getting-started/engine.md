@@ -63,6 +63,25 @@ The steps:
    [Apache ECharts](https://echarts.apache.org/) instance. pivotkit-core does not import ECharts.
 6. **`toXlsx(grid)`** and **`toCsv(grid)`** export what the grid shows.
 
+## Check the issues before you trust the numbers { #check-issues }
+
+`computePivot` never throws for a bad view. It leaves out what it cannot use and lists it in
+`result.issues`. A filter it leaves out keeps every row, so the numbers then cover all the data.
+A filter on a misspelled field is enough for that.
+
+Check the issues before you show or send a result:
+
+```js
+const result = computePivot(data, input);
+const errors = result.issues.filter((issue) => issue.severity === "error");
+if (errors.length > 0) {
+    // say what was left out, or refuse the report
+}
+```
+
+pivotkit-core has no strict mode. To check a view before you compute, call `validate(view, data)`.
+It gives the same problems as `errors` and `warnings`.
+
 ## Drawing the grid
 
 `grid.rows` holds the header rows first, then the body. `grid.headerRows` says how many header rows

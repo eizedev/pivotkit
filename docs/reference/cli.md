@@ -477,8 +477,9 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
   `params`. `pivotkit sources` lists such a source with `(needs: customer)`. Give the values with
   `--param customer=acme`, once per parameter. They go with the source as `params`, as typed. The
   server reads a number or `true`/`false` from the text where the parameter is one.
-- **Render** needs a token whose [policy profile](rest.md#profiles) has `results: true`. Without
-  it, the server answers 403 `NOT_ALLOWED` and the CLI says so (exit 2). Validate, describe and
+- **Render** needs a token whose [policy profile](rest.md#profiles) has `results: true`, or, on a
+  server without sign-in, `results: true` in the server's or the source's policy. Without it, the
+  server answers 403 `NOT_ALLOWED` and the CLI says so (exit 2). Validate, describe and
   sources work with any token.
     - The file goes only to `-o` or stdout, never to a name from the answer. An XLSX file is not
       written to a terminal.

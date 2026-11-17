@@ -73,7 +73,8 @@ Exports: `PivotReport` and these types:
 - `PivotReportProps`, `CellClick`, `ExportFile`
 - `Template`, `TemplateScope`, `TemplateSource`: the data a view is saved or published from
 - `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `DataLoad`, `View`
-- `ViewInput`: a view as a host passes it
+- `ViewInput`: a view as a host passes it. pivotkit-element's `PivotView` has the same role
+  ([types](element.md#types)).
 - `UiLabels` and `PartialLabels`
 
 The stylesheet is `pivotkit-react/styles.css`. It ships its own type declaration, so a strict
