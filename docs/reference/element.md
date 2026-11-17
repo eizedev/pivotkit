@@ -361,7 +361,8 @@ The event is cancelable. `preventDefault()` skips the download or the copy, and 
 blob, for example to upload it.
 
 The element does not send it for the table's exports of an empty report, where no field is placed.
-Those exports are greyed out ("Add a field first."). Source data stays.
+Those exports are greyed out ("Add a field first."). Source data stays while the data have rows.
+Without rows, the element turns it off too and says "The data has no rows yet."
 
 ### `pivot-source-switch` { #event-pivot-source-switch }
 
@@ -552,14 +553,14 @@ They are approximate and change with every dependency update.
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 176.4 KiB, about 0.5 KiB more than CI measures (175.9 KiB). A split of
+- The first load's budget is 177 KiB, about 0.5 KiB more than CI measures (176.5 KiB). A split of
   the first load is planned ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - The budgets of the groups loaded later leave a little room above what CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 10 | 536 KiB | 176 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 10 | 538 KiB | 177 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title, the zoom slider and the reference lines' markLine among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 2 | 702 KiB | 242 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 28 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |

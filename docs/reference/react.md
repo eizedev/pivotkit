@@ -347,7 +347,11 @@ A copy has its `text` and the `fileName` it would have as a file. A drill-down e
 `rows: { shown, count }`.
 
 An empty report has no field placed. Its table's Export entries are greyed out ("Add a field
-first."), and the report does not call `onExport` for them. Source data stays.
+first."), and the report does not call `onExport` for them. Source data stays while the data have
+rows.
+
+Data without rows turn Source data off too. Its entries say "The data has no rows yet.", and the
+report does not call `onExport` for them.
 
 ### `exportData` { #prop-exportdata }
 
@@ -852,13 +856,23 @@ The zones stack, one line each, whenever the area next to the field list is narr
 container query on that area decides it. This covers the narrow layout and a medium one, such as a
 half-width card of 650 px.
 
-Only the table scrolls sideways. The row label columns share at most 40 % of the main area, and a
-value's name wraps beyond 30 %. So a long label wraps between words, and a phone still shows values
-next to two levels of row labels.
+Only the table scrolls sideways. The table measures whether it fits the report and takes the first
+layout that fits:
+
+1. Every row label, field name and value name keeps its natural width, on one line.
+2. The labels and names wrap between words until the table is as wide as the report.
+3. The labels are capped. The row label columns share the room the value columns leave. Each gets
+   at least an equal part of 40 % of the main area. A value's name wraps beyond 30 %. So a phone
+   still shows values next to two levels of row labels.
+
+Under the cap:
 
 - Each row label column is at least 5.5em wide, so a common word such as "Central" never breaks.
 - A longer word breaks at a hyphen of its own. A word longer than the column breaks as a last
   resort.
+
+In every layout:
+
 - A narrow report has less room around each cell.
 - From 300 rows on, rows have one height, too low for two lines. The report then cuts a row label
   with an ellipsis. Its full text is the cell's title. The status line under the table shows the
@@ -1026,7 +1040,9 @@ count relative to one of these:
   their own (the filter's `anchor`)
 
 The level offers This only for the units whose current period has data. It says the data's share of
-a range ("2025; 2026 has no data").
+a range ("2025; 2026 has no data"). When the data have no date after today, it leaves out the days
+from today on in a range that holds today. Today comes from `encode`'s `timeZone`. With rows dated
+after today, it names every day.
 
 The rules write pivotkit-core's `relative`, `compare`, `value` and `text` filters
 ([Filters](../concepts/filters.md#filters-in-the-ui)). A rule's result line and the summary compute

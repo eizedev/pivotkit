@@ -102,6 +102,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- Row labels, the field names above them and the value names keep their natural width, on one
+  line, when the table fits the report. Only a table that would be wider than the report wraps them,
+  between words first. Then the row labels share the room the value columns leave, not a fixed 40 %
+  of the width. A word breaks only when it alone is wider than its column ([#584](https://github.com/eizedev/pivotkit/issues/584)).
 - On a touch screen, the first tap on a bar, a point or a heatmap cell shows its tooltip. The second
   tap on it opens the rows behind it and calls `onCellClick`. The tooltip no longer stays over the
   panel, and the panel no longer closes right after it opens ([#538](https://github.com/eizedev/pivotkit/issues/538)).
@@ -113,6 +117,16 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - A view's locale that the browser has no data for, such as `xx-XX`, is reported as unknown, and
   the report takes the `locale` prop. Such a `locale` prop takes `en-US` with a warning. Before,
   both took the machine's locale, from pivotkit-core ([#552](https://github.com/eizedev/pivotkit/issues/552)).
+- Export → Source data is greyed out while the data have no rows, like the table's entries. It says
+  "The data has no rows yet." ([#585](https://github.com/eizedev/pivotkit/issues/585)).
+- A relative date filter that holds today no longer says that the days from today on have no data,
+  while the data have no date after today. Data up to yesterday give "last 4 weeks (Oct 26,
+  2026–Nov 22, 2026)", not a second part for the rest of the week. Days before today without rows
+  are still named, also in a range with no data at all: "last 1 week (Nov 16, 2026 has no data)".
+  A range wholly after today, and data with rows dated after today, name every day without data.
+  The "Include the current …" checkbox and its count back from the latest record follow the same
+  rule. The chip, its tooltip, the summary, the menu's first level and the Filter level's choices
+  say the same ([#586](https://github.com/eizedev/pivotkit/issues/586)).
 - "Table as CSV" in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
   `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:
   `9.6`, not `9٫6`, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).

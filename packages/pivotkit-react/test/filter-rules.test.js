@@ -8,7 +8,7 @@ import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { QUICK_UNITS, RULES_MAX, RULE_TYPES, filterState, keepsBlanks, rowsInRange, setRuleBlanks, setTopFilter, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
-import { compareText, itemRuleText, rangeText, relativeText } from "../src/names.js";
+import { compareText, itemRuleText, namedUntil, rangeShare, rangeText, relativeText } from "../src/names.js";
 import { addField, dateSpan, filtersOf, groupField } from "../src/view-ops.js";
 
 const data = encode([
@@ -192,7 +192,8 @@ test("the words of a rule: the chip, the first level and the Filter level say th
     assert.equal(relativeText(r("year", 5), L, "en-US", "UTC", now, span), "last 5 years (2023–2025; 2022, 2026 have no data)");
     assert.equal(relativeText(r("month", 12), L, "en-US", "UTC", now, span), "last 12 months (Dec 2025; 2026 has no data)");
     assert.equal(relativeText(r("year", 1), L, "en-US", "UTC", now, span), "this year (2026 has no data)");
-    assert.equal(relativeText(r("day", 7), L, "en-US", "UTC", now, span), "last 7 days (Nov 3, 2026–Nov 9, 2026 has no data)");
+    // today (Nov 9) is not over: the days without data are named up to yesterday (#586)
+    assert.equal(relativeText(r("day", 7), L, "en-US", "UTC", now, span), "last 7 days (Nov 3, 2026–Nov 8, 2026 has no data)");
     // the data cover the range: the range alone
     assert.equal(relativeText(r("year", 3), L, "en-US", "UTC", "2025-06-01", span), "last 3 years (2023–2025)");
     // a part missing inside a year that has data is written as the unit writes it
@@ -219,6 +220,55 @@ test("the words of a rule: the chip, the first level and the Filter level say th
     // the first level's state: the chip's rules first, then the names' and the totals' rules
     const state = { summary: null, rules: ["last 5 years (2022–2026)"] };
     assert.equal(filterState(setRule(byYear, YEAR, null, total), YEAR, state, L, "en-US"), "last 5 years (2022–2026), Count of rows > 3");
+});
+
+test("the data's share of a range names no day from today on: they have no data yet (#586)", () => {
+    const L = MENU.en;
+    // Tuesday, Nov 17, 2026: the current week runs from Monday, Nov 16, to Sunday, Nov 22
+    const now = "2026-11-17";
+    const until = (iso) => ({ min: Date.UTC(2025, 0, 1), max: Date.parse(iso) });
+    const weeks = { unit: "week", count: 4 };
+    // the issue's case: data up to yesterday, or up to today, are complete; the range alone
+    assert.equal(relativeText(weeks, L, "en-US", "UTC", now, until("2026-11-16")), "last 4 weeks (Oct 26, 2026–Nov 22, 2026)");
+    assert.equal(relativeText(weeks, L, "en-US", "UTC", now, until("2026-11-17")), "last 4 weeks (Oct 26, 2026–Nov 22, 2026)");
+    assert.equal(relativeText(weeks, MENU.de, "de-DE", "UTC", now, until("2026-11-16")), "letzte 4 Wochen (26.10.2026–22.11.2026)");
+    // past days without rows still warn, named up to yesterday
+    assert.equal(relativeText(weeks, L, "en-US", "UTC", now, until("2026-11-10")), "last 4 weeks (Oct 26, 2026–Nov 10, 2026; Nov 11, 2026–Nov 16, 2026 have no data)");
+    assert.equal(relativeText(weeks, L, "en-US", "UTC", now, until("2026-11-15")), "last 4 weeks (Oct 26, 2026–Nov 15, 2026; Nov 16, 2026 has no data)");
+    assert.equal(relativeText(weeks, MENU.de, "de-DE", "UTC", now, until("2026-11-10")), "letzte 4 Wochen (26.10.2026–10.11.2026; 11.11.2026–16.11.2026 haben keine Daten)");
+    // a range with no past day and no data: today alone, the current week on its Monday
+    assert.equal(relativeText({ unit: "day", count: 1 }, L, "en-US", "UTC", now, until("2026-11-16")), "last 1 day (Nov 17, 2026)");
+    assert.equal(relativeText({ unit: "week", count: 1 }, L, "en-US", "UTC", "2026-11-16", until("2026-11-15")), "last 1 week (Nov 16, 2026–Nov 22, 2026)");
+    // a range without any data names its days up to yesterday, not the days ahead
+    assert.equal(relativeText({ unit: "week", count: 1 }, L, "en-US", "UTC", now, until("2026-11-15")), "last 1 week (Nov 16, 2026 has no data)");
+    assert.equal(relativeText(weeks, L, "en-US", "UTC", now, until("2025-06-30")), "last 4 weeks (Oct 26, 2026–Nov 16, 2026 has no data)");
+    assert.equal(relativeText({ unit: "week", count: 1 }, MENU.de, "de-DE", "UTC", now, until("2026-11-15")), "letzte 1 Woche (16.11.2026 hat keine Daten)");
+    assert.deepEqual(rangeShare({ from: "2026-11-16", to: "2026-11-22" }, "week", until("2026-11-15"), "en-US", now), { none: true, to: "2026-11-16" });
+    // a range wholly before today keeps its end
+    assert.deepEqual(rangeShare({ from: "2026-11-02", to: "2026-11-08" }, "week", until("2026-10-31"), "en-US", now), { none: true });
+    // months and years: the current one is named while its past days have no rows
+    assert.equal(relativeText({ unit: "month", count: 3 }, L, "en-US", "UTC", now, until("2026-10-31")), "last 3 months (Sep 2026–Oct 2026; Nov 2026 has no data)");
+    assert.equal(relativeText({ unit: "month", count: 3 }, L, "en-US", "UTC", "2026-11-01", until("2026-10-31")), "last 3 months (Sep 2026–Nov 2026)");
+    // today in the data's time zone: 11 PM on Nov 16 in New York is Nov 17 in UTC, so Nov 16 is not over
+    const late = new Date("2026-11-17T04:00:00Z");
+    assert.equal(relativeText(weeks, L, "en-US", "America/New_York", late, until("2026-11-15")), "last 4 weeks (Oct 26, 2026–Nov 22, 2026)");
+    assert.equal(relativeText(weeks, L, "en-US", "UTC", late, until("2026-11-15")), "last 4 weeks (Oct 26, 2026–Nov 15, 2026; Nov 16, 2026 has no data)");
+    // data with dates ahead (end-of-life dates), a range ahead as Next keeps: the years after their last date are named
+    assert.deepEqual(rangeShare({ from: "2027-01-01", to: "2036-12-31" }, "year", until("2031-06-30"), "en-US", now), { none: false, data: "2027–2031", missing: ["2032–2036"], count: 5 });
+    // the share alone: with today inside the range, no day from today on is named
+    const range = { from: "2026-10-26", to: "2026-11-22" };
+    assert.equal(rangeShare(range, "week", until("2026-11-16"), "en-US", "2026-11-17"), null);
+    // a range wholly after today on data that ended before it, as Next keeps: the whole range warns
+    assert.deepEqual(rangeShare({ from: "2026-11-23", to: "2026-12-06" }, "week", until("2026-11-16"), "en-US", now), { none: true });
+    assert.deepEqual(rangeShare({ from: "2027-01-01", to: "2029-12-31" }, "year", until("2026-11-16"), "en-US", now), { none: true });
+    // data with a few rows dated after today: every missing day is named, today's week too
+    assert.equal(rangeShare(range, "week", { min: Date.UTC(2025, 0, 1), max: Date.UTC(2026, 10, 18) }, "en-US", now).missing.join(), "Nov 19, 2026–Nov 22, 2026");
+    // namedUntil: yesterday only while the range holds today and the data have no date after today
+    assert.equal(namedUntil(range, until("2026-11-16"), now), "2026-11-16");
+    assert.equal(namedUntil({ from: "2026-11-17", to: "2026-11-30" }, until("2026-11-16"), now), "2026-11-16");
+    assert.equal(namedUntil({ from: "2026-11-23", to: "2026-12-06" }, until("2026-11-16"), now), "2026-12-06");
+    assert.equal(namedUntil(range, until("2026-11-18"), now), "2026-11-22");
+    assert.deepEqual(rangeShare(range, "week", until("2026-11-10"), "en-US", "2026-11-17"), { none: false, data: "Oct 26, 2026–Nov 10, 2026", missing: ["Nov 11, 2026–Nov 16, 2026"], count: 2 });
 });
 
 test("search: quick choices with the count typed, a year compared, and the rules by name; they apply at once", () => {

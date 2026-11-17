@@ -290,6 +290,8 @@ test.describe("a date's quick choices on dates past today (endoflife, EOL date b
         const last = weather.map((r) => r.Date).sort().at(-1);
         expect(last < `${Y}-${String(M + 1).padStart(2, "0")}`, "the weather snapshot ends before this month").toBe(true);
         const MONTH = "Date by month";
+        // mid-month: on the 1st the current month has no day before today, so it does not warn (#586)
+        await page.clock.setFixedTime(new Date(Date.UTC(Y, M, 15, 12)));
         await openView(page, "weather", { derived: [{ name: MONTH, field: "Date", by: "yearMonth" }], rows: [MONTH], values: [{ field: "Mean °C", agg: "average" }] });
         await chipMenu(page, MONTH, "filter");
         const menu = page.locator(".pk-chip-menu");

@@ -19,6 +19,7 @@ import { fill } from "./labels.js";
 import { refLabel, sortText } from "./names.js";
 import { headerSortState, headerSortTarget, nextHeaderSort } from "./view-ops.js";
 import { VIRTUAL_FROM, longestLabels, rowLabelOf, sliceRows, windowOf } from "./virtual.js";
+import { commonCap } from "./label-room.js";
 
 const totalClass = (t) => (t === 2 ? " pk-grand" : t === 1 ? " pk-sub" : "");
 
@@ -70,6 +71,63 @@ function labelWidths(grid, table) {
     } finally {
         probe.remove();
     }
+}
+
+/** The width of an element's box, in px. */
+const widthOf = (/** @type {Element} */ el) => el.getBoundingClientRect().width;
+
+/**
+ * How much room the row labels, the field names and the value names take (#584, styles.css). The
+ * first that keeps the table inside its box wins:
+ * - "natural": each at its natural width, on one line;
+ * - "share": the table as wide as its box, every label and name wraps between words as needed;
+ * - no attribute: the caps, with --pk-row-room the widest a row label may be for the table to fit
+ *   beside its value columns.
+ * Each step is measured from the same start, so the outcome never depends on the last one: the
+ * states cannot take turns. Set on the element, not rendered, before the first paint. The box keeps
+ * its scroll bar's gutter (styles.css), so its width does not change with the state.
+ * @param {HTMLTableElement} table
+ * @param {HTMLElement} box the table's scroll box
+ * @param {number} columns the row label columns
+ */
+function fitLabels(table, box, columns) {
+    if (box.clientWidth === 0) {
+        return;
+    }
+    const over = () => box.scrollWidth - box.clientWidth;
+    table.setAttribute("data-pk-labels", "natural");
+    table.style.removeProperty("--pk-row-room");
+    const head = table.tHead ? table.tHead.rows : [];
+    const last = head[head.length - 1];
+    const overflow = over();
+    if (overflow <= 0 || !last) {
+        return;
+    }
+    // each label column's natural width, without the cell's padding, border and drag grip
+    const cells = [...last.cells].slice(0, columns);
+    const extras = cells.map((cell) => {
+        const s = getComputedStyle(cell);
+        const grip = cell.querySelector(":scope > .pk-th-grip");
+        return parseFloat(s.paddingLeft) + parseFloat(s.paddingRight) + parseFloat(s.borderLeftWidth) + parseFloat(s.borderRightWidth) + (grip ? widthOf(grip) + parseFloat(getComputedStyle(grip).marginLeft) : 0);
+    });
+    const widths = cells.map((cell, c) => widthOf(cell) - extras[c]);
+    // wrapping can give back at most the width of what may wrap: the value names, and the row labels
+    // unless a virtual table fixes them. Beyond that the layout pass of "share" is spared.
+    const names = [...last.querySelectorAll("th.pk-colHeader .pk-th-content")].reduce((sum, el) => sum + widthOf(el), 0);
+    const pliable = names + (table.classList.contains("pk-virtual") ? 0 : widths.reduce((a, b) => a + b, 0));
+    if (overflow < pliable) {
+        table.setAttribute("data-pk-labels", "share");
+        if (over() <= 0) {
+            return;
+        }
+    }
+    // the caps; the value columns' width with their names capped too: what they leave the labels
+    table.removeAttribute("data-pk-labels");
+    const values = widthOf(table) - cells.reduce((sum, cell) => sum + widthOf(cell), 0);
+    const room = commonCap(widths, box.clientWidth - values - extras.reduce((a, b) => a + b, 0));
+    // Infinity: every label fits beside the capped value names at its natural width. That width, not
+    // rounded, makes the table fit by construction: the labels take at most the room they were given
+    table.style.setProperty("--pk-row-room", `${Number.isFinite(room) ? Math.floor(room) : Math.max(0, ...widths)}px`);
 }
 
 /** What the labels' width depends on besides the grid: the table's font and size. */
@@ -171,6 +229,9 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const [labelsWide, setLabelsWide] = useState(/** @type {{ grid: unknown, font: string, fonts: number, widths: number[] } | null} */ (null));
     // web fonts that finished loading (document.fonts): the labels are measured again
     const [fontsLoaded, setFontsLoaded] = useState(0);
+    // the table's font (fontOf), read when it resizes; and what fitLabels last measured for
+    const [font, setFont] = useState("");
+    const fitted = useRef(/** @type {unknown[]} */ ([]));
     const fixedWidths = virtual && labelsWide?.grid === grid ? labelsWide.widths : null;
     const focusNext = useRef(false);
     // what a screen reader hears after a header sorted the rows
@@ -201,7 +262,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         }
     });
     useEffect(() => {
-        const fonts = virtual ? table.current?.ownerDocument.fonts : undefined;
+        const fonts = table.current?.ownerDocument.fonts;
         if (!fonts) {
             return undefined;
         }
@@ -216,13 +277,20 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
             live = false;
             fonts.removeEventListener?.("loadingdone", loaded);
         };
-    }, [virtual]);
+    }, []);
 
     // the measured height of a body row and the widths of the row label columns (sticky offsets)
     useIsoLayoutEffect(() => {
         const t = table.current;
         if (!t) {
             return;
+        }
+        // first: the labels' width decides the heights and widths measured below. Once for each
+        // table, grid, box width, font and fixed label widths: a new view alone does not change it
+        const key = [t, grid, width, font, fontsLoaded, fixedWidths];
+        if (wrap.current && !key.every((v, i) => v === fitted.current[i])) {
+            fitted.current = key;
+            fitLabels(t, wrap.current, grid.rowHeaderColumns);
         }
         const row = t.tBodies[0]?.querySelector("tr[data-r]");
         if (row && row.getBoundingClientRect().height > 0) {
@@ -245,8 +313,8 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
             }
             setLefts((old) => (old.length === xs.length && old.every((v, i) => Math.abs(v - xs[i]) < 0.5) ? old : xs));
         }
-        // width: the label columns get narrower or wider with the report (their cap is a share of it)
-    }, [grid, version, width, fixedWidths]);
+        // width and fonts: whether the table fits, and the labels' cap, follow the report and its font
+    }, [grid, version, width, font, fixedWidths, fontsLoaded]);
 
     useEffect(() => {
         const el = wrap.current;
@@ -256,6 +324,10 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const update = () => {
             setScroll({ top: el.scrollTop, height: el.clientHeight });
             setWidth(el.clientWidth);
+            // a host's --pk-font-size or a theme resizes the table alone: its labels fit again
+            if (table.current) {
+                setFont(fontOf(table.current));
+            }
         };
         update();
         const ro = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
@@ -490,7 +562,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
                     {sortNote}
                 </span>
             ) : null}
-            {/* --pk-row-cols: the row label columns share at most 40 % of the width (styles.css) */}
+            {/* --pk-row-cols: the row label columns share the cap (styles.css); fitLabels sets the rest */}
             <table ref={table} className={`pk-table${virtual ? " pk-virtual" : ""}${grid.columnCount === grid.rowHeaderColumns ? " pk-labels-only" : ""}`} style={/** @type {any} */ ({ "--pk-row-cols": grid.rowHeaderColumns })} onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
                 <thead>
                     {grid.rows.slice(0, grid.headerRows).map((row, r) => (

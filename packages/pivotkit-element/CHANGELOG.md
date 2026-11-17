@@ -57,6 +57,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   rows but offers no copy and no download (#263).
 - The first load is about 1.7 KiB smaller: pivotkit-core's ECharts option loads with the chart
   (#546).
+- The first load grows by about 0.5 KiB gzip: the table measures whether its row labels fit before
+  the first paint ([#584](https://github.com/eizedev/pivotkit/issues/584)). Its budget goes to 177 KiB (#546).
 - `npm run size` names the zlib it measures with. It says when the sizes can differ from CI's, as
   with a Node that uses the system's zlib (#546).
 - The row count under the result says how many of the data's rows the filters keep, as
@@ -69,6 +71,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   [#386](https://github.com/eizedev/pivotkit/issues/386), [#537](https://github.com/eizedev/pivotkit/issues/537)).
 - A view's locale or a `locale` attribute that the browser has no data for, such as `xx-XX`, no
   longer takes the machine's locale, as in pivotkit-react ([#552](https://github.com/eizedev/pivotkit/issues/552)).
+- Export → Source data is off while the data have no rows, and a relative date filter names no day
+  from today on as having no data while the data have no date after today, as in pivotkit-react ([#585](https://github.com/eizedev/pivotkit/issues/585), [#586](https://github.com/eizedev/pivotkit/issues/586)).
 - The element bundles pivotkit-core's chart labels at small sizes: slanted category names leave the
   plot its height, a donut's outside labels stay whole, the value at the end of a horizontal bar is
   not cut, and a heatmap names every row that has room ([#228](https://github.com/eizedev/pivotkit/issues/228), [#229](https://github.com/eizedev/pivotkit/issues/229),

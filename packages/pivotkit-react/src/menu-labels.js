@@ -325,6 +325,7 @@ export const en = {
     exportPrint: "Print or save as PDF…",
     exportPngNeedsChart: "Switch to Chart first.",
     exportNeedsField: "Add a field first.",
+    exportNeedsRows: "The data has no rows yet.",
     exportDataGroup: "Source data",
     exportDataCsv: "All rows as CSV (.csv)",
     exportDataJson: "All rows as JSON (.json)",
