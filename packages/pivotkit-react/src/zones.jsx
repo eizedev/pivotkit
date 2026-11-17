@@ -1,5 +1,8 @@
 /*
- * The four zones (Filters, Columns, Rows, Values) with their chips. A chip is dragged to reorder or
+ * The four zones (Filters, Columns, Rows, Values) with their chips, each zone a shelf: its title, its
+ * "i" and "+ Add" at its left, its chips flowing beside them (styles.css). "+ Add" opens the zone's
+ * menu of every field (add-menu.jsx); after a pick the focus goes to the new chip and the zones'
+ * status line says what was added or moved. A chip is dragged to reorder or
  * move it, removed with its x, and its menu (chip-menus.jsx) holds everything else. A chip says what
  * is set on it in words: the grouping in its name ("Created by month"), "3 of 4" for a filter,
  * "Top 5", the sort; screen readers get the same in its name. After a chip is removed the focus goes
@@ -181,7 +184,20 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
     );
 }
 
-function Zone({ zone, entries, labels, children, explain }) {
+/**
+ * "+ Add" of a zone: its menu of every field (add-menu.jsx), loaded with the menus.
+ * @param {{ zone: string, labels: any, menu: Record<string, any> }} props  `menu`: the menu's props but `zone` and `close`
+ */
+function AddButton({ zone, labels, menu }) {
+    const name = fill(labels.addFieldTo, { zone: labels.zones[zone] });
+    return (
+        <MenuButton label={name} name={name} title={name} icon="plus" text={labels.addField} className="pk-zone-add" role="dialog" popoverClass="pk-chip-menu" fill testId={`add-field-${zone}`}>
+            {(close) => <MenuPanel name="AddMenu" loadingText={labels.loadingMenu} props={{ ...menu, labels, zone, close }} />}
+        </MenuButton>
+    );
+}
+
+function Zone({ zone, entries, labels, children, explain, add }) {
     const count = entries.length;
     const { setNodeRef, isOver } = useDropTarget(`zone:${zone}`, { kind: "zone", zone, count });
     const active = useActiveDrag();
@@ -211,6 +227,7 @@ function Zone({ zone, entries, labels, children, explain }) {
                 </h3>
                 {/* what the zone does, with an example: shown while tips are on */}
                 {explain ? <InfoButton info={{ description: labels.zoneInfo[zone] }} name={labels.zones[zone]} labels={labels} className="pk-zone-info" testId={`zone-info-${zone}`} /> : null}
+                {add ? <AddButton zone={zone} labels={labels} menu={add} /> : null}
             </div>
             <ChipList ids={entries.map((e) => e.id)}>
                 <ul className="pk-chips">
@@ -304,14 +321,18 @@ function SectionHead({ entries, labels, id, open, onFold, onSwap, canSwap, butto
  *   commit: (view: object, note?: any) => void, earlier?: () => any[],
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
  *   id: string, folded: boolean, onFold: () => void, narrow?: boolean, defaultsOf?: (field: string) => import("./index.js").FieldDefaults | undefined,
- *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined, explain?: boolean, showInfo?: boolean }} props
+ *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined, explain?: boolean, showInfo?: boolean,
+ *   adding?: { fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>, nameOf: (field: string) => string,
+ *     info: Map<string, import("./field-info.js").FieldInfo>, placeName: (field: string, zone: string) => string,
+ *     onAdd: (field: string, zone: string) => void, filterDraft: (field: string) => { field: string, base: object | undefined } } }} props
  *   `explain`: an "i" next to each zone's title that says what the zone does; `showInfo` false: no "i"
  *   of a field description on the chips (Options → Help)
  *   `folded`: the section folded to its heading row; `onFold`: fold or open it; `defaultsOf`: the host's settings for a source field (fieldDefaults);
  *   `infoOf`: the host's description of a field (its source field's for a grouping); `earlier`: the
- *   history's views before this one (a value's own colours for its Highlight)
+ *   history's views before this one (a value's own colours for its Highlight); `adding`: what "+ Add"
+ *   needs (the fields, where each is placed, how a pick is placed); without it there is no "+ Add"
  */
-export function Zones({ view, types, labels, commit, earlier, encoded, locale, onSwap, id, folded, onFold, defaultsOf, infoOf, explain = false, showInfo = true }) {
+export function Zones({ view, types, labels, commit, earlier, encoded, locale, onSwap, id, folded, onFold, defaultsOf, infoOf, explain = false, showInfo = true, adding }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
@@ -348,6 +369,41 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
         const target = /** @type {HTMLElement | null} */ (chips[Math.min(at.index, chips.length - 1)] ?? zone);
         target?.focus({ preventScroll: true });
     });
+    // a field placed by "+ Add": the zone, where it came from and the chips before, so the new chip is
+    // found once the view has it (a step the report refused adds none)
+    const added = useRef(/** @type {{ zone: string, from: string | null, ids: Set<string> } | null} */ (null));
+    const [said, setSaid] = useState("");
+    useEffect(() => {
+        const at = added.current;
+        if (!at) {
+            return;
+        }
+        added.current = null;
+        const fresh = entries[at.zone].find((e) => !at.ids.has(e.id));
+        if (!fresh) {
+            return;
+        }
+        const chip = root.current?.querySelectorAll(`[data-zone="${at.zone}"] .pk-chip`)[fresh.index];
+        /** @type {HTMLElement | null | undefined} */ (chip?.querySelector(".pk-chip-label"))?.focus({ preventScroll: true });
+        setSaid(fill(at.from ? labels.movedFrom : labels.steps.added, { field: fresh.text, zone: labels.zones[at.zone], from: at.from ? labels.zones[at.from] : "" }));
+    }, [entries, labels]);
+    const addMenu = useMemo(
+        () =>
+            adding
+                ? {
+                      ...adding,
+                      view,
+                      commit,
+                      encoded,
+                      locale,
+                      onAdded: (zone) => (from, run) => {
+                          added.current = { zone, from, ids: new Set(entries[zone].map((e) => e.id)) };
+                          run();
+                      }
+                  }
+                : null,
+        [adding, view, commit, encoded, locale, entries]
+    );
     // the fold button stays where it is, folded or open, and keeps the focus; the zones folded with
     // the focus in them (a smaller report): it goes to the fold button
     useEffect(() => {
@@ -360,6 +416,10 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
     return (
         <div className="pk-zone-section" data-pk-open={open ? "" : undefined} data-testid="zone-section">
             <SectionHead entries={entries} labels={labels} id={id} open={open} onFold={onFold} onSwap={onSwap} canSwap={view.rows.length + view.cols.length > 0} buttonRef={summary} explain={explain} />
+            {/* what "+ Add" did, for screen readers: the chip shows it on screen */}
+            <span className="pk-sr" role="status" data-testid="zones-status">
+                {said}
+            </span>
             {open ? (
                 <div
                     className="pk-zones"
@@ -382,6 +442,7 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
                             entries={entries[zone]}
                             labels={labels}
                             explain={explain}
+                            add={addMenu ? { ...addMenu, onAdded: addMenu.onAdded(zone) } : null}
                         >
                             {entries[zone].map((e) => (
                                 <Chip

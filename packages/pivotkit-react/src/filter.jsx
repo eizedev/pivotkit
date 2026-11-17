@@ -108,7 +108,13 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
     );
 }
 
-function FilterBody({ view: current, base, field, encoded, locale, labels, commit, close }) {
+/**
+ * The filter's form: its values, its condition, Cancel and Apply. `onCancel`: what Cancel does (else
+ * `close`); `titled` false: no heading of its own (a menu's level has its title above it).
+ * @param {{ view: any, base?: any, field: string, encoded: import("pivotkit-core").Encoded, locale: string,
+ *   labels: any, commit: (v: object, note?: any) => void, close: () => void, onCancel?: () => void, titled?: boolean }} props
+ */
+export function FilterBody({ view: current, base, field, encoded, locale, labels, commit, close, onCancel, titled = true }) {
     // the view the filter applies to: the report's, or a draft with the field placed in Filters
     const view = base ?? current;
     const formName = useFormName();
@@ -139,7 +145,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
             }}
         >
             <div className="pk-popover-head">
-                <h3>{fill(labels.filterTitle, { field: name })}</h3>
+                {titled ? <h3>{fill(labels.filterTitle, { field: name })}</h3> : null}
                 <span className="pk-muted">{fill(labels.selected, { count: selected.size.toLocaleString(locale) })}</span>
             </div>
             <ValueList items={info.items} selected={selected} onChange={setSelected} labels={labels} locale={locale} autoFocus>
@@ -176,7 +182,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
             ) : null}
             </ValueList>
             <div className="pk-popover-foot">
-                <button type="button" className="pk-btn" onClick={close}>
+                <button type="button" className="pk-btn" onClick={onCancel ?? close} data-testid="filter-cancel">
                     {labels.cancel}
                 </button>
                 <button type="submit" className="pk-btn pk-primary" data-testid="filter-apply">

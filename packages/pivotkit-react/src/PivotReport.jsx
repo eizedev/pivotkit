@@ -947,16 +947,25 @@ function Report(props) {
         [view, placeOptions, commit, nameOf]
     );
 
+    /** What placing a field in a zone puts there: a date's grouping, else the field. */
+    const placeName = useCallback((field, zone) => placeOptions(field, zone).groupName ?? field, [placeOptions]);
     /**
-     * The field list's "Add to Filters": the field's filter on a draft that puts it into Filters (a
-     * date grouped as it would be placed, a field on Rows or Columns moved), so Apply places it with
-     * the selection and Cancel changes nothing; a field in Filters already opens its own filter.
+     * The filter of a field on its way into Filters: the name it gets there (a date grouped as it would
+     * be placed) and a draft that puts it there (a field on Rows or Columns moved), so Apply places it
+     * with the selection and Cancel changes nothing; none for a field in Filters already (its own filter).
      */
-    const filterField = useCallback(
-        (field, anchor) => {
+    const filterDraft = useCallback(
+        (field) => {
             const options = placeOptions(field, "filters");
             const name = options.groupName ?? field;
-            const draft = filterZoneFields(view).some((f) => same(f, name)) ? undefined : addField(view, field, "filters", options);
+            return { field: name, base: filterZoneFields(view).some((f) => same(f, name)) ? undefined : addField(view, field, "filters", options) };
+        },
+        [placeOptions, view]
+    );
+    /** The field list's "Add to Filters": the field's filter (filterDraft) in a popover at the field. */
+    const filterField = useCallback(
+        (field, anchor) => {
+            const draft = filterDraft(field);
             // on a narrow report the field list is a drawer: it closes, the filter anchors to its button
             const opener = size === "narrow" ? /** @type {HTMLElement | null} */ (root.current?.querySelector("[data-pk-opener='fields']") ?? null) : null;
             if (size === "narrow") {
@@ -964,11 +973,13 @@ function Report(props) {
             }
             const target = opener ?? anchor;
             if (target) {
-                setFilterTarget({ field: name, anchor: target, base: draft });
+                setFilterTarget({ field: draft.field, anchor: target, base: draft.base });
             }
         },
-        [placeOptions, view, size]
+        [filterDraft, size]
     );
+    // what "+ Add" in each zone needs (zones.jsx, add-menu.jsx)
+    const adding = useMemo(() => ({ fields, placed, nameOf, info, placeName, onAdd: addTo, filterDraft }), [fields, placed, nameOf, info, placeName, addTo, filterDraft]);
 
     const onDrop = useCallback(
         (src, target) => {
@@ -1554,6 +1565,7 @@ function Report(props) {
                                 earlier={history.earlier}
                                 explain={zoneSwitch.on}
                                 showInfo={fieldSwitch.on}
+                                adding={adding}
                             />
                             {linkCheck ? (
                                 <div className="pk-link-check" data-testid="link-check">

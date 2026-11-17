@@ -28,7 +28,10 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  * @typedef {{ id: string, text: string, change?: () => { view: any, note: any } | null, run?: () => void, checked?: boolean,
  *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
  *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string,
- *   color?: { id: string, value: string, label: string, pick: (color: string) => void } }} Choice
+ *   color?: { id: string, value: string, label: string, pick: (color: string) => void },
+ *   tags?: Array<{ icon: string, text: string }>, className?: string, note?: string }} Choice
+ * `tags`: small marks after the text (the zones a field is in), hidden from assistive technology,
+ * which reads `note` instead; `className`: the item's own class (a field's type).
  */
 
 /**

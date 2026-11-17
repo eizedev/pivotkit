@@ -43,6 +43,11 @@ export const en = {
     addAgain: "Add to {zone} again",
     // a click on a field that is in its zone already: said in the status line
     alreadyIn: "{field} is already in {zone}",
+    // "+ Add" in each zone: its text, and its name and tooltip
+    addField: "Add",
+    addFieldTo: "Add a field to {zone}",
+    // said in the zones' status line after a field from "+ Add" moved there from another zone
+    movedFrom: "{field} moved from {from} to {zone}",
     move: "Move",
     moveTo: "Move to {zone}",
     dragHandle: "Drag {field}",
@@ -77,7 +82,7 @@ export const en = {
     // the section of the zones: its heading, and its line under it while open (folded: what is placed,
     // or layoutEmpty)
     zonesTitle: "Fields in the report",
-    zonesHint: "Drag fields into Filters, Columns, Rows and Values.",
+    zonesHint: "Drag fields into Filters, Columns, Rows and Values, or use Add in each one.",
     layoutEmpty: "No fields placed yet",
     // always at the end of the toolbar: Help first, then the buttons that do not fit
     more: "More",
@@ -396,6 +401,9 @@ export const de = {
     addTo: "Zu {zone} hinzufügen",
     addAgain: "Noch einmal zu {zone} hinzufügen",
     alreadyIn: "{field} ist bereits in {zone}",
+    addField: "Hinzufügen",
+    addFieldTo: "Ein Feld zu {zone} hinzufügen",
+    movedFrom: "{field} von {from} nach {zone} verschoben",
     move: "Verschieben",
     moveTo: "Nach {zone} verschieben",
     dragHandle: "{field} ziehen",
@@ -424,7 +432,7 @@ export const de = {
     unsavedChanges: "Nicht gespeicherte Änderungen",
     swap: "Zeilen und Spalten tauschen",
     zonesTitle: "Felder im Bericht",
-    zonesHint: "Felder in Filter, Spalten, Zeilen und Werte ziehen.",
+    zonesHint: "Felder in Filter, Spalten, Zeilen und Werte ziehen oder in jedem Bereich Hinzufügen nutzen.",
     layoutEmpty: "Noch keine Felder angeordnet",
     more: "Mehr",
     views: "Ansichten",

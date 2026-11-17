@@ -19,7 +19,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { ClearInput } from "./clear-input.jsx";
 import { useModal } from "./dom.js";
 import { useActiveDrag, useDragSource, useDropTarget } from "./dnd.jsx";
-import { fieldMatches } from "./field-info.js";
+import { matchingFields } from "./field-info.js";
 import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
@@ -149,10 +149,7 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
     const [query, setQuery] = useState("");
     const active = useActiveDrag();
     const { setNodeRef, isOver } = useDropTarget("panel", { kind: "panel" });
-    const shown = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        return q ? fields.filter((f) => fieldMatches(f.name, q, info.get(f.name.toLowerCase()))) : fields;
-    }, [fields, query, info]);
+    const shown = useMemo(() => matchingFields(fields, query, info), [fields, query, info]);
     const removing = active && active.kind !== "field";
     const modal = drawer && open;
     const el = useRef(/** @type {HTMLElement | null} */ (null));

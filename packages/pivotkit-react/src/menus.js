@@ -1,5 +1,5 @@
 /*
- * The menus' panels, loaded on demand (lazy-menus.jsx): the chip menus, Table settings, Chart settings,
+ * The menus' panels, loaded on demand (lazy-menus.jsx): the chip menus, the zones' "+ Add" menus, Table settings, Chart settings,
  * More, Views and Export panels, the filter and the rows behind a value (drill-down), with the texts
  * only they show (menu-labels.js; another language's are a chunk lazy-menus.jsx loads with them) and the browser store of the templates (view-store.js). A separate
  * module, so the first load of a page stays small; the report loads it right after its first render,
@@ -7,6 +7,7 @@
  */
 
 export { AxisMenu, FilterMenu, ValueMenu } from "./chip-menus.jsx";
+export { AddMenu } from "./add-menu.jsx";
 export { ChartSettingsPanel, ExportPanel, LoadCheck, MorePanel, TableSettingsPanel, ViewsPanel } from "./toolbar-panels.jsx";
 export { FilterPopover } from "./filter.jsx";
 export { DrillPanel } from "./drill-panel.jsx";
