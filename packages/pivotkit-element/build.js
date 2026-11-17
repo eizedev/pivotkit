@@ -300,10 +300,15 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * With #36 merged, CI's zlib (an official Node 24.22.3) measures the two features adding up: the
  * chart group 222.2 before both, 231.4 with #48 alone, 232.5 with #36 alone, 241.6 with both (no
  * second copy of anything); budget 242.6. The menus with the Reference lines level 49.6, budget 50.5;
- * their German texts 7.6, budget 7.8. The first load (175.6 with both) waits for #546.
+ * their German texts 7.6, budget 7.8.
+ * The first load with both is 175.6 on CI's zlib (174.9 before #48): the view key, the rules of which
+ * chart draws which line (0.17 of it) and the words of the lines. The rules cannot leave the first
+ * load cleanly: the menus need them from pivotkit-core's main entry, and a new entry point would be
+ * one more bare import for a host's import map. The maintainer raised the budget for 0.8.0, about
+ * 1 KiB above CI: 176.6; the split of the first load is #546 (0.9.0).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 242.6, export: 12.6, link: 7.5, menus: 50.5, texts: 7.8, unused: 5.5, import: 22, report: 23.8, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 176.6, chart: 242.6, export: 12.6, link: 7.5, menus: 50.5, texts: 7.8, unused: 5.5, import: 22, report: 23.8, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
