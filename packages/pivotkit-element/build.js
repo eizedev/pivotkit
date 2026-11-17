@@ -297,9 +297,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * loaded with the first line, was measured too: esbuild split ECharts' shared modules into more
  * chunks, and the chart group grew with it; so markLine stays in the chart's chunk. The SVG draws
  * twice to place the labels at their lines: the report group 23.46 with Homebrew's zlib, budget 23.8.
+ * With #36 merged, CI's zlib (an official Node 24.22.3) measures the two features adding up: the
+ * chart group 222.2 before both, 231.4 with #48 alone, 232.5 with #36 alone, 241.6 with both (no
+ * second copy of anything); budget 242.6. The menus with the Reference lines level 49.6, budget 50.5;
+ * their German texts 7.6, budget 7.8. The first load (175.6 with both) waits for #546.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 233, export: 12.6, link: 7.5, menus: 49, texts: 7.5, unused: 5.5, import: 22, report: 23.8, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 242.6, export: 12.6, link: 7.5, menus: 50.5, texts: 7.8, unused: 5.5, import: 22, report: 23.8, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
