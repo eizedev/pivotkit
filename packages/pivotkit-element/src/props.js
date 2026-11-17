@@ -50,6 +50,7 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "schema-url", prop: "schemaUrl", kind: "string" },
     { attr: "grow", prop: "grow", kind: "on-off" },
     { attr: "field-list", prop: "fieldList", kind: "string" },
+    { attr: "zones", prop: "zones", kind: "string" },
     { attr: "allow-import", prop: "allowImport", kind: "flag" },
     { attr: "view", prop: "view", kind: "json" },
     { attr: "default-view", prop: "defaultView", kind: "json" }

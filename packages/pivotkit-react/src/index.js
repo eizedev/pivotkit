@@ -200,6 +200,9 @@
  * @property {"open" | "collapsed"} [fieldList]  the field list of a wide or medium report open or
  *   collapsed to a rail; without it the user's choice («, remembered with the tips per storageKey)
  *   decides. With it the user can still change it until the page is loaded again
+ * @property {"open" | "folded"} [zones]  the zones' start state: open, or folded to the heading row
+ *   "Fields in the report"; without it the report's height decides (folded below 600 px, 820 px when
+ *   the zones stack). The user can still fold or open them until the page is loaded again
  * @property {boolean} [loading]  the host is loading the data: the report shows its skeleton (before
  *   the first data) or covers its result (later loads)
  * @property {boolean} [allowImport]  people may load a file into the report in the browser: a Data

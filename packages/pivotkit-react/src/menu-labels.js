@@ -467,6 +467,12 @@ export const en = {
     collapseAllDone: "Every group is collapsed already.",
     groupsCollapsed: { one: "{count} group collapsed", other: "{count} groups collapsed" },
     groupsExpanded: { one: "{count} group expanded", other: "{count} groups expanded" },
+    // Expand all and Collapse all in Chart settings › Layout, named by the fields of Rows (the table's
+    // Collapse all shows chartShowOnly as its hint); the plain words with one field in Rows
+    chartShowEach: "Show each {field}",
+    chartShowOnly: "Show {field} only",
+    chartShowDetails: "Show details",
+    chartShowTotals: "Show group totals only",
     // the chart type menu: how the chart is drawn
     chartDisplay: "Display",
     // what sharing and the exports said (share-actions.js, export-run.js)

@@ -7,7 +7,7 @@ import { LABELS } from "../src/labels.js";
 import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { setItemFilter, setTopFilter, setValueFilter } from "../src/menu-ops.js";
-import { afterDelete, axisTopics, entryIds, formatLabel, optionTopics, rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
+import { afterDelete, axisTopics, entryIds, formatLabel, moreTopics, rowFoldTexts, rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, tableTopics, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3, Date: "2026-01-05" },
@@ -133,28 +133,63 @@ test("Show as: a calculation along an axis adds the Along choices; a text value 
     assert.deepEqual(valueTopics({ view: list, index: 0, types, labels: MENU.en, locale: "en-US" }).map((t) => t.id), ["summarize", "name", "move"]);
 });
 
-test("Options: totals as switches (off with the reason where they change nothing), Rows, help, the shortcuts as a level", () => {
+test("Table settings: totals as switches (off with the reason where they change nothing), then Expand all and Collapse all with what Collapse all keeps (#580)", () => {
     const calls = [];
     const act = new Proxy({}, { get: (_, name) => (...args) => calls.push([name, ...args]) });
     const view = norm({ rows: ["Region"], values: [units] });
-    const topics = optionTopics({ view, labels: MENU.en, folding: { canExpand: false, canCollapse: true, why: { expand: "expandNothing" } }, tips: { controls: true, on: true, canReset: false }, explanations: { on: false }, act });
-    assert.deepEqual(topics.map((t) => [t.id, t.kind]), [["totals", "inline"], ["rows", "inline"], ["help", "inline"], ["shortcuts", "panel"]]);
+    const topics = tableTopics({ view, labels: MENU.en, folding: { canExpand: false, canCollapse: false, why: { expand: "expandNothing", collapse: "collapseNeedsRows" } }, act });
+    assert.deepEqual(topics.map((t) => [t.id, t.kind]), [["totals", "inline"], ["rows", "inline"]]);
     const col = choice(byId(topics, "totals"), "total-grandTotalColumn");
     // on in the view, but disabled: no tick, since the table has no such column (#156)
     assert.equal(view.totals.grandTotalColumn, true);
     assert.deepEqual([col.checkbox, col.checked, col.disabled, col.reason, col.info], [true, false, true, "Needs a field in Columns.", "grandTotalColumn"]);
     const row = choice(byId(topics, "totals"), "total-grandTotalRow");
     assert.deepEqual([row.checked, row.disabled], [true, false]);
-    choice(byId(topics, "totals"), "total-grandTotalRow").run();
-    choice(byId(topics, "help"), "show-explanations").run();
-    assert.deepEqual(calls, [["total", "grandTotalRow", false], ["explain", true]]);
-    // nothing folds any more: no "Reset menu sections"
-    assert.deepEqual(byId(topics, "help").groups[0].choices.map((c) => c.id), ["show-tips", "show-explanations", "reset-tips"]);
+    row.run();
+    assert.deepEqual(calls.splice(0), [["total", "grandTotalRow", false]]);
     assert.deepEqual([choice(byId(topics, "rows"), "expand-all").disabled, choice(byId(topics, "rows"), "expand-all").reason], [true, "Nothing is collapsed."]);
-    assert.equal(choice(byId(topics, "help"), "reset-tips").disabled, true);
-    // a host that decides the tips and explanations itself: no switches for them
-    const hosted = optionTopics({ view, labels: MENU.en, folding: { canExpand: true, canCollapse: true, why: {} }, tips: { controls: false, on: true, canReset: false }, explanations: null, act });
-    assert.deepEqual(byId(hosted, "help").groups[0].choices, []);
+    // one field in Rows: Collapse all says why, and names no field
+    const lone = choice(byId(topics, "rows"), "collapse-all");
+    assert.deepEqual([lone.text, lone.disabled, lone.reason, lone.hint], ["Collapse all", true, "Needs two or more fields in Rows.", undefined]);
+    // two fields: Collapse all says what it keeps, in the chart's words
+    const two = norm({ rows: ["Region", "Product"], values: [units] });
+    const named = tableTopics({ view: two, labels: MENU.en, folding: { canExpand: false, canCollapse: true, why: { expand: "expandNothing", collapse: null } }, act });
+    const collapse = choice(byId(named, "rows"), "collapse-all");
+    assert.deepEqual([collapse.text, collapse.hint, collapse.closes], ["Collapse all", "Show Region only", true]);
+    collapse.run();
+    choice(byId(named, "rows"), "expand-all").run();
+    assert.deepEqual(calls, [["collapse"], ["expand"]]);
+    assert.equal(choice(byId(tableTopics({ view: two, labels: MENU.de, folding: { canExpand: true, canCollapse: true, why: {} }, act }), "rows"), "collapse-all").hint, "Nur Region zeigen");
+});
+
+test("More: Help first, a level with the tips' switches and the keyboard shortcuts as a level of its own (#580)", () => {
+    const calls = [];
+    const act = new Proxy({}, { get: (_, name) => (...args) => calls.push([name, ...args]) });
+    const topics = moreTopics({ labels: MENU.en, tips: { controls: true, on: true, canReset: false }, explanations: { on: false }, act });
+    assert.deepEqual(topics.map((t) => [t.id, t.kind, Boolean(t.hidden)]), [["help", "menu", false], ["shortcuts", "panel", true]]);
+    const help = byId(topics, "help");
+    assert.deepEqual([help.title, help.testId], ["Help", "more-help"]);
+    assert.deepEqual(help.groups[0].choices.map((c) => c.id), ["show-tips", "show-explanations", "reset-tips", "shortcuts"]);
+    assert.deepEqual([choice(help, "show-tips").checkbox, choice(help, "show-tips").checked], [true, true]);
+    assert.equal(choice(help, "reset-tips").disabled, true);
+    // the shortcuts open their own level, titled under Help
+    assert.deepEqual([choice(help, "shortcuts").open, byId(topics, "shortcuts").levelTitle], ["shortcuts", "Help › Keyboard shortcuts"]);
+    choice(help, "show-explanations").run();
+    choice(help, "show-tips").run();
+    assert.deepEqual(calls, [["explain", true], ["tipsOn", false]]);
+    // a host that decides the tips and explanations itself: only the shortcuts
+    const hosted = moreTopics({ labels: MENU.en, tips: { controls: false, on: true, canReset: false }, explanations: null, act });
+    assert.deepEqual(byId(hosted, "help").groups[0].choices.map((c) => c.id), ["shortcuts"]);
+});
+
+test("the words of folding the groups of Rows: the fields' names, the plain words with one field (#580)", () => {
+    const two = norm({ rows: ["Region", "Product"], values: [units] });
+    assert.deepEqual(rowFoldTexts(two, MENU.en), { expand: "Show each Product", collapse: "Show Region only", named: true });
+    const three = norm({ rows: ["Region", "Product", "Date"], values: [units] });
+    // Collapse all keeps the first field, Expand all shows the last one's items
+    assert.deepEqual(rowFoldTexts(three, MENU.en), { expand: "Show each Date", collapse: "Show Region only", named: true });
+    assert.deepEqual(rowFoldTexts(norm({ rows: ["Region"], values: [units] }), MENU.en), { expand: "Show details", collapse: "Show group totals only", named: false });
+    assert.deepEqual(rowFoldTexts(norm({ values: [units] }), MENU.de), { expand: "Details zeigen", collapse: "Nur Gruppensummen zeigen", named: false });
 });
 
 test("search: every choice of every level with its path, and the panels; all words must match; the start of a text first", () => {

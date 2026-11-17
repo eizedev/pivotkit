@@ -40,6 +40,7 @@ import { Unused } from "./unused.jsx";
 import { FormNameContext, activeIn } from "./dom.js";
 import { stillApplies } from "./unused-keep.js";
 import { Toolbar } from "./toolbar.jsx";
+import { ViewTabs, tabId } from "./view-tabs.jsx";
 import { useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
 import { schemaKeyOf, useViewHistory } from "./use-view-history.js";
@@ -68,6 +69,13 @@ export const COMPACT_HEIGHT_NARROW = 820;
 
 /** Whether a report of this width class and height starts compact. */
 export const compactAt = (size, height) => height < (size === "narrow" ? COMPACT_HEIGHT_NARROW : COMPACT_HEIGHT);
+
+/**
+ * The zones' start state from the host's `zones`: folded (true), open (false), or null, the report's
+ * height decides (compactAt). Any other value is null too.
+ * @param {unknown} zones
+ */
+export const zonesStart = (zones) => (zones === "folded" ? true : zones === "open" ? false : null);
 
 /** True while a popover or menu of the report is open in its layer (the layer also holds a probe). */
 const layerOpen = (layer) => Boolean(layer && [...layer.children].some((c) => !c.classList.contains("pk-origin")));
@@ -321,6 +329,7 @@ function Report(props) {
         schemaUrl,
         grow: growProp,
         fieldList,
+        zones: zonesProp,
         loading = false,
         allowImport = false,
         plugins: pluginsProp,
@@ -368,10 +377,18 @@ function Report(props) {
     // open, so a resize never pulls the zones (and a chip menu's anchor) from under the user
     const [measuredShort, setMeasuredShort] = useState(false);
     const [short, setShort] = useState(false);
-    // the user's choice of the compact layout (Layout in the toolbar, the folded line); null: by height
-    const [folded, setFolded] = useState(/** @type {boolean | null} */ (null));
+    // the zones folded or open: the user's choice (the section's fold button) until the next load, else
+    // the host's start state (zones), else by the report's height; a new start state from the host
+    // starts over from it
+    const [folded, setFolded] = useState(/** @type {boolean | null} */ (zonesStart(zonesProp)));
+    const [zonesSeen, setZonesSeen] = useState(zonesProp);
+    if (zonesProp !== zonesSeen) {
+        setZonesSeen(zonesProp);
+        setFolded(zonesStart(zonesProp));
+    }
     const layoutFolded = folded ?? short;
     const zonesId = useId();
+    const resultId = useId();
     // the prefix of the names of this report's form fields (dom.js useFormName): useId is unique in
     // one React root only, two web components are two roots; chosen in the browser, so a server
     // render and its hydration agree (the server's snapshot is the plain prefix)
@@ -1351,6 +1368,11 @@ function Report(props) {
             warnOnce(`pivotkit: fieldList ${JSON.stringify(String(fieldList)).slice(0, 40)} is neither "open" nor "collapsed"; the user's choice decides`);
         }
     }, [fieldList]);
+    useEffect(() => {
+        if (zonesProp !== undefined && zonesStart(zonesProp) === null) {
+            warnOnce(`pivotkit: zones ${JSON.stringify(String(zonesProp)).slice(0, 40)} is neither "open" nor "folded"; the report's height decides`);
+        }
+    }, [zonesProp]);
     const railed = size !== "narrow" && fieldsCollapsed(fieldsSession, fieldList, dismissed);
     const collapseFields = (next) => {
         if (fieldList === "open" || fieldList === "collapsed") {
@@ -1477,12 +1499,6 @@ function Report(props) {
                         <div className="pk-main" ref={mainRef}>
                             <Toolbar
                                 view={view}
-                                chartPlan={plan}
-                                encoded={encoded}
-                                lineChecks={lineChecks?.view === view ? lineChecks.checks : null}
-                                locale={locale}
-                                chartSeries={series}
-                                chartColors={{ chart: chartRef }}
                                 labels={labels}
                                 size={size}
                                 canUndo={history.canUndo || dataSteps.past.length > 0}
@@ -1495,13 +1511,6 @@ function Report(props) {
                                 onReset={reset}
                                 onNew={newReport}
                                 loadedView={loadedView ? { name: loadedView.name, changed: unsaved } : null}
-                                onDisplay={(d) => commit(setDisplay(view, d), { step: "display", display: d })}
-                                onChart={(p) => commit(setChart(view, p), { step: "chart", type: p })}
-                                onChartDisplay={(patch) => commit(setChartDisplay(view, patch), { step: "chartDisplay" })}
-                                onTotal={(key, on) => commit(setTotal(view, key, on), { step: "totals" })}
-                                onExpand={expandAll}
-                                onCollapse={collapseAll}
-                                folding={folding}
                                 share={share}
                                 templates={entries}
                                 onLoadTemplate={openTemplate}
@@ -1512,9 +1521,6 @@ function Report(props) {
                                 chartReady={view.display === "chart" && chartReady}
                                 empty={empty}
                                 onShowFields={() => setDrawer(true)}
-                                layoutFolded={layoutFolded}
-                                onLayout={() => setFolded(!layoutFolded)}
-                                zonesId={zonesId}
                                 tipsControls={allowed !== "off"}
                                 tipsOn={tipsOn}
                                 onTipsOn={(on) => changeDismissed(on ? dismissed.filter((id) => id !== ALL_TIPS) : [...dismissed, ALL_TIPS], on ? null : ALL_TIPS)}
@@ -1536,7 +1542,7 @@ function Report(props) {
                                 onSwap={() => commit(swapAxes(view), { step: "swap" })}
                                 id={zonesId}
                                 folded={layoutFolded}
-                                onShow={() => setFolded(false)}
+                                onFold={() => setFolded(!layoutFolded)}
                                 defaultsOf={defaultsOf}
                                 infoOf={infoOf}
                                 earlier={history.earlier}
@@ -1580,27 +1586,33 @@ function Report(props) {
                                     {labels.tips.cells}
                                 </p>
                             ) : null}
-                            <div className="pk-result-head">
-                                {big.enlarged ? (
-                                    <p className="pk-enlarged-fields" data-testid="enlarged-fields">
-                                        {summaryText}
-                                    </p>
-                                ) : null}
-                                <span className="pk-grow" />
-                                <button type="button" className="pk-btn pk-pressable pk-small-btn" data-pk-on={big.enlarged ? "" : undefined} onClick={big.toggleEnlarged} data-testid="enlarge">
-                                    <Icon name="enlarge" size={14} />
-                                    {/* says what a click does: Enlarge, or Reduce while enlarged; a changing name is no
-                                        toggle (no aria-pressed), the highlight shows the state (data-pk-on) */}
-                                    <span className="pk-btn-text">{big.enlarged ? labels.reduce : labels.enlarge}</span>
-                                </button>
-                                {big.fullOk ? (
-                                    <button type="button" className="pk-btn pk-pressable pk-small-btn" aria-pressed={big.full} onClick={big.toggleFull} data-testid="full-screen">
-                                        <Icon name="fullScreen" size={14} />
-                                        <span className="pk-btn-text">{labels.fullScreen}</span>
-                                    </button>
-                                ) : null}
-                            </div>
-                            <section className="pk-result" aria-label={view.display === "chart" ? labels.chart : labels.table}>
+                            {/* while enlarged, the fields in one line: what the result shows, without the zones */}
+                            {big.enlarged ? (
+                                <p className="pk-enlarged-fields" data-testid="enlarged-fields">
+                                    {summaryText}
+                                </p>
+                            ) : null}
+                            <ViewTabs
+                                view={view}
+                                labels={labels}
+                                panelId={resultId}
+                                narrow={size === "narrow"}
+                                big={big}
+                                plan={plan}
+                                encoded={encoded}
+                                lineChecks={lineChecks?.view === view ? lineChecks.checks : null}
+                                locale={locale}
+                                chartSeries={series}
+                                chartColors={{ chart: chartRef }}
+                                onDisplay={(d) => commit(setDisplay(view, d), { step: "display", display: d })}
+                                onChart={(p) => commit(setChart(view, p), { step: "chart", type: p })}
+                                onChartDisplay={(patch) => commit(setChartDisplay(view, patch), { step: "chartDisplay" })}
+                                onTotal={(key, on) => commit(setTotal(view, key, on), { step: "totals" })}
+                                onExpand={expandAll}
+                                onCollapse={collapseAll}
+                                folding={folding}
+                            />
+                            <section className="pk-result" id={resultId} role="tabpanel" aria-labelledby={tabId(resultId, view.display === "chart" ? "chart" : "table")}>
                                 {loading || opening ? (
                                     <Skeleton text={labels.loadingReport} />
                                 ) : error ? (

@@ -1,9 +1,9 @@
 /*
  * The topics of the menus in levels (levels.jsx) as data: one table per menu (a field's, a value's,
- * Options) drives its first level (a row with the topic's state, or the topic's few choices right
+ * Table settings, Chart settings, More) drives its first level (a row with the topic's state, or the topic's few choices right
  * there), its levels (a list of choices, or a panel with a form) and its search. A choice of a chip
  * menu says what it does as a pure change of the view (`change()`: the next view and the history's
- * note), so the menus, the search and the tests run the same code; one of Options calls the report
+ * note), so the menus, the search and the tests run the same code; one of the toolbar's menus calls the report
  * (`run()`). Also the pure parts of the levels' keys: arrow keys, type-ahead, a row's name. Loaded
  * with the menus (menus.js).
  */
@@ -38,7 +38,7 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  * `state` is what is set, in short, on the row's right; `changed` marks a setting that is not the
  * default; `info` the id of an explanation next to the level's title. `hidden`: a level a choice
  * opens, with no row of its own (`levelTitle` its title); `note`: a line under its choices.
- * @typedef {{ id: string, title: string, kind: "segmented" | "inline" | "menu" | "panel",
+ * @typedef {{ id: string, title: string, kind: "segmented" | "inline" | "menu" | "panel", testId?: string,
  *   groups?: Array<{ title?: string, choices: Choice[] }>, state?: string | null, changed?: boolean,
  *   icon?: string, titled?: boolean, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string,
  *   keywords?: string, searchExtra?: Array<{ id: string, text: string, focus?: string, choice?: Choice, keywords?: string }>,
@@ -406,28 +406,50 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf, ea
 }
 
 /**
- * The topics of the Options menu: the totals (each a switch; one that would change nothing in this
- * view is disabled and unticked, with the reason), Expand all and Collapse all (each only when it changes something,
- * else with the reason), and help: Show tips, Show explanations, Show dismissed tips again, and the
- * keyboard shortcuts (a level). What each does is the report's (`act`).
- * @param {{ view: any, labels: any, folding: { canExpand: boolean, canCollapse: boolean, why: { expand?: string | null, collapse?: string | null } },
- *   tips: { controls: boolean, on: boolean, canReset: boolean }, explanations?: { on: boolean } | null,
- *   act: { total: (key: string, on: boolean) => void, expand: () => void, collapse: () => void, tipsOn: (on: boolean) => void,
- *   resetTips: () => void, explain: (on: boolean) => void } }} input
+ * The words of folding the groups of Rows (Expand all and Collapse all), from the fields: Collapse all
+ * keeps the first field's groups ("Show Region only"), Expand all shows every item of the last field
+ * ("Show each Country"). With fewer than two fields in Rows there is nothing to name: the plain words
+ * ("Show details", "Show group totals only"), `named` false.
+ * @param {any} view
+ * @param {any} labels  with the menus' texts
+ * @returns {{ expand: string, collapse: string, named: boolean }}
+ */
+export function rowFoldTexts(view, labels) {
+    if (view.rows.length < 2) {
+        return { expand: labels.chartShowDetails, collapse: labels.chartShowTotals, named: false };
+    }
+    const name = (/** @type {string} */ f) => fieldLabel(f, labels.core);
+    return { expand: fill(labels.chartShowEach, { field: name(view.rows.at(-1)) }), collapse: fill(labels.chartShowOnly, { field: name(view.rows[0]) }), named: true };
+}
+
+/**
+ * Expand all and Collapse all as choices: each closes the menu, and says why while it does nothing.
+ * @param {{ canExpand: boolean, canCollapse: boolean, why: { expand?: string | null, collapse?: string | null } }} folding  rowFolding() of view-ops.js
+ * @param {any} labels
+ * @param {{ expand: () => void, collapse: () => void }} act
+ * @param {{ expand: string, collapse: string, hint?: string }} words
+ * @param {[string, string]} ids
+ * @returns {Choice[]}
+ */
+function foldChoices(folding, labels, act, words, ids) {
+    const why = (/** @type {string | null | undefined} */ key) => (key && Object.hasOwn(labels, key) ? labels[key] : undefined);
+    return [
+        { id: ids[0], text: words.expand, icon: "plus", closes: true, disabled: !folding.canExpand, reason: why(folding.why.expand), run: act.expand },
+        { id: ids[1], text: words.collapse, icon: "chevronRight", hint: words.hint, closes: true, disabled: !folding.canCollapse, reason: why(folding.why.collapse), run: act.collapse }
+    ];
+}
+
+/**
+ * The Table settings menu: the totals as switches (off, with the reason, where the table has no such
+ * total), then Rows with Expand all and Collapse all; Collapse all says what it keeps in the chart's
+ * words ("Show Region only"). A switch applies at once and the menu stays open; Expand all and
+ * Collapse all close it.
+ * @param {{ view: any, labels: any, folding: { canExpand: boolean, canCollapse: boolean, why: any },
+ *   act: { total: (key: string, on: boolean) => void, expand: () => void, collapse: () => void } }} input
  * @returns {Topic[]}
  */
-export function optionTopics({ view, labels, folding, tips, explanations, act }) {
-    /** @type {Choice[]} */
-    const help = [];
-    if (tips.controls) {
-        help.push({ id: "show-tips", text: labels.showTips, checkbox: true, checked: tips.on, run: () => act.tipsOn(!tips.on) });
-    }
-    if (explanations) {
-        help.push({ id: "show-explanations", text: labels.showSettingInfo, checkbox: true, checked: explanations.on, run: () => act.explain(!explanations.on) });
-    }
-    if (tips.controls) {
-        help.push({ id: "reset-tips", text: labels.resetTips, icon: "reset", disabled: !tips.canReset, run: act.resetTips });
-    }
+export function tableTopics({ view, labels, folding, act }) {
+    const words = rowFoldTexts(view, labels);
     return [
         {
             id: "totals",
@@ -449,17 +471,35 @@ export function optionTopics({ view, labels, folding, tips, explanations, act })
             title: labels.zones.rows,
             kind: "inline",
             titled: true,
-            groups: [
-                {
-                    choices: [
-                        { id: "expand-all", text: labels.expandAll, icon: "plus", closes: true, disabled: !folding.canExpand, reason: folding.why.expand ? labels[folding.why.expand] : undefined, run: act.expand },
-                        { id: "collapse-all", text: labels.collapseAll, icon: "chevronRight", closes: true, disabled: !folding.canCollapse, reason: folding.why.collapse ? labels[folding.why.collapse] : undefined, run: act.collapse }
-                    ]
-                }
-            ]
-        },
-        { id: "help", title: labels.help, kind: "inline", titled: true, groups: [{ choices: help }] },
-        { id: "shortcuts", title: labels.shortcutsTitle, kind: "panel", icon: "info" }
+            groups: [{ choices: foldChoices(folding, labels, act, { expand: labels.expandAll, collapse: labels.collapseAll, hint: words.named ? words.collapse : undefined }, ["expand-all", "collapse-all"]) }]
+        }
+    ];
+}
+
+/**
+ * The topics of "More": Help first, a level with the tips' switches (where the host leaves them to
+ * the user) and a row that opens the keyboard shortcuts (a panel, toolbar-panels.jsx). The toolbar's
+ * buttons that moved into More follow below it (toolbar.jsx).
+ * @param {{ labels: any, tips: { controls: boolean, on: boolean, canReset: boolean }, explanations: { on: boolean } | null,
+ *   act: { tipsOn: (on: boolean) => void, resetTips: () => void, explain: (on: boolean) => void } }} input
+ * @returns {Topic[]}
+ */
+export function moreTopics({ labels, tips, explanations, act }) {
+    /** @type {Choice[]} */
+    const help = [];
+    if (tips.controls) {
+        help.push({ id: "show-tips", text: labels.showTips, checkbox: true, checked: tips.on, run: () => act.tipsOn(!tips.on) });
+    }
+    if (explanations) {
+        help.push({ id: "show-explanations", text: labels.showSettingInfo, checkbox: true, checked: explanations.on, run: () => act.explain(!explanations.on) });
+    }
+    if (tips.controls) {
+        help.push({ id: "reset-tips", text: labels.resetTips, icon: "reset", disabled: !tips.canReset, run: act.resetTips });
+    }
+    help.push({ id: "shortcuts", text: labels.shortcutsTitle, icon: "info", open: "shortcuts" });
+    return [
+        { id: "help", title: labels.help, kind: "menu", icon: "info", testId: "more-help", groups: [{ choices: help }] },
+        { id: "shortcuts", title: labels.shortcutsTitle, kind: "panel", hidden: true, levelTitle: `${labels.help} › ${labels.shortcutsTitle}` }
     ];
 }
 
@@ -467,22 +507,25 @@ export function optionTopics({ view, labels, folding, tips, explanations, act })
 const VALUE_LABELS = Object.freeze({ slices: ["auto", "off", "value", "percent", "both"], other: ["auto", "off", "value"] });
 
 /**
- * The topics of the chart type menu's Display settings (#106), each a row with what is set that opens
+ * The topics of Chart settings after its types (#106, #580), each a row with what is set that opens
  * its level: Value labels, Legend, Title (a form), Axis (axis and group labels, the zoom slider),
  * Tooltip (and the share in it), Reference lines (a form), Series (one switch and one colour per
- * series or slice) and Layout (100 % stacks, smooth lines, a pie's label position). A topic the chart
- * has nothing for is left out. Every choice applies `act.display(patch)`
+ * series or slice) and Layout (100 % stacks, smooth lines, a pie's label position, the groups of
+ * Rows folded). A topic the chart has nothing for is left out. Every choice applies `act.display(patch)`
  * (pivotkit-core's chart settings); the type stays. Reference lines come after Tooltip: a level with
  * a form (toolbar-panels.jsx), its row saying which lines are on.
- * @param {{ view: any, drawn: string, labels: any, names: string[], act: { display: (patch: object) => void }, drawnColors?: Map<string, string>,
- *   lines?: { rules: { average: boolean, trend: boolean, target: boolean, notes?: string[] }, targetText: string } }} input
+ * @param {{ view: any, drawn: string, labels: any, names: string[], act: { display: (patch: object) => void, expand?: () => void, collapse?: () => void }, drawnColors?: Map<string, string>,
+ *   lines?: { rules: { average: boolean, trend: boolean, target: boolean, notes?: string[] }, targetText: string },
+ *   folding?: { canExpand: boolean, canCollapse: boolean, why: any } }} input
  *   `drawn`: the picker entry drawn (chart-types.js); `names`: the legend's entries (series, a pie's slices);
  *   `lines`: which reference lines the chart can draw (pivotkit-core's referenceLineChecks, or its
  *   view's rules with the note "table"), and the target as the locale writes it;
- *   `drawnColors`: the colour the chart draws each name with, as #rrggbb (the colour fields start from it)
+ *   `drawnColors`: the colour the chart draws each name with, as #rrggbb (the colour fields start from it);
+ *   `folding`: rowFolding() of view-ops.js. With it, Layout ends with the groups of Rows folded or
+ *   not, in the words of the fields ("Show each Country", "Show Region only"; rowFoldTexts)
  * @returns {Topic[]}
  */
-export function chartTopics({ view, drawn, labels, names, act, lines = { rules: { average: true, trend: true, target: true, notes: [] }, targetText: "" }, drawnColors = new Map() }) {
+export function chartTopics({ view, drawn, labels, names, act, lines = { rules: { average: true, trend: true, target: true, notes: [] }, targetText: "" }, drawnColors = new Map(), folding }) {
     const chart = view.chart;
     const pie = SLICE_TYPES.includes(drawn);
     const axis = CHART_TYPES[drawn]?.axis ?? false;
@@ -614,8 +657,12 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
     if (pie) {
         layout.push(...["outside", "inside"].map((v) => ({ ...pickOf("labelPosition", v, labels.labelPositionNames[v], `label-position-${v}`, v === "outside" ? "labelPosition" : undefined), checked: (chart.labelPosition ?? "outside") === v, disabled: chart.valueLabels === "off" })));
     }
+    const on = layout.filter((c) => c.checked && (c.checkbox || c.id === "label-position-inside")).map((c) => c.text);
+    if (folding && act.expand && act.collapse) {
+        // a collapsed group is one category of the chart: Expand all and Collapse all in its words
+        layout.push(...foldChoices(folding, labels, { expand: act.expand, collapse: act.collapse }, rowFoldTexts(view, labels), ["chart-show-each", "chart-show-only"]));
+    }
     if (layout.length) {
-        const on = layout.filter((c) => c.checked && (c.checkbox || c.id === "label-position-inside")).map((c) => c.text);
         topics.push({ id: "layout", title: labels.chartLayout, kind: "menu", state: on.join(", ") || null, changed: on.length > 0, groups: [{ choices: layout }] });
     }
     return topics;

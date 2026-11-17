@@ -386,6 +386,17 @@ export class PivotReportElement extends Base {
         this.#write("field-list", value);
     }
 
+    /**
+     * "open" or "folded": the zones' start state; without it the report's height decides. The user
+     * can fold or open them until the page is loaded again.
+     */
+    get zones() {
+        return /** @type {string | undefined} */ (this.#read("zones"));
+    }
+    set zones(value) {
+        this.#write("zones", value);
+    }
+
     /** Offers "Publish as shared view" on the user's views; a publish is a pivot-template-publish event. */
     get canPublish() {
         return /** @type {boolean} */ (this.#read("can-publish"));
@@ -800,6 +811,7 @@ export class PivotReportElement extends Base {
             grow: this.grow,
             // another value reaches the report, which ignores it with a warning
             fieldList: /** @type {any} */ (this.fieldList),
+            zones: /** @type {any} */ (this.zones),
             onSourceSwitch: this.#onSourceSwitch,
             allowImport: this.allowImport,
             plugins: Array.isArray(v.plugins) ? v.plugins : undefined,

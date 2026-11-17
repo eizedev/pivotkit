@@ -74,10 +74,12 @@ export const en = {
     // next to Views: the name of the view loaded, and the mark while it has changes not saved
     unsavedChanges: "Unsaved changes",
     swap: "Swap rows and columns",
-    // the zones folded into one line (compact layout), and the toolbar button that does it (pressed: open)
-    layout: "Layout",
-    showLayout: "Show field layout",
+    // the section of the zones: its heading, and its line under it while open (folded: what is placed,
+    // or layoutEmpty)
+    zonesTitle: "Fields in the report",
+    zonesHint: "Drag fields into Filters, Columns, Rows and Values.",
     layoutEmpty: "No fields placed yet",
+    // always at the end of the toolbar: Help first, then the buttons that do not fit
     more: "More",
     // the Views menu: the saved views (the host's templates) and sharing
     views: "Views",
@@ -89,7 +91,9 @@ export const en = {
     emptyDrop: "Drop a file onto the report, or",
     emptyNoData: "Load data to start",
     exportLabel: "Export",
-    options: "Options",
+    // the button beside the tabs Table and Chart: the settings of the view shown
+    tableSettings: "Table settings",
+    chartSettings: "Chart settings",
     expand: "Expand {label}",
     collapse: "Collapse {label}",
     showAs: "Show as",
@@ -417,8 +421,8 @@ export const de = {
     newAlready: "Der Bericht ist schon leer.",
     unsavedChanges: "Nicht gespeicherte Änderungen",
     swap: "Zeilen und Spalten tauschen",
-    layout: "Anordnung",
-    showLayout: "Feldanordnung zeigen",
+    zonesTitle: "Felder im Bericht",
+    zonesHint: "Felder in Filter, Spalten, Zeilen und Werte ziehen.",
     layoutEmpty: "Noch keine Felder angeordnet",
     more: "Mehr",
     views: "Ansichten",
@@ -429,7 +433,8 @@ export const de = {
     emptyDrop: "Eine Datei auf den Bericht ziehen, oder",
     emptyNoData: "Daten laden, um zu beginnen",
     exportLabel: "Export",
-    options: "Optionen",
+    tableSettings: "Tabelleneinstellungen",
+    chartSettings: "Diagrammeinstellungen",
     expand: "{label} aufklappen",
     collapse: "{label} zuklappen",
     showAs: "Anzeigen als",
