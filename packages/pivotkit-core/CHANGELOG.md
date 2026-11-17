@@ -9,13 +9,20 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 ### Added
 
 - `chart.referenceLines` in the view: an average and a linear trend, switched on or off, and a
-  target as a number, drawn on bars, lines and areas as silent ECharts `markLine`s. The value axis
-  reaches every line. `referenceLineRules(view, chart, data)` says which chart draws which line:
-  none on a pie, a donut or a heatmap, a stack's total only when every value adds up, a trend only
-  along a time line. `valueAddsUp(value)` is the rule of what adds up. `referenceLines(result)` in
-  `pivotkit-core/chart` gives the numbers. `Labels.referenceLines` names them, and
-  `chartThemeFrom` reads `referenceColor` from `--pk-chart-reference`
-  ([#48](https://github.com/eizedev/pivotkit/issues/48)).
+  target as a number, drawn on bars, lines and areas as silent ECharts `markLine`s
+  ([#48](https://github.com/eizedev/pivotkit/issues/48)):
+    - The value axis reaches every line.
+    - A trend fits the categories' real time: a gap of 8 months counts as 8.
+    - A label writes the value as the value axis does. `decorateOption` puts the labels right of
+      the plot, a line apart, and writes the names alone below 480 px.
+    - `referenceLineRules(view, chart, data)` says which chart draws which line: none on a pie, a
+      donut or a heatmap, a stack's total only when every value adds up, a trend only along a time
+      line.
+    - `pivotkit-core/chart` exports `referenceLines(result)`, the numbers, `referenceLineChecks`,
+      the rules with the numbers and their reasons (a stack below zero, values in different units),
+      and `valueAddsUp(value)`, the rule of what adds up.
+    - `Labels.referenceLines` names the lines, and `chartThemeFrom` reads `referenceColor` from
+      `--pk-chart-reference`.
 - `decorateOption` takes `readColor`: a heatmap's colours as ECharts can mix them. An end it returns
   `null` for takes `DEFAULT_THEME.colorScale`'s colour, so a form such as `oklch()` no longer turns
   the cells black ([#386](https://github.com/eizedev/pivotkit/issues/386)).

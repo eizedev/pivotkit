@@ -366,20 +366,20 @@ such as weekday counts as categories. A date on Columns alone gives `"bar"`. A U
 there swaps rows and columns for the chart. pivotkit-react and pivotkit-report do so through
 `chartPlan`.
 
-### `referenceLineRules(view, chart, data)` and `valueAddsUp(value)`
+### `referenceLineRules(view, chart, data)`
 
-Which reference lines (`chart.referenceLines`) a chart can draw. `chart` is what is drawn,
-`chartPlan`'s `chart`, never `"auto"`. It gives `{ average, trend, target }`, each `true` or `false`:
+Which reference lines (`chart.referenceLines`) a chart can draw, by the view alone. `chart` is what
+is drawn, `chartPlan`'s `chart`, never `"auto"`. It gives `{ average, trend, target }`, each `true`
+or `false`:
 
 - Pie, donut and heatmap: none.
 - Bars, lines and areas side by side: all three. A trend only along a time line: every field on
   Rows a date or a grouping of one along the time line, none sorted by a value or by hand.
-- Stacked: all three when every value adds up, else none.
+- Stacked: all three when every value adds up, else none. A stack to 100 % (`chart.stackPercent`)
+  draws none.
 
-`valueAddsUp(value)` says whether a view's value adds up across a category's series: an additive
-aggregator (`CATALOG.additiveAggregators`), shown as itself or as a type of
-`CATALOG.additiveShowAs`. One that walks an axis must walk the rows. The chart's tooltip uses it for
-a stack's total. [Charts](../concepts/charts.md#reference-lines) has the table.
+`referenceLineChecks` in [`pivotkit-core/chart`](#chart-marks) adds what depends on the numbers.
+[Charts](../concepts/charts.md#reference-lines) has the table.
 
 ### `chartPlan(view, data)`, `swapAxes(view)` and `chartThemeFrom(style)`
 
@@ -429,7 +429,17 @@ the order a chart draws them: the averages, the trends, the target. Each line ha
 - `format(value)`: writes a value in the series' format.
 
 `chart` is what is drawn (`chartPlan`'s), `series` the `toSeries` result when the caller has it.
-`toEChartsOption` draws them as `markLine`s.
+`toEChartsOption` draws them as `markLine`s. A trend's `at(index)` follows the categories' real time.
+
+`referenceLineChecks(result, { chart, series })` gives `{ average, trend, target, notes }`:
+`referenceLineRules` with what depends on the numbers. A stack with a part below zero has no average
+or trend. A target over values in different units is off. `notes` says why, as codes: `"noTotal"`,
+`"percentStack"`, `"negative"`, `"noTime"`, `"byIndex"` and `"mixedUnits"`.
+
+`valueAddsUp(value)` says whether a view's value adds up across a category's series: an additive
+aggregator (`CATALOG.additiveAggregators`), shown as itself or as a type of
+`CATALOG.additiveShowAs`. One that walks an axis must walk the rows. The tooltip's total and a
+stack's reference lines use it.
 
 `decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter, readColor })` puts
 a report's marks on `toEChartsOption`'s option:

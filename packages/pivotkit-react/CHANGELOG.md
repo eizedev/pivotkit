@@ -19,8 +19,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - Display → **Reference lines** in the chart type menu, for bars, lines and areas: **Average**,
   **Trend** and a **Target** (`chart.referenceLines`, [#48](https://github.com/eizedev/pivotkit/issues/48)).
-  The menu offers only the lines the chart can draw, with a note on the rest. The tooltip names the
-  lines at the category, and the chart's text alternative names each with its value.
+  The menu offers only the lines the chart can draw, with a note on the rest. The Target field reads
+  "25%" as a share, with a hint for a value shown in percent. The tooltip names the lines at the
+  category, and the chart's text alternative names each with its value.
 - `labels.chartLines` and `labels.chartTrendSpan`: the reference lines in the chart's text
   alternative ("Reference lines: {lines}.", "from {from} to {to}"), and the token
   `--pk-chart-reference` for a target and the lines of a stack's total (default `--pk-muted`).

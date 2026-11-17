@@ -19,7 +19,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - Reference lines in the chart: Display → **Reference lines** with **Average**, **Trend** and a
   **Target** ([#48](https://github.com/eizedev/pivotkit/issues/48)). The chart's chunk carries
-  ECharts' markLine component for them: about 229 KiB gzip instead of 222.
+  ECharts' markLine component for them: about 230 KiB gzip instead of 222.
 - `drill-down-export` (boolean attribute) and the `drillDownExport` property: the drill-down panel's
   copy and download while `export-data` is off. As pivotkit-react's `drillDownExport`.
 

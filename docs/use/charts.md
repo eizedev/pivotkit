@@ -167,9 +167,11 @@ target you set.
 | Trend | dotted, in the series' colour | a straight line fitted through the series' values, from its first to its last point |
 | Target | solid, in a neutral colour | the number you typed, once for the whole chart |
 
-- Each line has a label with its name and its value, such as "Average 25".
+- Each line has a label right of the plot with its name and its value, written short as on the
+  axis, such as "Target 500K". Labels of lines close together move apart. On a chart narrower than
+  480 px, such as on a phone, the labels name the lines only.
 - The value axis reaches every line. A target higher than every bar still shows.
-- The tooltip lists the lines at the category: a trend with its value there.
+- The tooltip lists the lines at the category with their whole values: a trend with its value there.
 - The chart image, the HTML report and the chart as SVG draw the lines too.
 - The lines stay with the report: in saved views, links and the chart image.
 
@@ -182,9 +184,13 @@ target you set.
     - **Stacked bars and areas** draw the lines of the stack's total, the sum of its parts. Only sums
       and counts add up. A stack of averages, medians or maximums gets no lines at all, not even a
       target: the height of such a stack is no total.
+    - **A stack with a part below zero** has no single total. It gets no average and no trend. The
+      target stays.
     - **A trend** needs dates on Rows, such as "Created by month", in date order. Categories such
       as countries have no order of their own, so a line through them would be made up. A sort by
       value takes the date order away too.
+    - **A target** needs values in one unit. With a count beside a sum, or two values in different
+      formats, no single target fits, so the chart draws none.
 
     A setting that does not apply stays in the view. When you switch back to a chart that can draw
     the line, it is there again.
@@ -192,11 +198,17 @@ target you set.
 ??? info "What the numbers are"
     - pivotkit works out the lines from the categories the chart draws. A chart draws at most 50.
     - The average and the trend leave out a category without a value.
-    - A trend fits a straight line to the points by least squares. The categories count as evenly
-      spaced, even when a month in between has no data.
-    - The target is a number in the value's own unit. For a value shown as a percentage, type the
-      share: 0.25 for 25 %.
-    - A label writes its number in the value's format. An average of whole numbers keeps its decimals.
+    - The average is the plain mean of the points in the chart. For a value that is itself an
+      average, such as the average order per month, the line is the mean of those averages. It does
+      not weigh a month by its number of orders.
+    - A trend fits a straight line to the points by least squares, over the real time between them.
+      A gap of 8 months counts as 8 months, so the line bends where the axis leaves the gap out.
+      When a category has no date, such as "(blank)", the trend counts the categories as evenly
+      spaced, and the menu says so.
+    - The target is a number in the value's own unit. For a value shown as a percentage, type
+      "25%" or the share, 0.25. The menu shows a hint under the field for such a value.
+    - The tooltip and the text for screen readers write the numbers in the value's format. An
+      average of whole numbers keeps its decimals.
 
 ## Read the chart
 

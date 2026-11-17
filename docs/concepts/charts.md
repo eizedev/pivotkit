@@ -84,21 +84,37 @@ A pie, a donut and a heatmap always show the slice or cell under the pointer.
   `pivotkit-core/chart`) and draws them as ECharts `markLine`s on the series.
 - The lines are silent: a click opens no rows. The tooltip names them.
 - The value axis reaches every line (`dataMin` and `dataMax`).
+- A label writes the value as the value axis does. `decorateOption` puts the labels right of the
+  plot and keeps them a line apart. Below 480 px it writes the names only.
 
-One rule decides which chart draws which line: `referenceLineRules(view, chart, data)` in
-pivotkit-core. The chart, the menu and the report's SVG use it.
+Two functions decide which chart draws which line. The chart, the menu and the report's SVG use
+them:
+
+- `referenceLineRules(view, chart, data)` in pivotkit-core's main entry decides by the view alone.
+- `referenceLineChecks(result, { chart, series })` in `pivotkit-core/chart` adds what depends on the
+  numbers, and gives `notes` that say why a line is off.
 
 | Chart | Average | Trend | Target |
 | --- | --- | --- | --- |
 | Pie, donut, heatmap | no | no | no |
-| Bars, lines, areas side by side | per series | per series, along a time line | yes |
-| Stacked, every value adds up | of the stack's total | of the stack's total, along a time line | yes |
-| Stacked, a value does not add up | no | no | no |
+| Bars, lines, areas side by side | per series | per series, along a time line | yes, in one unit |
+| Stacked, every value adds up | of the stack's total | of the stack's total, along a time line | yes, in one unit |
+| Stacked, a part below zero | no | no | yes, in one unit |
+| Stacked, a value does not add up, or stacked to 100 % | no | no | no |
 
-- "Adds up" is `valueAddsUp(value)`, the same rule as the tooltip's total.
+- "Adds up" is `valueAddsUp(value)` in `pivotkit-core/chart`, the same rule as the tooltip's total.
 - "Along a time line" means every field on Rows is a date or a grouping of one along the time line.
   A sort by a value or by hand takes that order away.
+- "In one unit" means one format, and no count beside a field's values.
+- A series hidden in the legend (`chart.hidden`) has no lines and is no part of a stack's total.
 - A setting that does not apply stays in the view and draws again where it applies.
+
+The notes are `"noTotal"`, `"percentStack"`, `"negative"`, `"noTime"`, `"byIndex"` (a category
+without a date, so the trend counts the categories' order) and `"mixedUnits"`.
+
+A trend fits a straight line over the categories' real time: years, quarters, months, ISO weeks or
+days, from each category's key. It is drawn from category to category, so it bends where the axis
+leaves a gap out. An average is the unweighted mean of the plotted points, also of averages.
 
 A series' lines take its colour. The lines of no series, a target and a stack's total, take
 `--pk-chart-reference`.
