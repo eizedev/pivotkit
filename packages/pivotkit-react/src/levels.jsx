@@ -576,7 +576,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                     <div className="pk-level-body" data-testid={`level-${topic.id}`}>
                         {topic.kind === "menu" ? (
                             <>
-                                {topic.intro ? <p id={`${titleId}-intro`} className="pk-field-desc">{topic.intro}</p> : null}
+                                {topic.intro ? <p id={`${titleId}-intro`} className="pk-hint pk-menu-hint">{topic.intro}</p> : null}
                                 <MenuList labelledBy={titleId} describedBy={topic.intro ? `${titleId}-intro` : undefined} close={close}>
                                     <Groups topic={topic} onPick={pick} />
                                 </MenuList>

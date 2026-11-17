@@ -10,9 +10,6 @@ PivotTable is the reference. The engine is [pivotkit-core](https://www.npmjs.com
 contains modified Copernicus Climate Change Service information
 ([attribution](https://pivotkit.eize.dev/learn/#query-it-live)).</sub>
 
-Date fields show their data range and grouping hints; cyclic groupings explain which years they combine.
-See [dates and grouping](https://pivotkit.eize.dev/use/values/).
-
 ## Install
 
 ```bash
@@ -58,6 +55,8 @@ it as user input and checks it against the data. A view cannot run code.
 - Four drop zones: Rows, Columns, Values and Filters, with drag and drop and a menu on every field.
 - Table and chart. The chart uses Apache ECharts.
 - Filters with value counts.
+- Dates grouped by year, quarter, month and more. The footer gives the data's date range, and a
+  grouping such as "Month of year" says which years it combines.
 - Drill-down to the rows behind a value.
 - Undo and redo.
 - Saved and shared views as JSON files.

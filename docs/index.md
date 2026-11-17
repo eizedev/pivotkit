@@ -20,8 +20,6 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
 [I embed or automate pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine, reports, the command line, REST and MCP" }
 [Try the live demo](demo.md){ .md-button }
 
-Date fields show their data range and grouping hints; cyclic groupings explain which years they combine.
-
 </div>
 
 <div class="grid" markdown>
@@ -58,7 +56,8 @@ Date fields show their data range and grouping hints; cyclic groupings explain w
 2. **Filters that say what they keep.** Pick items from a list that shows each item's row count.
    Take a range such as "last 3 months" or "this quarter" that stays right over time. Take a top 10
    with ties, or a rule on a total ("Sum of Revenue > 1,000"). Each filter says how many items it
-   keeps. See [filters](use/filters.md).
+   keeps. The footer gives the data's date range, and a grouping such as "Month of year" says
+   which years it combines. See [filters](use/filters.md) and [dates](use/values.md#dates-and-number-ranges).
 3. **Excel with the layout kept.** The workbook keeps merged headers, bold totals and number
    formats. Colour scales and data bars become Excel's own conditional formats. Besides the table's
    exports, you can download the rows behind the table as CSV or JSON for your own analysis. See

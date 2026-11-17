@@ -272,6 +272,16 @@ above the result. The texts are `tooManyRows`, `tooMuchWork`, `tooManyGroups`, `
 The time and memory grow with the rows. [Measured in the browser](#measured-in-the-browser) shows
 how much, from 100,000 to the default 1,000,000 rows.
 
+### The date context in the UI
+
+The report keeps the work behind its date ranges and combined years bounded:
+
+- A combined grouping lists at most 32 years per field. More years end in "…".
+- The Group level counts the years in a fixed table of 68 KiB.
+- The report keeps the range of at most 16 date fields per data set (`LIMITS.cacheEntries`). It
+  scans an evicted field again when it needs its range.
+- A date outside the range JavaScript can represent gets no range and no years.
+
 ### Measured in the browser
 
 `npm run bench:browser` hands the playground's generated data to `<PivotReport>` in Chromium,
@@ -411,12 +421,3 @@ try {
     }
 }
 ```
-
-Date-context labels retain at most 32 observed calendar-year spans per source field and
-pivot result. Further years are indicated by an ellipsis, not expanded into DOM/export
-labels. Group hints count distinct representable years in a fixed 68 KiB bitmap.
-Nonrepresentable date values have no computed date range or year context.
-
-Date-field range scans keep at most 16 fields per encoded data set (the standard
-`LIMITS.cacheEntries` default), evicting the least recently used first. Non-date and
-missing fields are not cached. An evicted range is scanned again when requested.

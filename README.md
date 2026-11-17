@@ -8,8 +8,6 @@
 pivotkit is Excel's PivotTable for web applications and the command line. People load their data,
 build a report by dragging fields and take it to Excel. The same report renders again in CI.
 
-Date ranges and data-driven grouping hints make time-based reports easier to read.
-
 | Who you are | What you want | Quickest start |
 | --- | --- | --- |
 | A user | a report from your data, by clicking | Try the [live demo](https://pivotkit.eize.dev/demo/), then build a first report in six steps with the [quick start](https://pivotkit.eize.dev/use/quick-start/). |
@@ -35,6 +33,9 @@ Date ranges and data-driven grouping hints make time-based reports easier to rea
 - Where the application allows it, people drop their own CSV, JSON or Excel file onto the report.
   A preview shows a type for each column. Nothing is uploaded.
   More: [load your own data](https://pivotkit.eize.dev/use/load-data/).
+- Dates say what they cover. The footer gives the data's first and last date. A grouping such as
+  "Month of year" says which years it combines.
+  More: [dates](https://pivotkit.eize.dev/use/values/#dates-and-number-ranges).
 - The [export](https://pivotkit.eize.dev/use/export/) to Excel keeps the layout. The rows behind
   the report download as CSV or JSON.
 - A view is safe JSON: it cannot run code. Reports also come without a browser.

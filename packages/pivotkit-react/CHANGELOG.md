@@ -42,8 +42,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#580](https://github.com/eizedev/pivotkit/issues/580)).
 - Theme tokens for the zones' section (`--pk-section-*`) and the tab shown (`--pk-tab-mark`)
   ([#580](https://github.com/eizedev/pivotkit/issues/580)).
-- Date-field ranges in the footer and field descriptions, data-driven Group hints and
-  year context for cyclic groupings, in English and German (#109).
+- The data's date range: in the footer next to the row count, and in a date field's "i".
+  A cyclic grouping such as "Month of year" says which years it combines: "Date by month of
+  year · 2023–2025 combined". With one year left, its items carry the year ("Jan 2025").
+  Group lists the data's range first and shows hints from the data, under "One item per period"
+  and "Same period, years combined" ([#109](https://github.com/eizedev/pivotkit/issues/109)).
 - A zoom slider under a long category axis, Display › Axis › Zoom slider (Automatic, On, Off). It
   works by mouse, touch and keyboard, and keeps its place when the chart is drawn again. The PNG
   image leaves it out ([#36](https://github.com/eizedev/pivotkit/issues/36)), ([#575](https://github.com/eizedev/pivotkit/issues/575)).
@@ -594,8 +597,6 @@ What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started
   (`menuitemcheckbox`), not one of a set of choices.
 
 ### Fixed
-
-- Avoid distinct-date scratch allocations, localize Group timeline years, keep cyclic context in enlarged summaries, and describe Group menus with valid ARIA ownership (#109).
 
 - A loaded file shown again after a new mount lost its view when the host mounted the report twice in
   a row (PowerShell Universal's `Sync-UDElement`, two mounts within about 30 ms) or mounted it again

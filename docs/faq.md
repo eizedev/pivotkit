@@ -100,7 +100,7 @@ See [Time zones](concepts/limits.md#time-zones).
 
 The date is grouped by **Quarter of year** or **Month of year**. These groupings put the same
 period of every year in one row, so Q1 holds Q1 2024 and Q1 2025 together. Use them to compare
-seasons.
+seasons. The title says which years it combines: "Date by quarter of year · 2024–2025 combined".
 
 - For one row per quarter of each year, group by **Quarter**, which runs along the time line.
 - For one year next to another, put the date on Rows by **Year** and on Columns by

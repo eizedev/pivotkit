@@ -52,7 +52,6 @@
     --pk-focus-width: 2px;
     --pk-focus-offset: 2px;
     --pk-glow-width: 3px;
-    --pk-chip-context-gap: 3px;
     /* the inset ring of a zone a field is dropped on to remove it; a clickable cell's hover ring and a
        file drop's ring are three quarters and one and a half of it */
     --pk-ring-width: 2px;
@@ -4068,10 +4067,10 @@
     overflow-wrap: anywhere;
 }
 
-/* Date chips also carry computed range information. On phones retain room for the name
-   without shrinking any of the pointer targets or numeric badges. */
+/* on phones a chip's name may carry the years a grouping combines: a pixel more room for it,
+   the pointer targets and badges keep their size */
 .pk-root[data-pk-size="narrow"] .pk-chip {
-    gap: var(--pk-chip-context-gap);
+    gap: 3px;
 }
 
 /* under "Also show items with the same value as the last one": in line with its words */
