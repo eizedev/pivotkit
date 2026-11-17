@@ -141,7 +141,9 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
                 tabIndex={tabIndex}
                 data-pk-slot={slot}
                 data-testid={testId}
-                onPointerEnter={(e) => {
+                // shown when the mouse moves over it, not when the layout moves it under a resting
+                // pointer (a chip removed: the next shelf slides under the pointer)
+                onPointerMove={(e) => {
                     if (e.pointerType === "mouse") {
                         stay();
                         setMode((m) => m ?? "peek");

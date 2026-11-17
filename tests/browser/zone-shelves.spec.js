@@ -8,7 +8,7 @@
 import { chips, drag, expect, test } from "./fixtures.js";
 
 /** The data-testid of the element in focus (inside the report, shadow roots included). */
-const focused = (page) => page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName);
+const focused = (page) => page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.className);
 
 async function open(page, { width = 1440, height = 900, url = "?data=sales&lang=en" } = {}) {
     await page.setViewportSize({ width, height });
@@ -83,6 +83,9 @@ test.describe("+ Add in each zone", () => {
         const category = menu.getByTestId("add-pick-Category");
         await expect(category.locator(".pk-tag")).toHaveText("Columns");
         await expect(category).toHaveAccessibleDescription(/Moves it from Columns/);
+        // and the line under its name says it too
+        await expect(menu.getByTestId("add-pick-Category-note")).toHaveText("Moves it from Columns.");
+        await expect(menu.getByTestId("add-pick-Category-note")).toBeVisible();
         // Region is in Rows: disabled, with its reason, and a click changes nothing
         const region = menu.getByTestId("add-pick-Region");
         await expect(region).toHaveAttribute("aria-disabled", "true");
@@ -104,6 +107,7 @@ test.describe("+ Add in each zone", () => {
         const revenue = menu.getByTestId("add-pick-Revenue");
         await expect(revenue).not.toHaveAttribute("aria-disabled", "true");
         await expect(revenue).toHaveAccessibleDescription(/Adds a second value of it/);
+        await expect(menu.getByTestId("add-pick-Revenue-note")).toHaveText("Adds a second value of it.");
         await revenue.click();
         expect(await chips(page, "values")).toEqual(["Sum of Revenue", "Sum of Revenue"]);
         // the second one, not the first
@@ -157,12 +161,17 @@ test.describe("+ Add in each zone", () => {
         await open(page);
         await page.getByTestId("layout-summary").focus();
         const order = [];
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < 10; i++) {
             await page.keyboard.press("Tab");
             order.push(await focused(page));
         }
-        // the zone Filters is empty; Columns has one chip: its grip, its menu, its x
+        // the zone Filters is empty; Columns has one chip after its + Add: its grip, its menu, its x;
+        // then the next zone's i
         expect(order.slice(0, 6)).toEqual(["zones-info", "swap", "zone-info-filters", "add-field-filters", "zone-info-cols", "add-field-cols"]);
+        expect(order[6]).toContain("pk-handle");
+        expect(order.slice(7, 8)).toEqual(["chip-menu-Category"]);
+        expect(order[8]).toContain("pk-chip-x");
+        expect(order[9]).toBe("zone-info-rows");
         // Escape closes the menu and the focus goes back to + Add
         await page.getByTestId("add-field-rows").focus();
         await page.keyboard.press("Enter");
@@ -262,6 +271,19 @@ test.describe("shelves", () => {
         // a field name stays whole
         await expect(page.getByTestId("chip-menu-Country").locator(".pk-chip-name")).toHaveJSProperty("scrollWidth", await page.getByTestId("chip-menu-Country").locator(".pk-chip-name").evaluate((el) => el.clientWidth));
     });
+});
+
+test("a chip removed by a click: the shelf that slides under the resting pointer opens no description", async ({ page }) => {
+    // the playground's test window: Rows and Values share a line, and without Country Values moves
+    // left, its "i" under the pointer that pressed Country's x
+    await open(page, { width: 1280, height: 1000 });
+    await page.getByRole("button", { name: "Remove Country" }).click();
+    expect(await chips(page, "rows")).toEqual(["Region"]);
+    await page.waitForTimeout(800);
+    await expect(page.locator(".pk-info-pop")).toHaveCount(0);
+    // a move over an "i" still shows its description
+    await page.getByTestId("zone-info-values").hover();
+    await expect(page.locator(".pk-info-pop")).toBeVisible();
 });
 
 test.describe("drag and drop on shelves", () => {
