@@ -138,10 +138,16 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                         instance.dispatchAction({ type: "showTip", x: at.offsetX, y: at.offsetY });
                     }
                 };
-                instance.on("mouseover", (/** @type {any} */ e) => {
+                // every move, not only mouseover: ECharts reports mouseover only for an element other
+                // than the one it last saw under the pointer, and it keeps that one when the pointer
+                // leaves in one move (a tap elsewhere) and across a redraw, while hover is forgotten
+                instance.on("mousemove", (/** @type {any} */ e) => {
                     if (e.componentType === "series" && (e.seriesType === "bar" || e.seriesType === "line") && typeof e.dataIndex === "number") {
-                        hover.current = { seriesIndex: e.seriesIndex, dataIndex: e.dataIndex };
-                        redraw(e);
+                        const last = hover.current;
+                        if (last?.seriesIndex !== e.seriesIndex || last?.dataIndex !== e.dataIndex) {
+                            hover.current = { seriesIndex: e.seriesIndex, dataIndex: e.dataIndex };
+                            redraw(e);
+                        }
                     }
                 });
                 instance.on("mouseout", (/** @type {any} */ e) => {

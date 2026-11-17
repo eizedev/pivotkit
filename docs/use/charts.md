@@ -295,6 +295,7 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 
 - The tooltip names the element under the pointer: the series' colour, its name and the value
   formatted as in the table. Its title is the category's whole name.
+- After the chart is drawn again, such as after a legend click, the next move names the element.
 - A stacked segment, or a point of a stacked area, adds a **Total** line: the sum of the stack's
   parts. A part below zero counts against it.
 - Only sums and counts add up. An average, a median or a maximum gets no total. Neither does a

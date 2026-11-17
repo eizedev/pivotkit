@@ -102,6 +102,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The chart's tooltip names the element under the pointer after a redraw, and after the pointer
+  left the chart in one move, such as a tap elsewhere. It listed every series instead
+  ([#576](https://github.com/eizedev/pivotkit/issues/576)).
+- On a touch screen, a menu's rows and its Back row are at least 44 px high (`--pk-target-touch`)
+  on every level. They were 35 and 28 px ([#582](https://github.com/eizedev/pivotkit/issues/582)).
 - Row labels, the field names above them and the value names keep their natural width, on one
   line, when the table fits the report. Only a table that would be wider than the report wraps them,
   between words first. Then the row labels share the room the value columns leave, not a fixed 40 %

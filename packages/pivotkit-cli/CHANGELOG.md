@@ -46,6 +46,9 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   report took the machine's locale for it ([#552](https://github.com/eizedev/pivotkit/issues/552)).
 - `render --url` against a server without sign-in no longer says "with this token" when the
   server refuses the file ([#512](https://github.com/eizedev/pivotkit/issues/512)).
+- `--url`: a 403 `NOT_ALLOWED` blames `results: true` only when the server refuses results. A
+  refusal of sent data or of a source shows the server's words without that hint
+  ([#562](https://github.com/eizedev/pivotkit/issues/562)).
 - `--format csv` in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
   `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:
   `9.6`, not `9٫6`, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).

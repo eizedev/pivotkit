@@ -616,9 +616,10 @@ steps with curl or PowerShell.
   A 401 is one line: "the server needs a token: set PIVOTKIT_TOKEN or give --token-file <file>" when
   none was sent, "the server refused the token from --token-file token.txt: ..." with the server's
   reason when one was. A missing parameter ends with "re-run with --param customer=acme", a refused
-  value with "fix it with --param customer=<value>". A render the token may not make says to ask
-  the operator for a token whose profile has `results: true`, and that validate, describe and
-  sources still work with it. Other hints follow the server's words after a semicolon, never in a
+  value with "fix it with --param customer=<value>". When the server refuses results, its words ask
+  for a token whose profile has `results: true`. The CLI adds that validate, describe and sources
+  still work with it. Any other refusal, such as of sent data or of a source, has no such hint.
+  Other hints follow the server's words after a semicolon, never in a
   second parenthesis. For 429 and 503, the hint is "retry in N s" (a `Retry-After` over a day is left
   out).
 
