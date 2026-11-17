@@ -36,7 +36,7 @@ The sources name no other options.
   OpenAPI, MCP tool names and schemas, CLI flags, configuration keys, environment variables and
   error codes. It also decided what does not: the look and CSS details, message wording, internal
   modules and an exported workbook's layout beyond its values.
-- Additions to that list are open. [Versioning](../versioning.md#open-additions) lists them.
+- Additions to that list were open. [0013](0013-public-interface-additions.md) decides them.
 
 The reason recorded in #491 is the goal in the context: no break without a warning.
 [Versioning](../versioning.md) holds the policy, the public interface and the register.

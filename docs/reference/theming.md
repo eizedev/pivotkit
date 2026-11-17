@@ -12,6 +12,9 @@ property whose name starts with `--pk-`. Set the ones you want to change. The re
 defaults. There is no other styling interface: no class names to target, no `::part()` names. The
 chart, the HTML report, print and the Excel export take the same tokens.
 
+The tokens are not part of the [versioning promise](../versioning.md#what-is-public-interface). A
+minor release can change them. The changelog names the change.
+
 ## Light and dark
 
 `theme` is a prop or an attribute. Its value is `"auto"`, `"light"` or `"dark"`. With `"auto"` the

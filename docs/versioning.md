@@ -49,32 +49,25 @@ These are the parts a break can hit. A change to them follows [the promise](#the
 
 - The view file format.
 - The JavaScript exports of each package.
+- The React props.
+- The web component's attributes, properties and events.
+- The plugin API.
 - The REST routes and the OpenAPI document.
 - The MCP tool names and their schemas.
-- The command line flags.
+- The command line flags and exit codes.
 - Configuration keys of the services.
 - Environment variables.
 - Error codes, such as `LIMIT_EXCEEDED` or `INVALID_INPUT`.
+- The lowest supported versions of Node.js, React and the browsers
+  ([browser support](browser-support.md)).
 
 These are not public interface. They can change in any release:
 
 - The look and CSS details.
+- The theme tokens (`--pk-*`). A minor release can change them. The changelog names the change.
 - The wording of messages. Match on the code, not on the text.
 - Internal modules, the ones no package exports.
 - The layout of an exported workbook beyond its values.
-
-### Open: proposed additions { #open-additions }
-
-These are not decided yet. Until they are, they are not part of the promise.
-
-- React props, and the web component's attributes, properties and events: hosts set them like
-  exports.
-- The plugin API: reader plugins of other authors build on it.
-- CLI exit codes: scripts and CI pipelines branch on them.
-- The lowest supported Node.js version: raising it is a break, says
-  [#519](https://github.com/eizedev/pivotkit/issues/519).
-- Open question: do the lowest supported React and browser versions count?
-- Open question: do the theme tokens (`--pk-*`) count, or are they CSS details?
 
 ## How a deprecation works
 
