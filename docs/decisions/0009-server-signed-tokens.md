@@ -1,7 +1,7 @@
 ---
 title: Short-lived tokens the server signs itself
 description: Without a sign-in provider, the server issues short-lived tokens signed with its own keys. REST and MCP both accept them.
-status: proposed
+status: accepted
 date: 2026-11-16
 ---
 
@@ -26,8 +26,7 @@ Chosen option: short-lived tokens that the server signs. Decided in #485:
 
 - The server signs the tokens with its own key.
 - Several keys can be valid at once, so a key change breaks no client.
-- A deny list revokes a single token before it expires: `token revoke <id>`, next to `token new` and
-  `token show`. A token can be named by its ID or its name.
+- A deny list revokes a single token before it expires: `pivotkit-server token revoke <id or name>`.
 - REST and MCP both accept these tokens.
 - Logs show the token ID, never the value.
 

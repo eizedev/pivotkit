@@ -1,7 +1,7 @@
 ---
 title: Server-signed tokens carry no audience
 description: The tokens the server signs itself carry the issuer pivotkit-server and no audience claim.
-status: proposed
+status: accepted
 date: 2026-11-16
 ---
 
@@ -18,7 +18,7 @@ audience (`aud`): the service it is meant for. Which claims does a server-signed
 ## Considered Options
 
 - An audience per server or per endpoint (not discussed in a source).
-- No audience. #540 builds this.
+- No audience. #540 built this.
 
 ## Decision Outcome
 

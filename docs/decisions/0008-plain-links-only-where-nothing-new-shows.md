@@ -1,7 +1,7 @@
 ---
 title: Plain download links only where nothing new can become visible
 description: A source gets plain download links only where no caller can see more than the policy shows today, also when the data gains a column.
-status: proposed
+status: accepted
 date: 2026-11-16
 ---
 

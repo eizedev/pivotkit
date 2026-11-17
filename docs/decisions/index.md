@@ -29,8 +29,8 @@ link each other. [0001](0001-record-decisions.md) has the rules.
 | [0005](0005-react-18-floor.md) | React 18 as the lowest supported React | accepted | 2026-11-07 |
 | [0006](0006-types-node-on-lowest-node.md) | @types/node on the lowest supported Node | accepted | 2026-11-16 |
 | [0007](0007-export-data-off-by-default.md) | Source data export off by default | accepted | 2026-11-14 |
-| [0008](0008-plain-links-only-where-nothing-new-shows.md) | Plain download links only where nothing new can become visible | proposed | 2026-11-16 |
-| [0009](0009-server-signed-tokens.md) | Short-lived tokens the server signs itself | proposed | 2026-11-16 |
-| [0010](0010-signed-tokens-without-audience.md) | Server-signed tokens carry no audience | proposed | 2026-11-16 |
+| [0008](0008-plain-links-only-where-nothing-new-shows.md) | Plain download links only where nothing new can become visible | accepted | 2026-11-16 |
+| [0009](0009-server-signed-tokens.md) | Short-lived tokens the server signs itself | accepted | 2026-11-16 |
+| [0010](0010-signed-tokens-without-audience.md) | Server-signed tokens carry no audience | accepted | 2026-11-16 |
 | [0011](0011-time-bounds-in-tests.md) | CPU time for work, wall time only for waits, in tests | accepted | 2026-11-16 |
 | [0012](0012-versioning-policy.md) | Versioning before and after 1.0.0 | accepted | 2026-11-16 |
