@@ -3,7 +3,8 @@
  * rounded bars, the tooltip in the theme and the axis labels laid out for the chart's size
  * (chart-layout.js). The same look on the screen (pivotkit-react, which adds its DOM tooltip), in an
  * SVG and in a printed report (pivotkit-report). The entry point "pivotkit-core/chart": only a drawn
- * chart needs it, so a report's first load does not.
+ * chart needs it, so a report's first load does not. It holds toEChartsOption too, for the same
+ * reason: a bundle that loads the chart from here keeps the option's code out of its first load.
  */
 
 import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
@@ -12,6 +13,7 @@ import { barExtent, pieLabelFit, pieLabelTexts, valueAxisSplit, valueLabelRoom }
 import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame } from "./chart-measure.js";
 
 export * from "./chart-layout.js";
+export { toEChartsOption } from "./chart.js";
 
 /** A copy of an object without the given keys. */
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));

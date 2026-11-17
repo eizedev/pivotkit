@@ -187,6 +187,7 @@ list them with their notes. Each package keeps a `CHANGELOG.md`:
 [report](packages/pivotkit-report/CHANGELOG.md), [cli](packages/pivotkit-cli/CHANGELOG.md),
 [server](packages/pivotkit-server/CHANGELOG.md), [mcp](packages/pivotkit-mcp/CHANGELOG.md).
 Before you update, read [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/).
+[Versioning](https://pivotkit.eize.dev/versioning/) says which releases may break things.
 
 ## License
 

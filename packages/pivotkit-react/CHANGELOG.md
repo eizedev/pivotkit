@@ -24,6 +24,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - The drill-down panel's copy and download follow `exportData`. With it off, the panel shows the
   rows but offers no copy and no download (#263).
+- pivotkit-core's ECharts option (`toEChartsOption`) loads with ECharts, from `pivotkit-core/chart`,
+  not with the first load (#546).
 - The row count under the result says how many of the data's rows the filters keep: "2,190 of 4,386
   rows", German "2.190 von 4.386 Zeilen". With nothing filtered it says "4,386 rows" (#108).
 

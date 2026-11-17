@@ -6,6 +6,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- The chart's SVG takes `toEChartsOption` from `pivotkit-core/chart` (#546).
+
 ### Fixed
 
 - The chart's SVG lays out its labels as the screen does, from pivotkit-core: slanted category names

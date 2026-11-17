@@ -8,6 +8,7 @@ description: How to update the command line, the services, the image and the plu
 The first section says how to update the command line, the REST service, the MCP server, the
 container image and the Claude Code plugin. Each section after it lists what changes between two
 releases and whom it concerns. **Breaking** marks a change that needs your action when it applies.
+[Versioning](../versioning.md) says which releases may break things, and lists every deprecation.
 
 ## Update an installation { #update }
 

@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useId, useRef, useState } from "react";
-import { fieldLabel, toEChartsOption } from "pivotkit-core";
+import { fieldLabel } from "pivotkit-core";
 import { chartSummary } from "./chart-summary.js";
 import { MAX_CATEGORIES, chartTypeOf } from "./chart-types.js";
 import { fill } from "./labels.js";
@@ -108,6 +108,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         if (!ready || !chart.current || !root.current) {
             return;
         }
+        // pivotkit-core's option comes with ECharts (echarts.js): only a drawn chart needs it
+        const { toEChartsOption } = lib.current;
         // the tokens with the lengths the chart reads in px resolved (the title's size, the marks' corners)
         const style = lib.current.chartStyle(root.current);
         // the series of the summary and the hints, not computed a second time
