@@ -5,6 +5,7 @@
  */
 
 import { referenceLines } from "./chart-lines.js";
+import { lineLabelText } from "./chart-measure.js";
 import { autoChartType, toSeries } from "./chart-series.js";
 import { DEFAULT_THEME, GRID_TOP, HEATMAP_GRID_BOTTOM } from "./defaults.js";
 import { expect } from "./errors.js";
@@ -351,20 +352,27 @@ function markLines(lines, s, { horizontal, theme, short }) {
         // line starts at the top), the first row nearest to it; lying ones right of the plot
         const where = horizontal ? { position: "start", distance: [0, LABEL_GAP + rows * (fontSize + LABEL_GAP)] } : { position: "end", distance: LABEL_GAP };
         rows += 1;
+        // the line's colour: its series' (the palette's, as ECharts picks it), else the reference colour
+        const colors = theme.colors ?? [];
+        const color = own ? colors[/** @type {number} */ (line.series) % Math.max(1, colors.length)] : (theme.referenceColor ?? theme.textColor);
+        const type = LINE_TYPES[line.kind];
         const style = {
             name: line.name,
-            lineStyle: { type: LINE_TYPES[line.kind], width: 1.5, ...(own ? {} : { color: theme.referenceColor ?? theme.textColor }) },
-            label: { formatter: () => text, ...where, color: theme.textColor, fontSize }
+            lineStyle: { type, width: 1.5, ...(own ? {} : { color }) },
+            // the words in the text colour, after a sample of the line's dash in its colour
+            label: { formatter: () => lineLabelText(type, text), rich: { s: { ...(color ? { color } : {}), fontSize } }, ...where, color: theme.textColor, fontSize }
         };
         const target = bySeries[own ? /** @type {number} */ (line.series) : s.series.length - 1];
         if (line.kind === "trend") {
             const first = /** @type {number} */ (line.first);
             const last = /** @type {number} */ (line.last);
             const at = /** @type {(i: number) => number} */ (line.at);
-            for (let i = first; i < last; i++) {
+            // over the categories' order the line is straight: one segment
+            const step = line.byTime ? 1 : last - first;
+            for (let i = first; i < last; i += step) {
                 // the label on the last part only
-                const part = i === last - 1 ? style : { ...style, label: { ...style.label, show: false } };
-                target?.push([{ ...point(i, at(i)), ...part }, point(i + 1, at(i + 1))]);
+                const part = i + step === last ? style : { ...style, label: { ...style.label, show: false } };
+                target?.push([{ ...point(i, at(i)), ...part }, point(i + step, at(i + step))]);
                 values.push(at(i));
             }
             values.push(at(last));

@@ -72,7 +72,8 @@ test("reference lines (#48): an SVG and the HTML report draw them with their lab
     // North 10, South 12, West 4, (blank) 6 units: average 8, a target of 15 above every bar
     const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", referenceLines: { average: true, trend: true, target: 15 } } };
     const r = await render(view, SALES, { format: "svg", echarts, ...FIXED });
-    const texts = svgTexts(r.text);
+    // the words of a label follow the sample of its line's dash, a text of its own
+    const texts = svgTexts(r.text).map((t) => t.trim());
     assert.ok(texts.includes("Average 8"), texts.join(" | "));
     assert.ok(texts.includes("Target 15"), texts.join(" | "));
     // regions have no order of their own: no trend
@@ -83,7 +84,7 @@ test("reference lines (#48): an SVG and the HTML report draw them with their lab
     assert.ok(own.text.includes('stroke="#b42318"'));
     // the HTML report's chart, its SVG written inline
     const html = await render({ ...view, display: "chart" }, SALES, { format: "html", chart: true, chartEmbed: "inline", echarts, ...FIXED });
-    assert.ok(svgTexts(html.text).includes("Target 15"));
+    assert.ok(svgTexts(html.text).map((t) => t.trim()).includes("Target 15"));
 });
 
 test("reference lines (#48): the SVG draws a trend over real time on the data's own points", async () => {
@@ -103,4 +104,21 @@ test("reference lines (#48): the SVG draws a trend over real time on the data's 
     ends.forEach((p, i) => {
         assert.ok(Math.abs(p[0] - line[i][0]) < 1 && Math.abs(p[1] - line[i][1]) < 1, `point ${i}: ${p} vs ${line[i]}`);
     });
+});
+
+test("reference lines (#48): the SVG puts each label at its line, after a sample of its dash in its colour", async () => {
+    // North 10, South 12, West 4, (blank) 6: an average of 8 and a target of 8.5, close together
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", referenceLines: { average: true, trend: false, target: 8.5 } } };
+    const r = await render(view, SALES, { format: "svg", echarts, ...FIXED });
+    const lineY = (stroke) => Number(new RegExp(`<path d="M[\\d.]+ ([\\d.]+)L[\\d.]+ \\1"[^>]*stroke="${stroke}"`).exec(r.text)?.[1]);
+    const labelY = (words) => Number(new RegExp(`translate\\([\\d.]+ ([\\d.]+)\\)"[^>]*>\\s*${words}<`).exec(r.text)?.[1]);
+    const average = { line: lineY("#2a78d6"), label: labelY("Average 8") };
+    const target = { line: lineY("#5a6270"), label: labelY("Target 8.5") };
+    assert.ok(Number.isFinite(average.line) && Number.isFinite(target.line), r.text.slice(0, 200));
+    assert.ok(Math.abs(target.label - target.line) < 1, JSON.stringify(target));
+    // the average is close below the target: its label a line of text lower than the target's, near its own line
+    assert.ok(average.label - target.label >= 18 && Math.abs(average.label - average.line) < 6, JSON.stringify({ average, target }));
+    // the samples: the average's dash in its series' colour, the target's in the reference colour
+    assert.match(r.text, /fill="#2a78d6"[^>]*>– –</);
+    assert.match(r.text, /fill="#5a6270"[^>]*>——</);
 });

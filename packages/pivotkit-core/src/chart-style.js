@@ -10,7 +10,7 @@
 import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 import { barExtent, pieLabelFit, pieLabelTexts, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
-import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame, textWidth } from "./chart-measure.js";
+import { AXIS_LABEL_MARGIN, LINE_SAMPLES, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth } from "./chart-measure.js";
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
@@ -38,26 +38,28 @@ const LINE_VALUE_MIN_WIDTH = 480;
 /** Room (px) between the plot and a reference line's label right of it. */
 const LINE_LABEL_GAP = 6;
 
-/** A reference line's markLine item with its label writing the line's name alone. */
+/** A reference line's markLine item with its label writing the line's name alone, after its sample. */
 const namesOnly = (/** @type {any} */ d) => {
     const head = Array.isArray(d) ? d[0] : d;
-    const label = { ...head.label, formatter: () => String(head.name ?? "") };
+    const label = { ...head.label, formatter: () => lineLabelText(head.lineStyle?.type, head.name ?? "") };
     return Array.isArray(d) ? [{ ...head, label }, d[1]] : { ...head, label };
 };
 
 /**
  * The labels of lying reference lines (pivotkit-core's markLines): right of the plot, as wide as the
  * widest takes, and kept apart: from the highest down, a label closer than a line of text to the one
- * above moves down. Where each line lands is estimated before ECharts draws: a scale at most as fine
- * as ECharts' (it never stretches the values over less than half the axis, nor the plot over less
- * than about half the chart), so the labels end at least as far apart as estimated. A chart narrower
- * than LINE_VALUE_MIN_WIDTH writes the names alone; the tooltip has the values. A trend on bars ends
- * at the middle of the last bar: its label moves right by half a bar's band.
+ * above moves down. `pixelOf` gives each line's real height in the chart (ECharts' convertToPixel,
+ * after a first draw): the labels then sit at their lines. Without it the heights are estimated on a
+ * scale at most as fine as ECharts' (it never stretches the values over less than half the axis, nor
+ * the plot over less than about half the chart), so the labels end at least as far apart as
+ * estimated. A chart narrower than LINE_VALUE_MIN_WIDTH writes the names alone, and leaves out a
+ * label that would sit more than one and a half lines from its line; the tooltip has every value. A
+ * trend on bars ends at the middle of the last bar: its label moves right by half a bar's band.
  * @param {any[]} series  the decorated series
- * @param {{ width: number, height: number, grid: any, fontSize: number }} chart
+ * @param {{ width: number, height: number, grid: any, fontSize: number, pixelOf?: (value: number) => number }} chart
  * @returns {{ series: any[], room: number } | null}
  */
-function lineLabels(series, { width, height, grid, fontSize }) {
+function lineLabels(series, { width, height, grid, fontSize, pixelOf }) {
     /** @type {{ item: any, si: number, di: number, value: number, trend: boolean }[]} */
     const labels = [];
     series.forEach((s, si) =>
@@ -72,15 +74,17 @@ function lineLabels(series, { width, height, grid, fontSize }) {
         return null;
     }
     const narrow = width < LINE_VALUE_MIN_WIDTH;
-    const textOf = (/** @type {any} */ item) => (narrow ? String(item.name ?? "") : String(item.label.formatter()));
+    // the widest label: its sample, a space and its words
+    const textOf = (/** @type {any} */ item) => `${LINE_SAMPLES[/** @type {keyof typeof LINE_SAMPLES} */ (item.lineStyle?.type)] ?? ""} ${narrow ? String(item.name ?? "") : String(item.label.formatter()).replace(/^\{s\|[^}]*\} /, "")}`;
     const widest = Math.max(...labels.map((l) => textWidth(textOf(l.item), fontSize)));
-    // the values' span: the data (a stack's tops too), 0 and the lines
+    // without the real heights: the values' span (the data, a stack's tops, 0 and the lines) on a coarse scale
     const numbers = series.flatMap((s) => (s.data ?? []).filter((/** @type {unknown} */ v) => typeof v === "number"));
     const tops = series.some((s) => s.stack) ? (series[0]?.data ?? []).map((/** @type {unknown} */ _, /** @type {number} */ i) => series.reduce((sum, s) => sum + (typeof s.data?.[i] === "number" && s.data[i] > 0 ? s.data[i] : 0), 0)) : [];
     const all = [0, ...numbers, ...tops, ...labels.map((l) => l.value)];
     const span = Math.max(...all) - Math.min(...all) || 1;
     const plot = Math.max(1, (height - (typeof grid.top === "number" ? grid.top : 0) - (typeof grid.bottom === "number" ? grid.bottom : 0)) * 0.5);
     const scale = plot / (2 * span);
+    const yOf = (/** @type {number} */ v) => (pixelOf ? pixelOf(v) : -v * scale);
     const line = Math.ceil(fontSize * 1.3);
     // half a bar's band: the plot's width, estimated without the value axis's labels, per category
     const categories = Math.max(1, ...series.map((s) => (Array.isArray(s.data) ? s.data.length : 0)));
@@ -88,8 +92,9 @@ function lineLabels(series, { width, height, grid, fontSize }) {
     /** @type {Map<any, number>} */
     const offsets = new Map();
     let below = -Infinity;
-    for (const l of [...labels].sort((a, b) => b.value - a.value)) {
-        const y = -l.value * scale;
+    // from the top down; lines at one height in the order they are drawn
+    for (const l of [...labels].sort((a, b) => yOf(a.value) - yOf(b.value))) {
+        const y = yOf(l.value);
         const placed = Math.max(y, below + line);
         offsets.set(l.item, placed - y);
         below = placed;
@@ -104,7 +109,9 @@ function lineLabels(series, { width, height, grid, fontSize }) {
                           const head = Array.isArray(d) ? d[0] : d;
                           const l = labels.find((x) => x.si === si && x.di === di);
                           if (!l) return d;
-                          const label = { ...head.label, offset: [l.trend ? band : 0, offsets.get(head) ?? 0] };
+                          const dy = offsets.get(head) ?? 0;
+                          const far = narrow && dy > line * 1.5;
+                          const label = { ...head.label, offset: [l.trend ? band : 0, dy], ...(far ? { show: false } : {}) };
                           const item = Array.isArray(d) ? [{ ...head, label }, d[1]] : { ...head, label };
                           return narrow ? namesOnly(item) : item;
                       })
@@ -123,15 +130,17 @@ function lineLabels(series, { width, height, grid, fontSize }) {
  *   style, or a map of tokens wrapped (pivotkit-report)
  * @param {{ height?: number, width?: number, categoryNames?: string[], axisLabels?: string,
  *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown,
- *   readColor?: (color: string) => string | null }} [size]
+ *   readColor?: (color: string) => string | null, pixelOf?: (value: number) => number }} [size]
  *   height and width: the chart's size in px (the room around a pie, a heatmap's column names, the
  *   category axis); categoryNames: the categories' whole names (the tooltip's title when the axis
  *   writes them shorter); axisLabels: the view's chart.axisLabels; tooltipFormatter: builds the
  *   tooltip's formatter (pivotkit-react's DOM tooltip), left out for a chart without one (an SVG);
- *   readColor: a heatmap colour as one ECharts can mix, or null (see heatmapColors)
+ *   readColor: a heatmap colour as one ECharts can mix, or null (see heatmapColors); pixelOf: a value's
+ *   height in the drawn chart (ECharts' convertToPixel after a first draw), so the labels of the
+ *   reference lines sit at their lines (lineLabels)
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
-export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter, readColor } = {}) {
+export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter, readColor, pixelOf } = {}) {
     const extra = { categoryNames, axisLabels };
     const first = (a) => (Array.isArray(a) ? a[0] : a);
     const v = (name) => style.getPropertyValue(name).trim();
@@ -212,7 +221,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     // the values past the end of horizontal bars keep their room on the right (valueLabelRoom)
     if (grid) grid.right += valueLabelRoom(series, fontSize);
     // the labels of lying reference lines: right of the plot, kept apart, with room
-    const lines = grid && first(option.yAxis)?.type === "value" ? lineLabels(series, { width, height, grid, fontSize }) : null;
+    const lines = grid && first(option.yAxis)?.type === "value" ? lineLabels(series, { width, height, grid, fontSize, pixelOf }) : null;
     // upright lines (horizontal bars) have a row each above the plot; a narrow chart writes their names alone
     if (grid && !lines && width < LINE_VALUE_MIN_WIDTH) series = series.map((s) => (s.markLine ? { ...s, markLine: { ...s.markLine, data: s.markLine.data.map(namesOnly) } } : s));
     if (lines) {

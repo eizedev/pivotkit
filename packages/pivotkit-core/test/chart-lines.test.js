@@ -25,6 +25,8 @@ const MONTH = { name: "Month", field: "Date", by: "yearMonth" };
 const pivot = (view) => computePivot(data, { derived: [MONTH], rows: ["Month"], cols: ["Product"], values: [{ field: "Revenue", agg: "sum" }], formatting: { locale: "en-US" }, ...view });
 const close = (a, b) => Math.abs(a - b) < 1e-9;
 /** The lines as [kind, series, numbers...], rounded to 9 places. */
+/** A label's text without its line sample ("{s|— —} Average 25" is "Average 25"). */
+const words = (label) => label.formatter().replace(/^\{s\|[^}]*\} /, "");
 /** The three switches of referenceLineRules, without its notes. */
 const flags = ({ average, trend, target }) => ({ average, trend, target });
 const brief = (lines) => lines.map((l) => [l.kind, l.series, ...(l.kind === "trend" ? [l.from, l.to] : [l.value])].map((x) => (typeof x === "number" ? Math.round(x * 1e9) / 1e9 : x)));
@@ -133,9 +135,9 @@ test("the ECharts option: a markLine per line, silent, labelled with the name an
     assert.equal(a.markLine.data[1][0].lineStyle.type, "dotted");
     // only the trend's last part has its label
     assert.deepEqual(a.markLine.data.slice(1).map((d) => d[0].label.show !== false), [false, false, true]);
-    assert.equal(target.label.formatter(), "Target 80");
-    assert.equal(a.markLine.data[0].label.formatter(), "Average 25");
-    assert.equal(a.markLine.data[3][0].label.formatter(), "Trend");
+    assert.equal(words(target.label), "Target 80");
+    assert.equal(words(a.markLine.data[0].label), "Average 25");
+    assert.equal(words(a.markLine.data[3][0].label), "Trend");
     assert.equal(target.label.color, "#333333");
     assert.equal(target.label.fontSize, 15);
     // the value axis reaches the target, past the tallest bar (40)
@@ -167,7 +169,7 @@ test("the ECharts option of a stack: its total's lines on its top series, in the
     // German words from the labels, the number as the view's locale writes it
     const de = toEChartsOption(pivot({ formatting: { locale: "de-DE" }, chart: { type: "bar", referenceLines: { average: false, trend: false, target: 1234.5 } } }), { labels: { referenceLines: { average: "Durchschnitt", trend: "Trend", target: "Ziel" } } });
     // the label writes the number as the value axis does, short; the tooltip has it whole
-    assert.equal(de.series[1].markLine.data[0].label.formatter(), "Ziel 1234,5");
+    assert.equal(words(de.series[1].markLine.data[0].label), "Ziel 1234,5");
 });
 
 test("chartThemeFrom: the colour of the lines of no series from --pk-chart-reference", () => {
@@ -287,7 +289,7 @@ test("the labels write the value as the axis does, short", () => {
     const r = pivot({ values: [{ field: "Revenue", agg: "sum", format: "currency:EUR" }], chart: { type: "bar", referenceLines: { average: false, trend: false, target: 1234567 } } });
     const option = toEChartsOption(r);
     const target = option.series.at(-1).markLine.data[0];
-    assert.equal(target.label.formatter(), "Target 1.2M");
+    assert.equal(words(target.label), "Target 1.2M");
     assert.equal(target.name, "Target");
     // the tooltip and the text alternative keep the whole number
     assert.equal(referenceLines(r).at(-1).format(1234567), "€1,234,567.00");
@@ -305,12 +307,60 @@ test("decorateOption: the labels of lying lines right of the plot, kept apart, w
     // room on the right for the widest label, "Average 25"
     assert.ok(wide.grid.right - bare.grid.right >= 70, `${wide.grid.right} - ${bare.grid.right}`);
     // the higher label stays at its line, the one just below moves down (the browser spec measures it)
-    const average = shown.find((d) => d.label.formatter() === "Average 25");
-    const target = shown.find((d) => d.label.formatter() === "Target 26");
+    const average = shown.find((d) => words(d.label) === "Average 25");
+    const target = shown.find((d) => words(d.label) === "Target 26");
     assert.equal(target.label.offset[1], 0);
     assert.ok(average.label.offset[1] > 10, JSON.stringify(average.label.offset));
     // narrow: the names alone
     const narrow = decorateOption(toEChartsOption(r), style, { width: 360, height: 480 });
-    const names = narrow.series.flatMap((x) => x.markLine?.data ?? []).map((d) => (Array.isArray(d) ? d[0] : d)).filter((d) => d.label.show !== false).map((d) => d.label.formatter());
+    const names = narrow.series.flatMap((x) => x.markLine?.data ?? []).map((d) => (Array.isArray(d) ? d[0] : d)).filter((d) => d.label.show !== false).map((d) => words(d.label));
     assert.deepEqual(names.sort(), ["Average", "Average", "Target", "Trend", "Trend"]);
+});
+
+test("each label carries its line's cue: a sample of its dash in the line's colour", () => {
+    const r = pivot({ chart: { type: "line", referenceLines: { average: true, trend: true, target: 80 } } });
+    const option = toEChartsOption(r, { theme: { colors: ["#111111", "#222222"], referenceColor: "#999999", textColor: "#333333" } });
+    const [a, b] = option.series;
+    const average = a.markLine.data[0].label;
+    assert.equal(average.formatter(), "{s|– –} Average 25");
+    assert.equal(average.rich.s.color, "#111111");
+    assert.equal(average.color, "#333333", "the words in the text colour, which reads on every theme");
+    assert.equal(b.markLine.data[0].label.rich.s.color, "#222222");
+    const trend = a.markLine.data.find((d) => Array.isArray(d) && d[0].label.show !== false)[0].label;
+    assert.equal(trend.formatter(), "{s|···} Trend");
+    const target = b.markLine.data.at(-1).label;
+    assert.equal(target.formatter(), "{s|——} Target 80");
+    assert.equal(target.rich.s.color, "#999999");
+    // a name from the labels cannot break the markup
+    const odd = toEChartsOption(r, { labels: { referenceLines: { average: "Mean {x|y}", trend: "Trend", target: "Target" } } });
+    assert.equal(odd.series[0].markLine.data[0].label.formatter(), "{s|– –} Mean xy 25");
+});
+
+test("a trend over the categories' order (no real time) is one straight segment", () => {
+    const rows = [["2026-01-15", 10], ["2026-02-15", 20], [null, 30]].map(([Date, Revenue]) => ({ Date, Revenue }));
+    const { r } = timePivot(rows, "yearMonth", { chart: { type: "line", referenceLines: { average: false, trend: true, target: null } } });
+    const data = toEChartsOption(r).series[0].markLine.data;
+    assert.deepEqual(data.map((d) => d.map((p) => p.coord)), [[[0, 10], [2, 30]]]);
+    assert.equal(referenceLines(r)[0].byTime, false);
+    const timed = referenceLines(timePivot(rows.slice(0, 2), "yearMonth", { chart: { type: "line", referenceLines: { average: false, trend: true, target: null } } }).r);
+    assert.equal(timed[0].byTime, true);
+});
+
+test("decorateOption with the lines' real places (pixelOf): labels at their lines, a line apart; a narrow chart drops what cannot sit near", async () => {
+    const { decorateOption } = await import("pivotkit-core/chart");
+    const style = { getPropertyValue: () => "" };
+    // A's average 25, B's average 5, a target of 26: 4 px a unit, 0 at y 400
+    const r = pivot({ chart: { type: "line", referenceLines: { average: true, trend: false, target: 26 } } });
+    const pixelOf = (v) => 400 - v * 4;
+    const labelsOf = (o) => o.series.flatMap((x) => x.markLine?.data ?? []).map((d) => (Array.isArray(d) ? d[0] : d)).map((d) => ({ words: words(d.label), dy: d.label.offset?.[1] ?? 0, show: d.label.show !== false }));
+    const wide = labelsOf(decorateOption(toEChartsOption(r), style, { width: 800, height: 480, pixelOf }));
+    // the target at its line (y 296), the average 4 px lower (y 300) moves to a line below it (296 + 19)
+    assert.deepEqual(wide.find((l) => l.words === "Target 26").dy, 0);
+    assert.deepEqual(wide.find((l) => l.words === "Average 25").dy, 15);
+    assert.deepEqual(wide.find((l) => l.words === "Average 5").dy, 0);
+    // narrow: three lines at the same height; the third would sit two lines off its own: left out
+    const same = pivot({ cols: [], values: [{ field: "Revenue", agg: "sum" }, { field: "Revenue", agg: "max" }], chart: { type: "line", referenceLines: { average: true, trend: false, target: 30 } } });
+    const flat = (v) => (v > 20 ? 200 : 300);
+    const narrow = labelsOf(decorateOption(toEChartsOption(same), style, { width: 360, height: 480, pixelOf: flat }));
+    assert.deepEqual(narrow.map((l) => [l.words, l.show]), [["Average", true], ["Average", true], ["Target", false]]);
 });

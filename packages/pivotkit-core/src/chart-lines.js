@@ -141,6 +141,7 @@ function average(values) {
  * @property {number} [to]
  * @property {(index: number) => number} [at]  a trend's value at a category: a straight line over
  *   the categories' real time (months, days), else over their order
+ * @property {boolean} [byTime]  a trend over the categories' real time; false: over their order
  * @property {(value: number) => string} format  writes a value of the line: its series' format (a
  *   stack's or a target's: the first series'), and a plain number keeps its decimals
  */
@@ -209,7 +210,7 @@ export function referenceLines(result, { chart, series, words, locale } = {}) {
         for (const l of lists) {
             const line = fit(l.data, times);
             if (line) {
-                lines.push({ kind: "trend", series: l.series, name: name("trend"), ...line, format: formatOf(l.series) });
+                lines.push({ kind: "trend", series: l.series, name: name("trend"), ...line, byTime: times !== null, format: formatOf(l.series) });
             }
         }
     }
