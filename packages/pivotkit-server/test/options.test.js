@@ -67,7 +67,7 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.auth.object.tokens.list.object.expires = "string";
     expected.auth.object.signedTokens = { object: { dir: "string", maxDays: "integer" } };
     // tokens other systems issue (options/external.js, after signed)
-    expected.auth.object.externalIssuers = { list: { object: { issuer: "string", typ: "string", maxMinutes: "integer", keys: { list: { object: { kid: "string", publicKey: secretRef } } } } } };
+    expected.auth.object.externalIssuers = { list: { object: { issuer: "string", typ: "string", maxMinutes: "integer", scopes: "strings", profiles: "strings", profile: "string", keys: { list: { object: { kid: "string", publicKey: secretRef } } } } } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });

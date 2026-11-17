@@ -587,9 +587,15 @@ and the sign-in above hold for it too. What differs:
     always compared first, so a static token that looks like a JWT keeps working.
 
 - **Tokens from another system** ([external issuers](reference/rest.md#external-issuers)): the
-  server checks them like signed tokens, with that issuer's public keys, name and type only. The server holds
-  no key that could make them. A private key in the configuration stops the start. They have no
-  deny list, so `maxMinutes` keeps them short.
+  server checks them like signed tokens, with that issuer's public keys, name and type only. The
+  server holds no key that could make them. A private key in the configuration stops the start.
+    - The issuer is a sign-in provider, not an operator. A token's scopes are cut to the entry's
+      `scopes`, and it may name only the entry's `profiles`.
+    - A leaked token works until it expires, at most `maxMinutes`. There is no deny list.
+    - It carries no audience, so every server that trusts the key accepts it.
+    - A stolen private key of the issuer makes tokens for any person, within those scopes and
+      profiles.
+    - Keep `maxMinutes` low ([0014](decisions/0014-external-token-issuers.md)).
 
 - **Errors** are problem documents with a stable code. A message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.

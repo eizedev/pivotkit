@@ -1091,6 +1091,9 @@ Another system can issue short-lived tokens for the person signed in there. Powe
 one example. The server checks them with that system's public key. It never holds a key that could
 make such a token.
 
+The other system is a sign-in provider, not an operator. Its tokens never get more than you allow
+it: the scopes and profiles of its entry.
+
 ```json
 {
   "auth": {
@@ -1098,24 +1101,54 @@ make such a token.
     "externalIssuers": [{
       "issuer": "psu",
       "typ": "psu+jwt",
-      "maxMinutes": 60,
+      "maxMinutes": 15,
+      "scopes": ["pivotkit:read"],
+      "profiles": ["staff"],
+      "profile": "staff",
       "keys": [{ "kid": "psu-2026-11", "publicKey": { "file": "keys/psu.pub" } }]
     }]
   }
 }
 ```
 
+What a token gets:
+
+- **Scopes**: the token's `scope`, cut to the entry's `scopes`. A token without `scope` gets exactly
+  `scopes`, never every scope. `scopes` is required. An empty list gives no scope.
+- **Profile**: a token may name a profile of the entry's `profiles`. Any other gets 401. Without
+  `profiles`, a token may name none.
+- A token without `profile` gets the entry's `profile`, else `auth.defaultProfile`, else the
+  sources' own policy.
+
+The keys:
+
 - The key is an Ed25519 public key in PEM (`-----BEGIN PUBLIC KEY-----`), from a file or a variable.
-  A private key, another kind of key or a file the server cannot read stops the start.
+  A private key, an encrypted one, another kind of key or a file the server cannot read stops the
+  start.
 - The server reads the keys at start. A new key takes a restart.
 - One or two keys per issuer. Add the new key next to the old one, restart, and remove the old one
   once its tokens have expired.
-- `issuer` and `typ` belong to that system alone. `pivotkit-server` and `pivotkit+jwt` are the
-  server's own, and the server refuses them.
-- `maxMinutes` caps a token's lifetime (default 60, at most 1440). A token that lives longer is
-  gets 401, even with a valid signature.
+
+The rest:
+
+- `issuer` and `typ` belong to that system alone. The server refuses its own `pivotkit-server` and
+  `pivotkit+jwt`. It also refuses an `issuer` that names a token in `auth.tokens`, since the log
+  names both the same way.
+- `maxMinutes` caps a token's lifetime (default 60, at most 1440). A token that lives longer gets
+  401, even with a valid signature.
 - There is no deny list. A token works until it expires.
 - The tokens work with `auth.mode` `"token"` only, on REST and MCP alike.
+- At most 8 issuers.
+
+!!! warning "What a leak costs"
+
+    - A leaked token works until its `exp`, at most `maxMinutes`. Nothing revokes it earlier.
+    - It carries no audience. Every pivotkit-server that trusts the same key accepts it.
+    - A stolen private key of the issuer makes tokens for any person, within the entry's `scopes`
+      and `profiles`.
+
+    Keep `maxMinutes` low, for example 15. Give the entry only the scopes and profiles that system
+    needs. [Decision record 0014](../decisions/0014-external-token-issuers.md) has the reasons.
 
 A token the server takes is at most 2048 characters long:
 
@@ -1125,25 +1158,31 @@ A token the server takes is at most 2048 characters long:
 | header `kid` | the ID of one of the issuer's keys |
 | header `typ` | the issuer's `typ` |
 | `iss` | the issuer's `issuer` |
-| `sub` | the person, at most 256 characters. A token without it gets 401 |
+| `sub` | the person: 1 to 256 characters, no spaces and no control characters. Without it, 401 |
 | `jti` | the token's ID: letters, digits, `.`, `_` and `-`, at most 128 |
 | `iat`, `exp` | when the issuer made it and when it expires, in seconds since 1970 |
 | `nbf` | optional: not before this time |
-| `profile` | optional: a profile of `policy.profiles`. A profile not configured gets 401 |
-| `scope` | optional: scopes separated by spaces. Without it, the token holds every scope |
+| `profile` | optional: one of the entry's `profiles` |
+| `scope` | optional: scopes separated by spaces, cut to the entry's `scopes` |
 
 - The log names the issuer as the client. It names the person only as `audit.subject` says, as for
   OAuth ([logging](#logging)).
+- A refused token gets an `info` line with the issuer and the reason, at most once a minute per
+  reason. The line never holds the token.
 - Each person is an identity of their own for caches and limits: the issuer and `sub` together.
-- A token without `profile` gets `auth.defaultProfile`, else the sources' own policy.
-- `check-config` lists each issuer with its type, keys and lifetime under `External token issuers`.
-  A key it cannot use is a PROBLEM.
+- A link or upload bound to a sign-in (`signIn`) never goes to such a person. They signed in
+  elsewhere, so the server's own sign-in cannot check them.
+- `check-config` lists each issuer under `External token issuers`: its type, keys, lifetime,
+  scopes, profiles and the profile without one. A key it cannot use is a PROBLEM.
 
 | Key | Default | What it is |
 | --- | --- | --- |
 | `auth.externalIssuers[].issuer` | - | The other system's name, as its tokens carry it in `iss` |
 | `auth.externalIssuers[].typ` | - | The type its tokens carry in their header, such as `psu+jwt` |
 | `auth.externalIssuers[].keys` | - | One or two keys: `kid` and `publicKey` (`{ "file" }` or `{ "env" }`) |
+| `auth.externalIssuers[].scopes` | - | Required. The scopes its tokens may get |
+| `auth.externalIssuers[].profiles` | none | The profiles its tokens may name |
+| `auth.externalIssuers[].profile` | `auth.defaultProfile` | The profile of a token that names none |
 | `auth.externalIssuers[].maxMinutes` | 60 | The longest lifetime of its tokens, in minutes (1 to 1440) |
 
 ### List, revoke and remove tokens { #token-list }

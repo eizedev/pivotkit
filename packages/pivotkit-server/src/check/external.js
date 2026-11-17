@@ -5,7 +5,10 @@
  * the keys at start with the same loadExternalIssuers rules). No key is printed.
  *
  *   External token issuers (1):
- *     psu: type psu+jwt, key psu-2026-11, tokens live at most 60 min
+ *     psu: type psu+jwt, key psu-2026-11, tokens live at most 15 min
+ *       scopes at most: pivotkit:read
+ *       profiles a token may name: staff
+ *       without a profile: staff
  *
  * check/index.js says what a section returns.
  */
@@ -24,6 +27,9 @@ export async function section(options, _registry, runtime) {
     for (const [i, entry] of list.entries()) {
         const kids = entry.keys.map((k) => k.kid);
         items.push(plain(`${entry.issuer}: type ${entry.typ}, key${kids.length === 1 ? "" : "s"} ${kids.join(", ")}, tokens live at most ${entry.maxMinutes ?? EXTERNAL_ISSUER.maxMinutes} min`));
+        items.push(plain(`scopes at most: ${entry.scopes.length ? entry.scopes.join(", ") : "none"}`, 2));
+        items.push(plain(`profiles a token may name: ${entry.profiles?.length ? entry.profiles.join(", ") : "none"}`, 2));
+        items.push(plain(`without a profile: ${entry.profile ?? (options.auth?.defaultProfile ? `${options.auth.defaultProfile} (auth.defaultProfile)` : "the sources' own policy")}`, 2));
         for (const [k, key] of entry.keys.entries()) {
             const read = await readPublicKey(key.publicKey, options, runtime.env);
             if ("problem" in read) {
