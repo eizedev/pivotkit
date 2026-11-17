@@ -277,7 +277,7 @@ export function toEChartsOption(result, options) {
     const showValues = labels !== "auto" && labels !== "off";
     const position = type === "line" ? "top" : chart.stacked ? "inside" : chart.horizontal ? "right" : "top";
     const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? fmt(p.value) : "") } } : {};
-    const marks = markLines(referenceLines(result, { chart, series: s, words: { ...DEFAULT_LABELS.referenceLines, ...options.labels?.referenceLines } }), s, { horizontal: Boolean(chart.horizontal), locale, theme });
+    const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme });
     // the value axis reaches every line: a target past the tallest bar is drawn, not cut off
     if (marks.extent) {
         valueAxis.dataMin = marks.extent[0];
@@ -319,9 +319,9 @@ const LINE_TYPES = Object.freeze({ average: "dashed", trend: "dotted", target: "
  * tooltip names its value. `extent`: the lowest and highest value of the lines, for the value axis.
  * @param {import("./chart-lines.js").ReferenceLine[]} lines
  * @param {ReturnType<typeof toSeries>} s
- * @param {{ horizontal: boolean, locale: string, theme: ChartTheme }} how
+ * @param {{ horizontal: boolean, theme: ChartTheme }} how
  */
-function markLines(lines, s, { horizontal, locale, theme }) {
+function markLines(lines, s, { horizontal, theme }) {
     /** @type {any[][]} */
     const bySeries = s.series.map(() => []);
     const values = [];
@@ -330,11 +330,7 @@ function markLines(lines, s, { horizontal, locale, theme }) {
     const point = (category, v) => ({ coord: horizontal ? [v, category] : [category, v] });
     for (const line of lines) {
         const own = line.series !== null ? s.series[line.series] : undefined;
-        // the series' format; an average of whole numbers keeps its decimals: a plain number's own
-        // count of decimals ("number:0", "integer") gives way to "number"
-        const format = (own ?? s.series[0])?.format ?? "number";
-        const fmt = formatterFor(/^(?:number|integer)(?::\d+)?$/.test(format) ? "number" : format, locale);
-        const text = line.kind === "trend" ? line.name : `${line.name} ${fmt(/** @type {number} */ (line.value))}`;
+        const text = line.kind === "trend" ? line.name : `${line.name} ${line.format(/** @type {number} */ (line.value))}`;
         const style = {
             lineStyle: { type: LINE_TYPES[line.kind], width: 1.5, ...(own ? {} : { color: theme.referenceColor ?? theme.textColor }) },
             label: { formatter: () => text, position: horizontal ? "end" : "insideEndTop", color: theme.textColor, fontSize: theme.textSize ?? DEFAULT_THEME.textSize }

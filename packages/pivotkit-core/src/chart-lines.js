@@ -7,7 +7,9 @@
 
 import { referenceLineRules } from "./chart-plan.js";
 import { autoChartType, toSeries } from "./chart-series.js";
+import { formatterFor } from "./format.js";
 import { DEFAULT_LABELS } from "./labels.js";
+import { resolveLocale } from "./util.js";
 
 /**
  * The least-squares line through the points (index, value) of the plotted values; null below two.
@@ -46,6 +48,8 @@ function average(values) {
  * @property {number} [from]  a trend's value at its first and last category
  * @property {number} [to]
  * @property {(index: number) => number} [at]  a trend's value at a category
+ * @property {(value: number) => string} format  writes a value of the line: its series' format (a
+ *   stack's or a target's: the first series'), and a plain number keeps its decimals
  */
 
 /**
@@ -53,12 +57,13 @@ function average(values) {
  * allows, over the plotted categories (the chart data, toSeries). Averages first, then trends, each
  * per series in their order (a stack: one of its total), then the target.
  * @param {import("./pivot.js").PivotResult} result
- * @param {{ chart?: { type: string, stacked?: boolean }, series?: { series: { data: (number | null)[] }[] }, words?: Partial<Record<"average" | "trend" | "target", string>> }} [options]
+ * @param {{ chart?: { type: string, stacked?: boolean }, series?: { series: { data: (number | null)[], format: string }[] }, words?: Partial<Record<"average" | "trend" | "target", string>>, locale?: string }} [options]
  *   chart: what is drawn (chartPlan's), default the view's; series: toSeries of the same result
- *   (the plotted categories), default made here; words: the lines' names (Labels.referenceLines)
+ *   (the plotted categories), default made here; words: the lines' names (Labels.referenceLines);
+ *   locale: used when the view names none, default the pivot's
  * @returns {ReferenceLine[]}
  */
-export function referenceLines(result, { chart, series, words } = {}) {
+export function referenceLines(result, { chart, series, words, locale } = {}) {
     const view = result.view;
     const setting = view.chart.referenceLines;
     const drawn = chart ?? (view.chart.type === "auto" ? { ...view.chart, type: autoChartType(view, result.encoded) } : view.chart);
@@ -84,13 +89,20 @@ export function referenceLines(result, { chart, series, words } = {}) {
     };
     const total = parts.length ? parts[0].data.map((_, i) => totalAt(i)) : [];
     const lists = drawn.stacked ? [{ series: null, data: total }] : parts.map((s, i) => ({ series: /** @type {number | null} */ (i), data: s.data }));
+    const lang = resolveLocale(view.formatting.locale, locale ?? result.locale);
+    // a plain number's own count of decimals ("number:0", "integer") gives way to "number": an
+    // average of whole numbers keeps its decimals
+    const formatOf = (/** @type {number | null} */ i) => {
+        const format = parts[i ?? 0]?.format ?? "number";
+        return formatterFor(/^(?:number|integer)(?::\d+)?$/.test(format) ? "number" : format, lang);
+    };
     /** @type {ReferenceLine[]} */
     const lines = [];
     if (setting.average && rules.average) {
         for (const l of lists) {
             const value = average(l.data);
             if (value !== null) {
-                lines.push({ kind: "average", series: l.series, name: name("average"), value });
+                lines.push({ kind: "average", series: l.series, name: name("average"), value, format: formatOf(l.series) });
             }
         }
     }
@@ -98,12 +110,12 @@ export function referenceLines(result, { chart, series, words } = {}) {
         for (const l of lists) {
             const line = fit(l.data);
             if (line) {
-                lines.push({ kind: "trend", series: l.series, name: name("trend"), ...line });
+                lines.push({ kind: "trend", series: l.series, name: name("trend"), ...line, format: formatOf(l.series) });
             }
         }
     }
     if (typeof setting.target === "number" && rules.target) {
-        lines.push({ kind: "target", series: null, name: name("target"), value: setting.target });
+        lines.push({ kind: "target", series: null, name: name("target"), value: setting.target, format: formatOf(null) });
     }
     return lines;
 }
