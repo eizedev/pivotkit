@@ -173,7 +173,8 @@ configuration, under "New in this version", with a link to each section below.
 | [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
 | [Chart layout functions measure differently](#chart-layout-0-8) | your code calls `rowLabelInterval`, `heatmapCellLabels`, `columnLabelLayout` or `categoryLabelLayout` of `pivotkit-core/chart` | check the results you rely on. Pass `frame` to keep the old heatmap frame |
 | [The chart's tooltip names the element under the pointer](../use/charts.md#read-the-chart) | people read values from chart tooltips, or your tests or screenshots show one | nothing; Display → Tooltip → All series lists every series as before, with a total for stacked sums and counts |
-| [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` set `rowsCount` or add a language, or a test reads the row count under the result | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
+| [The report's row counts take plural forms](#report-count-forms) | your code reads `REPORT_TEXTS.<lang>.rowsCount` or `rowsFiltered` as a text, or a test expects "1 rows" | read them as forms (`.other` for the old text); expect "1 row" |
+| [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` or the report's `texts` set `rowsCount`, your `labels` add a language, or a test reads the row count under the result or in a printed report | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
 | **Breaking:** [csv and json results, request ids and file names](#results-0-8) | a script or host parses the inline csv or json of the REST service or the MCP server, or finds saved reports or drafts by their names | expect rounded inline numbers, inline json on one line and file names like `sales-by-region.pivotkit-out.xlsx`; pass `numbers: "full"` for all digits. Reconnect MCP clients to see the new inputs |
 
 ### Sources hidden by default can be open { #hidden-open }
@@ -261,11 +262,26 @@ menu. People can no longer copy the rows or download them as CSV or Excel from t
 When a filter leaves rows out, the line under the result says "2,190 of 4,386 rows" instead of
 "2,190 rows". Its text is the new label `rowsFiltered`.
 
+The HTML report says it too: `{{rows}}` says "2,190 of 4,386 rows" instead of "4,386 rows", and
+the details' rows say "2,190 of 4,386". The report's `texts` have `rowsFiltered` and `rowsKept` for
+them.
+
 - English and German have it.
 - A host whose `labels` set `rowsCount` sets `rowsFiltered` too. Otherwise the line uses the
   language's own words while a filter is on, such as "rows" beside your "records".
+- The same holds for a host whose report `texts` set `rowsCount`.
 - A host whose `labels` add another language adds `rowsFiltered` too. Without it, that line is in
   English while a filter is on. See [Localisation](../reference/localisation.md).
+
+### The report's row counts take plural forms { #report-count-forms }
+
+pivotkit-report's HTML report says "1 row" and "1 Zeile" for one row.
+
+- `REPORT_TEXTS.en.rowsCount` and `rowsFiltered`, and the German ones, are objects of plural forms:
+  `{ one: "{count} row", other: "{count} rows" }`. They were texts.
+- Code that reads them as a text reads `.other` for the text it had.
+- The `texts` option takes a count as one text, as before, or as forms of its own.
+- The type `ReportTexts` changes with them. `ReportTextsInput` is the type of the `texts` option.
 
 ### csv and json results, request ids and file names { #results-0-8 }
 

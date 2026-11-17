@@ -15,6 +15,8 @@
  * @typedef {import("./render.js").RenderOptions} RenderOptions
  * @typedef {import("./render.js").RenderResult} RenderResult
  * @typedef {import("./texts.js").ReportTexts} ReportTexts
+ * @typedef {import("./texts.js").ReportTextsInput} ReportTextsInput
+ * @typedef {import("./texts.js").CountForms} CountForms
  */
 
 export { render, RENDER_FORMATS, REPORT_LIMITS, REPORT_ISSUE_CODES, CHART_SIZE } from "./render.js";

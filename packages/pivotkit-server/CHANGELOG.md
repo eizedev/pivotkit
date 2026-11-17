@@ -104,6 +104,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   that Node refuses in a worker stay out, such as `--max-old-space-size`
   ([#542](https://github.com/eizedev/pivotkit/issues/542)).
 
+### Security
+
+- The HTML report leaves out the row count where the policy withholds it (`rows: false`). To show
+  the count again, the policy sets `rows: true` ([#547](https://github.com/eizedev/pivotkit/issues/547)).
+
 ## [0.2.0] - 2026-11-16
 
 ### Upgrading from 0.1.1
