@@ -42,6 +42,8 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.httpSources = { object: { enabled: "boolean", allowIpLiterals: "boolean", backends: { map: { object: { url: "string", intranet: "boolean", headers: { map: "string" }, auth, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } } } };
     // the load cache's size (options/code.js), after httpSources (the fragments' order)
     expected.sourceCache = { object: { maxMb: "integer" } };
+    // how long a schedule draft may wait for approval (config.js), after maxAgeDays
+    expected.output.object.draftMaxAgeDays = "integer";
     // download links (options/downloads.js)
     const secretRef = { custom: "fn" };
     expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, allowInsecureUrl: "boolean", signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings", tokenUrl: "string" } } } };
@@ -61,6 +63,9 @@ test("options: the composed table is today's, in today's order, plus the shared 
     delete expected.log;
     const levels = { enum: ["debug", "info", "warn", "error", "off"] };
     expected.log = { or: [levels, { object: { level: levels, format: { enum: ["auto", "text", "json"] }, address: { enum: ["on", "off"] } } }] };
+    // a static token's expiry (config.js, last of a token's keys) and the signed tokens (options/signed.js, the last fragment)
+    expected.auth.object.tokens.list.object.expires = "string";
+    expected.auth.object.signedTokens = { object: { dir: "string", maxDays: "integer" } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -97,7 +102,7 @@ test("options: every fragment has frozen keys in known slots and a validate; eac
     for (const f of FRAGMENTS.slice(1)) {
         assert.ok(names.includes(f.name), f.name);
     }
-    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "issuer", "operator", "profiles", "rest", "log"]);
+    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "issuer", "operator", "profiles", "rest", "log"]);
 });
 
 test("options: an unknown key is still refused with the name meant, also for keys no fragment declares yet", () => {
@@ -131,16 +136,16 @@ test("options: the docker example configurations still validate", () => {
     }
 });
 
-test("check sections: each section's items in its order; problems first under the verdict, then the warnings named by their heading, New in this version in one line", async () => {
+test("check sections: each section's items in its order; problems first under the verdict, then the warnings named by their heading, New in this version one per line with its link", async () => {
     const sections = [
-        { name: "one", section: async () => ({ items: [heading("One: on"), warning("one looks odd"), plain("a fact"), problem("one is broken", { effect: "the server starts; one answers ONE_BROKEN" })], upgrade: ["one changed"] }) },
+        { name: "one", section: async () => ({ items: [heading("One: on"), warning("one looks odd"), plain("a fact"), problem("one is broken", { effect: "the server starts; one answers ONE_BROKEN" })], upgrade: [{ text: "one changed", anchor: "one" }] }) },
         { name: "two", section: async () => ({ items: [], upgrade: [] }) },
-        { name: "three", section: async () => ({ items: [heading("Three: off"), problem("three needs a key", { stops: true })], upgrade: ["three changed"] }) }
+        { name: "three", section: async () => ({ items: [heading("Three: off"), problem("three needs a key", { stops: true })], upgrade: [{ text: "three changed", anchor: "three" }] }) }
     ];
     const seen = [];
     const out = await runSections([{ name: "spy", section: async (...args) => (seen.push(args), { items: [], upgrade: [] }) }, ...sections], { a: 1 }, "registry", { http: true });
     assert.deepEqual(seen[0], [{ a: 1 }, "registry", { http: true }]);
-    assert.deepEqual(out.upgrade, ["one changed", "three changed"]);
+    assert.deepEqual(out.upgrade, [{ text: "one changed", anchor: "one" }, { text: "three changed", anchor: "three" }]);
     const page = render("pivotkit-server", out.sections, out.upgrade, "https://example.com/upgrading/");
     assert.deepEqual(page.text.split("\n"), [
         "pivotkit-server: the server does not start with this configuration.",
@@ -158,8 +163,12 @@ test("check sections: each section's items in its order; problems first under th
         "",
         "Three: off",
         "",
-        "New in this version: one changed, three changed",
-        "    -> https://example.com/upgrading/",
+        // one change per line, each with its own section of the upgrading page
+        "New in this version:",
+        "  one changed",
+        "    -> https://example.com/upgrading/#one",
+        "  three changed",
+        "    -> https://example.com/upgrading/#three",
         ""
     ]);
     assert.deepEqual([page.problems, page.warnings, page.stops], [2, 1, 1]);

@@ -9,7 +9,7 @@
  *   pivotkit-server mcp [flags]            pivotkit-mcp's runner (stdio by default)
  *   pivotkit-server cli <command> ...      the command line pivotkit (pivotkit-cli)
  *   pivotkit-server healthcheck [url] [--port n]   exit 0 when the server answers /healthz (the image's HEALTHCHECK)
- *   pivotkit-server token new|show, key new   make and show credentials (credentials.js)
+ *   pivotkit-server token new|show|issue|list|revoke|remove, key new|remove   credentials (credentials.js, token-admin.js)
  */
 
 import { ConfigError } from "./config.js";
@@ -35,7 +35,12 @@ const COMMANDS = Object.freeze({
     // credentials.js (loaded only for these)
     "token new": "Make a token for auth.tokens (--file, --add to put it into --config; pivotkit-server token --help).",
     "token show <name>": "Print the value of a token of auth.tokens (1 when it cannot be used).",
-    "key new --for downloads|audit": "Make a key for output.downloads.key or audit.key (pivotkit-server key --help)."
+    "token issue": "Issue a signed token that expires (--expires 1h, --profile, --scope).",
+    "token list": "List every token: ID, name, kind, profile, expiry, status; never a value.",
+    "token revoke <id|name>": "Refuse a signed token from the next request on.",
+    "token remove <id|name>": "Take a static token out of auth.tokens (a backup first), or revoke and unlist a signed one.",
+    "key new --for <use>": "Make a key: downloads, audit, or signing for token issue (pivotkit-server key --help).",
+    "key remove <id> --for signing": "Remove a key that signs tokens (1 while tokens it signed still work, unless --force)."
 });
 
 /** --version, which the runner takes in place of a command (not one of serve's flags). */

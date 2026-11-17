@@ -27,7 +27,7 @@ curl -s -H "Content-Type: application/json" \
 - Serves an OpenAPI 3.1 document, made from the same operations as the routes.
 - Lets the operator decide per field what a caller may see. Profiles give one token, OAuth client or
   group more access to values and downloads.
-- Signs callers in with static tokens or OAuth 2.1.
+- Signs callers in with static tokens, tokens it issues itself that expire, or OAuth 2.1.
 - Is the shared core of [pivotkit-mcp](https://www.npmjs.com/package/pivotkit-mcp).
   `pivotkit-server serve` runs the REST service. With pivotkit-mcp installed, the command also runs
   the MCP endpoint on the same port.

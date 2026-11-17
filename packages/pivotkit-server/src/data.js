@@ -12,6 +12,7 @@
 import { stat } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { LIMITS, PivotkitError, encode } from "pivotkit-core";
+import { limitText } from "pivotkit-core/internal";
 import { asCliError, readSafe, readTable } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
@@ -445,7 +446,7 @@ export async function fileData(spec) {
 }
 
 /** A loaded table over a limit (limits.rows, limits.columns, limits.importCells), as pivotkit-core words it. */
-export const overLimit = (limit, value, max, what) => ownError(new OperationError("LIMIT_EXCEEDED", `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (limits.${limit})`));
+export const overLimit = (limit, value, max, what) => ownError(new OperationError("LIMIT_EXCEEDED", limitText(value, max, what, `limits.${limit}`)));
 
 /**
  * A host's value as a plain value encode() reads without running the host's code: text cut at the

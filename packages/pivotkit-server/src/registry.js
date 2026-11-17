@@ -47,22 +47,75 @@ export const DESCRIPTION_TEXT = 500;
 export const holds = (caller, scopes) => caller.scopes === null || (scopes ?? []).every((s) => caller.scopes?.has(s));
 
 /**
- * Whether a field of a policy, under the server's, that policy's or any profile's, is not "show". A
- * policy the automatic "values" rule may apply to (`auto`, decided by the data at run time) counts
- * as closed, whatever its written levels say.
+ * The levels at which a report holds exactly what the caller's model was shown: a field shown whole,
+ * or a field hidden (dropped when the data is read, so it reaches no report).
+ */
+const DELIVERY_OPEN = new Set(["show", "hide"]);
+
+/**
+ * @typedef {{ profile: string | null, level?: string, field?: string, auto?: true, others?: true, denyList?: true }} ClosedReason
+ *   profile: the profile whose policy closes it (null: the policy of a caller without one); level and
+ *   field: the level that closes it, of that field (a field key) or of the default; auto: the
+ *   automatic "values" rule may apply; others: the level differs from another caller's; denyList: a
+ *   field hidden under the default "show", where a column the data gains later would be shown
+ */
+
+/**
+ * What makes reports over a policy closed for plain links, or null where they are open. A source is
+ * open only where nothing new can become visible, for every caller alike (the maintainer's rule,
+ * #510):
+ *
+ * - hidden by default, every field it names "show" or "hide" (an allow list); or
+ * - every field "show", nothing hidden (open as in pivotkit-server 0.2.0).
+ *
+ * Closed, under the server's policy with the source's or under any profile's: a field or the default
+ * at "values" or "summary"; the automatic "values" rule (decided by the data at run time); a field at
+ * "hide" under the default "show" (a deny list: a column the data gains later would be shown); a level
+ * that differs between callers. registry.js (isClosedForDelivery) and check-config (whyClosed) share
+ * it.
  * @param {import("./config.js").ServerOptions} options
  * @param {import("./config.js").PolicyOptions | undefined} sourcePolicy
+ * @returns {ClosedReason | null}
  */
-function closedUnder(options, sourcePolicy) {
-    return [undefined, ...Object.values(options.policy?.profiles ?? {})].some((profile) => {
-        const p = resolvePolicy(options.policy, sourcePolicy, profile);
-        return p.default !== "show" || [...p.fields.values()].some((l) => l !== "show") || Boolean(p.auto);
-    });
+export function closedReason(options, sourcePolicy) {
+    const policies = [[null, undefined], ...Object.entries(options.policy?.profiles ?? {})].map(([profile, p]) => /** @type {const} */ ([/** @type {string | null} */ (profile), resolvePolicy(options.policy, sourcePolicy, p)]));
+    for (const [profile, p] of policies) {
+        if (p.auto) {
+            return { profile, auto: true };
+        }
+        if (!DELIVERY_OPEN.has(p.default)) {
+            return { profile, level: p.default };
+        }
+        const field = [...p.fields].find(([, level]) => !DELIVERY_OPEN.has(level));
+        if (field) {
+            return { profile, field: field[0], level: field[1] };
+        }
+        const hidden = p.default === "show" ? [...p.fields].find(([, level]) => level === "hide") : undefined;
+        if (hidden) {
+            return { profile, field: hidden[0], level: "hide", denyList: true };
+        }
+    }
+    const [, base] = policies[0];
+    const keys = new Set(policies.flatMap(([, p]) => [...p.fields.keys()]));
+    for (const [profile, p] of policies.slice(1)) {
+        if (p.default !== base.default) {
+            return { profile, level: p.default, others: true };
+        }
+        const field = [...keys].find((key) => (p.fields.get(key) ?? p.default) !== (base.fields.get(key) ?? base.default));
+        if (field) {
+            return { profile, field, level: p.fields.get(field) ?? p.default, others: true };
+        }
+    }
+    return null;
 }
+
+/** Whether reports over a policy are closed for delivery (closedReason). */
+const closedUnder = (options, sourcePolicy) => closedReason(options, sourcePolicy) !== null;
 
 /**
  * Whether reports over a source count as closed for delivery (download links, output.baseUrl, an
- * upload target): a field is not "show" for someone (closedUnder), or the data belongs to one person:
+ * upload target): a field at "values" or "summary", or hidden for some callers only (closedReason),
+ * or the data belongs to one person:
  * data sent in the request ("inline:"), a source bound to a person (a claim parameter or a token
  * exchange, sources/auth.js personBound), a code source the operator marked perPerson. Such a report
  * gets a link bound to the person (signIn), a one-time link (once, the operator's explicit opt-in),
@@ -249,7 +302,7 @@ export async function createRegistry(options, { log = null } = {}) {
         // the quick-start page has no caller: a source only a signed-in person can use is not there
         titles: () => [...sources.entries()].filter(([id]) => !bound.has(id)).map(([id, s]) => ({ id, title: s.title ?? id, scopes: s.scopes ?? [] })),
 
-        /** For --check-config: each source's file, whether it exists, its fields by level, and whether it is closed for links (a field not "show" for someone, or data per person). */
+        /** For --check-config: each source's file, whether it exists, its fields by level, and whether it is closed for links (isClosedForDelivery). */
         async check() {
             const out = [];
             for (const [id, s] of sources) {

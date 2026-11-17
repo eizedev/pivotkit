@@ -5,7 +5,7 @@
  * are not plotted; collapsed groups are plotted as one category.
  */
 
-import { DEFAULT_THEME } from "./defaults.js";
+import { DEFAULT_THEME, GRID_TOP, HEATMAP_GRID_BOTTOM } from "./defaults.js";
 import { TIMELINE_UNITS } from "./derive.js";
 import { checkLimit, expect } from "./errors.js";
 import { formatterFor } from "./format.js";
@@ -335,7 +335,7 @@ export function toEChartsOption(result, options) {
             ...base,
             ...title,
             tooltip: { trigger: "item", valueFormatter },
-            grid: { top: 16 + titleRoom, bottom: 64 },
+            grid: { top: GRID_TOP + titleRoom, bottom: HEATMAP_GRID_BOTTOM },
             // no split areas: ECharts paints them light grey whatever the theme, so the empty cells
             // would be the brightest part of a dark chart; an empty cell shows the background
             // every column is labelled (interval 0): ECharts would otherwise hide every second name
@@ -379,7 +379,7 @@ export function toEChartsOption(result, options) {
         ...legendPart,
         tooltip: { trigger: "axis", valueFormatter },
         // room for the title and the legend; ECharts keeps its own defaults for the label margins
-        grid: { top: 16 + titleRoom + room.top, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
+        grid: { top: GRID_TOP + titleRoom + room.top, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
         xAxis: chart.horizontal ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
         yAxis: chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
         series: s.series.map((x) => ({
