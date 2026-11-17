@@ -327,6 +327,9 @@ test("a target typed as a percentage is a share: 25% is 0.25, or 25 for a value 
     assert.equal(parseTarget("1500.5", "de-DE", "number"), 1500.5);
     assert.equal(parseTarget("lots", "en-US", "number"), null);
     assert.equal(parseTarget("%", "en-US", "percent"), null);
+    // "%" means a share only for a value shown in percent: elsewhere it is no number
+    assert.equal(parseTarget("25%", "en-US", "number"), null);
+    assert.equal(parseTarget("25%", "en-US", undefined), null);
     assert.equal(parseTarget("", "en-US", "percent"), null);
 });
 

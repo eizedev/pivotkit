@@ -331,13 +331,17 @@ export const de = {
     referenceLines: "Bezugslinien",
     targetNone: "Kein Ziel",
     targetPercent: "Ein Prozentwert: 25 % oder 0,25 eingeben.",
+    targetPercent100: "Ein Prozentwert: 25 oder 25 % eingeben.",
+    targetPercentHigh: "{typed} sind {shown}. Für {share} {typed} % eingeben.",
+    targetRemove: "Ziel entfernen",
     linesNotes: {
         noTotal: "Diese Linien brauchen eine Summe. Zum Zeichnen auf Balken wechseln, nicht gestapelt.",
         negative: "Ein Stapel mit Werten unter null hat keine einzelne Summe, daher keinen Durchschnitt und keinen Trend.",
         percentStack: "Jeder Stapel auf 100 % ist gleich hoch, daher gibt es keine Linien.",
         noTime: "Ein Trend braucht Datumswerte in Zeilen, nach Datum geordnet.",
         byIndex: "Manche Kategorien haben kein Datum, daher zählt der Trend sie als gleichmäßig verteilt.",
-        mixedUnits: "Die Werte haben verschiedene Einheiten, daher passt kein gemeinsames Ziel."
+        mixedUnits: "Die Werte haben verschiedene Einheiten, daher passt kein gemeinsames Ziel.",
+        table: "Das Diagramm anzeigen, um zu sehen, welche Linien es zeichnen kann."
     },
     labelPosition: "Beschriftung",
     labelPositionNames: { outside: "Außen", inside: "Innen" },

@@ -38,6 +38,11 @@ async function mount(page, chart, { theme = "light", view = {}, cellClicks = fal
         },
         { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
     );
+    if (view.display === "table") {
+        // the table shown: no chart to wait for
+        await expect(page.locator("#lines-report").getByTestId("pivot-table")).toBeVisible();
+        return null;
+    }
     const chartEl = page.locator("#lines-report").getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();
     await expect.poll(() => chartEl.evaluate(async (el) => {
@@ -72,7 +77,9 @@ const drawnLines = (chartEl) =>
                     if (text.transform) r.applyTransform(text.transform);
                     box = { x: r.x, y: r.y, width: r.width, height: r.height };
                 }
-                return { x1: e.shape.x1, y1: e.shape.y1, x2: e.shape.x2, y2: e.shape.y2, stroke: e.style.stroke, dash: e.style.lineDash ?? null, label: shown ? text.style.text : "", box };
+                // the words of a label, after the sample of its line's dash ("{s|– –} Average 25")
+                const words = shown ? String(text.style.text).replace(/^\{s\|[^}]*\} /, "") : "";
+                return { x1: e.shape.x1, y1: e.shape.y1, x2: e.shape.x2, y2: e.shape.y2, stroke: e.style.stroke, dash: e.style.lineDash ?? null, label: words, box };
             });
     });
 
@@ -324,6 +331,91 @@ test.describe("reference lines", () => {
         await page.keyboard.type("30%");
         await page.keyboard.press("Enter");
         await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(0.3);
+    });
+
+    test("each label sits at its own line at 1440 px: within a line of text, the closer one moved just below", async ({ page }) => {
+        const chartEl = await mount(page, { type: "line", referenceLines: { average: true, trend: false, target: 26 } });
+        const lines = await drawnLines(chartEl);
+        for (const l of lines.filter((x) => x.box)) {
+            const middle = l.box.y + l.box.height / 2;
+            expect(Math.abs(middle - l.y2), `${l.label}: ${middle} vs ${l.y2}`).toBeLessThanOrEqual(l.box.height * 1.6);
+        }
+    });
+
+    test("with the table shown the chart menu opens, offers the view's lines and asks for the chart", async ({ page }) => {
+        const report = page.locator("#lines-report");
+        await mount(page, { type: "bar", stacked: true, referenceLines: { average: true, trend: false, target: null } }, { view: { display: "table" } });
+        await report.getByTestId("chart-type").click();
+        await expect(report.getByTestId("lines-note")).toHaveText("Show the chart to see which lines it can draw.");
+        await expect(report.getByTestId("line-average")).toHaveCount(1);
+        await expect(report.getByTestId("line-trend")).toHaveCount(1);
+        // a stack of averages: the view alone says no line
+        await page.keyboard.press("Escape");
+        await mount(page, { type: "bar", stacked: true }, { view: { display: "table", values: [{ field: "Revenue", agg: "average" }] } });
+        await report.getByTestId("chart-type").click();
+        await expect(report.getByTestId("line-average")).toHaveCount(0);
+        await expect(report.getByTestId("lines-note")).toHaveText("Show the chart to see which lines it can draw.");
+        await expect(report.locator(".pk-root")).toHaveCount(1);
+    });
+
+    test("a chart without values, and the menu before the chart has drawn: the menu opens and asks for the chart", async ({ page }) => {
+        const report = page.locator("#lines-report");
+        await page.evaluate(async ({ rows, view }) => {
+            const React = await import("react");
+            const { createRoot } = await import("react-dom/client");
+            const { PivotReport } = await import("pivotkit-react");
+            const el = document.createElement("section");
+            el.id = "lines-report";
+            document.body.prepend(el);
+            createRoot(el).render(React.createElement(PivotReport, { data: rows, height: 560, defaultView: view }));
+        }, { rows: ROWS, view: { ...VIEW, values: [], display: "chart", chart: { type: "bar" } } });
+        // at once, before ECharts has loaded and drawn
+        await report.getByTestId("chart-type").click();
+        await expect(report.getByTestId("lines-note")).toHaveText("Show the chart to see which lines it can draw.");
+        await expect(report.getByTestId("line-average")).toHaveCount(1);
+    });
+
+    test("the menu follows the chart: a stack of averages says why, the same view as bars offers every line", async ({ page }) => {
+        const report = page.locator("#lines-report");
+        await mount(page, { type: "bar", stacked: true }, { view: { values: [{ field: "Revenue", agg: "average" }] } });
+        await report.getByTestId("chart-type").click();
+        await expect(report.getByTestId("lines-note")).toHaveText("These lines need a total. Switch to Bars, not stacked, to draw them.");
+        await report.getByTestId("chart-bar").click();
+        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.stacked)).toBe(false);
+        await report.getByTestId("chart-type").click();
+        await expect(report.getByTestId("line-average")).toHaveCount(1);
+        await expect(report.getByText("These lines need a total. Switch to Bars, not stacked, to draw them.")).toHaveCount(0);
+    });
+
+    test("a target kept from before over values in different units can be removed", async ({ page }) => {
+        const report = page.locator("#lines-report");
+        await mount(page, { type: "bar", referenceLines: { average: false, trend: false, target: 30 } }, { view: { cols: [], values: [{ field: "Revenue", agg: "sum" }, { agg: "count" }] } });
+        await report.getByTestId("chart-type").click();
+        await expect(report.getByTestId("lines-note")).toContainText("different units");
+        await expect(report.getByTestId("chart-target")).toHaveCount(0);
+        await report.getByTestId("target-remove").click();
+        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(null);
+    });
+
+    test("a bare number above 1 for a share gets a soft warning tied to the field; percent100 has its own hint", async ({ page }) => {
+        const report = page.locator("#lines-report");
+        await mount(page, { type: "bar" }, { view: { cols: [], values: [{ field: "Revenue", agg: "sum", showAs: { type: "percentOfGrandTotal" } }] } });
+        await report.getByTestId("chart-type").click();
+        const field = report.getByTestId("chart-target");
+        await field.click();
+        await page.keyboard.type("25");
+        await expect(report.getByTestId("target-warning")).toHaveText("25 is 2,500%. Type 25% for 25%.");
+        const warning = await report.getByTestId("target-warning").getAttribute("id");
+        expect((await field.getAttribute("aria-describedby")).split(" ")).toContain(warning);
+        await page.keyboard.type("%");
+        await expect(report.getByTestId("target-warning")).toHaveCount(0);
+        await page.keyboard.press("Escape");
+        await mount(page, { type: "bar" }, { view: { cols: [], values: [{ field: "Revenue", agg: "sum", format: "percent100" }] } });
+        await report.getByTestId("chart-type").click();
+        await expect(report.getByTestId("target-hint")).toHaveText("A percentage: type 25 or 25%.");
+        await report.getByTestId("chart-target").click();
+        await page.keyboard.type("25");
+        await expect(report.getByTestId("target-warning")).toHaveCount(0);
     });
 });
 

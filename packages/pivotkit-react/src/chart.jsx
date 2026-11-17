@@ -58,8 +58,6 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const type = plan ? plan.name : chartTypeOf(result.view.chart);
     const drawAs = plan ? plan.chart : null;
     const latest = useRef({ series, onPoint, onInstance, onLines, type });
-    // what the chart last said about its reference lines (onLines), as JSON: said again only when it changes
-    const told = useRef("null");
     // the ECharts module (echarts.js), with the report's marks (decorate) and the check and merge of the host's chartOptions
     const lib = useRef(/** @type {any} */ (null));
     // the chartOptions whose problems were said: once per value, not on every redraw
@@ -206,13 +204,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         // alternative says them, and the Display menu learns which ones the drawn chart can draw
         const lines = series ? lib.current.chartLines(result, { series, chart: drawAs, labels, locale }) : null;
         setLinesText(lines?.text ?? "");
-        if (JSON.stringify(lines?.checks ?? null) !== told.current) {
-            told.current = JSON.stringify(lines?.checks ?? null);
-            latest.current.onLines?.(lines?.checks ?? null);
-        }
+        latest.current.onLines?.(lines?.checks ?? null);
         const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values, lines: lines?.lines ?? [] };
-        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.color.parse });
-        setEvery(axisEvery);
         // the host's chartOptions win over the view's display settings and the report's own styles:
         // plain JSON only; what is dropped is a developer's mistake, said in the console
         const clean = chartOptions ? lib.current.cleanChartOptions(chartOptions) : null;
@@ -220,7 +213,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
             warned.current = chartOptions;
             console.warn(`pivotkit: chartOptions entries left out (only plain JSON, and no markup, addresses or text templates): ${clean.problems.slice(0, 5).join("; ")}${clean.problems.length > 5 ? `; and ${clean.problems.length - 5} more` : ""}`);
         }
-        chart.current.setOption(clean?.options ? lib.current.mergeChartOptions(drawn, clean.options) : drawn, { notMerge: true });
+        // the report's marks, the host's chartOptions over them, the reference lines' labels at their lines
+        setEvery(lib.current.drawOption(chart.current, option, style, root.current.ownerDocument, { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.color.parse }, clean?.options));
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
     }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, drawAs]);
 

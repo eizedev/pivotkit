@@ -376,6 +376,10 @@ export const en = {
     referenceLines: "Reference lines",
     targetNone: "No target",
     targetPercent: "A percentage: type 25% or 0.25.",
+    targetPercent100: "A percentage: type 25 or 25%.",
+    // a bare number above 1 for a value shown as a share: {typed} as typed, {shown} what it means
+    targetPercentHigh: "{typed} is {shown}. Type {typed}% for {share}.",
+    targetRemove: "Remove the target",
     // why a reference line is not offered (pivotkit-core's referenceLineRules notes)
     linesNotes: {
         noTotal: "These lines need a total. Switch to Bars, not stacked, to draw them.",
@@ -383,7 +387,8 @@ export const en = {
         percentStack: "Every stack to 100 % is the same height, so it gets no lines.",
         noTime: "A trend needs dates on Rows, in date order.",
         byIndex: "Some categories have no date, so the trend counts them as evenly spaced.",
-        mixedUnits: "The values have different units, so one target does not fit them."
+        mixedUnits: "The values have different units, so one target does not fit them.",
+        table: "Show the chart to see which lines it can draw."
     },
     labelPosition: "Labels",
     labelPositionNames: { outside: "Outside", inside: "Inside" },

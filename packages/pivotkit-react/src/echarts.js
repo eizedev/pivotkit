@@ -22,5 +22,5 @@ register([BarChart, LineChart, PieChart, HeatmapChart, GridComponent, TooltipCom
 export { color, init };
 export { toEChartsOption } from "pivotkit-core/chart";
 export { cleanChartOptions, mergeChartOptions } from "./chart-options.js";
-export { LENGTH_TOKENS, chartStyle, decorate, screenColor, tokenLengths } from "./chart-decorate.js";
+export { LENGTH_TOKENS, chartStyle, decorate, drawOption, screenColor, tokenLengths } from "./chart-decorate.js";
 export { chartLines } from "./chart-tooltip.js";

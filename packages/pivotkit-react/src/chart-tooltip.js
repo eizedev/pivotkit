@@ -83,7 +83,8 @@ export function chartLines(result, { series, chart, labels, locale }) {
     return {
         lines,
         text: linesSummary(lines, series.series.map((x) => x.name), labels),
-        checks: { ...referenceLineChecks(result, { series, ...drawn }), format: series.series[0]?.format }
+        // the format of the first series the legend shows
+        checks: { ...referenceLineChecks(result, { series, ...drawn }), format: series.series.find((x) => !(/** @type {any} */ (result.view.chart).hidden ?? []).includes(x.name))?.format }
     };
 }
 

@@ -673,8 +673,8 @@ export function dateFromInput(text) {
 
 /**
  * A target line's value as typed (Display -> Reference lines): a number as a filter's value reads it
- * (numbers.js), or a percentage, "25%": a share, 0.25, or 25 where the value counts in percent itself
- * (format percent100). null when it is no number.
+ * (numbers.js), or for a value shown in percent a percentage, "25%": a share, 0.25, or 25 where the
+ * value counts in percent itself (format percent100). null when it is no number.
  * @param {string} text
  * @param {string} locale
  * @param {string | undefined} format  the value's format (toSeries)
@@ -685,6 +685,7 @@ export function parseTarget(text, locale, format) {
     if (!percent) {
         return parseNumber(text, locale);
     }
-    const n = parseNumber(percent[1], locale);
+    // "%" only for a value shown in percent: elsewhere a share would be a guess
+    const n = /^percent/.test(format ?? "") ? parseNumber(percent[1], locale) : null;
     return n === null ? null : /^percent100/.test(format ?? "") ? n : n / 100;
 }

@@ -88,8 +88,9 @@ function ChartTitle({ title, labels, onDisplay }) {
 }
 
 /**
- * The target line's value: applied with Enter or Apply; the × removes it at once. A percentage
- * ("25%") is a share (parseTarget); a value shown in percent gets a hint that says so.
+ * The target line's value: applied with Enter or Apply; the × removes it at once. For a value shown in
+ * percent, "25%" is a share (parseTarget), a hint says how to type it, and a bare number above 1
+ * gets a soft warning: "25 is 2,500 %".
  */
 function TargetField({ target, labels, locale, format, onTarget }) {
     const [text, setText] = useState(numberText(target, locale));
@@ -102,7 +103,14 @@ function TargetField({ target, labels, locale, format, onTarget }) {
     const value = parseTarget(text, locale, format);
     const bad = text.trim() !== "" && value === null;
     const hintId = useId();
-    const percent = /^percent/.test(format ?? "");
+    const warnId = useId();
+    // percent: a share (0.25 is 25 %); percent100: the percent itself (25 is 25 %)
+    const share = /^percent(?!100)/.test(format ?? "");
+    const hint = share ? labels.targetPercent : /^percent100/.test(format ?? "") ? labels.targetPercent100 : null;
+    const typed = text.trim();
+    const high = share && value !== null && value > 1 && !typed.endsWith("%");
+    const shown = (n) => new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 2 }).format(n);
+    const describedBy = [hint ? hintId : "", high ? warnId : ""].filter(Boolean).join(" ") || undefined;
     return (
         <>
             <form
@@ -124,16 +132,21 @@ function TargetField({ target, labels, locale, format, onTarget }) {
                     placeholder={labels.targetNone}
                     aria-label={labels.core.referenceLines.target}
                     aria-invalid={bad || undefined}
-                    aria-describedby={percent ? hintId : undefined}
+                    aria-describedby={describedBy}
                     data-testid="chart-target"
                 />
                 <button type="submit" className="pk-btn pk-primary" disabled={bad || value === target}>
                     {labels.apply}
                 </button>
             </form>
-            {percent ? (
+            {hint ? (
                 <p id={hintId} className="pk-hint pk-subtitle" data-testid="target-hint">
-                    {labels.targetPercent}
+                    {hint}
+                </p>
+            ) : null}
+            {high ? (
+                <p id={warnId} className="pk-hint pk-subtitle" role="status" data-testid="target-warning">
+                    {fill(labels.targetPercentHigh, { typed, shown: shown(/** @type {number} */ (value)), share: shown(/** @type {number} */ (value) / 100) })}
                 </p>
             ) : null}
         </>
@@ -141,17 +154,19 @@ function TargetField({ target, labels, locale, format, onTarget }) {
 }
 
 /**
- * The chart's reference lines: an average and a trend, switched on or off, and a target. Only what
- * the chart can draw shows (pivotkit-core's referenceLineRules, with the chart's data where it is
- * drawn); a note says why the rest does not. A setting that does not show stays in the view and
- * draws again when the chart can.
+ * The chart's reference lines: an average and a trend, switched on or off, and a target. The drawn
+ * chart says which lines it can draw, with its numbers (`lineChecks`, pivotkit-core's
+ * referenceLineChecks); before that, or with the table shown, the view's rules decide and a note asks
+ * for the chart. A note says why a line is off. A setting that does not show stays in the view and
+ * draws again when the chart can; a target kept from before can still be removed.
  */
 function ReferenceLines({ view, plan, encoded, lineChecks, labels, locale, onDisplay }) {
     const lines = view.chart.referenceLines;
-    // the drawn chart's checks (with its numbers), else the view's rules of what would be drawn: rows
-    // and columns swapped where the chart swaps them
+    // the view's rules of what would be drawn: rows and columns swapped where the chart swaps them
     const drawn = plan?.chart ? { ...view.chart, ...plan.chart } : null;
-    const rules = lineChecks ?? (encoded && drawn ? referenceLineRules(plan.swap ? swapAxes(view) : view, drawn, encoded) : { average: true, trend: true, target: true, notes: [] });
+    const viewRules = encoded && drawn ? referenceLineRules(plan.swap ? swapAxes(view) : view, drawn, encoded) : { average: true, trend: true, target: true };
+    const rules = lineChecks ?? { ...viewRules, notes: ["table"] };
+    const notes = Array.isArray(rules.notes) ? rules.notes : [];
     const set = (patch) => onDisplay({ referenceLines: { ...lines, ...patch } });
     const words = labels.core.referenceLines;
     return (
@@ -171,8 +186,12 @@ function ReferenceLines({ view, plan, encoded, lineChecks, labels, locale, onDis
                     <div className="pk-subtitle">{words.target}</div>
                     <TargetField target={lines.target} labels={labels} locale={locale} format={lineChecks?.format} onTarget={(target) => set({ target })} />
                 </>
+            ) : lines.target !== null ? (
+                <button type="button" className="pk-btn" onClick={() => set({ target: null })} data-testid="target-remove">
+                    {labels.targetRemove}
+                </button>
             ) : null}
-            {rules.notes.map((note) => (
+            {notes.map((note) => (
                 <p key={note} className="pk-hint pk-subtitle" data-testid="lines-note">
                     {Object.hasOwn(labels.linesNotes, note) ? labels.linesNotes[note] : null}
                 </p>

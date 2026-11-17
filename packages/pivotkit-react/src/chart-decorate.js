@@ -9,6 +9,7 @@
 
 import { DEFAULT_THEME } from "pivotkit-core";
 import { decorateOption } from "pivotkit-core/chart";
+import { mergeChartOptions } from "./chart-options.js";
 import { tooltipFormatter, tooltipReferences, valueAddsUp } from "./chart-tooltip.js";
 
 /** The tooltip's room: a line of text is this many times the text size high. */
@@ -24,7 +25,7 @@ const TOOLTIP_OTHER_LINES = 3;
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
+ * @param {{ categoryNames?: string[], axisLabels?: string, pixelOf?: (value: number) => number, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
  *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
  *   chart.axisLabels; tooltip: the view's chart.tooltip, the chart's hover state (chart.jsx writes the
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
@@ -49,6 +50,36 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
     const drawn = decorateOption(option, style, { height, width, ...rest, readColor, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
     // on the screen the tooltip stays inside the chart
     return doc ? { ...drawn, tooltip: { ...drawn.tooltip, confine: true } } : drawn;
+}
+
+/**
+ * Draws the view's option on the chart: the report's marks (decorate), the host's chartOptions over
+ * them (`hostOptions`, checked, mergeChartOptions), and then the labels of lying reference lines
+ * placed at their lines' real heights: after the first draw ECharts knows where each value is
+ * (convertToPixel), so the marks are laid out again with it (pivotkit-core's decorateOption,
+ * pixelOf) and only the series are set again.
+ * @param {any} instance  the chart's ECharts instance
+ * @param {any} option  pivotkit-core's toEChartsOption
+ * @param {{ getPropertyValue(name: string): string }} style
+ * @param {Document} doc
+ * @param {Parameters<typeof decorate>[5]} extra
+ * @param {Record<string, unknown> | null | undefined} hostOptions
+ * @returns {number}  axisEvery: n when the category axis writes every n-th label
+ */
+export function drawOption(instance, option, style, doc, extra, hostOptions) {
+    let every = 1;
+    const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf) => {
+        const { axisEvery, ...drawn } = decorate(option, style, instance.getHeight(), doc, instance.getWidth(), { ...extra, pixelOf });
+        every = axisEvery;
+        return hostOptions ? mergeChartOptions(drawn, hostOptions) : drawn;
+    };
+    const first = marked(undefined);
+    instance.setOption(first, { notMerge: true });
+    const lying = !Array.isArray(first.yAxis) && first.yAxis?.type === "value";
+    if (lying && (first.series ?? []).some((/** @type {any} */ s) => s.markLine)) {
+        instance.setOption({ series: marked((value) => instance.convertToPixel({ yAxisIndex: 0 }, value)).series });
+    }
+    return every;
 }
 
 /**
