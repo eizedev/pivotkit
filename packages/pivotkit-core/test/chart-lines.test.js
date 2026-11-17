@@ -140,6 +140,13 @@ test("the ECharts option: a markLine per line, silent, labelled with the name an
     assert.deepEqual(h.series[0].markLine.data.map(where), [25, [[10, 0], [40, 3]]]);
     assert.equal(h.series[1].markLine.data[2].xAxis, -5);
     assert.equal(h.xAxis.dataMin, -5);
+    // its lines stand upright: their labels in rows above the plot, which makes room for them
+    const labels = [...h.series[0].markLine.data, ...h.series[1].markLine.data].map((d) => (Array.isArray(d) ? d[0] : d).label);
+    assert.deepEqual(labels.map((l) => l.position), ["start", "start", "start", "start", "start"]);
+    assert.deepEqual(labels.map((l) => l.distance[1]).sort((a, b) => a - b), [6, 26, 46, 66, 86], "one row each, 14 px text and 6 px between");
+    const bare = toEChartsOption(pivot({ chart: { type: "bar", horizontal: true } }));
+    assert.equal(h.grid.top - bare.grid.top, 5 * 20 + 6);
+    assert.equal(option.grid.top, toEChartsOption(pivot({ chart: { type: "bar" } }), { theme: { textSize: 15 } }).grid.top, "lying lines keep their labels in the plot");
     // nothing switched on: no markLine, no reach
     const plain = toEChartsOption(pivot({ chart: { type: "bar" } }));
     assert.equal(plain.series[0].markLine, undefined);

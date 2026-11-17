@@ -152,7 +152,7 @@ function ReferenceLines({ view, plan, encoded, labels, locale, onDisplay }) {
             ) : null}
             {rules.target ? (
                 <>
-                    <div className="pk-hint">{words.target}</div>
+                    <div className="pk-subtitle">{words.target}</div>
                     <TargetField target={lines.target} labels={labels} locale={locale} onTarget={(target) => set({ target })} />
                 </>
             ) : null}

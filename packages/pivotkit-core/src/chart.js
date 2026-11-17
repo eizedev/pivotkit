@@ -293,7 +293,7 @@ export function toEChartsOption(result, options) {
         tooltip: { trigger: "axis", valueFormatter },
         ...(type === "bar" ? { axisPointer: { triggerEmphasis: false } } : {}),
         // room for the title and the legend; ECharts keeps its own defaults for the label margins
-        grid: { top: GRID_TOP + titleRoom + room.top, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
+        grid: { top: GRID_TOP + titleRoom + room.top + marks.room, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
         xAxis: chart.horizontal ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
         yAxis: chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
         series: s.series.map((x, i) => ({
@@ -309,14 +309,26 @@ export function toEChartsOption(result, options) {
     };
 }
 
-/** How each kind of reference line is drawn: an average dashed, a trend dotted, a target solid. */
-const LINE_TYPES = Object.freeze({ average: "dashed", trend: "dotted", target: "solid" });
+/**
+ * How each kind of reference line is drawn: an average dashed, a trend dotted, a target solid; and
+ * where its label goes, so labels of lines close together do not cover each other: an average's at
+ * its start, a trend's below its end, a target's above its end. On horizontal bars the lines stand
+ * upright: their labels go above the plot, one row each (markLines' `room`).
+ */
+const LINE_STYLES = Object.freeze({
+    average: { type: "dashed", label: "insideStartTop" },
+    trend: { type: "dotted", label: "insideEndBottom" },
+    target: { type: "solid", label: "insideEndTop" }
+});
+/** Room (px) between a label above the plot and the plot, and between two rows of them. */
+const LABEL_GAP = 6;
 
 /**
  * The reference lines as ECharts markLine data, by the series that draws them: a series' own lines on
  * it, in its colour; the lines of no series (a target, a stack's total) on the last series, drawn
  * above every mark, in the theme's reference colour. Silent: a line is no element to point at; the
- * tooltip names its value. `extent`: the lowest and highest value of the lines, for the value axis.
+ * tooltip names its value. `extent`: the lowest and highest value of the lines, for the value axis;
+ * `room`: the height (px) the labels of upright lines take above the plot.
  * @param {import("./chart-lines.js").ReferenceLine[]} lines
  * @param {ReturnType<typeof toSeries>} s
  * @param {{ horizontal: boolean, theme: ChartTheme }} how
@@ -326,18 +338,25 @@ function markLines(lines, s, { horizontal, theme }) {
     const bySeries = s.series.map(() => []);
     const values = [];
     const value = horizontal ? "xAxis" : "yAxis";
+    const fontSize = theme.textSize ?? DEFAULT_THEME.textSize;
+    let rows = 0;
     // a point of a trend: [category, value], or [value, category] along a horizontal chart
     const point = (category, v) => ({ coord: horizontal ? [v, category] : [category, v] });
     for (const line of lines) {
         const own = line.series !== null ? s.series[line.series] : undefined;
         const text = line.kind === "trend" ? line.name : `${line.name} ${line.format(/** @type {number} */ (line.value))}`;
+        const kind = LINE_STYLES[line.kind];
+        // upright lines: the labels in rows above the plot (the category axis runs downwards, so a
+        // line starts at the top), the first row nearest to it
+        const above = horizontal ? { position: "start", distance: [0, LABEL_GAP + rows * (fontSize + LABEL_GAP)] } : { position: kind.label };
+        rows += 1;
         const style = {
-            lineStyle: { type: LINE_TYPES[line.kind], width: 1.5, ...(own ? {} : { color: theme.referenceColor ?? theme.textColor }) },
-            label: { formatter: () => text, position: horizontal ? "end" : "insideEndTop", color: theme.textColor, fontSize: theme.textSize ?? DEFAULT_THEME.textSize }
+            lineStyle: { type: kind.type, width: 1.5, ...(own ? {} : { color: theme.referenceColor ?? theme.textColor }) },
+            label: { formatter: () => text, ...above, color: theme.textColor, fontSize }
         };
         const item = line.kind === "trend" ? [{ ...point(line.first, line.from), ...style }, point(line.last, line.to)] : { [value]: line.value, ...style };
         bySeries[own ? /** @type {number} */ (line.series) : s.series.length - 1]?.push(item);
         values.push(...(line.kind === "trend" ? [/** @type {number} */ (line.from), /** @type {number} */ (line.to)] : [/** @type {number} */ (line.value)]));
     }
-    return { bySeries: bySeries.map((d) => (d.length ? d : null)), extent: values.length ? [Math.min(...values), Math.max(...values)] : null };
+    return { bySeries: bySeries.map((d) => (d.length ? d : null)), extent: values.length ? [Math.min(...values), Math.max(...values)] : null, room: horizontal && rows ? rows * (fontSize + LABEL_GAP) + LABEL_GAP : 0 };
 }
