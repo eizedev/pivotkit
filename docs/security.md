@@ -591,6 +591,9 @@ and the sign-in above hold for it too. What differs:
   server holds no key that could make them. A private key in the configuration stops the start.
     - The issuer is a sign-in provider, not an operator. A token's scopes are cut to the entry's
       `scopes`, and it may name only the entry's `profiles`.
+    - A token always gets a profile the operator chose: the entry's `profile` or
+      `auth.defaultProfile`. Without either, the server does not start. The sources' own policy
+      never applies to these tokens.
     - A leaked token works until it expires, at most `maxMinutes`. There is no deny list.
     - It carries no audience, so every server that trusts the key accepts it.
     - A stolen private key of the issuer makes tokens for any person, within those scopes and

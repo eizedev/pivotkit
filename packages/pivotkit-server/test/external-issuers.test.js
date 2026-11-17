@@ -39,7 +39,7 @@ function setup({ issuerExtra = {}, auth = {}, keyText } = {}) {
         sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } },
         output: { dir: "out" },
         policy: { profiles: { staff: { results: true }, viewer: {} } },
-        auth: { mode: "token", tokens: [{ name: "ops", env: "OPS" }], externalIssuers: [{ issuer: PSU.issuer, typ: PSU.typ, scopes: ["pivotkit:read", "pivotkit:render"], profiles: ["staff"], keys: [{ kid: PSU.kid, publicKey: { file: "keys/psu.pub" } }], ...issuerExtra }], ...auth },
+        auth: { mode: "token", tokens: [{ name: "ops", env: "OPS" }], externalIssuers: [{ issuer: PSU.issuer, typ: PSU.typ, scopes: ["pivotkit:read", "pivotkit:render"], profiles: ["staff"], profile: "staff", keys: [{ kid: PSU.kid, publicKey: { file: "keys/psu.pub" } }], ...issuerExtra }], ...auth },
         baseDir: dir
     };
     return { ...keys, dir, options };
@@ -149,7 +149,7 @@ test("a key that is no Ed25519 public key stops the start, and check-config says
     }
     const { options } = setup();
     const { text } = await checkConfig(options, { env: { OPS: TOKEN }, http: true, rest: true });
-    assert.match(factsOf(text), /\nExternal token issuers \(1\):\n {2}psu: type psu\+jwt, key psu-2026-11, tokens live at most 60 min\n {4}scopes at most: pivotkit:read, pivotkit:render\n {4}profiles a token may name: staff\n {4}without a profile: the sources' own policy\n/);
+    assert.match(factsOf(text), /\nExternal token issuers \(1\):\n {2}psu: type psu\+jwt, key psu-2026-11, tokens live at most 60 min\n {4}scopes at most: pivotkit:read, pivotkit:render\n {4}profiles a token may name: staff\n {4}without a profile: staff\n/);
 });
 
 test("the MCP endpoint shares the check: it accepts the same token and refuses one of another key", async () => {
@@ -258,7 +258,7 @@ test("profiles: a token names one of the issuer's profiles or gets 401; without 
     } finally {
         one.core.close();
     }
-    const b = setup({ issuerExtra: { profiles: undefined }, auth: { defaultProfile: "viewer" } });
+    const b = setup({ issuerExtra: { profiles: undefined, profile: undefined }, auth: { defaultProfile: "viewer" } });
     const two = await callerWith(b.options);
     try {
         assert.equal((await two.of(await mint(b.privateKey))).refused, 401, "no allowlist: a token may name no profile");
@@ -305,7 +305,7 @@ test("two issuers with their keys and types swapped: each token passes only as i
     const { options, dir, privateKey: keyA } = setup();
     const b = pair();
     writeFileSync(join(dir, "keys", "b.pub"), b.publicPem);
-    options.auth.externalIssuers.push({ issuer: "other", typ: "other+jwt", scopes: ["pivotkit:read"], profiles: ["staff"], keys: [{ kid: "other-1", publicKey: { file: "keys/b.pub" } }] });
+    options.auth.externalIssuers.push({ issuer: "other", typ: "other+jwt", scopes: ["pivotkit:read"], profiles: ["staff"], profile: "staff", keys: [{ kid: "other-1", publicKey: { file: "keys/b.pub" } }] });
     const { core, of } = await callerWith(options);
     try {
         assert.equal((await of(await mint(keyA))).client, "psu");
@@ -403,4 +403,62 @@ test("a refused token is said at info, each reason once a minute, never with the
     } finally {
         core.close();
     }
+});
+
+test("a token always resolves to a profile the operator chose: an issuer without profile and without auth.defaultProfile stops the start", async () => {
+    const { options } = setup({ issuerExtra: { profile: undefined } });
+    await assert.rejects(restServer(options, { env: { OPS: TOKEN } }), /auth\.externalIssuers\[0\]\.profile: a token that names no profile needs a profile you chose; set the issuer's profile or auth\.defaultProfile/);
+    const { text } = await checkConfig(options, { env: { OPS: TOKEN }, http: true, rest: true });
+    assert.match(factsOf(text), /PROBLEM: auth\.externalIssuers\[0\]\.profile: a token that names no profile needs a profile you chose; set the issuer's profile or auth\.defaultProfile -> the server does not start/);
+    assert.match(factsOf(text), / {4}without a profile: none: refused\n/);
+    // auth.defaultProfile alone is enough
+    const withDefault = setup({ issuerExtra: { profile: undefined }, auth: { defaultProfile: "staff" } });
+    const { core, of } = await callerWith(withDefault.options);
+    try {
+        assert.equal((await of(await mint(withDefault.privateKey, { claims: { profile: undefined } }))).profile, "staff");
+    } finally {
+        core.close();
+    }
+});
+
+test("check-config warns when the profile a token without one gets is not in the issuer's profiles", async () => {
+    const own = setup({ issuerExtra: { profiles: ["staff"], profile: "viewer" } });
+    assert.match(factsOf((await checkConfig(own.options, { env: { OPS: TOKEN }, http: true, rest: true })).text), /WARNING \(External token issuers\): auth\.externalIssuers\[0\]: a token that names no profile gets viewer, which its profiles do not list \(staff\); a token naming viewer itself gets 401/);
+    const byDefault = setup({ issuerExtra: { profiles: ["staff"], profile: undefined }, auth: { defaultProfile: "viewer" } });
+    assert.match(factsOf((await checkConfig(byDefault.options, { env: { OPS: TOKEN }, http: true, rest: true })).text), /WARNING \(External token issuers\): auth\.externalIssuers\[0\]: a token that names no profile gets viewer/);
+    const fine = setup();
+    assert.doesNotMatch((await checkConfig(fine.options, { env: { OPS: TOKEN }, http: true, rest: true })).text, /which its profiles do not list/);
+});
+
+test("sub: surrogates, private-use and unassigned characters get 401; a subject is compared in NFC", async () => {
+    const { privateKey, options } = setup();
+    const { core, of } = await callerWith(options);
+    try {
+        for (const [name, sub] of [["a lone surrogate", "alice\uD800"], ["private use", "alice"], ["unassigned", "alice͸"]]) {
+            assert.equal((await of(await mint(privateKey, { sub }))).refused, 401, name);
+        }
+        const composed = await of(await mint(privateKey, { sub: "rené" }));
+        const decomposed = await of(await mint(privateKey, { sub: "rené" }));
+        assert.equal(composed.subject, "rené");
+        assert.equal(decomposed.subject, "rené", "normalised to NFC");
+        assert.equal(identityKey(composed), identityKey(decomposed));
+    } finally {
+        core.close();
+    }
+});
+
+test("the once-a-minute log limiter has a hard cap: when it is full, the oldest text goes and may be said again", async () => {
+    const { onceAMinute } = await import("../src/auth.js");
+    const said = [];
+    const limited = onceAMinute({ info: (t) => said.push(t), warn: (t) => said.push(t) });
+    limited("info", "first");
+    limited("info", "first");
+    assert.equal(said.length, 1, "once a minute");
+    for (let i = 0; i < 1000; i++) {
+        limited("info", `text ${i}`);
+    }
+    limited("info", "first");
+    assert.equal(said.filter((t) => t === "first").length, 2, "the oldest entry was dropped at the cap");
+    limited("info", "text 999");
+    assert.equal(said.filter((t) => t === "text 999").length, 1, "a recent one is still held");
 });

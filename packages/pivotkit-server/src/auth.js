@@ -355,7 +355,7 @@ const SIGNED_REFUSALS = Object.freeze({ EXPIRED: "this token expired; ask the op
  * @param {any} log
  * @returns {(level: "info" | "warn", text: string) => void}
  */
-function onceAMinute(log) {
+export function onceAMinute(log) {
     /** @type {Map<string, number>} */
     const said = new Map();
     return (level, text) => {
@@ -369,6 +369,11 @@ function onceAMinute(log) {
                     }
                 }
             }
+            // a hard cap: when every entry is still within its minute, the oldest goes
+            while (said.size >= SAID_MAX) {
+                said.delete(/** @type {string} */ (said.keys().next().value));
+            }
+            said.delete(text);
             said.set(text, now);
             log[level](text);
         }
@@ -420,7 +425,7 @@ function signedCheckOf(options, log) {
 }
 
 /** A subject from another issuer: printable, no whitespace or control characters, at most SUBJECT_MAX. */
-const EXTERNAL_SUBJECT = /^[^\s\p{Cc}\p{Cf}]+$/u;
+const EXTERNAL_SUBJECT = /^[^\s\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}]+$/u;
 
 /**
  * The check of tokens another system issues (auth.externalIssuers, external-issuers.js): null when
@@ -428,7 +433,8 @@ const EXTERNAL_SUBJECT = /^[^\s\p{Cc}\p{Cf}]+$/u;
  * The issuer is an identity provider, not an operator: its token never gets more than the operator
  * allowed it. Its scopes are cut to the issuer's `scopes` (none written: exactly those); a profile
  * it names must be in the issuer's `profiles`, else 401; without one it gets the issuer's `profile`,
- * else auth.defaultProfile. It needs a subject. A refusal is logged at info, each text at most once
+ * else auth.defaultProfile (options/external.js refuses a configuration with neither, so the
+ * sources' own policy never applies to such a caller). It needs a subject. A refusal is logged at info, each text at most once
  * a minute. The caller is the issuer by name, the person by subject.
  * @param {import("./config.js").ServerOptions} options
  * @param {{ env: Record<string, string | undefined>, log: any }} runtime
@@ -460,7 +466,8 @@ async function externalCheckOf(options, { env, log }) {
                 }
                 throw refuse(issuer, e.code, SIGNED_REFUSALS[/** @type {keyof typeof SIGNED_REFUSALS} */ (e.code)] ?? UNKNOWN_TOKEN_TEXT);
             }
-            const subject = subjectOf(claims.subject);
+            // compared in NFC: one person written with composed or decomposed letters is one identity
+            const subject = typeof claims.subject === "string" ? subjectOf(claims.subject.normalize("NFC")) : null;
             if (!subject || !EXTERNAL_SUBJECT.test(subject)) {
                 throw refuse(issuer, "NO_SUBJECT");
             }

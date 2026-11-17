@@ -7,7 +7,8 @@ date: 2026-11-17
 
 # 0014 Tokens from an external issuer
 
-Source: [#487](https://github.com/eizedev/pivotkit/issues/487)
+Sources: [#487](https://github.com/eizedev/pivotkit/issues/487),
+[the decision on #487](https://github.com/eizedev/pivotkit/issues/487#issuecomment-6943482229)
 
 ## Context and Problem Statement
 
@@ -32,17 +33,25 @@ Chosen options: the Ed25519 key pair, with caps per issuer.
 - `scopes` is required. A token's `scope` is cut to it, and a token without `scope` gets exactly
   that list, never every scope.
 - `profiles` lists the profiles a token may name. Any other gets 401. `profile` is the issuer's
-  profile for a token that names none.
+  profile for a token that names none, else `auth.defaultProfile`.
+- A token always resolves to a profile the operator chose. A configuration without the issuer's
+  `profile` and without `auth.defaultProfile` is refused. The sources' own policy never applies.
+- These tokens get no links or uploads bound to a sign-in, and token exchange stays refused.
 - There is no deny list. `maxMinutes` caps a token's lifetime (default 60, at most 1440).
 - The tokens carry no audience.
 
 Why the key pair: #487 prefers it, so pivotkit can never mint tokens for the other system.
 
 Why the caps: the other system is a sign-in provider, not an operator. Its tokens never get more
-than the operator allowed it. Decided in the review of #487.
+than the operator allowed it.
 
-Why there is no deny list and no audience: reason not recorded in #487. The build keeps the
-tokens short instead.
+Why there is no deny list and no audience: the tokens are kept short (`maxMinutes`) instead.
+
+### Not decided
+
+- The PowerShell Universal side: the function that mints the tokens.
+- Key rotation beyond two keys per issuer.
+- Limits per person.
 
 ### Consequences
 

@@ -81,8 +81,20 @@ export async function readPublicKey(ref, options, env) {
 }
 
 /**
- * Every configured issuer's keys, read now. Throws ConfigError for the first key that cannot be used:
- * the server does not start with it.
+ * Why an issuer's entry gives a token that names no profile none the operator chose, or null: it
+ * has no `profile` and auth.defaultProfile is unset. Such a token would fall to the sources' own
+ * policy, which may show more than any profile. The start refuses it, and check-config says so.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {number} i  the entry's index
+ */
+export function missingProfile(options, i) {
+    const entry = options.auth?.externalIssuers?.[i];
+    return entry && entry.profile === undefined && options.auth?.defaultProfile === undefined ? `auth.externalIssuers[${i}].profile: a token that names no profile needs a profile you chose; set the issuer's profile or auth.defaultProfile` : null;
+}
+
+/**
+ * Every configured issuer's keys, read now. Throws ConfigError for the first key that cannot be used,
+ * or an entry without a profile for tokens that name none (missingProfile): the server does not start.
  * @param {import("./config.js").ServerOptions} options
  * @param {Record<string, string | undefined>} env
  * @returns {Promise<Array<{ issuer: string, typ: string, maxMinutes: number, keys: Map<string, import("node:crypto").KeyObject> }>>}
@@ -90,6 +102,10 @@ export async function readPublicKey(ref, options, env) {
 export async function loadExternalIssuers(options, env) {
     const out = [];
     for (const [i, entry] of (options.auth?.externalIssuers ?? []).entries()) {
+        const missing = missingProfile(options, i);
+        if (missing) {
+            throw new ConfigError(missing);
+        }
         const keys = new Map();
         for (const [k, { kid, publicKey }] of entry.keys.entries()) {
             const read = await readPublicKey(publicKey, options, env);

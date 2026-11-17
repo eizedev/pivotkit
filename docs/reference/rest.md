@@ -1117,8 +1117,10 @@ What a token gets:
   `scopes`, never every scope. `scopes` is required. An empty list gives no scope.
 - **Profile**: a token may name a profile of the entry's `profiles`. Any other gets 401. Without
   `profiles`, a token may name none.
-- A token without `profile` gets the entry's `profile`, else `auth.defaultProfile`, else the
-  sources' own policy.
+- A token without `profile` gets the entry's `profile`, else `auth.defaultProfile`. One of the two
+  must be set, or the server does not start. The sources' own policy never applies to these tokens.
+- `check-config` warns when that default is not in the entry's `profiles`. A token without
+  `profile` then gets it, but a token that names it gets 401.
 
 The keys:
 
@@ -1158,7 +1160,7 @@ A token the server takes is at most 2048 characters long:
 | header `kid` | the ID of one of the issuer's keys |
 | header `typ` | the issuer's `typ` |
 | `iss` | the issuer's `issuer` |
-| `sub` | the person: 1 to 256 characters, no spaces and no control characters. Without it, 401 |
+| `sub` | the person: 1 to 256 characters, no spaces, no control, format, surrogate, private-use or unassigned characters. Without it, 401. Compared in Unicode NFC |
 | `jti` | the token's ID: letters, digits, `.`, `_` and `-`, at most 128 |
 | `iat`, `exp` | when the issuer made it and when it expires, in seconds since 1970 |
 | `nbf` | optional: not before this time |
@@ -1182,7 +1184,7 @@ A token the server takes is at most 2048 characters long:
 | `auth.externalIssuers[].keys` | - | One or two keys: `kid` and `publicKey` (`{ "file" }` or `{ "env" }`) |
 | `auth.externalIssuers[].scopes` | - | Required. The scopes its tokens may get |
 | `auth.externalIssuers[].profiles` | none | The profiles its tokens may name |
-| `auth.externalIssuers[].profile` | `auth.defaultProfile` | The profile of a token that names none |
+| `auth.externalIssuers[].profile` | `auth.defaultProfile` | The profile of a token that names none. This or `auth.defaultProfile` is required |
 | `auth.externalIssuers[].maxMinutes` | 60 | The longest lifetime of its tokens, in minutes (1 to 1440) |
 
 ### List, revoke and remove tokens { #token-list }
