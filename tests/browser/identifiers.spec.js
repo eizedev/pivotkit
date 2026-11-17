@@ -10,6 +10,9 @@ test.describe("identifier fields (#113)", () => {
             await openZones(page);
             const count = lang === "de" ? "Anzahl von ID" : "Count of ID";
             await page.locator('.pk-field[data-field="ID"] .pk-field-name').click();
+            // the tip a first value brings leaves the open zones no room in this 640 px report: they
+            // fold (#93), and the test opens them as a user would; they stay open from then on
+            await openZones(page);
             await expect.poll(() => chips(page, "values")).toEqual([count]);
             // other number fields are summed as before
             await page.locator('.pk-field[data-field="Memory GB"] .pk-field-name').click();

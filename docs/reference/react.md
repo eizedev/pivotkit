@@ -32,7 +32,8 @@ Installation and a first example are in [Getting started with React](../getting-
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). [More](#prop-fielddefaults) |
 | `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` |  | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. [More](#prop-oncellclick) |
 | `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
-| `exportData` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row of the data as a CSV or JSON file, for the user's own analysis or the command line; `{ columns }` for some columns only, which the drill-down's exports keep to as well. [More](#prop-exportdata) |
+| `exportData` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row of the data as a CSV or JSON file, for the user's own analysis or the command line. It also gives the drill-down its copy and download. `{ columns }` keeps both to some columns. [More](#prop-exportdata) |
+| `drillDownExport` | `boolean` | `false` | The drill-down's copy and download while `exportData` is off, with every column. [More](#prop-drilldownexport) |
 | `drillDownLimit` | `number` | `1000` | Rows passed to the panel and to `onCellClick`; the panel's exports (Copy, Copy as JSON, Download CSV and Excel) hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `locale` | `string` | `"en-US"` | Numbers, dates and sorting (a view's own `formatting.locale` wins), and the language of the labels: `de-*` picks German. |
 | `timeZone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
@@ -342,6 +343,12 @@ The file holds what the report holds. That includes columns no view places and r
 leave out. So the export is off unless you turn it on: [Security](../security.md#source-data). The
 file counts against `limits.cells` (rows times fields).
 
+`exportData` also decides the drill-down panel's **Export** menu: its copies and downloads. With
+`exportData` off, the panel shows the rows behind a value but has no Export menu.
+[`drillDownExport`](#prop-drilldownexport) turns that menu on alone. Only the menu goes: a person
+can still select and copy the panel's text in the browser, and `onCellClick` still gets the rows.
+To keep the rows in, set `drillDown={false}`.
+
 `exportData={{ columns: ["Region", "Revenue"] }}` keeps Source data to these columns, in this order:
 
 - The report matches the names case-insensitively, each once. It never writes derived fields.
@@ -353,6 +360,18 @@ file counts against `limits.cells` (rows times fields).
   menu are off. They are off too when `columns` is no list (`{ columns: "Region" }`), and the console
   says so once.
 - An `exportData` of another shape (a text, an array) is off, as `false`.
+
+### `drillDownExport` { #prop-drilldownexport }
+
+Type: `boolean`. Default `false`.
+
+Gives the drill-down panel its **Export** menu while `exportData` is off: Copy, Copy as JSON,
+Download CSV and Download Excel. The copies and files hold every column and the rows the panel
+shows. Source data stays off.
+
+- With `exportData` on, the panel has the menu anyway. `drillDownExport` changes nothing there.
+- With `exportData={{ columns }}`, the menu keeps to those columns. With none left, it stays off.
+- `onCellClick` gets the rows either way. The prop decides only what people can copy and download.
 
 ### `storageKey` { #prop-storagekey }
 
@@ -814,6 +833,11 @@ Columns: Priority · Values: Count of Ticket"), so the table keeps its room. At 
   dropped.
 - When the report gets lower while a menu or popover is open, the fold waits until it closes. A focus
   in the zones moves to the folded line.
+- The report folds the zones too when they no longer fit its box. It checks after every render and
+  when a part of it changes size. So zones that grow in a box of the same size fold as well: longer
+  texts in another language, more fields in Rows, a font or stylesheet that loads late.
+- Folded that way, the zones open again once they fit: when a warning folds, a tip goes or the
+  report gets wider.
 
 The user's choice is state of the mounted report. It survives the host's renders. It is not part of
 the view, so a saved view does not carry it.

@@ -48,6 +48,16 @@ because the new chip already shows it.
 At most two show at a time. A save closes the Views menu, and the focus goes back to **Views** or
 **More**. So the note tells you the result: "View “…” saved", or why the view was not saved.
 
+## The row count under the result { #row-count }
+
+The line under the result counts the rows of the data the report is made of.
+
+- With nothing filtered, it says "4,386 rows".
+- When a filter leaves rows out, it says "2,190 of 4,386 rows". The first number counts the rows
+  left after every filter. Top N and value conditions count too. The second counts the data's rows.
+- It is the count the summary of a field's filter shows. See [filters](filters.md#the-summary).
+- It stays on one line, also on a phone.
+
 ## Parts of a view that were not used
 
 A view can come from several places: a saved view (shared or your own), a link, a loaded file or

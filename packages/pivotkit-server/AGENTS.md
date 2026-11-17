@@ -28,6 +28,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `secretValue` is the one normaliser: a token trimmed, a key without one line ending.
 - It reads a regular file only, at most `MAX_SECRET_BYTES`. It names UTF-16 text with `UTF16_TEXT`.
 - `src/credentials.js` holds `token new`, `token show` and `key new`. The runner loads it only for them.
+- `src/token-admin.js` holds `token issue|list|revoke|remove` and `key new|remove --for signing`.
+- `plannedOf` in `credentials.js` resolves the configuration and state for every token command.
 - `--add` puts the token into `auth.tokens`, checked by `validateOptions`, with a backup.
 - `--add` reads the configuration again right before it replaces it. It holds no lock.
 - `--add` with `--if-missing` is done when the same entry is there. It writes nothing then.
@@ -81,6 +83,9 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 
 ## Sign-in and identity
 
+- `src/signed-tokens.js` issues and verifies signed tokens. `createSignedVerifier` takes its keys from a function.
+- A bearer goes through the static tokens first. Only an unmatched JWT reaches the signed check.
+- A signed token's identity is `["signed", id]`. Its ID is the client in the log.
 - `profileOf` in `src/auth.js` is the one order of a caller's profile.
 - `identityKey` is the only identity a cache or binding uses. It is null without a usable subject.
 - A caller's access token leaves `auth.js` only through `exchangeTokenFor`.
@@ -102,7 +107,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Below `show`, a text file with a quoted value over several lines is refused (`checkedRead`).
 - REST callers never get `file:` paths (`files: false` in the registry).
 - Delivery decides a report's link before the file is written (`linkFor` in `delivery.js`).
-- `isClosedForDelivery` is the one rule for which reports get only bound links.
+- `isClosedForDelivery` is the one rule for which reports get only bound links. `closedReason` says why.
 
 ### Caches, inline data and memory
 
@@ -128,6 +133,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - A kept data set copies its texts first. A reader's slices would keep the whole file alive.
 - Every read ends with `forgetLastSubject`. V8 keeps the last regular expression's subject.
 - Workers have memory and time limits.
+- `test/compute.test.js` covers the pool's failure paths with a worker of its own (`fixtures/probe-worker.js`).
 
 ## HTTP edge
 

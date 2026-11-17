@@ -6,6 +6,40 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Upgrading from 0.7
+
+- Without `export-data`, the default, the drill-down panel has no Export menu: no copy and no
+  download of its rows. Set `drill-down-export` to keep it
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
+- The row count under the result says "2,190 of 4,386 rows" when a filter leaves rows out. A page
+  whose `labels` set `rowsCount` or add a language sets the new label `rowsFiltered` too
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#rows-filtered)).
+
+### Added
+
+- `drill-down-export` (boolean attribute) and the `drillDownExport` property: the drill-down panel's
+  copy and download while `export-data` is off. As pivotkit-react's `drillDownExport`.
+
+### Changed
+
+- The drill-down panel's copy and download follow `export-data`. Without it, the panel shows the
+  rows but offers no copy and no download (#263).
+- The first load is about 1.7 KiB smaller: pivotkit-core's ECharts option loads with the chart
+  (#546).
+- `npm run size` names the zlib it measures with. It says when the sizes can differ from CI's, as
+  with a Node that uses the system's zlib (#546).
+- The row count under the result says how many of the data's rows the filters keep, as
+  pivotkit-react's (#108).
+
+### Fixed
+
+- The element bundles pivotkit-core's chart labels at small sizes: slanted category names leave the
+  plot its height, a donut's outside labels stay whole, the value at the end of a horizontal bar is
+  not cut, and a heatmap names every row that has room ([#228](https://github.com/eizedev/pivotkit/issues/228), [#229](https://github.com/eizedev/pivotkit/issues/229),
+  [#230](https://github.com/eizedev/pivotkit/issues/230), [#231](https://github.com/eizedev/pivotkit/issues/231)).
+- The zones fold when they no longer fit the element's box, also when the box keeps its size, as
+  pivotkit-react's (#93).
+
 ## [0.7.0] - 2026-11-16
 
 ### Upgrading from 0.6

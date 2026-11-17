@@ -94,7 +94,9 @@ test("policy switches: no counts, no row count, default hide with one shown fiel
         assert.equal(described.data.fields[0].distinct, undefined);
         const rendered = await call(client, "render_view", { source: "sales", view: { rows: ["Region"] }, format: "csv" });
         assert.equal(rendered.data.inline, undefined);
-        assert.equal(rendered.data.output.name, "sales.pivotkit-out.csv");
+        // every field shown or hidden for every caller: an open source, whose report gets a plain link
+        assert.match(rendered.data.output.name, /^[A-Za-z0-9_-]{22}-sales\.pivotkit-out\.csv$/);
+        assert.equal(rendered.data.output.bound, "none");
     }));
 
 test("without an output directory: a withheld result is refused, not shown; a shown one comes back inline", async () => {

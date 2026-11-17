@@ -15,6 +15,7 @@ import { openApiDocument } from "pivotkit-server/rest";
 import { BODY_BYTES, MAX_BODY_BYTES } from "../src/listen.js";
 import { MCP_DATA_CAP, REST_DATA_BYTES } from "../src/sources/inline.js";
 import { BIN, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace } from "./helpers.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const LOCAL = callerOf("none", undefined);
 const BY_REGION = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -239,7 +240,8 @@ test("check-config: who may send data on MCP and REST, and how much; warnings fo
     };
     const designed = await sectionOf({ policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }] }, rest: { data: { maxBytes: 20_971_520 } }, mcp: { data: { rows: 200, cells: 2000, bytes: 131_072 } } }, { env: { ETL_TOKEN: "x".repeat(40) } });
     assert.deepEqual(designed.facts, ["  MCP: on, up to 200 rows / 2000 cells / 128 KiB (mcp.data)", "  REST: for profiles etl, up to 20 MiB (rest.data.maxBytes)"]);
-    assert.match(factsOf(designed.text), /\nNew in this version: [^\n]*data in the request \(inline:; mcp\.data: false switches it off\)/);
+    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
+    assert.doesNotMatch(factsOf(designed.text), /data in the request \(inline:; mcp\.data: false switches it off\)/);
     assert.deepEqual((await sectionOf({})).facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB", "  REST: off (no policy or profile has data: true)"]);
     const off = await sectionOf({ mcp: { data: false } });
     assert.deepEqual(off.facts, ["  MCP: off (mcp.data: false)", "  REST: off (no policy or profile has data: true)"]);
@@ -404,6 +406,7 @@ test("REST multipart: csv, tsv, json and xlsx files with the input beside them; 
             [[["data", [new Blob([csv]), "a.exe"]], ["input", input()]], 415, /csv, tsv, json or xlsx/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ data: { rows: [["x"]] } })]], 400, /has no key "rows"/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ data: { rowCount: 3 } })]], 400, /has no key "rowCount"/],
+            [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ params: { a: "1" } })]], 400, /^this server has no source that takes params; leave params out \(GET \/sources lists the sources\)$/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", input({ source: "sales" })]], 400, /leave source out or give "inline:"/],
             [[["data", [new Blob([csv]), "a.csv"]], ["input", "{not json"]], 400, /not valid JSON/],
             [[["data", [new Blob(["{not json"]), "a.json"]], ["input", input()]], 422, /^"Data sent with the request\.json": this is no valid JSON/]
@@ -546,12 +549,12 @@ test("a body nested deeply is refused before it is parsed, in a fixed time; brac
     const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } } }), restEnv);
     try {
         for (const bomb of [`{"source":"inline:","data":${"[".repeat(3 * 1_048_576)}`, `{"source":"inline:","view":${"[".repeat(1_000_000)}${"]".repeat(1_000_000)}}`]) {
-            const started = Date.now();
+            const cpu = cpuClock();
             const answer = await call(`${server.api}/sources/describe`, { token: TOKEN, body: bomb });
             assert.equal(answer.status, 400);
             // the nesting, not "not valid JSON": counted before JSON.parse saw the unclosed brackets
             assert.equal(answer.data.detail, "the input is nested deeper than 64 levels");
-            assert.ok(Date.now() - started < 1500, `${Date.now() - started} ms`);
+            assert.ok(cpu() < 1500, `${Math.round(cpu())} ms of CPU`);
         }
     } finally {
         await server.close();

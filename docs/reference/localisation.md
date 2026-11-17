@@ -108,12 +108,16 @@ report.labels = { zones: { values: "Kennzahlen" }, core: { grandTotal: "Summe" }
 ```
 
 The report fills in the `{name}` placeholders in a text. A count is an object with one text per
-plural category of the language. The counts are `rowsCount`, `drillCount`, `chartCategories` and
-`chartSeries`. The report picks the text with `Intl.PluralRules` for the labels' `lang`:
+plural category of the language. The counts are `rowsCount`, `rowsFiltered`, `drillCount`,
+`chartCategories` and `chartSeries`. The report picks the text with `Intl.PluralRules` for the
+labels' `lang`:
 
 ```js
 { rowsCount: { one: "{count} row", other: "{count} rows" } }
 ```
+
+`rowsFiltered` is the row count when a filter leaves rows out ("2,190 of 4,386 rows"). `{count}` is
+the data's rows and picks the form. `{shown}` is the rows the filters keep.
 
 A language with more forms adds them (`few`, `many`). A missing form falls back to `other`.
 

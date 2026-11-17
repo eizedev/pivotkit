@@ -13,6 +13,10 @@ npm run types -w pivotkit-element
 npm run size -w pivotkit-element    # what a page loads, gzip; fails above SIZE_BUDGET_KIB
 ```
 
+The size check gives CI's numbers only on an official Node build of `SIZE_NODE`.
+A Node with the system's zlib, such as Homebrew's, measures other sizes. The check says so.
+A new zlib in a Node 24 release can move the numbers too, by up to about 0.6 KiB.
+
 ## Bundle
 
 - `build.js` bundles React, ReactDOM, pivotkit-core, pivotkit-react and @dnd-kit into `dist/`.
@@ -36,6 +40,7 @@ The first load holds only the first render and what a click outside a menu does 
 - Group "report": HTML report, SVG and printing. Loaded on first use.
 - Group "template": print template CSS. The element never loads it.
 - A module behind a barrel lands wherever any importer of the barrel loads it.
+- So `chartOffBarrel` drops `toEChartsOption` from pivotkit-core's `index.js`. The chart takes it from `pivotkit-core/chart`.
 - `dist/import-worker.js` is a separate build of one file (`workerOptions`).
 - `test/build.test.js` checks all of this.
 

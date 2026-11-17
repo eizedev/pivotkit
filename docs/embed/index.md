@@ -116,7 +116,8 @@ These features are off by default, so a host decides:
 | Prop | What it switches on | More |
 | --- | --- | --- |
 | `allowImport` | People load their own file into the report. | [Load your own data](../use/load-data.md) |
-| `exportData` | Export → Source data: every row as CSV or JSON. | [Export](../use/export.md#the-table-or-the-rows-behind-it) |
+| `exportData` | Export → Source data: every row as CSV or JSON. The drill-down's copy and download. | [Export](../use/export.md#the-table-or-the-rows-behind-it) |
+| `drillDownExport` | The drill-down's copy and download without Source data. | [The rows behind a number](../use/drill-down.md#copy-or-download-the-rows) |
 | `shareLink`, `persistView` | Links, and the tab's view. | [Sharing](../concepts/sharing.md) |
 | `templateStore` | Views in the browser. | [Templates and shared views](../concepts/templates.md) |
 

@@ -7,7 +7,7 @@
  * operation's own schema refuses unknown keys.
  */
 
-import { OPERATIONS } from "pivotkit-report/operations";
+import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { PARAM_LIMITS } from "./params.js";
 import { INLINE_ID, dataListEntry, mcpCapOf, restDataOffered } from "./inline.js";
 
@@ -63,6 +63,9 @@ export function offersOf(options) {
     return Object.freeze({ mcp: Object.freeze({ params, data: mcpCapOf(options) !== false }), rest: Object.freeze({ params, data: restDataOffered(options) }) });
 }
 
+/** Whether an operation takes a source, and so the extra inputs. */
+const takesSource = (name) => Boolean(/** @type {any} */ (OPERATIONS[name]?.input)?.properties?.source);
+
 /**
  * The extra input properties of an operation on a surface: only for an operation that takes a
  * source, only those offered.
@@ -71,11 +74,31 @@ export function offersOf(options) {
  * @returns {Record<string, unknown>}
  */
 export function extraInputs(name, offers) {
-    const takesSource = Boolean(/** @type {any} */ (OPERATIONS[name]?.input)?.properties?.source);
-    if (!takesSource || !offers) {
+    if (!takesSource(name) || !offers) {
         return {};
     }
     return Object.fromEntries(Object.entries(EXTRAS).filter(([key]) => /** @type {any} */ (offers)[key] === true));
+}
+
+/**
+ * REST's answer to `params` where no configured source takes parameters (the schema then offers
+ * none). The request is well formed: the schema's "input has no key" would read as the caller's
+ * fault. Hosts recognise the answer by "takes params"; it names no source, so it says nothing of
+ * one the caller may not use.
+ */
+export const NO_PARAMS_TEXT = "this server has no source that takes params; leave params out (GET /sources lists the sources)";
+
+/**
+ * Refuses `params` with NO_PARAMS_TEXT where the surface offers none, for an operation that takes a
+ * source; before the schema check, which would name the key alone.
+ * @param {string} name
+ * @param {Record<string, unknown>} input
+ * @param {SurfaceOffers | undefined} offers
+ */
+export function checkParamsOffered(name, input, offers) {
+    if (takesSource(name) && offers?.params !== true && input !== null && typeof input === "object" && Object.hasOwn(input, "params")) {
+        throw new OperationError("INVALID_INPUT", NO_PARAMS_TEXT);
+    }
 }
 
 /**

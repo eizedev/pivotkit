@@ -6,8 +6,8 @@ PROBLEM: sources.gone.file: data/missing.csv is not there -> the server
 
 WARNING (Sources): sources.sales.policy: "show" by default with hidden fields
     is a deny list: a column the data gains later is shown unless someone
-    hides it; prefer "summary" by default and give the fields to show the
-    level show
+    hides it; prefer "hide" by default and give the fields to show the level
+    show
 WARNING (Auth): the token bot's scope "typo:scope" is named by no source, tool
     or required scope
 
@@ -55,7 +55,8 @@ Data in the request (inline:):
 
 Output: out
   <dir>/out
-  at most 1000 files of pivotkit's (500 of them schedule drafts) and 1024 MB
+  at most 1000 files and 1024 MiB of pivotkit's; schedule drafts at most 500
+      files and 512 MiB
   when full, the oldest reports are deleted to make room; drafts are kept
   reports older than 30 days are deleted; schedule drafts stay until a person
       approves or removes them
@@ -63,14 +64,21 @@ Output: out
 Delivery:
   download links: http://127.0.0.1:3333/downloads/<token>
     expire after 60 minutes
-  closed (a field not shown for someone): sales (Customer hide), gone (fields
-      summary by default), code (fields summary by default)
+  closed for plain links: sales (Customer hide under default show: a column
+      the data gains later would be shown), gone (fields summary by default),
+      code (fields summary by default)
+    for plain links, set the source's default to hide and list the fields to
+        show
+    for plain links, set the fields at values or summary to show, or set the
+        default to hide and list the fields to show
   per person (counted as closed): data sent in requests (inline:)
   reports over closed sources (sales, gone, code): no links (the file is kept;
       the person asks you for it)
     set output.downloads.signIn for links only the person can open
 
 HTTP: 127.0.0.1:3333
+  connections per address: at most 32 (the default; clients reach the server
+      directly)
 
 Auth: token
   token bot from $BOT_TOKEN: scopes sales:read typo:scope, profile analyst
@@ -89,12 +97,7 @@ Log:
   level info, format auto (text on a terminal, JSON otherwise)
   addresses on: the socket's peer
 
-New in this version: code sources with a time limit and data per caller, data
-    in the request (inline:; mcp.data: false switches it off), download links
-    under /downloads/, answered without a token (the link is the credential;
-    output.downloads.enabled: false switches them off), reports deleted after
-    30 days (output.maxAgeDays: 0 keeps them), the client's IP address on the
-    log's request lines (log.address: "off" leaves it out), a start error as a
-    JSON line where stderr is no terminal (log.format: "text" keeps the plain
-    line)
-    -> https://pivotkit.eize.dev/getting-started/upgrading/
+New in this version:
+  schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays
+      lets waiting drafts expire)
+    -> https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota

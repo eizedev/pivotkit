@@ -154,6 +154,8 @@ export const en = {
     noChartData: "Add a value to see a chart.",
     // a count in words: one form per Intl.PluralRules category of the language ("one", "other", ...)
     rowsCount: { one: "{count} row", other: "{count} rows" },
+    // a filter left rows out: the rows kept ({shown}) of the data's ({count}, which picks the form)
+    rowsFiltered: { one: "{shown} of {count} row", other: "{shown} of {count} rows" },
     tableName: "Pivot table",
     emptyCell: "No rows",
     emptyValue: "No value",
@@ -466,6 +468,7 @@ export const de = {
     loadingChart: "Diagramm wird geladen…",
     noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",
     rowsCount: { one: "{count} Zeile", other: "{count} Zeilen" },
+    rowsFiltered: { one: "{shown} von {count} Zeile", other: "{shown} von {count} Zeilen" },
     tableName: "Pivot-Tabelle",
     emptyCell: "Keine Zeilen",
     emptyValue: "Kein Wert",
@@ -711,6 +714,19 @@ export function plural(forms, count, { lang, locale }) {
     }
     const form = typeof forms[category] === "string" ? forms[category] : forms.other;
     return fill(form ?? "", { count: count.toLocaleString(locale) });
+}
+
+/**
+ * The row count under the result: "15,344 rows", or "5,110 of 15,344 rows" when a filter (Top N and
+ * value conditions too) leaves rows of the data out (#108).
+ * @param {number} shown  the source rows left after every filter
+ * @param {number} total  the data's rows
+ * @param {UiLabels} labels
+ * @param {string} locale
+ */
+export function rowCount(shown, total, labels, locale) {
+    const lang = { lang: labels.lang, locale };
+    return shown < total ? fill(plural(labels.rowsFiltered, total, lang), { shown: shown.toLocaleString(locale) }) : plural(labels.rowsCount, total, lang);
 }
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);

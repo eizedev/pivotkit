@@ -4,6 +4,7 @@ import { PivotkitError, computePivot, encode, fieldDefaultsFromSchema, fieldLabe
 import { toCsv } from "../src/export.js";
 import { SCHEMA_CAPS } from "../src/schema.js";
 import { SALES } from "./fixtures.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 /** The defaults alone, for the tests that do not look at the issues. */
 const fd = (...args) => fieldDefaultsFromSchema(...args).defaults;
@@ -92,9 +93,9 @@ test("fieldDefaultsFromSchema: bad input throws, hostile input is capped and nev
     // a fan-out of allOf over allOf stops after SCHEMA_CAPS.steps schema objects, not after 1000^n
     const wide = Array.from({ length: 1000 }, () => ({ $ref: "#/$defs/L1" }));
     const fan = { $defs: { L1: { allOf: wide.map(() => ({ $ref: "#/$defs/L2" })) }, L2: { allOf: wide.map(() => ({ $ref: "#/$defs/L3" })) }, L3: { allOf: wide } }, properties: { a: { allOf: wide, title: "A" } } };
-    const t0 = performance.now();
+    const cpu = cpuClock();
     fieldDefaultsFromSchema(fan);
-    assert.ok(performance.now() - t0 < 5000, "bounded work");
+    assert.ok(cpu() < 5000, "bounded work");
     // texts are plain and capped; a property named __proto__ is a field like any other
     const long = "x".repeat(SCHEMA_CAPS.description + 50);
     const proto = JSON.parse('{"properties":{"__proto__":{"title":"Proto"},"t":{"title":"<b>bold</b>\\u0000\\u2028line","description":"' + long + '"}}}');

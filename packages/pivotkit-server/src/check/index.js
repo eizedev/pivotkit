@@ -7,8 +7,9 @@
  *   with its own heading (`Sources (2):`, `Auth: oauth`) and gives its facts one per item. A PROBLEM
  *   says whether it stops the start (the same check as createContext) or what does not work while
  *   the server runs; format.js prints every PROBLEM first, under the verdict.
- * - `upgrade`: a short name per change of this version that applies to the loaded configuration;
- *   check-config closes with them in one line and the upgrading page's address.
+ * - `upgrade`: a short name per change of this version that applies to the loaded configuration,
+ *   with the anchor of its section on the upgrading page (format.js Upgrade); check-config closes
+ *   with them, one per line, each with its address.
  *
  * `runtime` is check-config's own (`http`, `env`, `name`, `tokenEnv`, `rest`, `mcp`, `discover`) plus
  * `columns` and `everyColumn`, which check/sources.js fills with the column names and statistics of
@@ -24,6 +25,7 @@ import * as downloads from "./downloads.js";
 import * as upload from "./upload.js";
 import * as access from "./access.js";
 import * as credentials from "./credentials.js";
+import * as signed from "./signed.js";
 import * as issuer from "./issuer.js";
 import * as operator from "./operator.js";
 import * as profiles from "./profiles.js";
@@ -46,7 +48,7 @@ import * as log from "./log.js";
  */
 
 /**
- * @typedef {(options: import("../config.js").ServerOptions, registry: any, runtime: SectionRuntime) => Promise<{ items: import("./format.js").Item[], upgrade: string[] }>} Section
+ * @typedef {(options: import("../config.js").ServerOptions, registry: any, runtime: SectionRuntime) => Promise<{ items: import("./format.js").Item[], upgrade: import("./format.js").Upgrade[] }>} Section
  */
 
 /** The page that explains the changes of a version. */
@@ -59,7 +61,7 @@ export const UPGRADING_URL = "https://pivotkit.eize.dev/getting-started/upgradin
  * @type {ReadonlyArray<{ name: string, section: Section }>}
  */
 export const SECTIONS = Object.freeze(
-    Object.entries({ sources, http, code, inline, output, downloads, upload, access, credentials, issuer, operator, profiles, rest, log }).map(([name, module]) => Object.freeze({ name, section: module.section }))
+    Object.entries({ sources, http, code, inline, output, downloads, upload, access, credentials, signed, issuer, operator, profiles, rest, log }).map(([name, module]) => Object.freeze({ name, section: module.section }))
 );
 
 /**
@@ -68,10 +70,10 @@ export const SECTIONS = Object.freeze(
  * @param {import("../config.js").ServerOptions} options
  * @param {any} registry
  * @param {any} runtime
- * @returns {Promise<{ sections: import("./format.js").Item[][], upgrade: string[] }>}
+ * @returns {Promise<{ sections: import("./format.js").Item[][], upgrade: import("./format.js").Upgrade[] }>}
  */
 export async function runSections(sections, options, registry, runtime) {
-    const out = { sections: /** @type {import("./format.js").Item[][]} */ ([]), upgrade: /** @type {string[]} */ ([]) };
+    const out = { sections: /** @type {import("./format.js").Item[][]} */ ([]), upgrade: /** @type {import("./format.js").Upgrade[]} */ ([]) };
     for (const { section } of sections) {
         const said = await section(options, registry, runtime);
         out.sections.push(said.items);

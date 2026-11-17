@@ -45,6 +45,17 @@ export function expect(ok, message) {
 }
 
 /**
+ * The words of a limit a value ran over, the same in every package: "1,001 rows exceed the limit of
+ * 1,000 (limits.rows)". Numbers are written in en-US, never the runtime's locale.
+ * @param {number} value
+ * @param {number} max
+ * @param {string} what  what is counted, e.g. "grid cells"
+ * @param {string} where  the setting that holds the limit, e.g. "limits.rows"
+ * @returns {string}
+ */
+export const limitText = (value, max, what, where) => `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (${where})`;
+
+/**
  * Throws LIMIT_EXCEEDED when `value` is above `max`.
  * @param {string} limit  name of the limit, as in LIMITS
  * @param {number} value
@@ -55,7 +66,7 @@ export function checkLimit(limit, value, max, what) {
     if (value > max) {
         throw new PivotkitError(
             "LIMIT_EXCEEDED",
-            `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (limits.${limit})`,
+            limitText(value, max, what, `limits.${limit}`),
             { limit, value, max }
         );
     }

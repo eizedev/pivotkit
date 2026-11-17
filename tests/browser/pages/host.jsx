@@ -21,7 +21,7 @@
 // sets importLimits rows 1,000 and cells 100 and limits columns 4: the host's 2,000 rows and its grid of more
 // than 100 cells stay, a file gets all three. ?exportcolumns=A,B sets exportData to { columns: ["A", "B"] },
 // ?exportcolumnstext=A to { columns: "A" };
-// without it exportData is off, as by default. ?printself has onExport take the report's print
+// without it exportData is off, as by default. ?drillexport sets drillDownExport. ?printself has onExport take the report's print
 // (returns false; window.__hostPrinted keeps the file name); ?strict renders the page in React's
 // StrictMode (effects mounted, cleaned up and mounted again).
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -104,6 +104,8 @@ function Host() {
         ...(query.has("nokey") ? { storageKey: undefined } : {}),
         // Source data and the drill-down's exports with only these columns (a new object on every render)
         ...(query.has("exportcolumns") ? { exportData: { columns: query.get("exportcolumns").split(",") } } : {}),
+        // the drill-down's copy and download, also with exportData off
+        ...(query.has("drillexport") ? { drillDownExport: true } : {}),
         // a host's mistake: columns as a text, not a list
         ...(query.has("exportcolumnstext") ? { exportData: { columns: query.get("exportcolumnstext") } } : {}),
         // a host that prints the report its own way

@@ -36,6 +36,16 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `tests/temp-dirs.test.js` fails on `mkdtemp`, `tmpdir()`, `TMPDIR` or `"/tmp/"` elsewhere.
 - `tests/source-files.js` lists the files such checks scan.
 
+## Time bounds
+
+- Work the process computes is bounded by CPU time: `cpuClock()` from `tests/cpu-time.js`.
+- Wall time fails when other test suites share the machine. CPU time does not grow then.
+- Event latency (a timer, the network, a child process) stays on wall time. CPU time misses waits.
+  Prefer an assert on the event. Else give a wide margin and a comment why.
+- So do a timestamp the code wrote, a polling deadline and a ratio of two measurements.
+- Such a line ends in the comment `// wall time: <why>`, for example `// wall time: event latency`.
+- `tests/time-bounds.test.js` fails on a wall-clock reading in a comparison without that comment.
+
 ## Scripts
 
 - A script that can also be imported checks `isMain(import.meta.url)` from `scripts/is-main.js`.
@@ -71,5 +81,7 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - It also checks that the Playwright image matches the locked `@playwright/test`.
 - `tests/examples.test.js` fails until `node scripts/examples.js` has run.
 - `tests/schemas.test.js` fails until `node scripts/schemas.js` has run.
+- `tests/decisions.test.js` checks the decision records, and the index `node scripts/decisions.js` writes.
+- `tests/deprecations.test.js` checks that every `PK-DEP-NNNN` in `packages/*/src` is in the register.
 - `tests/llms-sections.test.js` checks that every docs page is in one `llmstxt` section.
 - `tests/docs-lists.test.js` checks that every list in the docs starts after a blank line.

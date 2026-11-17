@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cellRows, computePivot, encode } from "pivotkit-core";
 import { exportDrill, rowsText } from "../src/drill-export.js";
-import { dataExportOf, pickColumns } from "../src/export-scope.js";
+import { dataExportOf, drillExportOn, pickColumns } from "../src/export-scope.js";
 import { strFromU8, unzipSync } from "fflate";
 import { drillTable } from "../src/drill-table.js";
 import { LABELS } from "../src/labels.js";
@@ -299,6 +299,24 @@ test("the new export texts exist in English and German", () => {
     }
     assert.equal(en.exportPrint, "Print or save as PDF…");
     assert.equal(de.exportPrint, "Drucken oder als PDF speichern…");
+});
+
+test("the drill-down's copy and download: on with exportData, or with drillDownExport while exportData is off (#263)", () => {
+    const names = ["Region", "Country", "Revenue"];
+    // exportData off: no copy and no download, unless the host turns them on
+    for (const off of [undefined, false, null, "yes", ["Region"]]) {
+        assert.equal(drillExportOn(dataExportOf(off, names)), false, JSON.stringify(off));
+        assert.equal(drillExportOn(dataExportOf(off, names), { drillDownExport: true }), true, JSON.stringify(off));
+        assert.equal(drillExportOn(dataExportOf(off, names), { drillDownExport: false }), false, JSON.stringify(off));
+    }
+    // exportData on: the drill-down follows it, every column or the host's
+    assert.equal(drillExportOn(dataExportOf(true, names)), true);
+    assert.equal(drillExportOn(dataExportOf({}, names)), true);
+    assert.equal(drillExportOn(dataExportOf({ columns: ["Region"] }, names)), true);
+    // no column left, or columns that are no list: off, drillDownExport does not widen it
+    assert.equal(drillExportOn(dataExportOf({ columns: [] }, names), { drillDownExport: true }), false);
+    assert.equal(drillExportOn(dataExportOf({ columns: ["Nope"] }, names), { drillDownExport: true }), false);
+    assert.equal(drillExportOn(dataExportOf({ columns: "Region" }, names), { drillDownExport: true }), false);
 });
 
 test("exportData against the data's columns: off, every column, or the host's columns; none left is off (#259)", () => {

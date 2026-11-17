@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_TEMPLATE, LIGHT_TOKENS, render } from "pivotkit-report";
 import { FIXED, SALES, echarts } from "./fixtures.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const BARS = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" }, display: "chart" };
 const BAR_CELLS = { rows: ["Region"], values: [{ field: "Units", agg: "sum", conditional: { type: "dataBar" } }] };
@@ -117,10 +118,10 @@ test("hostile markup and CSS are read in linear time: 200,000 characters of uncl
         // after </html>, where no ">" follows: an unclosed tag must not be searched again from each start
         const template = DEFAULT_TEMPLATE + tail;
         const unit = tail.slice(0, 12);
-        const start = performance.now();
+        const cpu = cpuClock();
         await render(BAR_CELLS, SALES, { format: "html", template, ...FIXED });
-        const ms = performance.now() - start;
-        assert.ok(ms < 1000, `${unit}: ${Math.round(ms)} ms`);
+        const ms = cpu();
+        assert.ok(ms < 1000, `${unit}: ${Math.round(ms)} ms of CPU`);
     }
 });
 

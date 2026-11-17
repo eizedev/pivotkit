@@ -296,7 +296,7 @@ On the first chart it loads `./echarts.js` next to it. That file imports two thi
 
 - `echarts/core`, `echarts/charts`, `echarts/components` and `echarts/renderers` by name, so a
   bundler keeps only the four chart types the report draws
-- `pivotkit-core/chart`: the chart's marks and label layout
+- `pivotkit-core/chart`: the ECharts option, the chart's marks and label layout
 
 Any bundler that understands ES modules resolves these imports. A page without a bundler maps each
 bare name to a file with an

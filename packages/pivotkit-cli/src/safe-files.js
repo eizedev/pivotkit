@@ -27,6 +27,7 @@
 import { constants } from "node:fs";
 import { link, lstat, open, realpath, rename, stat, unlink } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, isAbsolute, sep } from "node:path";
+import { limitText } from "pivotkit-core/internal";
 import { CliError, printable, shortName } from "./errors.js";
 
 const READ_FLAGS = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
@@ -129,7 +130,7 @@ export async function readSafe(path, { cwd, allow, maxBytes, limit = "fileBytes"
 }
 
 /** A file over its limit, named by its base name. */
-const tooLarge = (path, size, max, limit) => new CliError("limit", "LIMIT_EXCEEDED", `${shortName(path)}: ${size.toLocaleString("en-US")} bytes exceed the limit of ${max.toLocaleString("en-US")} (limits.${limit})`);
+const tooLarge = (path, size, max, limit) => new CliError("limit", "LIMIT_EXCEEDED", `${shortName(path)}: ${limitText(size, max, "bytes", `limits.${limit}`)}`);
 
 /**
  * Reads stdin up to `maxBytes` bytes.
