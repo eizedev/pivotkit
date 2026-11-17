@@ -49,8 +49,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const [box, setBox] = useState("");
     // n when the category axis writes every n-th label only: a note says so
     const [every, setEvery] = useState(1);
-    // the reference lines drawn, for the text alternative (pivotkit-core's referenceLines, loaded with the chart)
-    const [lines, setLines] = useState(/** @type {any[]} */ ([]));
+    // the reference lines drawn, in words for the text alternative (loaded with the chart)
+    const [linesText, setLinesText] = useState("");
     const summaryId = useId();
     const type = plan ? plan.name : chartTypeOf(result.view.chart);
     const drawAs = plan ? plan.chart : null;
@@ -198,7 +198,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         const values = (series?.series ?? []).map((x) => result.view.values[x.valueIndex]);
         // the reference lines as numbers: the tooltip names them at a category, the text alternative all
         const drawnLines = series ? lib.current.referenceLines(result, { series, words: labels.core.referenceLines, locale, ...(drawAs ? { chart: drawAs } : {}) }) : [];
-        setLines(drawnLines);
+        setLinesText(lib.current.linesSummary(drawnLines, series?.series.map((x) => x.name) ?? [], labels));
         const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values, lines: drawnLines };
         const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.color.parse });
         setEvery(axisEvery);
@@ -214,7 +214,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, drawAs]);
 
     const empty = result.view.values.length === 0;
-    const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale, lines }) : labels.noChartData;
+    const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale, linesText }) : labels.noChartData;
     return (
         <div className="pk-chart-wrap">
             <div className="pk-chart-box">

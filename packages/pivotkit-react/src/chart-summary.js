@@ -30,11 +30,10 @@ function counts(s, labels, locale) {
  * "Bars: Sum of Revenue by Region. 4 categories, 3 series. Highest 1,234 at North / A; lowest ...
  * Reference lines: Average 617; Target 1,000."
  * @param {ReturnType<typeof import("pivotkit-core").toSeries>} s
- * @param {{ type: string, rows: string[], valueNames: string[], labels: import("./labels.js").UiLabels, locale: string,
- *   lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> }} options
- *   lines: the chart's reference lines (pivotkit-core's referenceLines), named with their values
+ * @param {{ type: string, rows: string[], valueNames: string[], labels: import("./labels.js").UiLabels, locale: string, linesText?: string }} options
+ *   linesText: the sentence on the reference lines (chart-tooltip.js linesSummary, loaded with the chart)
  */
-export function chartSummary(s, { type, rows, valueNames, labels, locale, lines = [] }) {
+export function chartSummary(s, { type, rows, valueNames, labels, locale, linesText = "" }) {
     const parts = [
         fill(labels.chartSummary, { type: labels.chartTypes[type] ?? type, values: valueNames.join(", "), categories: rows.length ? rows.join(" / ") : labels.categories }),
         counts(s, labels, locale)
@@ -61,11 +60,8 @@ export function chartSummary(s, { type, rows, valueNames, labels, locale, lines 
         const text = (p) => formatter(s.series[p.si].format, { locale })(p.v);
         parts.push(fill(labels.chartExtremes, { max: text(max), maxAt: where(max), min: text(min), minAt: where(min) }));
     }
-    if (lines.length) {
-        // a series' line by its name and the series' (more than one series), as the tooltip names it
-        const named = (/** @type {(typeof lines)[number]} */ l) => (l.series !== null && s.series.length > 1 ? `${l.name} (${s.series[l.series].name})` : l.name);
-        const value = (/** @type {(typeof lines)[number]} */ l) => (l.kind === "trend" ? fill(labels.chartTrendSpan, { from: l.format(/** @type {number} */ (l.from)), to: l.format(/** @type {number} */ (l.to)) }) : l.format(/** @type {number} */ (l.value)));
-        parts.push(fill(labels.chartLines, { lines: lines.map((l) => `${named(l)} ${value(l)}`).join("; ") }));
+    if (linesText) {
+        parts.push(linesText);
     }
     parts.push(labels.chartTableHint);
     return parts.join(" ");

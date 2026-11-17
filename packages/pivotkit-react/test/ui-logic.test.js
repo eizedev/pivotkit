@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, toEChartsOption, toGrid, toSeries } from "pivotkit-core";
 import { decorate, screenColor } from "../src/chart-decorate.js";
 import { chartSummary } from "../src/chart-summary.js";
-import { tooltipContent, tooltipFormatter, tooltipReferences } from "../src/chart-tooltip.js";
+import { linesSummary, tooltipContent, tooltipFormatter, tooltipReferences } from "../src/chart-tooltip.js";
 import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "pivotkit-core/chart";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
@@ -787,11 +787,14 @@ test("the chart's text alternative names the reference lines with their values",
     const { referenceLines } = await import("pivotkit-core/chart");
     const r = linePivot({ type: "line", referenceLines: { average: true, trend: true, target: 35 } });
     const s = toSeries(r);
-    const text = chartSummary(s, { type: "line", rows: ["Month"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US", lines: referenceLines(r, { series: s }) });
+    const linesText = linesSummary(referenceLines(r, { series: s }), s.series.map((x) => x.name), en);
+    const text = chartSummary(s, { type: "line", rows: ["Month"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US", linesText });
     assert.match(text, /Reference lines: Average \(A\) 25; Average \(B\) 5; Trend \(A\) from 10 to 40; Trend \(B\) from 5\.6 to 4\.4; Target 35\. Switch to Table/);
     const de = linePivot({ type: "line", referenceLines: { average: true, trend: false, target: 35 } }, "de-DE");
-    const deText = chartSummary(toSeries(de), { type: "line", rows: ["Monat"], valueNames: ["Summe von Revenue"], labels: LABELS.de, locale: "de-DE", lines: referenceLines(de, { words: LABELS.de.core.referenceLines }) });
+    const deLines = linesSummary(referenceLines(de, { words: LABELS.de.core.referenceLines }), ["A", "B"], LABELS.de);
+    const deText = chartSummary(toSeries(de), { type: "line", rows: ["Monat"], valueNames: ["Summe von Revenue"], labels: LABELS.de, locale: "de-DE", linesText: deLines });
     assert.match(deText, /Bezugslinien: Durchschnitt \(A\) 25; Durchschnitt \(B\) 5; Ziel 35\./);
-    // no lines: the text stays as it was
+    // no lines: no sentence, the text stays as it was
+    assert.equal(linesSummary([], ["A"], en), "");
     assert.doesNotMatch(chartSummary(s, { type: "line", rows: ["Month"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US" }), /Reference/);
 });

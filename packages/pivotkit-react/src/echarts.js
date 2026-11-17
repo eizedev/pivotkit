@@ -23,3 +23,4 @@ export { color, init };
 export { referenceLines, toEChartsOption } from "pivotkit-core/chart";
 export { cleanChartOptions, mergeChartOptions } from "./chart-options.js";
 export { LENGTH_TOKENS, chartStyle, decorate, screenColor, tokenLengths } from "./chart-decorate.js";
+export { linesSummary } from "./chart-tooltip.js";

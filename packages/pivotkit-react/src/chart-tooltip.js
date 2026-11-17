@@ -48,6 +48,28 @@ export { valueAddsUp };
  */
 
 /**
+ * A reference line's name: a series' line with the series' name when there is more than one series
+ * ("Average (A)").
+ * @param {ReturnType<typeof import("pivotkit-core/chart").referenceLines>[number]} line
+ * @param {string[]} seriesNames
+ */
+const lineName = (line, seriesNames) => (line.series !== null && seriesNames.length > 1 ? `${line.name} (${seriesNames[line.series]})` : line.name);
+
+/**
+ * The reference lines in the chart's text alternative (chart-summary.js), named as the tooltip names
+ * them: "Reference lines: Average 25; Trend from 10 to 40; Target 35." Empty without lines.
+ * @param {ReturnType<typeof import("pivotkit-core/chart").referenceLines>} lines  pivotkit-core's referenceLines
+ * @param {string[]} seriesNames  the chart's series, by index
+ * @param {{ chartLines: string, chartTrendSpan: string }} labels
+ */
+export function linesSummary(lines, seriesNames, labels) {
+    // the placeholders filled as the tooltip's "+{count} more" (a function: a "$" in a currency is no
+    // pattern); labels.js's fill would split the first load's labels into a chunk of their own
+    const value = (/** @type {(typeof lines)[number]} */ l) => (l.kind === "trend" ? labels.chartTrendSpan.replace("{from}", () => l.format(/** @type {number} */ (l.from))).replace("{to}", () => l.format(/** @type {number} */ (l.to))) : l.format(/** @type {number} */ (l.value)));
+    return lines.length ? labels.chartLines.replace("{lines}", () => lines.map((l) => `${lineName(l, seriesNames)} ${value(l)}`).join("; ")) : "";
+}
+
+/**
  * The reference lines as the tooltip names them: a series' line by its name and the series' name
  * when there is more than one series ("Average (A)"); a trend's value at a category between its
  * first and last, an average's and a target's everywhere.
@@ -58,7 +80,7 @@ export { valueAddsUp };
  */
 export function tooltipReferences(lines, seriesNames, color) {
     return lines.map((line) => ({
-        name: line.series !== null && seriesNames.length > 1 ? `${line.name} (${seriesNames[line.series]})` : line.name,
+        name: lineName(line, seriesNames),
         series: line.series,
         color: line.series === null ? color : null,
         value: (i) => {

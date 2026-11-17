@@ -10,7 +10,6 @@
 import { AGGREGATORS } from "./aggregators.js";
 import { autoChartType } from "./chart-series.js";
 import { pxOf } from "./defaults.js";
-import { TIMELINE_UNITS } from "./derive.js";
 import { SHOW_AS } from "./show-as.js";
 
 /**
@@ -49,18 +48,15 @@ export function valueAddsUp(value) {
 
 /**
  * Whether a view's categories are points in time in their own order: every row field a date or a
- * grouping of one along the time line, none sorted by a value or by hand.
+ * grouping of one along the time line (what makes autoChartType draw lines), none sorted by a value
+ * or by hand.
  * @param {{ rows: string[], derived: any[], sort: any[] }} view  a normalized view
  * @param {import("./encode.js").Encoded} encoded
  */
 function timeLine(view, encoded) {
     const key = (name) => String(name).toLowerCase();
-    const isTime = (name) => {
-        const d = view.derived.find((x) => key(x.name) === key(name));
-        return d ? TIMELINE_UNITS.includes(d.by) && encoded.column(d.field)?.type === "date" : encoded.column(name)?.type === "date";
-    };
     const ordered = (name) => !view.sort.some((s) => key(s.field) === key(name) && s.by !== "label");
-    return view.rows.length > 0 && view.rows.every((name) => isTime(name) && ordered(name));
+    return view.rows.length > 0 && view.rows.every((name) => autoChartType(/** @type {any} */ ({ ...view, rows: [name] }), encoded) === "line" && ordered(name));
 }
 
 /**

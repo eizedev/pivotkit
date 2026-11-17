@@ -27,6 +27,7 @@ export const de = {
         groupLabels: "Gruppenbeschriftung",
         labelPosition: "Beschriftungsposition",
         tooltip: "Tooltip",
+        target: "Ziellinie",
         other: "Einstellung"
     },
     dropped: {
