@@ -5,6 +5,9 @@ description: Which browsers, React versions and Node versions pivotkit supports 
 
 # Browser support
 
+[What works with pivotkit](compatibility.md) has the other areas: hosts, sign-in providers, MCP
+clients, data sources and platforms.
+
 ## Browsers
 
 The packages target **ES2022** and these browsers or newer:
