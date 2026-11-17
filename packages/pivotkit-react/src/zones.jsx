@@ -264,7 +264,8 @@ function SectionHead({ entries, labels, id, open, onFold, onSwap, canSwap, butto
                         : parts.length
                           ? parts.map((p, i) => (
                                 <React.Fragment key={p.zone}>
-                                    {i ? <span aria-hidden="true"> · </span> : null}
+                                    {/* read too: the description is the line as it shows */}
+                                    {i ? " · " : null}
                                     <span className="pk-zones-summary-zone">{p.title}:</span> {p.fields}
                                 </React.Fragment>
                             ))

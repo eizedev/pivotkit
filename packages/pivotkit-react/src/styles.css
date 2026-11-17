@@ -857,7 +857,7 @@
 .pk-zone-section {
     display: flex;
     flex-direction: column;
-    gap: var(--pk-section-space);
+    gap: 6px;
     padding-block: var(--pk-section-space);
     border-block: 1px solid var(--pk-section-rule);
 }
@@ -883,6 +883,7 @@
     background: none;
     color: var(--pk-text);
     font: inherit;
+    line-height: 1.3;
     text-align: start;
     cursor: pointer;
 }
@@ -2460,7 +2461,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.45em;
-    min-height: max(var(--pk-target), 2.6em);
+    min-height: max(var(--pk-target), 2.35em);
     padding: 0 1.1em;
     border: 1px solid transparent;
     border-bottom: 0;
