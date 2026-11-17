@@ -200,28 +200,49 @@ test("a narrow report: Start over and Views below Help in More; the settings say
     await expect(page.locator(".pk-popover").getByTestId("save-as")).toBeVisible();
 });
 
-test("the section: the fold button names the section and says what is placed; Swap works folded; the keys go fold, Swap, the zones", async ({ page, browserName }) => {
+test("the section: one row; the fold button names the section and, folded, says what is placed; its i holds the hint; Swap works folded; the keys go fold, i, Swap, the zones", async ({ page, browserName }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("?data=sales&lang=en");
     await page.locator('[data-testid="pivot-table"]').waitFor();
     const fold = page.getByTestId("layout-summary");
+    const sub = page.getByTestId("zones-sub");
     await expect(fold).toHaveAccessibleName("Fields in the report");
     await expect(fold).toHaveAttribute("aria-expanded", "true");
-    await expect(fold).toHaveAccessibleDescription("Drag fields into Filters, Columns, Rows and Values.");
+    // open: no summary and no hint line
+    await expect(sub).toHaveCount(0);
+    await expect(page.locator(".pk-zone-section").getByText("Drag fields into Filters, Columns, Rows and Values.")).toBeHidden();
+    // the hint is in the section's "i", the zones' own button
+    const info = page.getByTestId("zones-info");
+    await expect(info).toHaveAccessibleName("About Fields in the report");
+    await info.hover();
+    await expect(page.locator(".pk-info-pop")).toContainText("Drag fields into Filters, Columns, Rows and Values.");
     await fold.click();
     await expect(fold).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator(".pk-zone")).toHaveCount(0);
-    await expect(fold).toHaveAccessibleDescription("Rows: Region, Country · Columns: Category · Values: Sum of Revenue");
+    const summary = "Rows: Region, Country · Columns: Category · Values: Sum of Revenue";
+    await expect(fold).toHaveAccessibleDescription(summary);
+    await expect(fold).toHaveAttribute("title", summary);
+    await expect(sub).toHaveText(summary);
     expect(await fold.evaluate((el) => getComputedStyle(el).cursor)).toBe("pointer");
-    // Swap is beside the fold button, not in it, and works folded
-    expect(await fold.locator('[data-testid="swap"]').count()).toBe(0);
+    // one row: chevron, heading, i, the summary and Swap share a line
+    const row = await page.locator(".pk-section-row").evaluate((el) => {
+        const mid = (q) => { const r = el.querySelector(q).getBoundingClientRect(); return Math.round(r.top + r.height / 2); };
+        return [mid(".pk-section-heading"), mid('[data-testid="zones-info"]'), mid('[data-testid="zones-sub"]'), mid('[data-testid="swap"]')];
+    });
+    expect(Math.max(...row) - Math.min(...row)).toBeLessThanOrEqual(2);
+    // a click on the summary folds and opens too
+    await sub.click();
+    await expect(fold).toHaveAttribute("aria-expanded", "true");
+    await fold.click();
+    // Swap and the i are beside the fold button, not in it; Swap works folded
+    expect(await fold.locator('[data-testid="swap"], [data-testid="zones-info"]').count()).toBe(0);
     // by keyboard (WebKit does not focus a button on a click): the focus stays on Swap
     const swap = page.getByTestId("swap");
     await swap.focus();
     await page.keyboard.press("Enter");
     await expect(fold).toHaveAccessibleDescription("Rows: Category · Columns: Region, Country · Values: Sum of Revenue");
     await expect(swap).toBeFocused();
-    // the keys: Enter opens it, the focus stays; Tab goes to Swap, then the first zone's "i"
+    // the keys: Enter opens it, the focus stays; Tab goes to the i, Swap, then the first zone's "i"
     await fold.focus();
     await page.keyboard.press("Enter");
     await expect(fold).toHaveAttribute("aria-expanded", "true");
@@ -229,10 +250,10 @@ test("the section: the fold button names the section and says what is placed; Sw
     await expect(page.locator(".pk-zone")).toHaveCount(4);
     // Safari's Tab skips buttons unless the user turns that on
     if (browserName !== "webkit") {
-        await page.keyboard.press("Tab");
-        expect(await focused(page)).toBe("swap");
-        await page.keyboard.press("Tab");
-        expect(await focused(page)).toBe("zone-info-filters");
+        for (const id of ["zones-info", "swap", "zone-info-filters"]) {
+            await page.keyboard.press("Tab");
+            expect(await focused(page)).toBe(id);
+        }
     }
     // the open zones sit indented in a tinted panel, below the heading's text
     const box = await page.locator(".pk-zones").evaluate((el) => {
@@ -244,16 +265,21 @@ test("the section: the fold button names the section and says what is placed; Sw
     expect(box.tint).not.toBe("rgba(0, 0, 0, 0)");
 });
 
-test("a narrow report: the folded summary may take two lines, Swap stays at the row's end", async ({ page }) => {
+test("a narrow report: the same single row, the summary cut with “…”, Swap an icon at its end", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("?data=sales&lang=en");
     await page.locator('[data-testid="pivot-table"]').waitFor();
     const fold = page.getByTestId("layout-summary");
     await expect(fold).toHaveAttribute("aria-expanded", "false");
-    const lines = await page.getByTestId("zones-sub").evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight || "20")));
-    expect(lines).toBe(2);
-    const [f, s] = await Promise.all([fold.boundingBox(), page.getByTestId("swap").boundingBox()]);
+    const sub = await page.getByTestId("zones-sub").evaluate((el) => ({ lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)), cut: el.scrollWidth > el.clientWidth, overflow: getComputedStyle(el).textOverflow }));
+    expect(sub).toEqual({ lines: 1, cut: true, overflow: "ellipsis" });
+    // the whole summary stays the button's description and title
+    await expect(fold).toHaveAttribute("title", "Rows: Region, Country · Columns: Category · Values: Sum of Revenue");
+    const [f, s, row] = await Promise.all([fold.boundingBox(), page.getByTestId("swap").boundingBox(), page.locator(".pk-section-row").boundingBox()]);
     expect(s.x).toBeGreaterThan(f.x + f.width - 1);
+    expect(s.x + s.width).toBeLessThanOrEqual(row.x + row.width + 0.5);
+    // one row high
+    expect(row.height).toBeLessThanOrEqual(36);
 });
 
 test("the host's zones start state: folded or open over the report's height; the user's click wins until the start state changes", async ({ page }) => {
@@ -335,7 +361,8 @@ test("Chart settings at 1440 x 900: Layout is reached by End and shows in the wi
     await page.keyboard.press("End");
     const layout = menu.getByTestId("topic-layout");
     await expect(layout).toBeFocused();
-    await expect(layout).toBeInViewport({ ratio: 1 });
+    // whole but for a fraction of a pixel at the edge of the menu's scrolling list
+    await expect(layout).toBeInViewport({ ratio: 0.95 });
     // its row says how the groups show
     await expect(layout).toContainText("Each Country");
     await page.keyboard.press("Enter");

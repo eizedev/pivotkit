@@ -53,8 +53,8 @@ async function mount(page, chart, { theme = "light", view = {}, rows = ROWS, cel
             // onCellClick's calls, as row, column and count
             const onCellClick = cellClicks ? ({ row, col, count }) => window.__cellClicks.push({ row, col, count }) : undefined;
             // the chart's height the measures below were taken at, the zones folded: their heading
-            // takes 36 px more than before, on a phone 56 (its summary in two lines)
-            const height = window.innerWidth < 640 ? 616 : 596;
+            // and the tabs take 13 px more than before, on a phone 12
+            const height = window.innerWidth < 640 ? 572 : 573;
             window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height, defaultView: view, onCellClick, onViewChange: (v) => window.__tooltipViews.push(v) }));
         },
         { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }

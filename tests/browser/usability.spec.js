@@ -217,12 +217,13 @@ test("a half-width report (650 px) stacks its zones; nothing in them is cut, in 
             })
         );
         expect(cut, lang).toEqual([]);
-        // Swap in the heading row: whole, with its text
+        // Swap in the heading row: whole; its text whole, or left to its name where the row has no room
         const swapCut = await page.getByTestId("swap").evaluate((el) => {
             const row = el.closest(".pk-section-row").getBoundingClientRect();
             const r = el.getBoundingClientRect();
             const text = el.querySelector(".pk-btn-text");
-            return r.right > row.right + 0.5 || text.scrollWidth > text.clientWidth + 1;
+            const iconOnly = text.getBoundingClientRect().width <= 1;
+            return r.right > row.right + 0.5 || (!iconOnly && text.scrollWidth > text.clientWidth + 1);
         });
         expect(swapCut, lang).toBe(false);
         await expect(page.getByTestId("swap")).toHaveAccessibleName(lang === "de" ? "Zeilen und Spalten tauschen" : "Swap rows and columns");
@@ -250,7 +251,7 @@ test("a low report (520 px) folds its zones under their heading; the heading row
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("?data=tickets&height=520");
     const line = page.getByTestId("layout-summary");
-    await expect(line).toHaveText(/Rows: Team · Columns: Priority · Values: Count of Ticket/);
+    await expect(page.getByTestId("zones-sub")).toHaveText(/Rows: Team · Columns: Priority · Values: Count of Ticket/);
     await expect(line).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator(".pk-zone")).toHaveCount(0);
     // more of the table in view than with the zones open (compared below)
@@ -272,7 +273,7 @@ test("a low report (520 px) folds its zones under their heading; the heading row
     await page.mouse.move(to.x + to.width / 2 + 1, to.y + to.height / 2 + 1, { steps: 2 });
     await page.mouse.up();
     await page.waitForTimeout(100);
-    await expect(line).toHaveText(/Filters: Channel/);
+    await expect(page.getByTestId("zones-sub")).toHaveText(/Filters: Channel/);
     // the heading row opens them; it stays, so the focus stays on it (from the keyboard: WebKit does
     // not focus a button on a click)
     await line.focus();
@@ -337,8 +338,8 @@ test("a tall report starts with its zones open", async ({ page }) => {
 
 test("a pie in a low report is drawn inside its box, labels included", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    // low: the open zones and their heading leave the pie a small box (90 px more for the heading)
-    await page.goto("?data=tickets&height=570");
+    // low: the open zones and their heading leave the pie a small box (62 px more for the heading and the tabs)
+    await page.goto("?data=tickets&height=542");
     await page.getByTestId("layout-summary").click();
     await page.getByTestId("show-chart").click();
     await toolbar(page, "chart-settings");

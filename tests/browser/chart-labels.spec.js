@@ -184,8 +184,8 @@ function expectReadable(d, label, whole = (t) => !t.rotated) {
 
 /** The phone's report is lower: its chart about 330 x 220 px, as in a 390 px window. */
 // the report's height for a chart of 279 px at 390 px and 286 px at 1440 px: the sizes these labels
-// are measured at (the zones' section with its heading and the tabs take 36 px more folded, 90 open)
-const HEIGHT = { 390: 556, 1440: 732 };
+// are measured at (the zones' section and the tabs take 12 or 13 px more folded, 62 open)
+const HEIGHT = { 390: 532, 1440: 702 };
 
 for (const theme of ["light", "dark"]) {
     for (const width of [390, 1440]) {
@@ -299,8 +299,8 @@ for (const theme of ["light", "dark"]) {
             test("#231 a heatmap names every row where a line fits it, else every n-th, never overlapping", async ({ page }, testInfo) => {
                 const view = { rows: ["City"], cols: ["Month"], values: [{ field: "Temperature", agg: "average", format: "number:0" }], display: "chart", chart: { type: "heatmap" } };
                 const data = WEATHER.map((r) => ({ ...r, Month: `${String(MONTHS.indexOf(r.Month) + 1).padStart(2, "0")} ${r.Month}` }));
-                // the zones folded at these heights: 36 px more than before for their heading and the tabs
-                for (const [name, height] of [["fits", width === 390 ? 676 : 596], ["low", 476]]) {
+                // the zones folded at these heights: 12 or 13 px more than before for their heading and the tabs
+                for (const [name, height] of [["fits", width === 390 ? 652 : 573], ["low", width === 390 ? 452 : 453]]) {
                     const locator = await mount(page, { width, theme, data, view, height });
                     const d = await drawn(locator);
                     await locator.screenshot({ path: testInfo.outputPath(`231-${name}-${theme}-${width}.png`) });

@@ -34,9 +34,10 @@ async function mount(page, chart, { theme = "light", view = {}, cellClicks = fal
             window.__cellClicks = [];
             window.__linesViews = [];
             const onCellClick = cellClicks ? ({ row, col }) => window.__cellClicks.push({ row, col }) : undefined;
-            // 596 px: a chart of 319 px on a phone and 351 px on a desktop, the zones folded, as the
-            // measures below were taken at
-            window.__linesRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 596, defaultView: view, onCellClick, onViewChange: (v) => window.__linesViews.push(v) }));
+            // a chart of 319 px on a phone and 351 px on a desktop, the zones folded, as the measures
+            // below were taken at
+            const height = window.innerWidth < 640 ? 572 : 573;
+            window.__linesRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height, defaultView: view, onCellClick, onViewChange: (v) => window.__linesViews.push(v) }));
         },
         { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
     );
