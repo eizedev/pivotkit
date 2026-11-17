@@ -240,12 +240,23 @@ export function createLoadRunner(parts = {}) {
     const tooLargeAt = new Map();
     /** @type {Set<(event: LoadEvent) => void>} the tests' listeners (LOAD_HOOKS) */
     const listeners = new Set();
-    /** @param {LoadEvent} event */
+    /**
+     * Tells the listeners. A listener that throws breaks no load: its error is thrown again on a
+     * microtask, where it comes up as an uncaught exception and fails the test.
+     * @param {LoadEvent} event
+     */
     const emit = (event) => {
         for (const listener of listeners) {
-            listener(event);
+            try {
+                listener(event);
+            } catch (e) {
+                queueMicrotask(() => {
+                    throw e;
+                });
+            }
         }
     };
+
 
     const refuse = (key) => {
         cache.delete(key);

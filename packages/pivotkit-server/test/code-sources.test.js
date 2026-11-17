@@ -5,6 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
 import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, serverTextOf, validateOptions } from "pivotkit-server";
@@ -95,7 +96,12 @@ function watchLoads(runner = loadRunner) {
     return { events, count, until, stop };
 }
 
-/** One turn of the event loop: Node reports an unhandled rejection before it ends. */
+/**
+ * One turn of the event loop. Node reports a promise rejected without a handler once the microtasks
+ * after a callback are done (processTicksAndRejections), before the event loop moves on to
+ * setImmediate. The promises these tests watch are made before the test awaits, so after this turn
+ * any unhandled one has been reported.
+ */
 const turn = () => new Promise((resolve) => setImmediate(resolve));
 
 test("SourceError: one of four codes; transient from a backend's status; the defaults defined once", () => {
@@ -801,6 +807,27 @@ function unitHow(extra = {}) {
     const log = { warn: (m) => add(["warn", m]), error: (e) => add(["error", String(e?.message ?? e)]), debug: (m) => add(["debug", m]) };
     return { lines, until, how: { prepare: (raw) => raw, source: "s", label: "s", bucket: "b", owner: "o", timeMs: 1000, ttl: 0, maxStale: 3600, version: null, sizeOf: () => 1, log, ...extra } };
 }
+
+test("a LOAD_HOOKS listener that throws breaks no load: its error comes up as an uncaught exception, so a test fails", () => {
+    // in a process of its own: the error must reach the process, which here only records it
+    const script = `
+        import { LOAD_HOOKS, createLoadRunner } from ${JSON.stringify(new URL("../src/sources/run.js", import.meta.url).href)};
+        const uncaught = [];
+        process.on("uncaughtException", (e) => uncaught.push(e.message));
+        const runner = createLoadRunner();
+        runner[LOAD_HOOKS](() => { throw new Error("listener broke"); });
+        const log = { warn() {}, error() {}, debug() {} };
+        const how = { prepare: (raw) => raw, source: "s", label: "s", bucket: "b", owner: "o", timeMs: 1000, ttl: 60, maxStale: 0, version: null, sizeOf: () => 1, log };
+        const first = await runner.runLoad("k", async () => "loaded", how);
+        const again = await runner.runLoad("k", async () => "loaded again", how);
+        await new Promise((resolve) => setImmediate(resolve));
+        console.log(JSON.stringify({ values: [first.value, again.value], running: runner.running("s"), uncaught: [...new Set(uncaught)] }));
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8", timeout: UNTIL_MS });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.trim(), "the loads ended and the script printed them, not a load the listener broke");
+    assert.deepEqual(JSON.parse(result.stdout), { values: ["loaded", "loaded"], running: 0, uncaught: ["listener broke"] }, "the load ran and was kept; the listener's error came up");
+});
 
 test("a version() whose promise rejects answers SOURCE_UNAVAILABLE and leaves no unhandled rejection", async () => {
     const context = await contextOf({ sources: { t: { load: async () => ROWS, version: () => Promise.reject(new Error("db at 10.1.2.3")) } } });
