@@ -144,7 +144,7 @@ test("pivotkit --url without a token: render's refusal names the server's policy
         assert.equal(refused.code, 2);
         const { error } = JSON.parse(refused.stdout);
         assert.deepEqual([error.code, error.status], ["NOT_ALLOWED", 403]);
-        assert.equal(error.message, "the server answered 403 NOT_ALLOWED: this server gives no files; the operator allows them with results: true in the policy or a source's policy. validate, describe and sources still work.");
+        assert.equal(error.message, "the server answered 403 NOT_ALLOWED: this server gives no files for this source; the operator allows them with results: true in the server's or the source's policy. validate, describe and sources still work.");
     } finally {
         await server.close();
     }

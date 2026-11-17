@@ -126,7 +126,9 @@ test("results: true as the server's policy lets every caller download; a source 
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" }, secret: { file: "data/sales.csv", policy: { results: false } } }, policy: { results: true }, baseDir: dir });
     try {
         assert.equal((await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "json" } })).status, 200);
-        assert.equal((await call(`${server.api}/views/render/file`, { body: { source: "secret", view: BY_REGION, format: "json" } })).status, 403);
+        const off = await call(`${server.api}/views/render/file`, { body: { source: "secret", view: BY_REGION, format: "json" } });
+        assert.equal(off.status, 403);
+        assert.equal(off.data.detail, "this server gives no files for this source; the operator allows them with results: true in the server's or the source's policy");
     } finally {
         await server.close();
     }
@@ -139,7 +141,7 @@ test("the file route's 403 speaks of a token only to a caller that sent one: wit
         const refused = await call(`${open.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
         assert.equal(refused.status, 403);
         assert.equal(refused.data.code, "NOT_ALLOWED");
-        assert.equal(refused.data.detail, "this server gives no files; the operator allows them with results: true in the policy or a source's policy");
+        assert.equal(refused.data.detail, "this server gives no files for this source; the operator allows them with results: true in the server's or the source's policy");
     } finally {
         await open.close();
     }

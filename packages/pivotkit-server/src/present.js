@@ -567,7 +567,7 @@ export async function renderFile(context, input, caller, how = {}) {
     if (!resolved.policy.results) {
         // a caller of a server without sign-in sent no token: the remedy is the operator's policy
         const local = identityBasisOf(caller)?.[0] === "local";
-        throw new OperationError("NOT_ALLOWED", local ? "this server gives no files; the operator allows them with results: true in the policy or a source's policy" : "your token may not download files; ask the operator for a token whose profile has results: true");
+        throw new OperationError("NOT_ALLOWED", local ? "this server gives no files for this source; the operator allows them with results: true in the server's or the source's policy" : "your token may not download files; ask the operator for a token whose profile has results: true");
     }
     const format = input.format ?? "xlsx";
     const ran = await compute(context, "render_view", renderInput(input, format), resolved, caller, how.signal);
