@@ -14,7 +14,6 @@ const ROWS = [10, 20, 30, 40].flatMap((a, i) => [
 ]);
 const VIEW = { derived: [{ name: "Month", field: "Date", by: "yearMonth" }], rows: ["Month"], cols: ["Product"], values: [{ field: "Revenue", agg: "sum" }], display: "chart" };
 const A = 0;
-const B = 1;
 const MARCH = 2;
 
 /** Mounts a report of ROWS at the top of the host page with `chart` over VIEW's; mount again to change it. */
