@@ -59,9 +59,6 @@ function timeLine(view, encoded) {
     return view.rows.length > 0 && view.rows.every((name) => autoChartType(/** @type {any} */ ({ ...view, rows: [name] }), encoded) === "line" && ordered(name));
 }
 
-/** Aggregators that count rows or items: their unit is a count, not the field's. */
-const COUNTS = Object.freeze(["count", "countUnique"]);
-
 /**
  * Which reference lines (chart.referenceLines) a chart can draw for a view, by the view alone: the one
  * rule for the chart, its menu and its file. pivotkit-core/chart's referenceLineChecks adds what
