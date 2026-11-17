@@ -157,8 +157,8 @@ The page holds:
 - **The chart** above the table when the view shows the chart (`chart: "auto"`), kept whole on a
   page.
 - **The details**: the source, the data's rows, the filters in words and the time the report was
-  generated. When the filters leave rows out, the rows say how many they keep ("6 of 8 rows"), as
-  the row count under the result does. Where the policy withholds the row count (`rows: false`), the
+  generated. When the filters leave rows out, the rows say how many they keep ("6 of 8"), as the
+  row count under the result does. Where the policy withholds the row count (`rows: false`), the
   details leave it out.
 
 **On screen**, the page is light or dark after the reader's system. A template's root can pin light
@@ -257,7 +257,8 @@ A request with both a `view` and a `layout`, or neither, is `INVALID_INPUT`.
 - `data(source)`: encoded data, or only `{ name, type }` fields for validate and describe
 - `sources()`, `link(source)`, `template(source)`
 - `echarts`, `limits`, `locale`, `timeZone`, `now`
-- `renderOptions`: a front end's own render options
+- `renderOptions`: a front end's own render options. Pass `rowCount: false` where your policy
+  withholds the row count.
 
 A view with errors is no error: the result has `ok` or `valid` false, with `findings`. A front end
 must handle `OperationError`. It has a `code` of `OPERATION_ERRORS` and its HTTP `status`. Some codes

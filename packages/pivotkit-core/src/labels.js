@@ -198,21 +198,25 @@ export const PLURAL_CATEGORIES = Object.freeze(["zero", "one", "two", "few", "ma
 
 /**
  * The form of a count's words for `count` in `lang` (Intl.PluralRules): `forms[category]`, else
- * `forms.other`, else "". A language tag Intl does not take gets `other`.
- * @param {Readonly<Partial<Record<string, string>>>} forms  e.g. { one: "{count} row", other: "{count} rows" }
+ * `forms.other`, else "". A language Intl has no rules for counts as English, never as the
+ * runtime's language; a tag Intl does not take gets `other`. No forms give "".
+ * @param {Readonly<Partial<Record<string, string>>> | null | undefined} forms  e.g. { one: "{count} row", other: "{count} rows" }
  * @param {number} count
  * @param {string} lang
  * @returns {string}
  */
 export function pluralForm(forms, count, lang) {
+    if (forms === null || typeof forms !== "object") {
+        return "";
+    }
     let category = "other";
     try {
-        category = new Intl.PluralRules(lang).select(count);
+        category = new Intl.PluralRules(Intl.PluralRules.supportedLocalesOf(lang)[0] ?? "en").select(count);
     } catch {
         // the "other" form
     }
     const form = typeof forms[category] === "string" ? forms[category] : forms.other;
-    return form ?? "";
+    return typeof form === "string" ? form : "";
 }
 
 /**

@@ -3,7 +3,7 @@
 // whatever the view uses, with headers that keep a browser from running the file.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { resolvePolicy, levelOf } from "pivotkit-server/policy";
 import { profileOf } from "pivotkit-server";
@@ -197,6 +197,31 @@ test("rows: false keeps the row count out of the HTML report too: its details an
         // where the policy shows it, the same template says it
         assert.match(await html("open", NORTH), /<p class="count">\[2 of 5 rows\]<\/p>/);
         assert.match(await html("open", BY_REGION), /<p class="count">\[5 rows\]<\/p>/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("rows: false of the server's policy keeps the row count out of a saved HTML report (/views/render) and a downloaded one", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, policy: { default: "show", rows: false, results: true }, output: { dir: "out" }, baseDir: dir });
+    const NORTH = { ...BY_REGION, filters: [{ field: "Region", type: "in", items: ["North"] }] };
+    try {
+        for (const view of [BY_REGION, NORTH]) {
+            const saved = await call(`${server.api}/views/render`, { body: { source: "sales", view, format: "html" } });
+            assert.equal(saved.status, 200, JSON.stringify(saved.data));
+            assert.equal(saved.data.summary.sourceRows, undefined);
+            const name = saved.data.output?.name;
+            assert.ok(name, JSON.stringify(saved.data));
+            const file = readdirSync(join(dir, "out"), { recursive: true }).map(String).find((f) => f.endsWith(name));
+            assert.ok(file, `the saved report ${name} is in the output directory`);
+            const report = readFileSync(join(dir, "out", file), "utf8");
+            assert.match(report, /<dl class="pk-report-details">/);
+            assert.doesNotMatch(report, /<dt>Rows<\/dt>|\b5 rows\b|of 5\b/, "no row count in the saved report");
+            const downloaded = await call(`${server.api}/views/render/file`, { body: { source: "sales", view, format: "html" } });
+            assert.equal(downloaded.status, 200);
+            assert.doesNotMatch(new TextDecoder().decode(downloaded.data), /<dt>Rows<\/dt>|\b5 rows\b|of 5\b/, "no row count in the downloaded report");
+        }
     } finally {
         await server.close();
     }

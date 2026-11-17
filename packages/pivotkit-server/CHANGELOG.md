@@ -64,7 +64,6 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
-- The HTML report leaves out the row count where the policy withholds it (`rows: false`).
 - Behaviour change: on a busy host, a parameter pattern's time limit no longer refuses fast, valid
   values and patterns.
     - Every match runs under 75 ms instead of 25 ms, in a request as at start, so the start never
@@ -89,6 +88,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   reach the workers, such as `--require` and `--conditions`. Only the V8 and process-wide flags
   that Node refuses in a worker stay out, such as `--max-old-space-size`
   ([#542](https://github.com/eizedev/pivotkit/issues/542)).
+
+### Security
+
+- The HTML report leaves out the row count where the policy withholds it (`rows: false`). To show
+  the count again, the policy sets `rows: true` ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 ## [0.2.0] - 2026-11-16
 

@@ -99,10 +99,10 @@ test("a filter that leaves rows out: {{rows}} and the details say \"x of y rows\
     const en = await render(filtered, SALES, { format: "html", template, ...FIXED });
     assert.deepEqual([en.summary?.keptRows, en.summary?.sourceRows], [6, 8]);
     assert.ok(en.text.startsWith("<p>6 of 8 rows</p>"), en.text);
-    assert.match(en.text, /<dt>Rows<\/dt><dd>6 of 8 rows<\/dd>/);
+    assert.match(en.text, /<dt>Rows<\/dt><dd>6 of 8<\/dd>/);
     const de = await render(filtered, SALES, { format: "html", template, ...FIXED, locale: "de-DE" });
     assert.ok(de.text.startsWith("<p>6 von 8 Zeilen</p>"), de.text);
-    assert.match(de.text, /<dt>Zeilen<\/dt><dd>6 von 8 Zeilen<\/dd>/);
+    assert.match(de.text, /<dt>Zeilen<\/dt><dd>6 von 8<\/dd>/);
     // a host's own words, with the counts in the locale's digits
     const many = Array.from({ length: 1200 }, (_, i) => ({ ...SALES[i % SALES.length] }));
     const own = await render(filtered, many, { format: "html", template, ...FIXED, texts: { rowsFiltered: "{shown}/{count} records" } });

@@ -271,7 +271,8 @@ export async function render(view, data, options = {}) {
         const counted = options.rowCount !== false;
         const filtered = summary.keptRows < summary.sourceRows;
         const total = number.format(summary.sourceRows);
-        const rowsText = !counted ? "" : filtered ? countText(texts.rowsFiltered, summary.sourceRows, texts.countLang.rowsFiltered, { shown: number.format(summary.keptRows), count: total }) : countText(texts.rowsCount, summary.sourceRows, texts.countLang.rowsCount, { count: total });
+        const kept = { shown: number.format(summary.keptRows), count: total };
+        const rowsText = !counted ? "" : filtered ? countText(texts.rowsFiltered, summary.sourceRows, texts.countLang.rowsFiltered, kept) : countText(texts.rowsCount, summary.sourceRows, texts.countLang.rowsCount, { count: total });
         const values = {
             title,
             description: options.description ?? read.description ?? "",
@@ -289,7 +290,7 @@ export async function render(view, data, options = {}) {
             style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), darkTokens: cleanTokens(options.darkTokens ?? {}), chartSurface: theme["--pk-surface"], chartMuted: theme["--pk-muted"], extra: table.css })}</style>`,
             chart: chartHtml,
             table: table.html + tableNote,
-            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.dataAsOf, values.dataAsOf)}${counted ? detail(texts.rows, filtered ? rowsText : total) : ""}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
+            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.dataAsOf, values.dataAsOf)}${counted ? detail(texts.rows, filtered ? fill(texts.rowsKept, kept) : total) : ""}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
         };
         body = new TextEncoder().encode(fillTemplate(/** @type {any} */ (template), { ...values, ...markup }));
     }

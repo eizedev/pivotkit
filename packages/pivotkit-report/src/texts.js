@@ -20,6 +20,8 @@ export const REPORT_TEXTS = Object.freeze({
         rows: "Rows",
         rowsCount: ROW_COUNT_TEXTS.en.rowsCount,
         rowsFiltered: ROW_COUNT_TEXTS.en.rowsFiltered,
+        // the details' rows under their label when filters leave rows out: no "rows" after "Rows"
+        rowsKept: "{shown} of {count}",
         generated: "Generated",
         dataAsOf: "Data as of",
         filters: "Filters",
@@ -35,6 +37,7 @@ export const REPORT_TEXTS = Object.freeze({
         rows: "Zeilen",
         rowsCount: ROW_COUNT_TEXTS.de.rowsCount,
         rowsFiltered: ROW_COUNT_TEXTS.de.rowsFiltered,
+        rowsKept: "{shown} von {count}",
         generated: "Erstellt",
         dataAsOf: "Datenstand",
         filters: "Filter",

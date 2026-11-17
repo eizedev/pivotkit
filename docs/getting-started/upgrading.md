@@ -260,8 +260,9 @@ menu. People can no longer copy the rows or download them as CSV or Excel from t
 When a filter leaves rows out, the line under the result says "2,190 of 4,386 rows" instead of
 "2,190 rows". Its text is the new label `rowsFiltered`.
 
-The HTML report says it too, in `{{rows}}` and in the details, instead of "4,386 rows". The report's
-`texts` have `rowsFiltered` for it.
+The HTML report says it too: `{{rows}}` says "2,190 of 4,386 rows" instead of "4,386 rows", and
+the details' rows say "2,190 of 4,386". The report's `texts` have `rowsFiltered` and `rowsKept` for
+them.
 
 - English and German have it.
 - A host whose `labels` set `rowsCount` sets `rowsFiltered` too. Otherwise the line uses the
