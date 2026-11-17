@@ -54,14 +54,14 @@ All four give the same result. Details:
     - is titled for its zone, for example **Add to Rows**
     - finds a field as the field list's search does
     - marks a field that is placed already with its zone, for example "Columns". Picking it moves the
-      field, and a screen reader hears "Category moved from Columns to Rows".
+      field, and a screen reader hears "Category moved from Columns to Rows". A field in Values
+      stays there as well.
     - shows a field that is in this zone already as unavailable, with its reason ("Already in Rows").
       A date counts as the grouping it would get.
     - in Values, adds a field that is there already as a second value
     - in Filters, opens the field's filter first. **Apply** places it, **Cancel** and **Back** return
       to the list.
-
-    After a pick the focus is on the new chip, so its menu is one Enter away.
+    - puts the focus on the new chip after a pick, so its menu is one Enter away
 - An empty report shows three first steps and up to three saved views to start from.
 - The report groups a date as soon as you place it, by the span of its values:
     - up to 62 days: by day
