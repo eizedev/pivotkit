@@ -103,7 +103,8 @@ The report adapts to its own width, not the window's.
     ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-light.png#only-light)
     ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-dark.png#only-dark)
 
-- **The table**: row labels wrap between words. A table wider than the phone scrolls sideways.
+- **The table**: row labels wrap between words when the table is wider than the phone. A table
+  that is still too wide scrolls sideways.
 
 ### A low report
 
