@@ -120,6 +120,9 @@ field already in Filters, **Add to Filters** opens its filter there. In Filters,
 it to Rows or Columns later, the field keeps its filter. Its chip opens the whole Filter level. When
 you drag a field into Filters, it lands there at once, with every item kept.
 
+**+ Add** next to the title **Filters** works the same way. A pick opens the field's filter inside
+its menu: **Apply** places the field, **Cancel** and **Back** return to the list of fields.
+
 ![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-light.png#only-light)
 ![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-dark.png#only-dark)
 

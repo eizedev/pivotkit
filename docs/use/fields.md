@@ -53,12 +53,12 @@ All four give the same result. Details:
 - **+ Add** works on a phone too, where the field list is a drawer. Its menu:
     - is titled for its zone, for example **Add to Rows**
     - finds a field as the field list's search does
-    - marks a field that is placed already with its zone, for example "Columns". Picking it moves the
-      field, and a screen reader hears "Category moved from Columns to Rows". A field in Values
-      stays there as well.
+    - marks a field that is placed already with its zone, for example "Columns". The line under it
+      says "Moves it from Columns.", and after the pick a screen reader hears "Category moved from
+      Columns to Rows". A field in Values stays there as well.
+    - says "Adds a second value of it." under a field that is in Values already, in Values' menu
     - shows a field that is in this zone already as unavailable, with its reason ("Already in Rows").
       A date counts as the grouping it would get.
-    - in Values, adds a field that is there already as a second value
     - in Filters, opens the field's filter first. **Apply** places it, **Cancel** and **Back** return
       to the list.
     - puts the focus on the new chip after a pick, so its menu is one Enter away
