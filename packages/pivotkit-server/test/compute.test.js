@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createComputer, workerExecArgv } from "../src/compute.js";
+import { createComputer, workerEnv, workerExecArgv } from "../src/compute.js";
 import { tempDir, workspace } from "./helpers.js";
 
 const PROBE = new URL("./fixtures/probe-worker.js", import.meta.url);
@@ -131,6 +131,13 @@ test("workerExecArgv: drops --input-type in both spellings and keeps every other
     assert.equal(workerExecArgv([]), undefined);
 });
 
+test("workerEnv: NODE_OPTIONS without --input-type in both spellings, every other variable and flag kept; nothing to drop is undefined (#542)", () => {
+    assert.deepEqual(workerEnv({ NODE_OPTIONS: "--input-type=module", PATH: "/bin" }), { NODE_OPTIONS: "", PATH: "/bin" });
+    assert.deepEqual(workerEnv({ NODE_OPTIONS: "--conditions=dev --input-type module --max-old-space-size=4096", LANG: "C" }), { NODE_OPTIONS: "--conditions=dev --max-old-space-size=4096", LANG: "C" });
+    assert.equal(workerEnv({ NODE_OPTIONS: "--max-old-space-size=4096", PATH: "/bin" }), undefined);
+    assert.equal(workerEnv({ PATH: "/bin" }), undefined);
+});
+
 /** A host that renders one report from a code source and prints its CSV. */
 const RENDER_HOST = `
     import { callerOf, createContext, present } from ${JSON.stringify(SERVER)};
@@ -148,15 +155,24 @@ const RENDER_HOST = `
 /** How long one host may run before the test fails it: a host whose run waits for a dead worker. */
 const HOST_MS = 15_000;
 
-/** Runs RENDER_HOST with these node flags in front: as a file, as a string (`-e`) or from standard input. */
-const renderHost = (flags, how) => {
+/**
+ * Runs RENDER_HOST with these node flags in front: as a file, as a string (`-e`) or from standard
+ * input. `nodeOptions` is the host's NODE_OPTIONS; without it the host has none.
+ */
+const renderHost = (flags, how, nodeOptions = undefined) => {
     const dir = workspace();
+    const env = { ...process.env };
+    delete env.NODE_OPTIONS;
+    if (nodeOptions !== undefined) {
+        env.NODE_OPTIONS = nodeOptions;
+    }
+    const run = { cwd: dir, encoding: /** @type {const} */ ("utf8"), timeout: HOST_MS, env };
     if (how === "file") {
         writeFileSync(join(dir, "host.mjs"), RENDER_HOST);
-        return spawnSync(process.execPath, [...flags, join(dir, "host.mjs")], { cwd: dir, encoding: "utf8", timeout: HOST_MS });
+        return spawnSync(process.execPath, [...flags, join(dir, "host.mjs")], run);
     }
     const args = how === "string" ? [...flags, "-e", RENDER_HOST] : flags;
-    return spawnSync(process.execPath, args, { cwd: dir, encoding: "utf8", timeout: HOST_MS, ...(how === "stdin" ? { input: RENDER_HOST } : {}) });
+    return spawnSync(process.execPath, args, { ...run, ...(how === "stdin" ? { input: RENDER_HOST } : {}) });
 };
 
 test("the real workers start in a host run from a string or standard input with --input-type=module (both spellings), from a file, and with a V8 flag (#542)", FAST, () => {
@@ -166,11 +182,14 @@ test("the real workers start in a host run from a string or standard input with 
         [["--input-type=module"], "stdin"],
         [[], "file"],
         [["--max-old-space-size=4096"], "file"],
-        [["--max-old-space-size=4096", "--input-type=module"], "string"]
+        [["--max-old-space-size=4096", "--input-type=module"], "string"],
+        // the flag from NODE_OPTIONS, alone and beside another one
+        [[], "string", "--input-type=module"],
+        [[], "string", "--conditions=development --input-type module"]
     ];
-    for (const [flags, how] of cases) {
-        const result = renderHost(flags, how);
-        const name = `${flags.join(" ") || "no flags"} (${how})`;
+    for (const [flags, how, nodeOptions] of cases) {
+        const result = renderHost(flags, how, nodeOptions);
+        const name = `${flags.join(" ") || "no flags"}${nodeOptions ? `, NODE_OPTIONS=${nodeOptions}` : ""} (${how})`;
         assert.equal(result.status, 0, `${name}: ${result.stderr}`);
         assert.match(result.stdout, /North.*10.*South.*20/s, `${name}: the report, not INTERNAL`);
     }

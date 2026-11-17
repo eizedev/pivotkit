@@ -41,25 +41,48 @@ export function workerExecArgv(execArgv = process.execArgv) {
     return kept.length === execArgv.length ? undefined : kept;
 }
 
+/** `--input-type` in NODE_OPTIONS, with its value in either spelling. */
+const INPUT_TYPE_OPTION = /(^|\s)--input-type(?:=\S*|\s+\S+)(?=\s|$)/g;
+
 /**
- * A worker for `file`, with the host's flags cleaned (workerExecArgv). Node refuses an explicit
- * flag list that holds a flag of the whole process, such as --max-old-space-size, which it takes
- * when inherited (ERR_WORKER_INVALID_EXEC_ARGV). Then the worker starts with no flags.
+ * The host's environment with `--input-type` taken out of NODE_OPTIONS, or undefined when it has
+ * none. A worker reads the flag from there too and fails as with workerExecArgv's. Every other
+ * variable and every other flag in NODE_OPTIONS stays as it is.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {NodeJS.ProcessEnv | undefined}
+ */
+export function workerEnv(env = process.env) {
+    const options = env.NODE_OPTIONS;
+    if (typeof options !== "string") {
+        return undefined;
+    }
+    const kept = options.replace(INPUT_TYPE_OPTION, "").trim();
+    return kept === options.trim() ? undefined : { ...env, NODE_OPTIONS: kept };
+}
+
+/**
+ * A worker for `file`, with the host's flags and NODE_OPTIONS cleaned (workerExecArgv, workerEnv).
+ * A cleaned NODE_OPTIONS needs an explicit flag list too: a worker that inherits its flags keeps the
+ * host's `--input-type` from NODE_OPTIONS. Node refuses an explicit flag list that holds a flag of
+ * the whole process, such as --max-old-space-size, which it takes when inherited
+ * (ERR_WORKER_INVALID_EXEC_ARGV). Then the worker starts with no flags.
  * @param {URL} file
  * @param {import("node:worker_threads").WorkerOptions} options
  */
 function startWorker(file, options) {
-    const execArgv = workerExecArgv();
+    const env = workerEnv();
+    const execArgv = workerExecArgv() ?? (env ? [...process.execArgv] : undefined);
     if (execArgv === undefined) {
         return new Worker(file, options);
     }
+    const cleaned = { ...options, ...(env ? { env } : {}) };
     try {
-        return new Worker(file, { ...options, execArgv });
+        return new Worker(file, { ...cleaned, execArgv });
     } catch (e) {
         if (/** @type {{ code?: unknown }} */ (e)?.code !== "ERR_WORKER_INVALID_EXEC_ARGV") {
             throw e;
         }
-        return new Worker(file, { ...options, execArgv: [] });
+        return new Worker(file, { ...cleaned, execArgv: [] });
     }
 }
 
