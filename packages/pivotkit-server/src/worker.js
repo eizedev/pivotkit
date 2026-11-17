@@ -66,6 +66,8 @@ parentPort?.on("message", async (job) => {
             ...(echarts ? { echarts } : {}),
             limits: spec.limits,
             drafting: draftingOf(spec.levels),
+            // the row count is the operator's to show (policy.rows): an HTML report leaves it out too
+            ...(spec.levels.rows === false ? { renderOptions: { rowCount: false } } : {}),
             unknownItems: true,
             ...(locale ? { locale } : {}),
             ...(timeZone ? { timeZone } : {}),
