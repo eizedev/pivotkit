@@ -120,10 +120,10 @@ test.describe("screen readers", () => {
         await expect(menu.getByRole("status")).toContainText("All 5 items shown");
     });
 
-    test("Options is a menu: the totals and help as switches (menuitemcheckbox), off with the reason, the shortcuts a level", async ({ page }) => {
+    test("Table settings is a menu: the totals as switches (menuitemcheckbox), off with the reason", async ({ page }) => {
         await page.goto("?data=sales");
-        await toolbar(page, "options");
-        const menu = page.getByRole("menu", { name: "Options" });
+        await toolbar(page, "table-settings");
+        const menu = page.getByRole("menu", { name: "Table settings" });
         await expect(menu.getByRole("group", { name: "Totals" })).toMatchAriaSnapshot(`
           - group "Totals":
             - menuitemcheckbox "Grand total row" [checked]
@@ -386,7 +386,7 @@ test.describe("what the usability review found", () => {
         await expect(page.getByTestId("topic-state-sort")).toHaveText("● Largest Sum of Revenue first");
         await expect(page.getByRole("group", { name: "Sort, Largest Sum of Revenue first, changed" })).toBeVisible();
         await page.keyboard.press("Escape");
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         await expect(page.getByTestId("expand-all")).toHaveAttribute("aria-disabled", "true");
         await expect(page.getByTestId("expand-all")).not.toHaveAttribute("aria-checked", /.*/);
     });

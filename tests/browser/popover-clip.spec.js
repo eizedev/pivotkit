@@ -92,7 +92,7 @@ const wholeOnTop = (locator) =>
 test.describe("an i inside a menu: its explanation above the menu, in the window", () => {
     for (const [menu, info] of [
         ["export", "setting-info-copyTable"],
-        ["options", "setting-info-rowSubtotals"]
+        ["table-settings", "setting-info-rowSubtotals"]
     ]) {
         test(`${menu}: hovering ${info} at the report's right edge`, async ({ page }) => {
             await page.goto("?data=tickets");
@@ -121,7 +121,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
     // 280 ms each in CI's WebKit on Linux) closed the tip before the pointer reached it
     for (const [menu, info] of [
         ["export", "setting-info-copyTable"],
-        ["options", "setting-info-rowSubtotals"]
+        ["table-settings", "setting-info-rowSubtotals"]
     ]) {
         test(`${menu}: the pointer resting between ${info} and its tip keeps the tip`, async ({ page }) => {
             await page.goto("?data=tickets");
@@ -161,7 +161,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
     // of the menu on the right
     for (const [width, menu, info] of [1280, 1600].flatMap((w) => [
         [w, "export", "setting-info-copyTable"],
-        [w, "options", "setting-info-rowSubtotals"]
+        [w, "table-settings", "setting-info-rowSubtotals"]
     ])) {
         test(`${menu} at ${width} px: the pointer moving slowly from ${info} onto its tip keeps the tip`, async ({ page }) => {
             await page.setViewportSize({ width, height: 900 });
@@ -190,7 +190,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
 
     test("options: a pointer that came to rest beside the i, on the way to its tip, closes the tip after a while", async ({ page }) => {
         await page.goto("?data=tickets");
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         const button = page.getByTestId("setting-info-rowSubtotals");
         await button.hover();
         const tip = page.locator(".pk-info-pop");

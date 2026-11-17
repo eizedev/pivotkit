@@ -7,7 +7,7 @@ description: Use a pivotkit report with the keyboard alone and with a screen rea
 
 Every action in the report has a button or a menu entry, so drag and drop is never the only way.
 With the keyboard you reach every field, menu and value. A screen reader hears what each control is
-and what changed. In the report itself, **Options**, **Help**, **Keyboard shortcuts** lists the keys.
+and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts** lists the keys.
 
 ## Keys
 
@@ -16,9 +16,11 @@ and what changed. In the report itself, **Options**, **Help**, **Keyboard shortc
 | Anywhere | **Ctrl+Z** (Mac **Cmd+Z**) undo, **Ctrl+Shift+Z** or **Ctrl+Y** (Mac **Cmd+Shift+Z**) redo. **Escape** closes the newest open menu or panel. |
 | Before the field list | A **Skip to the toolbar** link comes first. |
 | Field list | One stop of **Tab**. **Up** and **Down** move between the fields, **Home** and **End** to the first and the last. **Left** and **Right** move to a field's grip, its **i** and its menu. **Enter** on a name adds the field. **Shift+F10** or the context menu key opens its menu. **Space** on the grip picks it up. |
+| Fields in the report | **Enter** or **Space** on the heading row folds or opens the zones, and the focus stays there. **Tab** goes on to its **i**, to **Swap rows and columns**, then to each zone's **i** and its chips. |
+| Table and Chart | The tabs are one stop of **Tab**. **Left** and **Right** move between them, **Home** and **End** to the first and the last. **Enter** or **Space** shows the tab. **Tab** goes on to the settings of the view shown, **Enlarge** and **Full screen**, then the result. |
 | Moving a chip or a field | **Space** picks it up. **Left** and **Right** move it within a zone, **Up** and **Down** to the zone above or below. The report announces its position: "Region is over Rows, position 2 of 3". **Space** drops it, **Escape** cancels. |
 | Menus | **Start over** and **More** open with **Enter**, **Space** or **Down**. The arrow keys move, also over an entry that is greyed out, and a screen reader hears why it is greyed out. **Home** and **End** jump to the first and the last entry. A letter jumps to the next entry that starts with it. **Tab** or **Escape** closes the menu, and the focus goes back to its button. |
-| A chip's menu, Options, Views (in levels) | One stop of **Tab**. The arrow keys move, **Left** and **Right** between choices side by side. A letter jumps. **Enter**, **Space** or **Right** on a row opens its level. **Escape** or **Left** goes back, with the focus on that row. **Escape** on the first level closes the menu, and the focus goes back to its button. **Tab** closes the menu and moves on. In a level with fields, **Tab** moves between them. **Tab** past the last field, or **Shift+Tab** before the first, closes the menu, and the focus goes back to its button. A bottom sheet keeps **Tab** inside. **/** goes to the search, **Down** in it moves into its hits, **Enter** runs one. |
+| A chip's menu, Table settings, Chart settings, More, Views (in levels) | One stop of **Tab**. The arrow keys move, **Left** and **Right** between choices side by side. A letter jumps. **Enter**, **Space** or **Right** on a row opens its level. **Escape** or **Left** goes back, with the focus on that row. **Escape** on the first level closes the menu, and the focus goes back to its button. **Tab** closes the menu and moves on. In a level with fields, **Tab** moves between them. **Tab** past the last field, or **Shift+Tab** before the first, closes the menu, and the focus goes back to its button. A bottom sheet keeps **Tab** inside. **/** goes to the search, **Down** in it moves into its hits, **Enter** runs one. |
 | Text fields in menus | **Escape** empties the field first. The next Escape closes the menu. In a level of a chip's menu, a field applies as you type. There, **Escape** gives back what applies, then goes back a level, and **Enter** applies at once. **Ctrl+Z** in the field brings back text its **×** emptied. |
 | Table | The arrow keys move between values. **Enter** or **Space** opens the rows behind one. A field's or value's name in the header is a button: **Tab** to it, and **Enter** or **Space** sorts. See [sort with a click on a header](filters.md#sort-with-a-click-on-a-header). |
 | Drill-down panel | When the panel is enlarged, **Escape** reduces it first, then closes it. |
@@ -55,6 +57,10 @@ and what changed. In the report itself, **Options**, **Help**, **Keyboard shortc
 - The drill-down, the field drawer and the bottom sheets keep the focus inside while they are open.
   They give it back when they close.
 - When you remove a chip, the focus goes to the neighbouring chip, or to the zone.
+- When the zones fold or open, the focus stays on the heading row. After a swap it stays on **Swap
+  rows and columns**. When the zones fold by themselves while the focus is in them, it goes to the
+  heading row.
+- After you show a tab, the focus stays on it.
 - The **×** of a text field keeps the focus in the field.
 - After a publish or Cancel in the Views menu, the focus goes back to where you asked. After a
   delete, it goes to the view that takes the deleted one's place.
@@ -76,5 +82,6 @@ and what changed. In the report itself, **Options**, **Help**, **Keyboard shortc
     Escape works when the report sits in a dialog of the host page. `label` names the report's
     region, so several reports on a page can be told apart. The region is not a
     `<main>`, so it fits inside the host page's own main landmark. The sorted header carries
-    `aria-sort`. The view loaded in the Views menu carries `aria-current`. The sizes are `--pk-*`
+    `aria-sort`. The view loaded in the Views menu carries `aria-current`. Table and Chart are ARIA
+    tabs with manual activation, and the result is their tab panel. The sizes are `--pk-*`
     tokens: see [theming](../reference/theming.md).

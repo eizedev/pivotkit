@@ -12,7 +12,7 @@ at the bottom, a note above the result, an empty table.
 
 A button or menu entry that would do nothing is greyed out. Where the reason is not obvious, a short
 line under it says why, only while it is greyed out. In a menu in levels, such as a chip's menu or
-Options, the arrow keys still stop on a greyed-out entry, so a screen reader hears the reason. Start
+Table settings, the arrow keys still stop on a greyed-out entry, so a screen reader hears the reason. Start
 over and More work the same way.
 
 | Entry | Available when |
@@ -23,9 +23,9 @@ over and More work the same way.
 | **Start over** itself | one of its two entries is available. Otherwise it is greyed out with "The report is empty already." |
 | Export, every entry | a field is placed ("Add a field first.") |
 | Export, **Chart image (.png)** | the chart is shown and drawn ("Switch to Chart first.") |
-| Options, Help, **Show dismissed tips again** | you dismissed a tip |
-| Options, **Expand all**, **Collapse all** | it changes something. Otherwise the line under it says why not: "Nothing is collapsed.", "Needs two or more fields in Rows." or "Every group is collapsed already." |
-| Options, **Grand total row**, **Grand total column**, **Row subtotals**, **Column subtotals** | it changes something in this layout, and the layout has a field in Values. Otherwise the line under it says what it needs, and the greyed-out switch has no tick. |
+| More, Help, **Show dismissed tips again** | you dismissed a tip |
+| Table settings, **Expand all**, **Collapse all**<br>Chart settings, Layout, **Show each …**, **Show … only** | it changes something. Otherwise the line under it says why not: "Nothing is collapsed.", "Needs two or more fields in Rows." or "Every group is collapsed already." |
+| Table settings, **Grand total row**, **Grand total column**, **Row subtotals**, **Column subtotals** | it changes something in this layout, and the layout has a field in Values. Otherwise the line under it says what it needs, and the greyed-out switch has no tick. |
 | Views, **Save “…”** | a saved view is loaded and you may change it. It is greyed out<br>for a shared view you may not change ("Shared view: you cannot change it. Use Save as."),<br>for a view opened from a file or a link ("Not saved yet. Use Save as."),<br>while no field is placed ("Add a field first.") |
 | Views, the button next to the name field (**Save**, **Save as**) | the name holds text |
 | Chart type, Display, **Labels** (pie and donut) | value labels are not Off |

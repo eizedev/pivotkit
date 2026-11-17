@@ -42,13 +42,13 @@ for (const height of [970, 720, 480]) {
     });
 }
 
-test("chip menus, the value filter, Views and Options stay inside a 1280 x 720 window", async ({ page }) => {
+test("chip menus, the value filter, Views, Table settings and More stay inside a 1280 x 720 window", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("?data=tickets&rows=100000");
     await page.locator('[data-testid="pivot-table"]').waitFor();
-    // a window this low folds the zones into one line: open them
+    // a window this low folds the zones under their heading: open them
     if (!(await page.getByTestId("chip-menu-Team").isVisible())) {
-        await toolbar(page, "layout");
+        await page.getByTestId("layout-summary").click();
     }
     for (const chip of ["Team", "Priority"]) {
         await page.getByTestId(`chip-menu-${chip}`).click();
@@ -67,7 +67,7 @@ test("chip menus, the value filter, Views and Options stay inside a 1280 x 720 w
     await insideWindow(page);
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
-    for (const menu of ["views", "options", "export"]) {
+    for (const menu of ["views", "table-settings", "more", "export"]) {
         await toolbar(page, menu);
         await insideWindow(page);
         await page.keyboard.press("Escape");

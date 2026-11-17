@@ -288,6 +288,7 @@ function TopicRow({ topic, labels, onOpen }) {
     return (
         <MenuItem
             id={`topic-${topic.id}`}
+            testId={topic.testId}
             level={topic.id}
             text={topic.title}
             plain={topic.title}

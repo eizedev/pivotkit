@@ -39,6 +39,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - Types with icons, and a search.
     - Chips that show their filter, top N and sort.
     - Swap rows and columns.
+    - The zones fold under their heading "Fields in the report" ([a low report](use/layout.md#a-low-report)).
+- Table and Chart as tabs on the result, each with its settings ([charts](use/charts.md)).
 - The table ([the table](use/fields.md#the-table)): subtotals and grand totals, expand and collapse,
   sticky headers, and long labels that wrap. It is fast from 300 rows on.
 - Developers: per field a label, a description, links, an aggregator, a format and an item order

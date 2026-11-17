@@ -178,10 +178,68 @@ configuration, under "New in this version", with a link to each section below.
 | [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` or the report's `texts` set `rowsCount`, your `labels` add a language, or a test reads the row count under the result or in a printed report | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
 | **Breaking:** [csv and json results, request ids and file names](#results-0-8) | a script or host parses the inline csv or json of the REST service or the MCP server, or finds saved reports or drafts by their names | expect rounded inline numbers, inline json on one line and file names like `sales-by-region.pivotkit-out.xlsx`; pass `numbers: "full"` for all digits. Reconnect MCP clients to see the new inputs |
 | [A long chart axis gets a zoom slider](../use/charts.md#zoom-and-series) | your app shows bars, lines or areas with more than 20 categories, or an axis that leaves out 3 names or more between two, or your tests or screenshots show such a chart | nothing; Display › Axis › Zoom slider › Off draws every category as before. A click on the legend now changes the view: Undo takes it back |
-| [The chart type menu's Display settings are rows that open levels](../use/charts.md#display-settings) | your users set the chart's display, or your tests click its settings | nothing for people: Value labels, Legend, Title, Axis, Tooltip, Series and Layout each open a level, with Back. Tests open the level first (`topic-axis`); a choice is a menu item with `aria-checked` |
+| **Breaking:** [Table and Chart are tabs, More is always there, the zones fold under a heading](#view-tabs-0-8) | your `labels` set `layout`, `showLayout`, `options` or `chartDisplay`, your tests or screenshots use the toolbar's Table, Chart, chart type, Layout or Options, or you document the toolbar for your users | set the new label keys; update selectors and screenshots. Pass `zones` to choose whether the zones start open or folded |
+| [Chart settings' Display topics are rows that open levels](../use/charts.md#display-settings) | your users set the chart's display, or your tests click its settings | nothing for people: Value labels, Legend, Title, Axis, Tooltip, Series and Layout each open a level, with Back. Tests open the level first (`topic-axis`); a choice is a menu item with `aria-checked` |
 | [Views that set a new chart setting](../concepts/views.md) | a 0.7 tool reads views or links saved with 0.8 | nothing; a view file leaves out the new chart settings while they hold their default. A view that sets one, such as a hidden series, gets an `unknownKey` warning from a 0.7 reader, which then ignores it |
 | [On a touch screen, the chart opens the rows on the second tap](../use/charts.md#read-the-chart) | your app runs on phones or tablets and uses `onCellClick` or the drill-down from the chart | nothing for people; the first tap on an element shows its tooltip, the second calls `onCellClick` and opens the rows. Your own touch tests now tap twice |
 | [A workbook of a chart view says where the chart is](#chart-not-in-xlsx) | a script or a client renders `xlsx` for a view that shows the chart, and treats any finding as a failure | let the warning `chartNotInXlsx` pass, or render `html` or `svg` for the chart. Reconnect MCP clients to see the new tool description |
+
+### Table and Chart are tabs, More is always there, the zones fold under a heading { #view-tabs-0-8 }
+
+The toolbar holds what applies to the whole report. Table and Chart moved onto the result.
+
+- **Table** and **Chart** are tabs on top of the result. Next to them, one button opens
+  **Table settings** or **Chart settings** for the view shown.
+- Table settings holds the totals, **Expand all** and **Collapse all**. Chart settings holds the
+  chart types and the Display topics. Its Layout folds the groups of Rows: "Show each Country",
+  "Show Region only".
+- The chart type button, **Options** and **Layout** left the toolbar.
+- **More** is always at the end of the toolbar. Its first entry, **Help and keyboard shortcuts**,
+  opens a level with the tips' switches and the keyboard shortcuts.
+- The zones sit under the heading **Fields in the report**. The heading row folds them.
+  **Swap rows and columns** moved from the Columns zone to the end of that row.
+- The new prop `zones` (`"open"` or `"folded"`, the attribute `zones`) sets the zones' start state.
+  Without it, the report's height decides, as before.
+- Folded, the zones' heading row and the tabs move the table down by about 13 px. Open, the zones
+  with their heading need about 60 px more height than before. A report whose box was just high
+  enough for its open zones may now start with them folded. Give the report more height, or set
+  `zones="open"`.
+- `zones="open"` keeps them open in any box. In a desktop card of 600 px the table then keeps 206 px,
+  less than the result's least height of 240 px. On a phone it keeps almost nothing. Use it in a box
+  of about 700 px or more, or without a fixed height ([`zones`](../reference/react.md#prop-zones)).
+
+Label keys:
+
+| No longer shown | Use instead |
+| --- | --- |
+| `layout` ("Layout") | `zonesTitle` ("Fields in the report") and `zonesHint` for the section's "i" |
+| `showLayout` ("Show field layout") | `zonesTitle` names the fold button |
+| `options` ("Options") | `tableSettings` ("Table settings"), and `help` in More |
+| `chartDisplay` ("Display", the chart type menu's name) | `chartSettings` ("Chart settings") |
+
+The report ignores these keys. It says once in the console which key holds that text now. Other
+keys it does not know are ignored without a word.
+
+New keys: `tableSettings`, `chartSettings`, `settingsShort`, `zonesTitle`, `zonesHint`. The menus'
+texts add `helpAndShortcuts` ("Help and keyboard shortcuts", More's first entry), `chartShowEach`
+("Show each {field}"), `chartShowOnly` ("Show {field} only"), `chartShowDetails`, `chartShowTotals`,
+and for Layout's row `chartFoldEach`, `chartFoldOnly` and `chartFoldSome`. `linesNotes.table` now
+says that the lines show once the chart is drawn. `chartTypeIs` ("Chart type: {type}") now names the group of types in Chart
+settings.
+
+Test ids:
+
+| Gone | Use instead |
+| --- | --- |
+| `chart-type`, `more-chart-type` | `view-settings` with the tab `show-chart` shown; the types are `chart-<type>` in the group `chart-types` |
+| `options`, `more-options` | `view-settings` with the tab `show-table` shown; Help is `more-help` in `more` |
+| `layout`, `more-layout` | `layout-summary`, the fold button, with `aria-expanded` |
+
+`show-table` and `show-chart` are tabs now: they carry `aria-selected`, not `aria-pressed`. `more`
+is always there. `OVERFLOW_ORDER` is `["data", "startOver", "views"]`.
+
+The PowerShell Universal module will pass `-Zones` to `zones`. Its docs that name the Layout button
+change in its own repository.
 
 ### Sources hidden by default can be open { #hidden-open }
 

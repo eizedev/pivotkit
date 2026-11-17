@@ -59,6 +59,19 @@
     /* the field list: room for a name of about 16 characters next to its grip, type, zone mark and menu */
     --pk-panel-w: 288px;
     --pk-rail-w: 40px;
+    /* the section of the zones ("Fields in the report"): the rules above and below it, the space
+       between a rule and its heading row (and between the row and the open panel), the chevron's
+       size, the heading's size, the open panel's indent (to the heading's text), background and
+       padding */
+    --pk-section-rule: var(--pk-border);
+    --pk-section-space: 4px;
+    --pk-section-chevron: 16px;
+    --pk-section-title-size: max(15px, 1.07em);
+    --pk-section-indent: 26px;
+    --pk-section-bg: var(--pk-surface-2);
+    --pk-section-pad: 6px;
+    /* the line on top of the tab shown (Table, Chart) */
+    --pk-tab-mark: 3px;
     /* the chart tooltip's series names: a longer one ends in "…" */
     --pk-tooltip-name-w: 12em;
     --pk-duration: 180ms;
@@ -765,13 +778,13 @@
 }
 
 /* a narrow report: tighter still, and no caret (the button says it opens a menu), so Undo, Redo,
-   Export and More share one line on a phone */
+   Export and More share one line on a phone, and the settings stay on the tabs' line */
 .pk-root[data-pk-size="narrow"] .pk-toolbar .pk-btn {
     gap: 0.35em;
     padding-inline: 0.55em;
 }
 
-.pk-root[data-pk-size="narrow"] .pk-toolbar .pk-caret {
+.pk-root[data-pk-size="narrow"] :is(.pk-toolbar, .pk-result-head) .pk-caret {
     display: none;
 }
 
@@ -840,45 +853,100 @@
     gap: 8px;
 }
 
-/* the compact layout: the zones folded into one line that says what is in them */
-.pk-zones-summary {
+/* the section of the zones: a rule above and below it, its heading row (the fold button, Swap beside
+   it), and the zones open in a tinted panel indented to the heading's text */
+.pk-zone-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pk-section-space);
+    padding-block: var(--pk-section-space);
+    border-block: 1px solid var(--pk-section-rule);
+}
+
+/* one line in every state and size: the fold button, the "i", the folded summary, Swap */
+.pk-section-row {
+    container: pk-section-row / inline-size;
     display: flex;
     align-items: center;
-    gap: 0.4em;
-    width: 100%;
-    min-height: max(var(--pk-target), 2.4em);
-    padding: 0 10px;
-    border: 1.5px dashed var(--pk-drop-border);
-    border-radius: var(--pk-radius);
-    background: var(--pk-surface-2);
+    gap: 6px;
+    min-width: 0;
+}
+
+/* the chevron and the heading; no background of its own; the chevron centred in the indent, so the
+   heading starts where the open panel does */
+.pk-section-fold {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    min-height: var(--pk-target);
+    padding: 0 6px 0 0;
+    border: 0;
+    border-radius: var(--pk-radius-sm);
+    background: none;
     color: var(--pk-text);
     font: inherit;
-    font-size: var(--pk-small);
     text-align: start;
+    white-space: nowrap;
     cursor: pointer;
-    transition: background var(--pk-duration), border-color var(--pk-duration);
 }
 
-.pk-zones-summary:hover {
-    border-color: var(--pk-border-strong);
-    background: var(--pk-surface-3);
-}
-
-.pk-zones-summary > svg {
+.pk-section-chevron {
     flex: none;
+    width: var(--pk-section-chevron);
+    height: var(--pk-section-chevron);
+    margin-inline: calc((var(--pk-section-indent) - var(--pk-section-chevron)) / 2);
     color: var(--pk-muted);
+    transition: transform var(--pk-duration);
 }
 
-.pk-zones-summary-text {
+.pk-section-fold[aria-expanded="true"] .pk-section-chevron {
+    transform: rotate(90deg);
+}
+
+.pk-section-heading {
+    font-size: var(--pk-section-title-size);
+    font-weight: var(--pk-weight-strong);
+}
+
+.pk-section-info {
+    flex: none;
+}
+
+/* folded: what is placed, after the heading in the same line, cut with "…" */
+.pk-section-sub {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: pointer;
 }
 
 .pk-zones-summary-zone {
-    color: var(--pk-muted);
-    font-weight: var(--pk-weight-strong);
+    color: var(--pk-text);
+    font-weight: var(--pk-weight-medium);
+}
+
+.pk-zone-section .pk-zones {
+    margin-left: var(--pk-section-indent);
+    padding: var(--pk-section-pad);
+    border-radius: var(--pk-radius);
+    background: var(--pk-section-bg);
+}
+
+.pk-zone-section .pk-zone {
+    background: var(--pk-surface);
+}
+
+/* a phone: the panel gives the indent and half its side padding to the chips, so a chip keeps its
+   badges whole and some of its name next to them */
+@container pk-main (width < 400px) {
+    .pk-zone-section .pk-zones {
+        margin-left: 0;
+        padding-inline: calc(var(--pk-section-pad) / 2);
+    }
 }
 
 .pk-zone {
@@ -912,30 +980,23 @@
 .pk-zone-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 0.5em;
     min-width: 0;
 }
 
-/* the head of Columns measures itself: its swap button drops its text when the head is too narrow */
-.pk-zone-cols .pk-zone-head {
-    container: pk-zone-head / inline-size;
-}
-
-.pk-swap {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35em;
+/* Swap rows and columns, at the end of the section's heading row: works folded too */
+.pk-btn.pk-swap {
+    flex: none;
     min-width: var(--pk-target);
-    min-height: var(--pk-target);
+    color: var(--pk-accent);
     font-size: var(--pk-small);
+    font-weight: var(--pk-weight-strong);
     white-space: nowrap;
 }
 
-/* icon only, with its name for assistive technology and as a tooltip (title) */
-@container pk-zone-head (width < 20em) {
+/* a heading row with no room for its text (a phone, a narrow column next to the field list): its icon
+   only, with its name for assistive technology and as a tooltip (title) */
+@container pk-section-row (width < 36em) {
     .pk-swap .pk-btn-text {
         position: absolute;
         width: 1px;
@@ -946,10 +1007,8 @@
     }
 }
 
-.pk-swap:disabled {
+.pk-btn.pk-swap:disabled {
     color: var(--pk-muted);
-    cursor: default;
-    text-decoration: none;
 }
 
 .pk-zone-title {
@@ -1258,7 +1317,7 @@
 }
 
 /* a rule between a menu's groups (popover.jsx: Group), none above the first: the groups of every menu
-   look alike (Export, Options, Views, the chart type, More, a chip menu's levels) */
+   look alike (Export, Table settings, Views, Chart settings, More, a chip menu's levels) */
 .pk-section:not(:first-child) {
     border-top: 1px solid var(--pk-rule);
     margin-top: 2px;
@@ -1516,6 +1575,13 @@
 .pk-level-sep {
     margin: 4px 0;
     border-top: 1px solid var(--pk-border);
+}
+
+/* a group right after that rule (More's first group below Help) draws no second one */
+.pk-level-sep + .pk-section {
+    border-top: 0;
+    margin-top: 0;
+    padding-top: 4px;
 }
 
 /* a topic's row: its title, what is set on the right, a chevron */
@@ -2379,13 +2445,81 @@
     height: var(--pk-target);
 }
 
-/* above the result: Enlarge and Full screen at its right; while enlarged, the fields in one line */
+/* on top of the result: the tabs Table and Chart, then the settings of the view shown, Enlarge and
+   Full screen; a rule under the row, the tab shown stands on it */
 .pk-result-head {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 6px;
     min-width: 0;
     margin-bottom: -4px;
+    border-bottom: 1px solid var(--pk-border);
+}
+
+.pk-result-head > .pk-btn {
+    margin-bottom: 5px;
+}
+
+.pk-tabs {
+    display: flex;
+    flex: none;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.pk-tab {
+    position: relative;
+    top: 1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    min-height: max(var(--pk-target), 2.35em);
+    padding: 0 1.1em;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: var(--pk-radius-sm) var(--pk-radius-sm) 0 0;
+    background: none;
+    color: var(--pk-muted);
+    font: inherit;
+    font-weight: var(--pk-weight-strong);
+    cursor: pointer;
+    transition: color var(--pk-duration);
+}
+
+.pk-tab:hover {
+    color: var(--pk-text);
+}
+
+.pk-tab[aria-selected="true"] {
+    border-color: var(--pk-border);
+    background: var(--pk-surface);
+    color: var(--pk-accent);
+}
+
+.pk-tab[aria-selected="true"]::after {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    left: -1px;
+    height: var(--pk-tab-mark);
+    border-radius: var(--pk-radius-xs) var(--pk-radius-xs) 0 0;
+    background: var(--pk-accent);
+    content: "";
+}
+
+/* a phone: the tabs, Settings and the two icons share one line */
+.pk-root[data-pk-size="narrow"] .pk-tab {
+    gap: 0.35em;
+    padding: 0 0.6em;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-result-head {
+    gap: 4px;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-result-head > .pk-btn {
+    gap: 0.35em;
+    padding-inline: 0.5em;
 }
 
 .pk-result-head .pk-btn.pk-small-btn {
@@ -2406,7 +2540,7 @@
     grid-template-columns: minmax(0, 1fr);
 }
 
-.pk-root[data-pk-enlarged] :is(.pk-panel-slot, .pk-zones, .pk-zones-summary, .pk-tips, .pk-issues, .pk-drawer-scrim) {
+.pk-root[data-pk-enlarged] :is(.pk-panel-slot, .pk-zone-section, .pk-tips, .pk-issues, .pk-drawer-scrim) {
     display: none;
 }
 
@@ -3332,15 +3466,6 @@
         flex: none;
     }
 
-    /* the Columns zone keeps its swap button on its own line above the chips */
-    .pk-zone-cols {
-        flex-wrap: wrap;
-    }
-
-    .pk-zone-cols .pk-zone-head {
-        width: 100%;
-    }
-
     .pk-chips {
         flex: 1;
         min-width: 0;
@@ -3697,10 +3822,21 @@
 
 @media (forced-colors: active) {
     .pk-zone,
-    .pk-zones-summary,
+    .pk-section-fold,
     .pk-chip,
     .pk-btn {
         border: 1px solid CanvasText;
+    }
+
+    /* the tab shown: its accent line is a background, which forced colours drop; a frame instead */
+    .pk-tab[aria-selected="true"] {
+        border: 2px solid Highlight;
+        border-bottom: 0;
+    }
+
+    /* a tab not shown: its transparent border would turn into a frame too */
+    .pk-tab:not([aria-selected="true"]) {
+        border-color: Canvas;
     }
 }
 

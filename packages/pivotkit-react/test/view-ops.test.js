@@ -444,7 +444,8 @@ test("sort by a chosen value and top N by a chosen value reach the engine", () =
 
 test("expand all and collapse all are offered only when they change something, and say why not", () => {
     const one = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
-    assert.deepEqual(rowFolding(one, []), { canExpand: false, canCollapse: false, collapsed: 0, open: 0, why: { expand: "expandNothing", collapse: "collapseNeedsRows" } });
+    // one field in Rows: both say they need two fields, the one reason that helps (#580)
+    assert.deepEqual(rowFolding(one, []), { canExpand: false, canCollapse: false, collapsed: 0, open: 0, why: { expand: "collapseNeedsRows", collapse: "collapseNeedsRows" } });
     const two = norm({ rows: ["Region", "Product"], values: [{ field: "Units", agg: "sum" }] });
     const outer = [["North"], ["South"], ["West"]];
     assert.deepEqual(rowFolding(two, outer), { canExpand: false, canCollapse: true, collapsed: 0, open: 3, why: { expand: "expandNothing", collapse: null } });
@@ -455,7 +456,7 @@ test("expand all and collapse all are offered only when they change something, a
         all = toggleCollapsed(all, "rows", p);
     }
     assert.deepEqual(rowFolding(all, outer), { canExpand: true, canCollapse: false, collapsed: 3, open: 0, why: { expand: null, collapse: "collapseAllDone" } });
-    // every reason rowFolding returns is a key of the menus' texts (the Options menu shows it), in both languages
+    // every reason rowFolding returns is a key of the menus' texts (the settings menus show it), in both languages
     const reasons = new Set([one, two, some, all].flatMap((v) => Object.values(rowFolding(v, outer).why)).concat(Object.values(rowFolding(one, []).why)).filter(Boolean));
     assert.deepEqual([...reasons].sort(), ["collapseAllDone", "collapseNeedsRows", "expandNothing"]);
     for (const key of reasons) {

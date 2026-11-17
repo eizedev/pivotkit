@@ -320,9 +320,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * its box before the first paint (table.jsx fitLabels, label-room.js). CI's zlib measures the first
  * load at 176.5 (176.0 on main before): initial goes to 177, CI's measure plus about 0.5 KiB; its
  * split is #546 (0.9.0).
+ * Tabs for Table and Chart, the zones' section with its heading row and "i", the always-present More
+ * and the warning on label keys no longer shown (#580), together with #584: CI's zlib measures the
+ * first load at 177.13; initial goes to 177.6, CI's measure plus about 0.5 KiB. The split is still
+ * #546 (0.9.0).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 177, chart: 243.5, export: 12.6, link: 7.5, menus: 52, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 177.6, chart: 243.5, export: 12.6, link: 7.5, menus: 52, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

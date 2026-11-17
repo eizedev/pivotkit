@@ -52,7 +52,7 @@ test("desktop: zones that grow with more fields fold, though the box keeps its h
         await page.getByTestId(`field-menu-${field}`).click();
         await page.getByRole("menuitem", { name: "Add to Rows" }).click();
     }
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     const after = await settled(page);
     expect(after.height).toBe(fits.height);
     expect(after.layout).toBe("compact");
@@ -64,7 +64,7 @@ test("phone: zones that no longer fit after a change of language fold, though th
     const fits = await boxThatFits(page);
     // German: longer texts, taller zones, the same box
     await page.getByTestId("pg-lang").selectOption("de");
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     const after = await settled(page);
     expect(after.height).toBe(fits.height);
     expect(after.layout).toBe("compact");
@@ -76,7 +76,7 @@ test("phone: zones that grow with a host's larger font size fold, though no rend
     const fits = await boxThatFits(page);
     // the host's stylesheet arrives late with a larger text token: the zones grow, the report renders nothing
     await page.addStyleTag({ content: ".pk-root { --pk-font-size: 18px; }" });
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     const after = await settled(page);
     expect(after.height).toBe(fits.height);
     expect(after.layout).toBe("compact");
@@ -84,7 +84,8 @@ test("phone: zones that grow with a host's larger font size fold, though no rend
 });
 
 test("desktop: zones folded by a tall warning open again once the warning folds and they fit", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 800 });
+    // the open zones with their heading fit, a tall warning leaves them no room
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("?data=sales");
     await page.locator('[data-testid="pivot-table"]').waitFor();
     expect((await settled(page)).layout).toBe("open");
@@ -96,7 +97,7 @@ test("desktop: zones folded by a tall warning open again once the warning folds 
     await page.getByTestId("load-view-apply").click();
     const warning = page.getByTestId("view-issues");
     await expect(warning.getByTestId("unused-item").first()).toBeVisible();
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     // the warning folded by its title: the zones fit again and open, and stay open
     await warning.getByTestId("unused-title").click();
     await expect(page.locator('[data-zone="rows"]')).toBeVisible();
@@ -116,7 +117,7 @@ test("zones folded on a medium-wide window open again when the window gets wide 
     const wide = await boxThatFits(page);
     // a medium-wide window stacks more of the zones: they need more than that box, so they fold
     await page.setViewportSize({ width: 700, height: 900 });
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     expect((await settled(page)).layout).toBe("compact");
     // wide again: the zones open, measured again for this width, and stay open
     await page.setViewportSize({ width: 1440, height: 900 });

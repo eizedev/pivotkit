@@ -2,10 +2,10 @@
 // does or, while it does nothing, why; the menu button pattern by keyboard; New's note with Undo.
 import { chips, expect, test, toolbar } from "./fixtures.js";
 
-/** The texts of the toolbar's buttons and groups shown, in order (Table | Chart as one). */
+/** The test ids of the toolbar's buttons shown, in order. */
 const toolbarOrder = (page) =>
     page.locator(".pk-toolbar").evaluate((bar) =>
-        [...bar.querySelectorAll(":scope > button, :scope > .pk-toolbar-pair > button, :scope > .pk-segmented")]
+        [...bar.querySelectorAll(":scope > button, :scope > .pk-toolbar-pair > button")]
             .filter((e) => e.getClientRects().length)
             .map((e) => e.getAttribute("data-testid") ?? e.className)
     );
@@ -51,10 +51,10 @@ test("Start over follows Undo and Redo; its menu says what Reset and New do, and
     await page.getByTestId("show-chart").click();
     await toolbar(page, "reset");
     await expect(note).toContainText("Back to the start view");
-    await expect(page.getByTestId("show-table")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("show-table")).toHaveAttribute("aria-selected", "true");
     // its note has Undo too, as New's: the chart comes back
     await note.locator(".pk-toast").filter({ hasText: "Back to the start view" }).getByRole("button", { name: "Undo" }).click();
-    await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-selected", "true");
 });
 
 test("no start view: Reset is off with its reason, so the menu never offers New twice", async ({ page }) => {
@@ -124,21 +124,21 @@ test("in More (a phone): Reset and New are entries of their own, with the same r
     await expect(page.getByTestId("more-reset")).toBeEnabled();
 });
 
-test("in More: a letter jumps to the next entry that starts with it; Layout is a checkbox item", async ({ page }) => {
+test("in More: Help first, then a letter jumps to the next entry that starts with it", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("?data=sales");
     const more = page.getByTestId("more");
     await more.focus();
     await page.keyboard.press("ArrowDown");
-    await expect(page.getByTestId("more-reset")).toBeFocused();
-    await page.keyboard.press("o");
-    await expect(page.getByTestId("more-options")).toBeFocused();
-    await page.keyboard.press("l");
-    await expect(page.getByTestId("more-layout")).toBeFocused();
-    await page.keyboard.press("n");
-    await expect(page.getByTestId("more-new-report")).toBeFocused();
-    // Layout is a toggle of its own, not one of a set of choices
-    await expect(page.getByTestId("more-layout")).toHaveAttribute("role", "menuitemcheckbox");
+    await expect(page.getByTestId("more-help")).toBeFocused();
+    // one letter at a time: letters typed in a row are one word (type-ahead)
+    for (const [key, id] of [["r", "more-reset"], ["v", "more-views"], ["n", "more-new-report"], ["h", "more-help"]]) {
+        await page.keyboard.press(key);
+        await expect(page.getByTestId(id)).toBeFocused();
+        await page.waitForTimeout(700);
+    }
+    // Help opens its level, as a row of a menu in levels does
+    await expect(page.getByTestId("more-help")).toHaveAttribute("aria-haspopup", "menu");
     // the groups without a title are no unnamed groups for a screen reader
     expect(await page.locator('.pk-popover [role="group"]:not([aria-label]):not([aria-labelledby])').count()).toBe(0);
 });

@@ -3,7 +3,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.PLAYGROUND_PORT ?? 4173);
-const DESKTOP = { width: 1280, height: 900 };
+const DESKTOP = { width: 1280, height: 1000 };
 
 export default defineConfig({
     testDir: "tests/browser",

@@ -52,7 +52,10 @@ async function mount(page, chart, { theme = "light", view = {}, rows = ROWS, cel
             window.__cellClicks = [];
             // onCellClick's calls, as row, column and count
             const onCellClick = cellClicks ? ({ row, col, count }) => window.__cellClicks.push({ row, col, count }) : undefined;
-            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 560, defaultView: view, onCellClick, onViewChange: (v) => window.__tooltipViews.push(v) }));
+            // the chart's height the measures below were taken at, the zones folded: their heading
+            // and the tabs take 13 px more than before, on a phone 12
+            const height = window.innerWidth < 640 ? 572 : 573;
+            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height, defaultView: view, onCellClick, onViewChange: (v) => window.__tooltipViews.push(v) }));
         },
         { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
     );
@@ -283,7 +286,7 @@ test.describe("the chart's tooltip follows the pointer", () => {
     test("Display, Tooltip, All series: every series wherever the pointer is, the hovered one first and in the strong weight, with the total", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar", stacked: true });
         const report = page.locator("#tooltip-report");
-        await report.getByTestId("chart-type").click();
+        await report.getByTestId("view-settings").click();
         await report.getByTestId("topic-tooltip").click();
         await expect(report.getByTestId("tooltip-auto")).toHaveAttribute("aria-checked", "true");
         await report.getByTestId("tooltip-axis").click();
@@ -344,7 +347,7 @@ test("a host that renders again every 200 ms keeps the segment's tooltip under a
     await page.goto("pages/host.html");
     const report = page.getByTestId("first");
     await report.getByTestId("show-chart").click();
-    await report.getByTestId("chart-type").click();
+    await report.getByTestId("view-settings").click();
     await report.getByTestId("chart-stacked").click();
     const chartEl = report.getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();

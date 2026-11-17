@@ -361,6 +361,8 @@ export const en = {
     // read after the state of a menu row when it is not the default (its dot)
     sectionChanged: ", changed",
     help: "Help",
+    // More's first entry: it opens Help
+    helpAndShortcuts: "Help and keyboard shortcuts",
     shortcutsTitle: "Keyboard shortcuts",
     // the keys of the shortcuts; "Mod" is Ctrl, or ⌘ on a Mac
     keys: { Mod: "Ctrl", Shift: "Shift", "Arrow keys": "Arrow keys", Enter: "Enter", Space: "Space", Escape: "Escape", F10: "F10" },
@@ -399,7 +401,7 @@ export const en = {
         noTime: "A trend needs dates on Rows, in date order.",
         byIndex: "Some categories have no date, so the trend counts them as evenly spaced.",
         mixedUnits: "The values have different units, so one target does not fit them.",
-        table: "Show the chart to see which lines it can draw."
+        table: "The lines show here once the chart is drawn."
     },
     labelPosition: "Labels",
     labelPositionNames: { outside: "Outside", inside: "Inside" },
@@ -468,8 +470,16 @@ export const en = {
     collapseAllDone: "Every group is collapsed already.",
     groupsCollapsed: { one: "{count} group collapsed", other: "{count} groups collapsed" },
     groupsExpanded: { one: "{count} group expanded", other: "{count} groups expanded" },
-    // the chart type menu: how the chart is drawn
-    chartDisplay: "Display",
+    // Expand all and Collapse all in Chart settings › Layout, named by the fields of Rows (the table's
+    // Collapse all shows chartShowOnly as its hint); the plain words with one field in Rows
+    chartShowEach: "Show each {field}",
+    chartShowOnly: "Show {field} only",
+    chartShowDetails: "Show details",
+    chartShowTotals: "Show group totals only",
+    // Layout's row: how the groups of Rows show now
+    chartFoldEach: "Each {field}",
+    chartFoldOnly: "{field} only",
+    chartFoldSome: "Some groups collapsed",
     // what sharing and the exports said (share-actions.js, export-run.js)
     toastExported: "Exported {file}",
     toastLinkCopied: "Link copied",

@@ -1,8 +1,9 @@
 /*
- * The panels of the toolbar's menus: the chart type with how the chart is drawn, Options (totals,
- * expand and collapse, help), Views (the saved views, sharing, loading a view) and Export (the files,
- * and the table on the clipboard). They load with
- * the chip menus on demand (menus.js), so the first load of a page stays small.
+ * The panels of the toolbar's menus and of the settings beside the tabs: Chart settings (the chart
+ * type with how the chart is drawn), Table settings (totals, expand and collapse), More (Help, and the
+ * toolbar's buttons that do not fit), Views (the saved views, sharing, loading a view) and Export (the
+ * files, and the table on the clipboard). They load with the chip menus on demand (menus.js), so the
+ * first load of a page stays small.
  */
 
 import React, { useEffect, useId, useRef, useState } from "react";
@@ -20,7 +21,7 @@ import { Section, SettingInfo } from "./section.jsx";
 import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tips.js";
 import { LevelMenu } from "./levels.jsx";
-import { afterDelete, chartTopics, entryIds, optionTopics } from "./menu-topics.js";
+import { afterDelete, chartTopics, entryIds, moreTopics, tableTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
 import { hexColor } from "./export-run.js";
 import { storeViews } from "./view-store.js";
@@ -188,16 +189,17 @@ function TargetField({ target, labels, locale, format, onTarget }) {
 }
 
 /**
- * The chart type menu: the types (a pick closes it), then how the chart is drawn, in levels as the
- * other menus (levels.jsx, menu-topics.js chartTopics): a row per topic with what is set, each
- * opening its level (Value labels, Legend, Title, Axis, Tooltip, Reference lines with its Target, Series, Layout). Each choice applies at once and the menu stays
- * open, so the chart behind it shows the change.
+ * Chart settings: the types (a pick closes it), then how the chart is drawn, in levels as the other
+ * menus (levels.jsx, menu-topics.js chartTopics): a row per topic with what is set, each opening its
+ * level (Value labels, Legend, Title, Axis, Tooltip, Reference lines with its Target, Series, Layout
+ * with the groups of Rows folded or not). Each choice applies at once and the menu stays open, so the
+ * chart behind it shows the change; folding the groups closes it.
  */
-export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale, onChart, onDisplay, close, series, colors }) {
+export function ChartSettingsPanel({ view, plan, encoded, lineChecks, labels, locale, onChart, onDisplay, close, series, colors, folding, onExpand, onCollapse }) {
     const drawn = plan ? plan.name : chartTypeOf(view.chart);
     const names = legendNames(drawn, series);
     // which reference lines the chart can draw: the drawn chart's checks with its numbers, else the
-    // view's rules (rows and columns swapped where the chart swaps them) and a note asking for the chart
+    // view's rules (rows and columns swapped where the chart swaps them) and a note that the chart is not drawn yet
     const lines = view.chart.referenceLines;
     const plain = plan?.chart && encoded ? referenceLineRules(plan.swap ? swapAxes(view) : view, { ...view.chart, ...plan.chart }, encoded) : { average: true, trend: true, target: true };
     const rules = lineChecks ?? { ...plain, notes: ["table"] };
@@ -214,17 +216,18 @@ export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale
         instance.on("finished", read);
         return () => instance.off("finished", read);
     }, [colors?.chart]);
-    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay }, lines: { rules, targetText: numberText(lines?.target, locale) }, drawnColors });
+    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay, expand: () => onExpand(labels), collapse: () => onCollapse(labels) }, lines: { rules, targetText: numberText(lines?.target, locale) }, drawnColors, folding });
     const head = (
         <Section title={labels.chartType}>
-            <div className="pk-choice-grid">
+            {/* named with the type chosen ("Chart type: Automatic"), as the tab's icon shows the one drawn */}
+            <div className="pk-choice-grid" role="group" aria-label={fill(labels.chartTypeIs, { type: labels.chartTypes[plan?.auto ? "auto" : drawn] })} data-testid="chart-types">
                 <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
             </div>
         </Section>
     );
     return (
         <LevelMenu
-            name={labels.chartDisplay}
+            name={labels.chartSettings}
             labels={labels}
             topics={topics}
             close={close}
@@ -265,27 +268,28 @@ function Shortcuts({ labels, mod }) {
 
 
 /**
- * The Options menu (topics in menu-topics.js): the totals, Expand all and Collapse all, help with the
- * keyboard shortcuts as a level. A switch or an action applies at once and the menu stays open (the
- * report behind it shows the change); Expand all and Collapse all close it.
+ * Table settings (topics in menu-topics.js): the totals, then Expand all and Collapse all. A switch
+ * applies at once and the menu stays open (the table behind it shows the change); Expand all and
+ * Collapse all close it.
  */
-export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, close, tips, mod, folding, help }) {
-    const topics = optionTopics({
-        view,
+export function TableSettingsPanel({ view, labels, onTotal, onExpand, onCollapse, close, folding }) {
+    const topics = tableTopics({ view, labels, folding, act: { total: onTotal, expand: () => onExpand(labels), collapse: () => onCollapse(labels) } });
+    return <LevelMenu name={labels.tableSettings} labels={labels} topics={topics} close={close} onPick={runChoice(close)} panel={() => null} />;
+}
+
+/**
+ * More (topics in menu-topics.js): Help first, a level with the tips' switches and the keyboard
+ * shortcuts, then the toolbar's buttons that do not fit (`foot`, drawn by the toolbar in the groups of
+ * MORE_GROUPS). A switch keeps Help open.
+ */
+export function MorePanel({ labels, tips, mod, help, close, foot }) {
+    const topics = moreTopics({
         labels,
-        folding,
         tips,
         explanations: help?.explanations ?? null,
-        act: {
-            total: onTotal,
-            expand: () => onExpand(labels),
-            collapse: () => onCollapse(labels),
-            tipsOn: (on) => tips.onOn(on),
-            resetTips: () => tips.onReset(),
-            explain: (on) => help?.explanations?.set(on)
-        }
+        act: { tipsOn: (on) => tips.onOn(on), resetTips: () => tips.onReset(), explain: (on) => help?.explanations?.set(on) }
     });
-    return <LevelMenu name={labels.options} labels={labels} topics={topics} close={close} onPick={runChoice(close)} panel={(id) => (id === "shortcuts" ? <Shortcuts labels={labels} mod={mod} /> : null)} />;
+    return <LevelMenu name={labels.more} labels={labels} topics={topics} close={close} onPick={runChoice(close)} foot={foot?.(close)} panel={(id) => (id === "shortcuts" ? <Shortcuts labels={labels} mod={mod} /> : null)} />;
 }
 
 /** What a choice of a toolbar menu in levels does: closes the menu first when it says so, then runs. */

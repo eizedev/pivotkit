@@ -591,9 +591,9 @@ export function rowFolding(view, outer) {
         canCollapse,
         collapsed: view.collapsed.rows.length,
         open,
-        // keys of the menus' texts (menu-labels.js): the Options menu shows them with its labels
+        // keys of the menus' texts (menu-labels.js): Table settings and Chart settings show them
         why: {
-            expand: canExpand ? null : "expandNothing",
+            expand: canExpand ? null : view.rows.length < 2 ? "collapseNeedsRows" : "expandNothing",
             collapse: canCollapse ? null : view.rows.length < 2 ? "collapseNeedsRows" : "collapseAllDone"
         }
     };

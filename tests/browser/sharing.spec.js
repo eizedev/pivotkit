@@ -25,10 +25,10 @@ async function captureClipboard(page) {
 test.describe("chart display", () => {
     test("value labels, legend, title and smooth lines are set in the chart type menu and stay with the view", async ({ page }) => {
         await page.goto("?data=sales");
-        await toolbar(page, "chart-type");
+        await toolbar(page, "chart-settings");
         await page.getByTestId("chart-bar").click();
         await expect(page.getByTestId("pivot-chart")).toBeVisible();
-        await toolbar(page, "chart-type");
+        await toolbar(page, "chart-settings");
         // the display settings are rows under the chart types, each opening its level (#106)
         await page.getByTestId("topic-valueLabels").click();
         // pie-only labels are not offered for bars
@@ -46,7 +46,7 @@ test.describe("chart display", () => {
         await page.getByTestId("level-back").click();
         // the settings stay when the type changes; a line offers smooth lines, a pie its shares
         await page.getByTestId("chart-line").click();
-        await toolbar(page, "chart-type");
+        await toolbar(page, "chart-settings");
         await page.getByTestId("topic-valueLabels").click();
         await expect(page.getByTestId("labels-value")).toHaveAttribute("aria-checked", "true");
         await page.getByTestId("level-back").click();
@@ -56,7 +56,7 @@ test.describe("chart display", () => {
         await expect(page.getByTestId("chart-smooth")).toHaveAttribute("aria-checked", "true");
         await page.getByTestId("level-back").click();
         await page.getByTestId("chart-pie").click();
-        await toolbar(page, "chart-type");
+        await toolbar(page, "chart-settings");
         await page.getByTestId("topic-valueLabels").click();
         await expect(page.getByTestId("labels-percent")).toBeVisible();
         await page.getByTestId("level-back").click();
@@ -306,9 +306,9 @@ test.describe("help switches", () => {
         await rows.focus();
         await expect(page.locator(".pk-info-pop")).toContainText("Example: Region in Rows");
         await page.keyboard.press("Escape");
-        await toolbar(page, "options");
-        // two switches only besides the four totals: tips and explanations
-        await expect(page.locator('.pk-popover [role="menuitemcheckbox"]')).toHaveCount(6);
+        await toolbar(page, "help");
+        // two switches only in Help: tips and explanations
+        await expect(page.locator('.pk-popover [role="menuitemcheckbox"]')).toHaveCount(2);
         await expect(page.getByTestId("show-zone-info")).toHaveCount(0);
         await expect(page.getByTestId("show-field-info")).toHaveCount(0);
         await flip(page.getByTestId("show-explanations"));
@@ -318,7 +318,7 @@ test.describe("help switches", () => {
         await page.reload();
         await expect(page.getByTestId("pivot-table")).toBeVisible();
         await expect(page.locator(".pk-zone-info")).toHaveCount(0);
-        await toolbar(page, "options");
+        await toolbar(page, "help");
         await flip(page.getByTestId("show-explanations"));
         await expect(page.locator(".pk-zone-info")).toHaveCount(4);
         await expect(page.locator('.pk-field[data-field="Population"] .pk-info')).toHaveCount(1);
@@ -436,13 +436,13 @@ plain("a menu whose code cannot be loaded says so and loads on Try again", async
     let blocked = true;
     await page.route(/\/chunks\/menus-[^/]+\.js$/, (route) => (blocked ? route.abort() : route.continue()));
     await page.goto("?data=sales");
-    await toolbar(page, "options");
+    await toolbar(page, "table-settings");
     const failed = page.getByTestId("menu-failed");
     await expect(failed).toContainText("This menu could not be loaded.");
     await expect(page.getByTestId("menu-retry")).toBeFocused();
     blocked = false;
     await page.getByTestId("menu-retry").click();
-    await expect(page.getByTestId("show-tips")).toBeVisible();
+    await expect(page.getByTestId("total-grandTotalRow")).toBeVisible();
     // loaded once, every menu has it
     await page.keyboard.press("Escape");
     await page.getByTestId("chip-menu-Region").click();

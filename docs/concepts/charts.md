@@ -39,7 +39,7 @@ A host changes them with the `theme` option of `toEChartsOption`.
 
 ## Display settings in the view { #display-settings-for-the-people-who-use-the-report }
 
-The Display settings of the chart type menu are part of the view. [The table of
+The Display settings of Chart settings are part of the view. [The table of
 choices](../use/charts.md#display-settings) lists them. A saved view, a link and the PNG export keep
 them, and they stay when the chart type changes:
 

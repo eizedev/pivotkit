@@ -197,6 +197,8 @@ test.describe("a date's quick choices on dates past today (endoflife, EOL date b
     });
 
     test("scrolling inside the open menu does not move it: a click lands where it was aimed (#222)", async ({ page }) => {
+        // a window low enough that the level grows past the menu's room
+        await page.setViewportSize({ width: 1280, height: 900 });
         await openView(page, "endoflife", view());
         await chipMenu(page, EOL, "filter");
         const menu = page.locator(".pk-chip-menu");

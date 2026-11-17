@@ -7,6 +7,7 @@ import { LABELS } from "../src/labels.js";
 import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { chartTopics } from "../src/menu-topics.js";
+import { rowFolding } from "../src/view-ops.js";
 
 const data = encode([
     { Region: "North", Country: "A", Category: "Hardware", Revenue: 20, Price: 3 },
@@ -137,8 +138,8 @@ test("Reference lines: a level after Tooltip on bars, lines and areas: Average a
     // no time line: the trend's reason; values in two units: the target's
     const regions = choices(byId(of({ average: false, trend: false, target: null }, { rules: { average: true, trend: false, target: false, notes: ["noTime", "mixedUnits"] } }), "lines"));
     assert.deepEqual([regions[1].reason, regions[2].reason], ["A trend needs dates on Rows, in date order.", "The values have different units, so one target does not fit them."]);
-    // the table shown: a note asks for the chart
-    assert.equal(byId(of({ average: false, trend: false, target: null }, { rules: { average: true, trend: true, target: true, notes: ["table"] } }), "lines").note, "Show the chart to see which lines it can draw.");
+    // the chart not drawn yet: a note says the lines come once it is
+    assert.equal(byId(of({ average: false, trend: false, target: null }, { rules: { average: true, trend: true, target: true, notes: ["table"] } }), "lines").note, "The lines show here once the chart is drawn.");
     // a pie, a donut and a heatmap have no lines
     for (const type of ["pie", "donut", "heatmap"]) {
         assert.equal(byId(of({ average: true, trend: false, target: null }, { type }), "lines"), undefined, type);
@@ -147,4 +148,54 @@ test("Reference lines: a level after Tooltip on bars, lines and areas: Average a
     const de = { ...LABELS.de, ...menuDe };
     const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" } });
     assert.equal(byId(chartTopics({ view, drawn: "bar", labels: de, names: ["x"], act: { display: () => {} } }), "lines").state, "Aus");
+});
+
+test("Layout folds the groups of Rows in words of the fields: Show each Country, Show Region only; with one field in Rows both are off with the reason (#580)", () => {
+    const calls = [];
+    const act = { display: () => {}, expand: () => calls.push("expand"), collapse: () => calls.push("collapse") };
+    const two = norm({ rows: ["Region", "Country"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" }, collapsed: { rows: [["North"]] } });
+    const folding = { canExpand: true, canCollapse: true, why: { expand: null, collapse: null } };
+    const topics = chartTopics({ view: two, drawn: "bar", labels, names: [], act, folding });
+    // Layout is there for every type: the bars have no switch of their own in it
+    assert.ok(ids(topics).includes("layout"));
+    const fold = choices(byId(topics, "layout"));
+    assert.deepEqual(fold.map((c) => [c.id, c.text, c.disabled ?? false, c.closes]), [["chart-show-each", "Show each Country", false, true], ["chart-show-only", "Show Region only", false, true]]);
+    fold[0].run();
+    fold[1].run();
+    assert.deepEqual(calls, ["expand", "collapse"]);
+    // nothing collapsed: Show each says why it does nothing
+    const none = chartTopics({ view: two, drawn: "bar", labels, names: [], act, folding: { canExpand: false, canCollapse: true, why: { expand: "expandNothing", collapse: null } } });
+    const each = choices(byId(none, "layout"))[0];
+    assert.deepEqual([each.disabled, each.reason], [true, "Nothing is collapsed."]);
+    // one field in Rows: the words without names, both off with the reason
+    const one = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line" } });
+    const single = choices(byId(chartTopics({ view: one, drawn: "line", labels, names: ["Sum of Revenue"], act, folding: rowFolding(one, []) }), "layout"));
+    assert.deepEqual(single.map((c) => [c.id, c.text, c.disabled, c.reason]), [
+        ["chart-smooth", "Smooth lines", undefined, undefined],
+        ["chart-show-each", "Show details", true, "Needs two or more fields in Rows."],
+        ["chart-show-only", "Show group totals only", true, "Needs two or more fields in Rows."]
+    ]);
+    // German, with the names
+    const de = { ...LABELS.de, ...menuDe };
+    const german = choices(byId(chartTopics({ view: two, drawn: "bar", labels: de, names: [], act, folding }), "layout"));
+    assert.deepEqual(german.map((c) => c.text), ["Country einzeln zeigen", "Nur Region zeigen"]);
+});
+
+test("Layout's row says how the groups of Rows show: Each Country, Region only, or some collapsed, with the other layout state (#580 review)", () => {
+    const act = { display: () => {}, expand: () => {}, collapse: () => {} };
+    const two = norm({ rows: ["Region", "Country"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", smooth: true } });
+    const state = (view, folding) => {
+        const t = byId(chartTopics({ view, drawn: "line", labels, names: ["Sum of Revenue"], act, folding }), "layout");
+        return [t.state, t.changed];
+    };
+    assert.deepEqual(state(two, { canExpand: false, canCollapse: true, collapsed: 0, why: {} }), ["Smooth lines, Each Country", true]);
+    const plain = { ...two, chart: { ...two.chart, smooth: false } };
+    assert.deepEqual(state(plain, { canExpand: false, canCollapse: true, collapsed: 0, why: {} }), ["Each Country", false]);
+    assert.deepEqual(state(plain, { canExpand: true, canCollapse: false, collapsed: 2, why: {} }), ["Region only", true]);
+    assert.deepEqual(state(plain, { canExpand: true, canCollapse: true, collapsed: 1, why: {} }), ["Some groups collapsed", true]);
+    // one field in Rows: nothing to say about groups
+    const one = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line" } });
+    assert.deepEqual(state(one, rowFolding(one, [])), [null, false]);
+    const de = { ...LABELS.de, ...menuDe };
+    assert.equal(byId(chartTopics({ view: plain, drawn: "line", labels: de, names: [], act, folding: { canExpand: true, canCollapse: false, collapsed: 2, why: {} } }), "layout").state, "Nur Region");
 });

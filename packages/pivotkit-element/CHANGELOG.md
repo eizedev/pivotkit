@@ -8,6 +8,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Upgrading from 0.7
 
+- Table and Chart are tabs on top of the result, with "Table settings" or "Chart settings" beside
+  them. The chart type button, Options and Layout left the toolbar. More is always at its end, with
+  Help first. The zones fold under the heading "Fields in the report", and Swap rows and columns sits
+  at the end of that row. The labels `layout`, `showLayout`, `options` and `chartDisplay` are no longer
+  shown, and the test ids `chart-type`, `options` and `layout` are gone
+  ([#580](https://github.com/eizedev/pivotkit/issues/580),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#view-tabs-0-8)).
 - The chart type menu lists the types, then a row per Display topic that opens a level: Value
   labels, Legend, Title, Axis, Tooltip, Series and Layout ([#106](https://github.com/eizedev/pivotkit/issues/106)). Tests open the
   level first; a choice is a menu item with `aria-checked`.
@@ -23,6 +30,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- The `zones` attribute (`"open"` or `"folded"`) sets whether the zones start open or folded. Without it,
+  the report's height decides ([#580](https://github.com/eizedev/pivotkit/issues/580)).
+- Chart settings › Layout folds the groups of Rows in the words of the fields: "Show each Country",
+  "Show Region only". Table settings' Collapse all says what it keeps
+  ([#580](https://github.com/eizedev/pivotkit/issues/580)).
+- Theme tokens for the zones' section (`--pk-section-*`) and the tab shown (`--pk-tab-mark`)
+  ([#580](https://github.com/eizedev/pivotkit/issues/580)).
 - The chart's zoom slider, by mouse, touch and keyboard, the legend that hides and shows series in
   the view, and 100 % stacked bars and areas ([#36](https://github.com/eizedev/pivotkit/issues/36)), ([#575](https://github.com/eizedev/pivotkit/issues/575)).
 - The `colorMap` property: a fixed colour per series or slice name. Export → Copy chart image, the

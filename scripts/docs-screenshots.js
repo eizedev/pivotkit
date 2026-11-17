@@ -35,8 +35,6 @@ const base = `http://127.0.0.1:${port}/`;
 const WIDE = { width: 1440, height: 900 };
 const THEMES = ["light", "dark"];
 const PHONE = { width: 390, height: 844 };
-/** A window of 1000 px with the field list open: every toolbar button that can move is in More. */
-const MEDIUM = { width: 1000, height: 760 };
 
 /** The three largest countries per region as bars: the regions are the group labels under the axis. */
 const GROUPED = encodeViewLink({
@@ -143,6 +141,13 @@ const QUICK_STEPS = [
 async function quick(page, count) {
     for (const step of QUICK_STEPS.slice(0, count)) await step(page);
     await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+}
+
+/** Opens the zones when the report folded them (a note above the result can leave them no room). */
+async function openZones(page) {
+    const fold = page.getByTestId("layout-summary");
+    await fold.waitFor();
+    if ((await fold.getAttribute("aria-expanded")) === "false") await fold.click();
 }
 
 /** Clicks a toolbar button, or its entry in "More" when the report is too narrow for it. */
@@ -292,7 +297,7 @@ const SHOTS = [
     { name: "chart", query: "data=sales&preset=1", size: WIDE, chart: true },
     {
         // the report as a host gives it on a phone: its own height, the page scrolled to it; below the
-        // narrow layout's 820 px (COMPACT_HEIGHT_NARROW), so its zones start folded into one line
+        // narrow layout's 820 px (COMPACT_HEIGHT_NARROW), so its zones start folded under their heading
         name: "phone",
         query: "data=tickets&height=800",
         size: PHONE,
@@ -308,7 +313,7 @@ const SHOTS = [
         chart: true,
         open: async (page) => {
             // the legend at the bottom (its level), back on the first level: the chart types and the topic rows
-            await toolbar(page, "chart-type");
+            await page.getByTestId("view-settings").click();
             await page.getByTestId("topic-legend").click();
             await page.getByTestId("legend-bottom").click();
         }
@@ -337,7 +342,7 @@ const SHOTS = [
         chart: true,
         open: async (page) => {
             await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
-            await toolbar(page, "chart-type");
+            await page.getByTestId("view-settings").click();
             await page.getByTestId("topic-lines").click();
         }
     },
@@ -371,10 +376,10 @@ const SHOTS = [
         open: (page) => page.getByTestId("start-over").click()
     },
     {
-        // More in a window where every button that can move is in it: its groups with a rule between
+        // More on a phone: Help first, then Start over's two entries and Views, a rule between the groups
         name: "more-menu",
         query: "data=sales",
-        size: MEDIUM,
+        size: PHONE,
         open: (page) => page.getByTestId("more").click()
     },
     {
@@ -500,6 +505,7 @@ const SHOTS = [
         hash: YEARS,
         size: WIDE,
         open: async (page) => {
+            await openZones(page);
             await page.getByTestId("chip-menu-Date by month of year").click();
             await page.getByTestId("topic-filter").click();
         }
@@ -511,6 +517,7 @@ const SHOTS = [
         hash: RULES,
         size: WIDE,
         open: async (page) => {
+            await openZones(page);
             await page.getByTestId("chip-menu-Date by month of year").click();
             await page.getByTestId("topic-filter").click();
             await page.getByTestId("rule-info").click();
@@ -557,14 +564,14 @@ const SHOTS = [
         }
     },
     {
-        // a donut with the numbers on its slices, the chart type menu open at its Labels choice
+        // a donut with the numbers on its slices, Chart settings open
         name: "donut-labels",
         query: "data=sales",
         hash: encodeViewLink({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum", format: "compact" }], display: "chart", chart: { type: "donut", valueLabels: "value", labelPosition: "inside" } }),
         size: WIDE,
         open: async (page) => {
             await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
-            await toolbar(page, "chart-type");
+            await page.getByTestId("view-settings").click();
         }
     },
     {
@@ -583,12 +590,12 @@ const SHOTS = [
         }
     },
     {
-        // Options: totals that change nothing say why, an "i" explains each, Help with its switches
+        // Table settings: totals that change nothing say why, an "i" explains each, then Expand all and Collapse all
         name: "explanations",
         query: "data=tickets",
         size: WIDE,
         open: async (page) => {
-            await toolbar(page, "options");
+            await page.getByTestId("view-settings").click();
             await page.getByTestId("setting-info-rowSubtotals").hover();
             await page.locator(".pk-info-pop").waitFor();
         }

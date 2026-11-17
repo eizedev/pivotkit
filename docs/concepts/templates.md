@@ -22,7 +22,7 @@ Each entry loads its view with one click.
 - Someone may be able to change shared views here: a shared entry is `deletable`, or the report offers
   Publish. Then a shared view without a delete button has an "i": "Only admins can change shared
   views." The text is `labels.settingInfo.sharedView`, so a host names its own role. The "i" shows
-  while **Show explanations** in Options is on.
+  while **Show explanations** in More, Help is on.
 - When your application allows it, each of the user's views has **Publish as shared view**. The
   report asks in place here too.
 - The menu hides a group without entries. "My views" shows while people can save.

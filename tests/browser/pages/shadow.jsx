@@ -15,4 +15,4 @@ link.href = "./pivotkit-react.css";
 shadow.append(link);
 const mount = document.createElement("div");
 shadow.append(mount);
-createRoot(mount).render(<PivotReport data={DATASETS.sales.make(2000)} defaultView={DATASETS.sales.presets[0].view} />);
+createRoot(mount).render(<PivotReport data={DATASETS.sales.make(2000)} defaultView={DATASETS.sales.presets[0].view} zones="open" />);

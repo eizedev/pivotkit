@@ -318,6 +318,7 @@ export const de = {
     resetTips: "Ausgeblendete Tipps wieder zeigen",
     sectionChanged: ", geändert",
     help: "Hilfe",
+    helpAndShortcuts: "Hilfe und Tastenkürzel",
     shortcutsTitle: "Tastenkürzel",
     keys: { Mod: "Strg", Shift: "Umschalt", "Arrow keys": "Pfeiltasten", Enter: "Eingabe", Space: "Leertaste", Escape: "Esc", F10: "F10" },
     shortcuts: {
@@ -351,7 +352,7 @@ export const de = {
         noTime: "Ein Trend braucht Datumswerte in Zeilen, nach Datum geordnet.",
         byIndex: "Manche Kategorien haben kein Datum, daher zählt der Trend sie als gleichmäßig verteilt.",
         mixedUnits: "Die Werte haben verschiedene Einheiten, daher passt kein gemeinsames Ziel.",
-        table: "Das Diagramm anzeigen, um zu sehen, welche Linien es zeichnen kann."
+        table: "Die Linien erscheinen hier, sobald das Diagramm gezeichnet ist."
     },
     labelPosition: "Beschriftung",
     labelPositionNames: { outside: "Außen", inside: "Innen" },
@@ -414,7 +415,13 @@ export const de = {
     collapseAllDone: "Alle Gruppen sind schon zugeklappt.",
     groupsCollapsed: { one: "{count} Gruppe zugeklappt", other: "{count} Gruppen zugeklappt" },
     groupsExpanded: { one: "{count} Gruppe aufgeklappt", other: "{count} Gruppen aufgeklappt" },
-    chartDisplay: "Darstellung",
+    chartShowEach: "{field} einzeln zeigen",
+    chartShowOnly: "Nur {field} zeigen",
+    chartShowDetails: "Details zeigen",
+    chartShowTotals: "Nur Gruppensummen zeigen",
+    chartFoldEach: "{field} einzeln",
+    chartFoldOnly: "Nur {field}",
+    chartFoldSome: "Einige Gruppen zugeklappt",
     toastExported: "{file} exportiert",
     toastLinkCopied: "Link kopiert",
     toastJsonCopied: "Ansicht als JSON kopiert",

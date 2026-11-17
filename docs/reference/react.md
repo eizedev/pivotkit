@@ -42,12 +42,13 @@ Installation and a first example are in [Getting started with React](../getting-
 | `height` | `number` or `string` | `640` | The report's height: a number of pixels or a CSS length (`"100%"`, `"calc(100svh - 24px)"`); the table and the field list scroll inside it. [More](#prop-height) |
 | `grow` | `"on"` or `"off"` |  | Whether the report grows past its height to keep the result's least height: `"on"` by default without `height`, `"off"` with one (the report stays in its box, the result scrolls). See [Layout](#layout). |
 | `fieldList` | `"open"` or `"collapsed"` |  | The field list of a wide or medium report: `"open"` or `"collapsed"` to a rail of about 40 px (`--pk-rail-w`). [More](#prop-fieldlist) |
+| `zones` | `"open"` or `"folded"` |  | The zones' start state. Without it, the report's height decides. [More](#prop-zones) |
 | `limits` | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits) for the host's data. [More](#prop-limits) |
 | `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` |  | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
 | `onExport` | `({ kind, fileName, blob, text, rows }) => unknown` |  | Every exported file before it is downloaded, and every copy before it goes on the clipboard; returning `false` skips it. [More](#prop-onexport) |
-| `tips` | `"on"` or `"off"` or `string` or `string[]` | `"on"` | The [tips](#tips) above the result: `"on"`, `"off"` (none, and no switch in Options), or the ids of the tips allowed, as an array or a comma-separated text. |
+| `tips` | `"on"` or `"off"` or `string` or `string[]` | `"on"` | The [tips](#tips) above the result: `"on"`, `"off"` (none, and no switch in More, Help), or the ids of the tips allowed, as an array or a comma-separated text. |
 | `storageKey` | `string` |  | Remembers the dismissed tips and the help switches in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. [More](#prop-storagekey) |
 | `dismissedTips` | `string[]` |  | Dismissed tip ids from the host's own storage. [More](#prop-dismissedtips) |
 | `onTipDismiss` | `({ id, dismissed }) => void` |  | Every change of the dismissed tips, with the whole list to store and pass back as `dismissedTips`. [More](#prop-ontipdismiss) |
@@ -286,6 +287,28 @@ The field list of a wide or medium report: `"open"`, or `"collapsed"` to a rail 
 
 The rail shows "Fields" upright and a search button. « and the rail are buttons with `aria-expanded`.
 
+### `zones` { #prop-zones }
+
+Type: `"open"` or `"folded"`.
+
+The start state of the zones: open, or folded to the heading row "Fields in the report".
+
+- Without `zones`, the report's height decides, as described in [Layout](#layout).
+- With `zones`, the user can still fold or open them until the page is loaded again. The report does
+  not store that.
+- `"open"` keeps the zones open even in a box too low for them. In a box of the host's height the
+  result then gets less than its least height of 240 px, and the table scrolls in what is left.
+  Measured with three fields placed: a desktop card of 600 px leaves the table 206 px (three rows),
+  152 px while a tip shows. On a phone the same card leaves it almost nothing. Without `zones`, that
+  desktop card folds the zones and leaves 347 px (six rows).
+- Use `"open"` where the report has room: a desktop box of about 700 px or more, or no fixed
+  height, so the report grows.
+- A new value from the host sets the start state again.
+- The report ignores another value, with a console warning.
+
+The web component's attribute is `zones`. The PowerShell Universal module will pass it as
+`-Zones`. That module lives in its own repository.
+
 ### `limits` { #prop-limits }
 
 Type: `Partial<Limits>`.
@@ -402,7 +425,7 @@ Type: `string[]`.
 Dismissed tip ids from the host's own storage. Three entries are switches:
 
 - `"*"`: the user switched all tips off.
-- `"-explanations"`: the user switched off "Show explanations" (Options, Help).
+- `"-explanations"`: the user switched off "Show explanations" (More, Help).
 - `"-fields"`: the user collapsed the field list to the rail. Without [`fieldList`](#prop-fieldlist)
   this entry stores that choice.
 
@@ -430,7 +453,7 @@ Type: `"on"` or `"off"`.
 The "i" of the field descriptions in the field list and on chips, and the tooltip of the table
 headers. `"on"` or `"off"` decides it, whatever the user's switch says.
 
-Without it, the user's "Show explanations" in Options, Help decides. The switch is on by default,
+Without it, the user's "Show explanations" in More, Help decides. The switch is on by default,
 and the report remembers it like the tips. It is one switch for the "i" of the settings, the zones
 and the fields. Screen readers keep the descriptions (`aria-describedby`).
 
@@ -439,7 +462,7 @@ and the fields. Screen readers keep the descriptions (`aria-describedby`).
 Type: `"on"` or `"off"`.
 
 The "i" next to the settings that need explaining: the totals, Show as, Along, the export formats,
-and the chart's Labels and Group labels. It works as `fieldInfo` does. Options shows "Show
+and the chart's Labels and Group labels. It works as `fieldInfo` does. More, Help shows "Show
 explanations" while one of the three props is left to the user. A disabled entry's reason stays
 either way.
 
@@ -722,7 +745,7 @@ result, the most important first.
   waits until the user follows or dismisses the one shown. Each tip has an x that dismisses it. Tab
   reaches the x, and the focus then goes to the next tip.
 
-Options, Help has "Show tips", "Show explanations", "Show dismissed tips again" and the keyboard
+More, Help has "Show tips", "Show explanations", "Show dismissed tips again" and the keyboard
 shortcuts. A screen reader hears new notes through a polite live region.
 
 The notes, in the order the report shows them, and when:
@@ -812,24 +835,26 @@ The report adapts to its own width, not the window's:
 - **Narrow** (below 640 px): the field list opens as a drawer from the toolbar. Menus show as bottom
   sheets: at the bottom of the window, at most 82 % of its height, scrolling inside.
 
-Toolbar buttons move into "More" by a fixed priority (`OVERFLOW_ORDER`): Layout, Options, the chart
-type, then Start over, and Views last. Only the buttons the room left cannot hold move
-(`overflowHidden` in `overflow.js`). The first ones in the order go until the rest fits. Then each of
-them that the room left still holds comes back.
+The toolbar holds what applies to the whole report: Undo, Redo, Start over, Data (with
+`allowImport`), Views, Export and "More". Table and Chart are tabs on top of the result
+([below](#table-and-chart)).
+
+"More" is always the toolbar's last button. Help is its first entry. Toolbar buttons move into
+"More", below Help, by a fixed priority (`OVERFLOW_ORDER`): Data, then Start over, and Views last.
+Only the buttons the room left cannot hold move (`overflowHidden` in `overflow.js`). The first ones
+in the order go until the rest fits. Then each of them that the room left still holds comes back.
 
 - The report measures each button's room with the texts of the report's labels, in the font the
-  toolbar is drawn in (`toolbarRoom`). It measures the chart type's button with its longest type, so
-  a pick never moves a button. A shorter language keeps more buttons.
-- "More" lists them in groups (`MORE_GROUPS`): Start over's Reset and New as entries of their own,
-  then Layout, the chart type and Options, then Views.
+  toolbar is drawn in (`toolbarRoom`). A shorter language keeps more buttons.
+- "More" lists them below Help in groups (`MORE_GROUPS`): Start over's Reset and New as entries of
+  their own, then Data, then Views.
 - The report decides all this before the first paint.
 
 The name of the view loaded takes the room left. The report cuts it with "…", never below 4em.
 
 The zones stack, one line each, whenever the area next to the field list is narrower than 640 px. A
 container query on that area decides it. This covers the narrow layout and a medium one, such as a
-half-width card of 650 px. "Swap rows and columns" shows its icon only when the head of the Columns
-zone is too narrow for the text. Its name stays for screen readers and as a tooltip.
+half-width card of 650 px.
 
 Only the table scrolls sideways. The table measures whether it fits the report and takes the first
 layout that fits:
@@ -859,18 +884,33 @@ box before the first paint:
 - below 600 px of height (`COMPACT_HEIGHT` in `PivotReport.jsx`)
 - below 820 px in the narrow layout, where the zones stack (`COMPACT_HEIGHT_NARROW`)
 
-In the compact layout, the zones fold into one line that says what is in them ("Rows: Team ·
-Columns: Priority · Values: Count of Ticket"), so the table keeps its room. At most one tip shows.
+The zones sit in a section between two rules (`--pk-section-rule`), under the toolbar and above the
+tabs. Its heading row is one line in every state and size, with three buttons side by side:
 
-- A click on that line, or Layout in the toolbar, opens the zones. Layout folds them again.
-- Layout keeps its text and shows its state with `aria-pressed` (pressed: the zones are open).
-  Whether it stands in the toolbar or in "More" (as an entry with a check) depends on the width only,
-  never on its own state.
-- The line only shows what is placed. To change a chip, open the zones first.
+- The fold button: a chevron and the heading "Fields in the report" (`zonesTitle`). It is a
+  disclosure button with `aria-expanded` and `aria-controls` on the zones, named by its heading.
+  Its test id is `layout-summary`.
+- The section's "i", the zones' own: it says what the section is for (`zonesHint`). It shows while
+  explanations show, as the zones' "i" does.
+- "Swap rows and columns" at the row's end. It works while the zones are folded too. Where the row
+  is narrower than 36em, as on a phone, it shows its icon only. Its name stays for screen readers
+  and as a tooltip.
+
+Folded, what is placed stands in the same line after the "i" ("Rows: Team · Columns: Priority ·
+Values: Count of Ticket"), cut with "…". It is the fold button's description (`aria-describedby`)
+and its tooltip, and a click on it folds or opens the zones too. Open, the zones sit indented in a
+tinted panel (`--pk-section-indent`, `--pk-section-bg`, `--pk-section-pad`). The focus stays on
+the fold button when it folds or opens the zones. The Tab order is the fold button, the "i", Swap,
+then each zone's "i" and its chips.
+
+In the compact layout, the zones start folded, so the table keeps its room. At most one tip shows.
+[`zones`](#prop-zones) sets the start state instead.
+
+- The folded line only shows what is placed. To change a chip, open the zones first.
 - A drag from the field list or the table opens the zones while it lasts, so a field can still be
   dropped.
 - When the report gets lower while a menu or popover is open, the fold waits until it closes. A focus
-  in the zones moves to the folded line.
+  in the zones moves to the fold button.
 - The report folds the zones too when they no longer fit its box. It checks after every render and
   when a part of it changes size. So zones that grow in a box of the same size fold as well: longer
   texts in another language, more fields in Rows, a font or stylesheet that loads late.
@@ -881,7 +921,7 @@ The user's choice is state of the mounted report. It survives the host's renders
 the view, so a saved view does not carry it.
 
 The result keeps a least height: 240 px, 280 px in the narrow layout. The box may be lower than
-what the toolbar, the zones (or their line), the tips, the notes, the result's least height and the
+what the toolbar, the zones (or their heading row), the tips, the notes, the result's least height and the
 status line need. What happens then depends on whether the host gives a height:
 
 - **Without `height`** (the report's 640 px default), the report grows past its 640 px, and the page
@@ -909,13 +949,34 @@ Whatever is taller than the result's area scrolls inside it, with or without `he
 In the narrow layout, the zones sit above the table, so a report of a fixed 640 px leaves little room
 for the table on a phone. Give it more height there.
 
+### Table and Chart { #table-and-chart }
+
+On top of the result stand the tabs Table and Chart, then the settings button, Enlarge and Full
+screen.
+
+- The tabs are ARIA tabs: `role="tablist"` named "View", two `role="tab"` with `aria-selected`. The
+  result is their `tabpanel`, labelled by the tab shown. Test ids: `show-table`, `show-chart`.
+- Activation is manual. The tab list is one Tab stop. Left and Right (Home, End) move the focus.
+  Enter or Space shows the tab, since the chart loads on demand.
+- The settings button reads "Table settings" (`tableSettings`) or "Chart settings"
+  (`chartSettings`). Its test id is `view-settings`. Table settings holds the totals, Expand all and
+  Collapse all. Chart settings holds the chart types and the Display topics.
+- In the narrow layout the settings button reads "Settings" (`settingsShort`), Enlarge and Full
+  screen show their icon only. Each keeps its whole name in `aria-label` and `title`. Left and Right
+  do not mirror: the report has no right-to-left layout.
+- A tab changes the view's `display`, so showing the other tab is one step for Undo, as the switch
+  Table | Chart was before. The tab shown, clicked again, adds no step.
+
+The Tab order is the toolbar, the zones, the tips, the tabs, the settings button, Enlarge, Full
+screen and the result.
+
 **Enlarge** and **Full screen** stand at the top right of the result. Neither is part of the view.
 
 **Enlarge** lets the result fill the report. Its name says what a click does: Enlarge or Reduce. It
 has no `aria-pressed`.
 
-- The field list, the zones, the tips and the notes above the result are hidden. The toolbar stays,
-  and one line names the fields.
+- The field list, the zones, the tips and the notes above the result are hidden. The toolbar and the
+  tabs stay, and one line above the tabs names the fields.
 - Escape inside the report, or the button, restores it.
 - On Escape, an open menu, the field drawer, a filter or the drill-down closes first.
 - An Escape elsewhere on the page, such as in a host's own dialog, is not the report's.
@@ -930,7 +991,7 @@ inside the shadow root. The report reads its state from its own root's `fullscre
 
 ## Menus
 
-The menus of a chip and Options are menus in levels.
+The menus of a chip, Table settings, Chart settings, More and Views are menus in levels.
 
 - The first level is an ARIA menu: `role="menu"` with `menuitem`, `menuitemradio`,
   `menuitemcheckbox`, `group` and `separator`. It has one Tab stop with a roving `tabindex`, the
@@ -955,7 +1016,9 @@ applies.
 | A field on Rows or Columns | Sort (A to Z, Z to A side by side), sort by its one value, Filter, Top items, Move to, Remove field | Sort by value (two or more values, or a custom order), Filter, Group (dates), Number ranges (numbers), Top items, Move to |
 | A field in Filters | Filter, Move to, Remove field | Filter, Move to |
 | A value | Summarize by, Show as, Number format, Highlight (side by side), Name, Move to, Remove field | Summarize by, Show as, Number format, Name, Move to |
-| Options | Totals, Rows (Expand all, Collapse all), Help | Keyboard shortcuts |
+| Table settings | Totals, Rows (Expand all, Collapse all with what it keeps: "Show Region only") | |
+| Chart settings | the chart types, then Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series, Layout | each Display topic. Layout ends with "Show each Country" and "Show Region only" |
+| More | Help, then the toolbar's buttons that do not fit | Help (Show tips, Show explanations, Show dismissed tips again, Keyboard shortcuts), Keyboard shortcuts |
 | Views | This view (Save "…", Save as…), Shared views, My views (each entry with its Publish and Delete as items next to it), Share this view (Copy link, Copy view as JSON, Download view, Open view file…) | Save as, Open view file, the question before a delete, a publish or a Save over a shared view |
 
 The chip menus have a search above their first level, and `/` focuses it.
@@ -993,8 +1056,8 @@ scroll further, so the table or the page behind never scrolls. `overscroll-behav
 the same for touch. A menu is at most as high as the window, and scrolls inside.
 
 No menu folds. The Export menus are flat lists in titled groups (`role="group"` with its title).
-The chart type menu has its types first, then a row per Display topic that opens a level, like the
-field and Options menus.
+Chart settings has its types first, then a row per Display topic that opens a level, like the
+field menus.
 
 An "i" next to a setting explains it on hover, focus or tap. Settings with an "i": the totals, Show
 as, Excel and CSV in the export menu, and Labels and Group labels of the chart.
@@ -1004,7 +1067,7 @@ as, Excel and CSV in the export menu, and Labels and Group labels of the chart.
 - It is the same button as a field's "i". Its name is "About <setting>".
 - A menu row stays one line. Next to an item of a menu in levels (the totals), the "i" is for the
   pointer. The item carries its text as its description, so the arrow keys stay on the items.
-- Options, Help, "Show explanations" (or `settingInfo`) hides them all.
+- More, Help, "Show explanations" (or `settingInfo`) hides them all.
 - The export menu is a dialog, so Tab reaches each format's "i".
 
 The report disables an entry that would change nothing. In a menu in levels it uses
@@ -1028,6 +1091,25 @@ React's `useId` (`pk-x3k9q1-r1f`), so two reports on one page share no name, and
 components. Browsers fill and restore fields by name. Browsers' developer tools flag a field without a
 name or an id. The names are not stable across page loads. Do not select the fields by them. The
 `data-testid`s are for tests.
+
+## Test ids
+
+A `data-testid` is not public interface. The upgrading page lists the ones a release changes. Those of
+the layout:
+
+| Test id | What |
+| --- | --- |
+| `zone-section` | the section "Fields in the report" |
+| `layout-summary` | its fold button, with `aria-expanded` |
+| `zones-sub` | what is placed, after the heading while folded |
+| `zones-info` | the section's "i" |
+| `swap` | Swap rows and columns, at the end of the heading row |
+| `show-table`, `show-chart` | the tabs, with `aria-selected` |
+| `view-settings` | Table settings or Chart settings |
+| `chart-types` | the group of chart types in Chart settings; each type is `chart-<type>` |
+| `chart-show-each`, `chart-show-only` | Chart settings › Layout: "Show each …" and "Show … only" |
+| `expand-all`, `collapse-all` | the same in Table settings |
+| `more`, `more-help` | More, and its Help entry |
 
 ## Popovers and the host page
 

@@ -3,11 +3,13 @@
  * move it, removed with its x, and its menu (chip-menus.jsx) holds everything else. A chip says what
  * is set on it in words: the grouping in its name ("Created by month"), "3 of 4" for a filter,
  * "Top 5", the sort; screen readers get the same in its name. After a chip is removed the focus goes
- * to its neighbour, or to the zone. In the compact layout the zones fold into one line that says what
- * is in them; a drag opens them while it lasts, so a field can still be dropped.
+ * to its neighbour, or to the zone. The zones sit in a section "Fields in the report": its heading
+ * row (SectionHead) folds them, says what is placed while they are folded, and holds Swap rows and
+ * columns, which works folded too. A drag
+ * opens the folded zones while it lasts, so a field can still be dropped.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { fieldItems, fieldLabel } from "pivotkit-core";
 import { MenuPanel } from "./lazy-menus.jsx";
 import { itemRuleText, layoutSummary, sortText, valueConditionText, valueLabel } from "./names.js";
@@ -179,7 +181,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
     );
 }
 
-function Zone({ zone, entries, labels, children, action, explain }) {
+function Zone({ zone, entries, labels, children, explain }) {
     const count = entries.length;
     const { setNodeRef, isOver } = useDropTarget(`zone:${zone}`, { kind: "zone", zone, count });
     const active = useActiveDrag();
@@ -209,8 +211,6 @@ function Zone({ zone, entries, labels, children, action, explain }) {
                 </h3>
                 {/* what the zone does, with an example: shown while tips are on */}
                 {explain ? <InfoButton info={{ description: labels.zoneInfo[zone] }} name={labels.zones[zone]} labels={labels} className="pk-zone-info" testId={`zone-info-${zone}`} /> : null}
-                <span className="pk-grow" />
-                {action}
             </div>
             <ChipList ids={entries.map((e) => e.id)}>
                 <ul className="pk-chips">
@@ -242,24 +242,60 @@ export function zoneEntries(view, types, labels) {
     };
 }
 
-/** The folded zones: one line with what is in them, a button that opens them. */
-function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
+/**
+ * The section's heading row, one line in every state and size: the fold button (a chevron and the
+ * heading), the section's "i" (the zones' own InfoButton: what the section is for, while
+ * explanations show), the summary while folded (what is placed, cut with "…"; a click on it folds or
+ * opens too) and Swap rows and columns at the end. The fold button is named by its heading and,
+ * folded, described by the summary, which is its tooltip too. Three buttons side by side, none
+ * inside another; the Tab order is fold, "i", Swap. In the narrow layout Swap shows its icon only.
+ */
+function SectionHead({ entries, labels, id, open, onFold, onSwap, canSwap, buttonRef, explain }) {
+    const own = useId();
     const parts = layoutSummary(entries, labels);
     const text = parts.length ? parts.map((p) => `${p.title}: ${p.fields}`).join(" · ") : labels.layoutEmpty;
     return (
-        <button ref={buttonRef} type="button" id={id} className="pk-zones-summary" aria-expanded="false" aria-label={`${labels.showLayout}: ${text}`} title={labels.showLayout} onClick={onShow} data-testid="layout-summary">
-            <Icon name="chevronRight" size={16} />
-            <span className="pk-zones-summary-text">
-                {parts.length
-                    ? parts.map((p, i) => (
-                          <React.Fragment key={p.zone}>
-                              {i ? <span aria-hidden="true"> · </span> : null}
-                              <span className="pk-zones-summary-zone">{p.title}:</span> {p.fields}
-                          </React.Fragment>
-                      ))
-                    : labels.layoutEmpty}
-            </span>
-        </button>
+        <div className="pk-section-row">
+            <button
+                ref={buttonRef}
+                type="button"
+                className="pk-section-fold"
+                aria-expanded={open}
+                aria-controls={open ? id : undefined}
+                aria-labelledby={`${own}-t`}
+                aria-describedby={open ? undefined : `${own}-s`}
+                title={open ? undefined : text}
+                onClick={onFold}
+                data-testid="layout-summary"
+            >
+                <Icon name="chevronRight" className="pk-section-chevron" />
+                <span id={`${own}-t`} className="pk-section-heading">
+                    {labels.zonesTitle}
+                </span>
+            </button>
+            {explain ? <InfoButton info={{ description: labels.zonesHint }} name={labels.zonesTitle} labels={labels} className="pk-section-info" testId="zones-info" /> : null}
+            {open ? (
+                <span className="pk-grow" />
+            ) : (
+                // the button's description and a larger target for the pointer; the keys use the button
+                <span id={`${own}-s`} className="pk-section-sub" onClick={onFold} data-testid="zones-sub">
+                    {parts.length
+                        ? parts.map((p, i) => (
+                              <React.Fragment key={p.zone}>
+                                  {/* read too: the description is the line as it shows */}
+                                  {i ? " · " : null}
+                                  <span className="pk-zones-summary-zone">{p.title}:</span> {p.fields}
+                              </React.Fragment>
+                          ))
+                        : labels.layoutEmpty}
+                </span>
+            )}
+            {/* the text goes in the narrow layout (styles.css): the title keeps it as a tooltip */}
+            <button type="button" className="pk-btn pk-small-btn pk-swap" onClick={onSwap} disabled={!canSwap} data-testid="swap" title={labels.swap}>
+                <Icon name="swap" size={14} />
+                <span className="pk-btn-text">{labels.swap}</span>
+            </button>
+        </div>
     );
 }
 
@@ -267,20 +303,19 @@ function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
  * @param {{ view: any, types: Map<string, string>, labels: import("./labels.js").UiLabels,
  *   commit: (view: object, note?: any) => void, earlier?: () => any[],
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
- *   id: string, folded: boolean, onShow: () => void, defaultsOf?: (field: string) => import("./index.js").FieldDefaults | undefined,
+ *   id: string, folded: boolean, onFold: () => void, narrow?: boolean, defaultsOf?: (field: string) => import("./index.js").FieldDefaults | undefined,
  *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined, explain?: boolean, showInfo?: boolean }} props
  *   `explain`: an "i" next to each zone's title that says what the zone does; `showInfo` false: no "i"
  *   of a field description on the chips (Options → Help)
- *   `folded`: the compact layout's one line; `defaultsOf`: the host's settings for a source field (fieldDefaults);
+ *   `folded`: the section folded to its heading row; `onFold`: fold or open it; `defaultsOf`: the host's settings for a source field (fieldDefaults);
  *   `infoOf`: the host's description of a field (its source field's for a grouping); `earlier`: the
  *   history's views before this one (a value's own colours for its Highlight)
  */
-export function Zones({ view, types, labels, commit, earlier, encoded, locale, onSwap, id, folded, onShow, defaultsOf, infoOf, explain = false, showInfo = true }) {
+export function Zones({ view, types, labels, commit, earlier, encoded, locale, onSwap, id, folded, onFold, defaultsOf, infoOf, explain = false, showInfo = true }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
-    const showing = useRef(false);
-    // whether the focus is in the zones: when they fold, it moves to the line instead of getting lost
+    // whether the focus is in the zones: when they fold, it moves to the fold button instead of getting lost
     const focusInside = useRef(false);
     const summary = useRef(/** @type {HTMLButtonElement | null} */ (null));
     // the state of every field chip, once per view (a filter summary counts the field's values)
@@ -313,90 +348,70 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
         const target = /** @type {HTMLElement | null} */ (chips[Math.min(at.index, chips.length - 1)] ?? zone);
         target?.focus({ preventScroll: true });
     });
-    // opened from the one line: its button is gone, the focus goes to the first zone
+    // the fold button stays where it is, folded or open, and keeps the focus; the zones folded with
+    // the focus in them (a smaller report): it goes to the fold button
     useEffect(() => {
-        if (showing.current && !folded) {
-            showing.current = false;
-            /** @type {HTMLElement | null | undefined} */ (root.current?.querySelector("[data-zone]"))?.focus({ preventScroll: true });
-        }
         if (folded && focusInside.current) {
             focusInside.current = false;
             summary.current?.focus({ preventScroll: true });
         }
     }, [folded]);
-    if (folded && !dragging) {
-        return (
-            <ZoneSummary
-                entries={entries}
-                labels={labels}
-                id={id}
-                buttonRef={summary}
-                onShow={() => {
-                    showing.current = true;
-                    onShow();
-                }}
-            />
-        );
-    }
+    const open = !folded || dragging;
     return (
-        <div
-            className="pk-zones"
-            ref={root}
-            id={id}
-            onFocus={() => {
-                focusInside.current = true;
-            }}
-            onBlur={(e) => {
-                // a removed element blurs without a target: that keeps the flag, as the fold needs
-                if (e.relatedTarget && !e.currentTarget.contains(/** @type {Node} */ (e.relatedTarget))) {
-                    focusInside.current = false;
-                }
-            }}
-        >
-            {ZONES.map((zone) => (
-                <Zone
-                    key={zone}
-                    zone={zone}
-                    entries={entries[zone]}
-                    labels={labels}
-                    explain={explain}
-                    action={
-                        zone === "cols" ? (
-                            // the text goes when the zone is too narrow (styles.css): the title keeps it as a tooltip
-                            <button type="button" className="pk-link pk-swap" onClick={onSwap} disabled={view.rows.length + view.cols.length === 0} data-testid="swap" title={labels.swap}>
-                                <Icon name="swap" size={14} />
-                                <span className="pk-btn-text">{labels.swap}</span>
-                            </button>
-                        ) : null
-                    }
+        <div className="pk-zone-section" data-pk-open={open ? "" : undefined} data-testid="zone-section">
+            <SectionHead entries={entries} labels={labels} id={id} open={open} onFold={onFold} onSwap={onSwap} canSwap={view.rows.length + view.cols.length > 0} buttonRef={summary} explain={explain} />
+            {open ? (
+                <div
+                    className="pk-zones"
+                    ref={root}
+                    id={id}
+                    onFocus={() => {
+                        focusInside.current = true;
+                    }}
+                    onBlur={(e) => {
+                        // a removed element blurs without a target: that keeps the flag, as the fold needs
+                        if (e.relatedTarget && !e.currentTarget.contains(/** @type {Node} */ (e.relatedTarget))) {
+                            focusInside.current = false;
+                        }
+                    }}
                 >
-                    {entries[zone].map((e) => (
-                        <Chip
-                            key={e.id}
-                            id={e.id}
+                    {ZONES.map((zone) => (
+                        <Zone
+                            key={zone}
                             zone={zone}
-                            index={e.index}
-                            count={entries[zone].length}
-                            field={e.field}
-                            text={e.text}
-                            typeName={e.type}
-                            view={view}
-                            types={types}
+                            entries={entries[zone]}
                             labels={labels}
-                            commit={commit}
-                            onRemove={onRemove}
-                            state={zone === "values" ? null : states.get(e.field)}
-                            locale={locale}
-                            defaultsOf={defaultsOf}
-                            earlier={earlier}
-                            rangeOf={rangeOf}
-                            info={e.field ? infoOf?.(e.field) : undefined}
-                            showInfo={showInfo}
-                            encoded={encoded}
-                        />
+                            explain={explain}
+                        >
+                            {entries[zone].map((e) => (
+                                <Chip
+                                    key={e.id}
+                                    id={e.id}
+                                    zone={zone}
+                                    index={e.index}
+                                    count={entries[zone].length}
+                                    field={e.field}
+                                    text={e.text}
+                                    typeName={e.type}
+                                    view={view}
+                                    types={types}
+                                    labels={labels}
+                                    commit={commit}
+                                    onRemove={onRemove}
+                                    state={zone === "values" ? null : states.get(e.field)}
+                                    locale={locale}
+                                    defaultsOf={defaultsOf}
+                                    earlier={earlier}
+                                    rangeOf={rangeOf}
+                                    info={e.field ? infoOf?.(e.field) : undefined}
+                                    showInfo={showInfo}
+                                    encoded={encoded}
+                                />
+                            ))}
+                        </Zone>
                     ))}
-                </Zone>
-            ))}
+                </div>
+            ) : null}
         </div>
     );
 }

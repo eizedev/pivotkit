@@ -213,7 +213,7 @@ test.describe("a press inside another menu drags nothing", () => {
         expect(await seen(page)).toEqual(before);
     });
 
-    for (const id of ["options", "views"]) {
+    for (const id of ["table-settings", "views"]) {
         test(`the ${id} menu: text pressed and moved over Columns and Values`, async ({ page }) => {
             await open(page);
             await toolbar(page, id);

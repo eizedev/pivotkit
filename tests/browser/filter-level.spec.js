@@ -624,7 +624,8 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
     };
 
     test("a desktop shows every badge whole; a phone cuts a rule to “…” and keeps the name; the chip's tooltip says it all", async ({ page }) => {
-        await page.setViewportSize({ width: 1440, height: 900 });
+        // room for the open zones with their heading next to the view's notes
+        await page.setViewportSize({ width: 1440, height: 1000 });
         // the chip of the hands-on test: a field named "Month" by month of the year, 2025 only, two months
         // unticked ("10 of 12", "2025"); a name this short made the badge show "2(" on a desktop
         const SHORT = "Month";

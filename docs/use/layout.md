@@ -5,8 +5,8 @@ description: Give the result of a pivotkit report more room (field rail, Enlarge
 
 # Small screens, menus and tips
 
-The report adapts to the room it has. The field list folds away, the zones fold into one line, and
-on a phone menus open from the bottom. **Enlarge** and **Full screen** give the result all the room.
+The report adapts to the room it has. The field list folds away, the zones fold under their heading,
+and on a phone menus open from the bottom. **Enlarge** and **Full screen** give the result all the room.
 
 - Tips above the result say what the report shows.
 - An **i** explains a setting.
@@ -17,6 +17,7 @@ on a phone menus open from the bottom. **Enlarge** and **Full screen** give the 
 | Button | Where | Does |
 | --- | --- | --- |
 | **«** | next to "Fields" | Collapses the field list to a slim rail at the side of the report, about 40 px wide. The rail shows "Fields" upright and a search button. The zones and the result get the list's room. |
+| **Fields in the report** | the heading above the zones | Folds the zones. The heading row then says what is placed. |
 | **Enlarge** | top right of the result | The table or the chart fills the report, as described below. |
 | **Full screen** | next to it | The whole report on the screen. |
 
@@ -37,9 +38,9 @@ None of them is part of the saved view.
     [small screens](#small-screens). Enlarge hides the rail too.
 
 ??? info "Enlarge"
-    The field list, the zones, the tips and the notes above the result step aside. One line says
-    which fields the report shows: "Rows: Team · Columns: Priority · Values: Count of Ticket". The
-    toolbar stays.
+    The field list, the zones, the tips and the notes above the result step aside. One line above
+    the tabs says which fields the report shows: "Rows: Team · Columns: Priority · Values: Count of
+    Ticket". The toolbar and the tabs stay.
 
     The same button then reads **Reduce** (in German **Verkleinern**) and is highlighted. It or
     **Escape** brings everything back. The button's name says what a click does, so a screen reader
@@ -61,8 +62,8 @@ The report adapts to its own width, not the window's.
 | Wide | The field list on the left, the zones in a 2 x 2 grid. |
 | Narrow: below 640 px of the report's own width | The field list is a drawer that **Fields** in the toolbar opens. Menus open as sheets from the bottom of the window. |
 
-![The report at phone width: toolbar, the zones folded into one line, one tip, Enlarge and Full screen, and the table below](../assets/screenshots/phone-light.png#only-light){ width="320" }
-![The report at phone width: toolbar, the zones folded into one line, one tip, Enlarge and Full screen, and the table below](../assets/screenshots/phone-dark.png#only-dark){ width="320" }
+![The report at phone width: toolbar, the zones folded under their heading, one tip, the tabs with their icon buttons, and the table below](../assets/screenshots/phone-light.png#only-light){ width="320" }
+![The report at phone width: toolbar, the zones folded under their heading, one tip, the tabs with their icon buttons, and the table below](../assets/screenshots/phone-dark.png#only-dark){ width="320" }
 
 - **The drawer** closes with its **x** ("Close field list"), Escape or a tap beside it. It also
   closes by itself, so you see where the field lands:
@@ -71,51 +72,57 @@ The report adapts to its own width, not the window's.
     - when a drag starts
 - **Sheets**: on a phone, **More** and every menu are a sheet at the bottom of the window. A sheet
   takes at most 82 % of the window's height and scrolls inside, so every entry is reachable.
-- **More**: toolbar buttons that do not fit move into **More**.
-    - They move in a fixed order: Layout first, then Options, the chart type, and Start over and Views
-      last. Start over holds New, and Views is where you save.
+- **Icons**: next to the tabs, the settings button reads **Settings**. **Enlarge**, **Full screen**
+  and **Swap rows and columns** show their icon only. Each keeps its whole name as a tooltip and for
+  a screen reader.
+- **More** is always at the end of the toolbar. Its first entry, **Help and keyboard shortcuts**,
+  opens the level **Help**. Toolbar buttons that do not fit move into **More**, below it.
+    - They move in a fixed order: Data first, then Start over and Views last. Start over holds New,
+      and Views is where you save.
     - Only the buttons that the room left in the toolbar cannot hold move. A button that fits stays,
       even when one before it in that order had to go.
     - The report measures the room with the texts of the report's language, so a shorter language
       keeps more buttons.
-    - The chart type keeps the room of its longest type, so picking another type never moves a
-      button. A click on Layout never moves a button either.
     - While a menu of the toolbar is open, nothing moves, even when the window gets narrower or the
       language changes. The buttons settle when the menu closes.
     - A menu opened from **More** closes when its own button fits in the toolbar again.
-    - Table or Chart, Undo with Redo next to it, and Export always stay.
-    - In **More** the entries come in groups with a line between them. The first group holds Start
-      over's **Reset** and **New, empty report** as entries of their own. The second holds Layout, the
-      chart type and Options. The third holds Views.
+    - Undo with Redo next to it, Export and More always stay.
+    - Below Help the entries come in groups with a line between them. The first group holds Start
+      over's **Reset** and **New, empty report** as entries of their own. Then come Data and Views.
     - The name of the view you loaded takes the room that is left on its line. The report shortens it
       with "…", never to less than a few letters. A tap on it opens Views.
 
     | Window (field list open / folded) | English | German |
     | --- | --- | --- |
-    | 1920 px | every button / every button | every button / every button |
-    | 1440 px | Layout and Options in More / every button | Layout, Options and the chart type in More / Layout and Options in More |
-    | 1280 px | Options and the chart type in More / every button | everything but Views in More / Layout and the chart type in More |
-    | 1000 px | everything in More / Layout, Options and the chart type in More | everything in More / everything but Views in More |
+    | 1280 px and wider | every button / every button | every button / every button |
+    | 1000 px | every button / every button | Start over in More / every button |
+    | 1000 px, with Data | Data in More / every button | Data and Start over in More / every button |
+    | A phone, 390 px | Start over and Views in More, and Data where there is one | the same |
 
     The table shows measurements in the playground with the sales data, in Chromium. Another font or
     other texts move the limits a little.
 
-    ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-light.png#only-light)
-    ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-dark.png#only-dark)
+    ![More on a phone: Help first, then Reset and New, empty report, then Views, with a line between the groups](../assets/screenshots/more-menu-light.png#only-light)
+    ![More on a phone: Help first, then Reset and New, empty report, then Views, with a line between the groups](../assets/screenshots/more-menu-dark.png#only-dark)
 
 - **The table**: row labels wrap between words when the table is wider than the phone. A table
   that is still too wide scrolls sideways.
 
 ### A low report
 
-A report is low below 600 px of height, a narrow one below 820 px. Then the zones fold into one line
-that says what is in them: "Rows: Team · Columns: Priority · Values: Count of Ticket". At most one
-tip shows.
+A report is low below 600 px of height, a narrow one below 820 px. Then it starts with its zones
+folded. The heading **Fields in the report** stays, and next to it, in the same line, what is
+placed: "Rows: Team · Columns: Priority · Values: Count of Ticket". At most one tip shows.
 
-- A click on the line, or **Layout** in the toolbar, opens the zones.
-- **Layout** keeps its name and shows pressed while the zones are open. In **More** it is an entry
-  with a check.
+- A click on the heading or on what is placed folds or opens the zones. The chevron on its left
+  turns.
+- The **i** next to the heading says what the section is for.
+- The heading row is one line on every screen. On a phone, what is placed is cut with "…"; point at
+  the heading to read it whole.
+- **Swap rows and columns** sits at the right end of the heading row. It works while the zones are
+  folded too.
 - A drag from the field list or the table opens the zones while it lasts.
+- Your click holds until the page is loaded again.
 
 The report's box can be lower than its toolbar, its zones, its tips and the least height of the
 result need. The least height is 240 px, 280 px on a narrow report. In that case:
@@ -131,9 +138,9 @@ result need. The least height is 240 px, 280 px on a narrow report. In that case
   shows the explanation. A tap opens it.
     - It is the same **i** everywhere: at totals, Show as, the export formats, the chart's Labels and
       Group labels. So every menu row stays one line.
-    - Next to an item of Options the **i** is for the pointer. A screen reader reads the explanation
-      with the item.
-    - **Options**, **Help**, **Show explanations** hides them all.
+    - Next to an item of Table settings the **i** is for the pointer. A screen reader reads the
+      explanation with the item.
+    - **More**, **Help**, **Show explanations** hides them all.
 - Every text field in a menu has an **×** while it holds text. The **×** empties the field and keeps
   the focus there. Ctrl+Z in the field brings the text back. These text fields are:
     - the field search
@@ -151,14 +158,15 @@ result need. The least height is 240 px, 280 px on a narrow report. In that case
 
 ## Menus that are long
 
-The menu of a chip, **Options** and **Views** are in levels, so their first level stays short:
+The menu of a chip, **Table settings**, **Chart settings**, **More** and **Views** are in levels, so
+their first level stays short:
 
 - The first level has one row per topic, with what is set muted on its right: "Filter · All",
   "Number format · Automatic".
     - A dot in the accent colour before the setting means it differs from the one the report starts
       with: "Number format · ● Currency". A screen reader hears "Number format, Currency, changed".
     - A topic with only a few choices has them right there: A to Z and Z to A, a value's Highlight,
-      the totals and help switches of Options.
+      the totals of Table settings.
 - A row opens the topic's level in the menu's place. The level's title names the field:
   "Month › Group". **‹ Back**, Escape or the left arrow key go back to the row it came from.
 - Every choice applies at once. The table behind the menu changes while the menu is open, and Undo
@@ -183,24 +191,24 @@ The menu of a chip, **Options** and **Views** are in levels, so their first leve
 
 **Views** is in levels too. Its first level is the list to scan: This view, Shared views, My views,
 Share this view. Save as…, Open view file… and the questions before a delete or a publish open
-levels of their own. See [views](views.md#the-views-menu). The chart type menu's Display settings
-are in levels too: below the chart types, Value labels, Legend, Title, Axis, Tooltip, Series and
-Layout are rows that open levels. See [charts](charts.md#display-settings). The Export menus, **Start over**
-and **More** are flat lists. No menu folds.
+levels of their own. See [views](views.md#the-views-menu). In **Chart settings**, below the chart
+types, Value labels, Legend, Title, Axis, Tooltip, Series and Layout are rows that open levels. See
+[charts](charts.md#display-settings). In **More**, **Help** opens a level. The Export menus and
+**Start over** are flat lists. No menu folds.
 
 Every menu draws its groups alike. Each group stands under its title in bold, with a line between one
 group and the next:
 
 | Menu | Groups |
 | --- | --- |
-| Options | Totals, Rows and Help |
+| Table settings | Totals and Rows |
 | Views | This view, Shared views, My views and Share this view |
-| The chart type menu | Chart type and Display |
+| Chart settings | Chart type and Display |
 | Export | Download and Copy |
 | A value's levels | More statistics and the like |
 
-**More** has lines only, no titles. Inside the chart's Display, a dashed line parts its own groups,
-such as Value labels, Legend and Title.
+Below Help, **More** has lines only, no titles. Inside the chart's Display, a dashed line parts its
+own groups, such as Value labels, Legend and Title.
 
 ![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-light.png#only-light){ width="320" }
 ![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-dark.png#only-dark){ width="320" }
@@ -225,12 +233,12 @@ never over the table.
 - The **x** of a tip hides that tip, and the report remembers it. Tab reaches the **x**.
 - The notes that say the result is cut or empty always stay. They have no x. Such notes are about a
   top 5, the first 50 categories of a chart, or a filter that leaves nothing.
-- **Options**, **Help** has three switches. The report remembers them like the tips.
+- **More**, **Help** has three switches. The report remembers them like the tips.
     - **Show tips** switches all tips off and on.
     - **Show explanations** switches every **i**: of the fields, the zones and the settings of the
       menus.
     - **Show dismissed tips again** is greyed out until you dismiss a tip.
-- **Options**, **Help**, **Keyboard shortcuts** lists the keys. See [keyboard](keyboard.md).
+- **More**, **Help**, **Keyboard shortcuts** lists the keys. See [keyboard](keyboard.md).
 
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](../assets/screenshots/tips-light.png#only-light)
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](../assets/screenshots/tips-dark.png#only-dark)
@@ -243,7 +251,7 @@ The report speaks English and German. Numbers, dates and currency follow the lan
 ![The report in German: Felder, Zeilen, Spalten, Werte, amounts as 1.041.224,25 €](../assets/screenshots/german-dark.png#only-dark)
 
 !!! note "For developers"
-    The report's height, `grow`, `fieldList`, the width classes and the least heights are in the
+    The report's height, `grow`, `fieldList`, `zones`, the width classes and the least heights are in the
     [pivotkit-react reference, Layout](../reference/react.md#layout). The tips, their ids and
     `storageKey` are in [Tips](../reference/react.md#tips). The texts and languages are in
     [Localisation](../reference/localisation.md).

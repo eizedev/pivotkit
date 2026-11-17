@@ -38,6 +38,7 @@ One module is the only place for each of these:
 | Tips | `tips.js` (`TIPS`) |
 | Menu topics, levels and search | `menu-topics.js` |
 | Toolbar overflow into "More" | `overflow.js` (`OVERFLOW_ORDER`, `MORE_GROUPS`) |
+| Tabs Table and Chart with their settings | `view-tabs.jsx` |
 | Explaining a setting (the "i") | `SettingInfo` in `section.jsx` |
 | Groups inside a menu | `Group` in `popover.jsx` |
 | A text field with an "x" | `clear-input.jsx` |

@@ -111,7 +111,7 @@ const tooltipOf = (chartEl) =>
         return box ? [...box.children].map((row) => [...(row.children.length ? row.children : [row])].map((c) => c.textContent.trim()).filter(Boolean).join(" ")) : [];
     });
 
-/** Opens a toolbar menu of the report: its button, or its entry in "More" on a narrow report. */
+/** Opens a menu of the report: its button (the toolbar's, or "view-settings" beside the tabs), or its entry in "More" on a narrow report. */
 async function menu(report, testId) {
     const own = report.getByTestId(testId);
     if (await own.isVisible()) {
@@ -161,7 +161,7 @@ test.describe("chart extras (#54)", () => {
     test("Display › Series: the colour beside a series, picked, stays in the view and wins over the host's; Default gives it back", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar" }, { colorMap: { Hardware: "#e3000f" } });
         const report = page.locator("#color-report");
-        await menu(report, "chart-type");
+        await menu(report, "view-settings");
         await report.getByTestId("topic-series").click();
         const level = report.getByTestId("level-series");
         // each series: its switch, then its colour, as items of the menu
@@ -208,7 +208,7 @@ test.describe("chart extras (#54)", () => {
         // is stopped there so no picker opens
         const chartEl = await mount(page, { type: "line" }, { view: { ...VIEW, cols: [] } });
         const report = page.locator("#color-report");
-        await menu(report, "chart-type");
+        await menu(report, "view-settings");
         // one series: listed for its colour, its switch always on
         await report.getByTestId("topic-series").click();
         const level = report.getByTestId("level-series");
@@ -235,7 +235,7 @@ test.describe("chart extras (#54)", () => {
     test("Display › Series: each colour starts as the chart draws it; a view's colour for a name not shown can be removed", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar", colors: [{ name: "Gone", color: "#123456" }] });
         const report = page.locator("#color-report");
-        await menu(report, "chart-type");
+        await menu(report, "view-settings");
         await expect(report.getByTestId("topic-state-series")).toContainText("3 of 3 shown");
         await report.getByTestId("topic-series").click();
         const level = report.getByTestId("level-series");
@@ -255,7 +255,7 @@ test.describe("chart extras (#54)", () => {
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30"]);
         // a new chart: one drawn again under an element hovered before does not name it (#576)
         chartEl = await mount(page, { type: "bar" });
-        await menu(report, "chart-type");
+        await menu(report, "view-settings");
         await report.getByTestId("topic-tooltip").click();
         await report.getByTestId("chart-tooltip-share").click();
         await expect.poll(() => lastChart(page).then((c) => c?.tooltipShare)).toBe(true);

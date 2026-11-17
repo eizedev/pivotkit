@@ -78,12 +78,12 @@ test.describe("inside a shadow root", () => {
         await page.keyboard.press("Escape");
         await expect(page.locator(".pk-popover")).toHaveCount(0);
         await expect(page.getByTestId("export")).toBeFocused();
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         await expect(page.locator(".pk-popover")).toHaveCount(1);
         await page.locator('[data-testid="pivot-table"] tbody').click({ position: { x: 5, y: 5 } });
         await expect(page.locator(".pk-popover")).toHaveCount(0);
         // a click inside the popover keeps it open (composed path, not the shadow host)
-        await toolbar(page, "options");
+        await toolbar(page, "table-settings");
         await page.getByText("Row subtotals").click();
         await expect(page.locator(".pk-popover")).toHaveCount(1);
         await page.keyboard.press("Escape");
