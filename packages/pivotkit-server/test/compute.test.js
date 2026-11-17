@@ -145,17 +145,22 @@ const RENDER_HOST = `
     }
 `;
 
-/** Runs RENDER_HOST with these node flags in front, as a file or as a string (`-e`). */
+/** Runs RENDER_HOST with these node flags in front: as a file, as a string (`-e`) or from standard input. */
 const renderHost = (flags, how) => {
     const dir = workspace();
-    const args = how === "file" ? (writeFileSync(join(dir, "host.mjs"), RENDER_HOST), [...flags, join(dir, "host.mjs")]) : [...flags, "-e", RENDER_HOST];
-    return spawnSync(process.execPath, args, { cwd: dir, encoding: "utf8" });
+    if (how === "file") {
+        writeFileSync(join(dir, "host.mjs"), RENDER_HOST);
+        return spawnSync(process.execPath, [...flags, join(dir, "host.mjs")], { cwd: dir, encoding: "utf8" });
+    }
+    const args = how === "string" ? [...flags, "-e", RENDER_HOST] : flags;
+    return spawnSync(process.execPath, args, { cwd: dir, encoding: "utf8", ...(how === "stdin" ? { input: RENDER_HOST } : {}) });
 };
 
-test("the real workers start in a host run from a string with --input-type=module (both spellings), from a file, and with a V8 flag (#542)", FAST, () => {
+test("the real workers start in a host run from a string or standard input with --input-type=module (both spellings), from a file, and with a V8 flag (#542)", FAST, () => {
     const cases = [
         [["--input-type=module"], "string"],
         [["--input-type", "module"], "string"],
+        [["--input-type=module"], "stdin"],
         [[], "file"],
         [["--max-old-space-size=4096"], "file"],
         [["--max-old-space-size=4096", "--input-type=module"], "string"]
