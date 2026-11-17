@@ -156,6 +156,7 @@ export function findingOf(issue) {
  * @typedef {object} OperationOutcome
  * @property {Record<string, any>} result  what the output schema describes
  * @property {{ bytes: Uint8Array, mediaType: string, extension: string, name: string }} [file]  a file the front end writes, sends or shows
+ * @property {{ text: string, zeros: number }} [inline]  render_view with input.inline: the result as text for a reader (render's `inline`)
  */
 
 /**
@@ -233,6 +234,13 @@ const object = (properties, required = []) => ({ type: "object", properties, req
 /** render_view's locale: a language tag the caller asks for (localeOf checks it). */
 const LOCALE = { type: "string", maxLength: 35, pattern: "^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$", description: "The language of the report's labels and its number format, such as de-DE, for a view or layout that names none." };
 
+/**
+ * render_view's `inline`, for a front end that may put the result into its answer (pivotkit-server;
+ * it leaves it out of the schemas callers see): the result also as text for a reader, csv or json,
+ * with its own `numbers`, up to `maxCells` cells (pivotkit-report's render `inline`).
+ */
+const INLINE_INPUT = { type: "object", additionalProperties: false, properties: { numbers: { enum: ["shown", "full"] }, maxCells: { type: "integer", minimum: 0 } } };
+
 /** How csv and json write numbers (pivotkit-core's toCsv and toJson `numbers`). */
 const NUMBERS = { enum: ["shown", "full"], description: "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits." };
 
@@ -244,10 +252,16 @@ const NUMBERS = { enum: ["shown", "full"], description: "csv and json: shown rou
 function localeOf(locale) {
     try {
         const [canonical] = Intl.getCanonicalLocales(locale);
+        if (canonical && /-u(?:-[a-z0-9]{2,8})*-nu(?:-|$)/i.test(canonical)) {
+            throw new OperationError("INVALID_INPUT", "locale may not choose a numbering system (-u-nu-): csv and json write Latin digits; leave it out");
+        }
         if (canonical && Intl.NumberFormat.supportedLocalesOf(canonical).length) {
             return canonical;
         }
-    } catch {
+    } catch (e) {
+        if (e instanceof OperationError) {
+            throw e;
+        }
         // no language tag
     }
     throw new OperationError("INVALID_INPUT", "locale is no language tag this server knows; give one such as de-DE or en-US");
@@ -745,7 +759,8 @@ export const OPERATIONS = Object.freeze({
                 name: { type: "string", maxLength: 80, description: "The file's name without extension (default from the title)." },
                 locale: LOCALE,
                 numbers: NUMBERS,
-                flatHeader: { type: "boolean", description: 'csv: one header row instead of one per column field; each column says its labels joined with " / " (without the value\'s name when the view has one value).' }
+                flatHeader: { type: "boolean", description: 'csv: one header row instead of one per column field; each column says its labels joined with " / " (without the value\'s name when the view has one value).' },
+                inline: INLINE_INPUT
             },
             ["source"]
         ),
@@ -792,6 +807,7 @@ export const OPERATIONS = Object.freeze({
                 ...(typeof source.asOf === "string" ? { dataAsOf: source.asOf } : {}),
                 ...(input.numbers ? { numbers: input.numbers } : {}),
                 ...(input.flatHeader !== undefined ? { flatHeader: input.flatHeader } : {}),
+                ...(input.inline ? { inline: input.inline } : {}),
                 ...extra
             });
             const findings = [...(source.notes ?? []), ...given.notes, ...result.issues.map(findingOf), ...(read.failed ? [] : unknownItems(read.view, source.data, env))];
@@ -800,7 +816,8 @@ export const OPERATIONS = Object.freeze({
             const name = input.name ?? input.title ?? (read.name || String(source.name || "report").replace(/\.[a-z0-9]+$/i, ""));
             return {
                 result: { ok: result.ok && !given.notes.some((f) => f.severity === "error"), findings, uses: result.view ? viewFileFields(result.view) : [], ...(given.fromLayout && result.view ? { view: result.view } : {}), format, mediaType: kind.mediaType, summary: result.summary },
-                ...(result.body ? { file: { bytes: result.body, mediaType: kind.mediaType, extension: kind.extension, name } } : {})
+                ...(result.body ? { file: { bytes: result.body, mediaType: kind.mediaType, extension: kind.extension, name } } : {}),
+                ...(result.body && result.inline ? { inline: result.inline } : {})
             };
         }
     },

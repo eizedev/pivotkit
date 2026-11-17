@@ -101,6 +101,6 @@ New in this version:
   schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays
       lets waiting drafts expire)
     -> https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota
-  csv and json reports round numbers as the view shows them; report files are
-      named in lower case without spaces
+  inline csv and json results round numbers as the view shows them; report
+      files and drafts are named in lower case without spaces
     -> https://pivotkit.eize.dev/getting-started/upgrading/#results-0-8

@@ -28,9 +28,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
-- Breaking for scripts that parse csv or json results: numbers are rounded to the decimals the view
-  shows (`numbers: "full"` keeps the old form), and inline json is on one line. Saved report files
-  and schedule drafts are named in lower case without spaces (`sales-by-region.pivotkit-out.xlsx`)
+- Breaking for scripts that parse inline csv or json: its numbers are rounded to the decimals the
+  view shows (`numbers: "full"` keeps the old form; saved files and the file route keep full
+  precision), and inline json is on one line. The message says when rounding writes a value as 0
+  that is not 0. Saved report files and schedule drafts are named in lower case without spaces
+  (`sales-by-region.pivotkit-out.xlsx`); the file route still names its download by the title
   ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481), [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#results-0-8)).
 - Behaviour change: a source is open for plain links only where nothing new can become visible,
   for every caller alike. A source hidden by default whose named fields are all `show` or `hide`

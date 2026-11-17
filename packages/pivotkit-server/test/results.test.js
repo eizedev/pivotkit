@@ -1,13 +1,13 @@
 // Results a caller reads or pastes as they are: inline csv and json with numbers as the view shows
 // them (no float noise), in the caller's locale, with one header row on request and json on one line;
-// the saved file holds the same numbers; every answer names its request id; saved files are named
-// without spaces.
+// saved files and the file route keep full precision unless numbers says otherwise; every answer
+// names its request id; saved files are named without spaces.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
-import { presentedOutput } from "pivotkit-server";
+import { callerOf, createContext, present, presentedOutput } from "pivotkit-server";
 import { call, restServer, workspace } from "./helpers.js";
 
 /** 64 amounts of 0.1 and 0.2: their sum is 9.599999999999994 in floating point, not 9.6. */
@@ -22,16 +22,68 @@ async function amountsServer() {
     return { server, dir };
 }
 
-test("REST inline csv: numbers as the view shows them, the same in the saved file; full keeps the old form", async () => {
+test("REST: inline csv rounds as the view shows; the saved file and the file route keep full precision; numbers overrides both", async () => {
     const { server, dir } = await amountsServer();
     try {
         const res = await call(`${server.api}/views/render`, { body: { source: "amounts", layout: LAYOUT, format: "csv", title: "Amounts" } });
         assert.equal(res.status, 200, JSON.stringify(res.data));
         assert.equal(res.data.inline.text, "Region,East,North,Grand Total\r\nProduct,Sum of Amount,,\r\nA,2.4,2.4,4.8\r\nB,2.4,2.4,4.8\r\nGrand Total,4.8,4.8,9.6\r\n");
-        // the saved file is the same text (with the byte order mark Excel needs)
-        assert.equal(readFileSync(join(dir, "out", res.data.output.name), "utf8"), `\uFEFF${res.data.inline.text}`);
+        assert.match(readFileSync(join(dir, "out", res.data.output.name), "utf8"), /Grand Total,4\.8,4\.8,9\.59999999999999\r\n$/, "the saved file: full");
+        const file = await call(`${server.api}/views/render/file`, { body: { source: "amounts", layout: LAYOUT, format: "csv" } });
+        assert.match(new TextDecoder().decode(file.data), /Grand Total,4\.8,4\.8,9\.59999999999999\r\n$/, "the file route: full");
+        const shownFile = await call(`${server.api}/views/render/file`, { body: { source: "amounts", layout: LAYOUT, format: "csv", numbers: "shown" } });
+        assert.match(new TextDecoder().decode(shownFile.data), /Grand Total,4\.8,4\.8,9\.6\r\n$/);
+        const shownSaved = await call(`${server.api}/views/render`, { body: { source: "amounts", layout: LAYOUT, format: "csv", numbers: "shown" } });
+        assert.equal(readFileSync(join(dir, "out", shownSaved.data.output.name), "utf8"), `\uFEFF${shownSaved.data.inline.text}`);
         const full = await call(`${server.api}/views/render`, { body: { source: "amounts", layout: LAYOUT, format: "csv", numbers: "full", save: false } });
         assert.match(full.data.inline.text, /Grand Total,4\.8,4\.8,9\.59999999999999\r\n$/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("REST: a value shown as 0 that is not 0 is said in the message; options a format ignores are said too", async () => {
+    const dir = workspace({ "tiny.csv": "Product,Amount\nA,0.000000001\nB,2\n" });
+    const server = await restServer({ sources: { tiny: { file: "data/tiny.csv", policy: { default: "show" } } }, rest: { inline: true }, output: { dir: "out" }, baseDir: dir });
+    try {
+        const res = await call(`${server.api}/views/render`, { body: { source: "tiny", view: { rows: ["Product"], values: [{ field: "Amount", agg: "sum", format: "number:2" }] }, format: "csv", save: false } });
+        assert.equal(res.status, 200, JSON.stringify(res.data));
+        assert.match(res.data.inline.text, /^A,0\r\n/m);
+        assert.match(res.data.message, /1 value is shown as 0 though it is not 0[^.]*numbers: "full"/);
+        const full = await call(`${server.api}/views/render`, { body: { source: "tiny", view: { rows: ["Product"], values: [{ field: "Amount", agg: "sum", format: "number:2" }] }, format: "csv", numbers: "full", save: false } });
+        assert.doesNotMatch(full.data.message, /shown as 0/);
+        const xlsx = await call(`${server.api}/views/render`, { body: { source: "tiny", layout: { rows: ["Product"], values: [{ field: "Amount", agg: "sum" }] }, format: "xlsx", numbers: "shown", flatHeader: true } });
+        assert.equal(xlsx.status, 200, JSON.stringify(xlsx.data));
+        assert.match(xlsx.data.message, /numbers and flatHeader apply to csv and json only and were ignored for xlsx/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("the inline cap counts the text that is sent: json on one line fits where its indented file would not", async () => {
+    const dir = workspace({ "amounts.csv": AMOUNTS_CSV });
+    const local = callerOf("none", undefined);
+    const input = { source: "amounts", layout: LAYOUT, format: "json", save: false };
+    const contextOf = async (bytes) => createContext({ log: "off", baseDir: dir, sources: { amounts: { file: "data/amounts.csv", policy: { default: "show", inline: { cells: 500, bytes } } } } });
+    const wide = await contextOf(1_000_000);
+    const sent = (await present(wide, "render_view", input, local)).result.inline.text;
+    const indented = JSON.stringify(JSON.parse(sent), null, 2);
+    const exact = await contextOf(Buffer.byteLength(sent));
+    assert.equal((await present(exact, "render_view", input, local)).result.inline.text, sent, `fits at ${Buffer.byteLength(sent)} bytes, the indented one takes ${Buffer.byteLength(indented)}`);
+    const under = await contextOf(Buffer.byteLength(sent) - 1);
+    await assert.rejects(present(under, "render_view", input, local), (e) => e.code === "LIMIT_EXCEEDED");
+});
+
+test("REST locale: ar-EG writes Latin digits with \".\" and \",\"; a numbering system of its own is refused", async () => {
+    const { server } = await amountsServer();
+    try {
+        const ar = await call(`${server.api}/views/render`, { body: { source: "amounts", layout: LAYOUT, format: "csv", locale: "ar-EG", flatHeader: true, save: false } });
+        assert.equal(ar.status, 200, JSON.stringify(ar.data));
+        assert.match(ar.data.inline.text, /,4\.8,4\.8,9\.6\r\n$/);
+        assert.doesNotMatch(ar.data.inline.text, /[\u0660-\u0669\u066b]/);
+        const nu = await call(`${server.api}/views/render`, { body: { source: "amounts", layout: LAYOUT, format: "csv", locale: "ar-EG-u-nu-arab", save: false } });
+        assert.equal(nu.status, 400);
+        assert.match(nu.data.detail, /numbering system/);
     } finally {
         await server.close();
     }
@@ -92,6 +144,13 @@ test("saved files are named without spaces; the file route's download keeps the 
         assert.equal(file.status, 200);
         // it saves nothing: the person's download is named by the title
         assert.equal(file.headers.get("content-disposition"), "attachment; filename=\"Umsatz pro Produkt.csv\"; filename*=UTF-8''Umsatz%20pro%20Produkt.csv");
+        // letters NFKD keeps whole, titles without Latin letters, Windows device names
+        const named = async (title) => (await call(`${server.api}/views/render`, { body: { source: "amounts", layout: LAYOUT, format: "csv", title } })).data.output.filename;
+        assert.equal(await named("Ærø Łódź Þing Đakovo Œuvre"), "aero-lodz-thing-dakovo-oeuvre.csv");
+        assert.match(await named("日本の売上"), /^report-[0-9a-f]{8}\.csv$/);
+        assert.notEqual(await named("日本の売上"), await named("中国の売上"), "two titles without Latin letters get two names");
+        assert.equal(await named("CON"), "_con.csv");
+        assert.equal(await named("lpt1"), "_lpt1.csv");
     } finally {
         await server.close();
     }

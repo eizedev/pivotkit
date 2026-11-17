@@ -173,7 +173,7 @@ configuration, under "New in this version", with a link to each section below.
 | [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
 | [Chart layout functions measure differently](#chart-layout-0-8) | your code calls `rowLabelInterval`, `heatmapCellLabels`, `columnLabelLayout` or `categoryLabelLayout` of `pivotkit-core/chart` | check the results you rely on. Pass `frame` to keep the old heatmap frame |
 | [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` set `rowsCount` or add a language, or a test reads the row count under the result | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
-| **Breaking:** [csv and json results, request ids and file names](#results-0-8) | a script or host parses csv or json results of the REST service or the MCP server, or finds saved reports or drafts by their names | expect rounded numbers, json on one line and file names like `sales-by-region.pivotkit-out.xlsx`; pass `numbers: "full"` for all digits. MCP clients reconnect |
+| **Breaking:** [csv and json results, request ids and file names](#results-0-8) | a script or host parses the inline csv or json of the REST service or the MCP server, or finds saved reports or drafts by their names | expect rounded inline numbers, inline json on one line and file names like `sales-by-region.pivotkit-out.xlsx`; pass `numbers: "full"` for all digits. Reconnect MCP clients to see the new inputs |
 
 ### Sources hidden by default can be open { #hidden-open }
 
@@ -269,29 +269,48 @@ When a filter leaves rows out, the line under the result says "2,190 of 4,386 ro
 ### csv and json results, request ids and file names { #results-0-8 }
 
 This applies to pivotkit-server and pivotkit-mcp. A program or a model reads their results as they
-are, so they changed:
+are, so they changed.
 
-- **Numbers** in csv and json results are rounded to the decimals the view shows. A sum of 0.1 and
-  0.2 values is `9.6`, not `9.59999999999999`. An average without a format has two decimals. This
-  holds for inline results, saved files and the file route. To keep 15 significant digits, pass
-  `numbers: "full"`. The workbook (xlsx) always keeps full precision.
-- **Inline json** is on one line. A saved json file keeps its indentation. A parser reads both alike.
-- **File names** of saved reports and schedule drafts are in lower case, with `-` for spaces and
-  parentheses. `Sales by region` is saved as `sales-by-region.pivotkit-out.xlsx`, and a draft
-  `Weekly sales` as `weekly-sales.pivotkit-out.report.json`. `output.filename`, the download page and
-  a link's download carry the same name. Files saved before keep their names and still download.
-  A script or host that looks for a report or draft by its name expects the new form. An MCP
-  `resource_link` keeps the title as its `title`. The file route (`POST /views/render/file`) saves
-  nothing and still names its download by the title.
-- **`requestId`** is in every answer that works: the MCP tool result and the REST body. It is the id
-  of the answer's log line.
-- **New inputs** of `render_view` and `POST /views/render`: `locale` (such as `de-DE`) for a view or
-  layout that names none, `numbers` and `flatHeader` (csv with one header row).
+**Numbers.** Only the inline text of a csv or json result rounds:
 
-The MCP tool schemas of every tool changed. MCP clients keep the old tool list until they reconnect.
-Restart or reconnect them after the update.
+| Output | Numbers without `numbers` |
+| --- | --- |
+| `inline.text` (MCP and REST) | rounded to the decimals the view shows: `9.6`, not `9.59999999999999` |
+| the saved csv or json file in `output.dir` and its download link | 15 significant digits, as before |
+| the file route `POST /views/render/file` | 15 significant digits, as before |
+| xlsx, html, svg | unchanged; they ignore `numbers` |
 
-pivotkit-cli over local data and the browser's Export menu still write csv and json with full precision.
+- Pass `numbers: "full"` for all digits in the inline text too.
+- Pass `numbers: "shown"` for rounded numbers in the file as well.
+- Where rounding writes a value as 0 that is not 0, the inline answer's `message` says so.
+
+**Inline json** is on one line. A parser reads it as before. The saved file keeps its indentation.
+The operator's `inline.bytes` counts the text on one line, so a json result that was a little too
+large before may now come back inline.
+
+**File names** of saved reports and schedule drafts are in lower case, with `-` for spaces and
+parentheses. `Sales by region` is saved as `sales-by-region.pivotkit-out.xlsx`, and a draft
+`Weekly sales` as `weekly-sales.pivotkit-out.report.json`. A caller's `name` is rewritten the same
+way ([delivery](../reference/delivery.md#configuration)).
+
+- `output.filename`, the download page and a link's download carry the same name.
+- Files saved before keep their names and still download.
+- A script or host that looks for a report or draft by its name expects the new form.
+- An MCP `resource_link` keeps the title as its `title`.
+- The file route saves nothing and still names its download by the title.
+
+**The PowerShell Universal module** calls the file route and saves the download with `-OutFile`. It
+keeps full precision, and the new file names do not reach it.
+
+**`requestId`** is in every answer that works: the MCP tool result, its summary line and the REST
+body. It is the id of the answer's log line.
+
+**New inputs** of `render_view` and `POST /views/render`: `locale` (such as `de-DE`) for a view or
+layout that names none, `numbers` and `flatHeader` (csv with one header row). A `locale` with a
+numbering system of its own (`-u-nu-`) is refused.
+
+MCP clients see the new inputs after they reconnect. Sessions that stay connected keep working: the
+old output schema already allows the new `requestId`.
 
 ## From 0.6 to 0.7 { #from-0-6-1 }
 

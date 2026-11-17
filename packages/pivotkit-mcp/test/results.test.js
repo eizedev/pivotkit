@@ -16,7 +16,8 @@ test("MCP render_view: inline csv rounded as the view shows it, in German with o
     try {
         const tools = (await client.listTools()).tools;
         const render = tools.find((t) => t.name === "render_view");
-        assert.deepEqual([render.inputSchema.properties.numbers.default, render.inputSchema.properties.flatHeader.type, render.inputSchema.properties.locale.type], ["shown", "boolean", "string"]);
+        assert.deepEqual([render.inputSchema.properties.flatHeader.type, render.inputSchema.properties.locale.type, render.inputSchema.properties.inline], ["boolean", "string", undefined]);
+        assert.match(render.inputSchema.properties.numbers.description, /Default: shown for a result that comes back inline, full for a saved file or a download/);
         assert.equal(render.outputSchema.properties.requestId.type, "string");
         const de = await call(client, "render_view", { source: "amounts", layout: LAYOUT, format: "csv", locale: "de-DE", flatHeader: true, save: false });
         assert.equal(de.isError, false, de.text);
@@ -25,6 +26,8 @@ test("MCP render_view: inline csv rounded as the view shows it, in German with o
         const calls = server.log.filter((l) => l.event === "call");
         assert.deepEqual([de.data.requestId, listed.data.requestId], calls.map((l) => l.requestId));
         assert.notEqual(de.data.requestId, listed.data.requestId);
+        // the summary line names it too, as an error's text does
+        assert.ok(de.text.split("\n")[0].endsWith(` (request id ${de.data.requestId})`), de.text.split("\n")[0]);
         // a saved file: its name without spaces, the link titled as the report
         const saved = await client.callTool({ name: "render_view", arguments: { source: "amounts", layout: LAYOUT, format: "csv", title: "Umsatz pro Produkt" } });
         const structured = /** @type {any} */ (saved.structuredContent);

@@ -99,11 +99,17 @@ The reports that get a link are stored with the link's 22 random characters befo
 stored name, and `output.filename` the name the person sees (`sales-by-region.xlsx`). Reports without
 a link keep their names.
 
-A report's file name comes from its title, written so links and shells take it as it is:
+A report's file name comes from its title, or from the `name` the caller gives. The server rewrites
+it so links and shells take it as it is:
 
 - in lower case, with letters, digits, `.`, `_` and `-` only
 - `-` for spaces, parentheses and any other character
-- accents dropped, `ß` as `ss`
+- accents dropped; `ß` as `ss`, `Æ` as `ae`, `Ø` as `o`, `Ł` as `l`, `Þ` as `th`, `Đ` as `d`
+  and the like
+- a title without Latin letters or digits as `report-` and 8 characters of its hash
+  (`report-1b501f78`), so two such titles get two names
+- a name Windows keeps for a device (`con`, `nul`, `prn`, `aux`, `com1`, `lpt1` and the like) with
+  `_` first
 - cut at 80 characters
 
 For example, `Orders (fake backend)` is stored as `orders-fake-backend.pivotkit-out.xlsx`. The title

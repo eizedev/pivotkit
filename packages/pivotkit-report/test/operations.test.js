@@ -272,3 +272,22 @@ test("render_view for a reader: numbers as the view shows them, one header row, 
     await assert.rejects(OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", locale: "xx-XX" }, amounts), (e) => e instanceof OperationError && e.code === "INVALID_INPUT" && /locale/.test(e.message));
     assert.throws(() => checkInput(OPERATIONS.render_view.input, { source: "amounts", numbers: "rounded" }), /numbers/);
 });
+
+test("render_view with inline: the file as asked (full by default) and beside it the text for a reader, with the values shown as 0", async () => {
+    const rows = [...Array.from({ length: 64 }, (_, i) => ({ Product: ["A", "B"][(i >> 2) % 2], Amount: [0.1, 0.2][i % 2] })), { Product: "C", Amount: 1e-9 }];
+    const amounts = { data: async () => ({ data: encode(rows), name: "amounts.csv", notes: [] }) };
+    const layout = { rows: ["Product"], values: [{ field: "Amount", agg: "sum" }] };
+    const out = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "json", inline: { numbers: "shown", maxCells: 100 } }, amounts);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(out.file.bytes)).rows.at(-1).values, [9.60000000099999], "the file keeps full precision");
+    assert.ok(!out.inline.text.includes("\n"), "one line");
+    assert.deepEqual(JSON.parse(out.inline.text).rows.map((r) => r.values[0]), [4.8, 4.8, 0, 9.6]);
+    assert.equal(out.inline.zeros, 1);
+    // numbers given: the file and the text alike
+    const shown = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", numbers: "shown", inline: { numbers: "shown", maxCells: 100 } }, amounts);
+    assert.equal(new TextDecoder().decode(shown.file.bytes), shown.inline.text);
+    // over maxCells: no text
+    const over = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", inline: { numbers: "shown", maxCells: 2 } }, amounts);
+    assert.equal(over.inline, undefined);
+    // a locale with a numbering system of its own is refused: csv and json write Latin digits
+    await assert.rejects(OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", locale: "ar-EG-u-nu-arab" }, amounts), (e) => e instanceof OperationError && e.code === "INVALID_INPUT" && /numbering/.test(e.message));
+});

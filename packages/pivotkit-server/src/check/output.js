@@ -34,7 +34,7 @@ export async function section(options, registry) {
     const drafts = Object.values(options.sources ?? {}).some((s) => s && !personBound(options, s));
     const upgrade = [
         ...(drafts ? [{ text: "schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays lets waiting drafts expire)", anchor: "draft-quota" }] : []),
-        { text: "csv and json reports round numbers as the view shows them; report files are named in lower case without spaces", anchor: "results-0-8" }
+        { text: "inline csv and json results round numbers as the view shows them; report files and drafts are named in lower case without spaces", anchor: "results-0-8" }
     ];
     const dir = pathOf(options, out.dir);
     // only ENOENT is missing: any other error (a name too long, a symbolic link loop) cannot be made

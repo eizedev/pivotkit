@@ -72,12 +72,12 @@ export function errorResult(error, { requestId, source }) {
 }
 
 /**
- * A tool's result: a short text without data, the JSON, and the structured content; after the text,
+ * A tool's result: a short text without data and with the call's request id, the JSON, and the structured content; after the text,
  * a resource_link to a written file where it has an address (MCP 2026-07-28, Tools > Tool Result >
  * Resource Links: the client shows or opens it for the user; its audience is a hint, not a protection:
  * the link's binding is).
  */
-const okResult = (summary, structured, link) => ({ content: [{ type: "text", text: `${summary}\n${JSON.stringify(structured)}` }, ...(link ? [link] : [])], structuredContent: structured });
+const okResult = (summary, structured, link) => ({ content: [{ type: "text", text: `${summary}${structured.requestId ? ` (request id ${structured.requestId})` : ""}\n${JSON.stringify(structured)}` }, ...(link ? [link] : [])], structuredContent: structured });
 
 /** The first protocol revision with resource_link in tool results. */
 export const RESOURCE_LINK_SINCE = "2025-06-18";

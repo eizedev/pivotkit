@@ -9,8 +9,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 ### Added
 
 - `render` takes `numbers` (`"full"` or `"shown"`) for csv and json and `flatHeader` for csv.
+  `inline: { numbers, maxCells }` returns the result also as text for a reader, with a count of the
+  values written as 0 though they are not 0.
   The `render_view` operation takes them as inputs, with `locale` for a view or layout that names
-  none ([#478](https://github.com/eizedev/pivotkit/issues/478)).
+  none; a `locale` that chooses a numbering system or that the runtime has no format for is refused
+  ([#478](https://github.com/eizedev/pivotkit/issues/478)).
 
 ### Changed
 

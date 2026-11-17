@@ -193,7 +193,7 @@ unknown `level` as `summary`, since more levels may come.
 | `autoValues` | `false` | Server and source: the [automatic rule](#auto-values): `true`, `false` or `{ "maxDistinct", "minRowsPerValue", "minRows", "deny" }` |
 | `rows` | `true` | Show the number of rows (`false` also keeps a render's `sourceRows` and `keptRows` back) |
 | `counts` | `true` | Show distinct and blank counts per field |
-| `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline. `bytes` counts the file, for json the indented one. `false`: never. An inline csv (`inline.text`) has no byte order mark, as text a program reads. The csv file starts with one |
+| `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline. `bytes` counts the text that is sent, for json the one on one line. `false`: never. An inline csv (`inline.text`) has no byte order mark, as text a program reads. The csv file starts with one |
 | `results` | `false` | The REST service's file route may hand out the rendered file ([downloads](rest.md#downloads)) |
 
 ### The automatic values rule { #auto-values }
@@ -281,17 +281,20 @@ above, also when its csv or json comes back inline.
 
 An inline result is ready to read or paste:
 
-- Numbers are rounded to the decimals the view shows (`numbers: "shown"`, the default). A sum of
-  0.1 and 0.2 values is `9.6`, not `9.59999999999999`. `numbers: "full"` keeps 15 significant
-  digits.
+- Numbers are rounded to the decimals the view shows (`numbers: "shown"`, the default for the
+  inline text). A sum of 0.1 and 0.2 values is `9.6`, not `9.59999999999999`. Where that writes a
+  value as 0 that is not 0, the `message` says so. `numbers: "full"` keeps 15 significant digits.
 - `locale`, such as `de-DE`, gives the labels and the number format of that language for a view or
-  layout that names none. A csv in `de-DE` uses `;` and the decimal comma.
+  layout that names none. A csv in `de-DE` uses `;` and the decimal comma. Labels come in the
+  [built-in languages](localisation.md#built-in-languages), else in English. Numbers are always in
+  Latin digits, and a locale that chooses a numbering system (`-u-nu-`) is refused.
 - `flatHeader: true` gives a csv with one header row. Each column says its labels joined with ` / `,
   without the value's name when the view has one value.
 - The json is on one line. Every row and column has `total`: 0 data, 1 subtotal, 2 grand total, so
   a sum over the rows takes only those with `total: 0`.
 
-The saved file holds the same numbers. [REST](rest.md#routes) describes the shapes.
+The saved file keeps full precision unless the call passes `numbers`. xlsx, html and svg ignore
+`numbers` and `flatHeader`, and the `message` says so. [REST](rest.md#routes) describes the shapes.
 
 `suggest_view` reads what `describe_source` shows. Its draft and `picks` name fields, never values
 (not those of a `values` field either) or counts. The one thing they tell about a shown field's

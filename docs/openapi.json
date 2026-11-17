@@ -660,11 +660,13 @@
                     "content"
                   ],
                   "output": {
-                    "name": "Sum of Sales by Region.pivotkit-out.xlsx",
+                    "name": "sum-of-sales-by-region.pivotkit-out.xlsx",
+                    "filename": "sum-of-sales-by-region.xlsx",
                     "format": "xlsx",
                     "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   },
-                  "message": "The report is saved as Sum of Sales by Region.pivotkit-out.xlsx in the output directory."
+                  "message": "The report is saved as sum-of-sales-by-region.pivotkit-out.xlsx in the output directory.",
+                  "requestId": "Ab3_xY9-k2Q"
                 }
               }
             }
@@ -870,11 +872,13 @@
                     "name": "Weekly sales"
                   },
                   "output": {
-                    "name": "Weekly sales.pivotkit-out.report.json",
+                    "name": "weekly-sales.pivotkit-out.report.json",
+                    "filename": "weekly-sales.report.json",
                     "format": "json",
                     "mediaType": "application/json"
                   },
-                  "message": "The draft \"Weekly sales\" is ready for approval, saved as Weekly sales.pivotkit-out.report.json in the output directory. Nothing runs until a person approves it in the host."
+                  "message": "The draft \"Weekly sales\" is ready for approval, saved as weekly-sales.pivotkit-out.report.json in the output directory. Nothing runs until a person approves it in the host.",
+                  "requestId": "Ab3_xY9-k2Q"
                 }
               }
             }
@@ -3469,8 +3473,7 @@
               "shown",
               "full"
             ],
-            "description": "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits.",
-            "default": "shown"
+            "description": "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits. Default: shown for a result that comes back inline, full for a saved file or a download. Ignored for xlsx, html and svg."
           },
           "flatHeader": {
             "type": "boolean",
@@ -4216,8 +4219,7 @@
               "shown",
               "full"
             ],
-            "description": "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits.",
-            "default": "shown"
+            "description": "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits. Default: shown for a result that comes back inline, full for a saved file or a download. Ignored for xlsx, html and svg."
           },
           "flatHeader": {
             "type": "boolean",

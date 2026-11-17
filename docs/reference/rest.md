@@ -142,8 +142,8 @@ Where the report gets a [download link](delivery.md), the link is in `output.url
 - over another source only with `results: true` and a bound link
 
 The file's name is `name` from the input, else `title`, else the view's name, else the source's.
-It is written in lower case with `-` for spaces (`Sales by region` is `sales-by-region`), as
-[delivery](delivery.md#configuration) describes. `.pivotkit-out.` goes before the format
+The server rewrites it, `name` too, to lower case with `-` for spaces (`Sales by region` is
+`sales-by-region`), as [delivery](delivery.md#configuration) describes. `.pivotkit-out.` goes before the format
 (`sales-by-region.pivotkit-out.xlsx`). The [file route](#downloads) saves nothing, and its download
 keeps the title as its name. This is the mark by which the
 server knows its own files. A name that is taken gets `-2`, `-3` and so on, since the server never
@@ -163,13 +163,28 @@ byte order mark.
 
 These inputs change how a csv or json result reads:
 
-- `numbers`: `shown`, the default, rounds each number to the decimals the view shows. A sum of
-  0.1 and 0.2 values is `9.6`, not `9.59999999999999`. `full` keeps 15 significant digits. The
-  workbook always keeps full precision.
+- `numbers`: how numbers are written.
+    - `shown` rounds each number to the decimals the view shows. A sum of 0.1 and 0.2 values is
+      `9.6`, not `9.59999999999999`. A format without plain decimals (compact, bytes, a duration)
+      keeps about 12 significant digits.
+    - `full` keeps 15 significant digits.
+    - Without `numbers`, the inline text (`inline.text`) is `shown`. The saved file and the
+      [file route](#downloads)'s download are `full`. `numbers` sets both.
+    - Where `shown` writes a value as 0 that is not 0, such as a sum of 0.000000001 at two
+      decimals, the answer's `message` says so.
 - `locale`: the language of the labels and the number format, such as `de-DE`, for a view or layout
   that names none. A csv in `de-DE` uses `;` and the decimal comma, and says "Gesamtergebnis".
+    - The labels ("Grand Total", "Sum of") come in the languages pivotkit ships
+      ([localisation](localisation.md#built-in-languages)), else in English.
+    - Numbers are written in Latin digits, with the decimal mark the locale uses with Latin digits.
+      `ar-EG` writes `9.6`, with `,` between cells.
+    - A locale that chooses a numbering system (`-u-nu-`, such as `ar-EG-u-nu-arab`) is refused
+      with `INVALID_INPUT`, as is a tag the server has no number format for.
 - `flatHeader: true`: csv with one header row. Each column says its labels joined with ` / `, without
   the value's name when the view has one value: `Product,East,North,Grand Total`.
+
+xlsx, html and svg ignore `numbers` and `flatHeader`, and json ignores `flatHeader`. The answer's
+`message` then says which were ignored.
 
 The inline json is on one line. The saved json file keeps its indentation. In both, every row and
 column has `total`: 0 data, 1 subtotal, 2 grand total.

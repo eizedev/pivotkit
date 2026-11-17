@@ -296,7 +296,7 @@ function uploadHeadersOf(value) {
 
 /**
  * @typedef {object} UploadMeta
- * @property {string} filename  the name the person sees ("Sales by region.xlsx")
+ * @property {string} filename  the name the person sees ("sales-by-region.xlsx", output.js fileSlug)
  * @property {string} name  the report's name, without the format
  * @property {string} extension  the format ("xlsx")
  * @property {string} mediaType

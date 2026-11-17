@@ -29,7 +29,7 @@ test("New in this version: the 0.2.0 notes are gone; each note links to its own 
     const notes = await newIn({ sources: { sales: HIDES }, http: { host: "0.0.0.0" }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] } }, { http: true, env: { BOT: "x".repeat(40) } });
     assert.deepEqual(notes, [
         ["schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays lets waiting drafts expire)", "draft-quota"],
-        ["csv and json reports round numbers as the view shows them; report files are named in lower case without spaces", "results-0-8"],
+        ["inline csv and json results round numbers as the view shows them; report files and drafts are named in lower case without spaces", "results-0-8"],
         ["a source hidden by default whose listed fields are shown counts as open for links (sales)", "hidden-open"],
         ["at most 32 connections per address (http.maxConnectionsPerAddress)", "per-address"]
     ]);

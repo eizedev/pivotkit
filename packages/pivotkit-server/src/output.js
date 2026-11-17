@@ -10,7 +10,7 @@
 
 import { readFile, readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { TEMP_FILE_NAME, writeNew } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
 import { bytesText, countText } from "./text.js";
@@ -23,19 +23,35 @@ export const outputDir = (context) => context.output?.dir ?? null;
 const pruned = new Map();
 
 /**
- * The part of a written file's name that marks it as pivotkit's: "Sales by region.pivotkit-out.xlsx",
- * "Weekly.pivotkit-out.report.json" (a schedule draft; ".pivotkit.json" is a view file), after 22 random characters with output.baseUrl or a download link.
+ * The part of a written file's name that marks it as pivotkit's: "sales-by-region.pivotkit-out.xlsx",
+ * "weekly.pivotkit-out.report.json" (a schedule draft; the name before it is fileSlug's; ".pivotkit.json" is a view file), after 22 random characters with output.baseUrl or a download link.
  * Only such files are counted, cleaned up and deleted to make room; an operator's own files are not.
  */
 export const OUTPUT_MARK = "pivotkit-out";
 
+/** Latin letters NFKD does not take apart, written as their base letters ("Ærø" is "AEro"). */
+const LATIN_LETTERS = Object.freeze({ ß: "ss", Æ: "AE", æ: "ae", Ø: "O", ø: "o", Œ: "OE", œ: "oe", Ł: "L", ł: "l", Þ: "TH", þ: "th", Đ: "D", đ: "d", Ð: "D", ð: "d", Ħ: "H", ħ: "h", ı: "i", Ŀ: "L", ŀ: "l", Ŧ: "T", ŧ: "t", ĸ: "q", Ŋ: "NG", ŋ: "ng" });
+const LATIN_LETTER = new RegExp(`[${Object.keys(LATIN_LETTERS).join("")}]`, "g");
+
+/** Names Windows keeps for devices, with any extension ("con.pivotkit-out.csv" too). */
+const WINDOWS_DEVICE = /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])$/;
+
 /**
- * The name of a file the services make, from a report's title: upload.js nameSlug (the store's name
- * part) in lower case, "ss" for "ß" ("Umsatz pro Produkt" is "umsatz-pro-produkt"), so a link and a
- * shell take it as it is. The title stays the report's own (resource_link's title).
+ * The name of a file the services make, from a report's title, so a link and a shell take it as it
+ * is: upload.js nameSlug (the store's name part) in lower case, after the Latin letters NFKD keeps
+ * whole ("Ærø Łódź" is "aero-lodz"). A title without Latin letters or digits is "report-" and 8 hex
+ * characters of its SHA-256, so two such titles get two names. A Windows device name gets a "_"
+ * first. The title stays the report's own (resource_link's title).
  * @param {unknown} title
  */
-export const fileSlug = (title) => nameSlug(String(title ?? "").replace(/ß/g, "ss")).toLowerCase();
+export function fileSlug(title) {
+    const text = String(title ?? "");
+    const slug = nameSlug(text.replace(LATIN_LETTER, (c) => LATIN_LETTERS[/** @type {keyof typeof LATIN_LETTERS} */ (c)])).toLowerCase();
+    if (slug === "report" && text.trim() !== "" && text.trim().toLowerCase() !== "report") {
+        return `report-${createHash("sha256").update(text).digest("hex").slice(0, 8)}`;
+    }
+    return WINDOWS_DEVICE.test(slug) ? `_${slug}` : slug;
+}
 
 /** A report pivotkit wrote; a schedule draft it wrote. */
 const REPORT_NAME = new RegExp(`\\.${OUTPUT_MARK}\\.(xlsx|html|csv|json|svg)$`, "i");

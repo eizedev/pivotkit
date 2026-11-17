@@ -78,7 +78,7 @@ test("the metadata offers the sources' scopes; an empty list_sources names them 
         assert.deepEqual(listed.data.sources, []);
         assert.equal(listed.data.hint, "No source is available with your current sign-in. This server offers the scopes: pivotkit:vms. Sign in with one of them, or ask the operator.");
         // an empty list does not ask the model to call describe_source
-        assert.equal(listed.text.split("\n")[0], `0 sources. ${listed.data.hint}`);
+        assert.equal(listed.text.split("\n")[0], `0 sources. ${listed.data.hint} (request id ${listed.data.requestId})`);
         await close();
     } finally {
         await server.close();

@@ -10,7 +10,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 - `toCsv` and `toJson` take `numbers: "shown"`: each number rounded to the decimals its format
   shows, without float noise such as `9.59999999999999`. The default `"full"` keeps 15 significant
-  digits. `toCsv` takes `flatHeader: true` for one header row ([#478](https://github.com/eizedev/pivotkit/issues/478)).
+  digits; a format without plain decimals keeps 12. `toCsv` takes `flatHeader: true` for one header
+  row. `shownZeros(grid)` counts the values `"shown"` writes as 0 though they are not 0 ([#478](https://github.com/eizedev/pivotkit/issues/478)).
 - `AGGREGATOR_ALIASES`: other tools' names of aggregators (`avg`) and the ones they mean
   (`average`), for "did you mean". A view never accepts them (#508).
 - `rowLabelInterval` and `heatmapCellLabels` of `pivotkit-core/chart` take the heatmap's frame as an
@@ -36,6 +37,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- A CSV in a locale with digits of its own, such as `ar-EG`, writes the decimal mark the locale uses
+  with Latin digits (`.`), not `٫` beside Latin digits, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).
 - Slanted category names take at most 40 % of the height left for the plot and them. In a low chart,
   such as on a phone, they are cut shorter, so the plot keeps its room and its top value tick
   ([#228](https://github.com/eizedev/pivotkit/issues/228)).

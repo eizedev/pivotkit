@@ -46,8 +46,12 @@ export function csvSeparator(locale) {
     return decimalMark(locale) === "," ? ";" : ",";
 }
 
+/**
+ * The decimal mark a locale writes with Latin digits: a CSV's numbers are always written in Latin
+ * digits (String()), so ar-EG gets ".", not its own "٫" beside Latin digits, which parsers misread.
+ */
 function decimalMark(locale) {
-    const part = numberFormat(locale).formatToParts(1.5).find((p) => p.type === "decimal");
+    const part = numberFormat(locale, { numberingSystem: "latn" }).formatToParts(1.5).find((p) => p.type === "decimal");
     return part ? part.value : ".";
 }
 
@@ -105,7 +109,8 @@ function numbersOf(numbers, fn) {
  * rounded to the format's decimals, a percent in percent with a "%" ("-2.6%", which spreadsheets read
  * back as the fraction); the XLSX export keeps their full precision. Any other number is plain, with
  * full precision, or with `shown` rounded to its format's decimals as well (no float noise such as
- * 9.59999999999999 for 9.6; a format without plain decimals, such as compact or bytes, stays full).
+ * 9.59999999999999 for 9.6; a format without plain decimals, such as compact or bytes, to
+ * SHOWN_DIGITS significant digits).
  * @param {number} v
  * @param {string | undefined} format  the cell's format
  * @param {string} mark  decimal mark
@@ -118,7 +123,7 @@ function numberText(v, format, mark, showAs, locale, shown = false) {
     const percent = name === "percent" || name === "percent100";
     const decimals = shown || showAs || percent ? formatDecimals(format, locale) : null;
     const unit = name === "percent" ? v * 100 : v;
-    const text = plainNumber(decimals === null ? unit : rounded(unit, decimals), mark);
+    const text = plainNumber(decimals !== null ? rounded(unit, decimals) : shown ? Number(unit.toPrecision(SHOWN_DIGITS)) : unit, mark);
     return percent ? `${text}%` : text;
 }
 
@@ -241,6 +246,29 @@ export function toTsv(table) {
 }
 
 /**
+ * How many value cells `numbers: "shown"` writes as 0 though their value is not 0 (a sum near 1e-9
+ * at two decimals), so a caller can say that a 0 may hide a small value.
+ * @param {import("./grid.js").Grid} grid  from toGrid()
+ * @returns {number}
+ */
+export function shownZeros(grid) {
+    expect(isGrid(grid), "shownZeros(grid): grid must come from toGrid()");
+    const locale = grid.locale ?? DEFAULT_LOCALE;
+    let count = 0;
+    for (const row of grid.rows) {
+        for (const cell of row) {
+            if (cell && isNumberCell(cell) && cell.valueType !== "date" && cell.value !== 0 && shownNumber(cell.value, cell.format, locale) === 0) {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
+/** The significant digits "shown" keeps of a number whose format has no plain decimals (compact, bytes, duration). */
+const SHOWN_DIGITS = 12;
+
+/**
  * A value of a value cell as JSON: the number, a date as its ISO date, text as it is, blank null. With
  * `shown` a number is rounded to the decimals its format shows (a percent's of the percentage: 0.257
  * for 25.7%).
@@ -259,7 +287,7 @@ function jsonValue(cell, shown, locale) {
 function shownNumber(v, format, locale) {
     const decimals = formatDecimals(format, locale);
     if (decimals === null) {
-        return Number(v.toPrecision(15));
+        return Number(v.toPrecision(SHOWN_DIGITS));
     }
     const percent = parseFormat(format)?.name === "percent";
     return percent ? Number((rounded(v * 100, decimals) / 100).toPrecision(15)) : rounded(v, decimals);
