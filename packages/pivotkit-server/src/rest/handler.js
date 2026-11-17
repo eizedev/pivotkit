@@ -27,7 +27,6 @@ import { INPUT_DEPTH, jsonDepth, present, presentedInput, renderFile, saveLogFie
 import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, isRestPost, limitKeyOf, restBodyBytesAt, restBodyBytesFor, restBodyCeilingOf } from "../limits.js";
 import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData, restDataOffered } from "../sources/inline.js";
 import { checkParamsOffered } from "../sources/input.js";
-import { fileSlug } from "../output.js";
 import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
 import { SAFE_HEADERS, hostProblem, json, problem, problemOf, withRequestIdMember } from "./problem.js";
@@ -48,6 +47,17 @@ const MATCHERS = REST_ROUTES.map((route) => ({ route, pattern: patternOf(route.p
 
 /** The PRM path of the REST resource. */
 const PRM_PATH = `/.well-known/oauth-protected-resource${REST_BASE}`;
+
+/** The direction controls a name could hide its real extension with ("gnp.exe" shown as "exe.png"). */
+const BIDI = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
+
+/** A file's name without a path, a reserved or a control character, at most 80 characters. */
+const safeName = (name) =>
+    // by code point, so a cut never splits a character in two; a lone surrogate is no character
+    [.../** @type {any} */ (String(name ?? "report")).toWellFormed()]
+        .slice(0, 80)
+        .map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 || BIDI.test(c) || '\\/:*?"<>|'.includes(c) ? "_" : c))
+        .join("") || "report";
 
 /** A file's name for Content-Disposition: its own characters as filename*, a plain ASCII copy as filename. */
 function disposition(name) {
@@ -305,7 +315,7 @@ export async function createRestHandler(context, runtime = {}) {
                 return problem("VIEW_HAS_ERRORS", "the view has errors; fix them (see findings) and render again", { extra: { findings: result.findings } });
             }
             const format = RENDER_FORMATS[result.format] ?? RENDER_FORMATS.xlsx;
-            const name = `${fileSlug(file.name)}.${format.extension}`;
+            const name = `${safeName(file.name)}.${format.extension}`;
             context.log.download({ operation: route.operation, ...callerFields(caller), requestId: entry.requestId, source: entry.source, format: result.format, bytes: file.bytes.length, status: 200 });
             return new Response(/** @type {any} */ (file.bytes), {
                 status: 200,

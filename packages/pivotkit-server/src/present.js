@@ -465,9 +465,9 @@ const STEPS = {
         // no summary: no size known, so not inline
         const cells = result.summary ? result.summary.rows * result.summary.columns : Infinity;
         const caps = policy.inline || null;
-        // the text that would come back inline (only where it may and its cells fit): its bytes are what the cap counts
-        const text = inlinable && !closed && caps !== null && cells <= caps.cells ? inlineText(format, file.bytes) : null;
-        const fits = caps !== null && cells <= caps.cells && (text === null ? file.bytes.length : new TextEncoder().encode(text).length) <= caps.bytes;
+        // the cap counts the file's bytes, also for json that comes back on one line (so never more than before)
+        const fits = caps !== null && cells <= caps.cells && file.bytes.length <= caps.bytes;
+        const text = inlinable && !closed && fits ? inlineText(format, file.bytes) : null;
         if (inlineOnly && closed) {
             // nothing of the result is said: not its size, not whether it would fit
             throw new OperationError("NOT_ALLOWED", `a field the view uses is at level values or summary, so its numbers cannot ${how.surface === "rest" ? "come back in the answer" : "be shown in the chat"}: leave out save to get it as a file`);
@@ -475,7 +475,7 @@ const STEPS = {
         if (inlineOnly && !fits) {
             throw new OperationError("LIMIT_EXCEEDED", `the result is larger than may come back inline (${caps?.cells} cells, ${caps?.bytes} bytes): filter more, or leave out save to get it as a file`);
         }
-        if (text !== null && fits) {
+        if (text !== null) {
             out.inline = { format, text };
         }
         // save: false: never written, so no file in the output directory, no upload and no link

@@ -268,5 +268,7 @@ test("render_view for a reader: numbers as the view shows them, one header row, 
     const english = await OPERATIONS.render_view.run({ source: "amounts", view: { version: 2, ...layout, formatting: { locale: "en-US" } }, format: "json", numbers: "shown", locale: "de-DE" }, amounts);
     assert.deepEqual(JSON.parse(new TextDecoder().decode(english.file.bytes)).rows.at(-1), { labels: ["Grand Total"], total: 2, collapsed: false, values: [4.8, 4.8, 9.6] });
     await assert.rejects(OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", locale: "not a locale!" }, amounts), (e) => e instanceof OperationError && e.code === "INVALID_INPUT" && /locale/.test(e.message));
+    // a well-formed tag no Intl service knows would fall back to the machine's locale: refused
+    await assert.rejects(OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", locale: "xx-XX" }, amounts), (e) => e instanceof OperationError && e.code === "INVALID_INPUT" && /locale/.test(e.message));
     assert.throws(() => checkInput(OPERATIONS.render_view.input, { source: "amounts", numbers: "rounded" }), /numbers/);
 });

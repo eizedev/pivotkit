@@ -144,7 +144,8 @@ Where the report gets a [download link](delivery.md), the link is in `output.url
 The file's name is `name` from the input, else `title`, else the view's name, else the source's.
 It is written in lower case with `-` for spaces (`Sales by region` is `sales-by-region`), as
 [delivery](delivery.md#configuration) describes. `.pivotkit-out.` goes before the format
-(`sales-by-region.pivotkit-out.xlsx`). The file route's download has the same name. This is the mark by which the
+(`sales-by-region.pivotkit-out.xlsx`). The [file route](#downloads) saves nothing, and its download
+keeps the title as its name. This is the mark by which the
 server knows its own files. A name that is taken gets `-2`, `-3` and so on, since the server never
 replaces a file.
 

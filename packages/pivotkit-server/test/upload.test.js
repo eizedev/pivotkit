@@ -198,6 +198,8 @@ test("the template's values: a random id, the report's name as a safe slug, the 
     assert.equal(nameSlug(".."), "report");
     assert.equal(nameSlug("Übersicht Größe"), "Ubersicht-Gro-e");
     assert.equal(nameSlug("x".repeat(200)).length, 80);
+    // cut after a "-": the name does not end in one
+    assert.equal(nameSlug(`${"x".repeat(79)} tail`), "x".repeat(79));
     assert.equal(nameSlug("日本"), "report");
     assert.equal(fillTemplate("https://s.example.com/r/{id}/{name}.{format}?n={name}", { id: "AbC_-1", name: "a b/c", format: "xlsx" }), "https://s.example.com/r/AbC_-1/a-b-c.xlsx?n=a-b-c");
 });

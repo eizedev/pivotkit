@@ -422,12 +422,11 @@ test("a file name cut at 80 characters never splits a character; the download st
     try {
         const res = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
         assert.equal(res.status, 200);
-        // the name a file gets is plain ASCII without spaces (output.js fileSlug): the emoji and what follows it are cut off
-        assert.match(res.headers.get("content-disposition"), /filename\*=UTF-8''x{79}\.csv$/);
+        assert.match(res.headers.get("content-disposition"), /filename\*=UTF-8''x{79}%F0%9F%98%80\.csv$/);
         const sent = server.log.find((l) => l.event === "download");
         assert.deepEqual([sent.status, sent.level, sent.outcome, sent.msg], [200, "info", "ok", "file sent"]);
         const quoted = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv", name: "it's (a) *test*" } });
-        assert.equal(quoted.headers.get("content-disposition"), "attachment; filename=\"it-s-a-test.csv\"; filename*=UTF-8''it-s-a-test.csv");
+        assert.match(quoted.headers.get("content-disposition"), /filename\*=UTF-8''it%27s%20%28a%29%20_test_\.csv$/);
     } finally {
         await server.close();
     }

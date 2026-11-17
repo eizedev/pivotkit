@@ -82,6 +82,8 @@ text. `data` is one of these:
 | `size` | `{ width: 800, height: 480 }` | The chart's size in px, 100 to 8,000. |
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
+| `numbers` | `"full"` | `csv` and `json`: `"shown"` rounds each number to the decimals the view shows ([`toCsv`](core.md)). The REST service and the MCP server pass `"shown"` unless the caller asks for `"full"`. |
+| `flatHeader` | `false` | `csv`: one header row instead of one per column field. |
 | `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form, or a time that does not exist, is refused. `html`: "Data as of" in the details and the `{{dataAsOf}}` [placeholder](print-template.md), in the locale and time zone with the zone named; `xlsx`: the custom document property `DataAsOf` (a date). csv, json and svg leave it out. The REST service and the MCP server pass it; the command line passes none for local files. |
 
 `render` refuses any other option name with `INVALID_OPTION` and names the closest one. So a
@@ -105,7 +107,7 @@ A bad view never throws: its issues come back. `render` throws `PivotkitError` f
     - an unknown `format`
     - a `size` out of range
     - an unknown option
-    - a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take
+    - a `chart`, `chartEmbed`, `bom`, `strict`, `trusted`, `numbers` or `flatHeader` of a value it does not take
     - an SVG or `chart: true` without `echarts`
     - a `now` that is no date
     - a `dataAsOf` in another form
@@ -219,7 +221,7 @@ These front ends are the [command line](cli.md), the [MCP server](mcp.md) and th
 | `get_view_guide` | - | `GET /views/guide` | `VIEW_GUIDE`: a view's format, its vocabulary from `CATALOG`, examples |
 | `validate_view` | `validate` | `POST /views/validate` | Findings and the fields the view uses; with a `layout` instead of a `view`, also the `view` it makes |
 | `describe_view` | `describe <view>` | `POST /views/describe` | describeView in parts, with findings |
-| `render_view` | `render` | `POST /views/render` | render(); the file comes back as `file`, the front end puts it somewhere; a `layout` instead of a `view` (the CLI's layout flags), with the `view` it made in the result |
+| `render_view` | `render` | `POST /views/render` | render(); the file comes back as `file`, the front end puts it somewhere; a `layout` instead of a `view` (the CLI's layout flags), with the `view` it made in the result; `locale` for a view or layout that names none, `numbers` and `flatHeader` |
 | `create_link` | - | `POST /views/link` | A link into the source's page (`env.link`) |
 | `draft_schedule` | - | `POST /schedules/draft` | A draft report document (`pivotkit-report-draft`, version 0) for a person to approve |
 

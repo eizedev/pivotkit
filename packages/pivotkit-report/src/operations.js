@@ -237,19 +237,20 @@ const LOCALE = { type: "string", maxLength: 35, pattern: "^[A-Za-z]{2,3}(-[A-Za-
 const NUMBERS = { enum: ["shown", "full"], description: "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits." };
 
 /**
- * A caller's locale as Intl writes it; INVALID_INPUT for one that is no language tag.
+ * A caller's locale as Intl writes it; INVALID_INPUT for one that is no language tag, or one this
+ * runtime has no number format for (Intl would fall back to the machine's locale).
  * @param {string} locale
  */
 function localeOf(locale) {
     try {
         const [canonical] = Intl.getCanonicalLocales(locale);
-        if (canonical) {
+        if (canonical && Intl.NumberFormat.supportedLocalesOf(canonical).length) {
             return canonical;
         }
     } catch {
         // no language tag
     }
-    throw new OperationError("INVALID_INPUT", "locale is no language tag; give one such as de-DE or en-US");
+    throw new OperationError("INVALID_INPUT", "locale is no language tag this server knows; give one such as de-DE or en-US");
 }
 
 // ---------------------------------------------------------------------------------------------

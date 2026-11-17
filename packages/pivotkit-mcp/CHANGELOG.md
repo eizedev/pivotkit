@@ -10,7 +10,7 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 - `render_view` takes `locale`, `numbers` and `flatHeader`, and every tool result carries
   `requestId`. Inline csv and json round numbers as the view shows them, inline json is on one line,
-  and saved files are named in lower case without spaces. A `resource_link`'s `title` is the
+  and saved reports and drafts are named in lower case without spaces. A `resource_link`'s `title` is the
   report's title. Clients must reconnect to see the new inputs ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481),
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#results-0-8)).
 - Behaviour change from pivotkit-server: a source hidden by default whose named fields are all

@@ -173,7 +173,7 @@ configuration, under "New in this version", with a link to each section below.
 | [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
 | [Chart layout functions measure differently](#chart-layout-0-8) | your code calls `rowLabelInterval`, `heatmapCellLabels`, `columnLabelLayout` or `categoryLabelLayout` of `pivotkit-core/chart` | check the results you rely on. Pass `frame` to keep the old heatmap frame |
 | [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` set `rowsCount` or add a language, or a test reads the row count under the result | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
-| **Breaking:** [csv and json results, request ids and file names](#results-0-8) | a script or host parses csv or json results of the REST service or the MCP server, or finds saved reports by their names | expect rounded numbers, json on one line and file names like `sales-by-region.pivotkit-out.xlsx`; pass `numbers: "full"` for all digits. MCP clients reconnect |
+| **Breaking:** [csv and json results, request ids and file names](#results-0-8) | a script or host parses csv or json results of the REST service or the MCP server, or finds saved reports or drafts by their names | expect rounded numbers, json on one line and file names like `sales-by-region.pivotkit-out.xlsx`; pass `numbers: "full"` for all digits. MCP clients reconnect |
 
 ### Sources hidden by default can be open { #hidden-open }
 
@@ -276,10 +276,13 @@ are, so they changed:
   holds for inline results, saved files and the file route. To keep 15 significant digits, pass
   `numbers: "full"`. The workbook (xlsx) always keeps full precision.
 - **Inline json** is on one line. A saved json file keeps its indentation. A parser reads both alike.
-- **File names** of saved reports and the file route's download are in lower case, with `-` for
-  spaces and parentheses. `Sales by region` is saved as `sales-by-region.pivotkit-out.xlsx`. Files
-  saved before keep their names and still download. A script that looks for a report by its name
-  expects the new form. An MCP `resource_link` keeps the title as its `title`.
+- **File names** of saved reports and schedule drafts are in lower case, with `-` for spaces and
+  parentheses. `Sales by region` is saved as `sales-by-region.pivotkit-out.xlsx`, and a draft
+  `Weekly sales` as `weekly-sales.pivotkit-out.report.json`. `output.filename`, the download page and
+  a link's download carry the same name. Files saved before keep their names and still download.
+  A script or host that looks for a report or draft by its name expects the new form. An MCP
+  `resource_link` keeps the title as its `title`. The file route (`POST /views/render/file`) saves
+  nothing and still names its download by the title.
 - **`requestId`** is in every answer that works: the MCP tool result and the REST body. It is the id
   of the answer's log line.
 - **New inputs** of `render_view` and `POST /views/render`: `locale` (such as `de-DE`) for a view or

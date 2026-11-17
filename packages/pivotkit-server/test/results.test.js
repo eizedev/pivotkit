@@ -77,7 +77,7 @@ test("REST: every answer names its request id in the body, the same as X-Request
     }
 });
 
-test("saved files and the file route's download are named without spaces; the title stays the report's", async () => {
+test("saved files are named without spaces; the file route's download keeps the title", async () => {
     const { server, dir } = await amountsServer();
     try {
         const res = await call(`${server.api}/views/render`, { body: { source: "amounts", layout: LAYOUT, format: "json", title: "Umsatz pro Produkt (Größe)" } });
@@ -90,7 +90,8 @@ test("saved files and the file route's download are named without spaces; the ti
         assert.match(readFileSync(join(dir, "out", res.data.output.name), "utf8"), /^\{\n {2}"rowHeaders"/);
         const file = await call(`${server.api}/views/render/file`, { body: { source: "amounts", layout: LAYOUT, format: "csv", name: "Umsatz pro Produkt" } });
         assert.equal(file.status, 200);
-        assert.equal(file.headers.get("content-disposition"), "attachment; filename=\"umsatz-pro-produkt.csv\"; filename*=UTF-8''umsatz-pro-produkt.csv");
+        // it saves nothing: the person's download is named by the title
+        assert.equal(file.headers.get("content-disposition"), "attachment; filename=\"Umsatz pro Produkt.csv\"; filename*=UTF-8''Umsatz%20pro%20Produkt.csv");
     } finally {
         await server.close();
     }

@@ -434,7 +434,7 @@ test("REST file route: data the caller sends needs data: true only; a configured
     try {
         const file = await multipart(`${server.api}/views/render/file`, TOKEN, [["data", [new Blob(["Region,Sales\n=HYPERLINK(\"x\"),1\n"]), "a.csv"]], ["input", JSON.stringify({ view: { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }, format: "csv" })]]);
         assert.equal(file.status, 200);
-        assert.match(file.headers.get("content-disposition"), /attachment; filename="data-sent-with-the-request\.csv"/);
+        assert.match(file.headers.get("content-disposition"), /attachment; filename="Data sent with the request\.csv"/);
         assert.match(new TextDecoder().decode(file.data), /"'=HYPERLINK\(""x""\)",1/);
         const json = await call(`${server.api}/views/render/file`, { token: TOKEN, body: { source: "inline:", data: TICKETS, view: BY_REGION, format: "csv" } });
         assert.equal(json.status, 200);
