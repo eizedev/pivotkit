@@ -41,6 +41,8 @@ export function DrillPanel({ drill: source, onClose, labels, locale, exportConte
     const drill = useMemo(() => (source ? drillOf(source, labels) : null), [source, labels]);
     const panel = useRef(/** @type {HTMLDivElement | null} */ (null));
     const [big, setBig] = useState(false);
+    // whether the press of a click on the scrim started on it
+    const pressed = useRef(false);
     // a narrow report's panel fills it already: no Enlarge there
     const narrow = useContext(LayerContext).size === "narrow";
     // Escape: an enlarged panel goes back to its size first, the next one closes it
@@ -64,7 +66,8 @@ export function DrillPanel({ drill: source, onClose, labels, locale, exportConte
     };
     return (
         <>
-            <div className="pk-scrim pk-drill-scrim" onClick={onClose} aria-hidden="true" />
+            {/* closes on a press that starts on it: the click a phone sends after the tap that opened the panel lands here too */}
+            <div className="pk-scrim pk-drill-scrim" onPointerDown={(e) => (pressed.current = e.target === e.currentTarget)} onClick={() => pressed.current && onClose()} aria-hidden="true" />
             <div
                 className={`pk-drill${big && !narrow ? " pk-drill-big" : ""}`}
                 role="dialog"

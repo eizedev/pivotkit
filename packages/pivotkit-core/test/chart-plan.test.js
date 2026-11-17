@@ -50,6 +50,23 @@ test("chartThemeFrom reads the --pk-* tokens of any style; decorateOption marks 
     assert.deepEqual([weightOf("500"), weightOf("bold"), weightOf(""), weightOf("5000")], [500, undefined, undefined, undefined]);
 });
 
+test("decorateOption: readColor keeps a heatmap's colours ECharts can mix; an end it reads no colour for takes DEFAULT_THEME's (#386)", () => {
+    const tokens = { "--pk-heat-low": "oklch(0.95 0.03 250)", "--pk-heat-high": "#003366" };
+    const style = { getPropertyValue: (n) => tokens[n] ?? "" };
+    const result = computePivot(data, { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "heatmap" } });
+    const option = toEChartsOption(result, { theme: chartThemeFrom(style) });
+    // a reader of hex only, as ECharts' parser reads no oklch()
+    const hexOnly = (c) => (/^#[0-9a-f]{6}$/i.test(c) ? c : null);
+    assert.deepEqual(decorateOption(option, style, { readColor: hexOnly }).visualMap.inRange.color, [DEFAULT_THEME.colorScale[0], "#003366"]);
+    // a reader that writes the colour another way (a browser): the colour as it gives it
+    assert.deepEqual(decorateOption(option, style, { readColor: (c) => hexOnly(c) ?? "#e8f3ff" }).visualMap.inRange.color, ["#e8f3ff", "#003366"]);
+    // no reader: the colours as the theme has them
+    assert.deepEqual(decorateOption(option, style).visualMap.inRange.color, ["oklch(0.95 0.03 250)", "#003366"]);
+    // neither end readable: both defaults, low to high
+    const both = toEChartsOption(result, { theme: { heatmapColors: ["lab(90 0 0)", "lab(30 0 0)"] } });
+    assert.deepEqual(decorateOption(both, style, { readColor: hexOnly }).visualMap.inRange.color, [...DEFAULT_THEME.colorScale]);
+});
+
 test("chartThemeFrom: the title's size in px, else DEFAULT_THEME's; toEChartsOption writes it", () => {
     const sizeOf = (value) => chartThemeFrom({ getPropertyValue: (n) => (n === "--pk-chart-title-size" ? value : "") }).titleSize;
     assert.deepEqual([sizeOf("20px"), sizeOf(" 18.5px "), sizeOf("22"), sizeOf("1.2em"), sizeOf("max(16px, 1em)"), sizeOf(""), sizeOf("0px")], [20, 18.5, 22, undefined, undefined, undefined, undefined]);

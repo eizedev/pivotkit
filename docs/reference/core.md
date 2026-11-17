@@ -402,7 +402,7 @@ A token that is missing or not readable keeps `DEFAULT_THEME`'s value. `CHART_CO
 
 This entry point exports `toEChartsOption` too, so a bundle loads the option with the chart.
 
-`decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter })` puts
+`decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter, readColor })` puts
 a report's marks on `toEChartsOption`'s option:
 
 - The theme's colours from the `--pk-*` tokens of `style`.
@@ -418,8 +418,14 @@ a report's marks on `toEChartsOption`'s option:
 - Room on the right for the values at the end of horizontal bars, and fewer value ticks where a
   narrow axis needs them.
 - A heatmap's row names and cell numbers where its cells have room.
+- With `readColor`, a heatmap's colours as ECharts can mix them. ECharts' own parser reads hex,
+  `rgb()`, `hsl()` and some names only. Another form, such as `oklch()`, turns the cells black.
+  `readColor(color)` returns a colour ECharts reads, or `null`. An end with `null` takes
+  `DEFAULT_THEME.colorScale`'s colour.
 
-pivotkit-react adds its DOM tooltip through `tooltipFormatter`. It follows the view's `chart.tooltip`
+pivotkit-react adds its DOM tooltip through `tooltipFormatter`. Its `readColor` turns any colour the
+browser reads into `#rrggbb`. pivotkit-report's keeps the colours ECharts reads. Any other one
+takes the default. It follows the view's `chart.tooltip`
 ([Charts](../concepts/charts.md#display-settings-for-the-people-who-use-the-report)). [pivotkit-report](report.md) draws the
 SVG with `decorateOption`. The layout measures the labels at the option's text size
 (`textStyle.fontSize`, the theme's `textSize`).

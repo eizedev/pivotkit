@@ -9,7 +9,7 @@
  */
 
 // renamed: a call of `use` reads as a React hook to the linter
-import { init, use as register } from "echarts/core";
+import { color, init, use as register } from "echarts/core";
 import { BarChart, HeatmapChart, LineChart, PieChart } from "echarts/charts";
 import { GridComponent, LegendComponent, TitleComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
@@ -17,6 +17,8 @@ import { CanvasRenderer } from "echarts/renderers";
 register([BarChart, LineChart, PieChart, HeatmapChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent, VisualMapComponent, CanvasRenderer]);
 
 export { init };
+/** ECharts' own colour parser: what it gives nothing for, it cannot mix (a heatmap's colours, chart-decorate.js). */
+export const parseColor = color.parse;
 export { toEChartsOption } from "pivotkit-core/chart";
 export { cleanChartOptions, mergeChartOptions } from "./chart-options.js";
-export { LENGTH_TOKENS, chartStyle, decorate, tokenLengths } from "./chart-decorate.js";
+export { LENGTH_TOKENS, chartStyle, decorate, screenColor, tokenLengths } from "./chart-decorate.js";

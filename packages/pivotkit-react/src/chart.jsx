@@ -16,6 +16,9 @@ import { chartThemeFrom } from "./theme.js";
 /** @type {Promise<any> | null} */
 let loading = null;
 
+/** Whether ECharts' click came from a finger: its native event is a touch's (or a pointer's of type touch). */
+const byTouch = (/** @type {any} */ e) => Boolean(e) && (String(e.type).startsWith("touch") || e.pointerType === "touch");
+
 /** ECharts with the parts the chart draws with (echarts.js), loaded once on the first chart. */
 export function loadECharts() {
     // a file of its own in dist/ (build.js), so the host's bundler splits it off
@@ -55,6 +58,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const warned = useRef(/** @type {unknown} */ (undefined));
     // the bar, segment or line point under the pointer: the tooltip names it (chart-tooltip.js)
     const hover = useRef(/** @type {{ seriesIndex: number, dataIndex: number } | null} */ (null));
+    // the element a tap showed the tooltip of: a second tap on it opens its rows
+    const tapped = useRef(/** @type {string | null} */ (null));
     useEffect(() => {
         latest.current = { series, onPoint, onInstance, type };
     });
@@ -80,9 +85,20 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                     }
                     const seriesEntry = kind === "heatmap" ? s.series.filter((x) => x.valueIndex === s.series[0]?.valueIndex)[p.value?.[0]] : s.series[p.seriesIndex];
                     const row = kind === "heatmap" ? p.value?.[1] : p.dataIndex;
-                    if (seriesEntry && s.categoryPaths[row]) {
-                        cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value: kind === "heatmap" ? p.value[2] : p.value });
+                    if (!seriesEntry || !s.categoryPaths[row]) {
+                        return;
                     }
+                    // a touch has no pointer that rests on an element: the first tap on an element shows
+                    // its tooltip, a second tap on it opens its rows
+                    const element = `${p.seriesIndex}:${p.dataIndex}`;
+                    if (byTouch(p.event?.event) && tapped.current !== element) {
+                        tapped.current = element;
+                        return;
+                    }
+                    tapped.current = null;
+                    // the panel covers the chart: the tooltip would stay over it
+                    instance.dispatchAction({ type: "hideTip" });
+                    cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value: kind === "heatmap" ? p.value[2] : p.value });
                 });
                 // ECharts draws the tooltip before it reports the element under the pointer: the
                 // element is kept, and the tooltip drawn again at the pointer. hideTip first: at the
@@ -144,10 +160,11 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}) });
         // a new option draws new marks: the element under the pointer is reported again when it moves
         hover.current = null;
+        tapped.current = null;
         // each series' value: a stack's total only where the values add up (chart-tooltip.js valueAddsUp)
         const values = (series?.series ?? []).map((x) => result.view.values[x.valueIndex]);
         const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values };
-        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip });
+        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.parseColor });
         setEvery(axisEvery);
         // the host's chartOptions win over the view's display settings and the report's own styles:
         // plain JSON only; what is dropped is a developer's mistake, said in the console

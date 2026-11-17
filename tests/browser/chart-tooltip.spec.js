@@ -249,6 +249,34 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await expect.poll(async () => (await tooltipOf(chartEl)).slice(1)).toEqual(["North, Services 10"]);
     });
 
+    test("pie, donut and heatmap with a field on Columns: the tooltip is titled by the value, not by the first column (#537)", async ({ page }) => {
+        // a slice adds every column: North 60 is Hardware, Services and Software together
+        for (const type of ["pie", "donut"]) {
+            const chartEl = await mount(page, { type });
+            await hover(page, await pointOf(chartEl, sliceMiddle, { index: NORTH }));
+            await expect.poll(() => tooltipOf(chartEl), type).toEqual(["Sum of Revenue", "North 60"]);
+        }
+        const chartEl = await mount(page, { type: "heatmap" });
+        await hover(page, await pointOf(chartEl, cellMiddle, { x: SERVICES, y: NORTH }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["Sum of Revenue", "North, Services 10"]);
+    });
+
+    test("a click on a bar opens its rows and the tooltip goes (#538)", async ({ page }) => {
+        const chartEl = await mount(page, { type: "bar", stacked: true });
+        const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+        await hover(page, at);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+        await page.mouse.click(at.x, at.y);
+        const panel = page.getByTestId("drill-panel");
+        await expect(panel).toBeVisible();
+        await expect(panel.getByTestId("drill-count")).toContainText("1");
+        await expect.poll(() => tooltipOf(chartEl)).toEqual([]);
+        // a click on the scrim beside the panel still closes it
+        const scrim = await page.locator(".pk-drill-scrim").boundingBox();
+        await page.mouse.click(scrim.x + 10, scrim.y + 10);
+        await expect(panel).toHaveCount(0);
+    });
+
     test("Display, Tooltip, All series: every series wherever the pointer is, the hovered one first and in the strong weight, with the total", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar", stacked: true });
         const report = page.locator("#tooltip-report");
@@ -344,6 +372,38 @@ test("on a phone, a tap on a stacked segment shows that segment and the total, i
     });
     expect(tip.left).toBeGreaterThanOrEqual(box.left - 1);
     expect(tip.right).toBeLessThanOrEqual(box.right + 1);
+    expect(problems).toEqual([]);
+    await context.close();
+});
+
+for (const type of ["bar", "heatmap"]) test(`on a phone, the first tap on a ${type === "bar" ? "stacked segment" : "heatmap cell"} shows its tooltip, a second tap opens its rows and the tooltip goes (#538)`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false });
+    const page = await context.newPage();
+    const problems = [];
+    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
+    await page.goto("pages/host.html");
+    const chartEl = await mount(page, type === "bar" ? { type: "bar", stacked: true } : { type: "heatmap" });
+    const at = type === "bar" ? await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH }) : await pointOf(chartEl, cellMiddle, { x: SOFTWARE, y: NORTH });
+    const tip = type === "bar" ? ["North", "Software 30", "Total 60"] : ["Sum of Revenue", "North, Software 30"];
+    const panel = page.getByTestId("drill-panel");
+    await page.touchscreen.tap(at.x, at.y);
+    await expect.poll(() => tooltipOf(chartEl)).toEqual(tip);
+    // the first tap only shows the tooltip: no panel, also a moment later
+    await page.waitForTimeout(400);
+    await expect(panel).toHaveCount(0);
+    // another element first: its tooltip; then a second tap on it opens its rows
+    const other = type === "bar" ? await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }) : await pointOf(chartEl, cellMiddle, { x: HARDWARE, y: NORTH });
+    await page.touchscreen.tap(other.x, other.y);
+    await expect.poll(async () => (await tooltipOf(chartEl)).join(" ")).toContain("Hardware 20");
+    await page.waitForTimeout(400);
+    await expect(panel).toHaveCount(0);
+    await page.touchscreen.tap(other.x, other.y);
+    await expect(panel).toBeVisible();
+    // the click a phone sends after the tap lands on the panel's scrim: the panel stays, the tooltip is gone
+    await page.waitForTimeout(400);
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Hardware");
+    await expect.poll(() => tooltipOf(chartEl)).toEqual([]);
     expect(problems).toEqual([]);
     await context.close();
 });

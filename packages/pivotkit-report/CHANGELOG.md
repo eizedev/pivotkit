@@ -16,6 +16,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 ### Changed
 
 - The chart's SVG takes `toEChartsOption` from `pivotkit-core/chart` (#546).
+- The chart's SVG keeps a heatmap's colours ECharts can mix through pivotkit-core's
+  `decorateOption` (`readColor`). The output is the same ([#386](https://github.com/eizedev/pivotkit/issues/386)).
 
 ### Fixed
 
