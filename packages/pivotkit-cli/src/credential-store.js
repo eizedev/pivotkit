@@ -15,8 +15,8 @@
  */
 
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
-import { chmod, lstat, mkdir, open, stat, unlink } from "node:fs/promises";
+import { createHash, randomBytes } from "node:crypto";
+import { chmod, link, lstat, mkdir, open, readFile, rename, stat, unlink, utimes } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { CliError } from "./errors.js";
@@ -53,12 +53,15 @@ export const accountOf = (resource) => createHash("sha256").update(resource, "ut
 /**
  * Runs a tool with the secret on stdin (`missing`: the tool is not installed). Tests replace `run`,
  * `platform` and the lock's waits.
- * @type {{ platform: NodeJS.Platform, lockWaitMs: number, lockStaleMs: number, run(command: string, args: string[], input: string): Promise<{ code: number | null, stdout: string, missing?: boolean }> }}
+ * @type {{ platform: NodeJS.Platform, lockWaitMs: number, lockStaleMs: number, lockBeatMs: number, lockPollMs: number, run(command: string, args: string[], input: string): Promise<{ code: number | null, stdout: string, missing?: boolean }> }}
  */
 export const storeMeans = {
     platform: process.platform,
-    lockWaitMs: 15_000,
-    lockStaleMs: 60_000,
+    // a holder may wait TOOL_MS for an unlock dialog and a request's time limit; a waiting run waits as long
+    lockWaitMs: 150_000,
+    lockStaleMs: 180_000,
+    lockBeatMs: 5000,
+    lockPollMs: 100,
     run(command, args, input) {
         return new Promise((done) => {
             let child;
@@ -243,6 +246,28 @@ async function readPrivate(path, max) {
 /** What the file store says it is, for the messages: Windows has no file modes to name. */
 export const fileStoreText = () => (storeMeans.platform === "win32" ? "a file in your user profile" : "a file only you can read (mode 0600)");
 
+/** Whether the lock file at `path` still holds this run's id. */
+const ownsLock = (path, id) => readFile(path, "utf8").then((text) => text === id, () => false);
+
+/**
+ * Takes over a stale lock: renamed to a name of this run, so only one run gets it. When the renamed
+ * lock turns out live (a newer run made it after the age was read), it goes back with link(), which
+ * never replaces a lock made since.
+ */
+async function takeOver(path, id) {
+    const aside = `${path}.${id}.stale`;
+    try {
+        await rename(path, aside);
+    } catch {
+        return;
+    }
+    const age = await stat(aside).then((info) => Date.now() - info.mtimeMs, () => Infinity);
+    if (age <= storeMeans.lockStaleMs) {
+        await link(aside, path).catch(() => undefined);
+    }
+    await unlink(aside).catch(() => undefined);
+}
+
 /** Writes a file only its owner reads, through a temporary file. */
 const writePrivate = (dir, path, text) => writeSafe(path, Buffer.from(text, "utf8"), { cwd: dir, allow: [], mode: 0o600 });
 
@@ -323,7 +348,10 @@ export function credentialStore(env) {
 
     /**
      * Runs `work` while this process alone may refresh the server's token: a lock file made with
-     * O_EXCL. A lock older than storeMeans.lockStaleMs is a crashed run's and is taken over.
+     * O_EXCL that holds a random id. While held, its time is renewed every lockBeatMs, so a lock
+     * whose time is older than lockStaleMs is a crashed run's. Such a lock is taken over by
+     * renaming it to a name of this run first, so two runs cannot both take it; a lock found live
+     * after the rename goes back. The owner removes only a lock that still holds its own id.
      * @template T
      * @param {string} resource
      * @param {() => Promise<T>} work
@@ -333,32 +361,43 @@ export function credentialStore(env) {
         const locks = join(dir, "locks");
         await privateDir(locks);
         const path = join(locks, `${accountOf(resource)}.lock`);
+        const id = randomBytes(16).toString("hex");
         const start = Date.now();
-        let handle = null;
-        while (!handle) {
+        for (;;) {
             try {
-                handle = await open(path, "wx", 0o600);
+                const handle = await open(path, "wx", 0o600);
+                await handle.writeFile(id);
+                await handle.close();
+                break;
             } catch (e) {
                 if (/** @type {any} */ (e)?.code !== "EEXIST") {
                     throw e;
                 }
-                const since = await stat(path).then((info) => Date.now() - info.mtimeMs, () => 0);
-                if (since > storeMeans.lockStaleMs) {
-                    await unlink(path).catch(() => undefined);
-                    continue;
-                }
-                if (Date.now() - start > storeMeans.lockWaitMs) {
-                    throw new CliError("io", "LOCKED", `another pivotkit token run holds ${path}; try again, or remove the file when no such run is left`);
-                }
-                // a ref'd timer: the wait keeps the process alive
-                await new Promise((done) => setTimeout(done, 100));
             }
+            const age = await stat(path).then((info) => Date.now() - info.mtimeMs, () => 0);
+            if (age > storeMeans.lockStaleMs) {
+                await takeOver(path, id);
+                continue;
+            }
+            if (Date.now() - start > storeMeans.lockWaitMs) {
+                throw new CliError("io", "LOCKED", `another pivotkit token run has held ${path} for ${Math.round(storeMeans.lockWaitMs / 1000)} s; it may wait for a keychain unlock dialog. Try again when it ends`);
+            }
+            // a ref'd timer: the wait keeps the process alive
+            await new Promise((done) => setTimeout(done, storeMeans.lockPollMs));
         }
+        // nothing awaits the heartbeat, so it does not keep the process alive
+        const beat = setInterval(() => {
+            const now = new Date();
+            void ownsLock(path, id).then((own) => (own ? utimes(path, now, now) : undefined)).catch(() => undefined);
+        }, storeMeans.lockBeatMs);
+        beat.unref();
         try {
             return await work();
         } finally {
-            await handle.close();
-            await unlink(path).catch(() => undefined);
+            clearInterval(beat);
+            if (await ownsLock(path, id)) {
+                await unlink(path).catch(() => undefined);
+            }
         }
     }
 

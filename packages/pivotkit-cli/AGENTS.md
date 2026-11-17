@@ -69,6 +69,7 @@ Use `src/safe-files.js` for every file the CLI reads or writes.
 - Tests replace the tools through `storeMeans` and the waits through `signInMeans`.
 - Tests never touch the real keychain: spawned runs use `--store file`.
 - `token` refreshes under a lock file (`locked`). It reads the refresh token again inside the lock.
+- The lock holds a random id and a heartbeat. A stale lock is renamed aside before it is taken over.
 - An error that needs `pivotkit login` again carries `exitCode: 3` (`SIGN_IN_AGAIN`).
 
 ## Examples

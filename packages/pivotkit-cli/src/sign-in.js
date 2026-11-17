@@ -34,10 +34,11 @@ const ANSWER_BYTES = 262_144;
 
 /**
  * RFC 8628: the poll interval without one from the issuer, what slow_down adds and the interval it
- * grows to at most (an issuer's own longer interval is kept), the longest wait for the sign-in, and
- * how many transient failures in a row a poll takes.
+ * grows to at most (an issuer's own longer interval is kept), the longest interval taken from an
+ * issuer at all (five minutes; a longer one is said and cut), the longest wait for the sign-in, and
+ * how many transient failures (no answer, 5xx, 429) in a row a poll takes.
  */
-export const DEVICE_POLL = Object.freeze({ intervalSeconds: 5, slowDownSeconds: 5, maxSlowDownSeconds: 60, maxWaitSeconds: 1800, transientTries: 3 });
+export const DEVICE_POLL = Object.freeze({ intervalSeconds: 5, slowDownSeconds: 5, maxSlowDownSeconds: 60, maxIntervalSeconds: 300, maxWaitSeconds: 1800, transientTries: 3 });
 
 /** The exit code of "the sign-in has ended: run pivotkit login again" (docs/reference/cli.md). */
 export const SIGN_IN_AGAIN = 3;
@@ -72,7 +73,7 @@ export const signInMeans = { sleep: (ms) => new Promise((done) => setTimeout(don
 const TRANSIENT = new Set(["NETWORK", "TIMEOUT", "ANSWER_CUT", "BAD_ANSWER"]);
 
 /** Whether a failed request may work when asked again: no answer, a cut or non-JSON one, or a 5xx. */
-const isTransient = (e) => e instanceof RemoteError && (TRANSIENT.has(e.code) || (e.status !== null && e.status >= 500));
+const isTransient = (e) => e instanceof RemoteError && (TRANSIENT.has(e.code) || (e.status !== null && (e.status >= 500 || e.status === 429)));
 
 /** An error that ends with "run pivotkit login again": exit code SIGN_IN_AGAIN. */
 const signInAgain = (error) => Object.assign(error, { exitCode: SIGN_IN_AGAIN });
@@ -97,18 +98,16 @@ export function checkedUrl(text, what, allowHttp) {
 }
 
 /**
- * A host's registrable domain, approximated without the public suffix list: the last two labels, or
- * three under a short second level such as co.uk. An IP address or a single label is itself.
- * @param {string} host
+ * Whether the code page's host belongs to the issuer's: the same host, or one is a subdomain of the
+ * other. A hint against a code page an attacker put elsewhere (RFC 8628 5.4), not a guarantee: two
+ * tenants of one hosting domain (a.okta.com, b.okta.com) count as different hosts on purpose.
+ * @param {string} page
+ * @param {string} issuer
  */
-export function siteOf(host) {
-    const name = host.toLowerCase().replace(/\.$/, "");
-    if (!name.includes(".") || /^[\d.]+$/.test(name) || name.includes(":")) {
-        return name;
-    }
-    const labels = name.split(".");
-    const short = labels.length > 2 && labels.at(-1).length === 2 && labels.at(-2).length <= 3;
-    return labels.slice(short ? -3 : -2).join(".");
+export function sameSite(page, issuer) {
+    const a = page.toLowerCase().replace(/\.$/, "");
+    const b = issuer.toLowerCase().replace(/\.$/, "");
+    return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
 }
 
 /**
@@ -116,9 +115,10 @@ export function siteOf(host) {
  * @param {URL} url
  * @param {Record<string, string> | null} form  a POST's form, null for GET
  * @param {Record<string, string | undefined>} env
+ * @param {{ parse?: boolean }} [how]  parse: false takes any body, read and dropped, and gives `data: {}` (RFC 7009's revocation answers 200 with any body, often none)
  * @returns {Promise<{ status: number, data: Record<string, any> }>}
  */
-async function call(url, form, env) {
+async function call(url, form, env, { parse = true } = {}) {
     checkTls({ base: url }, env);
     // a ref'd timer: the wait keeps the process alive; cleared when the answer is read
     const controller = new AbortController();
@@ -152,6 +152,9 @@ async function call(url, form, env) {
                 throw e;
             }
             throw controller.signal.aborted ? new RemoteError("TIMEOUT", `${printable(url.origin)} did not answer within ${limitMs / 1000} s`, { status: answer.status }) : new RemoteError("ANSWER_CUT", `the answer of ${printable(url.origin)} was cut off`, { status: answer.status });
+        }
+        if (!parse) {
+            return { status: answer.status, data: {} };
         }
         let data = null;
         try {
@@ -292,9 +295,13 @@ function tokensOf(data) {
  * polls of the interval, not by the clock: a laptop that slept asks once more and gets expired_token.
  * @returns {Promise<{ access: string, refresh: string | null }>}
  */
-async function pollFor(endpoints, start, clientId, env) {
+async function pollFor(endpoints, start, clientId, env, say) {
     const expiresIn = Math.min(Number.isFinite(start.expires_in) && start.expires_in > 0 ? start.expires_in : 600, DEVICE_POLL.maxWaitSeconds);
     let interval = Math.max(Number.isFinite(start.interval) && start.interval > 0 ? Math.ceil(start.interval) : DEVICE_POLL.intervalSeconds, 1);
+    if (interval > DEVICE_POLL.maxIntervalSeconds) {
+        say(`note: the issuer asks to wait ${interval} s between checks; pivotkit checks every ${DEVICE_POLL.maxIntervalSeconds} s`);
+        interval = DEVICE_POLL.maxIntervalSeconds;
+    }
     let waited = 0;
     let transient = 0;
     for (;;) {
@@ -306,7 +313,7 @@ async function pollFor(endpoints, start, clientId, env) {
         let poll;
         try {
             poll = await call(endpoints.token, { grant_type: DEVICE_GRANT, device_code: start.device_code, client_id: clientId }, env);
-            if (poll.status >= 500) {
+            if (poll.status >= 500 || poll.status === 429) {
                 throw new RemoteError("SERVER_ERROR", `the issuer answered ${poll.status}`, { status: poll.status });
             }
         } catch (e) {
@@ -360,7 +367,7 @@ export async function loginCommand(values, ctx) {
     const issuerHost = new URL(issuer).host;
     // RFC 8628 5.4: the person checks where they sign in before they enter the code
     say(`Sign in at ${printable(issuerHost)}, the sign-in provider of ${printable(server.base.host)}.`);
-    if (siteOf(verify.hostname) !== siteOf(new URL(issuer).hostname)) {
+    if (!sameSite(verify.hostname, new URL(issuer).hostname)) {
         say(`warning: the code page is on ${printable(verify.host)}, not on ${printable(issuerHost)}. Enter the code only if this is your sign-in provider's page.`);
     }
     say(`Open ${printable(verify.href)} and enter the code ${printable(d.user_code)}`);
@@ -369,7 +376,7 @@ export async function loginCommand(values, ctx) {
     }
     const expiresIn = Math.min(Number.isFinite(d.expires_in) && d.expires_in > 0 ? d.expires_in : 600, DEVICE_POLL.maxWaitSeconds);
     say(`Waiting for the sign-in (the code ends in ${Math.max(1, Math.round(expiresIn / 60))} min)...`);
-    const tokens = await pollFor(endpoints, d, clientId, env);
+    const tokens = await pollFor(endpoints, d, clientId, env, say);
     if (!tokens.refresh) {
         throw new RemoteError("NO_REFRESH_TOKEN", `the issuer gave no refresh token, so pivotkit token could not renew the sign-in; ask for one with --scope "${printable(`${scope} offline_access`.trim())}", or the operator allows refresh tokens for this client`);
     }
@@ -459,6 +466,8 @@ export async function tokenCommand(values, ctx) {
             } catch {
                 const kept = await store.put(login.resource, tokens.refresh, "file");
                 await store.record({ ...login, store: "file" });
+                // the keychain's entry holds the old, now void token: gone, so logout leaves nothing behind
+                await store.drop({ ...login, store: "keychain" }).catch(() => undefined);
                 warnings.push(`the keychain could not keep the new refresh token; it is in ${kept.where}, ${fileStoreText()}`);
             }
         }
@@ -480,8 +489,8 @@ export async function logoutCommand(values, ctx) {
     if (login.revocationEndpoint) {
         const refresh = await store.get(login).catch(() => null);
         if (refresh) {
-            const answer = await call(checkedUrl(login.revocationEndpoint, "the kept revocation endpoint", loopbackLogin(login)), { token: refresh, token_type_hint: "refresh_token", client_id: login.clientId }, env).catch(() => null);
-            revoked = answer?.status === 200;
+            const answer = await call(checkedUrl(login.revocationEndpoint, "the kept revocation endpoint", loopbackLogin(login)), { token: refresh, token_type_hint: "refresh_token", client_id: login.clientId }, env, { parse: false }).catch(() => null);
+            revoked = answer !== null && answer.status >= 200 && answer.status < 300;
         }
     }
     await store.remove(login.resource);

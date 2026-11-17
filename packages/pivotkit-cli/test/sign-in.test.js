@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { main } from "pivotkit-cli";
 import { run, tempDir } from "./helpers.js";
 import { accountOf, credentialStore, storeMeans } from "../src/credential-store.js";
+import { utimesSync } from "node:fs";
 import { scopeOf, signInMeans } from "../src/sign-in.js";
 
 const DEVICE_CODE = "DEVICE-CODE-SECRET-5d1c";
@@ -644,10 +645,13 @@ test("phishing (RFC 8628 5.4): the issuer's host comes before the code, with a w
             await fake.close();
         }
     });
-    const { siteOf } = await import("../src/sign-in.js");
-    assert.equal(siteOf("login.microsoftonline.com"), "microsoftonline.com");
-    assert.equal(siteOf("auth.example.co.uk"), "example.co.uk");
-    assert.equal(siteOf("127.0.0.1"), "127.0.0.1");
+    const { sameSite } = await import("../src/sign-in.js");
+    assert.equal(sameSite("auth.example.com", "auth.example.com"), true);
+    assert.equal(sameSite("device.auth.example.com", "auth.example.com"), true, "a subdomain of the issuer");
+    assert.equal(sameSite("example.com", "auth.example.com"), true, "a parent of the issuer");
+    assert.equal(sameSite("attacker.okta.com", "acme.okta.com"), false, "two tenants of one hosting domain");
+    assert.equal(sameSite("evil-example.com", "example.com"), false);
+    assert.equal(sameSite("microsoft.com", "login.microsoftonline.com"), false);
 });
 
 test("two token runs at once: the lock lets one refresh at a time, so neither spends the other's rotated token", async () => {
@@ -681,6 +685,9 @@ test("rotation: when the keychain cannot keep the new refresh token, the access 
         if (args[0] === "lookup") {
             return { code: 0, stdout: kept.get("linux") ?? "" };
         }
+        if (args[0] === "clear") {
+            kept.delete("linux");
+        }
         return { code: 0, stdout: "" };
     };
     const fake = await fakeIssuer();
@@ -688,6 +695,7 @@ test("rotation: when the keychain cannot keep the new refresh token, the access 
     try {
         await withWaits(async () => assert.equal((await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "keychain"], dir)).code, 0));
         const r = await inProcess(["token"], dir);
+        assert.equal(kept.has("linux"), false, "the keychain's stale entry is gone");
         assert.equal(r.code, 0, r.stderr);
         assert.equal(r.stdout, `${ACCESS[1]}\n`);
         assert.match(r.stderr, /^warning: the keychain could not keep the new refresh token; it is in .*\.token, /);
@@ -793,4 +801,140 @@ test("the store: a missing keychain tool is named, a token over the Windows Cred
             await fake.close();
         }
     }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Second review: revocation's empty answer, the lock, 429 and long intervals
+
+test("logout counts an empty 200 from the revocation endpoint as done (RFC 7009 2.2)", async () => {
+    const fake = await fakeIssuer({
+        revocation: true,
+        hook: ({ req, res }) => {
+            if (req.url !== "/revoke") {
+                return false;
+            }
+            res.writeHead(200);
+            res.end();
+            return true;
+        }
+    });
+    const dir = tempDir();
+    try {
+        await withWaits(async () => assert.equal((await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], dir)).code, 0));
+        const r = await inProcess(["logout"], dir);
+        assert.equal(r.code, 0, r.stderr);
+        assert.match(r.stderr, /The issuer revoked the refresh token\./);
+    } finally {
+        await fake.close();
+    }
+});
+
+/** The lock's settings for a test, set back afterwards. */
+async function withLock(settings, work) {
+    const before = { lockWaitMs: storeMeans.lockWaitMs, lockStaleMs: storeMeans.lockStaleMs, lockBeatMs: storeMeans.lockBeatMs, lockPollMs: storeMeans.lockPollMs };
+    Object.assign(storeMeans, { lockPollMs: 5, ...settings });
+    try {
+        return await work();
+    } finally {
+        Object.assign(storeMeans, before);
+    }
+}
+
+/** A promise and the function that ends it. */
+function gate() {
+    let open;
+    const done = new Promise((resolve) => (open = resolve));
+    return { done, open };
+}
+
+test("the lock: a slow holder keeps the next run waiting, its heartbeat keeps the lock fresh, and a run that waits too long says why", async () => {
+    await withLock({ lockBeatMs: 10, lockStaleMs: 60, lockWaitMs: 5000 }, async () => {
+        const store = credentialStore(envOf(tempDir()));
+        const resource = "https://reports.example/api/v1";
+        const events = [];
+        const holding = gate();
+        const first = store.locked(resource, async () => {
+            events.push("first in");
+            // longer than lockStaleMs: only the heartbeat keeps the lock from counting as stale
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            await holding.done;
+            events.push("first out");
+        });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        const second = store.locked(resource, async () => void events.push("second in"));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        assert.deepEqual(events, ["first in"], "the second run waits while the first holds the lock");
+        holding.open();
+        await Promise.all([first, second]);
+        assert.deepEqual(events, ["first in", "first out", "second in"]);
+    });
+    await withLock({ lockBeatMs: 10, lockStaleMs: 60_000, lockWaitMs: 50 }, async () => {
+        const store = credentialStore(envOf(tempDir()));
+        const holding = gate();
+        const first = store.locked("https://reports.example/api/v1", () => holding.done);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        await assert.rejects(store.locked("https://reports.example/api/v1", async () => undefined), (e) => e.code === "LOCKED" && /it may wait for a keychain unlock dialog/.test(e.message));
+        holding.open();
+        await first;
+    });
+});
+
+test("the lock: two runs that find a stale lock at once take it over one after the other; the owner removes only its own lock", async () => {
+    await withLock({ lockBeatMs: 1000, lockStaleMs: 1000, lockWaitMs: 5000 }, async () => {
+        const dir = tempDir();
+        const store = credentialStore(envOf(dir));
+        const resource = "https://reports.example/api/v1";
+        const locks = join(dir, "pivotkit", "locks");
+        mkdirSync(locks, { recursive: true, mode: 0o700 });
+        const path = join(locks, `${accountOf(resource)}.lock`);
+        writeFileSync(path, "a crashed run's id");
+        utimesSync(path, new Date(1_000_000_000_000), new Date(1_000_000_000_000));
+        let inside = 0;
+        let most = 0;
+        const run1 = async () => {
+            inside++;
+            most = Math.max(most, inside);
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            inside--;
+        };
+        await Promise.all([store.locked(resource, run1), store.locked(resource, run1), store.locked(resource, run1)]);
+        assert.equal(most, 1, "never two inside at once");
+        assert.deepEqual(readdirSync(locks), [], "no lock and no renamed copy left");
+        // a lock replaced by another run's while the work ran stays where it is
+        await store.locked(resource, async () => writeFileSync(path, "another run's id"));
+        assert.equal(readFileSync(path, "utf8"), "another run's id");
+    });
+});
+
+test("a 429 while polling is asked again like a 5xx; an interval over five minutes is cut, with a note", async () => {
+    await withWaits(async (waits) => {
+        const busy = await fakeIssuer({
+            hook: ({ req, res, state }) => {
+                if (req.url !== "/token") {
+                    return false;
+                }
+                state.polls++;
+                res.writeHead(state.polls === 1 ? 429 : 200, { "content-type": "application/json" });
+                res.end(JSON.stringify(state.polls === 1 ? { error: "too_many_requests" } : { access_token: ACCESS[0], token_type: "Bearer", refresh_token: REFRESH[0] }));
+                return true;
+            }
+        });
+        try {
+            const r = await inProcess(["login", "--url", busy.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 0, r.stderr);
+            assert.equal(busy.state.polls, 2);
+        } finally {
+            await busy.close();
+        }
+        waits.length = 0;
+        const slow = await fakeIssuer({ interval: 3600, expiresIn: 1800 });
+        try {
+            const r = await inProcess(["login", "--url", slow.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 0, r.stderr);
+            assert.match(r.stderr, /note: the issuer asks to wait 3600 s between checks; pivotkit checks every 300 s/);
+            assert.deepEqual(waits, [300_000, 300_000]);
+        } finally {
+            await slow.close();
+        }
+    });
 });

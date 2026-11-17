@@ -508,12 +508,13 @@ The last line hands the token to curl on stdin (`-H @-`). A token in an argument
 machine can read it while curl runs.
 
 - `login` reads the server's metadata and its issuer, and starts the device code flow there.
-- It names the issuer's host first. It warns when the code page is on another site than the
-  issuer. Then it prints an address and a code on stderr. Open the address, enter the code and sign
-  in.
+- It names the issuer's host first. It warns when the code page's host is neither the issuer's host
+  nor a parent or subdomain of it. The warning is a hint, not a guarantee: check the page yourself.
+  Then it prints an address and a code on stderr. Open the address, enter the code and sign in.
 - The operator gives you the client ID. Pass it with `--client-id` or `PIVOTKIT_CLIENT_ID`.
 - `login` waits as long as the provider allows, at most 30 minutes. It polls at the provider's
-  interval. It asks again after a network error, a timeout or a 5xx, three times in a row at most.
+  interval, at most every five minutes, and says so when the provider asks for longer. It asks again
+  after a network error, a timeout, a 429 or a 5xx, three times in a row at most.
 - The issuer must use https. Plain http is taken only when the server's address is loopback too.
 - `token` trades the kept refresh token for an access token at the provider. It prints the access
   token alone on stdout, with `--json` as `accessToken`. It asks the provider on every run.
@@ -523,6 +524,7 @@ machine can read it while curl runs.
   signed in to.
 - `logout` removes the refresh token and the entry. Where the provider offers token revocation
   ([RFC 7009](https://www.rfc-editor.org/rfc/rfc7009)), it revokes the refresh token there first.
+  Any 2xx answer counts as revoked.
   Otherwise the session at the provider stays open until it expires.
 - A server without a sign-in provider has no metadata. `login` says so. Ask the operator for a token
   instead.
@@ -542,6 +544,8 @@ Where the refresh token goes (`--store`):
     - A server has no desktop session, so no secret service runs.
     - On Windows, the token is longer than the 2560 bytes the Credential Manager keeps
       ([CREDENTIAL](https://learn.microsoft.com/en-us/windows/win32/api/wincred/ns-wincred-credentialw)).
+    - Any keychain that does not give the token back as written, for example one that cuts a very
+      long token. pivotkit reads each token back after it writes it.
 - The file is `pivotkit/tokens/` in `$XDG_CONFIG_HOME` (default `~/.config`), or in `%APPDATA%` on
   Windows. It is not encrypted.
     - On Linux and macOS, only you can read it: mode 0600 in a 0700 directory.
@@ -550,9 +554,13 @@ Where the refresh token goes (`--store`):
   token.
 - When the provider hands out a new refresh token, `token` keeps the new one. When the keychain
   cannot keep it, `token` writes it to the file, says so on stderr and still prints the access token.
+  It removes the keychain's old entry, so `logout` leaves nothing behind.
 - Two `token` runs at once take turns through a lock file in `pivotkit/locks/`. So neither spends
-  the refresh token the other one just replaced. A lock older than a minute counts as left over and
-  is taken.
+  the refresh token the other one just replaced.
+    - The run that holds the lock renews its time every 5 seconds.
+    - A lock not renewed for 3 minutes is a crashed run's. The next run takes it over.
+    - A waiting run waits up to 150 seconds, long enough for a keychain unlock dialog. Then it says
+      another run holds the lock.
 
 [Sign in from the command line](rest.md#sign-in-cli) has what the operator sets up, and the same
 steps with curl or PowerShell.
