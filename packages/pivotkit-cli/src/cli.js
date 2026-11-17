@@ -3,7 +3,8 @@
  * streams given (bin/pivotkit.js passes the process's), so tests can run it in the process too.
  *
  * Contract (docs/reference/cli.md): exit code 0 done, 1 findings (an error in the view, or a warning
- * with --strict), 2 a usage, file, limit or template error. --json writes one object on stdout:
+ * with --strict), 2 a usage, file, limit or template error, 3 the sign-in has ended (pivotkit token:
+ * run pivotkit login again). --json writes one object on stdout:
  * { ok, exitCode, command, findings: [{ severity, code, path, message, suggestion }], error?: { kind,
  * code, message }, output?, ... }; a server's error (kind "remote") adds its status and retryAfter.
  * Locally no network; with --now the output is the same on every run. With --url or --source,
@@ -28,6 +29,7 @@ import { INFO_NOTES } from "./files.js";
 import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, quoteArg, viewFileFor } from "./layout-view.js";
 import { allowedDirs, readSafe, readStdin, writeSafe } from "./safe-files.js";
 import { remoteCommand } from "./remote-commands.js";
+import { loginCommand, logoutCommand, tokenCommand } from "./sign-in.js";
 import { resolve as resolvePath } from "node:path";
 import { stat } from "node:fs/promises";
 
@@ -216,6 +218,9 @@ export async function main(argv, io) {
             io.stdout.write(completionScript(/** @type {any} */ (shell)));
             return 0;
         }
+        if (command === "login" || command === "token" || command === "logout") {
+            return await signInCommand(command, values, { io }, { json, say });
+        }
         // remote mode: --url or --source on the command line (PIVOTKIT_URL alone is only the address), or sources
         const remote = command === "sources" || values.url !== undefined || values.source !== undefined;
         checkWhere(command, values, remote);
@@ -278,6 +283,8 @@ export async function main(argv, io) {
         return exitCode;
     } catch (e) {
         const error = asCliError(e);
+        // 3: the sign-in has ended and pivotkit login is needed (sign-in.js SIGN_IN_AGAIN); every other error 2
+        const failed = /** @type {any} */ (e)?.exitCode === 3 ? 3 : 2;
         // a usage error ends with the way to the command's help, in the form every program of pivotkit uses
         if (error.kind === "usage" && Object.hasOwn(COMMANDS, command) && command !== "help" && !/ help"| --help"/.test(error.message)) {
             error.message = `${error.message}${error.message.endsWith("?") ? " " : "; "}run "${program} ${command} --help"`;
@@ -285,12 +292,38 @@ export async function main(argv, io) {
         if (json) {
             // a server's error: its HTTP status (null without an answer) and the seconds it asks to wait
             const remote = error instanceof RemoteError ? { status: error.status, retryAfter: error.retryAfter } : {};
-            io.stdout.write(`${JSON.stringify({ ok: false, exitCode: 2, command: command || null, findings, error: { kind: error.kind, code: error.code, message: error.message, ...remote } })}\n`);
+            io.stdout.write(`${JSON.stringify({ ok: false, exitCode: failed, command: command || null, findings, error: { kind: error.kind, code: error.code, message: error.message, ...remote } })}\n`);
         } else {
             say(`pivotkit: ${error.message}`);
         }
-        return 2;
+        return failed;
     }
+}
+
+/**
+ * login, token and logout (sign-in.js). token writes the access token alone on stdout (with --json
+ * as the object's accessToken); the others write their line on stderr.
+ * @param {"login" | "token" | "logout"} command
+ * @param {Record<string, any>} values
+ * @param {{ io: Io }} ctx
+ * @param {{ json: boolean, say: (text: string) => void }} how
+ * @returns {Promise<number>}
+ */
+async function signInCommand(command, values, ctx, { json, say }) {
+    /** @type {any} */
+    const outcome = command === "login" ? await loginCommand(values, ctx) : command === "token" ? await tokenCommand(values, ctx) : await logoutCommand(values, ctx);
+    // a warning goes to stderr also with --json and -q: it says where a secret went
+    for (const warning of outcome.warnings ?? []) {
+        say(`warning: ${warning}`);
+    }
+    if (json) {
+        ctx.io.stdout.write(`${JSON.stringify({ ok: true, exitCode: 0, command, findings: [], ...outcome.extra, ...("token" in outcome ? { accessToken: outcome.token } : {}) })}\n`);
+    } else if ("token" in outcome) {
+        ctx.io.stdout.write(`${outcome.token}\n`);
+    } else if (!values.quiet) {
+        say(outcome.note);
+    }
+    return 0;
 }
 
 /**

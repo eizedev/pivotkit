@@ -12,7 +12,7 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 
 ## Contract
 
-- Exit codes: 0 done, 1 findings, 2 usage, file, limit or template error.
+- Exit codes: 0 done, 1 findings, 2 usage, file, limit or template error, 3 the sign-in has ended (`token`, `logout`).
 - `--json` writes one object on stdout.
 - The contract is documented in `docs/reference/cli.md`. Keep both in step.
 
@@ -59,6 +59,18 @@ Use `src/safe-files.js` for every file the CLI reads or writes.
 - Never show a fetch error's message. Wrap it as `RemoteError`.
 - `src/rest-contract.js` (`pivotkit-cli/rest`) is the one copy of the REST contract.
 - pivotkit-server re-exports it. Change it here.
+
+## Sign-in
+
+- `src/sign-in.js` holds `login`, `token` and `logout`: the OAuth device code flow at the server's issuer.
+- It follows remote mode's request rules. An issuer's error is named by its OAuth code only.
+- `src/credential-store.js` keeps the refresh token: the system's keychain tool, else a 0600 file.
+- A secret reaches a keychain tool on stdin only, never as an argument.
+- Tests replace the tools through `storeMeans` and the waits through `signInMeans`.
+- Tests never touch the real keychain: spawned runs use `--store file`.
+- `token` refreshes under a lock file (`locked`). It reads the refresh token again inside the lock.
+- The lock holds a random id and a heartbeat. A stale lock is renamed aside before it is taken over.
+- An error that needs `pivotkit login` again carries `exitCode: 3` (`SIGN_IN_AGAIN`).
 
 ## Examples
 

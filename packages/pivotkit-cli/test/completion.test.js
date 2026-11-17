@@ -39,9 +39,12 @@ for (const [shell, [binary, args]] of Object.entries(CHECKS)) {
 }
 
 test("bash completes commands, options and the values of an option with choices", { skip: has("bash") ? false : "bash is not installed" }, async () => {
-    const script = (await run(["completion", "bash"])).stdout;
+    // bash sources the script from a file, named as bash -n above gets it. As one -c argument it
+    // would meet the Windows command-line limit (about 8 KiB) and be cut
+    const file = join(tempDir(), "pivotkit.bash");
+    writeFileSync(file, (await run(["completion", "bash"])).stdout);
     const complete = (words) =>
-        execFileSync("bash", ["-c", `${script}\nCOMP_WORDS=(${words.map((w) => `'${w}'`).join(" ")}); COMP_CWORD=${words.length - 1}; _pivotkit; printf '%s\\n' "\${COMPREPLY[@]}"`], { encoding: "utf8" }).trim().split("\n");
+        execFileSync("bash", ["-c", `source "$1"; COMP_WORDS=(${words.map((w) => `'${w}'`).join(" ")}); COMP_CWORD=${words.length - 1}; _pivotkit; printf '%s\\n' "\${COMPREPLY[@]}"`, "bash", file], { encoding: "utf8" }).trim().split("\n");
     assert.deepEqual(complete(["pivotkit", "re"]), ["render"]);
     assert.ok(complete(["pivotkit", "render", "--fo"]).includes("--format"));
     assert.deepEqual(complete(["pivotkit", "render", "--format", "s"]), ["svg"]);
