@@ -47,20 +47,26 @@ export function addEffect(view, zone, name) {
 /**
  * @param {{ zone: string, view: any, fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>,
  *   nameOf: (field: string) => string, info: Map<string, import("./field-info.js").FieldInfo>, labels: any,
- *   close: () => void, placeName: (field: string, zone: string) => string, onAdd: (field: string, zone: string) => void,
- *   filterDraft: (field: string) => { field: string, base: object | undefined }, onAdded: (from: string | null, run: () => void) => void,
- *   commit: (view: object, note?: any) => void, encoded: import("pivotkit-core").Encoded, locale: string }} props
+ *   close: () => void, placeName: (field: string, zone: string) => string, onAdd: (field: string, zone: string) => boolean,
+ *   filterDraft: (field: string) => { field: string, base: object | undefined }, onAdded: (from: string | null, run: () => boolean) => void,
+ *   commit: (view: object, note?: any) => boolean, encoded: import("pivotkit-core").Encoded, locale: string,
+ *   fullText: (zone: string, count: number) => string | null }} props
  *   `placeName`: what a pick places (a date's grouping); `onAdded`: says where a field came from before
- *   `run` places it (the zones then focus its chip and say so)
+ *   `run` places it (the zones then focus its chip and say so); `fullText`: why a zone with `count`
+ *   entries takes no more, or null
  */
-export function AddMenu({ zone, view, fields, placed, nameOf, info, labels, close, placeName, onAdd, filterDraft, onAdded, commit, encoded, locale }) {
+export function AddMenu({ zone, view, fields, placed, nameOf, info, labels, close, placeName, onAdd, filterDraft, onAdded, commit, encoded, locale, fullText }) {
     // the field whose filter is open (Filters)
     const [picked, setPicked] = useState(/** @type {{ field: string, from: string | null } | null} */ (null));
     const zoneName = labels.zones[zone];
+    // a zone at its limit: every pick that would add to it is off, with the reason
+    const full = zone === "filters" ? null : fullText(zone, view[zone].length);
     const name = fill(labels.addTo, { zone: zoneName });
     /** @param {{ name: string, type: string }} f @returns {import("./menu-topics.js").Choice} */
     const choiceOf = (f) => {
         const { from, already } = addEffect(view, zone, placeName(f.name, zone));
+        // field names are one per spelling case-insensitively (pivotkit-core's encode keeps one of
+        // "Name" and "name"), so the lower-case key names one field
         const where = placed.get(f.name.toLowerCase()) ?? [];
         const second = zone === "values" && where.includes("values");
         return {
@@ -71,8 +77,8 @@ export function AddMenu({ zone, view, fields, placed, nameOf, info, labels, clos
             className: `pk-add-type-${f.type}`,
             tags: where.map((z) => ({ icon: ZONE_ICON[z], text: labels.zones[z] })),
             note: already ? undefined : from ? fill(labels.addMoves, { zone: labels.zones[from] }) : second ? labels.addSecond : undefined,
-            disabled: already,
-            reason: already ? fill(labels.addAlready, { zone: zoneName }) : undefined,
+            disabled: already || Boolean(full),
+            reason: already ? fill(labels.addAlready, { zone: zoneName }) : full ?? undefined,
             closes: zone !== "filters",
             open: zone === "filters" ? "filter" : undefined,
             run: () => {
@@ -85,7 +91,8 @@ export function AddMenu({ zone, view, fields, placed, nameOf, info, labels, clos
             }
         };
     };
-    const topicOf = (list) => ({ id: "fields", title: name, kind: /** @type {const} */ ("inline"), groups: [{ choices: list.map(choiceOf) }] });
+    // data without columns: the list says so, as the field list does
+    const topicOf = (list) => ({ id: "fields", title: name, kind: /** @type {const} */ ("inline"), groups: [{ choices: list.map(choiceOf) }], note: fields.length ? null : labels.emptyFields, noteId: "add-empty" });
     const draft = picked ? filterDraft(picked.field) : null;
     const topics = [
         topicOf(fields),

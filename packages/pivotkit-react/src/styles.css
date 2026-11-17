@@ -3752,9 +3752,10 @@
     flex: 1;
 }
 
+/* the shelves' places: two side by side, one per line where a shelf's least width does not fit twice */
 .pk-skel-zones {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--pk-shelf-gap);
 }
 
@@ -3792,6 +3793,8 @@
 }
 
 .pk-skel-zone {
+    flex: 1 1 calc(50% - var(--pk-shelf-gap));
+    min-width: min(100%, var(--pk-shelf-min));
     height: calc(var(--pk-chip-h) + 2 * var(--pk-shelf-pad));
     border-radius: var(--pk-radius);
 }

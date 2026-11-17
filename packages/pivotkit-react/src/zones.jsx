@@ -239,6 +239,10 @@ function Zone({ zone, entries, labels, children, explain, add }) {
     );
 }
 
+/** How long (ms) the status line stays empty before it says what "+ Add" did, and how long it says it. */
+const SAY_AFTER = 100;
+const SAY_FOR = 8000;
+
 /** Chip entries of every zone: id, field, text, type (of the source field: a grouped date stays a date). */
 export function zoneEntries(view, types, labels) {
     const typeOf = (f) => types.get(String(sourceOf(view, f)).toLowerCase()) ?? "string";
@@ -318,13 +322,14 @@ function SectionHead({ entries, labels, id, open, onFold, onSwap, canSwap, butto
 
 /**
  * @param {{ view: any, types: Map<string, string>, labels: import("./labels.js").UiLabels,
- *   commit: (view: object, note?: any) => void, earlier?: () => any[],
+ *   commit: (view: object, note?: any) => boolean, earlier?: () => any[],
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
  *   id: string, folded: boolean, onFold: () => void, narrow?: boolean, defaultsOf?: (field: string) => import("./index.js").FieldDefaults | undefined,
  *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined, explain?: boolean, showInfo?: boolean,
  *   adding?: { fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>, nameOf: (field: string) => string,
  *     info: Map<string, import("./field-info.js").FieldInfo>, placeName: (field: string, zone: string) => string,
- *     onAdd: (field: string, zone: string) => void, filterDraft: (field: string) => { field: string, base: object | undefined } } }} props
+ *     onAdd: (field: string, zone: string) => boolean, filterDraft: (field: string) => { field: string, base: object | undefined },
+ *     fullText: (zone: string, count: number) => string | null } }} props
  *   `explain`: an "i" next to each zone's title that says what the zone does; `showInfo` false: no "i"
  *   of a field description on the chips (Options → Help)
  *   `folded`: the section folded to its heading row; `onFold`: fold or open it; `defaultsOf`: the host's settings for a source field (fieldDefaults);
@@ -372,7 +377,12 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
     // a field placed by "+ Add": the zone, where it came from and the chips before, so the new chip is
     // found once the view has it (a step the report refused adds none)
     const added = useRef(/** @type {{ zone: string, from: string | null, ids: Set<string> } | null} */ (null));
+    // the status line: emptied first and filled a moment later, so the same words (a second "Sum of
+    // Revenue added to Values") are announced again; emptied again after a while, so a screen reader
+    // that walks the page later finds no stale words
     const [said, setSaid] = useState("");
+    const sayTimers = useRef(/** @type {ReturnType<typeof setTimeout>[]} */ ([]));
+    useEffect(() => () => sayTimers.current.forEach(clearTimeout), []);
     useEffect(() => {
         const at = added.current;
         if (!at) {
@@ -385,7 +395,10 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
         }
         const chip = root.current?.querySelectorAll(`[data-zone="${at.zone}"] .pk-chip`)[fresh.index];
         /** @type {HTMLElement | null | undefined} */ (chip?.querySelector(".pk-chip-label"))?.focus({ preventScroll: true });
-        setSaid(fill(at.from ? labels.movedFrom : labels.steps.added, { field: fresh.text, zone: labels.zones[at.zone], from: at.from ? labels.zones[at.from] : "" }));
+        const text = fill(at.from ? labels.movedFrom : labels.steps.added, { field: fresh.text, zone: labels.zones[at.zone], from: at.from ? labels.zones[at.from] : "" });
+        sayTimers.current.forEach(clearTimeout);
+        setSaid("");
+        sayTimers.current = [setTimeout(() => setSaid(text), SAY_AFTER), setTimeout(() => setSaid(""), SAY_FOR)];
     }, [entries, labels]);
     const addMenu = useMemo(
         () =>
@@ -398,7 +411,10 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
                       locale,
                       onAdded: (zone) => (from, run) => {
                           added.current = { zone, from, ids: new Set(entries[zone].map((e) => e.id)) };
-                          run();
+                          // a step the report refused (a zone at its limit): no chip to wait for
+                          if (!run()) {
+                              added.current = null;
+                          }
                       }
                   }
                 : null,

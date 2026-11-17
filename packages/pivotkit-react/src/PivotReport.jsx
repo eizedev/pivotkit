@@ -48,7 +48,7 @@ import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
 import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import {
-    addField, filterZoneFields, groupField, hiddenAfter, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
+    addField, filterZoneFields, groupField, hiddenAfter, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneMax, zoneOverLimit
 } from "./view-ops.js";
 import { Zones, zoneEntries } from "./zones.jsx";
 
@@ -695,13 +695,13 @@ function Report(props) {
      * screen (the chip appears); a removal offers Undo.
      */
     const commit = useCallback(
-        /** @param {object} next @param {{ step: string, removed?: boolean, field?: string, zone?: string, name?: string, display?: string, type?: string }} [note] @param {any} [tag] the saved view it is (history.tag) */
+        /** @param {object} next @param {{ step: string, removed?: boolean, field?: string, zone?: string, name?: string, display?: string, type?: string }} [note] @param {any} [tag] the saved view it is (history.tag) @returns {boolean} whether the view changed */
         (next, note = { step: "change" }, tag = undefined) => {
             // a field beyond the limit of its zone would vanish in normalize(): refuse the step and say so
             const over = note.step === "template" ? null : zoneOverLimit(next, limits);
             if (over) {
                 announce(fill(labels.zoneFull, { zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }), { tone: "error" });
-                return;
+                return false;
             }
             const changed = history.commit(next, stepText(note), tag);
             if (changed) {
@@ -709,10 +709,11 @@ function Report(props) {
                 setChanges(changesRef.current);
                 newStep();
             }
-            if (!changed || !note.removed) {
-                return;
+            if (changed && note.removed) {
+                announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), { action: { label: labels.undo, run: () => undoLater.current() } });
             }
-            announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), { action: { label: labels.undo, run: () => undoLater.current() } });
+            // whether the view changed: "+ Add" waits for its chip only then
+            return changed;
         },
         [history, stepText, labels, announce, limits, locale, newStep]
     );
@@ -942,7 +943,7 @@ function Report(props) {
     const addTo = useCallback(
         (field, zone, index = undefined) => {
             const options = placeOptions(field, zone, index);
-            commit(addField(view, field, zone, options), { step: "added", field: options.groupName ?? nameOf(field), zone });
+            return commit(addField(view, field, zone, options), { step: "added", field: options.groupName ?? nameOf(field), zone });
         },
         [view, placeOptions, commit, nameOf]
     );
@@ -979,7 +980,15 @@ function Report(props) {
         [filterDraft, size]
     );
     // what "+ Add" in each zone needs (zones.jsx, add-menu.jsx)
-    const adding = useMemo(() => ({ fields, placed, nameOf, info, placeName, onAdd: addTo, filterDraft }), [fields, placed, nameOf, info, placeName, addTo, filterDraft]);
+    // a zone at its limit (`limits`) takes no more: its picks are off, with the reason
+    const zoneFullText = useCallback(
+        (zone, count) => {
+            const max = zoneMax(zone, limits);
+            return max !== null && count >= max ? fill(labels.zoneFull, { zone: labels.zones[zone], max: max.toLocaleString(locale) }) : null;
+        },
+        [limits, labels, locale]
+    );
+    const adding = useMemo(() => ({ fields, placed, nameOf, info, placeName, onAdd: addTo, filterDraft, fullText: zoneFullText }), [fields, placed, nameOf, info, placeName, addTo, filterDraft, zoneFullText]);
 
     const onDrop = useCallback(
         (src, target) => {

@@ -61,6 +61,9 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
     const textId = useId();
     // where the pointer is (client coordinates), followed while the description is shown on hover
     const pointer = useRef(/** @type {{ x: number, y: number } | null} */ (null));
+    // closed (Escape, a second click) while the pointer rests on the button: a move there does not
+    // show it again until the pointer has left the button
+    const muted = useRef(false);
     const stay = () => {
         if (leaving.current) {
             clearTimeout(leaving.current);
@@ -121,6 +124,7 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
     }, [mode]);
     const close = useCallback(() => {
         quiet.current = true;
+        muted.current = Boolean(ref.current?.matches(":hover"));
         setMode(null);
         requestAnimationFrame(() => {
             quiet.current = false;
@@ -144,12 +148,13 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
                 // shown when the mouse moves over it, not when the layout moves it under a resting
                 // pointer (a chip removed: the next shelf slides under the pointer)
                 onPointerMove={(e) => {
-                    if (e.pointerType === "mouse") {
+                    if (e.pointerType === "mouse" && !muted.current) {
                         stay();
                         setMode((m) => m ?? "peek");
                     }
                 }}
                 onPointerLeave={(e) => {
+                    muted.current = false;
                     if (e.pointerType === "mouse" && mode === "peek") {
                         leaveSoon();
                     }
@@ -168,6 +173,9 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
                 }}
                 onClick={() => {
                     stay();
+                    if (mode === "open") {
+                        muted.current = true;
+                    }
                     setMode(mode === "open" ? null : "open");
                 }}
             >

@@ -207,6 +207,106 @@ test.describe("+ Add in each zone", () => {
     });
 });
 
+/** A web component with the given data, limits and start view, its zones open; returns its locator. */
+async function element(page, { data, limits, view }) {
+    await page.goto("pages/element-leaks.html");
+    await page.waitForFunction(() => customElements.get("pivot-report"));
+    await page.evaluate(([rows, max, start]) => {
+        const el = document.createElement("pivot-report");
+        el.data = rows;
+        if (max) el.limits = max;
+        if (start) el.defaultView = start;
+        el.setAttribute("zones", "open");
+        document.body.append(el);
+    }, [data, limits ?? null, view ?? null]);
+    const report = page.locator("pivot-report");
+    await expect(report.locator(".pk-zone")).toHaveCount(4);
+    return report;
+}
+
+test.describe("+ Add at the edges", () => {
+    test("a zone at its limit: every pick that would add to it is off, with the zone's limit as its reason", async ({ page }) => {
+        const report = await element(page, {
+            data: [{ Team: "A", Owner: "x", Site: "s", Hours: 2 }, { Team: "B", Owner: "y", Site: "t", Hours: 3 }],
+            limits: { axisFields: 2 },
+            view: { rows: ["Team", "Owner"], values: [{ field: "Hours", agg: "sum" }] }
+        });
+        await report.getByTestId("add-field-rows").click();
+        const menu = report.locator(".pk-add-menu");
+        const site = menu.getByTestId("add-pick-Site");
+        await expect(site).toHaveAttribute("aria-disabled", "true");
+        await expect(menu.getByTestId("add-pick-Site-reason")).toHaveText("Rows holds at most 2 fields. Remove one first.");
+        await site.click({ force: true });
+        await expect(menu).toBeVisible();
+        expect(await report.locator('[data-zone="rows"] .pk-chip').evaluateAll((els) => els.map((e) => e.getAttribute("data-chip")))).toEqual(["Team", "Owner"]);
+        // Columns has room: the same field can go there
+        await page.keyboard.press("Escape");
+        await report.getByTestId("add-field-cols").click();
+        await expect(report.locator(".pk-add-menu").getByTestId("add-pick-Site")).not.toHaveAttribute("aria-disabled", "true");
+    });
+
+    test("two names that differ only in case are one field: the menu lists it once", async ({ page }) => {
+        const report = await element(page, { data: [{ Name: "a", name: "b", Hours: 1 }, { Name: "c", Hours: 2 }] });
+        await report.getByTestId("add-field-rows").click();
+        const menu = report.locator(".pk-add-menu");
+        await expect(menu.locator('[role="menuitem"]')).toHaveCount(2);
+        await expect(menu.getByTestId("add-pick-Name")).toHaveCount(1);
+        await menu.getByTestId("add-pick-Name").click();
+        await expect(report.getByTestId("chip-menu-Name")).toBeFocused();
+    });
+
+    test("data without columns: the menu says so", async ({ page }) => {
+        const report = await element(page, { data: [] });
+        await report.getByTestId("add-field-rows").click();
+        const menu = report.locator(".pk-add-menu");
+        await expect(menu.locator('[role="menuitem"]')).toHaveCount(0);
+        await expect(menu.getByTestId("add-empty")).toHaveText("The data has no columns.");
+    });
+});
+
+test("the same pick twice: the status line says it each time", async ({ page }) => {
+    await open(page);
+    // every text the status line shows, as it changes
+    await page.getByTestId("zones-status").evaluate((el) => {
+        window.__said = [];
+        new MutationObserver(() => el.textContent && window.__said.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true });
+    });
+    for (let i = 0; i < 2; i++) {
+        await (await addMenu(page, "values")).getByTestId("add-pick-Revenue").click();
+        await expect.poll(() => page.evaluate(() => window.__said.length)).toBe(i + 1);
+    }
+    expect(await page.evaluate(() => window.__said)).toEqual(["Sum of Revenue added to Values", "Sum of Revenue added to Values"]);
+});
+
+test("an i closed while the pointer rests on it stays closed until the pointer leaves it", async ({ page }) => {
+    await open(page);
+    const info = page.getByTestId("zone-info-values");
+    const pop = page.locator(".pk-info-pop");
+    const box = await info.boundingBox();
+    const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    // Escape on the description shown on hover
+    await page.mouse.move(at.x, at.y);
+    await expect(pop).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(pop).toHaveCount(0);
+    await page.mouse.move(at.x + 1, at.y + 1);
+    await page.mouse.move(at.x - 1, at.y);
+    await page.waitForTimeout(300);
+    await expect(pop).toHaveCount(0);
+    // a second click closes the opened one; a move on the i does not show it again
+    await page.mouse.click(at.x, at.y);
+    await expect(pop).toBeVisible();
+    await page.mouse.click(at.x, at.y);
+    await expect(pop).toHaveCount(0);
+    await page.mouse.move(at.x + 1, at.y);
+    await page.waitForTimeout(300);
+    await expect(pop).toHaveCount(0);
+    // the pointer away and back: it shows again
+    await page.mouse.move(at.x, at.y + 200);
+    await page.mouse.move(at.x, at.y);
+    await expect(pop).toBeVisible();
+});
+
 test.describe("shelves", () => {
     test("wide, typical: Filters and Columns share a line, so do Rows and Values; at rest no dashed outline", async ({ page }) => {
         await open(page);
@@ -342,6 +442,26 @@ test.describe("drag and drop on shelves", () => {
         // the section folds again after the drop; opened, it shows the new value
         await page.getByTestId("layout-summary").click();
         expect(await chips(page, "values")).toEqual(["Sum of Revenue", "Count of Product"]);
+    });
+
+    test("390: a field dragged from the drawer lands on a shelf", async ({ page }) => {
+        await open(page, { width: 390, height: 844 });
+        await page.getByTestId("show-fields").click();
+        // the drawer slides in: the field is measured where it comes to rest
+        await page.waitForTimeout(400);
+        const from = await page.locator('.pk-field[data-field="Channel"] .pk-handle').boundingBox();
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(from.x + 20, from.y + 20, { steps: 6 });
+        // the drawer closes on the drag's start and slides away (a person's hand is slower than this)
+        await page.waitForTimeout(400);
+        const to = await page.locator('[data-zone="filters"]').boundingBox();
+        await page.mouse.move(to.x + to.width - 30, to.y + to.height - 12, { steps: 16 });
+        await page.mouse.move(to.x + to.width - 29, to.y + to.height - 12, { steps: 2 });
+        await expect(page.locator('[data-zone="filters"]')).toHaveClass(/pk-over/);
+        await page.mouse.up();
+        await page.waitForTimeout(100);
+        expect(await chips(page, "filters")).toEqual(["Channel"]);
     });
 
     test("390: a chip moves from Rows to the empty Filters shelf with the pointer", async ({ page }) => {
