@@ -482,7 +482,7 @@ test.describe("reference lines", () => {
         }, { rows: ROWS, view: { ...VIEW, values: [], display: "chart", chart: { type: "bar" } } });
         // at once, before ECharts has loaded and drawn
         await openLines(report);
-        await expect(report.getByTestId("lines-note")).toHaveText("Show the chart to see which lines it can draw.");
+        await expect(report.getByTestId("lines-note")).toHaveText("The lines show here once the chart is drawn.");
         await expect(report.getByTestId("line-average")).toHaveCount(1);
     });
 

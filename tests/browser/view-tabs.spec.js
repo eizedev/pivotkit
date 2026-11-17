@@ -173,11 +173,19 @@ test("Help: a level with the tips' switches and the keyboard shortcuts; keys in 
     await expect(more).toBeFocused();
 });
 
-test("a narrow report: Start over and Views below Help in More; the settings, Enlarge, Full screen and Swap show their icon with their name", async ({ page }) => {
+test("a narrow report: Start over and Views below Help in More; the settings say so in short; Enlarge, Full screen and Swap show their icon with their name", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("?data=sales&lang=en");
     await page.locator('[data-testid="pivot-table"]').waitFor();
-    for (const [id, name] of [["view-settings", "Table settings"], ["enlarge", "Enlarge"], ["swap", "Swap rows and columns"]]) {
+    // a short visible text, the whole name for a screen reader and as a tooltip (#580 review)
+    const settings = page.getByTestId("view-settings");
+    await expect(settings).toHaveText("Settings");
+    await expect(settings).toHaveAccessibleName("Table settings");
+    await expect(settings).toHaveAttribute("title", "Table settings");
+    // it stays on the tabs' line
+    const [tab, button] = await Promise.all([page.getByTestId("show-table").boundingBox(), settings.boundingBox()]);
+    expect(Math.abs(tab.y + tab.height - (button.y + button.height))).toBeLessThan(12);
+    for (const [id, name] of [["enlarge", "Enlarge"], ["swap", "Swap rows and columns"]]) {
         await expect(page.getByTestId(id)).toHaveAccessibleName(name);
         await expect(page.getByTestId(id)).toHaveAttribute("title", name);
         // the icon only: no text takes room
@@ -283,4 +291,72 @@ test("the open zones with their heading need room: a desktop report of 640 px st
         await page.locator('[data-testid="pivot-table"]').waitFor();
         await expect(page.getByTestId("layout-summary"), `${height} px`).toHaveAttribute("aria-expanded", expanded);
     }
+});
+
+// its own fixture: the console warning is what this test expects
+plain("labels the report no longer shows are ignored, with one warning that names what replaces them", async ({ page }) => {
+    const warnings = [];
+    page.on("console", (m) => m.type() === "warning" && warnings.push(m.text()));
+    await page.goto("pages/element-two.html");
+    const report = page.locator("#sales");
+    await report.getByTestId("layout-summary").waitFor();
+    await page.evaluate(() => {
+        document.getElementById("sales").labels = { layout: "Felder", options: "Optionen" };
+    });
+    await expect.poll(() => warnings.join("\n")).toContain("labels.layout is no longer shown and is ignored; set labels.zonesTitle instead");
+    await expect.poll(() => warnings.join("\n")).toContain("labels.options is no longer shown and is ignored; set labels.tableSettings instead");
+    // the report shows its own texts
+    await expect(report.getByTestId("layout-summary")).toHaveAccessibleName("Fields in the report");
+    // the same labels again: no second warning
+    await page.evaluate(() => {
+        document.getElementById("sales").labels = { layout: "Felder", options: "Optionen" };
+    });
+    await page.waitForTimeout(300);
+    expect(warnings.filter((w) => w.includes("labels.layout"))).toHaveLength(1);
+});
+
+test("Chart settings at 1440 x 900: Layout is reached by End and shows in the window, also when the menu scrolls", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    // Region and Country in Rows, as lines: Layout has a switch and the groups
+    await page.goto("?data=sales&lang=en");
+    await page.getByTestId("show-chart").click();
+    await page.getByTestId("view-settings").click();
+    await page.getByTestId("chart-line").click();
+    await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
+    const settings = page.getByTestId("view-settings");
+    await settings.focus();
+    await page.keyboard.press("Enter");
+    const menu = page.locator(".pk-chart-menu");
+    await expect(menu.getByTestId("topic-valueLabels")).toBeVisible();
+    // the menu fits the window, or scrolls inside it
+    const fits = await menu.evaluate((el) => el.getBoundingClientRect().bottom <= window.innerHeight + 1);
+    expect(fits).toBe(true);
+    await menu.getByTestId("topic-valueLabels").focus();
+    await page.keyboard.press("End");
+    const layout = menu.getByTestId("topic-layout");
+    await expect(layout).toBeFocused();
+    await expect(layout).toBeInViewport({ ratio: 1 });
+    // its row says how the groups show
+    await expect(layout).toContainText("Each Country");
+    await page.keyboard.press("Enter");
+    await expect(menu.getByTestId("chart-show-each")).toBeVisible();
+});
+
+test("forced colours (Windows high contrast): the tab shown has a frame, the other none; the fold button has one", async ({ page, browserName }) => {
+    test.skip(browserName !== "chromium", "forced colours are emulated in Chromium only");
+    await page.emulateMedia({ forcedColors: "active" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("?data=sales&lang=en");
+    await page.locator('[data-testid="pivot-table"]').waitFor();
+    const frame = (id) => page.getByTestId(id).evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { width: parseFloat(s.borderTopWidth), style: s.borderTopStyle, color: s.borderTopColor, canvas: s.backgroundColor };
+    });
+    const shown = await frame("show-table");
+    expect([shown.width, shown.style]).toEqual([2, "solid"]);
+    // the tab not shown: its border in the background's colour, so no frame shows
+    const other = await frame("show-chart");
+    expect(other.width).toBeLessThan(2);
+    const fold = await frame("layout-summary");
+    expect([fold.width, fold.style]).toEqual([1, "solid"]);
 });

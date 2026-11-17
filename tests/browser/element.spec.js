@@ -42,7 +42,7 @@ test("the menus' German texts load only for a German report, also when the langu
     const host = page.locator("#views");
     await expect(host.locator(".pk-root")).toBeVisible();
     await tool(host, "more");
-    await expect(host.getByTestId("more-help")).toHaveText("Help");
+    await expect(host.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
     await page.keyboard.press("Escape");
     expect(loaded.filter((p) => /menu-texts-de-/.test(p))).toEqual([]);
     // every text More's Help row shows from now on
@@ -57,14 +57,14 @@ test("the menus' German texts load only for a German report, also when the langu
     });
     await expect(host.locator(".pk-root")).toHaveAttribute("lang", "de");
     await tool(host, "more");
-    await expect(host.getByTestId("more-help")).toHaveText("Hilfe");
+    await expect(host.getByTestId("more-help")).toHaveText("Hilfe und Tastenkürzel");
     expect(loaded.filter((p) => /menu-texts-de-/.test(p))).toHaveLength(1);
     // the menu waited for the German texts: no English title in between
-    expect(await page.evaluate(() => window.__seen.filter((t) => t !== "Hilfe"))).toEqual([]);
+    expect(await page.evaluate(() => window.__seen.filter((t) => t !== "Hilfe und Tastenkürzel"))).toEqual([]);
     await page.keyboard.press("Escape");
     // a host's text for a menu text wins over the German one
     await page.evaluate(() => {
-        document.getElementById("views").labels = { help: "Hilfe und Tipps" };
+        document.getElementById("views").labels = { helpAndShortcuts: "Hilfe und Tipps" };
     });
     await tool(host, "more");
     await expect(host.getByTestId("more-help")).toHaveText("Hilfe und Tipps");
@@ -90,21 +90,21 @@ test("two reports on one page, English and German: each menu in its language, an
     const tickets = page.locator("#tickets");
     await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "de");
     await tool(sales, "more");
-    await expect(sales.getByTestId("more-help")).toHaveText("Help");
+    await expect(sales.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
     await page.keyboard.press("Escape");
     await tool(tickets, "more");
-    await expect(tickets.getByTestId("more-help")).toHaveText("Hilfe");
+    await expect(tickets.getByTestId("more-help")).toHaveText("Hilfe und Tastenkürzel");
     await page.keyboard.press("Escape");
     // the English report stays English after the German texts loaded
     await tool(sales, "more");
-    await expect(sales.getByTestId("more-help")).toHaveText("Help");
+    await expect(sales.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
     await page.keyboard.press("Escape");
     await page.evaluate(() => {
         document.getElementById("tickets").locale = "en-US";
     });
     await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "en");
     await tool(tickets, "more");
-    await expect(tickets.getByTestId("more-help")).toHaveText("Help");
+    await expect(tickets.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
 });
 
 // a partial copy of dist/, a Content-Security-Policy or a dropped connection: the German texts do not
@@ -117,7 +117,7 @@ plain("when the German menu texts cannot load, the menus open in English, work, 
     const tickets = page.locator("#tickets");
     await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "de");
     await tool(tickets, "more");
-    await expect(tickets.getByTestId("more-help")).toHaveText("Help");
+    await expect(tickets.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
     // it works: Help opens its level, a switch turns off and on
     await tickets.getByTestId("more-help").click();
     const tips = tickets.getByTestId("show-tips");
@@ -130,7 +130,7 @@ plain("when the German menu texts cannot load, the menus open in English, work, 
     await page.keyboard.press("Escape");
     blocked = false;
     await tool(tickets, "more");
-    await expect(tickets.getByTestId("more-help")).toHaveText("Hilfe");
+    await expect(tickets.getByTestId("more-help")).toHaveText("Hilfe und Tastenkürzel");
 });
 
 test.describe("two elements on one page", () => {
