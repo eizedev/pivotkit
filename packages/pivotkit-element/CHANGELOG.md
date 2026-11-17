@@ -58,7 +58,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - The open zones are shelves: each zone's title, "i" and "+ Add" at its left, its chips beside them.
   Shelves sit side by side while they fit and take a line of their own when they need it. The dashed
-  drop outline shows only while something is dragged. New tokens: `--pk-shelf-gap`, `--pk-shelf-pad`,
+  drop outline shows only while something is dragged. On a phone, "+ Add" sits at the right end of
+  the shelf's title row. New tokens: `--pk-shelf-gap`, `--pk-shelf-pad`,
   `--pk-shelf-min`, `--pk-chip-gap`, `--pk-chip-h`, `--pk-add-gap`, `--pk-add-hover`
   ([#581](https://github.com/eizedev/pivotkit/issues/581)).
 - The chart's tooltip names the element under the pointer, with a stack's total. Display →
