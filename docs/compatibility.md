@@ -12,8 +12,10 @@ settings it needs. The linked reference pages have the rest.
 
 | Status | Meaning |
 | --- | --- |
-| Tested in CI | A workflow of this repository runs it: on every pull request that touches it, or where the entry says, at a release. |
+| Tested in CI | A workflow of this repository runs it on every pull request that touches it. |
 | Tested by hand | Someone ran it by hand. The linked issue or pull request has the result. Nobody runs it again on every change. |
+| Tested in CI and by hand | Both of the above. |
+| Tested at release | A release workflow runs it when it publishes. Pull requests do not. |
 | Documented, not tested | The docs give the settings, taken from the product's own documentation. Nobody ran it with pivotkit. |
 | Not tested | The docs give no settings for it. It may work if it meets the requirements of its area. |
 | Not supported | pivotkit does not do this. The entry says what to do instead. |
@@ -45,18 +47,18 @@ The report runs in these browsers or newer:
 | What | Status | How |
 | --- | --- | --- |
 | Chromium, Firefox and WebKit | Tested in CI | Every browser test runs in the current engines of Playwright. These are newer than the lowest versions above. |
-| The Safari app on macOS and iOS | Tested by hand | Printing the table and the chart, in Safari 27 on macOS and on iOS 27.2 in the simulator |
+| The Safari app on macOS and iOS | Tested by hand | Printing the table and the chart: in [Safari 27.0.1 on macOS](https://github.com/eizedev/pivotkit/issues/210#issuecomment-6901701332) and in [Safari on iOS 27.2 in the simulator](https://github.com/eizedev/pivotkit/issues/210#issuecomment-6902457786) |
 | Real phones and touch input | Not tested | The browser tests use narrow windows and a mouse. |
 
 [Browser support](browser-support.md) has the details and the browser features the report needs.
 
 ## React and ECharts { #react }
 
-| Package | Supported | Status |
-| --- | --- | --- |
-| React for pivotkit-react | `>=18.2 <20` | Tested in CI: the browser tests run on the React 18 and React 19 this repository pins, not on each version of the range |
-| Apache ECharts for pivotkit-react | `>=6.1.0 <7` | Tested in CI: on the version this repository pins |
-| pivotkit-element | brings its own React and ECharts | Tested in CI, on pages without React and on pages with React 18 or 19 |
+| Package | Supported | Status | How |
+| --- | --- | --- | --- |
+| React for pivotkit-react | `>=18.2 <20` | Tested in CI | On the React 18 and React 19 this repository pins, not on each version of the range |
+| Apache ECharts for pivotkit-react | `>=6.1.0 <7` | Tested in CI | On the version this repository pins |
+| pivotkit-element | its own React and ECharts | Tested in CI | On pages without React and on pages with React 18 or 19 |
 
 ## Host applications { #hosts }
 
@@ -67,7 +69,7 @@ A host is the application the report runs in.
 | A React application | Tested in CI | The playground and host pages in Chromium, Firefox and WebKit |
 | A plain HTML page | Tested in CI | The web component on test pages, a strict Content-Security-Policy among them |
 | Angular | Tested in CI | CI builds the zoneless Angular 22 example in `examples/angular/` and runs its browser test |
-| PowerShell Universal apps | Tested by hand | The report in a PowerShell Universal app, on an earlier release. [#118](https://github.com/eizedev/pivotkit/pull/118) fixed the findings. CI tests host pages that render as PowerShell Universal does. |
+| PowerShell Universal apps | Tested by hand | The report in a PowerShell Universal app, on release 0.3.0. [#118](https://github.com/eizedev/pivotkit/pull/118) fixed the findings. CI tests host pages that render as PowerShell Universal does. |
 | PowerShell Universal scripts with the REST service or the MCP server | Documented, not tested | [PowerShell Universal](getting-started/mcp.md#psu) |
 | A Node program, engine only | Tested in CI | pivotkit-core's tests |
 | Your own Node server with pivotkit-server inside | Tested in CI | `createContext` and `createRestHandler` with requests as a framework passes them |
@@ -122,7 +124,7 @@ What a provider must do:
 | --- | --- | --- |
 | None: a static token | Tested in CI | `--auth token` and `$PIVOTKIT_TOKEN`, or named tokens in `auth.tokens` |
 | The server's checks of OAuth tokens | Tested in CI | Tokens of a test issuer: metadata, keys, challenges and refused tokens. No real provider |
-| Authentik | Tested by hand | MCP over HTTP with a real sign-in, REST with client credentials, per-person backend tokens: [#448](https://github.com/eizedev/pivotkit/issues/448) |
+| Authentik | Tested by hand | MCP over HTTP with a real sign-in, REST with client credentials, per-person backend tokens: [#448](https://github.com/eizedev/pivotkit/issues/448), tested at commit f3cde815 |
 | Keycloak | Documented, not tested | [Keycloak](reference/mcp.md#oauth) |
 | Microsoft Entra ID | Documented, not tested | [Microsoft Entra ID](reference/mcp.md#oauth). Per-person backend tokens are not supported, see [below](#backend-sign-in) |
 | Okta, Auth0, Google | Not tested | Check them against the requirements above |
@@ -180,7 +182,7 @@ The full list of settings is in [OAuth](reference/mcp.md#oauth) and [REST sign-i
 | Client | Status | How |
 | --- | --- | --- |
 | The MCP SDK's own client, over stdio or Streamable HTTP | Tested in CI | With the 2025 handshake and with protocol version 2026-07-28 |
-| An MCP client that signs in with OAuth | Tested by hand | Through Authentik: [#448](https://github.com/eizedev/pivotkit/issues/448). CI tests only the server's side, with tokens of a test issuer |
+| An MCP client that signs in with OAuth | Tested by hand | Through Authentik: [#448](https://github.com/eizedev/pivotkit/issues/448), tested at commit f3cde815. CI tests only the server's side, with tokens of a test issuer |
 | A program with a bearer token over HTTP | Tested in CI | The MCP and REST tests |
 | Claude Code | Documented, not tested | [Add it to your client](getting-started/mcp.md#2-add-it-to-your-client) |
 | Claude Desktop | Documented, not tested | [Add it to your client](getting-started/mcp.md#2-add-it-to-your-client) |
@@ -235,7 +237,7 @@ The settings each client needs:
 | Files: CSV, TSV, TXT and JSON | Tested in CI | The readers built into pivotkit-core |
 | Excel workbooks (XLSX) | Tested in CI | The reader plugin pivotkit-xlsx |
 | Any HTTP API that answers JSON or CSV | Tested in CI | A stand-in backend over `https://` |
-| HTTP sources made from an OpenAPI document | Tested in CI, and by hand | CI: `source-from-openapi`. By hand: [#448](https://github.com/eizedev/pivotkit/issues/448) |
+| HTTP sources made from an OpenAPI document | Tested in CI | `pivotkit-server source-from-openapi` |
 | A code source: a function of your Node server | Tested in CI | The `load` function of a library host |
 | Data the caller sends with the request | Tested in CI | `inline:` on REST and MCP |
 
@@ -250,7 +252,7 @@ This is how pivotkit signs in to the backend an HTTP source reads.
 | A static header, such as an API key or a bearer token | Tested in CI | `http.auth.header` |
 | Basic sign-in with user and password | Documented, not tested | A static header with `prefix: "Basic "` |
 | A service account: OAuth client credentials, with a client secret or a JWT | Tested in CI | `http.auth.clientCredentials` against a stand-in token endpoint |
-| Per person: the signed-in person's own backend token | Tested in CI, and by hand | CI: a stand-in token endpoint. By hand: Authentik to a stand-in backend ([#448](https://github.com/eizedev/pivotkit/issues/448)) |
+| Per person: the signed-in person's own backend token | Tested in CI and by hand | CI: a stand-in token endpoint. By hand: Authentik to a stand-in backend, [#448](https://github.com/eizedev/pivotkit/issues/448), tested at commit f3cde815 |
 | Per person with Keycloak | Documented, not tested | [Keycloak: token exchange](reference/sources.md#http-auth-provider) |
 | Per person with Microsoft Entra ID | Not supported | [#484](https://github.com/eizedev/pivotkit/issues/484) is open for it. Use a service account with a parameter bound to a claim, or a code source |
 
@@ -301,7 +303,7 @@ A report can go to a store you run. You give pivotkit an upload address or a pre
 
 | Store | Status | How |
 | --- | --- | --- |
-| A presign service of your own | Tested in CI, and by hand | CI: a stand-in store over `https://`. By hand: a throwaway store with a presign service ([#448](https://github.com/eizedev/pivotkit/issues/448)) |
+| A presign service of your own | Tested in CI and by hand | CI: a stand-in store over `https://`. By hand: a throwaway store with a presign service, [#448](https://github.com/eizedev/pivotkit/issues/448), tested at commit f3cde815 |
 | A plain PUT or POST address | Tested in CI | `output.upload.url` against a stand-in store |
 | Amazon S3 | Not tested | [Upload to your store](reference/delivery.md#upload) names it. The docs give no settings for it by name |
 | Azure Blob Storage | Not tested | [Upload to your store](reference/delivery.md#upload) names it. The docs give no settings for it by name |
@@ -373,10 +375,10 @@ Both drivers give every line the same level. Let the log server parse the JSON a
 | Platform | Status | How |
 | --- | --- | --- |
 | The container image on linux/amd64 | Tested in CI | A change to the image builds it and runs it: the first start, refused starts, tokens of your own |
-| The container image on linux/arm64 | Tested in CI, at release only | The release of an image starts it once on each platform |
+| The container image on linux/arm64 | Tested at release | The release of an image starts it once on each platform |
 | Docker Compose | Tested in CI | The Compose example in `docker/` |
 | Kubernetes | Documented, not tested | [Kubernetes](getting-started/kubernetes.md) |
-| Behind a reverse proxy | Tested by hand | A live review ran behind an HTTP/2 proxy: [#456](https://github.com/eizedev/pivotkit/issues/456). Settings: [Behind a proxy](reference/delivery.md#proxy) |
+| Behind a reverse proxy | Documented, not tested | [Behind a proxy](reference/delivery.md#proxy) |
 | A Windows service with IIS in front | Documented, not tested | [PowerShell Universal](getting-started/mcp.md#psu-service) |
 
 ## Something missing? { #missing }

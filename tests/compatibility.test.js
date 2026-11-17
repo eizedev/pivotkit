@@ -1,7 +1,9 @@
 // docs/compatibility.md states the lowest Node, browser, React and ECharts versions and the Node
 // versions CI runs. They are part of the versioning promise (docs/versioning.md), so they must be the
-// ones of package.json's engines, pivotkit-react's peer dependencies, docs/browser-support.md and
-// .github/workflows/ci.yml.
+// ones of package.json's engines, pivotkit-react's peer dependencies, docs/browser-support.md, the
+// esbuild targets of the browser builds and .github/workflows/ci.yml.
+// Not covered: whether the code really runs in those lowest browsers (CI runs Playwright's current
+// engines only), and the status column of the page, which the reviews check by hand.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
@@ -43,6 +45,22 @@ test("the compatibility page names the Node versions CI tests", () => {
 
 test("the compatibility page lists the browsers of browser-support.md from the same versions", () => {
     assert.deepEqual(browserFloors(page()), browserFloors(read("docs/browser-support.md")));
+});
+
+// the esbuild target's names for the rows of the browser table
+const TARGET_OF = { "Chrome, Edge and other Chromium browsers": "chrome", Firefox: "firefox", Safari: "safari" };
+
+test("the browser builds target the lowest browsers the compatibility page names", () => {
+    const wanted = browserFloors(page()).map(([name, from]) => {
+        assert.ok(Object.hasOwn(TARGET_OF, name), `no esbuild name for the row "${name}"`);
+        return `${TARGET_OF[name]}${from}`;
+    });
+    for (const build of ["packages/pivotkit-react/build.js", "packages/pivotkit-xlsx/build.js"]) {
+        const target = read(build).match(/^\s*target: \[(.+)\],?$/m);
+        assert.ok(target, `${build} has no esbuild target`);
+        const browsers = [...target[1].matchAll(/"([a-z]+[\d.]+)"/g)].map((m) => m[1]).filter((t) => !t.startsWith("es"));
+        assert.deepEqual(browsers.sort(), [...wanted].sort(), `${build} targets other browsers than the page`);
+    }
 });
 
 test("the compatibility page names pivotkit-react's React and ECharts ranges as package.json has them", () => {
