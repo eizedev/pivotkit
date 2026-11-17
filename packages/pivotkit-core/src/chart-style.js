@@ -11,6 +11,7 @@ import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 import { barExtent, pieLabelFit, pieLabelTexts, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
 import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame } from "./chart-measure.js";
+import { ZOOM_SLIDER, longestNames, zoomSlider, zoomWindow } from "./chart-zoom.js";
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
@@ -38,16 +39,17 @@ function heatmapColors(colors, readColor) {
  * @param {{ getPropertyValue(name: string): string }} style  the --pk-* tokens: a report's computed
  *   style, or a map of tokens wrapped (pivotkit-report)
  * @param {{ height?: number, width?: number, categoryNames?: string[], axisLabels?: string,
- *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown,
- *   readColor?: (color: string) => string | null }} [size]
+ *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, shareFormatter?: (v: number) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown,
+ *   readColor?: (color: string) => string | null, zoom?: string }} [size]
  *   height and width: the chart's size in px (the room around a pie, a heatmap's column names, the
  *   category axis); categoryNames: the categories' whole names (the tooltip's title when the axis
  *   writes them shorter); axisLabels: the view's chart.axisLabels; tooltipFormatter: builds the
  *   tooltip's formatter (pivotkit-react's DOM tooltip), left out for a chart without one (an SVG);
- *   readColor: a heatmap colour as one ECharts can mix, or null (see heatmapColors)
+ *   readColor: a heatmap colour as one ECharts can mix, or null (see heatmapColors); zoom: the view's
+ *   chart.zoom, for a chart on a screen (chart-zoom.js); without it every category is drawn
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
-export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter, readColor } = {}) {
+export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter, readColor, zoom } = {}) {
     const extra = { categoryNames, axisLabels };
     const first = (a) => (Array.isArray(a) ? a[0] : a);
     const v = (name) => style.getPropertyValue(name).trim();
@@ -78,7 +80,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         borderColor: v("--pk-border") || undefined,
         textStyle: { color: v("--pk-text") || undefined, fontFamily: style.getPropertyValue("font-family") || undefined, fontSize },
         extraCssText: `box-shadow: ${v("--pk-shadow") || "none"}; border-radius: ${v("--pk-radius-card") || `${DEFAULT_THEME.cardRadius}px`};`,
-        ...(tooltipFormatter ? { formatter: tooltipFormatter({ valueFormatter: option.tooltip?.valueFormatter, xNames: first(option.xAxis)?.data, yNames: first(option.yAxis)?.data, categoryNames: extra.categoryNames }) } : {})
+        ...(tooltipFormatter ? { formatter: tooltipFormatter({ valueFormatter: option.tooltip?.valueFormatter, shareFormatter: option.tooltip?.shareFormatter, xNames: first(option.xAxis)?.data, yNames: first(option.yAxis)?.data, categoryNames: extra.categoryNames }) } : {})
     };
     // the room of a heatmap that is not cells: its grid's margins and the column names as written
     const cellFrame = (option.series || []).some((s) => s.type === "heatmap") ? heatmapFrame({ top: option.grid?.top, bottom: option.grid?.bottom, names: option.xAxis?.data ?? [], width, fontSize }) : undefined;
@@ -111,7 +113,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
                 }
             }
             // labels outside: room beside the pie, on lines where they are long, left out where a side has no room (pieLabelFit)
-            const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: Boolean(option.legend) });
+            const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: Boolean(option.legend) && option.legend.show !== false });
             label = fit.label ?? label;
             return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
@@ -138,6 +140,8 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     // group labels sit below (or left of) those labels
     let axes = { xAxis, yAxis };
     let axisEvery = 1;
+    /** @type {object | null} the zoom slider (chart-zoom.js) */
+    let slider = null;
     const along = !heatmap && series.some((s) => s.type === "bar" || s.type === "line") ? (first(option.yAxis)?.type === "category" ? "yAxis" : first(option.xAxis)?.type === "category" ? "xAxis" : null) : null;
     if (along) {
         let list = Array.isArray(axes[along]) ? axes[along] : [axes[along]];
@@ -149,7 +153,15 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         const names = list[0].data ?? [];
         // the height that is neither plot nor category labels: the grid's margins and a line of group labels
         const reserved = (typeof grid?.top === "number" ? grid.top : 0) + (typeof grid?.bottom === "number" ? grid.bottom : 0) + (list[1]?.groups ? groupLabelLine(fontSize) : 0);
-        const layout = categoryLabelLayout(names, { width, height, horizontal: along === "yAxis", mode: extra.axisLabels, fontSize, reserved });
+        const box = { width, height, horizontal: along === "yAxis", mode: extra.axisLabels, fontSize, reserved };
+        let layout = categoryLabelLayout(names, box);
+        // a zoom slider shows a window of the categories: their labels are laid out for the window
+        const shown = zoomWindow(zoom, names.length, layout.every);
+        if (shown) {
+            // the slider takes its room from the height the labels may take
+            const room = { ...box, reserved: reserved + (along === "yAxis" ? 0 : ZOOM_SLIDER.size + ZOOM_SLIDER.gap) };
+            layout = categoryLabelLayout(shown < names.length ? longestNames(names, shown) : names, room);
+        }
         axisEvery = layout.every;
         const longest = Math.min(layout.width, categoryLabelWidth(names, fontSize));
         const offset = groupLabelOffset({ beside: along === "yAxis", slanted: Boolean(layout.rotate), longest, fontSize });
@@ -159,6 +171,14 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         const groupWidth = along === "yAxis" ? CATEGORY_LABEL_WIDTH : Math.max(24, Math.round(slot * (list[1]?.groupSize ?? 1)) - 8);
         const rest = list.slice(1).map((a) => (a.groups ? { ...a, offset, axisTick: { ...a.axisTick, length: offset }, axisLabel: { ...a.axisLabel, width: groupWidth, overflow: "truncate" } } : a));
         axes = { ...axes, [along]: rest.length ? [main, ...rest] : main };
+        if (shown && grid) {
+            const beside = along === "yAxis";
+            // beyond a legend on that side; the plot gives the slider its room
+            const offset = beside ? (rightLegend && !legendDown && typeof option.grid?.right === "number" ? option.grid.right - 4 : 4) : option.legend && option.legend.bottom === 0 ? BOTTOM_LEGEND_ROOM : 4;
+            const color = (name) => (readColor ? (readColor(v(name)) ?? undefined) : v(name) || undefined);
+            slider = zoomSlider({ beside, axes: 1 + rest.length, shown, offset, colors: { line: color("--pk-border"), fill: color("--pk-accent-soft"), handle: color("--pk-accent"), text: color("--pk-muted") } });
+            grid[beside ? "right" : "bottom"] += ZOOM_SLIDER.size + ZOOM_SLIDER.gap;
+        }
         // horizontal bars: fewer ticks where the value axis's labels would run into each other
         const value = along === "yAxis" && !Array.isArray(axes.xAxis) && axes.xAxis?.type === "value" ? axes.xAxis : null;
         if (value && grid && typeof value.axisLabel?.formatter === "function") {
@@ -169,5 +189,5 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         }
     }
     const visualMap = readColor && Array.isArray(option.visualMap?.inRange?.color) ? { visualMap: { ...option.visualMap, inRange: { ...option.visualMap.inRange, color: heatmapColors(option.visualMap.inRange.color, readColor) } } } : {};
-    return { ...option, ...title, ...visualMap, tooltip, series, ...(axes.xAxis ? { xAxis: axes.xAxis } : {}), ...(axes.yAxis ? { yAxis: axes.yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400, axisEvery };
+    return { ...option, ...title, ...visualMap, tooltip, series, ...(axes.xAxis ? { xAxis: axes.xAxis } : {}), ...(axes.yAxis ? { yAxis: axes.yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), ...(slider ? { dataZoom: [slider] } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400, axisEvery };
 }

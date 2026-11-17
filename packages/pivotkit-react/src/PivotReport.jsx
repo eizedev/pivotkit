@@ -47,7 +47,7 @@ import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
 import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import {
-    addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
+    addField, filterZoneFields, groupField, hiddenAfter, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
 } from "./view-ops.js";
 import { Zones, zoneEntries } from "./zones.jsx";
 
@@ -1475,6 +1475,7 @@ function Report(props) {
                             <Toolbar
                                 view={view}
                                 chartPlan={plan}
+                                chartSeries={series}
                                 labels={labels}
                                 size={size}
                                 canUndo={history.canUndo || dataSteps.past.length > 0}
@@ -1613,6 +1614,11 @@ function Report(props) {
                                         root={root}
                                         valueNames={view.values.map((v) => valueLabel(v, labels))}
                                         chartOptions={stableChartOptions}
+                                        // a legend entry hidden or shown: kept in the view, said to a screen reader
+                                        onLegend={({ name, shown }) => {
+                                            commit(setChartDisplay(view, { hidden: hiddenAfter(view.chart.hidden, name, shown) }), { step: "chartDisplay" });
+                                            announce(fill(shown ? labels.chartShown : labels.chartHidden, { name }));
+                                        }}
                                         onInstance={(c) => {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));

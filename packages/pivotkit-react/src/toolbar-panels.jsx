@@ -20,6 +20,7 @@ import { SHORTCUTS } from "./tips.js";
 import { LevelMenu } from "./levels.jsx";
 import { afterDelete, entryIds, optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
+import { hiddenAfter } from "./view-ops.js";
 import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
@@ -49,6 +50,37 @@ const LEGENDS = ["auto", "bottom", "right", "off"];
 const AXIS_LABELS = ["auto", "all", "nth"];
 const GROUP_LABELS = ["auto", "on", "off"];
 const TOOLTIPS = ["auto", "axis"];
+const ZOOMS = ["auto", "on", "off"];
+/** The most series (or slices) the Display settings list to show or hide; the legend has every one. */
+const MAX_LISTED = 50;
+
+/**
+ * The legend's entries of the chart drawn: a pie's and a donut's slices, the series of bars, lines
+ * and areas; a heatmap has none.
+ * @param {string} drawn  the picker entry drawn
+ * @param {{ categories: string[], series: Array<{ name: string }> } | null | undefined} series  toSeries'
+ */
+function legendNames(drawn, series) {
+    if (!series || drawn === "heatmap") {
+        return [];
+    }
+    return [...new Set(SLICE_TYPES.includes(drawn) ? series.categories : series.series.map((s) => s.name))];
+}
+
+/** Each legend entry with a checkbox: shown or hidden, as a click on it in the legend (chart.hidden). */
+function ShownEntries({ names, hidden, onDisplay }) {
+    const name = useFormName();
+    return (
+        <div className="pk-series-list" data-testid="chart-series-list">
+            {names.slice(0, MAX_LISTED).map((n) => (
+                <label key={n} className="pk-check">
+                    <input type="checkbox" name={name} checked={!hidden.includes(n)} onChange={(e) => onDisplay({ hidden: hiddenAfter(hidden, n, e.target.checked) })} />
+                    <span>{n}</span>
+                </label>
+            ))}
+        </div>
+    );
+}
 
 /** The chart's title: applied with Enter or Apply; the × removes it at once. */
 function ChartTitle({ title, labels, onDisplay }) {
@@ -106,11 +138,12 @@ function Sub({ title, info, children }) {
 }
 
 /**
- * How the chart is drawn: value labels, legend, title, axis and group labels, the tooltip (bars, lines
- * and areas), smooth lines (line and area). Each choice applies at once and the panel stays open, so
+ * How the chart is drawn: value labels, legend, title, axis and group labels, the tooltip and the zoom
+ * slider (bars, lines and areas), 100 % stacks (stacked bars, areas), the series or slices shown,
+ * smooth lines (line and area). Each choice applies at once and the panel stays open, so
  * the chart behind it shows the change.
  */
-function ChartDisplay({ view, plan, labels, onDisplay }) {
+function ChartDisplay({ view, plan, labels, onDisplay, series }) {
     const chart = view.chart;
     // the type drawn: an automatic chart's is the one the data chose
     const drawn = plan ? plan.name : chartTypeOf(chart);
@@ -120,6 +153,7 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
     const choices = pie ? VALUE_LABELS.slices : VALUE_LABELS.other;
     // a pie's "percent" on another type draws the value: it shows as "Value" there
     const valueLabels = !pie && (chart.valueLabels === "percent" || chart.valueLabels === "both") ? "value" : chart.valueLabels;
+    const names = legendNames(drawn, series);
     return (
         <Section title={labels.chartDisplay}>
             <Sub title={labels.valueLabels}>
@@ -187,6 +221,29 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
                     </div>
                 </Sub>
             ) : null}
+            {axis ? (
+                <Sub title={labels.zoom} info="zoom">
+                    <div className="pk-choice-grid">
+                        {ZOOMS.map((v) => (
+                            <Option key={v} checked={(chart.zoom ?? "auto") === v} onSelect={() => onDisplay({ zoom: v })} testId={`zoom-${v}`}>
+                                {labels.zoomNames[v]}
+                            </Option>
+                        ))}
+                    </div>
+                </Sub>
+            ) : null}
+            {drawn === "stacked" || drawn === "area" ? (
+                <Sub>
+                    <Switch checked={Boolean(chart.stackPercent)} onChange={(on) => onDisplay({ stackPercent: on })} testId="chart-stack-percent">
+                        {labels.stackPercent}
+                    </Switch>
+                </Sub>
+            ) : null}
+            {names.length > 1 ? (
+                <Sub title={pie ? labels.shownSlices : labels.shownSeries}>
+                    <ShownEntries names={names} hidden={chart.hidden ?? []} onDisplay={onDisplay} />
+                </Sub>
+            ) : null}
             {drawn === "line" || drawn === "area" ? (
                 <Sub>
                     <Switch checked={chart.smooth} onChange={(on) => onDisplay({ smooth: on })} testId="chart-smooth">
@@ -199,7 +256,7 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
 }
 
 /** The chart type menu: the types (a pick closes it) and how the chart is drawn. */
-export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close }) {
+export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, series }) {
     return (
         <>
             <Section title={labels.chartType}>
@@ -207,7 +264,7 @@ export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close }
                     <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
                 </div>
             </Section>
-            <ChartDisplay view={view} plan={plan} labels={labels} onDisplay={onDisplay} />
+            <ChartDisplay view={view} plan={plan} labels={labels} onDisplay={onDisplay} series={series} />
         </>
     );
 }

@@ -24,9 +24,9 @@ const TOOLTIP_OTHER_LINES = 3;
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined> } }} [extra]
+ * @param {{ categoryNames?: string[], axisLabels?: string, zoom?: string, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined> } }} [extra]
  *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
- *   chart.axisLabels; tooltip: the view's chart.tooltip, the chart's hover state (chart.jsx writes the
+ *   chart.axisLabels and chart.zoom (the slider, pivotkit-core's chart-zoom.js); tooltip: the view's chart.tooltip, the chart's hover state (chart.jsx writes the
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
  *   the lines that say how many series were cut, and each series' value (whether it adds up);
  *   parseColor: ECharts' colour parser, for a heatmap's colours (screenColor)

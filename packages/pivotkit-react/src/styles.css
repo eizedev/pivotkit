@@ -3989,3 +3989,17 @@
 .pk-level-form > .pk-top-shown {
     padding-left: calc(1.7em + 0.6em);
 }
+
+/* the series (or slices) a chart shows, each with a checkbox (chart type menu, Display) */
+.pk-series-list {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(8 * var(--pk-target));
+    overflow-y: auto;
+}
+
+.pk-series-list > .pk-check > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

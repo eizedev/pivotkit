@@ -174,6 +174,9 @@ export const en = {
     // the tooltip's line for the series that do not fit
     chartMore: "+{count} more",
     chartMoreInTotal: "+{count} more (in the total)",
+    // said when a click on the legend hides or shows a series (or a slice)
+    chartHidden: "{name} hidden",
+    chartShown: "{name} shown",
     categories: "categories",
     close: "Close",
     // toasts and live region
@@ -488,6 +491,8 @@ export const de = {
     chartTotal: "Gesamt",
     chartMore: "+{count} weitere",
     chartMoreInTotal: "+{count} weitere (im Gesamtwert)",
+    chartHidden: "{name} ausgeblendet",
+    chartShown: "{name} eingeblendet",
     categories: "Kategorien",
     close: "Schließen",
     toastRemoved: "{field} entfernt",

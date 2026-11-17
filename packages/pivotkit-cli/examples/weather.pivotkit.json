@@ -79,7 +79,10 @@
       "axisLabels": "auto",
       "groupLabels": "auto",
       "labelPosition": "outside",
-      "tooltip": "auto"
+      "tooltip": "auto",
+      "zoom": "auto",
+      "stackPercent": false,
+      "hidden": []
     },
     "formatting": {
       "locale": null,

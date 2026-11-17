@@ -27,6 +27,9 @@ export const de = {
         groupLabels: "Gruppenbeschriftung",
         labelPosition: "Beschriftungsposition",
         tooltip: "Tooltip",
+        zoom: "Zoom-Schieber",
+        stackPercent: "100-%-Stapel",
+        hidden: "ausgeblendete Reihen",
         other: "Einstellung"
     },
     dropped: {
