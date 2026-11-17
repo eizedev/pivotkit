@@ -71,7 +71,7 @@ export { closest, HINT_LIMITS } from "./hints.js";
 export { toGrid } from "./grid.js";
 export { autoChartType, toSeries } from "./chart-series.js";
 export { toEChartsOption } from "./chart.js";
-export { chartPlan, swapAxes, chartThemeFrom, CHART_COLORS, referenceLineRules, valueAddsUp } from "./chart-plan.js";
+export { chartPlan, swapAxes, chartThemeFrom, CHART_COLORS, referenceLineRules } from "./chart-plan.js";
 export { createHistory } from "./history.js";
 export { formatter, isFormat } from "./format.js";
 export { aggregatorsFor, AGGREGATOR_ALIASES } from "./aggregators.js";

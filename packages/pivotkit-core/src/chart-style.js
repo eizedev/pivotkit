@@ -10,11 +10,12 @@
 import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 import { barExtent, pieLabelFit, pieLabelTexts, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
-import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame } from "./chart-measure.js";
+import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame, textWidth } from "./chart-measure.js";
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
 export { referenceLines } from "./chart-lines.js";
+export { valueAddsUp } from "./chart-plan.js";
 
 /** A copy of an object without the given keys. */
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
@@ -30,6 +31,88 @@ const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k
 function heatmapColors(colors, readColor) {
     const fallback = DEFAULT_THEME.colorScale;
     return colors.map((c, i) => readColor(String(c)) ?? fallback[i === 0 ? 0 : fallback.length - 1]);
+}
+
+/** A chart narrower than this writes a reference line's name alone, without its value. */
+const LINE_VALUE_MIN_WIDTH = 480;
+/** Room (px) between the plot and a reference line's label right of it. */
+const LINE_LABEL_GAP = 6;
+
+/** A reference line's markLine item with its label writing the line's name alone. */
+const namesOnly = (/** @type {any} */ d) => {
+    const head = Array.isArray(d) ? d[0] : d;
+    const label = { ...head.label, formatter: () => String(head.name ?? "") };
+    return Array.isArray(d) ? [{ ...head, label }, d[1]] : { ...head, label };
+};
+
+/**
+ * The labels of lying reference lines (pivotkit-core's markLines): right of the plot, as wide as the
+ * widest takes, and kept apart: from the highest down, a label closer than a line of text to the one
+ * above moves down. Where each line lands is estimated before ECharts draws: a scale at most as fine
+ * as ECharts' (it never stretches the values over less than half the axis, nor the plot over less
+ * than about half the chart), so the labels end at least as far apart as estimated. A chart narrower
+ * than LINE_VALUE_MIN_WIDTH writes the names alone; the tooltip has the values. A trend on bars ends
+ * at the middle of the last bar: its label moves right by half a bar's band.
+ * @param {any[]} series  the decorated series
+ * @param {{ width: number, height: number, grid: any, fontSize: number }} chart
+ * @returns {{ series: any[], room: number } | null}
+ */
+function lineLabels(series, { width, height, grid, fontSize }) {
+    /** @type {{ item: any, si: number, di: number, value: number, trend: boolean }[]} */
+    const labels = [];
+    series.forEach((s, si) =>
+        (s.markLine?.data ?? []).forEach((/** @type {any} */ d, /** @type {number} */ di) => {
+            const head = Array.isArray(d) ? d[0] : d;
+            if (head.label?.show === false) return;
+            const value = Array.isArray(d) ? d[1].coord[1] : d.yAxis;
+            if (typeof value === "number") labels.push({ item: head, si, di, value, trend: Array.isArray(d) });
+        })
+    );
+    if (!labels.length) {
+        return null;
+    }
+    const narrow = width < LINE_VALUE_MIN_WIDTH;
+    const textOf = (/** @type {any} */ item) => (narrow ? String(item.name ?? "") : String(item.label.formatter()));
+    const widest = Math.max(...labels.map((l) => textWidth(textOf(l.item), fontSize)));
+    // the values' span: the data (a stack's tops too), 0 and the lines
+    const numbers = series.flatMap((s) => (s.data ?? []).filter((/** @type {unknown} */ v) => typeof v === "number"));
+    const tops = series.some((s) => s.stack) ? (series[0]?.data ?? []).map((/** @type {unknown} */ _, /** @type {number} */ i) => series.reduce((sum, s) => sum + (typeof s.data?.[i] === "number" && s.data[i] > 0 ? s.data[i] : 0), 0)) : [];
+    const all = [0, ...numbers, ...tops, ...labels.map((l) => l.value)];
+    const span = Math.max(...all) - Math.min(...all) || 1;
+    const plot = Math.max(1, (height - (typeof grid.top === "number" ? grid.top : 0) - (typeof grid.bottom === "number" ? grid.bottom : 0)) * 0.5);
+    const scale = plot / (2 * span);
+    const line = Math.ceil(fontSize * 1.3);
+    // half a bar's band: the plot's width, estimated without the value axis's labels, per category
+    const categories = Math.max(1, ...series.map((s) => (Array.isArray(s.data) ? s.data.length : 0)));
+    const band = series.some((s) => s.type === "bar") ? Math.max(0, width - grid.left - grid.right - widest - 48) / categories / 2 : 0;
+    /** @type {Map<any, number>} */
+    const offsets = new Map();
+    let below = -Infinity;
+    for (const l of [...labels].sort((a, b) => b.value - a.value)) {
+        const y = -l.value * scale;
+        const placed = Math.max(y, below + line);
+        offsets.set(l.item, placed - y);
+        below = placed;
+    }
+    const placed = series.map((s, si) =>
+        s.markLine
+            ? {
+                  ...s,
+                  markLine: {
+                      ...s.markLine,
+                      data: s.markLine.data.map((/** @type {any} */ d, /** @type {number} */ di) => {
+                          const head = Array.isArray(d) ? d[0] : d;
+                          const l = labels.find((x) => x.si === si && x.di === di);
+                          if (!l) return d;
+                          const label = { ...head.label, offset: [l.trend ? band : 0, offsets.get(head) ?? 0] };
+                          const item = Array.isArray(d) ? [{ ...head, label }, d[1]] : { ...head, label };
+                          return narrow ? namesOnly(item) : item;
+                      })
+                  }
+              }
+            : s
+    );
+    return { series: placed, room: Math.ceil(widest) + 2 * LINE_LABEL_GAP };
 }
 
 /**
@@ -84,7 +167,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     // the room of a heatmap that is not cells: its grid's margins and the column names as written
     const cellFrame = (option.series || []).some((s) => s.type === "heatmap") ? heatmapFrame({ top: option.grid?.top, bottom: option.grid?.bottom, names: option.xAxis?.data ?? [], width, fontSize }) : undefined;
     // a bar lights up alone, as the tooltip names it alone; a line lights up as a whole
-    const series = (option.series || []).map((s) => {
+    let series = (option.series || []).map((s) => {
         if (s.type === "bar") {
             const horizontal = first(option.yAxis)?.type === "category";
             const corners = horizontal ? [0, r, r, 0] : [r, r, 0, 0];
@@ -128,6 +211,14 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     const grid = option.grid ? { left: 12, right: 24, bottom: option.visualMap ? HEATMAP_GRID_BOTTOM : 12, containLabel: true, ...option.grid } : undefined;
     // the values past the end of horizontal bars keep their room on the right (valueLabelRoom)
     if (grid) grid.right += valueLabelRoom(series, fontSize);
+    // the labels of lying reference lines: right of the plot, kept apart, with room
+    const lines = grid && first(option.yAxis)?.type === "value" ? lineLabels(series, { width, height, grid, fontSize }) : null;
+    // upright lines (horizontal bars) have a row each above the plot; a narrow chart writes their names alone
+    if (grid && !lines && width < LINE_VALUE_MIN_WIDTH) series = series.map((s) => (s.markLine ? { ...s, markLine: { ...s.markLine, data: s.markLine.data.map(namesOnly) } } : s));
+    if (lines) {
+        grid.right += lines.room;
+        series = lines.series;
+    }
     // a heatmap names every column: slanted where they would overlap (columnLabelLayout)
     const heatmap = series.some((s) => s.type === "heatmap") && option.xAxis?.axisLabel;
     const xAxis = heatmap ? { ...option.xAxis, axisLabel: { ...option.xAxis.axisLabel, ...columnLabelLayout(option.xAxis.data ?? [], width, fontSize) } } : option.xAxis;

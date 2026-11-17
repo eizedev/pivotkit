@@ -277,8 +277,11 @@ export function toEChartsOption(result, options) {
     const showValues = labels !== "auto" && labels !== "off";
     const position = type === "line" ? "top" : chart.stacked ? "inside" : chart.horizontal ? "right" : "top";
     const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? fmt(p.value) : "") } } : {};
-    const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme });
-    // the value axis reaches every line: a target past the tallest bar is drawn, not cut off
+    const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme, short: (v) => compact(v) });
+    // the value axis reaches every line: a target past the tallest bar is drawn, not cut off.
+    // dataMin and dataMax are ECharts' own (ECharts 6, scaleRawExtentInfo: they widen the data's
+    // extent before the nice ticks), little documented: tests/browser/chart-lines.spec.js checks that a
+    // target above every bar is inside the plot, so an ECharts update that drops them fails there
     if (marks.extent) {
         valueAxis.dataMin = marks.extent[0];
         valueAxis.dataMax = marks.extent[1];
@@ -310,16 +313,12 @@ export function toEChartsOption(result, options) {
 }
 
 /**
- * How each kind of reference line is drawn: an average dashed, a trend dotted, a target solid; and
- * where its label goes, so labels of lines close together do not cover each other: an average's at
- * its start, a trend's below its end, a target's above its end. On horizontal bars the lines stand
- * upright: their labels go above the plot, one row each (markLines' `room`).
+ * How each kind of reference line is drawn: an average dashed, a trend dotted, a target solid. The
+ * labels of lying lines go right of the plot (decorateOption keeps them apart and makes room for
+ * them); on horizontal bars the lines stand upright, and their labels go above the plot, one row
+ * each (markLines' `room`).
  */
-const LINE_STYLES = Object.freeze({
-    average: { type: "dashed", label: "insideStartTop" },
-    trend: { type: "dotted", label: "insideEndBottom" },
-    target: { type: "solid", label: "insideEndTop" }
-});
+const LINE_TYPES = Object.freeze({ average: "dashed", trend: "dotted", target: "solid" });
 /** Room (px) between a label above the plot and the plot, and between two rows of them. */
 const LABEL_GAP = 6;
 
@@ -327,13 +326,16 @@ const LABEL_GAP = 6;
  * The reference lines as ECharts markLine data, by the series that draws them: a series' own lines on
  * it, in its colour; the lines of no series (a target, a stack's total) on the last series, drawn
  * above every mark, in the theme's reference colour. Silent: a line is no element to point at; the
- * tooltip names its value. `extent`: the lowest and highest value of the lines, for the value axis;
+ * tooltip names its value. A trend is drawn from category to category, at its value at each: over
+ * real time with a gap it bends where the axis leaves the gap out. A label writes the name and the
+ * value as the value axis does (`short`); each item's `name` is the line's name alone, for a chart too
+ * narrow for the value. `extent`: the lowest and highest value of the lines, for the value axis;
  * `room`: the height (px) the labels of upright lines take above the plot.
  * @param {import("./chart-lines.js").ReferenceLine[]} lines
  * @param {ReturnType<typeof toSeries>} s
- * @param {{ horizontal: boolean, theme: ChartTheme }} how
+ * @param {{ horizontal: boolean, theme: ChartTheme, short: (v: number) => string }} how
  */
-function markLines(lines, s, { horizontal, theme }) {
+function markLines(lines, s, { horizontal, theme, short }) {
     /** @type {any[][]} */
     const bySeries = s.series.map(() => []);
     const values = [];
@@ -344,19 +346,32 @@ function markLines(lines, s, { horizontal, theme }) {
     const point = (category, v) => ({ coord: horizontal ? [v, category] : [category, v] });
     for (const line of lines) {
         const own = line.series !== null ? s.series[line.series] : undefined;
-        const text = line.kind === "trend" ? line.name : `${line.name} ${line.format(/** @type {number} */ (line.value))}`;
-        const kind = LINE_STYLES[line.kind];
+        const text = line.kind === "trend" ? line.name : `${line.name} ${short(/** @type {number} */ (line.value))}`;
         // upright lines: the labels in rows above the plot (the category axis runs downwards, so a
-        // line starts at the top), the first row nearest to it
-        const above = horizontal ? { position: "start", distance: [0, LABEL_GAP + rows * (fontSize + LABEL_GAP)] } : { position: kind.label };
+        // line starts at the top), the first row nearest to it; lying ones right of the plot
+        const where = horizontal ? { position: "start", distance: [0, LABEL_GAP + rows * (fontSize + LABEL_GAP)] } : { position: "end", distance: LABEL_GAP };
         rows += 1;
         const style = {
-            lineStyle: { type: kind.type, width: 1.5, ...(own ? {} : { color: theme.referenceColor ?? theme.textColor }) },
-            label: { formatter: () => text, ...above, color: theme.textColor, fontSize }
+            name: line.name,
+            lineStyle: { type: LINE_TYPES[line.kind], width: 1.5, ...(own ? {} : { color: theme.referenceColor ?? theme.textColor }) },
+            label: { formatter: () => text, ...where, color: theme.textColor, fontSize }
         };
-        const item = line.kind === "trend" ? [{ ...point(line.first, line.from), ...style }, point(line.last, line.to)] : { [value]: line.value, ...style };
-        bySeries[own ? /** @type {number} */ (line.series) : s.series.length - 1]?.push(item);
-        values.push(...(line.kind === "trend" ? [/** @type {number} */ (line.from), /** @type {number} */ (line.to)] : [/** @type {number} */ (line.value)]));
+        const target = bySeries[own ? /** @type {number} */ (line.series) : s.series.length - 1];
+        if (line.kind === "trend") {
+            const first = /** @type {number} */ (line.first);
+            const last = /** @type {number} */ (line.last);
+            const at = /** @type {(i: number) => number} */ (line.at);
+            for (let i = first; i < last; i++) {
+                // the label on the last part only
+                const part = i === last - 1 ? style : { ...style, label: { ...style.label, show: false } };
+                target?.push([{ ...point(i, at(i)), ...part }, point(i + 1, at(i + 1))]);
+                values.push(at(i));
+            }
+            values.push(at(last));
+        } else {
+            target?.push({ [value]: line.value, ...style });
+            values.push(/** @type {number} */ (line.value));
+        }
     }
     return { bySeries: bySeries.map((d) => (d.length ? d : null)), extent: values.length ? [Math.min(...values), Math.max(...values)] : null, room: horizontal && rows ? rows * (fontSize + LABEL_GAP) + LABEL_GAP : 0 };
 }
