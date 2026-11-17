@@ -13,7 +13,7 @@ import { htmlTable } from "./html-table.js";
 import { reportCss } from "./report-css.js";
 import { chartSvg } from "./svg.js";
 import { TEMPLATE_LIMIT, escapeHtml, fillTemplate, parseTemplate } from "./template.js";
-import { fill, textsFor } from "./texts.js";
+import { countText, fill, textsFor } from "./texts.js";
 import { BASE_TOKENS, REPORT_FONT, TOKEN_LENGTH, cleanTokens, conditionalColors, reportTokens, tokenStyle } from "./tokens.js";
 
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -53,7 +53,8 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {boolean} [trusted]  the view is the host's own: the host's limits instead of outsideLimits() (default false)
  * @property {boolean} [strict]  no body when the view has an error (default false: the normalized view is rendered)
  * @property {Partial<import("pivotkit-core").Labels>} [labels]  pivotkit-core's texts (totals, value names)
- * @property {Partial<import("./texts.js").ReportTexts>} [texts]  the report's words around the table
+ * @property {import("./texts.js").ReportTextsInput} [texts]  the report's words around the table; a count (rowsCount, rowsFiltered) as one text or its plural forms
+ * @property {boolean} [rowCount]  html: false leaves the data's row count out of {{rows}} and the details (default true)
  * @property {Record<string, string>} [tokens]  --pk-* colours over the light ones (the chart and the report); html: a template's own CSS over them
  * @property {Record<string, string>} [darkTokens]  html: --pk-* colours over the dark ones, for a screen in dark mode (paper and the chart stay light); a template's own CSS over them
  * @property {string} [title]  the report's title; default the view file's name, the chart's title, "Report"
@@ -72,10 +73,10 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  */
 
 /** @type {Readonly<Record<string, ReadonlyArray<unknown>>>} The options that take one of a few values. */
-const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false], numbers: ["full", "shown"], flatHeader: [true, false] });
+const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false], numbers: ["full", "shown"], flatHeader: [true, false], rowCount: [true, false] });
 
 /** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
-const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf", "numbers", "flatHeader"]);
+const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf", "numbers", "flatHeader", "rowCount"]);
 
 /**
  * @typedef {object} RenderResult
@@ -272,13 +273,20 @@ export async function render(view, data, options = {}) {
         }
         const described = describeView(normalized.view, data2, { ...(limits ? { limits } : {}) });
         const timeZone = options.timeZone ?? grid.timeZone ?? "UTC";
+        // "6 of 8 rows" while a filter leaves rows out, as pivotkit-react's row count says; the data's
+        // row count picks the form. With rowCount false neither {{rows}} nor the details say it.
+        const counted = options.rowCount !== false;
+        const filtered = summary.keptRows < summary.sourceRows;
+        const total = number.format(summary.sourceRows);
+        const kept = { shown: number.format(summary.keptRows), count: total };
+        const rowsText = !counted ? "" : filtered ? countText(texts.rowsFiltered, summary.sourceRows, texts.countLang.rowsFiltered, kept) : countText(texts.rowsCount, summary.sourceRows, texts.countLang.rowsCount, { count: total });
         const values = {
             title,
             description: options.description ?? read.description ?? "",
             source: options.source ?? "",
             generated: generatedText(options.now, grid.locale, timeZone),
             dataAsOf: options.dataAsOf ? dataAsOfText(options.dataAsOf, grid.locale, timeZone) : "",
-            rows: fill(texts.rowsCount, { count: number.format(data2.length) }),
+            rows: rowsText,
             filters: described.filters.length ? described.filters.map((f) => f.text).join("; ") : texts.noFilters,
             summary: described.text,
             lang: grid.locale,
@@ -289,7 +297,7 @@ export async function render(view, data, options = {}) {
             style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), darkTokens: cleanTokens(options.darkTokens ?? {}), chartSurface: theme["--pk-surface"], chartMuted: theme["--pk-muted"], extra: table.css })}</style>`,
             chart: chartHtml,
             table: table.html + tableNote,
-            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.dataAsOf, values.dataAsOf)}${detail(texts.rows, number.format(data2.length))}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
+            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.dataAsOf, values.dataAsOf)}${counted ? detail(texts.rows, filtered ? fill(texts.rowsKept, kept) : total) : ""}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
         };
         body = new TextEncoder().encode(fillTemplate(/** @type {any} */ (template), { ...values, ...markup }));
     }

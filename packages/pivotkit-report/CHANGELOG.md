@@ -11,6 +11,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 - `render` of a view that shows the chart as `xlsx` adds the warning `chartNotInXlsx`: the
   workbook holds the table, the chart is in `html` or `svg`. The `render_view` description says the
   workbook has no chart ([#360](https://github.com/eizedev/pivotkit/issues/360)).
+- `rowCount: false` leaves the data's row count out of `{{rows}}` and the HTML report's details
+  ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 - `render` takes `numbers` (`"full"` or `"shown"`) for csv and json and `flatHeader` for csv.
   Its result has the `grid` it exported. The `render_view` operation takes them as inputs, with `locale` for a view or layout that names
   none; a `locale` that chooses a numbering system or that the runtime has no format for is refused
@@ -18,7 +20,15 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Changed
 
+- Behaviour change: the HTML report's row count takes the plural form of its language: "1 row",
+  "1 Zeile". `REPORT_TEXTS.<lang>.rowsCount` and `rowsFiltered` are objects of plural forms, no
+  longer texts, and so is their type in `ReportTexts`. The `texts` option takes a count as one text
+  or as forms ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 - The chart's SVG takes `toEChartsOption` from `pivotkit-core/chart` (#546).
+- The HTML report says how many of the data's rows the filters keep, as pivotkit-react's row count
+  does: `{{rows}}` says "6 of 8 rows" (German "6 von 8 Zeilen"), the details' rows "6 of 8". With
+  nothing filtered out they say "8 rows" and "8" as before. Their texts are the new `texts` entries
+  `rowsFiltered` and `rowsKept` ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 ### Fixed
 

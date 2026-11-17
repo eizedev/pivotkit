@@ -2,7 +2,7 @@
 // pivotkit-report (the CLI) writes them for the locale's language unless labels are given.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_LABELS, REPORT_LABELS, computePivot, encode, reportLabels, toGrid } from "../src/index.js";
+import { DEFAULT_LABELS, REPORT_LABELS, ROW_COUNT_TEXTS, computePivot, encode, pluralForm, reportLabels, toGrid } from "../src/index.js";
 
 test("reportLabels: German for a German locale, English for any other", () => {
     assert.equal(reportLabels("de-DE"), REPORT_LABELS.de);
@@ -38,4 +38,23 @@ test("an aggregator named as other tools name it is not accepted, but hinted: av
         assert.equal(issue?.params.suggestion, hint, given);
         assert.equal(view.values.length, 0, given);
     }
+});
+
+test("pluralForm: the language's form, English rules for a language Intl has none for, never the runtime's; no forms give nothing", () => {
+    const rows = ROW_COUNT_TEXTS.en.rowsCount;
+    assert.equal(pluralForm(rows, 1, "en"), "{count} row");
+    assert.equal(pluralForm(rows, 2, "en"), "{count} rows");
+    assert.equal(pluralForm(ROW_COUNT_TEXTS.de.rowsCount, 1, "de"), "{count} Zeile");
+    // French counts 0 as "one"; a form it lacks falls back to "other"
+    assert.equal(pluralForm({ one: "un", other: "plusieurs" }, 0, "fr"), "un");
+    assert.equal(pluralForm({ other: "{count} things" }, 1, "en"), "{count} things");
+    // "xx" is a well-formed tag Intl has no rules for: English rules, so 1 is "one" and 0 is "other"
+    assert.equal(pluralForm({ one: "one", other: "other" }, 1, "xx"), "one");
+    assert.equal(pluralForm({ one: "one", other: "other" }, 0, "xx"), "other");
+    // a tag Intl does not take: "other"
+    assert.equal(pluralForm({ one: "one", other: "other" }, 1, "not a tag"), "other");
+    // no forms, or forms without texts
+    assert.equal(pluralForm(null, 1, "en"), "");
+    assert.equal(pluralForm(undefined, 1, "en"), "");
+    assert.equal(pluralForm(/** @type {any} */ ({ one: 1, other: 2 }), 1, "en"), "");
 });

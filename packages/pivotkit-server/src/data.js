@@ -33,7 +33,7 @@ import { ownError } from "./sources/run.js";
  * @property {boolean} [hardLinks]
  * @property {string} [sheet]
  * @property {string} name  how a report names the data
- * @property {{ default: string, fields: Record<string, string> }} levels  the policy's levels (field names in lower case)
+ * @property {{ default: string, fields: Record<string, string>, counts?: boolean, rows?: boolean }} levels  the policy's levels (field names in lower case), and whether it shows counts and the row count
  * @property {Partial<import("pivotkit-core").Limits>} limits
  * @property {string} [timeZone]
  * @property {boolean} schedulable

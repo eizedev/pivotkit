@@ -72,7 +72,7 @@ text. `data` is one of these:
 | `limits` | `LIMITS` | pivotkit-core's [limits](../concepts/limits.md). |
 | `trusted` | `false` | The view is the host's own: its limits instead of `outsideLimits()`. |
 | `strict` | `false` | No body when the view has an error. Without it the normalized view is rendered, as the report on screen does. |
-| `labels`, `texts` | the locale's language | pivotkit-core's texts (totals, value names; by default [`reportLabels`](core.md) of the view's or `locale`'s language: "Gesamtergebnis", "Summe von Units" for `de-DE`, the words the report on a page shows) and the report's words around the table (`REPORT_TEXTS`, English and German). |
+| `labels`, `texts` | the locale's language | pivotkit-core's texts (totals, value names; by default [`reportLabels`](core.md) of the view's or `locale`'s language: "Gesamtergebnis", "Summe von Units" for `de-DE`, the words the report on a page shows) and the report's words around the table (`REPORT_TEXTS`, English and German). A count (`rowsCount`, `rowsFiltered`) is one text for every count, or one text per plural category: `{ one: "{count} record", other: "{count} records" }`. |
 | `title`, `description`, `source` | the view file's name and description | The report's heading, its line below, and the data's name in the details. |
 | `tokens` | the light theme | `--pk-*` colours, font weights, font sizes and corners over [`LIGHT_TOKENS`](theming.md), `WEIGHT_TOKENS` (`--pk-weight-normal` to `--pk-weight-bold`, the chart's title and group labels too), `SIZE_TOKENS` (the HTML report's font sizes: `--pk-font-size` 14 px, `--pk-small`, `--pk-report-title-size`, `--pk-print-size` and `--pk-print-small`, [theming](theming.md#report-font-sizes)) and `SHAPE_TOKENS` (`--pk-radius-card`, the chart card), and the chart's `--pk-chart-title-size`, `--pk-chart-text-size` and `--pk-radius-chart` in px (else 16 px, 14 px and 4 px): names and plain values only (a comment, a line break and `url(` anywhere, also in a quoted string, leave the token out), and no function but colours, `calc()`, `min()`, `max()`, `clamp()` and `var()`, so a token loads nothing (`url()` and `image-set()` are left out). A colour scale or data bars whose view names no colours take `--pk-scale-low`, `--pk-scale-mid` (when set) and `--pk-scale-high` (by default the heat tokens) and `--pk-chart-1` in the HTML report's table and in the workbook, when they are `#rgb` or `#rrggbb`. `html`: the template's own `--pk-*` values win over these ([colours and font of your template](print-template.md#template-design)). |
 | `darkTokens` | the dark theme | `html`: `--pk-*` colours over [`DARK_TOKENS`](theming.md) for a reader whose screen is dark, as `tokens` are over the light ones and checked the same way. Paper, a root that pins light (`data-pk-theme="light"`) and the chart keep the light colours; a template's own dark rules win over these. The colour scale's middle colour of `tokens` stays out of a dark screen (a light colour): set `--pk-scale-mid` here for one. pivotkit-react's Export passes the dark colours its report resolves. The host's `tokens` and `darkTokens` are not checked for contrast: the WCAG AA promise below covers the default colours. |
@@ -82,6 +82,7 @@ text. `data` is one of these:
 | `echarts` | | The ECharts module with its SVG renderer: `svg`, and `html` with a chart. |
 | `size` | `{ width: 800, height: 480 }` | The chart's size in px, 100 to 8,000. |
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
+| `rowCount` | `true` | `html`: `false` leaves the data's row count out of `{{rows}}` and the details. The REST service and the MCP server pass it where the policy withholds the row count (`rows: false`). |
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
 | `numbers` | `"full"` | `csv` and `json`: `"shown"` rounds each number to the decimals the view shows ([`toCsv`](core.md)). |
 | `flatHeader` | `false` | `csv`: one header row instead of one per column field. |
@@ -108,7 +109,7 @@ A bad view never throws: its issues come back. `render` throws `PivotkitError` f
     - an unknown `format`
     - a `size` out of range
     - an unknown option
-    - a `chart`, `chartEmbed`, `bom`, `strict`, `trusted`, `numbers` or `flatHeader` of a value it does not take
+    - a `chart`, `chartEmbed`, `bom`, `strict`, `trusted`, `numbers`, `flatHeader` or `rowCount` of a value it does not take
     - an SVG or `chart: true` without `echarts`
     - a `now` that is no date
     - a `dataAsOf` in another form
@@ -161,7 +162,9 @@ The page holds:
 - **The chart** above the table when the view shows the chart (`chart: "auto"`), kept whole on a
   page.
 - **The details**: the source, the data's rows, the filters in words and the time the report was
-  generated.
+  generated. When the filters leave rows out, the rows say how many they keep ("6 of 8"), as the
+  row count under the result does. Where the policy withholds the row count (`rows: false`), the
+  details leave it out.
 
 **On screen**, the page is light or dark after the reader's system. A template's root can pin light
 or ask for dark ([dark mode](print-template.md#dark-mode)). In dark:
@@ -259,7 +262,8 @@ A request with both a `view` and a `layout`, or neither, is `INVALID_INPUT`.
 - `data(source)`: encoded data, or only `{ name, type }` fields for validate and describe
 - `sources()`, `link(source)`, `template(source)`
 - `echarts`, `limits`, `locale`, `timeZone`, `now`
-- `renderOptions`: a front end's own render options
+- `renderOptions`: a front end's own render options. Pass `rowCount: false` where your policy
+  withholds the row count.
 
 A view with errors is no error: the result has `ok` or `valid` false, with `findings`. A front end
 must handle `OperationError`. It has a `code` of `OPERATION_ERRORS` and its HTTP `status`. Some codes
