@@ -18,10 +18,9 @@ import { Section, SettingInfo } from "./section.jsx";
 import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tips.js";
 import { LevelMenu } from "./levels.jsx";
-import { afterDelete, entryIds, optionTopics } from "./menu-topics.js";
+import { afterDelete, chartTopics, entryIds, optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
 import { hiddenAfter } from "./view-ops.js";
-import { valueAddsUp } from "./adds-up.js";
 import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
@@ -44,14 +43,6 @@ function ChartTypeOptions({ view, plan, labels, onChart, close }) {
     ));
 }
 
-/** The value labels a chart type offers: a share in percent is a pie's and a donut's. */
-const VALUE_LABELS = { slices: ["auto", "off", "value", "percent", "both"], other: ["auto", "off", "value"] };
-const LABEL_POSITIONS = ["outside", "inside"];
-const LEGENDS = ["auto", "bottom", "right", "off"];
-const AXIS_LABELS = ["auto", "all", "nth"];
-const GROUP_LABELS = ["auto", "on", "off"];
-const TOOLTIPS = ["auto", "axis"];
-const ZOOMS = ["auto", "on", "off"];
 /** The most series (or slices) the Display settings list to show or hide; the legend has every one. */
 const MAX_LISTED = 50;
 
@@ -119,157 +110,39 @@ function ChartTitle({ title, labels, onDisplay }) {
 }
 
 /**
- * One group of the chart's Display (Value labels, Legend, ...): its title, with an "i" where it needs
- * explaining, and its choices; a dashed rule between the groups (styles.css: .pk-subsection).
- * @param {{ title?: string, info?: string, children: React.ReactNode }} props
+ * The chart type menu: the types (a pick closes it), then how the chart is drawn, in levels as the
+ * other menus (levels.jsx, menu-topics.js chartTopics): value labels and the legend right there, the
+ * title, Axis, Tooltip, Series and Layout each a level. Each choice applies at once and the menu stays
+ * open, so the chart behind it shows the change.
  */
-function Sub({ title, info, children }) {
-    const titleId = useId();
-    return (
-        <div className="pk-subsection" role={title ? "group" : undefined} aria-labelledby={title ? titleId : undefined}>
-            {title ? (
-                <div className={`pk-subtitle${info ? " pk-setting-row" : ""}`}>
-                    <span id={titleId}>{title}</span>
-                    {info ? <SettingInfo id={info} name={title} /> : null}
-                </div>
-            ) : null}
-            {children}
-        </div>
-    );
-}
-
-/**
- * How the chart is drawn: value labels, legend, title, axis and group labels, the tooltip and the zoom
- * slider (bars, lines and areas), 100 % stacks (stacked bars and areas of values that add up), the series or slices shown,
- * smooth lines (line and area). Each choice applies at once and the panel stays open, so
- * the chart behind it shows the change.
- */
-function ChartDisplay({ view, plan, labels, onDisplay, series }) {
-    const chart = view.chart;
-    // the type drawn: an automatic chart's is the one the data chose
-    const drawn = plan ? plan.name : chartTypeOf(chart);
-    const pie = SLICE_TYPES.includes(drawn);
-    // bars, lines and areas have a category axis
-    const axis = CHART_TYPES[drawn].axis;
-    const choices = pie ? VALUE_LABELS.slices : VALUE_LABELS.other;
-    // a pie's "percent" on another type draws the value: it shows as "Value" there
-    const valueLabels = !pie && (chart.valueLabels === "percent" || chart.valueLabels === "both") ? "value" : chart.valueLabels;
-    const names = legendNames(drawn, series);
-    return (
-        <Section title={labels.chartDisplay}>
-            <Sub title={labels.valueLabels}>
-                <div className="pk-choice-grid">
-                    {choices.map((v) => (
-                        <Option key={v} checked={valueLabels === v} onSelect={() => onDisplay({ valueLabels: v })} testId={`labels-${v}`}>
-                            {labels.valueLabelNames[v]}
-                        </Option>
-                    ))}
-                </div>
-            </Sub>
-            {pie ? (
-                <Sub title={labels.labelPosition} info="labelPosition">
-                    <div className="pk-choice-grid">
-                        {LABEL_POSITIONS.map((v) => (
-                            <Option key={v} checked={(chart.labelPosition ?? "outside") === v} disabled={chart.valueLabels === "off"} onSelect={() => onDisplay({ labelPosition: v })} testId={`label-position-${v}`}>
-                                {labels.labelPositionNames[v]}
-                            </Option>
-                        ))}
-                    </div>
-                </Sub>
-            ) : null}
-            <Sub title={labels.legend}>
-                <div className="pk-choice-grid">
-                    {LEGENDS.map((v) => (
-                        <Option key={v} checked={chart.legend === v} onSelect={() => onDisplay({ legend: v })} testId={`legend-${v}`}>
-                            {labels.legendNames[v]}
-                        </Option>
-                    ))}
-                </div>
-            </Sub>
-            <Sub title={labels.chartTitle}>
-                <ChartTitle title={chart.title} labels={labels} onDisplay={onDisplay} />
-            </Sub>
-            {axis ? (
-                <Sub title={labels.axisLabels}>
-                    <div className="pk-choice-grid">
-                        {AXIS_LABELS.map((v) => (
-                            <Option key={v} checked={chart.axisLabels === v} onSelect={() => onDisplay({ axisLabels: v })} testId={`axis-${v}`}>
-                                {labels.axisLabelNames[v]}
-                            </Option>
-                        ))}
-                    </div>
-                </Sub>
-            ) : null}
-            {axis && view.rows.length >= 2 ? (
-                <Sub title={labels.groupLabels} info="groupLabels">
-                    <div className="pk-choice-grid">
-                        {GROUP_LABELS.map((v) => (
-                            <Option key={v} checked={chart.groupLabels === v} onSelect={() => onDisplay({ groupLabels: v })} testId={`groups-${v}`}>
-                                {labels.groupLabelNames[v]}
-                            </Option>
-                        ))}
-                    </div>
-                </Sub>
-            ) : null}
-            {axis ? (
-                <Sub title={labels.tooltip} info="tooltip">
-                    <div className="pk-choice-grid">
-                        {TOOLTIPS.map((v) => (
-                            <Option key={v} checked={(chart.tooltip ?? "auto") === v} onSelect={() => onDisplay({ tooltip: v })} testId={`tooltip-${v}`}>
-                                {labels.tooltipNames[v]}
-                            </Option>
-                        ))}
-                    </div>
-                </Sub>
-            ) : null}
-            {axis ? (
-                <Sub title={labels.zoom} info="zoom">
-                    <div className="pk-choice-grid">
-                        {ZOOMS.map((v) => (
-                            <Option key={v} checked={(chart.zoom ?? "auto") === v} onSelect={() => onDisplay({ zoom: v })} testId={`zoom-${v}`}>
-                                {labels.zoomNames[v]}
-                            </Option>
-                        ))}
-                    </div>
-                </Sub>
-            ) : null}
-            {(drawn === "stacked" || drawn === "area") && view.values.length > 0 && view.values.every(valueAddsUp) ? (
-                <Sub>
-                    <div className="pk-setting-row">
-                        <Switch checked={Boolean(chart.stackPercent)} onChange={(on) => onDisplay({ stackPercent: on })} testId="chart-stack-percent">
-                            {labels.stackPercent}
-                        </Switch>
-                        <SettingInfo id="stackPercent" name={labels.stackPercent} />
-                    </div>
-                </Sub>
-            ) : null}
-            {names.length > 1 ? (
-                <Sub title={pie ? labels.shownSlices : labels.shownSeries}>
-                    <ShownEntries names={names} hidden={chart.hidden ?? []} onDisplay={onDisplay} />
-                </Sub>
-            ) : null}
-            {drawn === "line" || drawn === "area" ? (
-                <Sub>
-                    <Switch checked={chart.smooth} onChange={(on) => onDisplay({ smooth: on })} testId="chart-smooth">
-                        {labels.smoothLines}
-                    </Switch>
-                </Sub>
-            ) : null}
-        </Section>
-    );
-}
-
-/** The chart type menu: the types (a pick closes it) and how the chart is drawn. */
 export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, series }) {
-    return (
+    const drawn = plan ? plan.name : chartTypeOf(view.chart);
+    const names = legendNames(drawn, series);
+    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay } });
+    const head = (
         <>
             <Section title={labels.chartType}>
                 <div className="pk-choice-grid">
                     <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
                 </div>
             </Section>
-            <ChartDisplay view={view} plan={plan} labels={labels} onDisplay={onDisplay} series={series} />
+            <div className="pk-section pk-display-head">
+                <div className="pk-section-head">
+                    <div className="pk-section-title">{labels.chartDisplay}</div>
+                </div>
+            </div>
         </>
+    );
+    return (
+        <LevelMenu
+            name={labels.chartDisplay}
+            labels={labels}
+            topics={topics}
+            close={close}
+            onPick={runChoice(close)}
+            head={head}
+            panel={(id) => (id === "title" ? <ChartTitle title={view.chart.title} labels={labels} onDisplay={onDisplay} /> : id === "series" ? <ShownEntries names={names} hidden={view.chart.hidden ?? []} onDisplay={onDisplay} /> : null)}
+        />
     );
 }
 
@@ -295,20 +168,6 @@ function Shortcuts({ labels, mod }) {
     );
 }
 
-/**
- * A switch: a checkbox drawn as a track, on one line (the chart's smooth lines).
- * @param {{ checked: boolean, onChange: (on: boolean) => void, testId?: string, children: React.ReactNode }} props
- */
-function Switch({ checked, onChange, testId, children }) {
-    const name = useFormName();
-    return (
-        <label className="pk-switch">
-            <input type="checkbox" name={name} checked={checked} onChange={(e) => onChange(e.target.checked)} data-testid={testId} />
-            <span className="pk-switch-track" aria-hidden="true" />
-            <span className="pk-switch-text">{children}</span>
-        </label>
-    );
-}
 
 /**
  * The Options menu (topics in menu-topics.js): the totals, Expand all and Collapse all, help with the

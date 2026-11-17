@@ -55,30 +55,34 @@ pick stays.
 
 ## Display settings
 
-The chart type menu has its **Display** settings under the chart types, in one flat list. See
-[long menus](layout.md#menus-that-are-long).
+The chart type menu has its **Display** settings under the chart types, in levels as the other
+menus ([menus in levels](layout.md#menus-that-are-long)):
 
+- **Value labels** and **Legend** are right there.
+- **Title**, **Axis**, **Tooltip**, **Series** and **Layout** are rows. Each shows what is set and
+  opens a level of its own. **Back**, Escape or the left arrow goes back to the row.
+- A topic the chart has nothing for is left out: a pie has no Axis, a heatmap no Series.
 - Each choice applies at once, and the menu stays open, so the chart behind it shows the change.
 - The settings stay with the report: in saved views, links and the chart image. They also stay when
   the chart type changes.
 - An **i** next to Labels, Group labels, Tooltip, Zoom slider and Stacked to 100 % explains them.
 
-![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-light.png#only-light)
-![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-dark.png#only-dark)
+![The chart type menu: the chart types, then Display with value labels and legend, and the rows Title, Axis and Tooltip that open levels](../assets/screenshots/chart-display-light.png#only-light)
+![The chart type menu: the chart types, then Display with value labels and legend, and the rows Title, Axis and Tooltip that open levels](../assets/screenshots/chart-display-dark.png#only-dark)
 
-| Setting | Choices | Default |
-| --- | --- | --- |
-| Value labels | Automatic, Off, Value. A pie and a donut also offer Percent and Value and percent. | Automatic: a pie names its slices. A heatmap writes the numbers while there are 200 cells or fewer. Bars and lines write nothing. |
-| Labels (pie and donut) | Outside, Inside. Not offered while value labels are Off. | Outside |
-| Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series. A pie and a donut always have one. |
-| Title | Any text. The × removes it at once. | none |
-| Smooth lines | on, off. Lines and area only. | off |
-| Axis labels | Automatic, All (slanted), Every n-th. Bars, lines and areas only. | Automatic |
-| Group labels under the axis | Automatic, On, Off. Only with two or more fields in Rows. | Automatic: shown while the chart has room for them |
-| Tooltip | Automatic, All series. Bars, lines and areas only. | Automatic: the element under the pointer |
-| Zoom slider | Automatic, On, Off. Bars, lines and areas only. | Automatic: more than 20 categories, or an axis that would leave out 3 names or more between two |
-| Stacked to 100 % | on, off. Stacked bars and area of sums and counts only. | off |
-| Series shown, Slices shown | A checkbox per series, or per slice of a pie or a donut. Up to 50 are listed. | all shown |
+| Setting | Where | Choices | Default |
+| --- | --- | --- | --- |
+| Value labels | first level | Automatic, Off, Value. A pie and a donut also offer Percent and Value and percent. | Automatic: a pie names its slices. A heatmap writes the numbers while there are 200 cells or fewer. Bars and lines write nothing. |
+| Labels (pie and donut) | Layout | Outside, Inside. Not offered while value labels are Off. | Outside |
+| Legend | first level | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series. A pie and a donut always have one. |
+| Title | Title | Any text. The × removes it at once. | none |
+| Smooth lines | Layout | on, off. Lines and area only. | off |
+| Axis labels | Axis | Automatic, All (slanted), Every n-th. Bars, lines and areas only. | Automatic |
+| Group labels under the axis | Axis | Automatic, On, Off. Only with two or more fields in Rows. | Automatic: shown while the chart has room for them |
+| Tooltip | Tooltip | Automatic, All series. Bars, lines and areas only. | Automatic: the element under the pointer |
+| Zoom slider | Axis | Automatic, On, Off. Bars, lines and areas only. | Automatic: more than 20 categories, or an axis that would leave out 3 names or more between two |
+| Stacked to 100 % | Layout | on, off. Stacked bars and area of sums and counts only. | off |
+| Series shown | Series (Slices for a pie or a donut) | A checkbox per series, or per slice. Up to 50 are listed. | all shown |
 
 ??? info "Pie and donut labels"
     **Outside** writes each slice's name with what is chosen, on a line to the slice. On a narrow
@@ -165,8 +169,8 @@ A chart with many categories, such as 40 countries, gets a **zoom slider** under
 - The chart keeps the slider's place when it is drawn again, for example in a narrower window.
 - The slider cannot be moved by keyboard yet
   ([#575](https://github.com/eizedev/pivotkit/issues/575)). With the keyboard, choose **Display**,
-  **Zoom slider**, **Off**, or read every value in the table.
-- **Display**, **Zoom slider**, **Off** draws every category instead. Then the axis may name only
+  **Axis**, **Zoom slider**, **Off**, or read every value in the table.
+- **Display**, **Axis**, **Zoom slider**, **Off** draws every category instead. Then the axis may name only
   every n-th one. **On** always shows the slider.
 - Horizontal bars get the slider on the right.
 - The chart image, the SVG, the HTML report and a print show every category, without a slider.
@@ -178,10 +182,10 @@ Click a series in the legend to hide it. Click it again to show it.
 
 - A screen reader hears "Software hidden" or "Software shown".
 - The view keeps it: in saved views, links and the chart image. **Undo** takes it back.
-- **Display**, **Series shown** has the same with a checkbox per series, for the keyboard. A pie and
+- **Display**, **Series** has the same with a checkbox per series, for the keyboard. A pie and
   a donut list their slices.
 
-**Display**, **Stacked to 100 %** makes each stack as high as the axis. Each part shows its share.
+**Display**, **Layout**, **Stacked to 100 %** makes each stack as high as the axis. Each part shows its share.
 
 - It applies to stacked bars and to areas. An area is stacked by it.
 - It is offered only for sums and counts, the values that add up.
@@ -223,7 +227,7 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-dark.png#only-dark)
 
 ??? info "Every series in the tooltip"
-    **Tooltip**, **All series** in the Display settings lists every series at the pointer's category,
+    **Display**, **Tooltip**, **All series** lists every series at the pointer's category,
     wherever the pointer is. The series under the pointer comes first, its name in bold. Stacked bars
     and areas add the total. The setting stays with the view.
 

@@ -164,8 +164,10 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await page.setViewportSize({ width: 1000, height: 900 });
         await settled(chartEl);
         expect(await inChart(chartEl, selected)).toEqual({ Services: false });
-        // the Display settings list it unchecked; a click there shows it again
+        // Display, Series lists it unchecked; a click there shows it again
         await chartMenu(report);
+        await expect(report.getByTestId("topic-state-series")).toContainText("2 of 3 shown");
+        await report.getByTestId("topic-series").click();
         const list = report.getByTestId("chart-series-list");
         await expect(list.getByRole("checkbox", { name: "Services" })).not.toBeChecked();
         await expect(list.getByRole("checkbox", { name: "Hardware" })).toBeChecked();
@@ -199,8 +201,8 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         const before = await Promise.all([0, 1].map((index) => inChart(chartEl, (chart, index) => [0, 1, 2].reduce((h, series) => h + Math.abs(chart.getModel().getSeriesByIndex(series).getData().getItemLayout(index).height || 0), 0), index)));
         expect(Math.abs(before[0] - before[1])).toBeGreaterThan(5);
         await chartMenu(report);
-        // a click on the switch's words, as a hand does
-        await report.locator(".pk-switch").filter({ hasText: "Stacked to 100 %" }).click();
+        await report.getByTestId("topic-layout").click();
+        await report.getByTestId("chart-stack-percent").click();
         await expect.poll(() => lastView(page).then((c) => c?.stackPercent)).toBe(true);
         await page.keyboard.press("Escape");
         await settled(chartEl);
@@ -240,6 +242,7 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         // the window keeps its size while it moves
         expect(moved.end - moved.start).toBe(first.end - first.start);
         await chartMenu(report);
+        await report.getByTestId("topic-axis").click();
         await report.getByTestId("zoom-off").click();
         await expect.poll(() => lastView(page).then((c) => c?.zoom)).toBe("off");
         await page.keyboard.press("Escape");
@@ -289,8 +292,8 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await mount(page, { type: "bar", stacked: true }, { view: { ...VIEW, values: [{ field: "Revenue", agg: "average" }] } });
         const report = page.locator("#zoom-report");
         await chartMenu(report);
-        await expect(report.getByTestId("zoom-auto")).toBeVisible();
-        await expect(report.getByTestId("chart-stack-percent")).toHaveCount(0);
+        await expect(report.getByTestId("topic-axis")).toBeVisible();
+        await expect(report.getByTestId("topic-layout")).toHaveCount(0);
     });
 });
 
@@ -314,6 +317,72 @@ test.describe("the zoom slider on a touch screen (#36)", () => {
         for (let i = 1; i <= 8; i++) await touch("touchMove", from.x + i * 10);
         await touch("touchEnd");
         await expect.poll(async () => (await inChart(chartEl, sliderOf)).start).toBeGreaterThan(0);
+    });
+});
+
+test.describe("the chart type menu's Display settings in levels (#106)", () => {
+    test.beforeEach(async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto("pages/host.html");
+    });
+
+    test("by keyboard: a topic's row opens its level, a choice applies and comes back to the row, Escape goes back and then closes", async ({ page }) => {
+        await mount(page, { type: "bar", stacked: true });
+        const report = page.locator("#zoom-report");
+        await chartMenu(report);
+        const axisRow = report.getByTestId("topic-axis");
+        await expect(axisRow).toContainText("Automatic");
+        // into the Display list, down to Axis, and open it
+        await axisRow.focus();
+        await page.keyboard.press("Enter");
+        await expect(report.getByTestId("level-title")).toHaveText("Display › Axis");
+        await expect(report.getByTestId("axis-auto")).toBeFocused();
+        // down to the zoom slider's Off, and pick it
+        await page.keyboard.press("End");
+        await expect(report.getByTestId("zoom-off")).toBeFocused();
+        await page.keyboard.press("Enter");
+        await expect.poll(() => lastView(page).then((c) => c?.zoom)).toBe("off");
+        // back on the first level, on Axis, which says what is set
+        await expect(axisRow).toBeFocused();
+        await expect(report.getByTestId("topic-state-axis")).toContainText("zoom slider off");
+        // Tooltip opens with the right arrow; Escape goes back to its row
+        await page.keyboard.press("ArrowDown");
+        await expect(report.getByTestId("topic-tooltip")).toBeFocused();
+        await page.keyboard.press("ArrowRight");
+        await expect(report.getByTestId("level-title")).toHaveText("Display › Tooltip");
+        await page.keyboard.press("Escape");
+        await expect(report.getByTestId("topic-tooltip")).toBeFocused();
+        // Series is a panel: Tab through its checkboxes, Space hides one
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("Enter");
+        await expect(report.getByTestId("level-title")).toHaveText("Display › Series");
+        await expect(report.getByRole("checkbox", { name: "Hardware" })).toBeFocused();
+        await page.keyboard.press("Space");
+        await expect.poll(() => lastView(page).then((c) => c?.hidden)).toEqual(["Hardware"]);
+        await page.keyboard.press("Escape");
+        await expect(report.getByTestId("topic-series")).toBeFocused();
+        // Escape on the first level closes the menu, the focus back on its button
+        await page.keyboard.press("Escape");
+        await expect(report.locator(".pk-popover")).toHaveCount(0);
+        await expect(report.getByTestId("chart-type")).toBeFocused();
+    });
+
+    test("on a phone each level fits the window: Axis, Series and Layout, and Back returns", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await mount(page, { type: "bar", stacked: true }, { view: { ...VIEW, rows: ["Region"] } });
+        const report = page.locator("#zoom-report");
+        await chartMenu(report);
+        for (const topic of ["axis", "series", "layout"]) {
+            await report.getByTestId(`topic-${topic}`).click();
+            const box = await report.locator(".pk-popover").boundingBox();
+            expect(box.x).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.width).toBeLessThanOrEqual(390);
+            const body = report.getByTestId(`level-${topic}`);
+            const bodyBox = await body.boundingBox();
+            expect(bodyBox.x + bodyBox.width).toBeLessThanOrEqual(390);
+            await report.getByTestId("level-back").click();
+            await expect(report.getByTestId(`topic-${topic}`)).toBeFocused();
+        }
     });
 });
 

@@ -385,8 +385,11 @@ export const en = {
     zoom: "Zoom slider",
     zoomNames: { auto: "Automatic", on: "On", off: "Off" },
     stackPercent: "Stacked to 100 %",
-    shownSeries: "Series shown",
-    shownSlices: "Slices shown",
+    shownSeries: "Series",
+    shownSlices: "Slices",
+    seriesShownOf: "{shown} of {count} shown",
+    chartAxis: "Axis",
+    chartLayout: "Layout",
     defaultName: "Use the default name",
     // sharing a view (the Views menu): the group's title
     shareThisView: "Share this view",

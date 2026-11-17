@@ -8,6 +8,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Upgrading from 0.7
 
+- The chart type menu's Display settings are in levels, as the field and Options menus: Value
+  labels and Legend first, then Title, Axis, Tooltip, Series and Layout as rows that open levels
+  ([#106](https://github.com/eizedev/pivotkit/issues/106)). Tests open the level first; a choice is a menu item with `aria-checked`.
 - A chart of bars, lines or areas whose axis cannot name every category gets a zoom slider. A
   click on the legend changes the view, so Undo takes it back. Display → Zoom slider → Off draws
   every category as before

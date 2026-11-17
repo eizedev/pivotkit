@@ -75,23 +75,20 @@ test("Views in German: the same groups, Ansichtsdatei öffnen…", async ({ page
     await expect(menu.getByTestId("load-view")).toHaveText("Ansichtsdatei öffnen…");
 });
 
-test("the chart type menu: a rule between Chart type and Display, and between Display's own groups", async ({ page }) => {
+test("the chart type menu: Chart type, then Display in levels: Value labels and Legend as groups, the other topics as rows (#106)", async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1100 });
     await page.goto("?data=sales&preset=1");
     await toolbar(page, "chart-type");
     const menu = page.locator(".pk-chart-menu");
     const groups = await groupsOf(menu);
-    expect(groups.map((g) => g.title)).toEqual(["Chart type", "Display"]);
-    expect(ruled(groups)).toEqual([false, true]);
-    // Display's groups (Value labels, Legend, Title, ...) each under its title, a rule between them
-    const sub = await menu.locator(".pk-subsection").evaluateAll((els) =>
-        els.map((el) => {
-            const s = getComputedStyle(el);
-            return { title: el.querySelector(".pk-subtitle")?.textContent.trim() ?? null, rule: parseFloat(s.borderTopWidth) >= 1 && s.borderTopStyle !== "none" };
-        })
-    );
-    expect(sub.slice(0, 3).map((g) => g.title)).toEqual(["Value labels", "Legend", "Title"]);
-    expect(sub.map((g) => g.rule)).toEqual(sub.map((_, i) => i > 0));
+    expect(groups.map((g) => g.title)).toEqual(["Chart type", "Display", "Value labels", "Legend"]);
+    // a rule between Chart type and Display, and between Display's groups; Display's first group sits right under its title
+    expect(ruled(groups)).toEqual([false, true, false, true]);
+    expect(groups.every((g) => g.bold)).toBe(true);
+    // the rows that open levels, each with what is set: lines over months have every topic
+    const rows = await menu.locator("[data-pk-level]").evaluateAll((els) => els.map((el) => el.dataset.testid));
+    expect(rows).toEqual(["topic-title", "topic-axis", "topic-tooltip", "topic-series", "topic-layout"]);
+    await expect(menu.getByRole("menu", { name: "Display" })).toBeVisible();
 });
 
 test("More: Start over's two actions, then Layout, Chart type and Options, then Views - rules, no titles", async ({ page }) => {

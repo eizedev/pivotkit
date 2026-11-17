@@ -29,26 +29,33 @@ test.describe("chart display", () => {
         await page.getByTestId("chart-bar").click();
         await expect(page.getByTestId("pivot-chart")).toBeVisible();
         await toolbar(page, "chart-type");
-        // the display settings are shown under the chart types
+        // the display settings are shown under the chart types: value labels and legend right there
         await page.getByTestId("labels-value").click();
         await page.getByTestId("legend-right").click();
         // a choice applies at once and the menu stays open
-        await expect(page.getByTestId("legend-right")).toHaveAttribute("aria-pressed", "true");
+        await expect(page.getByTestId("legend-right")).toHaveAttribute("aria-checked", "true");
         // pie-only labels are not offered for bars
         await expect(page.getByTestId("labels-percent")).toHaveCount(0);
+        // the title is a level of its own (#106)
+        await page.getByTestId("topic-title").click();
         await page.getByTestId("chart-title").fill("Revenue by region");
         await page.getByTestId("chart-title").press("Enter");
         await expect(page.getByTestId("pivot-chart")).toHaveAttribute("aria-label", "Chart: Revenue by region");
+        await page.getByTestId("level-back").click();
         // the settings stay when the type changes; a line offers smooth lines, a pie its shares
         await page.getByTestId("chart-line").click();
         await toolbar(page, "chart-type");
-        await expect(page.getByTestId("labels-value")).toHaveAttribute("aria-pressed", "true");
+        await expect(page.getByTestId("labels-value")).toHaveAttribute("aria-checked", "true");
+        await page.getByTestId("topic-layout").click();
         await flip(page.getByTestId("chart-smooth"));
         await page.getByTestId("chart-pie").click();
         await toolbar(page, "chart-type");
         await expect(page.getByTestId("labels-percent")).toBeVisible();
+        await page.getByTestId("topic-layout").click();
         await expect(page.getByTestId("chart-smooth")).toHaveCount(0);
+        await page.getByTestId("level-back").click();
         // the × removes the title at once, as one step Undo takes back
+        await page.getByTestId("topic-title").click();
         await page.locator(".pk-chart-menu .pk-clear-x").click();
         await expect(page.getByTestId("pivot-chart")).toHaveAttribute("aria-label", "Chart");
         await expect(page.getByTestId("chart-title")).toBeFocused();
