@@ -360,7 +360,8 @@ The event is cancelable. `preventDefault()` skips the download or the copy, and 
 blob, for example to upload it.
 
 The element does not send it for the table's exports of an empty report, where no field is placed.
-Those exports are greyed out ("Add a field first."). Source data stays.
+Those exports are greyed out ("Add a field first."). Source data stays while the data have rows.
+Without rows, the element turns it off too and says "The data has no rows yet."
 
 ### `pivot-source-switch` { #event-pivot-source-switch }
 
