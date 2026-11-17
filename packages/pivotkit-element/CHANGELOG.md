@@ -78,6 +78,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- On a touch screen, a menu's rows and its Back row are at least 44 px high. The chart's tooltip
+  names the element under the pointer after a redraw too. Both as in pivotkit-react
+  ([#582](https://github.com/eizedev/pivotkit/issues/582), [#576](https://github.com/eizedev/pivotkit/issues/576)).
 - The chart on a touch screen, a heatmap's colours in a form such as `oklch()` and the tooltip of a
   pie or heatmap with a field on Columns, as pivotkit-react's ([#538](https://github.com/eizedev/pivotkit/issues/538),
   [#386](https://github.com/eizedev/pivotkit/issues/386), [#537](https://github.com/eizedev/pivotkit/issues/537)).

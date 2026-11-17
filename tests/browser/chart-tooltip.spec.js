@@ -55,6 +55,8 @@ async function mount(page, chart, { theme = "light", view = {}, rows = ROWS, cel
             // the chart's height the measures below were taken at, the zones folded: their heading
             // and the tabs take 13 px more than before, on a phone 12
             const height = window.innerWidth < 640 ? 572 : 573;
+            // what a test needs to render the same report again in place
+            Object.assign(window, { __tooltipChart: view.chart, __tooltipRows: rows, __tooltipHeight: height, __tooltipView: view });
             window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height, defaultView: view, onCellClick, onViewChange: (v) => window.__tooltipViews.push(v) }));
         },
         { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
@@ -281,6 +283,60 @@ test.describe("the chart's tooltip follows the pointer", () => {
         const scrim = await page.locator(".pk-drill-scrim").boundingBox();
         await page.mouse.click(scrim.x + 10, scrim.y + 10);
         await expect(panel).toHaveCount(0);
+    });
+
+    test("after the pointer left in one move, the same segment is named again (#576)", async ({ page }) => {
+        const chartEl = await mount(page, { type: "bar", stacked: true });
+        const segment = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+        await hover(page, segment);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+        // out of the chart in one move, as a tap elsewhere does, and back onto the same segment
+        await page.mouse.move(5, 5);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual([]);
+        await hover(page, segment);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+    });
+
+    test("after Display › Legend › Bottom draws the chart again, the segment hovered before is named again (#576)", async ({ page }) => {
+        const chartEl = await mount(page, { type: "bar", stacked: true });
+        const report = page.locator("#tooltip-report");
+        await hover(page, await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+        await report.getByTestId("view-settings").click();
+        await report.getByTestId("topic-legend").click();
+        await report.getByTestId("legend-bottom").click();
+        await expect.poll(() => page.evaluate(() => window.__tooltipViews.at(-1)?.chart.legend)).toBe("bottom");
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        await expect(report.getByTestId("view-settings")).toHaveAttribute("aria-expanded", "false");
+        await expect.poll(() => chartEl.evaluate(async (el) => {
+            const { getInstanceByDom } = await import("echarts/core");
+            return getInstanceByDom(el).getZr().animation.isFinished();
+        })).toBe(true);
+        // the legend moved: the segment stands elsewhere
+        await hover(page, await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+    });
+
+    test("a redraw under a resting pointer: the segment is named again as soon as the pointer moves (#576)", async ({ page }) => {
+        const chartEl = await mount(page, { type: "bar", stacked: true });
+        const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+        await hover(page, at);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+        // the same report in the dark theme: a new option, drawn in place, the pointer does not move
+        await page.evaluate(async () => {
+            const React = await import("react");
+            const { PivotReport } = await import("pivotkit-react");
+            const last = window.__tooltipViews;
+            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(window.__tooltipChart), theme: "dark", data: window.__tooltipRows, height: window.__tooltipHeight, defaultView: window.__tooltipView, onViewChange: (v) => last.push(v) }));
+        });
+        await expect(page.locator("#tooltip-report .pk-root")).toHaveAttribute("data-pk-theme", "dark");
+        await page.waitForTimeout(600);
+        // the tooltip of the old marks goes, or names the segment: never every series
+        expect([[], ["North", "Software 30", "Total 60"]]).toContainEqual(await tooltipOf(chartEl));
+        // a pixel's move on the segment names it
+        await page.mouse.move(at.x + 1, at.y);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
     });
 
     test("Display, Tooltip, All series: every series wherever the pointer is, the hovered one first and in the strong weight, with the total", async ({ page }) => {

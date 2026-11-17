@@ -77,6 +77,7 @@ The first load holds only what the first render needs. Everything else loads on 
 
 ## UI rules
 
+- Follow principle 5 in [PRODUCT.md](../../PRODUCT.md#principles): frequent tasks visible and in few clicks, the rest one level deeper in the same menu pattern.
 - Text at least 14 px. Controls at least 24 x 24 px (`--pk-target`).
 - Buttons show visible text. An icon alone only where the text stands next to it.
 - Every action works by keyboard and from a menu. Drag and drop is never the only way.

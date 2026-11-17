@@ -4003,6 +4003,11 @@
         min-height: var(--pk-target-touch);
     }
 
+    /* a menu's rows and its Back row, on every level */
+    .pk-root :is(.pk-levels .pk-option, .pk-level-back) {
+        min-height: var(--pk-target-touch);
+    }
+
     /* the field list keeps its desktop rows (one line for a name that fits): its grip, "i" and menu
        stay as large as there and get a hit area 44 px high from a layer over them, centred on the
        row; the gap between rows holds the part above and below it, half for each row, so no hit
