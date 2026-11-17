@@ -276,9 +276,11 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * numbers from here on are its. The ECharts option (pivotkit-core's chart.js, toEChartsOption) then
  * left the first load for the chart (chartOffBarrel): first load 175.1 to 173.4, chart 218.8 to
  * 220.8. The budgets stay.
+ * Inline results that round as the view shows (#478): the report group carries the shown-number CSV and
+ * JSON writer, 23.07 on a Mac with Homebrew's zlib; report goes to 23.3.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23.3, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
