@@ -831,16 +831,23 @@ container query on that area decides it. This covers the narrow layout and a med
 half-width card of 650 px. "Swap rows and columns" shows its icon only when the head of the Columns
 zone is too narrow for the text. Its name stays for screen readers and as a tooltip.
 
-Only the table scrolls sideways. The table measures whether it fits the report:
+Only the table scrolls sideways. The table measures whether it fits the report and takes the first
+layout that fits:
 
-- When it fits, every row label, field name and value name keeps its natural width, on one line.
-- When it is too wide, the labels and names wrap between words until the table fits.
-- When even that is too wide, the row label columns share the room the value columns leave. Each
-  gets at least an equal part of 40 % of the main area. A value's name wraps beyond 30 %. So a phone
-  still shows values next to two levels of row labels.
+1. Every row label, field name and value name keeps its natural width, on one line.
+2. The labels and names wrap between words until the table is as wide as the report.
+3. The labels are capped. The row label columns share the room the value columns leave. Each gets
+   at least an equal part of 40 % of the main area. A value's name wraps beyond 30 %. So a phone
+   still shows values next to two levels of row labels.
+
+Under the cap:
+
 - Each row label column is at least 5.5em wide, so a common word such as "Central" never breaks.
 - A longer word breaks at a hyphen of its own. A word longer than the column breaks as a last
   resort.
+
+In every layout:
+
 - A narrow report has less room around each cell.
 - From 300 rows on, rows have one height, too low for two lines. The report then cuts a row label
   with an ellipsis. Its full text is the cell's title. The status line under the table shows the

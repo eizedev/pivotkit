@@ -2471,6 +2471,8 @@
 /* table */
 
 .pk-table-wrap {
+    /* the same width with a scroll bar or without: table.jsx (fitLabels) measures against it */
+    scrollbar-gutter: stable;
     /* the containing block of the cells' screen reader texts (.pk-sr): positioned against
        .pk-result they would reach past the table's box and make the result area scroll too (#112) */
     position: relative;
@@ -2571,8 +2573,8 @@
 /* width: max-content keeps a label on one line when the table is merely wider than the report (its
    columns would shrink to the longest word otherwise); only the cap makes it wrap */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner) .pk-th-content {
-    width: max-content;
-    max-width: max(5.5em, calc(var(--pk-row-share, 40cqi) / var(--pk-row-cols, 1)), var(--pk-row-room, 0px));
+    width: var(--pk-label-w, max-content);
+    max-width: var(--pk-label-max, max(5.5em, calc(var(--pk-row-share, 40cqi) / var(--pk-row-cols, 1)), var(--pk-row-room, 0px)));
 }
 
 /* labels without a value column next to them (fields in Rows alone) take the report's width */
@@ -2581,8 +2583,8 @@
 }
 
 .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
-    width: max-content;
-    max-width: max(6em, 30cqi);
+    width: var(--pk-label-w, max-content);
+    max-width: var(--pk-label-max, max(6em, 30cqi));
 }
 
 /* a narrow report: a little less room around each cell, for the labels' least width below, and a
@@ -2592,22 +2594,21 @@
 }
 
 .pk-root[data-pk-size="narrow"] .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
-    max-width: max(5em, 22cqi);
+    max-width: var(--pk-label-max, max(5em, 22cqi));
 }
 
 /* a table that fits its box without the caps (table.jsx: fitLabels): "natural" keeps every label and
-   name at its natural width, "share" lets them wrap between words to the box's width. .pk-root and
-   the place after the narrow rule above make these win over that rule */
-.pk-root .pk-table[data-pk-labels] :is(tbody th.pk-rowHeader, thead th.pk-corner, thead tr:last-child th.pk-colHeader) .pk-th-content {
-    max-width: none;
+   name at its natural width, "share" lets them wrap between words to the box's width */
+.pk-table[data-pk-labels] {
+    --pk-label-max: none;
 }
 
-.pk-root .pk-table[data-pk-labels="share"] :is(tbody th.pk-rowHeader, thead th.pk-corner, thead tr:last-child th.pk-colHeader) .pk-th-content {
-    width: auto;
+.pk-table[data-pk-labels="share"] {
+    --pk-label-w: auto;
 }
 
-/* WebKit sizes a header a few px too narrow for its drag grip once it wraps: the hidden grip must
-   not make the box scroll */
+/* WebKit sizes a wrapped header a few px too narrow for its hidden drag grip: it must not make the
+   box scroll */
 .pk-table[data-pk-labels="share"] thead th {
     overflow-x: clip;
 }

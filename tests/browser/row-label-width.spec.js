@@ -5,7 +5,9 @@
 // label instead of wrapping it, so there the check is that nothing is cut while the table fits.
 //
 // The data is a CSV with camelCase column names, as a service's export has them, dropped onto the
-// playground. The fields go into the zones through their menus, as a person does it.
+// playground. The fields go into the zones through their menus, as a person does it. The report's
+// font is Arial, or Liberation Sans, which has Arial's widths (Linux CI): the widths the cases are
+// sized for are the same on every machine.
 import { chips, expect, test } from "./fixtures.js";
 import { dropFiles } from "./import-helpers.js";
 
@@ -37,6 +39,7 @@ const ROWS = ["serviceName", "productNumber", "deploymentRegion", "environmentTy
 /** Loads the CSV into the playground and puts the fields into Rows, Columns and Values by their menus. */
 async function report(page, csv, { rows = ROWS, cols = [], values = ["monthlyCost"] } = {}) {
     await page.goto("?data=sales&import");
+    await page.addStyleTag({ content: '.pk-root { --pk-font: Arial, "Liberation Sans", sans-serif; }' });
     await expect(page.getByTestId("pivot-table")).toBeVisible();
     await dropFiles(page, page.getByTestId("pivot-table"), [{ name: "services.csv", type: "text/csv", text: csv }]);
     await page.getByTestId("import-apply").click();
@@ -74,7 +77,8 @@ function labelLayout(page) {
                     word.setEnd(node, m.index + m[0].length);
                     const rects = [...word.getClientRects()].filter((r) => r.width > 0);
                     const wide = rects.reduce((s, r) => s + r.width, 0);
-                    if (tops(rects) > 1 && wide <= el.clientWidth + 1) broken.push(m[0]);
+                    // fractional widths: clientWidth rounds, and a word 0.4 px too wide would count as fitting
+                    if (tops(rects) > 1 && wide <= el.getBoundingClientRect().width) broken.push(m[0]);
                 }
             }
             return { text: el.textContent, lines: tops(range.getClientRects()), cut: el.scrollWidth > el.clientWidth + 1, broken };
@@ -124,7 +128,11 @@ test.describe("at 1440 x 900", () => {
     });
 
     test("labels a little too wide for the report: they share the room the value column leaves", async ({ page }) => {
-        await report(page, servicesCsv(48, 24, 4, LONG_SERVICES));
+        await report(page, servicesCsv(48, 24, 4, SPACED_SERVICES), { values: ["cost"] });
+        // a window 60 px narrower than the natural table needs: sized from what this browser measures
+        const natural = await tableBox(page);
+        await page.setViewportSize({ width: Math.floor(1440 - (natural.wrap - natural.table)) - 60, height: 900 });
+        await settled(page);
         const box = await tableBox(page);
         // the table takes the report's width, no less (the cap is not a fixed 40 %) and no more
         expect(box.table).toBeLessThanOrEqual(box.wrap);
@@ -156,7 +164,7 @@ test.describe("at 1440 x 900", () => {
 });
 
 test.describe("at 390 x 844 (a phone)", () => {
-    test("two row fields and one value: a value stays in view, the labels take the room it leaves, no word broken that fits", async ({ page }) => {
+    test("two row fields and one value: a value stays in view, the capped table fills the box, no word broken that fits", async ({ page }) => {
         // the fields are placed at desktop width (on a phone they are in a drawer), then the window narrows
         await page.setViewportSize({ width: 1440, height: 900 });
         await report(page, servicesCsv(48, 24), { rows: ["serviceName", "deploymentRegion"] });
@@ -188,6 +196,9 @@ test.describe("at 390 x 844 (a phone)", () => {
 test("the choice settles at every width: no state flips back and forth while the window does not change", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await report(page, servicesCsv(48, 24, 4, SPACED_SERVICES), { values: ["cost"] });
+    // classic scroll bars that take room, where the engine lets a page set them (not Firefox): the
+    // box's width must not change with the state, or a state could take its own room away
+    await page.addStyleTag({ content: ".pk-table-wrap::-webkit-scrollbar { width: 15px; height: 15px; background: #ddd; }" });
     // the widths from what this browser measures: from where the natural table stops fitting, down
     // in steps of 20 px through wrapping between words to the caps
     const { table, wrap } = await tableBox(page);
@@ -222,4 +233,23 @@ test("the choice settles at every width: no state flips back and forth while the
     }
     // the sweep passes all three states
     expect([...states].sort()).toEqual(["capped", "natural", "share"]);
+});
+
+test("a new font size alone (a host's --pk-font-size) decides again: natural or share only while the table fits", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await report(page, servicesCsv(48, 24), { values: ["cost"] });
+    /** The table's state, and whether its box scrolls sideways. */
+    const state = () => page.evaluate(() => {
+        const wrap = document.querySelector(".pk-table-wrap");
+        return { labels: document.querySelector(".pk-table").getAttribute("data-pk-labels") ?? "capped", scrolls: wrap.scrollWidth > wrap.clientWidth };
+    });
+    expect(await state()).toEqual({ labels: "natural", scrolls: false });
+    // larger: the natural table no longer fits; nothing else changed size
+    const style = await page.addStyleTag({ content: ".pk-root { --pk-font-size: 21px; }" });
+    await expect.poll(async () => (await state()).labels).not.toBe("natural");
+    const larger = await state();
+    expect(larger.labels === "capped" || !larger.scrolls, JSON.stringify(larger)).toBe(true);
+    // back: natural again
+    await style.evaluate((el) => el.remove());
+    await expect.poll(state).toEqual({ labels: "natural", scrolls: false });
 });
