@@ -143,6 +143,13 @@ async function quick(page, count) {
     await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
 }
 
+/** Opens the zones when the report folded them (a note above the result can leave them no room). */
+async function openZones(page) {
+    const fold = page.getByTestId("layout-summary");
+    await fold.waitFor();
+    if ((await fold.getAttribute("aria-expanded")) === "false") await fold.click();
+}
+
 /** Clicks a toolbar button, or its entry in "More" when the report is too narrow for it. */
 async function toolbar(page, testId) {
     const own = page.getByTestId(testId);
@@ -498,6 +505,7 @@ const SHOTS = [
         hash: YEARS,
         size: WIDE,
         open: async (page) => {
+            await openZones(page);
             await page.getByTestId("chip-menu-Date by month of year").click();
             await page.getByTestId("topic-filter").click();
         }
@@ -509,6 +517,7 @@ const SHOTS = [
         hash: RULES,
         size: WIDE,
         open: async (page) => {
+            await openZones(page);
             await page.getByTestId("chip-menu-Date by month of year").click();
             await page.getByTestId("topic-filter").click();
             await page.getByTestId("rule-info").click();
