@@ -71,7 +71,12 @@
       "axisLabels": "auto",
       "groupLabels": "auto",
       "labelPosition": "outside",
-      "tooltip": "auto"
+      "tooltip": "auto",
+      "referenceLines": {
+        "average": false,
+        "trend": false,
+        "target": null
+      }
     },
     "formatting": {
       "locale": null,

@@ -4,3 +4,4 @@
  */
 
 export { limitText } from "./errors.js";
+export { referenceLineRules, referenceLines, valueAddsUp } from "./chart-lines.js";

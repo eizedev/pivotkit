@@ -805,6 +805,28 @@
                 "auto",
                 "axis"
               ]
+            },
+            "referenceLines": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "average": {
+                  "type": "boolean"
+                },
+                "trend": {
+                  "type": "boolean"
+                },
+                "target": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
             }
           }
         },

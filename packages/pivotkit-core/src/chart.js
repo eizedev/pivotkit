@@ -4,6 +4,7 @@
  * its own ECharts instance. Only a drawn chart needs this module: pivotkit-react loads it with ECharts.
  */
 
+import { referenceLines } from "./chart-lines.js";
 import { autoChartType, toSeries } from "./chart-series.js";
 import { DEFAULT_THEME, GRID_TOP, HEATMAP_GRID_BOTTOM } from "./defaults.js";
 import { expect } from "./errors.js";
@@ -30,6 +31,7 @@ import { SLICE_CHART_TYPES } from "./view.js";
  * @property {[string, string]} [heatmapColors]  low and high end of the heatmap scale
  * @property {[string, string]} [pieRadius]       inner and outer radius of a pie, default a circle (0%, 70%)
  * @property {[string, string]} [donutRadius]     inner and outer radius of a donut, default a ring (42%, 70%)
+ * @property {string} [referenceColor]  reference lines of no series (a target, a stack's total), default textColor
  */
 
 /** Room (px) the title takes above the chart: its line and 16 px below it (32 px at 16 px). */
@@ -275,6 +277,12 @@ export function toEChartsOption(result, options) {
     const showValues = labels !== "auto" && labels !== "off";
     const position = type === "line" ? "top" : chart.stacked ? "inside" : chart.horizontal ? "right" : "top";
     const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? fmt(p.value) : "") } } : {};
+    const marks = markLines(referenceLines(result, { chart, series: s, words: { ...DEFAULT_LABELS.referenceLines, ...options.labels?.referenceLines } }), s, { horizontal: Boolean(chart.horizontal), locale, theme });
+    // the value axis reaches every line: a target past the tallest bar is drawn, not cut off
+    if (marks.extent) {
+        valueAxis.dataMin = marks.extent[0];
+        valueAxis.dataMax = marks.extent[1];
+    }
     return {
         ...base,
         ...title,
@@ -288,14 +296,52 @@ export function toEChartsOption(result, options) {
         grid: { top: GRID_TOP + titleRoom + room.top, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
         xAxis: chart.horizontal ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
         yAxis: chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
-        series: s.series.map((x) => ({
+        series: s.series.map((x, i) => ({
             type,
             name: x.name,
             data: x.data,
             ...(chart.stacked ? { stack: "total" } : {}),
             ...(chart.type === "area" ? { areaStyle: {} } : {}),
             ...(type === "line" ? { connectNulls: false, smooth: Boolean(chart.smooth) } : {}),
-            ...valueLabel
+            ...valueLabel,
+            ...(marks.bySeries[i] ? { markLine: { silent: true, symbol: ["none", "none"], data: marks.bySeries[i] } } : {})
         }))
     };
+}
+
+/** How each kind of reference line is drawn: an average dashed, a trend dotted, a target solid. */
+const LINE_TYPES = Object.freeze({ average: "dashed", trend: "dotted", target: "solid" });
+
+/**
+ * The reference lines as ECharts markLine data, by the series that draws them: a series' own lines on
+ * it, in its colour; the lines of no series (a target, a stack's total) on the last series, drawn
+ * above every mark, in the theme's reference colour. Silent: a line is no element to point at; the
+ * tooltip names its value. `extent`: the lowest and highest value of the lines, for the value axis.
+ * @param {import("./chart-lines.js").ReferenceLine[]} lines
+ * @param {ReturnType<typeof toSeries>} s
+ * @param {{ horizontal: boolean, locale: string, theme: ChartTheme }} how
+ */
+function markLines(lines, s, { horizontal, locale, theme }) {
+    /** @type {any[][]} */
+    const bySeries = s.series.map(() => []);
+    const values = [];
+    const value = horizontal ? "xAxis" : "yAxis";
+    // a point of a trend: [category, value], or [value, category] along a horizontal chart
+    const point = (category, v) => ({ coord: horizontal ? [v, category] : [category, v] });
+    for (const line of lines) {
+        const own = line.series !== null ? s.series[line.series] : undefined;
+        // the series' format; an average of whole numbers keeps its decimals: a plain number's own
+        // count of decimals ("number:0", "integer") gives way to "number"
+        const format = (own ?? s.series[0])?.format ?? "number";
+        const fmt = formatterFor(/^(?:number|integer)(?::\d+)?$/.test(format) ? "number" : format, locale);
+        const text = line.kind === "trend" ? line.name : `${line.name} ${fmt(/** @type {number} */ (line.value))}`;
+        const style = {
+            lineStyle: { type: LINE_TYPES[line.kind], width: 1.5, ...(own ? {} : { color: theme.referenceColor ?? theme.textColor }) },
+            label: { formatter: () => text, position: horizontal ? "end" : "insideEndTop", color: theme.textColor, fontSize: theme.textSize ?? DEFAULT_THEME.textSize }
+        };
+        const item = line.kind === "trend" ? [{ ...point(line.first, line.from), ...style }, point(line.last, line.to)] : { [value]: line.value, ...style };
+        bySeries[own ? /** @type {number} */ (line.series) : s.series.length - 1]?.push(item);
+        values.push(...(line.kind === "trend" ? [/** @type {number} */ (line.from), /** @type {number} */ (line.to)] : [/** @type {number} */ (line.value)]));
+    }
+    return { bySeries: bySeries.map((d) => (d.length ? d : null)), extent: values.length ? [Math.min(...values), Math.max(...values)] : null };
 }

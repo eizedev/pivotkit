@@ -198,7 +198,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto" },
+        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", referenceLines: { average: false, trend: false, target: null } },
         formatting: { locale: null, timeZone: null, weekStart: WEEK_START }
     };
 }
@@ -312,6 +312,7 @@ export const VIEW_KEYS = Object.freeze({
     totals: Object.freeze(Object.keys(emptyView().totals)),
     collapsed: Object.freeze(["rows", "cols"]),
     chart: Object.freeze(Object.keys(emptyView().chart)),
+    referenceLines: Object.freeze(Object.keys(emptyView().chart.referenceLines)),
     formatting: Object.freeze(Object.keys(emptyView().formatting))
 });
 
@@ -602,12 +603,24 @@ function displaySection(raw, view, ctx) {
             axisLabels: own("axisLabels", CHART_AXIS_LABELS, "auto"),
             groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto"),
             labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside"),
-            tooltip: own("tooltip", CHART_TOOLTIPS, "auto")
+            tooltip: own("tooltip", CHART_TOOLTIPS, "auto"),
+            referenceLines: referenceLinesOf(get(chart, "referenceLines"), ctx)
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
             ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`, "badTitle", { max: ctx.limits.name });
         }
     }
+}
+
+/** chart.referenceLines: an average and a trend switched on or off, a target as a finite number or null. */
+function referenceLinesOf(lines, ctx) {
+    ctx.keys(lines, VIEW_KEYS.referenceLines, "chart.referenceLines");
+    const target = get(lines, "target");
+    const out = { average: bool(get(lines, "average"), false), trend: bool(get(lines, "trend"), false), target: finite(target) };
+    if (target !== undefined && target !== null && out.target === null) {
+        ctx.issue("chart.referenceLines.target", `not a number ${JSON.stringify(shown(target))}`, "unknownSetting", { value: shown(target) });
+    }
+    return out;
 }
 
 function formattingSection(raw, view, ctx) {

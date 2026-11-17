@@ -79,7 +79,8 @@ export function chartThemeFrom(style) {
         axisColor: v("--pk-border") || undefined,
         gridColor: v("--pk-grid") || v("--pk-border") || undefined,
         fontFamily: v("font-family") || undefined,
-        backgroundColor: "transparent"
+        backgroundColor: "transparent",
+        referenceColor: v("--pk-chart-reference") || undefined
     };
     // a number for ECharts (1 to 1000, as in CSS); a host's keyword (bold) or an empty token keeps DEFAULT_THEME's
     const strong = Number(v("--pk-weight-strong"));
