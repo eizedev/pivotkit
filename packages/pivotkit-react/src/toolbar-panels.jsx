@@ -826,8 +826,8 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
     };
     // nothing to export yet: off, with the reason
     const off = empty ? { disabled: true, reason: labels.exportNeedsField } : {};
-    // no rows: the source data are off too, with the table's reason while that is off (#585)
-    const noRows = (dataExport?.encoded?.length ?? 0) === 0 ? { disabled: true, reason: empty ? labels.exportNeedsField : labels.exportNeedsRows } : {};
+    // no rows: the source data are off too; a field placed would not turn them on (#585)
+    const noRows = (dataExport?.encoded?.length ?? 0) === 0 ? { disabled: true, reason: labels.exportNeedsRows } : {};
     return (
         <>
             <Section title={labels.exportDownload}>

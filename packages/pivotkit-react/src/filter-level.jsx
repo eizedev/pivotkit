@@ -26,7 +26,7 @@ import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 import { useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, Radio, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
-import { dayText, isoDay, periodText, plainRange, rangeShare, refLabel, relativeText, todayIn, yearText } from "./names.js";
+import { dayMs, dayText, isoDay, namedUntil, periodText, plainRange, rangeShare, refLabel, relativeText, todayIn, yearText } from "./names.js";
 import { numberText, parseNumber } from "./numbers.js";
 import { LayerContext, Popover } from "./popover.jsx";
 import { RULE_OPS, dateSpan, filtersOf, hiddenNot, opOf, ruleOp, sameRef, searchItems, selectedItems, sourceOf } from "./view-ops.js";
@@ -477,7 +477,8 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
         };
         // the current period of the unit, for the words of its checkbox ("Nov 2026 has no data")
         const current = datesOf({ direction: "this", unit: row.unit });
-        const currentEmpty = current?.from ? rowsOf(current) === 0 : false;
+        // empty only with a day before today in it: a period that starts today cannot have data yet (#586)
+        const currentEmpty = current?.from ? rowsOf(current) === 0 && dayMs(namedUntil({ from: current.from, to: current.to }, span, todayIso)) >= dayMs(current.from) : false;
         return (
             <div className="pk-quick-row" key={d}>
                 {radio(d, quick.id === d, () => change({}), name, <span aria-hidden="true">{capital(before.trimEnd(), locale)}</span>, range !== null)}
@@ -544,7 +545,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     // the reference date: below the choices when the data end before the current period (the month; the
     // year for a grouping by year or quarter) or when it is not today, else among More choices; placed
     // once, so it does not move while it is used
-    const today = new Date(todayIso ?? isoDay(now));
+    const today = new Date(todayIso);
     const periodStart = fk.months ? Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1) : Date.UTC(today.getUTCFullYear(), 0, 1);
     const [anchorOutside] = useState(() => span.max < periodStart || anchor !== "today");
     const anchorKind = ["today", "latest", "first"].includes(anchor) ? anchor : "date";

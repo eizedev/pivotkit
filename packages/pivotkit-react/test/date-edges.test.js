@@ -9,6 +9,8 @@ import { combinedYearsText, dateFromInput, dateInputValue, dayOnOrBefore, yearRu
 import { compareText, isoDay, periodText, rangeShare, wholeYears, yearText } from "../src/names.js";
 
 const L = { ...LABELS.en, ...menuEn };
+// today for the data's share of a range: long after the data of years around 0, long before 10000
+const TODAY = "2026-11-17";
 /** Wall-clock ms of a day in any year. */
 const dayMs = (year, month, day) => {
     const d = new Date(0);
@@ -36,10 +38,10 @@ test("an ISO day of any year, and periods written as the table writes their year
 });
 
 test("the data's share of a range across year 0", () => {
-    const share = rangeShare({ from: "-000002-01-01", to: "0001-12-31" }, "year", { min: dayMs(-1, 6, 1), max: dayMs(0, 6, 1) }, "en-US");
+    const share = rangeShare({ from: "-000002-01-01", to: "0001-12-31" }, "year", { min: dayMs(-1, 6, 1), max: dayMs(0, 6, 1) }, "en-US", TODAY);
     assert.deepEqual(share, { none: false, data: "2 BC–1 BC", missing: ["3 BC", "1"], count: 2 });
-    assert.equal(rangeShare({ from: "-000001-01-01", to: "0000-12-31" }, "year", { min: dayMs(-1, 6, 1), max: dayMs(0, 6, 1) }, "en-US"), null);
-    assert.deepEqual(rangeShare({ from: "+010001-01-01", to: "+010002-12-31" }, "year", { min: dayMs(10000, 1, 1), max: dayMs(10000, 6, 1) }, "en-US"), { none: true });
+    assert.equal(rangeShare({ from: "-000001-01-01", to: "0000-12-31" }, "year", { min: dayMs(-1, 6, 1), max: dayMs(0, 6, 1) }, "en-US", TODAY), null);
+    assert.deepEqual(rangeShare({ from: "+010001-01-01", to: "+010002-12-31" }, "year", { min: dayMs(10000, 1, 1), max: dayMs(10000, 6, 1) }, "en-US", TODAY), { none: true });
 });
 
 test("comparisons of whole years, and between in time order, for years with a sign", () => {

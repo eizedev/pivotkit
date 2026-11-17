@@ -89,7 +89,7 @@ test.describe("Export → Source data", () => {
         await report.close();
     });
 
-    test("no rows yet: Source data is off with the others' reason, and on once a file is loaded (#585)", async ({ page }) => {
+    test("no rows yet: Source data is off and says why, and on once a file is loaded (#585)", async ({ page }) => {
         // a host with an empty -Data, Source data and loading data on, before the reader loads a file
         await page.goto("pages/host.html?nodata&exportdata&import");
         await expect(page.getByTestId("empty-state")).toBeVisible();
@@ -97,8 +97,10 @@ test.describe("Export → Source data", () => {
         for (const id of [...TABLE_EXPORTS, ...SOURCE_EXPORTS]) {
             await expect(page.getByTestId(id)).toBeDisabled();
         }
+        // the table's entries wait for a field, the source data for rows: a field would not turn them on
+        await expect(page.getByTestId("export-csv")).toContainText("Add a field first.");
         for (const id of SOURCE_EXPORTS) {
-            await expect(page.getByTestId(id)).toContainText("Add a field first.");
+            await expect(page.getByTestId(id)).toContainText("The data has no rows yet.");
         }
         await page.keyboard.press("Escape");
         // a file with rows: Source data is on, the table's exports wait for a field
@@ -108,7 +110,7 @@ test.describe("Export → Source data", () => {
         await toolbar(page, "export");
         for (const id of SOURCE_EXPORTS) {
             await expect(page.getByTestId(id)).toBeEnabled();
-            await expect(page.getByTestId(id)).not.toContainText("Add a field first.");
+            await expect(page.getByTestId(id)).not.toContainText("The data has no rows yet.");
         }
         await expect(page.getByTestId("export-csv")).toBeDisabled();
     });

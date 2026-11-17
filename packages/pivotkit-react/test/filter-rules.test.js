@@ -8,7 +8,7 @@ import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { QUICK_UNITS, RULES_MAX, RULE_TYPES, filterState, keepsBlanks, rowsInRange, setRuleBlanks, setTopFilter, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
-import { compareText, itemRuleText, rangeShare, rangeText, relativeText } from "../src/names.js";
+import { compareText, itemRuleText, namedUntil, rangeShare, rangeText, relativeText } from "../src/names.js";
 import { addField, dateSpan, filtersOf, groupField } from "../src/view-ops.js";
 
 const data = encode([
@@ -239,7 +239,6 @@ test("the data's share of a range names no day from today on: they have no data 
     // a range with no past day and no data: today alone, the current week on its Monday
     assert.equal(relativeText({ unit: "day", count: 1 }, L, "en-US", "UTC", now, until("2026-11-16")), "last 1 day (Nov 17, 2026)");
     assert.equal(relativeText({ unit: "week", count: 1 }, L, "en-US", "UTC", "2026-11-16", until("2026-11-15")), "last 1 week (Nov 16, 2026–Nov 22, 2026)");
-    // a range whose past days have no data at all still says so
     // a range without any data names its days up to yesterday, not the days ahead
     assert.equal(relativeText({ unit: "week", count: 1 }, L, "en-US", "UTC", now, until("2026-11-15")), "last 1 week (Nov 16, 2026 has no data)");
     assert.equal(relativeText(weeks, L, "en-US", "UTC", now, until("2025-06-30")), "last 4 weeks (Oct 26, 2026–Nov 16, 2026 has no data)");
@@ -256,10 +255,19 @@ test("the data's share of a range names no day from today on: they have no data 
     assert.equal(relativeText(weeks, L, "en-US", "UTC", late, until("2026-11-15")), "last 4 weeks (Oct 26, 2026–Nov 15, 2026; Nov 16, 2026 has no data)");
     // data with dates ahead (end-of-life dates), a range ahead as Next keeps: the years after their last date are named
     assert.deepEqual(rangeShare({ from: "2027-01-01", to: "2036-12-31" }, "year", until("2031-06-30"), "en-US", now), { none: false, data: "2027–2031", missing: ["2032–2036"], count: 5 });
-    // the share alone: without today every missing day is named, with it none from today on
+    // the share alone: with today inside the range, no day from today on is named
     const range = { from: "2026-10-26", to: "2026-11-22" };
-    assert.equal(rangeShare(range, "week", until("2026-11-16"), "en-US").missing.join(), "Nov 17, 2026–Nov 22, 2026");
     assert.equal(rangeShare(range, "week", until("2026-11-16"), "en-US", "2026-11-17"), null);
+    // a range wholly after today on data that ended before it, as Next keeps: the whole range warns
+    assert.deepEqual(rangeShare({ from: "2026-11-23", to: "2026-12-06" }, "week", until("2026-11-16"), "en-US", now), { none: true });
+    assert.deepEqual(rangeShare({ from: "2027-01-01", to: "2029-12-31" }, "year", until("2026-11-16"), "en-US", now), { none: true });
+    // data with a few rows dated after today: every missing day is named, today's week too
+    assert.equal(rangeShare(range, "week", { min: Date.UTC(2025, 0, 1), max: Date.UTC(2026, 10, 18) }, "en-US", now).missing.join(), "Nov 19, 2026–Nov 22, 2026");
+    // namedUntil: yesterday only while the range holds today and the data have no date after today
+    assert.equal(namedUntil(range, until("2026-11-16"), now), "2026-11-16");
+    assert.equal(namedUntil({ from: "2026-11-17", to: "2026-11-30" }, until("2026-11-16"), now), "2026-11-16");
+    assert.equal(namedUntil({ from: "2026-11-23", to: "2026-12-06" }, until("2026-11-16"), now), "2026-12-06");
+    assert.equal(namedUntil(range, until("2026-11-18"), now), "2026-11-22");
     assert.deepEqual(rangeShare(range, "week", until("2026-11-10"), "en-US", "2026-11-17"), { none: false, data: "Oct 26, 2026–Nov 10, 2026", missing: ["Nov 11, 2026–Nov 16, 2026"], count: 2 });
 });
 

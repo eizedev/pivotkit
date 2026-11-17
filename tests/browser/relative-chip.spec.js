@@ -60,3 +60,42 @@ test("data with dates ahead: Next names the years after the data's last date", a
     await menu.getByTestId("quick-next-count").fill("20");
     await expect(menu.getByTestId("quick-next")).toHaveAccessibleDescription(/^2026–2040 \(2041–2045 have no data\)/);
 });
+
+test.describe("a month grouping of the weather data, which end on Dec 31, 2025", () => {
+    const MONTH = "Date by month";
+    const monthView = { derived: [{ name: MONTH, field: "Date", by: "yearMonth" }], rows: [MONTH], values: [{ agg: "count" }] };
+
+    /** The Filter level of the month grouping, the browser's clock at noon UTC of a day. */
+    async function level(page, day) {
+        await page.clock.setFixedTime(new Date(`${day}T12:00:00Z`));
+        await page.goto(`?data=weather&empty#pivot-playground=${encodeViewLink(monthView)}`);
+        await expect(page.locator('[data-testid="pivot-table"]')).toBeVisible();
+        await chipMenu(page, MONTH, "filter");
+        return page.locator(".pk-chip-menu");
+    }
+
+    test("on Jan 1, 2026 the current month has no day before today: its checkbox does not warn and offers no count back", async ({ page }) => {
+        const menu = await level(page, "2026-01-01");
+        await menu.getByTestId("quick-last").click();
+        await expect(menu.getByTestId("quick-last-current").locator("..")).toHaveText("Include the current month");
+        await expect(menu.getByTestId("quick-last-from-latest")).toHaveCount(0);
+    });
+
+    test("on Jan 2, 2026 Jan 1 has passed without rows: the checkbox warns and offers the count back", async ({ page }) => {
+        const menu = await level(page, "2026-01-02");
+        await menu.getByTestId("quick-last").click();
+        await expect(menu.getByTestId("quick-last-current").locator("..")).toHaveText("Include the current month (Jan 2026 has no data)");
+        await expect(menu.getByTestId("quick-last-from-latest")).toBeVisible();
+    });
+
+    test("Next 3 years without the current one lie wholly after today: the whole range has no data", async ({ page }) => {
+        const menu = await level(page, "2026-01-01");
+        await menu.getByTestId("quick-more").click();
+        await menu.getByTestId("quick-next").click();
+        await menu.getByTestId("quick-next-unit").selectOption("year");
+        await menu.getByTestId("quick-next-count").fill("3");
+        await menu.getByTestId("quick-next-current").click();
+        await expect(menu.getByTestId("quick-next-current")).not.toBeChecked();
+        await expect(menu.getByTestId("quick-next")).toHaveAccessibleDescription(/^2027–2029 has no data/);
+    });
+});

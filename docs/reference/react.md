@@ -324,10 +324,11 @@ A copy has its `text` and the `fileName` it would have as a file. A drill-down e
 `rows: { shown, count }`.
 
 An empty report has no field placed. Its table's Export entries are greyed out ("Add a field
-first."), and the report does not call `onExport` for them. Source data stays.
+first."), and the report does not call `onExport` for them. Source data stays while the data have
+rows.
 
-Data without rows turn Source data off too. Its entries say "Add a field first." while the view
-places no field. Otherwise they say "The data has no rows yet."
+Data without rows turn Source data off too. Its entries say "The data has no rows yet.", and the
+report does not call `onExport` for them.
 
 ### `exportData` { #prop-exportdata }
 
@@ -966,8 +967,9 @@ count relative to one of these:
   their own (the filter's `anchor`)
 
 The level offers This only for the units whose current period has data. It says the data's share of
-a range ("2025; 2026 has no data"). While the data end by today, it leaves out the days from today
-on, read in `encode`'s `timeZone`. Those days cannot have data yet.
+a range ("2025; 2026 has no data"). When the data have no date after today, it leaves out the days
+from today on in a range that holds today. Today comes from `encode`'s `timeZone`. With rows dated
+after today, it names every day.
 
 The rules write pivotkit-core's `relative`, `compare`, `value` and `text` filters
 ([Filters](../concepts/filters.md#filters-in-the-ui)). A rule's result line and the summary compute

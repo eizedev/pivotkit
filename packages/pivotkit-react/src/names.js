@@ -156,8 +156,23 @@ export function relativeDays(f, timeZone, now, latest, more = {}) {
     return range && range.from !== null ? { from: range.from, to: range.to } : null;
 }
 
-/** Today in a time zone as an ISO day (`now`, default the current time); undefined beyond what a Date holds. */
-export const todayIn = (timeZone, now) => relativeDays({ unit: "day" }, timeZone, now)?.from;
+/** Today in a time zone as an ISO day (`now`, default the current time); the UTC day beyond what a Date holds. */
+export const todayIn = (timeZone, now) => relativeDays({ unit: "day" }, timeZone, now)?.from ?? isoDay(now === undefined ? Date.now() : new Date(now).getTime());
+
+/**
+ * The last day of a range whose lack of data is worth a word (#586): yesterday when the range holds
+ * today and the data have no date after today (the days from today on cannot have data yet), else
+ * the range's end. Rows dated after today (end-of-life dates, plans) keep every day, and so does a
+ * range wholly after today.
+ * @param {{ from: string, to: string }} range  ISO days (a minute's day is read)
+ * @param {{ min: number, max: number }} span  the data's first and last date (wall-clock ms)
+ * @param {string} today  today in the data's time zone (ISO day)
+ */
+export function namedUntil(range, span, today) {
+    const [from, to] = [dayPart(range.from), dayPart(range.to)];
+    const ended = dayMs(isoDay(span.max)) <= dayMs(today);
+    return ended && dayMs(from) <= dayMs(today) && dayMs(today) <= dayMs(to) ? dayAfter(today, -1) : to;
+}
 
 /** The dates of any relative filter (relativeDays' arguments): `from` null for "before". */
 const datesOf = (f, timeZone, now, latest, more = {}) =>
@@ -209,9 +224,9 @@ export function rangeText(f, locale, timeZone, now, latest) {
  * @param {string} unit
  * @param {{ min: number, max: number }} span  the data's first and last date (wall-clock ms)
  * @param {string} locale
- * @param {string} [today]  today in the data's time zone (ISO day). While the data end by today, days
- *   from today on have no data yet and are not named: null when only they lack data, `none` only when
- *   the range holds a day before today, with `to` the last day to name when that is before the range's end
+ * @param {string} today  today in the data's time zone (ISO day). The days `namedUntil` leaves out are
+ *   not named: null when only they lack data; `none` with `to`, the last day to name, when that is
+ *   before the range's end
  * @returns {{ none: true, to?: string } | { none: false, data: string, missing: string[], count: number } | null}  `count`: how many
  *   periods have no data, for the words ("2026 has no data", "2021–2022 have no data")
  */
@@ -220,10 +235,7 @@ export function rangeShare(range, unit, span, locale, today) {
     // is measured in months, a week in days
     const grain = unit === "quarter" ? "month" : unit === "week" ? "day" : unit;
     range = { from: dayPart(range.from), to: dayPart(range.to) };
-    // the last day a missing part is named to: yesterday while the data end by today (days to come
-    // cannot have data yet), else the range's end (dates ahead, such as end-of-life dates, can)
-    const ended = today !== undefined && dayMs(isoDay(span.max)) <= dayMs(today);
-    const until = ended && dayMs(today) <= dayMs(range.to) ? dayAfter(today, -1) : range.to;
+    const until = namedUntil(range, span, today);
     const [first, last] = [periodStart(isoDay(span.min), grain), periodEnd(isoDay(span.max), grain)];
     if (dayMs(first) <= dayMs(range.from) && dayMs(last) >= dayMs(until)) {
         return null;
@@ -286,8 +298,8 @@ function periodEnd(iso, unit) {
 /**
  * A relative date range in short, with the days it keeps: "last 5 years (2022–2026)", "this year
  * (2026)". With the data's span, the data's share of them: "last 2 years (2025; 2026 has no data)",
- * "this year (2026 has no data)". While the data end by today, the days from today on are not named:
- * they cannot have data yet (#586).
+ * "this year (2026 has no data)". The days from today on are not named while the data have no date
+ * after today: they cannot have data yet (namedUntil, #586).
  * Anchored at the data's latest date: "last 12 months to Dec 2025",
  * its days only when the data do not cover them all.
  * @param {{ unit: string, count?: number, anchor?: string, direction?: string, calendar?: boolean, includeCurrent?: boolean }} f  a `relative` filter
