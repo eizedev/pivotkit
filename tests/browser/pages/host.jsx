@@ -20,8 +20,10 @@
 // the chart draws, from the ECharts the report loaded (the same module through the import map). ?importlimits
 // sets importLimits rows 1,000 and cells 100 and limits columns 4: the host's 2,000 rows and its grid of more
 // than 100 cells stay, a file gets all three. ?exportcolumns=A,B sets exportData to { columns: ["A", "B"] },
-// ?exportcolumnstext=A to { columns: "A" };
-// without it exportData is off, as by default. ?drillexport sets drillDownExport. ?printself has onExport take the report's print
+// ?exportcolumnstext=A to { columns: "A" }, ?exportdata to true;
+// without them exportData is off, as by default. ?nodata passes no rows and starts on an empty view, as a
+// PowerShell Universal report with an empty -Data; ?nodata=columns passes columnar data with columns but no
+// rows and starts on a view that places one of them. ?drillexport sets drillDownExport. ?printself has onExport take the report's print
 // (returns false; window.__hostPrinted keeps the file name); ?strict renders the page in React's
 // StrictMode (effects mounted, cleaned up and mounted again).
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -34,7 +36,9 @@ const rows = DATASETS.sales.make(2000);
 const otherRows = DATASETS.sales.make(500);
 const query = new URLSearchParams(location.search);
 const echoDelay = Number(query.get("asyncecho")) || 50;
-const start = query.has("broken") ? { rows: ["Region", "Hostname"], values: [{ field: "Revenue", agg: "sum", format: "money" }] } : DATASETS.sales.presets[0].view;
+// ?nodata=columns: the columns of the sales data with no rows
+const noRows = { columns: ["Region", "Revenue"], types: ["string", "number"], data: [[], []] };
+const start = query.has("nodata") ? (query.get("nodata") === "columns" ? { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }] } : {}) : query.has("broken") ? { rows: ["Region", "Hostname"], values: [{ field: "Revenue", agg: "sum", format: "money" }] } : DATASETS.sales.presets[0].view;
 
 function Host() {
     const [view, setView] = useState(start);
@@ -104,6 +108,8 @@ function Host() {
         ...(query.has("nokey") ? { storageKey: undefined } : {}),
         // Source data and the drill-down's exports with only these columns (a new object on every render)
         ...(query.has("exportcolumns") ? { exportData: { columns: query.get("exportcolumns").split(",") } } : {}),
+        // Source data with every column
+        ...(query.has("exportdata") ? { exportData: true } : {}),
         // the drill-down's copy and download, also with exportData off
         ...(query.has("drillexport") ? { drillDownExport: true } : {}),
         // a host's mistake: columns as a text, not a list
@@ -113,8 +119,9 @@ function Host() {
         // a host that keeps uploads small without capping its own 2,000 rows (new objects on every render)
         ...(query.has("importlimits") ? { importLimits: { rows: 1000, cells: 100 }, limits: { columns: 4 } } : {})
     };
-    const shown = loading || empty ? [] : other ? otherRows : rows;
-    const dataKey = loading || empty ? "none" : other ? "sales-500" : "sales-2000";
+    const none = query.has("nodata");
+    const shown = loading || empty || none ? [] : other ? otherRows : rows;
+    const dataKey = loading || empty || none ? "none" : other ? "sales-500" : "sales-2000";
     return (
         <>
             <p data-testid="host-renders">{tick}</p>
@@ -141,7 +148,7 @@ function Host() {
                 </p>
             ) : null}
             <section data-testid="first">
-                <PivotReport key={mount} data={[...shown]} dataKey={dataKey} view={view} onViewChange={onViewChange} height={640} loading={loading} {...extra} />
+                <PivotReport key={mount} data={query.get("nodata") === "columns" ? noRows : [...shown]} dataKey={dataKey} view={view} onViewChange={onViewChange} height={640} loading={loading} {...extra} />
             </section>
             {query.has("two") ? (
                 <section data-testid="second">

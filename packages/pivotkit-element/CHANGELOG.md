@@ -55,6 +55,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   [#386](https://github.com/eizedev/pivotkit/issues/386), [#537](https://github.com/eizedev/pivotkit/issues/537)).
 - A view's locale or a `locale` attribute that the browser has no data for, such as `xx-XX`, no
   longer takes the machine's locale, as in pivotkit-react ([#552](https://github.com/eizedev/pivotkit/issues/552)).
+- Export → Source data is off while the data have no rows, and a relative date filter names no day
+  from today on as having no data while the data have no date after today, as in pivotkit-react ([#585](https://github.com/eizedev/pivotkit/issues/585), [#586](https://github.com/eizedev/pivotkit/issues/586)).
 - The element bundles pivotkit-core's chart labels at small sizes: slanted category names leave the
   plot its height, a donut's outside labels stay whole, the value at the end of a horizontal bar is
   not cut, and a heatmap names every row that has room ([#228](https://github.com/eizedev/pivotkit/issues/228), [#229](https://github.com/eizedev/pivotkit/issues/229),

@@ -156,6 +156,24 @@ export function relativeDays(f, timeZone, now, latest, more = {}) {
     return range && range.from !== null ? { from: range.from, to: range.to } : null;
 }
 
+/** Today in a time zone as an ISO day (`now`, default the current time); the UTC day beyond what a Date holds. */
+export const todayIn = (timeZone, now) => relativeDays({ unit: "day" }, timeZone, now)?.from ?? isoDay(now === undefined ? Date.now() : new Date(now).getTime());
+
+/**
+ * The last day of a range whose lack of data is worth a word (#586): yesterday when the range holds
+ * today and the data have no date after today (the days from today on cannot have data yet), else
+ * the range's end. Rows dated after today (end-of-life dates, plans) keep every day, and so does a
+ * range wholly after today.
+ * @param {{ from: string, to: string }} range  ISO days (a minute's day is read)
+ * @param {{ min: number, max: number }} span  the data's first and last date (wall-clock ms)
+ * @param {string} today  today in the data's time zone (ISO day)
+ */
+export function namedUntil(range, span, today) {
+    const [from, to] = [dayPart(range.from), dayPart(range.to)];
+    const ended = dayMs(isoDay(span.max)) <= dayMs(today);
+    return ended && dayMs(from) <= dayMs(today) && dayMs(today) <= dayMs(to) ? dayAfter(today, -1) : to;
+}
+
 /** The dates of any relative filter (relativeDays' arguments): `from` null for "before". */
 const datesOf = (f, timeZone, now, latest, more = {}) =>
     relativeDateRange(f.unit, f.count ?? 1, { timeZone, now, anchor: f.anchor, latest: latest ?? undefined, first: more.first ?? undefined, direction: f.direction, calendar: f.calendar, includeCurrent: f.includeCurrent, weekStart: more.weekStart });
@@ -206,22 +224,26 @@ export function rangeText(f, locale, timeZone, now, latest) {
  * @param {string} unit
  * @param {{ min: number, max: number }} span  the data's first and last date (wall-clock ms)
  * @param {string} locale
- * @returns {{ none: true } | { none: false, data: string, missing: string[], count: number } | null}  `count`: how many
+ * @param {string} today  today in the data's time zone (ISO day). The days `namedUntil` leaves out are
+ *   not named: null when only they lack data; `none` with `to`, the last day to name, when that is
+ *   before the range's end
+ * @returns {{ none: true, to?: string } | { none: false, data: string, missing: string[], count: number } | null}  `count`: how many
  *   periods have no data, for the words ("2026 has no data", "2021–2022 have no data")
  */
-export function rangeShare(range, unit, span, locale) {
+export function rangeShare(range, unit, span, locale, today) {
     // the data cover the whole period (year, month, day) their first and last date fall in; a quarter
     // is measured in months, a week in days
     const grain = unit === "quarter" ? "month" : unit === "week" ? "day" : unit;
     range = { from: dayPart(range.from), to: dayPart(range.to) };
+    const until = namedUntil(range, span, today);
     const [first, last] = [periodStart(isoDay(span.min), grain), periodEnd(isoDay(span.max), grain)];
-    if (dayMs(first) <= dayMs(range.from) && dayMs(last) >= dayMs(range.to)) {
+    if (dayMs(first) <= dayMs(range.from) && dayMs(last) >= dayMs(until)) {
         return null;
     }
     const from = dayMs(range.from) > dayMs(first) ? range.from : first;
     const to = dayMs(range.to) < dayMs(last) ? range.to : last;
     if (dayMs(from) > dayMs(to)) {
-        return { none: true };
+        return dayMs(range.from) > dayMs(until) ? null : until === range.to ? { none: true } : { none: true, to: until };
     }
     const missing = [];
     let count = 0;
@@ -248,13 +270,14 @@ export function rangeShare(range, unit, span, locale) {
             count += periodText({ from: rest.from, to: rest.from }, unit, locale) === periodText({ from: rest.to, to: rest.to }, unit, locale) ? 1 : 2;
         }
     };
-    if (dayMs(range.from) < dayMs(first)) {
-        part(range.from, dayAfter(first, -1), yearOf(first));
+    const before = dayMs(until) < dayMs(first) ? until : dayAfter(first, -1);
+    if (dayMs(range.from) <= dayMs(before)) {
+        part(range.from, before, yearOf(first));
     }
-    if (dayMs(range.to) > dayMs(last)) {
-        part(dayAfter(last), range.to, yearOf(last));
+    if (dayMs(until) > dayMs(last)) {
+        part(dayAfter(last), until, yearOf(last));
     }
-    return { none: false, data: periodText({ from, to }, unit, locale), missing, count };
+    return missing.length ? { none: false, data: periodText({ from, to }, unit, locale), missing, count } : null;
 }
 
 /** The first day of the year, month or day an ISO day falls in. */
@@ -275,7 +298,9 @@ function periodEnd(iso, unit) {
 /**
  * A relative date range in short, with the days it keeps: "last 5 years (2022–2026)", "this year
  * (2026)". With the data's span, the data's share of them: "last 2 years (2025; 2026 has no data)",
- * "this year (2026 has no data)". Anchored at the data's latest date: "last 12 months to Dec 2025",
+ * "this year (2026 has no data)". The days from today on are not named while the data have no date
+ * after today: they cannot have data yet (namedUntil, #586).
+ * Anchored at the data's latest date: "last 12 months to Dec 2025",
  * its days only when the data do not cover them all.
  * @param {{ unit: string, count?: number, anchor?: string, direction?: string, calendar?: boolean, includeCurrent?: boolean }} f  a `relative` filter
  * @param {import("./labels.js").UiLabels} labels
@@ -311,13 +336,13 @@ export function relativeText(f, labels, locale, timeZone, now, span, weekStart) 
     if (latest) {
         text = fill(labels.relativeTo, { text, end: periodText({ from: range.to, to: range.to }, f.unit, locale) });
     }
-    const share = span ? rangeShare(range, f.unit, span, locale) : null;
+    const share = span ? rangeShare(range, f.unit, span, locale, todayIn(timeZone, now)) : null;
     if (!share) {
         return latest ? text : fill(labels.withRange, { text, range: periodText(range, f.unit, locale) });
     }
     const lang = { lang: labels.lang, locale };
     if (share.none) {
-        return fill(labels.withRange, { text, range: fill(plural(labels.noData, 1, lang), { range: periodText(range, f.unit, locale) }) });
+        return fill(labels.withRange, { text, range: fill(plural(labels.noData, 1, lang), { range: periodText({ from: range.from, to: share.to ?? range.to }, f.unit, locale) }) });
     }
     return fill(labels.withShare, { text, range: share.data, missing: fill(plural(labels.noData, share.count, lang), { range: share.missing.join(", ") }) });
 }

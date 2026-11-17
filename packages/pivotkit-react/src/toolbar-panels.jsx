@@ -812,7 +812,7 @@ export function ExportOption({ icon, text, info, onSelect, testId, disabled, rea
  * CSV or JSON, apart from the table's exports so the two are not taken for each other. The export module loads when the menu opens, so a copy happens right in
  * the click; so does a print (the print frame is made ready when the menu opens, the report's modules
  * load when Print is pointed at or focused: use-export.js). An empty report (no field placed) has no table to export: those entries are off, and say
- * so; the source data is there all the same. The chart's images are off while the table is shown.
+ * so; the source data is there all the same, while the data have rows (#585). The chart's images are off while the table is shown.
  * `dataExport`: the host's exportData with the data shown, read by export-scope.js (#259).
  * @param {{ labels: import("./labels.js").UiLabels, onExport: (kind: string) => void, chartReady: boolean, display: string, empty?: boolean,
  *   dataExport?: { exportData: unknown, encoded: import("pivotkit-core").Encoded | null }, prepare: (what: "menu" | "print") => (() => void) | undefined, close: () => void }} props
@@ -826,6 +826,8 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
     };
     // nothing to export yet: off, with the reason
     const off = empty ? { disabled: true, reason: labels.exportNeedsField } : {};
+    // no rows: the source data are off too; a field placed would not turn them on (#585)
+    const noRows = (dataExport?.encoded?.length ?? 0) === 0 ? { disabled: true, reason: labels.exportNeedsRows } : {};
     return (
         <>
             <Section title={labels.exportDownload}>
@@ -845,8 +847,8 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
             </Section>
             {source ? (
                 <Section title={labels.exportDataGroup}>
-                    <ExportOption icon="file" text={labels.exportDataCsv} info="exportDataCsv" onSelect={run("data-csv")} testId="export-data-csv" />
-                    <ExportOption icon="file" text={labels.exportDataJson} info="exportDataJson" onSelect={run("data-json")} testId="export-data-json" />
+                    <ExportOption icon="file" text={labels.exportDataCsv} info="exportDataCsv" onSelect={run("data-csv")} {...noRows} testId="export-data-csv" />
+                    <ExportOption icon="file" text={labels.exportDataJson} info="exportDataJson" onSelect={run("data-json")} {...noRows} testId="export-data-json" />
                 </Section>
             ) : null}
         </>

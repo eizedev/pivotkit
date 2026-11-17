@@ -37,6 +37,9 @@ While you have placed no field, there is no table to export. The table's entries
 with "Add a field first." under them, and nothing is downloaded or copied. The source data is there
 all the same.
 
+While the data have no rows, the source data entries are off too. They say "The data has no rows
+yet." A field does not turn them on. Loading data with rows does.
+
 - The menu has three titled groups: **Download**, **Print** and **Copy**.
 - A fourth group, **Source data**, comes last where the application turns it on. The playground
   does. It may hold only some of the fields.

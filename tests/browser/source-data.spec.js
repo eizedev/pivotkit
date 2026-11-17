@@ -6,9 +6,14 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { expect, tableRows, test, toolbar } from "./fixtures.js";
+import { fieldNames, fileOf, pickThroughMenu } from "./import-helpers.js";
 
 const CLI = fileURLToPath(new URL("../../packages/pivotkit-cli/bin/pivotkit.js", import.meta.url));
 const run = promisify(execFile);
+
+/** The test ids of the Export menu's entries. */
+const TABLE_EXPORTS = ["export-xlsx", "export-csv", "export-html", "export-print", "export-copy-table", "export-copy-json"];
+const SOURCE_EXPORTS = ["export-data-csv", "export-data-json"];
 
 /** The groups of the open Export menu: each title with the entries' test ids, in order. */
 const exportGroups = (page) =>
@@ -82,5 +87,42 @@ test.describe("Export → Source data", () => {
         const rendered = await report.locator("table tbody tr").evaluateAll((trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent.trim())));
         expect(rendered).toEqual(screen);
         await report.close();
+    });
+
+    test("no rows yet: Source data is off and says why, and on once a file is loaded (#585)", async ({ page }) => {
+        // a host with an empty -Data, Source data and loading data on, before the reader loads a file
+        await page.goto("pages/host.html?nodata&exportdata&import");
+        await expect(page.getByTestId("empty-state")).toBeVisible();
+        await toolbar(page, "export");
+        for (const id of [...TABLE_EXPORTS, ...SOURCE_EXPORTS]) {
+            await expect(page.getByTestId(id)).toBeDisabled();
+        }
+        // the table's entries wait for a field, the source data for rows: a field would not turn them on
+        await expect(page.getByTestId("export-csv")).toContainText("Add a field first.");
+        for (const id of SOURCE_EXPORTS) {
+            await expect(page.getByTestId(id)).toContainText("The data has no rows yet.");
+        }
+        await page.keyboard.press("Escape");
+        // a file with rows: Source data is on, the table's exports wait for a field
+        await pickThroughMenu(page, page, fileOf("tickets.csv", "text/csv", "Id,Team,Hours\n1,Network,2\n2,Server,3\n"));
+        await page.getByTestId("import-apply").click();
+        await expect.poll(() => fieldNames(page)).toEqual(["Id", "Team", "Hours"]);
+        await toolbar(page, "export");
+        for (const id of SOURCE_EXPORTS) {
+            await expect(page.getByTestId(id)).toBeEnabled();
+            await expect(page.getByTestId(id)).not.toContainText("The data has no rows yet.");
+        }
+        await expect(page.getByTestId("export-csv")).toBeDisabled();
+    });
+
+    test("columns but no rows: the table's exports stay on, Source data is off and says why (#585)", async ({ page }) => {
+        await page.goto("pages/host.html?nodata=columns&exportdata");
+        await expect(page.getByTestId("pivot-table")).toBeVisible();
+        await toolbar(page, "export");
+        await expect(page.getByTestId("export-csv")).toBeEnabled();
+        for (const id of SOURCE_EXPORTS) {
+            await expect(page.getByTestId(id)).toBeDisabled();
+            await expect(page.getByTestId(id)).toContainText("The data has no rows yet.");
+        }
     });
 });
