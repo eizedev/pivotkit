@@ -47,13 +47,17 @@ Every decision is measured against these. When two conflict, the earlier one win
 4. **Running in one step.** Starting the container is enough: pivotkit creates what it needs at
    start, and you can read it out afterwards. Detailed manual setups stay possible but are not the
    default.
-5. **Everything with pivotkit itself.** What operators and users need is a pivotkit command, not a
+5. **Simple to start, deep when needed.** Frequent tasks are visible and take few clicks. Rare and
+   powerful features stay, one level deeper, in the same menu pattern. One way of operating
+   everywhere: no extra state or toggle without a clear benefit. The words are ones an Excel user
+   understands.
+6. **Everything with pivotkit itself.** What operators and users need is a pivotkit command, not a
    recipe with other tools. Users get by with curl or PowerShell. The maintainer decides exceptions.
-6. **Any client, any model.** REST and MCP work the same for every AI client and model, hosted or
+7. **Any client, any model.** REST and MCP work the same for every AI client and model, hosted or
    local, and for plain programs. Nothing requires one vendor. Client-specific helpers are optional.
-7. **A product, not one installation.** What one environment shows is feedback, not a requirement.
+8. **A product, not one installation.** What one environment shows is feedback, not a requirement.
    pivotkit works everywhere or says clearly why not.
-8. **Maintainable.** Each thing is defined once and reused. Every change has tests that fail without
+9. **Maintainable.** Each thing is defined once and reused. Every change has tests that fail without
    it and docs that describe how it works now.
 
 ## What pivotkit is not
