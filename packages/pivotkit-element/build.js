@@ -305,10 +305,10 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * chart draws which line (0.17 of it) and the words of the lines. The rules cannot leave the first
  * load cleanly: the menus need them from pivotkit-core's main entry, and a new entry point would be
  * one more bare import for a host's import map. The maintainer raised the budget for 0.8.0, about
- * 1 KiB above CI: 176.6; the split of the first load is #546 (0.9.0).
+ * 0.5 KiB above CI: 176.1; the split of the first load is #546 (0.9.0).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 176.6, chart: 242.6, export: 12.6, link: 7.5, menus: 50.5, texts: 7.8, unused: 5.5, import: 22, report: 23.8, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 176.1, chart: 242.6, export: 12.6, link: 7.5, menus: 50.5, texts: 7.8, unused: 5.5, import: 22, report: 23.8, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

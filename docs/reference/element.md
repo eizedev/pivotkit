@@ -549,7 +549,7 @@ They are approximate and change with every dependency update.
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 176.6 KiB, about 1 KiB more than CI measures (175.6 KiB). A split of
+- The first load's budget is 176.1 KiB, about 0.5 KiB more than CI measures (175.6 KiB). A split of
   the first load is planned ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - The budgets of the groups loaded later are 1 to 7 per cent more than CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.
