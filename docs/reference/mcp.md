@@ -191,7 +191,7 @@ unknown `level` as `summary`, since more levels may come.
 | `items` | `20` | Values listed per `show` field |
 | `valuesMax` | `50` | Server and source: the most distinct values a `values` field may have (at most 1000) |
 | `autoValues` | `false` | Server and source: the [automatic rule](#auto-values): `true`, `false` or `{ "maxDistinct", "minRowsPerValue", "minRows", "deny" }` |
-| `rows` | `true` | Show the number of rows (`false` also keeps a render's `sourceRows` and `keptRows` back) |
+| `rows` | `true` | Show the number of rows (`false` also keeps a render's `sourceRows` and `keptRows` back, and the HTML report's row count) |
 | `counts` | `true` | Show distinct and blank counts per field |
 | `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline. `bytes` counts the text that is sent, for json the one on one line. `false`: never. An inline csv (`inline.text`) has no byte order mark, as text a program reads. The csv file starts with one |
 | `results` | `false` | The REST service's file route may hand out the rendered file ([downloads](rest.md#downloads)) |

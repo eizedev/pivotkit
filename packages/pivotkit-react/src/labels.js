@@ -7,7 +7,7 @@
  * load with them; a host's entries for them are kept here and win there.
  */
 
-import { GROUPING_NAMES, PivotkitError, REPORT_LABELS } from "pivotkit-core";
+import { GROUPING_NAMES, PLURAL_CATEGORIES, PivotkitError, REPORT_LABELS, ROW_COUNT_TEXTS, pluralForm } from "pivotkit-core";
 
 /**
  * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
@@ -152,10 +152,11 @@ export const en = {
     dismissIssues: "Dismiss",
     loadingChart: "Loading chart…",
     noChartData: "Add a value to see a chart.",
-    // a count in words: one form per Intl.PluralRules category of the language ("one", "other", ...)
-    rowsCount: { one: "{count} row", other: "{count} rows" },
+    // a count in words: one form per Intl.PluralRules category of the language ("one", "other", ...);
+    // the row counts are pivotkit-core's, so pivotkit-report's HTML report says the same
+    rowsCount: ROW_COUNT_TEXTS.en.rowsCount,
     // a filter left rows out: the rows kept ({shown}) of the data's ({count}, which picks the form)
-    rowsFiltered: { one: "{shown} of {count} row", other: "{shown} of {count} rows" },
+    rowsFiltered: ROW_COUNT_TEXTS.en.rowsFiltered,
     tableName: "Pivot table",
     emptyCell: "No rows",
     emptyValue: "No value",
@@ -472,8 +473,8 @@ export const de = {
     dismissIssues: "Ausblenden",
     loadingChart: "Diagramm wird geladen…",
     noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",
-    rowsCount: { one: "{count} Zeile", other: "{count} Zeilen" },
-    rowsFiltered: { one: "{shown} von {count} Zeile", other: "{shown} von {count} Zeilen" },
+    rowsCount: ROW_COUNT_TEXTS.de.rowsCount,
+    rowsFiltered: ROW_COUNT_TEXTS.de.rowsFiltered,
     tableName: "Pivot-Tabelle",
     emptyCell: "Keine Zeilen",
     emptyValue: "Kein Wert",
@@ -700,9 +701,6 @@ export function fill(template, values) {
     return String(template).replace(/\{(\w+)\}/g, (all, name) => (Object.hasOwn(values, name) ? String(values[name]) : all));
 }
 
-/** The categories of Intl.PluralRules: the keys a count label may have. */
-const PLURAL_CATEGORIES = Object.freeze(["zero", "one", "two", "few", "many", "other"]);
-
 /** True for a count label: an object of plural forms with at least `other`. */
 const isPluralForms = (v) => v !== null && typeof v === "object" && !Array.isArray(v) && Object.hasOwn(v, "other") && Object.keys(v).every((k) => PLURAL_CATEGORIES.includes(k));
 
@@ -714,14 +712,7 @@ const isPluralForms = (v) => v !== null && typeof v === "object" && !Array.isArr
  * @param {{ lang: string, locale: string }} options
  */
 export function plural(forms, count, { lang, locale }) {
-    let category = "other";
-    try {
-        category = new Intl.PluralRules(lang).select(count);
-    } catch {
-        // a language tag Intl does not take: the "other" form
-    }
-    const form = typeof forms[category] === "string" ? forms[category] : forms.other;
-    return fill(form ?? "", { count: count.toLocaleString(locale) });
+    return fill(pluralForm(forms, count, lang), { count: count.toLocaleString(locale) });
 }
 
 /**
