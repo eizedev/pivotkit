@@ -172,6 +172,7 @@ configuration, under "New in this version", with a link to each section below.
 | [A byte quota and an age limit for drafts](#draft-quota) | callers make schedule drafts (`draft_schedule`, `POST /schedules/draft`) | nothing; run `check-config`; set `output.draftMaxAgeDays` if waiting drafts should expire |
 | [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
 | [Chart layout functions measure differently](#chart-layout-0-8) | your code calls `rowLabelInterval`, `heatmapCellLabels`, `columnLabelLayout` or `categoryLabelLayout` of `pivotkit-core/chart` | check the results you rely on. Pass `frame` to keep the old heatmap frame |
+| [The report's row counts take plural forms](#report-count-forms) | your code reads `REPORT_TEXTS.<lang>.rowsCount` or `rowsFiltered` as a text, or a test expects "1 rows" | read them as forms (`.other` for the old text); expect "1 row" |
 | [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` or the report's `texts` set `rowsCount`, your `labels` add a language, or a test reads the row count under the result or in a printed report | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
 
 ### Sources hidden by default can be open { #hidden-open }
@@ -268,6 +269,16 @@ The HTML report says it too, in `{{rows}}` and in the details, instead of "4,386
 - The same holds for a host whose report `texts` set `rowsCount`.
 - A host whose `labels` add another language adds `rowsFiltered` too. Without it, that line is in
   English while a filter is on. See [Localisation](../reference/localisation.md).
+
+### The report's row counts take plural forms { #report-count-forms }
+
+pivotkit-report's HTML report says "1 row" and "1 Zeile" for one row.
+
+- `REPORT_TEXTS.en.rowsCount` and `rowsFiltered`, and the German ones, are objects of plural forms:
+  `{ one: "{count} row", other: "{count} rows" }`. They were texts.
+- Code that reads them as a text reads `.other` for the text it had.
+- The `texts` option takes a count as one text, as before, or as forms of its own.
+- The type `ReportTexts` changes with them. `ReportTextsInput` is the type of the `texts` option.
 
 ## From 0.6 to 0.7 { #from-0-6-1 }
 

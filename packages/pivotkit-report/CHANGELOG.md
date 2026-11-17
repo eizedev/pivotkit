@@ -6,7 +6,17 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `rowCount: false` leaves the data's row count out of `{{rows}}` and the HTML report's details
+  ([#547](https://github.com/eizedev/pivotkit/issues/547)).
+
 ### Changed
+
+- Behaviour change: the HTML report's row count takes the plural form of its language: "1 row",
+  "1 Zeile". `REPORT_TEXTS.<lang>.rowsCount` and `rowsFiltered` are objects of plural forms, no
+  longer texts, and so is their type in `ReportTexts`. The `texts` option takes a count as one text
+  or as forms ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 - The chart's SVG takes `toEChartsOption` from `pivotkit-core/chart` (#546).
 - The HTML report says how many of the data's rows the filters keep, as pivotkit-react's row count

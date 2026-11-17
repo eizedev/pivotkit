@@ -132,8 +132,8 @@ test("the row count's words are pivotkit-core's: the component and the HTML repo
     for (const lang of /** @type {const} */ (["en", "de"])) {
         assert.equal(LABELS[lang].rowsCount, ROW_COUNT_TEXTS[lang].rowsCount, lang);
         assert.equal(LABELS[lang].rowsFiltered, ROW_COUNT_TEXTS[lang].rowsFiltered, lang);
-        assert.equal(REPORT_TEXTS[lang].rowsCount, ROW_COUNT_TEXTS[lang].rowsCount.other, lang);
-        assert.equal(REPORT_TEXTS[lang].rowsFiltered, ROW_COUNT_TEXTS[lang].rowsFiltered.other, lang);
+        assert.equal(REPORT_TEXTS[lang].rowsCount, ROW_COUNT_TEXTS[lang].rowsCount, lang);
+        assert.equal(REPORT_TEXTS[lang].rowsFiltered, ROW_COUNT_TEXTS[lang].rowsFiltered, lang);
     }
 });
 

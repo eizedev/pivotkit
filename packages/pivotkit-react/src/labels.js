@@ -7,7 +7,7 @@
  * load with them; a host's entries for them are kept here and win there.
  */
 
-import { GROUPING_NAMES, PivotkitError, REPORT_LABELS, ROW_COUNT_TEXTS } from "pivotkit-core";
+import { GROUPING_NAMES, PLURAL_CATEGORIES, PivotkitError, REPORT_LABELS, ROW_COUNT_TEXTS, pluralForm } from "pivotkit-core";
 
 /**
  * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
@@ -693,9 +693,6 @@ export function fill(template, values) {
     return String(template).replace(/\{(\w+)\}/g, (all, name) => (Object.hasOwn(values, name) ? String(values[name]) : all));
 }
 
-/** The categories of Intl.PluralRules: the keys a count label may have. */
-const PLURAL_CATEGORIES = Object.freeze(["zero", "one", "two", "few", "many", "other"]);
-
 /** True for a count label: an object of plural forms with at least `other`. */
 const isPluralForms = (v) => v !== null && typeof v === "object" && !Array.isArray(v) && Object.hasOwn(v, "other") && Object.keys(v).every((k) => PLURAL_CATEGORIES.includes(k));
 
@@ -707,14 +704,7 @@ const isPluralForms = (v) => v !== null && typeof v === "object" && !Array.isArr
  * @param {{ lang: string, locale: string }} options
  */
 export function plural(forms, count, { lang, locale }) {
-    let category = "other";
-    try {
-        category = new Intl.PluralRules(lang).select(count);
-    } catch {
-        // a language tag Intl does not take: the "other" form
-    }
-    const form = typeof forms[category] === "string" ? forms[category] : forms.other;
-    return fill(form ?? "", { count: count.toLocaleString(locale) });
+    return fill(pluralForm(forms, count, lang), { count: count.toLocaleString(locale) });
 }
 
 /**

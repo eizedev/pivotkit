@@ -64,6 +64,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- The HTML report leaves out the row count where the policy withholds it (`rows: false`).
 - Behaviour change: on a busy host, a parameter pattern's time limit no longer refuses fast, valid
   values and patterns.
     - Every match runs under 75 ms instead of 25 ms, in a request as at start, so the start never

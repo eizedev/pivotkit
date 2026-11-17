@@ -193,6 +193,28 @@ for (const labels of Object.values(REPORT_LABELS)) {
     Object.freeze(labels.showAs);
 }
 
+/** The categories of Intl.PluralRules: the keys a count's forms may have. */
+export const PLURAL_CATEGORIES = Object.freeze(["zero", "one", "two", "few", "many", "other"]);
+
+/**
+ * The form of a count's words for `count` in `lang` (Intl.PluralRules): `forms[category]`, else
+ * `forms.other`, else "". A language tag Intl does not take gets `other`.
+ * @param {Readonly<Partial<Record<string, string>>>} forms  e.g. { one: "{count} row", other: "{count} rows" }
+ * @param {number} count
+ * @param {string} lang
+ * @returns {string}
+ */
+export function pluralForm(forms, count, lang) {
+    let category = "other";
+    try {
+        category = new Intl.PluralRules(lang).select(count);
+    } catch {
+        // the "other" form
+    }
+    const form = typeof forms[category] === "string" ? forms[category] : forms.other;
+    return form ?? "";
+}
+
 /**
  * The row count in words, English and German: pivotkit-react's line under the result and
  * pivotkit-report's HTML report both say it. One form per Intl.PluralRules category; `rowsFiltered`
