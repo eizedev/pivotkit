@@ -21,7 +21,7 @@ and the copy hold the numbers as the table shows them. Where the application off
 
 | Entry | Gives | Best for |
 | --- | --- | --- |
-| **Excel workbook (.xlsx)** | The table with every number and all its decimals, the number formats, the merged headers, the bold totals and the highlighting. | Calculating on in Excel. |
+| **Excel workbook (.xlsx)** | The table only, no chart: every number with all its decimals, the number formats, the merged headers, the bold totals and the highlighting. | Calculating on in Excel. |
 | **Table as CSV (.csv)** | The table as text: percentages and "show as" calculations as the table shows them, other numbers with all their decimals. | Other programs. |
 | **HTML report (.html)** | A page with the table as it is shown, the chart when the chart is shown, and the filters. Opens in any browser, prints well. | Sending a report to read or to print. |
 | **Chart image (.png)** | The chart as drawn. Greyed out with "Switch to Chart first." while the table is shown. | A slide or a message. |
