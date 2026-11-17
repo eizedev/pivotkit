@@ -132,6 +132,27 @@ test("results: true as the server's policy lets every caller download; a source 
     }
 });
 
+test("the file route's 403 speaks of a token only to a caller that sent one: without sign-in it names the policy", async () => {
+    const dir = workspace();
+    const open = await restServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
+    try {
+        const refused = await call(`${open.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
+        assert.equal(refused.status, 403);
+        assert.equal(refused.data.code, "NOT_ALLOWED");
+        assert.equal(refused.data.detail, "this server gives no files; the operator allows them with results: true in the policy or a source's policy");
+    } finally {
+        await open.close();
+    }
+    const tokens = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: TOKEN } });
+    try {
+        const refused = await call(`${tokens.api}/views/render/file`, { token: TOKEN, body: { source: "sales", view: BY_REGION, format: "csv" } });
+        assert.equal(refused.status, 403);
+        assert.equal(refused.data.detail, "your token may not download files; ask the operator for a token whose profile has results: true");
+    } finally {
+        await tokens.close();
+    }
+});
+
 test("profiles in the configuration: an unknown profile name and a default of hide are refused with what to do", async () => {
     const { validateOptions } = await import("pivotkit-server");
     assert.throws(() => validateOptions({ policy: { profiles: { analyst: {} } }, auth: { mode: "token", tokens: [{ name: "a", env: "A", profile: "analys" }] } }), /auth\.tokens\[0\]\.profile: no profile "analys" in policy\.profiles; did you mean "analyst"\?/);

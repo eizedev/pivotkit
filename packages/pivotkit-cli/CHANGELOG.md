@@ -28,6 +28,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Fixed
 
+- `render --url` against a server without sign-in no longer says "with this token" when the
+  server refuses the file (#512).
 - `--format csv` in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
   `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:
   `9.6`, not `9٫6`, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).
