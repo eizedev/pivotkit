@@ -15,6 +15,7 @@
 
 import { CATALOG, LAYOUT_LIMITS, OUTSIDE_LIMITS, PivotkitError, closest, describeSource, describeView, foldText, fromViewFile, isIdentifierName, normalize, outsideLimits, suggestLayout, toViewFile, validate, viewFileFields, viewFromLayout, withLinkFragment } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
+import { toCsv, toJson } from "pivotkit-core/export";
 import { encodeViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "./render.js";
 
@@ -156,6 +157,7 @@ export function findingOf(issue) {
  * @typedef {object} OperationOutcome
  * @property {Record<string, any>} result  what the output schema describes
  * @property {{ bytes: Uint8Array, mediaType: string, extension: string, name: string }} [file]  a file the front end writes, sends or shows
+ * @property {{ text: string, zeros: number }} [inline]  render_view with input.inline: the result as text for a reader (inlineOf)
  */
 
 /**
@@ -229,6 +231,67 @@ const DESCRIBED_VIEW = {
 
 /** An input or output object: its properties, the required ones, no others. */
 const object = (properties, required = []) => ({ type: "object", properties, required, additionalProperties: false });
+
+/** render_view's locale: a language tag the caller asks for (localeOf checks it). */
+const LOCALE = { type: "string", maxLength: 35, pattern: "^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$", description: "The language of the report's labels and its number format, such as de-DE, for a view or layout that names none." };
+
+/**
+ * render_view's `inline`, for a front end that may put the result into its answer (pivotkit-server;
+ * it leaves it out of the schemas callers see): the result also as text for a reader, csv or json,
+ * with its own `numbers` (default "shown"), up to `maxCells` cells (inlineOf).
+ */
+const INLINE_INPUT = { type: "object", additionalProperties: false, properties: { numbers: { enum: ["shown", "full"] }, maxCells: { type: "integer", minimum: 0 } } };
+
+/**
+ * render_view's text for a reader (input.inline), from the rendered grid: the csv without a byte
+ * order mark, or the json on one line, with `zeros`, the values "shown" writes as 0 though they are
+ * not 0; none for another format or over `maxCells` cells.
+ * @param {import("pivotkit-core").Grid} grid
+ * @param {string} format
+ * @param {{ inline: { numbers?: "full" | "shown", maxCells?: number }, flatHeader?: boolean }} input
+ * @returns {{ inline?: { text: string, zeros: number } }}
+ */
+function inlineOf(grid, format, input) {
+    const numbers = input.inline.numbers ?? "shown";
+    if ((format !== "csv" && format !== "json") || grid.bodyRows.length * grid.columnCount > (input.inline.maxCells ?? Infinity)) {
+        return {};
+    }
+    const text = format === "json" ? toJson(grid, { numbers, space: 0 }) : toCsv(grid, { numbers, flatHeader: input.flatHeader === true });
+    return { inline: { text, zeros: numbers === "shown" ? shownZeros(grid) : 0 } };
+}
+
+/** The values "shown" writes as 0 though they are not 0 (a sum of 1e-9 at two decimals): json's values shown against full. */
+function shownZeros(grid) {
+    const values = (numbers) => JSON.parse(toJson(grid, { numbers, space: 0 })).rows.flatMap((/** @type {{ values: unknown[] }} */ row) => row.values);
+    const full = values("full");
+    return values("shown").filter((v, i) => v === 0 && typeof full[i] === "number" && full[i] !== 0).length;
+}
+
+/** How csv and json write numbers (pivotkit-core's toCsv and toJson `numbers`). */
+const NUMBERS = { enum: ["shown", "full"], description: "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits." };
+
+/**
+ * A caller's locale as Intl writes it; INVALID_INPUT for one that is no language tag, or one this
+ * runtime has no number format for (Intl would fall back to the machine's locale).
+ * @param {string} locale
+ */
+function localeOf(locale) {
+    try {
+        const [canonical] = Intl.getCanonicalLocales(locale);
+        if (canonical && /-u(?:-[a-z0-9]{2,8})*-nu(?:-|$)/i.test(canonical)) {
+            throw new OperationError("INVALID_INPUT", "locale may not choose a numbering system (-u-nu-): csv and json write Latin digits; leave it out");
+        }
+        if (canonical && Intl.NumberFormat.supportedLocalesOf(canonical).length) {
+            return canonical;
+        }
+    } catch (e) {
+        if (e instanceof OperationError) {
+            throw e;
+        }
+        // no language tag
+    }
+    throw new OperationError("INVALID_INPUT", "locale is no language tag this server knows; give one such as de-DE or en-US");
+}
 
 // ---------------------------------------------------------------------------------------------
 // Helpers
@@ -719,7 +782,11 @@ export const OPERATIONS = Object.freeze({
                 format: { enum: FORMATS, default: "xlsx", description: "xlsx for Excel, html for a report to read or print, csv, json, svg for the chart." },
                 title: { type: "string", maxLength: 200, description: "The report's title (default the view's name)." },
                 chart: { enum: ["auto", "on", "off"], description: "html: the chart above the table (auto: when the view shows the chart)." },
-                name: { type: "string", maxLength: 80, description: "The file's name without extension (default from the title)." }
+                name: { type: "string", maxLength: 80, description: "The file's name without extension (default from the title)." },
+                locale: LOCALE,
+                numbers: NUMBERS,
+                flatHeader: { type: "boolean", description: 'csv: one header row instead of one per column field; each column says its labels joined with " / " (without the value\'s name when the view has one value).' },
+                inline: INLINE_INPUT
             },
             ["source"]
         ),
@@ -741,6 +808,8 @@ export const OPERATIONS = Object.freeze({
                 throw new OperationError("INVALID_INPUT", `format is one of ${FORMATS.join(", ")}`);
             }
             checkViewOrLayout(input);
+            // the caller's locale stands in for the front end's: for a view or layout that names none
+            env = input.locale === undefined ? env : { ...env, locale: localeOf(input.locale) };
             const source = await sourceData(env, input.source);
             if (!isEncoded(source.data)) {
                 throw new OperationError("INVALID_INPUT", "rendering needs the data, not only its fields");
@@ -762,6 +831,8 @@ export const OPERATIONS = Object.freeze({
                 ...(input.title !== undefined ? { title: input.title } : {}),
                 ...(input.chart ? { chart: input.chart === "auto" ? "auto" : input.chart === "on" } : {}),
                 ...(typeof source.asOf === "string" ? { dataAsOf: source.asOf } : {}),
+                ...(input.numbers ? { numbers: input.numbers } : {}),
+                ...(input.flatHeader !== undefined ? { flatHeader: input.flatHeader } : {}),
                 ...extra
             });
             const findings = [...(source.notes ?? []), ...given.notes, ...result.issues.map(findingOf), ...(read.failed ? [] : unknownItems(read.view, source.data, env))];
@@ -770,7 +841,8 @@ export const OPERATIONS = Object.freeze({
             const name = input.name ?? input.title ?? (read.name || String(source.name || "report").replace(/\.[a-z0-9]+$/i, ""));
             return {
                 result: { ok: result.ok && !given.notes.some((f) => f.severity === "error"), findings, uses: result.view ? viewFileFields(result.view) : [], ...(given.fromLayout && result.view ? { view: result.view } : {}), format, mediaType: kind.mediaType, summary: result.summary },
-                ...(result.body ? { file: { bytes: result.body, mediaType: kind.mediaType, extension: kind.extension, name } } : {})
+                ...(result.body ? { file: { bytes: result.body, mediaType: kind.mediaType, extension: kind.extension, name } } : {}),
+                ...(result.body && result.grid && input.inline ? inlineOf(result.grid, format, input) : {})
             };
         }
     },

@@ -67,11 +67,12 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     };
     // the room of a heatmap that is not cells: its grid's margins and the column names as written
     const cellFrame = (option.series || []).some((s) => s.type === "heatmap") ? heatmapFrame({ top: option.grid?.top, bottom: option.grid?.bottom, names: option.xAxis?.data ?? [], width, fontSize }) : undefined;
+    // a bar lights up alone, as the tooltip names it alone; a line lights up as a whole
     const series = (option.series || []).map((s) => {
         if (s.type === "bar") {
             const horizontal = first(option.yAxis)?.type === "category";
             const corners = horizontal ? [0, r, r, 0] : [r, r, 0, 0];
-            return { ...s, barMaxWidth: 48, itemStyle: { borderRadius: s.stack ? 0 : corners, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "series" } };
+            return { ...s, barMaxWidth: 48, itemStyle: { borderRadius: s.stack ? 0 : corners, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "self" } };
         }
         if (s.type === "line") {
             return { ...s, lineStyle: { width: 2 }, symbolSize: 7, smooth: Boolean(s.smooth), areaStyle: s.areaStyle ? { opacity: 0.18 } : undefined, emphasis: { focus: "series" } };

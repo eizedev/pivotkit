@@ -33,7 +33,8 @@ test("GET /sources lists the source; GET /sources/{id} and POST /sources/describ
         const byId = await call(`${server.api}/sources/sales`);
         const byPost = await call(`${server.api}/sources/describe`, { body: { source: "sales" } });
         assert.equal(byId.status, 200);
-        assert.deepEqual(byId.data, byPost.data);
+        // alike but for each answer's own request id
+        assert.deepEqual({ ...byId.data, requestId: undefined }, { ...byPost.data, requestId: undefined });
         const names = byId.data.fields.map((f) => f.name);
         assert.ok(!names.includes("Customer"), "a hidden field is not listed");
         assert.equal(byId.data.hiddenFields, 1);

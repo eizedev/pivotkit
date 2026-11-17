@@ -57,6 +57,7 @@ text. `data` is one of these:
 | `ok` | `false` when an issue has the severity `error`. |
 | `summary` | `{ rows, columns, sourceRows, keptRows, truncated }`: the table's body rows and columns, the data's rows, the rows its filters keep, whether a part was cut. |
 | `view` | The normalized view that was rendered. |
+| `grid` | The table as pivotkit-core's `toGrid` made it, for another export of the same result (`toCsv`, `toJson`). Absent when `strict` gave no body. |
 
 `render` builds the whole body in memory. The [limits](../concepts/limits.md) keep it bounded.
 
@@ -83,6 +84,8 @@ text. `data` is one of these:
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
 | `rowCount` | `true` | `html`: `false` leaves the data's row count out of `{{rows}}` and the details. The REST service and the MCP server pass it where the policy withholds the row count (`rows: false`). |
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
+| `numbers` | `"full"` | `csv` and `json`: `"shown"` rounds each number to the decimals the view shows ([`toCsv`](core.md)). |
+| `flatHeader` | `false` | `csv`: one header row instead of one per column field. |
 | `dataAsOf` | none | When the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`); any other form, or a time that does not exist, is refused. `html`: "Data as of" in the details and the `{{dataAsOf}}` [placeholder](print-template.md), in the locale and time zone with the zone named; `xlsx`: the custom document property `DataAsOf` (a date). csv, json and svg leave it out. The REST service and the MCP server pass it; the command line passes none for local files. |
 
 `render` refuses any other option name with `INVALID_OPTION` and names the closest one. So a
@@ -106,7 +109,7 @@ A bad view never throws: its issues come back. `render` throws `PivotkitError` f
     - an unknown `format`
     - a `size` out of range
     - an unknown option
-    - a `chart`, `chartEmbed`, `bom`, `strict`, `trusted` or `rowCount` of a value it does not take
+    - a `chart`, `chartEmbed`, `bom`, `strict`, `trusted`, `numbers`, `flatHeader` or `rowCount` of a value it does not take
     - an SVG or `chart: true` without `echarts`
     - a `now` that is no date
     - a `dataAsOf` in another form
@@ -222,7 +225,7 @@ These front ends are the [command line](cli.md), the [MCP server](mcp.md) and th
 | `get_view_guide` | - | `GET /views/guide` | `VIEW_GUIDE`: a view's format, its vocabulary from `CATALOG`, examples |
 | `validate_view` | `validate` | `POST /views/validate` | Findings and the fields the view uses; with a `layout` instead of a `view`, also the `view` it makes |
 | `describe_view` | `describe <view>` | `POST /views/describe` | describeView in parts, with findings |
-| `render_view` | `render` | `POST /views/render` | render(); the file comes back as `file`, the front end puts it somewhere; a `layout` instead of a `view` (the CLI's layout flags), with the `view` it made in the result |
+| `render_view` | `render` | `POST /views/render` | render(); the file comes back as `file`, the front end puts it somewhere; a `layout` instead of a `view` (the CLI's layout flags), with the `view` it made in the result; `locale` for a view or layout that names none, `numbers` and `flatHeader` |
 | `create_link` | - | `POST /views/link` | A link into the source's page (`env.link`) |
 | `draft_schedule` | - | `POST /schedules/draft` | A draft report document (`pivotkit-report-draft`, version 0) for a person to approve |
 
@@ -270,6 +273,11 @@ also have `details`:
 
 `data(source)` may give `asOf`: when the data is from, in UTC to the second. `render_view` then passes
 it to `render` as `dataAsOf`.
+
+`render_view`'s `inline` input is for front ends: it asks for the result as text for a reader beside
+the file, `{ numbers, maxCells }`, with a count of the values `"shown"` writes as 0 though they are
+not 0. pivotkit-server sets it from the caller's policy and leaves it out of
+the schemas its callers see.
 
 `findingOf` turns a pivotkit-core issue into a finding, cleaned and cut at 200 characters.
 `exampleViews(fields)` builds views from a data set's fields.

@@ -46,8 +46,12 @@ export function csvSeparator(locale) {
     return decimalMark(locale) === "," ? ";" : ",";
 }
 
+/**
+ * The decimal mark a locale writes with Latin digits: a CSV's numbers are always written in Latin
+ * digits (String()), so ar-EG gets ".", not its own "٫" beside Latin digits, which parsers misread.
+ */
 function decimalMark(locale) {
-    const part = numberFormat(locale).formatToParts(1.5).find((p) => p.type === "decimal");
+    const part = numberFormat(locale, { numberingSystem: "latn" }).formatToParts(1.5).find((p) => p.type === "decimal");
     return part ? part.value : ".";
 }
 
@@ -87,22 +91,38 @@ function rounded(v, decimals) {
 }
 
 /**
+ * The `numbers` option of a text export, checked: true for "shown", false for "full" (the default).
+ * @param {unknown} numbers
+ * @param {string} fn
+ */
+function numbersShown(numbers, fn) {
+    expect(numbers === undefined || /^(full|shown)$/.test(String(numbers)), `${fn}: numbers is "full" or "shown"`);
+    return numbers === "shown";
+}
+
+/** The significant digits "shown" keeps of a number whose format has no plain decimals (compact, bytes, duration). */
+const SHOWN_DIGITS = 12;
+
+/**
  * A value cell's number. A percent and a "show values as" value are written as the table shows them:
  * rounded to the format's decimals, a percent in percent with a "%" ("-2.6%", which spreadsheets read
  * back as the fraction); the XLSX export keeps their full precision. Any other number is plain, with
- * full precision.
+ * full precision, or with `shown` rounded to its format's decimals as well (no float noise such as
+ * 9.59999999999999 for 9.6; a format without plain decimals, such as compact or bytes, to
+ * SHOWN_DIGITS significant digits).
  * @param {number} v
  * @param {string | undefined} format  the cell's format
  * @param {string} mark  decimal mark
  * @param {boolean} showAs  the value is a "show values as" calculation
  * @param {string} locale
+ * @param {boolean} [shown]  every number rounded as the table shows it
  */
-function numberText(v, format, mark, showAs, locale) {
+function numberText(v, format, mark, showAs, locale, shown = false) {
     const name = parseFormat(format)?.name;
     const percent = name === "percent" || name === "percent100";
-    const decimals = showAs || percent ? formatDecimals(format, locale) : null;
-    const shown = name === "percent" ? v * 100 : v;
-    const text = plainNumber(decimals === null ? shown : rounded(shown, decimals), mark);
+    const decimals = shown || showAs || percent ? formatDecimals(format, locale) : null;
+    const unit = name === "percent" ? v * 100 : v;
+    const text = plainNumber(decimals !== null ? rounded(unit, decimals) : shown ? Number(unit.toPrecision(SHOWN_DIGITS)) : unit, mark);
     return percent ? `${text}%` : text;
 }
 
@@ -146,15 +166,18 @@ export const isNumberCell = (cell) => cell.kind === "value" && typeof cell.value
 /**
  * The grid as CSV text. Values are written as plain numbers with the locale's decimal mark, dates as
  * ISO dates; a percent and a "show values as" value as the table shows them (rounded, a percent in
- * percent with "%"), every other number with full precision; labels of merged row headers are
- * repeated on every row so each line stands on its own.
+ * percent with "%"), every other number with full precision, or with `numbers: "shown"` rounded to
+ * its format's decimals too; labels of merged row headers are repeated on every row so each line
+ * stands on its own. `flatHeader` writes one header row instead of one per column field: the row
+ * fields' names, then each column's labels joined with " / " (columnLabels).
  * @param {import("./grid.js").Grid} grid  from toGrid(); its locale decides the separator and decimal mark
- * @param {{ separator?: string, repeatLabels?: boolean }} [options]
+ * @param {{ separator?: string, repeatLabels?: boolean, numbers?: "full" | "shown", flatHeader?: boolean }} [options]
  * @returns {string}
  */
 export function toCsv(grid, options) {
     options = optionsOf(options, "toCsv");
     expect(isGrid(grid), "toCsv(grid): grid must come from toGrid()");
+    numbersShown(options.numbers, "toCsv");
     return csvText(grid, options);
 }
 
@@ -163,11 +186,16 @@ export function csvText(grid, options) {
     const locale = grid.locale ?? DEFAULT_LOCALE;
     const separator = options.separator ?? csvSeparator(locale);
     const mark = decimalMark(locale);
+    const shown = options.numbers === "shown";
     const quote = (text) => {
         const safe = exportText(text);
         return /["\r\n]/.test(safe) || safe.includes(separator) ? `"${safe.replace(/"/g, '""')}"` : safe;
     };
-    const lines = filledCells(grid, options.repeatLabels !== false).map((row) =>
+    const cells = filledCells(grid, options.repeatLabels !== false);
+    const flat = options.flatHeader === true;
+    // with one value, its name over every column says nothing
+    const header = flat ? [[...lastHeaderTexts(grid, cells), ...columnLabels(grid, cells).map((labels) => (grid.valueNames.length === 1 && labels.length > 1 ? labels.slice(0, -1) : labels).join(" / "))].map(quote).join(separator)] : [];
+    const lines = cells.slice(flat ? grid.headerRows : 0).map((row) =>
         row
             .map((source) => {
                 if (!source) {
@@ -175,13 +203,13 @@ export function csvText(grid, options) {
                 }
                 if (isNumberCell(source)) {
                     const showAs = source.valueIndex !== undefined && Boolean(grid.showAs?.[source.valueIndex]);
-                    return source.valueType === "date" ? quote(isoOf(source.value)) : numberText(source.value, source.format, mark, showAs, locale);
+                    return source.valueType === "date" ? quote(isoOf(source.value)) : numberText(source.value, source.format, mark, showAs, locale, shown);
                 }
                 return quote(source.text);
             })
             .join(separator)
     );
-    return lines.join("\r\n") + "\r\n";
+    return [...header, ...lines].join("\r\n") + "\r\n";
 }
 
 /**
@@ -217,15 +245,72 @@ export function toTsv(table) {
     return tsvText(filledCells(table, true).map((row) => row.map((cell) => (cell ? cell.text : ""))));
 }
 
-/** A value of a value cell as JSON: the number, a date as its ISO date, text as it is, blank null. */
-function jsonValue(cell) {
+/**
+ * A value of a value cell as JSON: the number, a date as its ISO date, text as it is, blank null. With
+ * `shown` a number is rounded to the decimals its format shows (a percent's of the percentage: 0.257
+ * for 25.7%).
+ */
+function jsonValue(cell, shown, locale) {
     if (!cell || cell.value === null || cell.value === undefined) {
         return null;
     }
     if (isNumberCell(cell)) {
-        return cell.valueType === "date" ? isoOf(cell.value) : Number(cell.value.toPrecision(15));
+        return cell.valueType === "date" ? isoOf(cell.value) : shown ? shownNumber(cell, locale) : Number(cell.value.toPrecision(15));
     }
     return typeof cell.value === "number" ? null : cell.value;
+}
+
+/**
+ * A value cell's number as "shown" writes it in the CSV (numberText), as a number: a percent as the
+ * fraction again (0.257 for 25.7%).
+ * @param {import("./grid.js").GridCell & { value: number }} cell
+ * @param {string} locale
+ */
+function shownNumber(cell, locale) {
+    const n = Number(numberText(cell.value, cell.format, ".", false, locale, true).replace("%", ""));
+    return parseFormat(cell.format)?.name === "percent" ? Number((n / 100).toPrecision(15)) : n;
+}
+
+/**
+ * The texts of the last header row over the row label columns: the row fields' names.
+ * @param {import("./grid.js").Grid} grid
+ * @param {Array<Array<import("./grid.js").GridCell | null>>} cells  filledCells
+ */
+function lastHeaderTexts(grid, cells) {
+    const lastHeader = cells[grid.headerRows - 1] ?? [];
+    return Array.from({ length: grid.rowHeaderColumns }, (_, c) => lastHeader[c]?.text ?? "");
+}
+
+/**
+ * Each value column's header texts from the top down: a header cell merged sideways or down is the
+ * label of every column under it, a corner and an empty text are left out.
+ * @param {import("./grid.js").Grid} grid
+ * @param {Array<Array<import("./grid.js").GridCell | null>>} cells  filledCells
+ * @returns {string[][]}
+ */
+function columnLabels(grid, cells) {
+    const headerCell = cells.slice(0, grid.headerRows).map((row) => row.slice());
+    for (const m of grid.merges) {
+        for (let r = m.row; r < Math.min(m.row + m.rowSpan, grid.headerRows); r++) {
+            for (let c = m.col; c < m.col + m.colSpan; c++) {
+                headerCell[r][c] = grid.rows[m.row][m.col];
+            }
+        }
+    }
+    return grid.dataColumns.map((_, i) => {
+        const c = grid.rowHeaderColumns + i;
+        const labels = [];
+        let previous = null;
+        for (const row of headerCell) {
+            const cell = row[c];
+            // a cell merged down is one label
+            if (cell && cell !== previous && cell.kind !== "corner" && cell.text !== "") {
+                labels.push(cell.text);
+            }
+            previous = cell;
+        }
+        return labels;
+    });
 }
 
 /**
@@ -242,45 +327,24 @@ function jsonValue(cell) {
  * `columns`: numbers with full precision (15 significant digits), a "show values as" share as the
  * fraction (0.25 for 25%), dates as ISO dates of their wall clock, text as it is, a blank cell null.
  * @param {import("./grid.js").Grid} grid  from toGrid()
- * @param {{ space?: number }} [options]  `space`: indentation of the text, default 2
+ * @param {{ space?: number, numbers?: "full" | "shown" }} [options]  `space`: indentation of the text, default 2 (0: one line); `numbers`: "shown" rounds each number to the decimals its format shows
  * @returns {string}
  */
 export function toJson(grid, options) {
     options = optionsOf(options, "toJson");
     expect(isGrid(grid), "toJson(grid): grid must come from toGrid()");
+    const shown = numbersShown(options.numbers, "toJson");
+    const locale = grid.locale ?? DEFAULT_LOCALE;
     const cells = filledCells(grid, true);
     const k = grid.rowHeaderColumns;
-    const header = cells.slice(0, grid.headerRows);
     const text = (cell) => (cell ? cell.text : "");
-    const lastHeader = header[header.length - 1] ?? [];
-    // a header cell merged sideways or down is the label of every column under it
-    const headerCell = header.map((row) => row.slice());
-    for (const m of grid.merges) {
-        for (let r = m.row; r < Math.min(m.row + m.rowSpan, grid.headerRows); r++) {
-            for (let c = m.col; c < m.col + m.colSpan; c++) {
-                headerCell[r][c] = grid.rows[m.row][m.col];
-            }
-        }
-    }
+    const labels = columnLabels(grid, cells);
     const data = {
-        rowHeaders: Array.from({ length: k }, (_, c) => text(lastHeader[c] ?? null)),
-        columns: grid.dataColumns.map((column, i) => {
-            const c = k + i;
-            const labels = [];
-            let previous = null;
-            for (const row of headerCell) {
-                const cell = row[c];
-                // a cell merged down is one label
-                if (cell && cell !== previous && cell.kind !== "corner" && cell.text !== "") {
-                    labels.push(cell.text);
-                }
-                previous = cell;
-            }
-            return { labels, value: column.valueIndex >= 0 ? (grid.valueNames[column.valueIndex] ?? null) : null, total: column.total };
-        }),
+        rowHeaders: lastHeaderTexts(grid, cells),
+        columns: grid.dataColumns.map((column, i) => ({ labels: labels[i], value: column.valueIndex >= 0 ? (grid.valueNames[column.valueIndex] ?? null) : null, total: column.total })),
         rows: grid.bodyRows.map((row, i) => {
             const line = cells[grid.headerRows + i];
-            return { labels: line.slice(0, k).map(text), total: row.total, collapsed: row.collapsed, values: line.slice(k).map(jsonValue) };
+            return { labels: line.slice(0, k).map(text), total: row.total, collapsed: row.collapsed, values: line.slice(k).map((cell) => jsonValue(cell, shown, locale)) };
         })
     };
     return JSON.stringify(data, null, options.space ?? 2);
@@ -289,7 +353,7 @@ export function toJson(grid, options) {
 /**
  * The CSV as UTF-8 bytes, with a byte order mark so Excel detects the encoding.
  * @param {import("./grid.js").Grid} grid
- * @param {{ separator?: string, repeatLabels?: boolean, bom?: boolean }} [options]
+ * @param {{ separator?: string, repeatLabels?: boolean, bom?: boolean, numbers?: "full" | "shown", flatHeader?: boolean }} [options]
  * @returns {Uint8Array}
  */
 export function toCsvBytes(grid, options) {

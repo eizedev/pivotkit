@@ -799,6 +799,12 @@
                 "outside",
                 "inside"
               ]
+            },
+            "tooltip": {
+              "enum": [
+                "auto",
+                "axis"
+              ]
             }
           }
         },

@@ -17,10 +17,32 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- Display → **Tooltip** in the chart type menu, for bars, lines and areas: **Automatic** or **All
+  series** (`chart.tooltip`, [#106](https://github.com/eizedev/pivotkit/issues/106)). All series lists
+  every series at the pointer's category, the hovered one first, its name in the strong weight.
+- `labels.chartTotal`, the tooltip's "Total" line (German "Gesamt"), and `labels.chartMore`, the
+  line for the series that do not fit ("+{count} more"), and `labels.chartMoreInTotal` for it when
+  a total is shown ("+{count} more (in the total)").
+- `--pk-tooltip-name-w` (default `12em`): the widest series name in the tooltip. A longer one ends
+  in "…".
+
 - `drillDownExport`: the drill-down panel's copy and download while `exportData` is off, with every
   column. Off by default.
 
 ### Changed
+
+- The chart's tooltip names the element under the pointer
+  ([#376](https://github.com/eizedev/pivotkit/issues/376)):
+  - A bar or a line point shows that series alone.
+  - A segment of stacked bars, or a point of a stacked area, adds the sum of the stack's parts. A
+    value that does not add up gets no total: only sums and counts do, and not when shown as a rank
+    or a percent difference.
+  - Between the elements it lists every series at the category. Between stacked bars it shows the
+    total only.
+  - A series without a value at the category is left out, not shown as an empty line.
+  - Pie, donut and heatmap keep the tooltip of the slice or cell.
+  - The tooltip stays inside the chart. When more series are there than fit, the last line says how
+    many more there are.
 
 - The drill-down panel's copy and download follow `exportData`. With it off, the panel shows the
   rows but offers no copy and no download (#263).
@@ -32,6 +54,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- "Table as CSV" in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
+  `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:
+  `9.6`, not `9٫6`, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).
 - The chart's labels at small sizes, from pivotkit-core: slanted category names leave the plot its
   height, a donut's outside labels stay whole, the value at the end of a horizontal bar is not cut,
   and a heatmap names every row that has room ([#228](https://github.com/eizedev/pivotkit/issues/228), [#229](https://github.com/eizedev/pivotkit/issues/229), [#230](https://github.com/eizedev/pivotkit/issues/230),

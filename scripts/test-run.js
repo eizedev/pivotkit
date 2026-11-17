@@ -12,17 +12,16 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { readdirSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isMain } from "./is-main.js";
-import { RUN_ENV, runPrefix } from "../tests/temp-dir.js";
+import { RUN_ENV, runPrefix, sweptLog, tempRoot } from "../tests/temp-dir.js";
 
 /**
  * The entries of the temporary directory that carry the run's id.
  * @param {string} run
  * @param {string} [dir]
  */
-export function leftovers(run, dir = tmpdir()) {
+export function leftovers(run, dir = tempRoot()) {
     const prefix = runPrefix(run);
     return readdirSync(dir).filter((name) => name.startsWith(prefix)).map((name) => join(dir, name));
 }
@@ -68,6 +67,8 @@ export async function testRun(command) {
     const forwards = forwarded(process.stdin.isTTY).map((signal) => /** @type {const} */ ([signal, () => child?.kill(signal)]));
     // not on Windows: no signal reaches this script alone there, and kill() would end the command at once
     if (process.platform !== "win32") for (const [signal, forward] of forwards) process.on(signal, forward);
+    // a sweep of another process may remove this run's leftovers before the check: its log counts too
+    const sweptBefore = sweptLog().length;
     let code = 1;
     try {
         code = await new Promise((resolve, reject) => {
@@ -81,6 +82,11 @@ export async function testRun(command) {
         if (left.length > 0) {
             process.stderr.write(`\nThe tests left ${left.length} temporary director${left.length === 1 ? "y" : "ies"} of run ${run} behind (make them with tempDir() of tests/temp-dir.js):\n${left.map((path) => `  ${path}\n`).join("")}`);
             for (const path of left) rmSync(path, { recursive: true, force: true, maxRetries: 3 });
+            code ||= 1;
+        }
+        const swept = sweptLog().slice(sweptBefore).split("\n").filter((name) => name.startsWith(runPrefix(run)));
+        if (swept.length > 0) {
+            process.stderr.write(`\nA sweep removed ${swept.length} temporary director${swept.length === 1 ? "y" : "ies"} of run ${run} that a killed process left behind:\n${swept.map((name) => `  ${name}\n`).join("")}`);
             code ||= 1;
         }
         for (const [signal, forward] of forwards) process.off(signal, forward);

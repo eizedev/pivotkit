@@ -71,7 +71,7 @@ const WORDS = {
     render_view: {
         summary: "Render a view into the output directory",
         description: "Runs a view (or a layout: a view by field names) over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline); with save: false they come back inline only and nothing is saved, or the call fails saying why.",
-        example: { input: { source: "sales", view: VIEW, format: "xlsx" }, output: { ok: true, findings: [], uses: ["Region", "Sales"], format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", withheld: ["rows", "columns", "bytes", "content"], output: { name: "Sum of Sales by Region.pivotkit-out.xlsx", format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }, message: "The report is saved as Sum of Sales by Region.pivotkit-out.xlsx in the output directory." } }
+        example: { input: { source: "sales", view: VIEW, format: "xlsx" }, output: { ok: true, findings: [], uses: ["Region", "Sales"], format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", withheld: ["rows", "columns", "bytes", "content"], output: { name: "sum-of-sales-by-region.pivotkit-out.xlsx", filename: "sum-of-sales-by-region.xlsx", format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }, message: "The report is saved as sum-of-sales-by-region.pivotkit-out.xlsx in the output directory.", requestId: "Ab3_xY9-k2Q" } }
     },
     create_link: {
         summary: "Create a link to a view",
@@ -83,7 +83,7 @@ const WORDS = {
         description: "Writes a draft for a report that runs on a schedule. It runs nothing and sends nothing: a person approves the draft in the host. Recipients are names the host knows, never addresses.",
         example: {
             input: { source: "sales", view: VIEW, name: "Weekly sales", formats: ["xlsx"], every: { unit: "week", at: "07:00", weekday: "mon", timeZone: "Europe/Berlin" }, recipients: ["Sales team"] },
-            output: { ok: true, findings: [], uses: ["Region", "Sales"], draft: { format: "pivotkit-report-draft", status: "draft", name: "Weekly sales" }, output: { name: "Weekly sales.pivotkit-out.report.json", format: "json", mediaType: "application/json" }, message: 'The draft "Weekly sales" is ready for approval, saved as Weekly sales.pivotkit-out.report.json in the output directory. Nothing runs until a person approves it in the host.' }
+            output: { ok: true, findings: [], uses: ["Region", "Sales"], draft: { format: "pivotkit-report-draft", status: "draft", name: "Weekly sales" }, output: { name: "weekly-sales.pivotkit-out.report.json", filename: "weekly-sales.report.json", format: "json", mediaType: "application/json" }, message: 'The draft "Weekly sales" is ready for approval, saved as weekly-sales.pivotkit-out.report.json in the output directory. Nothing runs until a person approves it in the host.', requestId: "Ab3_xY9-k2Q" }
         }
     }
 };

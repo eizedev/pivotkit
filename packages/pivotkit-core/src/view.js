@@ -121,6 +121,13 @@ export const CHART_AXIS_LABELS = Object.freeze(["auto", "all", "nth"]);
  * the chart has room for them (the UI measures it; the core draws them), "on" always, "off" never.
  */
 export const CHART_GROUP_LABELS = Object.freeze(["auto", "on", "off"]);
+/**
+ * What the tooltip of bars, lines and areas covers: "auto" the element under the pointer (a bar, a
+ * stacked segment with its stack's total, a line point), every series between elements (between
+ * stacked bars the total only); "axis" every series at the pointer's category, wherever it is. Pie,
+ * donut and heatmap always show the slice or cell under the pointer.
+ */
+export const CHART_TOOLTIPS = Object.freeze(["auto", "axis"]);
 
 /** A colour of a conditional format: #rgb or #rrggbb. */
 export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -148,11 +155,12 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
- *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string }} ChartSpec  the chart
+ *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string }} ChartSpec  the chart
  *   type and how it is drawn: value labels (CHART_VALUE_LABELS) and, on a pie or donut, where they go
  *   (CHART_LABEL_POSITIONS), legend (CHART_LEGENDS), a title over the
  *   chart, smooth lines (line, area), the category axis labels (CHART_AXIS_LABELS), and with two or more
- *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS)
+ *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS), and what the
+ *   tooltip covers (CHART_TOOLTIPS)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
  * @typedef {object} View
@@ -190,7 +198,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside" },
+        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto" },
         formatting: { locale: null, timeZone: null, weekStart: WEEK_START }
     };
 }
@@ -593,7 +601,8 @@ function displaySection(raw, view, ctx) {
             smooth: bool(get(chart, "smooth"), false),
             axisLabels: own("axisLabels", CHART_AXIS_LABELS, "auto"),
             groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto"),
-            labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside")
+            labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside"),
+            tooltip: own("tooltip", CHART_TOOLTIPS, "auto")
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
             ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`, "badTitle", { max: ctx.limits.name });

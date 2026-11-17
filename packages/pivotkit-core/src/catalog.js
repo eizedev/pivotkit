@@ -3,17 +3,19 @@
  * tables the engine runs on, so a list can never offer something the engine does not know.
  */
 
-import { AGGREGATOR_NAMES } from "./aggregators.js";
+import { AGGREGATORS, AGGREGATOR_NAMES } from "./aggregators.js";
 import { CYCLIC_UNITS, DERIVE_UNITS, TIMELINE_UNITS } from "./derive.js";
 import { COLUMN_TYPES } from "./encode.js";
 import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, FILTER_TYPES, RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS, TOP_TIES } from "./filters.js";
 import { MATCH_CASES, MATCH_WHITESPACE } from "./text-match.js";
 import { FORMAT_NAMES } from "./format.js";
 import { SHOW_AS, SHOW_AS_NAMES } from "./show-as.js";
-import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
+import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TOOLTIPS, CHART_TYPES, CHART_VALUE_LABELS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
 
 export const CATALOG = Object.freeze({
     aggregators: AGGREGATOR_NAMES,
+    /** the aggregators whose values add up (count, sum): the parts of a stack sum to a total */
+    additiveAggregators: Object.freeze(AGGREGATOR_NAMES.filter((name) => AGGREGATORS[name].additive)),
     /** the aggregators a UI offers first; the others are statistics for fewer people */
     commonAggregators: Object.freeze(["sum", "count", "average", "min", "max"]),
     columnTypes: COLUMN_TYPES,
@@ -46,6 +48,11 @@ export const CATALOG = Object.freeze({
     showAs: SHOW_AS_NAMES,
     /** show-as types that walk along an axis (Excel's "base field") */
     showAsAlongAxis: Object.freeze(SHOW_AS_NAMES.filter((name) => SHOW_AS[name].alongAxis)),
+    /**
+     * show-as types whose results still add up across a category's series (with an additive aggregator);
+     * one that walks an axis only along the rows, the categories of a chart
+     */
+    additiveShowAs: Object.freeze(SHOW_AS_NAMES.filter((name) => SHOW_AS[name].addsUp)),
     chartTypes: CHART_TYPES,
     /** how a chart is drawn: its value labels, its legend, its category axis labels */
     chartValueLabels: CHART_VALUE_LABELS,
@@ -54,6 +61,8 @@ export const CATALOG = Object.freeze({
     chartGroupLabels: CHART_GROUP_LABELS,
     /** where a pie or a donut writes its value labels */
     chartLabelPositions: CHART_LABEL_POSITIONS,
+    /** what the tooltip of bars, lines and areas covers */
+    chartTooltips: CHART_TOOLTIPS,
     displayModes: DISPLAY_MODES,
     conditionalTypes: CONDITIONAL_TYPES
 });

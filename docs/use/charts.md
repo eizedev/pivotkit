@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the tooltip and the chart image.
+description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the tooltip of the element under the pointer and the chart image.
 ---
 
 # Charts
@@ -61,7 +61,7 @@ The chart type menu has its **Display** settings under the chart types, in one f
 - Each choice applies at once, and the menu stays open, so the chart behind it shows the change.
 - The settings stay with the report: in saved views, links and the chart image. They also stay when
   the chart type changes.
-- An **i** next to Labels and to Group labels explains them.
+- An **i** next to Labels, Group labels and Tooltip explains them.
 
 ![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-light.png#only-light)
 ![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-dark.png#only-dark)
@@ -75,6 +75,7 @@ The chart type menu has its **Display** settings under the chart types, in one f
 | Smooth lines | on, off. Lines and area only. | off |
 | Axis labels | Automatic, All (slanted), Every n-th. Bars, lines and areas only. | Automatic |
 | Group labels under the axis | Automatic, On, Off. Only with two or more fields in Rows. | Automatic: shown while the chart has room for them |
+| Tooltip | Automatic, All series. Bars, lines and areas only. | Automatic: the element under the pointer |
 
 ??? info "Pie and donut labels"
     **Outside** writes each slice's name with what is chosen, on a line to the slice. On a narrow
@@ -149,8 +150,20 @@ The chart type menu has its **Display** settings under the chart types, in one f
 
 ## Read the chart
 
-- Point at a category of bars, lines or areas to see a tooltip. It has the category's whole name
-  and one line per series: the series' colour, its name and the value formatted as in the table.
+Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
+
+- The tooltip names the element under the pointer: the series' colour, its name and the value
+  formatted as in the table. Its title is the category's whole name.
+- A stacked segment, or a point of a stacked area, adds a **Total** line: the sum of the stack's
+  parts. A part below zero counts against it.
+- Only sums and counts add up. An average, a median or a maximum gets no total. Neither does a
+  value shown as a rank or as a percent difference.
+- Between the elements, the tooltip lists every series at that category. So does the fill of an
+  area. Between stacked bars, it shows the total only.
+- A series without a value at the category is left out.
+- A long series name ends in "…". When more series are there than fit, the last line says how many
+  more there are, and whether the total includes them.
+- On a phone, tap a bar or a point to see its tooltip.
 - A pie's tooltip shows the value's name, the slice and its value.
 - A heatmap's tooltip shows the value's name, the cell's row and column and its value.
 - The tooltip is plain text: nothing from the data is read as markup.
@@ -158,6 +171,14 @@ The chart type menu has its **Display** settings under the chart types, in one f
 - Click a bar, a point or a heatmap cell to open the rows behind it, as in the table. See
   [the rows behind a number](drill-down.md).
 - The chart has a text alternative for screen readers: type, values, counts, highest and lowest value.
+
+![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-light.png#only-light)
+![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-dark.png#only-dark)
+
+??? info "Every series in the tooltip"
+    **Tooltip**, **All series** in the Display settings lists every series at the pointer's category,
+    wherever the pointer is. The series under the pointer comes first, its name in bold. Stacked bars
+    and areas add the total. The setting stays with the view.
 
 ## Save the chart as a picture
 

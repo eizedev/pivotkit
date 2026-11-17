@@ -48,8 +48,9 @@ test("policy.autoValues true: a category field is at values over MCP; a result o
         const answer = async (customer) => {
             const r = await call(client, "render_view", { source: "tickets", view: { rows: ["Status"], values: [{ field: "Sales", agg: "sum" }], filters: [{ field: "Status", type: "in", items: ["Open"], blanks: "exclude" }, { field: "Kundenname", type: "in", items: [customer], blanks: "exclude" }] }, format: "csv", name: "combination" });
             assert.equal(r.isError, false, r.text);
-            const strip = (t) => t.replace(/combination[^\s,.;]*/g, "");
-            return { text: strip(r.text), data: JSON.parse(strip(JSON.stringify({ ...r.data, output: { ...r.data.output, name: undefined, path: undefined } }))) };
+            // each call names its own request id
+            const strip = (t) => t.replace(/combination[^\s,.;]*/g, "").replace(/"requestId":"[A-Za-z0-9_-]{11}"/, "").replace(/ \(request id [A-Za-z0-9_-]{11}\)/, "");
+            return { text: strip(r.text), data: JSON.parse(strip(JSON.stringify({ ...r.data, requestId: undefined, output: { ...r.data.output, name: undefined, path: undefined } }))) };
         };
         const exists = await answer("K0");
         assert.deepEqual(await answer("K1"), exists);

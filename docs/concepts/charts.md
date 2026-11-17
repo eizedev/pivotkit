@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels and group labels in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels and the tooltip in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -52,10 +52,22 @@ them, and they stay when the chart type changes:
 | `chart.smooth` | `true`, `false` |
 | `chart.axisLabels` | `"auto"`, `"all"`, `"nth"` |
 | `chart.groupLabels` | `"auto"`, `"on"`, `"off"` |
+| `chart.tooltip` | `"auto"`, `"axis"` |
 
 A view without these keys gets the defaults. An unknown value falls back to its default, and
 `normalize()` reports it ([Views](views.md)). "Percent" and "Value and percent" apply to a pie and a
 donut. Other types write the value.
+
+`chart.tooltip` applies to bars, lines and areas:
+
+- `"auto"` shows the element under the pointer. A stacked one adds the sum of its stack's parts.
+- `"axis"` shows every series at the pointer's category, the one under the pointer first.
+
+Only sums and counts add up (`CATALOG.additiveAggregators`). A value shown as something else adds up
+only when `CATALOG.additiveShowAs` lists its type: a share of the grand or the row total, and a
+difference or a running total along the rows. A rank or a percent difference gets no total.
+
+A pie, a donut and a heatmap always show the slice or cell under the pointer.
 
 The report's `--pk-*` tokens set these parts of the chart, so a corporate theme reaches the chart too
 ([Theming](../reference/theming.md#chart-colours)):

@@ -5,7 +5,7 @@ The command line `pivotkit`. Node only. The root [AGENTS.md](../../AGENTS.md) ap
 ## Commands
 
 ```bash
-npm test -w pivotkit-cli      # spawns the CLI as a user runs it; CI runs it on Windows too
+npm test -w pivotkit-cli      # spawns the CLI as a user runs it; CI runs it on Windows and macOS too
 npm run build -w pivotkit-cli # the gzipped example data
 npx pivotkit-cli render view.json --data data.csv -o out.html
 ```

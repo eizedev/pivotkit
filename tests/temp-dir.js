@@ -4,13 +4,76 @@
 // failure. Every name starts with "pivotkit-" and, when PIVOTKIT_TEST_RUN is set
 // (scripts/test-run.js sets it), the run's id: the run checks afterwards that it left none behind,
 // without counting another run's directories on the same machine. tests/temp-dirs.test.js fails on
-// a temporary directory made any other way.
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+// a temporary directory made any other way. A process that ends without its exit event (SIGKILL, a
+// crash) cannot remove its directories. Each name holds its host's mark and its process id. The
+// first tempDir() of any later process on the same host removes the directories of processes that
+// are gone, and notes them in SWEPT_LOG (#526).
+import { createHash } from "node:crypto";
+import { closeSync, constants, lstatSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
+import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 
 /** The environment variable that carries a test run's id to every process the run starts. */
 export const RUN_ENV = "PIVOTKIT_TEST_RUN";
+
+/**
+ * The environment variable that names another directory for tempDir() than the system's temporary
+ * one. A test of the sweep uses it: no other process sweeps there.
+ */
+export const ROOT_ENV = "PIVOTKIT_TEMP_ROOT";
+
+/** Where tempDir() makes its directories. */
+export const tempRoot = () => process.env[ROOT_ENV] || tmpdir();
+
+/** The PID namespace's inode where Linux shows it: containers with one host name differ by it. */
+function pidNamespace() {
+    try {
+        return String(statSync("/proc/self/ns/pid").ino);
+    } catch {
+        return "";
+    }
+}
+
+/**
+ * This host's mark in each name: its host name and, on Linux, its PID namespace. A sweep removes
+ * only directories with this mark: another host or container that shares the directory has other
+ * process ids. A foreign tool's name never has it.
+ */
+export const HOST = createHash("sha256").update(`${hostname()}\n${pidNamespace()}`).digest("hex").slice(0, 8);
+
+/** The file in the temporary root where a sweep notes what it removed. CI fails when it grew. */
+export const SWEPT_LOG = "pivotkit-swept.log";
+
+/**
+ * What the sweeps noted so far in a temporary root, or "" without a note.
+ * @param {string} [dir]
+ */
+export function sweptLog(dir = tempRoot()) {
+    try {
+        return readFileSync(join(dir, SWEPT_LOG), "utf8");
+    } catch {
+        return "";
+    }
+}
+
+/**
+ * Appends to SWEPT_LOG, never through a symbolic link (O_NOFOLLOW; Windows has no such flag, so the
+ * file is looked at first there).
+ * @param {string} dir
+ * @param {string} text
+ */
+function noteSwept(dir, text) {
+    const file = join(dir, SWEPT_LOG);
+    if (constants.O_NOFOLLOW === undefined && lstatSync(file, { throwIfNoEntry: false })?.isSymbolicLink()) {
+        throw new Error("it is a symbolic link");
+    }
+    const fd = openSync(file, constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT | (constants.O_NOFOLLOW ?? 0), 0o600);
+    try {
+        writeSync(fd, text);
+    } finally {
+        closeSync(fd);
+    }
+}
 
 /**
  * Where the names of a run's directories start: "pivotkit-<run>-", or "pivotkit-" without a run.
@@ -25,6 +88,65 @@ export function runPrefix(run) {
 
 /** @type {Set<string>} */
 const made = new Set();
+
+/** The owner's process id in a name of this host: "-h<HOST>p<pid>-" before mkdtemp's random part. */
+const OWNER = new RegExp(`^pivotkit-.*-h${HOST}p(\\d+)-[A-Za-z0-9]{6}$`);
+
+/**
+ * Whether a process is running (or exists under another user, which signal 0 may not reach).
+ * @param {number} pid
+ */
+function running(pid) {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (error) {
+        return /** @type {NodeJS.ErrnoException} */ (error).code === "EPERM";
+    }
+}
+
+/**
+ * Removes the directories whose process is gone without removing them (SIGKILL, a crash), of any
+ * run. A directory of a running process stays, and so does one without a process id in its name.
+ * @param {string} [dir] the temporary directory to look in
+ */
+export function removeOrphans(dir = tempRoot()) {
+    /** @type {string[]} */
+    const removed = [];
+    for (const name of tempDirNames(dir)) {
+        const pid = Number(OWNER.exec(name)?.[1] ?? 0);
+        if (pid === 0 || pid === process.pid || running(pid)) continue;
+        try {
+            rmSync(join(dir, name), { recursive: true, force: true, maxRetries: 3 });
+            removed.push(name);
+        } catch {
+            // another process may be removing it now; the next sweep tries again
+        }
+    }
+    if (removed.length === 0) return;
+    // said and noted: a run whose processes were killed fails CI's check (scripts/temp-dirs.js)
+    process.stderr.write(`removed ${removed.length} temporary director${removed.length === 1 ? "y" : "ies"} of ended processes: ${removed.join(", ")}\n`);
+    const names = removed.map((name) => `${name}\n`).join("");
+    try {
+        noteSwept(dir, names);
+    } catch (error) {
+        process.stderr.write(`could not note them in ${join(dir, SWEPT_LOG)}: ${/** @type {Error} */ (error).message}\n`);
+        // a pivotkit-* name of its own instead: new since the save, so CI's check fails on it too
+        try {
+            writeFileSync(join(dir, `pivotkit-swept-unnoted-${process.pid}`), names, { flag: "wx" });
+        } catch {
+            // the line on stderr stays
+        }
+    }
+}
+
+/**
+ * The names in the temporary directory that tempDir() makes, of every run and process.
+ * @param {string} [dir]
+ */
+export function tempDirNames(dir = tempRoot()) {
+    return readdirSync(dir).filter((name) => name.startsWith("pivotkit-") && name !== SWEPT_LOG);
+}
 
 /** Removes every directory tempDir() made in this process that is still there. */
 export function removeTempDirs() {
@@ -59,6 +181,7 @@ let watching = false;
 function watch() {
     if (watching) return;
     watching = true;
+    removeOrphans();
     process.on("exit", removeTempDirs);
     for (const [signal, number] of /** @type {const} */ ([["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]])) {
         const end = () => {
@@ -81,7 +204,7 @@ function watch() {
  */
 export function tempDir(label = "test") {
     const name = label.replace(/^pivotkit-/, "").replace(/-$/, "");
-    const dir = realpathSync.native(mkdtempSync(join(tmpdir(), `${runPrefix(process.env[RUN_ENV])}${name}-`)));
+    const dir = realpathSync.native(mkdtempSync(join(tempRoot(), `${runPrefix(process.env[RUN_ENV])}${name}-h${HOST}p${process.pid}-`)));
     made.add(dir);
     watch();
     return dir;

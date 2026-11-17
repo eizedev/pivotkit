@@ -26,6 +26,7 @@ export const de = {
         axisLabels: "Achsenbeschriftung",
         groupLabels: "Gruppenbeschriftung",
         labelPosition: "Beschriftungsposition",
+        tooltip: "Tooltip",
         other: "Einstellung"
     },
     dropped: {

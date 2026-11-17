@@ -100,6 +100,7 @@ size through the element.
 | `--pk-row-h` | Height of a table row | `2.45em` | as light |
 | `--pk-panel-w` | Width of the field list; at most 284 px in the medium layout | `288px` | as light |
 | `--pk-rail-w` | Width of the field list collapsed to a rail | `40px` | as light |
+| `--pk-tooltip-name-w` | Widest series name in the chart's tooltip; a longer one ends in "…" | `12em` | as light |
 | `--pk-duration`<br>`--pk-ease` | Animations; `0ms` with `prefers-reduced-motion: reduce` | `180ms`<br>`cubic-bezier(0.2, 0.8, 0.2, 1)` | as light |
 | `--pk-type-string`<br>`--pk-type-number`<br>`--pk-type-date`<br>`--pk-type-boolean` | Field type icons | `#6250d6`<br>`#1a7f5a`<br>`#b5560b`<br>`#a3367a` | `#a99dff`<br>`#5fd3a3`<br>`#f2a65a`<br>`#f08cc6` |
 | `--pk-chart-1` ... `--pk-chart-8` | Chart series colours, in this order; read by ECharts | `#2a78d6`<br>`#eb6834`<br>`#1baf7a`<br>`#eda100`<br>`#e87ba4`<br>`#008300`<br>`#6250d6`<br>`#e34948` | `#3987e5`<br>`#d95926`<br>`#199e70`<br>`#c98500`<br>`#d55181`<br>`#008300`<br>`#9085e9`<br>`#e66767` |
@@ -198,6 +199,7 @@ The chart reads these tokens in the current theme:
 | Its other text: the axes, the legend, the labels on bars, slices and cells, the heatmap's scale | `--pk-chart-text-size` |
 | The corners of bars and pie slices | `--pk-radius-chart` |
 | The corners of the tooltip | `--pk-radius-card` |
+| The tooltip's total line and the series under the pointer | `--pk-border`, `--pk-weight-strong` |
 
 By default, `--pk-chart-text-size` is the secondary text's size, at least 14 px. The report takes a
 host's own size as it is, so keep it at 14 px or more.

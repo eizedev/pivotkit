@@ -14,7 +14,7 @@ import { ITEM_LENGTH, LIMITS } from "../packages/pivotkit-core/src/limits.js";
 import { SHOW_AS_NAMES } from "../packages/pivotkit-core/src/show-as.js";
 import { MATCH_CASES, MATCH_WHITESPACE } from "../packages/pivotkit-core/src/text-match.js";
 import { FIELD_TYPES, VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION } from "../packages/pivotkit-core/src/view-file.js";
-import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, COLOR, DISPLAY_MODES, SORT_BY, VIEW_VERSION, emptyView } from "../packages/pivotkit-core/src/view.js";
+import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TOOLTIPS, CHART_TYPES, CHART_VALUE_LABELS, COLOR, DISPLAY_MODES, SORT_BY, VIEW_VERSION, emptyView } from "../packages/pivotkit-core/src/view.js";
 import { isMain } from "./is-main.js";
 
 /** Where the schemas are published (the site copies schema/ there, scripts/docs-demo.js). */
@@ -131,7 +131,8 @@ function viewParts() {
                 smooth: { type: "boolean" },
                 axisLabels: { enum: [...CHART_AXIS_LABELS] },
                 groupLabels: { enum: [...CHART_GROUP_LABELS] },
-                labelPosition: { enum: [...CHART_LABEL_POSITIONS] }
+                labelPosition: { enum: [...CHART_LABEL_POSITIONS] },
+                tooltip: { enum: [...CHART_TOOLTIPS] }
             }),
             formatting: object({ locale: nullable({ type: "string" }), timeZone: nullable({ type: "string" }), weekStart: { type: "integer", minimum: 1, maximum: 7 } })
         }),

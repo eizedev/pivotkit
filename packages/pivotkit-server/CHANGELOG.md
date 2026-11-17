@@ -8,6 +8,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- `render_view` (`POST /views/render`) takes `locale`, `numbers` and `flatHeader`. Every answer
+  that works carries `requestId` in its body, the id of its log line ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481)).
 - `token issue` issues a signed token that expires (default one hour, at most
   `auth.signedTokens.maxDays`). REST and MCP accept it without a restart. The log names it by its ID
   ([signed tokens](https://pivotkit.eize.dev/reference/rest/#signed-tokens), #485).
@@ -26,6 +28,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- Breaking for scripts that parse inline csv or json: its numbers are rounded to the decimals the
+  view shows (`numbers: "full"` keeps the old form; saved files and the file route keep full
+  precision), and inline json is on one line. The message says when rounding writes a value as 0
+  that is not 0. Saved report files and schedule drafts are named in lower case without spaces
+  (`sales-by-region.pivotkit-out.xlsx`); the file route still names its download by the title
+  ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481), [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#results-0-8)).
 - Behaviour change: a source is open for plain links only where nothing new can become visible,
   for every caller alike. A source hidden by default whose named fields are all `show` or `hide`
   is open now: its reports get plain download links, an `output.baseUrl` address and plain store
@@ -61,9 +69,13 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   day" in the singular. pivotkit-report and pivotkit-xlsx keep their own limit wording ("the view
   has N characters; at most M", "the part ... is N bytes"). Those texts say different things, so
   they are not merged on purpose ([#509](https://github.com/eizedev/pivotkit/issues/509)).
+- The load runner tells this repository's tests what it does through a hook the package does not
+  export. The tests wait for that instead of a fixed time. Nothing changes for callers
+  ([#527](https://github.com/eizedev/pivotkit/issues/527)).
 
 ### Fixed
 
+- A store address's `{name}` cut at 80 characters no longer ends in `-`.
 - Behaviour change: on a busy host, a parameter pattern's time limit no longer refuses fast, valid
   values and patterns.
     - Every match runs under 75 ms instead of 25 ms, in a request as at start, so the start never
@@ -79,6 +91,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - The drafts' caps count only drafts that still wait for approval. A draft the host approved or
   rejected (another `status`) no longer takes a waiting draft's place in the count of half of
   `output.maxFiles` ([#513](https://github.com/eizedev/pivotkit/issues/513)).
+- On Windows, the start's hint `pivotkit-server token show admin --state-dir <dir>` quotes the
+  directory for PowerShell and says "(PowerShell)". It used POSIX quotes, which broke a path with a
+  drive letter.
 - A host's script that waits on the compute pool and has nothing else to keep its process alive
   no longer ends early when a worker dies while it starts. A run keeps its worker ref'd until it
   ends. On Node 22 the process ended with an unsettled await.

@@ -10,6 +10,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 - `rowCount: false` leaves the data's row count out of `{{rows}}` and the HTML report's details
   ([#547](https://github.com/eizedev/pivotkit/issues/547)).
+- `render` takes `numbers` (`"full"` or `"shown"`) for csv and json and `flatHeader` for csv.
+  Its result has the `grid` it exported. The `render_view` operation takes them as inputs, with `locale` for a view or layout that names
+  none; a `locale` that chooses a numbering system or that the runtime has no format for is refused
+  ([#478](https://github.com/eizedev/pivotkit/issues/478)).
 
 ### Changed
 

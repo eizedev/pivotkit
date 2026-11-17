@@ -660,11 +660,13 @@
                     "content"
                   ],
                   "output": {
-                    "name": "Sum of Sales by Region.pivotkit-out.xlsx",
+                    "name": "sum-of-sales-by-region.pivotkit-out.xlsx",
+                    "filename": "sum-of-sales-by-region.xlsx",
                     "format": "xlsx",
                     "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   },
-                  "message": "The report is saved as Sum of Sales by Region.pivotkit-out.xlsx in the output directory."
+                  "message": "The report is saved as sum-of-sales-by-region.pivotkit-out.xlsx in the output directory.",
+                  "requestId": "Ab3_xY9-k2Q"
                 }
               }
             }
@@ -870,11 +872,13 @@
                     "name": "Weekly sales"
                   },
                   "output": {
-                    "name": "Weekly sales.pivotkit-out.report.json",
+                    "name": "weekly-sales.pivotkit-out.report.json",
+                    "filename": "weekly-sales.report.json",
                     "format": "json",
                     "mediaType": "application/json"
                   },
-                  "message": "The draft \"Weekly sales\" is ready for approval, saved as Weekly sales.pivotkit-out.report.json in the output directory. Nothing runs until a person approves it in the host."
+                  "message": "The draft \"Weekly sales\" is ready for approval, saved as weekly-sales.pivotkit-out.report.json in the output directory. Nothing runs until a person approves it in the host.",
+                  "requestId": "Ab3_xY9-k2Q"
                 }
               }
             }
@@ -1871,6 +1875,12 @@
                   "outside",
                   "inside"
                 ]
+              },
+              "tooltip": {
+                "enum": [
+                  "auto",
+                  "axis"
+                ]
               }
             }
           },
@@ -2378,6 +2388,10 @@
               }
             }
           },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
+          },
           "hint": {
             "type": "string",
             "description": "Why no source is listed and what to do: the sign-in lacks the scopes of the sources there are (only when none is listed)."
@@ -2556,6 +2570,10 @@
                 }
               }
             }
+          },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
           },
           "dataAsOf": {
             "type": "string",
@@ -2819,6 +2837,10 @@
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
           },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
+          },
           "dataAsOf": {
             "type": "string",
             "description": "When the data is from: ISO 8601 in UTC, to the second."
@@ -2868,6 +2890,10 @@
             "items": {
               "type": "object"
             }
+          },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
           }
         },
         "required": [
@@ -3068,6 +3094,10 @@
             "type": "object",
             "description": "With a layout: the view it makes (normalized)."
           },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
+          },
           "dataAsOf": {
             "type": "string",
             "description": "When the data is from: ISO 8601 in UTC, to the second."
@@ -3248,6 +3278,10 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
           },
           "dataAsOf": {
             "type": "string",
@@ -3434,6 +3468,23 @@
             "maxLength": 80,
             "description": "The file's name without extension (default from the title)."
           },
+          "locale": {
+            "type": "string",
+            "maxLength": 35,
+            "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$",
+            "description": "The language of the report's labels and its number format, such as de-DE, for a view or layout that names none."
+          },
+          "numbers": {
+            "enum": [
+              "shown",
+              "full"
+            ],
+            "description": "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits. Default: shown for a result that comes back inline, full for a saved file or a download. Ignored for xlsx, html and svg."
+          },
+          "flatHeader": {
+            "type": "boolean",
+            "description": "csv: one header row instead of one per column field; each column says its labels joined with \" / \" (without the value's name when the view has one value)."
+          },
           "save": {
             "type": "boolean",
             "default": true,
@@ -3536,6 +3587,10 @@
               }
             }
           },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
+          },
           "dataAsOf": {
             "type": "string",
             "description": "When the data is from: ISO 8601 in UTC, to the second."
@@ -3603,7 +3658,8 @@
                 "type": "string"
               },
               "text": {
-                "type": "string"
+                "type": "string",
+                "description": "The result as text. Numbers are rounded as the view shows them unless numbers is \"full\". csv: the separator and decimal mark of the locale (\";\" and \",\" for de-DE). json, on one line: { rowHeaders, columns: [{ labels, value, total }], rows: [{ labels, total, collapsed, values }] }; total is 0 for data, 1 for a subtotal, 2 for a grand total: do not add up rows or columns whose total is more than 0."
               }
             }
           },
@@ -3718,6 +3774,10 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
           },
           "dataAsOf": {
             "type": "string",
@@ -3920,6 +3980,10 @@
               "object",
               "null"
             ]
+          },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
           },
           "dataAsOf": {
             "type": "string",
@@ -4149,6 +4213,23 @@
             "type": "string",
             "maxLength": 80,
             "description": "The file's name without extension (default from the title)."
+          },
+          "locale": {
+            "type": "string",
+            "maxLength": 35,
+            "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$",
+            "description": "The language of the report's labels and its number format, such as de-DE, for a view or layout that names none."
+          },
+          "numbers": {
+            "enum": [
+              "shown",
+              "full"
+            ],
+            "description": "csv and json: shown rounds each number to the decimals the view shows (no float noise such as 9.59999999999999); full keeps 15 significant digits. Default: shown for a result that comes back inline, full for a saved file or a download. Ignored for xlsx, html and svg."
+          },
+          "flatHeader": {
+            "type": "boolean",
+            "description": "csv: one header row instead of one per column field; each column says its labels joined with \" / \" (without the value's name when the view has one value)."
           }
         },
         "required": [

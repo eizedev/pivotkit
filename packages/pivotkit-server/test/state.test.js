@@ -316,6 +316,14 @@ test("the Dockerfile sets the paths state.js names", () => {
     assert.doesNotMatch(dockerfile, /^VOLUME/m, "no anonymous volume: the state directory and /out are named volumes the operator mounts");
 });
 
+test("the hint's --state-dir is one word of the shell where the server runs: a POSIX shell, or PowerShell on Windows", async () => {
+    const { shellWord } = await import("../src/state.js");
+    assert.equal(shellWord("/var/lib/pivotkit", "linux"), "/var/lib/pivotkit");
+    assert.equal(shellWord("/srv/my state/it's", "darwin"), "'/srv/my state/it'\\''s'");
+    assert.equal(shellWord("C:\\ProgramData\\pivotkit\\state", "win32"), "C:\\ProgramData\\pivotkit\\state");
+    assert.equal(shellWord("D:\\my state\\it's", "win32"), "'D:\\my state\\it''s'");
+});
+
 test("the log: created lines once, the token's line with the command for where it runs, never a value", async () => {
     const { stateMeans } = await import("../src/state.js");
     const { container, hostname, namespace } = stateMeans;
@@ -347,7 +355,7 @@ test("the log: created lines once, the token's line with the command for where i
         const { dir, state } = setup();
         const plain = await openServer({ sources, baseDir: dir }, { stateDir: state });
         await plain.close();
-        assert.ok(plain.log.some((l) => l.message?.endsWith(`read it with: pivotkit-server token show admin --state-dir ${state}`)), JSON.stringify(plain.log.map((l) => l.message)));
+        assert.ok(plain.log.some((l) => l.message?.endsWith(`read it with: pivotkit-server token show admin --state-dir ${state}${process.platform === "win32" ? " (PowerShell)" : ""}`)), JSON.stringify(plain.log.map((l) => l.message)));
         // a pod whose namespace file cannot be read: the pod's name alone
         stateMeans.namespace = async () => null;
         stateMeans.container = () => "kubernetes";
@@ -393,7 +401,7 @@ test("auth.mode token written without a token and without the variable is refuse
     assert.ok(!unset.notes.some((n) => /neither auth\.tokens/.test(n.text)));
 });
 
-test("on the container's own layer the state directory is still used, with a warning", async () => {
+test("on the container's own layer the state directory is still used, with a warning", { skip: process.platform === "win32" && "a container's mount table (/proc/self/mountinfo) is Linux's; on Windows the server runs in no Linux container" }, async () => {
     const { stateMeans } = await import("../src/state.js");
     const { container, mountinfo } = stateMeans;
     const { dir, state } = setup();

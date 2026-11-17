@@ -69,15 +69,15 @@ The excerpts show only the parts that change. They leave out keys such as `aggre
     also returns the result inline:
 
     ```text
-    Done: csv, saved as Sales.csv. Valid: 0 errors, 0 warnings. Data as of 2026-11-15 16:48 UTC.
+    Done: csv, saved as sales.csv. Valid: 0 errors, 0 warnings. Data as of 2026-11-15 16:48 UTC.
     ```
 
     ```json
     { "ok": true, "uses": ["Channel", "Revenue"], "format": "csv", "dataAsOf": "2026-11-15T16:48:14Z",
       "summary": { "rows": 4, "columns": 2, "sourceRows": 2000, "keptRows": 2000, "truncated": false },
       "inline": { "format": "csv", "text": "Channel,Sum of Revenue\r\nDirect,1843744.5\r\nOnline,626768.25\r\nPartner,1985166.75\r\nGrand Total,4455679.5\r\n" },
-      "output": { "name": "Sales.pivotkit-out.csv", "path": "/Users/you/reports/out/Sales.pivotkit-out.csv", "filename": "Sales.csv", "format": "csv" },
-      "message": "The report is saved as /Users/you/reports/out/Sales.pivotkit-out.csv. Data as of 2026-11-15 16:48 UTC." }
+      "output": { "name": "sales.pivotkit-out.csv", "path": "/Users/you/reports/out/sales.pivotkit-out.csv", "filename": "sales.csv", "format": "csv" },
+      "message": "The report is saved as /Users/you/reports/out/sales.pivotkit-out.csv. Data as of 2026-11-15 16:48 UTC." }
     ```
 
     A filter on `"direct"` gets the data's spelling back. The finding is `itemCase`, "item "direct" is
@@ -96,14 +96,14 @@ The excerpts show only the parts that change. They leave out keys such as `aggre
     `render_view` writes the file and returns no number of it:
 
     ```text
-    Done: csv, saved as Sales.csv; content withheld. Valid: 0 errors, 0 warnings. Data as of 2026-11-15 16:48 UTC.
+    Done: csv, saved as sales.csv; content withheld. Valid: 0 errors, 0 warnings. Data as of 2026-11-15 16:48 UTC.
     ```
 
     ```json
     { "ok": true, "uses": ["Channel", "Revenue"], "format": "csv", "dataAsOf": "2026-11-15T16:48:14Z",
       "withheld": ["rows", "columns", "bytes", "content"],
-      "output": { "name": "Sales.pivotkit-out.csv", "path": "/Users/you/reports/out/Sales.pivotkit-out.csv", "filename": "Sales.csv", "format": "csv" },
-      "message": "The report is saved as /Users/you/reports/out/Sales.pivotkit-out.csv. Its content was not shown to the assistant: results over fields that are not fully shown (Channel) stay in the file; open it to see them. Data as of 2026-11-15 16:48 UTC." }
+      "output": { "name": "sales.pivotkit-out.csv", "path": "/Users/you/reports/out/sales.pivotkit-out.csv", "filename": "sales.csv", "format": "csv" },
+      "message": "The report is saved as /Users/you/reports/out/sales.pivotkit-out.csv. Its content was not shown to the assistant: results over fields that are not fully shown (Channel) stay in the file; open it to see them. Data as of 2026-11-15 16:48 UTC." }
     ```
 
     A filter on `"direct"` gets `itemCase` with `"suggestion": "Direct"`, as at `show`. The server
@@ -275,10 +275,10 @@ A report over an open source comes with a link. The model reads that link, and s
 provider. The link is shortened here:
 
 ```json
-{ "output": { "name": "K3mGCm03vaQ5447yoLrlag-Sales.pivotkit-out.xlsx", "filename": "Sales.xlsx",
+{ "output": { "name": "K3mGCm03vaQ5447yoLrlag-sales.pivotkit-out.xlsx", "filename": "sales.xlsx",
     "url": "https://reports.example.com/downloads/eyJ2IjoxLCJu...", "expiresAt": "2026-11-15T18:03:49Z",
     "bound": "none", "note": "Open the link in your browser; it works for 60 minutes.", "format": "xlsx" },
-  "message": "The report is saved as \"Sales.xlsx\". Open the link in your browser; it works for 60 minutes. Data as of 2026-11-15 16:48 UTC." }
+  "message": "The report is saved as \"sales.xlsx\". Open the link in your browser; it works for 60 minutes. Data as of 2026-11-15 16:48 UTC." }
 ```
 
 A client of protocol 2025-06-18 or later also gets the link as a `resource_link` for the user.
@@ -377,12 +377,12 @@ The same request, "Revenue by channel as CSV", over `/mcp`:
 === "claude-cloud"
 
     ```text
-    Done: csv, saved as Sales.csv; content withheld. Valid: 0 errors, 0 warnings. Data as of 2026-11-15 16:48 UTC.
+    Done: csv, saved as sales.csv; content withheld. Valid: 0 errors, 0 warnings. Data as of 2026-11-15 16:48 UTC.
     ```
 
     ```json
     { "withheld": ["rows", "columns", "bytes", "content"],
-      "output": { "name": "Sales.pivotkit-out.csv", "filename": "Sales.csv", "note": "The report is saved on the server; ask the operator how to open it.", "format": "csv" },
+      "output": { "name": "sales.pivotkit-out.csv", "filename": "sales.csv", "note": "The report is saved on the server; ask the operator how to open it.", "format": "csv" },
       "message": "The report is saved on the server; ask the operator how to open it. Its content was not shown to the assistant: results over fields that are not fully shown (Channel, Revenue) stay in the file; open it to see them. Data as of 2026-11-15 16:48 UTC." }
     ```
 
@@ -394,7 +394,7 @@ The same request, "Revenue by channel as CSV", over `/mcp`:
     ```json
     { "summary": { "rows": 4, "columns": 2, "sourceRows": 2000, "keptRows": 2000, "truncated": false },
       "inline": { "format": "csv", "text": "Channel,Sum of Revenue\r\nDirect,1843744.5\r\nOnline,626768.25\r\nPartner,1985166.75\r\nGrand Total,4455679.5\r\n" },
-      "output": { "name": "Sales.pivotkit-out.csv", "filename": "Sales.csv", "note": "The report is saved on the server; ask the operator how to open it.", "format": "csv" } }
+      "output": { "name": "sales.pivotkit-out.csv", "filename": "sales.csv", "note": "The report is saved on the server; ask the operator how to open it.", "format": "csv" } }
     ```
 
     Its file gets no link either. The source's fields are `values` or `summary` for `claude-cloud`.

@@ -172,8 +172,10 @@ configuration, under "New in this version", with a link to each section below.
 | [A byte quota and an age limit for drafts](#draft-quota) | callers make schedule drafts (`draft_schedule`, `POST /schedules/draft`) | nothing; run `check-config`; set `output.draftMaxAgeDays` if waiting drafts should expire |
 | [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
 | [Chart layout functions measure differently](#chart-layout-0-8) | your code calls `rowLabelInterval`, `heatmapCellLabels`, `columnLabelLayout` or `categoryLabelLayout` of `pivotkit-core/chart` | check the results you rely on. Pass `frame` to keep the old heatmap frame |
+| [The chart's tooltip names the element under the pointer](../use/charts.md#read-the-chart) | people read values from chart tooltips, or your tests or screenshots show one | nothing; Display → Tooltip → All series lists every series as before, with a total for stacked sums and counts |
 | [The report's row counts take plural forms](#report-count-forms) | your code reads `REPORT_TEXTS.<lang>.rowsCount` or `rowsFiltered` as a text, or a test expects "1 rows" | read them as forms (`.other` for the old text); expect "1 row" |
 | [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` or the report's `texts` set `rowsCount`, your `labels` add a language, or a test reads the row count under the result or in a printed report | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
+| **Breaking:** [csv and json results, request ids and file names](#results-0-8) | a script or host parses the inline csv or json of the REST service or the MCP server, or finds saved reports or drafts by their names | expect rounded inline numbers, inline json on one line and file names like `sales-by-region.pivotkit-out.xlsx`; pass `numbers: "full"` for all digits. Reconnect MCP clients to see the new inputs |
 
 ### Sources hidden by default can be open { #hidden-open }
 
@@ -280,6 +282,57 @@ pivotkit-report's HTML report says "1 row" and "1 Zeile" for one row.
 - Code that reads them as a text reads `.other` for the text it had.
 - The `texts` option takes a count as one text, as before, or as forms of its own.
 - The type `ReportTexts` changes with them. `ReportTextsInput` is the type of the `texts` option.
+
+### csv and json results, request ids and file names { #results-0-8 }
+
+This applies to pivotkit-server and pivotkit-mcp. A program or a model reads their results as they
+are, so they changed.
+
+**Numbers.** Only the inline text of a csv or json result rounds:
+
+| Output | Numbers without `numbers` |
+| --- | --- |
+| `inline.text` (MCP and REST) | rounded to the decimals the view shows: `9.6`, not `9.59999999999999` |
+| the saved csv or json file in `output.dir` and its download link | 15 significant digits, as before |
+| the file route `POST /views/render/file` | 15 significant digits, as before |
+| xlsx, html, svg | unchanged; they ignore `numbers` |
+
+- Pass `numbers: "full"` for all digits in the inline text too.
+- Pass `numbers: "shown"` for rounded numbers in the file as well.
+- Where rounding writes a value as 0 that is not 0, the inline answer's `message` says so.
+
+**Inline json** is on one line. A parser reads it as before. The saved file keeps its indentation.
+The operator's `inline.bytes` counts the text on one line, so a json result that was a little too
+large before may now come back inline.
+
+**File names** of saved reports and schedule drafts are in lower case, with `-` for spaces and
+parentheses. `Sales by region` is saved as `sales-by-region.pivotkit-out.xlsx`, and a draft
+`Weekly sales` as `weekly-sales.pivotkit-out.report.json`. A caller's `name` is rewritten the same
+way ([delivery](../reference/delivery.md#configuration)).
+
+- `output.filename`, the download page and a link's download carry the same name.
+- Files saved before keep their names and still download.
+- A script or host that looks for a report or draft by its name expects the new form.
+- An MCP `resource_link` keeps the title as its `title`.
+- The file route saves nothing and still names its download by the title.
+
+**A CSV in a locale whose own decimal mark is `٫`** (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`, `ps-AF`
+and others) writes the mark the locale uses with Latin digits. `ar-EG` writes `9.6`, not `9٫6`.
+`ps-AF` writes `9,6` and puts `;` between cells. This also holds for the browser's "Table as CSV"
+and for pivotkit-cli.
+
+**The PowerShell Universal module** calls the file route and saves the download with `-OutFile`. It
+keeps full precision, and the new file names do not reach it.
+
+**`requestId`** is in every answer that works: the MCP tool result, its summary line and the REST
+body. It is the id of the answer's log line.
+
+**New inputs** of `render_view` and `POST /views/render`: `locale` (such as `de-DE`) for a view or
+layout that names none, `numbers` and `flatHeader` (csv with one header row). A `locale` with a
+numbering system of its own (`-u-nu-`) is refused.
+
+MCP clients see the new inputs after they reconnect. Sessions that stay connected keep working: the
+old output schema already allows the new `requestId`.
 
 ## From 0.6 to 0.7 { #from-0-6-1 }
 
@@ -696,7 +749,7 @@ id to the operator.
 
 - On MCP, an `INTERNAL` error says "internal error", as REST does, instead of its own words.
 - A body over the cap gets a `refused` log line.
-- `check-config` warns of a static token's file that other users of the machine can read.
+- `check-config` warns of a static token's file that other users of the machine can read (not on Windows).
 - `check-config` closes with "New in this version" where a change applies to the configuration.
 
 ### The 401 without a token { #no-token-text }

@@ -106,13 +106,13 @@ test("render_view never replaces a file: the same name twice gives -2; a served 
         const { client, close } = await httpClient(server.url);
         const a = await call(client, "render_view", { source: "sales", view: BY_REGION, format: "csv", name: "by region" });
         const b = await call(client, "render_view", { source: "sales", view: BY_REGION, format: "csv", name: "by region" });
-        assert.match(a.data.output.name, /^[A-Za-z0-9_-]{22}-by region\.pivotkit-out\.csv$/);
+        assert.match(a.data.output.name, /^[A-Za-z0-9_-]{22}-by-region\.pivotkit-out\.csv$/);
         assert.notEqual(a.data.output.name, b.data.output.name);
         assert.equal(a.data.output.url, `https://files.example.com/reports/${encodeURIComponent(a.data.output.name)}`);
-        assert.equal(a.data.output.filename, "by region.csv");
+        assert.equal(a.data.output.filename, "by-region.csv");
         // a report over a closed source: written under a name nobody can guess, but no address anyone could open
         const c = await call(client, "render_view", { source: "closed", view: BY_REGION, format: "csv", name: "by region" });
-        assert.match(c.data.output.name, /^[A-Za-z0-9_-]{22}-by region\.pivotkit-out\.csv$/);
+        assert.match(c.data.output.name, /^[A-Za-z0-9_-]{22}-by-region\.pivotkit-out\.csv$/);
         assert.equal(c.data.output.url, undefined);
         assert.doesNotMatch(c.text, /files\.example\.com/);
         assert.match(c.data.message, /The report is saved on the server; ask the operator how to open it\./);
@@ -131,9 +131,9 @@ test("draft_schedule writes a draft for approval and runs nothing; a file handed
         const input = { source: "sales", view: BY_REGION, name: "Weekly sales", formats: ["xlsx"], every: { unit: "week", weekday: "mon", at: "07:00" }, recipients: ["Sales team"] };
         const draft = await call(client, "draft_schedule", input);
         assert.equal(draft.data.draft.status, "draft");
-        assert.equal(draft.data.output.name, "Weekly sales.pivotkit-out.report.json");
+        assert.equal(draft.data.output.name, "weekly-sales.pivotkit-out.report.json");
         assert.match(draft.data.message, /Nothing runs until a person approves it/);
-        assert.ok(existsSync(join(dir, "out", "Weekly sales.pivotkit-out.report.json")));
+        assert.ok(existsSync(join(dir, "out", "weekly-sales.pivotkit-out.report.json")));
         const fromFile = await call(client, "draft_schedule", { ...input, source: "file:handed-in.csv" });
         assert.equal(fromFile.isError, true);
         assert.match(fromFile.text, /^NOT_SCHEDULABLE/);

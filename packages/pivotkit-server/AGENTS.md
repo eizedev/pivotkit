@@ -122,12 +122,13 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `callerFields` is the allowlist of caller fields a log line may hold.
 - The subject appears only where `audit.subject` asks, as a keyed hash or the claim's text.
 - Every error answer gets a log line. `logUnanswered` writes a `refused` line if none was written.
-- Every answer carries `X-Request-Id`.
+- Every answer carries `X-Request-Id`. `present()` puts the same id into every result as `requestId`.
 
 ## Sources and memory
 
 - `src/sources/` holds one module per kind of source. `runResolved` is the one way to run one.
 - Loads have time limits, coalescing and per-source and per-identity limits (`sources/run.js`).
+- `test/code-sources.test.js` waits for the load runner's events (`LOAD_HOOKS`), never for a fixed time.
 - Last good data is served only after a transient failure.
 - The process cache and kept data sets are bounded in entries and bytes.
 - A kept data set copies its texts first. A reader's slices would keep the whole file alive.
@@ -170,6 +171,9 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 ## Tests
 
 - `test/` drives the service over HTTP.
+- CI runs these tests on Linux, macOS and Windows.
+- A test of file modes, owners, FIFOs, symbolic links or a caught SIGTERM skips itself on Windows.
+  It names the reason, or it checks what Windows does instead.
 - `test/conformance.test.js` checks that MCP and REST answer alike.
 - `test/cli-remote.test.js` runs the CLI against the service.
 - Use the `tempDir` of `test/helpers.js` for files on disk.

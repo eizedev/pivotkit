@@ -85,7 +85,8 @@ withholds its content:
   "withheld": ["rows", "columns", "bytes", "content"],
   "output": { "name": "sales.pivotkit-out.xlsx", "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "filename": "sales.xlsx", "note": "The report is saved on the server; ask the operator how to open it.", "format": "xlsx" },
-  "message": "The report is saved on the server; ask the operator how to open it. Its content is not part of this answer: results over fields that are not fully shown (Region, Revenue) stay in the file. Data as of 2026-11-16 00:19 UTC." }
+  "message": "The report is saved on the server; ask the operator how to open it. Its content is not part of this answer: results over fields that are not fully shown (Region, Revenue) stay in the file. Data as of 2026-11-16 00:19 UTC.",
+  "requestId": "Ab3_xY9-k2Q" }
 ```
 
 Over an open source (`"policy": { "default": "show" }`, title Sales), the same request gets a
@@ -96,11 +97,15 @@ Over an open source (`"policy": { "default": "show" }`, title Sales), the same r
   "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "dataAsOf": "2026-11-16T00:19:40Z",
   "summary": { "rows": 6, "columns": 2, "sourceRows": 2000, "keptRows": 2000, "truncated": false },
-  "output": { "name": "LBYgghNzgES9CtH50Kz7nQ-Sales.pivotkit-out.xlsx", "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "filename": "Sales.xlsx", "url": "http://127.0.0.1:3333/downloads/eyJ2IjoxLC...qjt4hRZV3X", "expiresAt": "2026-11-16T01:19:54Z",
+  "output": { "name": "LBYgghNzgES9CtH50Kz7nQ-sales.pivotkit-out.xlsx", "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "filename": "sales.xlsx", "url": "http://127.0.0.1:3333/downloads/eyJ2IjoxLC...qjt4hRZV3X", "expiresAt": "2026-11-16T01:19:54Z",
     "bound": "none", "note": "Open the link in your browser; it works for 60 minutes.", "format": "xlsx" },
-  "message": "The report is saved as \"Sales.xlsx\". Open the link in your browser; it works for 60 minutes. Data as of 2026-11-16 00:19 UTC." }
+  "message": "The report is saved as \"sales.xlsx\". Open the link in your browser; it works for 60 minutes. Data as of 2026-11-16 00:19 UTC.",
+  "requestId": "Ab3_xY9-k2Q" }
 ```
+
+Every answer that works carries `requestId`, the id of the request's [log lines](#logging) and its
+`X-Request-Id` header. Give it to the operator when an answer looks wrong.
 
 Every answer over a source's data carries `dataAsOf`. That is every route but `GET /sources` and
 `GET /views/guide`. `dataAsOf` says when the data is from, in UTC to the second. It is a file's
@@ -137,7 +142,10 @@ Where the report gets a [download link](delivery.md), the link is in `output.url
 - over another source only with `results: true` and a bound link
 
 The file's name is `name` from the input, else `title`, else the view's name, else the source's.
-`.pivotkit-out.` goes before the format (`sales.pivotkit-out.xlsx`). This is the mark by which the
+The server rewrites it, `name` too, to lower case with `-` for spaces (`Sales by region` is
+`sales-by-region`), as [delivery](delivery.md#configuration) describes. `.pivotkit-out.` goes before the format
+(`sales-by-region.pivotkit-out.xlsx`). The [file route](#downloads) saves nothing, and its download
+keeps the title as its name. This is the mark by which the
 server knows its own files. A name that is taken gets `-2`, `-3` and so on, since the server never
 replaces a file.
 
@@ -152,6 +160,34 @@ A csv result is the report's layout, as the HTML report and the workbook show it
 column field, a row of labels, then a row per group with a total row and column. The file starts
 with a UTF-8 byte order mark, so a spreadsheet opens it as UTF-8. The inline `inline.text` has no
 byte order mark.
+
+These inputs change how a csv or json result reads:
+
+- `numbers`: how numbers are written.
+    - `shown` rounds each number to the decimals the view shows. A sum of 0.1 and 0.2 values is
+      `9.6`, not `9.59999999999999`. A format without plain decimals (compact, bytes, a duration)
+      keeps about 12 significant digits.
+    - `full` keeps 15 significant digits.
+    - Without `numbers`, the inline text (`inline.text`) is `shown`. The saved file and the
+      [file route](#downloads)'s download are `full`. `numbers` sets both.
+    - Where `shown` writes a value as 0 that is not 0, such as a sum of 0.000000001 at two
+      decimals, the answer's `message` says so.
+- `locale`: the language of the labels and the number format, such as `de-DE`, for a view or layout
+  that names none. A csv in `de-DE` uses `;` and the decimal comma, and says "Gesamtergebnis".
+    - The labels ("Grand Total", "Sum of") come in the languages pivotkit ships
+      ([localisation](localisation.md#built-in-languages)), else in English.
+    - Numbers are written in Latin digits, with the decimal mark the locale uses with Latin digits.
+      `ar-EG` writes `9.6`, with `,` between cells.
+    - A locale that chooses a numbering system (`-u-nu-`, such as `ar-EG-u-nu-arab`) is refused
+      with `INVALID_INPUT`, as is a tag the server has no number format for.
+- `flatHeader: true`: csv with one header row. Each column says its labels joined with ` / `, without
+  the value's name when the view has one value: `Product,East,North,Grand Total`.
+
+xlsx, html and svg ignore `numbers` and `flatHeader`, and json ignores `flatHeader`. The answer's
+`message` then says which were ignored.
+
+The inline json is on one line. The saved json file keeps its indentation. In both, every row and
+column has `total`: 0 data, 1 subtotal, 2 grand total.
 
 A csv or json result comes back inline (`inline.text`) only when the operator sets
 `rest.inline: true` and every field the view uses is `show`.
@@ -781,8 +817,17 @@ take work, and 503 otherwise:
 Both answer `HEAD` too.
 
 An output directory the server's user cannot write is also a warning at start, a problem in
-`check-config`, and 409 `NO_OUTPUT` for a report. On SIGTERM, the server takes no new connection. It
-lets running requests finish for up to `http.graceMs` (25 seconds by default).
+`check-config`, and 409 `NO_OUTPUT` for a report.
+
+On SIGTERM or SIGINT, the server takes no new connection. It lets running requests finish for up to
+`http.graceMs` (25 seconds by default).
+
+Windows has no SIGTERM. There, Ctrl+C stops the server this way, also the Ctrl+C event of a service
+manager. CI does not test this stop on Windows.
+
+Closing the console window sends SIGHUP instead. The server does not wait for running requests then,
+and Windows ends the process about 10 seconds later at the latest. A forced end of the process, for
+example in Task Manager, ends it at once.
 
 | Key | Default | What it is |
 | --- | --- | --- |
@@ -831,7 +876,8 @@ location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|read
 Without containers, on Windows next to PowerShell Universal, `pivotkit-server serve` runs as a
 service with a service manager of your choice. [PowerShell Universal](../getting-started/mcp.md#psu)
 has the steps: an account of its own, its file rights, the token from a PSU secret, a rotated log,
-and IIS with ARR in front. Its file checks are measured on Linux and macOS.
+and IIS with ARR in front. CI runs the server's tests on Linux, macOS and Windows. Its tests of
+file modes, owners, FIFOs, symbolic links and the stop on SIGTERM run on Linux and macOS only.
 [#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows.
 
 ### Tokens and keys { #credentials }
@@ -1144,8 +1190,8 @@ to ship the log.
 | `stopped` | Written after a stop |
 
 A request line is `info` when it worked, `warn` for 4xx and `error` for 5xx. `requestId` is random
-(11 characters). It is the same on every line of one request, in its error answer and in the
-`X-Request-Id` header of every answer.
+(11 characters). It is the same on every line of one request, in its answer's body (`requestId`)
+and in the `X-Request-Id` header of every answer.
 
 The client is the static token's name or the OAuth client id. The person is on `request` and
 `download` lines only with `audit.subject` ([audit](mcp.md#logging)). Their groups and other claims

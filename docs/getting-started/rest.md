@@ -164,7 +164,7 @@ Render the same view again, as in [step 4](#render). This time the answer's `out
 The token in it is shortened here:
 
 ```json
-"output": { "name": "LBYgghNzgES9CtH50Kz7nQ-Sales.pivotkit-out.xlsx", "filename": "Sales.xlsx",
+"output": { "name": "LBYgghNzgES9CtH50Kz7nQ-sales.pivotkit-out.xlsx", "filename": "sales.xlsx",
   "url": "http://127.0.0.1:3333/downloads/eyJ2IjoxLC...qjt4hRZV3X", "expiresAt": "2026-11-16T01:19:54Z",
   "bound": "none", "note": "Open the link in your browser; it works for 60 minutes.", "format": "xlsx", ... }
 ```

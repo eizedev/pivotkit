@@ -58,7 +58,8 @@ later.
         type: "auto", stacked: false, horizontal: false,       // auto (the default: the data decides) bar line area pie donut heatmap
         valueLabels: "auto", legend: "auto", title: null,      // how it is drawn, see Charts
         smooth: false, axisLabels: "auto", groupLabels: "auto",
-        labelPosition: "outside"                               // pie and donut: "outside" or "inside"
+        labelPosition: "outside",                              // pie and donut: "outside" or "inside"
+        tooltip: "auto"                                        // or "axis": every series at the category
     },
     formatting: { locale: "de-DE", timeZone: null, weekStart: 1 }   // weekStart: 1 Monday to 7 Sunday
 }

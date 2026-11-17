@@ -269,8 +269,8 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
         const r = await call(`${server.api}/views/render`, { body: { source: "open", view: BY_REGION, format: "csv", name: "Sales by region" } });
         assert.equal(r.status, 200, JSON.stringify(r.data));
         const output = r.data.output;
-        assert.match(output.name, /^[A-Za-z0-9_-]{22}-Sales by region\.pivotkit-out\.csv$/);
-        assert.equal(output.filename, "Sales by region.csv");
+        assert.match(output.name, /^[A-Za-z0-9_-]{22}-sales-by-region\.pivotkit-out\.csv$/);
+        assert.equal(output.filename, "sales-by-region.csv");
         assert.equal(output.bound, "none");
         assert.ok(output.url.startsWith(`${server.url}/downloads/`), output.url);
         assert.match(output.expiresAt, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
@@ -278,7 +278,7 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
         assert.equal(output.note, "Open the link in your browser; it works for 60 minutes.");
         // the address is output.url (and the resource_link), named once: the message names the file
         assert.equal(r.data.message.split(output.url).length, 1, r.data.message);
-        assert.match(r.data.message, /^The report is saved as "Sales by region\.csv"\. Open the link in your browser; it works for 60 minutes\./);
+        assert.match(r.data.message, /^The report is saved as "sales-by-region\.csv"\. Open the link in your browser; it works for 60 minutes\./);
         // the token names no file: only the nonce of the stored name
         const token = output.url.split("/downloads/")[1];
         const payload = readToken(KEYS, token);
@@ -291,7 +291,7 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
         assert.deepEqual(Buffer.from(await got.arrayBuffer()), readFileSync(join(dir, "out", output.name)));
         assertBaseHeaders(got.headers);
         assert.equal(got.headers.get("content-security-policy"), "sandbox; default-src 'none'");
-        assert.equal(got.headers.get("content-disposition"), `attachment; filename="Sales by region.csv"; filename*=UTF-8''Sales%20by%20region.csv`);
+        assert.equal(got.headers.get("content-disposition"), `attachment; filename="sales-by-region.csv"; filename*=UTF-8''sales-by-region.csv`);
         assert.equal(got.headers.get("content-type"), "text/csv; charset=utf-8");
         // a range is not served: the whole file
         const ranged = await fetch(output.url, { headers: { range: "bytes=0-3" } });
@@ -424,8 +424,8 @@ test("a closed source with a static token: no link, today's name, the message sa
     try {
         const r = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: BY_REGION, format: "xlsx", name: "Closed" } });
         assert.equal(r.status, 200, JSON.stringify(r.data));
-        assert.equal(r.data.output.name, "Closed.pivotkit-out.xlsx");
-        assert.equal(r.data.output.filename, "Closed.xlsx");
+        assert.equal(r.data.output.name, "closed.pivotkit-out.xlsx");
+        assert.equal(r.data.output.filename, "closed.xlsx");
         assert.equal(r.data.output.url, undefined);
         assert.equal(r.data.output.bound, undefined);
         assert.equal(r.data.output.note, NO_LINK_NOTE);
@@ -527,7 +527,7 @@ test("once: the page names the file, its kind, size and expiry; after the downlo
         const page = await fetch(url, { headers: { accept: "text/html" } });
         const html = await page.text();
         assert.match(html, /<title>Download the report - pivotkit report<\/title>/);
-        assert.match(html, /<p class="file">Q3 sales by region\.csv<\/p>/);
+        assert.match(html, /<p class="file">q3-sales-by-region\.csv<\/p>/);
         const expiry = new Date(Date.parse(/** @type {string} */ (output.expiresAt))).toISOString();
         assert.match(html, new RegExp(`<p>CSV file, ${size} bytes\\. <span id="until">It can be downloaded once, until <time datetime="${expiry}">${expiry.slice(0, 10)} ${expiry.slice(11, 16)} UTC</time>\\.</span></p>`));
         // shown after the click, by the page's script; the time the browser's own zone
@@ -644,7 +644,7 @@ test("pages: every answer has its own title and heading; an error page and a pro
         assert.equal(gone.data.requestId, line?.requestId);
         // its status and level are the answer's: 410 is a warning, and the answer names the same id
         assert.deepEqual([line?.status, line?.level, line?.outcome, gone.headers.get("x-request-id")], [410, "warn", "error", line?.requestId]);
-        assert.ok(readdirSync(join(dir, "out")).some((n) => n.endsWith("Titles.pivotkit-out.csv")));
+        assert.ok(readdirSync(join(dir, "out")).some((n) => n.endsWith("titles.pivotkit-out.csv")));
     } finally {
         await server.close();
     }
@@ -667,15 +667,15 @@ test("once on REST and MCP on one port (serve): a browser's form POST with its O
         assert.match(text.text, /Open the link in your browser and download the report; the link works once/);
         assert.equal(link.type, "resource_link");
         assert.equal(link.uri, result.structuredContent.output.url);
-        // the stored name is cleaned to ASCII (pivotkit-cli's cleanFileName); Content-Disposition's UTF-8 form is tested above
-        assert.equal(link.name, "Fur Anna.xlsx");
-        assert.equal(link.title, "Fur Anna");
+        // the file's name is plain ASCII without spaces (output.js fileSlug); the title stays the report's own
+        assert.equal(link.name, "fur-anna.xlsx");
+        assert.equal(link.title, "Für Anna");
         assert.equal(link.mimeType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         assert.deepEqual(link.annotations, { audience: ["user"] });
         assert.equal(link.size, undefined, "the size of a report the assistant was not shown is withheld");
         const got = await fetch(local(link.uri), { method: "POST", headers: { origin: PUBLIC } });
         assert.equal(got.status, 200);
-        assert.equal(got.headers.get("content-disposition"), `attachment; filename="Fur Anna.xlsx"; filename*=UTF-8''Fur%20Anna.xlsx`);
+        assert.equal(got.headers.get("content-disposition"), `attachment; filename="fur-anna.xlsx"; filename*=UTF-8''fur-anna.xlsx`);
         assert.equal(Buffer.from(await got.arrayBuffer()).subarray(0, 2).toString(), "PK");
     } finally {
         await server.close();
@@ -1025,7 +1025,7 @@ test("deliver: a source whose state is not known counts as closed (no output.bas
         assert.equal(unknown?.url, undefined);
         assert.equal(unknown?.note, NO_LINK_NOTE);
         const open = await deliver(context, file, { ...how, sourceClosed: false });
-        assert.match(String(open?.url), /^https:\/\/files\.example\.com\/reports\/[A-Za-z0-9_-]{22}-Unknown\.pivotkit-out\.csv$/);
+        assert.match(String(open?.url), /^https:\/\/files\.example\.com\/reports\/[A-Za-z0-9_-]{22}-unknown\.pivotkit-out\.csv$/);
         assert.equal(open?.note, undefined);
     } finally {
         await context.close();
@@ -1091,11 +1091,11 @@ test("a key that cannot be read: a warning at start, and reports get no link, th
         assert.ok(server.log.some((l) => l.event === "warning" && /download links: the key cannot be read, so reports get no links/.test(l.message)), JSON.stringify(server.log));
         const r = await call(`${server.api}/views/render`, { body: { source: "open", view: BY_REGION, format: "csv", name: "Keyless" } });
         assert.equal(r.status, 200, JSON.stringify(r.data));
-        assert.equal(r.data.output.name, "Keyless.pivotkit-out.csv");
+        assert.equal(r.data.output.name, "keyless.pivotkit-out.csv");
         assert.equal(r.data.output.url, undefined);
         assert.equal(r.data.output.note, NO_LINK_NOTE);
         assert.match(r.data.message, /^The report is saved on the server; ask the operator how to open it\./);
-        assert.doesNotMatch(r.data.message, /Keyless\.pivotkit-out/);
+        assert.doesNotMatch(r.data.message, /keyless\.pivotkit-out/);
         // the key never reaches the log
         assert.ok(!JSON.stringify(server.log).includes("too-short"));
     } finally {

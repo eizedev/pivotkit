@@ -5,11 +5,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
 import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, serverTextOf, validateOptions } from "pivotkit-server";
 import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.js";
-import { LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, ownError, sourceFailure } from "../src/sources/run.js";
+import { LOAD_HOOKS, LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, ownError, sourceFailure } from "../src/sources/run.js";
 import { createComputer } from "../src/compute.js";
 import { packTable, packedBytes, unpackTable } from "../src/packed.js";
 import { encode } from "pivotkit-core";
@@ -46,7 +47,62 @@ const failure = (promise) => promise.then(
     () => assert.fail("expected an error"),
     (e) => e
 );
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+/** How long a test waits for what it expects before it fails; it never waits this long when the code works. */
+const UNTIL_MS = 10_000;
+
+/** The real timers, for that wait also in a test that mocks setTimeout (t.mock.timers). */
+const { setTimeout: realTimeout, clearTimeout: realClear } = globalThis;
+
+/**
+ * A wait for something a test sees happen (events, log lines), instead of a fixed time: `seen()`
+ * after each thing seen, `until(what, done)` resolves once `done()` is true. It fails after UNTIL_MS
+ * and names `what`; its timer is ref'd while it waits, so Node does not end the test early.
+ */
+function sightings() {
+    const checks = new Set();
+    return {
+        seen: () => {
+            for (const check of checks) {
+                check();
+            }
+        },
+        until: (what, done) =>
+            new Promise((resolve, reject) => {
+                const timer = realTimeout(() => (checks.delete(check), reject(new Error(`waited ${UNTIL_MS} ms for ${what}`))), UNTIL_MS);
+                const check = () => {
+                    if (done()) {
+                        realClear(timer);
+                        checks.delete(check);
+                        resolve(undefined);
+                    }
+                };
+                checks.add(check);
+                check();
+            })
+    };
+}
+
+/**
+ * A load runner's events (LOAD_HOOKS) from now on, for a test to wait for: `count(type, match)`
+ * counts them, `until(what, done)` waits. `stop()` ends the watch.
+ * @param {ReturnType<typeof createLoadRunner>} [runner]  the server's own by default (what a context uses)
+ */
+function watchLoads(runner = loadRunner) {
+    /** @type {any[]} */
+    const events = [];
+    const { seen, until } = sightings();
+    const stop = runner[LOAD_HOOKS]((event) => (events.push(event), seen()));
+    const count = (type, match = {}) => events.filter((e) => e.type === type && Object.entries(match).every(([k, v]) => e[k] === v)).length;
+    return { events, count, until, stop };
+}
+
+/**
+ * One turn of the event loop. Node reports a promise rejected without a handler once the microtasks
+ * after a callback are done (processTicksAndRejections), before the event loop moves on to
+ * setImmediate. The promises these tests watch are made before the test awaits, so after this turn
+ * any unhandled one has been reported.
+ */
+const turn = () => new Promise((resolve) => setImmediate(resolve));
 
 test("SourceError: one of four codes; transient from a backend's status; the defaults defined once", () => {
     assert.throws(() => new SourceError(/** @type {any} */ ("TIMEOUT")), TypeError);
@@ -147,6 +203,7 @@ test("time limit: the signal is aborted at timeMs, the call answers SOURCE_UNAVA
     const release = gate();
     let signal;
     const runner = createLoadRunner();
+    const loads = watchLoads(runner);
     const log = { warn() {}, error() {}, debug() {} };
     const how = { prepare: (raw) => raw, source: "s", label: "s", bucket: "b", owner: "o", timeMs: 50, ttl: null, maxStale: 0, version: null, sizeOf: () => 1, log };
     const error = await failure(
@@ -161,13 +218,15 @@ test("time limit: the signal is aborted at timeMs, the call answers SOURCE_UNAVA
     assert.equal(signal.reason.name, "TimeoutError");
     assert.equal(runner.running("s"), 1, "a load that ignores the abort still holds its slot");
     release.open([{ A: 1 }]);
-    await wait(10);
+    await loads.until("the load to give back its slot", () => loads.count("freed") === 1);
     assert.equal(runner.running("s"), 0);
 });
 
 test("time limit end to end: a load over timeMs is aborted; a late result is kept for the next call, unless a refusal came in between", async () => {
     let loads = 0;
     const answers = [];
+    // a slow load answers when the test opens its gate, after its time limit
+    let slow = gate();
     const context = await contextOf({
         sources: {
             t: {
@@ -176,7 +235,7 @@ test("time limit end to end: a load over timeMs is aborted; a late result is kep
                     const answer = answers.shift();
                     if (answer === "slow") {
                         // ignores the abort and answers late
-                        await wait(150);
+                        await slow.opened;
                         return [{ Region: `late ${loads}`, Sales: 1 }];
                     }
                     if (answer === "deny") {
@@ -190,13 +249,21 @@ test("time limit end to end: a load over timeMs is aborted; a late result is kep
             }
         }
     });
+    const watched = watchLoads();
+    /** Opens the slow load's gate and waits until its late result was kept or not. */
+    const answerLate = async () => {
+        const before = watched.count("settled", { late: true });
+        slow.open();
+        await watched.until("the late result to be kept or not", () => watched.count("settled", { late: true }) > before);
+        slow = gate();
+    };
     try {
         answers.push("slow");
         const late = await failure(describe(context));
         assert.equal(late.code, "SOURCE_UNAVAILABLE");
         assert.equal(late.details.retryable, true);
         assert.ok(context.lines.some((l) => l.event === "warning" && l.source === "t" && /took longer than 50 ms/.test(l.message)));
-        await wait(200);
+        await answerLate();
         // the late result is kept: the next call within ttl reuses it without loading
         const kept = await describe(context);
         assert.equal(loads, 1);
@@ -210,7 +277,7 @@ test("time limit end to end: a load over timeMs is aborted; a late result is kep
             assert.equal((await failure(describe(newer))).code, "SOURCE_UNAVAILABLE");
             const fresh = await describe(newer);
             assert.deepEqual(fresh.result.fields.find((f) => f.name === "Region").items?.map((i) => i.value ?? i), ["fresh 3"]);
-            await wait(200);
+            await answerLate();
             const still = await describe(newer);
             assert.deepEqual(still.result.fields.find((f) => f.name === "Region").items?.map((i) => i.value ?? i), ["fresh 3"]);
         } finally {
@@ -223,13 +290,14 @@ test("time limit end to end: a load over timeMs is aborted; a late result is kep
             answers.push("slow", "deny", "fresh");
             assert.equal((await failure(describe(other))).code, "SOURCE_UNAVAILABLE");
             assert.equal((await failure(describe(other))).code, "NOT_ALLOWED");
-            await wait(200);
+            await answerLate();
             const after = await describe(other);
             assert.deepEqual(after.result.fields.find((f) => f.name === "Region").items?.map((i) => i.value ?? i), ["fresh 6"]);
         } finally {
             await other.close();
         }
     } finally {
+        watched.stop();
         await context.close();
     }
 });
@@ -238,15 +306,17 @@ test("coalescing: parallel calls of one caller with the same values share one lo
     const release = gate();
     let loads = 0;
     const context = await contextOf({ sources: { t: { load: async (params) => (loads++, await release.opened, [{ Region: params.team, Sales: 1 }]), params: { team: { type: "string" } } } } });
+    const watched = watchLoads();
     try {
         const ana = token("ana");
         const calls = [describe(context, ana, { team: "a" }), describe(context, ana, { team: "a" }), describe(context, ana, { team: "a" }), describe(context, token("ben"), { team: "a" }), describe(context, ana, { team: "b" })];
-        await wait(20);
+        await watched.until("all five calls to wait for a load", () => watched.count("join") === 5);
         assert.equal(loads, 3);
         release.open();
         const results = await Promise.all(calls);
         assert.ok(results.every((r) => r.result.dataAsOf));
     } finally {
+        watched.stop();
         await context.close();
     }
 });
@@ -254,6 +324,8 @@ test("coalescing: parallel calls of one caller with the same values share one lo
 test("coalescing: callers without an identity share nothing, get nothing kept and no last good data", async () => {
     let loads = 0;
     let fail = false;
+    // the first loads wait until the test lets them end: the two calls run at once
+    const release = gate();
     const context = await contextOf({
         sources: {
             t: {
@@ -262,21 +334,26 @@ test("coalescing: callers without an identity share nothing, get nothing kept an
                     if (fail) {
                         throw new SourceError("SOURCE_UNAVAILABLE", { transient: true });
                     }
-                    await wait(20);
+                    await release.opened;
                     return ROWS;
                 },
                 ttl: 60
             }
         }
     });
+    const watched = watchLoads();
     try {
-        await Promise.all([describe(context, nobody()), describe(context, nobody())]);
+        const calls = Promise.all([describe(context, nobody()), describe(context, nobody())]);
+        await watched.until("both calls to wait for a load", () => watched.count("join") === 2);
+        release.open();
+        await calls;
         assert.equal(loads, 2);
         await describe(context, nobody());
         assert.equal(loads, 3, "nothing kept, even with ttl");
         fail = true;
         assert.equal((await failure(describe(context, nobody()))).code, "SOURCE_UNAVAILABLE");
     } finally {
+        watched.stop();
         await context.close();
     }
 });
@@ -285,15 +362,16 @@ test("load limits: at most 2 loads of one person and 4 of one source run at once
     const release = gate();
     let loads = 0;
     const context = await contextOf({ sources: { t: { load: async (params) => (loads++, await release.opened, [{ Region: params.team, Sales: 1 }]), params: { team: { type: "string" } } } } });
+    const watched = watchLoads();
     try {
         const ana = token("ana");
         const running = [describe(context, ana, { team: "a" }), describe(context, ana, { team: "b" })];
-        await wait(10);
+        await watched.until("ana's two loads to run", () => watched.count("join") === 2);
         const third = await failure(describe(context, ana, { team: "c" }));
         assert.deepEqual([third.code, third.details.retryable, third.details.retryAfter], ["SOURCE_UNAVAILABLE", true, 1]);
         // another person still gets a slot, until the source's four are taken
         running.push(describe(context, token("ben"), { team: "a" }), describe(context, token("ben"), { team: "b" }));
-        await wait(10);
+        await watched.until("ben's two loads to run", () => watched.count("join") === 4);
         assert.equal((await failure(describe(context, token("cleo"), { team: "a" }))).code, "SOURCE_UNAVAILABLE");
         assert.equal(loads, 4);
         assert.ok(context.lines.some((l) => l.event === "warning" && /too many loads running/.test(l.message)));
@@ -303,6 +381,7 @@ test("load limits: at most 2 loads of one person and 4 of one source run at once
         assert.equal(loads, 5, "free again once the loads ended");
         assert.deepEqual(LOAD_LIMITS, { perSource: 4, perIdentity: 2 });
     } finally {
+        watched.stop();
         await context.close();
     }
 });
@@ -720,12 +799,35 @@ test("run limits: a value that is not text is cut after it is written as text; a
     }
 });
 
-/** A runner's options for a unit test, with a log that keeps its lines. */
+/** A runner's options for a unit test, with a log that keeps its lines; `until` waits for a line. */
 function unitHow(extra = {}) {
     const lines = [];
-    const log = { warn: (m) => lines.push(["warn", m]), error: (e) => lines.push(["error", String(e?.message ?? e)]), debug: (m) => lines.push(["debug", m]) };
-    return { lines, how: { prepare: (raw) => raw, source: "s", label: "s", bucket: "b", owner: "o", timeMs: 1000, ttl: 0, maxStale: 3600, version: null, sizeOf: () => 1, log, ...extra } };
+    const { seen, until } = sightings();
+    const add = (line) => (lines.push(line), seen());
+    const log = { warn: (m) => add(["warn", m]), error: (e) => add(["error", String(e?.message ?? e)]), debug: (m) => add(["debug", m]) };
+    return { lines, until, how: { prepare: (raw) => raw, source: "s", label: "s", bucket: "b", owner: "o", timeMs: 1000, ttl: 0, maxStale: 3600, version: null, sizeOf: () => 1, log, ...extra } };
 }
+
+test("a LOAD_HOOKS listener that throws breaks no load: its error comes up as an uncaught exception, so a test fails", () => {
+    // in a process of its own: the error must reach the process, which here only records it
+    const script = `
+        import { LOAD_HOOKS, createLoadRunner } from ${JSON.stringify(new URL("../src/sources/run.js", import.meta.url).href)};
+        const uncaught = [];
+        process.on("uncaughtException", (e) => uncaught.push(e.message));
+        const runner = createLoadRunner();
+        runner[LOAD_HOOKS](() => { throw new Error("listener broke"); });
+        const log = { warn() {}, error() {}, debug() {} };
+        const how = { prepare: (raw) => raw, source: "s", label: "s", bucket: "b", owner: "o", timeMs: 1000, ttl: 60, maxStale: 0, version: null, sizeOf: () => 1, log };
+        const first = await runner.runLoad("k", async () => "loaded", how);
+        const again = await runner.runLoad("k", async () => "loaded again", how);
+        await new Promise((resolve) => setImmediate(resolve));
+        console.log(JSON.stringify({ values: [first.value, again.value], running: runner.running("s"), uncaught: [...new Set(uncaught)] }));
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8", timeout: UNTIL_MS });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.trim(), "the loads ended and the script printed them, not a load the listener broke");
+    assert.deepEqual(JSON.parse(result.stdout), { values: ["loaded", "loaded"], running: 0, uncaught: ["listener broke"] }, "the load ran and was kept; the listener's error came up");
+});
 
 test("a version() whose promise rejects answers SOURCE_UNAVAILABLE and leaves no unhandled rejection", async () => {
     const context = await contextOf({ sources: { t: { load: async () => ROWS, version: () => Promise.reject(new Error("db at 10.1.2.3")) } } });
@@ -735,7 +837,7 @@ test("a version() whose promise rejects answers SOURCE_UNAVAILABLE and leaves no
     try {
         const error = await failure(describe(context));
         assert.equal(error.code, "SOURCE_UNAVAILABLE");
-        await wait(20);
+        await turn();
         assert.equal(unhandled, 0);
     } finally {
         process.off("unhandledRejection", count);
@@ -756,8 +858,10 @@ test("a caller that goes away: a shared load runs on for the others; aborted onl
     await runner.runLoad("k", async () => "first", how);
     let release = gate();
     let seen;
+    let called = gate();
     const gated = (signal) => {
         seen = signal;
+        called.open();
         const mine = release;
         return new Promise((resolve, reject) => {
             mine.opened.then(resolve);
@@ -775,9 +879,10 @@ test("a caller that goes away: a shared load runs on for the others; aborted onl
     assert.equal((await second).value, "second");
     // the only caller leaves: the load is aborted, nothing is refused or dropped
     release = gate();
+    called = gate();
     const c = new AbortController();
     const alone = runner.runLoad("k", gated, { ...how, signal: c.signal });
-    await wait(5);
+    await called.opened;
     c.abort();
     await assert.rejects(alone);
     assert.equal(seen.aborted, true);
@@ -818,14 +923,16 @@ test("SourceError: retryAfter passed on for a transient SOURCE_UNAVAILABLE, chec
 
 test("a load still holding its slot after twice its time limit is logged; the slot stays until it ends", async () => {
     const runner = createLoadRunner();
-    const { how, lines } = unitHow({ timeMs: 20 });
+    const loads = watchLoads(runner);
+    const { how, lines, until } = unitHow({ timeMs: 20 });
     const release = gate();
     await failure(runner.runLoad("k", () => release.opened, how));
-    await wait(60);
-    assert.ok(lines.some(([level, m]) => level === "warn" && /still holds a load slot 40 ms after it started/.test(m)), JSON.stringify(lines));
+    const warned = () => lines.some(([level, m]) => level === "warn" && /still holds a load slot 40 ms after it started/.test(m));
+    await until("the warning about the held slot", warned);
+    assert.ok(warned(), JSON.stringify(lines));
     assert.equal(runner.running("s"), 1);
     release.open(1);
-    await wait(5);
+    await loads.until("the load to give back its slot", () => loads.count("freed") === 1);
     assert.equal(runner.running("s"), 0);
 });
 
@@ -932,11 +1039,21 @@ test("the load cache's bound on all bytes: with many owners each within its shar
     assert.deepEqual(cache.size(), { entries: 4, bytes: 70 });
 });
 
-test("the warning about a hung load is not given for a slow load that ended in the meantime", async () => {
+test("the warning about a hung load is not given for a slow load that ended in the meantime", async (t) => {
+    // mocked time: the load ends at 30 ms, after its time limit (20 ms) and before the warning (40 ms)
+    t.mock.timers.enable({ apis: ["setTimeout"] });
     const runner = createLoadRunner();
+    const loads = watchLoads(runner);
     const { how, lines } = unitHow({ timeMs: 20 });
-    await failure(runner.runLoad("k", () => new Promise((resolve) => setTimeout(() => resolve(1), 30)), how));
-    await wait(80);
+    const started = gate();
+    const failing = failure(runner.runLoad("k", () => (started.open(), new Promise((resolve) => setTimeout(() => resolve(1), 30))), how));
+    await started.opened;
+    t.mock.timers.tick(20);
+    await failing;
+    t.mock.timers.tick(10);
+    await loads.until("the slow load to give back its slot", () => loads.count("freed") === 1);
+    // far past the 40 ms of the warning
+    t.mock.timers.tick(1000);
     assert.ok(!lines.some(([, m]) => /still holds a load slot/.test(m)), JSON.stringify(lines));
     assert.equal(runner.running("s"), 0);
 });
@@ -1267,13 +1384,15 @@ test("the load cache: the largest sourceCache.maxMb of the open contexts applies
 
 test("an async prepare (an HTTP source's CSV answer read in a worker): callers share it, its own errors pass, any other is the source's failure, a late result is kept", async () => {
     const runner = createLoadRunner();
+    const watched = watchLoads(runner);
     // two callers while prepare waits: one load, one prepare
     let loads = 0;
     let prepared = 0;
     const reading = gate();
-    const { how } = unitHow({ ttl: 60, prepare: async (raw) => (prepared++, await reading.opened, `${raw} read`) });
+    const preparing = gate();
+    const { how } = unitHow({ ttl: 60, prepare: async (raw) => (prepared++, preparing.open(), await reading.opened, `${raw} read`) });
     const first = runner.runLoad("k", async () => (++loads, "answer"), how);
-    await wait(5);
+    await preparing.opened;
     const second = runner.runLoad("k", async () => (++loads, "answer"), how);
     reading.open();
     assert.deepEqual([(await first).value, (await second).value, loads, prepared], ["answer read", "answer read", 1, 1]);
@@ -1301,7 +1420,7 @@ test("an async prepare (an HTTP source's CSV answer read in a worker): callers s
         const timed = unitHow({ timeMs: 20, ttl: 60, prepare: async (raw) => `${raw} read` });
         await failure(runner.runLoad("late", () => late.opened, timed.how));
         late.open("late answer");
-        await wait(10);
+        await watched.until("the late answer to be kept", () => watched.count("settled", { key: "late", late: true }) === 1);
         assert.equal((await runner.runLoad("late", async () => "new", timed.how)).value, "late answer read");
         const lateBad = gate();
         const bad = unitHow({ timeMs: 20, ttl: 60, prepare: async () => {
@@ -1309,8 +1428,9 @@ test("an async prepare (an HTTP source's CSV answer read in a worker): callers s
         } });
         await failure(runner.runLoad("bad", () => lateBad.opened, bad.how));
         lateBad.open("late answer");
-        await wait(10);
+        await watched.until("the late answer that cannot be prepared to be dropped", () => watched.count("settled", { key: "bad", late: true }) === 1);
         assert.equal((await runner.runLoad("bad", async () => "new", unitHow({ ttl: 60 }).how)).value, "new", "a late result that cannot be prepared is not kept");
+        await turn();
         assert.equal(unhandled, 0);
     } finally {
         process.off("unhandledRejection", count);
@@ -1353,42 +1473,48 @@ test("packed tables: whole numbers in the narrowest integer array, texts as one 
 test("an async prepare and a refusal: a value prepared after the key was refused is never kept", async () => {
     // the only caller leaves while prepare waits; a new load is refused; the old prepare ends after
     const runner = createLoadRunner();
+    const watched = watchLoads(runner);
+    const settledOf = (key) => watched.count("settled", { key });
     const reading = gate();
+    const preparing = gate();
     const leave = new AbortController();
     let seen;
-    const first = runner.runLoad("k", async () => "old", unitHow({ ttl: 60, signal: leave.signal, prepare: async (raw, signal) => ((seen = signal), await reading.opened, raw) }).how);
-    await wait(10);
+    const first = runner.runLoad("k", async () => "old", unitHow({ ttl: 60, signal: leave.signal, prepare: async (raw, signal) => ((seen = signal), preparing.open(), await reading.opened, raw) }).how);
+    await preparing.opened;
     leave.abort();
     await assert.rejects(first);
     assert.equal(seen?.aborted, true, "prepare's signal fires when every caller went away");
     await failure(runner.runLoad("k", async () => {
         throw new SourceError("NOT_ALLOWED", { transient: false });
     }, unitHow({ ttl: 60 }).how));
+    const before = settledOf("k");
     reading.open();
-    await wait(10);
+    await watched.until("the old prepare to end", () => settledOf("k") > before);
     assert.deepEqual(runner.size(), { entries: 0, bytes: 0 });
     assert.equal((await runner.runLoad("k", async () => "fresh", unitHow({ ttl: 60 }).how)).value, "fresh");
     // a late result (over timeMs) still in prepare when the key is refused
     const late = gate();
     const lateReading = gate();
-    await failure(runner.runLoad("late", () => late.opened, unitHow({ timeMs: 20, ttl: 60, prepare: async (raw) => (await lateReading.opened, raw) }).how));
+    const latePreparing = gate();
+    await failure(runner.runLoad("late", () => late.opened, unitHow({ timeMs: 20, ttl: 60, prepare: async (raw) => (latePreparing.open(), await lateReading.opened, raw) }).how));
     late.open("late");
-    await wait(10);
+    await latePreparing.opened;
     await failure(runner.runLoad("late", async () => {
         throw new SourceError("NOT_ALLOWED", { transient: false });
     }, unitHow({ ttl: 60 }).how));
     lateReading.open();
-    await wait(10);
+    await watched.until("the late prepare to end", () => watched.count("settled", { key: "late", late: true }) === 1);
     assert.equal((await runner.runLoad("late", async () => "fresh", unitHow({ ttl: 60 }).how)).value, "fresh", "the refused key's old data is not brought back");
     // a load that started later and is kept already is not overwritten by an earlier one's late result
     const slow = gate();
     const slowReading = gate();
-    await failure(runner.runLoad("order", () => slow.opened, unitHow({ timeMs: 20, ttl: 60, prepare: async (raw) => (await slowReading.opened, raw) }).how));
+    const slowPreparing = gate();
+    await failure(runner.runLoad("order", () => slow.opened, unitHow({ timeMs: 20, ttl: 60, prepare: async (raw) => (slowPreparing.open(), await slowReading.opened, raw) }).how));
     slow.open("earlier");
-    await wait(5);
+    await slowPreparing.opened;
     assert.equal((await runner.runLoad("order", async () => "later", unitHow({ ttl: 60 }).how)).value, "later");
     slowReading.open();
-    await wait(10);
+    await watched.until("the earlier load's late prepare to end", () => watched.count("settled", { key: "order", late: true }) === 1);
     assert.equal((await runner.runLoad("order", async () => "again", unitHow({ ttl: 60 }).how)).value, "later");
 });
 
@@ -1448,14 +1574,16 @@ test("packed tables: a number column with -0 stays Float64, so -0 comes back as 
 
 test("an async prepare that ignores the signal: when every caller left before it resolved, its value is not kept", async () => {
     const runner = createLoadRunner();
+    const watched = watchLoads(runner);
     const reading = gate();
+    const preparing = gate();
     const leave = new AbortController();
-    const first = runner.runLoad("k", async () => "old", unitHow({ ttl: 60, signal: leave.signal, prepare: async (raw) => (await reading.opened, raw) }).how);
-    await wait(10);
+    const first = runner.runLoad("k", async () => "old", unitHow({ ttl: 60, signal: leave.signal, prepare: async (raw) => (preparing.open(), await reading.opened, raw) }).how);
+    await preparing.opened;
     leave.abort();
     await assert.rejects(first);
     reading.open();
-    await wait(10);
+    await watched.until("the prepare to end", () => watched.count("settled", { key: "k" }) === 1);
     assert.deepEqual(runner.size(), { entries: 0, bytes: 0 });
     assert.equal((await runner.runLoad("k", async () => "fresh", unitHow({ ttl: 60 }).how)).value, "fresh");
 });

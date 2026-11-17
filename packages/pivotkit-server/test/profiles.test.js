@@ -68,7 +68,7 @@ test("one view under two profiles: the analyst sees the result's shape and the v
         // North, South, West, the blank region and the total
         assert.deepEqual(analyst.data.summary, { rows: 5, columns: 2, sourceRows: 5, keptRows: 5, truncated: false });
         // only the policy's parts differ
-        const strip = (d) => ({ ...d, withheld: undefined, summary: undefined, output: undefined, message: undefined });
+        const strip = (d) => ({ ...d, withheld: undefined, summary: undefined, output: undefined, message: undefined, requestId: undefined });
         assert.deepEqual(strip(plain.data), strip(analyst.data));
         const plainFields = (await call(`${server.api}/sources/sales`, { token: TOKEN })).data.fields;
         const analystFields = (await call(`${server.api}/sources/sales`, { token: OTHER_TOKEN })).data.fields;

@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { ConfigError, OPTION_KEYS, checkConfig, validateOptions } from "pivotkit-server";
 import { FRAGMENTS, composeSlots } from "../src/options/index.js";
 import { SLOTS, SECRET_REF } from "../src/options/shared.js";
@@ -202,7 +202,8 @@ test("check-config: the whole text of a configuration of every kind of source, w
     };
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: TOKEN }, name: "pivotkit-server", rest: true });
     const golden = readFileSync(new URL("./fixtures/check-config.txt", import.meta.url), "utf8");
-    assert.equal(result.text.split(dir).join("<dir>"), golden);
+    // the paths are the system's own: "/" in the golden file stands for its separator
+    assert.equal(result.text.split(dir).join("<dir>").replace(/<dir>\S*/g, (path) => path.split(sep).join("/")), golden);
     assert.deepEqual([result.problems, result.warnings, result.stops], [1, 2, 0]);
     // every line fits, but for a full path (one word, never cut)
     for (const line of result.text.split("\n").filter((l) => !l.includes(dir))) {

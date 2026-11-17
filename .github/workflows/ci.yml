@@ -40,12 +40,20 @@ jobs:
       - name: Types
         # type check of the JSDoc sources, generated .d.ts, and a TypeScript consumer compiled against them
         run: npm run types
+      - name: Temporary directories before the tests
+        # the pivotkit-* names already there, for the check after the repository checks. Linux only:
+        # the windows job does not run it
+        run: node scripts/temp-dirs.js save "$RUNNER_TEMP/temp-dirs.json"
       - name: Unit tests with coverage
         run: npm run coverage
       - name: Repository checks
         # the Playwright image matches the locked @playwright/test, every dependency is pinned; a run
         # that leaves a temporary directory behind fails (scripts/test-run.js)
         run: node scripts/test-run.js node --test "tests/*.test.js"
+      - name: No temporary directory left behind
+        # of any run or process: one killed without its exit event, or started without the run's id.
+        # A directory a sweep of tempDir() removed during the tests fails it too
+        run: node scripts/temp-dirs.js check "$RUNNER_TEMP/temp-dirs.json"
       - name: Package contents
         # npm pack --dry-run: LICENSE, docs, sources and types in the tarball; publishes nothing
         run: npm run pack:check
@@ -64,11 +72,22 @@ jobs:
         if: matrix.node == '24'
         run: npm run size -w pivotkit-xlsx
 
-  windows:
-    # pivotkit-cli's file handling on Windows: drive letters, junctions (reparse points), no
-    # O_NOFOLLOW; and pivotkit-server's secret files. Those tests only; the other jobs run on Linux
-    runs-on: windows-latest
-    timeout-minutes: 15
+  platforms:
+    # pivotkit-cli and pivotkit-server on Windows and macOS; the other jobs run on Linux. Windows:
+    # drive letters, junctions (reparse points), no O_NOFOLLOW, no POSIX modes. macOS: its own file
+    # system and signals. The server's tests cover the workers, the output directory, download
+    # markers (hard links), listen, the state directory, sign-in and the secret files. On Windows,
+    # the tests of file modes, owners, FIFOs, symbolic links and a caught SIGTERM skip themselves or
+    # check what Windows does instead
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows, os: windows-latest }
+          - { name: macos, os: macos-latest }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -82,10 +101,8 @@ jobs:
         run: npm run build
       - name: pivotkit-cli tests
         run: npm test -w pivotkit-cli
-      - name: pivotkit-server's credential commands
-        # token new, token show and key new write secret files: no replacing, --json, UTF-8 with LF,
-        # several runs at once, a round trip through the server (mode bits and links are POSIX only)
-        run: node scripts/test-run.js node --test packages/pivotkit-server/test/credentials.test.js
+      - name: pivotkit-server tests
+        run: npm test -w pivotkit-server
 
   angular:
     # The Angular example (examples/angular): a standalone component with <pivot-report>, built by
@@ -148,8 +165,9 @@ jobs:
           - { browser: chromium, shard: 1, of: 1 }
           - { browser: firefox, shard: 1, of: 2 }
           - { browser: firefox, shard: 2, of: 2 }
-          - { browser: webkit, shard: 1, of: 2 }
-          - { browser: webkit, shard: 2, of: 2 }
+          - { browser: webkit, shard: 1, of: 3 }
+          - { browser: webkit, shard: 2, of: 3 }
+          - { browser: webkit, shard: 3, of: 3 }
     container:
       image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe
       options: --user 1001

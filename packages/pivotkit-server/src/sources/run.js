@@ -202,6 +202,21 @@ const mib = (bytes) => (bytes / 1_048_576).toFixed(1);
 const REFUSALS = 1024;
 
 /**
+ * The key of a load runner's look for tests (test/code-sources.test.js): `runner[LOAD_HOOKS](listener)`
+ * calls the listener with each LoadEvent as it happens and returns the function that stops it. Tests
+ * wait for these instead of a fixed time. Not exported by the package.
+ */
+export const LOAD_HOOKS = Symbol("pivotkit.loadHooks");
+
+/**
+ * What a load runner did:
+ * - `join`: a caller waits for a load, a new one or one in flight.
+ * - `freed`: a load ended and gave back its slot, also one that ignored its abort.
+ * - `settled`: a load's prepared value was kept or not (`late`: a result after the time limit).
+ * @typedef {{ type: "join", key: string | null, source: string } | { type: "freed", source: string } | { type: "settled", key: string | null, kept: boolean, late: boolean }} LoadEvent
+ */
+
+/**
  * A loader of data with its own cache, loads in flight and refusals. The server has one
  * (`runLoad`); tests make their own.
  * @param {{ cache?: ReturnType<typeof createLoadCache>, limits?: Partial<typeof LOAD_LIMITS> }} [parts]
@@ -223,6 +238,25 @@ export function createLoadRunner(parts = {}) {
     const running = new Map();
     /** @type {Map<string, number>} when each source was last said to be too large to keep */
     const tooLargeAt = new Map();
+    /** @type {Set<(event: LoadEvent) => void>} the tests' listeners (LOAD_HOOKS) */
+    const listeners = new Set();
+    /**
+     * Tells the listeners. A listener that throws breaks no load: its error is thrown again on a
+     * microtask, where it comes up as an uncaught exception and fails the test.
+     * @param {LoadEvent} event
+     */
+    const emit = (event) => {
+        for (const listener of listeners) {
+            try {
+                listener(event);
+            } catch (e) {
+                queueMicrotask(() => {
+                    throw e;
+                });
+            }
+        }
+    };
+
 
     const refuse = (key) => {
         cache.delete(key);
@@ -256,6 +290,7 @@ export function createLoadRunner(parts = {}) {
         if (slots.total <= 0) {
             running.delete(source);
         }
+        emit({ type: "freed", source });
     };
 
     /**
@@ -325,7 +360,9 @@ export function createLoadRunner(parts = {}) {
                 own.work.finally(() => inflight.get(key) === own && inflight.delete(key)).catch(() => undefined);
             }
         }
-        return join(shared, key, how.signal);
+        const joined = join(shared, key, how.signal);
+        emit({ type: "join", key, source: how.source });
+        return joined;
     }
 
     /**
@@ -418,9 +455,11 @@ export function createLoadRunner(parts = {}) {
                     (late) => {
                         if (key !== null && mayKeep(key, order)) {
                             keep(key, late, how, version, order);
+                        } else {
+                            emit({ type: "settled", key, kept: false, late: true });
                         }
                     },
-                    () => undefined
+                    () => emit({ type: "settled", key, kept: false, late: true })
                 );
             }
             return failed(key, e, how);
@@ -428,24 +467,30 @@ export function createLoadRunner(parts = {}) {
             clearTimeout(timer);
         }
         let value;
+        let kept = false;
         try {
             // the load's signal: a read whose callers all went away stops
             value = await how.prepare(raw, controller.signal);
         } catch (e) {
-            if (shared.cancelled) {
-                throw new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: true }));
+            try {
+                if (shared.cancelled) {
+                    throw new OperationError("SOURCE_UNAVAILABLE", DEFAULT_TEXT.SOURCE_UNAVAILABLE, errorDetails({ retryable: true }));
+                }
+                if (isOwnError(e)) {
+                    throw e;
+                }
+                // the host's code ran while its data was read (a getter): the source's failure
+                return failed(key, e, how);
+            } finally {
+                emit({ type: "settled", key, kept, late: false });
             }
-            if (isOwnError(e)) {
-                throw e;
-            }
-            // the host's code ran while its data was read (a getter): the source's failure
-            return failed(key, e, how);
         }
         // prepare may wait (a CSV answer read in a worker): every caller may have gone, the key
         // been refused or a later load kept meanwhile, and then this value is not kept
         if (key !== null && !shared.cancelled && mayKeep(key, order)) {
-            remember(key, value, how, version, order);
+            kept = remember(key, value, how, version, order);
         }
+        emit({ type: "settled", key, kept, late: false });
         return { value, stale: null };
     }
 
@@ -459,20 +504,23 @@ export function createLoadRunner(parts = {}) {
      * while it was prepared; a result that cannot be prepared is not kept.
      */
     async function keep(key, raw, how, version, order) {
+        let kept = false;
         try {
             const value = await how.prepare(raw, undefined);
             if (mayKeep(key, order)) {
-                remember(key, value, how, version, order);
+                kept = remember(key, value, how, version, order);
             }
         } catch {
             // the next call loads again and says why
+        } finally {
+            emit({ type: "settled", key, kept, late: true });
         }
     }
 
-    /** Keeps a value with when its load ended (ttl and stale's since count from then) and its version. */
+    /** Keeps a value with when its load ended (ttl and stale's since count from then) and its version; whether it did. */
     function remember(key, value, how, version, order) {
         if (version === null && !how.ttl && !(how.maxStale > 0)) {
-            return;
+            return false;
         }
         const bytes = how.sizeOf(value);
         const share = Math.floor(cache.limit() * OWNER_SHARE);
@@ -482,9 +530,10 @@ export function createLoadRunner(parts = {}) {
                 tooLargeAt.set(how.source, Date.now());
                 how.log.warn(`the source ${how.label}: its data (${mib(bytes)} MiB) is larger than a quarter of sourceCache.maxMb (${mib(share)} MiB), so it is not kept and every call loads it again; raise sourceCache.maxMb to keep it`, { source: how.label });
             }
-            return;
+            return false;
         }
         cache.set(key, { value, version, loadedAt: Date.now(), order }, { identity: how.owner, bytes });
+        return true;
     }
 
     /**
@@ -521,7 +570,12 @@ export function createLoadRunner(parts = {}) {
         running: (source) => running.get(source)?.total ?? 0,
         /** The bytes the load cache may hold (sourceCache.maxMb); one owner's share is OWNER_SHARE of them. */
         cacheBytes: () => cache.limit(),
-        claimCacheBytes
+        claimCacheBytes,
+        /** @param {(event: LoadEvent) => void} listener */
+        [LOAD_HOOKS]: (listener) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        }
     };
 
     /**

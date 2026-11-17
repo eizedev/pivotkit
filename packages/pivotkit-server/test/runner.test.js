@@ -5,7 +5,6 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { serve } from "pivotkit-server";
 import { fitsRange } from "../src/version-range.js";
@@ -53,7 +52,8 @@ test("help, version, an unknown command; cli and mcp hand over to their packages
 });
 
 test("a pivotkit-mcp of another release: serve and mcp say so with both versions, not a missing export", () => {
-    const hook = fileURLToPath(new URL("./fixtures/mcp-other-release/hook.js", import.meta.url));
+    // a file URL: --import takes a specifier, and on Windows a path with a drive letter is none
+    const hook = new URL("./fixtures/mcp-other-release/hook.js", import.meta.url).href;
     const dir = workspace();
     for (const args of [["serve", "--source", "sales=data/sales.csv", "--port", "0"], ["mcp", "--version"]]) {
         const r = spawnSync(process.execPath, ["--import", hook, BIN, ...args], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
@@ -76,7 +76,8 @@ test("a pivotkit-mcp of another release: serve and mcp say so with both versions
 });
 
 test("a pivotkit-mcp of another release whose imports resolve: its declared range refuses it, for serve and mcp", () => {
-    const hook = fileURLToPath(new URL("./fixtures/mcp-other-release/hook.js", import.meta.url));
+    // a file URL: --import takes a specifier, and on Windows a path with a drive letter is none
+    const hook = new URL("./fixtures/mcp-other-release/hook.js", import.meta.url).href;
     const dir = workspace();
     for (const args of [["mcp", "--version"], ["check-config", "--source", "sales=data/sales.csv"]]) {
         const r = spawnSync(process.execPath, ["--import", hook, BIN, ...args], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "imports-fine.js" }, timeout: 30_000 });
@@ -138,7 +139,7 @@ test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST woul
     assert.match(bad.stderr, /http\.enable\[1\]: must be one of mcp, rest/);
 });
 
-test("serve from the command line: REST and MCP on one port, /healthz for healthcheck, and SIGTERM stops it", async () => {
+test("serve from the command line: REST and MCP on one port, /healthz for healthcheck, and SIGTERM stops it", async (t) => {
     const dir = workspace();
     const child = spawn(process.execPath, [BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0", "--auth", "token"], { cwd: dir, env: { PATH: process.env.PATH ?? "", PIVOTKIT_TOKEN: TOKEN } });
     const lines = [];
@@ -161,9 +162,16 @@ test("serve from the command line: REST and MCP on one port, /healthz for health
         const port = new URL(started.url).port;
         const ok = spawnSync(process.execPath, [BIN, "healthcheck"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "", PIVOTKIT_PORT: port } });
         assert.equal(ok.status, 0, ok.stderr);
-        child.kill("SIGTERM");
-        const code = await new Promise((resolve) => child.once("exit", (c) => resolve(c)));
-        assert.equal(code, 0);
+        const exited = new Promise((resolve) => child.once("exit", (c) => resolve(c)));
+        if (process.platform === "win32") {
+            // not tested on Windows: it has no SIGTERM to catch, and CI sends no console Ctrl+C
+            t.diagnostic("the graceful stop is not tested on Windows");
+            child.kill();
+            await exited;
+        } else {
+            child.kill("SIGTERM");
+            assert.equal(await exited, 0);
+        }
         const dead = spawnSync(process.execPath, [BIN, "healthcheck", `http://127.0.0.1:${port}/healthz`], { encoding: "utf8" });
         assert.equal(dead.status, 1);
     } finally {
@@ -247,7 +255,7 @@ test("close() lets a running report finish before the server stops", async () =>
     assert.equal(res.data.valid, true);
 });
 
-test("/readyz says 503 when the output directory is not writable", { skip: process.getuid?.() === 0 ? "root writes anywhere" : false }, async () => {
+test("/readyz says 503 when the output directory is not writable", { skip: process.getuid?.() === 0 ? "root writes anywhere" : process.platform === "win32" ? "POSIX modes" : false }, async () => {
     const dir = workspace();
     const server = await serve({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, http: { port: 0, enable: ["rest"] }, baseDir: dir, log: "off" }, { env: {}, stderr: { write() {} } });
     try {

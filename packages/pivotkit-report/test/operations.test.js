@@ -253,3 +253,41 @@ test("env.unknownItems: an item of an in filter that is none of a text field's v
 test("checkInput: a text over its length says the limit, its own length and to shorten it", () => {
     assert.throws(() => checkInput(OPERATIONS.render_view.input, { source: "s", view: "{}", format: "csv", name: "n".repeat(81) }), (e) => e.code === "INVALID_INPUT" && e.message === "input.name must have at most 80 characters, not 81; shorten it");
 });
+
+test("render_view for a reader: numbers as the view shows them, one header row, the caller's locale for a layout", async () => {
+    // 64 amounts of 0.1 and 0.2: their sum is 9.599999999999994 in floating point
+    const rows = Array.from({ length: 64 }, (_, i) => ({ Region: ["East", "North"][(i >> 1) % 2], Product: ["A", "B"][(i >> 2) % 2], Amount: [0.1, 0.2][i % 2] }));
+    const amounts = { data: async () => ({ data: encode(rows), name: "amounts.csv", notes: [] }) };
+    const layout = { rows: ["Product"], cols: ["Region"], values: [{ field: "Amount", agg: "sum" }] };
+    const full = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv" }, amounts);
+    assert.match(new TextDecoder().decode(full.file.bytes), /Grand Total,4\.8,4\.8,9\.59999999999999\r\n$/, "full precision unless asked");
+    const shown = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", numbers: "shown", flatHeader: true, locale: "de-DE" }, amounts);
+    conforms("render_view", shown.result);
+    assert.equal(new TextDecoder().decode(shown.file.bytes), "Product;East;North;Gesamtergebnis\r\nA;2,4;2,4;4,8\r\nB;2,4;2,4;4,8\r\nGesamtergebnis;4,8;4,8;9,6\r\n");
+    // a view's own locale comes first; the caller's is for a view that names none
+    const english = await OPERATIONS.render_view.run({ source: "amounts", view: { version: 2, ...layout, formatting: { locale: "en-US" } }, format: "json", numbers: "shown", locale: "de-DE" }, amounts);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(english.file.bytes)).rows.at(-1), { labels: ["Grand Total"], total: 2, collapsed: false, values: [4.8, 4.8, 9.6] });
+    await assert.rejects(OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", locale: "not a locale!" }, amounts), (e) => e instanceof OperationError && e.code === "INVALID_INPUT" && /locale/.test(e.message));
+    // a well-formed tag no Intl service knows would fall back to the machine's locale: refused
+    await assert.rejects(OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", locale: "xx-XX" }, amounts), (e) => e instanceof OperationError && e.code === "INVALID_INPUT" && /locale/.test(e.message));
+    assert.throws(() => checkInput(OPERATIONS.render_view.input, { source: "amounts", numbers: "rounded" }), /numbers/);
+});
+
+test("render_view with inline: the file as asked (full by default) and beside it the text for a reader, with the values shown as 0", async () => {
+    const rows = [...Array.from({ length: 64 }, (_, i) => ({ Product: ["A", "B"][(i >> 2) % 2], Amount: [0.1, 0.2][i % 2] })), { Product: "C", Amount: 1e-9 }];
+    const amounts = { data: async () => ({ data: encode(rows), name: "amounts.csv", notes: [] }) };
+    const layout = { rows: ["Product"], values: [{ field: "Amount", agg: "sum" }] };
+    const out = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "json", inline: { numbers: "shown", maxCells: 100 } }, amounts);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(out.file.bytes)).rows.at(-1).values, [9.60000000099999], "the file keeps full precision");
+    assert.ok(!out.inline.text.includes("\n"), "one line");
+    assert.deepEqual(JSON.parse(out.inline.text).rows.map((r) => r.values[0]), [4.8, 4.8, 0, 9.6]);
+    assert.equal(out.inline.zeros, 1);
+    // numbers given: the file and the text alike
+    const shown = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", numbers: "shown", inline: { numbers: "shown", maxCells: 100 } }, amounts);
+    assert.equal(new TextDecoder().decode(shown.file.bytes), shown.inline.text);
+    // over maxCells: no text
+    const over = await OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", inline: { numbers: "shown", maxCells: 2 } }, amounts);
+    assert.equal(over.inline, undefined);
+    // a locale with a numbering system of its own is refused: csv and json write Latin digits
+    await assert.rejects(OPERATIONS.render_view.run({ source: "amounts", layout, format: "csv", locale: "ar-EG-u-nu-arab" }, amounts), (e) => e instanceof OperationError && e.code === "INVALID_INPUT" && /numbering/.test(e.message));
+});

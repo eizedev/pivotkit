@@ -75,19 +75,22 @@ function rank(descending) {
  * @property {string} format     default format of the result
  * @property {boolean} [alongAxis] walks the siblings on `axis`
  * @property {boolean} [additive]  needs an additive aggregator (sum, count)
+ * @property {boolean} [addsUp]    of an additive aggregator, the results of a category's series still
+ *   add up to something (a stacked chart's total): a share of the grand or the row total, a difference
+ *   or a running total along the rows. Not a rank, a percent difference or a share of another base
  * @property {(x: number | null, c: ShowAsContext) => number | null} compute
  */
 
 /** @type {Readonly<Record<string, ShowAsDef>>} */
 export const SHOW_AS = Object.freeze({
-    percentOfGrandTotal: { format: "percent", compute: (x, c) => ratio(x, c.raw(c.rowRoot, c.colRoot)) },
-    percentOfRowTotal: { format: "percent", compute: (x, c) => ratio(x, c.raw(c.rowNode, c.colRoot)) },
+    percentOfGrandTotal: { format: "percent", addsUp: true, compute: (x, c) => ratio(x, c.raw(c.rowRoot, c.colRoot)) },
+    percentOfRowTotal: { format: "percent", addsUp: true, compute: (x, c) => ratio(x, c.raw(c.rowNode, c.colRoot)) },
     percentOfColumnTotal: { format: "percent", compute: (x, c) => ratio(x, c.raw(c.rowRoot, c.colNode)) },
     percentOfParentRow: { format: "percent", compute: (x, c) => ratio(x, c.raw(c.rowNode.parent ?? c.rowNode, c.colNode)) },
     percentOfParentColumn: { format: "percent", compute: (x, c) => ratio(x, c.raw(c.rowNode, c.colNode.parent ?? c.colNode)) },
-    differenceFromPrevious: { format: "number", alongAxis: true, compute: difference(false) },
+    differenceFromPrevious: { format: "number", alongAxis: true, addsUp: true, compute: difference(false) },
     percentDifferenceFromPrevious: { format: "percent", alongAxis: true, compute: difference(true) },
-    runningTotal: { format: "number", alongAxis: true, additive: true, compute: runningTotal(false) },
+    runningTotal: { format: "number", alongAxis: true, additive: true, addsUp: true, compute: runningTotal(false) },
     percentRunningTotal: { format: "percent", alongAxis: true, additive: true, compute: runningTotal(true) },
     rankAscending: { format: "integer", alongAxis: true, compute: rank(false) },
     rankDescending: { format: "integer", alongAxis: true, compute: rank(true) }
