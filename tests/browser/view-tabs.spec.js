@@ -11,7 +11,7 @@ const focused = (page) =>
         return deep(document)?.getAttribute("data-testid") ?? deep(document)?.tagName ?? null;
     });
 
-test("the tabs: a click shows the view, the settings button follows it; the arrow keys move the focus, Enter shows the tab", async ({ page }) => {
+test("the tabs: a click shows the view, the settings button follows it; the arrow keys move the focus, Enter shows the tab", async ({ page, browserName }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("?data=sales&lang=en");
     await page.locator('[data-testid="pivot-table"]').waitFor();
@@ -45,8 +45,11 @@ test("the tabs: a click shows the view, the settings button follows it; the arro
     await expect(chart).toBeFocused();
     await page.keyboard.press(" ");
     await expect(chart).toHaveAttribute("aria-selected", "true");
-    await page.keyboard.press("Tab");
-    expect(await focused(page)).toBe("view-settings");
+    // Safari's Tab skips buttons unless the user turns that on
+    if (browserName !== "webkit") {
+        await page.keyboard.press("Tab");
+        expect(await focused(page)).toBe("view-settings");
+    }
     // the tab shown, clicked again, adds no step to undo
     await page.getByTestId("undo").click();
     await expect(table).toHaveAttribute("aria-selected", "true");
@@ -189,7 +192,7 @@ test("a narrow report: Start over and Views below Help in More; the settings, En
     await expect(page.locator(".pk-popover").getByTestId("save-as")).toBeVisible();
 });
 
-test("the section: the fold button names the section and says what is placed; Swap works folded; the keys go fold, Swap, the zones", async ({ page }) => {
+test("the section: the fold button names the section and says what is placed; Swap works folded; the keys go fold, Swap, the zones", async ({ page, browserName }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("?data=sales&lang=en");
     await page.locator('[data-testid="pivot-table"]').waitFor();
@@ -204,8 +207,10 @@ test("the section: the fold button names the section and says what is placed; Sw
     expect(await fold.evaluate((el) => getComputedStyle(el).cursor)).toBe("pointer");
     // Swap is beside the fold button, not in it, and works folded
     expect(await fold.locator('[data-testid="swap"]').count()).toBe(0);
+    // by keyboard (WebKit does not focus a button on a click): the focus stays on Swap
     const swap = page.getByTestId("swap");
-    await swap.click();
+    await swap.focus();
+    await page.keyboard.press("Enter");
     await expect(fold).toHaveAccessibleDescription("Rows: Category · Columns: Region, Country · Values: Sum of Revenue");
     await expect(swap).toBeFocused();
     // the keys: Enter opens it, the focus stays; Tab goes to Swap, then the first zone's "i"
@@ -214,10 +219,13 @@ test("the section: the fold button names the section and says what is placed; Sw
     await expect(fold).toHaveAttribute("aria-expanded", "true");
     await expect(fold).toBeFocused();
     await expect(page.locator(".pk-zone")).toHaveCount(4);
-    await page.keyboard.press("Tab");
-    expect(await focused(page)).toBe("swap");
-    await page.keyboard.press("Tab");
-    expect(await focused(page)).toBe("zone-info-filters");
+    // Safari's Tab skips buttons unless the user turns that on
+    if (browserName !== "webkit") {
+        await page.keyboard.press("Tab");
+        expect(await focused(page)).toBe("swap");
+        await page.keyboard.press("Tab");
+        expect(await focused(page)).toBe("zone-info-filters");
+    }
     // the open zones sit indented in a tinted panel, below the heading's text
     const box = await page.locator(".pk-zones").evaluate((el) => {
         const zones = el.getBoundingClientRect();
