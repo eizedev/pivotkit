@@ -210,4 +210,6 @@ labels. While the table is shown, the entry is greyed out and says "Switch to Ch
 
     - the view's `chart` settings
     - what "auto" stands for (`autoChartType`)
+    - `colorMap`: a fixed colour per series or slice name for every view, one per theme if you like
+      ([fixed colours](../concepts/charts.md#fixed-colours))
     - `chartOptions`: plain JSON merged over the ECharts option, for what the menus do not offer.

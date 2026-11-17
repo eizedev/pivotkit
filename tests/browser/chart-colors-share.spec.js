@@ -200,3 +200,26 @@ test.describe("chart extras (#54)", () => {
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["Sum of Revenue", "North 60 38.2%"]);
     });
 });
+
+// The browser's own clipboard, not a stand-in: only Chromium lets a test grant reading it. It runs in
+// CI only: on a developer's machine the browser may share the system's clipboard and replace what is on it
+test("Chromium: Copy chart image leaves a PNG on the real clipboard", async ({ page, context, browserName }) => {
+    test.skip(browserName !== "chromium", "only Chromium grants clipboard-read to a test");
+    test.skip(!process.env.CI, "CI only: it would replace the clipboard of the machine that runs it");
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("pages/host.html");
+    await mount(page, { type: "bar" });
+    const report = page.locator("#color-report");
+    await menu(report, "export");
+    await report.getByTestId("export-copy-chart").click();
+    await expect(report.locator(".pk-toasts")).toContainText("Chart copied as an image");
+    const read = await page.evaluate(async () => {
+        const [item] = await navigator.clipboard.read();
+        const blob = await item.getType("image/png");
+        return { types: item.types, size: blob.size, head: [...new Uint8Array(await blob.slice(0, 4).arrayBuffer())] };
+    });
+    expect(read.types).toContain("image/png");
+    expect(read.head).toEqual([137, 80, 78, 71]);
+    expect(read.size).toBeGreaterThan(1000);
+});

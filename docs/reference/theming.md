@@ -210,6 +210,9 @@ colour outside sRGB, such as a P3 one, is clipped to its nearest sRGB colour. Th
 them. pivotkit-report on its own needs a form ECharts reads, see
 [print template](print-template.md#template-design).
 
+The palette colours series and slices by their place. To keep a colour with a name in every chart,
+such as red for "Failed", use the `colorMap` prop ([fixed colours](../concepts/charts.md#fixed-colours)).
+
 By default, `--pk-chart-text-size` is the secondary text's size, at least 14 px. The report takes a
 host's own size as it is, so keep it at 14 px or more.
 
