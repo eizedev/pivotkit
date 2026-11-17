@@ -110,12 +110,14 @@ The report adapts to its own width, not the window's.
 ### A low report
 
 A report is low below 600 px of height, a narrow one below 820 px. Then it starts with its zones
-folded. The heading **Fields in the report** stays, and the line under it says what is placed:
-"Rows: Team · Columns: Priority · Values: Count of Ticket". At most one tip shows.
+folded. The heading **Fields in the report** stays, and next to it, in the same line, what is
+placed: "Rows: Team · Columns: Priority · Values: Count of Ticket". At most one tip shows.
 
-- A click on the heading row folds or opens the zones. The chevron on its left turns.
-- While the zones are open, the line under the heading says what the section is for.
-- On a narrow report the folded line may take two lines.
+- A click on the heading or on what is placed folds or opens the zones. The chevron on its left
+  turns.
+- The **i** next to the heading says what the section is for.
+- The heading row is one line on every screen. On a phone, what is placed is cut with "…"; point at
+  the heading to read it whole.
 - **Swap rows and columns** sits at the right end of the heading row. It works while the zones are
   folded too.
 - A drag from the field list or the table opens the zones while it lasts.

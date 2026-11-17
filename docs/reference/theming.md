@@ -103,9 +103,9 @@ size through the element.
 | `--pk-row-h` | Height of a table row | `2.45em` | as light |
 | `--pk-panel-w` | Width of the field list; at most 284 px in the medium layout | `288px` | as light |
 | `--pk-rail-w` | Width of the field list collapsed to a rail | `40px` | as light |
-| `--pk-section-rule`<br>`--pk-section-space` | The section of the zones ("Fields in the report"): the rules above and below it; the space between a rule and the heading row | `var(--pk-border)`<br>`8px` | as light |
+| `--pk-section-rule`<br>`--pk-section-space` | The section of the zones ("Fields in the report"): the rules above and below it; the space between a rule and the heading row, and between the row and the open zones | `var(--pk-border)`<br>`4px` | as light |
 | `--pk-section-chevron`<br>`--pk-section-title-size` | The size of the chevron that folds the zones (its colour is `--pk-muted`); the size of the heading | `16px`<br>`max(15px, 1.07em)` | as light |
-| `--pk-section-indent`<br>`--pk-section-bg`<br>`--pk-section-pad` | The open zones' panel: its indent to the heading's text, its background and its padding (its corners are `--pk-radius`) | `26px`<br>`var(--pk-surface-2)`<br>`8px` | as light |
+| `--pk-section-indent`<br>`--pk-section-bg`<br>`--pk-section-pad` | The open zones' panel: its indent to the heading's text, its background and its padding (its corners are `--pk-radius`). On a phone the panel takes no indent and half its side padding | `26px`<br>`var(--pk-surface-2)`<br>`6px` | as light |
 | `--pk-tab-mark` | The line in `--pk-accent` on top of the tab shown (Table, Chart) | `3px` | as light |
 | `--pk-tooltip-name-w` | Widest series name in the chart's tooltip; a longer one ends in "…" | `12em` | as light |
 | `--pk-duration`<br>`--pk-ease` | Animations; `0ms` with `prefers-reduced-motion: reduce` | `180ms`<br>`cubic-bezier(0.2, 0.8, 0.2, 1)` | as light |

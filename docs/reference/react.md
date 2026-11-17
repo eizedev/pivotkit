@@ -298,10 +298,10 @@ The start state of the zones: open, or folded to the heading row "Fields in the 
   not store that.
 - `"open"` keeps the zones open even in a box too low for them. In a box of the host's height the
   result then gets less than its least height of 240 px, and the table scrolls in what is left.
-  Measured with three fields placed: a desktop card of 600 px leaves the table 176 px (two rows),
-  123 px while a tip shows. On a phone the same card leaves it almost nothing. Without `zones`, that
-  desktop card folds the zones and leaves 323 px (six rows).
-- Use `"open"` where the report has room: a desktop box of about 760 px or more, or no fixed
+  Measured with three fields placed: a desktop card of 600 px leaves the table 206 px (three rows),
+  152 px while a tip shows. On a phone the same card leaves it almost nothing. Without `zones`, that
+  desktop card folds the zones and leaves 347 px (six rows).
+- Use `"open"` where the report has room: a desktop box of about 700 px or more, or no fixed
   height, so the report grows.
 - A new value from the host sets the start state again.
 - The report ignores another value, with a console warning.
@@ -871,19 +871,23 @@ box before the first paint:
 - below 820 px in the narrow layout, where the zones stack (`COMPACT_HEIGHT_NARROW`)
 
 The zones sit in a section between two rules (`--pk-section-rule`), under the toolbar and above the
-tabs. Its heading row holds two buttons side by side:
+tabs. Its heading row is one line in every state and size, with three buttons side by side:
 
-- The fold button: a chevron, the heading "Fields in the report" (`zonesTitle`) and a line under it.
-  It is a disclosure button with `aria-expanded` and `aria-controls` on the zones, named by its
-  heading and described by the line (`aria-describedby`). Its test id is `layout-summary`.
-- "Swap rows and columns" at the row's end. It works while the zones are folded too. In the narrow
-  layout it shows its icon only. Its name stays for screen readers and as a tooltip.
+- The fold button: a chevron and the heading "Fields in the report" (`zonesTitle`). It is a
+  disclosure button with `aria-expanded` and `aria-controls` on the zones, named by its heading.
+  Its test id is `layout-summary`.
+- The section's "i", the zones' own: it says what the section is for (`zonesHint`). It shows while
+  explanations show, as the zones' "i" does.
+- "Swap rows and columns" at the row's end. It works while the zones are folded too. Where the row
+  is narrower than 36em, as on a phone, it shows its icon only. Its name stays for screen readers
+  and as a tooltip.
 
-Open, the line says what the section is for (`zonesHint`), and the zones sit indented in a tinted
-panel (`--pk-section-indent`, `--pk-section-bg`, `--pk-section-pad`). Folded, the line says what is
-placed ("Rows: Team · Columns: Priority · Values: Count of Ticket"), cut with "…". In the narrow
-layout it may take two lines. The focus stays on the fold button when it folds or opens the zones.
-The Tab order is the fold button, Swap, then each zone's "i" and its chips.
+Folded, what is placed stands in the same line after the "i" ("Rows: Team · Columns: Priority ·
+Values: Count of Ticket"), cut with "…". It is the fold button's description (`aria-describedby`)
+and its tooltip, and a click on it folds or opens the zones too. Open, the zones sit indented in a
+tinted panel (`--pk-section-indent`, `--pk-section-bg`, `--pk-section-pad`). The focus stays on
+the fold button when it folds or opens the zones. The Tab order is the fold button, the "i", Swap,
+then each zone's "i" and its chips.
 
 In the compact layout, the zones start folded, so the table keeps its room. At most one tip shows.
 [`zones`](#prop-zones) sets the start state instead.
@@ -1081,7 +1085,8 @@ the layout:
 | --- | --- |
 | `zone-section` | the section "Fields in the report" |
 | `layout-summary` | its fold button, with `aria-expanded` |
-| `zones-sub` | the line under the heading: what is placed, or the hint |
+| `zones-sub` | what is placed, after the heading while folded |
+| `zones-info` | the section's "i" |
 | `swap` | Swap rows and columns, at the end of the heading row |
 | `show-table`, `show-chart` | the tabs, with `aria-selected` |
 | `view-settings` | Table settings or Chart settings |

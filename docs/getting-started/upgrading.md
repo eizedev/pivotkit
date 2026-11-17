@@ -200,18 +200,19 @@ The toolbar holds what applies to the whole report. Table and Chart moved onto t
   **Swap rows and columns** moved from the Columns zone to the end of that row.
 - The new prop `zones` (`"open"` or `"folded"`, the attribute `zones`) sets the zones' start state.
   Without it, the report's height decides, as before.
-- The open zones with their heading need about 90 px more height than before. A report whose box
-  was just high enough for its open zones may now start with them folded. Give the report more
-  height, or set `zones="open"`.
-- `zones="open"` keeps them open in any box. In a desktop card of 600 px the table then keeps 176 px,
+- Folded, the zones' heading row and the tabs move the table down by about 13 px. Open, the zones
+  with their heading need about 60 px more height than before. A report whose box was just high
+  enough for its open zones may now start with them folded. Give the report more height, or set
+  `zones="open"`.
+- `zones="open"` keeps them open in any box. In a desktop card of 600 px the table then keeps 206 px,
   less than the result's least height of 240 px. On a phone it keeps almost nothing. Use it in a box
-  of about 760 px or more, or without a fixed height ([`zones`](../reference/react.md#prop-zones)).
+  of about 700 px or more, or without a fixed height ([`zones`](../reference/react.md#prop-zones)).
 
 Label keys:
 
 | No longer shown | Use instead |
 | --- | --- |
-| `layout` ("Layout") | `zonesTitle` ("Fields in the report") and `zonesHint` for the line under it |
+| `layout` ("Layout") | `zonesTitle` ("Fields in the report") and `zonesHint` for the section's "i" |
 | `showLayout` ("Show field layout") | `zonesTitle` names the fold button |
 | `options` ("Options") | `tableSettings` ("Table settings"), and `help` in More |
 | `chartDisplay` ("Display", the chart type menu's name) | `chartSettings` ("Chart settings") |
