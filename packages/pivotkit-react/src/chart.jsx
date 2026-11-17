@@ -16,6 +16,9 @@ import { chartThemeFrom } from "./theme.js";
 /** @type {Promise<any> | null} */
 let loading = null;
 
+/** How long a tap's tooltip waits for the second tap that opens its rows, in ms. */
+const TAP_WAIT = 10_000;
+
 /** ECharts with the parts the chart draws with (echarts.js), loaded once on the first chart. */
 export function loadECharts() {
     // a file of its own in dist/ (build.js), so the host's bundler splits it off
@@ -55,6 +58,11 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const warned = useRef(/** @type {unknown} */ (undefined));
     // the bar, segment or line point under the pointer: the tooltip names it (chart-tooltip.js)
     const hover = useRef(/** @type {{ seriesIndex: number, dataIndex: number } | null} */ (null));
+    // the element a tap showed the tooltip of, and when: a second tap on it opens its rows
+    const tapped = useRef(/** @type {{ element: string, at: number } | null} */ (null));
+    // whether the last press on the chart was a finger's: iOS sends its click as a plain mouse event,
+    // so the click itself does not say
+    const touched = useRef(false);
     useEffect(() => {
         latest.current = { series, onPoint, onInstance, type };
     });
@@ -63,6 +71,10 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         let disposed = false;
         /** @type {ResizeObserver | null} */
         let ro = null;
+        /** @type {((e: PointerEvent) => void) | null} */
+        let onPress = null;
+        /** @type {Document | null} */
+        let doc = null;
         loadECharts().then(
             (echarts) => {
                 if (disposed || !el.current) {
@@ -80,9 +92,21 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                     }
                     const seriesEntry = kind === "heatmap" ? s.series.filter((x) => x.valueIndex === s.series[0]?.valueIndex)[p.value?.[0]] : s.series[p.seriesIndex];
                     const row = kind === "heatmap" ? p.value?.[1] : p.dataIndex;
-                    if (seriesEntry && s.categoryPaths[row]) {
-                        cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value: kind === "heatmap" ? p.value[2] : p.value });
+                    if (!seriesEntry || !s.categoryPaths[row]) {
+                        return;
                     }
+                    // a touch has no pointer that rests on an element: the first tap on an element shows
+                    // its tooltip, a second tap on it opens its rows
+                    const element = `${p.seriesIndex}:${p.dataIndex}`;
+                    const last = tapped.current;
+                    if (touched.current && (last?.element !== element || Date.now() - last.at > TAP_WAIT)) {
+                        tapped.current = { element, at: Date.now() };
+                        return;
+                    }
+                    tapped.current = null;
+                    // the panel covers the chart: the tooltip would stay over it
+                    instance.dispatchAction({ type: "hideTip" });
+                    cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value: kind === "heatmap" ? p.value[2] : p.value });
                 });
                 // ECharts draws the tooltip before it reports the element under the pointer: the
                 // element is kept, and the tooltip drawn again at the pointer. hideTip first: at the
@@ -109,6 +133,13 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 });
                 instance.on("globalout", () => {
                     hover.current = null;
+                    tapped.current = null;
+                });
+                // a tap beside every element: the next tap on an element shows its tooltip first again
+                instance.getZr().on("click", (/** @type {any} */ e) => {
+                    if (!e.target) {
+                        tapped.current = null;
+                    }
                 });
                 ro =
                     typeof ResizeObserver === "function"
@@ -118,6 +149,18 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                           })
                         : null;
                 ro?.observe(el.current);
+                // a press: a finger's or not; one outside the chart forgets the tapped element
+                // (composedPath: inside a shadow root the document sees the host as the target)
+                const box = el.current;
+                doc = box.ownerDocument;
+                onPress = (/** @type {PointerEvent} */ e) => {
+                    if (e.composedPath().includes(box)) {
+                        touched.current = e.pointerType === "touch";
+                    } else {
+                        tapped.current = null;
+                    }
+                };
+                doc.addEventListener("pointerdown", onPress, true);
                 setReady(true);
             },
             (err) => setFailed(String(err && err.message ? err.message : err))
@@ -125,6 +168,9 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         return () => {
             disposed = true;
             ro?.disconnect();
+            if (onPress) {
+                doc?.removeEventListener("pointerdown", onPress, true);
+            }
             chart.current?.dispose();
             chart.current = null;
             latest.current.onInstance(null);
@@ -144,10 +190,11 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}) });
         // a new option draws new marks: the element under the pointer is reported again when it moves
         hover.current = null;
+        tapped.current = null;
         // each series' value: a stack's total only where the values add up (chart-tooltip.js valueAddsUp)
         const values = (series?.series ?? []).map((x) => result.view.values[x.valueIndex]);
         const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values };
-        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip });
+        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.color.parse });
         setEvery(axisEvery);
         // the host's chartOptions win over the view's display settings and the report's own styles:
         // plain JSON only; what is dropped is a developer's mistake, said in the console

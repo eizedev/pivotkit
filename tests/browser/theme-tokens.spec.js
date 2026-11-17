@@ -124,6 +124,103 @@ test.describe("a host's tokens for corners, the code font, the focus ring and th
     });
 });
 
+test.describe("a heatmap's colours in a form ECharts cannot mix (#386)", () => {
+    // oklch() and rgb() with spaces: ECharts' own parser reads neither and mixed them to black
+    const LIGHT = { low: "oklch(0.96 0.02 250)", high: "rgb(178 34 34)" };
+    const DARK = { low: "oklch(0.32 0.06 250)", high: "oklch(0.85 0.17 90)" };
+    const css = `.heat-host .pk-root { --pk-heat-low: ${LIGHT.low}; --pk-heat-high: ${LIGHT.high}; }
+.heat-host .pk-root[data-pk-theme="dark"] { --pk-heat-low: ${DARK.low}; --pk-heat-high: ${DARK.high}; }`;
+    // revenue per region and category: the least is South's services (5), the most East's software (40)
+    const data = [
+        { Region: "North", Category: "Hardware", Revenue: 20 }, { Region: "North", Category: "Services", Revenue: 10 }, { Region: "North", Category: "Software", Revenue: 30 },
+        { Region: "South", Category: "Hardware", Revenue: 15 }, { Region: "South", Category: "Services", Revenue: 5 }, { Region: "South", Category: "Software", Revenue: 25 },
+        { Region: "East", Category: "Hardware", Revenue: 12 }, { Region: "East", Category: "Services", Revenue: 18 }, { Region: "East", Category: "Software", Revenue: 40 }
+    ];
+
+    for (const theme of ["light", "dark"]) {
+        test(`${theme}: the cells show the host's colours, the least one in the low colour and the most in the high one`, async ({ page }) => {
+            await page.goto("pages/host.html");
+            await page.addStyleTag({ content: css });
+            await page.evaluate(async ({ data, theme }) => {
+                const React = await import("react");
+                const { createRoot } = await import("react-dom/client");
+                const { PivotReport } = await import("pivotkit-react");
+                const el = document.createElement("section");
+                el.id = "heat-chart";
+                el.className = "heat-host";
+                document.body.prepend(el);
+                const view = { rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "heatmap", valueLabels: "off" } };
+                createRoot(el).render(React.createElement(PivotReport, { theme, data, defaultView: view, height: 520 }));
+            }, { data, theme });
+            const chart = page.locator("#heat-chart").getByTestId("pivot-chart");
+            await expect(chart.locator("canvas").first()).toBeVisible();
+            // the colour drawn in the middle of a cell, as [r, g, b], once the chart has settled
+            const cell = (region, category) =>
+                chart.evaluate(async (el, { region, category }) => {
+                    const { getInstanceByDom } = await import("echarts/core");
+                    const instance = getInstanceByDom(el);
+                    if (!instance.getZr().animation.isFinished()) {
+                        return null;
+                    }
+                    const option = instance.getOption();
+                    const [x, y] = instance.convertToPixel({ seriesIndex: 0 }, [option.xAxis[0].data.indexOf(category), option.yAxis[0].data.indexOf(region)]);
+                    // the layers ECharts draws on (the cells have one of their own), one over the other
+                    const layers = [...el.querySelectorAll("canvas")];
+                    const scale = layers[0].width / layers[0].clientWidth;
+                    const copy = document.createElement("canvas");
+                    copy.width = layers[0].width;
+                    copy.height = layers[0].height;
+                    const ctx = copy.getContext("2d", { willReadFrequently: true });
+                    for (const layer of layers) {
+                        ctx.drawImage(layer, 0, 0);
+                    }
+                    const [r, g, b, a] = ctx.getImageData(Math.round(x * scale), Math.round(y * scale), 1, 1).data;
+                    // not drawn yet
+                    return a === 0 ? null : [r, g, b];
+                }, { region, category });
+            await expect.poll(async () => (await cell("South", "Services")) !== null && (await cell("East", "Software")) !== null).toBe(true);
+            const [least, most] = [await cell("South", "Services"), await cell("East", "Software")];
+            const sum = (c) => c[0] + c[1] + c[2];
+            if (theme === "light") {
+                // a pale blue and a firebrick red
+                expect(Math.min(...least), String(least)).toBeGreaterThan(220);
+                expect(least[2], String(least)).toBeGreaterThanOrEqual(least[0]);
+                expect(most[0] - most[2], String(most)).toBeGreaterThan(100);
+            } else {
+                // a dark blue, not black, and a light yellow
+                expect(sum(least), String(least)).toBeGreaterThan(90);
+                expect(Math.max(...least), String(least)).toBeLessThan(110);
+                expect(least[2] - least[0], String(least)).toBeGreaterThan(15);
+                expect(Math.min(most[0], most[1]) - most[2], String(most)).toBeGreaterThan(80);
+            }
+            // the SVG of the Export menu (light, as paper) draws the cells in the host's light colours too
+            const shownLight = await chart.evaluate(async (el) => {
+                const { getInstanceByDom } = await import("echarts/core");
+                return getInstanceByDom(el).getOption().visualMap[0].inRange.color;
+            });
+            await page.locator("#heat-chart").getByTestId("export").click();
+            const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-svg").click()]);
+            const svg = await readFile(await download.path(), "utf8");
+            const fills = [...svg.matchAll(/<path d="M[^"]*" fill="([^"]+)"/g)].map((m) => m[1].toLowerCase());
+            expect(fills.some((f) => /^(#000|#000000|rgb\(0,\s*0,\s*0\)|black)$/.test(f)), fills.join(" ")).toBe(false);
+            if (theme === "light") {
+                // the least and the largest cell: the scale's two ends, as the screen draws them
+                const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")})`;
+                expect(fills).toEqual(expect.arrayContaining(shownLight.map(rgb)));
+                // the HTML report: the heat colours and the colour scale of its table (by default the
+                // heat colours) as #rrggbb, which the report's table takes, not oklch()
+                await page.locator("#heat-chart").getByTestId("export").click();
+                const [report] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-html").click()]);
+                const tokens = rootRule(await readFile(await report.path(), "utf8"));
+                for (const [name, value] of [["--pk-heat-low", shownLight[0]], ["--pk-heat-high", shownLight[1]], ["--pk-scale-low", shownLight[0]], ["--pk-scale-high", shownLight[1]]]) {
+                    expect(tokens).toContain(`${name}:${value}`);
+                }
+                expect(tokens).not.toContain("oklch(");
+            }
+        });
+    }
+});
+
 test.describe("exports from a dark report carry the host's light colours (#217)", () => {
     test("React: the workbook and the HTML report get the light colours and --pk-scale-mid; the screen stays dark, nothing animates", async ({ page }) => {
         await page.goto("?data=sales&theme=dark");

@@ -8,6 +8,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `decorateOption` takes `readColor`: a heatmap's colours as ECharts can mix them. An end it returns
+  `null` for takes `DEFAULT_THEME.colorScale`'s colour, so a form such as `oklch()` no longer turns
+  the cells black ([#386](https://github.com/eizedev/pivotkit/issues/386)).
 - `chart.tooltip` in the view: what the tooltip of bars, lines and areas covers. `"auto"`, the
   default, is the element under the pointer. `"axis"` is every series at the pointer's category.
   `CATALOG.chartTooltips` lists both ([#106](https://github.com/eizedev/pivotkit/issues/106)).
@@ -54,6 +57,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- With a field on Columns, a pie's, a donut's and a heatmap's series is named by the value, such
+  as "Sum of Revenue", not by the first column. The tooltip shows it as its title
+  ([#537](https://github.com/eizedev/pivotkit/issues/537)).
 - A view's locale that the runtime has no data for, such as `xx-XX`, gets the issue
   `unknownLocale`, and the report takes the `locale` option or `"en-US"`. Such a `locale` option
   takes `"en-US"`, and `computePivot` reports the warning `unknownLocale` at the path `locale`.
