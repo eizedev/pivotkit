@@ -6,13 +6,16 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createComputer } from "../src/compute.js";
+import { createComputer, workerExecArgv } from "../src/compute.js";
 import { tempDir, workspace } from "./helpers.js";
 
 const PROBE = new URL("./fixtures/probe-worker.js", import.meta.url);
 
 /** The pool's module, for a script that runs outside the package (in a temporary directory). */
 const COMPUTE = new URL("../src/compute.js", import.meta.url).href;
+
+/** The package's entry, for such a script. */
+const SERVER = new URL("../src/index.js", import.meta.url).href;
 
 /** The thread id of the worker that answers the next run. */
 const threadOf = async (computer) => (await computer.run("echo", null, {})).outcome.threadId;
@@ -116,4 +119,51 @@ test("a host's script that waits on the pool runs to its end: a worker that dies
     const result = spawnSync(process.execPath, [join(dir, "host.mjs")], { cwd: dir, encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout.trim()), ["INTERNAL", "number"]);
+});
+
+test("workerExecArgv: drops --input-type in both spellings and keeps every other flag; nothing to drop is undefined (#542)", () => {
+    const script = "console.log(1)";
+    assert.deepEqual(workerExecArgv(["--input-type=module", "-e", script]), ["-e", script]);
+    assert.deepEqual(workerExecArgv(["--input-type", "commonjs", "--eval", script]), ["--eval", script]);
+    assert.deepEqual(workerExecArgv(["--conditions=dev", "--input-type=module", "-p", script, "--max-old-space-size=4096"]), ["--conditions=dev", "-p", script, "--max-old-space-size=4096"]);
+    // without --input-type the worker inherits as before: no list of our own
+    assert.equal(workerExecArgv(["--max-old-space-size=4096", "-e", script]), undefined);
+    assert.equal(workerExecArgv([]), undefined);
+});
+
+/** A host that renders one report from a code source and prints its CSV. */
+const RENDER_HOST = `
+    import { callerOf, createContext, present } from ${JSON.stringify(SERVER)};
+    const rows = [{ Region: "North", Sales: 10 }, { Region: "South", Sales: 20 }];
+    const context = await createContext({ policy: { default: "show" }, sources: { t: { load: async () => rows } } }, { stderr: { write() {} } });
+    try {
+        const view = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
+        const rendered = await present(context, "render_view", { source: "t", view, format: "csv" }, callerOf("none", undefined));
+        console.log(JSON.stringify(rendered.result.content ?? rendered.result));
+    } finally {
+        await context.close();
+    }
+`;
+
+/** Runs RENDER_HOST with these node flags in front, as a file or as a string (`-e`). */
+const renderHost = (flags, how) => {
+    const dir = workspace();
+    const args = how === "file" ? (writeFileSync(join(dir, "host.mjs"), RENDER_HOST), [...flags, join(dir, "host.mjs")]) : [...flags, "-e", RENDER_HOST];
+    return spawnSync(process.execPath, args, { cwd: dir, encoding: "utf8" });
+};
+
+test("the real workers start in a host run from a string with --input-type=module (both spellings), from a file, and with a V8 flag (#542)", FAST, () => {
+    const cases = [
+        [["--input-type=module"], "string"],
+        [["--input-type", "module"], "string"],
+        [[], "file"],
+        [["--max-old-space-size=4096"], "file"],
+        [["--max-old-space-size=4096", "--input-type=module"], "string"]
+    ];
+    for (const [flags, how] of cases) {
+        const result = renderHost(flags, how);
+        const name = `${flags.join(" ") || "no flags"} (${how})`;
+        assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+        assert.match(result.stdout, /North.*10.*South.*20/s, `${name}: the report, not INTERNAL`);
+    }
 });

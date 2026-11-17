@@ -21,6 +21,49 @@ import { isOwnError, sourceFailure } from "./sources/run.js";
 export const COMPUTE_HOOKS = Symbol("pivotkit.computeHooks");
 
 /**
+ * The host's node flags without the ones that only describe its main entry, or undefined when there
+ * are none (the worker then inherits the flags as Node does). `--input-type` makes a worker that
+ * loads a file fail at once (ERR_INPUT_TYPE_NOT_ALLOWED), so a host run with `node --input-type=module
+ * -e` got no worker. `-e` and `-p` stay: a worker that loads a file ignores them.
+ * @param {readonly string[]} [execArgv]
+ * @returns {string[] | undefined}
+ */
+export function workerExecArgv(execArgv = process.execArgv) {
+    /** @type {string[]} */
+    const kept = [];
+    for (let i = 0; i < execArgv.length; i++) {
+        if (execArgv[i] === "--input-type") {
+            i++; // its value
+        } else if (!execArgv[i].startsWith("--input-type=")) {
+            kept.push(execArgv[i]);
+        }
+    }
+    return kept.length === execArgv.length ? undefined : kept;
+}
+
+/**
+ * A worker for `file`, with the host's flags cleaned (workerExecArgv). Node refuses an explicit
+ * flag list that holds a flag of the whole process, such as --max-old-space-size, which it takes
+ * when inherited (ERR_WORKER_INVALID_EXEC_ARGV). Then the worker starts with no flags.
+ * @param {URL} file
+ * @param {import("node:worker_threads").WorkerOptions} options
+ */
+function startWorker(file, options) {
+    const execArgv = workerExecArgv();
+    if (execArgv === undefined) {
+        return new Worker(file, options);
+    }
+    try {
+        return new Worker(file, { ...options, execArgv });
+    } catch (e) {
+        if (/** @type {{ code?: unknown }} */ (e)?.code !== "ERR_WORKER_INVALID_EXEC_ARGV") {
+            throw e;
+        }
+        return new Worker(file, { ...options, execArgv: [] });
+    }
+}
+
+/**
  * @param {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [options]
  * @param {{ worker?: URL, cacheBytes?: number, hooks?: boolean }} [internal]  worker: another worker script (tests that need a worker which misbehaves); cacheBytes: the workers' bound on kept data sets instead of a quarter of memoryMb (tests that need a bound below what a run needs, independent of the run's own memory); hooks: the tests' look into the workers (heapSnapshots, keptDataSets; test/memory.test.js), absent otherwise
  */
@@ -37,7 +80,7 @@ export function createComputer(options = {}, internal = {}) {
 
     const spawn = () => {
         // the data sets a worker keeps take at most a quarter of its memory
-        const worker = new Worker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: internal.cacheBytes ?? Math.floor((memoryMb * 1_048_576) / 4), hooks: internal.hooks === true } });
+        const worker = startWorker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: internal.cacheBytes ?? Math.floor((memoryMb * 1_048_576) / 4), hooks: internal.hooks === true } });
         worker.unref();
         /** @type {string[]} the table keys it said it kept, oldest first (its cache may have pushed them out since) */
         const keys = [];

@@ -82,6 +82,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A host's script that waits on the compute pool and has nothing else to keep its process alive
   no longer ends early when a worker dies while it starts. A run keeps its worker ref'd until it
   ends. On Node 22 the process ended with an unsettled await.
+- The compute workers start in a host run with `node --input-type=module -e` or from standard
+  input. They leave out the host's `--input-type`, which made every worker fail at once, so each
+  report answered `INTERNAL` ([#542](https://github.com/eizedev/pivotkit/issues/542)).
 
 ## [0.2.0] - 2026-11-16
 
