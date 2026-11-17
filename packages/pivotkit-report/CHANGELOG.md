@@ -9,6 +9,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 ### Changed
 
 - The chart's SVG takes `toEChartsOption` from `pivotkit-core/chart` (#546).
+- The HTML report says how many of the data's rows the filters keep, as pivotkit-react's row count
+  does: "6 of 8 rows", German "6 von 8 Zeilen". `{{rows}}` and the details' rows say it. With
+  nothing filtered out they say "8 rows" and "8" as before. Its text is the new `texts` entry
+  `rowsFiltered` ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 ### Fixed
 

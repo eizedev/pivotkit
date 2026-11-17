@@ -7,7 +7,7 @@
  * load with them; a host's entries for them are kept here and win there.
  */
 
-import { GROUPING_NAMES, PivotkitError, REPORT_LABELS } from "pivotkit-core";
+import { GROUPING_NAMES, PivotkitError, REPORT_LABELS, ROW_COUNT_TEXTS } from "pivotkit-core";
 
 /**
  * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
@@ -152,10 +152,11 @@ export const en = {
     dismissIssues: "Dismiss",
     loadingChart: "Loading chart…",
     noChartData: "Add a value to see a chart.",
-    // a count in words: one form per Intl.PluralRules category of the language ("one", "other", ...)
-    rowsCount: { one: "{count} row", other: "{count} rows" },
+    // a count in words: one form per Intl.PluralRules category of the language ("one", "other", ...);
+    // the row counts are pivotkit-core's, so pivotkit-report's HTML report says the same
+    rowsCount: ROW_COUNT_TEXTS.en.rowsCount,
     // a filter left rows out: the rows kept ({shown}) of the data's ({count}, which picks the form)
-    rowsFiltered: { one: "{shown} of {count} row", other: "{shown} of {count} rows" },
+    rowsFiltered: ROW_COUNT_TEXTS.en.rowsFiltered,
     tableName: "Pivot table",
     emptyCell: "No rows",
     emptyValue: "No value",
@@ -467,8 +468,8 @@ export const de = {
     dismissIssues: "Ausblenden",
     loadingChart: "Diagramm wird geladen…",
     noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",
-    rowsCount: { one: "{count} Zeile", other: "{count} Zeilen" },
-    rowsFiltered: { one: "{shown} von {count} Zeile", other: "{shown} von {count} Zeilen" },
+    rowsCount: ROW_COUNT_TEXTS.de.rowsCount,
+    rowsFiltered: ROW_COUNT_TEXTS.de.rowsFiltered,
     tableName: "Pivot-Tabelle",
     emptyCell: "Keine Zeilen",
     emptyValue: "Kein Wert",

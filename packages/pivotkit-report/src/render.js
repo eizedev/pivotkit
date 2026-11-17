@@ -265,13 +265,16 @@ export async function render(view, data, options = {}) {
         }
         const described = describeView(normalized.view, data2, { ...(limits ? { limits } : {}) });
         const timeZone = options.timeZone ?? grid.timeZone ?? "UTC";
+        // "6 of 8 rows" while a filter leaves rows out, as pivotkit-react's row count says
+        const filtered = summary.keptRows < summary.sourceRows;
+        const rowsText = filtered ? fill(texts.rowsFiltered, { shown: number.format(summary.keptRows), count: number.format(summary.sourceRows) }) : fill(texts.rowsCount, { count: number.format(data2.length) });
         const values = {
             title,
             description: options.description ?? read.description ?? "",
             source: options.source ?? "",
             generated: generatedText(options.now, grid.locale, timeZone),
             dataAsOf: options.dataAsOf ? dataAsOfText(options.dataAsOf, grid.locale, timeZone) : "",
-            rows: fill(texts.rowsCount, { count: number.format(data2.length) }),
+            rows: rowsText,
             filters: described.filters.length ? described.filters.map((f) => f.text).join("; ") : texts.noFilters,
             summary: described.text,
             lang: grid.locale,
@@ -282,7 +285,7 @@ export async function render(view, data, options = {}) {
             style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), darkTokens: cleanTokens(options.darkTokens ?? {}), chartSurface: theme["--pk-surface"], chartMuted: theme["--pk-muted"], extra: table.css })}</style>`,
             chart: chartHtml,
             table: table.html + tableNote,
-            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.dataAsOf, values.dataAsOf)}${detail(texts.rows, number.format(data2.length))}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
+            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.dataAsOf, values.dataAsOf)}${detail(texts.rows, filtered ? rowsText : number.format(data2.length))}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
         };
         body = new TextEncoder().encode(fillTemplate(/** @type {any} */ (template), { ...values, ...markup }));
     }

@@ -152,10 +152,10 @@ test("a view file: its name is the title, its description is shown; a view's own
     assert.match(plain.text, /<h1>Report<\/h1>/);
 });
 
-test("the details: source, rows of the data, the filters in words and the generated time from now", async () => {
+test("the details: source, the rows the filters keep of the data's, the filters in words and the generated time from now", async () => {
     const view = { ...BY_REGION, filters: [{ field: "Region", type: "in", items: ["North", "South"] }] };
     const r = await render(view, SALES, { format: "html", source: "sales.csv", ...FIXED });
-    assert.match(r.text, /<dl class="pk-report-details"><dt>Source<\/dt><dd>sales\.csv<\/dd><dt>Rows<\/dt><dd>8<\/dd><dt>Filters<\/dt><dd>Region is one of &quot;North&quot;, &quot;South&quot; \(blanks dropped\)<\/dd><dt>Generated<\/dt><dd>Nov 13, 2026, 10:00\s?AM<\/dd><\/dl>/);
+    assert.match(r.text, /<dl class="pk-report-details"><dt>Source<\/dt><dd>sales\.csv<\/dd><dt>Rows<\/dt><dd>6 of 8 rows<\/dd><dt>Filters<\/dt><dd>Region is one of &quot;North&quot;, &quot;South&quot; \(blanks dropped\)<\/dd><dt>Generated<\/dt><dd>Nov 13, 2026, 10:00\s?AM<\/dd><\/dl>/);
 });
 
 test("a German report: German words around the table, the locale's numbers and CSV separator", async () => {

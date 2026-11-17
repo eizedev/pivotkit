@@ -93,6 +93,30 @@ test("render() checks a template before any work, and fills a host's template", 
     assert.ok(r.text.startsWith("<h1>&lt;b&gt;Sales&lt;/b&gt;</h1><p>8 rows</p><table class=\"pk-table\">"));
 });
 
+test("a filter that leaves rows out: {{rows}} and the details say \"x of y rows\" in the report's language, as the component's row count does (#547)", async () => {
+    const template = "<p>{{rows}}</p>{{details}}";
+    const filtered = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], filters: [{ field: "Region", type: "include", items: ["North", "South"] }] };
+    const en = await render(filtered, SALES, { format: "html", template, ...FIXED });
+    assert.deepEqual([en.summary?.keptRows, en.summary?.sourceRows], [6, 8]);
+    assert.ok(en.text.startsWith("<p>6 of 8 rows</p>"), en.text);
+    assert.match(en.text, /<dt>Rows<\/dt><dd>6 of 8 rows<\/dd>/);
+    const de = await render(filtered, SALES, { format: "html", template, ...FIXED, locale: "de-DE" });
+    assert.ok(de.text.startsWith("<p>6 von 8 Zeilen</p>"), de.text);
+    assert.match(de.text, /<dt>Zeilen<\/dt><dd>6 von 8 Zeilen<\/dd>/);
+    // a host's own words, with the counts in the locale's digits
+    const many = Array.from({ length: 1200 }, (_, i) => ({ ...SALES[i % SALES.length] }));
+    const own = await render(filtered, many, { format: "html", template, ...FIXED, texts: { rowsFiltered: "{shown}/{count} records" } });
+    assert.ok(own.text.startsWith("<p>900/1,200 records</p>"), own.text);
+    // nothing filtered out: the count alone, as before
+    const all = await render({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, SALES, { format: "html", template, ...FIXED });
+    assert.ok(all.text.startsWith("<p>8 rows</p>"), all.text);
+    assert.match(all.text, /<dt>Rows<\/dt><dd>8<\/dd>/);
+    // a filter that keeps every row is no cut
+    const kept = await render({ ...filtered, filters: [{ field: "Units", type: "include", items: [1, 2, 3, 4, 5, 6, 7] }] }, SALES, { format: "html", template, ...FIXED });
+    assert.equal(kept.summary?.keptRows, 8);
+    assert.ok(kept.text.startsWith("<p>8 rows</p>"), kept.text);
+});
+
 test("escapeHtml escapes the five characters that can end a text or an attribute", () => {
     assert.equal(escapeHtml(`<a href="x" title='y'>&</a>`), "&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;&lt;/a&gt;");
 });

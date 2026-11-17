@@ -1,7 +1,10 @@
 /*
  * The words a report writes around the table (English and German): the language of the report's
- * locale picks them, English stands in for any other; a host passes its own as `texts`.
+ * locale picks them, English stands in for any other; a host passes its own as `texts`. The row
+ * counts are pivotkit-core's ROW_COUNT_TEXTS, which pivotkit-react's labels share.
  */
+
+import { ROW_COUNT_TEXTS } from "pivotkit-core";
 
 /**
  * The characters that change the direction of text, as pivotkit-core's import leaves them out: a report
@@ -14,7 +17,8 @@ export const REPORT_TEXTS = Object.freeze({
         untitled: "Report",
         source: "Source",
         rows: "Rows",
-        rowsCount: "{count} rows",
+        rowsCount: ROW_COUNT_TEXTS.en.rowsCount.other,
+        rowsFiltered: ROW_COUNT_TEXTS.en.rowsFiltered.other,
         generated: "Generated",
         dataAsOf: "Data as of",
         filters: "Filters",
@@ -28,7 +32,8 @@ export const REPORT_TEXTS = Object.freeze({
         untitled: "Bericht",
         source: "Quelle",
         rows: "Zeilen",
-        rowsCount: "{count} Zeilen",
+        rowsCount: ROW_COUNT_TEXTS.de.rowsCount.other,
+        rowsFiltered: ROW_COUNT_TEXTS.de.rowsFiltered.other,
         generated: "Erstellt",
         dataAsOf: "Datenstand",
         filters: "Filter",

@@ -156,7 +156,8 @@ The page holds:
 - **The chart** above the table when the view shows the chart (`chart: "auto"`), kept whole on a
   page.
 - **The details**: the source, the data's rows, the filters in words and the time the report was
-  generated.
+  generated. When the filters leave rows out, the rows say how many they keep ("6 of 8 rows"), as
+  the row count under the result does.
 
 **On screen**, the page is light or dark after the reader's system. A template's root can pin light
 or ask for dark ([dark mode](print-template.md#dark-mode)). In dark:

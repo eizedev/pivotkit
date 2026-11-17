@@ -194,6 +194,24 @@ for (const labels of Object.values(REPORT_LABELS)) {
 }
 
 /**
+ * The row count in words, English and German: pivotkit-react's line under the result and
+ * pivotkit-report's HTML report both say it. One form per Intl.PluralRules category; `rowsFiltered`
+ * is the count while a filter leaves rows out: the rows kept ({shown}) of the data's ({count}, which
+ * picks the form).
+ * @type {Readonly<Record<"en" | "de", Readonly<{ rowsCount: Readonly<{ one: string, other: string }>, rowsFiltered: Readonly<{ one: string, other: string }> }>>>}
+ */
+export const ROW_COUNT_TEXTS = Object.freeze({
+    en: Object.freeze({
+        rowsCount: Object.freeze({ one: "{count} row", other: "{count} rows" }),
+        rowsFiltered: Object.freeze({ one: "{shown} of {count} row", other: "{shown} of {count} rows" })
+    }),
+    de: Object.freeze({
+        rowsCount: Object.freeze({ one: "{count} Zeile", other: "{count} Zeilen" }),
+        rowsFiltered: Object.freeze({ one: "{shown} von {count} Zeile", other: "{shown} von {count} Zeilen" })
+    })
+});
+
+/**
  * The REPORT_LABELS of a locale's language ("de-DE": German), English for any other.
  * @param {string} [locale]
  * @returns {Labels}
