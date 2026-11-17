@@ -22,6 +22,7 @@ node scripts/schemas.js          # rebuild schema/ after a table change
 - `src/internal.js` (`pivotkit-core/internal`) shares helpers with this repository's packages. It is no public API: docs never name it.
 - A new public function is exported from an entry and listed in `test/api.test.js`.
 - Also document it in `docs/reference/core.md`.
+- `test/api.test.js` fails for an export that no page of `docs/reference/` names in code font.
 - Only the export and link entries import `fflate`. `test/api.test.js` checks it.
 - The main entry never reaches the import modules. `test/api.test.js` checks it too.
 - The import entry loads a reader's code only when a file is read.

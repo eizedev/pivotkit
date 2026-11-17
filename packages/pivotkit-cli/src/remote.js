@@ -346,7 +346,8 @@ export function createClient({ server, values, ctx, userAgent }) {
             }
         }
         if (code === "NOT_ALLOWED" && detail.includes("results: true")) {
-            return new RemoteError(code, `the server answered ${status} ${code}: ${detail}. validate, describe and sources still work with this token.`, { status, retryAfter });
+            // "with this token" only when one went: a server without sign-in got none
+            return new RemoteError(code, `the server answered ${status} ${code}: ${detail}. validate, describe and sources still work${lastToken ? " with this token" : ""}.`, { status, retryAfter });
         }
         const hints = {
             NOT_ALLOWED: "this token's profile has no results: true; validate, describe and sources still work with this token",
