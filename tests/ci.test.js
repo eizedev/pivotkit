@@ -261,6 +261,19 @@ test("CI's test job and the release build verify the registry signatures right a
     }
 });
 
+// the web component's size step runs on the Node major its size check names (zlibNote): that Node's
+// bundled zlib gives the numbers CI checks against the budgets
+test("CI measures the web component's size on the Node major pivotkit-element's build.js names", async () => {
+    const { SIZE_NODE } = await import("../packages/pivotkit-element/build.js");
+    const job = jobOf(".github/workflows/ci.yml", "test");
+    const from = job.indexOf("- name: Web component size");
+    const next = job.indexOf("- name:", from + 1);
+    const step = job.slice(from, next === -1 ? undefined : next);
+    assert.match(step, new RegExp(`if: matrix\\.node == '${SIZE_NODE}'`));
+    assert.match(step, /^ {8}run: npm run size -w pivotkit-element$/m);
+    assert.match(job, new RegExp(`node: \\[[^\\]]*"${SIZE_NODE}"`));
+});
+
 // pivotkit-cli's file handling is tested on Windows too (junctions, drive letters, device names)
 test("CI runs pivotkit-cli's tests and pivotkit-server's credential commands on Windows", () => {
     const job = jobOf(".github/workflows/ci.yml", "windows");
@@ -396,7 +409,7 @@ test("the Angular example installs from its own lock file, at the versions its p
     }
 });
 
-// The browser tests run as one job per engine (WebKit in shards) and React version, each well inside
+// The browser tests run as one job per engine (Firefox and WebKit in shards) and React version, each well inside
 // its timeout: the matrix covers every Playwright project on React 18 and 19, every shard of a project,
 // and each job runs its own project and shard only.
 test("the browser jobs cover every engine and every shard on React 18 and 19", () => {

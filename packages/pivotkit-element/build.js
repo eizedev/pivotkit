@@ -40,6 +40,31 @@ const shadowStyles = {
     }
 };
 
+/**
+ * pivotkit-core's index.js without its re-export of toEChartsOption. esbuild's code splitting puts a
+ * file into the chunks of every entry whose static import records reach it. A re-export
+ * (`export { x } from "./x.js"`) is such a record, whatever names the importer uses, and
+ * "sideEffects": false does not change it. Tree shaking only drops a file nothing uses at all. So
+ * chart.js, used by the chart, would land in the first load: the first load imports index.js, and
+ * index.js re-exports chart.js. Nothing else holds it there: no namespace import, no `export *`.
+ * The chart loads the option from pivotkit-core/chart instead (pivotkit-react's echarts.js,
+ * pivotkit-report's svg.js), so the option's code goes to the chart group. A bundled import of
+ * toEChartsOption from "pivotkit-core" then fails the build; so does a change of the line below.
+ */
+const BARREL_CHART_LINE = 'export { toEChartsOption } from "./chart.js";\n';
+const chartOffBarrel = {
+    name: "chart-off-barrel",
+    setup(build) {
+        build.onLoad({ filter: /pivotkit-core[\\/]src[\\/]index\.js$/ }, async (args) => {
+            const code = await readFile(args.path, "utf8");
+            if (!code.includes(BARREL_CHART_LINE)) {
+                throw new Error(`pivotkit-element build: pivotkit-core's index.js has no line ${JSON.stringify(BARREL_CHART_LINE.trim())}`);
+            }
+            return { contents: code.replace(BARREL_CHART_LINE, ""), loader: "js" };
+        });
+    }
+};
+
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
     absWorkingDir: here,
@@ -56,7 +81,7 @@ export const options = {
     // the license texts go into one file (licenses() below), not into comments of the bundle
     legalComments: "none",
     metafile: true,
-    plugins: [shadowStyles],
+    plugins: [shadowStyles, chartOffBarrel],
     logLevel: "warning"
 };
 
@@ -242,9 +267,18 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * on a Mac (11.7 before), budget 12.3; "Data as of" in the HTML report's details, its placeholder and
  * the check that the time exists took the report group to 22.7 on a Mac (22.3 before), budget 23
  * (both within the rule's 3 %).
+ * The chart's grid margins (pivotkit-core's GRID_TOP and HEATMAP_GRID_BOTTOM, defined once and shared
+ * by the first load's toEChartsOption and the chart's label layout) add 40 bytes to the first load:
+ * a chunk cannot inline a constant another chunk imports. 174.38 to 174.41 on a Mac; CI measured
+ * main at 175.0, so initial goes to 175.1.
+ * Why CI measured more than a Mac (#546): Homebrew's Node uses the system's zlib, CI's official Node
+ * the zlib bundled in it. An official Node 24 on a Mac measures what CI does (zlibNote, SIZE_NODE); the
+ * numbers from here on are its. The ECharts option (pivotkit-core's chart.js, toEChartsOption) then
+ * left the first load for the chart (chartOffBarrel): first load 175.1 to 173.4, chart 218.8 to
+ * 220.8. The budgets stay.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -329,6 +363,29 @@ async function sizes(metafile) {
     return out;
 }
 
+/** The Node major of CI's size step (.github/workflows/ci.yml; tests/ci.test.js checks it). */
+export const SIZE_NODE = "24";
+
+/**
+ * Which zlib measured the gzip sizes, and a warning when CI would measure other ones. CI runs the
+ * size check on an official Node build, which compresses with the zlib bundled in Node. A Node built
+ * against the system's zlib (Homebrew's, for one) compresses the same bytes differently: Homebrew's
+ * Node 26 on a Mac measured the first load 0.6 KiB smaller than CI. Another Node major bundles
+ * another zlib build. An official Node of SIZE_NODE gives CI's numbers.
+ * @param {{ version: string, versions: { zlib?: string }, config: { variables: Record<string, unknown> } }} [node]  process, or a stand-in
+ * @returns {string[]}
+ */
+export function zlibNote(node = process) {
+    const line = `gzip level 9 with zlib ${node.versions.zlib}, Node ${node.version}`;
+    const shared = Boolean(node.config.variables.node_shared_zlib);
+    const major = node.version.replace(/^v/, "").split(".")[0];
+    if (!shared && major === SIZE_NODE) {
+        return [line];
+    }
+    const why = shared ? "this Node uses the system's zlib" : `this is Node ${major}`;
+    return [line, `CI measures with an official Node ${SIZE_NODE} build and its bundled zlib; ${why}, so the sizes can differ from CI's.`];
+}
+
 if (isMain(import.meta.url)) {
     await esbuild.build(reactOptions);
     await rm(join(here, "dist"), { recursive: true, force: true });
@@ -337,6 +394,7 @@ if (isMain(import.meta.url)) {
     await writeFile(join(here, "dist", "THIRD_PARTY_LICENSES.txt"), await licenses(result.metafile));
     if (process.argv.includes("--size")) {
         const kb = (n) => `${(n / 1024).toFixed(1)} KiB`;
+        zlibNote().forEach((line) => console.log(line));
         let over = false;
         for (const { group, files, raw, gzip } of await sizes(result.metafile)) {
             const budget = SIZE_BUDGET_KIB[group];

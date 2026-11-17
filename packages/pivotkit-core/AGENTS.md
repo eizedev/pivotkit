@@ -19,6 +19,7 @@ node scripts/schemas.js          # rebuild schema/ after a table change
 
 - Public: `src/index.js`, `export.js`, `chart-style.js`, `link.js`, `templates.js`, `import.js`.
 - Every other module is internal.
+- `src/internal.js` (`pivotkit-core/internal`) shares helpers with this repository's packages. It is no public API: docs never name it.
 - A new public function is exported from an entry and listed in `test/api.test.js`.
 - Also document it in `docs/reference/core.md`.
 - Only the export and link entries import `fflate`. `test/api.test.js` checks it.
@@ -74,6 +75,8 @@ Reuse these instead of writing a second version:
 | Every place a view names a field | `mapFieldRefs` in `view-file.js` |
 | A loaded file's source id | `sourceIdOf` in `source-id.js` |
 | Grouping names and report words, en and de | `GROUPING_NAMES`, `REPORT_LABELS` in `labels.js` |
+| Chart data and the type "auto" stands for | `toSeries`, `autoChartType` in `chart-series.js` |
+| The ECharts option, loaded with the chart | `toEChartsOption` in `chart.js`, also exported by `chart-style.js` |
 | Chart marks for screen, SVG and print | `decorateOption` in `chart-style.js` |
 | Chart theme fallbacks | `DEFAULT_THEME` in `defaults.js` |
 | Bounded caches | `createCache` in `util.js` |

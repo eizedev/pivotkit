@@ -40,8 +40,17 @@ export const looksUtf16 = (bytes) => (bytes[0] === 0xff && bytes[1] === 0xfe) ||
  * Why a file could not be read, in words (never the error's own message, which holds the path).
  * @param {string | undefined} code  a system error's code or readSecretFile's
  */
-export const unreadable = (code) =>
-    code === "ENOENT" ? "no such file" : code === "EACCES" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : code === "NOT_REGULAR_FILE" ? "not a regular file" : code === "TOO_LARGE" ? `longer than ${MAX_SECRET_BYTES} bytes` : code === "UTF16" ? UTF16_TEXT : "unreadable";
+export function unreadable(code) {
+    /** @type {Record<string, () => string>} */
+    const words = {
+        ENOENT: () => "no such file",
+        EACCES: () => `permission denied for the user ${process.getuid?.() ?? ""} the server runs as`,
+        NOT_REGULAR_FILE: () => "not a regular file",
+        TOO_LARGE: () => `longer than ${MAX_SECRET_BYTES} bytes`,
+        UTF16: () => UTF16_TEXT
+    };
+    return code !== undefined && Object.hasOwn(words, code) ? words[code]() : "unreadable";
+}
 
 /**
  * A secret's value from its text, as the server reads each kind: a static token without the

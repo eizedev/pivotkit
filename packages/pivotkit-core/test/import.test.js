@@ -8,6 +8,7 @@ import { BUILT_IN_READERS, PLUGIN_API_VERSION, csvReader, jsonReader, loadReader
 import { LIMITS, PivotkitError, computePivot, encode, toGrid } from "pivotkit-core";
 
 import { fileName } from "../src/import-table.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const fixture = (name) => readFileSync(new URL(`./import-fixtures/${name}`, import.meta.url));
 const fileOf = (name, bytes = fixture(name)) => new File([bytes], name);
@@ -413,9 +414,9 @@ test("encode: columnar input is checked, typed and selected like rows", () => {
 
 test("a wide row late in a long file is refused before a column of every row is allocated", async () => {
     const lines = "A\n" + "1\n".repeat(300_000) + Array.from({ length: 1_000 }, (_, i) => i).join(",") + "\n";
-    const started = performance.now();
+    const cpu = cpuClock();
     await rejects(readFile(text("late.csv", lines)), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells" && e.details.file === "late.csv");
-    assert.ok(performance.now() - started < 5_000, `${performance.now() - started} ms`);
+    assert.ok(cpu() < 5_000, `${Math.round(cpu())} ms of CPU`);
     // a row of more fields than limits.columns stops while it is split
     await rejects(readFile(text("commas.csv", "A\n" + ",".repeat(5_000) + "x\n")), (e) => e.details.limit === "columns");
 });

@@ -41,23 +41,32 @@ export const BODY_BYTES = 2_097_152;
 export const GRACE_MS = 25_000;
 
 /**
- * The bounds on connections: open at once in all; from one address other than loopback (0: no
- * bound, the default, since behind a published port, NAT or a proxy every client has one address);
- * the ones kept for loopback clients (the health check, a proxy on the same host: they protect
- * against the network, not against a local process); and how long a client may take for its
+ * The bounds on connections: open at once in all; from one address other than loopback, counted by
+ * the socket's peer (0: no bound; defaultPerAddress says when none applies by default); the ones
+ * kept for loopback clients (the health check, a proxy on the same host: they protect against the
+ * network, not against a local process); and how long a client may take for its
  * headers and for its whole request (checked every checkMs: node:http's default, 30 seconds, would
  * let a stalled client stay six times as long).
  */
 /** @typedef {{ total: number, perAddress: number, loopback: number, headersMs: number, requestMs: number, checkMs: number }} ConnectionLimits */
 /** @type {Readonly<ConnectionLimits>} */
-export const CONNECTION_LIMITS = Object.freeze({ total: 256, perAddress: 0, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
+export const CONNECTION_LIMITS = Object.freeze({ total: 256, perAddress: 32, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
 
 /**
- * The connection limits a server's options set: http.maxConnectionsPerAddress.
- * @param {{ http?: { maxConnectionsPerAddress?: number } }} options
- * @returns {Partial<ConnectionLimits>}
+ * The bound per address by default: CONNECTION_LIMITS.perAddress where clients reach the server
+ * directly; none behind a proxy the server trusts (http.trustProxy), where every client has the
+ * proxy's address and the proxy limits its clients.
+ * @param {boolean} trustProxy
  */
-export const connectionLimitsOf = (options) => (options.http?.maxConnectionsPerAddress ? { perAddress: options.http.maxConnectionsPerAddress } : {});
+export const defaultPerAddress = (trustProxy) => (trustProxy ? 0 : CONNECTION_LIMITS.perAddress);
+
+/**
+ * The connection limits a server's options set: http.maxConnectionsPerAddress as written (0: no
+ * bound), else the default for http.trustProxy (defaultPerAddress).
+ * @param {{ http?: { maxConnectionsPerAddress?: number, trustProxy?: boolean } }} options
+ * @returns {{ perAddress: number }}
+ */
+export const connectionLimitsOf = (options) => ({ perAddress: options.http?.maxConnectionsPerAddress ?? defaultPerAddress(options.http?.trustProxy === true) });
 
 /**
  * What serveFetch's onRefused is told: the last refused connection's address, every bound that
@@ -285,12 +294,12 @@ const defaultProblem = (status) => Response.json({ error: status === 413 ? "requ
  * Serves a fetch handler on node:http. Every request runs in its scope (request-id.js requestScopeFor: its id, trace id and addresses, on
  * every log line written for it), and every answer names its id in X-Request-Id.
  * @param {FetchHandler} handler
- * @param {{ host: string, port: number, bodyBytes: number | BodyBytes, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void, trustProxy?: boolean, onClientError?: (entry: ClientErrorEntry) => void, onInternalError?: (entry: { status: 500, requestId: string }) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close); trustProxy: the scope names the forwarded client (http.trustProxy); onClientError: told of a request the HTTP parser refused; onInternalError: told, inside the request's scope, of a handler that threw (answered 500 with no detail)
+ * @param {{ host: string, port: number, bodyBytes: number | BodyBytes, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void, trustProxy?: boolean, onClientError?: (entry: ClientErrorEntry) => void, onInternalError?: (entry: { status: 500, requestId: string }) => void }} options  limits: over CONNECTION_LIMITS, perAddress by default as defaultPerAddress of trustProxy; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close); trustProxy: the scope names the forwarded client (http.trustProxy); onClientError: told of a request the HTTP parser refused; onInternalError: told, inside the request's scope, of a handler that threw (answered 500 with no detail)
  * @returns {Promise<{ port: number, server: import("node:http").Server, close(): Promise<void> }>}
  */
 export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused, trustProxy = false, onClientError, onInternalError }) {
     const problem = handler.problem ?? defaultProblem;
-    const limits = { ...CONNECTION_LIMITS, ...given };
+    const limits = { ...CONNECTION_LIMITS, perAddress: defaultPerAddress(trustProxy), ...given };
     const gate = connectionGate(limits);
     let running = 0;
     /** @type {Array<() => void>} */

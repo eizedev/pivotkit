@@ -40,7 +40,7 @@ import { heading, plain, problem, warning } from "./format.js";
  * hidden value) is shown without anyone deciding.
  * @param {string} path
  */
-const denyListText = (path) => `${path}: "show" by default with hidden fields is a deny list: a column the data gains later is shown unless someone hides it; prefer "summary" by default and give the fields to show the level show`;
+const denyListText = (path) => `${path}: "show" by default with hidden fields is a deny list: a column the data gains later is shown unless someone hides it; prefer "hide" by default and give the fields to show the level show`;
 
 /** A column's name as check-config prints it: cleaned of control and direction characters, capped. */
 export const nameText = (name) => findingText(name).slice(0, 80);

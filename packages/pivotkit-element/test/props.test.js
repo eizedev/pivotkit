@@ -59,6 +59,15 @@ test("drill-down is on unless it says false; save-templates is a boolean attribu
     // said once per text
     assert.deepEqual(warnings, ['pivotkit: export-data="{broken" is neither true, false nor a JSON object; it stays off', 'pivotkit: export-data="Region" is neither true, false nor a JSON object; it stays off']);
     assert.equal(toAttribute(def("export-data"), { columns: ["Region"] }), '{"columns":["Region"]}');
+    // the drill-down's copy and download while export-data is off (#263): a boolean attribute
+    assert.equal(fromAttribute(def("drill-down-export"), null), false);
+    assert.equal(fromAttribute(def("drill-down-export"), ""), true);
+    // it lets rows out: "false" is off, as export-data="false"
+    assert.equal(fromAttribute(def("drill-down-export"), "false"), false);
+    assert.equal(fromAttribute(def("drill-down-export"), " FALSE "), false);
+    assert.equal(fromAttribute(def("drill-down-export"), "true"), true);
+    assert.equal(toAttribute(def("drill-down-export"), true), "");
+    assert.equal(toAttribute(def("drill-down-export"), false), null);
     assert.equal(fromAttribute(def("save-templates"), ""), true);
     assert.equal(fromAttribute(def("save-templates"), null), false);
     assert.equal(toAttribute(def("save-templates"), true), "");

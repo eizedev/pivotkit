@@ -12,8 +12,9 @@ import { errorDetails, newRequestId, requestId, withRequestId } from "../src/req
 import { asOfMembers, asOfSentence, asOfText } from "../src/sources/as-of.js";
 import { INLINE_ID, kindOf } from "../src/sources/index.js";
 import { canonicalJson, tableKeyOf } from "../src/sources/keys.js";
-import { MATCH_MS, declaredProblems, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
-import { TOKEN, call, restServer, workspace } from "./helpers.js";
+import { MATCH_MS, declaredProblems, matchMeans, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
+import { BY_REGION, TOKEN, call, restServer, workspace } from "./helpers.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const LOCAL = callerOf("none", undefined);
 const VIEW = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -166,7 +167,7 @@ test("params end to end: offered only when a source declares them; the code sour
     }
 });
 
-test("params over REST: accepted where offered, refused by the schema where not", async () => {
+test("params over REST: accepted where offered; where no source takes params, refused with words that say so, for every operation that takes a source", async () => {
     const offered = await restServer({ sources: { tickets: { load: async (params) => [{ Team: params.team, Open: 1 }], params: { team: { type: "string", enum: ["blue"] } } } }, auth: { mode: "token" } }, { env: { PIVOTKIT_TOKEN: TOKEN } });
     try {
         const ok = await call(`${offered.api}/sources/describe`, { token: TOKEN, body: { source: "tickets", params: { team: "blue" } } });
@@ -182,9 +183,23 @@ test("params over REST: accepted where offered, refused by the schema where not"
     const dir = workspace();
     const plain = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: TOKEN } });
     try {
-        const refused = await call(`${plain.api}/sources/describe`, { token: TOKEN, body: { source: "sales", params: { a: "1" } } });
-        assert.equal(refused.status, 400);
-        assert.match(refused.data.detail, /has no key "params"/);
+        // the request is well formed: the server has no source to take them (#516). The words stay
+        // recognisable for host modules: "takes params" with the sources' route
+        const asked = [
+            ["sources/describe", { source: "sales", params: { a: "1" } }],
+            ["views/render", { source: "sales", view: BY_REGION, format: "csv", params: { a: "1" } }],
+            ["views/validate", { source: "sales", view: BY_REGION, params: {} }],
+            ["views/render", { source: "nope", view: BY_REGION, params: { a: "1" } }]
+        ];
+        for (const [path, body] of asked) {
+            const refused = await call(`${plain.api}/${path}`, { token: TOKEN, body });
+            assert.equal(refused.status, 400, path);
+            assert.equal(refused.data.code, "INVALID_INPUT");
+            assert.equal(refused.data.detail, "this server has no source that takes params; leave params out (GET /sources lists the sources)", path);
+        }
+        // another unknown key keeps the schema's words
+        const other = await call(`${plain.api}/sources/describe`, { token: TOKEN, body: { source: "sales", parms: { a: "1" } } });
+        assert.match(other.data.detail, /^input has no key "parms"$/);
     } finally {
         await plain.close();
     }
@@ -352,7 +367,7 @@ test("dataAsOf of a code source: its own asOf parsed, else when load() gave the 
         assert.equal((await present(context, "describe_source", { source: "dated" }, LOCAL)).result.dataAsOf, "2026-11-01T08:00:00Z");
         for (const id of ["garbage", "rows"]) {
             const asOf = (await present(context, "describe_source", { source: id }, LOCAL)).result.dataAsOf;
-            assert.ok(Date.parse(asOf) >= Math.floor(before / 1000) * 1000 && Date.parse(asOf) <= Date.now(), `${id}: ${asOf}`);
+            assert.ok(Date.parse(asOf) >= Math.floor(before / 1000) * 1000 && Date.parse(asOf) <= Date.now(), `${id}: ${asOf}`); // wall time: a timestamp the server wrote
         }
         const linked = await present(context, "create_link", { source: "link", view: { rows: ["A"] } }, LOCAL);
         assert.match(linked.result.dataAsOf, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
@@ -483,22 +498,108 @@ test("a code source with params keeps its data per client and groups too, not on
     }
 });
 
+/** Runs `fn` with matchMeans replaced, then puts the real one back. */
+async function withMatchMeans(means, fn) {
+    const real = { ...matchMeans };
+    Object.assign(matchMeans, means);
+    try {
+        return await fn();
+    } finally {
+        Object.assign(matchMeans, real);
+    }
+}
+
+test("params at start (#528, real vm): a pattern too slow for a request's limit is refused, so the start never takes a pattern requests refuse", () => {
+    // about 250 ms on "1" x 63 + "!" even once V8 has compiled it: over MATCH_MS on every try
+    const problems = declaredProblems({ x: { type: "string", pattern: "\\d*\\d*\\d*\\d*\\d*\\d*x", maxLength: 64 } });
+    assert.match(problems.join(), /takes too long on some values \(over 75 ms, a request's limit\)/);
+});
+
+// The tests below replace matchMeans to simulate a busy host deterministically. They cover the retry
+// and budget logic only; the real time limit is covered by the real-vm tests around them.
+
+test("params on a busy host (#528): a fast pattern passes the start and a request when the first try of each value runs out of time", async () => {
+    let tries = 0;
+    await withMatchMeans({ run: (re, text) => (tries++ % 2 === 0 ? null : re.test(text)) }, () => {
+        const declared = { team: { type: "string", pattern: "[a-z0-9-]{1,64}" } };
+        assert.deepEqual(declaredProblems(declared), []);
+        tries = 0;
+        assert.deepEqual({ ...normalizeParams(declared, { team: "blue-7" }, null, "s") }, { team: "blue-7" });
+    });
+});
+
+test("params on a busy host (#528): the start's check counts a value as fast when any of its three tries ends in time, and a pattern whose check runs past its budget as slow", async () => {
+    const declared = { team: { type: "string", pattern: "[a-z0-9-]{1,64}" } };
+    let tries = 0;
+    await withMatchMeans({ run: (re, text) => (tries++ % 3 < 2 ? null : re.test(text)) }, () => assert.deepEqual(declaredProblems(declared), []));
+    // a clock that moves 400 ms per match: the check of one pattern runs past its budget
+    let clock = 0;
+    await withMatchMeans({ run: (re, text) => ((clock += 400), re.test(text)), now: () => clock }, () => {
+        assert.match(declaredProblems(declared).join(), /team: pattern could not be checked within 1000 ms at start, so it counts as slow/);
+    });
+});
+
+test("params at start (#528): the example, default and enum values of one parameter share a 1 s budget; past it the declaration is refused", async () => {
+    // a clock that moves 400 ms per match of a one-letter value (the start's probes are long runs and
+    // stay fast): the third value runs past the budget, the fourth gets no try
+    let clock = 0;
+    await withMatchMeans({ run: (re, text) => ((clock += text.length === 1 ? 400 : 0), re.test(text)), now: () => clock }, () => {
+        const problems = declaredProblems({ team: { type: "string", pattern: "[a-z]+", enum: ["a", "b", "c", "d", "e"] } });
+        assert.ok(problems.some((p) => /team: the pattern could not check the example, default and enum values within 1000 ms at start/.test(p)), JSON.stringify(problems));
+    });
+});
+
+test("params on a busy host (#528): a value that runs out of time twice is BUSY, 503 and retryable, over real HTTP; a claim's value too", async () => {
+    const declared = { team: { type: "string", pattern: "[a-z0-9-]{1,64}" } };
+    // the server starts on a quiet host; the busy one comes after
+    const server = await restServer({ sources: { tickets: { load: async (params) => [{ Team: params.team, Open: 1 }], params: declared } }, auth: { mode: "token" } }, { env: { PIVOTKIT_TOKEN: TOKEN } });
+    await withMatchMeans({ run: () => null }, async () => {
+        assert.throws(() => normalizeParams(declared, { team: "blue-7" }, null, "s"), (e) => e.code === "BUSY" && e.status === 503 && e.details?.retryable === true && e.message === "params could not be checked in time; the server may be busy, try again");
+        const claimed = { team: { type: "string", pattern: "[a-z0-9-]{1,64}", claim: "team" } };
+        assert.throws(() => normalizeParams(claimed, {}, { claims: { team: "blue-7" } }, "s"), (e) => e.code === "BUSY");
+        try {
+            const busy = await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "tickets", params: { team: "blue-7" } } });
+            assert.equal(busy.status, 503, JSON.stringify(busy.data));
+            assert.equal(busy.data.code, "BUSY");
+            assert.equal(busy.data.retryable, true);
+            assert.equal(busy.headers.get("retry-after"), "2", "as the large-body BUSY");
+            assert.equal(busy.data.detail, "params could not be checked in time; the server may be busy, try again");
+        } finally {
+            await server.close();
+        }
+    });
+});
+
+test("params on a busy host (#528): the pattern checks of one request share a budget; when it runs out the request is BUSY", async () => {
+    // each try takes what it was given (the clock moves by its limit); a try ends in time every second time
+    let clock = 0;
+    const limits = [];
+    let tries = 0;
+    await withMatchMeans({ run: (re, text, ms) => ((clock += ms), limits.push(ms), tries++ % 2 === 0 ? null : re.test(text)), now: () => clock }, () => {
+        const declared = { a: { type: "string", pattern: "[a-z]+" }, b: { type: "string", pattern: "[a-z]+" } };
+        assert.throws(() => normalizeParams(declared, { a: "x", b: "y" }, null, "s"), (e) => e.code === "BUSY" && e.message === "params could not be checked in time; the server may be busy, try again");
+        // a: two tries of 75 ms use the 150 ms; b gets no try
+        assert.deepEqual(limits, [75, 75]);
+    });
+});
+
 test("params: an operator's pattern never runs unbounded: a slow one is refused at start, a slow match at run time", () => {
     // passes the syntax rules, but takes polynomial time on a long run of digits
     const slow = "\\d*\\d*\\d*\\d*\\d*\\d*x";
     assert.match(declaredProblems({ x: { type: "string", pattern: slow, maxLength: 256 } }).join(), /takes too long/);
     // the time limit really interrupts a running regular expression (here one the rules would refuse)
     for (const [pattern, text] of [["(a|a){1,60}b", `${"a".repeat(40)}!`], ["(?:a{1,40}){1,40}b", `${"a".repeat(40)}!`], [slow, `${"1".repeat(256)}!`]]) {
-        const started = Date.now();
+        const cpu = cpuClock();
         assert.equal(matchWithin(new RegExp(`^(?:${pattern})$`, "u"), text), null, pattern);
-        assert.ok(Date.now() - started < MATCH_MS * 10, `${pattern}: cut after ${Date.now() - started} ms`);
+        assert.ok(cpu() < MATCH_MS * 10, `${pattern}: cut after ${Math.round(cpu())} ms of CPU`);
     }
     assert.equal(matchWithin(/^[a-z]+$/u, "abc"), true);
     assert.equal(matchWithin(/^[a-z]+$/u, "ab1"), false);
-    // a declaration that skipped the check (a host's own code): the value is refused, in time
-    const started = Date.now();
-    assert.throws(() => normalizeParams({ x: { type: "string", pattern: "(a|a){1,60}b", maxLength: 64 } }, { x: `${"a".repeat(40)}!` }, null, "s"), (e) => e.code === "INVALID_INPUT" && /could not be checked/.test(e.message));
-    assert.ok(Date.now() - started < 1000);
+    // a declaration that skipped the check (a host's own code): the value is refused, in time, as BUSY
+    // (#528: a match that runs out of time twice cannot tell a slow pattern from a busy server)
+    const again = cpuClock();
+    assert.throws(() => normalizeParams({ x: { type: "string", pattern: "(a|a){1,60}b", maxLength: 64 } }, { x: `${"a".repeat(40)}!` }, null, "s"), (e) => e.code === "BUSY" && /could not be checked/.test(e.message));
+    assert.ok(again() < 1000);
 });
 
 test("a refused value: the parameter's words in one parenthesis at the end, its pattern after a semicolon", async () => {

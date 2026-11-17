@@ -401,6 +401,14 @@ test("version 1's operators and types in a version-2 view are errors that name v
     const untyped = validate({ version: 2, filters: [{ field: "Region", items: ["North"] }] }, data).errors[0];
     assert.equal(untyped.code, "unknownFilterType");
     assert.match(untyped.message, /^a filter needs a type: one of in, /);
+    // an unknown type lists the types too (#508)
+    const unknownType = validate({ version: 2, filters: [{ field: "Region", type: "bogus", items: ["North"] }] }, data).errors[0];
+    assert.equal(unknownType.message, 'unknown filter type "bogus"; the types: in, blank, text, compare, relative, top, value');
+    // a comparison without its operator or value names the operators and shows one written out (#508)
+    const compare = (filter) => validate({ version: 2, filters: [{ blanks: "exclude", ...filter }] }, data).errors.map((e) => e.message);
+    assert.deepEqual(compare({ field: "Price", type: "compare" }), ['needs an operator and a value of the number field; the operators: =, >, >=, <, <=, between; e.g. "op": ">=", "value": 1000']);
+    assert.deepEqual(compare({ field: "Price", type: "compare", op: "between", value: 1 }), ['needs an operator and two values of the number field; the operators: =, >, >=, <, <=, between; e.g. "op": "between", "value": 1000, "value2": 2000']);
+    assert.deepEqual(compare({ field: "Date", type: "compare", op: "~", value: "2025-01-01" }), ['needs an operator and a value of the date field; the operators: =, >, >=, <, <=, between; e.g. "op": ">=", "value": "2025-01-01"']);
     assert.deepEqual(errors({ field: "Region", type: "text", op: "notEquals", value: "N" }), [["filterTextOp", "equals"]]);
     assert.deepEqual(errors({ field: "Price", type: "compare", op: "!=", value: 1, blanks: "exclude" }), [["filterCompareValue", "="]]);
     assert.deepEqual(errors({ field: "Region", type: "value", op: "notBetween", value: 1, value2: 2 }), [["filterValue", "between"]]);

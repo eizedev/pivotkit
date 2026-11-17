@@ -81,7 +81,7 @@ The excerpts show only the parts that change. They leave out keys such as `aggre
     ```
 
     A filter on `"direct"` gets the data's spelling back. The finding is `itemCase`, "item "direct" is
-    no item of "Channel"; did you mean "Direct"?", with `"suggestion": "Direct"`.
+    no item of "Channel": the data spells it otherwise", with `"suggestion": "Direct"`.
 
 === "values"
 
@@ -247,28 +247,31 @@ A report is a file in the server's output directory. Who can open it:
 | Way | Who | Over |
 | --- | --- | --- |
 | The path in the result | whoever can read the directory | stdio |
-| A [download link](reference/delivery.md) (`/downloads/...`, 60 minutes by default: `output.downloads.expiresMinutes`, 1 to 1440) | anyone with the link | HTTP, a fully shown source |
+| A [download link](reference/delivery.md) (`/downloads/...`, 60 minutes by default: `output.downloads.expiresMinutes`, 1 to 1440) | anyone with the link | HTTP, an open source |
 | A sign-in link | only the person who asked, after signing in (OAuth with `output.downloads.signIn`) | HTTP, any other source |
 | A one-time link (`output.downloads.bind: "once"`) | whoever opens it first | the same, where you choose it |
-| `output.baseUrl` | anyone with the address, with no expiry | a fully shown source |
-| Your [upload store](reference/delivery.md#upload) (`output.upload`) | as the store's links allow (`bind`, `none` by default) | a fully shown source; another only where you declare the store's links bound (`once`, or `signIn` for a signed-in person; on REST with `results: true`) |
+| `output.baseUrl` | anyone with the address, with no expiry | an open source |
+| Your [upload store](reference/delivery.md#upload) (`output.upload`) | as the store's links allow (`bind`, `none` by default) | an open source; another only where you declare the store's links bound (`once`, or `signIn` for a signed-in person; on REST with `results: true`) |
 | The REST file route | a program whose policy has `results: true` | REST |
 
-A source is fully shown when both of these hold:
+A source is open when both of these hold:
 
-- its policy resolves to `"default": "show"` with no field below `show`, under the server's policy
-  and under every profile
+- it is hidden by default with every field it names at `show` or `hide`, or every field is `show`
+  and nothing is hidden, the same under the server's policy and under every profile
 - the automatic values rule is off for it
 
-Listing every column as `show` is not enough. Data that belongs to one person is never fully shown:
+So nothing new can become visible through a link: the server drops a hidden field when it reads
+the data, and a column the data gains later is hidden by default. "Show everything except one
+field" stays closed, since a new column would be shown. Data that belongs to one person is never
+open:
 
 - data sent in the request
 - a source with a parameter bound to a claim or a token exchange
 - a code source with `perPerson: true`
 
-`check-config` lists the sources with withheld fields under `Delivery:`.
+`check-config` lists the closed sources and why under `Delivery:`.
 
-A report over a fully shown source comes with a link. The model reads that link, and so does its
+A report over an open source comes with a link. The model reads that link, and so does its
 provider. The link is shortened here:
 
 ```json
@@ -394,8 +397,8 @@ The same request, "Revenue by channel as CSV", over `/mcp`:
       "output": { "name": "Sales.pivotkit-out.csv", "filename": "Sales.csv", "note": "The report is saved on the server; ask the operator how to open it.", "format": "csv" } }
     ```
 
-    Its file gets no link either. The source has a field that is not `show` for someone: `Discount`,
-    and every field for `claude-cloud`. A static token names no person to bind a link to.
+    Its file gets no link either. The source's fields are `values` or `summary` for `claude-cloud`.
+    A static token names no person to bind a link to.
 
 How a profile combines with a source's policy:
 
@@ -519,7 +522,7 @@ message, which may quote a value or a request's body. A log line names the perso
 | `sources.<id>.scopes`, `auth.toolScopes` | none | Scopes a caller needs for a source or a tool |
 | `auth.tokens[].profile`, `auth.clientProfiles`, `auth.groupProfiles`, `auth.scopeProfiles`, `auth.defaultProfile` | none | Which profile a caller gets |
 | `output.downloads` | on over HTTP; `bind` is `signIn` with OAuth and a sign-in client, else `none` | The server's own [download links](reference/delivery.md); `none` gives reports over sources with withheld fields no link |
-| `output.baseUrl` | none | A permanent address for reports over fully shown sources |
+| `output.baseUrl` | none | A permanent address for reports over open sources |
 | `output.upload` | none | Reports go to your store; over a source with withheld fields only with `bind` `once` or `signIn` |
 | `log.address` | on | The client's IP address on a request's log lines |
 | `audit.subject` | off | The person on the log lines |

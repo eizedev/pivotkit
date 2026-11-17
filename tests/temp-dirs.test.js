@@ -193,7 +193,7 @@ test("a SIGTERM handler that never ends the process: tempDir ends it after a gra
         assert.deepEqual(result, { code: 128 + 15, signal: null }, output());
         assert.match(output(), /^ignored$/m);
         // not at once: the handler had its grace period
-        assert.ok(Date.now() - sent >= GRACE_MS - 100, `ended after ${Date.now() - sent} ms`);
+        assert.ok(Date.now() - sent >= GRACE_MS - 100, `ended after ${Date.now() - sent} ms`); // wall time: a timer's least delay
         for (const dir of dirs) assert.equal(existsSync(dir), false, dir);
     } finally {
         clearTimeout(deadline);

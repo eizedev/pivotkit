@@ -3,13 +3,17 @@
  * rounded bars, the tooltip in the theme and the axis labels laid out for the chart's size
  * (chart-layout.js). The same look on the screen (pivotkit-react, which adds its DOM tooltip), in an
  * SVG and in a printed report (pivotkit-report). The entry point "pivotkit-core/chart": only a drawn
- * chart needs it, so a report's first load does not.
+ * chart needs it, so a report's first load does not. It holds toEChartsOption too, for the same
+ * reason: a bundle that loads the chart from here keeps the option's code out of its first load.
  */
 
-import { DEFAULT_THEME, pxOf } from "./defaults.js";
+import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
+import { barExtent, pieLabelFit, pieLabelTexts, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
+import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame } from "./chart-measure.js";
 
 export * from "./chart-layout.js";
+export { toEChartsOption } from "./chart.js";
 
 /** A copy of an object without the given keys. */
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
@@ -61,6 +65,8 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         extraCssText: `box-shadow: ${v("--pk-shadow") || "none"}; border-radius: ${v("--pk-radius-card") || `${DEFAULT_THEME.cardRadius}px`};`,
         ...(tooltipFormatter ? { formatter: tooltipFormatter({ valueFormatter: option.tooltip?.valueFormatter, xNames: first(option.xAxis)?.data, yNames: first(option.yAxis)?.data, categoryNames: extra.categoryNames }) } : {})
     };
+    // the room of a heatmap that is not cells: its grid's margins and the column names as written
+    const cellFrame = (option.series || []).some((s) => s.type === "heatmap") ? heatmapFrame({ top: option.grid?.top, bottom: option.grid?.bottom, names: option.xAxis?.data ?? [], width, fontSize }) : undefined;
     const series = (option.series || []).map((s) => {
         if (s.type === "bar") {
             const horizontal = first(option.yAxis)?.type === "category";
@@ -81,32 +87,35 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
             // ECharts needs an explicit outside guide line on the first draw: an
             // undefined labelLine replaces its defaults and leaves the labels unplaced.
             let line = s.labelLine ?? { show: true };
+            const box = { width: width - (typeof s.right === "number" ? s.right : 0), height: height - top - bottom };
             if (label?.position === "inside" && label.show !== false && Array.isArray(s.radius)) {
-                const box = { width: width - (typeof s.right === "number" ? s.right : 0), height: height - top - bottom };
-                const total = (s.data || []).reduce((sum, d) => sum + (typeof d.value === "number" ? d.value : 0), 0);
-                const texts = typeof label.formatter === "function" ? (s.data || []).map((d) => label.formatter({ name: d.name, value: d.value, percent: total ? (d.value / total) * 100 : 0 })) : [];
-                if (!ringLabelsFit(s.radius, box, texts, fontSize)) {
+                if (!ringLabelsFit(s.radius, box, typeof label.formatter === "function" ? pieLabelTexts(s) : [], fontSize)) {
                     label = without(label, ["position"]);
                     line = { show: true };
                 }
             }
-            return { ...s, top, bottom, labelLine: line, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
+            // labels outside: room beside the pie, on lines where they are long, left out where a side has no room (pieLabelFit)
+            const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: Boolean(option.legend) });
+            label = fit.label ?? label;
+            return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one
             const texts = typeof s.label?.formatter === "function" ? s.data.map((/** @type {any} */ d) => s.label.formatter({ value: d })) : [];
-            const fits = heatmapCellLabels(option.xAxis?.data?.length ?? 1, option.yAxis?.data?.length ?? 1, width, height, texts, fontSize);
+            const fits = heatmapCellLabels(option.xAxis?.data?.length ?? 1, option.yAxis?.data?.length ?? 1, width, height, texts, fontSize, cellFrame);
             return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: cell }, label: { ...s.label, show: Boolean(s.label?.show) && fits, color: v("--pk-text") || undefined } };
         }
         return s;
     });
     const legend = option.legend ? { ...option.legend, icon: "roundRect", itemWidth: 12, itemHeight: 12, textStyle: { ...option.legend.textStyle, color: v("--pk-text") || undefined } } : undefined;
-    const grid = option.grid ? { left: 12, right: 24, bottom: option.visualMap ? 64 : 12, containLabel: true, ...option.grid } : undefined;
+    const grid = option.grid ? { left: 12, right: 24, bottom: option.visualMap ? HEATMAP_GRID_BOTTOM : 12, containLabel: true, ...option.grid } : undefined;
+    // the values past the end of horizontal bars keep their room on the right (valueLabelRoom)
+    if (grid) grid.right += valueLabelRoom(series, fontSize);
     // a heatmap names every column: slanted where they would overlap (columnLabelLayout)
     const heatmap = series.some((s) => s.type === "heatmap") && option.xAxis?.axisLabel;
     const xAxis = heatmap ? { ...option.xAxis, axisLabel: { ...option.xAxis.axisLabel, ...columnLabelLayout(option.xAxis.data ?? [], width, fontSize) } } : option.xAxis;
     // and its rows: every name where a line fits each row, else every n-th (rowLabelInterval)
-    const yAxis = heatmap && option.yAxis ? { ...option.yAxis, axisLabel: { ...option.yAxis.axisLabel, interval: rowLabelInterval(option.yAxis.data?.length ?? 0, height, fontSize) } } : option.yAxis;
+    const yAxis = heatmap && option.yAxis ? { ...option.yAxis, axisLabel: { ...option.yAxis.axisLabel, interval: rowLabelInterval(option.yAxis.data?.length ?? 0, height, fontSize, cellFrame) } } : option.yAxis;
     // a long title ends in "…" within the chart's width (the PNG is drawn from the same option)
     const title = option.title ? { title: { ...option.title, textStyle: { ...option.title.textStyle, width: Math.max(40, width - 32), overflow: "truncate" } } } : {};
     // bars, lines and areas: the category axis writes every label that fits (categoryLabelLayout), the
@@ -122,18 +131,26 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
             list = [{ ...list[0], data: extra.categoryNames ?? list[0].data }];
         }
         const names = list[0].data ?? [];
-        const layout = categoryLabelLayout(names, { width, height, horizontal: along === "yAxis", mode: extra.axisLabels, fontSize });
+        // the height that is neither plot nor category labels: the grid's margins and a line of group labels
+        const reserved = (typeof grid?.top === "number" ? grid.top : 0) + (typeof grid?.bottom === "number" ? grid.bottom : 0) + (list[1]?.groups ? groupLabelLine(fontSize) : 0);
+        const layout = categoryLabelLayout(names, { width, height, horizontal: along === "yAxis", mode: extra.axisLabels, fontSize, reserved });
         axisEvery = layout.every;
-        const longest = categoryLabelWidth(names, fontSize);
-        // the group labels' distance from the axis: past the category labels (a line of them, slanted
-        // ones' height, or the longest beside a vertical axis) and the room between
-        const offset = along === "yAxis" ? Math.round(longest) + 16 : layout.rotate ? Math.round(longest * 0.71) + fontSize + 2 : fontSize + 12;
+        const longest = Math.min(layout.width, categoryLabelWidth(names, fontSize));
+        const offset = groupLabelOffset({ beside: along === "yAxis", slanted: Boolean(layout.rotate), longest, fontSize });
         const main = { ...list[0], axisLabel: { ...list[0].axisLabel, rotate: layout.rotate, interval: layout.interval, width: layout.width, overflow: layout.overflow } };
         // a group's name is cut to the room of its smallest group, so two names never run into each other
         const slot = (along === "yAxis" ? Math.max(0, height - 60) : Math.max(0, width - 80)) / Math.max(1, names.length);
         const groupWidth = along === "yAxis" ? CATEGORY_LABEL_WIDTH : Math.max(24, Math.round(slot * (list[1]?.groupSize ?? 1)) - 8);
         const rest = list.slice(1).map((a) => (a.groups ? { ...a, offset, axisTick: { ...a.axisTick, length: offset }, axisLabel: { ...a.axisLabel, width: groupWidth, overflow: "truncate" } } : a));
         axes = { ...axes, [along]: rest.length ? [main, ...rest] : main };
+        // horizontal bars: fewer ticks where the value axis's labels would run into each other
+        const value = along === "yAxis" && !Array.isArray(axes.xAxis) && axes.xAxis?.type === "value" ? axes.xAxis : null;
+        if (value && grid && typeof value.axisLabel?.formatter === "function") {
+            const beside = rest.length ? offset + CATEGORY_LABEL_WIDTH : longest + AXIS_LABEL_MARGIN;
+            const plotWidth = width - grid.left - grid.right - beside;
+            const splitNumber = valueAxisSplit(barExtent(series), { plotWidth, fontSize, format: value.axisLabel.formatter });
+            if (splitNumber) axes = { ...axes, xAxis: { ...value, splitNumber } };
+        }
     }
     return { ...option, ...title, tooltip, series, ...(axes.xAxis ? { xAxis: axes.xAxis } : {}), ...(axes.yAxis ? { yAxis: axes.yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400, axisEvery };
 }

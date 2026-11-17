@@ -345,7 +345,7 @@ test("every issue carries a severity: errors leave a part out, warnings keep it"
     assert.equal(valid, true);
     assert.deepEqual(errors, []);
     assert.deepEqual(warnings, [{
-        path: "filters[0].items", message: 'item "north" is no item of "Region"; did you mean "North"?', code: "itemCase", severity: "warning",
+        path: "filters[0].items", message: 'item "north" is no item of "Region": the data spells it otherwise', code: "itemCase", severity: "warning",
         params: { field: "Region", value: "north", suggestion: "North" }
     }]);
     // the item stays as it was written: a warning changes nothing

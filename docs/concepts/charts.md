@@ -107,6 +107,10 @@ The report merges it like this:
 `{ legend: { show: false } }` hides the legend even when the user picked "Bottom". Keep
 `chartOptions` to what the user should not change.
 
+A pie with a legend can leave out the labels of small slices that have no room. Such a slice's
+data item gets `label: { show: false }`. That item setting wins over a series `label` from
+`chartOptions`. To show the label anyway, set `label.show` on that data item in `chartOptions`.
+
 **Only JSON.** Strings, finite numbers, booleans, `null`, plain objects and arrays pass. The report
 leaves out the following when it draws the chart:
 
