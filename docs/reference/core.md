@@ -345,10 +345,10 @@ load it with the chart, not with the first load.
 
 | Option | Of | What |
 | --- | --- | --- |
-| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition, tooltip }`, over the view's chart ([Charts](../concepts/charts.md)). |
-| `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `titleSize` (the title's font size in px, default 16), `textSize` (the font size of every other text, the axes, the legend and the labels, in px, default 14), `heatmapColors` (low, high), `pieRadius` (inner and outer radius of a pie, default a whole circle, `0%`, `70%`), `donutRadius` (of a donut, default a ring, `42%`, `70%`). |
+| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition, tooltip, referenceLines }`, over the view's chart ([Charts](../concepts/charts.md)). |
+| `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `titleSize` (the title's font size in px, default 16), `textSize` (the font size of every other text, the axes, the legend and the labels, in px, default 14), `heatmapColors` (low, high), `pieRadius` (inner and outer radius of a pie, default a whole circle, `0%`, `70%`), `donutRadius` (of a donut, default a ring, `42%`, `70%`), `referenceColor` (the reference lines of no series, default `textColor`). |
 | `locale` | `toEChartsOption` | Used when the view names none. Default: the pivot's locale. |
-| `labels`, `limits` | both | `labels`: texts. `limits`: `cells` caps the data points. |
+| `labels`, `limits` | both | `labels`: texts, with the reference lines' names in `referenceLines`. `limits`: `cells` caps the data points. |
 | `separator` | both | Between the parts of a multi-level label, default `" / "`. |
 | `maxCategories` | both | Plots the first categories in the view's order. `toSeries` reports `categoryCount`, the number before the cut. |
 | `series` | `toEChartsOption` | The `toSeries` result of the same result and options, when the caller has it already. |
@@ -365,6 +365,21 @@ field on Rows is a date or a grouping of one along the time line, else `"bar"`. 
 such as weekday counts as categories. A date on Columns alone gives `"bar"`. A UI that wants lines
 there swaps rows and columns for the chart. pivotkit-react and pivotkit-report do so through
 `chartPlan`.
+
+### `referenceLineRules(view, chart, data)` and `valueAddsUp(value)`
+
+Which reference lines (`chart.referenceLines`) a chart can draw. `chart` is what is drawn,
+`chartPlan`'s `chart`, never `"auto"`. It gives `{ average, trend, target }`, each `true` or `false`:
+
+- Pie, donut and heatmap: none.
+- Bars, lines and areas side by side: all three. A trend only along a time line: every field on
+  Rows a date or a grouping of one along the time line, none sorted by a value or by hand.
+- Stacked: all three when every value adds up, else none.
+
+`valueAddsUp(value)` says whether a view's value adds up across a category's series: an additive
+aggregator (`CATALOG.additiveAggregators`), shown as itself or as a type of
+`CATALOG.additiveShowAs`. One that walks an axis must walk the rows. The chart's tooltip uses it for
+a stack's total. [Charts](../concepts/charts.md#reference-lines) has the table.
 
 ### `chartPlan(view, data)`, `swapAxes(view)` and `chartThemeFrom(style)`
 
@@ -390,6 +405,7 @@ map of tokens. It reads the chart's theme:
 - `strongWeight` from `--pk-weight-strong` when it is a number from 1 to 1000.
 - `titleSize` from `--pk-chart-title-size` and `textSize` from `--pk-chart-text-size` when they are
   in px.
+- `referenceColor` from `--pk-chart-reference`.
 
 It also reads a workbook's colours, as CSS writes them. Make them `#rrggbb` for `toXlsx`.
 
@@ -401,6 +417,19 @@ A token that is missing or not readable keeps `DEFAULT_THEME`'s value. `CHART_CO
 ### The chart's marks: `pivotkit-core/chart` { #chart-marks }
 
 This entry point exports `toEChartsOption` too, so a bundle loads the option with the chart.
+
+`referenceLines(result, { chart, series, words, locale })` gives the reference lines as numbers, in
+the order a chart draws them: the averages, the trends, the target. Each line has:
+
+- `kind`: `"average"`, `"trend"` or `"target"`.
+- `series`: the series' index in `toSeries`, or `null` for a target or a stack's total.
+- `name`: its word from `words` (`Labels.referenceLines`), "Average" by default.
+- `value` for an average and a target. A trend has `first` and `last` (its categories), `from` and
+  `to` (its values there) and `at(index)`.
+- `format(value)`: writes a value in the series' format.
+
+`chart` is what is drawn (`chartPlan`'s), `series` the `toSeries` result when the caller has it.
+`toEChartsOption` draws them as `markLine`s.
 
 `decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter, readColor })` puts
 a report's marks on `toEChartsOption`'s option:
@@ -455,6 +484,8 @@ The view's display settings are part of the option:
 - Value labels (`label` of the series). A pie or a donut writes them outside. With
   `chart.labelPosition` `"inside"`, it writes them on the slices without a label line.
 - `smooth` lines.
+- The reference lines (`chart.referenceLines`) as silent `markLine`s, with the value axis's
+  `dataMin` and `dataMax` reaching them.
 - A second category axis with the outer field's items, once per group at its middle, with a
   separator tick where a group starts. It needs `chart.groupLabels` (`"auto"` or `"on"`) and two or
   more row fields. The UI hides `"auto"` ones in a small chart. `xAxis` or `yAxis` is then a list of

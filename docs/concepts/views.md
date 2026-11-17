@@ -59,7 +59,8 @@ later.
         valueLabels: "auto", legend: "auto", title: null,      // how it is drawn, see Charts
         smooth: false, axisLabels: "auto", groupLabels: "auto",
         labelPosition: "outside",                              // pie and donut: "outside" or "inside"
-        tooltip: "auto"                                        // or "axis": every series at the category
+        tooltip: "auto",                                       // or "axis": every series at the category
+        referenceLines: { average: false, trend: false, target: null }   // lines on bars, lines and areas
     },
     formatting: { locale: "de-DE", timeZone: null, weekStart: 1 }   // weekStart: 1 Monday to 7 Sunday
 }
@@ -81,7 +82,7 @@ value:
 | `sort` | Per field: by label, by a value or in a custom order, ascending or descending. | [Sorting](filters.md#sorting) |
 | `totals` | Grand total row and column, row and column subtotals. All are on by default except the column subtotals. Without values the table has no totals, because a total has no number then. A group with one item has no subtotal. | [The table](../use/fields.md#the-table) |
 | `collapsed` | Key paths of collapsed groups per axis. | |
-| `display`, `chart` | Table or chart, the chart's type, stacking and direction, and how it is drawn: value labels, legend, title, smooth lines, axis labels, group labels ([Charts](charts.md)). | |
+| `display`, `chart` | Table or chart, the chart's type, stacking and direction, and how it is drawn: value labels, legend, title, smooth lines, axis labels, group labels, tooltip, reference lines ([Charts](charts.md)). | |
 | `formatting` | The view's own locale and time zone, and the first day of a week for relative ranges in weeks (`weekStart`, 1 Monday to 7 Sunday). | [Locale and time zones](limits.md), [Relative date ranges](filters.md#relative-date-ranges) |
 | `version` | The view format's version. pivotkit migrates older views. | |
 

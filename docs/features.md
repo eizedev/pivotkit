@@ -101,6 +101,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - The type follows the data: lines over dates, else bars. That holds until people pick a type:
       bars, stacked or horizontal bars, lines, area, pie, donut or heatmap.
     - Value labels, legend, title, smooth lines, axis and group labels.
+    - Reference lines: an average, a trend and a target ([reference lines](use/charts.md#reference-lines)).
     - Tips that suggest a better type.
 - Developers: the view's `chart` settings, `autoChartType`, and `chartOptions` as checked plain JSON
   ([charts](concepts/charts.md)).

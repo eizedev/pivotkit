@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels and the tooltip in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip and reference lines in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -53,6 +53,7 @@ them, and they stay when the chart type changes:
 | `chart.axisLabels` | `"auto"`, `"all"`, `"nth"` |
 | `chart.groupLabels` | `"auto"`, `"on"`, `"off"` |
 | `chart.tooltip` | `"auto"`, `"axis"` |
+| `chart.referenceLines` | `{ average: boolean, trend: boolean, target: number \| null }` |
 
 A view without these keys gets the defaults. An unknown value falls back to its default, and
 `normalize()` reports it ([Views](views.md)). "Percent" and "Value and percent" apply to a pie and a
@@ -68,6 +69,39 @@ only when `CATALOG.additiveShowAs` lists its type: a share of the grand or the r
 difference or a running total along the rows. A rank or a percent difference gets no total.
 
 A pie, a donut and a heatmap always show the slice or cell under the pointer.
+
+### Reference lines
+
+`chart.referenceLines` switches on an average and a linear trend, and sets a target:
+
+```json
+{ "chart": { "type": "line", "referenceLines": { "average": true, "trend": true, "target": 500000 } } }
+```
+
+- A view without the key draws no lines: `{ average: false, trend: false, target: null }`.
+- A target that is no finite number becomes `null`, and `normalize()` reports it (`unknownSetting`).
+- pivotkit-core computes the numbers from the plotted categories (`referenceLines` in
+  `pivotkit-core/chart`) and draws them as ECharts `markLine`s on the series.
+- The lines are silent: a click opens no rows. The tooltip names them.
+- The value axis reaches every line (`dataMin` and `dataMax`).
+
+One rule decides which chart draws which line: `referenceLineRules(view, chart, data)` in
+pivotkit-core. The chart, the menu and the report's SVG use it.
+
+| Chart | Average | Trend | Target |
+| --- | --- | --- | --- |
+| Pie, donut, heatmap | no | no | no |
+| Bars, lines, areas side by side | per series | per series, along a time line | yes |
+| Stacked, every value adds up | of the stack's total | of the stack's total, along a time line | yes |
+| Stacked, a value does not add up | no | no | no |
+
+- "Adds up" is `valueAddsUp(value)`, the same rule as the tooltip's total.
+- "Along a time line" means every field on Rows is a date or a grouping of one along the time line.
+  A sort by a value or by hand takes that order away.
+- A setting that does not apply stays in the view and draws again where it applies.
+
+A series' lines take its colour. The lines of no series, a target and a stack's total, take
+`--pk-chart-reference`.
 
 The report's `--pk-*` tokens set these parts of the chart, so a corporate theme reaches the chart too
 ([Theming](../reference/theming.md#chart-colours)):

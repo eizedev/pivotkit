@@ -8,6 +8,14 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `chart.referenceLines` in the view: an average and a linear trend, switched on or off, and a
+  target as a number, drawn on bars, lines and areas as silent ECharts `markLine`s. The value axis
+  reaches every line. `referenceLineRules(view, chart, data)` says which chart draws which line:
+  none on a pie, a donut or a heatmap, a stack's total only when every value adds up, a trend only
+  along a time line. `valueAddsUp(value)` is the rule of what adds up. `referenceLines(result)` in
+  `pivotkit-core/chart` gives the numbers. `Labels.referenceLines` names them, and
+  `chartThemeFrom` reads `referenceColor` from `--pk-chart-reference`
+  ([#48](https://github.com/eizedev/pivotkit/issues/48)).
 - `decorateOption` takes `readColor`: a heatmap's colours as ECharts can mix them. An end it returns
   `null` for takes `DEFAULT_THEME.colorScale`'s colour, so a form such as `oklch()` no longer turns
   the cells black ([#386](https://github.com/eizedev/pivotkit/issues/386)).
