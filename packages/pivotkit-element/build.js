@@ -294,9 +294,11 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * first load holds the view's rules only: 174.41. MarkLine in a chunk of its own, loaded with the first
  * line, was measured too: esbuild split ECharts' shared modules into more chunks, and the chart
  * group grew to 231.2 with it; so markLine stays in the chart's chunk.
+ * The second review of #48: the SVG draws twice to place the labels of reference lines at their
+ * lines, so the report group is 23.46 on a Mac (Homebrew's zlib), at its budget of 23.5: budget 23.8.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 231.3, export: 12.6, link: 7.5, menus: 49, texts: 7.5, unused: 5.5, import: 22, report: 23.5, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 231.3, export: 12.6, link: 7.5, menus: 49, texts: 7.5, unused: 5.5, import: 22, report: 23.8, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

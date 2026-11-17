@@ -433,13 +433,24 @@ test("under a strict Content-Security-Policy the lines draw and the tooltip name
     const chartEl = el.getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();
     await expect(el.getByTestId("chart-summary")).toContainText("Target 80");
-    // the pointer sweeps along the plot's middle until the tooltip shows the lines
+    // every row of every tooltip ECharts writes, kept as it is written: the sweep may end where none shows
+    await chartEl.evaluate((node) => {
+        const seen = new Set();
+        new MutationObserver(() => {
+            const tip = [...node.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
+            for (const row of tip?.firstElementChild?.children ?? []) {
+                seen.add([...(row.children.length ? row.children : [row])].map((c) => c.textContent.trim()).filter(Boolean).join(" "));
+            }
+        }).observe(node, { childList: true, subtree: true, characterData: true });
+        window.__lineRows = seen;
+    });
+    // the pointer sweeps along the plot's middle, a move every 24 px, until a tooltip has named the target
     const box = await chartEl.boundingBox();
     await expect.poll(async () => {
         for (let x = box.x + 60; x < box.x + box.width - 40; x += 24) {
             await page.mouse.move(x, box.y + box.height * 0.5);
         }
-        return tooltipOf(chartEl);
+        return page.evaluate(() => [...window.__lineRows]);
     }).toContain("Target 80");
     expect(await page.evaluate(() => window.__violations)).toEqual([]);
 });
