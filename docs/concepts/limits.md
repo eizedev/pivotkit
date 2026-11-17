@@ -91,7 +91,7 @@ There are two kinds of limits:
 | `json` | 5,000,000 | Characters of the serialized view. | In `normalize`. |
 | `name` | 256 | Length of a name in a view. | In `normalize`. |
 | `filters` | 128 | Filters. | In `normalize`. |
-| `items` | 100,000 | Items in one filter. | In `normalize`. |
+| `items` | 100,000 | Items in one filter, or in a custom sort order. Also the names of a chart's hidden series (`chart.hidden`). | In `normalize`. |
 | `derived` | 64 | Derived fields. | In `normalize`. |
 | `sort` | 64 | Sort entries. | In `normalize`. |
 | `collapsed` | 10,000 | Collapsed groups. | In `normalize`. |

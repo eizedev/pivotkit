@@ -10,7 +10,7 @@ import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, FILTER_TYPES, 
 import { MATCH_CASES, MATCH_WHITESPACE } from "./text-match.js";
 import { FORMAT_NAMES } from "./format.js";
 import { SHOW_AS, SHOW_AS_NAMES } from "./show-as.js";
-import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TOOLTIPS, CHART_TYPES, CHART_VALUE_LABELS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
+import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TOOLTIPS, CHART_TYPES, CHART_VALUE_LABELS, CHART_ZOOMS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
 
 export const CATALOG = Object.freeze({
     aggregators: AGGREGATOR_NAMES,
@@ -63,6 +63,8 @@ export const CATALOG = Object.freeze({
     chartLabelPositions: CHART_LABEL_POSITIONS,
     /** what the tooltip of bars, lines and areas covers */
     chartTooltips: CHART_TOOLTIPS,
+    /** when bars, lines and areas get a zoom slider under the category axis */
+    chartZooms: CHART_ZOOMS,
     displayModes: DISPLAY_MODES,
     conditionalTypes: CONDITIONAL_TYPES
 });

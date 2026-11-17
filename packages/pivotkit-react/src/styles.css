@@ -105,6 +105,7 @@
     --pk-shadow-lg: 0 12px 32px rgb(16 24 40 / 0.16), 0 2px 6px rgb(16 24 40 / 0.08);
     --pk-scrim: rgb(10 14 22 / 0.32);
     --pk-scrim-light: rgb(10 14 22 / 0.18);
+    /* unused since the chart's Display settings have no switch; goes in 0.9.0 */
     --pk-knob: #ffffff;
     --pk-note: #eef3fd;
     --pk-type-string: #6250d6;
@@ -1185,12 +1186,6 @@
     max-width: min(420px, calc(100vw - 16px));
 }
 
-.pk-subtitle {
-    padding: 4px 8px 2px;
-    color: var(--pk-muted);
-    font-size: var(--pk-small);
-}
-
 /* a badge in words (a rule, a value condition): its text shortens to "…" when its chip is short of
    room, its icon and "+1" stay whole */
 .pk-badge-condition > :not(.pk-badge-cut) {
@@ -1270,21 +1265,6 @@
     padding-top: 6px;
 }
 
-/* the groups inside a group (the chart's Display: Value labels, Legend, Title, ...): a dashed rule
-   between them in the colour of the rule between groups (3:1), so they do not run together and still
-   read as parts of their group */
-.pk-subsection {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.pk-subsection + .pk-subsection {
-    border-top: 1px dashed var(--pk-rule);
-    margin-top: 4px;
-    padding-top: 4px;
-}
-
 .pk-section-head {
     display: flex;
     align-items: center;
@@ -1311,15 +1291,9 @@
     min-width: 0;
 }
 
-.pk-setting-row > .pk-option,
-.pk-setting-row > .pk-switch {
+.pk-setting-row > .pk-option {
     flex: 1;
     min-width: 0;
-}
-
-.pk-subtitle.pk-setting-row {
-    padding-top: 0;
-    padding-bottom: 0;
 }
 
 .pk-choice-grid {
@@ -2201,69 +2175,6 @@
     margin: 0;
 }
 
-.pk-switch {
-    display: flex;
-    align-items: center;
-    gap: 0.7em;
-    min-height: 2.2em;
-    padding: 0 0.6em;
-    border-radius: var(--pk-radius-sm);
-    cursor: pointer;
-}
-
-.pk-switch:hover {
-    background: var(--pk-surface-3);
-}
-
-.pk-switch-text {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.pk-switch input {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
-}
-
-.pk-switch-track {
-    position: relative;
-    width: 2.1em;
-    height: 1.2em;
-    flex: none;
-    border-radius: 999px;
-    background: var(--pk-border-strong);
-    transition: background var(--pk-duration);
-}
-
-.pk-switch-track::after {
-    content: "";
-    position: absolute;
-    top: 0.15em;
-    left: 0.15em;
-    width: 0.9em;
-    height: 0.9em;
-    border-radius: 50%;
-    background: var(--pk-knob);
-    box-shadow: var(--pk-shadow-sm);
-    transition: transform var(--pk-duration) var(--pk-ease);
-}
-
-.pk-switch input:checked + .pk-switch-track {
-    background: var(--pk-accent);
-}
-
-.pk-switch input:checked + .pk-switch-track::after {
-    transform: translateX(0.9em);
-}
-
-.pk-switch input:focus-visible + .pk-switch-track {
-    outline: var(--pk-focus-width) solid var(--pk-focus);
-    outline-offset: var(--pk-focus-offset);
-}
-
 /* filter */
 
 .pk-filter {
@@ -2884,6 +2795,27 @@
     display: flex;
     flex: 1;
     min-height: 0;
+}
+
+/* the zoom slider by keyboard (chart-legend.js zoomKeyProps): over the slider's row, the mouse passes through;
+   its ring shows where the keys act */
+.pk-zoom-keys {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-radius: var(--pk-radius-sm);
+    pointer-events: none;
+}
+
+.pk-zoom-keys-beside {
+    left: auto;
+    top: 0;
+    bottom: 0;
+}
+
+.pk-zoom-keys:focus-visible {
+    outline: var(--pk-focus-width) solid var(--pk-focus);
+    outline-offset: var(--pk-focus-offset);
 }
 
 /* exactly the box: a canvas taller than its box is cut at the bottom (axes, a pie's lower half) */
@@ -3544,10 +3476,6 @@
 
 .pk-chart-menu {
     width: 340px;
-}
-
-.pk-chart-menu .pk-switch {
-    margin-top: 4px;
 }
 
 /* the i next to a zone's title: as small as the title */

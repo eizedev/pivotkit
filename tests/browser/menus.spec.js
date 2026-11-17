@@ -575,9 +575,9 @@ test.describe("menus in levels", () => {
         await toolbar(page, "options");
         await expect(page.getByTestId("reset-sections")).toHaveCount(0);
         await page.keyboard.press("Escape");
-        // the chart type's Display settings are a titled group, shown at once
+        // the chart type's Display settings are a menu in levels, its first level shown at once (#106)
         await toolbar(page, "chart-type");
-        await expect(page.getByRole("group", { name: "Display" })).toBeVisible();
+        await expect(page.getByRole("menu", { name: "Display" })).toBeVisible();
         await page.keyboard.press("Escape");
         // Show tips off writes the list: the stored folds are not in it
         await toolbar(page, "options");

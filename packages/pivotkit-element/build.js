@@ -282,23 +282,24 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * The HTML report's row count in plural forms and the rows its filters keep, with ROW_COUNT_TEXTS
  * and pluralForm shared with pivotkit-core (#547): report 23.0 with Homebrew's zlib (22.8 before);
  * with #478's writer 23.3, at that budget: report goes to 23.5.
+ * The zoom slider, the legend toggle and 100 % stacks (#36): ECharts' slider component (dataZoom)
+ * takes the chart group to 231.1 with Homebrew's zlib (221.5 before), and the slider's keyboard
+ * control (#575, chart-legend.js zoomKeyProps) to 231.7. CI's zlib measured 232.5 on the merged
+ * head (about 0.7 more than a Mac): chart goes to 233. It is a lazy group, loaded with the first chart. The
+ * Display settings in levels (#106: chartTopics, the Axis, Tooltip, Series and Layout levels) with
+ * the zoom slider, 100 % switch and series list take menus to 48.5 (47.6 before) and the German menu
+ * texts to 7.3 (7.0): menus goes to 49, texts to 7.5. The first load grows 0.6 to 174.36 (the view
+ * keys, a view file's newer keys, the legend's announcement); the zoom and legend logic stays in the
+ * chart group (chart-legend.js).
  * A chart's reference lines (#48): ECharts' markLine component draws them, 5.9 KiB of the chart group
- * alone; with pivotkit-core's numbers and the tooltip's lines the chart group is 228.7 on a Mac with
- * Homebrew's zlib (221.5 before), budget 229.7. Display -> Reference lines took the menus to 48.1
- * (47.6 before), budget 49, and their German texts to 7.09 (6.99 before), budget 7.3. The rules of
- * which chart draws which line, the view key and the words of the text alternative are in the first
- * load: 174.3 (173.8 before), within its budget.
- * The review of #48: the trend over real time, the checks with the numbers' reasons, the labels kept
- * apart and the tooltip's lines in one module took the chart group to 230.3 on a Mac (Homebrew's zlib),
- * budget 231.3; the notes and the target's percent in the menus' German texts to 7.28, budget 7.5. The
- * first load holds the view's rules only: 174.41. MarkLine in a chunk of its own, loaded with the first
- * line, was measured too: esbuild split ECharts' shared modules into more chunks, and the chart
- * group grew to 231.2 with it; so markLine stays in the chart's chunk.
- * The second review of #48: the SVG draws twice to place the labels of reference lines at their
- * lines, so the report group is 23.46 on a Mac (Homebrew's zlib), at its budget of 23.5: budget 23.8.
+ * alone; with pivotkit-core's numbers, the checks with their reasons, the labels at their lines and
+ * the tooltip's lines the chart group was 230.7 on a Mac before #36. MarkLine in a chunk of its own,
+ * loaded with the first line, was measured too: esbuild split ECharts' shared modules into more
+ * chunks, and the chart group grew with it; so markLine stays in the chart's chunk. The SVG draws
+ * twice to place the labels at their lines: the report group 23.46 with Homebrew's zlib, budget 23.8.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 231.3, export: 12.6, link: 7.5, menus: 49, texts: 7.5, unused: 5.5, import: 22, report: 23.8, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 233, export: 12.6, link: 7.5, menus: 49, texts: 7.5, unused: 5.5, import: 22, report: 23.8, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

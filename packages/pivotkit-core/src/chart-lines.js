@@ -6,7 +6,7 @@
  * chart needs it: the entry point "pivotkit-core/chart" exports it.
  */
 
-import { referenceLineRules } from "./chart-plan.js";
+import { referenceLineRules, stacksToPercent } from "./chart-plan.js";
 import { autoChartType, toSeries } from "./chart-series.js";
 import { formatterFor } from "./format.js";
 import { DEFAULT_LABELS } from "./labels.js";
@@ -109,7 +109,7 @@ export function referenceLineChecks(result, { chart, series } = {}) {
         return { ...rules, notes: [] };
     }
     if (!rules.average) {
-        return { ...rules, notes: [drawn.stackPercent ? "percentStack" : "noTotal"] };
+        return { ...rules, notes: [stacksToPercent(drawn) ? "percentStack" : "noTotal"] };
     }
     const s = series ?? toSeries(result);
     const hidden = Array.isArray(drawn.hidden) ? drawn.hidden : [];

@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip and reference lines in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks, hidden series and reference lines in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -53,6 +53,9 @@ them, and they stay when the chart type changes:
 | `chart.axisLabels` | `"auto"`, `"all"`, `"nth"` |
 | `chart.groupLabels` | `"auto"`, `"on"`, `"off"` |
 | `chart.tooltip` | `"auto"`, `"axis"` |
+| `chart.zoom` | `"auto"`, `"on"`, `"off"` |
+| `chart.stackPercent` | `true`, `false` |
+| `chart.hidden` | a list of legend entries by name, at most `limits.items` |
 | `chart.referenceLines` | `{ average: boolean, trend: boolean, target: number \| null }` |
 
 A view without these keys gets the defaults. An unknown value falls back to its default, and
@@ -69,6 +72,34 @@ only when `CATALOG.additiveShowAs` lists its type: a share of the grand or the r
 difference or a running total along the rows. A rank or a percent difference gets no total.
 
 A pie, a donut and a heatmap always show the slice or cell under the pointer.
+
+`chart.zoom` puts a slider under the category axis of bars, lines and areas:
+
+- `"auto"` adds it for more than 20 categories, or when the axis would leave out 3 labels or more
+  between two it writes.
+- The first window holds as many categories as the axis can name: the latest over dates on Rows,
+  else the first ones. Its ends widen it up to every category, and the labels are laid out again.
+- `"on"` always adds it. `"off"` never does.
+- An SVG, an HTML report and a print draw every category. The PNG image leaves the slider out.
+- pivotkit-react lays a keyboard control over the slider: an element with `role="slider"` that
+  moves and resizes the window with the arrow, Page and Home and End keys, and says which
+  categories it shows (`aria-valuetext`). The canvas itself takes no focus.
+
+`chart.stackPercent` stacks bars and areas to 100 %:
+
+- It applies to stacked bars and to areas. An area is stacked by it. Lines and bars side by side
+  stay as they are.
+- It needs values that add up. The Display setting is offered only for them.
+- Each part is its share of the category's stack. The stack is the sum of its parts' sizes, so a
+  part below zero takes its share below the axis, and the stack does not fill the axis.
+- A category whose parts add up to nothing gets no bar.
+- Value labels write each part's share.
+- The tooltip shows each part's value and share. The total adds the values.
+
+`chart.hidden` names the legend entries that are hidden: series of bars, lines and areas, or slices
+of a pie or a donut. A click on the legend adds or removes a name. A name no entry has is kept and
+does nothing. Names are the labels the chart shows, so they follow the data and its labels. A
+hidden series does not count in a 100 % stack.
 
 ### Reference lines
 
@@ -105,7 +136,7 @@ them:
 | Stacked, a part below zero | no | no | yes, in one unit |
 | Stacked, a value does not add up, or stacked to 100 % | no | no | no |
 
-- "Adds up" is `valueAddsUp(value)` in `pivotkit-core/chart`, the same rule as the tooltip's total.
+- "Adds up" is `valueAddsUp(value)` in pivotkit-core's main entry, the same rule as the tooltip's total.
 - "Along a time line" means every field on Rows is a date or a grouping of one along the time line.
   A sort by a value or by hand takes that order away.
 - "In one unit" means one format, and no count beside a field's values.

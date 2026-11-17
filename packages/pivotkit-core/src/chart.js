@@ -7,6 +7,7 @@
 import { referenceLines } from "./chart-lines.js";
 import { lineLabelText } from "./chart-measure.js";
 import { autoChartType, toSeries } from "./chart-series.js";
+import { legendSelected, percentShares, stacksToPercent } from "./chart-stack.js";
 import { DEFAULT_THEME, GRID_TOP, HEATMAP_GRID_BOTTOM } from "./defaults.js";
 import { expect } from "./errors.js";
 import { formatterFor } from "./format.js";
@@ -176,7 +177,9 @@ export function toEChartsOption(result, options) {
     const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: theme.titleSize ?? DEFAULT_THEME.titleSize, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight } } } : {};
     const titleRoom = title.title ? roomOfTitle(theme.titleSize ?? DEFAULT_THEME.titleSize) : 0;
     const { legend, room } = legendOf(chart.legend, SLICE_CHART_TYPES.includes(chart.type) || s.series.length > 1, titleRoom, textStyle);
-    const legendPart = legend ? { legend } : {};
+    // the hidden entries are unselected, also in a legend that is not shown (chart.hidden)
+    const selected = legendSelected(chart.hidden);
+    const legendPart = legend ? { legend: selected ? { ...legend, selected } : legend } : selected ? { legend: { show: false, selected } } : {};
     // what is written next to the marks: "percent" and "both" are a pie's; the other types write the value
     const labels = chart.valueLabels === "off" || chart.valueLabels === "value" || chart.valueLabels === "percent" || chart.valueLabels === "both" ? chart.valueLabels : "auto";
 
@@ -274,10 +277,19 @@ export function toEChartsOption(result, options) {
         axisLabel: { ...axisText, formatter: (v) => compact(v) },
         splitLine: { lineStyle: { color: theme.gridColor } }
     };
+    // stacked to 100 %: each part as its share of the stack, the axis from 0 to 100 % (chart.stackPercent)
+    const percent = stacksToPercent(chart);
+    const shares = percent ? percentShares(s.series, new Set(chart.hidden)) : null;
+    const shareFormatter = formatterFor("percent100:1", locale);
+    if (shares) {
+        const whole = formatterFor("percent100:0", locale);
+        Object.assign(valueAxis, { max: 100, min: shares.negative ? -100 : 0, axisLabel: { ...valueAxis.axisLabel, formatter: (v) => whole(v) } });
+    }
+    const stacked = chart.stacked || percent;
     // value labels: at the end of a bar, inside a stacked one, above a point of a line
     const showValues = labels !== "auto" && labels !== "off";
-    const position = type === "line" ? "top" : chart.stacked ? "inside" : chart.horizontal ? "right" : "top";
-    const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? fmt(p.value) : "") } } : {};
+    const position = type === "line" ? "top" : stacked ? "inside" : chart.horizontal ? "right" : "top";
+    const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? (percent ? shareFormatter(p.value) : fmt(p.value)) : "") } } : {};
     const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme, short: (v) => compact(v) });
     // the value axis reaches every line: a target past the tallest bar is drawn, not cut off.
     // dataMin and dataMax are ECharts' own (ECharts 6, scaleRawExtentInfo: they widen the data's
@@ -294,7 +306,8 @@ export function toEChartsOption(result, options) {
         // the tooltip covers the category under the pointer; a UI's formatter narrows it to the element
         // under the pointer (chart.tooltip). The category lights up no bar: only the one under the
         // pointer does (decorateOption: a bar's focus is "self")
-        tooltip: { trigger: "axis", valueFormatter },
+        // shareFormatter (not ECharts'): a share as the locale writes it, for the tooltip of 100 % stacks
+        tooltip: { trigger: "axis", valueFormatter, ...(percent ? { shareFormatter } : {}) },
         ...(type === "bar" ? { axisPointer: { triggerEmphasis: false } } : {}),
         // room for the title and the legend; ECharts keeps its own defaults for the label margins
         grid: { top: GRID_TOP + titleRoom + room.top + marks.room, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
@@ -303,8 +316,9 @@ export function toEChartsOption(result, options) {
         series: s.series.map((x, i) => ({
             type,
             name: x.name,
-            data: x.data,
-            ...(chart.stacked ? { stack: "total" } : {}),
+            // a 100 % stack's parts are { value: share, raw: value }
+            data: shares ? shares.data[i] : x.data,
+            ...(stacked ? { stack: "total" } : {}),
             ...(chart.type === "area" ? { areaStyle: {} } : {}),
             ...(type === "line" ? { connectNulls: false, smooth: Boolean(chart.smooth) } : {}),
             ...valueLabel,

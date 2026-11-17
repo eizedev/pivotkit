@@ -954,8 +954,9 @@ A menu keeps the mouse wheel to itself. The menu stops a wheel turn that nothing
 scroll further, so the table or the page behind never scrolls. `overscroll-behavior: contain` does
 the same for touch. A menu is at most as high as the window, and scrolls inside.
 
-No menu folds. The chart type menu and the Export menus are flat lists in titled groups
-(`role="group"` with its title).
+No menu folds. The Export menus are flat lists in titled groups (`role="group"` with its title).
+The chart type menu has its types first, then a row per Display topic that opens a level, like the
+field and Options menus.
 
 An "i" next to a setting explains it on hover, focus or tap. Settings with an "i": the totals, Show
 as, Excel and CSV in the export menu, and Labels and Group labels of the chart.

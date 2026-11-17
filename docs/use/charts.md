@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, reference lines for an average, a trend and a target, the tooltip of the element under the pointer and the chart image.
+description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, the tooltip of the element under the pointer and the chart image.
 ---
 
 # Charts
@@ -55,28 +55,33 @@ pick stays.
 
 ## Display settings
 
-The chart type menu has its **Display** settings under the chart types, in one flat list. See
-[long menus](layout.md#menus-that-are-long).
+The chart type menu lists the chart types first. Below them is one row per **Display** topic:
+Value labels, Legend, Title, Axis, Tooltip, Series and Layout. Each row shows what is set and opens
+a level. **Back**, Escape or the left arrow goes back to the row. A topic the chart has nothing for
+is left out: a pie has no Axis, a heatmap no Series.
 
-- Each choice applies at once, and the menu stays open, so the chart behind it shows the change.
-- The settings stay with the report: in saved views, links and the chart image. They also stay when
-  the chart type changes.
-- An **i** next to Labels, Group labels and Tooltip explains them.
+A choice applies at once, and the menu stays open, so the chart behind it shows the change. The
+settings stay with the report: in saved views, links and the chart image. They also stay when the
+chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Stacked to 100 % and the
+labels of a pie.
 
-![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-light.png#only-light)
-![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-dark.png#only-dark)
+![The chart type menu: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
+![The chart type menu: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
 
-| Setting | Choices | Default |
-| --- | --- | --- |
-| Value labels | Automatic, Off, Value. A pie and a donut also offer Percent and Value and percent. | Automatic: a pie names its slices. A heatmap writes the numbers while there are 200 cells or fewer. Bars and lines write nothing. |
-| Labels (pie and donut) | Outside, Inside. Not offered while value labels are Off. | Outside |
-| Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series. A pie and a donut always have one. |
-| Title | Any text. The × removes it at once. | none |
-| Smooth lines | on, off. Lines and area only. | off |
-| Axis labels | Automatic, All (slanted), Every n-th. Bars, lines and areas only. | Automatic |
-| Group labels under the axis | Automatic, On, Off. Only with two or more fields in Rows. | Automatic: shown while the chart has room for them |
-| Tooltip | Automatic, All series. Bars, lines and areas only. | Automatic: the element under the pointer |
-| Reference lines | Average, Trend, Target. Bars, lines and areas only. See [below](#reference-lines). | none |
+| Setting | Path | Choices | Default |
+| --- | --- | --- | --- |
+| Value labels | Display › Value labels | Automatic, Off, Value. A pie and a donut also offer Percent and Value and percent. | Automatic: a pie names its slices. A heatmap writes the numbers while there are 200 cells or fewer. Bars and lines write nothing. |
+| Legend | Display › Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series. A pie and a donut always have one. |
+| Title | Display › Title | Any text. The × removes it at once. | none |
+| Axis labels | Display › Axis | Automatic, All (slanted), Every n-th | Automatic |
+| Group labels | Display › Axis | Automatic, On, Off. With two or more fields in Rows. | Automatic: shown while the chart has room for them |
+| Zoom slider | Display › Axis | Automatic, On, Off | Automatic: more than 20 categories, or an axis that would leave out 3 names or more between two |
+| Tooltip | Display › Tooltip | Automatic, All series | Automatic: the element under the pointer |
+| Series | Display › Series | A switch per series, or per slice of a pie or a donut | all shown |
+| Stacked to 100 % | Display › Layout | on, off. Stacked bars and areas of sums and counts. | off |
+| Reference lines | Display › Reference lines | Average, Trend, Target. Bars, lines and areas. See [below](#reference-lines). | none |
+| Smooth lines | Display › Layout | on, off. Lines and areas. | off |
+| Labels of a pie | Display › Layout | Outside, Inside. Not while value labels are Off. | Outside |
 
 ??? info "Pie and donut labels"
     **Outside** writes each slice's name with what is chosen, on a line to the slice. On a narrow
@@ -149,14 +154,56 @@ The chart type menu has its **Display** settings under the chart types, in one f
     ![Bars of the three largest countries per region, the regions as group labels under the country names](../assets/screenshots/chart-groups-light.png#only-light)
     ![Bars of the three largest countries per region, the regions as group labels under the country names](../assets/screenshots/chart-groups-dark.png#only-dark)
 
+## Zoom and series { #zoom-and-series }
+
+A chart with many categories, such as 40 countries, gets a **zoom slider** under the axis.
+Automatic shows it for more than 20 categories. With fewer, it shows it only when the axis would
+leave out 3 names or more between two. Horizontal bars get the slider on the right.
+
+The slider first shows as many categories as the axis can name: the latest ones over dates, else
+the first ones. Drag it to move along the axis. Drag its ends to show more or fewer categories, up
+to all of them. The axis then names its categories again. The chart keeps the slider's place when
+it is drawn again, for example in a narrower window. On a touch screen the slider is as thick as a
+finger needs.
+
+The slider works by keyboard too. Press Tab until it has the focus ring.
+
+- The left and right arrows move the window by one category.
+- Shift with an arrow makes it one category larger or smaller.
+- Page Up and Page Down move it by its own width. Home and End go to the first and last categories.
+- A screen reader hears what it shows: "Categories 12 to 30 of 40".
+
+Display › Axis › Zoom slider › Off draws every category instead. Then the axis may name only every
+n-th one. The chart image, the SVG, the HTML report and a print always show every category.
+
+![Bars of 40 countries on a phone: the zoom slider under the axis, each country in its window named](../assets/screenshots/chart-zoom-light.png#only-light){ width="300" }
+![Bars of 40 countries on a phone: the zoom slider under the axis, each country in its window named](../assets/screenshots/chart-zoom-dark.png#only-dark){ width="300" }
+
+Click a series in the legend to hide it. Click it again to show it. A screen reader hears "Software
+hidden" or "Software shown". The view keeps it, and **Undo** takes it back. Display › Series has a
+switch per series, or per slice of a pie, for the keyboard. It lists every series; a long list
+scrolls.
+
+Display › Layout › Stacked to 100 % makes each stack as high as the axis. It is offered for stacked
+bars and areas of sums and counts, the values that add up. An area is stacked by it.
+
+- Each part shows its share, in the value labels too. A part of 0 shows "0.0%".
+- The tooltip shows a part's value and its share, such as "Hardware 20 33.3%". Its **Total** adds
+  the values.
+- A hidden series does not count. The other parts share the stack.
+- A stack with parts below zero does not fill the axis: its parts above and below zero share the
+  100 %, and the axis runs from -100 %. A stack that adds up to nothing gets no bar.
+
 ## Reference lines
 
 A reference line compares the values with their average, with their trend over time, or with a
 target you set.
 
 1. Open the chart type menu next to **Table** and **Chart**.
-2. Under **Reference lines**, switch on **Average** or **Trend**.
-3. Type a number under **Target** and press Enter, or click **Apply**. The **×** removes it.
+2. Open **Reference lines**. Its row says which lines are on, such as "Average, Target".
+3. Switch on **Average** or **Trend**. The level stays open, so you can switch both.
+4. Type a number under **Target** and press Enter, or click **Apply**. The **×** removes it.
+5. **Back** or Escape returns to the Display settings.
 
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-light.png#only-light)
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-dark.png#only-dark)
@@ -247,7 +294,7 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-dark.png#only-dark)
 
 ??? info "Every series in the tooltip"
-    **Tooltip**, **All series** in the Display settings lists every series at the pointer's category,
+    Display › Tooltip › All series lists every series at the pointer's category,
     wherever the pointer is. The series under the pointer comes first, its name in bold. Stacked bars
     and areas add the total. The setting stays with the view.
 

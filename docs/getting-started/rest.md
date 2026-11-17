@@ -245,8 +245,10 @@ service again:
 ??? note "A server with a sign-in provider"
 
     With `auth.mode: oauth`, people get their token from the sign-in provider, not from you.
-    `pivotkit login` signs them in with a code in the browser. `pivotkit token` then prints a fresh
-    token for curl or PowerShell. The scripts for curl and PowerShell alone are in
+    `pivotkit login --url <address>` signs them in with a code in the browser. `pivotkit token` then
+    prints a fresh token for curl or PowerShell. Set `rest.signIn.clientId` to your provider's public
+    client for the command line. The server publishes it, so people need only the address. The
+    scripts for curl and PowerShell alone are in
     [Sign in from the command line](../reference/rest.md#sign-in-cli).
 
 In the second terminal, read the two tokens into variables:

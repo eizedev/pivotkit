@@ -5,6 +5,7 @@
  *
  *   REST: /api/v1
  *     resource https://reports.example.com/api/v1
+ *     sign-in client for pivotkit login: pivotkit-cli (published; a public client without a secret)
  *     CORS: https://app.example.com
  *
  * check/index.js says what a section returns.
@@ -22,6 +23,10 @@ export async function section(options, _registry, runtime) {
     const items = [heading("REST: /api/v1")];
     if ((options.auth?.mode ?? "none") === "oauth") {
         items.push(plain(`resource ${restResourceOf(options)}`));
+        const signIn = r.signIn?.clientId;
+        if (signIn) {
+            items.push(plain(`sign-in client for pivotkit login: ${signIn} (published; a public client without a secret)`));
+        }
     }
     if (r.inline) items.push(plain("inline results: on"));
     items.push(plain(`CORS: ${r.cors?.origins?.length ? r.cors.origins.join(" ") : "off"}`));

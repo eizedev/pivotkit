@@ -557,6 +557,7 @@ missing one (404 `SOURCE_NOT_FOUND`).
 | `rest.resource` | origin of `auth.resource` + `/api/v1` | The REST service's resource (OAuth) |
 | `rest.audience` | `[rest.resource]` | The `aud` values a REST token may carry |
 | `rest.requiredScopes` | `auth.requiredScopes` | Scopes every REST call needs |
+| `rest.signIn.clientId` | none | The public client `pivotkit login` signs in with, published in the metadata (OAuth only). Not `output.downloads.signIn.clientId` |
 
 ## Sign in from the command line { #sign-in-cli }
 
@@ -568,7 +569,7 @@ person. The server takes no part in the sign-in. It only publishes its metadata.
 === "pivotkit"
 
     ```bash
-    pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli
+    pivotkit login --url https://reports.example.com/api/v1
     pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources
     ```
 
@@ -578,11 +579,13 @@ person. The server takes no part in the sign-in. It only publishes its metadata.
 === "PowerShell"
 
     ```powershell
-    pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli
+    pivotkit login --url https://reports.example.com/api/v1
     Invoke-RestMethod https://reports.example.com/api/v1/sources -Headers @{ Authorization = "Bearer $(pivotkit token)" }
     ```
 
 `pivotkit login` prints an address and a code. Open the address, enter the code and sign in.
+It takes the client ID the server publishes. Where the server publishes none, give it with
+`--client-id`.
 `pivotkit token` then prints a fresh access token whenever you need one.
 [pivotkit-cli](cli.md#sign-in) describes both commands and where they keep the refresh token.
 
@@ -595,7 +598,27 @@ person. The server takes no part in the sign-in. It only publishes its metadata.
 2. Make its access tokens fit the REST service, as for any other client ([Sign-in](#auth)):
     - their `aud` is in `rest.audience`
     - they carry `rest.requiredScopes`
-3. Tell the users the client ID. They pass it with `--client-id` or `PIVOTKIT_CLIENT_ID`.
+3. Publish the client ID, so users need only the server's address:
+
+    ```json
+    { "rest": { "signIn": { "clientId": "pivotkit-cli" } } }
+    ```
+
+    The server then names it in its metadata as `pivotkit_client_id`, next to the fields of
+    [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728). `check-config` shows it.
+    The field is pivotkit's own extension, which other clients ignore. RFC 9728 says in section 2:
+    "Additional protected resource metadata parameters MAY also be used." Section 3.2 adds: "any
+    metadata parameters that are not understood MUST be ignored."
+    Without the setting, tell the users the client ID. They pass it with `--client-id` or
+    `PIVOTKIT_CLIENT_ID`. Either pins the ID: `login` then never takes the published one.
+    This client is not the browser client of a download link's sign-in
+    ([`output.downloads.signIn.clientId`](delivery.md#configuration)).
+
+!!! warning "Publish a public client only"
+
+    Anyone can read the metadata, without a token. Publish only a public client: one the provider
+    lets sign in without a secret. A client with a secret does not work with `pivotkit login`, and
+    its ID tells others which client to attack. The setting has no field for a secret.
 
 The command line asks for the scopes in the server's metadata. It adds `offline_access` when the
 provider lists it or lists no scopes. `--scope` replaces both.

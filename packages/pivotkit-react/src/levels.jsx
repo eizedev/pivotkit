@@ -430,6 +430,13 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
             open(choice.open, choice.backTo ?? `item:${choice.id}`);
             return;
         }
+        if (choice.checkbox && nav.stack.length) {
+            // a switch in a level: people flip several in a row (the series shown, Layout), so its level stays and
+            // the focus stays on it
+            onPick(choice);
+            setNav({ stack: nav.stack, focus: `item:${choice.id}` });
+            return;
+        }
         if (!choice.closes) {
             // the summary shows the new state, the focus on the row of the topic (or the search)
             setNav({ stack: [], focus: query ? "search" : nav.stack.length ? nav.stack[0].from : `item:${choice.id}` });

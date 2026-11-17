@@ -7,10 +7,10 @@
  * tooltipFormatter() builds the nodes in the chart's document.
  */
 
-import { referenceLineChecks, referenceLines, valueAddsUp } from "pivotkit-core/chart";
+import { referenceLineChecks, referenceLines } from "pivotkit-core/chart";
+import { valueAddsUp } from "./adds-up.js";
 
-// whether a value adds up, so a stack of it has a total: pivotkit-core's rule, which also decides a
-// stack's reference lines
+// whether a value adds up, so a stack of it has a total: the rule of the stack's reference lines too
 export { valueAddsUp };
 
 /**
@@ -19,6 +19,7 @@ export { valueAddsUp };
  * @property {string} name
  * @property {string} value
  * @property {boolean} [hovered]  the element under the pointer, among other lines
+ * @property {string} [share]  a part's share of its 100 % stack
  */
 
 /**
@@ -32,6 +33,7 @@ export { valueAddsUp };
 /**
  * @typedef {object} TooltipOptions
  * @property {(v: unknown) => string} [valueFormatter]  the core's
+ * @property {(v: number) => string} [shareFormatter]  the core's, on a 100 % stack: a share as the locale writes it
  * @property {string[]} [xNames]  a heatmap's column names
  * @property {string[]} [yNames]  a heatmap's row names
  * @property {string[]} [categoryNames]  each category's whole name, for an axis that writes them shorter
@@ -114,6 +116,11 @@ export function tooltipReferences(lines, seriesNames, color) {
 /** A number to show: ECharts hands null (or "-") for a series without a value at the category. */
 const hasValue = (v) => typeof v === "number" && Number.isFinite(v);
 
+/** Whether a part is a 100 % stack's: it draws its share and keeps its value as `raw` (pivotkit-core). */
+const isShare = (p) => p.data !== null && typeof p.data === "object" && typeof p.data.raw === "number";
+/** A part's own value. */
+const rawOf = (p) => (isShare(p) ? p.data.raw : p.value);
+
 /**
  * The items of a bar, line or area tooltip (trigger "axis": one item per series at the category):
  * - "auto" with an element under the pointer: that element alone
@@ -138,7 +145,7 @@ function axisItems(params, { valueFormatter, mode, series, hover, totalLabel }) 
     const lines = shown.filter((p) => hasValue(p.value));
     return {
         lines: lines.map((p) => ({ p, hovered: p === hit && lines.length > 1 })),
-        total: counted.length ? { name: totalLabel, value: valueFormatter(counted.reduce((sum, p) => sum + p.value, 0)) } : null
+        total: counted.length ? { name: totalLabel, value: valueFormatter(counted.reduce((sum, p) => sum + rawOf(p), 0)) } : null
     };
 }
 
@@ -176,7 +183,7 @@ function referenceItems(params, references, mode, hover) {
  * @param {TooltipOptions} [options]
  * @returns {{ title: string, lines: TooltipLine[], more?: string, total?: { name: string, value: string }, references?: TooltipLine[] }}
  */
-export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}", moreInTotalLabel = moreLabel, references = [] } = {}) {
+export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), shareFormatter, xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}", moreInTotalLabel = moreLabel, references = [] } = {}) {
     const color = (p) => (typeof p.color === "string" ? p.color : null);
     const text = (v) => (v === null || v === undefined ? "" : String(v));
     if (Array.isArray(params)) {
@@ -188,7 +195,7 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
         const refs = referenceItems(params, references, mode, hover);
         return {
             title: first ? text(categoryNames[first.dataIndex] ?? first.axisValueLabel ?? first.name) : "",
-            lines: kept.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(p.value), ...(hovered ? { hovered } : {}) })),
+            lines: kept.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(rawOf(p)), ...(shareFormatter && isShare(p) ? { share: shareFormatter(p.value) } : {}), ...(hovered ? { hovered } : {}) })),
             ...(cut ? { more: (total ? moreInTotalLabel : moreLabel).replace("{count}", String(cut)) } : {}),
             ...(total ? { total } : {}),
             ...(refs.length ? { references: refs } : {})
@@ -216,7 +223,7 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
  */
 export function tooltipFormatter(doc, { hoverOf, ...options }) {
     /** One line: a round marker in the series' colour, the name, the value in the strong weight. */
-    const row = (/** @type {{ color?: string | null, name: string, value: string, hovered?: boolean }} */ line) => {
+    const row = (/** @type {{ color?: string | null, name: string, value: string, share?: string, hovered?: boolean }} */ line) => {
         const el = doc.createElement("div");
         el.style.display = "flex";
         el.style.alignItems = "center";
@@ -246,6 +253,14 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
         value.style.fontWeight = "var(--pk-weight-strong)";
         value.style.marginLeft = "12px";
         el.append(marker, name, value);
+        if (line.share) {
+            // a 100 % stack's part: its share after its value, in the muted colour
+            const share = doc.createElement("span");
+            share.textContent = line.share;
+            share.style.color = "var(--pk-muted)";
+            share.style.marginLeft = "8px";
+            el.append(share);
+        }
         return el;
     };
     return (params) => {

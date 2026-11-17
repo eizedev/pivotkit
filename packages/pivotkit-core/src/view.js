@@ -14,7 +14,7 @@ import { DERIVED, MIN_BIN_SIZE } from "./derive.js";
 import { FILTERS, FILTER_TYPES_V1, WEEK_START, fieldKinds, fieldTypeHint, itemFor, readItem } from "./filters.js";
 import { closest } from "./hints.js";
 import { isFormat } from "./format.js";
-import { ISSUE_CAP, resolveLimits } from "./limits.js";
+import { ISSUE_CAP, ITEM_LENGTH, resolveLimits } from "./limits.js";
 import { migrate1 } from "./migrate-1.js";
 import { SHOW_AS } from "./show-as.js";
 import { foldText } from "./text-match.js";
@@ -128,6 +128,11 @@ export const CHART_GROUP_LABELS = Object.freeze(["auto", "on", "off"]);
  * donut and heatmap always show the slice or cell under the pointer.
  */
 export const CHART_TOOLTIPS = Object.freeze(["auto", "axis"]);
+/**
+ * The zoom slider under the category axis of bars, lines and areas: "auto" while the axis cannot write
+ * every label (the UI measures it), "on" always, "off" never. A file (SVG, HTML report) draws every category.
+ */
+export const CHART_ZOOMS = Object.freeze(["auto", "on", "off"]);
 
 /** A colour of a conditional format: #rgb or #rrggbb. */
 export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -156,12 +161,15 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
  *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string,
+ *   zoom: string, stackPercent: boolean, hidden: string[],
  *   referenceLines: { average: boolean, trend: boolean, target: number | null } }} ChartSpec  the chart
  *   type and how it is drawn: value labels (CHART_VALUE_LABELS) and, on a pie or donut, where they go
  *   (CHART_LABEL_POSITIONS), legend (CHART_LEGENDS), a title over the
  *   chart, smooth lines (line, area), the category axis labels (CHART_AXIS_LABELS), and with two or more
  *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS), what the
- *   tooltip covers (CHART_TOOLTIPS) and the reference lines of bars, lines and areas (referenceLineRules)
+ *   tooltip covers (CHART_TOOLTIPS), the zoom slider (CHART_ZOOMS), bars and areas stacked to 100 %
+ *   (stackPercent), the legend entries hidden (series, or slices of a pie), by name, and the reference
+ *   lines of bars, lines and areas (referenceLineRules)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
  * @typedef {object} View
@@ -199,7 +207,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", referenceLines: { average: false, trend: false, target: null } },
+        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null } },
         formatting: { locale: null, timeZone: null, weekStart: WEEK_START }
     };
 }
@@ -575,6 +583,13 @@ function collapsedSection(raw, view, ctx) {
     }
 }
 
+/** A list of names (legend entries) at `key`: texts up to ITEM_LENGTH characters, each once, at most `limits.items`. */
+function nameList(raw, key, ctx) {
+    const out = new Set();
+    listOf(raw, key, ctx.limits.items, ctx, (name, path) => (typeof name === "string" && name.length <= ITEM_LENGTH ? out.add(name) : ctx.issue(path, "not a name", "unknownSetting", { value: shown(name) })));
+    return [...out];
+}
+
 function displaySection(raw, view, ctx) {
     const display = get(raw, "display");
     view.display = oneOf(display, DISPLAY_MODES, view.display);
@@ -605,6 +620,9 @@ function displaySection(raw, view, ctx) {
             groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto"),
             labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside"),
             tooltip: own("tooltip", CHART_TOOLTIPS, "auto"),
+            zoom: own("zoom", CHART_ZOOMS, "auto"),
+            stackPercent: bool(get(chart, "stackPercent"), false),
+            hidden: nameList(raw, "chart.hidden", ctx),
             referenceLines: referenceLinesOf(get(chart, "referenceLines"), ctx)
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {

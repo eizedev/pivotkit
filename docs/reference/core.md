@@ -227,7 +227,7 @@ uses. pivotkit-react shares it as JSON, as a file and, in its link profile, as a
 
 | Function | Returns | What |
 | --- | --- | --- |
-| `toViewFile(view, meta?, { link })` | object | The view file, keys in their canonical order. `meta` has these keys:<br>- `name`<br>- `description`, left out when empty<br>- `createdAt`, a `Date` or ISO text, left out without it<br>- `generator` (`{ name, version }`)<br>- `source` (`{ id, name, params }`), whose `params` are written with an id only ([`source.params`](view-file.md))<br>- `data`, an `Encoded`: with it, `source.fields` lists the fields the view uses with their types<br> `link: true` gives the link profile: format, version, `source.id`, `name` and the view only. A view that is no object throws `TypeError`. |
+| `toViewFile(view, meta?, { link })` | object | The view file, keys in their canonical order. `meta` has these keys:<br>- `name`<br>- `description`, left out when empty<br>- `createdAt`, a `Date` or ISO text, left out without it<br>- `generator` (`{ name, version }`)<br>- `source` (`{ id, name, params }`), whose `params` are written with an id only ([`source.params`](view-file.md))<br>- `data`, an `Encoded`: with it, `source.fields` lists the fields the view uses with their types<br> `link: true` gives the link profile: format, version, `source.id`, `name` and the view only. The chart keys newer than 0.7 are left out at their defaults ([view file](view-file.md#writing-a-view-file)). A view that is no object throws `TypeError`. |
 | `fromViewFile(input, { data, sourceId })` | `ViewFileRead` | Reads a view file, a bare view or a template `{ name, view }` from its text or parsed object. It never throws. The result: `view` as parsed, not normalized, `null` when it cannot be used. Also `envelope`, `name`, `description`, `createdAt`, `generator` and `source`. `failed`: `"empty"`, `"tooLarge"`, `"notJson"`, `"notView"`, `"newerFormat"`, `"newerView"`. `issues`: what was left out of the envelope. With `data` it adds `compatible` `{ ok, source: "same" \| "other" \| "unknown", missing, changed, needs }`. |
 | `viewFileText(file)` | `string` | The file as JSON with a 2-space indent and a trailing newline. |
 | `viewFileName(name)` | `string` | `"<slug>.pivotkit.json"`: "Revenue by region" gives `revenue-by-region.pivotkit.json`. A name without a letter or digit gives `view.pivotkit.json`. |
@@ -347,7 +347,7 @@ load it with the chart, not with the first load.
 
 | Option | Of | What |
 | --- | --- | --- |
-| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition, tooltip, referenceLines }`, over the view's chart ([Charts](../concepts/charts.md)). |
+| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition, tooltip, zoom, stackPercent, hidden, referenceLines }`, over the view's chart ([Charts](../concepts/charts.md)). |
 | `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `titleSize` (the title's font size in px, default 16), `textSize` (the font size of every other text, the axes, the legend and the labels, in px, default 14), `heatmapColors` (low, high), `pieRadius` (inner and outer radius of a pie, default a whole circle, `0%`, `70%`), `donutRadius` (of a donut, default a ring, `42%`, `70%`), `referenceColor` (the reference lines of no series, default `textColor`). |
 | `locale` | `toEChartsOption` | Used when the view names none. Default: the pivot's locale. |
 | `labels`, `limits` | both | `labels`: texts, with the reference lines' names in `referenceLines`. `limits`: `cells` caps the data points. |
@@ -490,7 +490,12 @@ The constants, in px:
 `heatmapCellLabels` and `rowLabelInterval` take an optional last argument `frame`, `{ x, y }`: the
 px of the chart that are not cells, beside them (`x`) and above and below them (`y`). By default it
 is a heatmap of pivotkit-core with straight column names. `categoryLabelLayout` takes `reserved` in
-its box: the px of the height that are neither plot nor category labels. The entry imports nothing, so a report's first load does not
+its box: the px of the height that are neither plot nor category labels.
+
+`decorateOption` takes `zoom`, the view's `chart.zoom`, for a chart on a screen. With it, bars, lines
+and areas get an ECharts `dataZoom` slider when the axis cannot write every label, or always for
+`"on"`. The labels are laid out for the categories the slider shows first. Without `zoom`, as in an
+SVG, every category is drawn. The entry imports nothing, so a report's first load does not
 carry it.
 
 `toSeries` gives these members:
@@ -506,6 +511,10 @@ The view's display settings are part of the option:
 - Value labels (`label` of the series). A pie or a donut writes them outside. With
   `chart.labelPosition` `"inside"`, it writes them on the slices without a label line.
 - `smooth` lines.
+- With `chart.stackPercent`, stacked bars and areas as shares of their stack. Each part is
+  `{ value: share, raw: value }`, and `tooltip.shareFormatter` writes a share in the locale's way.
+- The hidden legend entries of `chart.hidden` as `legend.selected`. Without a legend, the option has
+  one that is not shown.
 - The reference lines (`chart.referenceLines`) as silent `markLine`s, with the value axis's
   `dataMin` and `dataMax` reaching them.
 - A second category axis with the outer field's items, once per group at its middle, with a
@@ -593,7 +602,7 @@ files contain and where Excel's number formats cannot follow the grid.
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `MAX_DATE_MS`, `isDateMs(ms)` | `MAX_DATE_MS`: the most milliseconds from the epoch a `Date` holds either way (`8.64e15`, the years -271821 to 275760). `isDateMs`: whether a value is a number within it. `new Date(ms)` of any other is invalid, and formatting it throws. For a host that builds dates or a `now` of its own. |
 | `isFormat(format)` | Whether a name is a known format. |
-| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `comparePrecisions`, `topTies`, `relativeUnits`, `relativeDirections`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `chartTooltips`, `additiveAggregators`, `additiveShowAs`, `displayModes`, `conditionalTypes`. |
+| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `comparePrecisions`, `topTies`, `relativeUnits`, `relativeDirections`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `chartTooltips`, `chartZooms`, `additiveAggregators`, `additiveShowAs`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `AGGREGATOR_ALIASES` | Other tools' names of aggregators and the ones they mean: `avg` and `mean` are `average`, `cnt` is `count`, `total` is `sum`, `distinct` is `countUnique`, `stddev` is `stdev`. For "did you mean" only: a view never accepts them. |
 | `foldText(text, match?)` | A text folded as text filters compare it. `match` is `{ case: "insensitive" \| "sensitive", whitespace: "collapse" \| "exact" }`, default `MATCH_DEFAULTS`. `insensitive` lower-cases with `toLowerCase()`, which does not depend on the runtime's locale. `collapse` turns every run of whitespace, a no-break space (U+00A0) among them, into one space and trims the ends. A UI's search over a field's items folds with it, so a search and a text filter agree. |

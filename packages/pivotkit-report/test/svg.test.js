@@ -122,3 +122,38 @@ test("reference lines (#48): the SVG puts each label at its line, after a sample
     assert.match(r.text, /fill="#2a78d6"[^>]*>– –</);
     assert.match(r.text, /fill="#5a6270"[^>]*>——</);
 });
+
+test("100 % stacked bars and hidden series reach the SVG (#36)", async () => {
+    const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] };
+    const stacked = await render({ ...view, chart: { type: "bar", stacked: true, stackPercent: true, zoom: "on" } }, SALES, { format: "svg", echarts, ...FIXED });
+    const texts = svgTexts(stacked.text);
+    // the value axis runs from 0 % to 100 %
+    assert.ok(texts.includes("100%") && texts.includes("0%"), texts.join(" | "));
+    const plain = await render({ ...view, chart: { type: "bar", stacked: true } }, SALES, { format: "svg", echarts, ...FIXED });
+    assert.ok(!svgTexts(plain.text).includes("100%"));
+    // B hidden: its bars are not drawn, the legend shows it greyed out
+    const all = await render({ ...view, chart: { type: "bar" } }, SALES, { format: "svg", echarts, ...FIXED });
+    const hidden = await render({ ...view, chart: { type: "bar", hidden: ["B"] } }, SALES, { format: "svg", echarts, ...FIXED });
+    assert.ok(tags(hidden.text, "path") < tags(all.text, "path"));
+    assert.ok(svgTexts(hidden.text).includes("B"));
+});
+
+test("a 100 % stack's value labels write each part's share in the SVG and the HTML report; a negative part below zero, a zero-sum category left out", async () => {
+    const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", stacked: true, stackPercent: true, valueLabels: "value" } };
+    // North: A 8 of 10, B 2 of 10
+    const svg = await render(view, SALES, { format: "svg", echarts, ...FIXED });
+    const texts = svgTexts(svg.text);
+    assert.ok(texts.includes("80.0%") && texts.includes("20.0%"), texts.join(" | "));
+    const html = await render({ ...view, display: "chart" }, SALES, { format: "html", echarts, chartEmbed: "inline", ...FIXED });
+    assert.ok(html.text.includes(">80.0%<") && html.text.includes(">100%<"));
+    // a part below zero takes its share below the axis; a category adding up to nothing has no bar
+    const rows = [
+        { Region: "North", Product: "A", Units: 30 },
+        { Region: "North", Product: "B", Units: -10 },
+        { Region: "South", Product: "A", Units: 0 },
+        { Region: "South", Product: "B", Units: 0 }
+    ];
+    const signed = svgTexts((await render(view, rows, { format: "svg", echarts, ...FIXED })).text);
+    assert.ok(signed.includes("75.0%") && signed.includes("-25.0%") && signed.includes("-100%"), signed.join(" | "));
+    assert.ok(!signed.includes("0.0%"));
+});

@@ -8,6 +8,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- Three chart settings in the view, with their schema and `CATALOG.chartZooms` ([#36](https://github.com/eizedev/pivotkit/issues/36)):
+  - `chart.zoom` (`"auto"`, `"on"`, `"off"`): `decorateOption` takes it as `zoom` and adds a zoom
+    slider (ECharts `dataZoom`) under the category axis, with the labels laid out for its window.
+  - `chart.stackPercent`: stacked bars and areas as shares of their stack. Each part is
+    `{ value: share, raw: value }`, and `tooltip.shareFormatter` writes a share.
+  - `chart.hidden`: the legend entries hidden, by name, as `legend.selected`. They count against
+    `limits.items`.
 - `chart.referenceLines` in the view: an average and a linear trend, switched on or off, and a
   target as a number, drawn on bars, lines and areas as silent ECharts `markLine`s
   ([#48](https://github.com/eizedev/pivotkit/issues/48)):
@@ -18,9 +25,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
     - `referenceLineRules(view, chart, data)` says which chart draws which line: none on a pie, a
       donut or a heatmap, a stack's total only when every value adds up, a trend only along a time
       line.
-    - `pivotkit-core/chart` exports `referenceLines(result)`, the numbers, `referenceLineChecks`,
-      the rules with the numbers and their reasons (a stack below zero, values in different units),
-      and `valueAddsUp(value)`, the rule of what adds up.
+    - `pivotkit-core/chart` exports `referenceLines(result)`, the numbers, and
+      `referenceLineChecks`, the rules with the numbers and their reasons (a stack below zero,
+      values in different units). The main entry exports `valueAddsUp(value)`, the rule of what
+      adds up, which the tooltip's total and a stack's lines share.
+    - A stack to 100 % (`chart.stackPercent`) draws no lines, and a series hidden in the legend
+      (`chart.hidden`) has none and is no part of a stack's total.
     - `Labels.referenceLines` names the lines, and `chartThemeFrom` reads `referenceColor` from
       `--pk-chart-reference`.
 - `decorateOption` takes `readColor`: a heatmap's colours as ECharts can mix them. An end it returns

@@ -25,9 +25,9 @@ const TOOLTIP_OTHER_LINES = 3;
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string, pixelOf?: (value: number) => number, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
+ * @param {{ categoryNames?: string[], axisLabels?: string, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean, pixelOf?: (value: number) => number, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
  *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
- *   chart.axisLabels; tooltip: the view's chart.tooltip, the chart's hover state (chart.jsx writes the
+ *   chart.axisLabels and chart.zoom (the slider, pivotkit-core's chart-zoom.js); tooltip: the view's chart.tooltip, the chart's hover state (chart.jsx writes the
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
  *   the lines that say how many series were cut, each series' value (whether it adds up) and the
  *   chart's reference lines (pivotkit-core's referenceLines), named at the category;
@@ -64,14 +64,17 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
  * @param {Document} doc
  * @param {Parameters<typeof decorate>[5]} extra
  * @param {Record<string, unknown> | null | undefined} hostOptions
- * @returns {number}  axisEvery: n when the category axis writes every n-th label
+ * @returns {any}  the report's option as first drawn, before the host's: its `axisEvery` and `dataZoom`
  */
 export function drawOption(instance, option, style, doc, extra, hostOptions) {
-    let every = 1;
+    /** @type {any} */
+    let own = null;
     const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf) => {
-        const { axisEvery, ...drawn } = decorate(option, style, instance.getHeight(), doc, instance.getWidth(), { ...extra, pixelOf });
-        every = axisEvery;
-        return hostOptions ? mergeChartOptions(drawn, hostOptions) : drawn;
+        const drawn = decorate(option, style, instance.getHeight(), doc, instance.getWidth(), { ...extra, pixelOf });
+        own ??= drawn;
+        const { axisEvery, ...rest } = drawn;
+        void axisEvery;
+        return hostOptions ? mergeChartOptions(rest, hostOptions) : rest;
     };
     const first = marked(undefined);
     instance.setOption(first, { notMerge: true });
@@ -79,7 +82,7 @@ export function drawOption(instance, option, style, doc, extra, hostOptions) {
     if (lying && (first.series ?? []).some((/** @type {any} */ s) => s.markLine)) {
         instance.setOption({ series: marked((value) => instance.convertToPixel({ yAxisIndex: 0 }, value)).series });
     }
-    return every;
+    return own;
 }
 
 /**
@@ -127,10 +130,10 @@ export function screenColor(doc, parse) {
 
 /**
  * The tokens the chart reads as lengths in px (chartThemeFrom, decorateOption): the title's and the
- * other text's size, the marks' corners. A computed custom property keeps the calc(), max() and em it
+ * other text's size, the marks' corners, the zoom slider's thickness (a control's, a finger's). A computed custom property keeps the calc(), max() and em it
  * was written with, so the report resolves them first.
  */
-export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-radius-chart"]);
+export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-radius-chart", "--pk-target", "--pk-target-touch"]);
 
 /**
  * Tokens that are lengths, in px as the report resolves them (em of its font): a probe inside the root

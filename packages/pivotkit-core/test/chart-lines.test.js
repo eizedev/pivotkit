@@ -2,8 +2,8 @@
 // line, the numbers, and the marks of the ECharts option (markLine), for bars, lines and areas.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chartThemeFrom, computePivot, emptyView, encode, normalize, referenceLineRules, toEChartsOption, toSeries } from "pivotkit-core";
-import { referenceLineChecks, referenceLines, valueAddsUp } from "pivotkit-core/chart";
+import { chartThemeFrom, computePivot, emptyView, encode, normalize, referenceLineRules, toEChartsOption, toSeries, valueAddsUp } from "pivotkit-core";
+import { referenceLineChecks, referenceLines } from "pivotkit-core/chart";
 
 /**
  * Revenue per month and product. A climbs by 10 a month (10, 20, 30, 40: average 25), B stays near 5

@@ -60,6 +60,15 @@ function timeLine(view, encoded) {
 }
 
 /**
+ * Whether a chart is drawn stacked to 100 %: stacked bars, and areas (stacked by it). Lines and
+ * bars side by side are not.
+ * @param {{ type: string, stacked?: boolean, stackPercent?: boolean }} chart
+ */
+export function stacksToPercent(chart) {
+    return Boolean(chart.stackPercent) && ((chart.type === "bar" && Boolean(chart.stacked)) || chart.type === "area");
+}
+
+/**
  * Which reference lines (chart.referenceLines) a chart can draw for a view, by the view alone: the one
  * rule for the chart, its menu and its file. pivotkit-core/chart's referenceLineChecks adds what
  * depends on the numbers, and says why a line is off.
@@ -67,7 +76,7 @@ function timeLine(view, encoded) {
  * - Bars, lines and areas side by side: an average and a trend per series, over its plotted points.
  * - Stacked: the lines of the stack's total, the sum of its drawn parts, only when every value adds
  *   up (valueAddsUp). A stack of averages has a height that means nothing: no line at all. Nor has a
- *   stack to 100 % (chart.stackPercent).
+ *   stack to 100 % (chart.stackPercent: stacked bars, and areas, which it stacks).
  * - A trend only where the categories are points in time in their own order: every row field a date
  *   or a grouping along the time line, none sorted by a value or by hand.
  * A setting that is off here stays in the view: it draws again when the chart can.
@@ -77,7 +86,8 @@ function timeLine(view, encoded) {
  * @returns {{ average: boolean, trend: boolean, target: boolean }}
  */
 export function referenceLineRules(view, chart, encoded) {
-    const counted = (chart.type === "bar" || chart.type === "line" || chart.type === "area") && !(chart.stacked && (chart.stackPercent || !view.values.every(valueAddsUp)));
+    // a stack to 100 %: every stack the same height, no line
+    const counted = (chart.type === "bar" || chart.type === "line" || chart.type === "area") && !stacksToPercent(chart) && !(chart.stacked && !view.values.every(valueAddsUp));
     return { average: counted, trend: counted && timeLine(view, encoded), target: counted };
 }
 

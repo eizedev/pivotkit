@@ -284,7 +284,8 @@ test.describe("the chart's tooltip follows the pointer", () => {
         const chartEl = await mount(page, { type: "bar", stacked: true });
         const report = page.locator("#tooltip-report");
         await report.getByTestId("chart-type").click();
-        await expect(report.getByTestId("tooltip-auto")).toHaveAttribute("aria-pressed", "true");
+        await report.getByTestId("topic-tooltip").click();
+        await expect(report.getByTestId("tooltip-auto")).toHaveAttribute("aria-checked", "true");
         await report.getByTestId("tooltip-axis").click();
         await expect.poll(() => page.evaluate(() => window.__tooltipViews.at(-1)?.chart.tooltip)).toBe("axis");
         await page.keyboard.press("Escape");

@@ -55,9 +55,9 @@ for (const [name, theme] of [["light", light], ["dark", dark]]) {
     });
 }
 
-// the rules that tell a menu's groups and their subgroups apart (the chart's Display: Value labels,
-// Legend, Title) are drawn in a colour of 3:1 on the menu's surface, as the rule between groups (#128, #205)
-for (const selector of [".pk-section:not(:first-child)", ".pk-subsection + .pk-subsection"]) {
+// the rule that tells a menu's groups apart is drawn in a colour of 3:1 on the menu's surface (#128,
+// #205); the chart's Display settings are groups and levels too (#106), so they have no rule of their own
+for (const selector of [".pk-section:not(:first-child)"]) {
     test(`${selector}: its rule 3:1 on the menu in both themes`, () => {
         const start = css.indexOf(`${selector} {`);
         assert.ok(start !== -1, `no block ${selector}`);

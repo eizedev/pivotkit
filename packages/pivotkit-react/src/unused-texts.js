@@ -40,6 +40,9 @@ export const en = {
         groupLabels: "group labels",
         labelPosition: "label position",
         tooltip: "tooltip",
+        zoom: "zoom slider",
+        stackPercent: "100 % stack",
+        hidden: "hidden series",
         target: "target line",
         other: "setting"
     },

@@ -67,6 +67,16 @@ const STACKED = encodeViewLink({
     chart: { type: "bar", stacked: true }
 });
 
+/** The 40 largest countries by population on a phone: the axis cannot name them all, a zoom slider shows a part. */
+const ZOOMED = encodeViewLink({
+    rows: ["Country"],
+    values: [{ field: "Population", agg: "sum", format: "compact" }],
+    filters: [{ field: "Year", type: "include", items: [2024] }, { field: "Country", type: "top", count: 40, by: { field: "Population", agg: "sum" } }],
+    sort: [{ field: "Country", by: "value", order: "desc" }],
+    display: "chart",
+    chart: { type: "bar" }
+});
+
 /** Regions with more than 2 million revenue, by the second value of two: the chip says so, the menu has the form open. */
 const VALUE_FILTER = encodeViewLink({
     rows: ["Region", "Product"],
@@ -297,11 +307,25 @@ const SHOTS = [
         size: WIDE,
         chart: true,
         open: async (page) => {
+            // the legend at the bottom (its level), back on the first level: the chart types and the topic rows
             await toolbar(page, "chart-type");
+            await page.getByTestId("topic-legend").click();
             await page.getByTestId("legend-bottom").click();
         }
     },
     { name: "chart-groups", query: "data=countries", hash: GROUPED, size: WIDE, chart: true },
+    // a phone's chart of 40 countries: the zoom slider under the axis, every country in its window named
+    {
+        name: "chart-zoom",
+        query: "data=countries&height=640",
+        hash: ZOOMED,
+        size: PHONE,
+        chart: true,
+        open: async (page) => {
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await page.getByTestId("pivot-chart").evaluate((el) => el.scrollIntoView({ block: "end" }));
+        }
+    },
     // a line with its average (dashed), its trend (dotted) and a target (solid)
     { name: "chart-lines", query: "data=sales", hash: LINES, size: WIDE, chart: true },
     {
