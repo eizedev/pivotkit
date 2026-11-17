@@ -122,7 +122,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `callerFields` is the allowlist of caller fields a log line may hold.
 - The subject appears only where `audit.subject` asks, as a keyed hash or the claim's text.
 - Every error answer gets a log line. `logUnanswered` writes a `refused` line if none was written.
-- Every answer carries `X-Request-Id`.
+- Every answer carries `X-Request-Id`. `present()` puts the same id into every result as `requestId`.
 
 ## Sources and memory
 
