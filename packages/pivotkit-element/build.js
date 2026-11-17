@@ -297,10 +297,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * the share switch and Copy chart image take menus to 49.7 (48.4) and the German menu texts to 7.4
  * (7.2): menus goes to 50.5, texts to 8. Two words for unused parts take unused to 5.5: it goes to 6.
  * The first load grows 0.19 to 174.55 (the view's colours through the same list check as the hidden
- * series, one memo for chartOptions and colorMap); CI measured 174.9 for 174.36, so about 175.09.
+ * series, one memo for chartOptions and colorMap). With CI's zlib (an official Node 24.22.3) the
+ * first load is 175.15 and the report group 23.58 (render's colorMap, the light colour of a pair).
+ * The first load may grow in 0.8.0; its split is #546 in 0.9.0: initial goes to 176.1, CI's measure
+ * plus about 1 KiB, and report to 24.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 234, export: 12.6, link: 7.5, menus: 50.5, texts: 8, unused: 6, import: 22, report: 23.5, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 176.1, chart: 234, export: 12.6, link: 7.5, menus: 50.5, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
