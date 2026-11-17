@@ -20,6 +20,8 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
 [I embed or automate pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine, reports, the command line, REST and MCP" }
 [Try the live demo](demo.md){ .md-button }
 
+Date fields show their data range and grouping hints; cyclic groupings explain which years they combine.
+
 </div>
 
 <div class="grid" markdown>

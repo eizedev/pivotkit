@@ -80,7 +80,7 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         await expect(menu.getByTestId("filter-summary-meta")).toContainText("2025 only");
         await expect(menu.getByTestId("fsection-years")).toContainText("The table shows 2025 only.");
         await expect(badge(page, CYCLIC)).toHaveText("2025");
-        expect(await grand("Jan")).toBeCloseTo(avgByMonth([2025])[0], 1);
+        expect(await grand("Jan 2025")).toBeCloseTo(avgByMonth([2025])[0], 1);
         // Reset filter: all years again
         await menu.getByTestId("filter-reset").click();
         await expect(menu.getByTestId("year-2023")).toHaveAttribute("aria-pressed", "true");

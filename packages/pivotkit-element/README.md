@@ -7,6 +7,9 @@ chart, filters, drill-down, undo, saved and shared views, export.
 
 ![A line chart of monthly revenue per category](https://pivotkit.eize.dev/assets/screenshots/chart-light.png)
 
+Date fields show their data range and grouping hints; cyclic groupings explain which years they combine.
+See [dates and grouping](https://pivotkit.eize.dev/use/values/).
+
 ## Install
 
 ```bash

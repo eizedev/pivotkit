@@ -31,6 +31,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - the application's own data as objects or one array per column, typed, with `dataKey`, `encoded`
       and `loading`
 
+- Date ranges, data-driven Group hints and year context for cyclic groupings ([dates](use/values.md)).
+
 ## The field list and the zones { #zones-and-fields }
 
 - Rows, Columns, Values and Filters ([fields and zones](use/fields.md)):

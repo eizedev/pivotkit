@@ -10,6 +10,9 @@ PivotTable is the reference. The engine is [pivotkit-core](https://www.npmjs.com
 contains modified Copernicus Climate Change Service information
 ([attribution](https://pivotkit.eize.dev/learn/#query-it-live)).</sub>
 
+Date fields show their data range and grouping hints; cyclic groupings explain which years they combine.
+See [dates and grouping](https://pivotkit.eize.dev/use/values/).
+
 ## Install
 
 ```bash

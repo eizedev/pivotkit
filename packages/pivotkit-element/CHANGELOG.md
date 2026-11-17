@@ -37,6 +37,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   ([#580](https://github.com/eizedev/pivotkit/issues/580)).
 - Theme tokens for the zones' section (`--pk-section-*`) and the tab shown (`--pk-tab-mark`)
   ([#580](https://github.com/eizedev/pivotkit/issues/580)).
+- Date-field ranges in the footer and field descriptions, data-driven Group hints and
+  year context for cyclic groupings, in English and German (#109).
 - The chart's zoom slider, by mouse, touch and keyboard, the legend that hides and shows series in
   the view, and 100 % stacked bars and areas ([#36](https://github.com/eizedev/pivotkit/issues/36)), ([#575](https://github.com/eizedev/pivotkit/issues/575)).
 - The `colorMap` property: a fixed colour per series or slice name. Export → Copy chart image, the

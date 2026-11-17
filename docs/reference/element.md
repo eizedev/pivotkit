@@ -564,7 +564,7 @@ CI runs the same command on Node 24 and measures the same numbers. It fails when
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title, the zoom slider and the reference lines' markLine among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 2 | 702 KiB | 242 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 28 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
-| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 2 | 151 KiB | 50 KiB |
+| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 2 | 153 KiB | 50.7 KiB |
 | With the menus, for a German report only (the menus' German texts) | 1 | 22 KiB | 8 KiB |
 | When a view has unused parts (their plain words: English, and German for a German report) | 2 | 16 KiB | 5 KiB |
 | With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 54 KiB | 22 KiB |
