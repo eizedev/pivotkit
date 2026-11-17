@@ -2606,6 +2606,12 @@
     width: auto;
 }
 
+/* WebKit sizes a header a few px too narrow for its drag grip once it wraps: the hidden grip must
+   not make the box scroll */
+.pk-table[data-pk-labels="share"] thead th {
+    overflow-x: clip;
+}
+
 /* a label wraps between words; at least 5.5em wide, so a common word ("Central", "Bangladesh") never
    breaks; a longer one breaks at a hyphen of its own, and only a word longer than the column inside */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner, thead tr:last-child th.pk-colHeader) .pk-th-text {

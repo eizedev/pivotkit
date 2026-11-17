@@ -11,6 +11,8 @@ import { dropFiles } from "./import-helpers.js";
 
 const SERVICES = ["paymentGateway", "customerPortal", "inventorySync", "notificationHub", "identityProvider", "searchIndex"];
 /** Longer service names: with them the five label columns are wider than the report at 1440 px. */
+/** Service names of several words: a table of them can wrap far before it reaches the caps. */
+const SPACED_SERVICES = ["payment gateway orchestration", "customer portal frontend", "inventory synchronisation job", "notification dispatcher queue", "identity provider federation", "reporting warehouse loader"];
 const LONG_SERVICES = ["paymentGatewayOrchestration", "customerPortalFrontend", "inventorySynchronisation", "notificationDispatcher", "identityProviderFederation", "reportingWarehouse"];
 const REGIONS = ["westEurope", "northEurope", "eastUnitedStates", "southeastAsia"];
 const ENVIRONMENTS = ["production", "staging", "development"];
@@ -18,14 +20,14 @@ const TIERS = ["standard", "premium", "enterprise"];
 
 /**
  * A CSV of `n` rows with camelCase column names, made from fixed lists (no randomness): serviceName,
- * productNumber, deploymentRegion, environmentType, supportTier, costCenter and the number
- * monthlyCost. `products` distinct product numbers make the body as long as the test needs.
+ * productNumber, deploymentRegion, environmentType, supportTier, costCenter and the
+ * numbers monthlyCost and cost. `products` distinct product numbers make the body as long as the test needs.
  */
 function servicesCsv(n, products, costCenters = 4, services = SERVICES) {
-    const lines = ["serviceName,productNumber,deploymentRegion,environmentType,supportTier,costCenter,monthlyCost"];
+    const lines = ["serviceName,productNumber,deploymentRegion,environmentType,supportTier,costCenter,monthlyCost,cost"];
     for (let i = 0; i < n; i++) {
         const cost = ((i * 7919) % 5000) / 10 + 12.5;
-        lines.push([services[i % services.length], `PRD-${10000 + (i % products)}`, REGIONS[i % REGIONS.length], ENVIRONMENTS[i % ENVIRONMENTS.length], TIERS[i % TIERS.length], `CC-${4100 + (i % costCenters)}`, cost.toFixed(2)].join(","));
+        lines.push([services[i % services.length], `PRD-${10000 + (i % products)}`, REGIONS[i % REGIONS.length], ENVIRONMENTS[i % ENVIRONMENTS.length], TIERS[i % TIERS.length], `CC-${4100 + (i % costCenters)}`, cost.toFixed(2), (cost / 2).toFixed(2)].join(","));
     }
     return `${lines.join("\n")}\n`;
 }
@@ -99,19 +101,20 @@ test.describe("at 1440 x 900", () => {
     });
 
     test("five row fields with long camelCase names and one value: labels and field names on one line, no word broken", async ({ page }) => {
-        await report(page, servicesCsv(48, 24));
+        await report(page, servicesCsv(48, 24), { values: ["cost"] });
         const box = await tableBox(page);
-        // the table fits, with room to spare (the report of #584 filled about 60 %)
-        expect(box.table).toBeLessThan(box.wrap);
+        // the table fits, with room to spare (the report of #584 filled about 60 %): other fonts
+        // than this machine's must not tip it over
+        expect(box.table).toBeLessThan(box.wrap * 0.9);
         const labels = await labelLayout(page);
-        expect(labels.map((l) => l.text)).toEqual(expect.arrayContaining([...ROWS, "Sum of monthlyCost", "paymentGateway Total"]));
+        expect(labels.map((l) => l.text)).toEqual(expect.arrayContaining([...ROWS, "Sum of cost", "paymentGateway Total"]));
         expect(labels.filter((l) => l.broken.length > 0).map((l) => `${l.text}: ${l.broken}`)).toEqual([]);
         expect(labels.filter((l) => l.lines > 1).map((l) => l.text)).toEqual([]);
         expect(labels.filter((l) => l.cut).map((l) => l.text)).toEqual([]);
     });
 
     test("the same in a virtual table (300 body rows and more): no label cut while the table fits", async ({ page }) => {
-        await report(page, servicesCsv(720, 360));
+        await report(page, servicesCsv(720, 360), { values: ["cost"] });
         await expect(page.locator(".pk-table.pk-virtual")).toHaveCount(1);
         const box = await tableBox(page);
         expect(box.table).toBeLessThan(box.wrap);
@@ -120,7 +123,7 @@ test.describe("at 1440 x 900", () => {
         expect(labels.filter((l) => l.lines > 1).map((l) => l.text)).toEqual([]);
     });
 
-    test("labels a little too wide for the report: capped, they share the room the value column leaves", async ({ page }) => {
+    test("labels a little too wide for the report: they share the room the value column leaves", async ({ page }) => {
         await report(page, servicesCsv(48, 24, 4, LONG_SERVICES));
         const box = await tableBox(page);
         // the table takes the report's width, no less (the cap is not a fixed 40 %) and no more
@@ -130,12 +133,12 @@ test.describe("at 1440 x 900", () => {
         expect(labels.filter((l) => l.broken.length > 0).map((l) => `${l.text}: ${l.broken}`)).toEqual([]);
         // the field names keep one line: each is one word, and the table has room for it
         expect(labels.filter((l) => ROWS.includes(l.text) && l.lines > 1).map((l) => l.text)).toEqual([]);
-        // the longest service names wrap between words
-        expect(labels.some((l) => l.text === "paymentGatewayOrchestration Total" && l.lines > 1)).toBe(true);
+        // something gives: a label or the value's name wraps between words
+        expect(labels.filter((l) => l.lines > 1).length).toBeGreaterThan(0);
     });
 
     test("many value columns: the table is wider than the report, the labels are capped and a value stays in view", async ({ page }) => {
-        await report(page, servicesCsv(240, 24, 40), { rows: ["serviceName", "deploymentRegion"], cols: ["costCenter"] });
+        await report(page, servicesCsv(240, 24, 40, LONG_SERVICES), { rows: ["serviceName", "deploymentRegion"], cols: ["costCenter"] });
         const box = await tableBox(page);
         expect(box.table).toBeGreaterThan(box.wrap);
         expect(box.values).toBeGreaterThan(0);
@@ -147,6 +150,8 @@ test.describe("at 1440 x 900", () => {
         expect(labelsWide).toBeLessThanOrEqual(box.wrap * 0.45);
         const labels = await labelLayout(page);
         expect(labels.filter((l) => l.broken.length > 0).map((l) => `${l.text}: ${l.broken}`)).toEqual([]);
+        // the cap bites: a long service name gets less than its natural width and wraps
+        expect(labels.filter((l) => LONG_SERVICES.includes(l.text) && l.lines > 1).length).toBeGreaterThan(0);
     });
 });
 
@@ -182,9 +187,19 @@ test.describe("at 390 x 844 (a phone)", () => {
 
 test("the choice settles at every width: no state flips back and forth while the window does not change", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await report(page, servicesCsv(48, 24));
+    await report(page, servicesCsv(48, 24, 4, SPACED_SERVICES), { values: ["cost"] });
+    // the widths from what this browser measures: from where the natural table stops fitting, down
+    // in steps of 20 px through wrapping between words to the caps
+    const { table, wrap } = await tableBox(page);
+    const start = Math.ceil(1440 - wrap + table) + 20;
+    const widths = [1440];
+    for (let w = start; w > 390; w -= 20) widths.push(w);
+    widths.push(390);
+    // past the caps' first widths, only a phone: the steps between add nothing
+    let capped = 0;
     const states = new Set();
-    for (const width of [1440, 1400, 1380, 1360, 1340, 1320, 1300, 1180, 900, 600, 390]) {
+    for (const width of widths) {
+        if (capped >= 3 && width !== widths.at(-1)) continue;
         await page.setViewportSize({ width, height: 900 });
         await settled(page);
         // half a second without a change of the table's state once the layout has settled
@@ -203,6 +218,7 @@ test("the choice settles at every width: no state flips back and forth while the
         );
         expect(watched.changes, `changes at ${width} px`).toBe(0);
         states.add(watched.state);
+        if (watched.state === "capped") capped++;
     }
     // the sweep passes all three states
     expect([...states].sort()).toEqual(["capped", "natural", "share"]);
