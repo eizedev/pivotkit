@@ -93,9 +93,10 @@ The report adapts to its own width, not the window's.
 
     | Window (field list open / folded) | English | German |
     | --- | --- | --- |
-    | 1920 px, 1440 px, 1280 px | every button / every button | every button / every button |
+    | 1280 px and wider | every button / every button | every button / every button |
     | 1000 px | every button / every button | Start over in More / every button |
-    | A phone, 390 px | Start over and Views in More | Start over and Views in More |
+    | 1000 px, with Data | Data in More / every button | Data and Start over in More / every button |
+    | A phone, 390 px | Start over and Views in More, and Data where there is one | the same |
 
     The table shows measurements in the playground with the sales data, in Chromium. Another font or
     other texts move the limits a little.
