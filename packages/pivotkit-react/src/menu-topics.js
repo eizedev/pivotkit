@@ -423,6 +423,22 @@ export function rowFoldTexts(view, labels) {
 }
 
 /**
+ * How the groups of Rows show, in short, for a row's state: every item of the last field ("Each
+ * Country", the default), the first field's groups only ("Region only"), or some groups collapsed.
+ * @param {any} view  with two or more fields in Rows
+ * @param {{ canCollapse: boolean, collapsed: number }} folding  rowFolding() of view-ops.js
+ * @param {any} labels
+ * @returns {{ text: string, changed: boolean }}
+ */
+function foldState(view, folding, labels) {
+    const name = (/** @type {string} */ f) => fieldLabel(f, labels.core);
+    if (!folding.collapsed) {
+        return { text: fill(labels.chartFoldEach, { field: name(view.rows.at(-1)) }), changed: false };
+    }
+    return { text: folding.canCollapse ? labels.chartFoldSome : fill(labels.chartFoldOnly, { field: name(view.rows[0]) }), changed: true };
+}
+
+/**
  * Expand all and Collapse all as choices: each closes the menu, and says why while it does nothing.
  * @param {{ canExpand: boolean, canCollapse: boolean, why: { expand?: string | null, collapse?: string | null } }} folding  rowFolding() of view-ops.js
  * @param {any} labels
@@ -498,7 +514,7 @@ export function moreTopics({ labels, tips, explanations, act }) {
     }
     help.push({ id: "shortcuts", text: labels.shortcutsTitle, icon: "info", open: "shortcuts" });
     return [
-        { id: "help", title: labels.help, kind: "menu", icon: "info", testId: "more-help", groups: [{ choices: help }] },
+        { id: "help", title: labels.helpAndShortcuts, levelTitle: labels.help, kind: "menu", icon: "info", testId: "more-help", groups: [{ choices: help }] },
         { id: "shortcuts", title: labels.shortcutsTitle, kind: "panel", hidden: true, levelTitle: `${labels.help} › ${labels.shortcutsTitle}` }
     ];
 }
@@ -519,7 +535,7 @@ const VALUE_LABELS = Object.freeze({ slices: ["auto", "off", "value", "percent",
  *   folding?: { canExpand: boolean, canCollapse: boolean, why: any } }} input
  *   `drawn`: the picker entry drawn (chart-types.js); `names`: the legend's entries (series, a pie's slices);
  *   `lines`: which reference lines the chart can draw (pivotkit-core's referenceLineChecks, or its
- *   view's rules with the note "table"), and the target as the locale writes it;
+ *   view's rules with the note "table" while the chart is not drawn yet), and the target as the locale writes it;
  *   `drawnColors`: the colour the chart draws each name with, as #rrggbb (the colour fields start from it);
  *   `folding`: rowFolding() of view-ops.js. With it, Layout ends with the groups of Rows folded or
  *   not, in the words of the fields ("Show each Country", "Show Region only"; rowFoldTexts)
@@ -600,7 +616,7 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
             ...(!rules.target && now.target !== null ? [{ id: "target-remove", text: labels.targetRemove, run: () => set({ target: null }) }] : [])
         ];
         const on = [now.average ? words.average : null, now.trend ? words.trend : null, now.target !== null ? words.target : null].filter(Boolean);
-        // a note under the choices: with the table shown, or a trend over the categories' order
+        // a note under the choices: the chart not drawn yet (the note "table"), or a trend over the categories' order
         const note = notes.includes("table") ? labels.linesNotes.table : notes.includes("byIndex") && rules.trend ? labels.linesNotes.byIndex : null;
         topics.push({ id: "lines", title: labels.referenceLines, kind: "menu", state: on.length ? on.join(", ") : labels.linesOff, changed: on.length > 0, groups: [{ choices }], note, noteId: "lines-note" });
         topics.push({ id: "linesTarget", title: words.target, kind: "panel", hidden: true, levelTitle: `${labels.referenceLines} › ${words.target}` });
@@ -662,8 +678,11 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
         // a collapsed group is one category of the chart: Expand all and Collapse all in its words
         layout.push(...foldChoices(folding, labels, { expand: act.expand, collapse: act.collapse }, rowFoldTexts(view, labels), ["chart-show-each", "chart-show-only"]));
     }
+    // how the groups of Rows show, named by the fields (the default: each item of the last field)
+    const fold = folding && view.rows.length >= 2 ? foldState(view, folding, labels) : null;
     if (layout.length) {
-        topics.push({ id: "layout", title: labels.chartLayout, kind: "menu", state: on.join(", ") || null, changed: on.length > 0, groups: [{ choices: layout }] });
+        const state = [...on, ...(fold ? [fold.text] : [])].join(", ");
+        topics.push({ id: "layout", title: labels.chartLayout, kind: "menu", state: state || null, changed: on.length > 0 || Boolean(fold?.changed), groups: [{ choices: layout }] });
     }
     return topics;
 }

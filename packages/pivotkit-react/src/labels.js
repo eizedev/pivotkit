@@ -94,6 +94,8 @@ export const en = {
     // the button beside the tabs Table and Chart: the settings of the view shown
     tableSettings: "Table settings",
     chartSettings: "Chart settings",
+    // the same button's text on a phone; its name stays the whole one
+    settingsShort: "Settings",
     expand: "Expand {label}",
     collapse: "Collapse {label}",
     showAs: "Show as",
@@ -435,6 +437,7 @@ export const de = {
     exportLabel: "Export",
     tableSettings: "Tabelleneinstellungen",
     chartSettings: "Diagrammeinstellungen",
+    settingsShort: "Einstellungen",
     expand: "{label} aufklappen",
     collapse: "{label} zuklappen",
     showAs: "Anzeigen als",
@@ -823,6 +826,24 @@ function withLegacyTips(custom) {
         return custom;
     }
     return { ...custom, tips: { ...moved, ...(isObject(custom.tips) ? custom.tips : {}) } };
+}
+
+/**
+ * Label keys the report no longer shows (#580), with the key that holds that text now. A host's
+ * labels may still set them; the report ignores them and says so once in the console.
+ */
+export const REMOVED_LABELS = Object.freeze({ layout: "zonesTitle", showLayout: "zonesTitle", options: "tableSettings", chartDisplay: "chartSettings" });
+
+/**
+ * The keys of REMOVED_LABELS a host's labels set, in their order, each with its replacement.
+ * @param {unknown} custom
+ * @returns {Array<[string, string]>}
+ */
+export function removedLabels(custom) {
+    if (!isObject(custom)) {
+        return [];
+    }
+    return Object.keys(/** @type {object} */ (custom)).filter((k) => Object.hasOwn(REMOVED_LABELS, k)).map((k) => [k, REMOVED_LABELS[k]]);
 }
 
 /**

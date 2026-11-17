@@ -21,7 +21,7 @@ import { DRILL_LIMIT, drillRows } from "./drill.js";
 import { displayNames, fieldDefaultsFor, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
-import { errorText, fill, plural, resolveLabels, rowCount } from "./labels.js";
+import { errorText, fill, plural, removedLabels, resolveLabels, rowCount } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus, menusNow, onMenuTexts } from "./lazy-menus.jsx";
 import { importNow, loadImport } from "./lazy-import.js";
@@ -1368,6 +1368,12 @@ function Report(props) {
             warnOnce(`pivotkit: fieldList ${JSON.stringify(String(fieldList)).slice(0, 40)} is neither "open" nor "collapsed"; the user's choice decides`);
         }
     }, [fieldList]);
+    // a host's labels for texts the report no longer shows: ignored, said once with what replaces them
+    useEffect(() => {
+        for (const [key, now] of removedLabels(JSON.parse(labelsKey))) {
+            warnOnce(`pivotkit: labels.${key} is no longer shown and is ignored; set labels.${now} instead`);
+        }
+    }, [labelsKey]);
     useEffect(() => {
         if (zonesProp !== undefined && zonesStart(zonesProp) === null) {
             warnOnce(`pivotkit: zones ${JSON.stringify(String(zonesProp)).slice(0, 40)} is neither "open" nor "folded"; the report's height decides`);

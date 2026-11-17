@@ -297,7 +297,11 @@ export function Toolbar(props) {
     const end = buttons("end");
     const at = hidden.has("views") ? end.length : end.length - 1;
     const wrap = hidden.size > 0 && hidden.size >= present.length;
-    // More, below Help: what moved, in its groups, a rule between them (Start over's group named for a screen reader)
+    // More, below Help: what moved, in its groups, a rule between them (Start over's group named for a screen reader).
+    // These are the toolbar's own entries (Option), not topics of More's LevelMenu: each is defined once
+    // with its button (`actions`), and an entry carries a mark a topic's choice has no place for (the dot
+    // of unsaved changes, of a file's data). So More is Help's topic plus these entries as its `foot`;
+    // styles.css keeps the rule above them single (.pk-level-sep + .pk-section).
     const moreGroups = (close) =>
         MORE_GROUPS.map((group) => group.filter((id) => hidden.has(id))).flatMap((ids) =>
             ids.length

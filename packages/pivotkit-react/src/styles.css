@@ -777,13 +777,13 @@
 }
 
 /* a narrow report: tighter still, and no caret (the button says it opens a menu), so Undo, Redo,
-   Export and More share one line on a phone */
+   Export and More share one line on a phone, and the settings stay on the tabs' line */
 .pk-root[data-pk-size="narrow"] .pk-toolbar .pk-btn {
     gap: 0.35em;
     padding-inline: 0.55em;
 }
 
-.pk-root[data-pk-size="narrow"] .pk-toolbar .pk-caret {
+.pk-root[data-pk-size="narrow"] :is(.pk-toolbar, .pk-result-head) .pk-caret {
     display: none;
 }
 
@@ -3799,6 +3799,17 @@
     .pk-chip,
     .pk-btn {
         border: 1px solid CanvasText;
+    }
+
+    /* the tab shown: its accent line is a background, which forced colours drop; a frame instead */
+    .pk-tab[aria-selected="true"] {
+        border: 2px solid Highlight;
+        border-bottom: 0;
+    }
+
+    /* a tab not shown: its transparent border would turn into a frame too */
+    .pk-tab:not([aria-selected="true"]) {
+        border-color: Canvas;
     }
 }
 

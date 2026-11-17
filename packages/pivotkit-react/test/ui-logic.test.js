@@ -810,3 +810,18 @@ test("the chart's text alternative names the reference lines with their values",
     assert.equal(linesSummary([], ["A"], en), "");
     assert.doesNotMatch(chartSummary(s, { type: "line", rows: ["Month"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US" }), /Reference/);
 });
+
+test("labels the report no longer shows: each named with what replaces it, others ignored (#580 review)", async () => {
+    const { removedLabels } = await import("../src/labels.js");
+    assert.deepEqual(removedLabels({ layout: "Anordnung", undo: "Back", options: "Optionen", showLayout: "x", chartDisplay: "y" }), [
+        ["layout", "zonesTitle"],
+        ["options", "tableSettings"],
+        ["showLayout", "zonesTitle"],
+        ["chartDisplay", "chartSettings"]
+    ]);
+    assert.deepEqual(removedLabels({ undo: "Back" }), []);
+    assert.deepEqual(removedLabels(null), []);
+    assert.deepEqual(removedLabels("labels"), []);
+    // a key of an object's prototype is no label
+    assert.deepEqual(removedLabels(Object.create({ layout: "x" })), []);
+});

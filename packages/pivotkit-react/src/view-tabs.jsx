@@ -3,8 +3,10 @@
  * settings" or "Chart settings"), Enlarge and Full screen. The tabs are ARIA tabs with manual
  * activation (WAI-ARIA Authoring Practices, tabs pattern): one Tab stop, left and right (Home, End)
  * move the focus, Enter or Space shows the tab, since the chart loads on demand. The result below
- * is their tab panel. In the narrow layout the three buttons show their icon only; their names stay
- * for assistive technology and as a tooltip. The settings load with the menus (menus.js).
+ * is their tab panel. In the narrow layout the settings button says "Settings" only, Enlarge and
+ * Full screen show their icon only; their whole names stay for assistive technology and as a
+ * tooltip. Left and right do not mirror: the report has no right-to-left layout. The settings load
+ * with the menus (menus.js).
  */
 
 import React, { useRef } from "react";
@@ -14,7 +16,7 @@ import { MenuPanel } from "./lazy-menus.jsx";
 import { MenuButton } from "./popover.jsx";
 import { tabStep } from "./rove.js";
 
-/** The tabs, in order: the view each shows, its test id. */
+/** The tabs, in order, by the view each shows; a tab's test id is `show-<view>`. */
 const TABS = Object.freeze(/** @type {const} */ (["table", "chart"]));
 
 /**
@@ -68,7 +70,7 @@ export function ViewTabs(props) {
                 ))}
             </div>
             <span className="pk-grow" />
-            <MenuButton label={settings} icon="sliders" text={settings} showText={!narrow} className="pk-btn pk-small-btn" role="dialog" align="end" testId="view-settings" popoverClass={chart ? "pk-chart-menu" : undefined}>
+            <MenuButton label={settings} icon="sliders" text={narrow ? labels.settingsShort : settings} name={narrow ? settings : undefined} title={narrow ? settings : undefined} className="pk-btn pk-small-btn" role="dialog" align="end" testId="view-settings" popoverClass={chart ? "pk-chart-menu" : undefined}>
                 {(close) =>
                     chart ? (
                         <MenuPanel

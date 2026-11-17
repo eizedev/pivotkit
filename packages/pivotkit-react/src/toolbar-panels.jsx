@@ -199,7 +199,7 @@ export function ChartSettingsPanel({ view, plan, encoded, lineChecks, labels, lo
     const drawn = plan ? plan.name : chartTypeOf(view.chart);
     const names = legendNames(drawn, series);
     // which reference lines the chart can draw: the drawn chart's checks with its numbers, else the
-    // view's rules (rows and columns swapped where the chart swaps them) and a note asking for the chart
+    // view's rules (rows and columns swapped where the chart swaps them) and a note that the chart is not drawn yet
     const lines = view.chart.referenceLines;
     const plain = plan?.chart && encoded ? referenceLineRules(plan.swap ? swapAxes(view) : view, { ...view.chart, ...plan.chart }, encoded) : { average: true, trend: true, target: true };
     const rules = lineChecks ?? { ...plain, notes: ["table"] };

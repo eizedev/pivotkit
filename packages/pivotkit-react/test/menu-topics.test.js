@@ -168,7 +168,9 @@ test("More: Help first, a level with the tips' switches and the keyboard shortcu
     const topics = moreTopics({ labels: MENU.en, tips: { controls: true, on: true, canReset: false }, explanations: { on: false }, act });
     assert.deepEqual(topics.map((t) => [t.id, t.kind, Boolean(t.hidden)]), [["help", "menu", false], ["shortcuts", "panel", true]]);
     const help = byId(topics, "help");
-    assert.deepEqual([help.title, help.testId], ["Help", "more-help"]);
+    // its row names both, its level says Help (#580 review)
+    assert.deepEqual([help.title, help.levelTitle, help.testId], ["Help and keyboard shortcuts", "Help", "more-help"]);
+    assert.equal(byId(moreTopics({ labels: MENU.de, tips: { controls: true, on: true, canReset: false }, explanations: null, act }), "help").title, "Hilfe und Tastenkürzel");
     assert.deepEqual(help.groups[0].choices.map((c) => c.id), ["show-tips", "show-explanations", "reset-tips", "shortcuts"]);
     assert.deepEqual([choice(help, "show-tips").checkbox, choice(help, "show-tips").checked], [true, true]);
     assert.equal(choice(help, "reset-tips").disabled, true);
