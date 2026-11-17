@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createComputer, workerEnv, workerExecArgv } from "../src/compute.js";
 import { tempDir, workspace } from "./helpers.js";
@@ -138,6 +138,25 @@ test("workerEnv: NODE_OPTIONS without --input-type in both spellings, every othe
     assert.equal(workerEnv({ PATH: "/bin" }), undefined);
 });
 
+test("workerEnv reads NODE_OPTIONS as Node does: double quotes hold spaces, a backslash in them escapes; what it writes back reads the same (#542)", () => {
+    const cleaned = (options) => workerEnv({ NODE_OPTIONS: options })?.NODE_OPTIONS;
+    assert.equal(cleaned('--title="my host" --input-type=module --conditions=x'), '"--title=my host" --conditions=x');
+    const quoted = cleaned('--input-type module --title="a \\"q\\" \\\\ b"');
+    assert.equal(quoted, '"--title=a \\"q\\" \\\\ b"');
+    // Node reads what it writes back as the same title
+    const title = spawnSync(process.execPath, ["-e", "process.stdout.write(process.title)"], { encoding: "utf8", timeout: HOST_MS, env: { ...process.env, NODE_OPTIONS: quoted } });
+    assert.equal(title.stdout, 'a "q" \\ b', title.stderr);
+    // a quote inside a token, and a backslash outside quotes, which is a plain character
+    assert.equal(cleaned('--title=a"b c"d --input-type=module --conditions=a\\b'), '"--title=ab cd" "--conditions=a\\\\b"');
+    // "--input-type" as a quoted value is no flag of its own
+    assert.equal(cleaned('--title="x --input-type=module"'), undefined);
+    // Node does not start with an unterminated quote, so there is nothing to clean
+    assert.equal(cleaned('--title="abc --input-type=module'), undefined);
+});
+
+/** A preload that notes each thread it runs in: the host's main thread is 0, a worker another number. */
+const PRELOAD = `require("node:fs").appendFileSync(process.env.PIVOTKIT_TEST_PRELOAD_LOG, require("node:worker_threads").threadId + "\\n");`;
+
 /** A host that renders one report from a code source and prints its CSV. */
 const RENDER_HOST = `
     import { callerOf, createContext, present } from ${JSON.stringify(SERVER)};
@@ -159,9 +178,9 @@ const HOST_MS = 15_000;
  * Runs RENDER_HOST with these node flags in front: as a file, as a string (`-e`) or from standard
  * input. `nodeOptions` is the host's NODE_OPTIONS; without it the host has none.
  */
-const renderHost = (flags, how, nodeOptions = undefined) => {
+const renderHost = (flags, how, nodeOptions = undefined, extraEnv = {}) => {
     const dir = workspace();
-    const env = { ...process.env };
+    const env = { ...process.env, ...extraEnv };
     delete env.NODE_OPTIONS;
     if (nodeOptions !== undefined) {
         env.NODE_OPTIONS = nodeOptions;
@@ -174,6 +193,28 @@ const renderHost = (flags, how, nodeOptions = undefined) => {
     const args = how === "string" ? [...flags, "-e", RENDER_HOST] : flags;
     return spawnSync(process.execPath, args, { ...run, ...(how === "stdin" ? { input: RENDER_HOST } : {}) });
 };
+
+test("a host's preload and conditions reach the workers beside a V8 flag Node refuses in a worker, whether --input-type comes as a flag or in NODE_OPTIONS (#542)", FAST, () => {
+    const cases = [
+        [["--max-old-space-size=300", "--input-type=module"], undefined],
+        [["--max-old-space-size=300"], "--input-type=module"],
+        [["--stack-size=900", "--input-type=module"], '--title="pivotkit host"']
+    ];
+    for (const [v8, nodeOptions] of cases) {
+        const dir = tempDir();
+        const preload = join(dir, "preload.cjs");
+        const log = join(dir, "threads.txt");
+        writeFileSync(preload, PRELOAD);
+        writeFileSync(log, "");
+        const result = renderHost(["--require", preload, "--conditions=pivotkit-test", ...v8], "string", nodeOptions, { PIVOTKIT_TEST_PRELOAD_LOG: log });
+        const name = `${v8.join(" ")}${nodeOptions ? `, NODE_OPTIONS=${nodeOptions}` : ""}`;
+        assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+        assert.match(result.stdout, /North.*10.*South.*20/s, `${name}: the report, not INTERNAL`);
+        const threads = readFileSync(log, "utf8").trim().split("\n").map(Number);
+        assert.ok(threads.includes(0), `${name}: the host loaded the preload`);
+        assert.ok(threads.some((t) => t > 0), `${name}: a worker loaded the preload too, not a worker without the host's flags: ${threads}`);
+    }
+});
 
 test("the real workers start in a host run from a string or standard input with --input-type=module (both spellings), from a file, and with a V8 flag (#542)", FAST, () => {
     const cases = [

@@ -21,51 +21,121 @@ import { isOwnError, sourceFailure } from "./sources/run.js";
 export const COMPUTE_HOOKS = Symbol("pivotkit.computeHooks");
 
 /**
- * The host's node flags without the ones that only describe its main entry, or undefined when there
- * are none (the worker then inherits the flags as Node does). `--input-type` makes a worker that
- * loads a file fail at once (ERR_INPUT_TYPE_NOT_ALLOWED), so a host run with `node --input-type=module
- * -e` got no worker. `-e` and `-p` stay: a worker that loads a file ignores them.
+ * The flags without `--input-type`, in both spellings, or undefined when they hold none. A worker
+ * that loads a file refuses that flag at once (ERR_INPUT_TYPE_NOT_ALLOWED), so a host run with
+ * `node --input-type=module -e` got no worker. `-e` and `-p` stay: a worker that loads a file
+ * ignores them.
+ * @param {readonly string[]} args
+ * @returns {string[] | undefined}
+ */
+function withoutInputType(args) {
+    /** @type {string[]} */
+    const kept = [];
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === "--input-type") {
+            i++; // its value
+        } else if (!args[i].startsWith("--input-type=")) {
+            kept.push(args[i]);
+        }
+    }
+    return kept.length === args.length ? undefined : kept;
+}
+
+/**
+ * The host's node flags without `--input-type` (withoutInputType), or undefined when there is none
+ * to drop: the worker then inherits the flags as Node does.
  * @param {readonly string[]} [execArgv]
  * @returns {string[] | undefined}
  */
 export function workerExecArgv(execArgv = process.execArgv) {
-    /** @type {string[]} */
-    const kept = [];
-    for (let i = 0; i < execArgv.length; i++) {
-        if (execArgv[i] === "--input-type") {
-            i++; // its value
-        } else if (!execArgv[i].startsWith("--input-type=")) {
-            kept.push(execArgv[i]);
-        }
-    }
-    return kept.length === execArgv.length ? undefined : kept;
+    return withoutInputType(execArgv);
 }
 
-/** `--input-type` in NODE_OPTIONS, with its value in either spelling. */
-const INPUT_TYPE_OPTION = /(^|\s)--input-type(?:=\S*|\s+\S+)(?=\s|$)/g;
+/**
+ * NODE_OPTIONS split as Node splits it: a space ends an argument outside double quotes, a double
+ * quote opens or closes a quoted part anywhere, and inside one a backslash takes the next character
+ * as it is. Outside quotes a backslash is a plain character, and so is a single quote. Null for
+ * text Node refuses (an unterminated quote or a backslash at the end): such a host does not start.
+ * @param {string} text
+ * @returns {string[] | null}
+ */
+function nodeOptionsArgs(text) {
+    /** @type {string[]} */
+    const args = [];
+    let current = null;
+    let quoted = false;
+    for (let i = 0; i < text.length; i++) {
+        let c = text[i];
+        if (c === "\\" && quoted) {
+            if (i + 1 === text.length) {
+                return null;
+            }
+            c = text[++i];
+        } else if (c === " " && !quoted) {
+            if (current !== null) {
+                args.push(current);
+                current = null;
+            }
+            continue;
+        } else if (c === '"') {
+            quoted = !quoted;
+            current ??= "";
+            continue;
+        }
+        current = (current ?? "") + c;
+    }
+    if (quoted) {
+        return null;
+    }
+    if (current !== null) {
+        args.push(current);
+    }
+    return args;
+}
+
+/** NODE_OPTIONS text that nodeOptionsArgs reads as these arguments: one with a space, a quote or a backslash is quoted. */
+const nodeOptionsText = (args) => args.map((a) => (/[ "\\]/.test(a) ? `"${a.replace(/["\\]/g, "\\$&")}"` : a)).join(" ");
 
 /**
- * The host's environment with `--input-type` taken out of NODE_OPTIONS, or undefined when it has
- * none. A worker reads the flag from there too and fails as with workerExecArgv's. Every other
- * variable and every other flag in NODE_OPTIONS stays as it is.
+ * The host's environment with `--input-type` taken out of NODE_OPTIONS, or undefined when there is
+ * none. A worker reads NODE_OPTIONS too and fails as with the flag on the command line. Every other
+ * variable and every other argument of NODE_OPTIONS stays, written back so Node reads it the same.
  * @param {NodeJS.ProcessEnv} [env]
  * @returns {NodeJS.ProcessEnv | undefined}
  */
 export function workerEnv(env = process.env) {
-    const options = env.NODE_OPTIONS;
-    if (typeof options !== "string") {
-        return undefined;
+    const args = typeof env.NODE_OPTIONS === "string" ? nodeOptionsArgs(env.NODE_OPTIONS) : null;
+    const kept = args && withoutInputType(args);
+    return kept ? { ...env, NODE_OPTIONS: nodeOptionsText(kept) } : undefined;
+}
+
+/** How Node starts its message for ERR_WORKER_INVALID_EXEC_ARGV; the refused flags follow, joined by ", ". */
+const REFUSED_PREFIX = "Initiated Worker with invalid execArgv flags: ";
+
+/**
+ * The flags of `execArgv` that Node named in its ERR_WORKER_INVALID_EXEC_ARGV, or null for another
+ * error. Node names each refused flag as it was given, so a flag counts when it stands in that list
+ * whole. Node's docs say a worker takes no V8 options and no options of the whole process.
+ * @param {unknown} error
+ * @param {readonly string[]} execArgv
+ * @returns {Set<string> | null}
+ */
+function refusedFlags(error, execArgv) {
+    const { code, message } = /** @type {{ code?: unknown, message?: unknown }} */ (error ?? {});
+    if (code !== "ERR_WORKER_INVALID_EXEC_ARGV" || typeof message !== "string" || !message.startsWith(REFUSED_PREFIX)) {
+        return null;
     }
-    const kept = options.replace(INPUT_TYPE_OPTION, "").trim();
-    return kept === options.trim() ? undefined : { ...env, NODE_OPTIONS: kept };
+    const list = message.slice(REFUSED_PREFIX.length);
+    return new Set(execArgv.filter((a) => list === a || list.startsWith(`${a}, `) || list.endsWith(`, ${a}`) || list.includes(`, ${a}, `)));
 }
 
 /**
  * A worker for `file`, with the host's flags and NODE_OPTIONS cleaned (workerExecArgv, workerEnv).
  * A cleaned NODE_OPTIONS needs an explicit flag list too: a worker that inherits its flags keeps the
- * host's `--input-type` from NODE_OPTIONS. Node refuses an explicit flag list that holds a flag of
- * the whole process, such as --max-old-space-size, which it takes when inherited
- * (ERR_WORKER_INVALID_EXEC_ARGV). Then the worker starts with no flags.
+ * host's `--input-type` from NODE_OPTIONS. Node refuses an explicit list that holds a V8 flag or a
+ * flag of the whole process, such as --max-old-space-size or --stack-size, though it ignores them
+ * when inherited. Then the flags Node names are dropped and every other one stays: preloads,
+ * conditions and the like. The worker's memory limit comes from resourceLimits anyway.
  * @param {URL} file
  * @param {import("node:worker_threads").WorkerOptions} options
  */
@@ -79,10 +149,11 @@ function startWorker(file, options) {
     try {
         return new Worker(file, { ...cleaned, execArgv });
     } catch (e) {
-        if (/** @type {{ code?: unknown }} */ (e)?.code !== "ERR_WORKER_INVALID_EXEC_ARGV") {
+        const refused = refusedFlags(e, execArgv);
+        if (!refused?.size) {
             throw e;
         }
-        return new Worker(file, { ...cleaned, execArgv: [] });
+        return new Worker(file, { ...cleaned, execArgv: execArgv.filter((a) => !refused.has(a)) });
     }
 }
 
