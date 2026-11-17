@@ -40,6 +40,10 @@ and the reports. Without a configuration, the server serves its built-in example
 The log also names this command. You see it with `docker logs pivotkit`. The log never shows the
 token itself. Every request without the token gets 401.
 
+A server with a sign-in provider (OAuth) has no `admin` token. There, people sign in with
+`pivotkit login` and get a token with `pivotkit token`
+([Sign in from the command line](../reference/rest.md#sign-in-cli)).
+
 ## 3. Call it with curl { #curl }
 
 ```bash

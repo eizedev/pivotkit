@@ -60,6 +60,15 @@ Use `src/safe-files.js` for every file the CLI reads or writes.
 - `src/rest-contract.js` (`pivotkit-cli/rest`) is the one copy of the REST contract.
 - pivotkit-server re-exports it. Change it here.
 
+## Sign-in
+
+- `src/sign-in.js` holds `login`, `token` and `logout`: the OAuth device code flow at the server's issuer.
+- It follows remote mode's request rules. An issuer's error is named by its OAuth code only.
+- `src/credential-store.js` keeps the refresh token: the system's keychain tool, else a 0600 file.
+- A secret reaches a keychain tool on stdin only, never as an argument.
+- Tests replace the tools through `storeMeans` and the waits through `signInMeans`.
+- Tests never touch the real keychain: spawned runs use `--store file`.
+
 ## Examples
 
 - `examples/` holds the files `pivotkit example` writes.

@@ -8,6 +8,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- The REST reference describes how people sign in from the command line, with curl or with
+  PowerShell at the server's sign-in provider. `resourceMetadataUrlOf` now comes from
+  `pivotkit-cli/rest` and is the same function
+  ([sign in from the command line](https://pivotkit.eize.dev/reference/rest/#sign-in-cli), #486).
 - `render_view` (`POST /views/render`) takes `locale`, `numbers` and `flatHeader`. Every answer
   that works carries `requestId` in its body, the id of its log line ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481)).
 - `token issue` issues a signed token that expires (default one hour, at most

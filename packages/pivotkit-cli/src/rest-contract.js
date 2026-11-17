@@ -48,3 +48,17 @@ export function isLoopback(host) {
     const plain = String(host ?? "").toLowerCase().replace(/^\[(.*)\]$/, "$1");
     return plain === "localhost" || plain === "::1" || (isIPv4(plain) && plain.startsWith("127."));
 }
+
+/**
+ * The RFC 9728 metadata address of a resource: /.well-known/oauth-protected-resource before its path
+ * (https://host/api/v1 has it at https://host/.well-known/oauth-protected-resource/api/v1).
+ * @param {string | URL} resource
+ */
+export function resourceMetadataUrlOf(resource) {
+    const url = new URL(resource);
+    const path = url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname;
+    url.pathname = `/.well-known/oauth-protected-resource${path === "/" ? "" : path}`;
+    url.hash = "";
+    url.search = "";
+    return url.href;
+}

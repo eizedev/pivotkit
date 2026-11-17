@@ -39,6 +39,7 @@ Exit codes:
 - Gets a draft view from a file's fields, or renders from layout flags without a view file.
 - Validates and describes views in CI, with stable exit codes and `--json`.
 - Runs the same commands on a pivotkit-server's sources with `--url` and `--source`.
+- Signs in at a server's sign-in provider with `pivotkit login`, and prints a fresh token with `pivotkit token`.
 - Needs no browser, and no network for local files.
 - Gives the same output on every run with `--now`.
 - Reads and writes files only as regular files. `--allow-dir` limits them to the directories you
@@ -51,6 +52,7 @@ Exit codes:
 | Getting started: install, the example files, your own report, CI, PowerShell | [Getting started with the command line](https://pivotkit.eize.dev/getting-started/cli/) |
 | Commands, options, exit codes, `--json`, completion, file safety | [pivotkit-cli reference](https://pivotkit.eize.dev/reference/cli/) |
 | `--url`, `--source`, `pivotkit sources`: a server's data | [With a server](https://pivotkit.eize.dev/reference/cli/#with-a-server) |
+| `pivotkit login`, `pivotkit token`: sign in at a server's provider | [Sign in](https://pivotkit.eize.dev/reference/cli/#sign-in) |
 | `--suggest`, layout flags, `--map`, `--save-view` | [A view from the data's fields](https://pivotkit.eize.dev/reference/cli/#a-view-from-the-datas-fields) |
 | The print template of `--template` | [Print template](https://pivotkit.eize.dev/reference/print-template/) |
 | Your company's design: `pivotkit example templates` | [Your own corporate design](https://pivotkit.eize.dev/reference/corporate-design/) |

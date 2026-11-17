@@ -1,0 +1,375 @@
+/*
+ * `pivotkit login`, `pivotkit token` and `pivotkit logout`: sign-in for REST callers with the OAuth 2.0
+ * device authorization grant (RFC 8628) at the server's own issuer. The server is not asked for
+ * anything but its protected-resource metadata (RFC 9728); the tokens stay between the user and the
+ * issuer.
+ *
+ * 1. The metadata at /.well-known/oauth-protected-resource/<path> names the resource (it must be the
+ *    address given) and its issuer.
+ * 2. The issuer's metadata (RFC 8414, else OpenID Connect discovery) must name the same issuer and
+ *    give the device authorization and token endpoints.
+ * 3. The device code is asked for, the user opens the address and enters the code, and the token
+ *    endpoint is polled at the interval the issuer asks for (RFC 8628 3.5).
+ * 4. The refresh token goes to the keychain (credential-store.js). `pivotkit token` trades it for a
+ *    fresh access token and keeps a new refresh token the issuer may hand out with it.
+ *
+ * Requests follow remote mode's rules: https, plain http to a loopback address only, no redirects, a
+ * time limit and a size cap. No token, refresh token or device code is ever part of a message; an
+ * issuer's error is named by its OAuth error code only, never by its text.
+ */
+
+import { CliError, RemoteError, printable } from "./errors.js";
+import { checkTls, send, serverOf } from "./remote.js";
+import { TOKEN_SYNTAX, isLoopback, resourceMetadataUrlOf } from "./rest-contract.js";
+import { credentialStore } from "./credential-store.js";
+
+/** The most bytes of a metadata document or token answer. */
+const ANSWER_BYTES = 262_144;
+
+/** How long one request may take. */
+const REQUEST_MS = 15_000;
+
+/** RFC 8628: the poll interval without one from the issuer, and what slow_down adds. */
+export const DEVICE_POLL = Object.freeze({ intervalSeconds: 5, slowDownSeconds: 5, maxIntervalSeconds: 60, maxWaitSeconds: 1800 });
+
+/** The OAuth error codes a message may name; any other is "error". */
+const OAUTH_ERRORS = Object.freeze(["authorization_pending", "slow_down", "access_denied", "expired_token", "invalid_grant", "invalid_client", "invalid_scope", "invalid_request", "unauthorized_client", "unsupported_grant_type", "temporarily_unavailable", "server_error"]);
+
+/** What each error means for the user. */
+const ERROR_HINTS = Object.freeze({
+    access_denied: "the sign-in was declined",
+    expired_token: "the code expired before the sign-in finished; run pivotkit login again",
+    invalid_grant: "the sign-in has ended or was revoked",
+    invalid_client: "the issuer does not know this client id, or it is no public client",
+    unauthorized_client: "this client may not use the device code flow; the operator enables it at the issuer",
+    invalid_scope: "the issuer refused the scopes; give the ones it offers with --scope",
+    unsupported_grant_type: "the issuer does not offer this grant"
+});
+
+/** The device grant's type (RFC 8628 3.4). */
+const DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
+
+/** A client id as the CLI takes it: printable, no spaces, at most 200 characters. */
+const CLIENT_ID = /^[\x21-\x7e]{1,200}$/;
+
+/** A scope token (RFC 6749 3.3). */
+const SCOPE_TOKEN = /^[\x21\x23-\x5b\x5d-\x7e]{1,200}$/;
+
+/** Waiting between polls. Tests replace it. */
+export const signInMeans = { sleep: (ms) => new Promise((done) => setTimeout(done, ms)) };
+
+/** An address an issuer or its metadata names, checked: https, or http to loopback. */
+function checkedUrl(text, what) {
+    if (typeof text !== "string" || !URL.canParse(text)) {
+        throw new RemoteError("BAD_METADATA", `${what} is no address`);
+    }
+    const url = new URL(text);
+    const ok = url.protocol === "https:" || (url.protocol === "http:" && isLoopback(url.hostname));
+    if (!ok || url.username || url.password || url.hash) {
+        throw new RemoteError("BAD_METADATA", `${what} is no https:// address (${printable(url.origin)})`);
+    }
+    return url;
+}
+
+/**
+ * One request; its answer as a JSON object with its status. The answer's text never reaches a message.
+ * @param {URL} url
+ * @param {Record<string, string> | null} form  a POST's form, null for GET
+ * @param {Record<string, string | undefined>} env
+ * @returns {Promise<{ status: number, data: Record<string, any> }>}
+ */
+async function call(url, form, env) {
+    checkTls({ base: url }, env);
+    // a ref'd timer: the wait keeps the process alive; cleared when the answer is read
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_MS);
+    try {
+        const headers = { accept: "application/json", ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}) };
+        let answer;
+        try {
+            answer = await send(url, { method: form ? "POST" : "GET", headers, body: form ? new URLSearchParams(form).toString() : undefined }, isLoopback(url.hostname), controller.signal);
+        } catch {
+            throw new RemoteError(controller.signal.aborted ? "TIMEOUT" : "NETWORK", `${printable(url.origin)} cannot be reached${controller.signal.aborted ? ` within ${REQUEST_MS / 1000} s` : ""}`);
+        }
+        if (answer.status >= 300 && answer.status < 400) {
+            answer.cancel();
+            throw new RemoteError("REDIRECT", `${printable(url.origin)} redirected; redirects are not followed`, { status: answer.status });
+        }
+        const chunks = [];
+        let size = 0;
+        try {
+            for await (const chunk of answer.body) {
+                size += chunk.length;
+                if (size > ANSWER_BYTES) {
+                    answer.cancel();
+                    throw new RemoteError("ANSWER_TOO_LARGE", `the answer of ${printable(url.origin)} is too large`, { status: answer.status });
+                }
+                chunks.push(chunk);
+            }
+        } catch (e) {
+            throw e instanceof RemoteError ? e : new RemoteError("ANSWER_CUT", `the answer of ${printable(url.origin)} was cut off`, { status: answer.status });
+        }
+        let data = null;
+        try {
+            data = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        } catch {
+            data = null;
+        }
+        if (!data || typeof data !== "object" || Array.isArray(data)) {
+            throw new RemoteError("BAD_ANSWER", `${printable(url.origin)} answered without a JSON object (HTTP ${answer.status})`, { status: answer.status });
+        }
+        return { status: answer.status, data };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+/** The OAuth error of an answer: a known code, else "error". */
+const errorOf = (data) => (typeof data.error === "string" && OAUTH_ERRORS.includes(data.error) ? data.error : "error");
+
+/** An issuer's refusal as an error: its code and a fixed hint, never its description. */
+function oauthError(data, status, what) {
+    const code = errorOf(data);
+    const hint = ERROR_HINTS[code];
+    return new RemoteError(code === "error" ? "OAUTH_ERROR" : code.toUpperCase(), `${what}: the issuer answered ${status} ${code}${hint ? `; ${hint}` : ""}`, { status });
+}
+
+/**
+ * The server's protected-resource metadata: its resource (the address given) and issuer.
+ * @param {ReturnType<typeof serverOf>} server
+ * @param {Record<string, string | undefined>} env
+ */
+export async function resourceOf(server, env) {
+    const at = new URL(resourceMetadataUrlOf(server.base));
+    const { status, data } = await call(at, null, env).catch((e) => {
+        throw e.code === "BAD_ANSWER" && e.status === 404 ? notOAuth(e.status) : e;
+    });
+    if (status === 404) {
+        throw notOAuth(status);
+    }
+    if (status !== 200) {
+        throw new RemoteError("BAD_METADATA", `the server's sign-in metadata answered HTTP ${status}`, { status });
+    }
+    const given = server.base.href.replace(/\/$/, "");
+    if (typeof data.resource !== "string" || data.resource.replace(/\/$/, "") !== given) {
+        throw new RemoteError("BAD_METADATA", `the server's metadata is for another address${typeof data.resource === "string" ? ` (${printable(data.resource)})` : ""}; give that address with --url`);
+    }
+    const issuers = Array.isArray(data.authorization_servers) ? data.authorization_servers.filter((s) => typeof s === "string") : [];
+    if (issuers.length === 0) {
+        throw new RemoteError("BAD_METADATA", "the server's metadata names no issuer");
+    }
+    checkedUrl(issuers[0], "the server's issuer");
+    const scopes = Array.isArray(data.scopes_supported) ? data.scopes_supported.filter((s) => typeof s === "string" && SCOPE_TOKEN.test(s)) : [];
+    return { resource: data.resource, issuer: issuers[0], scopes };
+}
+
+/** A server that publishes no sign-in metadata. */
+const notOAuth = (status) => new RemoteError("NO_SIGN_IN", "the server publishes no sign-in metadata: it uses no sign-in provider (auth.mode oauth). Ask the operator for a token, or check the address (https://host/api/v1)", { status });
+
+/**
+ * The issuer's metadata: RFC 8414, else OpenID Connect discovery. Its issuer must be the one asked for.
+ * @param {string} issuer
+ * @param {Record<string, string | undefined>} env
+ */
+export async function issuerOf(issuer, env) {
+    const url = checkedUrl(issuer, "the issuer");
+    const path = url.pathname.replace(/\/$/, "");
+    const tries = [`${url.origin}/.well-known/oauth-authorization-server${path}`, `${url.origin}${path}/.well-known/openid-configuration`];
+    for (const at of tries) {
+        const answer = await call(new URL(at), null, env).catch((e) => (e.code === "BAD_ANSWER" ? null : Promise.reject(e)));
+        if (!answer || answer.status !== 200) {
+            continue;
+        }
+        if (answer.data.issuer !== issuer) {
+            throw new RemoteError("BAD_METADATA", `the issuer's metadata names another issuer (${printable(String(answer.data.issuer))})`);
+        }
+        const meta = answer.data;
+        if (typeof meta.device_authorization_endpoint !== "string") {
+            throw new RemoteError("NO_DEVICE_FLOW", "the issuer offers no device code flow (no device_authorization_endpoint in its metadata); the operator enables it at the issuer");
+        }
+        return {
+            device: checkedUrl(meta.device_authorization_endpoint, "the issuer's device_authorization_endpoint"),
+            token: checkedUrl(meta.token_endpoint, "the issuer's token_endpoint"),
+            scopes: Array.isArray(meta.scopes_supported) ? meta.scopes_supported.filter((s) => typeof s === "string") : null
+        };
+    }
+    throw new RemoteError("BAD_METADATA", `the issuer's metadata cannot be read at ${printable(url.origin)}`);
+}
+
+/**
+ * The scope to ask for: --scope, else the server's scopes and offline_access (for a refresh token)
+ * when the issuer offers it or lists no scopes.
+ * @param {string | undefined} given
+ * @param {string[]} serverScopes
+ * @param {string[] | null} issuerScopes
+ */
+export function scopeOf(given, serverScopes, issuerScopes) {
+    if (given !== undefined) {
+        const list = given.split(/\s+/).filter(Boolean);
+        if (list.length === 0 || !list.every((s) => SCOPE_TOKEN.test(s))) {
+            throw new CliError("usage", "BAD_VALUE", "--scope takes scopes separated by spaces");
+        }
+        return list.join(" ");
+    }
+    const offline = issuerScopes === null || issuerScopes.includes("offline_access") ? ["offline_access"] : [];
+    return [...new Set([...serverScopes, ...offline])].join(" ");
+}
+
+/** The client id: --client-id, else PIVOTKIT_CLIENT_ID. */
+function clientIdOf(values, env) {
+    const id = values["client-id"] ?? env.PIVOTKIT_CLIENT_ID;
+    if (!id) {
+        throw new CliError("usage", "NO_CLIENT_ID", "the issuer's client id is needed: --client-id <id>, or PIVOTKIT_CLIENT_ID (the operator names it)");
+    }
+    if (!CLIENT_ID.test(id)) {
+        throw new CliError("usage", "BAD_VALUE", "--client-id takes printable characters without spaces, at most 200");
+    }
+    return id;
+}
+
+/** A token answer's tokens, checked. */
+function tokensOf(data) {
+    const access = data.access_token;
+    if (typeof access !== "string" || access.length > 16_384 || !TOKEN_SYNTAX.test(access)) {
+        throw new RemoteError("BAD_ANSWER", "the issuer's answer holds no usable access token");
+    }
+    if (typeof data.token_type === "string" && data.token_type.toLowerCase() !== "bearer") {
+        throw new RemoteError("BAD_ANSWER", "the issuer's access token is no bearer token");
+    }
+    const refresh = typeof data.refresh_token === "string" && data.refresh_token.length > 0 && data.refresh_token.length <= 8192 && /^[\x21-\x7e]+$/.test(data.refresh_token) ? data.refresh_token : null;
+    return { access, refresh };
+}
+
+/**
+ * pivotkit login: the device code flow, then the refresh token kept.
+ * @param {Record<string, any>} values
+ * @param {{ io: any }} ctx
+ */
+export async function loginCommand(values, ctx) {
+    const env = ctx.io.env;
+    const say = (text) => ctx.io.stderr.write(`${text}\n`);
+    const want = values.store ?? "auto";
+    const clientId = clientIdOf(values, env);
+    const server = serverOf(values, env);
+    const { resource, issuer, scopes: serverScopes } = await resourceOf(server, env);
+    const endpoints = await issuerOf(issuer, env);
+    const scope = scopeOf(values.scope, serverScopes, endpoints.scopes);
+    const start = await call(endpoints.device, { client_id: clientId, ...(scope ? { scope } : {}) }, env);
+    if (start.status !== 200) {
+        throw oauthError(start.data, start.status, "the device code was refused");
+    }
+    const d = start.data;
+    if (typeof d.device_code !== "string" || !d.device_code || d.device_code.length > 4096 || typeof d.user_code !== "string" || !/^[\x21-\x7e]{1,64}$/.test(d.user_code)) {
+        throw new RemoteError("BAD_ANSWER", "the issuer's device code answer is not usable");
+    }
+    const verify = checkedUrl(d.verification_uri ?? d.verification_url, "the issuer's verification_uri");
+    const complete = typeof d.verification_uri_complete === "string" && URL.canParse(d.verification_uri_complete) ? checkedUrl(d.verification_uri_complete, "the issuer's verification_uri_complete") : null;
+    const expiresIn = Math.min(Number.isFinite(d.expires_in) && d.expires_in > 0 ? d.expires_in : 600, DEVICE_POLL.maxWaitSeconds);
+    let interval = Math.min(Math.max(Number.isFinite(d.interval) && d.interval > 0 ? Math.ceil(d.interval) : DEVICE_POLL.intervalSeconds, 1), DEVICE_POLL.maxIntervalSeconds);
+    say(`To sign in, open ${printable(verify.href)} and enter the code ${printable(d.user_code)}`);
+    if (complete) {
+        say(`or open ${printable(complete.href)}`);
+    }
+    say(`Waiting for the sign-in at ${printable(new URL(issuer).host)} (the code ends in ${Math.round(expiresIn / 60)} min)...`);
+    // the wait is counted in polls of the issuer's interval, not by the clock: a slept-through laptop asks once more and gets expired_token
+    let waited = 0;
+    let tokens = null;
+    while (!tokens) {
+        if (waited >= expiresIn) {
+            throw new RemoteError("EXPIRED_TOKEN", "the code expired before the sign-in finished; run pivotkit login again");
+        }
+        await signInMeans.sleep(interval * 1000);
+        waited += interval;
+        const poll = await call(endpoints.token, { grant_type: DEVICE_GRANT, device_code: d.device_code, client_id: clientId }, env);
+        if (poll.status === 200) {
+            tokens = tokensOf(poll.data);
+            break;
+        }
+        const code = errorOf(poll.data);
+        if (code === "authorization_pending") {
+            continue;
+        }
+        if (code === "slow_down") {
+            interval = Math.min(interval + DEVICE_POLL.slowDownSeconds, DEVICE_POLL.maxIntervalSeconds);
+            continue;
+        }
+        throw oauthError(poll.data, poll.status, "the sign-in did not finish");
+    }
+    if (!tokens.refresh) {
+        throw new RemoteError("NO_REFRESH_TOKEN", `the issuer gave no refresh token, so pivotkit token could not renew the sign-in; ask for one with --scope "${printable(`${scope} offline_access`.trim())}", or the operator allows refresh tokens for this client`);
+    }
+    const store = credentialStore(env);
+    // a sign-in of the same server before goes away first, also from a store it no longer uses
+    await store.remove(resource);
+    const kept = await store.put(resource, tokens.refresh, want);
+    await store.record({ resource, issuer, clientId, scope, tokenEndpoint: endpoints.token.href, store: kept.store });
+    const where = kept.store === "keychain" ? kept.where : `${kept.where} (only you can read it)`;
+    return {
+        findings: [],
+        note: `Signed in to ${printable(resource)}. The refresh token is in ${where}${kept.fellBack ? "; no keychain could keep it" : ""}. Get an access token with: pivotkit token`,
+        extra: { server: resource, issuer, store: kept.store }
+    };
+}
+
+/** The login of --url, PIVOTKIT_URL, or the only one there is. */
+async function loginOf(values, env, store) {
+    const logins = await store.list();
+    const named = values.url ?? env.PIVOTKIT_URL;
+    if (named) {
+        const server = serverOf(values, env);
+        const key = Object.keys(logins).find((k) => k.replace(/\/$/, "") === server.base.href.replace(/\/$/, ""));
+        if (!key) {
+            throw new CliError("usage", "NOT_SIGNED_IN", `not signed in to ${printable(server.base.href.replace(/\/$/, ""))}; run pivotkit login --url ${printable(server.base.href.replace(/\/$/, ""))}`);
+        }
+        return logins[key];
+    }
+    const all = Object.values(logins);
+    if (all.length === 1) {
+        return all[0];
+    }
+    throw new CliError("usage", all.length ? "NO_URL" : "NOT_SIGNED_IN", all.length ? `signed in to ${all.length} servers: name one with --url or PIVOTKIT_URL` : "not signed in; run pivotkit login --url https://host/api/v1");
+}
+
+/**
+ * pivotkit token: a fresh access token on stdout, from the kept refresh token. A new refresh token
+ * from the issuer replaces the kept one.
+ * @param {Record<string, any>} values
+ * @param {{ io: any }} ctx
+ */
+export async function tokenCommand(values, ctx) {
+    const env = ctx.io.env;
+    const store = credentialStore(env);
+    const login = await loginOf(values, env, store);
+    const again = `sign in again: pivotkit login --url ${printable(login.resource)}`;
+    const refresh = await store.get(login);
+    if (!refresh) {
+        throw new RemoteError("NOT_SIGNED_IN", `the refresh token is gone from ${login.store === "keychain" ? "the keychain" : "its file"}; ${again}`);
+    }
+    const answer = await call(checkedUrl(login.tokenEndpoint, "the kept token endpoint"), { grant_type: "refresh_token", refresh_token: refresh, client_id: login.clientId, ...(login.scope ? { scope: login.scope } : {}) }, env);
+    if (answer.status !== 200) {
+        const error = oauthError(answer.data, answer.status, "the token could not be renewed");
+        if (error.code === "INVALID_GRANT") {
+            error.message = `${error.message}; ${again}`;
+        }
+        throw error;
+    }
+    const tokens = tokensOf(answer.data);
+    if (tokens.refresh && tokens.refresh !== refresh) {
+        // the issuer rotated it: the old one may already be void
+        await store.put(login.resource, tokens.refresh, login.store);
+    }
+    return { token: tokens.access, findings: [], extra: { server: login.resource } };
+}
+
+/**
+ * pivotkit logout: the kept sign-in of a server removed (its refresh token and its record).
+ * @param {Record<string, any>} values
+ * @param {{ io: any }} ctx
+ */
+export async function logoutCommand(values, ctx) {
+    const env = ctx.io.env;
+    const store = credentialStore(env);
+    const login = await loginOf(values, env, store);
+    await store.remove(login.resource);
+    return { findings: [], note: `Signed out of ${printable(login.resource)}. The issuer's session may still be open; end it there.`, extra: { server: login.resource } };
+}

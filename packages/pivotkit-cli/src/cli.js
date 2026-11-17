@@ -28,6 +28,7 @@ import { INFO_NOTES } from "./files.js";
 import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, quoteArg, viewFileFor } from "./layout-view.js";
 import { allowedDirs, readSafe, readStdin, writeSafe } from "./safe-files.js";
 import { remoteCommand } from "./remote-commands.js";
+import { loginCommand, logoutCommand, tokenCommand } from "./sign-in.js";
 import { resolve as resolvePath } from "node:path";
 import { stat } from "node:fs/promises";
 
@@ -216,6 +217,9 @@ export async function main(argv, io) {
             io.stdout.write(completionScript(/** @type {any} */ (shell)));
             return 0;
         }
+        if (command === "login" || command === "token" || command === "logout") {
+            return await signInCommand(command, values, { io }, { json, say });
+        }
         // remote mode: --url or --source on the command line (PIVOTKIT_URL alone is only the address), or sources
         const remote = command === "sources" || values.url !== undefined || values.source !== undefined;
         checkWhere(command, values, remote);
@@ -291,6 +295,27 @@ export async function main(argv, io) {
         }
         return 2;
     }
+}
+
+/**
+ * login, token and logout (sign-in.js). token writes the access token alone on stdout (with --json
+ * as the object's accessToken); the others write their line on stderr.
+ * @param {"login" | "token" | "logout"} command
+ * @param {Record<string, any>} values
+ * @param {{ io: Io }} ctx
+ * @param {{ json: boolean, say: (text: string) => void }} how
+ * @returns {Promise<number>}
+ */
+async function signInCommand(command, values, ctx, { json, say }) {
+    const outcome = command === "login" ? await loginCommand(values, ctx) : command === "token" ? await tokenCommand(values, ctx) : await logoutCommand(values, ctx);
+    if (json) {
+        ctx.io.stdout.write(`${JSON.stringify({ ok: true, exitCode: 0, command, findings: [], ...outcome.extra, ...("token" in outcome ? { accessToken: outcome.token } : {}) })}\n`);
+    } else if ("token" in outcome) {
+        ctx.io.stdout.write(`${outcome.token}\n`);
+    } else if (!values.quiet) {
+        say(outcome.note);
+    }
+    return 0;
 }
 
 /**
