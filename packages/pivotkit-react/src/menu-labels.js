@@ -473,8 +473,6 @@ export const en = {
     chartShowOnly: "Show {field} only",
     chartShowDetails: "Show details",
     chartShowTotals: "Show group totals only",
-    // the chart type menu: how the chart is drawn
-    chartDisplay: "Display",
     // what sharing and the exports said (share-actions.js, export-run.js)
     toastExported: "Exported {file}",
     toastLinkCopied: "Link copied",

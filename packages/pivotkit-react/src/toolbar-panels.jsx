@@ -219,7 +219,8 @@ export function ChartSettingsPanel({ view, plan, encoded, lineChecks, labels, lo
     const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay, expand: () => onExpand(labels), collapse: () => onCollapse(labels) }, lines: { rules, targetText: numberText(lines?.target, locale) }, drawnColors, folding });
     const head = (
         <Section title={labels.chartType}>
-            <div className="pk-choice-grid">
+            {/* named with the type chosen ("Chart type: Automatic"), as the tab's icon shows the one drawn */}
+            <div className="pk-choice-grid" role="group" aria-label={fill(labels.chartTypeIs, { type: labels.chartTypes[plan?.auto ? "auto" : drawn] })} data-testid="chart-types">
                 <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
             </div>
         </Section>

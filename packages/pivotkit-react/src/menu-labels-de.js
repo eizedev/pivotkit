@@ -417,7 +417,6 @@ export const de = {
     chartShowOnly: "Nur {field} zeigen",
     chartShowDetails: "Details zeigen",
     chartShowTotals: "Nur Gruppensummen zeigen",
-    chartDisplay: "Darstellung",
     toastExported: "{file} exportiert",
     toastLinkCopied: "Link kopiert",
     toastJsonCopied: "Ansicht als JSON kopiert",
