@@ -22,11 +22,11 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  * away). `checkbox`: a switch (`checked` on or off) instead of one of several; `disabled` with the
  * `reason`; `info`: the id of its explanation (labels.settingInfo). `open`: the id of a topic whose
  * level it opens (after `run`; Back puts the focus on `backTo`, else on the choice), instead of applying; `actions`: an entry's own actions next to it
- * (choices themselves, drawn as icon buttons with `label`); `current`: the entry shown now; `stays`: its level stays
- * open after it (one of several switches people flip in a row, the series shown).
+ * (choices themselves, drawn as icon buttons with `label`); `current`: the entry shown now. A switch
+ * (`checkbox`) keeps its level open after it, so people flip several in a row.
  * @typedef {{ id: string, text: string, change?: () => { view: any, note: any } | null, run?: () => void, checked?: boolean,
  *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
- *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string, stays?: boolean }} Choice
+ *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string }} Choice
  */
 
 /**
@@ -467,7 +467,7 @@ const VALUE_LABELS = Object.freeze({ slices: ["auto", "off", "value", "percent",
 /**
  * The topics of the chart type menu's Display settings (#106), each a row with what is set that opens
  * its level: Value labels, Legend, Title (a form), Axis (axis and group labels, the zoom slider),
- * Tooltip, Series (one switch per series or slice, the level stays open) and Layout (100 % stacks,
+ * Tooltip, Series (one switch per series or slice) and Layout (100 % stacks,
  * smooth lines, a pie's label position). A topic the chart has nothing for is left out. Every choice applies `act.display(patch)`
  * (pivotkit-core's chart settings); the type stays. Reference lines (#577) come after Tooltip.
  * @param {{ view: any, drawn: string, labels: any, names: string[], act: { display: (patch: object) => void } }} input
@@ -533,7 +533,7 @@ export function chartTopics({ view, drawn, labels, names, act }) {
             state: fill(labels.seriesShownOf, { shown: String(names.length - hidden), count: String(names.length) }),
             changed: hidden > 0,
             // every series or slice, the level scrolls; a switch keeps the level open for the next one
-            groups: [{ choices: names.map((name, i) => ({ id: `series-${i}`, text: name, checkbox: true, stays: true, checked: !now.includes(name), run: () => act.display({ hidden: hiddenAfter(now, name, now.includes(name)) }) })) }]
+            groups: [{ choices: names.map((name, i) => ({ id: `series-${i}`, text: name, checkbox: true, checked: !now.includes(name), run: () => act.display({ hidden: hiddenAfter(now, name, now.includes(name)) }) })) }]
         });
     }
     /** @type {Choice[]} */

@@ -206,6 +206,12 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await report.getByTestId("topic-layout").click();
         await report.getByTestId("chart-stack-percent").click();
         await expect.poll(() => lastView(page).then((c) => c?.stackPercent)).toBe(true);
+        // a switch keeps its level open, as Series does: Escape goes back, a second Escape closes
+        await expect(report.getByTestId("level-title")).toHaveText("Display › Layout");
+        await expect(report.getByTestId("chart-stack-percent")).toHaveAttribute("aria-checked", "true");
+        await expect(report.getByTestId("chart-stack-percent")).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(report.getByTestId("topic-layout")).toBeFocused();
         await page.keyboard.press("Escape");
         await settled(chartEl);
         const after = await Promise.all([0, 1].map((index) => inChart(chartEl, (chart, index) => [0, 1, 2].reduce((h, series) => h + Math.abs(chart.getModel().getSeriesByIndex(series).getData().getItemLayout(index).height || 0), 0), index)));
@@ -422,6 +428,9 @@ test.describe("the zoom slider by keyboard (#575)", () => {
         const keys = report.getByTestId("chart-zoom-keys");
         const first = await inChart(chartEl, sliderOf);
         await expect(keys).toHaveAttribute("aria-valuetext", `Categories 1 to ${first.end + 1} of 40`);
+        // its value is the first category, up to the last place the window can start
+        await expect(keys).toHaveAttribute("aria-valuemax", String(40 - first.end));
+        await expect(keys).toHaveAttribute("aria-valuenow", "1");
         // from the element before it, with Tab, as a keyboard reaches it: its ring shows
         await keys.evaluate((el) => {
             const before = document.createElement("button");
@@ -466,6 +475,34 @@ test.describe("the zoom slider by keyboard (#575)", () => {
         await stillAfterDrag(page, chartEl);
         const moved = await inChart(chartEl, sliderOf);
         await expect(page.locator("#zoom-report").getByTestId("chart-zoom-keys")).toHaveAttribute("aria-valuetext", `Categories ${moved.start + 1} to ${moved.end + 1} of 40`);
+    });
+
+    test("the keyboard control covers the slider's track after the chart type turns it from under the axis to beside it and back", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("pages/host.html");
+        const chartEl = await mount(page, { type: "bar" }, { view: COUNTRY_VIEW, rows: COUNTRIES });
+        const report = page.locator("#zoom-report");
+        const keys = report.getByTestId("chart-zoom-keys");
+        /** Whether both of the slider's handles lie inside the keyboard control, in the page. */
+        const covers = async () => {
+            const ends = await Promise.all([0, 1].map(async (i) => inPage(chartEl, (await inChart(chartEl, sliderHandle, i)).at)));
+            const box = await keys.boundingBox();
+            return ends.every((p) => p.x >= box.x - 1 && p.x <= box.x + box.width + 1 && p.y >= box.y - 1 && p.y <= box.y + box.height + 1);
+        };
+        await keys.focus();
+        await expect.poll(covers).toBe(true);
+        for (const [type, orientation] of [["horizontal", "vertical"], ["bar", "horizontal"]]) {
+            await chartMenu(report);
+            await report.getByTestId(`chart-${type}`).click();
+            await settled(chartEl);
+            await expect(keys).toHaveAttribute("aria-orientation", orientation);
+            await keys.focus();
+            await expect.poll(covers).toBe(true);
+            // a band across the chart, not a corner: as long as the chart along its axis
+            const box = await keys.boundingBox();
+            const chart = await chartEl.boundingBox();
+            expect(orientation === "vertical" ? box.height : box.width).toBeGreaterThan((orientation === "vertical" ? chart.height : chart.width) * 0.9);
+        }
     });
 });
 

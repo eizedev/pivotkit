@@ -430,8 +430,9 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
             open(choice.open, choice.backTo ?? `item:${choice.id}`);
             return;
         }
-        if (choice.stays) {
-            // one of several to toggle (a series shown or hidden): the level stays, the focus on it
+        if (choice.checkbox && nav.stack.length) {
+            // a switch in a level: people flip several in a row (the series shown, Layout), so its level stays and
+            // the focus stays on it
             onPick(choice);
             setNav({ stack: nav.stack, focus: `item:${choice.id}` });
             return;

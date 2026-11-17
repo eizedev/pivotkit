@@ -28,9 +28,9 @@ test("bars: every topic a row with what is set that opens a level: Value labels,
     assert.deepEqual([byId(topics, "title").state, byId(topics, "axis").state, byId(topics, "axis").changed], ["No title", "Automatic, zoom slider off", true]);
     assert.deepEqual([byId(topics, "series").state, byId(topics, "series").changed], ["1 of 2 shown", true]);
     assert.deepEqual([byId(topics, "tooltip").state, byId(topics, "tooltip").changed], ["Automatic", false]);
-    // Series: a switch per series, in one group; the level stays open after each
+    // Series: a switch per series, in one group (a switch keeps its level open, levels.jsx)
     const series = choices(byId(topics, "series"));
-    assert.deepEqual(series.map((c) => [c.text, c.checkbox, c.checked, c.stays]), [["Hardware", true, true, true], ["Services", true, false, true]]);
+    assert.deepEqual(series.map((c) => [c.text, c.checkbox, c.checked]), [["Hardware", true, true], ["Services", true, false]]);
     series[1].run();
     series[0].run();
     assert.deepEqual(patches.splice(0), [{ hidden: [] }, { hidden: ["Services", "Hardware"] }]);

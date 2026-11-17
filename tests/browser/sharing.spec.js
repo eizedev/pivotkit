@@ -52,6 +52,9 @@ test.describe("chart display", () => {
         await page.getByTestId("level-back").click();
         await page.getByTestId("topic-layout").click();
         await flip(page.getByTestId("chart-smooth"));
+        // the switch stays in its level; back to the chart types
+        await expect(page.getByTestId("chart-smooth")).toHaveAttribute("aria-checked", "true");
+        await page.getByTestId("level-back").click();
         await page.getByTestId("chart-pie").click();
         await toolbar(page, "chart-type");
         await page.getByTestId("topic-valueLabels").click();

@@ -78,7 +78,7 @@ export function chartKeeper(instance, { categories, onLegend, redraw, onWindow }
                 return;
             }
             kept = { names, start, end };
-            if (control) {
+            if (control && (control.start !== start || control.end !== end)) {
                 control = { ...control, start, end };
                 onWindow(control);
             }
@@ -110,8 +110,13 @@ export function chartKeeper(instance, { categories, onLegend, redraw, onWindow }
             const z = dataZoom?.[0];
             span = z ? z.endValue - z.startValue : -1;
             const beside = z?.orient === "vertical";
-            control = z ? { start: z.startValue, end: z.endValue, count: categories()?.length ?? z.endValue + 1, beside, offset: beside ? z.right : z.bottom, size: beside ? z.width : z.height, move } : null;
-            onWindow(control);
+            const next = z ? { start: z.startValue, end: z.endValue, count: categories()?.length ?? z.endValue + 1, beside, offset: beside ? z.right : z.bottom, size: beside ? z.width : z.height, move } : null;
+            // the same window at the same place: the control stays as it is (no render of the chart)
+            const same = next && control && ["start", "end", "count", "beside", "offset", "size"].every((k) => next[/** @type {keyof ZoomControl} */ (k)] === control?.[/** @type {keyof ZoomControl} */ (k)]);
+            if (!same && (next || control)) {
+                control = next;
+                onWindow(control);
+            }
         },
         dispose: () => clearTimeout(wait)
     };
@@ -194,6 +199,9 @@ export function nextWindow({ start, end }, count, key, shift) {
  * the window with the keys (nextWindow), says which categories it shows, and draws the focus ring. It
  * takes no pointer input (styles.css), so the mouse and a finger still reach ECharts' slider below.
  * These are its props; the chart draws it as a plain element, so this chunk needs no React.
+ * Its value is the window's first category: from 1 to the last place the window can start
+ * (`count - span`). A vertical slider (horizontal bars) runs as the axis does, the first category at
+ * the top, so Up shows earlier categories and lowers the value, as the order on the screen reads.
  * @param {ZoomControl} control
  * @param {{ chartZoom: string, chartZoomWindow: string }} labels
  * @param {(text: string, values: Record<string, string>) => string} fill  labels.js's
@@ -203,9 +211,12 @@ export function zoomKeyProps({ start, end, count, beside, offset, size, move }, 
     const n = (/** @type {number} */ x) => x.toLocaleString(locale);
     return {
         // its place, through the CSSOM, which a strict Content-Security-Policy allows
+        // the pair of the other orientation is cleared: the same element may have been the other one
         ref: (/** @type {HTMLElement | null} */ el) => {
             el?.style.setProperty(beside ? "right" : "bottom", `${offset}px`);
             el?.style.setProperty(beside ? "width" : "height", `${size}px`);
+            el?.style.removeProperty(beside ? "bottom" : "right");
+            el?.style.removeProperty(beside ? "height" : "width");
         },
         role: "slider",
         tabIndex: 0,
@@ -213,7 +224,7 @@ export function zoomKeyProps({ start, end, count, beside, offset, size, move }, 
         "aria-label": labels.chartZoom,
         "aria-orientation": /** @type {"vertical" | "horizontal"} */ (beside ? "vertical" : "horizontal"),
         "aria-valuemin": 1,
-        "aria-valuemax": count,
+        "aria-valuemax": count - (end - start),
         "aria-valuenow": start + 1,
         "aria-valuetext": fill(labels.chartZoomWindow, { from: n(start + 1), to: n(end + 1), count: n(count) }),
         "data-testid": "chart-zoom-keys",
