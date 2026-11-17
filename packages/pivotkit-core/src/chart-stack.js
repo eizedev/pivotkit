@@ -3,14 +3,8 @@
  * (`chart.hidden`), for toEChartsOption (chart.js). Only a drawn chart needs this module.
  */
 
-/**
- * Whether a chart is drawn stacked to 100 %: stacked bars, and areas (stacked by it). Lines and
- * bars side by side are not.
- * @param {{ type: string, stacked?: boolean, stackPercent?: boolean }} chart
- */
-export function stacksToPercent(chart) {
-    return Boolean(chart.stackPercent) && ((chart.type === "bar" && Boolean(chart.stacked)) || chart.type === "area");
-}
+// whether a chart is drawn stacked to 100 %: chart-plan.js's, which the reference lines' rules share
+export { stacksToPercent } from "./chart-plan.js";
 
 /**
  * Each series' data as shares of its category's stack, in percent: `{ value: share, raw: value }`, null

@@ -42,6 +42,15 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#54](https://github.com/eizedev/pivotkit/issues/54)).
 - Display › Tooltip › Share in the tooltip: each value's share of the category's total, of a single
   series' total, or of a pie ([#54](https://github.com/eizedev/pivotkit/issues/54)).
+- Display › **Reference lines** in the chart type menu, for bars, lines and areas: a level with
+  **Average**, **Trend** and a **Target** (`chart.referenceLines`, [#48](https://github.com/eizedev/pivotkit/issues/48)).
+  Its row says which lines are on. The level offers only the lines the chart can draw, with a note
+  on the rest. The Target field reads "25%" as a share, with a hint for a value shown in percent.
+  The tooltip names the lines at the category, and the chart's text alternative names each with
+  its value.
+- `labels.chartLines` and `labels.chartTrendSpan`: the reference lines in the chart's text
+  alternative ("Reference lines: {lines}.", "from {from} to {to}"), and the token
+  `--pk-chart-reference` for a target and the lines of a stack's total (default `--pk-muted`).
 - Display › **Tooltip** in the chart type menu, for bars, lines and areas: **Automatic** or **All
   series** (`chart.tooltip`, [#106](https://github.com/eizedev/pivotkit/issues/106)). All series lists
   every series at the pointer's category, the hovered one first, its name in the strong weight.

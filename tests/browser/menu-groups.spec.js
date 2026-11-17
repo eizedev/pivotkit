@@ -85,7 +85,7 @@ test("the chart type menu: Chart type, then a row per Display topic that opens i
     expect(groups.every((g) => g.bold)).toBe(true);
     // the rows that open levels, each with what is set: lines over months have every topic
     const rows = await menu.locator("[data-pk-level]").evaluateAll((els) => els.map((el) => el.dataset.testid));
-    expect(rows).toEqual(["topic-valueLabels", "topic-legend", "topic-title", "topic-axis", "topic-tooltip", "topic-series", "topic-layout"]);
+    expect(rows).toEqual(["topic-valueLabels", "topic-legend", "topic-title", "topic-axis", "topic-tooltip", "topic-lines", "topic-series", "topic-layout"]);
     await expect(menu.getByRole("menu", { name: "Display" })).toBeVisible();
 });
 

@@ -415,6 +415,8 @@ function Report(props) {
     const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
     const chartRef = useRef(null);
     const [chartReady, setChartReady] = useState(false);
+    // which reference lines the drawn chart can draw, with its numbers' reasons (chart.jsx onLines), and the view they are of
+    const [lineChecks, setLineChecks] = useState(/** @type {any} */ (null));
     const hintId = useId();
     const closeFilter = useCallback(() => setFilterTarget(null), []);
     const { toasts, push, dismiss, pause } = useToasts();
@@ -1476,6 +1478,9 @@ function Report(props) {
                             <Toolbar
                                 view={view}
                                 chartPlan={plan}
+                                encoded={encoded}
+                                lineChecks={lineChecks?.view === view ? lineChecks.checks : null}
+                                locale={locale}
                                 chartSeries={series}
                                 chartColors={{ chart: chartRef }}
                                 labels={labels}
@@ -1626,6 +1631,8 @@ function Report(props) {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));
                                         }}
+                                        // the checks with the view they are of: the menu never shows another view's
+                                        onLines={(checks) => setLineChecks(checks && { checks, view })}
                                         // a chart with rows and columns swapped names the view's paths the other way round
                                         onPoint={(p) => openCell({ rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
                                     />

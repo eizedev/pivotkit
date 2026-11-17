@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks and hidden series, the tooltip's share and fixed colours per name in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks, hidden series, reference lines, the tooltip's share and fixed colours per name in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -56,6 +56,7 @@ them, and they stay when the chart type changes:
 | `chart.zoom` | `"auto"`, `"on"`, `"off"` |
 | `chart.stackPercent` | `true`, `false` |
 | `chart.hidden` | a list of legend entries by name, at most `limits.items` |
+| `chart.referenceLines` | `{ average: boolean, trend: boolean, target: number \| null }` |
 | `chart.tooltipShare` | `true`, `false` |
 | `chart.colors` | a list of `{ name, color }`, the colour `#rgb` or `#rrggbb`, at most `limits.items` |
 
@@ -139,6 +140,58 @@ shows. A fixed colour per name keeps it the same in every chart.
 ```js
 document.querySelector("pivot-report").colorMap = { Failed: "#e3000f", Success: "#287233" };
 ```
+
+### Reference lines
+
+`chart.referenceLines` switches on an average and a linear trend, and sets a target:
+
+```json
+{ "chart": { "type": "line", "referenceLines": { "average": true, "trend": true, "target": 500000 } } }
+```
+
+- A view without the key draws no lines: `{ average: false, trend: false, target: null }`.
+- A target that is no finite number becomes `null`, and `normalize()` reports it (`unknownSetting`).
+- pivotkit-core computes the numbers from the plotted categories (`referenceLines` in
+  `pivotkit-core/chart`) and draws them as ECharts `markLine`s on the series.
+- The lines are silent: a click opens no rows. The tooltip names them.
+- The value axis reaches every line (`dataMin` and `dataMax`).
+- A label writes a sample of its line's dash in the line's colour, then the value as the value
+  axis does. `decorateOption` puts the labels right of the plot and keeps them a line apart. With
+  `pixelOf`, the real height of a value after a first draw, they sit at their lines. Below 480 px
+  it writes the names only and leaves out a label far from its line.
+- A trend over the categories' order, when a category has no date, is one straight segment.
+
+Two functions decide which chart draws which line. The chart, the menu and the report's SVG use
+them:
+
+- `referenceLineRules(view, chart, data)` in pivotkit-core's main entry decides by the view alone.
+- `referenceLineChecks(result, { chart, series })` in `pivotkit-core/chart` adds what depends on the
+  numbers, and gives `notes` that say why a line is off.
+
+| Chart | Average | Trend | Target |
+| --- | --- | --- | --- |
+| Pie, donut, heatmap | no | no | no |
+| Bars, lines, areas side by side | per series | per series, along a time line | yes, in one unit |
+| Stacked, every value adds up | of the stack's total | of the stack's total, along a time line | yes, in one unit |
+| Stacked, a part below zero | no | no | yes, in one unit |
+| Stacked, a value does not add up, or stacked to 100 % | no | no | no |
+
+- "Adds up" is `valueAddsUp(value)` in pivotkit-core's main entry, the same rule as the tooltip's total.
+- "Along a time line" means every field on Rows is a date or a grouping of one along the time line.
+  A sort by a value or by hand takes that order away.
+- "In one unit" means one format, and no count beside a field's values.
+- A series hidden in the legend (`chart.hidden`) has no lines and is no part of a stack's total.
+- A setting that does not apply stays in the view and draws again where it applies.
+
+The notes are `"noTotal"`, `"percentStack"`, `"negative"`, `"noTime"`, `"byIndex"` (a category
+without a date, so the trend counts the categories' order) and `"mixedUnits"`.
+
+A trend fits a straight line over the categories' real time: years, quarters, months, ISO weeks or
+days, from each category's key. It is drawn from category to category, so it bends where the axis
+leaves a gap out. An average is the unweighted mean of the plotted points, also of averages.
+
+A series' lines take its colour. The lines of no series, a target and a stack's total, take
+`--pk-chart-reference`.
 
 The report's `--pk-*` tokens set these parts of the chart, so a corporate theme reaches the chart too
 ([Theming](../reference/theming.md#chart-colours)):

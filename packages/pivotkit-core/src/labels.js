@@ -22,6 +22,8 @@ const DATE_TIME = { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" };
  * @property {Record<string, string>} aggregators
  * @property {string} [showAsName]  the name of a value shown as a calculation; {showAs} and {value}
  * @property {Record<string, string>} [showAs]  names of the "show values as" calculations
+ * @property {{ average: string, trend: string, target: string }} [referenceLines]  the names of a
+ *   chart's reference lines
  * @property {Record<string, string>} [fields]  display names of fields by field name (matched
  *   case-insensitively): the corner headers, value names and exports show them; views keep the names
  */
@@ -68,7 +70,8 @@ export const DEFAULT_LABELS = Object.freeze({
         percentRunningTotal: "% running total",
         rankAscending: "Rank (smallest first)",
         rankDescending: "Rank (largest first)"
-    })
+    }),
+    referenceLines: Object.freeze({ average: "Average", trend: "Trend", target: "Target" })
 });
 
 /**
@@ -139,7 +142,8 @@ export const REPORT_LABELS = Object.freeze({
             percentRunningTotal: "% laufende Summe",
             rankAscending: "Rang (kleinster zuerst)",
             rankDescending: "Rang (größter zuerst)"
-        }
+        },
+        referenceLines: { average: "Durchschnitt", trend: "Trend", target: "Ziel" }
     })
 });
 

@@ -199,7 +199,7 @@ export function Toolbar(props) {
         // the panels load with the chip menus (menus.js), on demand
         options: (close) => <MenuPanel name="OptionsPanel" loadingText={labels.loadingMenu} props={{ view, labels, onTotal, onExpand, onCollapse, close, tips, mod, folding, help: props.help }} />,
         views: (close) => <MenuPanel name="ViewsPanel" loadingText={labels.loadingMenu} props={{ templates, labels, onLoad: onLoadTemplate, actions: templateActions, close, share }} />,
-        chartType: (close) => <MenuPanel name="ChartTypePanel" loadingText={labels.loadingMenu} props={{ view, plan, labels, onChart, onDisplay: onChartDisplay, close, series: props.chartSeries, colors: props.chartColors }} />,
+        chartType: (close) => <MenuPanel name="ChartTypePanel" loadingText={labels.loadingMenu} props={{ view, plan, encoded: props.encoded, lineChecks: props.lineChecks, labels, locale: props.locale, onChart, onDisplay: onChartDisplay, close, series: props.chartSeries, colors: props.chartColors }} />,
         data: (close) => data?.panel(close)
     };
     // the dot while a file's data is shown (dot() below), with its words for a screen reader

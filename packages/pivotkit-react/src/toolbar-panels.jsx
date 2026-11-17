@@ -6,10 +6,12 @@
  */
 
 import React, { useEffect, useId, useRef, useState } from "react";
-import { VIEW_FILE_LIMITS } from "pivotkit-core";
+import { VIEW_FILE_LIMITS, referenceLineRules, swapAxes } from "pivotkit-core";
 import { CHART_TYPES, CHART_TYPE_NAMES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
 import { ClearInput } from "./clear-input.jsx";
 import { useFormName } from "./dom.js";
+import { parseTarget } from "./menu-ops.js";
+import { numberText } from "./numbers.js";
 import { dataExportFor } from "./export-scope.js";
 import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
@@ -114,14 +116,91 @@ function colorsDrawn(instance) {
 }
 
 /**
+ * The target line's value (Display › Reference lines › Target): applied with Enter or Apply; the ×
+ * and "Remove the target" remove it at once. For a value shown in percent, "25%" is a share
+ * (parseTarget), a hint says how to type it, and a bare number above 1 gets a soft warning:
+ * "25 is 2,500 %".
+ */
+function TargetField({ target, labels, locale, format, onTarget }) {
+    const [text, setText] = useState(numberText(target, locale));
+    // a target changed elsewhere (Undo, a link) shows here; the field keeps its element and the focus
+    const [last, setLast] = useState(target);
+    if (target !== last) {
+        setLast(target);
+        setText(numberText(target, locale));
+    }
+    const value = parseTarget(text, locale, format);
+    const bad = text.trim() !== "" && value === null;
+    const hintId = useId();
+    const warnId = useId();
+    // percent: a share (0.25 is 25 %); percent100: the percent itself (25 is 25 %)
+    const share = /^percent(?!100)/.test(format ?? "");
+    const hint = share ? labels.targetPercent : /^percent100/.test(format ?? "") ? labels.targetPercent100 : null;
+    const typed = text.trim();
+    const high = share && value !== null && value > 1 && !typed.endsWith("%");
+    const shown = (n) => new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 2 }).format(n);
+    const describedBy = [hint ? hintId : "", high ? warnId : ""].filter(Boolean).join(" ") || undefined;
+    return (
+        <>
+            <form
+                className="pk-inline-form"
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!bad) {
+                        onTarget(value);
+                    }
+                }}
+            >
+                <ClearInput
+                    type="text"
+                    inputMode="decimal"
+                    value={text}
+                    onChange={setText}
+                    onClear={() => (target !== null ? onTarget(null) : undefined)}
+                    clearLabel={labels.clearText}
+                    placeholder={labels.targetNone}
+                    aria-label={labels.core.referenceLines.target}
+                    aria-invalid={bad || undefined}
+                    aria-describedby={describedBy}
+                    data-testid="chart-target"
+                />
+                <button type="submit" className="pk-btn pk-primary" disabled={bad || value === target}>
+                    {labels.apply}
+                </button>
+            </form>
+            {hint ? (
+                <p id={hintId} className="pk-hint pk-subtitle" data-testid="target-hint">
+                    {hint}
+                </p>
+            ) : null}
+            {high ? (
+                <p id={warnId} className="pk-hint pk-subtitle" role="status" data-testid="target-warning">
+                    {fill(labels.targetPercentHigh, { typed, shown: shown(/** @type {number} */ (value)), share: shown(/** @type {number} */ (value) / 100) })}
+                </p>
+            ) : null}
+            {target !== null ? (
+                <button type="button" className="pk-btn" onClick={() => onTarget(null)} data-testid="target-remove">
+                    {labels.targetRemove}
+                </button>
+            ) : null}
+        </>
+    );
+}
+
+/**
  * The chart type menu: the types (a pick closes it), then how the chart is drawn, in levels as the
  * other menus (levels.jsx, menu-topics.js chartTopics): a row per topic with what is set, each
- * opening its level (Value labels, Legend, Title, Axis, Tooltip, Series, Layout). Each choice applies at once and the menu stays
+ * opening its level (Value labels, Legend, Title, Axis, Tooltip, Reference lines with its Target, Series, Layout). Each choice applies at once and the menu stays
  * open, so the chart behind it shows the change.
  */
-export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, series, colors }) {
+export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale, onChart, onDisplay, close, series, colors }) {
     const drawn = plan ? plan.name : chartTypeOf(view.chart);
     const names = legendNames(drawn, series);
+    // which reference lines the chart can draw: the drawn chart's checks with its numbers, else the
+    // view's rules (rows and columns swapped where the chart swaps them) and a note asking for the chart
+    const lines = view.chart.referenceLines;
+    const plain = plan?.chart && encoded ? referenceLineRules(plan.swap ? swapAxes(view) : view, { ...view.chart, ...plan.chart }, encoded) : { average: true, trend: true, target: true };
+    const rules = lineChecks ?? { ...plain, notes: ["table"] };
     // the colour each series or slice is drawn with, as #rrggbb, read again after each draw of the chart
     const [drawnColors, setDrawnColors] = useState(/** @type {Map<string, string>} */ (new Map()));
     useEffect(() => {
@@ -135,7 +214,7 @@ export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, 
         instance.on("finished", read);
         return () => instance.off("finished", read);
     }, [colors?.chart]);
-    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay }, drawnColors });
+    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay }, lines: { rules, targetText: numberText(lines?.target, locale) }, drawnColors });
     const head = (
         <Section title={labels.chartType}>
             <div className="pk-choice-grid">
@@ -151,7 +230,13 @@ export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, 
             close={close}
             onPick={runChoice(close)}
             head={head}
-            panel={(id) => (id === "title" ? <ChartTitle title={view.chart.title} labels={labels} onDisplay={onDisplay} /> : null)}
+            panel={(id) =>
+                id === "title" ? (
+                    <ChartTitle title={view.chart.title} labels={labels} onDisplay={onDisplay} />
+                ) : id === "linesTarget" ? (
+                    <TargetField target={lines?.target ?? null} labels={labels} locale={locale} format={lineChecks?.format} onTarget={(target) => onDisplay({ referenceLines: { ...lines, target } })} />
+                ) : null
+            }
         />
     );
 }

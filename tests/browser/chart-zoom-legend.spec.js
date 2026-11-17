@@ -360,7 +360,9 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
         await expect(report.getByTestId("level-title")).toHaveText("Display › Tooltip");
         await page.keyboard.press("Escape");
         await expect(report.getByTestId("topic-tooltip")).toBeFocused();
-        // Series: a switch per series; Space and Enter flip one, the level stays with the focus on it
+        // Reference lines (#48) next, then Series: a switch per series; Space and Enter flip one, the level stays with the focus on it
+        await page.keyboard.press("ArrowDown");
+        await expect(report.getByTestId("topic-lines")).toBeFocused();
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("Enter");
         await expect(report.getByTestId("level-title")).toHaveText("Display › Series");
@@ -409,7 +411,7 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
             const report = page.locator("#zoom-report");
             await chartMenu(report);
             const rows = await report.locator(".pk-popover [data-pk-level]").evaluateAll((els) => els.map((el) => el.dataset.testid));
-            expect(rows).toEqual(["topic-valueLabels", "topic-legend", "topic-title", "topic-axis", "topic-tooltip", "topic-series", "topic-layout"]);
+            expect(rows).toEqual(["topic-valueLabels", "topic-legend", "topic-title", "topic-axis", "topic-tooltip", "topic-lines", "topic-series", "topic-layout"]);
             // no group titles of their own between the chart types and the rows
             await expect(report.locator(".pk-popover .pk-section-title")).toHaveText(["Chart type"]);
             const fit = await report.locator(".pk-popover").evaluate((pop) => {

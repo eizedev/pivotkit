@@ -108,3 +108,15 @@ export function groupLabelOffset({ beside, slanted, longest, fontSize }) {
 
 /** Height (px) a line of group labels takes below the axis: the text and ECharts' margin. */
 export const groupLabelLine = (/** @type {number} */ fontSize) => fontSize + AXIS_LABEL_MARGIN;
+
+/** A sample of each dash of a reference line, written before its label in the line's colour. */
+export const LINE_SAMPLES = Object.freeze({ dashed: "– –", dotted: "···", solid: "——" });
+
+/**
+ * A reference line's label as ECharts rich text: the sample of its dash (`type`, a lineStyle.type) in
+ * the style `s` (the line's colour), then its words. Braces and bars in the words are left out, so a
+ * name from the labels cannot open markup of its own.
+ * @param {string} type
+ * @param {string} words
+ */
+export const lineLabelText = (type, words) => `{s|${Object.hasOwn(LINE_SAMPLES, type) ? LINE_SAMPLES[/** @type {keyof typeof LINE_SAMPLES} */ (type)] : ""}} ${String(words).replace(/[{}|]/g, "")}`;

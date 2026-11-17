@@ -32,6 +32,7 @@ export const de = {
         hidden: "ausgeblendete Reihen",
         colors: "Farben",
         tooltipShare: "Anteil im Tooltip",
+        target: "Ziellinie",
         other: "Einstellung"
     },
     dropped: {

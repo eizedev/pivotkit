@@ -3,7 +3,8 @@
  * peer dependency). ECharts is loaded on first use (echarts.js: only the chart types and components the
  * core builds), so a report that never shows a chart does not load it. Colours come from the --pk-* tokens.
  * At most MAX_CATEGORIES categories are drawn (the series come from PivotReport, which also reads
- * them for the tips). The canvas has a text alternative (chart-summary.js).
+ * them for the tips). The canvas has a text alternative (chart-summary.js), with the reference lines
+ * once the chart has drawn them.
  */
 
 import React, { useEffect, useId, useRef, useState } from "react";
@@ -32,6 +33,7 @@ export function loadECharts() {
  *   labels: import("./labels.js").UiLabels, locale: string,
  *   themeName: string, root: React.RefObject<HTMLElement>, onInstance: (chart: any) => void,
  *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
+ *   onLines?: (checks: { average: boolean, trend: boolean, target: boolean, notes: string[], format?: string } | null) => void,
  *   onLegend?: (change: { name: string, shown: boolean }) => void,
  *   valueNames: string[], chartOptions?: Record<string, unknown> | null, colorMap?: unknown,
  *   plan?: { name: string, chart: { type: string, stacked: boolean, horizontal: boolean } } }} props
@@ -39,9 +41,11 @@ export function loadECharts() {
  *   `chartOptions`: the host's plain JSON (chart-options.js, checked), merged over everything else;
  *   `colorMap`: the host's colour per series or slice name, one or one per theme (chart-colors.js);
  *   `plan`: what to draw (chart-types.js chartPlan), the view's type resolved when it is "auto";
+ *   `onLines`: which reference lines the drawn chart can draw (pivotkit-core's referenceLineChecks,
+ *   with the first series' format), null when none is drawn;
  *   `onLegend`: a legend entry was clicked, and is shown or hidden now
  */
-export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, onLegend, valueNames, chartOptions, colorMap, plan }) {
+export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, onLines, onLegend, valueNames, chartOptions, colorMap, plan }) {
     const el = useRef(/** @type {HTMLDivElement | null} */ (null));
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
@@ -51,10 +55,12 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const [box, setBox] = useState("");
     // n when the category axis writes every n-th label only: a note says so
     const [every, setEvery] = useState(1);
+    // the reference lines drawn, in words for the text alternative (loaded with the chart)
+    const [linesText, setLinesText] = useState("");
     const summaryId = useId();
     const type = plan ? plan.name : chartTypeOf(result.view.chart);
     const drawAs = plan ? plan.chart : null;
-    const latest = useRef({ series, onPoint, onInstance, onLegend, type });
+    const latest = useRef({ series, onPoint, onInstance, onLines, onLegend, type });
     // the legend and the zoom slider between draws (chart-legend.js); a new window size draws again
     const keeper = useRef(/** @type {any} */ (null));
     const [zoomed, setZoomed] = useState(0);
@@ -74,7 +80,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     // so the click itself does not say
     const touched = useRef(false);
     useEffect(() => {
-        latest.current = { series, onPoint, onInstance, onLegend, type };
+        latest.current = { series, onPoint, onInstance, onLines, onLegend, type };
     });
 
     useEffect(() => {
@@ -188,6 +194,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
             chart.current?.dispose();
             chart.current = null;
             latest.current.onInstance(null);
+            latest.current.onLines?.(null);
         };
         // one instance per mounted chart; the latest props are read through refs
     }, []);
@@ -208,11 +215,13 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         tapped.current = null;
         // each series' value: a stack's total only where the values add up (chart-tooltip.js valueAddsUp)
         const values = (series?.series ?? []).map((x) => result.view.values[x.valueIndex]);
-        const tooltip = { mode: result.view.chart.tooltip, share: Boolean(result.view.chart.tooltipShare), hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values };
+        // the reference lines (chart-tooltip.js chartLines): the tooltip names them, the text
+        // alternative says them, and the Display menu learns which ones the drawn chart can draw
+        const lines = series ? lib.current.chartLines(result, { series, chart: drawAs, labels, locale }) : null;
+        setLinesText(lines?.text ?? "");
+        latest.current.onLines?.(lines?.checks ?? null);
+        const tooltip = { mode: result.view.chart.tooltip, share: result.view.chart.tooltipShare, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values, lines: lines?.lines ?? [] };
         const doc = root.current.ownerDocument;
-        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), doc, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, ...keeper.current.zoomOf(result, series?.categories ?? [], doc), tooltip, parseColor: lib.current.color.parse });
-        keeper.current.drawn(drawn.dataZoom);
-        setEvery(axisEvery);
         setShown(series ? lib.current.shownOf(series, option, result.view.chart.hidden, SLICE_TYPES.includes(type)) : null);
         // the host's chartOptions win over the view's display settings and the report's own styles:
         // plain JSON only; what is dropped is a developer's mistake, said in the console
@@ -221,12 +230,15 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
             warned.current = chartOptions;
             console.warn(`pivotkit: chartOptions entries left out (only plain JSON, and no markup, addresses or text templates): ${clean.problems.slice(0, 5).join("; ")}${clean.problems.length > 5 ? `; and ${clean.problems.length - 5} more` : ""}`);
         }
-        chart.current.setOption(clean?.options ? lib.current.mergeChartOptions(drawn, clean.options) : drawn, { notMerge: true });
+        // the report's marks, the host's chartOptions over them, the reference lines' labels at their lines
+        const drawn = lib.current.drawOption(chart.current, option, style, doc, { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, ...keeper.current.zoomOf(result, series?.categories ?? [], doc), tooltip, parseColor: lib.current.color.parse }, clean?.options);
+        keeper.current.drawn(drawn.dataZoom);
+        setEvery(drawn.axisEvery);
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
     }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs, zoomed, type]);
 
     const empty = result.view.values.length === 0;
-    const summary = series && !empty ? chartSummary(shown?.series ?? series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale, shares: shown?.shares }) : labels.noChartData;
+    const summary = series && !empty ? chartSummary(shown?.series ?? series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale, shares: shown?.shares, linesText }) : labels.noChartData;
     return (
         <div className="pk-chart-wrap">
             <div className="pk-chart-box">

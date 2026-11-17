@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { encode, normalize } from "pivotkit-core";
 import { LABELS } from "../src/labels.js";
 import { en as menuEn } from "../src/menu-labels.js";
+import { de as menuDe } from "../src/menu-labels-de.js";
 import { chartTopics } from "../src/menu-topics.js";
 
 const data = encode([
@@ -17,12 +18,12 @@ const ids = (topics) => topics.filter((t) => !t.hidden).map((t) => t.id);
 const byId = (topics, id) => topics.find((t) => t.id === id);
 const choices = (topic) => (topic.groups ?? []).flatMap((g) => g.choices);
 
-test("bars: every topic a row with what is set that opens a level: Value labels, Legend, Title, Axis, Tooltip, Series, Layout", () => {
+test("bars: every topic a row with what is set that opens a level: Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series, Layout", () => {
     const patches = [];
     const view = norm({ rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar", stacked: true, hidden: ["Services"], zoom: "off" } });
     const topics = chartTopics({ view, drawn: "stacked", labels, names: ["Hardware", "Services"], act: { display: (p) => patches.push(p) } });
-    assert.deepEqual(ids(topics), ["valueLabels", "legend", "title", "axis", "tooltip", "series", "layout"]);
-    assert.deepEqual(topics.map((t) => t.kind), ["menu", "menu", "panel", "menu", "menu", "menu", "menu"]);
+    assert.deepEqual(ids(topics), ["valueLabels", "legend", "title", "axis", "tooltip", "lines", "series", "layout"]);
+    assert.deepEqual(topics.filter((t) => !t.hidden).map((t) => t.kind), ["menu", "menu", "panel", "menu", "menu", "menu", "menu", "menu"]);
     assert.deepEqual([byId(topics, "valueLabels").state, byId(topics, "legend").state], ["Automatic", "Automatic"]);
     // the rows say what is set; a setting off its default is marked
     assert.deepEqual([byId(topics, "title").state, byId(topics, "axis").state, byId(topics, "axis").changed], ["No title", "Automatic, zoom slider off", true]);
@@ -108,3 +109,42 @@ test("Tooltip has the share as a switch; Series has a colour beside each series,
     assert.equal(series.changed, true);
 });
 
+test("Reference lines: a level after Tooltip on bars, lines and areas: Average and Trend switches, a Target row that opens its form, the reasons (#48)", () => {
+    const patches = [];
+    const of = (referenceLines, { type = "bar", rules = { average: true, trend: true, target: true, notes: [] }, targetText = "" } = {}) => {
+        const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type, referenceLines } });
+        return chartTopics({ view, drawn: type, labels, names: ["Sum of Revenue"], act: { display: (p) => patches.push(p) }, lines: { rules, targetText } });
+    };
+    const off = byId(of({ average: false, trend: false, target: null }), "lines");
+    assert.deepEqual([off.title, off.kind, off.state, off.changed, off.note], ["Reference lines", "menu", "Off", false, null]);
+    // the switches, as Layout's (a switch keeps its level open, levels.jsx); the Target row opens its form
+    const [average, trend, target] = choices(off);
+    assert.deepEqual([average.checkbox, average.checked, trend.checkbox, target.open, target.hint], [true, false, true, "linesTarget", "No target"]);
+    average.run();
+    assert.deepEqual(patches.splice(0), [{ referenceLines: { average: true, trend: false, target: null } }]);
+    const form = byId(of({ average: false, trend: false, target: null }), "linesTarget");
+    assert.deepEqual([form.kind, form.hidden, form.levelTitle], ["panel", true, "Reference lines › Target"]);
+    // what is on, and the target as the locale writes it
+    const some = of({ average: true, trend: false, target: 26 }, { targetText: "26" });
+    assert.deepEqual([byId(some, "lines").state, byId(some, "lines").changed, choices(byId(some, "lines"))[2].hint], ["Average, Target", true, "26"]);
+    // a stack of averages: every line off with its reason
+    const stack = byId(of({ average: true, trend: false, target: 26 }, { rules: { average: false, trend: false, target: false, notes: ["noTotal"] } }), "lines");
+    const reasons = choices(stack).map((c) => [c.id, c.disabled ?? false, c.reason ?? null]);
+    const why = "These lines need a total. Switch to Bars, not stacked, to draw them.";
+    assert.deepEqual(reasons, [["line-average", true, why], ["line-trend", true, why], ["line-target", true, why], ["target-remove", false, null]]);
+    choices(stack)[3].run();
+    assert.deepEqual(patches.splice(0), [{ referenceLines: { average: true, trend: false, target: null } }]);
+    // no time line: the trend's reason; values in two units: the target's
+    const regions = choices(byId(of({ average: false, trend: false, target: null }, { rules: { average: true, trend: false, target: false, notes: ["noTime", "mixedUnits"] } }), "lines"));
+    assert.deepEqual([regions[1].reason, regions[2].reason], ["A trend needs dates on Rows, in date order.", "The values have different units, so one target does not fit them."]);
+    // the table shown: a note asks for the chart
+    assert.equal(byId(of({ average: false, trend: false, target: null }, { rules: { average: true, trend: true, target: true, notes: ["table"] } }), "lines").note, "Show the chart to see which lines it can draw.");
+    // a pie, a donut and a heatmap have no lines
+    for (const type of ["pie", "donut", "heatmap"]) {
+        assert.equal(byId(of({ average: true, trend: false, target: null }, { type }), "lines"), undefined, type);
+    }
+    // German
+    const de = { ...LABELS.de, ...menuDe };
+    const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" } });
+    assert.equal(byId(chartTopics({ view, drawn: "bar", labels: de, names: ["x"], act: { display: () => {} } }), "lines").state, "Aus");
+});

@@ -158,15 +158,22 @@ export function chartSvg(result, { echarts, style, width, height, locale, labels
     // black: the light default stands in for it. Every other colour is written into the SVG as it is
     const parse = echarts.color?.parse;
     const readColor = typeof parse === "function" ? (/** @type {string} */ c) => (parse(c.trim()) ? c : null) : undefined;
-    const decorated = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels, readColor });
+    const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf) => {
+        // axisEvery is the report's own note, not ECharts'
+        const { axisEvery, ...decorated } = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels, readColor, pixelOf });
+        void axisEvery;
+        return decorated;
+    };
     const surface = style.getPropertyValue("--pk-surface").trim() || LIGHT_TOKENS["--pk-surface"];
     const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width, height });
     let svg;
     try {
-        // axisEvery is the report's own note, not ECharts'
-        const { axisEvery, ...option2 } = decorated;
-        void axisEvery;
-        chart.setOption({ ...option2, backgroundColor: surface, animation: false });
+        const first = marked(undefined);
+        chart.setOption({ ...first, backgroundColor: surface, animation: false });
+        // the labels of lying reference lines at their lines' real heights, as on the screen
+        if (!Array.isArray(first.yAxis) && first.yAxis?.type === "value" && (first.series ?? []).some((/** @type {any} */ s) => s.markLine)) {
+            chart.setOption({ series: marked((v) => chart.convertToPixel({ yAxisIndex: 0 }, v)).series });
+        }
         svg = chart.renderToSVGString();
     } finally {
         chart.dispose();

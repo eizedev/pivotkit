@@ -27,6 +27,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   the view, and 100 % stacked bars and areas ([#36](https://github.com/eizedev/pivotkit/issues/36)), ([#575](https://github.com/eizedev/pivotkit/issues/575)).
 - The `colorMap` property: a fixed colour per series or slice name. Export → Copy chart image, the
   `pivot-export` kind `"copy-chart"`, colours in Display › Series and the share in Display › Tooltip ([#54](https://github.com/eizedev/pivotkit/issues/54)).
+- Reference lines in the chart: Display › **Reference lines** with **Average**, **Trend** and a
+  **Target** ([#48](https://github.com/eizedev/pivotkit/issues/48)). ECharts' markLine component
+  draws them: about 6 KiB gzip more in the chart's chunk.
 - `drill-down-export` (boolean attribute) and the `drillDownExport` property: the drill-down panel's
   copy and download while `export-data` is off. As pivotkit-react's `drillDownExport`.
 

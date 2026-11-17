@@ -824,6 +824,28 @@
                 "maxLength": 10000
               }
             },
+            "referenceLines": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "average": {
+                  "type": "boolean"
+                },
+                "trend": {
+                  "type": "boolean"
+                },
+                "target": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
             "colors": {
               "type": "array",
               "maxItems": 100000,

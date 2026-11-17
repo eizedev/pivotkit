@@ -249,7 +249,7 @@ function fieldsOf(data) {
  * its default, so a reader of 0.7 takes the file without an `unknownKey` warning unless the view sets
  * one; reading a file puts them back. The keys 0.7 knows are written as they are.
  */
-export const NEWER_CHART_KEYS = Object.freeze(["tooltip", "zoom", "stackPercent", "hidden", "colors", "tooltipShare"]);
+export const NEWER_CHART_KEYS = Object.freeze(["tooltip", "zoom", "stackPercent", "hidden", "referenceLines", "colors", "tooltipShare"]);
 
 /**
  * A view with the newer chart keys at their defaults left out (`back` false), or put back where a file

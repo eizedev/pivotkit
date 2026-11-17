@@ -27,12 +27,14 @@ function counts(s, labels, locale) {
 }
 
 /**
- * "Bars: Sum of Revenue by Region. 4 categories, 3 series. Highest 1,234 at North / A; lowest ..."
+ * "Bars: Sum of Revenue by Region. 4 categories, 3 series. Highest 1,234 at North / A; lowest ...
+ * Reference lines: Average 617; Target 1,000."
  * `s`: the series shown (chart-legend.js shownOf leaves hidden ones out); `shares`: a 100 % stack, said so.
  * @param {ReturnType<typeof import("pivotkit-core").toSeries>} s
- * @param {{ type: string, rows: string[], valueNames: string[], labels: import("./labels.js").UiLabels, locale: string, shares?: boolean }} options
+ * @param {{ type: string, rows: string[], valueNames: string[], labels: import("./labels.js").UiLabels, locale: string, shares?: boolean, linesText?: string }} options
+ *   linesText: the sentence on the reference lines (chart-tooltip.js linesSummary, loaded with the chart)
  */
-export function chartSummary(s, { type, rows, valueNames, labels, locale, shares = false }) {
+export function chartSummary(s, { type, rows, valueNames, labels, locale, shares = false, linesText = "" }) {
     const parts = [
         fill(labels.chartSummary, { type: labels.chartTypes[type] ?? type, values: valueNames.join(", "), categories: rows.length ? rows.join(" / ") : labels.categories }),
         counts(s, labels, locale),
@@ -59,6 +61,9 @@ export function chartSummary(s, { type, rows, valueNames, labels, locale, shares
         const where = (p) => (s.series.length > 1 && s.series[p.si].name ? `${s.categories[p.ci]} / ${s.series[p.si].name}` : s.categories[p.ci]);
         const text = (p) => formatter(s.series[p.si].format, { locale })(p.v);
         parts.push(fill(labels.chartExtremes, { max: text(max), maxAt: where(max), min: text(min), minAt: where(min) }));
+    }
+    if (linesText) {
+        parts.push(linesText);
     }
     parts.push(labels.chartTableHint);
     return parts.join(" ");

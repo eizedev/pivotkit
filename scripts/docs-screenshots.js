@@ -48,6 +48,15 @@ const GROUPED = encodeViewLink({
     chart: { type: "bar", title: "The three largest countries of each region (2024)" }
 });
 
+/** Monthly revenue as a line with its reference lines: the average, the trend and a target. */
+const LINES = encodeViewLink({
+    rows: ["Month (Year and month)"],
+    derived: [{ name: "Month (Year and month)", field: "Month", by: "yearMonth" }],
+    values: [{ field: "Revenue", agg: "sum", format: "currency:EUR" }],
+    display: "chart",
+    chart: { type: "line", title: "Monthly revenue", referenceLines: { average: true, trend: true, target: 500000 } }
+});
+
 /** Revenue per region, stacked by category: the tooltip of one segment names it with the stack's total. */
 const STACKED = encodeViewLink({
     rows: ["Region"],
@@ -315,6 +324,21 @@ const SHOTS = [
         open: async (page) => {
             await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
             await page.getByTestId("pivot-chart").evaluate((el) => el.scrollIntoView({ block: "end" }));
+        }
+    },
+    // a line with its average (dashed), its trend (dotted) and a target (solid)
+    { name: "chart-lines", query: "data=sales", hash: LINES, size: WIDE, chart: true },
+    {
+        // Display › Reference lines open over the same chart: the switches, the target and its row's level
+        name: "chart-lines-level",
+        query: "data=sales",
+        hash: LINES,
+        size: WIDE,
+        chart: true,
+        open: async (page) => {
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await toolbar(page, "chart-type");
+            await page.getByTestId("topic-lines").click();
         }
     },
     {

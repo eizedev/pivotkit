@@ -68,6 +68,61 @@ test("every text of a chart is at least 14 px, and a host's --pk-chart-text-size
     }
 });
 
+test("reference lines (#48): an SVG and the HTML report draw them with their labels, the target in --pk-chart-reference", async () => {
+    // North 10, South 12, West 4, (blank) 6 units: average 8, a target of 15 above every bar
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", referenceLines: { average: true, trend: true, target: 15 } } };
+    const r = await render(view, SALES, { format: "svg", echarts, ...FIXED });
+    // the words of a label follow the sample of its line's dash, a text of its own
+    const texts = svgTexts(r.text).map((t) => t.trim());
+    assert.ok(texts.includes("Average 8"), texts.join(" | "));
+    assert.ok(texts.includes("Target 15"), texts.join(" | "));
+    // regions have no order of their own: no trend
+    assert.ok(!texts.includes("Trend"));
+    // the target in the light --pk-chart-reference (--pk-muted), a host's own colour when it gives one
+    assert.ok(r.text.includes('stroke="#5a6270"'), "the reference colour");
+    const own = await render(view, SALES, { format: "svg", echarts, tokens: { "--pk-chart-reference": "#b42318" }, ...FIXED });
+    assert.ok(own.text.includes('stroke="#b42318"'));
+    // the HTML report's chart, its SVG written inline
+    const html = await render({ ...view, display: "chart" }, SALES, { format: "html", chart: true, chartEmbed: "inline", echarts, ...FIXED });
+    assert.ok(svgTexts(html.text).map((t) => t.trim()).includes("Target 15"));
+});
+
+test("reference lines (#48): the SVG draws a trend over real time on the data's own points", async () => {
+    // 10 a month, with 7 months left out after February: January 10, February 20, October 100
+    const rows = [["2026-01-15", 10], ["2026-02-15", 20], ["2026-10-15", 100]].map(([Date, Revenue]) => ({ Date, Revenue }));
+    const view = { derived: [{ name: "Month", field: "Date", by: "yearMonth" }], rows: ["Month"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", referenceLines: { average: false, trend: true, target: null } } };
+    const r = await render(view, rows, { format: "svg", echarts, ...FIXED });
+    const points = (d) => [...d.matchAll(/(-?[\d.]+)[ ,](-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    // the trend: dotted parts from category to category
+    const trend = [...r.text.matchAll(/<path d="([^"]+)"[^>]*stroke-dasharray/g)].map((m) => points(m[1]));
+    assert.equal(trend.length, 2);
+    assert.deepEqual(trend[0][1], trend[1][0], "the parts join");
+    // the line of the data, a straight line in time: the trend passes through each of its points
+    const line = [...r.text.matchAll(/<path d="(M[^"]+)"[^>]*stroke-width="2"/g)].map((m) => points(m[1])).find((p) => p.length === 3);
+    assert.ok(line, "the data's line");
+    const ends = [trend[0][0], trend[0][1], trend[1][1]];
+    ends.forEach((p, i) => {
+        assert.ok(Math.abs(p[0] - line[i][0]) < 1 && Math.abs(p[1] - line[i][1]) < 1, `point ${i}: ${p} vs ${line[i]}`);
+    });
+});
+
+test("reference lines (#48): the SVG puts each label at its line, after a sample of its dash in its colour", async () => {
+    // North 10, South 12, West 4, (blank) 6: an average of 8 and a target of 8.5, close together
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", referenceLines: { average: true, trend: false, target: 8.5 } } };
+    const r = await render(view, SALES, { format: "svg", echarts, ...FIXED });
+    const lineY = (stroke) => Number(new RegExp(`<path d="M[\\d.]+ ([\\d.]+)L[\\d.]+ \\1"[^>]*stroke="${stroke}"`).exec(r.text)?.[1]);
+    const labelY = (words) => Number(new RegExp(`translate\\([\\d.]+ ([\\d.]+)\\)"[^>]*>\\s*${words}<`).exec(r.text)?.[1]);
+    const average = { line: lineY("#2a78d6"), label: labelY("Average 8") };
+    const target = { line: lineY("#5a6270"), label: labelY("Target 8.5") };
+    assert.ok(Number.isFinite(average.line) && Number.isFinite(target.line), r.text.slice(0, 200));
+    assert.ok(Math.abs(target.label - target.line) < 1, JSON.stringify(target));
+    // the average is close below the target: its label a line of text lower than the target's, near its own line
+    assert.ok(average.label - target.label >= 18 && Math.abs(average.label - average.line) < 6, JSON.stringify({ average, target }));
+    // the samples: the average's dash in its series' colour, the target's in the reference colour
+    assert.match(r.text, /fill="#2a78d6"[^>]*>– –</);
+    assert.match(r.text, /fill="#5a6270"[^>]*>——</);
+});
+
 test("100 % stacked bars and hidden series reach the SVG (#36)", async () => {
     const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] };
     const stacked = await render({ ...view, chart: { type: "bar", stacked: true, stackPercent: true, zoom: "on" } }, SALES, { format: "svg", echarts, ...FIXED });

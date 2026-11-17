@@ -5,6 +5,8 @@
  */
 
 import { colorLookup } from "./chart-colors.js";
+import { referenceLines } from "./chart-lines.js";
+import { lineLabelText } from "./chart-measure.js";
 import { autoChartType, toSeries } from "./chart-series.js";
 import { legendSelected, percentShares, stacksToPercent } from "./chart-stack.js";
 import { DEFAULT_THEME, GRID_TOP, HEATMAP_GRID_BOTTOM } from "./defaults.js";
@@ -32,6 +34,7 @@ import { SLICE_CHART_TYPES } from "./view.js";
  * @property {[string, string]} [heatmapColors]  low and high end of the heatmap scale
  * @property {[string, string]} [pieRadius]       inner and outer radius of a pie, default a circle (0%, 70%)
  * @property {[string, string]} [donutRadius]     inner and outer radius of a donut, default a ring (42%, 70%)
+ * @property {string} [referenceColor]  reference lines of no series (a target, a stack's total), default textColor
  */
 
 /** Room (px) the title takes above the chart: its line and 16 px below it (32 px at 16 px). */
@@ -297,6 +300,15 @@ export function toEChartsOption(result, options) {
     const showValues = labels !== "auto" && labels !== "off";
     const position = type === "line" ? "top" : stacked ? "inside" : chart.horizontal ? "right" : "top";
     const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? (percent ? shareFormatter(p.value) : fmt(p.value)) : "") } } : {};
+    const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme, short: (v) => compact(v), hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
+    // the value axis reaches every line: a target past the tallest bar is drawn, not cut off.
+    // dataMin and dataMax are ECharts' own (ECharts 6, scaleRawExtentInfo: they widen the data's
+    // extent before the nice ticks), little documented: tests/browser/chart-lines.spec.js checks that a
+    // target above every bar is inside the plot, so an ECharts update that drops them fails there
+    if (marks.extent) {
+        valueAxis.dataMin = marks.extent[0];
+        valueAxis.dataMax = marks.extent[1];
+    }
     return {
         ...base,
         ...title,
@@ -308,7 +320,7 @@ export function toEChartsOption(result, options) {
         tooltip: { trigger: "axis", valueFormatter, shareFormatter },
         ...(type === "bar" ? { axisPointer: { triggerEmphasis: false } } : {}),
         // room for the title and the legend; ECharts keeps its own defaults for the label margins
-        grid: { top: GRID_TOP + titleRoom + room.top, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
+        grid: { top: GRID_TOP + titleRoom + room.top + marks.room, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
         xAxis: chart.horizontal ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
         yAxis: chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
         series: s.series.map((x, i) => {
@@ -323,8 +335,84 @@ export function toEChartsOption(result, options) {
                 ...(color ? { itemStyle: { color }, ...(type === "line" ? { lineStyle: { color } } : {}) } : {}),
                 ...(chart.type === "area" ? { areaStyle: color ? { color } : {} } : {}),
                 ...(type === "line" ? { connectNulls: false, smooth: Boolean(chart.smooth) } : {}),
-                ...valueLabel
+                ...valueLabel,
+                ...(marks.bySeries[i] ? { markLine: { silent: true, symbol: ["none", "none"], data: marks.bySeries[i] } } : {})
             };
         })
     };
+}
+
+/**
+ * How each kind of reference line is drawn: an average dashed, a trend dotted, a target solid. The
+ * labels of lying lines go right of the plot (decorateOption keeps them apart and makes room for
+ * them); on horizontal bars the lines stand upright, and their labels go above the plot, one row
+ * each (markLines' `room`).
+ */
+const LINE_TYPES = Object.freeze({ average: "dashed", trend: "dotted", target: "solid" });
+/** Room (px) between a label above the plot and the plot, and between two rows of them. */
+const LABEL_GAP = 6;
+
+/**
+ * The reference lines as ECharts markLine data, by the series that draws them: a series' own lines on
+ * it, in its colour; the lines of no series (a target, a stack's total) on the last series shown,
+ * drawn above every mark, in the theme's reference colour. Silent: a line is no element to point at; the
+ * tooltip names its value. A trend is drawn from category to category, at its value at each: over
+ * real time with a gap it bends where the axis leaves the gap out. A label writes the name and the
+ * value as the value axis does (`short`); each item's `name` is the line's name alone, for a chart too
+ * narrow for the value. `extent`: the lowest and highest value of the lines, for the value axis;
+ * `room`: the height (px) the labels of upright lines take above the plot.
+ * @param {import("./chart-lines.js").ReferenceLine[]} lines
+ * @param {ReturnType<typeof toSeries>} s
+ * @param {{ horizontal: boolean, theme: ChartTheme, short: (v: number) => string, hidden: string[] }} how
+ *   hidden: the series the legend hides (chart.hidden); ECharts hides a series' markLine with it
+ */
+function markLines(lines, s, { horizontal, theme, short, hidden }) {
+    /** @type {any[][]} */
+    const bySeries = s.series.map(() => []);
+    // the lines of no series go on the last series shown; with none shown, nowhere
+    const shown = s.series.map((x, i) => (hidden.includes(x.name) ? -1 : i)).filter((i) => i >= 0);
+    const holder = shown.length ? shown[shown.length - 1] : -1;
+    const values = [];
+    const value = horizontal ? "xAxis" : "yAxis";
+    const fontSize = theme.textSize ?? DEFAULT_THEME.textSize;
+    let rows = 0;
+    // a point of a trend: [category, value], or [value, category] along a horizontal chart
+    const point = (category, v) => ({ coord: horizontal ? [v, category] : [category, v] });
+    for (const line of lines) {
+        const own = line.series !== null ? s.series[line.series] : undefined;
+        const text = line.kind === "trend" ? line.name : `${line.name} ${short(/** @type {number} */ (line.value))}`;
+        // upright lines: the labels in rows above the plot (the category axis runs downwards, so a
+        // line starts at the top), the first row nearest to it; lying ones right of the plot
+        const where = horizontal ? { position: "start", distance: [0, LABEL_GAP + rows * (fontSize + LABEL_GAP)] } : { position: "end", distance: LABEL_GAP };
+        rows += 1;
+        // the line's colour: its series' (the palette's, as ECharts picks it), else the reference colour
+        const colors = theme.colors ?? [];
+        const color = own ? colors[/** @type {number} */ (line.series) % Math.max(1, colors.length)] : (theme.referenceColor ?? theme.textColor);
+        const type = LINE_TYPES[line.kind];
+        const style = {
+            name: line.name,
+            lineStyle: { type, width: 1.5, ...(own ? {} : { color }) },
+            // the words in the text colour, after a sample of the line's dash in its colour
+            label: { formatter: () => lineLabelText(type, text), rich: { s: { ...(color ? { color } : {}), fontSize } }, ...where, color: theme.textColor, fontSize }
+        };
+        const target = bySeries[own ? /** @type {number} */ (line.series) : holder];
+        if (line.kind === "trend") {
+            const first = /** @type {number} */ (line.first);
+            const last = /** @type {number} */ (line.last);
+            const at = /** @type {(i: number) => number} */ (line.at);
+            // over the categories' order the line is straight: one segment
+            const step = line.byTime ? 1 : last - first;
+            for (let i = first; i < last; i += step) {
+                // the label on the last part only
+                const part = i + step === last ? style : { ...style, label: { ...style.label, show: false } };
+                target?.push([{ ...point(i, at(i)), ...part }, point(i + step, at(i + step))]);
+                values.push(at(i));
+            }
+            values.push(at(last));
+        } else {
+            target?.push({ [value]: line.value, ...style });
+            values.push(/** @type {number} */ (line.value));
+        }
+    }
+    return { bySeries: bySeries.map((d) => (d.length ? d : null)), extent: values.length ? [Math.min(...values), Math.max(...values)] : null, room: horizontal && rows ? rows * (fontSize + LABEL_GAP) + LABEL_GAP : 0 };
 }

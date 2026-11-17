@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, the tooltip of the element under the pointer, fixed colours, the share in the tooltip and the chart image.
+description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, the tooltip of the element under the pointer, fixed colours, the share in the tooltip and the chart image.
 ---
 
 # Charts
@@ -80,6 +80,7 @@ labels of a pie.
 | Share in the tooltip | Display › Tooltip | on, off. Not for a heatmap. | off |
 | Series | Display › Series | A switch per series, or per slice of a pie or a donut, with its colour beside it. One series is listed for its colour. | all shown, in the palette or the colours your app sets |
 | Stacked to 100 % | Display › Layout | on, off. Stacked bars and areas of sums and counts. | off |
+| Reference lines | Display › Reference lines | Average, Trend, Target. Bars, lines and areas. See [below](#reference-lines). | none |
 | Smooth lines | Display › Layout | on, off. Lines and areas. | off |
 | Labels of a pie | Display › Layout | Outside, Inside. Not while value labels are Off. | Outside |
 
@@ -194,6 +195,80 @@ bars and areas of sums and counts, the values that add up. An area is stacked by
 - A stack with parts below zero does not fill the axis: its parts above and below zero share the
   100 %, and the axis runs from -100 %. A stack that adds up to nothing gets no bar.
 
+## Reference lines
+
+A reference line compares the values with their average, with their trend over time, or with a
+target you set.
+
+1. Open the chart type menu next to **Table** and **Chart**.
+2. Open **Reference lines**. Its row says which lines are on, such as "Average, Target".
+3. Switch on **Average** or **Trend**. The level stays open, so you can switch both.
+4. Open **Target**. Its row shows the target, or "No target". Type a number and press Enter, or
+   click **Apply**. **Remove the target** or the **×** removes it.
+5. **Back** or Escape returns one level.
+
+![The chart type menu open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-light.png#only-light)
+![The chart type menu open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-dark.png#only-dark)
+
+![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-light.png#only-light)
+![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-dark.png#only-dark)
+
+| Line | Drawn as | Shows |
+| --- | --- | --- |
+| Average | dashed, in the series' colour | the mean of the series' values in the chart |
+| Trend | dotted, in the series' colour | a straight line fitted through the series' values, from its first to its last point |
+| Target | solid, in a neutral colour | the number you typed, once for the whole chart |
+
+- Each line has a label right of the plot, at the line's height. It starts with a short sample of
+  the line's dash in the line's colour, then the name and the value, written short as on the axis,
+  such as "Target 500K". A label of a line close to another moves just below it.
+- On a chart narrower than 480 px, such as on a phone, the labels name the lines only. A label
+  that cannot sit near its line is left out there; the tooltip still names the line.
+- The value axis reaches every line. A target higher than every bar still shows.
+- The tooltip lists the lines at the category with their whole values: a trend with its value there.
+- The chart image, the HTML report and the chart as SVG draw the lines too.
+- The lines stay with the report: in saved views, links and the chart image.
+
+??? info "Which charts draw which line"
+    The chart draws a line only where it means something. A line the chart cannot draw is greyed out
+    in the menu, with the reason under it.
+
+    - **Pie, donut and heatmap** have no value axis. They draw no lines.
+    - **Bars, lines and areas side by side** draw an average and a trend for each series.
+    - **Stacked bars and areas** draw the lines of the stack's total, the sum of its parts. Only sums
+      and counts add up. A stack of averages, medians or maximums gets no lines at all, not even a
+      target: the height of such a stack is no total.
+    - **A stack with a part below zero** has no single total. It gets no average and no trend. The
+      target stays.
+    - **A trend** needs dates on Rows, such as "Created by month", in date order. Categories such
+      as countries have no order of their own, so a line through them would be made up. A sort by
+      value takes the date order away too.
+    - **A target** needs values in one unit. With a count beside a sum, or two values in different
+      formats, no single target fits, so the chart draws none.
+
+    A setting that does not apply stays in the view. When you switch back to a chart that can draw
+    the line, it is there again. A target that no longer applies keeps **Remove the target** in the
+    menu.
+    While the table is shown, the menu offers what the view allows and asks you to show the chart,
+    which knows its numbers.
+
+??? info "What the numbers are"
+    - pivotkit works out the lines from the categories the chart draws. A chart draws at most 50.
+    - The average and the trend leave out a category without a value.
+    - The average is the plain mean of the points in the chart. For a value that is itself an
+      average, such as the average order per month, the line is the mean of those averages. It does
+      not weigh a month by its number of orders.
+    - A trend fits a straight line to the points by least squares, over the real time between them.
+      A gap of 8 months counts as 8 months, so the line bends where the axis leaves the gap out.
+      When a category has no date, such as "(blank)", the trend counts the categories as evenly
+      spaced, and the menu says so.
+    - The target is a number in the value's own unit. For a value shown as a share in percent,
+      type "25%" or the share, 0.25. A plain 25 there means 2,500 %, and the menu warns about it.
+      For a value that counts in percent itself, type 25 or "25%". "%" works only for values shown
+      in percent.
+    - The tooltip and the text for screen readers write the numbers in the value's format. An
+      average of whole numbers keeps its decimals.
+
 ## Read the chart
 
 Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
@@ -218,7 +293,8 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 - A heatmap's colour scale writes its ends in the value's number format.
 - Click a bar, a point or a heatmap cell to open the rows behind it, as in the table. See
   [the rows behind a number](drill-down.md).
-- The chart has a text alternative for screen readers: type, values, counts, highest and lowest value.
+- The chart has a text alternative for screen readers: type, values, counts, highest and lowest
+  value, and the reference lines with their values.
 
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-light.png#only-light)
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-dark.png#only-dark)

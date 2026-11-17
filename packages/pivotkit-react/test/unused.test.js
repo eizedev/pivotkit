@@ -78,6 +78,13 @@ test("an issue's line names the value, the field or the part of the view it is a
     assert.equal(line(issues[0], raw, LABELS.de, de), "Planet: die Daten haben kein Feld mit diesem Namen - es wird in Zeilen weggelassen");
 });
 
+test("a target line that is no number has its line: the setting by name, in English and German (#48)", () => {
+    const raw = { chart: { referenceLines: { target: "lots" } } };
+    const [issue] = normalize(raw, data).issues;
+    assert.equal(line(issue, raw, LABELS.en), "Chart: the target line “lots” is unknown - the default is used");
+    assert.equal(line(issue, raw, LABELS.de, de), "Diagramm: Ziellinie „lots“ ist unbekannt - die Voreinstellung gilt");
+});
+
 test("a host's field labels name the fields; a host's texts and an unknown code have their line", () => {
     // the report puts the host's field labels (fieldDefaults) into labels.core.fields
     const host = resolveLabels("en", { unused: { codes: { placedTwice: "twice - once is enough" } } });

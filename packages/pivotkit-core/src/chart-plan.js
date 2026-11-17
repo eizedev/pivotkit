@@ -3,12 +3,14 @@
  * report (pivotkit-report): a type the user chose is drawn as it is; "auto" (the default) draws lines
  * when a date is on Rows, lines with rows and columns swapped for the chart alone when a date is on
  * Columns only (so the dates run along the axis and the table keeps its layout), else bars. And the
- * colours of a chart from the --pk-* tokens of a report's theme. Pure and small: the first load of a
- * report needs it.
+ * colours of a chart from the --pk-* tokens of a report's theme, and which reference lines it can
+ * draw. Pure and small: the first load of a report needs it.
  */
 
+import { AGGREGATORS } from "./aggregators.js";
 import { autoChartType } from "./chart-series.js";
 import { pxOf } from "./defaults.js";
+import { SHOW_AS } from "./show-as.js";
 
 /**
  * The chart settings to draw a view with.
@@ -24,6 +26,69 @@ export function chartPlan(view, encoded) {
     const own = autoChartType(/** @type {any} */ (view), encoded);
     const swap = own === "bar" && view.cols.length > 0 && autoChartType(/** @type {any} */ ({ ...view, rows: view.cols }), encoded) === "line";
     return { auto: true, swap, chart: { type: own === "line" || swap ? "line" : "bar", stacked: false, horizontal: false } };
+}
+
+/**
+ * Whether a value's results add up across a category's series, so a stack of them has a total: an
+ * additive aggregator (sum, count), shown as itself or as a show-as type that adds up (SHOW_AS
+ * addsUp; one that walks an axis only along the rows, the chart's categories).
+ * @param {{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined} value  the view's value
+ */
+export function valueAddsUp(value) {
+    if (!value || typeof value.agg !== "string" || !Object.hasOwn(AGGREGATORS, value.agg) || !AGGREGATORS[value.agg].additive) {
+        return false;
+    }
+    const showAs = value.showAs;
+    if (!showAs) {
+        return true;
+    }
+    const def = Object.hasOwn(SHOW_AS, showAs.type) ? SHOW_AS[showAs.type] : null;
+    return Boolean(def && def.addsUp && (!def.alongAxis || showAs.axis === "rows"));
+}
+
+/**
+ * Whether a view's categories are points in time in their own order: every row field a date or a
+ * grouping of one along the time line (what makes autoChartType draw lines), none sorted by a value
+ * or by hand.
+ * @param {{ rows: string[], derived: any[], sort: any[] }} view  a normalized view
+ * @param {import("./encode.js").Encoded} encoded
+ */
+function timeLine(view, encoded) {
+    const key = (name) => String(name).toLowerCase();
+    const ordered = (name) => !view.sort.some((s) => key(s.field) === key(name) && s.by !== "label");
+    return view.rows.length > 0 && view.rows.every((name) => autoChartType(/** @type {any} */ ({ ...view, rows: [name] }), encoded) === "line" && ordered(name));
+}
+
+/**
+ * Whether a chart is drawn stacked to 100 %: stacked bars, and areas (stacked by it). Lines and
+ * bars side by side are not.
+ * @param {{ type: string, stacked?: boolean, stackPercent?: boolean }} chart
+ */
+export function stacksToPercent(chart) {
+    return Boolean(chart.stackPercent) && ((chart.type === "bar" && Boolean(chart.stacked)) || chart.type === "area");
+}
+
+/**
+ * Which reference lines (chart.referenceLines) a chart can draw for a view, by the view alone: the one
+ * rule for the chart, its menu and its file. pivotkit-core/chart's referenceLineChecks adds what
+ * depends on the numbers, and says why a line is off.
+ * - Pie, donut and heatmap have no value axis: no lines.
+ * - Bars, lines and areas side by side: an average and a trend per series, over its plotted points.
+ * - Stacked: the lines of the stack's total, the sum of its drawn parts, only when every value adds
+ *   up (valueAddsUp). A stack of averages has a height that means nothing: no line at all. Nor has a
+ *   stack to 100 % (chart.stackPercent: stacked bars, and areas, which it stacks).
+ * - A trend only where the categories are points in time in their own order: every row field a date
+ *   or a grouping along the time line, none sorted by a value or by hand.
+ * A setting that is off here stays in the view: it draws again when the chart can.
+ * @param {{ rows: string[], derived: any[], sort: any[], values: any[] }} view  a normalized view
+ * @param {{ type: string, stacked?: boolean, stackPercent?: boolean }} chart  what is drawn: chartPlan's chart, never "auto"
+ * @param {import("./encode.js").Encoded} encoded
+ * @returns {{ average: boolean, trend: boolean, target: boolean }}
+ */
+export function referenceLineRules(view, chart, encoded) {
+    // a stack to 100 %: every stack the same height, no line
+    const counted = (chart.type === "bar" || chart.type === "line" || chart.type === "area") && !stacksToPercent(chart) && !(chart.stacked && !view.values.every(valueAddsUp));
+    return { average: counted, trend: counted && timeLine(view, encoded), target: counted };
 }
 
 /** "Show values as" types that name an axis, and their counterpart on the other one. */
@@ -79,7 +144,8 @@ export function chartThemeFrom(style) {
         axisColor: v("--pk-border") || undefined,
         gridColor: v("--pk-grid") || v("--pk-border") || undefined,
         fontFamily: v("font-family") || undefined,
-        backgroundColor: "transparent"
+        backgroundColor: "transparent",
+        referenceColor: v("--pk-chart-reference") || undefined
     };
     // a number for ECharts (1 to 1000, as in CSS); a host's keyword (bold) or an empty token keeps DEFAULT_THEME's
     const strong = Number(v("--pk-weight-strong"));
