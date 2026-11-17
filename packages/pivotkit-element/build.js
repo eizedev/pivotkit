@@ -324,9 +324,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * and the warning on label keys no longer shown (#580), together with #584: CI's zlib measures the
  * first load at 177.13; initial goes to 177.6, CI's measure plus about 0.5 KiB. The split is still
  * #546 (0.9.0).
+ * The zones as shelves with "+ Add" in each zone (#581): the button, its focus and status after a
+ * pick and the shelves' styles load first, the menu with the menus. CI's zlib measures the first
+ * load at 177.8 and the menus at 52.5: initial goes to 178.3, CI's measure plus about 0.5 KiB, and
+ * menus to 53. The split of the first load is still #546 (0.9.0).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 177.6, chart: 243.5, export: 12.6, link: 7.5, menus: 52, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 178.3, chart: 243.5, export: 12.6, link: 7.5, menus: 53, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
