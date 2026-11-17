@@ -76,7 +76,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 ### Fixed
 
 - On a server without sign-in, the file route's 403 `NOT_ALLOWED` names `results: true` in the
-  server's or the source's policy. It no longer speaks of a token the caller never sent (#512).
+  server's or the source's policy. It no longer speaks of a token the caller never sent
+  ([#512](https://github.com/eizedev/pivotkit/issues/512)).
 - A store address's `{name}` cut at 80 characters no longer ends in `-`.
 - Behaviour change: on a busy host, a parameter pattern's time limit no longer refuses fast, valid
   values and patterns.

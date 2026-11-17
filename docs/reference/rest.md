@@ -1225,7 +1225,8 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
 // or in a framework: return rest.fetch(request, { address });
 ```
 
-Run it with a token of at least 32 characters in `PIVOTKIT_TOKEN`:
+Create `/srv/reports` first, or point `output.dir` at a directory you own. Run it with a token of at
+least 32 characters in `PIVOTKIT_TOKEN`:
 
 ```bash
 PIVOTKIT_TOKEN="$(npx -y pivotkit-server token new)" node server.js
