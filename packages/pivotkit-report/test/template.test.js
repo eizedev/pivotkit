@@ -93,6 +93,66 @@ test("render() checks a template before any work, and fills a host's template", 
     assert.ok(r.text.startsWith("<h1>&lt;b&gt;Sales&lt;/b&gt;</h1><p>8 rows</p><table class=\"pk-table\">"));
 });
 
+test("a filter that leaves rows out: {{rows}} and the details say \"x of y rows\" in the report's language, as the component's row count does (#547)", async () => {
+    const template = "<p>{{rows}}</p>{{details}}";
+    const filtered = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], filters: [{ field: "Region", type: "include", items: ["North", "South"] }] };
+    const en = await render(filtered, SALES, { format: "html", template, ...FIXED });
+    assert.deepEqual([en.summary?.keptRows, en.summary?.sourceRows], [6, 8]);
+    assert.ok(en.text.startsWith("<p>6 of 8 rows</p>"), en.text);
+    assert.match(en.text, /<dt>Rows<\/dt><dd>6 of 8<\/dd>/);
+    const de = await render(filtered, SALES, { format: "html", template, ...FIXED, locale: "de-DE" });
+    assert.ok(de.text.startsWith("<p>6 von 8 Zeilen</p>"), de.text);
+    assert.match(de.text, /<dt>Zeilen<\/dt><dd>6 von 8<\/dd>/);
+    // a host's own words, with the counts in the locale's digits
+    const many = Array.from({ length: 1200 }, (_, i) => ({ ...SALES[i % SALES.length] }));
+    const own = await render(filtered, many, { format: "html", template, ...FIXED, texts: { rowsFiltered: "{shown}/{count} records" } });
+    assert.ok(own.text.startsWith("<p>900/1,200 records</p>"), own.text);
+    // nothing filtered out: the count alone, as before
+    const all = await render({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, SALES, { format: "html", template, ...FIXED });
+    assert.ok(all.text.startsWith("<p>8 rows</p>"), all.text);
+    assert.match(all.text, /<dt>Rows<\/dt><dd>8<\/dd>/);
+    // a filter that keeps every row is no cut
+    const kept = await render({ ...filtered, filters: [{ field: "Units", type: "include", items: [1, 2, 3, 4, 5, 6, 7] }] }, SALES, { format: "html", template, ...FIXED });
+    assert.equal(kept.summary?.keptRows, 8);
+    assert.ok(kept.text.startsWith("<p>8 rows</p>"), kept.text);
+});
+
+test("rowCount: false leaves the row count out of {{rows}} and the details, with and without a filter", async () => {
+    const template = "<p>[{{rows}}]</p>{{details}}";
+    const filtered = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], filters: [{ field: "Region", type: "include", items: ["North", "South"] }] };
+    for (const view of [filtered, { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }]) {
+        const r = await render(view, SALES, { format: "html", template, ...FIXED, source: "sales.csv", rowCount: false });
+        assert.ok(r.text.startsWith("<p>[]</p>"), r.text);
+        assert.doesNotMatch(r.text, /<dt>Rows<\/dt>|\d rows/);
+        assert.match(r.text, /<dt>Source<\/dt><dd>sales\.csv<\/dd>/, "the other details stay");
+    }
+    await assert.rejects(render(filtered, SALES, { format: "html", rowCount: /** @type {any} */ ("no") }), (e) => e.code === "INVALID_OPTION" || /rowCount/.test(e.message));
+});
+
+test("the row count takes the plural form of the report's language: \"1 row\", \"1 Zeile\"; a host's text is one text for every count, or forms of its own", async () => {
+    const template = "<p>{{rows}}</p>";
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
+    const one = [SALES[0]];
+    assert.ok((await render(view, one, { format: "html", template, ...FIXED })).text.startsWith("<p>1 row</p>"));
+    assert.ok((await render(view, one, { format: "html", template, ...FIXED, locale: "de-DE" })).text.startsWith("<p>1 Zeile</p>"));
+    // French takes the English texts, and their English forms: 1 row
+    assert.ok((await render(view, one, { format: "html", template, ...FIXED, locale: "fr-FR" })).text.startsWith("<p>1 row</p>"));
+    assert.ok((await render(view, SALES, { format: "html", template, ...FIXED })).text.startsWith("<p>8 rows</p>"));
+    // a filter that keeps 1 of 2 rows: the form follows the data's rows, as the component's does
+    const two = [SALES[0], SALES[3]];
+    const north = { ...view, filters: [{ field: "Region", type: "include", items: ["North"] }] };
+    assert.ok((await render(north, two, { format: "html", template, ...FIXED })).text.startsWith("<p>1 of 2 rows</p>"));
+    // a host's string: one text for every count, as before
+    assert.ok((await render(view, one, { format: "html", template, ...FIXED, texts: { rowsCount: "{count} records" } })).text.startsWith("<p>1 records</p>"));
+    // a host's forms
+    const forms = { one: "{count} record", other: "{count} records" };
+    assert.ok((await render(view, one, { format: "html", template, ...FIXED, texts: { rowsCount: forms } })).text.startsWith("<p>1 record</p>"));
+    assert.ok((await render(view, SALES, { format: "html", template, ...FIXED, texts: { rowsCount: forms } })).text.startsWith("<p>8 records</p>"));
+    // forms without "other", or not texts, are ignored
+    assert.ok((await render(view, one, { format: "html", template, ...FIXED, texts: { rowsCount: /** @type {any} */ ({ one: "{count} thing" }) } })).text.startsWith("<p>1 row</p>"));
+    assert.ok((await render(view, one, { format: "html", template, ...FIXED, texts: { rowsCount: /** @type {any} */ ({ other: 5 }) } })).text.startsWith("<p>1 row</p>"));
+});
+
 test("escapeHtml escapes the five characters that can end a text or an attribute", () => {
     assert.equal(escapeHtml(`<a href="x" title='y'>&</a>`), "&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;&lt;/a&gt;");
 });

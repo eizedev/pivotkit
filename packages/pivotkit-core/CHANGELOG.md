@@ -28,6 +28,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   optional last argument; `categoryLabelLayout` takes `reserved` in its box.
 - `toEChartsOption` is also exported from `pivotkit-core/chart`. A bundle that imports it from there
   loads it with the chart, not first (#546).
+- `ROW_COUNT_TEXTS`: the row count in words, English and German ("8 rows", "6 of 8 rows").
+  pivotkit-react and pivotkit-report share it ([#547](https://github.com/eizedev/pivotkit/issues/547)).
+- `pluralForm(forms, count, lang)` picks the form of a count's words, and `PLURAL_CATEGORIES` lists
+  the categories. pivotkit-react and pivotkit-report share them
+  ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 ### Changed
 
