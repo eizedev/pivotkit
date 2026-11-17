@@ -366,7 +366,7 @@ export async function loginCommand(values, ctx) {
     const client = clientIdOf(values, env, published);
     const clientId = client.id;
     if (client.published) {
-        say(`Using the client ID ${printable(clientId)} that the server publishes.`);
+        say(`Using the client ID ${printable(clientId)} that the server publishes, at ${printable(new URL(issuer).host)}.`);
     }
     const endpoints = await issuerOf(issuer, env, server.loopback);
     const scope = scopeOf(values.scope, serverScopes, endpoints.scopes);

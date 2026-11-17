@@ -515,7 +515,7 @@ machine can read it while curl runs.
   Then it prints an address and a code on stderr. Open the address, enter the code and sign in.
 - `login` takes the client ID the server publishes (`rest.signIn.clientId`) and says so. Where the
   server publishes none, the operator gives you the client ID. Pass it with `--client-id` or
-  `PIVOTKIT_CLIENT_ID`. Either wins over the published one.
+  `PIVOTKIT_CLIENT_ID`. Either pins the ID: `login` then never takes the published one.
 - `login` waits as long as the provider allows, at most 30 minutes. It polls at the provider's
   interval, at most every five minutes, and says so when the provider asks for longer. It asks again
   after a network error, a timeout, a 429 or a 5xx, three times in a row at most.

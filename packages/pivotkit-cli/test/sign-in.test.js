@@ -943,29 +943,16 @@ test("a 429 while polling is asked again like a 5xx; an interval over five minut
 // ---------------------------------------------------------------------------------------------
 // The client ID the server publishes (rest.signIn.clientId)
 
-test("login takes the client ID the server publishes when neither --client-id nor PIVOTKIT_CLIENT_ID is given, and says so", async () => {
+test("login takes the client ID the server publishes when neither --client-id nor PIVOTKIT_CLIENT_ID is given, and names it and the issuer", async () => {
     await withWaits(async () => {
         const fake = await fakeIssuer({ published: "reports-cli" });
         try {
             const r = await inProcess(["login", "--url", fake.url, "--store", "file"], tempDir());
             assert.equal(r.code, 0, r.stderr);
-            assert.match(r.stderr, /^Using the client ID reports-cli that the server publishes\.\n/);
+            assert.match(r.stderr, /^Using the client ID reports-cli that the server publishes, at 127\.0\.0\.1:\d+\.\n/);
             assert.equal(fake.requests.find((q) => q.url === "/device").body.client_id, "reports-cli");
-            const given = await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], tempDir());
-            assert.equal(given.code, 0, given.stderr);
-            assert.doesNotMatch(given.stderr, /that the server publishes/);
-            assert.equal(fake.requests.filter((q) => q.url === "/device").at(-1).body.client_id, CLIENT, "--client-id wins");
         } finally {
             await fake.close();
-        }
-        const odd = await fakeIssuer({ published: "has space" });
-        try {
-            const r = await inProcess(["login", "--url", odd.url, "--store", "file"], tempDir());
-            assert.equal(r.code, 2);
-            assert.match(r.stderr, /the client ID the server publishes is not usable; give one with --client-id/);
-            assert.equal(odd.requests.some((q) => q.url === "/device"), false);
-        } finally {
-            await odd.close();
         }
         const none = await fakeIssuer();
         try {
@@ -977,6 +964,34 @@ test("login takes the client ID the server publishes when neither --client-id no
         }
     });
 });
+
+test("--client-id pins the client ID: the published one is not used and not named", async () => {
+    await withWaits(async () => {
+        const fake = await fakeIssuer({ published: "reports-cli" });
+        try {
+            const r = await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 0, r.stderr);
+            assert.doesNotMatch(r.stderr, /that the server publishes/);
+            assert.equal(fake.requests.find((q) => q.url === "/device").body.client_id, CLIENT);
+        } finally {
+            await fake.close();
+        }
+    });
+});
+
+for (const [name, published] of [["a number", 1], ["null", null], ["an empty text", ""], ["an object", {}], ["a text with a space", "has space"]]) {
+    test(`a published client ID that is ${name} is refused before the issuer is asked`, async () => {
+        const fake = await fakeIssuer({ hook: ({ req, res, origin, send }) => req.url === "/.well-known/oauth-protected-resource/api/v1" && (send(res, 200, { resource: `${origin}/api/v1`, authorization_servers: [`${origin}/issuer`], pivotkit_client_id: published }), true) });
+        try {
+            const r = await inProcess(["login", "--url", fake.url, "--store", "file"], tempDir());
+            assert.equal(r.code, 2);
+            assert.match(r.stderr, /the client ID the server publishes is not usable; give one with --client-id/);
+            assert.deepEqual(fake.requests.map((q) => q.url), ["/.well-known/oauth-protected-resource/api/v1"]);
+        } finally {
+            await fake.close();
+        }
+    });
+}
 
 test("PIVOTKIT_CLIENT_ID wins over the published client ID", async () => {
     await withWaits(async () => {

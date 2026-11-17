@@ -557,7 +557,7 @@ missing one (404 `SOURCE_NOT_FOUND`).
 | `rest.resource` | origin of `auth.resource` + `/api/v1` | The REST service's resource (OAuth) |
 | `rest.audience` | `[rest.resource]` | The `aud` values a REST token may carry |
 | `rest.requiredScopes` | `auth.requiredScopes` | Scopes every REST call needs |
-| `rest.signIn.clientId` | none | The public client `pivotkit login` signs in with, published in the metadata (OAuth only) |
+| `rest.signIn.clientId` | none | The public client `pivotkit login` signs in with, published in the metadata (OAuth only). Not `output.downloads.signIn.clientId` |
 
 ## Sign in from the command line { #sign-in-cli }
 
@@ -606,8 +606,13 @@ It takes the client ID the server publishes. Where the server publishes none, gi
 
     The server then names it in its metadata as `pivotkit_client_id`, next to the fields of
     [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728). `check-config` shows it.
+    The field is pivotkit's own extension, which other clients ignore. RFC 9728 says in section 2:
+    "Additional protected resource metadata parameters MAY also be used." Section 3.2 adds: "any
+    metadata parameters that are not understood MUST be ignored."
     Without the setting, tell the users the client ID. They pass it with `--client-id` or
-    `PIVOTKIT_CLIENT_ID`, which win over the published one.
+    `PIVOTKIT_CLIENT_ID`. Either pins the ID: `login` then never takes the published one.
+    This client is not the browser client of a download link's sign-in
+    ([`output.downloads.signIn.clientId`](delivery.md#configuration)).
 
 !!! warning "Publish a public client only"
 
