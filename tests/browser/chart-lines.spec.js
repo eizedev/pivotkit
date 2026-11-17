@@ -83,6 +83,13 @@ const drawnLines = (chartEl) =>
             });
     });
 
+/** Opens Display › Reference lines: the chart type menu, then the topic's row, by real clicks. */
+async function openLines(report) {
+    await report.getByTestId("chart-type").click();
+    await report.getByTestId("topic-lines").click();
+    await expect(report.getByTestId("level-title")).toHaveText("Display › Reference lines");
+}
+
 /** Whether two boxes overlap (by more than a pixel). */
 const overlap = (a, b) => a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1;
 
@@ -196,7 +203,7 @@ test.describe("reference lines", () => {
         expect(await drawnLines(chartEl)).toEqual([]);
         await expect(page.locator("#lines-report").getByTestId("chart-summary")).not.toContainText("Reference lines");
         const report = page.locator("#lines-report");
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("lines-note")).toHaveText("These lines need a total. Switch to Bars, not stacked, to draw them.");
         await expect(report.getByTestId("line-average")).toHaveCount(0);
         await expect(report.getByTestId("chart-target")).toHaveCount(0);
@@ -247,15 +254,18 @@ test.describe("reference lines", () => {
         expect(x80).toBeLessThanOrEqual(right);
     });
 
-    test("Display -> Reference lines: Average and Trend by a click, a target typed; a pie offers none, regions no trend", async ({ page }) => {
+    test("Display › Reference lines: a level; Average and Trend by a click stay open, a target typed; its row says what is on; a pie offers none, regions no trend", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar" });
         const report = page.locator("#lines-report");
         await report.getByTestId("chart-type").click();
-        await expect(report.getByText("Reference lines", { exact: true })).toBeVisible();
-        // the switch's own text, clicked as a person does
-        await report.locator(".pk-switch", { has: page.getByTestId("line-average") }).click();
+        await expect(report.getByTestId("topic-state-lines")).toHaveText("Off");
+        await report.getByTestId("topic-lines").click();
+        await expect(report.getByTestId("level-title")).toHaveText("Display › Reference lines");
+        await report.getByTestId("line-average").click();
         await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: false, target: null });
-        await report.locator(".pk-switch", { has: page.getByTestId("line-trend") }).click();
+        // a switch keeps its level open: the next one is there to click
+        await expect(report.getByTestId("line-average")).toHaveAttribute("aria-checked", "true");
+        await report.getByTestId("line-trend").click();
         const target = report.getByTestId("chart-target");
         await target.click();
         await page.keyboard.type("80");
@@ -270,17 +280,56 @@ test.describe("reference lines", () => {
         await target.fill("80");
         await report.locator(".pk-inline-form", { has: page.getByTestId("chart-target") }).getByRole("button", { name: "Clear" }).click();
         await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(null);
-        // a pie has no value axis: no lines offered
+        // Back: the row says which lines are on
+        await report.getByTestId("level-back").click();
+        await expect(report.getByTestId("topic-lines")).toBeFocused();
+        await expect(report.getByTestId("topic-state-lines")).toContainText("Average, Trend");
+        // a pie has no value axis: no row for lines
         await report.getByTestId("chart-pie").click();
         await report.getByTestId("chart-type").click();
-        await expect(report.getByTestId("line-average")).toHaveCount(0);
+        await expect(report.getByTestId("topic-tooltip")).toHaveCount(0);
+        await expect(report.getByTestId("topic-lines")).toHaveCount(0);
         await page.keyboard.press("Escape");
         // regions have no order of their own: an average, no trend
         await mount(page, { type: "bar" }, { view: { rows: ["Region"] } });
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("line-average")).toHaveCount(1);
         await expect(report.getByTestId("line-trend")).toHaveCount(0);
         await expect(report.getByTestId("lines-note")).toContainText("A trend needs dates on Rows");
+    });
+
+    test("Display › Reference lines by keyboard: Enter opens it, Space and Enter flip a switch and keep the level, Tab to the target, Escape back to its row", async ({ page }) => {
+        await mount(page, { type: "line" });
+        const report = page.locator("#lines-report");
+        await report.getByTestId("chart-type").click();
+        const row = report.getByTestId("topic-lines");
+        await row.focus();
+        await page.keyboard.press("Enter");
+        await expect(report.getByTestId("level-title")).toHaveText("Display › Reference lines");
+        await expect(report.getByTestId("line-average")).toBeFocused();
+        await page.keyboard.press("Space");
+        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.average)).toBe(true);
+        await expect(report.getByTestId("line-average")).toBeFocused();
+        await expect(report.getByTestId("line-average")).toHaveAttribute("aria-checked", "true");
+        await page.keyboard.press("Tab");
+        await expect(report.getByTestId("line-trend")).toBeFocused();
+        await page.keyboard.press("Enter");
+        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.trend)).toBe(true);
+        // Tab to the target, a number, Enter
+        await page.keyboard.press("Tab");
+        await expect(report.getByTestId("chart-target")).toBeFocused();
+        await page.keyboard.type("35");
+        await page.keyboard.press("Enter");
+        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(35);
+        // Escape in the filled field would empty it (as every menu's text field); back on a switch, it goes back
+        await page.keyboard.press("Shift+Tab");
+        await expect(report.getByTestId("line-trend")).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(row).toBeFocused();
+        await expect(report.getByTestId("topic-state-lines")).toContainText("Average, Trend, Target");
+        // Escape on the first level closes the menu
+        await page.keyboard.press("Escape");
+        await expect(report.locator(".pk-popover")).toHaveCount(0);
     });
 
     for (const width of [1440, 390]) {
@@ -316,7 +365,7 @@ test.describe("reference lines", () => {
         const chartEl = await mount(page, { type: "bar", stacked: true, referenceLines: { average: true, trend: true, target: 30 } }, { rows });
         expect((await drawnLines(chartEl)).map((l) => l.label).filter(Boolean)).toEqual(["Target 30"]);
         const report = page.locator("#lines-report");
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("lines-note")).toContainText("below zero");
         await expect(report.getByTestId("line-average")).toHaveCount(0);
         await expect(report.getByTestId("chart-target")).toHaveCount(1);
@@ -325,7 +374,7 @@ test.describe("reference lines", () => {
     test("a value in percent: the target field reads 25% and says so", async ({ page }) => {
         await mount(page, { type: "bar" }, { view: { cols: [], values: [{ field: "Revenue", agg: "sum", showAs: { type: "percentOfGrandTotal" } }] } });
         const report = page.locator("#lines-report");
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("target-hint")).toHaveText("A percentage: type 25% or 0.25.");
         await report.getByTestId("chart-target").click();
         await page.keyboard.type("30%");
@@ -345,14 +394,14 @@ test.describe("reference lines", () => {
     test("with the table shown the chart menu opens, offers the view's lines and asks for the chart", async ({ page }) => {
         const report = page.locator("#lines-report");
         await mount(page, { type: "bar", stacked: true, referenceLines: { average: true, trend: false, target: null } }, { view: { display: "table" } });
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("lines-note")).toHaveText("Show the chart to see which lines it can draw.");
         await expect(report.getByTestId("line-average")).toHaveCount(1);
         await expect(report.getByTestId("line-trend")).toHaveCount(1);
         // a stack of averages: the view alone says no line
         await page.keyboard.press("Escape");
         await mount(page, { type: "bar", stacked: true }, { view: { display: "table", values: [{ field: "Revenue", agg: "average" }] } });
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("line-average")).toHaveCount(0);
         await expect(report.getByTestId("lines-note")).toHaveText("Show the chart to see which lines it can draw.");
         await expect(report.locator(".pk-root")).toHaveCount(1);
@@ -370,7 +419,7 @@ test.describe("reference lines", () => {
             createRoot(el).render(React.createElement(PivotReport, { data: rows, height: 560, defaultView: view }));
         }, { rows: ROWS, view: { ...VIEW, values: [], display: "chart", chart: { type: "bar" } } });
         // at once, before ECharts has loaded and drawn
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("lines-note")).toHaveText("Show the chart to see which lines it can draw.");
         await expect(report.getByTestId("line-average")).toHaveCount(1);
     });
@@ -378,11 +427,12 @@ test.describe("reference lines", () => {
     test("the menu follows the chart: a stack of averages says why, the same view as bars offers every line", async ({ page }) => {
         const report = page.locator("#lines-report");
         await mount(page, { type: "bar", stacked: true }, { view: { values: [{ field: "Revenue", agg: "average" }] } });
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("lines-note")).toHaveText("These lines need a total. Switch to Bars, not stacked, to draw them.");
+        await report.getByTestId("level-back").click();
         await report.getByTestId("chart-bar").click();
         await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.stacked)).toBe(false);
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("line-average")).toHaveCount(1);
         await expect(report.getByText("These lines need a total. Switch to Bars, not stacked, to draw them.")).toHaveCount(0);
     });
@@ -390,7 +440,7 @@ test.describe("reference lines", () => {
     test("a target kept from before over values in different units can be removed", async ({ page }) => {
         const report = page.locator("#lines-report");
         await mount(page, { type: "bar", referenceLines: { average: false, trend: false, target: 30 } }, { view: { cols: [], values: [{ field: "Revenue", agg: "sum" }, { agg: "count" }] } });
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("lines-note")).toContainText("different units");
         await expect(report.getByTestId("chart-target")).toHaveCount(0);
         await report.getByTestId("target-remove").click();
@@ -400,7 +450,7 @@ test.describe("reference lines", () => {
     test("a bare number above 1 for a share gets a soft warning tied to the field; percent100 has its own hint", async ({ page }) => {
         const report = page.locator("#lines-report");
         await mount(page, { type: "bar" }, { view: { cols: [], values: [{ field: "Revenue", agg: "sum", showAs: { type: "percentOfGrandTotal" } }] } });
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         const field = report.getByTestId("chart-target");
         await field.click();
         await page.keyboard.type("25");
@@ -411,7 +461,7 @@ test.describe("reference lines", () => {
         await expect(report.getByTestId("target-warning")).toHaveCount(0);
         await page.keyboard.press("Escape");
         await mount(page, { type: "bar" }, { view: { cols: [], values: [{ field: "Revenue", agg: "sum", format: "percent100" }] } });
-        await report.getByTestId("chart-type").click();
+        await openLines(report);
         await expect(report.getByTestId("target-hint")).toHaveText("A percentage: type 25 or 25%.");
         await report.getByTestId("chart-target").click();
         await page.keyboard.type("25");

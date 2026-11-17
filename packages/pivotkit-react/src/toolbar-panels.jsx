@@ -19,7 +19,7 @@ import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
 import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tips.js";
-import { LevelMenu, MenuItem, MenuList } from "./levels.jsx";
+import { LevelMenu } from "./levels.jsx";
 import { afterDelete, chartTopics, entryIds, optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
 import { storeViews } from "./view-store.js";
@@ -161,13 +161,13 @@ function TargetField({ target, labels, locale, format, onTarget }) {
 
 /**
  * The level of the chart's reference lines (menu-topics.js chartTopics, "lines"): Average and Trend
- * as switches that keep the level open, the target with its hint and warning, the notes and, for a
+ * as switches (role "switch", in the form's tab order) that keep the level open, the target with its hint and warning, the notes and, for a
  * target the chart cannot draw, its removal. The drawn chart says which lines it can draw, with its
  * numbers (`lineChecks`, pivotkit-core's referenceLineChecks); before that, or with the table shown,
  * the view's rules decide and a note asks for the chart. A setting that does not show stays in the
  * view and draws again when the chart can.
  */
-function ReferenceLines({ view, plan, encoded, lineChecks, labels, locale, onDisplay, close }) {
+function ReferenceLines({ view, plan, encoded, lineChecks, labels, locale, onDisplay }) {
     const lines = view.chart.referenceLines;
     // the view's rules of what would be drawn: rows and columns swapped where the chart swaps them
     const drawn = plan?.chart ? { ...view.chart, ...plan.chart } : null;
@@ -182,13 +182,13 @@ function ReferenceLines({ view, plan, encoded, lineChecks, labels, locale, onDis
     if (rules.trend) switches.push({ id: "line-trend", key: "trend", text: words.trend });
     return (
         <>
-            {switches.length ? (
-                <MenuList label={labels.referenceLines} close={close}>
-                    {switches.map((s) => (
-                        <MenuItem key={s.id} id={s.id} text={s.text} checkbox checked={Boolean(lines[s.key])} onSelect={() => set({ [s.key]: !lines[s.key] })} start={s === switches[0]} />
-                    ))}
-                </MenuList>
-            ) : null}
+            {switches.map((sw) => (
+                // a switch in the form's tab order, drawn as a level's option; it keeps the level open
+                <button key={sw.id} type="button" role="switch" aria-checked={Boolean(lines[sw.key])} className={`pk-option${lines[sw.key] ? " pk-checked" : ""}`} onClick={() => set({ [sw.key]: !lines[sw.key] })} data-testid={sw.id}>
+                    <span className="pk-option-icon">{lines[sw.key] ? <Icon name="check" /> : null}</span>
+                    <span className="pk-option-text">{sw.text}</span>
+                </button>
+            ))}
             {rules.target ? (
                 <>
                     <div className="pk-subtitle">{words.target}</div>
@@ -237,7 +237,7 @@ export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale
                 id === "title" ? (
                     <ChartTitle title={view.chart.title} labels={labels} onDisplay={onDisplay} />
                 ) : id === "lines" ? (
-                    <ReferenceLines view={view} plan={plan} encoded={encoded} lineChecks={lineChecks} labels={labels} locale={locale} onDisplay={onDisplay} close={close} />
+                    <ReferenceLines view={view} plan={plan} encoded={encoded} lineChecks={lineChecks} labels={labels} locale={locale} onDisplay={onDisplay} />
                 ) : null
             }
         />
