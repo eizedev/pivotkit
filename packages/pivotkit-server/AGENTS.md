@@ -86,6 +86,10 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `src/signed-tokens.js` issues and verifies signed tokens. `createSignedVerifier` takes its keys from a function.
 - A bearer goes through the static tokens first. Only an unmatched JWT reaches the signed check.
 - A signed token's identity is `["signed", id]`. Its ID is the client in the log.
+- `src/external-issuers.js` verifies tokens of `auth.externalIssuers` with `createSignedVerifier`, one per issuer.
+- Such a token is routed by its `iss`. Its identity is `["external", issuer, sub]`. The issuer is the client in the log.
+- Its scopes and profile are capped by the issuer's entry. It never gets every scope.
+- `signedInForDelivery` in `delivery.js` keeps signIn-bound links and stores from such callers.
 - `profileOf` in `src/auth.js` is the one order of a caller's profile.
 - `identityKey` is the only identity a cache or binding uses. It is null without a usable subject.
 - A caller's access token leaves `auth.js` only through `exchangeTokenFor`.

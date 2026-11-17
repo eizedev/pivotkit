@@ -8,6 +8,9 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Added
 
+- `render` of a view that shows the chart as `xlsx` adds the warning `chartNotInXlsx`: the
+  workbook holds the table, the chart is in `html` or `svg`. The `render_view` description says the
+  workbook has no chart ([#360](https://github.com/eizedev/pivotkit/issues/360)).
 - `rowCount: false` leaves the data's row count out of `{{rows}}` and the HTML report's details
   ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 - `render` takes `numbers` (`"full"` or `"shown"`) for csv and json and `flatHeader` for csv.

@@ -55,7 +55,7 @@ function verifierWith({ maxLifetimeSec = 3600, clockToleranceSec = 30 } = {}) {
 test("verifier: a fresh token gives its ID, scopes, profile and expiry; no scope claim means every scope", async () => {
     const { verifier, mint, now } = verifierWith();
     const scoped = await verifier.verify(await mint({ claims: { scope: "pivotkit:read pivotkit:render", profile: "staff" } }));
-    assert.deepEqual(scoped, { id: "0123456789abcdef", scopes: ["pivotkit:read", "pivotkit:render"], profile: "staff", expiresAt: Math.floor(now() / 1000) + 600 });
+    assert.deepEqual(scoped, { id: "0123456789abcdef", scopes: ["pivotkit:read", "pivotkit:render"], profile: "staff", expiresAt: Math.floor(now() / 1000) + 600, subject: null });
     const all = await verifier.verify(await mint());
     assert.equal(all.scopes, null);
     assert.equal(all.profile, null);

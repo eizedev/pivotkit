@@ -177,6 +177,7 @@ configuration, under "New in this version", with a link to each section below.
 | [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` or the report's `texts` set `rowsCount`, your `labels` add a language, or a test reads the row count under the result or in a printed report | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
 | **Breaking:** [csv and json results, request ids and file names](#results-0-8) | a script or host parses the inline csv or json of the REST service or the MCP server, or finds saved reports or drafts by their names | expect rounded inline numbers, inline json on one line and file names like `sales-by-region.pivotkit-out.xlsx`; pass `numbers: "full"` for all digits. Reconnect MCP clients to see the new inputs |
 | [On a touch screen, the chart opens the rows on the second tap](../use/charts.md#read-the-chart) | your app runs on phones or tablets and uses `onCellClick` or the drill-down from the chart | nothing for people; the first tap on an element shows its tooltip, the second calls `onCellClick` and opens the rows. Your own touch tests now tap twice |
+| [A workbook of a chart view says where the chart is](#chart-not-in-xlsx) | a script or a client renders `xlsx` for a view that shows the chart, and treats any finding as a failure | let the warning `chartNotInXlsx` pass, or render `html` or `svg` for the chart. Reconnect MCP clients to see the new tool description |
 
 ### Sources hidden by default can be open { #hidden-open }
 
@@ -334,6 +335,12 @@ numbering system of its own (`-u-nu-`) is refused.
 
 MCP clients see the new inputs after they reconnect. Sessions that stay connected keep working: the
 old output schema already allows the new `requestId`.
+
+### A workbook of a chart view says where the chart is { #chart-not-in-xlsx }
+
+An Excel workbook holds the table. For a view that shows the chart, `render` and `render_view` add
+the warning `chartNotInXlsx`: the chart is in `html` or `svg`. The `render_view` description says
+so too. MCP clients see it after they reconnect.
 
 ## From 0.6 to 0.7 { #from-0-6-1 }
 

@@ -105,6 +105,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {boolean} [allowUnauthenticated]  "none" on an address other than loopback
  * @property {Array<{ name: string, env?: string, file?: string, create?: boolean, scopes?: string[], profile?: string, expires?: string }>} [tokens]  create: make a missing file at start (state.js); expires: a date or date-time with a zone, refused from then on
  * @property {{ dir?: string, maxDays?: number }} [signedTokens]  the signed tokens the server issues itself (options/signed.js)
+ * @property {Array<{ issuer: string, typ: string, maxMinutes?: number, scopes: string[], profiles?: string[], profile?: string, keys: Array<{ kid: string, publicKey: { env?: string, file?: string } }> }>} [externalIssuers]  tokens another system issues for its signed-in person (options/external.js)
  * @property {string} [issuer]
  * @property {string} [resource]
  * @property {string[]} [audience]

@@ -123,3 +123,44 @@ test("an instant before 1 AD keeps its year in every zone (the era is read)", ()
     assert.equal(new Date(encode([{ t: new Date(-8.64e15) }], { timeZone: "Asia/Tokyo" }).column("t").values[0]).getUTCFullYear(), -271821);
     assert.ok(Number.isNaN(encode([{ t: new Date(-8.64e15) }], { timeZone: "America/New_York" }).column("t").values[0]));
 });
+
+// A locale the runtime has no data for (well-formed, but unknown, such as xx-XX) would make Intl take the
+// machine's: the same view would write 1.234,5 on a German machine and 1,234.5 on an English one (#552).
+const unknownLocaleScript = `
+const { computePivot, encode, normalize, toGrid } = await import(${JSON.stringify(index)});
+const data = encode([{ r: "a", v: 1234.5 }]);
+const { view, issues } = normalize({ rows: ["r"], values: [{ field: "v", agg: "sum", format: "number:1" }], formatting: { locale: "xx-XX" } }, data);
+const result = computePivot(data, view);
+const byOption = computePivot(data, { rows: ["r"], values: [{ field: "v", agg: "sum", format: "number:1" }] }, { locale: "xx-XX" });
+const option = { issues: byOption.issues.map((i) => [i.code, i.path, i.severity]), resolved: byOption.locale, text: toGrid(byOption, { locale: "xx-XX" }).rows[1][1].text };
+// the view's own locale wins: an unknown option is not used, so nothing is said about it
+const viewWins = computePivot(data, { rows: ["r"], values: [{ field: "v", agg: "sum" }], formatting: { locale: "de-DE" } }, { locale: "xx-XX" });
+let malformed;
+try {
+    computePivot(data, { rows: ["r"], values: [{ field: "v", agg: "sum" }] }, { locale: "not a locale!" });
+    malformed = "accepted";
+} catch (e) {
+    malformed = e.code;
+}
+console.log(JSON.stringify({ issues: issues.map((i) => [i.code, i.path]), locale: view.formatting.locale, resolved: result.locale, text: toGrid(result).rows[1][1].text, option, viewWins: [viewWins.locale, viewWins.issues.length], malformed }));
+`;
+
+test("a view's or an option's locale the runtime does not know is reported, and the report takes the default on every machine (#552)", () => {
+    const outputs = [{ LANG: "de_DE.UTF-8", LC_ALL: "de_DE.UTF-8" }, { LANG: "en_US.UTF-8", LC_ALL: "en_US.UTF-8" }, { LANG: "fr_FR.UTF-8", LC_ALL: "fr_FR.UTF-8" }].map((env) =>
+        execFileSync(process.execPath, ["--input-type=module", "-e", unknownLocaleScript], { env: { ...process.env, ...env }, encoding: "utf8" })
+    );
+    for (const out of outputs.slice(1)) {
+        assert.equal(out, outputs[0]);
+    }
+    assert.deepEqual(JSON.parse(outputs[0]), {
+        issues: [["unknownLocale", "formatting.locale"]],
+        locale: null,
+        resolved: "en-US",
+        text: "1,234.5",
+        // an unknown locale option takes the default too, with a warning: the report still shows
+        option: { issues: [["unknownLocale", "locale", "warning"]], resolved: "en-US", text: "1,234.5" },
+        viewWins: ["de-DE", 0],
+        // a text that is no locale tag at all stays a programmer error
+        malformed: "INVALID_OPTION"
+    });
+});

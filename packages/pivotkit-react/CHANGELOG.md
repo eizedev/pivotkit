@@ -62,6 +62,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   report and the SVG of the Export menu, whose table also takes an `oklch()` colour scale ([#386](https://github.com/eizedev/pivotkit/issues/386)).
 - With a field on Columns, a pie's, a donut's and a heatmap's tooltip is titled by the value, not by
   the first column, from pivotkit-core ([#537](https://github.com/eizedev/pivotkit/issues/537)).
+- A view's locale that the browser has no data for, such as `xx-XX`, is reported as unknown, and
+  the report takes the `locale` prop. Such a `locale` prop takes `en-US` with a warning. Before,
+  both took the machine's locale, from pivotkit-core ([#552](https://github.com/eizedev/pivotkit/issues/552)).
 - "Table as CSV" in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
   `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:
   `9.6`, not `9٫6`, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).

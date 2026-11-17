@@ -40,7 +40,7 @@ service: sources, policy, workers, output, sign-in. pivotkit-server brings
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
 | `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
-| `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory. Inline where the policy allows. Over HTTP, a [download link](delivery.md) in the text and as a `resource_link` where the report gets one. With `save: false`, csv or json inline only ([below](#inline-only)) | a new file, none with `save: false` |
+| `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory. The workbook holds the table. For a view that shows the chart, the finding `chartNotInXlsx` says the chart is in `html` or `svg`. Inline where the policy allows. Over HTTP, a [download link](delivery.md) in the text and as a `resource_link` where the report gets one. With `save: false`, csv or json inline only ([below](#inline-only)) | a new file, none with `save: false` |
 | `create_link` | A link that opens the view in the source's report page (only for sources with `link`). A view only: a `layout` is refused with the way to make one (`validate_view`) | - |
 | `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host. It runs and sends nothing. A view only, as for `create_link` | a new file |
 
@@ -732,6 +732,8 @@ no warning.
 - `auth.tokens[].expires` ends a token at a date ([expiry](rest.md#token-expires)).
 - The server can also issue tokens that expire on their own, with `pivotkit-server token issue`.
   The MCP endpoint takes them like a static token ([signed tokens](rest.md#signed-tokens)).
+- It takes tokens another system issues for its signed-in person, checked with that system's
+  public key ([tokens from another system](rest.md#external-issuers)).
 
 With `--http` and a state directory (`--state-dir`, `$PIVOTKIT_STATE_DIR`), a server that has no
 token and listens off loopback makes the token `admin` there at its first start. It does this

@@ -21,7 +21,7 @@ and the copy hold the numbers as the table shows them. Where the application off
 
 | Entry | Gives | Best for |
 | --- | --- | --- |
-| **Excel workbook (.xlsx)** | The table with every number and all its decimals, the number formats, the merged headers, the bold totals and the highlighting. | Calculating on in Excel. |
+| **Excel workbook (.xlsx)** | The table only, no chart: every number with all its decimals, the number formats, the merged headers, the bold totals and the highlighting. | Calculating on in Excel. |
 | **Table as CSV (.csv)** | The table as text: percentages and "show as" calculations as the table shows them, other numbers with all their decimals. | Other programs. |
 | **HTML report (.html)** | A page with the table as it is shown, the chart when the chart is shown, and the filters. Opens in any browser, prints well. | Sending a report to read or to print. |
 | **Chart image (.png)** | The chart as drawn. Greyed out with "Switch to Chart first." while the table is shown. | A slide or a message. |
@@ -80,6 +80,9 @@ For the rows behind ONE number, a cell's drill-down, see the [drill-down](drill-
       since Excel shows them behind black text.
 
     The sheet has the file's name, made valid for Excel: at most 31 characters.
+
+    The workbook holds the table, not the chart. Download the chart as a PNG or SVG image, or take
+    the HTML report, which has both.
 
     Where Excel cannot follow a format, the workbook writes:
 
@@ -217,5 +220,7 @@ a note says so: "This page does not allow copying. Download a file instead."
       [pivotkit-core](../reference/core.md).
     - The HTML report and the SVG come from [pivotkit-report](../reference/report.md), the same as
       the command line's. See [pivotkit-cli](../reference/cli.md).
+    - The command line, the REST service and the MCP server render the workbook of a view that
+      shows the chart with the warning `chartNotInXlsx`: the chart is in `html` or `svg`.
     - The shape of Copy data as JSON is [pivotkit-core's `toJson`](../reference/core.md).
     - [Values](../concepts/values.md#export) describes how formats reach Excel and CSV.

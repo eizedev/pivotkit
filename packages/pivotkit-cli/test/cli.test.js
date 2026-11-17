@@ -111,6 +111,10 @@ test("--locale, --time-zone and --now are checked by every command, and name the
         assert.equal(flag.code, 2, command[0]);
         assert.match(flag.stderr, /--locale "not_a_locale" is not a locale tag/);
         assert.ok(!flag.stderr.includes("options.locale") && !flag.stderr.includes("from PIVOTKIT"));
+        // well-formed, but no locale this runtime knows: Intl would take the machine's (#552)
+        const unknown = await run([...command, "--locale", "xx-XX"], { cwd: dir });
+        assert.equal(unknown.code, 2, command[0]);
+        assert.match(unknown.stderr, /--locale "xx-XX" is not a locale tag/);
         const zone = await run([...command, "--time-zone", "Mars/Olympus"], { cwd: dir });
         assert.equal(zone.code, 2, command[0]);
         assert.match(zone.stderr, /--time-zone "Mars\/Olympus" is not a time zone/);
@@ -386,4 +390,20 @@ test("a view file's type that the data's values do not fit is not applied: a war
     // the values stay: never blanked by a type that does not fit
     assert.match(readFileSync(join(dir, "out.csv"), "utf8"), /many,1/);
     assert.equal((await run(["render", "view.pivotkit.json", "--data", "data.csv", "-f", "csv", "--strict"], { cwd: dir })).code, 1);
+});
+
+test("render: a chart view as xlsx warns that the workbook holds the table; --strict exits 1 for it (#360)", async () => {
+    const dir = fixtureDir();
+    writeFileSync(join(dir, "chart.json"), JSON.stringify({ ...BY_REGION, view: { ...BY_REGION.view, display: "chart", chart: { type: "line" } } }));
+    const r = await run(["render", "chart.json", "--data", "sales.csv", "-o", "chart.xlsx"], { cwd: dir });
+    assert.equal(r.code, 0, r.stderr);
+    assert.match(r.stderr, /warning chartNotInXlsx: The workbook holds the table\. The chart is in html or svg\./);
+    assert.ok(existsSync(join(dir, "chart.xlsx")));
+    const strict = await run(["render", "chart.json", "--data", "sales.csv", "-o", "strict.xlsx", "--strict"], { cwd: dir });
+    assert.equal(strict.code, 1, strict.stderr);
+    assert.match(strict.stderr, /chartNotInXlsx/);
+    // the table view: no warning
+    const table = await run(["render", "view.json", "--data", "sales.csv", "-o", "table.xlsx"], { cwd: dir });
+    assert.equal(table.code, 0);
+    assert.doesNotMatch(table.stderr, /chartNotInXlsx/);
 });

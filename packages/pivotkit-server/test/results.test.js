@@ -169,3 +169,17 @@ test("the output schemas: requestId on every operation; inline says its numbers,
     assert.match(inline.properties.text.description, /total is 0 for data, 1 for a subtotal, 2 for a grand total/);
     assert.match(inline.properties.text.description, /one line/);
 });
+
+test("REST render: an xlsx of a chart view has the finding chartNotInXlsx; a table view none (#360)", async () => {
+    const { server } = await amountsServer();
+    try {
+        const chart = await call(`${server.api}/views/render`, { body: { source: "amounts", view: { version: 2, ...LAYOUT, display: "chart", chart: { type: "line" } }, format: "xlsx" } });
+        assert.equal(chart.status, 200, JSON.stringify(chart.data));
+        assert.deepEqual(chart.data.findings.map((f) => [f.code, f.severity]), [["chartNotInXlsx", "warning"]]);
+        const table = await call(`${server.api}/views/render`, { body: { source: "amounts", layout: LAYOUT, format: "xlsx" } });
+        assert.equal(table.status, 200, JSON.stringify(table.data));
+        assert.deepEqual(table.data.findings, []);
+    } finally {
+        await server.close();
+    }
+});

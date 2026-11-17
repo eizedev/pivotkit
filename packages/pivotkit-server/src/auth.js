@@ -36,6 +36,7 @@ import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
 import { claimNamesOf, claimsOf } from "./sources/params.js";
 import { SIGNED_TOKEN, SignedTokenError, createSignedVerifier, expiryOf, keyring, looksSigned, signedStore } from "./signed-tokens.js";
 import { maxLifetimeOf } from "./options/signed.js";
+import { externalVerifier, loadExternalIssuers } from "./external-issuers.js";
 
 /** The fewest characters of a static token. */
 export const TOKEN_MIN = 32;
@@ -214,7 +215,7 @@ export { resourceMetadataUrlOf } from "pivotkit-cli/rest";
  * @property {string[]} scopes
  * @property {number} expiresAt
  * @property {URL} [resource]
- * @property {{ allScopes?: boolean, signed?: boolean, profile?: string | null, subject?: string | null, issuer?: string | null, groups?: string[], groupsUnknown?: boolean, audit?: string | null, claims?: Readonly<Record<string, string | number | boolean>> }} [extra]  subject: the token's auth.subjectClaim when usable, issuer: its iss, groups: the person's groups when the token carries a usable list, groupsUnknown: it does not (cut, too long, an overage marker, missing), audit: how the log names the person, claims: the ones sources' params are bound to (OAuth)
+ * @property {{ allScopes?: boolean, signed?: boolean, external?: boolean, profile?: string | null, subject?: string | null, issuer?: string | null, groups?: string[], groupsUnknown?: boolean, audit?: string | null, claims?: Readonly<Record<string, string | number | boolean>> }} [extra]  subject: the token's auth.subjectClaim when usable, issuer: its iss, groups: the person's groups when the token carries a usable list, groupsUnknown: it does not (cut, too long, an overage marker, missing), audit: how the log names the person, claims: the ones sources' params are bound to (OAuth)
  */
 
 /** The longest subject taken as an identity. */
@@ -342,19 +343,15 @@ const UNKNOWN_TOKEN_TEXT = "unknown token; check the token the operator gave you
 const SIGNED_REFUSALS = Object.freeze({ EXPIRED: "this token expired; ask the operator for a new one", REVOKED: "this token was revoked; ask the operator for a new one", NOT_YET_VALID: "this token is not valid yet; the clocks of the server and the machine that issued it differ" });
 
 /**
- * The check of the signed tokens of auth.signedTokens.dir (signed-tokens.js): a bearer in, an
- * AuthInfo out, or AuthRefusal. A token whose profile policy.profiles no longer has is refused. The
- * log names a refused token by why (debug), never by its value.
- * @param {import("./config.js").ServerOptions} options
+ * A log writer that says each text at most once a minute: a stranger's made-up token reaches the
+ * signed and external checks before any key does.
  * @param {any} log
- * @returns {(token: string) => Promise<AuthInfo>}
+ * @returns {(level: "info" | "warn", text: string) => void}
  */
-function signedCheckOf(options, log) {
-    const store = signedStore(pathOf(options, /** @type {string} */ (options.auth?.signedTokens?.dir)));
-    // a stranger's made-up token reaches these before any check: each text at most once a minute
+export function onceAMinute(log) {
     /** @type {Map<string, number>} */
     const said = new Map();
-    const limited = (level, text) => {
+    return (level, text) => {
         const now = Date.now();
         if (now - (said.get(text) ?? -Infinity) >= SHORT_TOKEN_WARN_MS) {
             if (said.size >= SAID_MAX) {
@@ -365,10 +362,28 @@ function signedCheckOf(options, log) {
                     }
                 }
             }
+            // a hard cap: when every entry is still within its minute, the oldest goes
+            while (said.size >= SAID_MAX) {
+                said.delete(/** @type {string} */ (said.keys().next().value));
+            }
+            said.delete(text);
             said.set(text, now);
             log[level](text);
         }
     };
+}
+
+/**
+ * The check of the signed tokens of auth.signedTokens.dir (signed-tokens.js): a bearer in, an
+ * AuthInfo out, or AuthRefusal. A token whose profile policy.profiles no longer has is refused. The
+ * log names a refused token by why (debug), never by its value.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {any} log
+ * @returns {(token: string) => Promise<AuthInfo>}
+ */
+function signedCheckOf(options, log) {
+    const store = signedStore(pathOf(options, /** @type {string} */ (options.auth?.signedTokens?.dir)));
+    const limited = onceAMinute(log);
     const warn = (text) => limited("warn", text);
     const verifier = createSignedVerifier({
         keyFor: keyring(store, { onProblem: (text) => warn(`auth: signed tokens: ${text}`) }),
@@ -402,6 +417,62 @@ function signedCheckOf(options, log) {
     };
 }
 
+/** A subject from another issuer: printable, no whitespace or control characters, at most SUBJECT_MAX. */
+const EXTERNAL_SUBJECT = /^[^\s\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}]+$/u;
+
+/**
+ * The check of tokens another system issues (auth.externalIssuers, external-issuers.js): null when
+ * none is configured. A token whose issuer is configured is verified with that issuer's keys only.
+ * The issuer is an identity provider, not an operator: its token never gets more than the operator
+ * allowed it. Its scopes are cut to the issuer's `scopes` (none written: exactly those); a profile
+ * it names must be in the issuer's `profiles`, else 401; without one it gets the issuer's `profile`,
+ * else auth.defaultProfile (options/external.js refuses a configuration with neither, so the
+ * sources' own policy never applies to such a caller). It needs a subject. A refusal is logged at info, each text at most once
+ * a minute. The caller is the issuer by name, the person by subject.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {{ env: Record<string, string | undefined>, log: any }} runtime
+ * @returns {Promise<{ issuerOf(token: string): string | null, check(issuer: string, token: string): Promise<AuthInfo> } | null>}
+ */
+async function externalCheckOf(options, { env, log }) {
+    const entries = options.auth?.externalIssuers ?? [];
+    if (!entries.length) {
+        return null;
+    }
+    const verifier = externalVerifier(await loadExternalIssuers(options, env), { clockToleranceSec: options.auth?.clockTolerance ?? 30 });
+    const audit = await auditOf(options, { env, log });
+    const limited = onceAMinute(log);
+    const caps = new Map(entries.map((e) => [e.issuer, { scopes: new Set(e.scopes), profiles: new Set(e.profiles ?? []), profile: e.profile ?? null }]));
+    const refuse = (issuer, reason, text = UNKNOWN_TOKEN_TEXT) => {
+        limited("info", `auth: a token of the issuer "${issuer}" was refused (${reason})`);
+        return new AuthRefusal(401, "invalid_token", text);
+    };
+    return {
+        issuerOf: verifier.issuerOf,
+        async check(issuer, token) {
+            const cap = /** @type {{ scopes: Set<string>, profiles: Set<string>, profile: string | null }} */ (caps.get(issuer));
+            let claims;
+            try {
+                claims = await verifier.verify(issuer, token);
+            } catch (e) {
+                if (!(e instanceof SignedTokenError)) {
+                    throw e;
+                }
+                throw refuse(issuer, e.code, SIGNED_REFUSALS[/** @type {keyof typeof SIGNED_REFUSALS} */ (e.code)] ?? UNKNOWN_TOKEN_TEXT);
+            }
+            // compared in NFC: one person written with composed or decomposed letters is one identity
+            const subject = typeof claims.subject === "string" ? subjectOf(claims.subject.normalize("NFC")) : null;
+            if (!subject || !EXTERNAL_SUBJECT.test(subject)) {
+                throw refuse(issuer, "NO_SUBJECT");
+            }
+            if (claims.profile !== null && !cap.profiles.has(claims.profile)) {
+                throw refuse(issuer, "PROFILE_NOT_ALLOWED", "this token's profile is not allowed for its issuer; ask the operator");
+            }
+            const scopes = claims.scopes === null ? [...cap.scopes] : claims.scopes.filter((scope) => cap.scopes.has(scope));
+            return { token: "", clientId: issuer, scopes, expiresAt: claims.expiresAt, extra: { allScopes: false, profile: claims.profile ?? cap.profile, external: true, issuer, subject, audit: auditText(audit, issuer, subject) } };
+        }
+    };
+}
+
 /**
  * Builds the authentication both front ends share (one per process: one issuer to fetch).
  * @param {import("./config.js").ServerOptions} options
@@ -428,6 +499,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             }
         }
         const signed = auth.signedTokens?.dir ? signedCheckOf(options, log) : null;
+        const external = await externalCheckOf(options, { env, log });
         /** @type {Map<string, number>} when each token's unusable file was last said on the log */
         const warned = new Map();
         // a file emptied, removed or cut after the start (a rotation gone wrong): every request with
@@ -473,6 +545,10 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                 }
                 if (!match) {
                     // a static token never reaches the signed check: a static one with dots keeps working
+                    const issuer = external && looksSigned(bearer.token) ? external.issuerOf(bearer.token) : null;
+                    if (issuer) {
+                        return external.check(issuer, bearer.token);
+                    }
                     if (signed && looksSigned(bearer.token)) {
                         return signed(bearer.token);
                     }
@@ -713,6 +789,13 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
     const profile = profileOf(authOptions, authInfo);
     const scopes = authInfo.extra?.allScopes ? null : new Set(authInfo.scopes ?? []);
     const client = authInfo.extra?.allScopes ? String(authInfo.clientId ?? "token") : String(authInfo.clientId ?? "client").slice(0, 80);
+    if (authInfo.extra?.external) {
+        // a person signed in at another system: the issuer by name, the person by subject
+        const caller = { scopes, client, profile, subject: authInfo.extra.subject, issuer: authInfo.extra.issuer };
+        noteAudit(caller, authInfo.extra.audit);
+        known.set(caller, { basis: ["external", String(authInfo.extra.issuer), String(authInfo.extra.subject)], token: null });
+        return caller;
+    }
     if (authInfo.token === "" || mode === "token") {
         // a static token: its name is who calls
         const caller = { scopes, client, profile };
@@ -746,6 +829,13 @@ export function identityBasisOf(caller) {
     const basis = caller && typeof caller === "object" ? known.get(caller)?.basis : null;
     return basis ? Object.freeze([...basis]) : null;
 }
+
+/**
+ * Whether a caller signed in at another system (auth.externalIssuers). Such a person has a subject
+ * and an issuer, but cannot sign in where the server's own sign-in checks a bound link or store.
+ * @param {import("./registry.js").Caller} caller
+ */
+export const isExternalCaller = (caller) => identityBasisOf(caller)?.[0] === "external";
 
 /** The key identities are made with: random per process, so an identity key means nothing outside it. */
 const IDENTITY_KEY = randomBytes(32);

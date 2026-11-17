@@ -277,6 +277,23 @@ test("HTML with the chart: an image of the SVG when the view shows the chart, a 
     await assert.rejects(render(view, SALES, { format: "html", chart: true, ...FIXED }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION" && e.details.option === "echarts");
 });
 
+test("an Excel workbook of a view that shows the chart holds the table and says the chart is not in it (#360)", async () => {
+    const view = { ...BY_REGION, display: "chart", chart: { type: "line" } };
+    const r = await render(view, SALES, { format: "xlsx", ...FIXED });
+    assert.deepEqual(r.issues.map((i) => [i.code, i.severity]), [["chartNotInXlsx", "warning"]]);
+    assert.match(r.issues[0].message, /html or svg/);
+    assert.equal(r.ok, true);
+    // the workbook is the table, without a drawing
+    const parts = Object.keys(unzipSync(r.body));
+    assert.ok(parts.includes("xl/worksheets/sheet1.xml"));
+    assert.ok(!parts.some((p) => p.startsWith("xl/charts/") || p.startsWith("xl/drawings/")), parts.join(", "));
+    // a table view, and the other formats of a chart view, have no such warning
+    assert.deepEqual((await render(BY_REGION, SALES, { format: "xlsx", ...FIXED })).issues, []);
+    for (const format of ["csv", "json", "svg", "html"]) {
+        assert.ok(!(await render(view, SALES, { format, echarts, ...FIXED })).issues.some((i) => i.code === "chartNotInXlsx"), format);
+    }
+});
+
 test("a chart over REPORT_LIMITS.categories categories draws the first ones and says so", async () => {
     const rows = Array.from({ length: 70 }, (_, i) => ({ Item: `I${String(i).padStart(2, "0")}`, Units: i }));
     const r = await render({ rows: ["Item"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", axisLabels: "all" } }, rows, { format: "svg", echarts, ...FIXED });

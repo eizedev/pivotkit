@@ -359,9 +359,14 @@ function checkWhere(command, values, remote) {
 function checkValues(values, fromEnv) {
     const bad = (name, what) => new CliError("usage", "BAD_VALUE", `--${name} ${printable(JSON.stringify(values[name]))} is not ${what}${fromEnv[name] ? ` (from ${fromEnv[name]})` : ""}`);
     if (values.locale !== undefined) {
+        // a tag this runtime has no number format for would format in the machine's locale
+        let known = false;
         try {
-            Intl.getCanonicalLocales(values.locale);
+            known = Intl.NumberFormat.supportedLocalesOf(Intl.getCanonicalLocales(values.locale)).length > 0;
         } catch {
+            // no language tag
+        }
+        if (!known) {
             throw bad("locale", "a locale tag such as en-US or de-DE");
         }
     }

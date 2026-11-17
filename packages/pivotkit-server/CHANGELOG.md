@@ -8,6 +8,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- `auth.externalIssuers` lets REST and MCP accept short-lived tokens another system issues for its
+  signed-in person, such as PowerShell Universal. The server checks them with that system's Ed25519
+  public key, issuer name and type. Each issuer's `scopes` (required) and `profiles` cap what its
+  tokens get. A private key or an unusable key stops the start, and `check-config` lists each issuer
+  ([tokens from another system](https://pivotkit.eize.dev/reference/rest/#external-issuers), #487).
 - The REST reference describes how people sign in from the command line, with curl or with
   PowerShell at the server's sign-in provider. `resourceMetadataUrlOf` now comes from
   `pivotkit-cli/rest` and is the same function

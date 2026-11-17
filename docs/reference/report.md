@@ -122,6 +122,8 @@ The report's own issues are warnings, except `viewFile`:
 - `chartUnavailable`: a view that shows the chart, rendered as HTML with `chart` `"auto"` and without
   `echarts`. The table is there, the chart is not. When the chart must be there, pass `strict` and
   check `ok`, or pass `chart: true`.
+- `chartNotInXlsx`: a view that shows the chart, rendered as `xlsx`. The workbook holds the table.
+  The chart is in `html` or `svg`.
 - `tableCut`
 - `chartCut`: the chart holds the first `REPORT_LIMITS.categories` categories, 50.
 - `viewFile`, an error: the input is no view.

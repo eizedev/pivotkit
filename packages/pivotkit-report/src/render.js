@@ -38,7 +38,7 @@ export const REPORT_LIMITS = Object.freeze({ template: TEMPLATE_LIMIT, chartWidt
 export const CHART_SIZE = Object.freeze({ width: 800, height: 480 });
 
 /** Issues of a report itself (warnings), besides a view's (VIEW_ISSUES). */
-export const REPORT_ISSUE_CODES = Object.freeze(["chartUnavailable", "tableCut", "chartCut", "viewFile"]);
+export const REPORT_ISSUE_CODES = Object.freeze(["chartUnavailable", "chartNotInXlsx", "tableCut", "chartCut", "viewFile"]);
 
 /** Languages written from right to left. */
 const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"]);
@@ -242,6 +242,10 @@ export async function render(view, data, options = {}) {
     } else if (format === "csv") {
         body = toCsvBytes(grid, { bom: options.bom !== false, numbers: options.numbers, flatHeader: options.flatHeader });
     } else if (format === "xlsx") {
+        // a workbook is the table: a view that shows the chart says where the chart is
+        if (normalized.view.display === "chart") {
+            issues.push(reportIssue("chartNotInXlsx", REPORT_TEXTS_EN.chartNotInXlsx));
+        }
         body = toXlsx(grid, { sheetName: title, theme: conditionalColors(theme), ...(options.dataAsOf ? { dataAsOf: options.dataAsOf } : {}) });
     } else if (format === "svg") {
         const chart = chartOf();

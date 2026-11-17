@@ -29,7 +29,8 @@ export const REPORT_TEXTS = Object.freeze({
         chart: "Chart",
         tableCut: "The table shows the first {shown} of {count} rows. Export it as Excel or CSV for all of them.",
         chartCut: "The chart shows the first {shown} of {count} categories.",
-        chartUnavailable: "The chart is left out: ECharts is not available."
+        chartUnavailable: "The chart is left out: ECharts is not available.",
+        chartNotInXlsx: "The workbook holds the table. The chart is in html or svg."
     }),
     de: Object.freeze({
         untitled: "Bericht",
@@ -45,7 +46,8 @@ export const REPORT_TEXTS = Object.freeze({
         chart: "Diagramm",
         tableCut: "Die Tabelle zeigt die ersten {shown} von {count} Zeilen. Für alle als Excel oder CSV exportieren.",
         chartCut: "Das Diagramm zeigt die ersten {shown} von {count} Kategorien.",
-        chartUnavailable: "Das Diagramm fehlt: ECharts ist nicht verfügbar."
+        chartUnavailable: "Das Diagramm fehlt: ECharts ist nicht verfügbar.",
+        chartNotInXlsx: "Die Arbeitsmappe enthält die Tabelle. Das Diagramm gibt es als html oder svg."
     })
 });
 

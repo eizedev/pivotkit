@@ -769,7 +769,7 @@ export const OPERATIONS = Object.freeze({
     render_view: {
         name: "render_view",
         title: "Render a view",
-        description: "Runs a view (or a layout: a view by field names) over a source and makes the report: xlsx (Excel, the default), html (a printable report), csv, json or svg (the chart). The file goes to the user (a path or a link); the result says what was made and any findings. A source with required params needs them in every call (params).",
+        description: "Runs a view (or a layout: a view by field names) over a source and makes the report: xlsx (Excel, the default; the table, no chart), html (a printable report, with the chart when the view shows it), csv, json or svg (the chart). The file goes to the user (a path or a link); the result says what was made and any findings. A source with required params needs them in every call (params).",
         cli: "render",
         http: { method: "POST", path: "/views/render" },
         needs: ["data"],

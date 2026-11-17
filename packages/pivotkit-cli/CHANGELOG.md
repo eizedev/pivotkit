@@ -23,6 +23,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- `render --help` says the workbook holds the table and the chart is in html or svg. A chart view
+  rendered as xlsx warns `chartNotInXlsx` ([#360](https://github.com/eizedev/pivotkit/issues/360)).
 - The example views (`pivotkit example`) name the chart's `tooltip` setting, `"auto"`.
 
 - `--filter Revenue>1000`, `Country!=Germany` or `Country<>Germany` is a usage error that gives
@@ -35,6 +37,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Fixed
 
+- `--locale` that the runtime has no data for, such as `xx-XX`, is a usage error. Before, the
+  report took the machine's locale for it ([#552](https://github.com/eizedev/pivotkit/issues/552)).
 - `render --url` against a server without sign-in no longer says "with this token" when the
   server refuses the file ([#512](https://github.com/eizedev/pivotkit/issues/512)).
 - `--format csv` in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,

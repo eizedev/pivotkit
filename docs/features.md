@@ -211,7 +211,9 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - An OpenAPI 3.1 document made from the same table.
     - Errors as problem documents.
     - Sign-in with tokens or OAuth 2.1. The server can issue tokens that expire on their own
-      ([signed tokens](reference/rest.md#signed-tokens)).
+      ([signed tokens](reference/rest.md#signed-tokens)). It also takes short-lived tokens another
+      system issues for its signed-in person, such as PowerShell Universal
+      ([tokens from another system](reference/rest.md#external-issuers)).
     - With OAuth, people sign in from the command line with a code in the browser: `pivotkit login`,
       then `pivotkit token` for curl or PowerShell
       ([sign in from the command line](reference/rest.md#sign-in-cli)).

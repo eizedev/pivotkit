@@ -37,6 +37,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
+import { isExternalCaller } from "./auth.js";
 import { outputDir, writeOutput } from "./output.js";
 import { filenameOf, linksOf, subjectBindingOf } from "./downloads.js";
 import { uploadSettingsOf } from "./options/upload.js";
@@ -102,6 +103,14 @@ export function storeFor(store, { closed, surface, results, draft, signedIn = fa
     return surface !== "rest" || results;
 }
 
+/**
+ * Whether a caller can open a report bound to its sign-in (a signIn link or store): an issuer and a
+ * subject the server's own sign-in can check. A person of an external issuer has both, but signs in
+ * elsewhere, so a bound report would reach nobody or the wrong check: such a caller is not signed in here.
+ * @param {import("./registry.js").Caller | undefined} caller
+ */
+export const signedInForDelivery = (caller) => Boolean(caller?.subject && caller?.issuer) && !isExternalCaller(/** @type {any} */ (caller));
+
 /** "it works for 60 minutes", in the note's words. */
 const forMinutes = (minutes) => `${minutes} minute${minutes === 1 ? "" : "s"}`;
 
@@ -127,7 +136,7 @@ function noteOf(bound, minutes) {
 export async function deliver(context, file, how) {
     const closed = how.sourceClosed !== false;
     const store = uploadSettingsOf(context.options ?? {});
-    const signedIn = Boolean(how.caller?.subject && how.caller?.issuer);
+    const signedIn = signedInForDelivery(how.caller);
     if (storeFor(store, { closed, surface: how.surface, results: how.policy?.results === true, draft: how.draft === true, signedIn })) {
         // a signIn store gets the person's binding (the HMAC a sign-in link holds, never the subject), so it can scope the report
         const subject = store?.bind === "signIn" && signedIn ? await subjectBindingOf(context, /** @type {string} */ (how.caller.issuer), /** @type {string} */ (how.caller.subject)) : null;
@@ -135,7 +144,7 @@ export async function deliver(context, file, how) {
     }
     const links = linksOf(context);
     const caller = how.caller;
-    const wanted = linkFor(links, { closed, surface: how.surface, results: how.policy?.results === true, subject: caller?.subject && caller?.issuer ? caller.subject : null });
+    const wanted = linkFor(links, { closed, surface: how.surface, results: how.policy?.results === true, subject: signedIn ? caller.subject : null });
     // the key is read before the file is written: a report whose link cannot be made keeps its plain name
     const sign = wanted && links ? await links.signer() : null;
     const bound = sign ? wanted : null;
