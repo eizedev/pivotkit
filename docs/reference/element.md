@@ -550,7 +550,7 @@ CI runs the same command on Node 24 and measures the same numbers. It fails when
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
 | First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 529 KiB | 173 KiB |
-| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 2 | 641 KiB | 221 KiB |
+| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title and the zoom slider among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 2 | 672 KiB | 230 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 28 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
 | Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 2 | 145 KiB | 47 KiB |
