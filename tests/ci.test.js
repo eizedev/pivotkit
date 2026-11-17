@@ -266,8 +266,11 @@ test("CI's test job and the release build verify the registry signatures right a
 test("CI measures the web component's size on the Node major pivotkit-element's build.js names", async () => {
     const { SIZE_NODE } = await import("../packages/pivotkit-element/build.js");
     const job = jobOf(".github/workflows/ci.yml", "test");
-    const step = job.slice(job.indexOf("- name: Web component size"));
-    assert.match(step.slice(0, step.indexOf("run:")), new RegExp(`if: matrix\\.node == '${SIZE_NODE}'`));
+    const from = job.indexOf("- name: Web component size");
+    const next = job.indexOf("- name:", from + 1);
+    const step = job.slice(from, next === -1 ? undefined : next);
+    assert.match(step, new RegExp(`if: matrix\\.node == '${SIZE_NODE}'`));
+    assert.match(step, /^ {8}run: npm run size -w pivotkit-element$/m);
     assert.match(job, new RegExp(`node: \\[[^\\]]*"${SIZE_NODE}"`));
 });
 

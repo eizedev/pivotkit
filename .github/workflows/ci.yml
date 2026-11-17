@@ -56,7 +56,8 @@ jobs:
         if: matrix.node == '24'
         run: npm run bench -w pivotkit-core
       - name: Web component size
-        # what a page loads (first, on the first chart, on the first export), gzip, for the log
+        # what a page loads (first, on the first chart, on the first export), gzip; fails above
+        # SIZE_BUDGET_KIB in its build.js. On Node 24 only: SIZE_NODE there, whose bundled zlib it measures with
         if: matrix.node == '24'
         run: npm run size -w pivotkit-element
       - name: Excel reader size

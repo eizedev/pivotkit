@@ -400,6 +400,8 @@ A token that is missing or not readable keeps `DEFAULT_THEME`'s value. `CHART_CO
 
 ### The chart's marks: `pivotkit-core/chart` { #chart-marks }
 
+This entry point exports `toEChartsOption` too, so a bundle loads the option with the chart.
+
 `decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter })` puts
 a report's marks on `toEChartsOption`'s option:
 

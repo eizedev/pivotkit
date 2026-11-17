@@ -41,8 +41,12 @@ const shadowStyles = {
 };
 
 /**
- * pivotkit-core's index.js without its re-export of toEChartsOption. esbuild puts a module into the
- * first load when the first load's imports reach it, even through index.js, which only re-exports it.
+ * pivotkit-core's index.js without its re-export of toEChartsOption. esbuild's code splitting puts a
+ * file into the chunks of every entry whose static import records reach it. A re-export
+ * (`export { x } from "./x.js"`) is such a record, whatever names the importer uses, and
+ * "sideEffects": false does not change it. Tree shaking only drops a file nothing uses at all. So
+ * chart.js, used by the chart, would land in the first load: the first load imports index.js, and
+ * index.js re-exports chart.js. Nothing else holds it there: no namespace import, no `export *`.
  * The chart loads the option from pivotkit-core/chart instead (pivotkit-react's echarts.js,
  * pivotkit-report's svg.js), so the option's code goes to the chart group. A bundled import of
  * toEChartsOption from "pivotkit-core" then fails the build; so does a change of the line below.

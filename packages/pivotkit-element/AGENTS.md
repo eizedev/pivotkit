@@ -15,6 +15,7 @@ npm run size -w pivotkit-element    # what a page loads, gzip; fails above SIZE_
 
 The size check gives CI's numbers only on an official Node build of `SIZE_NODE`.
 A Node with the system's zlib, such as Homebrew's, measures other sizes. The check says so.
+A new zlib in a Node 24 release can move the numbers too, by up to about 0.6 KiB.
 
 ## Bundle
 
