@@ -298,12 +298,12 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * (7.2): menus goes to 50.5, texts to 8. Two words for unused parts take unused to 5.5: it goes to 6.
  * The first load grows 0.19 to 174.55 (the view's colours through the same list check as the hidden
  * series, one memo for chartOptions and colorMap). With CI's zlib (an official Node 24.22.3) the
- * first load is 175.15 and the report group 23.58 (render's colorMap, the light colour of a pair).
- * The first load may grow in 0.8.0; its split is #546 in 0.9.0: initial goes to 176.1, CI's measure
- * plus about 1 KiB, and report to 24.
+ * first load is 175.17 and the report group 23.58 (render's colorMap, the light colour of a pair).
+ * The first load may grow in 0.8.0; its split is #546 in 0.9.0: initial goes to 175.7, CI's measure
+ * plus about 0.5 KiB, and report to 24.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 176.1, chart: 234, export: 12.6, link: 7.5, menus: 50.5, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.7, chart: 234, export: 12.6, link: 7.5, menus: 50.5, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
