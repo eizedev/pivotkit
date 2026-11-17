@@ -1117,7 +1117,7 @@ make such a token.
 - There is no deny list. A token works until it expires.
 - The tokens work with `auth.mode` `"token"` only, on REST and MCP alike.
 
-A token the server takes:
+A token the server takes is at most 2048 characters long:
 
 | Part | Holds |
 | --- | --- |
@@ -1125,7 +1125,7 @@ A token the server takes:
 | header `kid` | the ID of one of the issuer's keys |
 | header `typ` | the issuer's `typ` |
 | `iss` | the issuer's `issuer` |
-| `sub` | the person. A token without it gets 401 |
+| `sub` | the person, at most 256 characters. A token without it gets 401 |
 | `jti` | the token's ID: letters, digits, `.`, `_` and `-`, at most 128 |
 | `iat`, `exp` | when the issuer made it and when it expires, in seconds since 1970 |
 | `nbf` | optional: not before this time |

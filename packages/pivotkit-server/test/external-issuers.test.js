@@ -5,14 +5,15 @@
 // token of one issuer never passes as another's or as the server's own.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { generateKeyPairSync } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { createPrivateKey, generateKeyPairSync } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT } from "jose";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { checkConfig, validateOptions } from "pivotkit-server";
+import { checkConfig, loadConfig, validateOptions } from "pivotkit-server";
 import { callerOf, createAuthCore, identityKey } from "../src/auth.js";
-import { BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
+import { BIN, BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 
 const PSU = Object.freeze({ issuer: "psu", typ: "psu+jwt", kid: "psu-2026-11" });
 
@@ -171,6 +172,34 @@ test("the MCP endpoint shares the check: it accepts the same token and refuses o
     try {
         assert.equal(await works(await mint(privateKey)), true);
         assert.equal(await works(await mint(pair().privateKey)), false);
+    } finally {
+        await server.close();
+    }
+});
+
+test("with the server's own signed tokens on: each kind passes only its own verifier, never the other's", async () => {
+    const { privateKey, options, dir } = setup({ auth: { signedTokens: { dir: "signed" } } });
+    const config = join(dir, "pivotkit.json");
+    const { baseDir, ...written } = options;
+    void baseDir;
+    writeFileSync(config, `${JSON.stringify(written, null, 2)}\n`);
+    const env = { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", SystemRoot: process.env.SystemRoot ?? "", OPS: TOKEN };
+    const issued = spawnSync(process.execPath, [BIN, "token", "issue", "--config", config, "--name", "ci", "--expires", "10m", "--json"], { encoding: "utf8", env, timeout: 30_000 });
+    assert.equal(issued.status, 0, issued.stderr);
+    const own = JSON.parse(issued.stdout).token;
+    // the server's own signing key, as the test can read it from its directory
+    const keyFile = readdirSync(join(dir, "signed", "keys"))[0];
+    const ownKid = keyFile.replace(/\.key$/, "");
+    const ownKey = createPrivateKey({ key: Buffer.from(readFileSync(join(dir, "signed", "keys", keyFile), "utf8").trim(), "base64url"), format: "der", type: "pkcs8" });
+    const server = await restServer(await loadConfig(config), { env: { OPS: TOKEN } });
+    try {
+        const status = async (token) => (await call(`${server.api}/sources`, { token })).status;
+        assert.equal(await status(own), 200, "the server's own token");
+        assert.equal(await status(await mint(privateKey)), 200, "the issuer's token");
+        // the issuer's key dressed as the server's own: the server's verifier knows no such key
+        assert.equal(await status(await mint(privateKey, { iss: "pivotkit-server", header: { typ: "pivotkit+jwt" }, claims: { jti: "0123456789abcdef" } })), 401);
+        // the server's own key dressed as the issuer's: the issuer's verifier knows only its own keys
+        assert.equal(await status(await mint(ownKey, { header: { kid: ownKid } })), 401);
     } finally {
         await server.close();
     }
