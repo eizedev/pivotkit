@@ -69,6 +69,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   day" in the singular. pivotkit-report and pivotkit-xlsx keep their own limit wording ("the view
   has N characters; at most M", "the part ... is N bytes"). Those texts say different things, so
   they are not merged on purpose ([#509](https://github.com/eizedev/pivotkit/issues/509)).
+- The load runner tells this repository's tests what it does through a hook the package does not
+  export. The tests wait for that instead of a fixed time. Nothing changes for callers
+  ([#527](https://github.com/eizedev/pivotkit/issues/527)).
 
 ### Fixed
 
@@ -88,9 +91,18 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - The drafts' caps count only drafts that still wait for approval. A draft the host approved or
   rejected (another `status`) no longer takes a waiting draft's place in the count of half of
   `output.maxFiles` ([#513](https://github.com/eizedev/pivotkit/issues/513)).
+- On Windows, the start's hint `pivotkit-server token show admin --state-dir <dir>` quotes the
+  directory for PowerShell and says "(PowerShell)". It used POSIX quotes, which broke a path with a
+  drive letter.
 - A host's script that waits on the compute pool and has nothing else to keep its process alive
   no longer ends early when a worker dies while it starts. A run keeps its worker ref'd until it
   ends. On Node 22 the process ended with an unsettled await.
+- The compute workers start in a host run with `node --input-type=module -e` or from standard
+  input, also with `--input-type` in `NODE_OPTIONS`. They leave out the host's `--input-type`,
+  which made every worker fail at once, so each report answered `INTERNAL`. The host's other flags
+  reach the workers, such as `--require` and `--conditions`. Only the V8 and process-wide flags
+  that Node refuses in a worker stay out, such as `--max-old-space-size`
+  ([#542](https://github.com/eizedev/pivotkit/issues/542)).
 
 ## [0.2.0] - 2026-11-16
 

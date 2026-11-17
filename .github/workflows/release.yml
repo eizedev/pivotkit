@@ -8,8 +8,12 @@ name: Release
 # reviewers, and the repository variable NPM_RELEASE_ENABLED set to "true" (RELEASING.md, "One-time
 # setup"). Without that variable every run is skipped.
 #
-# Two jobs: "build" installs, checks and packs without any publishing right (the dependencies run
-# there); "publish" gets the OIDC token, installs nothing and stages the tarball "build" made.
+# Two jobs:
+# - "build" has no publishing right. It installs, packs and checks; the dependencies run here.
+# - "publish" gets the OIDC token. It installs nothing and stages the tarball "build" made.
+# "build" packs and uploads the tarball before lint and tests run. Only the compilers and bundlers
+# run before the pack: tsc and the package's prepack. "publish" stages only a tarball with the
+# integrity the Pack step recorded.
 on:
   push:
     tags: ["pivotkit-core@*", "pivotkit-react@*", "pivotkit-element@*", "pivotkit-xlsx@*", "pivotkit-report@*", "pivotkit-cli@*", "pivotkit-server@*", "pivotkit-mcp@*"]
@@ -32,6 +36,7 @@ jobs:
       actions: read
     outputs:
       tarball: ${{ steps.pack.outputs.file }}
+      integrity: ${{ steps.pack.outputs.integrity }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,11 +80,12 @@ jobs:
       - name: Registry signatures
         # every installed package carries the registry's signature (and its attestation where it has one)
         run: npm audit signatures
-      - name: Lint, types, tests
-        run: npm run lint && npm run types && npm test
-      - name: Package contents
-        run: npm run pack:check
+      - name: Types
+        # every workspace's declarations, in build order: a package's types import its dependencies'
+        # (pivotkit-react's do not compile without them). tsc only; lint and tests run after the pack
+        run: npm run types --workspaces --if-present
       - name: Pack
+        # before lint and tests: only tsc and the package's prepack (its build) have run yet
         id: pack
         env:
           PACKAGE: ${{ steps.package.outputs.name }}
@@ -91,12 +97,18 @@ jobs:
           file="$(npm pack --workspace "$PACKAGE" --pack-destination "$RUNNER_TEMP/pack" --json | node scripts/npm-pack.js)"
           test -f "$RUNNER_TEMP/pack/$file"
           echo "file=$file" >> "$GITHUB_OUTPUT"
+          # npm's form (dist.integrity): sha512, base64
+          echo "integrity=sha512-$(openssl dgst -sha512 -binary "$RUNNER_TEMP/pack/$file" | base64 -w0)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tarball
           path: ${{ runner.temp }}/pack/${{ steps.pack.outputs.file }}
           if-no-files-found: error
           retention-days: 7
+      - name: Lint, types, tests
+        run: npm run lint && npm run types && npm test
+      - name: Package contents
+        run: npm run pack:check
 
   publish:
     needs: build
@@ -122,6 +134,14 @@ jobs:
         run: |
           npm install --global npm@11.21.1 --ignore-scripts --no-audit --no-fund
           npm --version
+      - name: Tarball is the one the Pack step made
+        # the integrity was recorded right after the pack, before lint, types and tests ran
+        env:
+          TARBALL: ${{ needs.build.outputs.tarball }}
+          INTEGRITY: ${{ needs.build.outputs.integrity }}
+        run: |
+          actual="sha512-$(openssl dgst -sha512 -binary "pack/$TARBALL" | base64 -w0)"
+          test "$actual" = "$INTEGRITY" || { echo "tarball has $actual, the Pack step recorded $INTEGRITY"; exit 1; }
       - name: Tarball matches the tag
         env:
           TAG: ${{ github.ref_name }}
@@ -134,6 +154,7 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
           TARBALL: ${{ needs.build.outputs.tarball }}
+          INTEGRITY: ${{ needs.build.outputs.integrity }}
         # the tarball only: nothing of the repository is installed or run in this job, and no
         # lifecycle script of the tarball runs while the OIDC token is available. The path starts
         # with ./ : npm reads "pack/<file>" as the GitHub repository <owner>/<repo>. The trusted
@@ -142,11 +163,13 @@ jobs:
         run: |
           set -o pipefail
           npm stage publish "./pack/$TARBALL" --provenance --access public --ignore-scripts 2>&1 | tee stage.log
-          # npm 11.21.1 prints "+ <name>@<version> (staged with id <id>)" when the registry returns an
-          # id; the summary does not rely on it
+          # the stage id, if npm prints it as "(staged with id <id>)"; unverified, so the summary
+          # does not rely on it
           id="$(grep -o 'staged with id [^)]*' stage.log | head -n 1 | sed 's/^staged with id //' || true)"
           {
             echo "## $TAG is staged on npm, not published"
+            echo
+            echo "Tarball: \`$TARBALL\`, integrity \`$INTEGRITY\` (packed before lint, types and tests ran)."
             echo
             echo "Nobody can install it until a maintainer approves it with two-factor authentication:"
             echo

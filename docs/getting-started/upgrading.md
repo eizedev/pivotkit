@@ -732,7 +732,7 @@ id to the operator.
 
 - On MCP, an `INTERNAL` error says "internal error", as REST does, instead of its own words.
 - A body over the cap gets a `refused` log line.
-- `check-config` warns of a static token's file that other users of the machine can read.
+- `check-config` warns of a static token's file that other users of the machine can read (not on Windows).
 - `check-config` closes with "New in this version" where a change applies to the configuration.
 
 ### The 401 without a token { #no-token-text }

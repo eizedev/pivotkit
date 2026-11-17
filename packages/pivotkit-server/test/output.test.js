@@ -280,7 +280,7 @@ test("an output directory on a read-only file system (a container's --read-only 
     assert.match(outputErrorOf(Object.assign(new Error("x"), { code: "EACCES" })).message, /not writable by the server's user/);
 });
 
-test("an output directory the server cannot write: a warning at start, 409 NO_OUTPUT with a hint, a problem in check-config", { skip: process.getuid?.() === 0 ? "root writes anywhere" : false }, async () => {
+test("an output directory the server cannot write: a warning at start, 409 NO_OUTPUT with a hint, a problem in check-config", { skip: process.getuid?.() === 0 ? "root writes anywhere" : process.platform === "win32" ? "POSIX modes" : false }, async () => {
     const dir = workspace();
     const out = join(dir, "out");
     chmodSync(out, 0o555);
@@ -413,7 +413,7 @@ test("output.create: false keeps a missing directory an error; one that cannot b
     }
 });
 
-test("a symbolic link to nothing as output.dir is a problem in check-config and refused at start; a refused start makes no directory", async () => {
+test("a symbolic link to nothing as output.dir is a problem in check-config and refused at start; a refused start makes no directory", { skip: process.platform === "win32" ? "symbolic links need rights on Windows" : false }, async () => {
     const dir = workspace();
     symlinkSync(join(dir, "gone"), join(dir, "dangling"));
     const config = join(dir, "pivotkit.json");
@@ -427,7 +427,7 @@ test("a symbolic link to nothing as output.dir is a problem in check-config and 
     assert.ok(!existsSync(join(dir, "data", "new")), "no directory left behind");
 });
 
-test("check-config refuses what serve refuses: a missing output.dir inside an allowed directory, one below a link to nothing", async () => {
+test("check-config refuses what serve refuses: a missing output.dir inside an allowed directory, one below a link to nothing", { skip: process.platform === "win32" ? "symbolic links need rights on Windows" : false }, async () => {
     const dir = workspace();
     symlinkSync(join(dir, "gone"), join(dir, "link"));
     const config = join(dir, "pivotkit.json");
@@ -453,7 +453,7 @@ test("check-config says whether the output directory exists, will be created, or
     };
     const created = check({ dir: "later/out" });
     assert.equal(created.status, 0, created.stdout);
-    assert.match(factsOf(created.stdout), /\nOutput: later\/out\n {2}\S+\/later\/out\n {2}will be created at start\n/);
+    assert.match(factsOf(created.stdout), /\nOutput: later\/out\n {2}\S+[\\/]later[\\/]out\n {2}will be created at start\n/);
     const off = check({ dir: "later/out", create: false });
     assert.equal(off.status, 1, off.stdout);
     assert.match(factsOf(off.stdout), /PROBLEM: output\.dir: not found \(create it first, or leave output\.create on\) -> the server does not start/);
