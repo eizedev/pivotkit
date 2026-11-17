@@ -277,10 +277,11 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * left the first load for the chart (chartOffBarrel): first load 175.1 to 173.4, chart 218.8 to
  * 220.8. The budgets stay.
  * Inline results that round as the view shows (#478): the report group carries the shown-number CSV and
- * JSON writer, 23.07 on a Mac with Homebrew's zlib; report goes to 23.3.
+ * JSON writer, 23.07 on a Mac with Homebrew's zlib; report goes to 23.3. The same writer is in the
+ * export group (the browser's Table as CSV): CI measured 12.3 against 12.3; export goes to 12.6.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23.3, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 222.5, export: 12.6, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23.3, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
