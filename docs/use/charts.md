@@ -155,8 +155,8 @@ The chart type menu has its **Display** settings under the chart types, in one f
 
 A chart with many categories, such as 40 countries on a phone, gets a **zoom slider** under the axis.
 
-- The slider shows as many categories as the axis can name. Drag it to move along the axis, or drag
-  its ends to show more or fewer.
+- The slider shows as many categories as the axis can name. Drag it to move along the axis. Drag
+  its ends to show fewer, down to two.
 - The chart keeps the slider's place when it is drawn again, for example in a narrower window.
 - **Display**, **Zoom slider**, **Off** draws every category instead. Then the axis may name only
   every n-th one. **On** always shows the slider.

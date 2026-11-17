@@ -57,6 +57,9 @@ test("the zoom window stays across redraws of the same categories, and starts ag
     const kept = { names, start: 1, end: 2 };
     const slider = { type: "slider", startValue: 0, endValue: 1 };
     assert.deepEqual(keptZoom([slider], kept, names), [{ ...slider, startValue: 1, endValue: 2 }]);
+    // a smaller chart writes fewer names: the window keeps its start within the span it allows
+    assert.deepEqual(keptZoom([{ ...slider, maxValueSpan: 1 }], { names, start: 1, end: 3 }, names), [{ ...slider, maxValueSpan: 1, startValue: 1, endValue: 2 }]);
+    assert.deepEqual(keptZoom([{ ...slider, maxValueSpan: 1 }], { names, start: 3, end: 3 }, names), [{ ...slider, maxValueSpan: 1, startValue: 2, endValue: 3 }]);
     // other categories, or no slider: as drawn
     assert.deepEqual(keptZoom([slider], kept, ["a", "b"]), [slider]);
     assert.equal(keptZoom(undefined, kept, names), undefined);

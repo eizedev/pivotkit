@@ -123,6 +123,16 @@ async function chartMenu(report) {
     await expect(report.locator(".pk-popover")).toBeVisible();
 }
 
+/** Waits until the slider has moved and stays where the drag left it (ECharts follows a drag in throttled steps). */
+async function stillAfterDrag(page, chartEl) {
+    await expect.poll(async () => {
+        const a = (await inChart(chartEl, sliderOf)).start;
+        await page.evaluate(() => new Promise((done) => setTimeout(done, 150)));
+        const b = (await inChart(chartEl, sliderOf)).start;
+        return a > 0 && a === b;
+    }).toBe(true);
+}
+
 const lastView = (page) => page.evaluate(() => window.__zoomViews.at(-1)?.chart);
 
 test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
@@ -215,7 +225,7 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await page.mouse.down();
         await page.mouse.move(from.x + 80, from.y, { steps: 8 });
         await page.mouse.up();
-        await expect.poll(async () => (await inChart(chartEl, sliderOf)).start).toBeGreaterThan(0);
+        await stillAfterDrag(page, chartEl);
         const moved = await inChart(chartEl, sliderOf);
         // the window keeps its size while it moves
         expect(moved.end - moved.start).toBe(first.end - first.start);
@@ -237,7 +247,7 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await page.mouse.down();
         await page.mouse.move(from.x + 80, from.y, { steps: 8 });
         await page.mouse.up();
-        await expect.poll(async () => (await inChart(chartEl, sliderOf)).start).toBeGreaterThan(0);
+        await stillAfterDrag(page, chartEl);
         const moved = await inChart(chartEl, sliderOf);
         await page.setViewportSize({ width: 400, height: 844 });
         await settled(chartEl);

@@ -11,7 +11,8 @@
 
 /**
  * The option's dataZoom with the window kept from the last draw: the same categories in the same
- * order keep it, other categories start where decorateOption starts them.
+ * order keep its start, and its end within the span the slider allows now (a smaller chart writes
+ * fewer names); other categories start where decorateOption starts them.
  * @param {any[] | undefined} dataZoom  decorateOption's
  * @param {ZoomWindow | null} kept
  * @param {readonly string[]} names  the categories drawn now
@@ -20,5 +21,9 @@ export function keptZoom(dataZoom, kept, names) {
     if (!dataZoom || !kept || kept.names.length !== names.length || kept.names.some((n, i) => n !== names[i])) {
         return dataZoom;
     }
-    return dataZoom.map((z) => ({ ...z, startValue: kept.start, endValue: kept.end }));
+    return dataZoom.map((z) => {
+        const span = typeof z.maxValueSpan === "number" ? z.maxValueSpan : kept.end - kept.start;
+        const start = Math.min(kept.start, Math.max(0, names.length - 1 - span));
+        return { ...z, startValue: start, endValue: Math.min(kept.end, start + span) };
+    });
 }

@@ -176,7 +176,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
             // beyond a legend on that side; the plot gives the slider its room
             const offset = beside ? (rightLegend && !legendDown && typeof option.grid?.right === "number" ? option.grid.right - 4 : 4) : option.legend && option.legend.bottom === 0 ? BOTTOM_LEGEND_ROOM : 4;
             const color = (name) => (readColor ? (readColor(v(name)) ?? undefined) : v(name) || undefined);
-            slider = zoomSlider({ beside, axes: 1 + rest.length, shown, offset, colors: { line: color("--pk-border"), fill: color("--pk-accent-soft"), handle: color("--pk-accent"), text: color("--pk-muted") } });
+            slider = zoomSlider({ beside, axes: 1 + rest.length, shown, offset, fontSize, colors: { line: color("--pk-border"), fill: color("--pk-accent-soft"), handle: color("--pk-accent"), text: color("--pk-muted") } });
             grid[beside ? "right" : "bottom"] += ZOOM_SLIDER.size + ZOOM_SLIDER.gap;
         }
         // horizontal bars: fewer ticks where the value axis's labels would run into each other

@@ -91,6 +91,14 @@ test("100 % stacked bars: each category's parts as shares of its stack, the valu
     assert.equal(toEChartsOption(pivot({ type: "line", stackPercent: true })).series[0].stack, undefined);
 });
 
+test("100 % stacked horizontal bars: the value axis runs to 100 %, the layout reads the shares", () => {
+    const o = toEChartsOption(pivot({ type: "bar", stacked: true, horizontal: true, stackPercent: true, valueLabels: "value" }));
+    assert.equal(o.xAxis.max, 100);
+    const drawn = decorateOption(o, NO_TOKENS, { width: 390, height: 360 });
+    assert.equal(drawn.xAxis.max, 100);
+    assert.ok(drawn.series.every((s) => s.label.position === "inside"));
+});
+
 test("100 % stacked: hidden series are not in the shares; a category without a sum and negative parts", () => {
     const o = toEChartsOption(pivot({ type: "bar", stacked: true, stackPercent: true, hidden: ["Software"] }));
     // North: 20 and 10 of 30
@@ -120,6 +128,10 @@ test("zoom: a slider under a long axis it cannot label, labels laid out for the 
     assert.equal(slider.type, "slider");
     assert.deepEqual(slider.xAxisIndex, [0]);
     assert.equal(slider.startValue, 0);
+    // the window never grows past what the axis can name; the slider is a control's least size, its names the chart's text size
+    assert.equal(slider.maxValueSpan, slider.endValue);
+    assert.equal(slider.height, 24);
+    assert.equal(slider.textStyle.fontSize, 14);
     // the window shows fewer categories, each one named
     assert.ok(slider.endValue < 39 && slider.endValue >= 1, String(slider.endValue));
     assert.equal(auto.axisEvery, 1);

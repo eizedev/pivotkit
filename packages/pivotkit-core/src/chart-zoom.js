@@ -4,8 +4,8 @@
  * chart on a screen asks for it; an SVG and a printed report draw every category.
  */
 
-/** The slider's thickness and the room between it and the axis labels, in px. */
-export const ZOOM_SLIDER = Object.freeze({ size: 20, gap: 8 });
+/** The slider's thickness (a control's least size, --pk-target) and the room between it and the axis labels, in px. */
+export const ZOOM_SLIDER = Object.freeze({ size: 24, gap: 8 });
 
 /**
  * How many categories the slider shows first, or 0 for no slider. "auto": a slider only while the
@@ -33,12 +33,14 @@ export function longestNames(names, count) {
 
 /**
  * The ECharts slider for a window of `shown` categories from the first one: under the plot, or for
- * horizontal bars right of it, with the tokens' colours.
- * @param {{ beside: boolean, axes: number, shown: number, offset: number, colors: { line?: string, fill?: string, handle?: string, text?: string } }} at
+ * horizontal bars right of it, with the tokens' colours. The window never grows past `shown`: the
+ * labels are laid out for that many, so a wider one would write them over each other.
+ * @param {{ beside: boolean, axes: number, shown: number, offset: number, fontSize: number, colors: { line?: string, fill?: string, handle?: string, text?: string } }} at
  *   beside: the category axis is vertical (horizontal bars); axes: the category axes the slider drives
- *   (2 with group labels); offset: px from the chart's edge (a legend's room)
+ *   (2 with group labels); offset: px from the chart's edge (a legend's room); fontSize: the names at
+ *   the slider's ends, the chart's text size
  */
-export function zoomSlider({ beside, axes, shown, offset, colors }) {
+export function zoomSlider({ beside, axes, shown, offset, fontSize, colors }) {
     const index = Array.from({ length: axes }, (_, i) => i);
     return {
         type: "slider",
@@ -47,12 +49,13 @@ export function zoomSlider({ beside, axes, shown, offset, colors }) {
         endValue: shown - 1,
         // the slider moves whole categories; its ends name the first and last one shown
         minValueSpan: 1,
+        maxValueSpan: shown - 1,
         brushSelect: false,
         borderColor: colors.line,
         fillerColor: colors.fill,
         handleStyle: { color: colors.handle, borderColor: colors.handle },
         moveHandleStyle: { color: colors.handle },
-        textStyle: { color: colors.text },
+        textStyle: { color: colors.text, fontSize },
         dataBackground: { lineStyle: { color: colors.line }, areaStyle: { color: colors.line } }
     };
 }
