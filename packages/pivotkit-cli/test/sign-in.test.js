@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { main } from "pivotkit-cli";
 import { run, tempDir } from "./helpers.js";
@@ -37,6 +37,9 @@ async function fakeIssuer(plan = {}) {
         req.on("end", () => {
             const body = Object.fromEntries(new URLSearchParams(Buffer.concat(chunks).toString("utf8")));
             requests.push({ method: req.method, url: req.url, body });
+            if (plan.hook?.({ req, res, body, origin, state, send })) {
+                return;
+            }
             const issuer = plan.issuer ?? `${origin}/issuer`;
             if (req.url === "/.well-known/oauth-protected-resource/api/v1") {
                 if (plan.prm === 404) {
@@ -56,20 +59,25 @@ async function fakeIssuer(plan = {}) {
                 return res.end("<html>not found</html>");
             }
             if (req.url === "/.well-known/oauth-authorization-server/issuer" || (plan.firstAddress && req.url === "/issuer/.well-known/openid-configuration")) {
-                return send(res, 200, { issuer, token_endpoint: `${origin}/token`, ...(plan.noDevice ? {} : { device_authorization_endpoint: plan.deviceEndpoint ?? `${origin}/device` }), scopes_supported: ["openid", "offline_access", "pivotkit.read"] });
+                return send(res, 200, { issuer, token_endpoint: `${origin}/token`, ...(plan.noDevice ? {} : { device_authorization_endpoint: plan.deviceEndpoint ?? `${origin}/device` }), scopes_supported: ["openid", "offline_access", "pivotkit.read"], ...(plan.revocation ? { revocation_endpoint: `${origin}/revoke` } : {}) });
+            }
+            if (req.url === "/revoke") {
+                state.valid.delete(body.token);
+                return send(res, 200, {});
             }
             if (req.url === "/device") {
-                return send(res, 200, { device_code: DEVICE_CODE, user_code: USER_CODE, verification_uri: `${origin}/activate`, expires_in: plan.expiresIn ?? 600, interval: 1 });
+                return send(res, 200, { device_code: DEVICE_CODE, user_code: USER_CODE, verification_uri: plan.verifyUri?.(origin) ?? `${origin}/activate`, expires_in: plan.expiresIn ?? 600, interval: plan.interval ?? 1 });
             }
             if (req.url === "/token" && body.grant_type === "urn:ietf:params:oauth:grant-type:device_code") {
                 state.polls++;
                 if (plan.deny) {
                     return send(res, 400, { error: "access_denied", error_description: RAW });
                 }
-                if (plan.slowDown && state.polls === 1) {
+                const slowDowns = plan.slowDown === true ? 1 : (plan.slowDown ?? 0);
+                if (state.polls <= slowDowns) {
                     return send(res, 400, { error: "slow_down" });
                 }
-                if (plan.pending || state.polls < (plan.slowDown ? 3 : 2)) {
+                if (plan.pending || state.polls < slowDowns + 2) {
                     return send(res, 400, { error: "authorization_pending", error_description: RAW });
                 }
                 return send(res, 200, { access_token: ACCESS[0], token_type: "Bearer", expires_in: 3600, ...(plan.noRefresh ? {} : { refresh_token: REFRESH[0] }) });
@@ -119,8 +127,9 @@ test("login runs the device code flow, keeps the refresh token in a file only it
         const r = await run(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], { env: envOf(dir) });
         assert.equal(r.code, 0, r.stderr);
         assert.equal(r.stdout, "");
-        assert.match(r.stderr, new RegExp(`open ${fake.origin}/activate and enter the code ${USER_CODE}`));
-        assert.match(r.stderr, /Signed in to .*\/api\/v1\. The refresh token is in .* \(only you can read it\)/);
+        assert.match(r.stderr, /^Sign in at 127\.0\.0\.1:\d+, the sign-in provider of 127\.0\.0\.1:\d+\.\nOpen /, "the issuer's host comes before the code");
+        assert.match(r.stderr, new RegExp(`Open ${fake.origin}/activate and enter the code ${USER_CODE}`));
+        assert.match(r.stderr, process.platform === "win32" ? /The refresh token is in .*, a file in your user profile\./ : /Signed in to .*\/api\/v1\. The refresh token is in .*, a file only you can read \(mode 0600\)\./);
         assertClean({ ...r, stderr: r.stderr });
         assert.ok(!r.stderr.includes(ACCESS[0]));
         const device = fake.requests.find((q) => q.url === "/device");
@@ -167,19 +176,20 @@ test("token prints a fresh access token alone and keeps the rotated refresh toke
     }
 });
 
-test("token exits 2 when the refresh token is refused, says to sign in again and prints no token", async () => {
+test("token exits 3 when the refresh token is refused, says to sign in again and prints no token", async () => {
     const fake = await fakeIssuer();
     const dir = tempDir();
     try {
         assert.equal((await run(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], { env: envOf(dir) })).code, 0);
         fake.state.valid.clear();
         const r = await run(["token"], { env: envOf(dir) });
-        assert.equal(r.code, 2);
+        assert.equal(r.code, 3, "its own exit code: sign in again");
         assert.equal(r.stdout, "");
         assert.match(r.stderr, /the token could not be renewed: the issuer answered 400 invalid_grant; the sign-in has ended or was revoked; sign in again: pivotkit login --url /);
         assertClean(r);
         const json = await run(["token", "--json"], { env: envOf(dir) });
-        assert.equal(json.code, 2);
+        assert.equal(json.code, 3);
+        assert.equal(JSON.parse(json.stdout).exitCode, 3);
         assert.equal(JSON.parse(json.stdout).error.code, "INVALID_GRANT");
         assertClean(json);
     } finally {
@@ -187,22 +197,22 @@ test("token exits 2 when the refresh token is refused, says to sign in again and
     }
 });
 
-test("token and logout without a sign-in exit 2 and say how to sign in; logout removes the refresh token", async () => {
+test("token and logout without a sign-in exit 3 and say how to sign in; logout removes the refresh token", async () => {
     const fake = await fakeIssuer();
     const dir = tempDir();
     try {
         const none = await run(["token"], { env: envOf(dir) });
-        assert.equal(none.code, 2);
+        assert.equal(none.code, 3);
         assert.match(none.stderr, /not signed in; run pivotkit login --url/);
         assert.equal((await run(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], { env: envOf(dir) })).code, 0);
         const other = await run(["token", "--url", "https://other.example/api/v1"], { env: envOf(dir) });
-        assert.equal(other.code, 2);
+        assert.equal(other.code, 3);
         assert.match(other.stderr, /not signed in to https:\/\/other\.example\/api\/v1/);
         const out = await run(["logout"], { env: envOf(dir) });
         assert.equal(out.code, 0, out.stderr);
         assert.match(out.stderr, /Signed out of /);
         assert.deepEqual(readdirSync(join(dir, "pivotkit", "tokens")), []);
-        assert.equal((await run(["token"], { env: envOf(dir) })).code, 2);
+        assert.equal((await run(["token"], { env: envOf(dir) })).code, 3);
     } finally {
         await fake.close();
     }
@@ -448,3 +458,339 @@ async function keychainCleanup(resource) {
     const { keychainOf } = await import("../src/credential-store.js");
     await keychainOf()?.remove(accountOf(resource));
 }
+
+// ---------------------------------------------------------------------------------------------
+// The review's points: polling, phishing, transient errors, the lock, rotation, revocation, the store
+
+/** Runs a test with the waits recorded instead of slept. */
+async function withWaits(work) {
+    const sleep = signInMeans.sleep;
+    const waits = [];
+    signInMeans.sleep = async (ms) => void waits.push(ms);
+    try {
+        return await work(waits);
+    } finally {
+        signInMeans.sleep = sleep;
+    }
+}
+
+test("a second slow_down adds five seconds more; an issuer's interval over 60 s is kept, not cut", async () => {
+    await withWaits(async (waits) => {
+        const twice = await fakeIssuer({ slowDown: 2 });
+        try {
+            assert.equal((await inProcess(["login", "--url", twice.url, "--client-id", CLIENT, "--store", "file"], tempDir())).code, 0);
+            assert.deepEqual(waits, [1000, 6000, 11000, 11000]);
+        } finally {
+            await twice.close();
+        }
+        waits.length = 0;
+        const long = await fakeIssuer({ interval: 90, slowDown: 1 });
+        try {
+            assert.equal((await inProcess(["login", "--url", long.url, "--client-id", CLIENT, "--store", "file"], tempDir())).code, 0);
+            assert.deepEqual(waits, [90_000, 90_000, 90_000], "RFC 8628 3.5: never shorter than the issuer asks");
+        } finally {
+            await long.close();
+        }
+    });
+});
+
+test("a poll that fails on the way (a 503 page, a dropped connection, no JSON) is asked again; three in a row end the sign-in, an OAuth error at once", async () => {
+    await withWaits(async () => {
+        const flaky = await fakeIssuer({
+            hook: ({ req, res, state }) => {
+                if (req.url !== "/token") {
+                    return false;
+                }
+                state.polls++;
+                if (state.polls === 1) {
+                    res.writeHead(503, { "content-type": "text/html" });
+                    res.end("<html>busy</html>");
+                    return true;
+                }
+                if (state.polls === 2) {
+                    res.socket.destroy();
+                    return true;
+                }
+                if (state.polls === 3) {
+                    res.writeHead(200, { "content-type": "application/json" });
+                    res.end("{not json");
+                    return true;
+                }
+                res.writeHead(200, { "content-type": "application/json" });
+                res.end(JSON.stringify({ access_token: ACCESS[0], token_type: "Bearer", refresh_token: REFRESH[0] }));
+                return true;
+            }
+        });
+        try {
+            const r = await inProcess(["login", "--url", flaky.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 0, r.stderr);
+            assert.equal(flaky.state.polls, 4);
+        } finally {
+            await flaky.close();
+        }
+        const down = await fakeIssuer({
+            hook: ({ req, res, state }) => {
+                if (req.url !== "/token") {
+                    return false;
+                }
+                state.polls++;
+                res.writeHead(500, { "content-type": "application/json" });
+                res.end(JSON.stringify({ error: "server_error" }));
+                return true;
+            }
+        });
+        try {
+            const r = await inProcess(["login", "--url", down.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 2);
+            assert.equal(down.state.polls, 4, "the first try and three more");
+        } finally {
+            await down.close();
+        }
+        const denied = await fakeIssuer({ deny: true });
+        try {
+            assert.equal((await inProcess(["login", "--url", denied.url, "--client-id", CLIENT, "--store", "file"], tempDir())).code, 2);
+            assert.equal(denied.state.polls, 1, "an OAuth error is not asked again");
+        } finally {
+            await denied.close();
+        }
+    });
+});
+
+test("redirects at the issuer's metadata and at the token endpoint are not followed; an answer over the cap and one too slow are errors", async () => {
+    await withWaits(async () => {
+        const redirect = (path) => ({ req, res, origin }) => {
+            if (!req.url.startsWith(path)) {
+                return false;
+            }
+            res.writeHead(302, { location: `${origin}/elsewhere` });
+            res.end();
+            return true;
+        };
+        const meta = await fakeIssuer({ hook: redirect("/.well-known/oauth-authorization-server") });
+        try {
+            const r = await inProcess(["login", "--url", meta.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 2);
+            assert.match(r.stderr, /the issuer's metadata cannot be read/);
+            assert.ok(!meta.requests.some((q) => q.url === "/elsewhere"));
+        } finally {
+            await meta.close();
+        }
+        const token = await fakeIssuer({ hook: redirect("/token") });
+        try {
+            const r = await inProcess(["login", "--url", token.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 2);
+            assert.match(r.stderr, /redirected; redirects are not followed/);
+            assert.ok(!token.requests.some((q) => q.url === "/elsewhere"));
+        } finally {
+            await token.close();
+        }
+        const big = await fakeIssuer({
+            hook: ({ req, res }) => {
+                if (req.url !== "/device") {
+                    return false;
+                }
+                res.writeHead(200, { "content-type": "application/json" });
+                res.end(JSON.stringify({ device_code: "x".repeat(300_000) }));
+                return true;
+            }
+        });
+        try {
+            const r = await inProcess(["login", "--url", big.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 2);
+            assert.match(r.stderr, /is too large/);
+        } finally {
+            await big.close();
+        }
+    });
+    const requestMs = signInMeans.requestMs;
+    signInMeans.requestMs = 200;
+    const slow = await fakeIssuer({ hook: ({ req }) => req.url.startsWith("/.well-known/oauth-protected-resource") });
+    try {
+        const r = await inProcess(["login", "--url", slow.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+        assert.equal(r.code, 2);
+        assert.match(r.stderr, /cannot be reached within 0\.2 s/);
+    } finally {
+        signInMeans.requestMs = requestMs;
+        await slow.close();
+    }
+});
+
+test("https only: a verification address over http elsewhere is refused; plain http for the issuer only next to a loopback server", async () => {
+    const fake = await fakeIssuer({ verifyUri: () => "http://device.example/activate" });
+    try {
+        const r = await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+        assert.equal(r.code, 2);
+        assert.match(r.stderr, /verification_uri is no https:\/\/ address/);
+    } finally {
+        await fake.close();
+    }
+    const { checkedUrl } = await import("../src/sign-in.js");
+    assert.equal(checkedUrl("http://127.0.0.1:8080/issuer", "the issuer", true).protocol, "http:");
+    assert.throws(() => checkedUrl("http://127.0.0.1:8080/issuer", "the issuer", false), /the issuer is no https:\/\/ address/);
+    assert.throws(() => checkedUrl("http://auth.example/issuer", "the issuer", true), /no https:\/\/ address/);
+});
+
+test("phishing (RFC 8628 5.4): the issuer's host comes before the code, with a warning when the code page is on another site", async () => {
+    await withWaits(async () => {
+        const fake = await fakeIssuer({ verifyUri: (origin) => origin.replace("127.0.0.1", "localhost") + "/activate" });
+        try {
+            const r = await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 0, r.stderr);
+            const lines = r.stderr.split("\n");
+            const warning = lines.findIndex((l) => /^warning: the code page is on localhost:\d+, not on 127\.0\.0\.1:\d+/.test(l));
+            const code = lines.findIndex((l) => l.includes(USER_CODE));
+            assert.ok(warning >= 0 && warning < code, r.stderr);
+        } finally {
+            await fake.close();
+        }
+    });
+    const { siteOf } = await import("../src/sign-in.js");
+    assert.equal(siteOf("login.microsoftonline.com"), "microsoftonline.com");
+    assert.equal(siteOf("auth.example.co.uk"), "example.co.uk");
+    assert.equal(siteOf("127.0.0.1"), "127.0.0.1");
+});
+
+test("two token runs at once: the lock lets one refresh at a time, so neither spends the other's rotated token", async () => {
+    const fake = await fakeIssuer();
+    const dir = tempDir();
+    try {
+        assert.equal((await run(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], { env: envOf(dir) })).code, 0);
+        const [a, b] = await Promise.all([run(["token"], { env: envOf(dir) }), run(["token"], { env: envOf(dir) })]);
+        assert.deepEqual([a.code, b.code], [0, 0], `${a.stderr}${b.stderr}`);
+        assert.deepEqual(new Set([a.stdout, b.stdout]), new Set([`${ACCESS[1]}\n`, `${ACCESS[2]}\n`]));
+        assert.deepEqual(readdirSync(join(dir, "pivotkit", "locks")), [], "the lock is gone");
+    } finally {
+        await fake.close();
+    }
+});
+
+test("rotation: when the keychain cannot keep the new refresh token, the access token is still printed and the file keeps it, with a warning", async () => {
+    const { platform, run: realRun } = storeMeans;
+    const kept = new Map();
+    let writes = 0;
+    storeMeans.platform = "linux";
+    storeMeans.run = async (command, args, input) => {
+        if (args[0] === "store") {
+            writes++;
+            if (writes > 1) {
+                return { code: 1, stdout: "" };
+            }
+            kept.set("linux", input);
+            return { code: 0, stdout: "" };
+        }
+        if (args[0] === "lookup") {
+            return { code: 0, stdout: kept.get("linux") ?? "" };
+        }
+        return { code: 0, stdout: "" };
+    };
+    const fake = await fakeIssuer();
+    const dir = tempDir();
+    try {
+        await withWaits(async () => assert.equal((await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "keychain"], dir)).code, 0));
+        const r = await inProcess(["token"], dir);
+        assert.equal(r.code, 0, r.stderr);
+        assert.equal(r.stdout, `${ACCESS[1]}\n`);
+        assert.match(r.stderr, /^warning: the keychain could not keep the new refresh token; it is in .*\.token, /);
+        assert.equal(readFileSync(tokenFile(dir), "utf8"), REFRESH[1]);
+        assert.equal(JSON.parse(readFileSync(join(dir, "pivotkit", "logins.json"), "utf8")).logins[fake.url].store, "file");
+        assert.equal((await inProcess(["token"], dir)).stdout, `${ACCESS[2]}\n`, "the next run reads the file");
+    } finally {
+        storeMeans.platform = platform;
+        storeMeans.run = realRun;
+        await fake.close();
+    }
+});
+
+test("login leaves no token behind when its record cannot be written", { skip: process.platform === "win32" || process.getuid?.() === 0 ? "needs POSIX modes and a user other than root" : false }, async () => {
+    const fake = await fakeIssuer();
+    const dir = tempDir();
+    const home = join(dir, "pivotkit");
+    try {
+        mkdirSync(join(home, "tokens"), { recursive: true, mode: 0o700 });
+        // the token's directory takes the file, the list's directory refuses its new copy
+        chmodSync(home, 0o500);
+        const r = await withWaits(() => inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], dir));
+        assert.equal(r.code, 2, r.stderr);
+        assert.deepEqual(readdirSync(join(home, "tokens")), [], "no orphan token");
+    } finally {
+        chmodSync(home, 0o700);
+        await fake.close();
+    }
+});
+
+test("a new login of the same server keeps the new token first: from the file to the keychain, the old file goes only after", async () => {
+    const { platform, run: realRun } = storeMeans;
+    const fake = await fakeIssuer();
+    const dir = tempDir();
+    try {
+        await withWaits(async () => assert.equal((await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], dir)).code, 0));
+        const kept = new Map();
+        storeMeans.platform = "linux";
+        storeMeans.run = async (command, args, input) => (args[0] === "store" ? (kept.set("t", input), { code: 0, stdout: "" }) : args[0] === "lookup" ? { code: 0, stdout: kept.get("t") ?? "" } : { code: 0, stdout: "" });
+        fake.state.polls = 0;
+        await withWaits(async () => assert.equal((await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "keychain"], dir)).code, 0));
+        assert.equal(kept.get("t"), REFRESH[0]);
+        assert.deepEqual(readdirSync(join(dir, "pivotkit", "tokens")), [], "the old file is gone");
+        assert.equal(JSON.parse(readFileSync(join(dir, "pivotkit", "logins.json"), "utf8")).logins[fake.url].store, "keychain");
+    } finally {
+        storeMeans.platform = platform;
+        storeMeans.run = realRun;
+        await fake.close();
+    }
+});
+
+test("logout revokes the refresh token at the issuer when it offers RFC 7009, and says when it cannot", async () => {
+    const fake = await fakeIssuer({ revocation: true });
+    const dir = tempDir();
+    try {
+        await withWaits(async () => assert.equal((await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], dir)).code, 0));
+        const r = await inProcess(["logout"], dir);
+        assert.equal(r.code, 0, r.stderr);
+        assert.match(r.stderr, /The issuer revoked the refresh token\./);
+        const revoke = fake.requests.find((q) => q.url === "/revoke");
+        assert.deepEqual(revoke.body, { token: REFRESH[0], token_type_hint: "refresh_token", client_id: CLIENT });
+        assert.ok(!r.stderr.includes(REFRESH[0]));
+    } finally {
+        await fake.close();
+    }
+});
+
+test("the store: a missing keychain tool is named, a token over the Windows Credential Manager's 2560 bytes goes to the file, a linked token file is refused", async () => {
+    const { platform, run: realRun } = storeMeans;
+    try {
+        storeMeans.platform = "linux";
+        storeMeans.run = async () => ({ code: null, stdout: "", missing: true });
+        const missing = await credentialStore(envOf(tempDir())).put("https://reports.example/api/v1", "REFRESH-X", "auto");
+        assert.equal(missing.store, "file");
+        assert.match(missing.why, /secret-tool \(the package libsecret-tools.*\) is not installed/);
+        storeMeans.platform = "win32";
+        let called = false;
+        storeMeans.run = async () => {
+            called = true;
+            return { code: 0, stdout: "" };
+        };
+        const long = await credentialStore(envOf(tempDir())).put("https://reports.example/api/v1", "R".repeat(2561), "auto");
+        assert.equal(long.store, "file");
+        assert.match(long.why, /longer than the 2560 bytes the Windows Credential Manager keeps/);
+        assert.equal(called, false, "the Credential Manager is not asked");
+    } finally {
+        storeMeans.platform = platform;
+        storeMeans.run = realRun;
+    }
+    if (process.platform !== "win32") {
+        const fake = await fakeIssuer();
+        const dir = tempDir();
+        try {
+            assert.equal((await run(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], { env: envOf(dir) })).code, 0);
+            const file = tokenFile(dir);
+            writeFileSync(join(dir, "elsewhere.token"), REFRESH[0]);
+            unlinkSync(file);
+            symlinkSync(join(dir, "elsewhere.token"), file);
+            const r = await run(["token"], { env: envOf(dir) });
+            assert.equal(r.code, 2);
+            assert.match(r.stderr, /is not a file pivotkit wrote/);
+        } finally {
+            await fake.close();
+        }
+    }
+});

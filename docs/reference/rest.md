@@ -569,8 +569,11 @@ person. The server takes no part in the sign-in. It only publishes its metadata.
 
     ```bash
     pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli
-    curl -H "Authorization: Bearer $(pivotkit token)" https://reports.example.com/api/v1/sources
+    pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources
     ```
+
+    curl reads the header from stdin (`-H @-`), so the token is in no argument. Other users of the
+    machine can read arguments in the process list.
 
 === "PowerShell"
 
@@ -656,13 +659,15 @@ your setup issues.
 
 The same steps work with curl or PowerShell:
 
-1. Read the server's metadata at `/.well-known/oauth-protected-resource/api/v1`. Its
-   `authorization_servers` names the issuer.
-2. Read the issuer's metadata at `<issuer>/.well-known/openid-configuration`. It names the
-   `device_authorization_endpoint` and the `token_endpoint`.
+1. Read the server's metadata at `/.well-known/oauth-protected-resource/api/v1`. Check that its
+   `resource` is the address you use. Its `authorization_servers` names the issuer.
+2. Read the issuer's metadata ([RFC 8414](https://www.rfc-editor.org/rfc/rfc8414)) at
+   `/.well-known/oauth-authorization-server` before the issuer's path. Where that fails, read
+   `<issuer>/.well-known/openid-configuration`. Check that its `issuer` is the one the server named.
+   It names the `device_authorization_endpoint` and the `token_endpoint`. Both must be https.
 3. Post `client_id` and `scope` to the device endpoint. The answer has the `verification_uri`, the
    `user_code`, the `device_code` and the `interval`.
-4. Open the address and enter the code.
+4. Check that the address is on your sign-in provider's site. Open it and enter the code.
 5. Post `grant_type=urn:ietf:params:oauth:grant-type:device_code`, the `device_code` and the
    `client_id` to the token endpoint every `interval` seconds:
     - `authorization_pending` (HTTP 400): ask again.
@@ -671,7 +676,7 @@ The same steps work with curl or PowerShell:
     - HTTP 200 holds the `access_token`.
 
 The token endpoint answers 400 while it waits. So `curl -f` fails there, and `Invoke-RestMethod`
-throws. The scripts below handle that.
+throws. The scripts below handle that, and they check the addresses as steps 1 and 2 say.
 
 === "PowerShell"
 
@@ -692,18 +697,29 @@ throws. The scripts below handle that.
         [string] $Scope
     )
     $ErrorActionPreference = 'Stop'
-    $base = $Api.AbsoluteUri.TrimEnd('/')
-    $metadataUrl = $Api.GetLeftPart([UriPartial]::Authority) + '/.well-known/oauth-protected-resource' + $Api.AbsolutePath.TrimEnd('/')
-    $resource = Invoke-RestMethod $metadataUrl
-    if ($resource.resource.TrimEnd('/') -ne $base) {
-        throw "The server's metadata is for $($resource.resource), not $base."
+    function Assert-Https([string] $Address, [string] $What) {
+        if (([uri]$Address).Scheme -ne 'https') { throw "$What is no https:// address: $Address" }
     }
-    $issuer = Invoke-RestMethod ($resource.authorization_servers[0].TrimEnd('/') + '/.well-known/openid-configuration')
+    $base = $Api.AbsoluteUri.TrimEnd('/')
+    Assert-Https $base 'The server'
+    $resource = Invoke-RestMethod ($Api.GetLeftPart([UriPartial]::Authority) + '/.well-known/oauth-protected-resource' + $Api.AbsolutePath.TrimEnd('/'))
+    if ($resource.resource.TrimEnd('/') -ne $base) { throw "The server's metadata is for $($resource.resource), not $base." }
+    $issuerName = $resource.authorization_servers[0]
+    Assert-Https $issuerName 'The issuer'
+    $issuerUri = [uri]$issuerName
+    $issuer = $null
+    foreach ($at in @(($issuerUri.GetLeftPart([UriPartial]::Authority) + '/.well-known/oauth-authorization-server' + $issuerUri.AbsolutePath.TrimEnd('/')), ($issuerName.TrimEnd('/') + '/.well-known/openid-configuration'))) {
+        try { $issuer = Invoke-RestMethod $at -MaximumRedirection 0; break } catch { $issuer = $null }
+    }
+    if (-not $issuer -or $issuer.issuer -ne $issuerName) { throw "The issuer's metadata cannot be read, or names another issuer." }
+    Assert-Https $issuer.device_authorization_endpoint 'The device endpoint'
+    Assert-Https $issuer.token_endpoint 'The token endpoint'
     if (-not $Scope) {
         $Scope = (@($resource.scopes_supported | Where-Object { $_ }) + 'offline_access') -join ' '
     }
     $start = Invoke-RestMethod $issuer.device_authorization_endpoint -Method Post -Body @{ client_id = $ClientId; scope = $Scope }
-    Write-Host "Open $($start.verification_uri) and enter the code $($start.user_code)"
+    Assert-Https $start.verification_uri 'The code page'
+    Write-Host "Sign in at $($issuerUri.Host). Open $($start.verification_uri) and enter the code $($start.user_code)"
     $interval = if ($start.interval) { [int]$start.interval } else { 5 }
     $deadline = (Get-Date).AddSeconds([int]$start.expires_in)
     while ((Get-Date) -lt $deadline) {
@@ -725,22 +741,36 @@ throws. The scripts below handle that.
 
 === "curl"
 
-    It needs [jq](https://jqlang.org/) to read the JSON answers.
+    It needs [jq](https://jqlang.org/) to read the JSON answers. The device code and the token go to
+    curl on stdin (`@-`), never as an argument, since other users of the machine can read arguments
+    in the process list.
 
     ```bash
+    set -eu
     API=https://reports.example.com/api/v1
     CLIENT_ID=pivotkit-cli
-    PRM=$(curl -fsS "${API%/api/v1}/.well-known/oauth-protected-resource/api/v1")
+    https() { case "$1" in https://*) ;; *) echo "$2 is no https:// address: $1" >&2; exit 1 ;; esac; }
+    https "$API" "The server"
+    ORIGIN=${API%/api/v1}
+    PRM=$(curl -fsS "$ORIGIN/.well-known/oauth-protected-resource/api/v1")
+    [ "$(echo "$PRM" | jq -r '.resource | rtrimstr("/")')" = "$API" ] || { echo "The server's metadata is for another address" >&2; exit 1; }
     ISSUER=$(echo "$PRM" | jq -r '.authorization_servers[0]')
+    https "$ISSUER" "The issuer"
+    ISSUER_ORIGIN=$(echo "$ISSUER" | sed -E 's#^(https://[^/]+).*#\1#')
+    ISSUER_PATH=${ISSUER#"$ISSUER_ORIGIN"}
+    META=$(curl -fsS "$ISSUER_ORIGIN/.well-known/oauth-authorization-server${ISSUER_PATH%/}" || curl -fsS "${ISSUER%/}/.well-known/openid-configuration")
+    [ "$(echo "$META" | jq -r .issuer)" = "$ISSUER" ] || { echo "The issuer's metadata names another issuer" >&2; exit 1; }
+    DEVICE_URL=$(echo "$META" | jq -r .device_authorization_endpoint); https "$DEVICE_URL" "The device endpoint"
+    TOKEN_URL=$(echo "$META" | jq -r .token_endpoint); https "$TOKEN_URL" "The token endpoint"
     SCOPE=$(echo "$PRM" | jq -r '(.scopes_supported // []) + ["offline_access"] | join(" ")')
-    META=$(curl -fsS "${ISSUER%/}/.well-known/openid-configuration")
-    START=$(curl -fsS -d "client_id=$CLIENT_ID" --data-urlencode "scope=$SCOPE" "$(echo "$META" | jq -r .device_authorization_endpoint)")
-    echo "$START" | jq -r '"Open \(.verification_uri) and enter the code \(.user_code)"'
+    START=$(curl -fsS -d "client_id=$CLIENT_ID" --data-urlencode "scope=$SCOPE" "$DEVICE_URL")
+    https "$(echo "$START" | jq -r .verification_uri)" "The code page"
+    echo "$START" | jq -r --arg host "${ISSUER_ORIGIN#https://}" '"Sign in at \($host). Open \(.verification_uri) and enter the code \(.user_code)"'
     INTERVAL=$(echo "$START" | jq -r '.interval // 5')
     while :; do
       sleep "$INTERVAL"
-      ANSWER=$(curl -sS -d grant_type=urn:ietf:params:oauth:grant-type:device_code -d "client_id=$CLIENT_ID" \
-        --data-urlencode "device_code=$(echo "$START" | jq -r .device_code)" "$(echo "$META" | jq -r .token_endpoint)")
+      ANSWER=$(echo "$START" | jq -j .device_code | curl -sS -d grant_type=urn:ietf:params:oauth:grant-type:device_code \
+        -d "client_id=$CLIENT_ID" --data-urlencode device_code@- "$TOKEN_URL")
       case "$(echo "$ANSWER" | jq -r '.error // "done"')" in
         done) break ;;
         authorization_pending) ;;
@@ -748,8 +778,7 @@ throws. The scripts below handle that.
         *) echo "The sign-in did not finish: $(echo "$ANSWER" | jq -r .error)" >&2; exit 1 ;;
       esac
     done
-    TOKEN=$(echo "$ANSWER" | jq -r .access_token)
-    curl -fsS -H "Authorization: Bearer $TOKEN" "$API/sources"
+    echo "$ANSWER" | jq -r '"Authorization: Bearer \(.access_token)"' | curl -fsS -H @- "$API/sources"
     ```
 
 Both scripts keep no refresh token. Run them again when the access token expires, or use

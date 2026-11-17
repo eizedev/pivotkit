@@ -16,11 +16,11 @@
 
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, lstat, mkdir, readFile, unlink } from "node:fs/promises";
+import { chmod, lstat, mkdir, open, stat, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { CliError } from "./errors.js";
-import { writeSafe } from "./safe-files.js";
+import { readSafe, writeSafe } from "./safe-files.js";
 
 /** The keychain service name of every entry. */
 export const KEYCHAIN_SERVICE = "pivotkit";
@@ -29,8 +29,11 @@ export const KEYCHAIN_SERVICE = "pivotkit";
 const MAX_SECRET_BYTES = 16_384;
 const MAX_LOGINS_BYTES = 262_144;
 
-/** How long a keychain tool may take. */
-const TOOL_MS = 15_000;
+/** How long a keychain tool may take: long enough for a person to answer an unlock dialog. */
+const TOOL_MS = 120_000;
+
+/** The most bytes the Windows Credential Manager keeps in one credential (CRED_MAX_CREDENTIAL_BLOB_SIZE, 5 * 512). */
+export const WINDOWS_BLOB_BYTES = 2560;
 
 /**
  * The directory of pivotkit's sign-ins: %APPDATA%\pivotkit on Windows, else
@@ -48,18 +51,21 @@ export function configDirOf(env) {
 export const accountOf = (resource) => createHash("sha256").update(resource, "utf8").digest("hex").slice(0, 32);
 
 /**
- * Runs a tool with the secret on stdin. Tests replace `run` and `platform`.
- * @type {{ platform: NodeJS.Platform, run(command: string, args: string[], input: string): Promise<{ code: number | null, stdout: string }> }}
+ * Runs a tool with the secret on stdin (`missing`: the tool is not installed). Tests replace `run`,
+ * `platform` and the lock's waits.
+ * @type {{ platform: NodeJS.Platform, lockWaitMs: number, lockStaleMs: number, run(command: string, args: string[], input: string): Promise<{ code: number | null, stdout: string, missing?: boolean }> }}
  */
 export const storeMeans = {
     platform: process.platform,
+    lockWaitMs: 15_000,
+    lockStaleMs: 60_000,
     run(command, args, input) {
         return new Promise((done) => {
             let child;
             try {
                 child = spawn(command, args, { stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
-            } catch {
-                done({ code: null, stdout: "" });
+            } catch (e) {
+                done({ code: null, stdout: "", missing: /** @type {any} */ (e)?.code === "ENOENT" });
                 return;
             }
             const chunks = [];
@@ -72,9 +78,9 @@ export const storeMeans = {
                     chunks.push(chunk);
                 }
             });
-            child.on("error", () => {
+            child.on("error", (e) => {
                 clearTimeout(timer);
-                done({ code: null, stdout: "" });
+                done({ code: null, stdout: "", missing: /** @type {any} */ (e)?.code === "ENOENT" });
             });
             child.on("close", (code) => {
                 clearTimeout(timer);
@@ -145,8 +151,14 @@ switch ($action) {
 const windowsTarget = (account) => `${KEYCHAIN_SERVICE}:${account}`;
 
 /**
+/**
+ * @typedef {{ name: string, missing: string, write(account: string, secret: string): Promise<{ code: number | null, missing?: boolean }>, read(account: string): Promise<string | null>, remove(account: string): Promise<void> }} Keychain
+ *   missing: what to install when the tool is not there
+ */
+
+/**
  * The system keychain, or null where pivotkit knows none.
- * @returns {{ name: string, write(account: string, secret: string): Promise<boolean>, read(account: string): Promise<string | null>, remove(account: string): Promise<void> } | null}
+ * @returns {Keychain | null}
  */
 export function keychainOf() {
     const { platform, run } = storeMeans;
@@ -154,7 +166,8 @@ export function keychainOf() {
         const tool = "/usr/bin/security";
         return {
             name: "the macOS keychain",
-            write: async (account, secret) => (await run(tool, ["-i"], `add-generic-password -U -s ${KEYCHAIN_SERVICE} -a ${account} -l ${KEYCHAIN_SERVICE} -X ${Buffer.from(secret, "utf8").toString("hex")}\n`)).code === 0,
+            missing: "/usr/bin/security, which macOS brings",
+            write: (account, secret) => run(tool, ["-i"], `add-generic-password -U -s ${KEYCHAIN_SERVICE} -a ${account} -l ${KEYCHAIN_SERVICE} -X ${Buffer.from(secret, "utf8").toString("hex")}\n`),
             read: async (account) => {
                 const r = await run(tool, ["find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", account, "-w"], "");
                 return r.code === 0 ? r.stdout.replace(/\r?\n$/, "") : null;
@@ -167,7 +180,8 @@ export function keychainOf() {
         const attributes = (account) => ["service", KEYCHAIN_SERVICE, "account", account];
         return {
             name: "the secret service (secret-tool)",
-            write: async (account, secret) => (await run(tool, ["store", `--label=${KEYCHAIN_SERVICE}`, ...attributes(account)], secret)).code === 0,
+            missing: "secret-tool (the package libsecret-tools, or libsecret on some systems)",
+            write: (account, secret) => run(tool, ["store", `--label=${KEYCHAIN_SERVICE}`, ...attributes(account)], secret),
             read: async (account) => {
                 const r = await run(tool, ["lookup", ...attributes(account)], "");
                 return r.code === 0 && r.stdout ? r.stdout.replace(/\r?\n$/, "") : null;
@@ -180,7 +194,8 @@ export function keychainOf() {
         const call = (lines) => run(powershell(), ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", Buffer.from(WINDOWS_SCRIPT, "utf16le").toString("base64")], `${lines.join("\n")}\n`);
         return {
             name: "the Windows Credential Manager",
-            write: async (account, secret) => (await call(["write", windowsTarget(account), secret])).code === 0,
+            missing: "Windows PowerShell",
+            write: (account, secret) => call(["write", windowsTarget(account), secret]),
             read: async (account) => {
                 const r = await call(["read", windowsTarget(account)]);
                 return r.code === 0 && r.stdout ? r.stdout : null;
@@ -206,7 +221,10 @@ async function privateDir(path) {
     }
 }
 
-/** A file's text, or null when it is missing; a symbolic link or anything but a file is refused. */
+/**
+ * A file's text, or null when it is missing. A symbolic link, a file with a second name or anything
+ * but a regular file is refused; the read is the CLI's own (readSafe, O_NOFOLLOW).
+ */
 async function readPrivate(path, max) {
     const info = await lstat(path).catch((e) => (e.code === "ENOENT" ? null : Promise.reject(e)));
     if (!info) {
@@ -215,8 +233,15 @@ async function readPrivate(path, max) {
     if (!info.isFile() || info.size > max) {
         throw new CliError("io", "NOT_REGULAR_FILE", `${path}: is not a file pivotkit wrote; remove it and sign in again`);
     }
-    return readFile(path, "utf8");
+    try {
+        return new TextDecoder("utf-8").decode(await readSafe(path, { cwd: dirname(path), allow: [], maxBytes: max, hardLinks: false }));
+    } catch (e) {
+        throw e instanceof CliError ? new CliError(e.kind, e.code, `${path}: ${e.message.replace(/^[^:]*: /, "")}; remove it and sign in again`) : e;
+    }
 }
+
+/** What the file store says it is, for the messages: Windows has no file modes to name. */
+export const fileStoreText = () => (storeMeans.platform === "win32" ? "a file in your user profile" : "a file only you can read (mode 0600)");
 
 /** Writes a file only its owner reads, through a temporary file. */
 const writePrivate = (dir, path, text) => writeSafe(path, Buffer.from(text, "utf8"), { cwd: dir, allow: [], mode: 0o600 });
@@ -229,6 +254,7 @@ const writePrivate = (dir, path, text) => writeSafe(path, Buffer.from(text, "utf
  * @property {string} scope
  * @property {string} tokenEndpoint
  * @property {"keychain" | "file"} store
+ * @property {string} [revocationEndpoint]  the issuer's RFC 7009 endpoint, when its metadata names one
  */
 
 /**
@@ -261,29 +287,79 @@ export function credentialStore(env) {
     }
 
     /**
-     * Keeps a refresh token. "auto" tries the keychain and falls back to the file.
+     * Keeps a refresh token. "auto" tries the keychain and falls back to the file, with why.
      * @param {string} resource
      * @param {string} secret
      * @param {"auto" | "keychain" | "file"} want
-     * @returns {Promise<{ store: "keychain" | "file", where: string, fellBack: boolean }>}
+     * @returns {Promise<{ store: "keychain" | "file", where: string, fellBack: boolean, why: string | null }>}
      */
     async function put(resource, secret, want) {
         const account = accountOf(resource);
+        let why = null;
         if (want !== "file") {
             const keychain = keychainOf();
-            // written, then read back: a tool that says yes but keeps nothing does not count
-            if (keychain && (await keychain.write(account, secret)) && (await keychain.read(account)) === secret) {
-                await unlink(tokenFileOf(dir, account)).catch(() => undefined);
-                return { store: "keychain", where: keychain.name, fellBack: false };
+            if (!keychain) {
+                why = "pivotkit knows no keychain on this system";
+            } else if (storeMeans.platform === "win32" && Buffer.byteLength(secret, "utf8") > WINDOWS_BLOB_BYTES) {
+                why = `the token is longer than the ${WINDOWS_BLOB_BYTES} bytes ${keychain.name} keeps`;
+            } else {
+                const written = await keychain.write(account, secret);
+                // written, then read back: a tool that says yes but keeps nothing does not count
+                if (written.code === 0 && (await keychain.read(account)) === secret) {
+                    await unlink(tokenFileOf(dir, account)).catch(() => undefined);
+                    return { store: "keychain", where: keychain.name, fellBack: false, why: null };
+                }
+                why = written.missing ? `${keychain.missing} is not installed` : `${keychain.name} cannot keep the token`;
             }
             if (want === "keychain") {
-                throw new CliError("io", "NO_KEYCHAIN", `${keychain ? `${keychain.name} cannot keep the token` : "pivotkit knows no keychain on this system"}; use --store file`);
+                throw new CliError("io", "NO_KEYCHAIN", `${why}; use --store file`);
             }
         }
         await privateDir(join(dir, "tokens"));
         const file = tokenFileOf(dir, account);
         await writePrivate(join(dir, "tokens"), file, secret);
-        return { store: "file", where: file, fellBack: want === "auto" };
+        return { store: "file", where: file, fellBack: want === "auto", why };
+    }
+
+    /**
+     * Runs `work` while this process alone may refresh the server's token: a lock file made with
+     * O_EXCL. A lock older than storeMeans.lockStaleMs is a crashed run's and is taken over.
+     * @template T
+     * @param {string} resource
+     * @param {() => Promise<T>} work
+     * @returns {Promise<T>}
+     */
+    async function locked(resource, work) {
+        const locks = join(dir, "locks");
+        await privateDir(locks);
+        const path = join(locks, `${accountOf(resource)}.lock`);
+        const start = Date.now();
+        let handle = null;
+        while (!handle) {
+            try {
+                handle = await open(path, "wx", 0o600);
+            } catch (e) {
+                if (/** @type {any} */ (e)?.code !== "EEXIST") {
+                    throw e;
+                }
+                const since = await stat(path).then((info) => Date.now() - info.mtimeMs, () => 0);
+                if (since > storeMeans.lockStaleMs) {
+                    await unlink(path).catch(() => undefined);
+                    continue;
+                }
+                if (Date.now() - start > storeMeans.lockWaitMs) {
+                    throw new CliError("io", "LOCKED", `another pivotkit token run holds ${path}; try again, or remove the file when no such run is left`);
+                }
+                // a ref'd timer: the wait keeps the process alive
+                await new Promise((done) => setTimeout(done, 100));
+            }
+        }
+        try {
+            return await work();
+        } finally {
+            await handle.close();
+            await unlink(path).catch(() => undefined);
+        }
     }
 
     /** A login's refresh token, or null. */
@@ -296,13 +372,14 @@ export function credentialStore(env) {
         return text === null ? null : text.replace(/\r?\n$/, "");
     }
 
-    /** Removes a login's refresh token from where it is. */
+    /** Removes a login's refresh token from the store the login names, and only from there. */
     async function drop(login) {
         const account = accountOf(login.resource);
         if (login.store === "keychain") {
             await keychainOf()?.remove(account);
+        } else {
+            await unlink(tokenFileOf(dir, account)).catch(() => undefined);
         }
-        await unlink(tokenFileOf(dir, account)).catch(() => undefined);
     }
 
     return {
@@ -310,6 +387,8 @@ export function credentialStore(env) {
         list,
         put,
         get,
+        drop,
+        locked,
         /** Records a login, replacing one of the same server. */
         async record(login) {
             const logins = await list();

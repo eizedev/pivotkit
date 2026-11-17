@@ -33,6 +33,7 @@ Exit codes:
 | 0 | Done. |
 | 1 | Findings: an error in the view, or a warning with `--strict`. |
 | 2 | A usage, file, limit or template error. |
+| 3 | `pivotkit token`: the sign-in has ended. Run `pivotkit login` again. |
 
 ## What it does
 

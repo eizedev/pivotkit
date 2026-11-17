@@ -12,7 +12,7 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 
 ## Contract
 
-- Exit codes: 0 done, 1 findings, 2 usage, file, limit or template error.
+- Exit codes: 0 done, 1 findings, 2 usage, file, limit or template error, 3 the sign-in has ended (`token`, `logout`).
 - `--json` writes one object on stdout.
 - The contract is documented in `docs/reference/cli.md`. Keep both in step.
 
@@ -68,6 +68,8 @@ Use `src/safe-files.js` for every file the CLI reads or writes.
 - A secret reaches a keychain tool on stdin only, never as an argument.
 - Tests replace the tools through `storeMeans` and the waits through `signInMeans`.
 - Tests never touch the real keychain: spawned runs use `--store file`.
+- `token` refreshes under a lock file (`locked`). It reads the refresh token again inside the lock.
+- An error that needs `pivotkit login` again carries `exitCode: 3` (`SIGN_IN_AGAIN`).
 
 ## Examples
 

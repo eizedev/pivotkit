@@ -172,18 +172,18 @@ export const COMMANDS = Object.freeze({
             scope: { type: "string", value: "scopes", text: "The scopes to ask for, separated by spaces (default the server's scopes and offline_access)." },
             store: { type: "string", value: "where", choices: ["auto", "keychain", "file"], text: "Where the refresh token goes: auto (the keychain, else a file only you read), keychain or file." }
         },
-        examples: ["pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli", 'curl -H "Authorization: Bearer $(pivotkit token)" https://reports.example.com/api/v1/sources']
+        examples: ["pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli", "pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources"]
     },
     token: {
         usage: "pivotkit token [--url <https://host/api/v1>]",
-        text: "Print a fresh access token of a server signed in to with pivotkit login (exit code 2 when it cannot be renewed).",
+        text: "Print a fresh access token of a server signed in to with pivotkit login (exit code 3 when the sign-in has ended).",
         args: [],
         options: { url: { type: "string", value: "url", env: "PIVOTKIT_URL", text: "The server signed in to (default the only one)." } },
-        examples: ['curl -H "Authorization: Bearer $(pivotkit token)" https://reports.example.com/api/v1/sources', "PIVOTKIT_TOKEN=$(pivotkit token) pivotkit sources --url https://reports.example.com/api/v1"]
+        examples: ["pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources", 'PIVOTKIT_TOKEN="$(pivotkit token)" pivotkit sources --url https://reports.example.com/api/v1']
     },
     logout: {
         usage: "pivotkit logout [--url <https://host/api/v1>]",
-        text: "Remove the kept sign-in of a server: its refresh token and its entry.",
+        text: "Remove the kept sign-in of a server: revoke its refresh token where the provider offers that, and remove it and its entry.",
         args: [],
         options: { url: { type: "string", value: "url", env: "PIVOTKIT_URL", text: "The server signed in to (default the only one)." } },
         examples: ["pivotkit logout --url https://reports.example.com/api/v1"]
