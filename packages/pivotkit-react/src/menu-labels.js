@@ -400,6 +400,7 @@ export const en = {
     colorDefault: "Default",
     colorRemove: "Remove",
     colorsNotShown: "Colours of names not shown",
+    seriesOnly: "The only series is always shown",
     defaultName: "Use the default name",
     // sharing a view (the Views menu): the group's title
     shareThisView: "Share this view",

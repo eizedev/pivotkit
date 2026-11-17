@@ -356,6 +356,7 @@ export const de = {
     colorDefault: "Standard",
     colorRemove: "Entfernen",
     colorsNotShown: "Farben nicht angezeigter Namen",
+    seriesOnly: "Die einzige Reihe wird immer angezeigt",
     defaultName: "Standardnamen verwenden",
     shareThisView: "Diese Ansicht teilen",
     copyLink: "Link kopieren",

@@ -97,3 +97,9 @@ test("a view file leaves out colors and tooltipShare at their defaults and keeps
     const written = toViewFile(set, { name: "Revenue" }).view.chart;
     assert.deepEqual([written.colors, written.tooltipShare], [[{ name: "North", color: "#e3000f" }], true]);
 });
+
+test("a key a colour entry does not have is reported, the entry still used (#54 review)", () => {
+    const { warnings } = validate({ chart: { colors: [{ name: "North", color: "#e3000f", shade: "dark" }] } }, SALES);
+    assert.deepEqual(warnings.map((w) => [w.path, w.code]), [["chart.colors[0].shade", "unknownKey"]]);
+    assert.deepEqual(norm({ chart: { colors: [{ name: "North", color: "#e3000f", shade: "dark" }] } }).chart.colors, [{ name: "North", color: "#e3000f" }]);
+});

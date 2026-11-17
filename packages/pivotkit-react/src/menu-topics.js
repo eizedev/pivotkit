@@ -531,7 +531,9 @@ export function chartTopics({ view, drawn, labels, names, act, drawnColors = new
         });
     }
     // the place of Reference lines (#577): after Tooltip, before Series
-    if (names.length > 1) {
+    // one series too: its colour; its switch only says it is always shown
+    if (names.length > 0) {
+        const only = names.length === 1;
         const hidden = (chart.hidden ?? []).filter((/** @type {string} */ n) => names.includes(n)).length;
         const now = chart.hidden ?? [];
         // a fixed colour per name (chart.colors, #54): the view's, else the colour the chart draws
@@ -557,7 +559,8 @@ export function chartTopics({ view, drawn, labels, names, act, drawnColors = new
                             id: `series-${i}`,
                             text: name,
                             checkbox: true,
-                            checked: !now.includes(name),
+                            checked: only || !now.includes(name),
+                            ...(only ? { disabled: true, reason: labels.seriesOnly } : {}),
                             run: () => act.display({ hidden: hiddenAfter(now, name, now.includes(name)) }),
                             color: { id: `series-${i}-color`, value: mine?.color ?? drawnColors.get(name) ?? "", label: fill(labels.colorOf, { name }), pick: (/** @type {string} */ c) => recolor(name, c) },
                             ...(mine ? { actions: [{ id: `series-${i}-default`, text: labels.colorDefault, label: `${labels.colorDefault}: ${name}`, icon: "reset", run: () => recolor(name, null) }] } : {})

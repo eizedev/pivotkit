@@ -315,6 +315,7 @@ export const VIEW_KEYS = Object.freeze({
     derived: Object.freeze(["name", "field", "by", "size", "origin"]),
     value: Object.freeze(["field", "agg", "format", "label", "showAs", "conditional"]),
     valueRef: Object.freeze(["field", "agg"]),
+    color: Object.freeze(["name", "color"]),
     showAs: Object.freeze(["type", "axis"]),
     conditional: Object.freeze({ colorScale: Object.freeze(["type", "colors"]), dataBar: Object.freeze(["type", "color"]) }),
     sort: Object.freeze(["field", "by", "order", "items", "value"]),
@@ -586,12 +587,12 @@ function collapsedSection(raw, view, ctx) {
  * A list at `key` of entries `read` takes (null: left out and reported), each once by its `id`
  * (without regard to case for colours), at most `limits.items`: the chart's hidden legend entries
  * (texts up to ITEM_LENGTH characters) and its colours (`{ name, color }`, the colour #rgb or #rrggbb).
- * @param {(entry: unknown) => { id: string, value: unknown } | null} read
+ * @param {(entry: unknown, path: string) => { id: string, value: unknown } | null} read
  */
 function listOnce(raw, key, ctx, read) {
     const out = new Map();
     listOf(raw, key, ctx.limits.items, ctx, (entry, path) => {
-        const got = read(entry);
+        const got = read(entry, path);
         if (!got) {
             return ctx.issue(path, "not a name, or no colour #rgb or #rrggbb", "unknownSetting", { value: shown(entry) });
         }
@@ -637,10 +638,15 @@ function displaySection(raw, view, ctx) {
             zoom: own("zoom", CHART_ZOOMS, "auto"),
             stackPercent: bool(get(chart, "stackPercent"), false),
             hidden: listOnce(raw, "chart.hidden", ctx, (n) => (nameOf(n) === null ? null : { id: /** @type {string} */ (n), value: n })),
-            colors: listOnce(raw, "chart.colors", ctx, (c) => {
+            colors: listOnce(raw, "chart.colors", ctx, (c, path) => {
                 const name = nameOf(get(c, "name"));
                 const color = get(c, "color");
-                return name !== null && COLOR.test(color) ? { id: name.toLowerCase(), value: { name, color } } : null;
+                if (name === null || !COLOR.test(color)) {
+                    return null;
+                }
+                // a key an entry does not have is said (unknownKey), the entry still used
+                ctx.keys(c, VIEW_KEYS.color, path);
+                return { id: name.toLowerCase(), value: { name, color } };
             }),
             tooltipShare: bool(get(chart, "tooltipShare"), false)
         };

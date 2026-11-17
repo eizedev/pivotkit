@@ -136,7 +136,8 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
     return {
         title: text(params?.seriesName),
         // a slice's share: ECharts' percent of the slices shown
-        lines: params ? [{ color: color(params), name: text(params.name), value: valueFormatter(params.value), ...(share && shareFormatter && hasValue(params.percent) ? { share: shareFormatter(params.percent) } : {}) }] : []
+        // a slice's share only where its values add up, as a stack's (an average has none)
+        lines: params ? [{ color: color(params), name: text(params.name), value: valueFormatter(params.value), ...(share && shareFormatter && hasValue(params.percent) && series[params.seriesIndex ?? 0]?.additive === true ? { share: shareFormatter(params.percent) } : {}) }] : []
     };
 }
 

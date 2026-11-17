@@ -63,7 +63,9 @@ test("averages: no 100 % stack; lines: smooth lines; a heatmap has no Series; tw
     const line = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", smooth: true } });
     const lt = chartTopics({ view: line, drawn: "line", labels, names: ["Sum of Revenue"], act: { display: () => {} } });
     assert.deepEqual(choices(byId(lt, "layout")).map((c) => [c.id, c.checked]), [["chart-smooth", true]]);
-    assert.equal(byId(lt, "series"), undefined, "one series: nothing to hide");
+    // one series: Series has its colour; its switch says it is always shown (#54 review)
+    const only = choices(byId(lt, "series"));
+    assert.deepEqual(only.map((c) => [c.text, c.checked, c.disabled, c.reason, c.color.label]), [["Sum of Revenue", true, true, "The only series is always shown", "Colour of Sum of Revenue"]]);
     const heat = norm({ rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "heatmap" } });
     assert.deepEqual(ids(chartTopics({ view: heat, drawn: "heatmap", labels, names: [], act: { display: () => {} } })), ["valueLabels", "legend", "title"]);
     const two = norm({ rows: ["Region", "Country"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" } });

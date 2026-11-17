@@ -84,3 +84,10 @@ test("on a 100 % stack the share is computed from each part's value, once; witho
     const off = tooltipContent(parts, options);
     assert.deepEqual(off.lines.map((l) => [l.value, l.share]), [["20", "33.3%"], ["10", "16.7%"], ["30", "50.0%"]]);
 });
+
+test("a pie's share only for values that add up (#54 review)", () => {
+    const slice = { seriesType: "pie", seriesIndex: 0, seriesName: "Average of Revenue", name: "North", value: 20, percent: 37.5, color: "#abc" };
+    const options = { valueFormatter: fmt, shareFormatter: share, share: true };
+    assert.equal(tooltipContent(slice, { ...options, series: [{ type: "pie", additive: true }] }).lines[0].share, "37.5%");
+    assert.equal(tooltipContent(slice, { ...options, series: [{ type: "pie", additive: false }] }).lines[0].share, undefined);
+});

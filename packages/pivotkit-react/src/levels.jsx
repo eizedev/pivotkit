@@ -239,7 +239,7 @@ function ChoiceItem({ choice: c, onPick, start }) {
 }
 
 /**
- * A colour beside a choice (a series' colour): a menu item with the colour as a swatch that opens the
+ * A colour beside a choice (a series' colour): a menu item, named with its colour, that opens the
  * browser's colour picker, a hidden colour field. The colour applies once it is picked (the field's
  * "change" event), not on every step while the picker is open: one step to undo per colour. The focus
  * comes back to the item. A new colour from outside (the chart drawn again, Undo) is set on the field.
@@ -270,7 +270,7 @@ function ColorPick({ id, value, label, pick }) {
     }, [value]);
     return (
         <>
-            <button ref={button} type="button" role="menuitem" tabIndex={-1} className="pk-icon-btn pk-color-pick" aria-label={label} title={label} data-pk-item={id} data-pk-text={label} data-testid={id} onClick={() => field.current?.click()}>
+            <button ref={button} type="button" role="menuitem" tabIndex={-1} className="pk-icon-btn pk-color-pick" aria-label={value ? `${label}, ${value}` : label} aria-haspopup="dialog" title={label} data-pk-item={id} data-pk-text={label} data-testid={id} onClick={() => field.current?.click()}>
                 {/* a dot in the colour (as the legend's and the tooltip's markers), set through the CSSOM, which a strict Content-Security-Policy allows */}
                 <span className="pk-dot" aria-hidden="true" ref={(el) => el?.style.setProperty("background-color", value || "transparent")} />
             </button>

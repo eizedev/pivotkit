@@ -203,6 +203,35 @@ test.describe("chart extras (#54)", () => {
         expect(await page.evaluate(() => window.__exports.map((e) => e.kind))).toEqual(["copy-chart", "png"]);
     });
 
+    test("Display › Series: a click on the colour reaches the browser's colour field, named with its colour; the focus comes back after a pick", async ({ page }) => {
+        // the native colour picker cannot be driven by a test: the field's own click stands for it, and
+        // is stopped there so no picker opens
+        const chartEl = await mount(page, { type: "line" }, { view: { ...VIEW, cols: [] } });
+        const report = page.locator("#color-report");
+        await menu(report, "chart-type");
+        // one series: listed for its colour, its switch always on
+        await report.getByTestId("topic-series").click();
+        const level = report.getByTestId("level-series");
+        await expect(level.getByRole("menuitemcheckbox", { name: "Sum of Revenue" })).toHaveAttribute("aria-disabled", "true");
+        const field = report.getByTestId("series-0-color-field");
+        await field.evaluate((el) => {
+            window.__fieldClicks = 0;
+            el.addEventListener("click", (e) => {
+                window.__fieldClicks += 1;
+                e.preventDefault();
+            });
+        });
+        const drawn = (await inChart(chartEl, drawnColors))["Sum of Revenue"].toLowerCase();
+        const swatch = level.getByRole("menuitem", { name: `Colour of Sum of Revenue, ${drawn}` });
+        await expect(swatch).toHaveAttribute("aria-haspopup", "dialog");
+        await swatch.click();
+        await expect.poll(() => page.evaluate(() => window.__fieldClicks)).toBe(1);
+        // a colour picked: the view has it, the focus is back on the swatch, named with the new colour
+        await field.fill("#aa5500");
+        await expect.poll(() => lastChart(page).then((c) => c?.colors)).toEqual([{ name: "Sum of Revenue", color: "#aa5500" }]);
+        await expect(level.getByRole("menuitem", { name: "Colour of Sum of Revenue, #aa5500" })).toBeFocused();
+    });
+
     test("Display › Series: each colour starts as the chart draws it; a view's colour for a name not shown can be removed", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar", colors: [{ name: "Gone", color: "#123456" }] });
         const report = page.locator("#color-report");

@@ -105,9 +105,10 @@ hidden series does not count in a 100 % stack.
 
 - With two or more series in the chart, a share of the category's total: the sum of the series shown
   there. A category with one part left, the others empty or hidden, has no share.
-- With one series, a share of the series' total over its categories.
+- With one series, a share of the series' total over the categories drawn.
 - A pie or a donut: the slice's share of the slices shown.
-- Only values that add up get one, and only without a part below zero. A heatmap gets none.
+- Only values that add up get one, on a pie too, and only without a part below zero. A heatmap gets
+  none.
 
 ## Fixed colours { #fixed-colours }
 
@@ -122,6 +123,8 @@ shows. A fixed colour per name keeps it the same in every chart.
 - The view's colour wins over the host's. A name in neither keeps the palette's colour.
 - Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
   A heatmap has no series to colour.
+- A view's colour is one colour for both themes. A host's pair `[light, dark]` follows the theme
+  the report shows.
 - A view's colour is `#rgb` or `#rrggbb`. The host's is hex of 3, 4, 6 or 8 digits, `rgb()`,
   `rgba()`, `hsl()`, `hsla()` or a CSS name. In a browser the name must be one it reads. Other values
   are left out.
