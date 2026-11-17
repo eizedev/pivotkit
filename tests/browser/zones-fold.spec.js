@@ -84,7 +84,8 @@ test("phone: zones that grow with a host's larger font size fold, though no rend
 });
 
 test("desktop: zones folded by a tall warning open again once the warning folds and they fit", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 800 });
+    // the open zones with their heading fit, a tall warning leaves them no room
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("?data=sales");
     await page.locator('[data-testid="pivot-table"]').waitFor();
     expect((await settled(page)).layout).toBe("open");

@@ -52,7 +52,10 @@ async function mount(page, chart, { theme = "light", view = {}, rows = ROWS, cel
             window.__cellClicks = [];
             // onCellClick's calls, as row, column and count
             const onCellClick = cellClicks ? ({ row, col, count }) => window.__cellClicks.push({ row, col, count }) : undefined;
-            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 560, defaultView: view, onCellClick, onViewChange: (v) => window.__tooltipViews.push(v) }));
+            // the chart's height the measures below were taken at, the zones folded: their heading
+            // takes 36 px more than before, on a phone 56 (its summary in two lines)
+            const height = window.innerWidth < 640 ? 616 : 596;
+            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height, defaultView: view, onCellClick, onViewChange: (v) => window.__tooltipViews.push(v) }));
         },
         { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
     );

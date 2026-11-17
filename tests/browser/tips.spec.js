@@ -49,13 +49,16 @@ test("a notice that the result is cut stays: no x, with tips off, and next to a 
     await expect(top).toBeVisible();
 });
 
-test("Options: Show tips off hides every tip, Show dismissed tips again brings them back", async ({ page }) => {
+test("More, Help: Show tips off hides every tip, Show dismissed tips again brings them back", async ({ page }) => {
     await page.goto("?data=sales");
     await page.getByTestId("tip-cells").getByRole("button", { name: "Dismiss tip" }).click();
     await expect(page.getByTestId("tips")).toHaveCount(0);
     await toolbar(page, "help");
     await page.getByTestId("reset-tips").click();
     await expect(page.getByTestId("tip-cells")).toBeVisible();
+    // an action, not a switch: More's first level again, the focus on Help
+    await expect(page.getByTestId("more-help")).toBeFocused();
+    await page.getByTestId("more-help").click();
     const sw = page.getByTestId("show-tips");
     await sw.focus();
     await page.keyboard.press("Space");
@@ -64,12 +67,12 @@ test("Options: Show tips off hides every tip, Show dismissed tips again brings t
     await page.keyboard.press("Space");
     await expect(sw).toBeChecked();
     await expect(page.getByTestId("tip-cells")).toBeVisible();
-    // the keyboard shortcuts are a level of their own, after Help
-    await page.getByTestId("topic-shortcuts").click();
-    await expect(page.getByTestId("level-title")).toHaveText("Options › Keyboard shortcuts");
-    await expect(page.getByTestId("shortcuts")).toContainText("Undo");
+    // the keyboard shortcuts are a level of their own, inside Help
+    await page.getByTestId("shortcuts").click();
+    await expect(page.getByTestId("level-title")).toHaveText("More › Help › Keyboard shortcuts");
+    await expect(page.getByTestId("level-shortcuts").getByTestId("shortcuts")).toContainText("Undo");
     await page.keyboard.press("Escape");
-    await expect(page.getByTestId("topic-shortcuts")).toBeFocused();
+    await expect(page.getByTestId("shortcuts")).toBeFocused();
 });
 
 test("a filter that leaves nothing says so and removes the filter", async ({ page }) => {

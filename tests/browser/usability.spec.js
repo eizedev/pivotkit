@@ -10,11 +10,14 @@ test("narrow: every toolbar button keeps its text; the rest is in a labelled Mor
         const texts = await buttons.evaluateAll((els) => els.filter((e) => e.getClientRects().length).map((e) => e.textContent.trim()));
         expect(texts.every((t) => t.length > 0), `${width}: ${JSON.stringify(texts)}`).toBe(true);
         // Redo stays next to Undo
-        for (const name of ["Table", "Chart", "Undo", "Redo", "Export", "More"]) {
+        for (const name of ["Undo", "Redo", "Export", "More"]) {
             expect(texts.some((t) => t.startsWith(name)), `${width}: ${name}`).toBe(true);
         }
+        // Table and Chart keep their text on their tabs
+        await expect(page.getByRole("tab", { name: "Table" })).toHaveText("Table");
+        await expect(page.getByRole("tab", { name: "Chart" })).toHaveText("Chart");
         await page.getByTestId("more").click();
-        await expect(page.getByRole("menuitem", { name: "Options…" })).toBeVisible();
+        await expect(page.getByRole("menuitem", { name: "Help" })).toBeVisible();
         await page.keyboard.press("Escape");
     }
 });
@@ -196,7 +199,7 @@ test("a half-width report (650 px) stacks its zones; nothing in them is cut, in 
     for (const lang of ["en", "de"]) {
         // the playground's report is the window's width less 40 px
         await page.setViewportSize({ width: 690, height: 900 });
-        // the report's default height: low for its stacked zones, so it starts folded; Layout opens them
+        // the report's default height: low for its stacked zones, so it starts folded; the heading row opens them
         await page.goto(`?data=tickets&lang=${lang}&height=640`);
         await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "medium");
         await page.getByTestId("layout-summary").click();
@@ -214,11 +217,19 @@ test("a half-width report (650 px) stacks its zones; nothing in them is cut, in 
             })
         );
         expect(cut, lang).toEqual([]);
+        // Swap in the heading row: whole, with its text
+        const swapCut = await page.getByTestId("swap").evaluate((el) => {
+            const row = el.closest(".pk-section-row").getBoundingClientRect();
+            const r = el.getBoundingClientRect();
+            const text = el.querySelector(".pk-btn-text");
+            return r.right > row.right + 0.5 || text.scrollWidth > text.clientWidth + 1;
+        });
+        expect(swapCut, lang).toBe(false);
         await expect(page.getByTestId("swap")).toHaveAccessibleName(lang === "de" ? "Zeilen und Spalten tauschen" : "Swap rows and columns");
     }
 });
 
-test("where the Columns zone is too narrow, the swap button is an icon with its name and a tooltip", async ({ page }) => {
+test("on a phone, the swap button is an icon with its name and a tooltip at the end of the zones' heading row", async ({ page }) => {
     await page.setViewportSize({ width: 340, height: 2200 });
     await page.goto("?data=tickets&lang=de&height=2000");
     // a phone's stacked zones may need more than the box: opened by hand
@@ -229,8 +240,10 @@ test("where the Columns zone is too narrow, the swap button is an icon with its 
     const box = await swap.boundingBox();
     expect(box.width).toBeGreaterThanOrEqual(24);
     expect(box.height).toBeGreaterThanOrEqual(24);
-    const head = await page.locator(".pk-zone-cols .pk-zone-head").boundingBox();
+    const head = await page.locator(".pk-section-row").boundingBox();
     expect(box.x + box.width).toBeLessThanOrEqual(head.x + head.width + 0.5);
+    // the icon only: its text takes no room
+    expect(await swap.locator(".pk-btn-text").evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
 });
 
 test("a low report (520 px) folds its zones under their heading; the heading row opens and folds them, a drag still drops", async ({ page }) => {
@@ -324,7 +337,8 @@ test("a tall report starts with its zones open", async ({ page }) => {
 
 test("a pie in a low report is drawn inside its box, labels included", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("?data=tickets&height=480");
+    // low: the open zones and their heading leave the pie a small box (90 px more for the heading)
+    await page.goto("?data=tickets&height=570");
     await page.getByTestId("layout-summary").click();
     await page.getByTestId("show-chart").click();
     await toolbar(page, "chart-settings");
@@ -394,7 +408,8 @@ test("chart tooltips show labels from the data as text: category, series and sli
 });
 
 test("Enlarge lets the result fill the report; Escape or the button brings the zones back", async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
+    // high enough for the open zones with their heading, so Enlarge has them to hide
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("?data=tickets");
     const result = page.locator(".pk-result");
     const before = (await result.boundingBox()).height;

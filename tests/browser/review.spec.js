@@ -185,7 +185,8 @@ test.describe("the field list for the keyboard", () => {
         await expect(skip).toBeFocused();
         await expect(skip).toBeInViewport();
         await page.keyboard.press("Enter");
-        await expect(page.getByTestId("show-table")).toBeFocused();
+        // the toolbar's first button that takes the focus: Undo and Redo have nothing to do yet
+        await expect(page.getByTestId("start-over")).toBeFocused();
     });
 });
 

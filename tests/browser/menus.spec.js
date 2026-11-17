@@ -618,10 +618,15 @@ test.describe("menus in levels", () => {
         await expect(page.getByTestId("total-rowSubtotals")).toHaveAccessibleDescription(/a subtotal row \(“North Total”\) under each group/);
         await info.hover();
         await expect(page.locator(".pk-info-pop")).toContainText("a subtotal row (“North Total”) under each group");
-        // Show explanations off: no i anywhere, the reason stays (it is state)
+        // Show explanations (More, Help) off: no i anywhere, the reason stays (it is state)
+        await page.keyboard.press("Escape");
+        await toolbar(page, "help");
         const show = page.getByTestId("show-explanations");
         await show.focus();
         await show.press("Space");
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        await toolbar(page, "table-settings");
         await expect(page.locator('[data-testid^="setting-info-"]')).toHaveCount(0);
         await expect(page.getByTestId("total-rowSubtotals-reason")).toBeVisible();
         await page.keyboard.press("Escape");
@@ -636,6 +641,8 @@ test.describe("menus in levels", () => {
         await page.getByTestId("show-explanations").focus();
         await page.getByTestId("show-explanations").press("Space");
         await expect(page.getByTestId("show-explanations")).toBeChecked();
+        // Escape goes back from Help, then closes More
+        await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         await expect(page.locator(".pk-popover")).toHaveCount(0);
         await page.getByTestId("export").click();

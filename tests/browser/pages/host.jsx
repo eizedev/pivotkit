@@ -141,11 +141,11 @@ function Host() {
                 </p>
             ) : null}
             <section data-testid="first">
-                <PivotReport key={mount} data={[...shown]} dataKey={dataKey} view={view} onViewChange={onViewChange} height={640} loading={loading} {...extra} />
+                <PivotReport key={mount} data={[...shown]} dataKey={dataKey} view={view} onViewChange={onViewChange} height={730} loading={loading} {...extra} />
             </section>
             {query.has("two") ? (
                 <section data-testid="second">
-                    <PivotReport key={mount} data={[...shown]} dataKey={dataKey} defaultView={start} height={640} {...extra} storageKey="host-import-2" />
+                    <PivotReport key={mount} data={[...shown]} dataKey={dataKey} defaultView={start} height={730} {...extra} storageKey="host-import-2" />
                 </section>
             ) : null}
         </>

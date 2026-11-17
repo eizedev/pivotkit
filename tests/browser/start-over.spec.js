@@ -131,14 +131,12 @@ test("in More: Help first, then a letter jumps to the next entry that starts wit
     await more.focus();
     await page.keyboard.press("ArrowDown");
     await expect(page.getByTestId("more-help")).toBeFocused();
-    await page.keyboard.press("r");
-    await expect(page.getByTestId("more-reset")).toBeFocused();
-    await page.keyboard.press("v");
-    await expect(page.getByTestId("more-views")).toBeFocused();
-    await page.keyboard.press("n");
-    await expect(page.getByTestId("more-new-report")).toBeFocused();
-    await page.keyboard.press("h");
-    await expect(page.getByTestId("more-help")).toBeFocused();
+    // one letter at a time: letters typed in a row are one word (type-ahead)
+    for (const [key, id] of [["r", "more-reset"], ["v", "more-views"], ["n", "more-new-report"], ["h", "more-help"]]) {
+        await page.keyboard.press(key);
+        await expect(page.getByTestId(id)).toBeFocused();
+        await page.waitForTimeout(700);
+    }
     // Help opens its level, as a row of a menu in levels does
     await expect(page.getByTestId("more-help")).toHaveAttribute("aria-haspopup", "menu");
     // the groups without a title are no unnamed groups for a screen reader

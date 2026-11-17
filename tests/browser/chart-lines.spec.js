@@ -34,7 +34,9 @@ async function mount(page, chart, { theme = "light", view = {}, cellClicks = fal
             window.__cellClicks = [];
             window.__linesViews = [];
             const onCellClick = cellClicks ? ({ row, col }) => window.__cellClicks.push({ row, col }) : undefined;
-            window.__linesRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 560, defaultView: view, onCellClick, onViewChange: (v) => window.__linesViews.push(v) }));
+            // 596 px: a chart of 319 px on a phone and 351 px on a desktop, the zones folded, as the
+            // measures below were taken at
+            window.__linesRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 596, defaultView: view, onCellClick, onViewChange: (v) => window.__linesViews.push(v) }));
         },
         { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
     );
@@ -452,19 +454,18 @@ test.describe("reference lines", () => {
         }
     });
 
-    test("with the table shown the chart menu opens, offers the view's lines and asks for the chart", async ({ page }) => {
+    test("with the table shown, the settings beside the tabs are the table's: the lines are in Chart settings (#580)", async ({ page }) => {
         const report = page.locator("#lines-report");
         await mount(page, { type: "bar", stacked: true, referenceLines: { average: true, trend: false, target: null } }, { view: { display: "table" } });
-        await openLines(report);
-        await expect(report.getByTestId("lines-note")).toHaveText("Show the chart to see which lines it can draw.");
-        await expect(report.getByTestId("line-average")).toHaveCount(1);
-        await expect(report.getByTestId("line-trend")).toHaveCount(1);
-        // a stack of averages: the view alone says no line
+        await expect(report.getByTestId("view-settings")).toHaveText(/Table settings/);
+        await report.getByTestId("view-settings").click();
+        await expect(report.getByTestId("topic-totals")).toBeVisible();
+        await expect(report.getByTestId("topic-lines")).toHaveCount(0);
         await page.keyboard.press("Escape");
-        await mount(page, { type: "bar", stacked: true }, { view: { display: "table", values: [{ field: "Revenue", agg: "average" }] } });
+        // the chart's tab: its settings hold the lines the view keeps
+        await report.getByTestId("show-chart").click();
         await openLines(report);
-        await expect(report.getByTestId("line-average")).toHaveAttribute("aria-disabled", "true");
-        await expect(report.getByTestId("lines-note")).toHaveText("Show the chart to see which lines it can draw.");
+        await expect(report.getByTestId("line-average")).toHaveAttribute("aria-checked", "true");
         await expect(report.locator(".pk-root")).toHaveCount(1);
     });
 

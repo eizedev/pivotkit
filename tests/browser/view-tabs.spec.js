@@ -267,3 +267,12 @@ plain("a zones value the report does not know is ignored with one console warnin
     await expect.poll(() => warnings.join("\n")).toContain('zones "sideways" is neither "open" nor "folded"');
     expect(warnings.length).toBe(1);
 });
+
+test("the open zones with their heading need room: a desktop report of 640 px starts folded, one of 760 px open", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    for (const [height, expanded] of [[640, "false"], [760, "true"]]) {
+        await page.goto(`?data=sales&lang=en&height=${height}`);
+        await page.locator('[data-testid="pivot-table"]').waitFor();
+        await expect(page.getByTestId("layout-summary"), `${height} px`).toHaveAttribute("aria-expanded", expanded);
+    }
+});

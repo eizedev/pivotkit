@@ -295,7 +295,10 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         const report = page.locator("#zoom-report");
         await chartMenu(report);
         await expect(report.getByTestId("topic-axis")).toBeVisible();
-        await expect(report.getByTestId("topic-layout")).toHaveCount(0);
+        // Layout holds the groups of Rows (#580), but no 100 % stack for averages
+        await report.getByTestId("topic-layout").click();
+        await expect(report.getByTestId("chart-show-each")).toBeVisible();
+        await expect(report.getByTestId("chart-stack-percent")).toHaveCount(0);
     });
 });
 
