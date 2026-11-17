@@ -285,6 +285,7 @@ export const de = {
     exportPrint: "Drucken oder als PDF speichern…",
     exportPngNeedsChart: "Zuerst zum Diagramm wechseln.",
     exportNeedsField: "Zuerst ein Feld hinzufügen.",
+    exportNeedsRows: "Die Daten haben noch keine Zeilen.",
     exportDataGroup: "Quelldaten",
     exportDataCsv: "Alle Zeilen als CSV (.csv)",
     exportDataJson: "Alle Zeilen als JSON (.json)",

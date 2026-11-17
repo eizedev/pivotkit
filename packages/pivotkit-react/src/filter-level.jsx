@@ -26,7 +26,7 @@ import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 import { useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, Radio, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
-import { dayText, isoDay, periodText, plainRange, rangeShare, refLabel, relativeDays, relativeText, yearText } from "./names.js";
+import { dayText, isoDay, periodText, plainRange, rangeShare, refLabel, relativeText, todayIn, yearText } from "./names.js";
 import { numberText, parseNumber } from "./numbers.js";
 import { LayerContext, Popover } from "./popover.jsx";
 import { RULE_OPS, dateSpan, filtersOf, hiddenNot, opOf, ruleOp, sameRef, searchItems, selectedItems, sourceOf } from "./view-ops.js";
@@ -281,6 +281,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     const latestDay = isoDay(span.max);
     // today, once per opening of the level (the choices and their shares are measured against it)
     const [now] = useState(() => Date.now());
+    const todayIso = todayIn(timeZone, now);
     /** The dates of a range counted from the reference date (`from` null for "before"); null when it leaves what a Date holds. */
     const datesOf = (spec, at = anchor) => {
         try {
@@ -355,7 +356,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
         if (range.from === null) {
             period = fill(more.until, { to: periodText({ from: range.to, to: range.to }, shownUnit, locale) });
         } else {
-            const share = rangeShare(range, shownUnit, span, locale);
+            const share = rangeShare(range, shownUnit, span, locale, todayIso);
             if (share?.none) {
                 period = "";
                 missing = fill(plural(labels.noData, 1, lang), { range: periodText(range, shownUnit, locale) });
@@ -543,7 +544,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     // the reference date: below the choices when the data end before the current period (the month; the
     // year for a grouping by year or quarter) or when it is not today, else among More choices; placed
     // once, so it does not move while it is used
-    const today = new Date(relativeDays({ unit: "day", count: 1 }, timeZone, now)?.from ?? isoDay(now));
+    const today = new Date(todayIso ?? isoDay(now));
     const periodStart = fk.months ? Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1) : Date.UTC(today.getUTCFullYear(), 0, 1);
     const [anchorOutside] = useState(() => span.max < periodStart || anchor !== "today");
     const anchorKind = ["today", "latest", "first"].includes(anchor) ? anchor : "date";

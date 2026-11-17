@@ -92,6 +92,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - A view's locale that the browser has no data for, such as `xx-XX`, is reported as unknown, and
   the report takes the `locale` prop. Such a `locale` prop takes `en-US` with a warning. Before,
   both took the machine's locale, from pivotkit-core ([#552](https://github.com/eizedev/pivotkit/issues/552)).
+- Export → Source data is greyed out while the data have no rows, like the table's entries. It says
+  "Add a field first." while no field is placed, else "The data has no rows yet." ([#585](https://github.com/eizedev/pivotkit/issues/585)).
+- A relative date filter no longer says that days from today on have no data. Data up to yesterday
+  give "last 4 weeks (Oct 26, 2026–Nov 22, 2026)", not a second part for the rest of the week. Days
+  before today without rows are still named. The chip, its tooltip, the summary, the menu's first
+  level and the Filter level's choices say the same ([#586](https://github.com/eizedev/pivotkit/issues/586)).
 - "Table as CSV" in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
   `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:
   `9.6`, not `9٫6`, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).
