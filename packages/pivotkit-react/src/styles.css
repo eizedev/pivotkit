@@ -4024,3 +4024,26 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* Default and Remove beside a colour: as tall as the row's other controls */
+.pk-color-action {
+    min-height: var(--pk-target);
+    padding: 0 0.4em;
+}
+
+/* a view's colour for a name the chart does not show: its colour, its name and Remove */
+.pk-color-swatch {
+    flex: none;
+    width: var(--pk-target);
+    height: var(--pk-target);
+    border: 1px solid var(--pk-border);
+    border-radius: var(--pk-radius-sm);
+}
+
+@media (pointer: coarse) {
+    .pk-color-action,
+    .pk-color-row > input[type="color"],
+    .pk-color-swatch {
+        min-height: var(--pk-target-touch);
+    }
+}

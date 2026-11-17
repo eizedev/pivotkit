@@ -1481,7 +1481,7 @@ function Report(props) {
                                 view={view}
                                 chartPlan={plan}
                                 chartSeries={series}
-                                chartColors={{ map: stableColorMap, theme: themeName }}
+                                chartColors={{ map: stableColorMap, theme: themeName, chart: chartRef }}
                                 labels={labels}
                                 size={size}
                                 canUndo={history.canUndo || dataSteps.past.length > 0}

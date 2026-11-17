@@ -73,7 +73,8 @@ A pie, a donut and a heatmap always show the slice or cell under the pointer.
 
 `chart.tooltipShare` adds each value's share of the total to the tooltip:
 
-- With two or more series, a share of the category's total: the sum of the series shown there.
+- With two or more series in the chart, a share of the category's total: the sum of the series shown
+  there. A category with one part left, the others empty or hidden, has no share.
 - With one series, a share of the series' total over its categories.
 - A pie or a donut: the slice's share of the slices shown.
 - Only values that add up get one, and only without a part below zero. A heatmap gets none.
@@ -90,10 +91,12 @@ shows. A fixed colour per name keeps it the same in every chart.
 - The view's colour wins over the host's. A name in neither keeps the palette's colour.
 - Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
   A heatmap has no series to colour.
-- A view's colour is `#rgb` or `#rrggbb`. The host's is hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or
-  a CSS name. Other values are left out.
+- A view's colour is `#rgb` or `#rrggbb`. The host's is hex of 3, 4, 6 or 8 digits, `rgb()`,
+  `rgba()`, `hsl()`, `hsla()` or a CSS name. In a browser the name must be one it reads. Other values
+  are left out.
 - The chart image, the SVG, the HTML report and a print show the colours. Files take the host's
-  light colours. pivotkit-report's `render` takes them as its `colorMap` option.
+  light colours. pivotkit-report's `render` takes them as its `colorMap` option, a pair too, of
+  which it draws the light one.
 
 ```jsx
 <PivotReport colorMap={{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }} />

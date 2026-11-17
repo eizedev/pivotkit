@@ -215,7 +215,7 @@ function reportTokens(root, report, chart, dark) {
 /**
  * @typedef {{ fileName: string, result: import("pivotkit-core").PivotResult | null, encoded?: import("pivotkit-core").Encoded | null, exportData?: unknown, locale: string,
  *   labels: import("./labels.js").UiLabels, limits: object | undefined, root: React.RefObject<HTMLElement | null>,
- *   chartRef: React.RefObject<any>, announce: (text: string, extra?: { tone?: "error" }) => void,
+ *   chartRef: React.RefObject<any>, announce: (text: string, extra?: { tone?: "error", action?: { label: string, run: () => void } }) => void,
  *   onExport?: (file: ExportFile) => unknown, title?: string | null, source?: string | null, loadECharts?: () => Promise<any>, colorMap?: unknown }} ExportContext
  *   `title`: the report's title in an HTML report (the loaded view's name); `source`: the data's name;
  *   `encoded`: the data shown (the host's or a loaded file's), which the source data exports, only
@@ -250,6 +250,7 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
             const file = `${base}.png`;
             if (kind === "copy-chart") {
                 if (!url) {
+                    announce(labels.toastChartNotDrawn, { tone: "error" });
                     return;
                 }
                 // the image is made in the click (getDataURL is synchronous), so the clipboard takes it
@@ -257,8 +258,17 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
                 if (onExport?.({ kind, fileName: file, blob }) === false) {
                     return;
                 }
-                const done = await copyImage(blob);
-                announce(done ? labels.toastChartCopied : labels.toastCopyBlocked, done ? undefined : { tone: "error" });
+                if (await copyImage(blob)) {
+                    announce(labels.toastChartCopied);
+                    return;
+                }
+                // refused: the same picture as a download, one click away
+                const download = () => {
+                    if (deliver(blob, { kind: "png", fileName: file, doc, onExport })) {
+                        announce(fill(labels.toastExported, { file }));
+                    }
+                };
+                announce(labels.toastImageCopyBlocked, { tone: "error", action: { label: labels.downloadPng, run: download } });
                 return;
             }
             // the host that kept the file says itself what became of it

@@ -177,13 +177,52 @@ test.describe("chart extras (#54)", () => {
         expect((await inChart(chartEl, drawnColors)).Hardware).toBe("#e3000f");
     });
 
+    test("Copy chart image on a page that refuses the clipboard offers the PNG as a download", async ({ page }) => {
+        await mount(page, { type: "bar" });
+        await page.evaluate(() => {
+            navigator.clipboard.write = async () => {
+                throw new DOMException("refused", "NotAllowedError");
+            };
+        });
+        const report = page.locator("#color-report");
+        await menu(report, "export");
+        await report.getByTestId("export-copy-chart").click();
+        const toast = report.locator(".pk-toasts");
+        await expect(toast).toContainText("This page does not allow copying the image.");
+        const download = page.waitForEvent("download");
+        await toast.getByRole("button", { name: "Download PNG" }).click();
+        expect((await download).suggestedFilename()).toBe("pivot.png");
+        expect(await page.evaluate(() => window.__exports.map((e) => e.kind))).toEqual(["copy-chart", "png"]);
+    });
+
+    test("Display, Colours: each field shows the colour drawn and keeps the focus after a pick; a view's colour for a name not shown can be removed", async ({ page }) => {
+        const chartEl = await mount(page, { type: "bar", colors: [{ name: "Gone", color: "#123456" }] });
+        const report = page.locator("#color-report");
+        await menu(report, "chart-type");
+        const colors = report.getByTestId("chart-colors");
+        // the fields show the palette's colours as the chart draws them
+        const drawn = await inChart(chartEl, drawnColors);
+        await expect(colors.getByLabel("Colour of Services")).toHaveValue(drawn.Services.toLowerCase());
+        // a long name has its whole text as a title
+        await expect(colors.locator(".pk-color-name", { hasText: "Services" })).toHaveAttribute("title", "Services");
+        const services = colors.getByLabel("Colour of Services");
+        await services.focus();
+        await services.fill("#aa5500");
+        await expect.poll(() => lastChart(page).then((c) => c?.colors)).toEqual([{ name: "Gone", color: "#123456" }, { name: "Services", color: "#aa5500" }]);
+        await settled(chartEl);
+        // the same field, still focused
+        await expect(services).toBeFocused();
+        // the name no series has: listed with Remove
+        await colors.getByRole("button", { name: "Remove: Gone" }).click();
+        await expect.poll(() => lastChart(page).then((c) => c?.colors)).toEqual([{ name: "Services", color: "#aa5500" }]);
+    });
+
     test("Display, Share in the tooltip: a bar's share of its category, a slice's share of the pie", async ({ page }) => {
         let chartEl = await mount(page, { type: "bar" });
         const report = page.locator("#color-report");
         await hover(page, chartEl, await inChart(chartEl, barMiddle, { series: 2, index: 1 }));
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30"]);
-        // a new chart: one drawn again under an element hovered before does not name it, a defect of the
-        // tooltip's hover state that the share does not touch
+        // a new chart: one drawn again under an element hovered before does not name it (#576)
         chartEl = await mount(page, { type: "bar" });
         await menu(report, "chart-type");
         // a click on the switch's words, as a hand does

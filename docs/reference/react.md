@@ -496,7 +496,8 @@ A fixed colour per series or slice name, so a category has the same colour in ev
 ```
 
 - A value is one colour, or a list of two: the first for the light theme, the second for the dark.
-- A colour is hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a CSS name. Any other value is left out.
+- A colour is hex of 3, 4, 6 or 8 digits, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a CSS name the
+  browser reads. Any other value is left out.
 - Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
 - A name the chart does not have does nothing. Other series keep the palette's colours.
 - The view's own colours win: Display → Colours (`chart.colors`).

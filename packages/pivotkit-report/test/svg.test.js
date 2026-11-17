@@ -77,3 +77,9 @@ test("fixed colours per name reach the SVG: the view's over the host's colorMap 
     assert.ok(pie.text.includes('fill="#00ff00"'));
     await assert.rejects(render(view, SALES, { format: "svg", echarts, colorMap: ["#fff"], ...FIXED }), /colorMap/);
 });
+
+test("colorMap takes a pair of colours for light and dark, as the React prop does; the report draws the light one (#54 review)", async () => {
+    const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" } };
+    const r = await render(view, SALES, { format: "svg", echarts, colorMap: { A: ["#0a0b0c", "#f0f0f0"] }, ...FIXED });
+    assert.ok(r.text.includes('fill="#0a0b0c"') && !r.text.includes('fill="#f0f0f0"'));
+});

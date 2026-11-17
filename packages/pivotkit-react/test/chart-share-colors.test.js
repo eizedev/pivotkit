@@ -58,3 +58,18 @@ test("the chart image on the clipboard: a PNG item; false without the clipboard 
     assert.equal(await copyImage(blob, { clipboard, ClipboardItem: undefined }), false);
     assert.equal(await copyImage(blob, { clipboard: { write: async () => { throw new Error("NotAllowedError"); } }, ClipboardItem: Item }), false);
 });
+
+test("the share's basis follows the chart's series: several share the category's total, and one part left has none (#54 review)", () => {
+    const options = { valueFormatter: fmt, shareFormatter: share, share: true, series: additive, seriesTotals: [80, 40, 100], mode: "axis" };
+    // a null in Services: Hardware and Software share their 50
+    const withNull = tooltipContent([NORTH[0], { ...NORTH[1], value: null }, NORTH[2]], options);
+    assert.deepEqual(withNull.lines.map((l) => l.share), ["40.0%", "60.0%"]);
+    // only Hardware has a value at the category: no share, not its share of the series' 80
+    const one = tooltipContent([NORTH[0], { ...NORTH[1], value: null }, { ...NORTH[2], value: null }], options);
+    assert.deepEqual(one.lines.map((l) => l.share), [undefined]);
+    // two series hidden in the legend: ECharts hands the one left; still no share
+    const hidden = tooltipContent([NORTH[0]], options);
+    assert.equal(hidden.lines[0].share, undefined);
+    // a chart of one series: its own total
+    assert.equal(tooltipContent([NORTH[0]], { ...options, series: [additive[0]], seriesTotals: [80] }).lines[0].share, "25.0%");
+});

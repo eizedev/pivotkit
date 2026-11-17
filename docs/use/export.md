@@ -29,7 +29,7 @@ and the copy hold the numbers as the table shows them. Where the application off
 | **Print or save as PDF…** | The HTML report in the browser's print dialog: print it, or pick "Save as PDF" there. | Paper, or a PDF. |
 | **Copy table** | The table as it is shown, tab-separated. | Pasting into Excel, Numbers or Google Sheets. |
 | **Copy data as JSON** | The table's data for a program. | A developer. |
-| **Copy chart image** | The chart as drawn, as a picture on the clipboard. Greyed out with "Switch to Chart first." while the table is shown. | Pasting into a slide, a message or a document. |
+| **Copy chart image** | The chart as drawn, as a picture on the clipboard. Greyed out with "Switch to Chart first." while the table is shown. Where the page does not allow copying, the note offers **Download PNG**. | Pasting into a slide, a message or a document. |
 | **All rows as CSV (.csv)** | All the original rows behind the report, before grouping, filters and totals, with every field. | Your own analysis. Or a colleague who builds the report again with a script: give them this file and the view from **Views**, **Download view**. The [command line](../reference/cli.md) needs these two things. |
 | **All rows as JSON (.json)** | The same rows for a program: numbers as numbers, text as text, a blank as `null`. | A developer. |
 

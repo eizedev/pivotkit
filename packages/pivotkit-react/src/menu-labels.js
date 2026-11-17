@@ -329,6 +329,9 @@ export const en = {
     copyTable: "Copy table",
     copyChart: "Copy chart image",
     toastChartCopied: "Chart copied as an image",
+    toastImageCopyBlocked: "This page does not allow copying the image.",
+    toastChartNotDrawn: "The chart is not drawn yet. Try again in a moment.",
+    downloadPng: "Download PNG",
     copyDataJson: "Copy data as JSON",
     toastTableCopied: "Table copied: tab-separated, pastes into Excel or Google Sheets as columns",
     toastDataCopied: "Data copied as JSON",
@@ -387,6 +390,7 @@ export const en = {
     chartColors: "Colours",
     colorOf: "Colour of {name}",
     colorDefault: "Default",
+    colorRemove: "Remove",
     defaultName: "Use the default name",
     // sharing a view (the Views menu): the group's title
     shareThisView: "Share this view",

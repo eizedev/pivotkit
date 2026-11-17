@@ -20,7 +20,6 @@ import { SHORTCUTS } from "./tips.js";
 import { LevelMenu } from "./levels.jsx";
 import { afterDelete, entryIds, optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
-import { colorMapFor } from "./chart-colors.js";
 import { hexColor } from "./export-run.js";
 import { storeViews } from "./view-store.js";
 
@@ -53,8 +52,6 @@ const GROUP_LABELS = ["auto", "on", "off"];
 const TOOLTIPS = ["auto", "axis"];
 /** The most series (or slices) the Display settings list; the legend has every one. */
 const MAX_LISTED = 50;
-/** The chart's palette: --pk-chart-1 to --pk-chart-8, in turn (pivotkit-core's CHART_COLORS). */
-const PALETTE = 8;
 
 /**
  * The legend's entries of the chart drawn, in the order the palette colours them: a pie's and a
@@ -75,7 +72,8 @@ function legendNames(drawn, series) {
 
 /**
  * A colour field that applies its colour once it is picked (the "change" event), not on every step
- * while the picker is open (React's onChange is the "input" event): one step to undo per colour.
+ * while the picker is open (React's onChange is the "input" event): one step to undo per colour. A new
+ * colour from outside (the chart drawn again, Undo) is set on the same field, so it keeps the focus.
  */
 function ColorField({ value, onPick, label }) {
     const field = useRef(/** @type {HTMLInputElement | null} */ (null));
@@ -89,51 +87,91 @@ function ColorField({ value, onPick, label }) {
         el?.addEventListener("change", picked);
         return () => el?.removeEventListener("change", picked);
     }, []);
+    useEffect(() => {
+        if (field.current && value && field.current.value !== value) {
+            field.current.value = value;
+        }
+    }, [value]);
     return <input ref={field} type="color" defaultValue={value} aria-label={label} />;
 }
 
 /**
- * A colour per legend entry: what the chart draws it with (the view's colour, the host's, else the
- * palette's), changed with a colour field; Default gives a view's colour back (chart.colors).
+ * The colour each series or slice is drawn with, by name, from the chart's ECharts option: its own
+ * colour where it has one (a fixed one), else the palette's of its place, as ECharts gives it.
+ * @param {any} instance  the chart's ECharts instance, or null
+ * @returns {Map<string, string>}
+ */
+function drawnColors(instance) {
+    const out = new Map();
+    const option = instance?.getOption?.();
+    const palette = Array.isArray(option?.color) ? option.color : [];
+    const of = (/** @type {any} */ item, /** @type {number} */ i) => item?.itemStyle?.color ?? palette[i % Math.max(1, palette.length)];
+    for (const [i, s] of (option?.series ?? []).entries()) {
+        if (s.type === "pie") {
+            (s.data ?? []).forEach((/** @type {any} */ d, /** @type {number} */ j) => out.set(String(d.name), of(d, j)));
+        } else {
+            out.set(String(s.name), of(s, i));
+        }
+    }
+    return out;
+}
+
+/**
+ * A colour per legend entry, as the chart draws it, changed with a colour field; Default gives a
+ * view's colour back (chart.colors). A view's colour for a name the chart does not show is listed
+ * after them, with Remove.
+ * @param {{ names: string[], view: any, colors?: { map?: unknown, theme?: string, chart?: { current: any } }, onDisplay: (patch: object) => void, labels: any }} props
  */
 function EntryColors({ names, view, colors, onDisplay, labels }) {
     const box = useRef(/** @type {HTMLDivElement | null} */ (null));
-    // the palette's colours and a host's colours as #rrggbb, as the report's tokens and the canvas read them
-    const [palette, setPalette] = useState(/** @type {{ colors: string[], hex: (text: string) => string | null }} */ ({ colors: [], hex: () => null }));
-    // the palette's colours as #rrggbb, as the report's tokens resolve them
+    // the colours drawn, as #rrggbb (a canvas reads any colour the browser draws), read again after each draw
+    const [drawn, setDrawn] = useState(/** @type {Map<string, string>} */ (new Map()));
     useEffect(() => {
         const el = box.current;
-        if (!el) {
-            return;
+        const instance = colors?.chart?.current;
+        if (!el || !instance) {
+            return undefined;
         }
-        const style = getComputedStyle(el);
         const ctx = el.ownerDocument.createElement("canvas").getContext("2d");
-        const hex = (/** @type {string} */ text) => hexColor(text, ctx);
-        // a token that is no colour leaves the field at the browser's default
-        setPalette({ colors: Array.from({ length: PALETTE }, (_, i) => hex(style.getPropertyValue(`--pk-chart-${i + 1}`).trim()) ?? ""), hex });
-    }, [colors?.theme]);
+        const read = () => setDrawn(new Map([...drawnColors(instance)].map(([name, c]) => [name, hexColor(String(c), ctx) ?? ""])));
+        read();
+        instance.on("finished", read);
+        return () => instance.off("finished", read);
+    }, [colors?.chart]);
     const own = view.chart.colors ?? [];
-    const host = colorMapFor(colors?.map, colors?.theme ?? "light") ?? {};
-    const hostOf = (name) => Object.keys(host).find((k) => k.toLowerCase() === name.toLowerCase());
-    const set = (name, color) => onDisplay({ colors: [...own.filter((c) => c.name.toLowerCase() !== name.toLowerCase()), ...(color ? [{ name, color }] : [])] });
+    const same = (/** @type {string} */ a, /** @type {string} */ b) => a.toLowerCase() === b.toLowerCase();
+    const set = (/** @type {string} */ name, /** @type {string | null} */ color) => onDisplay({ colors: [...own.filter((c) => !same(c.name, name)), ...(color ? [{ name, color }] : [])] });
+    const long = (/** @type {string} */ c) => (c.length === 4 ? `#${[...c.slice(1)].map((x) => x + x).join("")}` : c);
+    const stale = own.filter((c) => !names.some((n) => same(n, c.name)));
     return (
         <div ref={box} className="pk-series-list" data-testid="chart-colors">
-            {names.slice(0, MAX_LISTED).map((name, i) => {
-                const mine = own.find((c) => c.name.toLowerCase() === name.toLowerCase());
-                const fromHost = hostOf(name);
-                const shown = mine?.color ?? (fromHost !== undefined ? palette.hex(host[fromHost]) : null) ?? palette.colors[i % PALETTE] ?? "";
+            {names.slice(0, MAX_LISTED).map((name) => {
+                const mine = own.find((c) => same(c.name, name));
                 return (
                     <div key={name} className="pk-color-row">
-                        <ColorField key={shown} value={shown.length === 4 ? `#${[...shown.slice(1)].map((c) => c + c).join("")}` : shown} onPick={(color) => set(name, color)} label={fill(labels.colorOf, { name })} />
-                        <span className="pk-color-name">{name}</span>
+                        <ColorField value={long(mine?.color ?? drawn.get(name) ?? "")} onPick={(color) => set(name, color)} label={fill(labels.colorOf, { name })} />
+                        <span className="pk-color-name" title={name}>
+                            {name}
+                        </span>
                         {mine ? (
-                            <button type="button" className="pk-link" onClick={() => set(name, null)} aria-label={`${labels.colorDefault}: ${name}`}>
+                            <button type="button" className="pk-link pk-color-action" onClick={() => set(name, null)} aria-label={`${labels.colorDefault}: ${name}`}>
                                 {labels.colorDefault}
                             </button>
                         ) : null}
                     </div>
                 );
             })}
+            {stale.map((c) => (
+                <div key={`stale:${c.name}`} className="pk-color-row pk-color-stale">
+                    <span className="pk-color-swatch" aria-hidden="true" ref={(el) => el?.style.setProperty("background-color", c.color)} />
+                    <span className="pk-color-name" title={c.name}>
+                        {c.name}
+                    </span>
+                    <button type="button" className="pk-link pk-color-action" onClick={() => set(c.name, null)} aria-label={`${labels.colorRemove}: ${c.name}`}>
+                        {labels.colorRemove}
+                    </button>
+                </div>
+            ))}
         </div>
     );
 }

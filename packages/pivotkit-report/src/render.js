@@ -66,7 +66,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {"image" | "inline"} [chartEmbed]  html: the chart as a data: image (default) or as inline SVG
  * @property {{ init: Function }} [echarts]  the ECharts module (with its SVG renderer): svg, and html with a chart
  * @property {{ width?: number, height?: number }} [size]  of the chart in px, default 800 x 480
- * @property {Record<string, string>} [colorMap]  svg and html: a fixed colour per series or slice name (hex, rgb(), hsl() or a CSS name); the view's chart.colors win over it
+ * @property {Record<string, string | [string, string]>} [colorMap]  svg and html: a fixed colour per series or slice name (hex, rgb(), hsl() or a CSS name), or a pair for light and dark as pivotkit-react takes it, of which the report draws the light one; the view's chart.colors win over it
  * @property {number} [tableCells]  html: cells of the table at most, default REPORT_LIMITS.tableCells
  * @property {boolean} [bom]  csv: start with a byte order mark, so Excel reads it as UTF-8 (default true)
  * @property {"full" | "shown"} [numbers]  csv and json: "full" (default) writes numbers with full precision, "shown" rounds each to the decimals the view shows
@@ -231,7 +231,8 @@ export async function render(view, data, options = {}) {
             labels: options.labels,
             limits: options.limits,
             now: options.now,
-            colorMap: options.colorMap,
+            // a pair is light and dark (pivotkit-react's colorMap): a report is light
+            colorMap: options.colorMap ? Object.fromEntries(Object.entries(options.colorMap).map(([name, c]) => [name, Array.isArray(c) ? c[0] : c])) : undefined,
             maxCategories: REPORT_LIMITS.categories
         });
     const chartCut = (chart) => {

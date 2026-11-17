@@ -57,8 +57,9 @@ const hasValue = (v) => typeof v === "number" && Number.isFinite(v);
 
 /**
  * The share of each item, in percent, by item; empty where a share means nothing: a value that does
- * not add up, a part below zero, a total of nothing. Several series share their category's total;
- * one series shares its own total over the categories (`seriesTotals`).
+ * not add up, a part below zero, a total of nothing. The basis follows the chart's series: a chart of
+ * one series shares its own total over the categories (`seriesTotals`); a chart of several shares the
+ * category's total, and a category with one part left (the others empty or hidden) has no share.
  * @param {any[]} items  ECharts' parameters at the category (the series shown)
  * @param {{ series: TooltipOptions["series"], seriesTotals?: number[] }} options
  * @returns {Map<any, number>}
@@ -68,7 +69,10 @@ function sharesOf(items, { series = [], seriesTotals = [] }) {
     if (!parts.length || parts.some((p) => p.value < 0 || series[p.seriesIndex]?.additive !== true)) {
         return new Map();
     }
-    const total = parts.length > 1 ? parts.reduce((sum, p) => sum + p.value, 0) : seriesTotals[parts[0].seriesIndex];
+    if (series.length > 1 && parts.length < 2) {
+        return new Map();
+    }
+    const total = series.length > 1 ? parts.reduce((sum, p) => sum + p.value, 0) : seriesTotals[parts[0].seriesIndex];
     return typeof total === "number" && total > 0 ? new Map(parts.map((p) => [p, (p.value / total) * 100])) : new Map();
 }
 

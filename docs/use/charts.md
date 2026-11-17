@@ -77,7 +77,7 @@ The chart type menu has its **Display** settings under the chart types, in one f
 | Group labels under the axis | Automatic, On, Off. Only with two or more fields in Rows. | Automatic: shown while the chart has room for them |
 | Tooltip | Automatic, All series. Bars, lines and areas only. | Automatic: the element under the pointer |
 | Share in the tooltip | on, off. Not for a heatmap. | off |
-| Colours | A colour per series, or per slice of a pie or a donut. **Default** gives back the colour it had. Up to 50 are listed. | the palette, or the colours your app sets |
+| Colours | A colour per series, or per slice of a pie or a donut, shown as the chart draws it. **Default** gives back the colour it had. A colour for a name the chart no longer shows is listed with **Remove**. Up to 50 are listed. | the palette, or the colours your app sets |
 
 ??? info "Pie and donut labels"
     **Outside** writes each slice's name with what is chosen, on a line to the slice. On a narrow
@@ -182,15 +182,18 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 ??? info "The share in the tooltip"
     **Display**, **Share in the tooltip** adds each value's share after it, such as "Software 30 50.0%".
 
-    - With several series, it is the share of the category's total.
+    - With several series, it is the share of the category's total. A category with only one value
+      left, the others empty or hidden, shows no share.
     - With one series, it is the share of all its categories.
     - A pie or a donut shows the slice's share of the slices shown.
     - Only sums and counts get a share, and only when no part is below zero.
 
 ??? info "Fixed colours"
     **Display**, **Colours** sets a colour per series, or per slice of a pie or a donut. The series
-    keeps it in every chart of the view, whatever else the chart shows. **Default** gives back the
-    colour it had. Your app may set colours for names too. A colour you pick wins over those.
+    keeps it in every chart of the view, whatever else the chart shows. Each field shows the colour
+    the chart draws. **Default** gives back the colour it had. Your app may set colours for names
+    too. A colour you pick wins over those. A colour for a name the chart no longer shows is listed
+    at the end with **Remove**.
 
 ??? info "Every series in the tooltip"
     **Tooltip**, **All series** in the Display settings lists every series at the pointer's category,

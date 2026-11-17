@@ -69,3 +69,19 @@ test("the tooltip's share: a formatter of the locale's percent on every chart bu
     const de = toEChartsOption(computePivot(SALES, { ...VIEW, formatting: { locale: "de-DE" }, chart: { type: "pie" } }));
     assert.equal(de.tooltip.shareFormatter(25), "25,0 %");
 });
+
+test("a host's colour: hex of 3, 4, 6 or 8 digits, rgb(), hsl() or a colour name; others are left out (#54 review)", async () => {
+    const { PLAIN_COLOR } = await import("../src/chart-colors.js");
+    for (const ok of ["#abc", "#abcd", "#aabbcc", "#aabbccdd", "rgb(1, 2, 3)", "hsla(10, 20%, 30%, 0.5)", "rebeccapurple"]) assert.ok(PLAIN_COLOR.test(ok), ok);
+    for (const bad of ["#abcde", "#aabbccd", "#ab", "url(#x)", "red; x", "expression(1)"]) assert.ok(!PLAIN_COLOR.test(bad), bad);
+    // where the runtime knows CSS, a name must be a colour it reads
+    const real = globalThis.CSS;
+    globalThis.CSS = { supports: (_property, value) => value !== "notacolour" };
+    try {
+        const o = toEChartsOption(pivot({ type: "bar" }), { colorMap: { Hardware: "notacolour", Services: "teal" } });
+        assert.equal(o.series[1].itemStyle.color, "teal");
+        assert.notEqual(o.series[0].itemStyle?.color, "notacolour");
+    } finally {
+        globalThis.CSS = real;
+    }
+});
