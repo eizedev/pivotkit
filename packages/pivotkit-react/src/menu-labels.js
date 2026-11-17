@@ -375,8 +375,16 @@ export const en = {
     // the chart's reference lines (Average, Trend and Target are pivotkit-core's words, labels.core)
     referenceLines: "Reference lines",
     targetNone: "No target",
-    linesNoStack: "A stack of values that do not add up has no total, so it gets no lines. Bars show them.",
-    linesNoTrend: "A trend needs dates on Rows, in date order.",
+    targetPercent: "A percentage: type 25% or 0.25.",
+    // why a reference line is not offered (pivotkit-core's referenceLineRules notes)
+    linesNotes: {
+        noTotal: "These lines need a total. Switch to Bars, not stacked, to draw them.",
+        negative: "A stack with values below zero has no single total, so it gets no average and no trend.",
+        percentStack: "Every stack to 100 % is the same height, so it gets no lines.",
+        noTime: "A trend needs dates on Rows, in date order.",
+        byIndex: "Some categories have no date, so the trend counts them as evenly spaced.",
+        mixedUnits: "The values have different units, so one target does not fit them."
+    },
     labelPosition: "Labels",
     labelPositionNames: { outside: "Outside", inside: "Inside" },
     axisLabels: "Axis labels",

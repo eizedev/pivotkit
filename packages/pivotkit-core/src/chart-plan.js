@@ -63,50 +63,25 @@ function timeLine(view, encoded) {
 const COUNTS = Object.freeze(["count", "countUnique"]);
 
 /**
- * Which reference lines (chart.referenceLines) a chart can draw for a view, the one rule for the
- * chart, its menu and its file, and why the others are off (`notes`):
+ * Which reference lines (chart.referenceLines) a chart can draw for a view, by the view alone: the one
+ * rule for the chart, its menu and its file. pivotkit-core/chart's referenceLineChecks adds what
+ * depends on the numbers, and says why a line is off.
  * - Pie, donut and heatmap have no value axis: no lines.
  * - Bars, lines and areas side by side: an average and a trend per series, over its plotted points.
  * - Stacked: the lines of the stack's total, the sum of its drawn parts, only when every value adds
- *   up (valueAddsUp). A stack of averages has a height that means nothing: no line at all
- *   ("noTotal"). A stack with a part below zero has no single total: no average or trend of it
- *   ("negative"). A stack to 100 % (chart.stackPercent): no line ("percentStack").
+ *   up (valueAddsUp). A stack of averages has a height that means nothing: no line at all. Nor has a
+ *   stack to 100 % (chart.stackPercent).
  * - A trend only where the categories are points in time in their own order: every row field a date
- *   or a grouping along the time line, none sorted by a value or by hand ("noTime"). It fits the
- *   real time between them; a category without a date puts it on their order ("byIndex").
- * - A target only where the values share a unit: one format, and not counts beside a field's values
- *   ("mixedUnits").
- * A setting that is off here stays in the view: it draws again when the chart can. The notes that
- * depend on the numbers (negative, byIndex, a format) need `series`.
+ *   or a grouping along the time line, none sorted by a value or by hand.
+ * A setting that is off here stays in the view: it draws again when the chart can.
  * @param {{ rows: string[], derived: any[], sort: any[], values: any[] }} view  a normalized view
- * @param {{ type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[] }} chart  what is
- *   drawn: chartPlan's chart, never "auto"; `hidden`: the series hidden in the legend, by name
+ * @param {{ type: string, stacked?: boolean, stackPercent?: boolean }} chart  what is drawn: chartPlan's chart, never "auto"
  * @param {import("./encode.js").Encoded} encoded
- * @param {{ series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] }} [series]
- *   toSeries of the drawn pivot
- * @returns {{ average: boolean, trend: boolean, target: boolean, notes: string[] }}
+ * @returns {{ average: boolean, trend: boolean, target: boolean }}
  */
-export function referenceLineRules(view, chart, encoded, series) {
-    const none = { average: false, trend: false, target: false, notes: /** @type {string[]} */ ([]) };
-    if (chart.type !== "bar" && chart.type !== "line" && chart.type !== "area") {
-        return none;
-    }
-    if (chart.stacked && chart.stackPercent) {
-        return { ...none, notes: ["percentStack"] };
-    }
-    if (chart.stacked && !view.values.every(valueAddsUp)) {
-        return { ...none, notes: ["noTotal"] };
-    }
-    const hidden = Array.isArray(chart.hidden) ? chart.hidden : [];
-    const shown = (series?.series ?? []).filter((s) => !hidden.includes(s.name));
-    const negative = Boolean(chart.stacked) && shown.some((s) => s.data.some((v) => typeof v === "number" && v < 0));
-    const time = timeLine(view, encoded);
-    // one unit: one format, and not a count beside a field's values
-    const counts = new Set(view.values.map((v) => COUNTS.includes(v.agg)));
-    const mixed = counts.size > 1 || new Set(shown.map((s) => s.format)).size > 1;
-    const dated = !series?.categoryPaths || series.categoryPaths.every((p) => p.length === view.rows.length && p[p.length - 1] !== null && p[p.length - 1] !== undefined);
-    const notes = [negative ? "negative" : null, negative ? null : !time ? "noTime" : !dated ? "byIndex" : null, mixed ? "mixedUnits" : null].filter((n) => n !== null);
-    return { average: !negative, trend: !negative && time, target: !mixed, notes: /** @type {string[]} */ (notes) };
+export function referenceLineRules(view, chart, encoded) {
+    const counted = (chart.type === "bar" || chart.type === "line" || chart.type === "area") && !(chart.stacked && (chart.stackPercent || !view.values.every(valueAddsUp)));
+    return { average: counted, trend: counted && timeLine(view, encoded), target: counted };
 }
 
 /** "Show values as" types that name an axis, and their counterpart on the other one. */

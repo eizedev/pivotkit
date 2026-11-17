@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chartThemeFrom, computePivot, emptyView, encode, normalize, referenceLineRules, toEChartsOption, toSeries } from "pivotkit-core";
-import { referenceLines, valueAddsUp } from "pivotkit-core/chart";
+import { referenceLineChecks, referenceLines, valueAddsUp } from "pivotkit-core/chart";
 
 /**
  * Revenue per month and product. A climbs by 10 a month (10, 20, 30, 40: average 25), B stays near 5
@@ -211,15 +211,15 @@ test("a trend fits the real time: a gap of 8 months counts as 8, of 8 days as 8"
 
 test("a category without a date (blank) puts the trend on the categories' order, and the rules say so", () => {
     const rows = [["2026-01-15", 10], ["2026-02-15", 20], [null, 30]].map(([Date, Revenue]) => ({ Date, Revenue }));
-    const { d, r } = timePivot(rows, "yearMonth", { chart: { type: "line", referenceLines: on } });
+    const { r } = timePivot(rows, "yearMonth", { chart: { type: "line", referenceLines: on } });
     const series = toSeries(r);
-    const rules = referenceLineRules(r.view, { type: "line", stacked: false }, d, series);
+    const rules = referenceLineChecks(r, { series });
     assert.deepEqual([rules.trend, rules.notes], [true, ["byIndex"]]);
     const [, trend] = referenceLines(r, { series });
     assert.deepEqual([trend.from, trend.to].map((x) => Math.round(x * 1e9) / 1e9), [10, 30]);
     // with every category dated: no note
     const dated = timePivot(rows.slice(0, 2), "yearMonth", { chart: { type: "line" } });
-    assert.deepEqual(referenceLineRules(dated.r.view, { type: "line" }, dated.d, toSeries(dated.r)).notes, []);
+    assert.deepEqual(referenceLineChecks(dated.r).notes, []);
 });
 
 test("a stack with parts below zero has no total: no average and no trend of it, the target stays", () => {
@@ -228,7 +228,7 @@ test("a stack with parts below zero has no total: no average and no trend of it,
     const d = encode(rows);
     const r = computePivot(d, { derived: [MONTH], rows: ["Month"], cols: ["Product"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar", stacked: true, referenceLines: { average: true, trend: true, target: 30 } } });
     const series = toSeries(r);
-    const rules = referenceLineRules(r.view, r.view.chart, d, series);
+    const rules = referenceLineChecks(r, { series });
     assert.deepEqual([flags(rules), rules.notes], [{ average: false, trend: false, target: true }, ["negative"]]);
     assert.deepEqual(brief(referenceLines(r, { series })), [["target", null, 30]]);
     // side by side, a value below zero is just a value
@@ -236,7 +236,7 @@ test("a stack with parts below zero has no total: no average and no trend of it,
     assert.deepEqual(brief(referenceLines(side)).map((l) => l.slice(0, 2)), [["average", 0], ["average", 1], ["trend", 0], ["trend", 1], ["target", null]]);
     // a series hidden in the legend (chart.hidden) is not part of the stack: without B there is nothing below zero
     const hidden = { ...r.view.chart, hidden: ["B"] };
-    assert.deepEqual(flags(referenceLineRules(r.view, hidden, d, series)), { average: true, trend: true, target: true });
+    assert.deepEqual(flags(referenceLineChecks(r, { series, chart: hidden })), { average: true, trend: true, target: true });
     assert.deepEqual(brief(referenceLines(r, { series, chart: hidden })), [["average", null, 25], ["trend", null, 10, 40], ["target", null, 30]]);
 });
 
@@ -259,7 +259,7 @@ test("a value shown as a share: the lines are shares, written as the value is", 
 });
 
 test("a target over values in different units has nothing to measure: refused, with a note", () => {
-    const rules = (values) => referenceLineRules(pivot({ values }).view, { type: "bar", stacked: false }, data, toSeries(pivot({ values })));
+    const rules = (values) => referenceLineChecks(pivot({ values, chart: { type: "bar" } }));
     const mixed = rules([{ field: "Revenue", agg: "sum" }, { agg: "count" }]);
     assert.deepEqual([flags(mixed), mixed.notes], [{ average: true, trend: true, target: false }, ["mixedUnits"]]);
     const formats = rules([{ field: "Revenue", agg: "sum", format: "currency:EUR" }, { field: "Revenue", agg: "average" }]);
@@ -270,13 +270,17 @@ test("a target over values in different units has nothing to measure: refused, w
 });
 
 test("the notes: a stack without a total, a 100 % stack, no time line", () => {
-    const notes = (chart, view = {}) => referenceLineRules(pivot(view).view, { type: "bar", stacked: false, ...chart }, data).notes;
-    assert.deepEqual(notes({ stacked: true }, { values: [{ field: "Revenue", agg: "average" }] }), ["noTotal"]);
+    // the chart as drawn (chartPlan's, and chart.stackPercent of a view that has it)
+    const checks = (chart, view = {}) => referenceLineChecks(pivot(view), { chart: { type: "bar", stacked: false, ...chart } });
+    assert.deepEqual(checks({ stacked: true }, { values: [{ field: "Revenue", agg: "average" }] }).notes, ["noTotal"]);
     // stacked to 100 %: every stack is the same height, no line means anything
-    const percent = referenceLineRules(pivot().view, { type: "bar", stacked: true, stackPercent: true }, data);
+    const percent = checks({ stacked: true, stackPercent: true });
     assert.deepEqual([flags(percent), percent.notes], [{ average: false, trend: false, target: false }, ["percentStack"]]);
-    assert.deepEqual(notes({}, { rows: ["Region"] }), ["noTime"]);
-    assert.deepEqual(notes({ type: "pie" }), []);
+    assert.deepEqual(flags(referenceLineRules(pivot().view, { type: "bar", stacked: true, stackPercent: true }, data)), { average: false, trend: false, target: false });
+    assert.deepEqual(checks({}, { rows: ["Region"] }).notes, ["noTime"]);
+    assert.deepEqual(checks({ type: "pie" }).notes, []);
+    // counts beside a field's values: two units, no target
+    assert.deepEqual(checks({}, { values: [{ field: "Revenue", agg: "sum" }, { agg: "count" }] }).notes, ["mixedUnits"]);
 });
 
 test("the labels write the value as the axis does, short", () => {

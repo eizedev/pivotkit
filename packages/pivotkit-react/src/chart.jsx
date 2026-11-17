@@ -33,13 +33,16 @@ export function loadECharts() {
  *   labels: import("./labels.js").UiLabels, locale: string,
  *   themeName: string, root: React.RefObject<HTMLElement>, onInstance: (chart: any) => void,
  *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
+ *   onLines?: (checks: { average: boolean, trend: boolean, target: boolean, notes: string[], format?: string } | null) => void,
  *   valueNames: string[], chartOptions?: Record<string, unknown> | null,
  *   plan?: { name: string, chart: { type: string, stacked: boolean, horizontal: boolean } } }} props
  *   `series`: pivotkit-core's toSeries with MAX_CATEGORIES, null when there is nothing to draw;
  *   `chartOptions`: the host's plain JSON (chart-options.js, checked), merged over everything else;
- *   `plan`: what to draw (chart-types.js chartPlan), the view's type resolved when it is "auto"
+ *   `plan`: what to draw (chart-types.js chartPlan), the view's type resolved when it is "auto";
+ *   `onLines`: which reference lines the drawn chart can draw (pivotkit-core's referenceLineChecks,
+ *   with the first series' format), null when none is drawn
  */
-export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, valueNames, chartOptions, plan }) {
+export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, onLines, valueNames, chartOptions, plan }) {
     const el = useRef(/** @type {HTMLDivElement | null} */ (null));
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
@@ -54,7 +57,9 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const summaryId = useId();
     const type = plan ? plan.name : chartTypeOf(result.view.chart);
     const drawAs = plan ? plan.chart : null;
-    const latest = useRef({ series, onPoint, onInstance, type });
+    const latest = useRef({ series, onPoint, onInstance, onLines, type });
+    // what the chart last said about its reference lines (onLines), as JSON: said again only when it changes
+    const told = useRef("null");
     // the ECharts module (echarts.js), with the report's marks (decorate) and the check and merge of the host's chartOptions
     const lib = useRef(/** @type {any} */ (null));
     // the chartOptions whose problems were said: once per value, not on every redraw
@@ -67,7 +72,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     // so the click itself does not say
     const touched = useRef(false);
     useEffect(() => {
-        latest.current = { series, onPoint, onInstance, type };
+        latest.current = { series, onPoint, onInstance, onLines, type };
     });
 
     useEffect(() => {
@@ -177,6 +182,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
             chart.current?.dispose();
             chart.current = null;
             latest.current.onInstance(null);
+            latest.current.onLines?.(null);
         };
         // one instance per mounted chart; the latest props are read through refs
     }, []);
@@ -196,10 +202,15 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         tapped.current = null;
         // each series' value: a stack's total only where the values add up (chart-tooltip.js valueAddsUp)
         const values = (series?.series ?? []).map((x) => result.view.values[x.valueIndex]);
-        // the reference lines as numbers: the tooltip names them at a category, the text alternative all
-        const drawnLines = series ? lib.current.referenceLines(result, { series, words: labels.core.referenceLines, locale, ...(drawAs ? { chart: drawAs } : {}) }) : [];
-        setLinesText(lib.current.linesSummary(drawnLines, series?.series.map((x) => x.name) ?? [], labels));
-        const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values, lines: drawnLines };
+        // the reference lines (chart-tooltip.js chartLines): the tooltip names them, the text
+        // alternative says them, and the Display menu learns which ones the drawn chart can draw
+        const lines = series ? lib.current.chartLines(result, { series, chart: drawAs, labels, locale }) : null;
+        setLinesText(lines?.text ?? "");
+        if (JSON.stringify(lines?.checks ?? null) !== told.current) {
+            told.current = JSON.stringify(lines?.checks ?? null);
+            latest.current.onLines?.(lines?.checks ?? null);
+        }
+        const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values, lines: lines?.lines ?? [] };
         const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.color.parse });
         setEvery(axisEvery);
         // the host's chartOptions win over the view's display settings and the report's own styles:

@@ -7,7 +7,7 @@
  * tooltipFormatter() builds the nodes in the chart's document.
  */
 
-import { valueAddsUp } from "pivotkit-core";
+import { referenceLineChecks, referenceLines, valueAddsUp } from "pivotkit-core/chart";
 
 // whether a value adds up, so a stack of it has a total: pivotkit-core's rule, which also decides a
 // stack's reference lines
@@ -67,6 +67,24 @@ export function linesSummary(lines, seriesNames, labels) {
     // pattern); labels.js's fill would split the first load's labels into a chunk of their own
     const value = (/** @type {(typeof lines)[number]} */ l) => (l.kind === "trend" ? labels.chartTrendSpan.replace("{from}", () => l.format(/** @type {number} */ (l.from))).replace("{to}", () => l.format(/** @type {number} */ (l.to))) : l.format(/** @type {number} */ (l.value)));
     return lines.length ? labels.chartLines.replace("{lines}", () => lines.map((l) => `${lineName(l, seriesNames)} ${value(l)}`).join("; ")) : "";
+}
+
+/**
+ * A drawn chart's reference lines (chart.jsx): the lines as numbers for the tooltip, their sentence
+ * for the text alternative (linesSummary) and which ones the chart can draw, with the first series'
+ * format (pivotkit-core's referenceLineChecks), for the Display menu.
+ * @param {import("pivotkit-core").PivotResult} result
+ * @param {{ series: ReturnType<typeof import("pivotkit-core").toSeries>, chart?: { type: string, stacked: boolean, horizontal: boolean } | null, labels: any, locale: string }} options
+ * @returns {{ lines: ReturnType<typeof referenceLines>, text: string, checks: ReturnType<typeof referenceLineChecks> & { format?: string } }}
+ */
+export function chartLines(result, { series, chart, labels, locale }) {
+    const drawn = chart ? { chart } : {};
+    const lines = referenceLines(result, { series, words: labels.core.referenceLines, locale, ...drawn });
+    return {
+        lines,
+        text: linesSummary(lines, series.series.map((x) => x.name), labels),
+        checks: { ...referenceLineChecks(result, { series, ...drawn }), format: series.series[0]?.format }
+    };
 }
 
 /**

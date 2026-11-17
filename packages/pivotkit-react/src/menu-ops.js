@@ -7,6 +7,7 @@
 
 import { CATALOG, MATCH_DEFAULTS, MAX_DATE_MS, computePivot, isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
+import { parseNumber } from "./numbers.js";
 import { dayMs, isoDay, isoYear, itemRuleText, valueConditionText, wholeYears, yearOf, yearText } from "./names.js";
 import { axisOf, clone, emptyPick, filterZoneFields, filtersOf, groupingOf, numericResult, opOf, pickFilter, same, sameRef, sourceOf } from "./view-ops.js";
 
@@ -668,4 +669,22 @@ export function dateFromInput(text) {
     const iso = `${isoYear(Number(m[1]))}-${m[2]}-${m[3]}`;
     // a day the month does not have (30 February) reads as another day
     return Number.isNaN(dayMs(iso)) || isoDay(dayMs(iso)) !== iso ? null : iso;
+}
+
+/**
+ * A target line's value as typed (Display -> Reference lines): a number as a filter's value reads it
+ * (numbers.js), or a percentage, "25%": a share, 0.25, or 25 where the value counts in percent itself
+ * (format percent100). null when it is no number.
+ * @param {string} text
+ * @param {string} locale
+ * @param {string | undefined} format  the value's format (toSeries)
+ * @returns {number | null}
+ */
+export function parseTarget(text, locale, format) {
+    const percent = /^(.*?)[\s\u00a0\u202f]*%$/.exec(String(text ?? "").trim());
+    if (!percent) {
+        return parseNumber(text, locale);
+    }
+    const n = parseNumber(percent[1], locale);
+    return n === null ? null : /^percent100/.test(format ?? "") ? n : n / 100;
 }

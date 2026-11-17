@@ -10,7 +10,8 @@ import { VIEW_FILE_LIMITS, referenceLineRules, swapAxes } from "pivotkit-core";
 import { CHART_TYPES, CHART_TYPE_NAMES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
 import { ClearInput } from "./clear-input.jsx";
 import { useFormName } from "./dom.js";
-import { numberText, parseNumber } from "./numbers.js";
+import { parseTarget } from "./menu-ops.js";
+import { numberText } from "./numbers.js";
 import { dataExportFor } from "./export-scope.js";
 import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
@@ -86,8 +87,11 @@ function ChartTitle({ title, labels, onDisplay }) {
     );
 }
 
-/** The target line's value: applied with Enter or Apply; the × removes it at once. */
-function TargetField({ target, labels, locale, onTarget }) {
+/**
+ * The target line's value: applied with Enter or Apply; the × removes it at once. A percentage
+ * ("25%") is a share (parseTarget); a value shown in percent gets a hint that says so.
+ */
+function TargetField({ target, labels, locale, format, onTarget }) {
     const [text, setText] = useState(numberText(target, locale));
     // a target changed elsewhere (Undo, a link) shows here; the field keeps its element and the focus
     const [last, setLast] = useState(target);
@@ -95,49 +99,61 @@ function TargetField({ target, labels, locale, onTarget }) {
         setLast(target);
         setText(numberText(target, locale));
     }
-    const value = parseNumber(text, locale);
+    const value = parseTarget(text, locale, format);
     const bad = text.trim() !== "" && value === null;
+    const hintId = useId();
+    const percent = /^percent/.test(format ?? "");
     return (
-        <form
-            className="pk-inline-form"
-            onSubmit={(e) => {
-                e.preventDefault();
-                if (!bad) {
-                    onTarget(value);
-                }
-            }}
-        >
-            <ClearInput
-                type="text"
-                inputMode="decimal"
-                value={text}
-                onChange={setText}
-                onClear={() => (target !== null ? onTarget(null) : undefined)}
-                clearLabel={labels.clearText}
-                placeholder={labels.targetNone}
-                aria-label={labels.core.referenceLines.target}
-                aria-invalid={bad || undefined}
-                data-testid="chart-target"
-            />
-            <button type="submit" className="pk-btn pk-primary" disabled={bad || value === target}>
-                {labels.apply}
-            </button>
-        </form>
+        <>
+            <form
+                className="pk-inline-form"
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!bad) {
+                        onTarget(value);
+                    }
+                }}
+            >
+                <ClearInput
+                    type="text"
+                    inputMode="decimal"
+                    value={text}
+                    onChange={setText}
+                    onClear={() => (target !== null ? onTarget(null) : undefined)}
+                    clearLabel={labels.clearText}
+                    placeholder={labels.targetNone}
+                    aria-label={labels.core.referenceLines.target}
+                    aria-invalid={bad || undefined}
+                    aria-describedby={percent ? hintId : undefined}
+                    data-testid="chart-target"
+                />
+                <button type="submit" className="pk-btn pk-primary" disabled={bad || value === target}>
+                    {labels.apply}
+                </button>
+            </form>
+            {percent ? (
+                <p id={hintId} className="pk-hint pk-subtitle" data-testid="target-hint">
+                    {labels.targetPercent}
+                </p>
+            ) : null}
+        </>
     );
 }
 
 /**
  * The chart's reference lines: an average and a trend, switched on or off, and a target. Only what
- * the chart can draw shows (pivotkit-core's referenceLineRules); a note says why the rest does not.
- * A setting that does not show stays in the view and draws again when the chart can.
+ * the chart can draw shows (pivotkit-core's referenceLineRules, with the chart's data where it is
+ * drawn); a note says why the rest does not. A setting that does not show stays in the view and
+ * draws again when the chart can.
  */
-function ReferenceLines({ view, plan, encoded, labels, locale, onDisplay }) {
+function ReferenceLines({ view, plan, encoded, lineChecks, labels, locale, onDisplay }) {
     const lines = view.chart.referenceLines;
-    // the rules of what is drawn: rows and columns swapped where the chart swaps them
-    const rules = encoded && plan?.chart ? referenceLineRules(plan.swap ? swapAxes(view) : view, plan.chart, encoded) : { average: true, trend: true, target: true };
+    // the drawn chart's checks (with its numbers), else the view's rules of what would be drawn: rows
+    // and columns swapped where the chart swaps them
+    const drawn = plan?.chart ? { ...view.chart, ...plan.chart } : null;
+    const rules = lineChecks ?? (encoded && drawn ? referenceLineRules(plan.swap ? swapAxes(view) : view, drawn, encoded) : { average: true, trend: true, target: true, notes: [] });
     const set = (patch) => onDisplay({ referenceLines: { ...lines, ...patch } });
     const words = labels.core.referenceLines;
-    const note = !rules.average ? labels.linesNoStack : !rules.trend ? labels.linesNoTrend : null;
     return (
         <Sub title={labels.referenceLines}>
             {rules.average ? (
@@ -153,14 +169,14 @@ function ReferenceLines({ view, plan, encoded, labels, locale, onDisplay }) {
             {rules.target ? (
                 <>
                     <div className="pk-subtitle">{words.target}</div>
-                    <TargetField target={lines.target} labels={labels} locale={locale} onTarget={(target) => set({ target })} />
+                    <TargetField target={lines.target} labels={labels} locale={locale} format={lineChecks?.format} onTarget={(target) => set({ target })} />
                 </>
             ) : null}
-            {note ? (
-                <p className="pk-hint" data-testid="lines-note">
-                    {note}
+            {rules.notes.map((note) => (
+                <p key={note} className="pk-hint pk-subtitle" data-testid="lines-note">
+                    {Object.hasOwn(labels.linesNotes, note) ? labels.linesNotes[note] : null}
                 </p>
-            ) : null}
+            ))}
         </Sub>
     );
 }
@@ -190,7 +206,7 @@ function Sub({ title, info, children }) {
  * and areas), smooth lines (line and area), reference lines (bars, lines and areas). Each choice applies at once and the panel stays open, so
  * the chart behind it shows the change.
  */
-function ChartDisplay({ view, plan, encoded, labels, locale, onDisplay }) {
+function ChartDisplay({ view, plan, encoded, lineChecks, labels, locale, onDisplay }) {
     const chart = view.chart;
     // the type drawn: an automatic chart's is the one the data chose
     const drawn = plan ? plan.name : chartTypeOf(chart);
@@ -274,13 +290,13 @@ function ChartDisplay({ view, plan, encoded, labels, locale, onDisplay }) {
                     </Switch>
                 </Sub>
             ) : null}
-            {axis ? <ReferenceLines view={view} plan={plan} encoded={encoded} labels={labels} locale={locale} onDisplay={onDisplay} /> : null}
+            {axis ? <ReferenceLines view={view} plan={plan} encoded={encoded} lineChecks={lineChecks} labels={labels} locale={locale} onDisplay={onDisplay} /> : null}
         </Section>
     );
 }
 
 /** The chart type menu: the types (a pick closes it) and how the chart is drawn. */
-export function ChartTypePanel({ view, plan, encoded, labels, locale, onChart, onDisplay, close }) {
+export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale, onChart, onDisplay, close }) {
     return (
         <>
             <Section title={labels.chartType}>
@@ -288,7 +304,7 @@ export function ChartTypePanel({ view, plan, encoded, labels, locale, onChart, o
                     <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
                 </div>
             </Section>
-            <ChartDisplay view={view} plan={plan} encoded={encoded} labels={labels} locale={locale} onDisplay={onDisplay} />
+            <ChartDisplay view={view} plan={plan} encoded={encoded} lineChecks={lineChecks} labels={labels} locale={locale} onDisplay={onDisplay} />
         </>
     );
 }

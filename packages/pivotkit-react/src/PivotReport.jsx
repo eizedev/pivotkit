@@ -414,6 +414,8 @@ function Report(props) {
     const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
     const chartRef = useRef(null);
     const [chartReady, setChartReady] = useState(false);
+    // which reference lines the drawn chart can draw, with its numbers' reasons (chart.jsx onLines)
+    const [lineChecks, setLineChecks] = useState(/** @type {any} */ (null));
     const hintId = useId();
     const closeFilter = useCallback(() => setFilterTarget(null), []);
     const { toasts, push, dismiss, pause } = useToasts();
@@ -1476,6 +1478,7 @@ function Report(props) {
                                 view={view}
                                 chartPlan={plan}
                                 encoded={encoded}
+                                lineChecks={lineChecks}
                                 locale={locale}
                                 labels={labels}
                                 size={size}
@@ -1619,6 +1622,7 @@ function Report(props) {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));
                                         }}
+                                        onLines={setLineChecks}
                                         // a chart with rows and columns swapped names the view's paths the other way round
                                         onPoint={(p) => openCell({ rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
                                     />

@@ -8,7 +8,7 @@ import {
 } from "../src/view-ops.js";
 import {
     binProblem, filterState, measureChoices, removeRules, setItemFilter, setLabelFilter, setTopFilter,
-    setValueFilter, totalNoEffect, TOTALS, updateValue, withMeasure
+    parseTarget, setValueFilter, totalNoEffect, TOTALS, updateValue, withMeasure
 } from "../src/menu-ops.js";
 import { refLabel, sortText, valueConditionText } from "../src/names.js";
 import { LABELS, fill } from "../src/labels.js";
@@ -315,6 +315,19 @@ test("reference lines: a display setting, the chart type stays; a pie keeps them
     const pie = setChart(target, "pie");
     assert.deepEqual(setChart(pie, "line").chart.referenceLines, target.chart.referenceLines);
     assert.deepEqual(norm(target).chart, target.chart);
+});
+
+test("a target typed as a percentage is a share: 25% is 0.25, or 25 for a value that counts in percent (#48)", () => {
+    assert.equal(parseTarget("25%", "en-US", "percent"), 0.25);
+    assert.equal(parseTarget(" 12,5 % ", "de-DE", "percent:1"), 0.125);
+    assert.equal(parseTarget("25%", "en-US", "percent100:1"), 25);
+    assert.equal(parseTarget("0.25", "en-US", "percent"), 0.25, "the share itself as it is");
+    // the numbers of a filter's value: the locale's marks, a plain number with a point anywhere
+    assert.equal(parseTarget("1.500", "de-DE", "number"), 1500);
+    assert.equal(parseTarget("1500.5", "de-DE", "number"), 1500.5);
+    assert.equal(parseTarget("lots", "en-US", "number"), null);
+    assert.equal(parseTarget("%", "en-US", "percent"), null);
+    assert.equal(parseTarget("", "en-US", "percent"), null);
 });
 
 test("the menu says what a filter keeps, in short: shown of total, the text condition, the value condition", () => {

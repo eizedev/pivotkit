@@ -330,8 +330,15 @@ export const de = {
     smoothLines: "Geglättete Linien",
     referenceLines: "Bezugslinien",
     targetNone: "Kein Ziel",
-    linesNoStack: "Gestapelte Werte, die sich nicht addieren, haben keine Summe und daher keine Linien. Balken zeigen sie.",
-    linesNoTrend: "Ein Trend braucht Datumswerte in Zeilen, nach Datum geordnet.",
+    targetPercent: "Ein Prozentwert: 25 % oder 0,25 eingeben.",
+    linesNotes: {
+        noTotal: "Diese Linien brauchen eine Summe. Zum Zeichnen auf Balken wechseln, nicht gestapelt.",
+        negative: "Ein Stapel mit Werten unter null hat keine einzelne Summe, daher keinen Durchschnitt und keinen Trend.",
+        percentStack: "Jeder Stapel auf 100 % ist gleich hoch, daher gibt es keine Linien.",
+        noTime: "Ein Trend braucht Datumswerte in Zeilen, nach Datum geordnet.",
+        byIndex: "Manche Kategorien haben kein Datum, daher zählt der Trend sie als gleichmäßig verteilt.",
+        mixedUnits: "Die Werte haben verschiedene Einheiten, daher passt kein gemeinsames Ziel."
+    },
     labelPosition: "Beschriftung",
     labelPositionNames: { outside: "Außen", inside: "Innen" },
     axisLabels: "Achsenbeschriftung",

@@ -1,6 +1,7 @@
 /*
  * A chart's reference lines (chart.referenceLines) as numbers: the average of each series, a linear
- * trend and a target, where chart-plan.js's referenceLineRules allows them. The ECharts option
+ * trend and a target, where chart-plan.js's referenceLineRules and the numbers allow them
+ * (referenceLineChecks). The ECharts option
  * (chart.js), the UI's tooltip and text summary and the report's SVG read them from here. Only a drawn
  * chart needs it: the entry point "pivotkit-core/chart" exports it.
  */
@@ -83,6 +84,45 @@ function fit(values, times) {
     return { first, last, from: at(first), to: at(last), at };
 }
 
+/**
+ * Which reference lines a drawn chart can draw, and why the others are off (`notes`): the view's
+ * rules (referenceLineRules) and what depends on the numbers. The notes:
+ * - "percentStack": a stack to 100 % has the same height everywhere (chart.stackPercent).
+ * - "noTotal": a stack of values that do not add up has no total.
+ * - "negative": a stack with a part below zero has no single total: no average or trend of it.
+ * - "noTime": a trend needs a time line on Rows in its own order.
+ * - "byIndex": a category without a date (a blank) puts the trend on the categories' order.
+ * - "mixedUnits": a target over values in different units (counts beside a field's values, or
+ *   another format) fits none of them.
+ * Series hidden in the legend (chart.hidden) do not count. Pie, donut and heatmap: no lines, no notes.
+ * @param {import("./pivot.js").PivotResult} result
+ * @param {{ chart?: { type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[] }, series?: { series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] } }} [options]
+ *   chart: what is drawn (chartPlan's), over the view's; series: toSeries of the same result
+ * @returns {{ average: boolean, trend: boolean, target: boolean, notes: string[] }}
+ */
+export function referenceLineChecks(result, { chart, series } = {}) {
+    const view = result.view;
+    const merged = { ...view.chart, ...(chart ?? {}) };
+    const drawn = merged.type === "auto" ? { ...merged, type: autoChartType(view, result.encoded) } : merged;
+    const rules = referenceLineRules(view, drawn, result.encoded);
+    if (drawn.type !== "bar" && drawn.type !== "line" && drawn.type !== "area") {
+        return { ...rules, notes: [] };
+    }
+    if (!rules.average) {
+        return { ...rules, notes: [drawn.stackPercent ? "percentStack" : "noTotal"] };
+    }
+    const s = series ?? toSeries(result);
+    const hidden = Array.isArray(drawn.hidden) ? drawn.hidden : [];
+    const shown = s.series.filter((x) => !hidden.includes(x.name));
+    const negative = Boolean(drawn.stacked) && shown.some((x) => x.data.some((v) => typeof v === "number" && v < 0));
+    const byIndex = rules.trend && !negative && !timesOf(view, result.encoded, s.categoryPaths);
+    // one unit: one format, and not counts (count, countUnique) beside a field's values
+    const counts = new Set(view.values.map((v) => v.agg === "count" || v.agg === "countUnique"));
+    const target = rules.target && counts.size < 2 && new Set(shown.map((x) => x.format)).size < 2;
+    const notes = [negative ? "negative" : !rules.trend ? "noTime" : byIndex ? "byIndex" : "", target ? "" : "mixedUnits"].filter(Boolean);
+    return { average: !negative, trend: rules.trend && !negative, target, notes };
+}
+
 /** The mean of the plotted values, null without one. */
 function average(values) {
     const plotted = values.filter((v) => typeof v === "number");
@@ -126,7 +166,7 @@ export function referenceLines(result, { chart, series, words, locale } = {}) {
         return [];
     }
     const s = series ?? toSeries(result);
-    const rules = referenceLineRules(view, drawn, result.encoded, s);
+    const rules = referenceLineChecks(result, { chart: drawn, series: s });
     const names = { ...DEFAULT_LABELS.referenceLines, ...words };
     const name = (/** @type {"average" | "trend" | "target"} */ kind) => names[kind];
     // the series drawn: one hidden in the legend (chart.hidden) has no lines and is no part of a stack

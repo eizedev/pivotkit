@@ -14,7 +14,7 @@ import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame, text
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
-export { referenceLines } from "./chart-lines.js";
+export { referenceLineChecks, referenceLines } from "./chart-lines.js";
 export { valueAddsUp } from "./chart-plan.js";
 
 /** A copy of an object without the given keys. */
