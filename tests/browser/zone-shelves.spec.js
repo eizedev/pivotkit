@@ -109,11 +109,13 @@ test.describe("+ Add in each zone", () => {
         await expect(revenue).toHaveAccessibleDescription(/Adds a second value of it/);
         await expect(menu.getByTestId("add-pick-Revenue-note")).toHaveText("Adds a second value of it.");
         await revenue.click();
-        expect(await chips(page, "values")).toEqual(["Sum of Revenue", "Sum of Revenue"]);
+        // told apart: the second is numbered, on its chip and in the table's header
+        expect(await chips(page, "values")).toEqual(["Sum of Revenue", "Sum of Revenue (2)"]);
+        await expect(page.locator('[data-testid="pivot-table"] thead')).toContainText("Sum of Revenue (2)");
         // the second one, not the first
         const second = page.locator('[data-zone="values"] .pk-chip').nth(1).locator(".pk-chip-label");
         await expect(second).toBeFocused();
-        await expect(page.getByTestId("zones-status")).toHaveText("Sum of Revenue added to Values");
+        await expect(page.getByTestId("zones-status")).toHaveText("Sum of Revenue (2) added to Values");
     });
 
     test("Filters asks for the field's filter first: Back returns to the list, Apply places the field with its choice", async ({ page }) => {
@@ -224,6 +226,36 @@ async function element(page, { data, limits, view }) {
     return report;
 }
 
+test.describe("an empty report on a phone", () => {
+    test("starts with its zones open, so + Add is there; they stay open as fields come in", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("?data=sales&lang=en&empty");
+        await expect(page.getByTestId("empty-state")).toBeVisible();
+        await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "true");
+        await expect(page.getByTestId("add-field-rows")).toBeVisible();
+        // its steps name + Add
+        await expect(page.getByTestId("empty-state")).toContainText("Click + Add next to Rows");
+        await expect(page.locator('[data-zone="rows"] .pk-zone-hint')).toHaveText("Add or drop a field to group rows");
+        await page.getByTestId("add-field-rows").click();
+        await page.locator(".pk-add-menu").getByTestId("add-pick-Region").click();
+        await expect(page.getByTestId("chip-menu-Region")).toBeFocused();
+        await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "true");
+    });
+
+    test("a host's zones start state still wins", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("pages/element-leaks.html");
+        await page.waitForFunction(() => customElements.get("pivot-report"));
+        await page.evaluate(() => {
+            const el = document.createElement("pivot-report");
+            el.data = [{ Team: "A", Hours: 2 }];
+            el.setAttribute("zones", "folded");
+            document.body.append(el);
+        });
+        await expect(page.locator("pivot-report").getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
+    });
+});
+
 test.describe("+ Add at the edges", () => {
     test("a zone at its limit: every pick that would add to it is off, with the zone's limit as its reason", async ({ page }) => {
         const report = await element(page, {
@@ -264,18 +296,20 @@ test.describe("+ Add at the edges", () => {
     });
 });
 
-test("the same pick twice: the status line says it each time", async ({ page }) => {
+test("the same words twice: the status line says them each time", async ({ page }) => {
     await open(page);
     // every text the status line shows, as it changes
     await page.getByTestId("zones-status").evaluate((el) => {
         window.__said = [];
         new MutationObserver(() => el.textContent && window.__said.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true });
     });
-    for (let i = 0; i < 2; i++) {
-        await (await addMenu(page, "values")).getByTestId("add-pick-Revenue").click();
-        await expect.poll(() => page.evaluate(() => window.__said.length)).toBe(i + 1);
-    }
-    expect(await page.evaluate(() => window.__said)).toEqual(["Sum of Revenue added to Values", "Sum of Revenue added to Values"]);
+    // Units into Values, removed, and into Values again: the same words both times
+    await (await addMenu(page, "values")).getByTestId("add-pick-Units").click();
+    await expect.poll(() => page.evaluate(() => window.__said.length)).toBe(1);
+    await page.getByRole("button", { name: "Remove Sum of Units" }).click();
+    await (await addMenu(page, "values")).getByTestId("add-pick-Units").click();
+    await expect.poll(() => page.evaluate(() => window.__said.length)).toBe(2);
+    expect(await page.evaluate(() => window.__said)).toEqual(["Sum of Units added to Values", "Sum of Units added to Values"]);
 });
 
 test("an i closed while the pointer rests on it stays closed until the pointer leaves it", async ({ page }) => {

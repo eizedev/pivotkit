@@ -10,7 +10,7 @@
 
 import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
-import { groupingName, refLabel, relativeText, sortText, valueLabel } from "./names.js";
+import { groupingName, refLabel, relativeText, sortText, valueLabels } from "./names.js";
 import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, hiddenAfter, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
 import { valueAddsUp } from "pivotkit-core";
 import { CHART_TYPES, SLICE_TYPES } from "./chart-types.js";
@@ -305,7 +305,7 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf, ea
     const spec = view.values[index];
     const type = spec.field ? types.get(spec.field.toLowerCase()) ?? "string" : "number";
     const defaults = spec.field ? defaultsOf?.(spec.field) : undefined;
-    const name = valueLabel(spec, labels);
+    const name = valueLabels(view.values, labels)[index];
     const set = (patch) => () => ({ view: updateValue(view, index, patch, { defaults }), note: { step: "value", field: name } });
     const aggs = spec.field ? aggregatorsFor(type) : ["count"];
     // another aggregator is another chip (its key): the menu closes

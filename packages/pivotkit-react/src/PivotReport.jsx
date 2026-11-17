@@ -15,7 +15,7 @@ import { flushSync } from "react-dom";
 import { computePivot, emptyView, encode, fieldLabel, normalize, suggestDateUnit, toGrid, toSeries, viewFields } from "pivotkit-core";
 import { PivotChart, loadECharts } from "./chart.jsx";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
-import { groupingName, layoutSummary, valueLabel } from "./names.js";
+import { groupingName, layoutSummary, valueLabels } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
 import { DRILL_LIMIT, drillRows } from "./drill.js";
 import { displayNames, fieldDefaultsFor, fieldInfoOf, typesOf } from "./field-info.js";
@@ -386,7 +386,6 @@ function Report(props) {
         setZonesSeen(zonesProp);
         setFolded(zonesStart(zonesProp));
     }
-    const layoutFolded = folded ?? short;
     const zonesId = useId();
     const resultId = useId();
     // the prefix of the names of this report's form fields (dom.js useFormName): useId is unique in
@@ -788,6 +787,12 @@ function Report(props) {
     }, [plan.swap, view, encoded, locale, limits, computed, result]);
     const chartResult = chartComputed.result;
     const empty = isEmptyView(view);
+    // a low report with no field placed opens its zones, so "+ Add" is there to start with; they stay
+    // open as the first fields come in, as if the user had opened them (the host's `zones` wins)
+    if (empty && short && folded === null) {
+        setFolded(false);
+    }
+    const layoutFolded = folded ?? short;
     const gridState = useMemo(() => {
         if (!result || view.display !== "table" || empty) {
             return { grid: null, error: null };
@@ -1658,7 +1663,7 @@ function Report(props) {
                                         locale={locale}
                                         themeName={themeName}
                                         root={root}
-                                        valueNames={view.values.map((v) => valueLabel(v, labels))}
+                                        valueNames={valueLabels(view.values, labels)}
                                         chartOptions={stableChartOptions}
                                         colorMap={stableColorMap}
                                         // a legend entry hidden or shown: kept in the view, said to a screen reader

@@ -186,7 +186,8 @@ export function zoneMax(zone, limits) {
     if (!name) {
         return null;
     }
-    return limits && Number.isInteger(limits[name]) && limits[name] > 0 ? limits[name] : LIMITS[name];
+    const own = limits?.[name];
+    return typeof own === "number" && Number.isInteger(own) && own > 0 ? own : LIMITS[name];
 }
 
 /**

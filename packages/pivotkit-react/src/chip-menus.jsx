@@ -20,7 +20,7 @@ import { fill, plural } from "./labels.js";
 import { LevelMenu, MenuItem, useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, Radio, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
 import { numberText } from "./numbers.js";
-import { groupingName, valueLabel } from "./names.js";
+import { groupingName, valueLabel, valueLabels } from "./names.js";
 import { TOP_COUNTS, axisTopics, filterZoneTopics, valueTopics } from "./menu-topics.js";
 import { filtersOf, groupField, groupingOf, sourceOf } from "./view-ops.js";
 import { binProblem, setTopFilter, updateValue } from "./menu-ops.js";
@@ -383,7 +383,7 @@ export function FilterMenu({ view, index, field, types, labels, commit, close, o
 /** The menu of a value chip. */
 export function ValueMenu({ view, index, types, labels, commit, close, onRemove, defaultsOf, info, earlier, locale = "en-US" }) {
     const { explain } = React.useContext(HelpContext);
-    const name = valueLabel(view.values[index], labels);
+    const name = valueLabels(view.values, labels)[index];
     const topics = valueTopics({ view, index, types, labels, locale, defaultsOf, earlier });
     return (
         <LevelMenu

@@ -124,6 +124,9 @@ placed: "Rows: Team · Columns: Priority · Values: Count of Ticket". At most on
   folded too.
 - A drag from the field list or the table opens the zones while it lasts.
 - Your click holds until the page is loaded again.
+- A report with no field placed starts with its zones open, so **+ Add** is there to start with.
+  They stay open as you add fields. On a phone, fold them again with the heading once the report is
+  built, so the result has the room.
 
 The report's box can be lower than its toolbar, its zones, its tips and the least height of the
 result need. The least height is 240 px, 280 px on a narrow report. In that case:

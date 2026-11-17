@@ -916,6 +916,10 @@ Each zone is a shelf: its title, its "i" and "+ Add" on the left, its chips flow
   the menus. After a pick the focus goes to the new chip, and a status region inside the section
   says what was added or moved (`steps.added`, `movedFrom`).
 - There is no prop to switch editing off, so "+ Add" shows whenever the zones do.
+- Each zone carries `data-zone` (`filters`, `cols`, `rows`, `values`), and an entry of the add
+  menu the class `pk-add-type-<type>`. Both are internal, for tests and styles of this package, not
+  an interface.
+- A report with no field placed starts with its zones open, whatever its height. `zones` still wins.
 
 In the compact layout, the zones start folded, so the table keeps its room. At most one tip shows.
 [`zones`](#prop-zones) sets the start state instead.
@@ -1119,7 +1123,8 @@ the layout:
 | `zones-info` | the section's "i" |
 | `swap` | Swap rows and columns, at the end of the heading row |
 | `add-field-<zone>` | "+ Add" of a zone: `add-field-filters`, `add-field-cols`, `add-field-rows`, `add-field-values` |
-| `add-menu-<zone>` | its menu; each field in it is `add-pick-<field>`, a disabled one's reason `add-pick-<field>-reason` |
+| `add-menu-<zone>` | its menu; each field in it is `add-pick-<field>`, a disabled one's reason `add-pick-<field>-reason`, the line that says what a pick does `add-pick-<field>-note` |
+| `zone-info-<zone>` | the "i" next to a zone's title |
 | `zones-status` | the status region that says what "+ Add" did |
 | `show-table`, `show-chart` | the tabs, with `aria-selected` |
 | `view-settings` | Table settings or Chart settings |

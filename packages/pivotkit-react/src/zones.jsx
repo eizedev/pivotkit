@@ -15,7 +15,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { fieldItems, fieldLabel } from "pivotkit-core";
 import { MenuPanel } from "./lazy-menus.jsx";
-import { itemRuleText, layoutSummary, sortText, valueConditionText, valueLabel } from "./names.js";
+import { itemRuleText, layoutSummary, sortText, valueConditionText, valueLabels } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
@@ -254,11 +254,12 @@ export function zoneEntries(view, types, labels) {
         filters: filterZoneFields(view).map((f, i) => ({ id: `chip:filters:${f}`, field: f, text: text(f), type: typeOf(f), index: i })),
         cols: axis("cols"),
         rows: axis("rows"),
-        values: view.values.map((v, i) => {
+        values: valueLabels(view.values, labels).map((text, i) => {
+            const v = view.values[i];
             // stable across reorders, so a moved chip keeps its element; a repeated value gets a number
             const key = `${v.agg}:${v.field}`;
             seen.set(key, (seen.get(key) ?? 0) + 1);
-            return { id: `chip:values:${key}:${seen.get(key)}`, field: v.field, text: valueLabel(v, labels), type: v.field ? typeOf(v.field) : "number", index: i };
+            return { id: `chip:values:${key}:${seen.get(key)}`, field: v.field, text, type: v.field ? typeOf(v.field) : "number", index: i };
         })
     };
 }

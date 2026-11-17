@@ -68,7 +68,7 @@ export { relativeDateRange } from "./filters.js";
 export { MAX_DATE_MS, isDateMs } from "./time.js";
 export { foldText, MATCH_DEFAULTS } from "./text-match.js";
 export { closest, HINT_LIMITS } from "./hints.js";
-export { toGrid } from "./grid.js";
+export { numberRepeats, toGrid } from "./grid.js";
 export { autoChartType, toSeries } from "./chart-series.js";
 export { toEChartsOption } from "./chart.js";
 export { chartPlan, swapAxes, chartThemeFrom, CHART_COLORS, referenceLineRules, valueAddsUp } from "./chart-plan.js";

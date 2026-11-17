@@ -26,10 +26,10 @@ export const en = {
     core: /** @type {import("pivotkit-core").Labels} */ (REPORT_LABELS.en),
     zones: { rows: "Rows", cols: "Columns", values: "Values", filters: "Filters" },
     zoneHints: {
-        rows: "Drop fields here to group rows",
-        cols: "Drop fields here to group columns",
-        values: "Drop numbers here to sum or count them",
-        filters: "Drop fields here to filter the whole report"
+        rows: "Add or drop a field to group rows",
+        cols: "Add or drop a field to group columns",
+        values: "Add or drop a number to sum or count it",
+        filters: "Add or drop a field to filter the whole report"
     },
     fields: "Fields",
     fieldsHint: "Drag a field into Rows, Columns, Values or Filters, or open its menu.",
@@ -139,8 +139,8 @@ export const en = {
     // result
     emptyTitle: "Build your report in three steps",
     emptySteps: [
-        "Drag a field such as a team or region into Rows.",
-        "Drag a number into Values: it is summed, or counted for text.",
+        "Click + Add next to Rows, or drag a field such as a team or region into it.",
+        "Add a number to Values the same way: it is summed, or counted for text.",
         "Add a field to Columns, switch to Chart or export to Excel."
     ],
     emptyFields: "The data has no columns.",
@@ -387,10 +387,10 @@ export const de = {
     core: /** @type {import("pivotkit-core").Labels} */ (REPORT_LABELS.de),
     zones: { rows: "Zeilen", cols: "Spalten", values: "Werte", filters: "Filter" },
     zoneHints: {
-        rows: "Felder hierher ziehen, um Zeilen zu gruppieren",
-        cols: "Felder hierher ziehen, um Spalten zu gruppieren",
-        values: "Zahlen hierher ziehen, um sie zu summieren oder zu zählen",
-        filters: "Felder hierher ziehen, um den ganzen Bericht zu filtern"
+        rows: "Ein Feld hinzufügen oder hierher ziehen, um Zeilen zu gruppieren",
+        cols: "Ein Feld hinzufügen oder hierher ziehen, um Spalten zu gruppieren",
+        values: "Eine Zahl hinzufügen oder hierher ziehen, um sie zu summieren oder zu zählen",
+        filters: "Ein Feld hinzufügen oder hierher ziehen, um den ganzen Bericht zu filtern"
     },
     fields: "Felder",
     fieldsHint: "Ein Feld in Zeilen, Spalten, Werte oder Filter ziehen oder sein Menü öffnen.",
@@ -479,8 +479,8 @@ export const de = {
     condition: "Textbedingung",
     emptyTitle: "Den Bericht in drei Schritten bauen",
     emptySteps: [
-        "Ein Feld wie Team oder Region in Zeilen ziehen.",
-        "Eine Zahl in Werte ziehen: Sie wird summiert, Text wird gezählt.",
+        "Neben Zeilen auf + Hinzufügen klicken oder ein Feld wie Team oder Region hineinziehen.",
+        "Eine Zahl genauso zu Werte hinzufügen: Sie wird summiert, Text wird gezählt.",
         "Ein Feld in Spalten ziehen, zum Diagramm wechseln oder nach Excel exportieren."
     ],
     emptyFields: "Die Daten haben keine Spalten.",
