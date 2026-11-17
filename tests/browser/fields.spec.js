@@ -11,8 +11,7 @@ test.describe("without descriptions", () => {
         // a date field's "i" gives its range (#109); no other field has an "i" (the zones' and their
         // section's own "i" explain the zones, not a field)
         await expect(page.locator('.pk-field[data-field="Month"] .pk-info')).toHaveCount(1);
-        await expect(page.locator('.pk-field:not([data-field="Month"]) .pk-info')).toHaveCount(0);
-        await expect(page.locator(".pk-zone .pk-info:not(.pk-zone-info, .pk-section-info)")).toHaveCount(0);
+        await expect(page.locator(".pk-info:not(.pk-zone-info, .pk-section-info)")).toHaveCount(1);
         await expect(page.locator(".pk-field-desc")).toHaveCount(0);
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
         expect(await chips(page, "values")).toEqual(["Sum of Revenue"]);
