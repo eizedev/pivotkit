@@ -242,6 +242,13 @@ service again:
     The token works at once, on REST and MCP. `token list` shows it, and `token revoke laptop` ends
     it early ([signed tokens](../reference/rest.md#signed-tokens)).
 
+??? note "A server with a sign-in provider"
+
+    With `auth.mode: oauth`, people get their token from the sign-in provider, not from you.
+    `pivotkit login` signs them in with a code in the browser. `pivotkit token` then prints a fresh
+    token for curl or PowerShell. The scripts for curl and PowerShell alone are in
+    [Sign in from the command line](../reference/rest.md#sign-in-cli).
+
 In the second terminal, read the two tokens into variables:
 
 === "bash"
@@ -320,6 +327,8 @@ try {
 ## Next { #next }
 
 - [pivotkit-server (REST)](../reference/rest.md): every route, profiles, sign-in with OAuth, CORS, limits, errors.
+- [Sign in from the command line](../reference/rest.md#sign-in-cli): a token from your sign-in
+  provider with `pivotkit login`, curl or PowerShell.
 - The OpenAPI document of your service: `GET /openapi.json` with a token.
 - [Container image](../reference/container.md): the same service in Docker.
 - [Kubernetes](kubernetes.md): the service with the MCP server, an Ingress and sign-in.

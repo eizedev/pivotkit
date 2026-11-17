@@ -19,20 +19,35 @@ export { toEChartsOption } from "./chart.js";
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
 
 /**
+ * A heatmap's colours as ECharts can mix them. ECharts works out each cell's colour from the scale's
+ * ends itself, and its parser reads hex, rgb(), hsl() and some names only: any other colour (oklch(),
+ * rgb() with spaces) turns the cells black. `readColor` gives a colour ECharts reads (the colour as
+ * it is, or the same colour another way), or null; an end it gives none for takes DEFAULT_THEME's.
+ * @param {string[]} colors  low to high
+ * @param {(color: string) => string | null} readColor
+ */
+function heatmapColors(colors, readColor) {
+    const fallback = DEFAULT_THEME.colorScale;
+    return colors.map((c, i) => readColor(String(c)) ?? fallback[i === 0 ? 0 : fallback.length - 1]);
+}
+
+/**
  * Mark styles on top of the core's option: rounded bar ends, 2 px lines, tooltips in the theme, built
  * as DOM nodes (chart-tooltip.js) so a strict Content-Security-Policy allows them.
  * @param {any} option  toEChartsOption()'s
  * @param {{ getPropertyValue(name: string): string }} style  the --pk-* tokens: a report's computed
  *   style, or a map of tokens wrapped (pivotkit-report)
  * @param {{ height?: number, width?: number, categoryNames?: string[], axisLabels?: string,
- *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown }} [size]
+ *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown,
+ *   readColor?: (color: string) => string | null }} [size]
  *   height and width: the chart's size in px (the room around a pie, a heatmap's column names, the
  *   category axis); categoryNames: the categories' whole names (the tooltip's title when the axis
  *   writes them shorter); axisLabels: the view's chart.axisLabels; tooltipFormatter: builds the
- *   tooltip's formatter (pivotkit-react's DOM tooltip), left out for a chart without one (an SVG)
+ *   tooltip's formatter (pivotkit-react's DOM tooltip), left out for a chart without one (an SVG);
+ *   readColor: a heatmap colour as one ECharts can mix, or null (see heatmapColors)
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
-export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter } = {}) {
+export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter, readColor } = {}) {
     const extra = { categoryNames, axisLabels };
     const first = (a) => (Array.isArray(a) ? a[0] : a);
     const v = (name) => style.getPropertyValue(name).trim();
@@ -153,5 +168,6 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
             if (splitNumber) axes = { ...axes, xAxis: { ...value, splitNumber } };
         }
     }
-    return { ...option, ...title, tooltip, series, ...(axes.xAxis ? { xAxis: axes.xAxis } : {}), ...(axes.yAxis ? { yAxis: axes.yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400, axisEvery };
+    const visualMap = readColor && Array.isArray(option.visualMap?.inRange?.color) ? { visualMap: { ...option.visualMap, inRange: { ...option.visualMap.inRange, color: heatmapColors(option.visualMap.inRange.color, readColor) } } } : {};
+    return { ...option, ...title, ...visualMap, tooltip, series, ...(axes.xAxis ? { xAxis: axes.xAxis } : {}), ...(axes.yAxis ? { yAxis: axes.yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400, axisEvery };
 }

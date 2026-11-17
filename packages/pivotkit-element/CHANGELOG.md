@@ -37,6 +37,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- The chart on a touch screen, a heatmap's colours in a form such as `oklch()` and the tooltip of a
+  pie or heatmap with a field on Columns, as pivotkit-react's ([#538](https://github.com/eizedev/pivotkit/issues/538),
+  [#386](https://github.com/eizedev/pivotkit/issues/386), [#537](https://github.com/eizedev/pivotkit/issues/537)).
 - The element bundles pivotkit-core's chart labels at small sizes: slanted category names leave the
   plot its height, a donut's outside labels stay whole, the value at the end of a horizontal bar is
   not cut, and a heatmap names every row that has room ([#228](https://github.com/eizedev/pivotkit/issues/228), [#229](https://github.com/eizedev/pivotkit/issues/229),

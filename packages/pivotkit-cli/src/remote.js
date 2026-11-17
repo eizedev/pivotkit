@@ -223,7 +223,7 @@ function retryAfterOf(value) {
  * not followed).
  * @returns {Promise<{ status: number, header(name: string): string | null, body: AsyncIterable<Uint8Array>, cancel(): void }>}
  */
-function send(url, { method, headers, body }, loopback, signal) {
+export function send(url, { method, headers, body }, loopback, signal) {
     if (!loopback) {
         return fetch(url, { method, headers, body, redirect: "manual", signal }).then((r) => ({
             status: r.status,

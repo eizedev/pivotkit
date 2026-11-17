@@ -10,7 +10,7 @@
 import { test as plain } from "@playwright/test";
 import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
 import { makeXlsx } from "../../packages/pivotkit-xlsx/test/make-xlsx.js";
-import { dataMenu, dropFiles, fieldNames, fileOf, pickThroughMenu } from "./import-helpers.js";
+import { dataMenu, dropFiles, fieldNames, fileOf, nextFileChooser, pickThroughMenu } from "./import-helpers.js";
 
 const TICKETS = "Id;Team;Opened;Hours;Zip\n1001;Network;10.11.2026;1,5;01067\n1002;Server;11.11.2026;2,25;10115\n1003;Network;12.11.2026;4;01067\n\n1004;Client;13.11.2026;0,5;20095\n";
 const CSV = "text/csv";
@@ -105,7 +105,7 @@ test("the Data menu by keyboard: where the data comes from, Load data… opens t
     // the first entry takes the focus once the menu is there; no Back while the playground's data is shown
     await expect(page.getByTestId("load-file")).toBeFocused();
     await expect(page.getByTestId("back-to-original")).toHaveCount(0);
-    const chooser = page.waitForEvent("filechooser");
+    const chooser = nextFileChooser(page);
     await page.keyboard.press("Enter");
     const fc = await chooser;
     // the chooser offers what the readers read
@@ -391,7 +391,7 @@ strict("the element takes columnar data; without data, the empty report offers t
     report = await elementPage(page, "?empty");
     await expect(report.getByTestId("empty-state").getByRole("heading")).toHaveText("Load data to start");
     await expect(report.getByTestId("empty-drop")).toContainText("Drop a file onto the report, or");
-    const chooser = page.waitForEvent("filechooser");
+    const chooser = nextFileChooser(page);
     await report.getByTestId("empty-load").click();
     await (await chooser).setFiles({ name: "teams.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ data: [{ Team: "A", Hours: 2 }, { Team: "B", Hours: 3 }] })) });
     await expect(report.getByTestId("import-notes").locator("li[data-code='JSON_PROPERTY']")).toHaveText("The rows were read from “data”.");

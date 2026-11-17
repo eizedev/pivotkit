@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toEChartsOption, toGrid, toSeries } from "pivotkit-core";
-import { decorate } from "../src/chart-decorate.js";
+import { decorate, screenColor } from "../src/chart-decorate.js";
 import { chartSummary } from "../src/chart-summary.js";
 import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
 import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "pivotkit-core/chart";
@@ -693,4 +693,41 @@ test("the views a controlled host has not passed back: at most HISTORY_LIMIT, th
     assert.deepEqual(answered(["a", "b", "c"], "c"), []);
     // a view it was not told is a change of its own: nothing waits
     assert.deepEqual(answered(["a", "b"], "x"), []);
+});
+
+test("screenColor: a colour ECharts reads as it is, another as the canvas draws it, null for one the canvas does not take (#386)", () => {
+    // a 2D context as a browser's: fillStyle keeps its colour when it is given one it does not take,
+    // and a pixel is what the last fillStyle it took paints
+    const DRAWN = { transparent: [0, 0, 0, 0], "oklch(0.96 0.02 250)": [232, 243, 255, 255], "rgb(178 34 34)": [178, 34, 34, 255] };
+    const SHOWN = { transparent: "rgba(0, 0, 0, 0)", "oklch(0.96 0.02 250)": "oklch(0.96 0.02 250)", "rgb(178 34 34)": "#b22222" };
+    let style = "#000000";
+    const ctx = {
+        get fillStyle() {
+            return Object.hasOwn(SHOWN, style) ? SHOWN[style] : style;
+        },
+        set fillStyle(v) {
+            if (Object.hasOwn(DRAWN, v)) style = v;
+        },
+        clearRect() {},
+        fillRect() {},
+        getImageData: () => ({ data: Uint8ClampedArray.from(DRAWN[style]) })
+    };
+    const doc = { createElement: () => ({ getContext: () => ctx }) };
+    const hexOnly = (c) => /^#[\da-f]{6}$/i.test(c);
+    const kept = globalThis.CSS;
+    // CSS.supports takes all of these, light-dark() and an unresolved var() included
+    globalThis.CSS = { supports: () => true };
+    try {
+        const read = screenColor(/** @type {any} */ (doc), hexOnly);
+        assert.equal(read("#003366"), "#003366");
+        assert.equal(read("oklch(0.96 0.02 250)"), "#e8f3ff");
+        assert.equal(read("rgb(178 34 34)"), "#b22222");
+        // the canvas does not take them: fillStyle stays the sentinel, never the colour drawn before
+        assert.equal(read("light-dark(#fff, #000)"), null);
+        assert.equal(read("var(--pk-missing)"), null);
+    } finally {
+        globalThis.CSS = kept;
+    }
+    // without CSS.supports (no browser) nothing is drawn
+    assert.equal(screenColor(/** @type {any} */ (doc), hexOnly)("oklch(0.5 0.1 200)"), null);
 });

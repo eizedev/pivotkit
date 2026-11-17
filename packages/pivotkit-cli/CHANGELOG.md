@@ -8,6 +8,13 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Added
 
+- `pivotkit login --url <server> --client-id <id>` signs in at the server's sign-in provider with
+  the OAuth 2.0 device code flow. It keeps the refresh token in the system's keychain, else in a
+  file only you read. `pivotkit token` prints a fresh access token, and `pivotkit logout` removes
+  the sign-in, revoking the refresh token where the provider offers that
+  ([sign in](https://pivotkit.eize.dev/reference/cli/#sign-in), #486).
+- Exit code 3: `pivotkit token` says the sign-in has ended and `pivotkit login` is needed again.
+- `pivotkit-cli/rest` exports `resourceMetadataUrlOf`, the address of a server's sign-in metadata.
 - `--filter Field=Item` keeps the rows of one item: `--filter Country=Germany`. Given again for
   the same field, it keeps each item. JSON and `@file.json` work as before (#508).
 - With layout flags and local data, an item of a text field that is none of its values is a

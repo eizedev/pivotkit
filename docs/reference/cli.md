@@ -13,7 +13,8 @@ description: The pivotkit command line - render a view over CSV, JSON or Excel d
 
 On local files, it needs no network, and with `--now` its output is the same on every run. With
 `--url` and `--source`, the same commands run on the sources of a [pivotkit-server](rest.md)
-([With a server](#with-a-server)), for data that lives there. To update it, see
+([With a server](#with-a-server)), for data that lives there. `pivotkit login` signs you in where
+the server uses a sign-in provider ([Sign in](#sign-in)). To update it, see
 [Update an installation](../getting-started/upgrading.md#update).
 
 ```bash
@@ -88,6 +89,9 @@ data, so a view does not apply to it.
 | `pivotkit describe <data> --suggest [-o <file>]` | A [draft view](#a-view-from-the-datas-fields) of the data as a view file: on stdout, or into `-o`. |
 | `pivotkit render <view> --url <address> --source <id> [-o <file>]` | The same on a server's source. `validate` and `describe` work there too ([With a server](#with-a-server)). |
 | `pivotkit sources [id] --url <address>` | A server's sources, or one source's fields, types and counts. |
+| `pivotkit login --url <address> --client-id <id>` | Signs in to a server's sign-in provider with a code in the browser and keeps the refresh token ([Sign in](#sign-in)). |
+| `pivotkit token [--url <address>]` | Prints a fresh access token of a server you signed in to. |
+| `pivotkit logout [--url <address>]` | Removes the kept sign-in of a server. |
 | `pivotkit example [name] [--list]` | Writes an example's data and views (or, `templates`, two print templates) into the current directory (default `sales`), never over a file, and says what to run next. `--list` names the examples ([Try it](#try-it)). |
 | `pivotkit completion bash \| zsh \| fish \| powershell` | The shell's completion script. |
 | `pivotkit help [command]`, `-h`, `--version` | Help. `--version` gives the versions of pivotkit-cli, pivotkit-report and pivotkit-core. |
@@ -132,11 +136,14 @@ read as JSON text, so give a file whose name starts with `{` as `./{name}.json`.
 | `--now <date>` | render (taken and checked by all) | "Today" of relative filters and the generated time. Environment `PIVOTKIT_NOW`. |
 | `--limit key=n` | all | One of pivotkit-core's [limits](../concepts/limits.md) (`--limit rows=200000`). Repeatable. |
 | `--allow-dir <dir>` | all | Read and write only inside this directory. Repeatable. |
-| `--url <address>` | render, validate, describe, sources | A pivotkit-server's REST address, `https://host/api/v1`. Environment `PIVOTKIT_URL`. [With a server](#with-a-server) |
+| `--url <address>` | render, validate, describe, sources, login, token, logout | A pivotkit-server's REST address, `https://host/api/v1`. Environment `PIVOTKIT_URL`. [With a server](#with-a-server) |
 | `--source <id>` | render, validate, describe | The server's source to run on (`pivotkit sources` lists them). |
 | `--param name=value` | render, validate, describe, sources `<id>` | A value of the source's parameter; repeatable. `pivotkit sources` says which a source needs. |
 | `--token-file <file>` | render, validate, describe, sources | Read the server's token from this file instead of `PIVOTKIT_TOKEN`. |
 | `--timeout <s>` | render, validate, describe, sources | Seconds to wait for the server's answer, 1 to 3600 (default 30). |
+| `--client-id <id>` | login | The sign-in provider's client ID for the command line. The operator names it. Environment `PIVOTKIT_CLIENT_ID`. |
+| `--scope <scopes>` | login | The scopes to ask for, separated by spaces. Default: the server's scopes and `offline_access`. |
+| `--store auto\|keychain\|file` | login | Where the refresh token goes. Default `auto`: the keychain, else a file only you read. |
 
 An option on the command line wins over its environment variable.
 
@@ -377,6 +384,7 @@ pivotkit render revenue.pivotkit.json --data new-export.csv --map Revenue=Turnov
 | 0 | Done. Warnings and the line that says what was written are on stderr (with `--verbose` also the reader's notes on how the data was read). |
 | 1 | Findings: an error in the view, or a warning with `--strict`. `render` writes nothing unless `--lenient`. |
 | 2 | A usage error, a file that cannot be read or written, a limit, a refused template, or a server's refusal or a network error (`kind: "remote"`). Nothing is written. |
+| 3 | `pivotkit token` and `logout`: the sign-in has ended or there is none. Run `pivotkit login` again. `error.code` names why: `INVALID_GRANT`, `NOT_SIGNED_IN`. |
 
 ## --json
 
@@ -484,6 +492,79 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
 - **Findings and exit codes** are as without a server: errors (and warnings with `--strict`) exit 1.
   The data's own notes (how a file was read, a data mismatch explained against local columns,
   `noRowsKept`) come from the server's findings instead.
+
+### Sign in { #sign-in }
+
+A server with a sign-in provider (`auth.mode: oauth`) takes the provider's access tokens. Sign in
+once, then let `pivotkit token` give you a fresh token:
+
+```bash
+pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli
+PIVOTKIT_TOKEN="$(pivotkit token)" pivotkit sources --url https://reports.example.com/api/v1
+pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources
+```
+
+The last line hands the token to curl on stdin (`-H @-`). A token in an argument, as in
+`curl -H "Authorization: Bearer $(pivotkit token)"`, is in the process list, where other users of the
+machine can read it while curl runs.
+
+- `login` reads the server's metadata and its issuer, and starts the device code flow there.
+- It names the issuer's host first. It warns when the code page's host is neither the issuer's host
+  nor a parent or subdomain of it. The warning is a hint, not a guarantee: check the page yourself.
+  Then it prints an address and a code on stderr. Open the address, enter the code and sign in.
+- The operator gives you the client ID. Pass it with `--client-id` or `PIVOTKIT_CLIENT_ID`.
+- `login` waits as long as the provider allows, at most 30 minutes. It polls at the provider's
+  interval, at most every five minutes, and says so when the provider asks for longer. It asks again
+  after a network error, a timeout, a 429 or a 5xx, three times in a row at most.
+- The issuer must use https. Plain http is taken only when the server's address is loopback too.
+- `token` trades the kept refresh token for an access token at the provider. It prints the access
+  token alone on stdout, with `--json` as `accessToken`. It asks the provider on every run.
+- `token` exits 3 when the sign-in has ended, for example when the provider revoked it. The message
+  says to run `pivotkit login` again. A network error exits 2 ([exit codes](#exit-codes)).
+- `token` and `logout` take the server from `--url`, else `PIVOTKIT_URL`, else the only server you
+  signed in to.
+- `logout` removes the refresh token and the entry. Where the provider offers token revocation
+  ([RFC 7009](https://www.rfc-editor.org/rfc/rfc7009)), it revokes the refresh token there first.
+  Any 2xx answer counts as revoked.
+  Otherwise the session at the provider stays open until it expires.
+- A server without a sign-in provider has no metadata. `login` says so. Ask the operator for a token
+  instead.
+
+Where the refresh token goes (`--store`):
+
+| System | Keychain | Through |
+| --- | --- | --- |
+| macOS | the login keychain | `/usr/bin/security` |
+| Linux | the secret service (GNOME Keyring, KWallet) | `secret-tool` of libsecret |
+| Windows | the Credential Manager | Windows PowerShell |
+
+- The refresh token reaches these tools on stdin, never as an argument.
+- A keychain may ask you to unlock it. pivotkit waits two minutes for that.
+- `auto` falls back to a file when the keychain cannot keep the token, and says why. Examples:
+    - `secret-tool` is not installed (the package `libsecret-tools` on Debian and Ubuntu).
+    - A server has no desktop session, so no secret service runs.
+    - On Windows, the token is longer than the 2560 bytes the Credential Manager keeps
+      ([CREDENTIAL](https://learn.microsoft.com/en-us/windows/win32/api/wincred/ns-wincred-credentialw)).
+    - Any keychain that does not give the token back as written, for example one that cuts a very
+      long token. pivotkit reads each token back after it writes it.
+- The file is `pivotkit/tokens/` in `$XDG_CONFIG_HOME` (default `~/.config`), or in `%APPDATA%` on
+  Windows. It is not encrypted.
+    - On Linux and macOS, only you can read it: mode 0600 in a 0700 directory.
+    - On Windows, it has the permissions of your profile's folder.
+- `pivotkit/logins.json` beside it names the servers, their issuers and client IDs. It holds no
+  token.
+- When the provider hands out a new refresh token, `token` keeps the new one. When the keychain
+  cannot keep it, `token` writes it to the file, says so on stderr and still prints the access token.
+  It removes the keychain's old entry, so `logout` leaves nothing behind.
+- Two `token` runs at once take turns through a lock file in `pivotkit/locks/`. So neither spends
+  the refresh token the other one just replaced.
+    - The run that holds the lock renews its time every 5 seconds.
+    - A lock not renewed for 3 minutes is a crashed run's. The next run takes it over.
+    - A waiting run waits up to 150 seconds, long enough for a keychain unlock dialog. Then it says
+      another run holds the lock.
+
+[Sign in from the command line](rest.md#sign-in-cli) has what the operator sets up, and the same
+steps with curl or PowerShell.
 
 ### The token { #token }
 
