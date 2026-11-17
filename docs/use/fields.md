@@ -18,9 +18,9 @@ A field in a zone is a **chip**. Its menu changes how the report shows the field
 | Part | Where | What it does |
 | --- | --- | --- |
 | **Fields** | left | Every column of the data, with a search and an icon for its type: text, number, date or yes/no. A mark next to a field shows which zone it is in. When the application describes a field, an **i** next to it says what the field means. A long field name takes two lines and breaks between words only. A word too long for its line ends in "…", and pointing at the name shows it whole. |
-| **The zones** | top | **Rows**, **Columns**, **Values** and **Filters**. The **i** next to a zone's title says what the zone does, with an example. Options, Help, **Show explanations** switches these off and on. |
-| **The toolbar** | above the zones | Table or Chart, the chart type, Undo, Redo, Start over (Reset, New), Layout, Options, the name of the view you loaded, Views and Export. What does not fit moves into **More**. See [small screens](layout.md#small-screens). |
-| **The result** | below | The table or the chart, with tips above it, **Enlarge** and **Full screen** at its top right, and a status line below it. |
+| **The zones** | below the toolbar | **Rows**, **Columns**, **Values** and **Filters**. The **i** next to a zone's title says what the zone does, with an example. More, Help, **Show explanations** switches these off and on. The zones sit under the heading **Fields in the report**, which folds them. **Swap rows and columns** is at the right end of that heading. |
+| **The toolbar** | top | Undo, Redo, Start over (Reset, New), the name of the view you loaded, Views, Export and **More**. **More** holds **Help** first, then what does not fit. See [small screens](layout.md#small-screens). |
+| **The result** | below | The tabs **Table** and **Chart** on top, with the settings of the view shown, **Enlarge** and **Full screen** beside them. Tips stand above the tabs, a status line below the result. |
 
 ## Adding fields
 
@@ -142,16 +142,17 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 ## The table
 
 - The header and the row labels stay in place (sticky) while you scroll.
-- Groups expand and collapse with the arrow next to them. **Options** has **Expand all** and
-  **Collapse all** for the groups of Rows. Groups of Columns open and close with their arrows only.
+- Groups expand and collapse with the arrow next to them. **Table settings** has **Expand all** and
+  **Collapse all** for the groups of Rows. Collapse all says what it keeps: "Show Region only". Groups of Columns open and close with their arrows only.
     - The report offers each of the two only when it changes something. Otherwise a line under it
       says why: "Nothing is collapsed.", "Needs two or more fields in Rows.",
       "Every group is collapsed already."
     - After a click, the status line says what it did: "5 groups collapsed".
-- **Swap rows and columns**, above Columns, swaps the fields, which groups are collapsed, and the
-  direction of calculations. "% of row total" becomes "% of column total", and a running total along
-  Rows runs along Columns. Where the zone is narrow, the button drops its text.
-- You switch subtotals and grand totals on and off in **Options**. Each switch has an **i** that
+- **Swap rows and columns**, in the heading row of the zones, swaps the fields, which groups are
+  collapsed, and the direction of calculations. "% of row total" becomes "% of column total", and a
+  running total along Rows runs along Columns. It works while the zones are folded too. On a phone
+  the button shows its icon only.
+- You switch subtotals and grand totals on and off in **Table settings**. Each switch has an **i** that
   says what it does. A new report has the grand totals and the row subtotals. The column subtotals
   are off.
 - A switch that would change nothing in this layout is greyed out, without a tick, with the reason
@@ -195,8 +196,8 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
     - "Longest" counts characters. A label of fewer but wider characters, such as Chinese or emoji,
       can end in "…" although it would fit. Its whole text is in the tooltip.
 
-![Options: the totals, each with an "i", a total that changes nothing greyed out with what it needs, and the Help switches](../assets/screenshots/explanations-light.png#only-light)
-![Options: the totals, each with an "i", a total that changes nothing greyed out with what it needs, and the Help switches](../assets/screenshots/explanations-dark.png#only-dark)
+![Table settings: the totals, each with an "i", a total that changes nothing greyed out with what it needs, then Expand all and Collapse all](../assets/screenshots/explanations-light.png#only-light)
+![Table settings: the totals, each with an "i", a total that changes nothing greyed out with what it needs, then Expand all and Collapse all](../assets/screenshots/explanations-dark.png#only-dark)
 
 !!! note "For developers"
     How the layout follows the report's width, and the least heights, are in the

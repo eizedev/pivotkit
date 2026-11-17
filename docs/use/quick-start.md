@@ -62,7 +62,7 @@ keeps, for example "3 of 5".
 
 ## 6. Switch to the chart
 
-Click **Chart** in the toolbar. The report draws the same data as bars, one colour per category.
+Click the tab **Chart** on top of the table. The report draws the same data as bars, one colour per category.
 **Table** brings the table back.
 
 ![The same report as bars, one colour per category](../assets/screenshots/quick-chart-light.png#only-light)

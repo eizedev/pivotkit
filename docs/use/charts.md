@@ -5,12 +5,15 @@ description: Show a pivotkit report as a chart - bars, lines, area, pie, donut o
 
 # Charts
 
-**Chart** in the toolbar draws the same report as a chart. **Table** brings the table back.
+The tab **Chart** on top of the result draws the same report as a chart. The tab **Table** brings
+the table back.
 
 - The items of Rows are the categories along the axis.
 - Each item of Columns and each value is a series.
-- The button next to Table and Chart picks the type. It also has the **Display** settings: value
+- **Chart settings** next to the tabs picks the type. It also has the **Display** settings: value
   labels, legend, title and more.
+- With the table shown, the same button reads **Table settings**. It holds the totals, **Expand all**
+  and **Collapse all**.
 
 ![A line chart of monthly revenue per category](../assets/screenshots/chart-light.png#only-light)
 ![A line chart of monthly revenue per category](../assets/screenshots/chart-dark.png#only-dark)
@@ -38,9 +41,9 @@ description: Show a pivotkit report as a chart - bars, lines, area, pie, donut o
   table.
 - Anything else draws **bars**.
 
-The type button shows the type, such as "Automatic" or "Bars". A screen reader hears
-"Chart type: Bars". "Automatic" in its menu says what it draws now, such as "Now: Lines". A type you
-pick stays.
+The icon of the tab **Chart** shows the type drawn. In **Chart settings**, a screen reader hears the
+group of types as "Chart type: Bars". "Automatic" says what it draws now, such as "Now: Lines". A
+type you pick stays.
 
 ## Tips the chart gives
 
@@ -50,12 +53,12 @@ pick stays.
 | A pie or a donut has more than about 7 slices | **Switch to Bars**. |
 | A pie has a field on Columns | It adds the columns up into one slice per row. |
 | Lines or an area over categories without an order, such as countries or teams | "Lines connect points into a trend. For categories such as countries, bars fit better." with **Switch to Bars**. The tip does not show for dates, number ranges or a custom order such as the seasons. Nor does it show when the dates are on Columns: then the next tip offers to swap. |
-| More than 8 series, or lines with the dates on Columns | **Swap rows and columns**. It also shows above the Columns zone. |
+| More than 8 series, or lines with the dates on Columns | **Swap rows and columns**. It also sits in the heading row of the zones. |
 | More than 50 categories | The chart draws at most 50, with a note that always shows. |
 
 ## Display settings
 
-The chart type menu lists the chart types first. Below them is one row per **Display** topic:
+**Chart settings** lists the chart types first. Below them is one row per **Display** topic:
 Value labels, Legend, Title, Axis, Tooltip, Series and Layout. Each row shows what is set and opens
 a level. **Back**, Escape or the left arrow goes back to the row. A topic the chart has nothing for
 is left out: a pie has no Axis, a heatmap no Series.
@@ -65,8 +68,8 @@ settings stay with the report: in saved views, links and the chart image. They a
 chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Series, Stacked to 100 % and the
 labels of a pie.
 
-![The chart type menu: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
-![The chart type menu: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
+![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
+![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
 
 | Setting | Path | Choices | Default |
 | --- | --- | --- | --- |
@@ -83,6 +86,20 @@ labels of a pie.
 | Reference lines | Display › Reference lines | Average, Trend, Target. Bars, lines and areas. See [below](#reference-lines). | none |
 | Smooth lines | Display › Layout | on, off. Lines and areas. | off |
 | Labels of a pie | Display › Layout | Outside, Inside. Not while value labels are Off. | Outside |
+| Groups of Rows | Display › Layout | **Show each Country**, **Show Region only**, named by the fields. See below. | each item shown |
+
+??? info "Groups of Rows in a chart"
+    With two or more fields in Rows, a collapsed group is one category of the chart. Layout names
+    both choices by the fields:
+
+    - **Show each Country** shows every item of the last field in Rows. It is the table's
+      **Expand all**.
+    - **Show Region only** keeps the groups of the first field. It is the table's **Collapse all**.
+      In **Table settings**, Collapse all shows the same words beside it.
+
+    With one field in Rows both read **Show details** and **Show group totals only**. They are greyed
+    out with the reason "Needs two or more fields in Rows." Either choice closes the menu and is one
+    step for Undo.
 
 ??? info "Pie and donut labels"
     **Outside** writes each slice's name with what is chosen, on a line to the slice. On a narrow
@@ -108,8 +125,8 @@ labels of a pie.
 
     A pie writes its share as your language writes percentages: "35.7%" or "35,7 %".
 
-    ![A donut with the numbers on its slices, the chart type menu open at Labels](../assets/screenshots/donut-labels-light.png#only-light)
-    ![A donut with the numbers on its slices, the chart type menu open at Labels](../assets/screenshots/donut-labels-dark.png#only-dark)
+    ![A donut with the numbers on its slices, Chart settings open at Labels](../assets/screenshots/donut-labels-light.png#only-light)
+    ![A donut with the numbers on its slices, Chart settings open at Labels](../assets/screenshots/donut-labels-dark.png#only-dark)
 
 ??? info "Legend and title"
     On a chart narrower than 480 px, such as on a phone, a legend set to **Right** goes to the
@@ -200,15 +217,15 @@ bars and areas of sums and counts, the values that add up. An area is stacked by
 A reference line compares the values with their average, with their trend over time, or with a
 target you set.
 
-1. Open the chart type menu next to **Table** and **Chart**.
+1. Open **Chart settings** next to the tabs **Table** and **Chart**.
 2. Open **Reference lines**. Its row says which lines are on, such as "Average, Target".
 3. Switch on **Average** or **Trend**. The level stays open, so you can switch both.
 4. Open **Target**. Its row shows the target, or "No target". Type a number and press Enter, or
    click **Apply**. **Remove the target** or the **×** removes it.
 5. **Back** or Escape returns one level.
 
-![The chart type menu open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-light.png#only-light)
-![The chart type menu open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-dark.png#only-dark)
+![Chart settings open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-light.png#only-light)
+![Chart settings open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-dark.png#only-dark)
 
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-light.png#only-light)
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-dark.png#only-dark)

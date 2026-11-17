@@ -352,7 +352,7 @@ greater than 2,000,000".
 - A rule's **×** takes it away and puts the focus on the first button that adds one. When the last
   rule goes, the section folds and the focus moves to its header.
 - A field takes at most 10 rules.
-- The **i** of the rules shows while **Show explanations** (Options › Help) is on, as the other
+- The **i** of the rules shows while **Show explanations** (More › Help) is on, as the other
   explanations do.
 - The chip shows the quick choice or the first rule on the item or its name. It adds "+1" for each
   further one ("last 2 years (2025; 2026 has no data) +1", "contains “linux”"). The whole list is
