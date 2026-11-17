@@ -34,8 +34,9 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 ## The field list and the zones { #zones-and-fields }
 
 - Rows, Columns, Values and Filters ([fields and zones](use/fields.md)):
-    - People drag a field, click it, or place it through its menu. Drag and drop is never the only
-      way. A click puts numbers into Values and the rest into Rows.
+    - People drag a field, click it, place it through its menu, or use **+ Add** in a zone. Drag
+      and drop is never the only way. A click puts numbers into Values and the rest into Rows.
+    - The zones are shelves that sit side by side while they fit.
     - Types with icons, and a search.
     - Chips that show their filter, top N and sort.
     - Swap rows and columns.

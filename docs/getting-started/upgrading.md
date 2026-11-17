@@ -200,13 +200,15 @@ The toolbar holds what applies to the whole report. Table and Chart moved onto t
   **Swap rows and columns** moved from the Columns zone to the end of that row.
 - The new prop `zones` (`"open"` or `"folded"`, the attribute `zones`) sets the zones' start state.
   Without it, the report's height decides, as before.
-- Folded, the zones' heading row and the tabs move the table down by about 13 px. Open, the zones
-  with their heading need about 60 px more height than before. A report whose box was just high
-  enough for its open zones may now start with them folded. Give the report more height, or set
-  `zones="open"`.
-- `zones="open"` keeps them open in any box. In a desktop card of 600 px the table then keeps 206 px,
-  less than the result's least height of 240 px. On a phone it keeps almost nothing. Use it in a box
-  of about 700 px or more, or without a fixed height ([`zones`](../reference/react.md#prop-zones)).
+- Folded, the zones' heading row and the tabs move the table down by about 13 px.
+- Open, each zone is a shelf with **+ Add**, and the shelves sit side by side while they fit. With
+  the sales data in the playground, the table starts about 20 px higher than before at 1440 px. It
+  starts about 35 px lower at 1024 px, and about 55 px lower on a phone. A report whose box was just
+  high enough for its open zones may now start with them folded. Give the report more height, or
+  set `zones="open"`.
+- `zones="open"` keeps them open in any box. In a desktop card of 600 px with a few fields, the
+  result keeps about 300 px. On a phone it keeps almost nothing. With many fields, use it in a box of
+  about 700 px or more, or without a fixed height ([`zones`](../reference/react.md#prop-zones)).
 
 Label keys:
 

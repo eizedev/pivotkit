@@ -830,7 +830,8 @@ folder of assets) deploys the whole `dist/` folder.
 
 The report adapts to its own width, not the window's:
 
-- **Wide** (1024 px and more): the field list is on the left, and the zones are in a 2 x 2 grid.
+- **Wide** (1024 px and more): the field list is on the left, and the zones are shelves side by side
+  while they fit.
 - **Medium**: the field list is narrower.
 - **Narrow** (below 640 px): the field list opens as a drawer from the toolbar. Menus show as bottom
   sheets: at the bottom of the window, at most 82 % of its height, scrolling inside.
@@ -901,7 +902,19 @@ Values: Count of Ticket"), cut with "…". It is the fold button's description (
 and its tooltip, and a click on it folds or opens the zones too. Open, the zones sit indented in a
 tinted panel (`--pk-section-indent`, `--pk-section-bg`, `--pk-section-pad`). The focus stays on
 the fold button when it folds or opens the zones. The Tab order is the fold button, the "i", Swap,
-then each zone's "i" and its chips.
+then each zone's "i", its "+ Add" and its chips.
+
+Each zone is a shelf: its title, its "i" and "+ Add" on the left, its chips flowing beside them.
+
+- Shelves sit side by side while they fit. A shelf narrower than `--pk-shelf-min` takes a line of
+  its own, and so does one whose chips need more room. Its chips then wrap inside it.
+- Below 400 px of the main area, the title row stands above the chips.
+- The dashed drop outline shows only while something is dragged. At rest the border is there but
+  transparent, so the shelves do not move when a drag starts.
+- "+ Add" (`addField`, named by `addFieldTo`) opens the zone's menu of every field. It loads with
+  the menus. After a pick the focus goes to the new chip, and a status region inside the section
+  says what was added or moved (`steps.added`, `movedFrom`).
+- There is no prop to switch editing off, so "+ Add" shows whenever the zones do.
 
 In the compact layout, the zones start folded, so the table keeps its room. At most one tip shows.
 [`zones`](#prop-zones) sets the start state instead.
@@ -1104,6 +1117,9 @@ the layout:
 | `zones-sub` | what is placed, after the heading while folded |
 | `zones-info` | the section's "i" |
 | `swap` | Swap rows and columns, at the end of the heading row |
+| `add-field-<zone>` | "+ Add" of a zone: `add-field-filters`, `add-field-cols`, `add-field-rows`, `add-field-values` |
+| `add-menu-<zone>` | its menu; each field in it is `add-pick-<field>`, a disabled one's reason `add-pick-<field>-reason` |
+| `zones-status` | the status region that says what "+ Add" did |
 | `show-table`, `show-chart` | the tabs, with `aria-selected` |
 | `view-settings` | Table settings or Chart settings |
 | `chart-types` | the group of chart types in Chart settings; each type is `chart-<type>` |

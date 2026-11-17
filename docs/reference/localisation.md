@@ -33,8 +33,9 @@ source, they live in `src/labels.js`, `src/menu-labels.js`, `src/menu-labels-de.
 `src/unused-texts.js`, `src/unused-texts-de.js` and `src/import-labels.js`.
 
 The texts of the tabs and the zones' section are `table`, `chart`, `tableSettings`, `chartSettings`,
-`settingsShort` (the settings button on a phone), `zonesTitle`, `zonesHint` and `more`. The menus'
-texts include `helpAndShortcuts`, `help`, `chartShowEach`, `chartShowOnly`, `chartShowDetails`,
+`settingsShort` (the settings button on a phone), `zonesTitle`, `zonesHint` and `more`. "+ Add" in
+each zone is `addField`, named by `addFieldTo`; its menu adds `addAlready`, `addMoves` and
+`addSecond`. The menus' texts include `helpAndShortcuts`, `help`, `chartShowEach`, `chartShowOnly`, `chartShowDetails`,
 `chartShowTotals`, `chartFoldEach`, `chartFoldOnly` and `chartFoldSome`. `LABELS.en` lists them all.
 
 The report ignores the keys `layout`, `showLayout`, `options` and `chartDisplay`. It says once in the
