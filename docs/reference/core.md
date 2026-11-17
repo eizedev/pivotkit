@@ -340,6 +340,8 @@ The view's `totals` decide the total rows and columns, with two rules of their o
 
 `toSeries` gives chart data. `toEChartsOption` gives a plain [Apache ECharts](https://echarts.apache.org/)
 option for bar, stacked bar, line, area, pie, donut and heatmap. Neither imports ECharts itself.
+`toEChartsOption` is also exported from [`pivotkit-core/chart`](#chart-marks). Import it from there to
+load it with the chart, not with the first load.
 
 | Option | Of | What |
 | --- | --- | --- |
@@ -397,6 +399,8 @@ It also reads a workbook's colours, as CSS writes them. Make them `#rrggbb` for 
 A token that is missing or not readable keeps `DEFAULT_THEME`'s value. `CHART_COLORS` is 8.
 
 ### The chart's marks: `pivotkit-core/chart` { #chart-marks }
+
+This entry point exports `toEChartsOption` too, so a bundle loads the option with the chart.
 
 `decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter })` puts
 a report's marks on `toEChartsOption`'s option:

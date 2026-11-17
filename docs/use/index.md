@@ -25,7 +25,7 @@ every application that uses pivotkit. You can follow along in the [live demo](..
 | Sum, count or average, show a share or a running total, format numbers, group dates | [Values and formats](values.md) |
 | Leave values out, keep the top 10, sort | [Filters, top N and sorting](filters.md) |
 | Show the report as a chart, change labels, legend and title | [Charts](charts.md) |
-| See the rows behind a number, copy or download them | [The rows behind a number](drill-down.md) |
+| See the rows behind a number, copy or download them where the application allows it | [The rows behind a number](drill-down.md) |
 | Undo, save a view, pick a shared one, share a link or a file, load one | [Views, saving and sharing](views.md) |
 | Load a CSV, JSON or Excel file of my own into the report | [Load your own data](load-data.md) |
 | Download Excel, CSV or a chart image, copy the table into a spreadsheet | [Export and copy](export.md) |

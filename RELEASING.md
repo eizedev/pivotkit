@@ -40,6 +40,7 @@ Release packages in this order. It follows their run-time dependencies.
 
 - Move the `[Unreleased]` entries of `packages/<package>/CHANGELOG.md` under the new version and date.
 - Set `version` in `packages/<package>/package.json`.
+  Pick it by [docs/versioning.md](docs/versioning.md). From 1.0.0, only a major removes a deprecated thing.
 - Update the caret range or devDependency of every package that uses it.
 - Update `examples/reader-plugin/package.json` too. It takes pivotkit-core from npm.
 - Update the statements that name the current version. `tests/ci.test.js` checks them:

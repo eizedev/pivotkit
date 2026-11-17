@@ -6,6 +6,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Upgrading from 0.7
+
+- With `exportData` off, the default, the drill-down panel has no Export menu: no copy and no
+  download of its rows. Set `drillDownExport` to keep it
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
+
 ### Added
 
 - Display → **Tooltip** in the chart type menu, for bars, lines and areas: **Automatic** or **All
@@ -16,6 +22,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   a total is shown ("+{count} more (in the total)").
 - `--pk-tooltip-name-w` (default `12em`): the widest series name in the tooltip. A longer one ends
   in "…".
+
+- `drillDownExport`: the drill-down panel's copy and download while `exportData` is off, with every
+  column. Off by default.
 
 ### Changed
 
@@ -31,6 +40,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   - Pie, donut and heatmap keep the tooltip of the slice or cell.
   - The tooltip stays inside the chart. When more series are there than fit, the last line says how
     many more there are.
+
+- The drill-down panel's copy and download follow `exportData`. With it off, the panel shows the
+  rows but offers no copy and no download (#263).
+- pivotkit-core's ECharts option (`toEChartsOption`) loads with ECharts, from `pivotkit-core/chart`,
+  not with the first load (#546).
 
 ### Fixed
 

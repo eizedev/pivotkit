@@ -243,6 +243,28 @@ test.describe("two elements on one page", () => {
         await expect(sales.getByTestId("export-data-csv")).toHaveCount(0);
     });
 
+    test("drill-down-export: without export-data the drill-down has no Export menu; set, its copy goes through pivot-export", async ({ page }) => {
+        await page.goto("pages/element-two.html");
+        const sales = page.locator("#sales");
+        await sales.locator('[data-testid="pivot-table"] td.pk-clickable').first().click();
+        const panel = sales.getByTestId("drill-panel");
+        await expect(panel.locator(".pk-drill-table tbody tr").first()).toBeVisible();
+        await expect(panel.getByTestId("drill-export")).toHaveCount(0);
+        await panel.getByRole("button", { name: "Close" }).click();
+        // the boolean attribute, as a page writes it
+        await page.evaluate(() => document.getElementById("sales").setAttribute("drill-down-export", ""));
+        expect(await sales.evaluate((el) => el.drillDownExport)).toBe(true);
+        expect(await sales.evaluate((el) => el.exportData)).toBe(false);
+        await sales.locator('[data-testid="pivot-table"] td.pk-clickable').first().click();
+        await panel.getByTestId("drill-export").click();
+        const [download] = await Promise.all([page.waitForEvent("download"), sales.getByTestId("drill-csv").click()]);
+        expect(download.suggestedFilename()).toMatch(/\.csv$/);
+        expect((await events(page, "pivot-export")).at(-1).detail.kind).toBe("drill-csv");
+        // the property off again: the menu goes
+        await page.evaluate(() => (document.getElementById("sales").drillDownExport = false));
+        await expect(panel.getByTestId("drill-export")).toHaveCount(0);
+    });
+
     test("export: the page sees every file; preventDefault() keeps it from the download", async ({ page }) => {
         await page.goto("pages/element-two.html");
         const sales = page.locator("#sales");

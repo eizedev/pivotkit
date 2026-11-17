@@ -20,6 +20,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   (`average`), for "did you mean". A view never accepts them (#508).
 - `rowLabelInterval` and `heatmapCellLabels` of `pivotkit-core/chart` take the heatmap's frame as an
   optional last argument; `categoryLabelLayout` takes `reserved` in its box.
+- `toEChartsOption` is also exported from `pivotkit-core/chart`. A bundle that imports it from there
+  loads it with the chart, not first (#546).
 
 ### Changed
 

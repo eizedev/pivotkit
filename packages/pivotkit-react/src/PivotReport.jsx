@@ -302,6 +302,7 @@ function Report(props) {
         fieldDefaults,
         onExport,
         exportData = false,
+        drillDownExport = false,
         label,
         tips: tipsProp = "on",
         storageKey,
@@ -1623,7 +1624,7 @@ function Report(props) {
                             </div>
                         </div>
                         {/* inside the layout: clipped to the report's box with it (its slide-in too) */}
-                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root, exportData } }} /> : null}
+                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root, exportData, drillDownExport } }} /> : null}
                     </div>
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}

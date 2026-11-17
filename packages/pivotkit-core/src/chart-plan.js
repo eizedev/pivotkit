@@ -7,7 +7,7 @@
  * report needs it.
  */
 
-import { autoChartType } from "./chart.js";
+import { autoChartType } from "./chart-series.js";
 import { pxOf } from "./defaults.js";
 
 /**

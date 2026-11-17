@@ -8,6 +8,7 @@ description: How to update the command line, the services, the image and the plu
 The first section says how to update the command line, the REST service, the MCP server, the
 container image and the Claude Code plugin. Each section after it lists what changes between two
 releases and whom it concerns. **Breaking** marks a change that needs your action when it applies.
+[Versioning](../versioning.md) says which releases may break things, and lists every deprecation.
 
 ## Update an installation { #update }
 
@@ -166,6 +167,7 @@ configuration, under "New in this version", with a link to each section below.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| **Breaking:** [the drill-down's copy and download follow `exportData`](#drill-export) | you embed the report with `exportData` off, the default, and people copy or download a drill-down's rows | set `drillDownExport` (`drill-down-export`) to keep that |
 | [Sources hidden by default can be open](#hidden-open) | a source is hidden by default (`"default": "hide"`) and names only fields at `show` or `hide` | nothing; for plain links over a "show everything except" source, set its default to `hide` and list the fields to show |
 | [A byte quota and an age limit for drafts](#draft-quota) | callers make schedule drafts (`draft_schedule`, `POST /schedules/draft`) | nothing; run `check-config`; set `output.draftMaxAgeDays` if waiting drafts should expire |
 | [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
@@ -241,6 +243,16 @@ The same arguments can give other results than in 0.7:
 - `categoryLabelLayout` cuts slanted names shorter in a low chart.
 
 To keep 0.7's heatmap frame, pass `{ x: 80, y: 120 }` as the last argument `frame`.
+
+### The drill-down's copy and download follow `exportData` { #drill-export }
+
+With `exportData` off, the drill-down panel shows the rows behind a value but has no **Export**
+menu. People can no longer copy the rows or download them as CSV or Excel from there.
+
+- To keep that menu without Source data, set `drillDownExport` on pivotkit-react, or
+  `drill-down-export` on pivotkit-element. Its copies and files hold every column.
+- With `exportData` on, nothing changes.
+- `onCellClick` and `pivot-cell-click` still get the rows.
 
 ## From 0.6 to 0.7 { #from-0-6-1 }
 

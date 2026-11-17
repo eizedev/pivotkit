@@ -6,11 +6,29 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Upgrading from 0.7
+
+- Without `export-data`, the default, the drill-down panel has no Export menu: no copy and no
+  download of its rows. Set `drill-down-export` to keep it
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
+
+### Added
+
+- `drill-down-export` (boolean attribute) and the `drillDownExport` property: the drill-down panel's
+  copy and download while `export-data` is off. As pivotkit-react's `drillDownExport`.
+
 ### Changed
 
 - The chart's tooltip names the element under the pointer, with a stack's total. Display →
   **Tooltip**, **All series** lists every series at the category
   ([#376](https://github.com/eizedev/pivotkit/issues/376), [#106](https://github.com/eizedev/pivotkit/issues/106)).
+
+- The drill-down panel's copy and download follow `export-data`. Without it, the panel shows the
+  rows but offers no copy and no download (#263).
+- The first load is about 1.7 KiB smaller: pivotkit-core's ECharts option loads with the chart
+  (#546).
+- `npm run size` names the zlib it measures with. It says when the sizes can differ from CI's, as
+  with a Node that uses the system's zlib (#546).
 
 ### Fixed
 

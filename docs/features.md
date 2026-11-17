@@ -91,9 +91,9 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 ## The rows behind a number { #drill-down }
 
 - Click a value or a chart mark. A panel shows the rows behind it
-  ([the rows behind a number](use/drill-down.md)). People can enlarge it, copy the rows, copy them as
-  JSON, or download them as CSV or Excel.
-- Developers: `drillDown`, `drillDownLimit`, and `onCellClick` with the rows ([React props](reference/react.md#props)).
+  ([the rows behind a number](use/drill-down.md)). People can enlarge it. Where the application
+  allows it, they copy the rows, copy them as JSON, or download them as CSV or Excel.
+- Developers: `drillDown`, `drillDownLimit`, `drillDownExport`, and `onCellClick` with the rows ([React props](reference/react.md#props)).
 
 ## Charts { #chart }
 

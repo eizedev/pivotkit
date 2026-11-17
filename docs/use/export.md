@@ -210,7 +210,8 @@ a note says so: "This page does not allow copying. Download a file instead."
     - Source data is off unless the host sets `exportData`. See
       [React](../reference/react.md#prop-exportdata) and [web component](../reference/element.md):
       `export-data`. It holds every row and column the report has, also those it does not show. Or
-      it holds the columns `exportData` names. The drill-down's exports keep to those as well. See
+      it holds the columns `exportData` names. The drill-down's copy and download follow
+      `exportData`, and keep to those columns as well. `drillDownExport` turns them on alone. See
       [security](../security.md#source-data).
     - Its files are pivotkit-core's `dataToCsvParts` and `dataToJson`. See
       [pivotkit-core](../reference/core.md).
