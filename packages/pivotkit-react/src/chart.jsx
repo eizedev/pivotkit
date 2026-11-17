@@ -16,8 +16,8 @@ import { chartThemeFrom } from "./theme.js";
 /** @type {Promise<any> | null} */
 let loading = null;
 
-/** Whether ECharts' click came from a finger: its native event is a touch's (or a pointer's of type touch). */
-const byTouch = (/** @type {any} */ e) => Boolean(e) && (String(e.type).startsWith("touch") || e.pointerType === "touch");
+/** How long a tap's tooltip waits for the second tap that opens its rows, in ms. */
+const TAP_WAIT = 10_000;
 
 /** ECharts with the parts the chart draws with (echarts.js), loaded once on the first chart. */
 export function loadECharts() {
@@ -58,8 +58,11 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const warned = useRef(/** @type {unknown} */ (undefined));
     // the bar, segment or line point under the pointer: the tooltip names it (chart-tooltip.js)
     const hover = useRef(/** @type {{ seriesIndex: number, dataIndex: number } | null} */ (null));
-    // the element a tap showed the tooltip of: a second tap on it opens its rows
-    const tapped = useRef(/** @type {string | null} */ (null));
+    // the element a tap showed the tooltip of, and when: a second tap on it opens its rows
+    const tapped = useRef(/** @type {{ element: string, at: number } | null} */ (null));
+    // whether the last press on the chart was a finger's: iOS sends its click as a plain mouse event,
+    // so the click itself does not say
+    const touched = useRef(false);
     useEffect(() => {
         latest.current = { series, onPoint, onInstance, type };
     });
@@ -68,6 +71,10 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         let disposed = false;
         /** @type {ResizeObserver | null} */
         let ro = null;
+        /** @type {((e: PointerEvent) => void) | null} */
+        let onPress = null;
+        /** @type {Document | null} */
+        let doc = null;
         loadECharts().then(
             (echarts) => {
                 if (disposed || !el.current) {
@@ -91,8 +98,9 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                     // a touch has no pointer that rests on an element: the first tap on an element shows
                     // its tooltip, a second tap on it opens its rows
                     const element = `${p.seriesIndex}:${p.dataIndex}`;
-                    if (byTouch(p.event?.event) && tapped.current !== element) {
-                        tapped.current = element;
+                    const last = tapped.current;
+                    if (touched.current && (last?.element !== element || Date.now() - last.at > TAP_WAIT)) {
+                        tapped.current = { element, at: Date.now() };
                         return;
                     }
                     tapped.current = null;
@@ -125,6 +133,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 });
                 instance.on("globalout", () => {
                     hover.current = null;
+                    tapped.current = null;
                 });
                 // a tap beside every element: the next tap on an element shows its tooltip first again
                 instance.getZr().on("click", (/** @type {any} */ e) => {
@@ -140,6 +149,18 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                           })
                         : null;
                 ro?.observe(el.current);
+                // a press: a finger's or not; one outside the chart forgets the tapped element
+                // (composedPath: inside a shadow root the document sees the host as the target)
+                const box = el.current;
+                doc = box.ownerDocument;
+                onPress = (/** @type {PointerEvent} */ e) => {
+                    if (e.composedPath().includes(box)) {
+                        touched.current = e.pointerType === "touch";
+                    } else {
+                        tapped.current = null;
+                    }
+                };
+                doc.addEventListener("pointerdown", onPress, true);
                 setReady(true);
             },
             (err) => setFailed(String(err && err.message ? err.message : err))
@@ -147,6 +168,9 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         return () => {
             disposed = true;
             ro?.disconnect();
+            if (onPress) {
+                doc?.removeEventListener("pointerdown", onPress, true);
+            }
             chart.current?.dispose();
             chart.current = null;
             latest.current.onInstance(null);

@@ -207,6 +207,15 @@ test.describe("a heatmap's colours in a form ECharts cannot mix (#386)", () => {
                 // the least and the largest cell: the scale's two ends, as the screen draws them
                 const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")})`;
                 expect(fills).toEqual(expect.arrayContaining(shownLight.map(rgb)));
+                // the HTML report: the heat colours and the colour scale of its table (by default the
+                // heat colours) as #rrggbb, which the report's table takes, not oklch()
+                await page.locator("#heat-chart").getByTestId("export").click();
+                const [report] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-html").click()]);
+                const tokens = rootRule(await readFile(await report.path(), "utf8"));
+                for (const [name, value] of [["--pk-heat-low", shownLight[0]], ["--pk-heat-high", shownLight[1]], ["--pk-scale-low", shownLight[0]], ["--pk-scale-high", shownLight[1]]]) {
+                    expect(tokens).toContain(`${name}:${value}`);
+                }
+                expect(tokens).not.toContain("oklch(");
             }
         });
     }

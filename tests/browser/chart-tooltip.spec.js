@@ -33,9 +33,9 @@ const VALUES = [
 ];
 
 /** Mounts a report of ROWS at the top of the host page, with `chart` (and `view`) over VIEW's; mount again to change it. */
-async function mount(page, chart, { theme = "light", view = {}, rows = ROWS } = {}) {
+async function mount(page, chart, { theme = "light", view = {}, rows = ROWS, cellClicks = false } = {}) {
     await page.evaluate(
-        async ({ rows, view, theme }) => {
+        async ({ rows, view, theme, cellClicks }) => {
             const React = await import("react");
             const { createRoot } = await import("react-dom/client");
             const { PivotReport } = await import("pivotkit-react");
@@ -49,9 +49,12 @@ async function mount(page, chart, { theme = "light", view = {}, rows = ROWS } = 
             // the report before is gone first, so nothing below reads its chart
             window.__tooltipRoot.render(null);
             await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 560, defaultView: view, onViewChange: (v) => window.__tooltipViews.push(v) }));
+            window.__cellClicks = [];
+            // onCellClick's calls, as row, column and count
+            const onCellClick = cellClicks ? ({ row, col, count }) => window.__cellClicks.push({ row, col, count }) : undefined;
+            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 560, defaultView: view, onCellClick, onViewChange: (v) => window.__tooltipViews.push(v) }));
         },
-        { rows, view: { ...VIEW, ...view, chart }, theme }
+        { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
     );
     const chartEl = page.locator("#tooltip-report").getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();
@@ -411,6 +414,53 @@ for (const type of ["bar", "heatmap"]) test(`on a phone, the first tap on a ${ty
     await expect(panel).toBeVisible();
     await expect(panel).toContainText("Hardware");
     await expect.poll(() => tooltipOf(chartEl)).toEqual([]);
+    expect(problems).toEqual([]);
+    await context.close();
+});
+
+test("on a phone: onCellClick on the second tap only; a tap outside the chart starts over; a mouse click opens at once (#538)", async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false });
+    const page = await context.newPage();
+    const problems = [];
+    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
+    await page.goto("pages/host.html");
+    const chartEl = await mount(page, { type: "bar", stacked: true }, { cellClicks: true });
+    const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+    const panel = page.getByTestId("drill-panel");
+    const clicks = () => page.evaluate(() => window.__cellClicks.length);
+    await page.touchscreen.tap(at.x, at.y);
+    await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+    await page.waitForTimeout(400);
+    expect(await clicks()).toBe(0);
+    // a tap outside the chart (the page below it), then on the same segment: its tooltip, no rows
+    const box = await chartEl.boundingBox();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height + 60);
+    await page.touchscreen.tap(at.x, at.y);
+    await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+    await page.waitForTimeout(400);
+    await expect(panel).toHaveCount(0);
+    expect(await clicks()).toBe(0);
+    // the second tap: one call, with the segment's rows
+    await page.touchscreen.tap(at.x, at.y);
+    await expect(panel).toBeVisible();
+    await page.waitForTimeout(400);
+    expect(await page.evaluate(() => window.__cellClicks)).toEqual([{ row: ["North"], col: ["Software"], count: 1 }]);
+    // a press that starts on the panel and ends on the scrim keeps the panel open
+    const p = await panel.boundingBox();
+    const scrim = await page.locator(".pk-drill-scrim").boundingBox();
+    await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(scrim.x + 4, scrim.y + 4, { steps: 4 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    await expect(panel).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(panel).toHaveCount(0);
+    // the same device with a mouse: a click opens the rows at once
+    const hw = await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH });
+    await page.mouse.click(hw.x, hw.y);
+    await expect(panel).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__cellClicks.length)).toBe(2);
     expect(problems).toEqual([]);
     await context.close();
 });

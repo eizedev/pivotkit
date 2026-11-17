@@ -50,8 +50,9 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
 /**
  * A heatmap colour as ECharts can mix it (pivotkit-core's decorateOption, readColor): a colour ECharts'
  * parser reads stays as it is; any other the browser draws (oklch(), rgb() with spaces) is read back
- * from one pixel of a canvas as #rrggbb, so the screen shows the host's colour (opaque: a scale's ends
- * are); null for a text that is no colour.
+ * from one pixel of a canvas as #rrggbb, so the screen shows the host's colour; null for a text that
+ * is no colour, or one the canvas does not take. The pixel is sRGB without alpha: a P3 colour is
+ * clipped and a transparent one drawn opaque.
  * @param {Document} doc
  * @param {(color: string) => unknown} parse  ECharts' colour parser
  * @returns {(color: string) => string | null}
@@ -75,8 +76,15 @@ export function screenColor(doc, parse) {
         if (!ctx) {
             return null;
         }
-        ctx.clearRect(0, 0, 1, 1);
+        // a value the canvas does not take (an unresolved var(), light-dark()) leaves fillStyle as it
+        // was: a transparent sentinel tells it, so it never reads back as some other colour
+        ctx.fillStyle = "transparent";
+        const sentinel = String(ctx.fillStyle);
         ctx.fillStyle = text;
+        if (String(ctx.fillStyle) === sentinel) {
+            return null;
+        }
+        ctx.clearRect(0, 0, 1, 1);
         ctx.fillRect(0, 0, 1, 1);
         return `#${[...ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
     };
