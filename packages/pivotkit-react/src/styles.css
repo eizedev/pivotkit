@@ -947,11 +947,12 @@
     background: var(--pk-surface);
 }
 
-/* the smallest phones: the panel takes the indent's room too, so a chip keeps its badges and a few
-   letters of its name */
-@container pk-main (width < 320px) {
+/* a phone: the panel gives the indent and half its side padding to the chips, so a chip keeps its
+   badges whole and some of its name next to them */
+@container pk-main (width < 400px) {
     .pk-zone-section .pk-zones {
         margin-left: 0;
+        padding-inline: calc(var(--pk-section-pad) / 2);
     }
 }
 
