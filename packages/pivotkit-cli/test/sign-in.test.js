@@ -46,7 +46,16 @@ async function fakeIssuer(plan = {}) {
                 }
                 return send(res, 200, { resource: plan.resource ?? `${origin}/api/v1`, authorization_servers: [`${origin}/issuer`], scopes_supported: ["pivotkit.read"], resource_name: "pivotkit REST" });
             }
-            if (req.url === "/.well-known/oauth-authorization-server/issuer") {
+            if (req.url === "/.well-known/oauth-authorization-server/issuer" && plan.firstAddress) {
+                // a provider with OpenID Connect discovery only: the first address answers otherwise
+                if (plan.firstAddress === "redirect") {
+                    res.writeHead(302, { location: `${origin}/elsewhere` });
+                    return res.end();
+                }
+                res.writeHead(404, { "content-type": "text/html" });
+                return res.end("<html>not found</html>");
+            }
+            if (req.url === "/.well-known/oauth-authorization-server/issuer" || (plan.firstAddress && req.url === "/issuer/.well-known/openid-configuration")) {
                 return send(res, 200, { issuer, token_endpoint: `${origin}/token`, ...(plan.noDevice ? {} : { device_authorization_endpoint: plan.deviceEndpoint ?? `${origin}/device` }), scopes_supported: ["openid", "offline_access", "pivotkit.read"] });
             }
             if (req.url === "/device") {
@@ -235,6 +244,21 @@ test("login refuses a server without sign-in metadata, metadata for another addr
     }
 });
 
+test("login reads the issuer's OpenID Connect discovery when the RFC 8414 address answers a page or a redirect", async () => {
+    for (const firstAddress of ["page", "redirect"]) {
+        const fake = await fakeIssuer({ firstAddress });
+        const dir = tempDir();
+        try {
+            const r = await run(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], { env: envOf(dir) });
+            assert.equal(r.code, 0, `${firstAddress}: ${r.stderr}`);
+            assert.ok(fake.requests.some((q) => q.url === "/issuer/.well-known/openid-configuration"), firstAddress);
+            assert.ok(!fake.requests.some((q) => q.url === "/elsewhere"), "the redirect is not followed");
+        } finally {
+            await fake.close();
+        }
+    }
+});
+
 test("login without a refresh token from the issuer says to ask for offline_access and keeps nothing", async () => {
     const fake = await fakeIssuer({ noRefresh: true });
     const dir = tempDir();
@@ -392,22 +416,35 @@ test("auto falls back to a file only its owner reads when the keychain cannot ke
 test("the Windows Credential Manager keeps, returns and removes a token through PowerShell", { skip: process.platform === "win32" && process.env.CI ? false : "runs on CI's Windows runners only: it writes to the real Credential Manager" }, async (t) => {
     const resource = `https://pivotkit-test-${process.pid}.example/api/v1`;
     const store = credentialStore(envOf(tempDir()));
-    let placed;
+    const realRun = storeMeans.run;
+    const codes = [];
+    storeMeans.run = async (...args) => {
+        const result = await realRun(...args);
+        codes.push(result.code);
+        return result;
+    };
     try {
-        placed = await store.put(resource, "REFRESH-WINDOWS-CREDENTIAL-1", "keychain");
-    } catch (e) {
-        if (e.code === "NO_KEYCHAIN") {
-            t.skip("the runner's session has no Credential Manager");
+        const placed = await store.put(resource, "REFRESH-WINDOWS-CREDENTIAL-1", "keychain").catch((e) => e);
+        // exit code 3: the script ran and CredWrite said no (a session without a credential store);
+        // anything else that fails is a broken script and fails the test
+        if (placed instanceof Error && codes[0] === 3) {
+            t.skip("CredWrite refused in this session");
             return;
         }
-        throw e;
-    }
-    try {
+        assert.ok(!(placed instanceof Error), `the store failed with the exit codes ${codes.join(", ")}`);
         assert.equal(placed.store, "keychain");
         assert.equal(await store.get({ resource, store: "keychain" }), "REFRESH-WINDOWS-CREDENTIAL-1");
-    } finally {
         await store.record({ resource, issuer: "https://issuer.example", clientId: "c", scope: "", tokenEndpoint: "https://issuer.example/token", store: "keychain" });
         await store.remove(resource);
+        assert.equal(await store.get({ resource, store: "keychain" }), null);
+    } finally {
+        storeMeans.run = realRun;
+        await keychainCleanup(resource);
     }
-    assert.equal(await store.get({ resource, store: "keychain" }), null);
 });
+
+/** Removes a test's entry from the Credential Manager whatever the test reached. */
+async function keychainCleanup(resource) {
+    const { keychainOf } = await import("../src/credential-store.js");
+    await keychainOf()?.remove(accountOf(resource));
+}

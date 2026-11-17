@@ -176,7 +176,8 @@ export async function issuerOf(issuer, env) {
     const path = url.pathname.replace(/\/$/, "");
     const tries = [`${url.origin}/.well-known/oauth-authorization-server${path}`, `${url.origin}${path}/.well-known/openid-configuration`];
     for (const at of tries) {
-        const answer = await call(new URL(at), null, env).catch((e) => (e.code === "BAD_ANSWER" ? null : Promise.reject(e)));
+        // any failure of the first address (a 404 page, a redirect, no answer) moves on to the second
+        const answer = await call(new URL(at), null, env).catch(() => null);
         if (!answer || answer.status !== 200) {
             continue;
         }

@@ -599,6 +599,8 @@ provider lists it or lists no scopes. `--scope` replaces both.
 
 === "Authentik"
 
+    - Its discovery names the device endpoint
+      ([source](https://github.com/goauthentik/authentik/blob/version/2026.8.5/authentik/providers/oauth2/views/provider.py)).
     - Set a **Device code flow** on the brand. Without it, Authentik offers no device code
       ([device code flow](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/device_code/),
       [brands](https://docs.goauthentik.io/customize/branding/)).
@@ -615,17 +617,21 @@ provider lists it or lists no scopes. `--scope` replaces both.
     - Under **Capability config**, turn on the device authorization grant
       ([client settings](https://github.com/keycloak/keycloak/blob/main/docs/documentation/server_admin/topics/clients/oidc/con-basic-settings.adoc)).
       Turn off client authentication, which makes it a public client.
-    - The device endpoint is `/realms/<realm>/protocol/openid-connect/auth/device`.
-    - Keycloak returns refresh tokens by default. `offline_access` asks for an offline token instead
+    - The device endpoint is `/realms/<realm>/protocol/openid-connect/auth/device`. The realm's
+      discovery names it only while the device flow feature of the server is on
+      ([source](https://github.com/keycloak/keycloak/blob/main/services/src/main/java/org/keycloak/protocol/oidc/OIDCWellKnownProvider.java)).
+    - Keycloak returns refresh tokens by default
       ([server administration guide](https://www.keycloak.org/docs/latest/server_admin/index.html)).
+      When the realm lists `offline_access`, `pivotkit login` asks for it too. Give `--scope`
+      without it if users should not get that scope.
     - An **Audience** mapper puts the REST resource into `aud`
       ([audience support](https://github.com/keycloak/keycloak/blob/main/docs/documentation/server_admin/topics/clients/oidc/con-audience.adoc)).
 
 === "Microsoft Entra ID"
 
-    - The device code endpoint is `https://login.microsoftonline.com/<tenant>/oauth2/v2.0/devicecode`.
-      Use the tenant's ID, not `common` or `consumers`
+    - The device code endpoint is `https://login.microsoftonline.com/<tenant>/oauth2/v2.0/devicecode`
       ([device code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code)).
+      The server's issuer names the tenant, as for the [MCP endpoint](mcp.md#oauth).
     - Set **Allow public client flows** to **Yes** under the app registration's advanced settings
       ([desktop app registration](https://learn.microsoft.com/en-us/entra/identity-platform/scenario-desktop-app-registration)).
     - Ask for the API's `.default` scope and `offline_access`:
@@ -642,9 +648,9 @@ provider lists it or lists no scopes. `--scope` replaces both.
       ([claims](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference)).
       See [groups](mcp.md#groups).
 
-Labels and defaults change between releases of the providers. These notes follow
-their documentation as of November 2026. Decode an access token of your own to see what your setup
-issues.
+Labels and defaults change between releases of the providers. These notes follow their
+documentation and source code as of November 2026. Decode an access token of your own to see what
+your setup issues.
 
 ### Without the command line { #sign-in-cli-manual }
 
@@ -669,7 +675,7 @@ throws. The scripts below handle that.
 
 === "PowerShell"
 
-    Save it as `Get-PivotkitToken.ps1`. It works in Windows PowerShell 5.1 and PowerShell 7.
+    Save it as `Get-PivotkitToken.ps1`. It needs no module.
 
     ```powershell
     <#
