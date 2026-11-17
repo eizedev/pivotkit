@@ -12,7 +12,7 @@ import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotk
 import { fill, plural } from "./labels.js";
 import { groupingName, refLabel, relativeText, sortText, valueLabel } from "./names.js";
 import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, hiddenAfter, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
-import { valueAddsUp } from "./adds-up.js";
+import { valueAddsUp } from "pivotkit-core";
 import { CHART_TYPES, SLICE_TYPES } from "./chart-types.js";
 import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
 
@@ -471,11 +471,14 @@ const VALUE_LABELS = Object.freeze({ slices: ["auto", "off", "value", "percent",
  * smooth lines, a pie's label position). A topic the chart has nothing for is left out. Every choice applies `act.display(patch)`
  * (pivotkit-core's chart settings); the type stays. Reference lines come after Tooltip: a level with
  * a form (toolbar-panels.jsx), its row saying which lines are on.
- * @param {{ view: any, drawn: string, labels: any, names: string[], act: { display: (patch: object) => void } }} input
- *   `drawn`: the picker entry drawn (chart-types.js); `names`: the legend's entries (series, a pie's slices)
+ * @param {{ view: any, drawn: string, labels: any, names: string[], act: { display: (patch: object) => void },
+ *   lines?: { rules: { average: boolean, trend: boolean, target: boolean, notes?: string[] }, targetText: string } }} input
+ *   `drawn`: the picker entry drawn (chart-types.js); `names`: the legend's entries (series, a pie's slices);
+ *   `lines`: which reference lines the chart can draw (pivotkit-core's referenceLineChecks, or its
+ *   view's rules with the note "table"), and the target as the locale writes it
  * @returns {Topic[]}
  */
-export function chartTopics({ view, drawn, labels, names, act }) {
+export function chartTopics({ view, drawn, labels, names, act, lines = { rules: { average: true, trend: true, target: true, notes: [] }, targetText: "" } }) {
     const chart = view.chart;
     const pie = SLICE_TYPES.includes(drawn);
     const axis = CHART_TYPES[drawn]?.axis ?? false;
@@ -524,18 +527,31 @@ export function chartTopics({ view, drawn, labels, names, act }) {
         });
     }
     if (axis) {
-        // Reference lines (#577): a level of its own (toolbar-panels.jsx ReferenceLines), its row says what is on
-        const lines = chart.referenceLines ?? { average: false, trend: false, target: null };
+        // Reference lines: a level of switches (Average, Trend), the target's row that opens its form
+        // (the hidden topic "linesTarget", toolbar-panels.jsx), and why a line is off as a reason
+        const now = chart.referenceLines ?? { average: false, trend: false, target: null };
         const words = labels.core.referenceLines;
-        const on = [lines.average ? words.average : null, lines.trend ? words.trend : null, lines.target !== null ? words.target : null].filter(Boolean);
-        topics.push({
-            id: "lines",
-            title: labels.referenceLines,
-            kind: "panel",
-            state: on.length ? on.join(", ") : labels.linesOff,
-            changed: on.length > 0,
-            keywords: [words.average, words.trend, words.target].join(" ")
-        });
+        const { rules, targetText } = lines;
+        const notes = Array.isArray(rules.notes) ? rules.notes : [];
+        const say = (/** @type {string[]} */ keys) => {
+            const note = notes.find((n) => keys.includes(n));
+            return note && Object.hasOwn(labels.linesNotes, note) ? labels.linesNotes[note] : undefined;
+        };
+        const total = ["noTotal", "percentStack", "negative"];
+        const set = (/** @type {object} */ patch) => act.display({ referenceLines: { ...now, ...patch } });
+        /** @type {Choice[]} */
+        const choices = [
+            { id: "line-average", text: words.average, checkbox: true, checked: now.average, disabled: !rules.average, reason: rules.average ? undefined : say(total), run: () => set({ average: !now.average }) },
+            { id: "line-trend", text: words.trend, checkbox: true, checked: now.trend, disabled: !rules.trend, reason: rules.trend ? undefined : say([...total, "noTime"]), run: () => set({ trend: !now.trend }) },
+            { id: "line-target", text: words.target, hint: now.target !== null ? targetText : labels.targetNone, open: "linesTarget", disabled: !rules.target, reason: rules.target ? undefined : say(["noTotal", "percentStack", "mixedUnits"]) },
+            // a target the chart cannot draw stays removable
+            ...(!rules.target && now.target !== null ? [{ id: "target-remove", text: labels.targetRemove, run: () => set({ target: null }) }] : [])
+        ];
+        const on = [now.average ? words.average : null, now.trend ? words.trend : null, now.target !== null ? words.target : null].filter(Boolean);
+        // a note under the choices: with the table shown, or a trend over the categories' order
+        const note = notes.includes("table") ? labels.linesNotes.table : notes.includes("byIndex") && rules.trend ? labels.linesNotes.byIndex : null;
+        topics.push({ id: "lines", title: labels.referenceLines, kind: "menu", state: on.length ? on.join(", ") : labels.linesOff, changed: on.length > 0, groups: [{ choices }], note, noteId: "lines-note" });
+        topics.push({ id: "linesTarget", title: words.target, kind: "panel", hidden: true, levelTitle: `${labels.referenceLines} › ${words.target}` });
     }
     if (names.length > 1) {
         const hidden = (chart.hidden ?? []).filter((/** @type {string} */ n) => names.includes(n)).length;

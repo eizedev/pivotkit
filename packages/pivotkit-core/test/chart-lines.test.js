@@ -364,3 +364,14 @@ test("decorateOption with the lines' real places (pixelOf): labels at their line
     const narrow = labelsOf(decorateOption(toEChartsOption(same), style, { width: 360, height: 480, pixelOf: flat }));
     assert.deepEqual(narrow.map((l) => [l.words, l.show]), [["Average", true], ["Average", true], ["Target", false]]);
 });
+
+test("the lines of no series ride on the last series shown: the legend hides a series' markLine with it", () => {
+    const hidden = (names, stacked = false) => toEChartsOption(pivot({ chart: { type: "bar", stacked, hidden: names, referenceLines: { average: false, trend: false, target: 26 } } }));
+    // B hidden: the target on A
+    const one = hidden(["B"]);
+    assert.equal(one.series[1].markLine, undefined);
+    assert.equal(one.series[0].markLine.data[0].yAxis, 26);
+    assert.equal(hidden(["B"], true).series[0].markLine.data[0].yAxis, 26);
+    // every series hidden: no line at all
+    assert.deepEqual(hidden(["A", "B"]).series.map((x) => x.markLine), [undefined, undefined]);
+});

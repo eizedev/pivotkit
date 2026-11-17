@@ -202,11 +202,12 @@ target you set.
 1. Open the chart type menu next to **Table** and **Chart**.
 2. Open **Reference lines**. Its row says which lines are on, such as "Average, Target".
 3. Switch on **Average** or **Trend**. The level stays open, so you can switch both.
-4. Type a number under **Target** and press Enter, or click **Apply**. The **×** removes it.
-5. **Back** or Escape returns to the Display settings.
+4. Open **Target**. Its row shows the target, or "No target". Type a number and press Enter, or
+   click **Apply**. **Remove the target** or the **×** removes it.
+5. **Back** or Escape returns one level.
 
-![The chart type menu open at Display › Reference lines: Average and Trend switched on, a target of 500,000](../assets/screenshots/chart-lines-level-light.png#only-light)
-![The chart type menu open at Display › Reference lines: Average and Trend switched on, a target of 500,000](../assets/screenshots/chart-lines-level-dark.png#only-dark)
+![The chart type menu open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-light.png#only-light)
+![The chart type menu open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-dark.png#only-dark)
 
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-light.png#only-light)
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-dark.png#only-dark)
@@ -228,8 +229,8 @@ target you set.
 - The lines stay with the report: in saved views, links and the chart image.
 
 ??? info "Which charts draw which line"
-    The chart draws a line only where it means something. The menu shows only what the chart can
-    draw, and a note says why the rest is missing.
+    The chart draws a line only where it means something. A line the chart cannot draw is greyed out
+    in the menu, with the reason under it.
 
     - **Pie, donut and heatmap** have no value axis. They draw no lines.
     - **Bars, lines and areas side by side** draw an average and a trend for each series.
@@ -245,7 +246,8 @@ target you set.
       formats, no single target fits, so the chart draws none.
 
     A setting that does not apply stays in the view. When you switch back to a chart that can draw
-    the line, it is there again. A target that no longer applies can still be removed in the menu.
+    the line, it is there again. A target that no longer applies keeps **Remove the target** in the
+    menu.
     While the table is shown, the menu offers what the view allows and asks you to show the chart,
     which knows its numbers.
 

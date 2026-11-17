@@ -290,7 +290,7 @@ export function toEChartsOption(result, options) {
     const showValues = labels !== "auto" && labels !== "off";
     const position = type === "line" ? "top" : stacked ? "inside" : chart.horizontal ? "right" : "top";
     const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? (percent ? shareFormatter(p.value) : fmt(p.value)) : "") } } : {};
-    const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme, short: (v) => compact(v) });
+    const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme, short: (v) => compact(v), hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
     // the value axis reaches every line: a target past the tallest bar is drawn, not cut off.
     // dataMin and dataMax are ECharts' own (ECharts 6, scaleRawExtentInfo: they widen the data's
     // extent before the nice ticks), little documented: tests/browser/chart-lines.spec.js checks that a
@@ -339,8 +339,8 @@ const LABEL_GAP = 6;
 
 /**
  * The reference lines as ECharts markLine data, by the series that draws them: a series' own lines on
- * it, in its colour; the lines of no series (a target, a stack's total) on the last series, drawn
- * above every mark, in the theme's reference colour. Silent: a line is no element to point at; the
+ * it, in its colour; the lines of no series (a target, a stack's total) on the last series shown,
+ * drawn above every mark, in the theme's reference colour. Silent: a line is no element to point at; the
  * tooltip names its value. A trend is drawn from category to category, at its value at each: over
  * real time with a gap it bends where the axis leaves the gap out. A label writes the name and the
  * value as the value axis does (`short`); each item's `name` is the line's name alone, for a chart too
@@ -348,11 +348,15 @@ const LABEL_GAP = 6;
  * `room`: the height (px) the labels of upright lines take above the plot.
  * @param {import("./chart-lines.js").ReferenceLine[]} lines
  * @param {ReturnType<typeof toSeries>} s
- * @param {{ horizontal: boolean, theme: ChartTheme, short: (v: number) => string }} how
+ * @param {{ horizontal: boolean, theme: ChartTheme, short: (v: number) => string, hidden: string[] }} how
+ *   hidden: the series the legend hides (chart.hidden); ECharts hides a series' markLine with it
  */
-function markLines(lines, s, { horizontal, theme, short }) {
+function markLines(lines, s, { horizontal, theme, short, hidden }) {
     /** @type {any[][]} */
     const bySeries = s.series.map(() => []);
+    // the lines of no series go on the last series shown; with none shown, nowhere
+    const shown = s.series.map((x, i) => (hidden.includes(x.name) ? -1 : i)).filter((i) => i >= 0);
+    const holder = shown.length ? shown[shown.length - 1] : -1;
     const values = [];
     const value = horizontal ? "xAxis" : "yAxis";
     const fontSize = theme.textSize ?? DEFAULT_THEME.textSize;
@@ -376,7 +380,7 @@ function markLines(lines, s, { horizontal, theme, short }) {
             // the words in the text colour, after a sample of the line's dash in its colour
             label: { formatter: () => lineLabelText(type, text), rich: { s: { ...(color ? { color } : {}), fontSize } }, ...where, color: theme.textColor, fontSize }
         };
-        const target = bySeries[own ? /** @type {number} */ (line.series) : s.series.length - 1];
+        const target = bySeries[own ? /** @type {number} */ (line.series) : holder];
         if (line.kind === "trend") {
             const first = /** @type {number} */ (line.first);
             const last = /** @type {number} */ (line.last);

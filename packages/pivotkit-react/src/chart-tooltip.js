@@ -8,7 +8,7 @@
  */
 
 import { referenceLineChecks, referenceLines } from "pivotkit-core/chart";
-import { valueAddsUp } from "./adds-up.js";
+import { valueAddsUp } from "pivotkit-core";
 
 // whether a value adds up, so a stack of it has a total: the rule of the stack's reference lines too
 export { valueAddsUp };

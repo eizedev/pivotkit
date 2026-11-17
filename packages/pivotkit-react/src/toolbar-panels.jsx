@@ -93,10 +93,10 @@ function ChartTitle({ title, labels, onDisplay }) {
 }
 
 /**
-/**
- * The target line's value: applied with Enter or Apply; the × removes it at once. For a value shown in
- * percent, "25%" is a share (parseTarget), a hint says how to type it, and a bare number above 1
- * gets a soft warning: "25 is 2,500 %".
+ * The target line's value (Display › Reference lines › Target): applied with Enter or Apply; the ×
+ * and "Remove the target" remove it at once. For a value shown in percent, "25%" is a share
+ * (parseTarget), a hint says how to type it, and a bare number above 1 gets a soft warning:
+ * "25 is 2,500 %".
  */
 function TargetField({ target, labels, locale, format, onTarget }) {
     const [text, setText] = useState(numberText(target, locale));
@@ -155,55 +155,11 @@ function TargetField({ target, labels, locale, format, onTarget }) {
                     {fill(labels.targetPercentHigh, { typed, shown: shown(/** @type {number} */ (value)), share: shown(/** @type {number} */ (value) / 100) })}
                 </p>
             ) : null}
-        </>
-    );
-}
-
-/**
- * The level of the chart's reference lines (menu-topics.js chartTopics, "lines"): Average and Trend
- * as switches (role "switch", in the form's tab order) that keep the level open, the target with its hint and warning, the notes and, for a
- * target the chart cannot draw, its removal. The drawn chart says which lines it can draw, with its
- * numbers (`lineChecks`, pivotkit-core's referenceLineChecks); before that, or with the table shown,
- * the view's rules decide and a note asks for the chart. A setting that does not show stays in the
- * view and draws again when the chart can.
- */
-function ReferenceLines({ view, plan, encoded, lineChecks, labels, locale, onDisplay }) {
-    const lines = view.chart.referenceLines;
-    // the view's rules of what would be drawn: rows and columns swapped where the chart swaps them
-    const drawn = plan?.chart ? { ...view.chart, ...plan.chart } : null;
-    const viewRules = encoded && drawn ? referenceLineRules(plan.swap ? swapAxes(view) : view, drawn, encoded) : { average: true, trend: true, target: true };
-    const rules = lineChecks ?? { ...viewRules, notes: ["table"] };
-    const notes = Array.isArray(rules.notes) ? rules.notes : [];
-    const set = (patch) => onDisplay({ referenceLines: { ...lines, ...patch } });
-    const words = labels.core.referenceLines;
-    /** @type {Array<{ id: string, key: "average" | "trend", text: string }>} */
-    const switches = [];
-    if (rules.average) switches.push({ id: "line-average", key: "average", text: words.average });
-    if (rules.trend) switches.push({ id: "line-trend", key: "trend", text: words.trend });
-    return (
-        <>
-            {switches.map((sw) => (
-                // a switch in the form's tab order, drawn as a level's option; it keeps the level open
-                <button key={sw.id} type="button" role="switch" aria-checked={Boolean(lines[sw.key])} className={`pk-option${lines[sw.key] ? " pk-checked" : ""}`} onClick={() => set({ [sw.key]: !lines[sw.key] })} data-testid={sw.id}>
-                    <span className="pk-option-icon">{lines[sw.key] ? <Icon name="check" /> : null}</span>
-                    <span className="pk-option-text">{sw.text}</span>
-                </button>
-            ))}
-            {rules.target ? (
-                <>
-                    <div className="pk-subtitle">{words.target}</div>
-                    <TargetField target={lines.target} labels={labels} locale={locale} format={lineChecks?.format} onTarget={(target) => set({ target })} />
-                </>
-            ) : lines.target !== null ? (
-                <button type="button" className="pk-btn" onClick={() => set({ target: null })} data-testid="target-remove">
+            {target !== null ? (
+                <button type="button" className="pk-btn" onClick={() => onTarget(null)} data-testid="target-remove">
                     {labels.targetRemove}
                 </button>
             ) : null}
-            {notes.map((note) => (
-                <p key={note} className="pk-hint pk-subtitle" data-testid="lines-note">
-                    {Object.hasOwn(labels.linesNotes, note) ? labels.linesNotes[note] : null}
-                </p>
-            ))}
         </>
     );
 }
@@ -211,13 +167,18 @@ function ReferenceLines({ view, plan, encoded, lineChecks, labels, locale, onDis
 /**
  * The chart type menu: the types (a pick closes it), then how the chart is drawn, in levels as the
  * other menus (levels.jsx, menu-topics.js chartTopics): a row per topic with what is set, each
- * opening its level (Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series, Layout). Each choice applies at once and the menu stays
+ * opening its level (Value labels, Legend, Title, Axis, Tooltip, Reference lines with its Target, Series, Layout). Each choice applies at once and the menu stays
  * open, so the chart behind it shows the change.
  */
 export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale, onChart, onDisplay, close, series }) {
     const drawn = plan ? plan.name : chartTypeOf(view.chart);
     const names = legendNames(drawn, series);
-    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay } });
+    // which reference lines the chart can draw: the drawn chart's checks with its numbers, else the
+    // view's rules (rows and columns swapped where the chart swaps them) and a note asking for the chart
+    const lines = view.chart.referenceLines;
+    const plain = plan?.chart && encoded ? referenceLineRules(plan.swap ? swapAxes(view) : view, { ...view.chart, ...plan.chart }, encoded) : { average: true, trend: true, target: true };
+    const rules = lineChecks ?? { ...plain, notes: ["table"] };
+    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay }, lines: { rules, targetText: numberText(lines?.target, locale) } });
     const head = (
         <Section title={labels.chartType}>
             <div className="pk-choice-grid">
@@ -236,8 +197,8 @@ export function ChartTypePanel({ view, plan, encoded, lineChecks, labels, locale
             panel={(id) =>
                 id === "title" ? (
                     <ChartTitle title={view.chart.title} labels={labels} onDisplay={onDisplay} />
-                ) : id === "lines" ? (
-                    <ReferenceLines view={view} plan={plan} encoded={encoded} lineChecks={lineChecks} labels={labels} locale={locale} onDisplay={onDisplay} />
+                ) : id === "linesTarget" ? (
+                    <TargetField target={lines?.target ?? null} labels={labels} locale={locale} format={lineChecks?.format} onTarget={(target) => onDisplay({ referenceLines: { ...lines, target } })} />
                 ) : null
             }
         />

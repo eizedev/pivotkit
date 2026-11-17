@@ -180,9 +180,9 @@ it to the current `VIEW_VERSION` (`migrate`, which `normalize` runs first).
 Store views as they come from `onViewChange`. They always carry the current version.
 
 A view file and a link leave out the chart settings newer than pivotkit 0.7 (`tooltip`, `zoom`,
-`stackPercent`, `hidden`) while they hold their default. A 0.7 reader then takes the view as it is. A
-view that sets one, such as a hidden series, gets an `unknownKey` warning from a 0.7 reader, which
-ignores that setting.
+`stackPercent`, `hidden`, `referenceLines`) while they hold their default. A 0.7 reader then takes
+the view as it is. A view that sets one, such as a hidden series, gets an `unknownKey` warning from
+a 0.7 reader, which ignores that setting.
 
 From version 1 to 2, only the filters change ([Filters](filters.md)). Every version-1 view keeps what it
 kept, apart from the exception below.
