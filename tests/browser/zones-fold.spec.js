@@ -2,7 +2,7 @@
 // they need grows after the report has measured its box: another language with longer texts makes the
 // zones taller on a phone, more fields in Rows on a desktop, a host's larger font size arriving late,
 // while the host's box keeps its height, so no resize of the report tells it. Normal motion, with the tickets data in a box of the host's height.
-import { expect, test } from "./fixtures.js";
+import { expect, test, toolbar } from "./fixtures.js";
 
 /** The report's layout and its result against the result's least height. */
 const state = (page) =>
@@ -81,6 +81,33 @@ test("phone: zones that grow with a host's larger font size fold, though no rend
     expect(after.height).toBe(fits.height);
     expect(after.layout).toBe("compact");
     expect(after.result).toBeGreaterThanOrEqual(after.least);
+});
+
+test("desktop: zones folded by a tall warning open again once the warning folds and they fit", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 800 });
+    await page.goto("?data=sales");
+    await page.locator('[data-testid="pivot-table"]').waitFor();
+    expect((await settled(page)).layout).toBe("open");
+    // a view with parts the data cannot use: its warning above the result leaves the zones no room
+    await toolbar(page, "views");
+    await page.getByTestId("load-view").click();
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum", label: "Quakes", conditional: { type: "colorScale", colors: ["red"] } }], chart: { legend: "left" } };
+    await page.getByTestId("load-view-text").fill(JSON.stringify(view));
+    await page.getByTestId("load-view-apply").click();
+    const warning = page.getByTestId("view-issues");
+    await expect(warning.getByTestId("unused-item").first()).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    // the warning folded by its title: the zones fit again and open, and stay open
+    await warning.getByTestId("unused-title").click();
+    await expect(page.locator('[data-zone="rows"]')).toBeVisible();
+    const after = await settled(page);
+    expect(after.layout).toBe("open");
+    expect(after.result).toBeGreaterThanOrEqual(after.least);
+    // nothing flips: the layout stays open over a second
+    for (let i = 0; i < 5; i++) {
+        await page.waitForTimeout(250);
+        expect((await state(page)).layout).toBe("open");
+    }
 });
 
 // the case the issue names: these zones need more than 820 px; already folded before the fix, kept as a guard

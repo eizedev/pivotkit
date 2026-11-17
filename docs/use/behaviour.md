@@ -54,7 +54,7 @@ The line under the result counts the rows of the data the report is made of.
 
 - With nothing filtered, it says "4,386 rows".
 - When a filter leaves rows out, it says "2,190 of 4,386 rows". The first number counts the rows
-  left after every filter, with Top N and conditions on a value. The second counts the data's rows.
+  left after every filter. Top N and value conditions count too. The second counts the data's rows.
 - It is the count the summary of a field's filter shows. See [filters](filters.md#the-summary).
 - It stays on one line, also on a phone.
 

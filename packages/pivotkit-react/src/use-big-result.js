@@ -57,6 +57,11 @@ export function useBigResult(root) {
 }
 
 /**
+ * @typedef {{ need: number, open: number, grow: boolean, folded: { need: number, open: number } | null }} FitState
+ *   `folded`: what the column and the open zones needed when the zones folded (null while open)
+ */
+
+/**
  * The least height of the report's root (its inline min-height): what its toolbar, zones,
  * tips, the result's own least height (CSS min-height) and the status line need. A host box that is
  * higher changes nothing; a lower one lets the report grow past it, so the page scrolls. Measured
@@ -70,10 +75,10 @@ export function useBigResult(root) {
  * @param {React.RefObject<HTMLElement | null>} main  the column with the toolbar, the zones and the result
  * @param {boolean} grow  the report may grow past its box (else only `open` is measured, for folding)
  * @param {() => void} [onOpen]
- * @returns {React.MutableRefObject<{ need: number, open: number, grow: boolean }>}
+ * @returns {React.MutableRefObject<FitState>}
  */
 export function useFitHeight(root, main, grow, onOpen) {
-    const fit = useRef({ need: 0, open: 0, grow });
+    const fit = useRef(/** @type {FitState} */ ({ need: 0, open: 0, grow, folded: null }));
     const opened = useRef(onOpen);
     // the observer of the report and of the parts of its column, and the parts it watches
     const watch = useRef(/** @type {{ ro: ResizeObserver | null, parts: Set<Element> }} */ ({ ro: null, parts: new Set() }));
@@ -145,7 +150,7 @@ function watchParts(w, m) {
  * Measures the least height (see useFitHeight) and sets it when it changed.
  * @param {HTMLElement | null} el
  * @param {HTMLElement | null} m
- * @param {{ current: { need: number, open: number, grow: boolean } }} fit
+ * @param {{ current: FitState }} fit
  * @returns {boolean}  what the open zones need changed
  */
 function measureFit(el, m, fit) {
@@ -158,10 +163,24 @@ function measureFit(el, m, fit) {
     // the content of the column with the result at its least height; the rest of the root around it
     const needMain = m.scrollHeight - result.offsetHeight + least;
     const need = Math.ceil(el.offsetHeight - m.clientHeight + needMain);
-    // the zones open and shown (not folded, not enlarged): what the open layout needs
+    // what the open layout needs: measured while the zones are open and shown (not folded, not
+    // enlarged); while they are folded, what they needed when they folded, less what the rest of the
+    // column gave up since (a warning folded, a tip gone), so they open again once they fit. Only a
+    // change of the rest moves it, so the folded layout's own parts (one tip at most) flip nothing.
+    const f = fit.current;
+    let open = f.open;
+    if (el.hasAttribute("data-pk-enlarged")) {
+        f.folded = null;
+    } else if (!el.hasAttribute("data-pk-layout")) {
+        f.folded = null;
+        open = need;
+    } else if (f.open > 0) {
+        f.folded ??= { need, open: f.open };
+        open = f.folded.open - (f.folded.need - need);
+    }
     let changed = false;
-    if (!el.hasAttribute("data-pk-layout") && !el.hasAttribute("data-pk-enlarged") && Math.abs(need - fit.current.open) > 1) {
-        fit.current.open = need;
+    if (Math.abs(open - f.open) > 1) {
+        f.open = open;
         changed = true;
     }
     if (!fit.current.grow) {

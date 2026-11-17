@@ -21,7 +21,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - The zones fold when they no longer fit the report's box, also when the box keeps its size. Longer
   texts in another language, more fields in Rows, a tip or a late stylesheet made them taller without
-  a resize, and they stayed open over a squeezed result (#93).
+  a resize, and they stayed open over a squeezed result. Folded that way, they open again once they
+  fit (#93).
 
 ## [0.7.0] - 2026-11-16
 
