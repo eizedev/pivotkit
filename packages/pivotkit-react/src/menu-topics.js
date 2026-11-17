@@ -532,7 +532,7 @@ const VALUE_LABELS = Object.freeze({ slices: ["auto", "off", "value", "percent",
  * a form (toolbar-panels.jsx), its row saying which lines are on.
  * @param {{ view: any, drawn: string, labels: any, names: string[], act: { display: (patch: object) => void, expand?: () => void, collapse?: () => void }, drawnColors?: Map<string, string>,
  *   lines?: { rules: { average: boolean, trend: boolean, target: boolean, notes?: string[] }, targetText: string },
- *   folding?: { canExpand: boolean, canCollapse: boolean, why: any } }} input
+ *   folding?: { canExpand: boolean, canCollapse: boolean, collapsed: number, why: any } }} input
  *   `drawn`: the picker entry drawn (chart-types.js); `names`: the legend's entries (series, a pie's slices);
  *   `lines`: which reference lines the chart can draw (pivotkit-core's referenceLineChecks, or its
  *   view's rules with the note "table" while the chart is not drawn yet), and the target as the locale writes it;
