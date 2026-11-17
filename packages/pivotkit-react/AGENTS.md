@@ -116,6 +116,7 @@ Visual values come from `--pk-*` tokens. A host can then match its design withou
 ### Exports and kept data
 
 - Exporting source data (`exportData`) is off by default.
+- The drill-down's copy and download follow `exportData`, or `drillDownExport` (`export-scope.js`).
 - Every file and copy passes `onExport` first.
 - Data loaded from a file is kept in memory only, per `storageKey` (`data-keep.js`).
 

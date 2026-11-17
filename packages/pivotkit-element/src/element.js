@@ -326,14 +326,25 @@ export class PivotReportElement extends Base {
     }
 
     /**
-     * Export → Source data and the drill-down's exports: true for every column, `{ columns }` for
-     * those only (default false; attribute export-data, present or a JSON object).
+     * Export → Source data and the drill-down's copy and download: true for every column,
+     * `{ columns }` for those only (default false; attribute export-data, present or a JSON object).
      */
     get exportData() {
         return /** @type {boolean | { columns?: string[] }} */ (this.#read("export-data"));
     }
     set exportData(value) {
         this.#write("export-data", value);
+    }
+
+    /**
+     * The drill-down's copy and download while export-data is off, with every column (default false;
+     * attribute drill-down-export). With export-data set, the panel has them anyway.
+     */
+    get drillDownExport() {
+        return /** @type {boolean} */ (this.#read("drill-down-export"));
+    }
+    set drillDownExport(value) {
+        this.#write("drill-down-export", value);
     }
 
     /** Rows passed to the panel and to pivot-cell-click (default 1000). */
@@ -749,6 +760,7 @@ export class PivotReportElement extends Base {
             drillDown: this.drillDown,
             drillDownLimit: this.drillDownLimit,
             exportData: this.exportData,
+            drillDownExport: this.drillDownExport,
             locale: localeOf(this.locale, this.getAttribute("lang")),
             timeZone: this.timeZone,
             labels: v.labels,

@@ -30,7 +30,8 @@ test("the package exports its documented entry points and nothing else", () => {
         "jsonReader", "limitError", "loadReader", "noteMessage", "readFile", "readOptions", "readerFor", "retype", "shownName", "sourceIdOf", "validatePlugin"
     ]);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./chart", "./import", "./link", "./templates", "./schema/view-file-1.json", "./schema/view-2.json", "./schema/view-file-2.json", "./package.json"]);
+    // "./internal" is for this repository's packages only (AGENTS.md): no public API, no docs page
+    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./chart", "./import", "./link", "./templates", "./internal", "./schema/view-file-1.json", "./schema/view-2.json", "./schema/view-file-2.json", "./package.json"]);
 });
 
 /** Every module the file imports, transitively, as paths relative to src/, and the bare imports. */

@@ -54,7 +54,8 @@ Each recipe names a task and the page with its worked example. The recipes cover
 | A taller report on phones | [web component](../getting-started/web-component.md#a-taller-report-on-phones), [layout](../reference/react.md#layout) |
 | Keep, log or block every export and copy | [`onExport`](../reference/react.md#prop-onexport) |
 | Let users download the rows behind the report, so the command line can render the same report | [`exportData`](../reference/react.md#prop-exportdata) |
-| Keep the rows from being taken home | leave [`exportData`](../reference/react.md#prop-exportdata) off, set [`drillDown`](../reference/react.md#props) to `false`, send only permitted rows. See [Security](../security.md#source-data). |
+| Let users copy or download the rows behind a value, without Source data | [`drillDownExport`](../reference/react.md#prop-drilldownexport) |
+| Keep the rows from being taken home | leave [`exportData`](../reference/react.md#prop-exportdata) and [`drillDownExport`](../reference/react.md#prop-drilldownexport) off, set [`drillDown`](../reference/react.md#props) to `false`, send only permitted rows. See [Security](../security.md#source-data). |
 
 ## Pages and hosts
 

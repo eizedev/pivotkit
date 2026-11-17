@@ -10,7 +10,8 @@
  */
 
 import { heading, plain, warning } from "./format.js";
-import { MCP_DATA_CAP, bytesText, capText, mcpCapOf, restDataBytesOf, restDataOffered } from "../sources/inline.js";
+import { bytesText } from "../text.js";
+import { MCP_DATA_CAP, capText, mcpCapOf, restDataBytesOf, restDataOffered } from "../sources/inline.js";
 
 /** The profiles whose `data` is the given value. */
 const profilesWith = (options, value) => Object.entries(options.policy?.profiles ?? {}).filter(([, p]) => p?.data === value).map(([name]) => name);
@@ -52,6 +53,5 @@ export async function section(options, _registry, runtime) {
     if (items.length) {
         items.unshift(heading("Data in the request (inline:):"));
     }
-    const upgrade = cap && runtime.mcp !== false ? ["data in the request (inline:; mcp.data: false switches it off)"] : [];
-    return { items, upgrade };
+    return { items, upgrade: [] };
 }

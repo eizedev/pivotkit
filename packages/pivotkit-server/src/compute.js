@@ -135,6 +135,19 @@ export function createComputer(options = {}, internal = {}) {
         }
         const key = typeof job.tableKey === "string" && (job.table || job.upload) ? job.tableKey : null;
         const slot = await acquire(key);
+        // an idle worker is unref'd, so it never keeps the process alive; a call waiting for one
+        // must, or a host's process can end while the worker starts or runs (Node 22 does)
+        const { worker } = slot;
+        worker.ref();
+        try {
+            return await runIn(slot, key, op, input, job, signal);
+        } finally {
+            worker.unref();
+        }
+    }
+
+    /** inWorker's run on the worker it took. */
+    async function runIn(slot, key, op, input, job, signal) {
         await slot.ready;
         if (slot.exited) {
             // it died while it started: replaced, and this call fails rather than waiting for its time

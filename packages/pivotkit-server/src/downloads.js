@@ -286,7 +286,7 @@ export async function sweepMarkers(dir, now = Math.floor(Date.now() / 1000)) {
 }
 
 /**
- * Whether any report can get a link: a source whose fields are all shown, or a binding for closed ones.
+ * Whether any report can get a link: an open source (registry.js closedReason), or a binding for closed ones.
  * @param {{ bind: string }} settings
  * @param {Array<{ closed?: boolean }>} sources  registry.check()'s
  */
