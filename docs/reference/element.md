@@ -549,14 +549,14 @@ They are approximate and change with every dependency update.
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 175.1 KiB, about 1.7 KiB more than CI measures.
+- The first load's budget is 175.1 KiB. CI measures 174.9 KiB, so a few hundred bytes are left.
 - The budgets of the groups loaded later are 1 to 7 per cent more than CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 529 KiB | 173 KiB |
-| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title and the zoom slider among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 3 | 675 KiB | 232 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 10 | 534 KiB | 175 KiB |
+| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title and the zoom slider among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 3 | 675 KiB | 233 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 28 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
 | Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 3 | 148 KiB | 48 KiB |

@@ -284,7 +284,8 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * with #478's writer 23.3, at that budget: report goes to 23.5.
  * The zoom slider, the legend toggle and 100 % stacks (#36): ECharts' slider component (dataZoom)
  * takes the chart group to 231.1 with Homebrew's zlib (221.5 before), and the slider's keyboard
- * control (#575, chart-legend.js zoomKeyProps) to 231.7: chart goes to 232. The
+ * control (#575, chart-legend.js zoomKeyProps) to 231.7. CI's zlib measured 232.5 on the merged
+ * head (about 0.7 more than a Mac): chart goes to 233. It is a lazy group, loaded with the first chart. The
  * Display settings in levels (#106: chartTopics, the Axis, Tooltip, Series and Layout levels) with
  * the zoom slider, 100 % switch and series list take menus to 48.5 (47.6 before) and the German menu
  * texts to 7.3 (7.0): menus goes to 49, texts to 7.5. The first load grows 0.6 to 174.36 (the view
@@ -292,7 +293,7 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * chart group (chart-legend.js).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 232, export: 12.6, link: 7.5, menus: 49, texts: 7.5, unused: 5.5, import: 22, report: 23.5, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 233, export: 12.6, link: 7.5, menus: 49, texts: 7.5, unused: 5.5, import: 22, report: 23.5, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
