@@ -19,7 +19,7 @@ export { valueAddsUp };
  * @property {string} name
  * @property {string} value
  * @property {boolean} [hovered]  the element under the pointer, among other lines
- * @property {string} [share]  a part's share of its 100 % stack
+ * @property {string} [share]  its share: of the total (chart.tooltipShare), or of its 100 % stack
  */
 
 /**
@@ -33,7 +33,9 @@ export { valueAddsUp };
 /**
  * @typedef {object} TooltipOptions
  * @property {(v: unknown) => string} [valueFormatter]  the core's
- * @property {(v: number) => string} [shareFormatter]  the core's, on a 100 % stack: a share as the locale writes it
+ * @property {(v: number) => string} [shareFormatter]  the core's: a share in percent as the locale writes it
+ * @property {boolean} [share]  chart.tooltipShare: each line with its share of the total
+ * @property {number[]} [seriesTotals]  each series' total over the categories: the share of a chart with one series
  * @property {string[]} [xNames]  a heatmap's column names
  * @property {string[]} [yNames]  a heatmap's row names
  * @property {string[]} [categoryNames]  each category's whole name, for an axis that writes them shorter
@@ -122,6 +124,28 @@ const isShare = (p) => p.data !== null && typeof p.data === "object" && typeof p
 const rawOf = (p) => (isShare(p) ? p.data.raw : p.value);
 
 /**
+ * The share of each item, in percent, by item; empty where a share means nothing: a value that does
+ * not add up, a part below zero, a total of nothing. The basis follows the chart's series: a chart of
+ * one series shares its own total over the categories (`seriesTotals`); a chart of several shares the
+ * category's total, and a category with one part left (the others empty or hidden) has no share.
+ * @param {any[]} items  ECharts' parameters at the category (the series shown)
+ * @param {{ series: TooltipOptions["series"], seriesTotals?: number[] }} options
+ * @returns {Map<any, number>}
+ */
+function sharesOf(items, { series = [], seriesTotals = [] }) {
+    // each part's own value: a 100 % stack draws its share and keeps the value (rawOf)
+    const parts = items.filter((p) => hasValue(p.value));
+    if (!parts.length || parts.some((p) => rawOf(p) < 0 || series[p.seriesIndex]?.additive !== true)) {
+        return new Map();
+    }
+    if (series.length > 1 && parts.length < 2) {
+        return new Map();
+    }
+    const total = series.length > 1 ? parts.reduce((sum, p) => sum + rawOf(p), 0) : seriesTotals[parts[0].seriesIndex];
+    return typeof total === "number" && total > 0 ? new Map(parts.map((p) => [p, (rawOf(p) / total) * 100])) : new Map();
+}
+
+/**
  * The items of a bar, line or area tooltip (trigger "axis": one item per series at the category):
  * - "auto" with an element under the pointer: that element alone
  * - "auto" between stacked bars: none, the total says it (every item when there is no total)
@@ -183,19 +207,24 @@ function referenceItems(params, references, mode, hover) {
  * @param {TooltipOptions} [options]
  * @returns {{ title: string, lines: TooltipLine[], more?: string, total?: { name: string, value: string }, references?: TooltipLine[] }}
  */
-export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), shareFormatter, xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}", moreInTotalLabel = moreLabel, references = [] } = {}) {
+export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), shareFormatter, share = false, seriesTotals, xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}", moreInTotalLabel = moreLabel, references = [] } = {}) {
     const color = (p) => (typeof p.color === "string" ? p.color : null);
     const text = (v) => (v === null || v === undefined ? "" : String(v));
     if (Array.isArray(params)) {
         const first = params[0];
         const { lines, total } = axisItems(params, { valueFormatter, mode, series, hover, totalLabel });
+        const shares = share && shareFormatter ? sharesOf(params.filter(Boolean), { series, seriesTotals }) : new Map();
         // more lines than fit: the first ones, and a line that says how many more
         const cut = lines.length > maxLines ? lines.length - Math.max(1, maxLines - 1) : 0;
         const kept = cut ? lines.slice(0, lines.length - cut) : lines;
         const refs = referenceItems(params, references, mode, hover);
         return {
             title: first ? text(categoryNames[first.dataIndex] ?? first.axisValueLabel ?? first.name) : "",
-            lines: kept.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(rawOf(p)), ...(shareFormatter && isShare(p) ? { share: shareFormatter(p.value) } : {}), ...(hovered ? { hovered } : {}) })),
+            // a share of the total (chart.tooltipShare), else a 100 % stack's part its share of the stack as drawn
+            lines: kept.map(({ p, hovered }) => {
+                const part = shares.get(p) ?? (shareFormatter && isShare(p) ? p.value : undefined);
+                return { color: color(p), name: text(p.seriesName), value: valueFormatter(rawOf(p)), ...(part !== undefined && shareFormatter ? { share: shareFormatter(part) } : {}), ...(hovered ? { hovered } : {}) };
+            }),
             ...(cut ? { more: (total ? moreInTotalLabel : moreLabel).replace("{count}", String(cut)) } : {}),
             ...(total ? { total } : {}),
             ...(refs.length ? { references: refs } : {})
@@ -210,7 +239,9 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
     }
     return {
         title: text(params?.seriesName),
-        lines: params ? [{ color: color(params), name: text(params.name), value: valueFormatter(params.value) }] : []
+        // a slice's share: ECharts' percent of the slices shown
+        // a slice's share only where its values add up, as a stack's (an average has none)
+        lines: params ? [{ color: color(params), name: text(params.name), value: valueFormatter(params.value), ...(share && shareFormatter && hasValue(params.percent) && series[params.seriesIndex ?? 0]?.additive === true ? { share: shareFormatter(params.percent) } : {}) }] : []
     };
 }
 
@@ -254,7 +285,7 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
         value.style.marginLeft = "12px";
         el.append(marker, name, value);
         if (line.share) {
-            // a 100 % stack's part: its share after its value, in the muted colour
+            // its share after the value, in the muted colour
             const share = doc.createElement("span");
             share.textContent = line.share;
             share.style.color = "var(--pk-muted)";

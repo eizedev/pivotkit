@@ -15,6 +15,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
     `{ value: share, raw: value }`, and `tooltip.shareFormatter` writes a share.
   - `chart.hidden`: the legend entries hidden, by name, as `legend.selected`. They count against
     `limits.items`.
+- Fixed colours per name: `chart.colors` in the view (`{ name, color }`, `#rgb` or `#rrggbb`) and
+  the `colorMap` option of `toEChartsOption`, which the view's colours win over. Names match series
+  and slices without regard to case. `chart.tooltipShare` in the view, and `tooltip.shareFormatter` in
+  the option ([#54](https://github.com/eizedev/pivotkit/issues/54)).
 - `chart.referenceLines` in the view: an average and a linear trend, switched on or off, and a
   target as a number, drawn on bars, lines and areas as silent ECharts `markLine`s
   ([#48](https://github.com/eizedev/pivotkit/issues/48)):

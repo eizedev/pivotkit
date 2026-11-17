@@ -2797,20 +2797,10 @@
     min-height: 0;
 }
 
-/* the zoom slider by keyboard (chart-legend.js zoomKeyProps): over the slider's row, the mouse passes through;
-   its ring shows where the keys act */
+/* the zoom slider by keyboard (chart-legend.js zoomKeyProps sets its place, and lets the mouse pass
+   through): its ring shows where the keys act */
 .pk-zoom-keys {
-    position: absolute;
-    left: 0;
-    right: 0;
     border-radius: var(--pk-radius-sm);
-    pointer-events: none;
-}
-
-.pk-zoom-keys-beside {
-    left: auto;
-    top: 0;
-    bottom: 0;
 }
 
 .pk-zoom-keys:focus-visible {

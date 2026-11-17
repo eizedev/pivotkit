@@ -104,9 +104,11 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - A zoom slider under a long axis, series shown or hidden from the legend, 100 % stacked bars
       and areas.
     - Reference lines: an average, a trend and a target ([reference lines](use/charts.md#reference-lines)).
+    - Fixed colours per series or slice, the share in the tooltip, and the chart as an image on the
+      clipboard.
     - Tips that suggest a better type.
-- Developers: the view's `chart` settings, `autoChartType`, and `chartOptions` as checked plain JSON
-  ([charts](concepts/charts.md)).
+- Developers: the view's `chart` settings, `autoChartType`, `colorMap` for fixed colours per name,
+  and `chartOptions` as checked plain JSON ([charts](concepts/charts.md)).
 
 ## Views, saving and sharing { #saved-views }
 

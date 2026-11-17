@@ -138,7 +138,7 @@ test("sort, values, collapse, chart", () => {
     assert.deepEqual(toggleCollapsed(v, "rows", ["North"]).collapsed.rows, []);
     assert.deepEqual(reorder(v, "rows", 0, 1).collapsed.rows, [], "collapsed paths belong to the old field order");
     const c = setChart(v, "stacked");
-    assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null } }]);
+    assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null }, colors: [], tooltipShare: false }]);
     assert.equal(chartTypeOf(c.chart), "stacked");
     assert.equal(isEmptyView(empty), true);
     assert.equal(defaultAgg("date"), "count");
@@ -289,9 +289,9 @@ test("the range form: the numbers of a field, and a start too far from them", ()
 
 test("chart display settings change without the type, and stay when the type changes", () => {
     const v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
-    const shown = setChartDisplay(v, { valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis" });
+    const shown = setChartDisplay(v, { valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis", colors: [], tooltipShare: false });
     // the type stays the view's default: automatic, until the user picks one
-    assert.deepEqual(shown.chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null } });
+    assert.deepEqual(shown.chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null }, colors: [], tooltipShare: false });
     // the display mode is the user's: a setting does not switch to the chart
     assert.equal(shown.display, "table");
     const line = setChart(shown, "line");

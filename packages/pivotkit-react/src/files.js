@@ -107,3 +107,24 @@ export async function copyText(text, container) {
     before?.focus?.({ preventScroll: true });
     return ok;
 }
+
+/**
+ * Puts an image on the clipboard (the chart's PNG). The write starts in the click: Safari allows it
+ * only there. false where the page has no clipboard for images, or the browser refuses.
+ * @param {Blob} blob  image/png
+ * @param {{ clipboard?: { write: (items: any[]) => Promise<void> }, ClipboardItem?: any }} [env]  the
+ *   browser's, by default
+ * @returns {Promise<boolean>}
+ */
+export async function copyImage(blob, env = { clipboard: typeof navigator !== "undefined" ? navigator.clipboard : undefined, ClipboardItem: typeof ClipboardItem !== "undefined" ? ClipboardItem : undefined }) {
+    const { clipboard, ClipboardItem: Item } = env;
+    if (!clipboard || typeof clipboard.write !== "function" || typeof Item !== "function") {
+        return false;
+    }
+    try {
+        await clipboard.write([new Item({ [blob.type || "image/png"]: blob })]);
+        return true;
+    } catch {
+        return false;
+    }
+}

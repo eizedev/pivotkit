@@ -50,6 +50,7 @@ Each recipe names a task and the page with its worked example. The recipes cover
 | --- | --- |
 | Match your design, light and dark | [Theming](../reference/theming.md) |
 | Change a text, add a language | [Localisation](../reference/localisation.md) |
+| The same colour for a category in every chart, such as red for "Failed" | [`colorMap`](../concepts/charts.md#fixed-colours) |
 | Adjust the chart beyond its menus, such as font sizes or axis names | [`chartOptions`](../concepts/charts.md#chartoptions-for-developers) |
 | A taller report on phones | [web component](../getting-started/web-component.md#a-taller-report-on-phones), [layout](../reference/react.md#layout) |
 | Keep, log or block every export and copy | [`onExport`](../reference/react.md#prop-onexport) |
