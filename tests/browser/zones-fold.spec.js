@@ -2,7 +2,18 @@
 // they need grows after the report has measured its box: another language with longer texts makes the
 // zones taller on a phone, more fields in Rows on a desktop, a host's larger font size arriving late,
 // while the host's box keeps its height, so no resize of the report tells it. Normal motion, with the tickets data in a box of the host's height.
+import { encodeViewLink } from "pivotkit-core/link";
 import { expect, test, toolbar } from "./fixtures.js";
+
+/**
+ * On a desktop the open shelves of the tickets data need less than a low report's 600 px, so that
+ * threshold, not their need, would fold them: the assets data with more fields needs more.
+ */
+const DESKTOP = `?data=assets&lang=en#pivot-playground=${encodeViewLink({
+    rows: ["Source system", "Location"],
+    cols: ["Status"],
+    values: [{ field: "Cost", agg: "sum" }, { field: "Disk GB", agg: "average" }, { field: "Cost", agg: "average" }]
+})}`;
 
 /** The report's layout and its result against the result's least height. */
 const state = (page) =>
@@ -26,17 +37,20 @@ async function settled(page) {
     return JSON.parse(last);
 }
 
+/** A page of the playground with another query parameter (before the fragment). */
+const withParam = (url, param) => url.replace(/(#|$)/, `&${param}$1`);
+
 /**
- * Opens the tickets data in a box just high enough for its open zones: what they need, measured in a
- * box with room to spare, plus 8 px.
+ * Opens the data in a box just high enough for its open zones: what they need, measured in a box
+ * with room to spare, plus 8 px. By default the tickets data.
  */
-async function boxThatFits(page) {
-    await page.goto("?data=tickets&lang=en&height=2000");
+async function boxThatFits(page, url = "?data=tickets&lang=en") {
+    await page.goto(withParam(url, "height=2000"));
     await page.locator('[data-testid="pivot-table"]').waitFor();
     const tall = await settled(page);
     expect(tall.layout).toBe("open");
     const need = tall.height - (tall.result - tall.least);
-    await page.goto(`?data=tickets&lang=en&height=${need + 8}`);
+    await page.goto(withParam(url, `height=${need + 8}`));
     await page.locator('[data-testid="pivot-table"]').waitFor();
     const fits = await settled(page);
     expect(fits.layout).toBe("open");
@@ -46,9 +60,9 @@ async function boxThatFits(page) {
 
 test("desktop: zones that grow with more fields fold, though the box keeps its height", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    const fits = await boxThatFits(page);
-    // four fields added to Rows from the field list's menus: the Rows zone takes a second line of chips
-    for (const field of ["Status", "Category", "Channel", "SLA met"]) {
+    const fits = await boxThatFits(page, DESKTOP);
+    // four fields added to Rows from the field list's menus: the Rows shelf takes another line of chips
+    for (const field of ["Type", "Operating system", "Asset", "Inventory number"]) {
         await page.getByTestId(`field-menu-${field}`).click();
         await page.getByRole("menuitem", { name: "Add to Rows" }).click();
     }
@@ -84,8 +98,9 @@ test("phone: zones that grow with a host's larger font size fold, though no rend
 });
 
 test("desktop: zones folded by a tall warning open again once the warning folds and they fit", async ({ page }) => {
-    // the open zones with their heading fit, a tall warning leaves them no room
-    await page.setViewportSize({ width: 1440, height: 900 });
+    // the open zones with their heading fit, a tall warning leaves them no room (a window of 800 px:
+    // in one of 900 px the open shelves keep their room beside the warning)
+    await page.setViewportSize({ width: 1440, height: 800 });
     await page.goto("?data=sales");
     await page.locator('[data-testid="pivot-table"]').waitFor();
     expect((await settled(page)).layout).toBe("open");
@@ -114,7 +129,7 @@ test("desktop: zones folded by a tall warning open again once the warning folds 
 test("zones folded on a medium-wide window open again when the window gets wide and they fit", async ({ page }) => {
     // what the open zones need on a wide window, in a box just high enough for them there
     await page.setViewportSize({ width: 1440, height: 900 });
-    const wide = await boxThatFits(page);
+    const wide = await boxThatFits(page, DESKTOP);
     // a medium-wide window stacks more of the zones: they need more than that box, so they fold
     await page.setViewportSize({ width: 700, height: 900 });
     await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
