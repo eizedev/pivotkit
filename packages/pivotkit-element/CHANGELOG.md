@@ -17,6 +17,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- The `colorMap` property: a fixed colour per series or slice name. Export → Copy chart image, the
+  `pivot-export` kind `"copy-chart"`, Display → Colours and Share in the tooltip ([#54](https://github.com/eizedev/pivotkit/issues/54)).
 - `drill-down-export` (boolean attribute) and the `drillDownExport` property: the drill-down panel's
   copy and download while `export-data` is off. As pivotkit-react's `drillDownExport`.
 

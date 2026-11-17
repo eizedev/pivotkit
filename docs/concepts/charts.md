@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels and the tooltip in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip and its share, fixed colours per name in the view and the host's colorMap, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -53,6 +53,8 @@ them, and they stay when the chart type changes:
 | `chart.axisLabels` | `"auto"`, `"all"`, `"nth"` |
 | `chart.groupLabels` | `"auto"`, `"on"`, `"off"` |
 | `chart.tooltip` | `"auto"`, `"axis"` |
+| `chart.tooltipShare` | `true`, `false` |
+| `chart.colors` | a list of `{ name, color }`, the colour `#rgb` or `#rrggbb`, at most `limits.items` |
 
 A view without these keys gets the defaults. An unknown value falls back to its default, and
 `normalize()` reports it ([Views](views.md)). "Percent" and "Value and percent" apply to a pie and a
@@ -68,6 +70,38 @@ only when `CATALOG.additiveShowAs` lists its type: a share of the grand or the r
 difference or a running total along the rows. A rank or a percent difference gets no total.
 
 A pie, a donut and a heatmap always show the slice or cell under the pointer.
+
+`chart.tooltipShare` adds each value's share of the total to the tooltip:
+
+- With two or more series, a share of the category's total: the sum of the series shown there.
+- With one series, a share of the series' total over its categories.
+- A pie or a donut: the slice's share of the slices shown.
+- Only values that add up get one, and only without a part below zero. A heatmap gets none.
+
+## Fixed colours { #fixed-colours }
+
+The palette colours series and slices in turn, so a category's colour depends on what else the chart
+shows. A fixed colour per name keeps it the same in every chart.
+
+- The view's `chart.colors` lists `{ name, color }` entries. People set them with Display → Colours.
+- The host's `colorMap` prop (`colorMap` property of the web component) sets them for every view:
+  `{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }`. A list of two is one colour for the light
+  theme and one for the dark.
+- The view's colour wins over the host's. A name in neither keeps the palette's colour.
+- Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
+  A heatmap has no series to colour.
+- A view's colour is `#rgb` or `#rrggbb`. The host's is hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or
+  a CSS name. Other values are left out.
+- The chart image, the SVG, the HTML report and a print show the colours. Files take the host's
+  light colours. pivotkit-report's `render` takes them as its `colorMap` option.
+
+```jsx
+<PivotReport colorMap={{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }} />
+```
+
+```js
+document.querySelector("pivot-report").colorMap = { Failed: "#e3000f", Success: "#287233" };
+```
 
 The report's `--pk-*` tokens set these parts of the chart, so a corporate theme reaches the chart too
 ([Theming](../reference/theming.md#chart-colours)):

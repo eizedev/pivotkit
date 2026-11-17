@@ -38,7 +38,7 @@ function heatmapColors(colors, readColor) {
  * @param {{ getPropertyValue(name: string): string }} style  the --pk-* tokens: a report's computed
  *   style, or a map of tokens wrapped (pivotkit-report)
  * @param {{ height?: number, width?: number, categoryNames?: string[], axisLabels?: string,
- *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown,
+ *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, shareFormatter?: (v: number) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown,
  *   readColor?: (color: string) => string | null }} [size]
  *   height and width: the chart's size in px (the room around a pie, a heatmap's column names, the
  *   category axis); categoryNames: the categories' whole names (the tooltip's title when the axis
@@ -78,7 +78,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         borderColor: v("--pk-border") || undefined,
         textStyle: { color: v("--pk-text") || undefined, fontFamily: style.getPropertyValue("font-family") || undefined, fontSize },
         extraCssText: `box-shadow: ${v("--pk-shadow") || "none"}; border-radius: ${v("--pk-radius-card") || `${DEFAULT_THEME.cardRadius}px`};`,
-        ...(tooltipFormatter ? { formatter: tooltipFormatter({ valueFormatter: option.tooltip?.valueFormatter, xNames: first(option.xAxis)?.data, yNames: first(option.yAxis)?.data, categoryNames: extra.categoryNames }) } : {})
+        ...(tooltipFormatter ? { formatter: tooltipFormatter({ valueFormatter: option.tooltip?.valueFormatter, shareFormatter: option.tooltip?.shareFormatter, xNames: first(option.xAxis)?.data, yNames: first(option.yAxis)?.data, categoryNames: extra.categoryNames }) } : {})
     };
     // the room of a heatmap that is not cells: its grid's margins and the column names as written
     const cellFrame = (option.series || []).some((s) => s.type === "heatmap") ? heatmapFrame({ top: option.grid?.top, bottom: option.grid?.bottom, names: option.xAxis?.data ?? [], width, fontSize }) : undefined;
@@ -87,10 +87,10 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         if (s.type === "bar") {
             const horizontal = first(option.yAxis)?.type === "category";
             const corners = horizontal ? [0, r, r, 0] : [r, r, 0, 0];
-            return { ...s, barMaxWidth: 48, itemStyle: { borderRadius: s.stack ? 0 : corners, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "self" } };
+            return { ...s, barMaxWidth: 48, itemStyle: { ...s.itemStyle, borderRadius: s.stack ? 0 : corners, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "self" } };
         }
         if (s.type === "line") {
-            return { ...s, lineStyle: { width: 2 }, symbolSize: 7, smooth: Boolean(s.smooth), areaStyle: s.areaStyle ? { opacity: 0.18 } : undefined, emphasis: { focus: "series" } };
+            return { ...s, lineStyle: { ...s.lineStyle, width: 2 }, symbolSize: 7, smooth: Boolean(s.smooth), areaStyle: s.areaStyle ? { ...s.areaStyle, opacity: 0.18 } : undefined, emphasis: { focus: "series" } };
         }
         if (s.type === "pie") {
             // the pie's box: below the legend (the core's top), with room for the labels above and below
@@ -113,7 +113,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
             // labels outside: room beside the pie, on lines where they are long, left out where a side has no room (pieLabelFit)
             const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: Boolean(option.legend) });
             label = fit.label ?? label;
-            return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
+            return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { ...s.itemStyle, borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one

@@ -3989,3 +3989,38 @@
 .pk-level-form > .pk-top-shown {
     padding-left: calc(1.7em + 0.6em);
 }
+
+/* the series (or slices) of a chart, each with its colour (chart type menu, Display) */
+.pk-series-list {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(8 * var(--pk-target));
+    overflow-y: auto;
+}
+
+.pk-color-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    min-height: var(--pk-target);
+    padding: 0 0.6em;
+}
+
+.pk-color-row > input[type="color"] {
+    flex: none;
+    width: var(--pk-target);
+    min-width: 0;
+    height: var(--pk-target);
+    padding: 0;
+    border: 1px solid var(--pk-border);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface);
+    cursor: pointer;
+}
+
+.pk-color-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

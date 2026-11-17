@@ -14,7 +14,7 @@ import { DERIVED, MIN_BIN_SIZE } from "./derive.js";
 import { FILTERS, FILTER_TYPES_V1, WEEK_START, fieldKinds, fieldTypeHint, itemFor, readItem } from "./filters.js";
 import { closest } from "./hints.js";
 import { isFormat } from "./format.js";
-import { ISSUE_CAP, resolveLimits } from "./limits.js";
+import { ISSUE_CAP, ITEM_LENGTH, resolveLimits } from "./limits.js";
 import { migrate1 } from "./migrate-1.js";
 import { SHOW_AS } from "./show-as.js";
 import { foldText } from "./text-match.js";
@@ -155,12 +155,14 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
- *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string }} ChartSpec  the chart
+ *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string,
+ *   colors: Array<{ name: string, color: string }>, tooltipShare: boolean }} ChartSpec  the chart
  *   type and how it is drawn: value labels (CHART_VALUE_LABELS) and, on a pie or donut, where they go
  *   (CHART_LABEL_POSITIONS), legend (CHART_LEGENDS), a title over the
  *   chart, smooth lines (line, area), the category axis labels (CHART_AXIS_LABELS), and with two or more
  *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS), and what the
- *   tooltip covers (CHART_TOOLTIPS)
+ *   tooltip covers (CHART_TOOLTIPS), a fixed colour per series or slice by name (`colors`, #rgb or
+ *   #rrggbb) and the share of the total in the tooltip (`tooltipShare`)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
  * @typedef {object} View
@@ -198,7 +200,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto" },
+        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", colors: [], tooltipShare: false },
         formatting: { locale: null, timeZone: null, weekStart: WEEK_START }
     };
 }
@@ -573,6 +575,40 @@ function collapsedSection(raw, view, ctx) {
     }
 }
 
+/**
+ * A colour per name (series or slices of a chart): `{ name, color }` entries, the name a text up to
+ * ITEM_LENGTH characters, the colour #rgb or #rrggbb (COLOR). Each name once, without regard to case
+ * (the first one wins), at most `limits.items`. Anything else is left out and reported.
+ */
+function colorList(value, path, ctx) {
+    if (value === undefined || value === null) {
+        return [];
+    }
+    if (!Array.isArray(value)) {
+        ctx.issue(path, "not a list of { name, color }", "unknownSetting", { value: shown(value) });
+        return [];
+    }
+    if (value.length > ctx.limits.items) {
+        ctx.issue(path, `more than ${ctx.limits.items} items`, "tooManyItems", { max: ctx.limits.items });
+    }
+    const seen = new Set();
+    const out = [];
+    for (const entry of value.slice(0, ctx.limits.items)) {
+        const name = get(entry, "name");
+        const color = get(entry, "color");
+        if (!isPlainObject(entry) || typeof name !== "string" || name.length > ITEM_LENGTH || typeof color !== "string" || !COLOR.test(color)) {
+            ctx.issue(path, `not a name with a colour #rgb or #rrggbb: ${JSON.stringify(shown(entry))}`, "unknownSetting", { value: shown(entry) });
+            continue;
+        }
+        ctx.keys(entry, ["name", "color"], path);
+        if (!seen.has(name.toLowerCase())) {
+            seen.add(name.toLowerCase());
+            out.push({ name, color });
+        }
+    }
+    return out;
+}
+
 function displaySection(raw, view, ctx) {
     const display = get(raw, "display");
     view.display = oneOf(display, DISPLAY_MODES, view.display);
@@ -602,7 +638,9 @@ function displaySection(raw, view, ctx) {
             axisLabels: own("axisLabels", CHART_AXIS_LABELS, "auto"),
             groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto"),
             labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside"),
-            tooltip: own("tooltip", CHART_TOOLTIPS, "auto")
+            tooltip: own("tooltip", CHART_TOOLTIPS, "auto"),
+            colors: colorList(get(chart, "colors"), "chart.colors", ctx),
+            tooltipShare: bool(get(chart, "tooltipShare"), false)
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
             ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`, "badTitle", { max: ctx.limits.name });

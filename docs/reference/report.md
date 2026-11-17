@@ -81,6 +81,7 @@ text. `data` is one of these:
 | `chartEmbed` | `"image"` | `html`: the chart as a `data:` image, or `"inline"` SVG. |
 | `echarts` | | The ECharts module with its SVG renderer: `svg`, and `html` with a chart. |
 | `size` | `{ width: 800, height: 480 }` | The chart's size in px, 100 to 8,000. |
+| `colorMap` |  | A fixed colour per series or slice name for the chart, as pivotkit-core's `toEChartsOption` takes it. The view's `chart.colors` win. |
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
 | `rowCount` | `true` | `html`: `false` leaves the data's row count out of `{{rows}}` and the details. The REST service and the MCP server pass it where the policy withholds the row count (`rows: false`). |
 | `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |

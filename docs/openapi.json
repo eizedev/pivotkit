@@ -1881,6 +1881,31 @@
                   "auto",
                   "axis"
                 ]
+              },
+              "colors": {
+                "type": "array",
+                "maxItems": 100000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "name",
+                    "color"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "maxLength": 10000
+                    },
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+                    }
+                  }
+                }
+              },
+              "tooltipShare": {
+                "type": "boolean"
               }
             }
           },

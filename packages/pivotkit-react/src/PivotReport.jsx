@@ -309,6 +309,7 @@ function Report(props) {
         dismissedTips,
         onTipDismiss,
         chartOptions,
+        colorMap,
         shareLink,
         persistView,
         fieldInfo: fieldInfoProp,
@@ -514,6 +515,10 @@ function Report(props) {
     const chartOptionsKey = optionsKey(chartOptions);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const stableChartOptions = useMemo(() => chartOptions, [chartOptionsKey]);
+    // the host's colorMap, compared by value the same way
+    const colorMapKey = optionsKey(colorMap);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const stableColorMap = useMemo(() => colorMap, [colorMapKey]);
 
     const stepText = useCallback(
         (note) => {
@@ -995,7 +1000,7 @@ function Report(props) {
         [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
 
-    const { run: doExport, prepare: prepareExport } = useExport({ fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts });
+    const { run: doExport, prepare: prepareExport } = useExport({ fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts, colorMap: stableColorMap });
 
     // loading data (allowImport): the import UI (import-host.jsx) loads on first use (the Data menu, a
     // file dragged over the report, the empty report's button) and renders the file input, the drop
@@ -1475,6 +1480,8 @@ function Report(props) {
                             <Toolbar
                                 view={view}
                                 chartPlan={plan}
+                                chartSeries={series}
+                                chartColors={{ map: stableColorMap, theme: themeName }}
                                 labels={labels}
                                 size={size}
                                 canUndo={history.canUndo || dataSteps.past.length > 0}
@@ -1613,6 +1620,7 @@ function Report(props) {
                                         root={root}
                                         valueNames={view.values.map((v) => valueLabel(v, labels))}
                                         chartOptions={stableChartOptions}
+                                        colorMap={stableColorMap}
                                         onInstance={(c) => {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));

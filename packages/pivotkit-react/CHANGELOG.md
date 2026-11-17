@@ -17,6 +17,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- Export → **Copy chart image**: the chart as a PNG on the clipboard. `onExport` sees it first as
+  `"copy-chart"` ([#54](https://github.com/eizedev/pivotkit/issues/54)).
+- The `colorMap` prop: a fixed colour per series or slice name across charts, one colour or one per
+  theme. Display → **Colours** sets a view's own colour per series or slice ([#54](https://github.com/eizedev/pivotkit/issues/54)).
+- Display → **Share in the tooltip**: each value's share of the category's total, of a single series'
+  total, or of a pie ([#54](https://github.com/eizedev/pivotkit/issues/54)).
 - Display → **Tooltip** in the chart type menu, for bars, lines and areas: **Automatic** or **All
   series** (`chart.tooltip`, [#106](https://github.com/eizedev/pivotkit/issues/106)). All series lists
   every series at the pointer's category, the hovered one first, its name in the strong weight.

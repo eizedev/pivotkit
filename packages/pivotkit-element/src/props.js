@@ -56,7 +56,7 @@ export const ATTRIBUTES = Object.freeze([
 ]);
 
 /** Properties without an attribute: objects and arrays a host sets from script, and the import worker's URL. */
-export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "importLimits", "dismissedTips", "chartOptions", "sources", "plugins", "importWorkerUrl"]);
+export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "importLimits", "dismissedTips", "chartOptions", "colorMap", "sources", "plugins", "importWorkerUrl"]);
 
 const THEMES = new Set(["auto", "light", "dark"]);
 

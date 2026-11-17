@@ -40,6 +40,8 @@ export const en = {
         groupLabels: "group labels",
         labelPosition: "label position",
         tooltip: "tooltip",
+        colors: "colours",
+        tooltipShare: "share in the tooltip",
         other: "setting"
     },
     // what the report does instead, by the part of the view ({dropped} in a text)

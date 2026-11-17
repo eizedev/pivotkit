@@ -59,7 +59,9 @@ later.
         valueLabels: "auto", legend: "auto", title: null,      // how it is drawn, see Charts
         smooth: false, axisLabels: "auto", groupLabels: "auto",
         labelPosition: "outside",                              // pie and donut: "outside" or "inside"
-        tooltip: "auto"                                        // or "axis": every series at the category
+        tooltip: "auto",                                       // or "axis": every series at the category
+        tooltipShare: false,                                   // the share of the total in the tooltip
+        colors: [{ name: "North", color: "#2a78d6" }]          // a fixed colour per series or slice
     },
     formatting: { locale: "de-DE", timeZone: null, weekStart: 1 }   // weekStart: 1 Monday to 7 Sunday
 }

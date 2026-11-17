@@ -8,6 +8,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Added
 
+- `render` takes `colorMap`, a fixed colour per series or slice name for the chart. The SVG and the
+  HTML report draw the view's `chart.colors` over it ([#54](https://github.com/eizedev/pivotkit/issues/54)).
 - `render` of a view that shows the chart as `xlsx` adds the warning `chartNotInXlsx`: the
   workbook holds the table, the chart is in `html` or `svg`. The `render_view` description says the
   workbook has no chart ([#360](https://github.com/eizedev/pivotkit/issues/360)).

@@ -265,9 +265,9 @@ test("a custom sort order: listed items first in their order, the rest by label,
 });
 
 test("chart display settings: value labels, legend, title and smooth lines, checked against fixed lists", () => {
-    assert.deepEqual(emptyView().chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto" });
+    assert.deepEqual(emptyView().chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", colors: [], tooltipShare: false });
     const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true, labelPosition: "inside", tooltip: "axis" };
-    assert.deepEqual(norm({ chart }).chart, { type: "pie", stacked: false, horizontal: false, valueLabels: "both", legend: "right", title: "Units by region", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis" });
+    assert.deepEqual(norm({ chart }).chart, { type: "pie", stacked: false, horizontal: false, valueLabels: "both", legend: "right", title: "Units by region", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis", colors: [], tooltipShare: false });
     assert.equal(norm({ chart: { type: "donut" } }).chart.type, "donut");
     assert.deepEqual(validate({ chart }, data), { valid: true, errors: [], warnings: [] });
     // unknown settings fall back to their defaults and are reported

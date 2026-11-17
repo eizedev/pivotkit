@@ -27,6 +27,8 @@ export const de = {
         groupLabels: "Gruppenbeschriftung",
         labelPosition: "Beschriftungsposition",
         tooltip: "Tooltip",
+        colors: "Farben",
+        tooltipShare: "Anteil im Tooltip",
         other: "Einstellung"
     },
     dropped: {

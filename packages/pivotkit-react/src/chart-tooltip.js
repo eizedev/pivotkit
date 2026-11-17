@@ -15,11 +15,15 @@ import { CATALOG } from "pivotkit-core";
  * @property {string} name
  * @property {string} value
  * @property {boolean} [hovered]  the element under the pointer, among other lines
+ * @property {string} [share]  its share of the total (chart.tooltipShare)
  */
 
 /**
  * @typedef {object} TooltipOptions
  * @property {(v: unknown) => string} [valueFormatter]  the core's
+ * @property {(v: number) => string} [shareFormatter]  the core's: a share in percent as the locale writes it
+ * @property {boolean} [share]  chart.tooltipShare: each line with its share of the total
+ * @property {number[]} [seriesTotals]  each series' total over the categories: the share of a chart with one series
  * @property {string[]} [xNames]  a heatmap's column names
  * @property {string[]} [yNames]  a heatmap's row names
  * @property {string[]} [categoryNames]  each category's whole name, for an axis that writes them shorter
@@ -50,6 +54,23 @@ export function valueAddsUp(value) {
 
 /** A number to show: ECharts hands null (or "-") for a series without a value at the category. */
 const hasValue = (v) => typeof v === "number" && Number.isFinite(v);
+
+/**
+ * The share of each item, in percent, by item; empty where a share means nothing: a value that does
+ * not add up, a part below zero, a total of nothing. Several series share their category's total;
+ * one series shares its own total over the categories (`seriesTotals`).
+ * @param {any[]} items  ECharts' parameters at the category (the series shown)
+ * @param {{ series: TooltipOptions["series"], seriesTotals?: number[] }} options
+ * @returns {Map<any, number>}
+ */
+function sharesOf(items, { series = [], seriesTotals = [] }) {
+    const parts = items.filter((p) => hasValue(p.value));
+    if (!parts.length || parts.some((p) => p.value < 0 || series[p.seriesIndex]?.additive !== true)) {
+        return new Map();
+    }
+    const total = parts.length > 1 ? parts.reduce((sum, p) => sum + p.value, 0) : seriesTotals[parts[0].seriesIndex];
+    return typeof total === "number" && total > 0 ? new Map(parts.map((p) => [p, (p.value / total) * 100])) : new Map();
+}
 
 /**
  * The items of a bar, line or area tooltip (trigger "axis": one item per series at the category):
@@ -86,18 +107,19 @@ function axisItems(params, { valueFormatter, mode, series, hover, totalLabel }) 
  * @param {TooltipOptions} [options]
  * @returns {{ title: string, lines: TooltipLine[], more?: string, total?: { name: string, value: string } }}
  */
-export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}", moreInTotalLabel = moreLabel } = {}) {
+export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), shareFormatter, share = false, seriesTotals, xNames = [], yNames = [], categoryNames = [], mode = "auto", series = [], hover = null, totalLabel = "Total", maxLines = Infinity, moreLabel = "+{count}", moreInTotalLabel = moreLabel } = {}) {
     const color = (p) => (typeof p.color === "string" ? p.color : null);
     const text = (v) => (v === null || v === undefined ? "" : String(v));
     if (Array.isArray(params)) {
         const first = params[0];
         const { lines, total } = axisItems(params, { valueFormatter, mode, series, hover, totalLabel });
+        const shares = share && shareFormatter ? sharesOf(params.filter(Boolean), { series, seriesTotals }) : new Map();
         // more lines than fit: the first ones, and a line that says how many more
         const cut = lines.length > maxLines ? lines.length - Math.max(1, maxLines - 1) : 0;
         const kept = cut ? lines.slice(0, lines.length - cut) : lines;
         return {
             title: first ? text(categoryNames[first.dataIndex] ?? first.axisValueLabel ?? first.name) : "",
-            lines: kept.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(p.value), ...(hovered ? { hovered } : {}) })),
+            lines: kept.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(p.value), ...(shares.has(p) ? { share: /** @type {(v: number) => string} */ (shareFormatter)(/** @type {number} */ (shares.get(p))) } : {}), ...(hovered ? { hovered } : {}) })),
             ...(cut ? { more: (total ? moreInTotalLabel : moreLabel).replace("{count}", String(cut)) } : {}),
             ...(total ? { total } : {})
         };
@@ -111,7 +133,8 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
     }
     return {
         title: text(params?.seriesName),
-        lines: params ? [{ color: color(params), name: text(params.name), value: valueFormatter(params.value) }] : []
+        // a slice's share: ECharts' percent of the slices shown
+        lines: params ? [{ color: color(params), name: text(params.name), value: valueFormatter(params.value), ...(share && shareFormatter && hasValue(params.percent) ? { share: shareFormatter(params.percent) } : {}) }] : []
     };
 }
 
@@ -124,7 +147,7 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
  */
 export function tooltipFormatter(doc, { hoverOf, ...options }) {
     /** One line: a round marker in the series' colour, the name, the value in the strong weight. */
-    const row = (/** @type {{ color?: string | null, name: string, value: string, hovered?: boolean }} */ line) => {
+    const row = (/** @type {{ color?: string | null, name: string, value: string, share?: string, hovered?: boolean }} */ line) => {
         const el = doc.createElement("div");
         el.style.display = "flex";
         el.style.alignItems = "center";
@@ -154,6 +177,14 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
         value.style.fontWeight = "var(--pk-weight-strong)";
         value.style.marginLeft = "12px";
         el.append(marker, name, value);
+        if (line.share) {
+            // the share of the total after the value, in the muted colour
+            const share = doc.createElement("span");
+            share.textContent = line.share;
+            share.style.color = "var(--pk-muted)";
+            share.style.marginLeft = "8px";
+            el.append(share);
+        }
         return el;
     };
     return (params) => {

@@ -24,9 +24,9 @@ const TOOLTIP_OTHER_LINES = 3;
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined> } }} [extra]
+ * @param {{ categoryNames?: string[], axisLabels?: string, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, share?: boolean, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined> } }} [extra]
  *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
- *   chart.axisLabels; tooltip: the view's chart.tooltip, the chart's hover state (chart.jsx writes the
+ *   chart.axisLabels; tooltip: the view's chart.tooltip and chart.tooltipShare, the chart's hover state (chart.jsx writes the
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
  *   the lines that say how many series were cut, and each series' value (whether it adds up);
  *   parseColor: ECharts' colour parser, for a heatmap's colours (screenColor)
@@ -40,7 +40,12 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
     // the lines that fit the chart's height, with the title, the total and the tooltip's padding
     const line = Math.round((typeof option.textStyle?.fontSize === "number" ? option.textStyle.fontSize : DEFAULT_THEME.textSize) * TOOLTIP_LINE);
     const maxLines = Math.max(2, Math.floor((height - TOOLTIP_PADDING) / line) - TOOLTIP_OTHER_LINES);
-    const options = { series, mode: tooltip.mode, totalLabel: tooltip.totalLabel, moreLabel: tooltip.moreLabel, moreInTotalLabel: tooltip.moreInTotalLabel, maxLines, hoverOf: () => hover?.current ?? null };
+    // each series' total over its categories, for the share of a chart with one series (none with a part below zero)
+    const seriesTotals = (option.series || []).map((/** @type {any} */ s) => {
+        const values = (Array.isArray(s.data) ? s.data : []).filter((/** @type {unknown} */ v) => typeof v === "number");
+        return values.some((/** @type {number} */ v) => v < 0) ? NaN : values.reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0);
+    });
+    const options = { series, share: Boolean(tooltip.share), seriesTotals, mode: tooltip.mode, totalLabel: tooltip.totalLabel, moreLabel: tooltip.moreLabel, moreInTotalLabel: tooltip.moreInTotalLabel, maxLines, hoverOf: () => hover?.current ?? null };
     const readColor = doc && parseColor ? screenColor(doc, parseColor) : undefined;
     const drawn = decorateOption(option, style, { height, width, ...rest, readColor, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
     // on the screen the tooltip stays inside the chart

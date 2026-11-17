@@ -132,7 +132,9 @@ function viewParts() {
                 axisLabels: { enum: [...CHART_AXIS_LABELS] },
                 groupLabels: { enum: [...CHART_GROUP_LABELS] },
                 labelPosition: { enum: [...CHART_LABEL_POSITIONS] },
-                tooltip: { enum: [...CHART_TOOLTIPS] }
+                tooltip: { enum: [...CHART_TOOLTIPS] },
+                colors: list(object({ name: { type: "string", maxLength: ITEM_LENGTH }, color: { type: "string", pattern: COLOR.source } }, ["name", "color"]), LIMITS.items),
+                tooltipShare: { type: "boolean" }
             }),
             formatting: object({ locale: nullable({ type: "string" }), timeZone: nullable({ type: "string" }), weekStart: { type: "integer", minimum: 1, maximum: 7 } })
         }),

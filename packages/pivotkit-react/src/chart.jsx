@@ -32,13 +32,14 @@ export function loadECharts() {
  *   labels: import("./labels.js").UiLabels, locale: string,
  *   themeName: string, root: React.RefObject<HTMLElement>, onInstance: (chart: any) => void,
  *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
- *   valueNames: string[], chartOptions?: Record<string, unknown> | null,
+ *   valueNames: string[], chartOptions?: Record<string, unknown> | null, colorMap?: unknown,
  *   plan?: { name: string, chart: { type: string, stacked: boolean, horizontal: boolean } } }} props
  *   `series`: pivotkit-core's toSeries with MAX_CATEGORIES, null when there is nothing to draw;
  *   `chartOptions`: the host's plain JSON (chart-options.js, checked), merged over everything else;
+ *   `colorMap`: the host's colour per series or slice name, one or one per theme (chart-colors.js);
  *   `plan`: what to draw (chart-types.js chartPlan), the view's type resolved when it is "auto"
  */
-export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, valueNames, chartOptions, plan }) {
+export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, valueNames, chartOptions, colorMap, plan }) {
     const el = useRef(/** @type {HTMLDivElement | null} */ (null));
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
@@ -187,13 +188,14 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         // the tokens with the lengths the chart reads in px resolved (the title's size, the marks' corners)
         const style = lib.current.chartStyle(root.current);
         // the series of the summary and the hints, not computed a second time
-        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}) });
+        const colors = lib.current.colorMapFor(colorMap, themeName);
+        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}), ...(colors ? { colorMap: colors } : {}) });
         // a new option draws new marks: the element under the pointer is reported again when it moves
         hover.current = null;
         tapped.current = null;
         // each series' value: a stack's total only where the values add up (chart-tooltip.js valueAddsUp)
         const values = (series?.series ?? []).map((x) => result.view.values[x.valueIndex]);
-        const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values };
+        const tooltip = { mode: result.view.chart.tooltip, share: Boolean(result.view.chart.tooltipShare), hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values };
         const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.color.parse });
         setEvery(axisEvery);
         // the host's chartOptions win over the view's display settings and the report's own styles:
@@ -205,7 +207,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         }
         chart.current.setOption(clean?.options ? lib.current.mergeChartOptions(drawn, clean.options) : drawn, { notMerge: true });
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
-    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, drawAs]);
+    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs]);
 
     const empty = result.view.values.length === 0;
     const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale }) : labels.noChartData;

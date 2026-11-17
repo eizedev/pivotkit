@@ -8,6 +8,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- Fixed colours per name: `chart.colors` in the view (`{ name, color }`, `#rgb` or `#rrggbb`) and
+  the `colorMap` option of `toEChartsOption`, which the view's colours win over. Names match series
+  and slices without regard to case. `chart.tooltipShare` in the view, and `tooltip.shareFormatter` in
+  the option ([#54](https://github.com/eizedev/pivotkit/issues/54)).
 - `decorateOption` takes `readColor`: a heatmap's colours as ECharts can mix them. An end it returns
   `null` for takes `DEFAULT_THEME.colorScale`'s colour, so a form such as `oklch()` no longer turns
   the cells black ([#386](https://github.com/eizedev/pivotkit/issues/386)).

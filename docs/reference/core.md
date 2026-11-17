@@ -345,7 +345,8 @@ load it with the chart, not with the first load.
 
 | Option | Of | What |
 | --- | --- | --- |
-| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition, tooltip }`, over the view's chart ([Charts](../concepts/charts.md)). |
+| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition, tooltip, colors, tooltipShare }`, over the view's chart ([Charts](../concepts/charts.md)). |
+| `colorMap` | `toEChartsOption` | `{ [name]: colour }`: a fixed colour per series or slice name, without regard to case. Hex, `rgb()`, `hsl()` or a CSS name. The view's `chart.colors` win ([fixed colours](../concepts/charts.md#fixed-colours)). |
 | `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `titleSize` (the title's font size in px, default 16), `textSize` (the font size of every other text, the axes, the legend and the labels, in px, default 14), `heatmapColors` (low, high), `pieRadius` (inner and outer radius of a pie, default a whole circle, `0%`, `70%`), `donutRadius` (of a donut, default a ring, `42%`, `70%`). |
 | `locale` | `toEChartsOption` | Used when the view names none. Default: the pivot's locale. |
 | `labels`, `limits` | both | `labels`: texts. `limits`: `cells` caps the data points. |
@@ -455,6 +456,9 @@ The view's display settings are part of the option:
 - Value labels (`label` of the series). A pie or a donut writes them outside. With
   `chart.labelPosition` `"inside"`, it writes them on the slices without a label line.
 - `smooth` lines.
+- Fixed colours (`chart.colors`, `colorMap`) as `itemStyle.color` of a series or a slice, and the
+  line's and the fill's colour of a line or an area. `tooltip.shareFormatter` writes a share in the
+  locale's way.
 - A second category axis with the outer field's items, once per group at its middle, with a
   separator tick where a group starts. It needs `chart.groupLabels` (`"auto"` or `"on"`) and two or
   more row fields. The UI hides `"auto"` ones in a small chart. `xAxis` or `yAxis` is then a list of

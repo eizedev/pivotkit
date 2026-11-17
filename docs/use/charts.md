@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the tooltip of the element under the pointer and the chart image.
+description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, fixed colours, the tooltip of the element under the pointer with its share, and the chart image.
 ---
 
 # Charts
@@ -61,7 +61,7 @@ The chart type menu has its **Display** settings under the chart types, in one f
 - Each choice applies at once, and the menu stays open, so the chart behind it shows the change.
 - The settings stay with the report: in saved views, links and the chart image. They also stay when
   the chart type changes.
-- An **i** next to Labels, Group labels and Tooltip explains them.
+- An **i** next to Labels, Group labels, Tooltip and Colours explains them.
 
 ![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-light.png#only-light)
 ![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-dark.png#only-dark)
@@ -76,6 +76,8 @@ The chart type menu has its **Display** settings under the chart types, in one f
 | Axis labels | Automatic, All (slanted), Every n-th. Bars, lines and areas only. | Automatic |
 | Group labels under the axis | Automatic, On, Off. Only with two or more fields in Rows. | Automatic: shown while the chart has room for them |
 | Tooltip | Automatic, All series. Bars, lines and areas only. | Automatic: the element under the pointer |
+| Share in the tooltip | on, off. Not for a heatmap. | off |
+| Colours | A colour per series, or per slice of a pie or a donut. **Default** gives back the colour it had. Up to 50 are listed. | the palette, or the colours your app sets |
 
 ??? info "Pie and donut labels"
     **Outside** writes each slice's name with what is chosen, on a line to the slice. On a narrow
@@ -177,6 +179,19 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-light.png#only-light)
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-dark.png#only-dark)
 
+??? info "The share in the tooltip"
+    **Display**, **Share in the tooltip** adds each value's share after it, such as "Software 30 50.0%".
+
+    - With several series, it is the share of the category's total.
+    - With one series, it is the share of all its categories.
+    - A pie or a donut shows the slice's share of the slices shown.
+    - Only sums and counts get a share, and only when no part is below zero.
+
+??? info "Fixed colours"
+    **Display**, **Colours** sets a colour per series, or per slice of a pie or a donut. The series
+    keeps it in every chart of the view, whatever else the chart shows. **Default** gives back the
+    colour it had. Your app may set colours for names too. A colour you pick wins over those.
+
 ??? info "Every series in the tooltip"
     **Tooltip**, **All series** in the Display settings lists every series at the pointer's category,
     wherever the pointer is. The series under the pointer comes first, its name in bold. Stacked bars
@@ -184,7 +199,8 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 
 ## Save the chart as a picture
 
-**Export**, **Chart image (.png)** saves the chart as it is drawn, at twice the screen's resolution,
+**Export**, **Copy chart image** puts the chart as a picture on the clipboard, to paste into a slide
+or a message. **Export**, **Chart image (.png)** saves the chart as it is drawn, at twice the screen's resolution,
 on the report's background colour. The picture has the chart's title, legend, value labels and group
 labels. While the table is shown, the entry is greyed out and says "Switch to Chart first." See
 [export](export.md).

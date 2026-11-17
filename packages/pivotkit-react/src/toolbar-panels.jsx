@@ -20,6 +20,8 @@ import { SHORTCUTS } from "./tips.js";
 import { LevelMenu } from "./levels.jsx";
 import { afterDelete, entryIds, optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
+import { colorMapFor } from "./chart-colors.js";
+import { hexColor } from "./export-run.js";
 import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
@@ -49,6 +51,92 @@ const LEGENDS = ["auto", "bottom", "right", "off"];
 const AXIS_LABELS = ["auto", "all", "nth"];
 const GROUP_LABELS = ["auto", "on", "off"];
 const TOOLTIPS = ["auto", "axis"];
+/** The most series (or slices) the Display settings list; the legend has every one. */
+const MAX_LISTED = 50;
+/** The chart's palette: --pk-chart-1 to --pk-chart-8, in turn (pivotkit-core's CHART_COLORS). */
+const PALETTE = 8;
+
+/**
+ * The legend's entries of the chart drawn, in the order the palette colours them: a pie's and a
+ * donut's slices (those with a value above zero), the series of bars, lines and areas; a heatmap has none.
+ * @param {string} drawn  the picker entry drawn
+ * @param {{ categories: string[], series: Array<{ name: string, valueIndex: number }>, totals: Array<Array<number | null>> } | null | undefined} series  toSeries'
+ */
+function legendNames(drawn, series) {
+    if (!series || drawn === "heatmap") {
+        return [];
+    }
+    if (SLICE_TYPES.includes(drawn)) {
+        const totals = series.totals[series.series[0]?.valueIndex ?? 0] ?? [];
+        return series.categories.filter((_, i) => typeof totals[i] === "number" && /** @type {number} */ (totals[i]) > 0);
+    }
+    return series.series.map((s) => s.name);
+}
+
+/**
+ * A colour field that applies its colour once it is picked (the "change" event), not on every step
+ * while the picker is open (React's onChange is the "input" event): one step to undo per colour.
+ */
+function ColorField({ value, onPick, label }) {
+    const field = useRef(/** @type {HTMLInputElement | null} */ (null));
+    const latest = useRef(onPick);
+    useEffect(() => {
+        latest.current = onPick;
+    });
+    useEffect(() => {
+        const el = field.current;
+        const picked = () => el && latest.current(el.value);
+        el?.addEventListener("change", picked);
+        return () => el?.removeEventListener("change", picked);
+    }, []);
+    return <input ref={field} type="color" defaultValue={value} aria-label={label} />;
+}
+
+/**
+ * A colour per legend entry: what the chart draws it with (the view's colour, the host's, else the
+ * palette's), changed with a colour field; Default gives a view's colour back (chart.colors).
+ */
+function EntryColors({ names, view, colors, onDisplay, labels }) {
+    const box = useRef(/** @type {HTMLDivElement | null} */ (null));
+    // the palette's colours and a host's colours as #rrggbb, as the report's tokens and the canvas read them
+    const [palette, setPalette] = useState(/** @type {{ colors: string[], hex: (text: string) => string | null }} */ ({ colors: [], hex: () => null }));
+    // the palette's colours as #rrggbb, as the report's tokens resolve them
+    useEffect(() => {
+        const el = box.current;
+        if (!el) {
+            return;
+        }
+        const style = getComputedStyle(el);
+        const ctx = el.ownerDocument.createElement("canvas").getContext("2d");
+        const hex = (/** @type {string} */ text) => hexColor(text, ctx);
+        // a token that is no colour leaves the field at the browser's default
+        setPalette({ colors: Array.from({ length: PALETTE }, (_, i) => hex(style.getPropertyValue(`--pk-chart-${i + 1}`).trim()) ?? ""), hex });
+    }, [colors?.theme]);
+    const own = view.chart.colors ?? [];
+    const host = colorMapFor(colors?.map, colors?.theme ?? "light") ?? {};
+    const hostOf = (name) => Object.keys(host).find((k) => k.toLowerCase() === name.toLowerCase());
+    const set = (name, color) => onDisplay({ colors: [...own.filter((c) => c.name.toLowerCase() !== name.toLowerCase()), ...(color ? [{ name, color }] : [])] });
+    return (
+        <div ref={box} className="pk-series-list" data-testid="chart-colors">
+            {names.slice(0, MAX_LISTED).map((name, i) => {
+                const mine = own.find((c) => c.name.toLowerCase() === name.toLowerCase());
+                const fromHost = hostOf(name);
+                const shown = mine?.color ?? (fromHost !== undefined ? palette.hex(host[fromHost]) : null) ?? palette.colors[i % PALETTE] ?? "";
+                return (
+                    <div key={name} className="pk-color-row">
+                        <ColorField key={shown} value={shown.length === 4 ? `#${[...shown.slice(1)].map((c) => c + c).join("")}` : shown} onPick={(color) => set(name, color)} label={fill(labels.colorOf, { name })} />
+                        <span className="pk-color-name">{name}</span>
+                        {mine ? (
+                            <button type="button" className="pk-link" onClick={() => set(name, null)} aria-label={`${labels.colorDefault}: ${name}`}>
+                                {labels.colorDefault}
+                            </button>
+                        ) : null}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
 
 /** The chart's title: applied with Enter or Apply; the × removes it at once. */
 function ChartTitle({ title, labels, onDisplay }) {
@@ -107,10 +195,10 @@ function Sub({ title, info, children }) {
 
 /**
  * How the chart is drawn: value labels, legend, title, axis and group labels, the tooltip (bars, lines
- * and areas), smooth lines (line and area). Each choice applies at once and the panel stays open, so
+ * and areas), the share in the tooltip, a colour per series or slice, smooth lines (line and area). Each choice applies at once and the panel stays open, so
  * the chart behind it shows the change.
  */
-function ChartDisplay({ view, plan, labels, onDisplay }) {
+function ChartDisplay({ view, plan, labels, onDisplay, series, colors }) {
     const chart = view.chart;
     // the type drawn: an automatic chart's is the one the data chose
     const drawn = plan ? plan.name : chartTypeOf(chart);
@@ -120,6 +208,7 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
     const choices = pie ? VALUE_LABELS.slices : VALUE_LABELS.other;
     // a pie's "percent" on another type draws the value: it shows as "Value" there
     const valueLabels = !pie && (chart.valueLabels === "percent" || chart.valueLabels === "both") ? "value" : chart.valueLabels;
+    const names = legendNames(drawn, series);
     return (
         <Section title={labels.chartDisplay}>
             <Sub title={labels.valueLabels}>
@@ -187,6 +276,18 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
                     </div>
                 </Sub>
             ) : null}
+            {drawn !== "heatmap" ? (
+                <Sub>
+                    <Switch checked={Boolean(chart.tooltipShare)} onChange={(on) => onDisplay({ tooltipShare: on })} testId="chart-tooltip-share">
+                        {labels.tooltipShare}
+                    </Switch>
+                </Sub>
+            ) : null}
+            {names.length ? (
+                <Sub title={labels.chartColors} info="chartColors">
+                    <EntryColors names={names} view={view} colors={colors} onDisplay={onDisplay} labels={labels} />
+                </Sub>
+            ) : null}
             {drawn === "line" || drawn === "area" ? (
                 <Sub>
                     <Switch checked={chart.smooth} onChange={(on) => onDisplay({ smooth: on })} testId="chart-smooth">
@@ -199,7 +300,7 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
 }
 
 /** The chart type menu: the types (a pick closes it) and how the chart is drawn. */
-export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close }) {
+export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, series, colors }) {
     return (
         <>
             <Section title={labels.chartType}>
@@ -207,7 +308,7 @@ export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close }
                     <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
                 </div>
             </Section>
-            <ChartDisplay view={view} plan={plan} labels={labels} onDisplay={onDisplay} />
+            <ChartDisplay view={view} plan={plan} labels={labels} onDisplay={onDisplay} series={series} colors={colors} />
         </>
     );
 }
@@ -826,6 +927,7 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
             <Section title={labels.exportCopy}>
                 <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} {...off} testId="export-copy-table" />
                 <ExportOption icon="copy" text={labels.copyDataJson} info="copyDataJson" onSelect={run("copy-json")} {...off} testId="export-copy-json" />
+                <ExportOption icon="image" text={labels.copyChart} disabled={empty || !chartReady} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("copy-chart")} testId="export-copy-chart" />
             </Section>
             {source ? (
                 <Section title={labels.exportDataGroup}>

@@ -66,6 +66,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {"image" | "inline"} [chartEmbed]  html: the chart as a data: image (default) or as inline SVG
  * @property {{ init: Function }} [echarts]  the ECharts module (with its SVG renderer): svg, and html with a chart
  * @property {{ width?: number, height?: number }} [size]  of the chart in px, default 800 x 480
+ * @property {Record<string, string>} [colorMap]  svg and html: a fixed colour per series or slice name (hex, rgb(), hsl() or a CSS name); the view's chart.colors win over it
  * @property {number} [tableCells]  html: cells of the table at most, default REPORT_LIMITS.tableCells
  * @property {boolean} [bom]  csv: start with a byte order mark, so Excel reads it as UTF-8 (default true)
  * @property {"full" | "shown"} [numbers]  csv and json: "full" (default) writes numbers with full precision, "shown" rounds each to the decimals the view shows
@@ -76,7 +77,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
 const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false], numbers: ["full", "shown"], flatHeader: [true, false], rowCount: [true, false] });
 
 /** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
-const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf", "numbers", "flatHeader", "rowCount"]);
+const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "colorMap", "tableCells", "bom", "dataAsOf", "numbers", "flatHeader", "rowCount"]);
 
 /**
  * @typedef {object} RenderResult
@@ -172,6 +173,9 @@ export async function render(view, data, options = {}) {
     if ((format === "svg" || (format === "html" && options.chart === true)) && typeof options.echarts?.init !== "function") {
         throw badOption("echarts", `${format === "svg" ? "an SVG" : "a report with chart: true"} needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts`);
     }
+    if (options.colorMap !== undefined && (options.colorMap === null || typeof options.colorMap !== "object" || Array.isArray(options.colorMap))) {
+        throw badOption("colorMap", "colorMap must be an object of a colour per name");
+    }
     if (options.dataAsOf !== undefined && !isDataAsOf(options.dataAsOf)) {
         throw badOption("dataAsOf", 'dataAsOf is a time in UTC to the second: "2026-11-15T08:00:00Z"');
     }
@@ -227,6 +231,7 @@ export async function render(view, data, options = {}) {
             labels: options.labels,
             limits: options.limits,
             now: options.now,
+            colorMap: options.colorMap,
             maxCategories: REPORT_LIMITS.categories
         });
     const chartCut = (chart) => {

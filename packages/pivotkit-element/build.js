@@ -282,9 +282,15 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * The HTML report's row count in plural forms and the rows its filters keep, with ROW_COUNT_TEXTS
  * and pluralForm shared with pivotkit-core (#547): report 23.0 with Homebrew's zlib (22.8 before);
  * with #478's writer 23.3, at that budget: report goes to 23.5.
+ * Fixed colours, the share in the tooltip and the chart image on the clipboard (#54): Display's
+ * colour list, its colour fields and the share switch, with the host's colorMap per theme (a module the
+ * menus share with the chart) take menus to 48.8 with Homebrew's zlib (47.6 before) and the German
+ * menu texts to 7.1 (7.0): menus goes to 49.5, texts to 7.5. The colours and the share in the chart's
+ * option take chart to 222.3 (221.5): chart goes to 223. The first load grows 0.4 (the view keys and
+ * the colorMap prop), within its budget.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 222.5, export: 12.6, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23.5, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 223, export: 12.6, link: 7.5, menus: 49.5, texts: 7.5, unused: 5.5, import: 22, report: 23.5, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

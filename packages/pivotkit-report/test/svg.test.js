@@ -67,3 +67,13 @@ test("every text of a chart is at least 14 px, and a host's --pk-chart-text-size
         assert.deepEqual(host.filter((t) => t.text !== "Units" && t.size !== 18), [], `${name}: the host's size`);
     }
 });
+
+test("fixed colours per name reach the SVG: the view's over the host's colorMap (#54)", async () => {
+    const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] };
+    const r = await render({ ...view, chart: { type: "bar", colors: [{ name: "B", color: "#123456" }] } }, SALES, { format: "svg", echarts, colorMap: { a: "#abcdef", B: "#ff0000" }, ...FIXED });
+    assert.ok(r.text.includes('fill="#123456"') && r.text.includes('fill="#abcdef"'));
+    assert.ok(!r.text.includes('fill="#ff0000"'));
+    const pie = await render({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "pie" } }, SALES, { format: "svg", echarts, colorMap: { South: "#00ff00" }, ...FIXED });
+    assert.ok(pie.text.includes('fill="#00ff00"'));
+    await assert.rejects(render(view, SALES, { format: "svg", echarts, colorMap: ["#fff"], ...FIXED }), /colorMap/);
+});

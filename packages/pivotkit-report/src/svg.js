@@ -145,15 +145,15 @@ export function cleanSvg(svg) {
  * `style`, the axis labels laid out for the size, at most `maxCategories` categories.
  * @param {import("pivotkit-core").PivotResult} result
  * @param {{ echarts: { init: Function, color?: { parse?: (color: string) => unknown } }, style: { getPropertyValue(name: string): string }, width: number, height: number,
- *   locale: string, labels?: object, limits?: object, now?: any, maxCategories: number }} options
+ *   locale: string, labels?: object, limits?: object, now?: any, maxCategories: number, colorMap?: Record<string, string> }} options
  * @returns {{ svg: string, categories: number, of: number }}
  */
-export function chartSvg(result, { echarts, style, width, height, locale, labels, limits, now, maxCategories }) {
+export function chartSvg(result, { echarts, style, width, height, locale, labels, limits, now, maxCategories, colorMap }) {
     const view = result.view;
     const plan = chartPlan(view, result.encoded);
     const drawn = plan.swap ? computePivot(result.encoded, swapAxes(view), { locale, limits, ...(now !== undefined ? { now } : {}) }) : result;
     const series = toSeries(drawn, { labels, limits, maxCategories });
-    const option = toEChartsOption(drawn, { theme: chartThemeFrom(style), locale, labels, limits, maxCategories, series, chart: plan.chart });
+    const option = toEChartsOption(drawn, { theme: chartThemeFrom(style), locale, labels, limits, maxCategories, series, chart: plan.chart, ...(colorMap ? { colorMap } : {}) });
     // a heatmap colour ECharts' parser does not read (oklch(), rgb() with spaces) would turn the cells
     // black: the light default stands in for it. Every other colour is written into the SVG as it is
     const parse = echarts.color?.parse;
