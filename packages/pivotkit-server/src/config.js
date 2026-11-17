@@ -13,6 +13,7 @@ import { OPERATION_NAMES } from "pivotkit-report/operations";
 import { REST_BASE, SOURCE_ID } from "pivotkit-cli/rest";
 import { POLICY_LEVELS } from "./policy.js";
 import { STATS_DISTINCT } from "./stats.js";
+import { expiryOf } from "./signed-tokens.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
 import { CREATE_NEEDS_FILE, ConfigError } from "./options/shared.js";
 
@@ -102,7 +103,8 @@ export { ConfigError } from "./options/shared.js";
  * @typedef {object} AuthOptions
  * @property {"none" | "token" | "oauth"} [mode]
  * @property {boolean} [allowUnauthenticated]  "none" on an address other than loopback
- * @property {Array<{ name: string, env?: string, file?: string, create?: boolean, scopes?: string[], profile?: string }>} [tokens]  create: make a missing file at start (state.js)
+ * @property {Array<{ name: string, env?: string, file?: string, create?: boolean, scopes?: string[], profile?: string, expires?: string }>} [tokens]  create: make a missing file at start (state.js); expires: a date or date-time with a zone, refused from then on
+ * @property {{ dir?: string, maxDays?: number }} [signedTokens]  the signed tokens the server issues itself (options/signed.js)
  * @property {string} [issuer]
  * @property {string} [resource]
  * @property {string[]} [audience]
@@ -179,7 +181,7 @@ const BASE_SLOTS = {
     auth: {
         mode: { enum: ["none", "token", "oauth"] },
         allowUnauthenticated: "boolean",
-        tokens: { list: { object: { name: "string", env: "string", file: "string", create: "boolean", scopes: "strings", profile: "string" } } },
+        tokens: { list: { object: { name: "string", env: "string", file: "string", create: "boolean", scopes: "strings", profile: "string", expires: "string" } } },
         issuer: "string",
         resource: "string",
         audience: "strings",
@@ -328,6 +330,9 @@ export function validateOptions(options) {
         }
         if (token.create !== undefined && token.env) {
             throw new ConfigError(`auth.tokens[${i}].create: ${CREATE_NEEDS_FILE}`);
+        }
+        if (token.expires !== undefined && expiryOf(token.expires, { durations: false }) === null) {
+            throw new ConfigError(`auth.tokens[${i}].expires: a date (2027-01-31, from 00:00 UTC) or a date-time with a zone (2027-01-31T08:00:00Z), not ${JSON.stringify(token.expires.slice(0, 40))}`);
         }
     }
     if (options.auth?.mode === "oauth") {

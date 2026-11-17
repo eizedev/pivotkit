@@ -340,6 +340,8 @@ The view's `totals` decide the total rows and columns, with two rules of their o
 
 `toSeries` gives chart data. `toEChartsOption` gives a plain [Apache ECharts](https://echarts.apache.org/)
 option for bar, stacked bar, line, area, pie, donut and heatmap. Neither imports ECharts itself.
+`toEChartsOption` is also exported from [`pivotkit-core/chart`](#chart-marks). Import it from there to
+load it with the chart, not with the first load.
 
 | Option | Of | What |
 | --- | --- | --- |
@@ -398,6 +400,8 @@ A token that is missing or not readable keeps `DEFAULT_THEME`'s value. `CHART_CO
 
 ### The chart's marks: `pivotkit-core/chart` { #chart-marks }
 
+This entry point exports `toEChartsOption` too, so a bundle loads the option with the chart.
+
 `decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter })` puts
 a report's marks on `toEChartsOption`'s option:
 
@@ -406,10 +410,13 @@ a report's marks on `toEChartsOption`'s option:
   it. The default is `DEFAULT_THEME.markRadius`, 4.
 - A tooltip with `--pk-radius-card` corners, default 8 px.
 - 2 px lines.
-- The room around a pie.
+- The room around a pie, and room beside it for the labels outside.
 - A legend moved below a narrow chart.
 - The category axis laid out for the chart's size (`categoryLabelLayout`: straight, slanted or every
   n-th, `chart.axisLabels`). The option's `axisEvery` says when every n-th label is written.
+- Room on the right for the values at the end of horizontal bars, and fewer value ticks where a
+  narrow axis needs them.
+- A heatmap's row names and cell numbers where its cells have room.
 
 pivotkit-react adds its DOM tooltip through `tooltipFormatter`. [pivotkit-report](report.md) draws the
 SVG with `decorateOption`. The layout measures the labels at the option's text size
@@ -418,7 +425,13 @@ SVG with `decorateOption`. The layout measures the labels at the option's text s
 The entry exports the layout functions and their constants too: `categoryLabelLayout`,
 `categoryLabelWidth`, `columnLabelLayout`, `groupLabelsFit`, `heatmapCellLabels`, `pieLabelRoom`,
 `ringLabelsFit` and `rowLabelInterval`. Those that measure text take its size in px as `fontSize`,
-`DEFAULT_THEME.textSize` by default. The entry imports nothing, so a report's first load does not
+`DEFAULT_THEME.textSize` by default. They estimate a text's width per character: a whole em for CJK
+and fullwidth characters, 0.7 em for a capital, 0.55 em for the others.
+
+`heatmapCellLabels` and `rowLabelInterval` take an optional last argument `frame`, `{ x, y }`: the
+px of the chart that are not cells, beside them (`x`) and above and below them (`y`). By default it
+is a heatmap of pivotkit-core with straight column names. `categoryLabelLayout` takes `reserved` in
+its box: the px of the height that are neither plot nor category labels. The entry imports nothing, so a report's first load does not
 carry it.
 
 `toSeries` gives these members:

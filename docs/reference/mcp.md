@@ -714,6 +714,9 @@ no warning.
 - Tokens are compared as SHA-256 digests in constant time and never logged. The server refuses them
   in the address (`?access_token=`) and when a request carries two `Authorization` headers.
 - The token's name is the client in the log.
+- `auth.tokens[].expires` ends a token at a date ([expiry](rest.md#token-expires)).
+- The server can also issue tokens that expire on their own, with `pivotkit-server token issue`.
+  The MCP endpoint takes them like a static token ([signed tokens](rest.md#signed-tokens)).
 
 With `--http` and a state directory (`--state-dir`, `$PIVOTKIT_STATE_DIR`), a server that has no
 token and listens off loopback makes the token `admin` there at its first start. It does this
@@ -737,7 +740,7 @@ Rotating a token without a break:
    name>`, with `--scope` and `--profile` as the old one). Restart once, since the list of tokens
    is read at start.
 2. Give the clients the new token, one after the other. Both work meanwhile.
-3. Remove the old entry and restart.
+3. Remove the old entry (`pivotkit-server token remove <old name>`) and restart.
 
 You can also overwrite a token file in place, without a restart. Every client still on the old value
 gets 401 from that moment, so do it only after steps 1 and 2, or when you mean to cut the old value

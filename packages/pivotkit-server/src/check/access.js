@@ -24,6 +24,7 @@ import { connectionLimitsOf, isLoopback } from "../listen.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, secretValue, unreadable } from "../secrets.js";
 import { personBound } from "../sources/auth.js";
 import { noTokenText } from "../state.js";
+import { expiryOf } from "../signed-tokens.js";
 import { signInItems } from "./operator.js";
 import { heading, plain, problem, secretText, warning } from "./format.js";
 
@@ -47,6 +48,10 @@ export async function section(options, _registry, runtime) {
     } else if (mode === "token") {
         for (const t of auth.tokens?.length ? auth.tokens : [{ name: "token", env: runtime.tokenEnv }]) {
             items.push(plain(`token ${t.name} from ${secretText(options, t)}: ${t.scopes ? `scopes ${t.scopes.join(" ") || "none"}` : "all scopes"}${t.profile ? `, profile ${t.profile}` : ""}`));
+            const expiry = expiryWarning(t);
+            if (expiry) {
+                items.push(warning(expiry));
+            }
             const readable = await secretFileWarning(t, options, `the token ${t.name}'s file ${t.file}`);
             if (readable) {
                 items.push(warning(readable));
@@ -134,6 +139,19 @@ function transport(options, runtime) {
         plain("no download links: a report is a file in output.dir"),
         plain(bound.length ? `no signed-in person: ${bound.join(", ")} cannot be used (they need one)` : "no signed-in person: every caller gets the sources' own policy")
     ];
+}
+
+/** How soon check-config warns of a static token's expiry: a week ahead. */
+const EXPIRY_WARN_MS = 7 * 86_400_000;
+
+/** The warning for a static token that expires within a week or has expired, or null. */
+function expiryWarning(token) {
+    const at = token.expires ? expiryOf(token.expires, { durations: false }) : null;
+    if (at === null || at - Date.now() > EXPIRY_WARN_MS) {
+        return null;
+    }
+    const day = new Date(at).toISOString().slice(0, 10);
+    return at <= Date.now() ? `the token ${token.name} expired on ${day}: requests with it get 401; remove it (pivotkit-server token remove ${token.name}) or give it a later expires` : `the token ${token.name} expires on ${day}: requests with it get 401 from then on; give it a later expires or make a new token`;
 }
 
 /** Why a token is too easy to guess, named by where it comes from, or null (auth.js tokenGuessable). */

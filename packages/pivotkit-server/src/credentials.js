@@ -6,6 +6,9 @@
  *   pivotkit-server token show <name> [--config <file>] [--state-dir <dir>] [--json]
  *   pivotkit-server key new --for downloads|audit [--file <path>] [--if-missing | --force] [--print] [--json]
  *
+ * and, in token-admin.js (loaded only for them), the signed tokens the server issues and the list of
+ * every token: token issue|list|revoke|remove, key new|remove --for signing.
+ *
  * A token is 32 random bytes and a key 48, in base64url. Without --file the value is the only line
  * on stdout; with --file it is written by secret-file.js and printed only with --print. Hints (the
  * configuration's lines, how to try it) go to stderr, and only on a terminal. `token new` and
@@ -27,6 +30,7 @@ import { ConfigError, REST_BASE, loadConfig, pathOf, validateOptions } from "./c
 import { STATE_ENV, configFrom, planState, psQuoted, shellQuoted, stateDirOf } from "./state.js";
 import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretValue, unreadable } from "./secrets.js";
+import { expiryOf } from "./signed-tokens.js";
 import { CONFIG_ENV } from "./flags.js";
 import { DEFAULT_PORT, TOKEN_ENV } from "./serve.js";
 import { MCP_TOKEN_ENV } from "./context.js";
@@ -46,6 +50,7 @@ const FLAGS = Object.freeze({
         name: { type: "string", value: "name", text: "The token's name in auth.tokens and the log (default: the file's name without extension, else \"token\")." },
         profile: { type: "string", value: "profile", text: "The policy profile of the token (a name of policy.profiles)." },
         scope: { type: "string", multiple: true, value: "scope", text: "A scope the token holds (may be given more than once; none: every scope)." },
+        expires: { type: "string", value: "when", text: "When the token stops working: a date (2027-01-31, 00:00 UTC), a date-time with a zone, or a time from now (90d); written as auth.tokens[].expires." },
         "if-missing": { type: "boolean", text: "Keep a file that is there (checked: a token the server can use) and exit 0." },
         force: { type: "boolean", text: "Replace a file that is there (clients with the old token get 401 from then on)." },
         print: { type: "boolean", text: "Print the token also when it is written to --file." },
@@ -60,21 +65,58 @@ const FLAGS = Object.freeze({
         json: { type: "boolean", text: "Write one JSON object on stdout." },
         help: { type: "boolean", short: "h", text: "Print this help and exit." }
     },
+    "token issue": {
+        name: { type: "string", value: "name", text: "The token's name in the list (default: none). The log names the token by its ID." },
+        profile: { type: "string", value: "profile", text: "The policy profile of the token (a name of policy.profiles)." },
+        scope: { type: "string", multiple: true, value: "scope", text: "A scope the token holds (may be given more than once; none: every scope)." },
+        expires: { type: "string", value: "when", text: "When it stops working: a time from now (15m, 8h, 7d; default 1h) or a date; at most auth.signedTokens.maxDays (default 30 days)." },
+        config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
+        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
+        json: { type: "boolean", text: "Write one JSON object on stdout." },
+        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+    },
+    "token list": {
+        config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
+        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
+        json: { type: "boolean", text: "Write one JSON object on stdout." },
+        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+    },
+    "token revoke": {
+        config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
+        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
+        json: { type: "boolean", text: "Write one JSON object on stdout." },
+        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+    },
+    "token remove": {
+        config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG); a static token is taken out of its auth.tokens (a backup first)." },
+        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
+        json: { type: "boolean", text: "Write one JSON object on stdout." },
+        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+    },
     "key new": {
-        for: { type: "string", value: "downloads|audit", text: "What the key is for: output.downloads.key or audit.key (required)." },
+        for: { type: "string", value: "downloads|audit|signing", text: "What the key is for: output.downloads.key, audit.key, or signing tokens (token issue) (required)." },
         file: { type: "string", value: "path", text: "Write the key to this file (mode 0600, one line) instead of printing it." },
         "if-missing": { type: "boolean", text: "Keep a file that is there (checked: a key the server can use) and exit 0." },
         force: { type: "boolean", text: "Replace a file that is there." },
         print: { type: "boolean", text: "Print the key also when it is written to --file." },
         config: { type: "string", value: "file", text: "The server's configuration file: refuses a file inside output.dir." },
         add: { type: "boolean", text: "Name the key as output.downloads.key or audit.key of --config; needs --file (a backup first; pretty-printed JSON)." },
+        "state-dir": { type: "string", value: "dir", text: "--for signing: the server's state directory (default $PIVOTKIT_STATE_DIR)." },
+        json: { type: "boolean", text: "Write one JSON object on stdout." },
+        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+    },
+    "key remove": {
+        for: { type: "string", value: "signing", text: "The key's use: signing, a key of the signed tokens (required)." },
+        force: { type: "boolean", text: "Remove it also while tokens signed with it still work (they get 401 from then on)." },
+        config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
+        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
         json: { type: "boolean", text: "Write one JSON object on stdout." },
         help: { type: "boolean", short: "h", text: "Print this help and exit." }
     }
 });
 
 /** The usage line of each command, by its name in FLAGS. */
-const USAGE = Object.freeze({ "token new": "pivotkit-server token new [options]", "token show": "pivotkit-server token show <name> [options]", "key new": "pivotkit-server key new --for downloads|audit [options]" });
+const USAGE = Object.freeze({ "token new": "pivotkit-server token new [options]", "token show": "pivotkit-server token show <name> [options]", "token issue": "pivotkit-server token issue [options]", "token list": "pivotkit-server token list [options]", "token revoke": "pivotkit-server token revoke <id or name> [options]", "token remove": "pivotkit-server token remove <id or name> [options]", "key new": "pivotkit-server key new --for downloads|audit|signing [options]", "key remove": "pivotkit-server key remove <key id> --for signing [options]" });
 
 /** The help of `token` or `key`. */
 function helpOf(group) {
@@ -86,7 +128,7 @@ function helpOf(group) {
 }
 
 /** A refusal of the command: its exit code (2 usage, 1 a file), kind and code, as --json gives them. */
-class CommandError extends Error {
+export class CommandError extends Error {
     /**
      * @param {1 | 2} exitCode
      * @param {string} code
@@ -100,7 +142,7 @@ class CommandError extends Error {
     }
 }
 
-const usage = (code, message) => new CommandError(2, code, message);
+export const usage = (code, message) => new CommandError(2, code, message);
 
 /**
  * The flags of a command parsed; a usage error with "did you mean" for an unknown one.
@@ -109,7 +151,7 @@ const usage = (code, message) => new CommandError(2, code, message);
  * @param {boolean} [positionals]
  * @returns {{ values: Record<string, any>, positionals: string[] }}
  */
-function parse(command, argv, positionals = false) {
+export function parse(command, argv, positionals = false) {
     const flags = FLAGS[command];
     try {
         return parseArgs({ args: argv, options: /** @type {any} */ (flags), allowPositionals: positionals, strict: true });
@@ -206,16 +248,16 @@ async function configFor(values, cwd, what) {
  * @param {(raw: any) => { next: any, notes: string[] } | { done: true }} change  `done`: the configuration has it already
  * @returns {Promise<{ path: string, bytes: Buffer, text: string, mode: number, notes: string[], size: number, mtimeMs: number } | { done: true, path: string }>}
  */
-async function changedConfig(path, config, options, change) {
+export async function changedConfig(path, config, options, change) {
     // replaceFile renames over it: a link (a mounted ConfigMap is one) or a directory that cannot be
     // written is refused now, before the secret's file is written
     const info = await lstat(path);
     if (!info.isFile()) {
-        throw usage("CONFIG_NOT_WRITABLE", `${config}: is ${info.isSymbolicLink() ? "a symbolic link (a mounted ConfigMap is one)" : "not a regular file"}; --add replaces the file, so add the entry where the file comes from`);
+        throw usage("CONFIG_NOT_WRITABLE", `${config}: is ${info.isSymbolicLink() ? "a symbolic link (a mounted ConfigMap is one)" : "not a regular file"}; the command replaces the file, so change it where the file comes from`);
     }
     const writable = await access(dirname(path), fsConstants.W_OK).then(() => true, () => false);
     if (!writable) {
-        throw usage("CONFIG_NOT_WRITABLE", `${config}: its directory cannot be written (the backup and the new file go there); add the entry by hand`);
+        throw usage("CONFIG_NOT_WRITABLE", `${config}: its directory cannot be written (the backup and the new file go there); change the file by hand`);
     }
     // the bytes as they are, for the backup and the check before the replace; the text for parsing
     const bytes = await readFile(path);
@@ -245,22 +287,23 @@ async function changedConfig(path, config, options, change) {
  * configuration is not.
  * @param {{ path: string, bytes: Buffer, text: string, mode: number, size: number, mtimeMs: number }} changed
  * @param {Record<string, any>} values
+ * @param {{ changedText?: string, notWrittenText?: string }} [words]  what to do then, where no secret's file was written (token remove)
  * @returns {Promise<{ backup: string, warnings: string[] }>}  the backup's path, and what the configuration could not keep of its owner, group or mode
  */
-async function writeConfig(changed, values) {
+export async function writeConfig(changed, values, { changedText = `the file ${values.file} is written: run the same command with --if-missing to add it now`, notWrittenText = `the file ${values.file} is written: run the same command with --if-missing instead of a new value` } = {}) {
     const unchanged = async () => {
         const now = await lstat(changed.path);
         return now.size === changed.size && now.mtimeMs === changed.mtimeMs && (await readFile(changed.path)).equals(changed.bytes);
     };
     if (!(await unchanged())) {
-        throw new CommandError(1, "CONFIG_CHANGED", `${values.config} changed since it was read and was not replaced; the file ${values.file} is written: run the same command with --if-missing to add it now`);
+        throw new CommandError(1, "CONFIG_CHANGED", `${values.config} changed since it was read and was not replaced; ${changedText}`);
     }
     try {
         const backup = await writeBackup(changed.path, changed.bytes, changed.mode);
         // the last look right before the replace: the window that stays is this one step
         if (!(await unchanged())) {
             await unlink(backup).catch(() => undefined);
-            throw new CommandError(1, "CONFIG_CHANGED", `${values.config} changed since it was read and was not replaced; the file ${values.file} is written: run the same command with --if-missing to add it now`);
+            throw new CommandError(1, "CONFIG_CHANGED", `${values.config} changed since it was read and was not replaced; ${changedText}`);
         }
         const warnings = await replaceFile(changed.path, changed.text, changed.mode, values.config);
         return { backup, warnings };
@@ -269,18 +312,37 @@ async function writeConfig(changed, values) {
             throw e;
         }
         const why = String(e?.message ?? e).slice(0, 200);
-        throw new CommandError(1, "CONFIG_NOT_WRITTEN", `${values.config} was not changed (${why}); the file ${values.file} is written: run the same command with --if-missing instead of a new value`);
+        throw new CommandError(1, "CONFIG_NOT_WRITTEN", `${values.config} was not changed (${why}); ${notWrittenText}`);
     }
 }
 
 /** The line of a configuration --add rewrote. */
-const rewrittenLine = (values, backup) => `${values.config} is rewritten as pretty-printed JSON; the old file is kept as ${basename(backup)}.`;
+export const rewrittenLine = (values, backup) => `${values.config} is rewritten as pretty-printed JSON; the old file is kept as ${basename(backup)}.`;
 
 /**
  * What a command did: the fields of its JSON, the value, whether it is printed and under which name,
  * the hints for a terminal and the warnings.
- * @typedef {{ json: Record<string, unknown>, value: string, printValue: boolean, field: "token" | "key", hints: string[], warnings: string[] }} Outcome
+ * @typedef {{ json: Record<string, unknown>, value: string, printValue: boolean, field: "token" | "key", hints: string[], warnings: string[], text?: string }} Outcome  text: what a terminal gets on stdout in place of the value (token list), never in --json
  */
+
+/** A token's name: letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit. */
+export const TOKEN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
+/**
+ * `--expires` of `token new` as auth.tokens[].expires: a date or date-time as given, a time from now
+ * as the UTC date-time it ends; a usage error for anything else or a time that has passed.
+ * @param {string} text
+ */
+function expiresText(text) {
+    const at = expiryOf(text);
+    if (at === null) {
+        throw usage("EXPIRES", `--expires ${JSON.stringify(text.slice(0, 40))}: a date (2027-01-31, from 00:00 UTC), a date-time with a zone (2027-01-31T08:00:00Z) or a time from now (90d, 12h, 30m)`);
+    }
+    if (at <= Date.now()) {
+        throw usage("EXPIRES", `--expires ${JSON.stringify(text.slice(0, 40))}: that time has passed`);
+    }
+    return expiryOf(text, { durations: false }) === null ? new Date(at).toISOString().replace(/\.\d{3}Z$/, "Z") : text;
+}
 
 /**
  * `token new`.
@@ -291,7 +353,7 @@ async function tokenNew(argv, io) {
     checkWriteFlags(values);
     const cwd = io.cwd ?? process.cwd();
     const name = values.name ?? (values.file ? basename(values.file, extname(values.file)) : "token");
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(name)) {
+    if (!TOKEN_NAME.test(name)) {
         throw usage("NAME", `--name ${JSON.stringify(name.slice(0, 40))}: a token's name is letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit`);
     }
     const { options, file } = await configFor(values, cwd, "token");
@@ -300,7 +362,8 @@ async function tokenNew(argv, io) {
         const near = closest(values.profile, profiles);
         throw usage("PROFILE", `--profile: no profile "${values.profile.slice(0, 60)}" in policy.profiles of ${values.config}${near ? `; did you mean "${near}"?` : ""}`);
     }
-    const entry = { name, ...(file ? { file: configPath(file, options?.baseDir ?? cwd) } : {}), ...(values.scope?.length ? { scopes: values.scope } : {}), ...(values.profile !== undefined ? { profile: values.profile } : {}) };
+    const expires = values.expires === undefined ? undefined : expiresText(values.expires);
+    const entry = { name, ...(file ? { file: configPath(file, options?.baseDir ?? cwd) } : {}), ...(values.scope?.length ? { scopes: values.scope } : {}), ...(values.profile !== undefined ? { profile: values.profile } : {}), ...(expires ? { expires } : {}) };
     // --add: the new configuration checked before anything is written
     const added = values.add ? await changedConfig(resolve(cwd, values.config), values.config, options, (raw) => withToken(raw, entry, values.config, values["if-missing"] && sameFileIn(options))) : null;
     const secret = await secretOf(values, SECRET_BYTES.token, "token", tokenProblem, cwd);
@@ -337,7 +400,7 @@ function withToken(raw, entry, config, same) {
     const auth = raw.auth ?? {};
     const tokens = auth.tokens ?? [];
     const there = tokens.find((t) => t?.name === entry.name);
-    if (there && same && auth.mode === "token" && same(there.file, entry.file) && JSON.stringify(there.scopes ?? null) === JSON.stringify(entry.scopes ?? null) && (there.profile ?? null) === (entry.profile ?? null)) {
+    if (there && same && auth.mode === "token" && same(there.file, entry.file) && JSON.stringify(there.scopes ?? null) === JSON.stringify(entry.scopes ?? null) && (there.profile ?? null) === (entry.profile ?? null) && (there.expires ?? null) === (entry.expires ?? null)) {
         return { done: /** @type {const} */ (true) };
     }
     if (there) {
@@ -372,7 +435,7 @@ function tokenHints({ values, entry, options, backup, secret }) {
     if (backup) {
         hints.push(`Added the token "${entry.name}" to auth.tokens. ${rewrittenLine(values, backup)}`);
     } else if (!values.file) {
-        hints.push(`Keep it where only the server reads it (pivotkit-server token new --file <path>), and add to auth.tokens of ${config}:`, `  ${snippetOf({ name: entry.name, file: "<path>" })}  or  ${snippetOf({ name: entry.name, env: "<VARIABLE>" })}`);
+        hints.push(`Keep it where only the server reads it (pivotkit-server token new --file <path>), and add to auth.tokens of ${config}:`, `  ${snippetOf({ name: entry.name, file: "<path>", ...(entry.expires ? { expires: entry.expires } : {}) })}  or  ${snippetOf({ name: entry.name, env: "<VARIABLE>", ...(entry.expires ? { expires: entry.expires } : {}) })}`);
     } else if (!secret.replaced) {
         hints.push(`Add it to auth.tokens of ${config} (auth.mode "token"):`, `  ${snippetOf(entry)}`);
     }
@@ -406,7 +469,7 @@ function tokenHints({ values, entry, options, backup, secret }) {
 }
 
 /** The usage line of `key new`, for its errors. */
-const KEY_USAGE = "pivotkit-server key new --for downloads|audit [--file <path>] [--config <file> --add]";
+const KEY_USAGE = "pivotkit-server key new --for downloads|audit [--file <path>] [--config <file> --add], or --for signing [--config <file>]";
 
 /**
  * `key new`.
@@ -414,9 +477,15 @@ const KEY_USAGE = "pivotkit-server key new --for downloads|audit [--file <path>]
  */
 async function keyNew(argv, io) {
     const { values } = parse("key new", argv);
+    if (values.for === "signing") {
+        return (await import("./token-admin.js")).signingKeyNew(values, io);
+    }
+    if (values["state-dir"] !== undefined) {
+        throw usage("STATE_DIR", "--state-dir is for --for signing only");
+    }
     if (!values.for || !KEY_USES.includes(values.for)) {
-        const near = values.for ? closest(values.for, [...KEY_USES]) : null;
-        throw usage("FOR", `--for must be ${KEY_USES.join(" or ")}${values.for ? `, not ${JSON.stringify(values.for.slice(0, 40))}` : ""}${near ? `; did you mean "${near}"?` : ""}\nusage: ${KEY_USAGE}`);
+        const near = values.for ? closest(values.for, [...KEY_USES, "signing"]) : null;
+        throw usage("FOR", `--for must be ${[...KEY_USES, "signing"].join(", ")}${values.for ? `, not ${JSON.stringify(values.for.slice(0, 40))}` : ""}${near ? `; did you mean "${near}"?` : ""}\nusage: ${KEY_USAGE}`);
     }
     checkWriteFlags(values);
     const cwd = io.cwd ?? process.cwd();
@@ -523,8 +592,39 @@ async function configuredToken(options, name, env, config, tokenEnv = TOKEN_ENV)
 }
 
 /**
- * `token show`: the token as the server resolves it (state.js planState): auth.tokens, the token the
- * state directory holds where auth needs one and none is given, and the one of $PIVOTKIT_TOKEN
+ * The configuration as the server resolves it (state.js planState): --config or $PIVOTKIT_CONFIG,
+ * with the state directory's defaults (--state-dir or $PIVOTKIT_STATE_DIR). The address is not known
+ * here (the image passes --host to serve): taken as off loopback. A usage error without either.
+ * @param {Record<string, any>} values
+ * @param {any} io
+ * @param {string} command  for the message
+ * @returns {Promise<{ options: any, given: any, plan: import("./state.js").StatePlan, stateDir: string | null, config: string, configFile: string | null, tokenEnv: string }>}  options: planned; given: the file as loadConfig read it; configFile: the file, absolute, null for none or the image's built-in one
+ */
+export async function plannedOf(values, io, command) {
+    const cwd = io.cwd ?? process.cwd();
+    const stateDir = stateDirOf(values["state-dir"], io.env, cwd);
+    const config = values.config ?? io.env[CONFIG_ENV];
+    if (!config && !stateDir) {
+        throw usage("NO_CONFIG", `${command} reads the configuration file or the state directory: give --config <file> or --state-dir <dir>, or set $${CONFIG_ENV} or $${STATE_ENV}`);
+    }
+    // the one token of a variable: pivotkit-server's, else pivotkit-mcp's where only that is set
+    // (pivotkit-server mcp in the image takes $PIVOTKIT_MCP_TOKEN)
+    const tokenEnv = !io.env[TOKEN_ENV] && io.env[MCP_TOKEN_ENV] ? MCP_TOKEN_ENV : TOKEN_ENV;
+    const flag = values.config ? resolve(cwd, values.config) : undefined;
+    const fromEnv = io.env[CONFIG_ENV] ? resolve(cwd, io.env[CONFIG_ENV]) : undefined;
+    try {
+        const found = await configFrom({ flag, fromEnv, stateDir });
+        const given = found?.options ?? { baseDir: cwd };
+        const plan = planState(given, { env: io.env, host: null, tokenEnv, stateDir });
+        return { options: plan.options, given, plan, stateDir, config: config ?? stateDir, configFile: found && !found.builtIn ? (flag ?? fromEnv ?? null) : null, tokenEnv };
+    } catch (e) {
+        throw e instanceof ConfigError ? usage("CONFIG", e.message) : e;
+    }
+}
+
+/**
+ * `token show`: the token as the server resolves it (plannedOf): auth.tokens, the token the state
+ * directory holds where auth needs one and none is given, and the one of $PIVOTKIT_TOKEN
  * ("token"); a token made at the first start that is not there yet is not made here.
  * @returns {Promise<Outcome>}
  */
@@ -534,24 +634,8 @@ async function tokenShow(argv, io) {
         throw usage("NAME", "token show takes the name of one token of auth.tokens: pivotkit-server token show <name> [--config file] [--state-dir dir]");
     }
     const [name] = positionals;
-    const cwd = io.cwd ?? process.cwd();
-    const stateDir = stateDirOf(values["state-dir"], io.env, cwd);
-    const config = values.config ?? io.env[CONFIG_ENV];
-    if (!config && !stateDir) {
-        throw usage("NO_CONFIG", `token show reads the configuration file or the state directory: give --config <file> or --state-dir <dir>, or set $${CONFIG_ENV} or $${STATE_ENV}`);
-    }
-    // the one token of a variable: pivotkit-server's, else pivotkit-mcp's where only that is set
-    // (pivotkit-server mcp in the image takes $PIVOTKIT_MCP_TOKEN)
-    const tokenEnv = !io.env[TOKEN_ENV] && io.env[MCP_TOKEN_ENV] ? MCP_TOKEN_ENV : TOKEN_ENV;
-    let options;
-    try {
-        options = (await configFrom({ flag: values.config && resolve(cwd, values.config), fromEnv: io.env[CONFIG_ENV] && resolve(cwd, io.env[CONFIG_ENV]), stateDir }))?.options ?? { baseDir: cwd };
-        // the address is not known here (the image passes --host to serve): taken as off loopback
-        options = planState(options, { env: io.env, host: null, tokenEnv, stateDir }).options;
-    } catch (e) {
-        throw e instanceof ConfigError ? usage("CONFIG", e.message) : e;
-    }
-    const value = await configuredToken(options, name, io.env, config ?? stateDir, tokenEnv);
+    const { options, config, tokenEnv } = await plannedOf(values, io, "token show");
+    const value = await configuredToken(options, name, io.env, config, tokenEnv);
     return { json: { name }, value, hints: [], warnings: [], printValue: true, field: "token" };
 }
 
@@ -573,7 +657,8 @@ export async function credentialsCommand(group, argv, io) {
         return sub ? 0 : 2;
     }
     try {
-        const runner = command === "token new" ? tokenNew : command === "token show" ? tokenShow : command === "key new" ? keyNew : null;
+        const own = { "token new": tokenNew, "token show": tokenShow, "key new": keyNew }[command];
+        const runner = own ?? (Object.hasOwn(FLAGS, command) ? (await import("./token-admin.js")).ADMIN_COMMANDS[command] : null);
         if (!runner) {
             const known = Object.keys(FLAGS).filter((c) => c.startsWith(group)).map((c) => c.split(" ")[1]);
             const near = closest(sub, known);
@@ -584,7 +669,9 @@ export async function credentialsCommand(group, argv, io) {
             io.stdout.write(`${JSON.stringify({ ok: true, exitCode: 0, command, ...out.json, ...(out.printValue ? { [out.field]: out.value } : {}), warnings: out.warnings })}\n`);
             return 0;
         }
-        if (out.printValue) {
+        if (out.text !== undefined) {
+            io.stdout.write(out.text);
+        } else if (out.printValue) {
             io.stdout.write(`${out.value}\n`);
         }
         for (const warning of out.warnings) {

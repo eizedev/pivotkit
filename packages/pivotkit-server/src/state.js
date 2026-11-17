@@ -68,6 +68,9 @@ export const DEFAULT_TOKEN_NAME = "admin";
 /** The directories pivotkit makes inside the state directory: the secrets (0700) and the built-in configuration's reports. */
 export const STATE_PARTS = Object.freeze({ secrets: "secrets", out: "out" });
 
+/** The directory in secrets/ of the signed tokens the server issues (signed-tokens.js). */
+export const SIGNED_STATE_DIR = "signed";
+
 /** The default files in secrets/, by what they are for. */
 const STATE_FILES = Object.freeze({ token: `${DEFAULT_TOKEN_NAME}.token`, downloads: "downloads.key", audit: "audit.key" });
 
@@ -191,6 +194,11 @@ export function planState(options, { env, host, tokenEnv, stateDir }) {
         // own tokens, and one that resolves none is refused (prepareHttpServe), never given admin
         if (auth.mode === "token" && options.auth?.mode === undefined && !auth.tokens?.length && !env[tokenEnv]) {
             auth.tokens = [{ name: DEFAULT_TOKEN_NAME, file: join(secretsDir, STATE_FILES.token), create: true }];
+            next.auth = auth;
+        }
+        // signed tokens: their keys, register and deny list beside the other secrets
+        if (auth.mode === "token" && !auth.signedTokens?.dir) {
+            auth.signedTokens = { ...auth.signedTokens, dir: join(secretsDir, SIGNED_STATE_DIR) };
             next.auth = auth;
         }
         const downloads = { ...output.downloads };

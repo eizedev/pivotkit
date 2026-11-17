@@ -8,6 +8,7 @@ description: How to update the command line, the services, the image and the plu
 The first section says how to update the command line, the REST service, the MCP server, the
 container image and the Claude Code plugin. Each section after it lists what changes between two
 releases and whom it concerns. **Breaking** marks a change that needs your action when it applies.
+[Versioning](../versioning.md) says which releases may break things, and lists every deprecation.
 
 ## Update an installation { #update }
 
@@ -166,9 +167,12 @@ configuration, under "New in this version", with a link to each section below.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| **Breaking:** [the drill-down's copy and download follow `exportData`](#drill-export) | you embed the report with `exportData` off, the default, and people copy or download a drill-down's rows | set `drillDownExport` (`drill-down-export`) to keep that |
 | [Sources hidden by default can be open](#hidden-open) | a source is hidden by default (`"default": "hide"`) and names only fields at `show` or `hide` | nothing; for plain links over a "show everything except" source, set its default to `hide` and list the fields to show |
 | [A byte quota and an age limit for drafts](#draft-quota) | callers make schedule drafts (`draft_schedule`, `POST /schedules/draft`) | nothing; run `check-config`; set `output.draftMaxAgeDays` if waiting drafts should expire |
 | [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
+| [Chart layout functions measure differently](#chart-layout-0-8) | your code calls `rowLabelInterval`, `heatmapCellLabels`, `columnLabelLayout` or `categoryLabelLayout` of `pivotkit-core/chart` | check the results you rely on. Pass `frame` to keep the old heatmap frame |
+| [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` set `rowsCount` or add a language, or a test reads the row count under the result | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
 
 ### Sources hidden by default can be open { #hidden-open }
 
@@ -224,6 +228,42 @@ Many clients can share one address without a proxy, for example an office behind
 published container port can also hand every connection over from Docker's gateway
 ([container](../reference/container.md#per-address)). Raise the bound there. `check-config` prints
 it under `HTTP:`, and refused connections get a log line with `perAddress`.
+
+### Chart layout functions measure differently { #chart-layout-0-8 }
+
+The same arguments can give other results than in 0.7:
+
+- `rowLabelInterval` and `heatmapCellLabels` measure the heatmap's frame from its grid and column
+  names: 102 px for straight names at 14 px, where 0.7 took 120 px. So more row names and cell
+  numbers fit.
+- `rowLabelInterval` writes a row name where the row is a px higher than the text. 0.7 asked for
+  4/3 of the text's height.
+- Every function that measures text weighs a Chinese, Japanese or Korean (CJK) or fullwidth
+  character a whole em and a capital 0.7 em. The layout slants or cuts such names sooner.
+- `categoryLabelLayout` cuts slanted names shorter in a low chart.
+
+To keep 0.7's heatmap frame, pass `{ x: 80, y: 120 }` as the last argument `frame`.
+
+### The drill-down's copy and download follow `exportData` { #drill-export }
+
+With `exportData` off, the drill-down panel shows the rows behind a value but has no **Export**
+menu. People can no longer copy the rows or download them as CSV or Excel from there.
+
+- To keep that menu without Source data, set `drillDownExport` on pivotkit-react, or
+  `drill-down-export` on pivotkit-element. Its copies and files hold every column.
+- With `exportData` on, nothing changes.
+- `onCellClick` and `pivot-cell-click` still get the rows.
+
+### The row count says "2,190 of 4,386 rows" { #rows-filtered }
+
+When a filter leaves rows out, the line under the result says "2,190 of 4,386 rows" instead of
+"2,190 rows". Its text is the new label `rowsFiltered`.
+
+- English and German have it.
+- A host whose `labels` set `rowsCount` sets `rowsFiltered` too. Otherwise the line uses the
+  language's own words while a filter is on, such as "rows" beside your "records".
+- A host whose `labels` add another language adds `rowsFiltered` too. Without it, that line is in
+  English while a filter is on. See [Localisation](../reference/localisation.md).
 
 ## From 0.6 to 0.7 { #from-0-6-1 }
 

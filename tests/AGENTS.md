@@ -72,5 +72,7 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - It also checks that the Playwright image matches the locked `@playwright/test`.
 - `tests/examples.test.js` fails until `node scripts/examples.js` has run.
 - `tests/schemas.test.js` fails until `node scripts/schemas.js` has run.
+- `tests/decisions.test.js` checks the decision records, and the index `node scripts/decisions.js` writes.
+- `tests/deprecations.test.js` checks that every `PK-DEP-NNNN` in `packages/*/src` is in the register.
 - `tests/llms-sections.test.js` checks that every docs page is in one `llmstxt` section.
 - `tests/docs-lists.test.js` checks that every list in the docs starts after a blank line.

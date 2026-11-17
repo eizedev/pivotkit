@@ -117,7 +117,7 @@ export function openApiDocument(options = {}) {
     /** @type {Record<string, any>} */
     const securitySchemes = {};
     if (mode === "token") {
-        securitySchemes.bearer = { type: "http", scheme: "bearer", description: "A static token the operator gives you: Authorization: Bearer <token>." };
+        securitySchemes.bearer = { type: "http", scheme: "bearer", description: "A token the operator gives you, static or signed: Authorization: Bearer <token>." };
     } else if (mode === "oauth") {
         const issuer = options.issuer;
         const scopes = Object.fromEntries([...new Set([...required, ...Object.values(auth.toolScopes ?? {}).flat(), ...(auth.scopesSupported ?? [])])].map((s) => [s, `the scope ${s}`]));

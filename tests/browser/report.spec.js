@@ -142,7 +142,8 @@ test.describe("filter, table and chart", () => {
         expect(count).toBeGreaterThan(0);
         // applied at once
         await west.locator("input").uncheck();
-        await expect(page.getByTestId("row-count")).toHaveText(`${(4000 - count).toLocaleString("en-US")} rows`);
+        // the rows the filter keeps of the data's (#108)
+        await expect(page.getByTestId("row-count")).toHaveText(`${(4000 - count).toLocaleString("en-US")} of 4,000 rows`);
         expect((await tableRows(page)).some((r) => r[0] === "West")).toBe(false);
         await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-chip-badge').first()).toBeVisible();
     });

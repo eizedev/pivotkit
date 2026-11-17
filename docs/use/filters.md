@@ -99,7 +99,8 @@ A chip in **Filters** opens the same Filter level from its menu, with **Move to*
   "11 left out by the rule", "2 left out by the rule on the total".
 - With nothing shown: the one reason and the nearest value. For example "No month has a total
   Average of Mean °C that is greater than 25 – the totals go from 13.4 (Jan) to 22.2 (Jul)."
-- The small line: the rows ("1,104 of 4,386 rows"). For a date it also gives the data's dates
+- The small line: the rows ("1,104 of 4,386 rows"), as the line under the result counts them. For a
+  date it also gives the data's dates
   ("data Jan 1, 2023 – Dec 31, 2025"). A grouping that combines the years adds "2023–2025 combined"
   or "2025 only".
 - A screen reader hears the card as it changes.

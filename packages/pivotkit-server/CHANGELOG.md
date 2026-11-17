@@ -8,6 +8,16 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- `token issue` issues a signed token that expires (default one hour, at most
+  `auth.signedTokens.maxDays`). REST and MCP accept it without a restart. The log names it by its ID
+  ([signed tokens](https://pivotkit.eize.dev/reference/rest/#signed-tokens), #485).
+- Several signing keys verify at once: `key new --for signing` rotates, `key remove --for signing`
+  takes an old key away.
+- `token revoke <id or name>` refuses a signed token from the next request on.
+- `token list` shows every token with its ID, name, profile, expiry and status, never a value.
+  `token remove <id or name>` takes a static token out of `auth.tokens` with a backup (#488).
+- `auth.tokens[].expires` ends a static token at a date. `token new --expires` writes it, and
+  `check-config` warns a week ahead.
 - `output.draftMaxAgeDays` deletes schedule drafts that still wait for approval after that many
   days, at start and every hour. It is off by default and works with `output.maxAgeDays: 0`. Like
   `output.maxAgeDays`, it is refused where the output directory holds the operator's own files.
@@ -72,6 +82,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - On Windows, the start's hint `pivotkit-server token show admin --state-dir <dir>` quotes the
   directory for PowerShell and says "(PowerShell)". It used POSIX quotes, which broke a path with a
   drive letter.
+- A host's script that waits on the compute pool and has nothing else to keep its process alive
+  no longer ends early when a worker dies while it starts. A run keeps its worker ref'd until it
+  ends. On Node 22 the process ended with an unsettled await.
+- The compute workers start in a host run with `node --input-type=module -e` or from standard
+  input, also with `--input-type` in `NODE_OPTIONS`. They leave out the host's `--input-type`,
+  which made every worker fail at once, so each report answered `INTERNAL`. The host's other flags
+  reach the workers, such as `--require` and `--conditions`. Only the V8 and process-wide flags
+  that Node refuses in a worker stay out, such as `--max-old-space-size`
+  ([#542](https://github.com/eizedev/pivotkit/issues/542)).
 
 ## [0.2.0] - 2026-11-16
 

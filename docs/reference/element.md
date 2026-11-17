@@ -60,7 +60,8 @@ pivotkit-react's `build.js`). pivotkit does not support older browsers.
 | `fileName` | `file-name` | `string` | `"pivot"` | Name of exported files, without the extension. The element makes it safe. |
 | `label` | `label` | `string` | `labels.report` | The name of the report's region landmark. Give each report on a page its own (`label="Tickets"`). |
 | `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value. `drill-down="false"` turns it off. |
-| `exportData` | `export-data` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file (`pivot-data.csv`), for the user's own analysis or the command line. Set it as a boolean attribute (`<pivot-report export-data>`), or a JSON object for some columns only, which the drill-down's exports keep to as well (`export-data='{"columns":["Region","Revenue"]}'`, or the property). Text it cannot read is off and said once in the console. As the React prop [`exportData`](react.md#prop-exportdata). It holds columns no view places and rows the filters leave out: [Security](../security.md#source-data). |
+| `exportData` | `export-data` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file (`pivot-data.csv`), for the user's own analysis or the command line. It also gives the drill-down its copy and download. Set it as a boolean attribute (`<pivot-report export-data>`), or a JSON object for some columns only, which the drill-down's exports keep to as well (`export-data='{"columns":["Region","Revenue"]}'`, or the property). Text it cannot read is off and said once in the console. As the React prop [`exportData`](react.md#prop-exportdata). It holds columns no view places and rows the filters leave out: [Security](../security.md#source-data). |
+| `drillDownExport` | `drill-down-export` | `boolean` | `false` | The drill-down's copy and download while `export-data` is off, with every column (`<pivot-report drill-down-export>`). `drill-down-export="false"` is off. As the React prop [`drillDownExport`](react.md#prop-drilldownexport). |
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. The panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`). The ids are in the [React reference](react.md#tips). |
 | `storageKey` | `storage-key` | `string` |  | Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`. Give each element on a page its own. [More](#prop-storagekey) |
@@ -535,27 +536,28 @@ The view type is a structural `PivotView`. The full one is pivotkit-core's `View
 
 ## Bundle size
 
-The table shows what a page loads. It was measured with `npm run size -w pivotkit-element` on one
-Mac on 2026-11-14, with esbuild 0.28.2 and gzip level 9 per file. Sizes add up per group. They are
-approximate and change with every dependency update.
+The table shows what a page loads. `npm run size -w pivotkit-element` measured it on 2026-11-17,
+with an official Node 24 build, esbuild 0.28.2 and gzip level 9 per file. Sizes add up per group.
+They are approximate and change with every dependency update.
 
-CI runs the same command. It fails when a group is over `SIZE_BUDGET_KIB` in `build.js`:
+CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
+`SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 175 KiB, about 0.5 above what CI measures.
-- The budgets of the groups loaded later are 1 to 7 per cent above what CI measures.
-- CI reads up to about 0.7 KiB more than the numbers below.
+- The first load's budget is 175.1 KiB, about 1.7 KiB more than CI measures.
+- The budgets of the groups loaded later are 1 to 7 per cent more than CI measures.
+- A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 533 KiB | 174 KiB |
-| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, and the layout of the chart's labels) | 2 | 631 KiB | 216 KiB |
-| On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 27 KiB | 12 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 529 KiB | 173 KiB |
+| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 2 | 641 KiB | 221 KiB |
+| On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 28 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
-| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 139 KiB | 45 KiB |
+| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 2 | 145 KiB | 47 KiB |
 | With the menus, for a German report only (the menus' German texts) | 1 | 20 KiB | 7 KiB |
 | When a view has unused parts (their plain words: English, and German for a German report) | 2 | 16 KiB | 5 KiB |
-| With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 54 KiB | 21.5 KiB |
-| With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 25 KiB | 10 KiB |
+| With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 54 KiB | 22 KiB |
+| With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 27 KiB | 11 KiB |
 
 The element bundles ECharts instead of leaving it to the page. A page without a bundler or an import
 map would have no way to provide it. Loading it on first use keeps it out of the first load.
