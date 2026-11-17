@@ -955,8 +955,8 @@ scroll further, so the table or the page behind never scrolls. `overscroll-behav
 the same for touch. A menu is at most as high as the window, and scrolls inside.
 
 No menu folds. The Export menus are flat lists in titled groups (`role="group"` with its title).
-The chart type menu has its types first, then its Display settings in levels like the field and
-Options menus.
+The chart type menu has its types first, then a row per Display topic that opens a level, like the
+field and Options menus.
 
 An "i" next to a setting explains it on hover, focus or tap. Settings with an "i": the totals, Show
 as, Excel and CSV in the export menu, and Labels and Group labels of the chart.

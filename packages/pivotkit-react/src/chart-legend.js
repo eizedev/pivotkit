@@ -48,15 +48,26 @@ export function followChart(instance, { onLegend, onZoom }) {
 }
 
 /**
+ * @typedef {{ start: number, end: number, count: number, beside: boolean, offset: number, size: number,
+ *   move: (start: number, end: number) => void }} ZoomControl  the slider's window, where it is, and how to move it
+ */
+
+/**
  * Follows the legend and the zoom slider of a chart (followChart) and keeps the slider's window.
  * @param {any} instance  the chart's ECharts instance
- * @param {{ categories: () => readonly string[] | undefined, onLegend: (change: { name: string, shown: boolean }) => void, redraw: () => void }} on
- *   categories: the categories drawn now; redraw: draws the chart again (a window of another size)
+ * @param {{ categories: () => readonly string[] | undefined, onLegend: (change: { name: string, shown: boolean }) => void, redraw: () => void,
+ *   onWindow: (control: ZoomControl | null) => void }} on
+ *   categories: the categories drawn now; redraw: draws the chart again (a window of another size);
+ *   onWindow: the slider's window and place as they change (zoomKeyProps draws its keyboard control
+ *   from it), null without a slider
  */
-export function chartKeeper(instance, { categories, onLegend, redraw }) {
+export function chartKeeper(instance, { categories, onLegend, redraw, onWindow }) {
     /** @type {ZoomWindow | null} */
     let kept = null;
     let span = -1;
+    /** @type {ZoomControl | null} */
+    let control = null;
+    const move = (/** @type {number} */ start, /** @type {number} */ end) => instance.dispatchAction({ type: "dataZoom", dataZoomIndex: 0, startValue: start, endValue: end });
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     let wait;
     followChart(instance, {
@@ -67,6 +78,10 @@ export function chartKeeper(instance, { categories, onLegend, redraw }) {
                 return;
             }
             kept = { names, start, end };
+            if (control) {
+                control = { ...control, start, end };
+                onWindow(control);
+            }
             if (end - start !== span) {
                 clearTimeout(wait);
                 wait = setTimeout(redraw, RELAYOUT_WAIT);
@@ -87,10 +102,16 @@ export function chartKeeper(instance, { categories, onLegend, redraw }) {
             timeline: autoChartType(result.view, result.encoded) === "line",
             touch: Boolean(doc.defaultView?.matchMedia?.("(pointer: coarse)").matches)
         }),
-        /** The slider drawn: its window's size, to tell a move from a new size. @param {any[] | undefined} dataZoom */
+        /**
+         * The slider drawn: its window's size, to tell a move from a new size, and its keyboard control.
+         * @param {any[] | undefined} dataZoom  decorateOption's
+         */
         drawn: (dataZoom) => {
             const z = dataZoom?.[0];
             span = z ? z.endValue - z.startValue : -1;
+            const beside = z?.orient === "vertical";
+            control = z ? { start: z.startValue, end: z.endValue, count: categories()?.length ?? z.endValue + 1, beside, offset: beside ? z.right : z.bottom, size: beside ? z.width : z.height, move } : null;
+            onWindow(control);
         },
         dispose: () => clearTimeout(wait)
     };
@@ -133,3 +154,81 @@ export function shownOnly(s, hidden, slices) {
     };
 }
 
+/** Keys that move the window forward (right, or down the categories of horizontal bars) and back. */
+export const FORWARD = new Set(["ArrowRight", "ArrowDown"]);
+export const BACK = new Set(["ArrowLeft", "ArrowUp"]);
+
+/**
+ * The window after a key, or null for a key that does not change it:
+ * - an arrow moves it by one category; Page Up and Page Down by its own size
+ * - Shift with an arrow makes it one category larger (forward) or smaller (back), at least two
+ * - Home and End move it to the first and the last categories
+ * @param {{ start: number, end: number }} at  the first and last category shown, by index
+ * @param {number} count  the categories
+ * @param {string} key
+ * @param {boolean} shift
+ * @returns {{ start: number, end: number } | null}
+ */
+export function nextWindow({ start, end }, count, key, shift) {
+    const span = end - start;
+    const last = count - 1;
+    /** @type {{ start: number, end: number } | null} */
+    let next = null;
+    if (shift && FORWARD.has(key)) {
+        next = { start, end: Math.min(last, end + 1) };
+    } else if (shift && BACK.has(key)) {
+        next = { start, end: Math.max(start + 1, end - 1) };
+    } else {
+        const by = FORWARD.has(key) ? 1 : BACK.has(key) ? -1 : key === "PageDown" ? span + 1 : key === "PageUp" ? -(span + 1) : key === "Home" ? -count : key === "End" ? count : 0;
+        if (by) {
+            const from = Math.min(Math.max(0, start + by), last - span);
+            next = { start: from, end: from + span };
+        }
+    }
+    return next && (next.start !== start || next.end !== end) ? next : null;
+}
+
+/**
+ * The zoom slider by keyboard (#575): ECharts draws its slider on the canvas, which takes no focus.
+ * An element of our own lies over the slider's row: a focusable ARIA slider that moves and resizes
+ * the window with the keys (nextWindow), says which categories it shows, and draws the focus ring. It
+ * takes no pointer input (styles.css), so the mouse and a finger still reach ECharts' slider below.
+ * These are its props; the chart draws it as a plain element, so this chunk needs no React.
+ * @param {ZoomControl} control
+ * @param {{ chartZoom: string, chartZoomWindow: string }} labels
+ * @param {(text: string, values: Record<string, string>) => string} fill  labels.js's
+ * @param {string} [locale]
+ */
+export function zoomKeyProps({ start, end, count, beside, offset, size, move }, labels, fill, locale) {
+    const n = (/** @type {number} */ x) => x.toLocaleString(locale);
+    return {
+        // its place, through the CSSOM, which a strict Content-Security-Policy allows
+        ref: (/** @type {HTMLElement | null} */ el) => {
+            el?.style.setProperty(beside ? "right" : "bottom", `${offset}px`);
+            el?.style.setProperty(beside ? "width" : "height", `${size}px`);
+        },
+        role: "slider",
+        tabIndex: 0,
+        className: `pk-zoom-keys${beside ? " pk-zoom-keys-beside" : ""}`,
+        "aria-label": labels.chartZoom,
+        "aria-orientation": /** @type {"vertical" | "horizontal"} */ (beside ? "vertical" : "horizontal"),
+        "aria-valuemin": 1,
+        "aria-valuemax": count,
+        "aria-valuenow": start + 1,
+        "aria-valuetext": fill(labels.chartZoomWindow, { from: n(start + 1), to: n(end + 1), count: n(count) }),
+        "data-testid": "chart-zoom-keys",
+        onKeyDown: (/** @type {KeyboardEvent} */ e) => {
+            if (e.altKey || e.ctrlKey || e.metaKey) {
+                return;
+            }
+            const next = nextWindow({ start, end }, count, e.key, e.shiftKey);
+            if (next || FORWARD.has(e.key) || BACK.has(e.key) || ["Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+                // at an end the key still belongs to the slider: the page does not scroll
+                e.preventDefault();
+            }
+            if (next) {
+                move(next.start, next.end);
+            }
+        }
+    };
+}

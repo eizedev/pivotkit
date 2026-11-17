@@ -20,7 +20,6 @@ import { SHORTCUTS } from "./tips.js";
 import { LevelMenu } from "./levels.jsx";
 import { afterDelete, chartTopics, entryIds, optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
-import { hiddenAfter } from "./view-ops.js";
 import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
@@ -43,9 +42,6 @@ function ChartTypeOptions({ view, plan, labels, onChart, close }) {
     ));
 }
 
-/** The most series (or slices) the Display settings list to show or hide; the legend has every one. */
-const MAX_LISTED = 50;
-
 /**
  * The legend's entries of the chart drawn: a pie's and a donut's slices, the series of bars, lines
  * and areas; a heatmap has none.
@@ -57,21 +53,6 @@ function legendNames(drawn, series) {
         return [];
     }
     return [...new Set(SLICE_TYPES.includes(drawn) ? series.categories : series.series.map((s) => s.name))];
-}
-
-/** Each legend entry with a checkbox: shown or hidden, as a click on it in the legend (chart.hidden). */
-function ShownEntries({ names, hidden, onDisplay }) {
-    const name = useFormName();
-    return (
-        <div className="pk-series-list" data-testid="chart-series-list">
-            {names.slice(0, MAX_LISTED).map((n) => (
-                <label key={n} className="pk-check">
-                    <input type="checkbox" name={name} checked={!hidden.includes(n)} onChange={(e) => onDisplay({ hidden: hiddenAfter(hidden, n, e.target.checked) })} />
-                    <span>{n}</span>
-                </label>
-            ))}
-        </div>
-    );
 }
 
 /** The chart's title: applied with Enter or Apply; the × removes it at once. */
@@ -111,8 +92,8 @@ function ChartTitle({ title, labels, onDisplay }) {
 
 /**
  * The chart type menu: the types (a pick closes it), then how the chart is drawn, in levels as the
- * other menus (levels.jsx, menu-topics.js chartTopics): value labels and the legend right there, the
- * title, Axis, Tooltip, Series and Layout each a level. Each choice applies at once and the menu stays
+ * other menus (levels.jsx, menu-topics.js chartTopics): a row per topic with what is set, each
+ * opening its level (Value labels, Legend, Title, Axis, Tooltip, Series, Layout). Each choice applies at once and the menu stays
  * open, so the chart behind it shows the change.
  */
 export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, series }) {
@@ -120,18 +101,11 @@ export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, 
     const names = legendNames(drawn, series);
     const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay } });
     const head = (
-        <>
-            <Section title={labels.chartType}>
-                <div className="pk-choice-grid">
-                    <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
-                </div>
-            </Section>
-            <div className="pk-section pk-display-head">
-                <div className="pk-section-head">
-                    <div className="pk-section-title">{labels.chartDisplay}</div>
-                </div>
+        <Section title={labels.chartType}>
+            <div className="pk-choice-grid">
+                <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
             </div>
-        </>
+        </Section>
     );
     return (
         <LevelMenu
@@ -141,7 +115,7 @@ export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, 
             close={close}
             onPick={runChoice(close)}
             head={head}
-            panel={(id) => (id === "title" ? <ChartTitle title={view.chart.title} labels={labels} onDisplay={onDisplay} /> : id === "series" ? <ShownEntries names={names} hidden={view.chart.hidden ?? []} onDisplay={onDisplay} /> : null)}
+            panel={(id) => (id === "title" ? <ChartTitle title={view.chart.title} labels={labels} onDisplay={onDisplay} /> : null)}
         />
     );
 }

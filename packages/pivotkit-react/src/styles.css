@@ -1287,8 +1287,7 @@
     min-width: 0;
 }
 
-.pk-setting-row > .pk-option,
-.pk-setting-row > .pk-switch {
+.pk-setting-row > .pk-option {
     flex: 1;
     min-width: 0;
 }
@@ -2172,69 +2171,6 @@
     margin: 0;
 }
 
-.pk-switch {
-    display: flex;
-    align-items: center;
-    gap: 0.7em;
-    min-height: 2.2em;
-    padding: 0 0.6em;
-    border-radius: var(--pk-radius-sm);
-    cursor: pointer;
-}
-
-.pk-switch:hover {
-    background: var(--pk-surface-3);
-}
-
-.pk-switch-text {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.pk-switch input {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
-}
-
-.pk-switch-track {
-    position: relative;
-    width: 2.1em;
-    height: 1.2em;
-    flex: none;
-    border-radius: 999px;
-    background: var(--pk-border-strong);
-    transition: background var(--pk-duration);
-}
-
-.pk-switch-track::after {
-    content: "";
-    position: absolute;
-    top: 0.15em;
-    left: 0.15em;
-    width: 0.9em;
-    height: 0.9em;
-    border-radius: 50%;
-    background: var(--pk-knob);
-    box-shadow: var(--pk-shadow-sm);
-    transition: transform var(--pk-duration) var(--pk-ease);
-}
-
-.pk-switch input:checked + .pk-switch-track {
-    background: var(--pk-accent);
-}
-
-.pk-switch input:checked + .pk-switch-track::after {
-    transform: translateX(0.9em);
-}
-
-.pk-switch input:focus-visible + .pk-switch-track {
-    outline: var(--pk-focus-width) solid var(--pk-focus);
-    outline-offset: var(--pk-focus-offset);
-}
-
 /* filter */
 
 .pk-filter {
@@ -2855,6 +2791,27 @@
     display: flex;
     flex: 1;
     min-height: 0;
+}
+
+/* the zoom slider by keyboard (chart-legend.js zoomKeyProps): over the slider's row, the mouse passes through;
+   its ring shows where the keys act */
+.pk-zoom-keys {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-radius: var(--pk-radius-sm);
+    pointer-events: none;
+}
+
+.pk-zoom-keys-beside {
+    left: auto;
+    top: 0;
+    bottom: 0;
+}
+
+.pk-zoom-keys:focus-visible {
+    outline: var(--pk-focus-width) solid var(--pk-focus);
+    outline-offset: var(--pk-focus-offset);
 }
 
 /* exactly the box: a canvas taller than its box is cut at the bottom (axes, a pie's lower half) */
@@ -3958,18 +3915,4 @@
 /* under "Also show items with the same value as the last one": in line with its words */
 .pk-level-form > .pk-top-shown {
     padding-left: calc(1.7em + 0.6em);
-}
-
-/* the series (or slices) a chart shows, each with a checkbox (chart type menu, Display) */
-.pk-series-list {
-    display: flex;
-    flex-direction: column;
-    max-height: calc(8 * var(--pk-target));
-    overflow-y: auto;
-}
-
-.pk-series-list > .pk-check > span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }

@@ -168,12 +168,14 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await chartMenu(report);
         await expect(report.getByTestId("topic-state-series")).toContainText("2 of 3 shown");
         await report.getByTestId("topic-series").click();
-        const list = report.getByTestId("chart-series-list");
-        await expect(list.getByRole("checkbox", { name: "Services" })).not.toBeChecked();
-        await expect(list.getByRole("checkbox", { name: "Hardware" })).toBeChecked();
-        await list.getByRole("checkbox", { name: "Services" }).click();
+        // one switch per series, as Layout's: the level stays open after each
+        const list = report.getByTestId("level-series");
+        await expect(list.getByRole("menuitemcheckbox", { name: "Services" })).toHaveAttribute("aria-checked", "false");
+        await expect(list.getByRole("menuitemcheckbox", { name: "Hardware" })).toHaveAttribute("aria-checked", "true");
+        await list.getByRole("menuitemcheckbox", { name: "Services" }).click();
         await expect.poll(() => lastView(page).then((c) => c?.hidden)).toEqual([]);
-        await list.getByRole("checkbox", { name: "Software" }).click();
+        await expect(list.getByRole("menuitemcheckbox", { name: "Services" })).toHaveAttribute("aria-checked", "true");
+        await list.getByRole("menuitemcheckbox", { name: "Software" }).click();
         await expect.poll(() => lastView(page).then((c) => c?.hidden)).toEqual(["Software"]);
         await page.keyboard.press("Escape");
         await settled(chartEl);
@@ -352,13 +354,19 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
         await expect(report.getByTestId("level-title")).toHaveText("Display › Tooltip");
         await page.keyboard.press("Escape");
         await expect(report.getByTestId("topic-tooltip")).toBeFocused();
-        // Series is a panel: Tab through its checkboxes, Space hides one
+        // Series: a switch per series; Space and Enter flip one, the level stays with the focus on it
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("Enter");
         await expect(report.getByTestId("level-title")).toHaveText("Display › Series");
-        await expect(report.getByRole("checkbox", { name: "Hardware" })).toBeFocused();
+        const hardware = report.getByRole("menuitemcheckbox", { name: "Hardware" });
+        await expect(hardware).toBeFocused();
         await page.keyboard.press("Space");
         await expect.poll(() => lastView(page).then((c) => c?.hidden)).toEqual(["Hardware"]);
+        await expect(hardware).toBeFocused();
+        await expect(hardware).toHaveAttribute("aria-checked", "false");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("Enter");
+        await expect.poll(() => lastView(page).then((c) => c?.hidden)).toEqual(["Hardware", "Services"]);
         await page.keyboard.press("Escape");
         await expect(report.getByTestId("topic-series")).toBeFocused();
         // Escape on the first level closes the menu, the focus back on its button
@@ -383,6 +391,81 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
             await report.getByTestId("level-back").click();
             await expect(report.getByTestId(`topic-${topic}`)).toBeFocused();
         }
+    });
+
+    for (const [width, height] of [[1280, 900], [390, 800]]) {
+        test(`the first level at ${width}x${height}: the chart types, then one row per topic, all in view or after a short scroll`, async ({ page }) => {
+            await page.setViewportSize({ width, height });
+            await mount(page, { type: "line" }, { view: { ...VIEW, rows: ["Region"] } });
+            const report = page.locator("#zoom-report");
+            await chartMenu(report);
+            const rows = await report.locator(".pk-popover [data-pk-level]").evaluateAll((els) => els.map((el) => el.dataset.testid));
+            expect(rows).toEqual(["topic-valueLabels", "topic-legend", "topic-title", "topic-axis", "topic-tooltip", "topic-series", "topic-layout"]);
+            // no group titles of their own between the chart types and the rows
+            await expect(report.locator(".pk-popover .pk-section-title")).toHaveText(["Chart type"]);
+            const fit = await report.locator(".pk-popover").evaluate((pop) => {
+                const scroller = [pop, ...pop.querySelectorAll("*")].find((el) => el.scrollHeight > el.clientHeight + 1 && getComputedStyle(el).overflowY !== "visible");
+                return scroller ? scroller.scrollHeight - scroller.clientHeight : 0;
+            });
+            // at most about two rows to scroll
+            expect(fit).toBeLessThanOrEqual(80);
+        });
+    }
+});
+
+test.describe("the zoom slider by keyboard (#575)", () => {
+    test("Tab reaches it; arrows move the window, Shift with an arrow resizes it, Home and End; it says what it shows", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("pages/host.html");
+        const chartEl = await mount(page, { type: "bar" }, { view: COUNTRY_VIEW, rows: COUNTRIES });
+        const report = page.locator("#zoom-report");
+        const keys = report.getByTestId("chart-zoom-keys");
+        const first = await inChart(chartEl, sliderOf);
+        await expect(keys).toHaveAttribute("aria-valuetext", `Categories 1 to ${first.end + 1} of 40`);
+        // from the element before it, with Tab, as a keyboard reaches it: its ring shows
+        await keys.evaluate((el) => {
+            const before = document.createElement("button");
+            before.textContent = "before";
+            before.id = "before-zoom";
+            el.closest(".pk-root").prepend(before);
+        });
+        await page.locator("#before-zoom").focus();
+        for (let i = 0; i < 40 && !(await keys.evaluate((el) => el === el.getRootNode().activeElement)); i++) {
+            await page.keyboard.press("Tab");
+        }
+        await expect(keys).toBeFocused();
+        expect(await keys.evaluate((el) => getComputedStyle(el).outlineStyle)).not.toBe("none");
+        await page.keyboard.press("ArrowRight");
+        await expect.poll(async () => (await inChart(chartEl, sliderOf)).start).toBe(1);
+        await expect(keys).toHaveAttribute("aria-valuetext", `Categories 2 to ${first.end + 2} of 40`);
+        await page.keyboard.press("End");
+        await expect.poll(async () => (await inChart(chartEl, sliderOf)).end).toBe(39);
+        await page.keyboard.press("Home");
+        await expect.poll(async () => (await inChart(chartEl, sliderOf)).start).toBe(0);
+        // Shift+Right twice: two more categories; once the slider rests, the axis lays its names out again
+        await page.keyboard.press("Shift+ArrowRight");
+        await page.keyboard.press("Shift+ArrowRight");
+        await expect.poll(async () => (await inChart(chartEl, sliderOf)).end).toBe(first.end + 2);
+        await expect(keys).toHaveAttribute("aria-valuetext", `Categories 1 to ${first.end + 3} of 40`);
+        await settled(chartEl);
+        await expect(keys).toBeFocused();
+        // the page did not scroll with the keys
+        expect(await page.evaluate(() => window.scrollX)).toBe(0);
+    });
+
+    test("the mouse still reaches ECharts' slider through the keyboard control", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("pages/host.html");
+        const chartEl = await mount(page, { type: "bar" }, { view: COUNTRY_VIEW, rows: COUNTRIES });
+        const first = await inChart(chartEl, sliderOf);
+        const from = await inPage(chartEl, first.filler);
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(from.x + 60, from.y, { steps: 6 });
+        await page.mouse.up();
+        await stillAfterDrag(page, chartEl);
+        const moved = await inChart(chartEl, sliderOf);
+        await expect(page.locator("#zoom-report").getByTestId("chart-zoom-keys")).toHaveAttribute("aria-valuetext", `Categories ${moved.start + 1} to ${moved.end + 1} of 40`);
     });
 });
 

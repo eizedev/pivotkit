@@ -298,7 +298,9 @@ const SHOTS = [
         size: WIDE,
         chart: true,
         open: async (page) => {
+            // the legend at the bottom (its level), back on the first level: the chart types and the topic rows
             await toolbar(page, "chart-type");
+            await page.getByTestId("topic-legend").click();
             await page.getByTestId("legend-bottom").click();
         }
     },

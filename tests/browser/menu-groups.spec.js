@@ -75,19 +75,17 @@ test("Views in German: the same groups, Ansichtsdatei öffnen…", async ({ page
     await expect(menu.getByTestId("load-view")).toHaveText("Ansichtsdatei öffnen…");
 });
 
-test("the chart type menu: Chart type, then Display in levels: Value labels and Legend as groups, the other topics as rows (#106)", async ({ page }) => {
+test("the chart type menu: Chart type, then a row per Display topic that opens its level (#106)", async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1100 });
     await page.goto("?data=sales&preset=1");
     await toolbar(page, "chart-type");
     const menu = page.locator(".pk-chart-menu");
     const groups = await groupsOf(menu);
-    expect(groups.map((g) => g.title)).toEqual(["Chart type", "Display", "Value labels", "Legend"]);
-    // a rule between Chart type and Display, and between Display's groups; Display's first group sits right under its title
-    expect(ruled(groups)).toEqual([false, true, false, true]);
+    expect(groups.map((g) => g.title)).toEqual(["Chart type"]);
     expect(groups.every((g) => g.bold)).toBe(true);
     // the rows that open levels, each with what is set: lines over months have every topic
     const rows = await menu.locator("[data-pk-level]").evaluateAll((els) => els.map((el) => el.dataset.testid));
-    expect(rows).toEqual(["topic-title", "topic-axis", "topic-tooltip", "topic-series", "topic-layout"]);
+    expect(rows).toEqual(["topic-valueLabels", "topic-legend", "topic-title", "topic-axis", "topic-tooltip", "topic-series", "topic-layout"]);
     await expect(menu.getByRole("menu", { name: "Display" })).toBeVisible();
 });
 

@@ -386,7 +386,6 @@ export const en = {
     zoomNames: { auto: "Automatic", on: "On", off: "Off" },
     stackPercent: "Stacked to 100 %",
     shownSeries: "Series",
-    shownSlices: "Slices",
     seriesShownOf: "{shown} of {count} shown",
     chartAxis: "Axis",
     chartLayout: "Layout",

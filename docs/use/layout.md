@@ -183,8 +183,8 @@ The menu of a chip, **Options** and **Views** are in levels, so their first leve
 **Views** is in levels too. Its first level is the list to scan: This view, Shared views, My views,
 Share this view. Save as…, Open view file… and the questions before a delete or a publish open
 levels of their own. See [views](views.md#the-views-menu). The chart type menu's Display settings
-are in levels too: Value labels and Legend first, then Title, Axis, Tooltip, Series and Layout as
-rows that open levels. See [charts](charts.md#display-settings). The Export menus, **Start over**
+are in levels too: below the chart types, Value labels, Legend, Title, Axis, Tooltip, Series and
+Layout are rows that open levels. See [charts](charts.md#display-settings). The Export menus, **Start over**
 and **More** are flat lists. No menu folds.
 
 Every menu draws its groups alike. Each group stands under its title in bold, with a line between one

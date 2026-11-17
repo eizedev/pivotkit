@@ -74,12 +74,15 @@ A pie, a donut and a heatmap always show the slice or cell under the pointer.
 
 `chart.zoom` puts a slider under the category axis of bars, lines and areas:
 
-- `"auto"` adds it for more than 20 categories (`ZOOM_AUTO.categories`), or when the axis would
-  leave out 3 labels or more between two it writes (`ZOOM_AUTO.skipped`).
+- `"auto"` adds it for more than 20 categories, or when the axis would leave out 3 labels or more
+  between two it writes.
 - The first window holds as many categories as the axis can name: the latest over dates on Rows,
   else the first ones. Its ends widen it up to every category, and the labels are laid out again.
 - `"on"` always adds it. `"off"` never does.
 - An SVG, an HTML report and a print draw every category. The PNG image leaves the slider out.
+- pivotkit-react lays a keyboard control over the slider: an element with `role="slider"` that
+  moves and resizes the window with the arrow, Page and Home and End keys, and says which
+  categories it shows (`aria-valuetext`). The canvas itself takes no focus.
 
 `chart.stackPercent` stacks bars and areas to 100 %:
 

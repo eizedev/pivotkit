@@ -95,3 +95,20 @@ test("a 100 % stack's tooltip with a part below zero and a category that adds up
     const south = tooltipContent(paramsAt(option, 1), { valueFormatter, shareFormatter, series, mode: "axis" });
     assert.deepEqual(south.lines, []);
 });
+
+test("the zoom window by keyboard: arrows move it, Shift with an arrow resizes it, Page keys move it by its size, Home and End", async () => {
+    const { nextWindow } = await import("../src/chart-legend.js");
+    const at = { start: 10, end: 19 };
+    assert.deepEqual(nextWindow(at, 40, "ArrowRight", false), { start: 11, end: 20 });
+    assert.deepEqual(nextWindow(at, 40, "ArrowUp", false), { start: 9, end: 18 });
+    assert.deepEqual(nextWindow(at, 40, "ArrowRight", true), { start: 10, end: 20 });
+    assert.deepEqual(nextWindow(at, 40, "ArrowLeft", true), { start: 10, end: 18 });
+    assert.deepEqual(nextWindow(at, 40, "PageDown", false), { start: 20, end: 29 });
+    assert.deepEqual(nextWindow(at, 40, "PageUp", false), { start: 0, end: 9 });
+    assert.deepEqual(nextWindow(at, 40, "Home", false), { start: 0, end: 9 });
+    assert.deepEqual(nextWindow(at, 40, "End", false), { start: 30, end: 39 });
+    // at the ends nothing changes; the smallest window is two categories
+    assert.equal(nextWindow({ start: 30, end: 39 }, 40, "ArrowRight", false), null);
+    assert.equal(nextWindow({ start: 5, end: 6 }, 40, "ArrowLeft", true), null);
+    assert.equal(nextWindow(at, 40, "a", false), null);
+});

@@ -57,6 +57,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     // the legend and the zoom slider between draws (chart-legend.js); a new window size draws again
     const keeper = useRef(/** @type {any} */ (null));
     const [zoomed, setZoomed] = useState(0);
+    // the zoom slider's window and place, for its keyboard control (chart-legend.js zoomKeyProps)
+    const [zoomKeys, setZoomKeys] = useState(/** @type {any} */ (null));
     // what the text alternative says: the series shown, and whether they are a 100 % stack's shares
     const [shown, setShown] = useState(/** @type {{ series: any, shares: boolean } | null} */ (null));
     // the ECharts module (echarts.js), with the report's marks (decorate) and the check and merge of the host's chartOptions
@@ -117,7 +119,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                     const value = kind === "heatmap" ? p.value[2] : typeof p.data?.raw === "number" ? p.data.raw : p.value;
                     cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value });
                 });
-                keeper.current = echarts.chartKeeper(instance, { categories: () => latest.current.series?.categories, onLegend: (/** @type {any} */ change) => latest.current.onLegend?.(change), redraw: () => setZoomed((n) => n + 1) });
+                keeper.current = echarts.chartKeeper(instance, { categories: () => latest.current.series?.categories, onLegend: (/** @type {any} */ change) => latest.current.onLegend?.(change), redraw: () => setZoomed((n) => n + 1), onWindow: (/** @type {any} */ control) => setZoomKeys(control ? { ...control, props: echarts.zoomKeyProps } : null) });
                 // ECharts draws the tooltip before it reports the element under the pointer: the
                 // element is kept, and the tooltip drawn again at the pointer. hideTip first: at the
                 // same category ECharts keeps what it drew and would not call the formatter again.
@@ -230,6 +232,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 <p id={summaryId} className="pk-sr" data-testid="chart-summary">
                     {summary}
                 </p>
+                {zoomKeys ? <div {...zoomKeys.props(zoomKeys, labels, fill, locale)} /> : null}
                 {!ready && !failed ? <div className="pk-chart-note">{labels.loadingChart}</div> : null}
                 {failed ? <div className="pk-chart-note pk-error">{failed}</div> : null}
                 {ready && empty ? <div className="pk-chart-note">{labels.noChartData}</div> : null}

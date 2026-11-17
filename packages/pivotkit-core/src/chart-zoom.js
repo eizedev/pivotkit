@@ -4,7 +4,13 @@
  * chart on a screen asks for it; an SVG and a printed report draw every category.
  */
 
-/** The slider's thickness by default (a control's least size, --pk-target) and the room between it and the axis labels, in px. */
+/**
+ * The slider's thickness and the room between it and the axis labels, in px. decorateOption takes
+ * the thickness from the tokens, --pk-target (a control) or --pk-target-touch (a finger), resolved
+ * to px (pivotkit-react's chartStyle); `size` is the fallback where no token gives a length in px,
+ * as in an SVG without a stylesheet. The gap is part of the chart's layout, as its other margins
+ * (chart-measure.js): no token sets it.
+ */
 export const ZOOM_SLIDER = Object.freeze({ size: 24, gap: 8 });
 
 /**

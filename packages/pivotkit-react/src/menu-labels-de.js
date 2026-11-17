@@ -342,7 +342,6 @@ export const de = {
     zoomNames: { auto: "Automatisch", on: "Ein", off: "Aus" },
     stackPercent: "Gestapelt auf 100 %",
     shownSeries: "Reihen",
-    shownSlices: "Segmente",
     seriesShownOf: "{shown} von {count} angezeigt",
     chartAxis: "Achse",
     chartLayout: "Anordnung",

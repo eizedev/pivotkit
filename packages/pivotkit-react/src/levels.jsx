@@ -430,6 +430,12 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
             open(choice.open, choice.backTo ?? `item:${choice.id}`);
             return;
         }
+        if (choice.stays) {
+            // one of several to toggle (a series shown or hidden): the level stays, the focus on it
+            onPick(choice);
+            setNav({ stack: nav.stack, focus: `item:${choice.id}` });
+            return;
+        }
         if (!choice.closes) {
             // the summary shows the new state, the focus on the row of the topic (or the search)
             setNav({ stack: [], focus: query ? "search" : nav.stack.length ? nav.stack[0].from : `item:${choice.id}` });

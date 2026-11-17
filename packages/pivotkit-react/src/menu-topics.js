@@ -11,7 +11,7 @@
 import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
 import { groupingName, refLabel, relativeText, sortText, valueLabel } from "./names.js";
-import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
+import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, hiddenAfter, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
 import { valueAddsUp } from "./adds-up.js";
 import { CHART_TYPES, SLICE_TYPES } from "./chart-types.js";
 import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
@@ -22,10 +22,11 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  * away). `checkbox`: a switch (`checked` on or off) instead of one of several; `disabled` with the
  * `reason`; `info`: the id of its explanation (labels.settingInfo). `open`: the id of a topic whose
  * level it opens (after `run`; Back puts the focus on `backTo`, else on the choice), instead of applying; `actions`: an entry's own actions next to it
- * (choices themselves, drawn as icon buttons with `label`); `current`: the entry shown now.
+ * (choices themselves, drawn as icon buttons with `label`); `current`: the entry shown now; `stays`: its level stays
+ * open after it (one of several switches people flip in a row, the series shown).
  * @typedef {{ id: string, text: string, change?: () => { view: any, note: any } | null, run?: () => void, checked?: boolean,
  *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
- *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string }} Choice
+ *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string, stays?: boolean }} Choice
  */
 
 /**
@@ -464,10 +465,10 @@ export function optionTopics({ view, labels, folding, tips, explanations, act })
 const VALUE_LABELS = Object.freeze({ slices: ["auto", "off", "value", "percent", "both"], other: ["auto", "off", "value"] });
 
 /**
- * The topics of the chart type menu's Display settings (#106): value labels and the legend on the
- * first level, the title a row with its form; Axis (axis and group labels, the zoom slider), Tooltip,
- * Series (shown or hidden) and Layout (100 % stacks, smooth lines, a pie's label position) open
- * levels. A topic the chart has nothing for is left out. Every choice applies `act.display(patch)`
+ * The topics of the chart type menu's Display settings (#106), each a row with what is set that opens
+ * its level: Value labels, Legend, Title (a form), Axis (axis and group labels, the zoom slider),
+ * Tooltip, Series (one switch per series or slice, the level stays open) and Layout (100 % stacks,
+ * smooth lines, a pie's label position). A topic the chart has nothing for is left out. Every choice applies `act.display(patch)`
  * (pivotkit-core's chart settings); the type stays. Reference lines (#577) come after Tooltip.
  * @param {{ view: any, drawn: string, labels: any, names: string[], act: { display: (patch: object) => void } }} input
  *   `drawn`: the picker entry drawn (chart-types.js); `names`: the legend's entries (series, a pie's slices)
@@ -488,11 +489,12 @@ export function chartTopics({ view, drawn, labels, names, act }) {
         {
             id: "valueLabels",
             title: labels.valueLabels,
-            kind: "inline",
-            titled: true,
+            kind: "menu",
+            state: labels.valueLabelNames[valueLabels],
+            changed: valueLabels !== "auto",
             groups: [{ choices: (pie ? VALUE_LABELS.slices : VALUE_LABELS.other).map((v) => ({ ...pickOf("valueLabels", v, labels.valueLabelNames[v], `labels-${v}`), checked: valueLabels === v })) }]
         },
-        { id: "legend", title: labels.legend, kind: "inline", titled: true, groups: [{ choices: ["auto", "bottom", "right", "off"].map((v) => pickOf("legend", v, labels.legendNames[v], `legend-${v}`)) }] },
+        { id: "legend", title: labels.legend, kind: "menu", state: labels.legendNames[chart.legend], changed: chart.legend !== "auto", groups: [{ choices: ["auto", "bottom", "right", "off"].map((v) => pickOf("legend", v, labels.legendNames[v], `legend-${v}`)) }] },
         { id: "title", title: labels.chartTitle, kind: "panel", state: chart.title || labels.chartTitleNone, changed: Boolean(chart.title) }
     ];
     if (axis) {
@@ -523,7 +525,16 @@ export function chartTopics({ view, drawn, labels, names, act }) {
     // the place of Reference lines (#577): after Tooltip, before Series
     if (names.length > 1) {
         const hidden = (chart.hidden ?? []).filter((/** @type {string} */ n) => names.includes(n)).length;
-        topics.push({ id: "series", title: pie ? labels.shownSlices : labels.shownSeries, kind: "panel", state: fill(labels.seriesShownOf, { shown: String(names.length - hidden), count: String(names.length) }), changed: hidden > 0 });
+        const now = chart.hidden ?? [];
+        topics.push({
+            id: "series",
+            title: labels.shownSeries,
+            kind: "menu",
+            state: fill(labels.seriesShownOf, { shown: String(names.length - hidden), count: String(names.length) }),
+            changed: hidden > 0,
+            // every series or slice, the level scrolls; a switch keeps the level open for the next one
+            groups: [{ choices: names.map((name, i) => ({ id: `series-${i}`, text: name, checkbox: true, stays: true, checked: !now.includes(name), run: () => act.display({ hidden: hiddenAfter(now, name, now.includes(name)) }) })) }]
+        });
     }
     /** @type {Choice[]} */
     const layout = [];

@@ -177,6 +177,9 @@ export const en = {
     // said when a click on the legend hides or shows a series (or a slice)
     // the chart's text alternative of a 100 % stack
     chartShares: "Shown as shares of each stack.",
+    // the zoom slider by keyboard: its name, and what it shows
+    chartZoom: "Zoom window",
+    chartZoomWindow: "Categories {from} to {to} of {count}",
     chartHidden: "{name} hidden",
     chartShown: "{name} shown",
     categories: "categories",
@@ -494,6 +497,8 @@ export const de = {
     chartMore: "+{count} weitere",
     chartMoreInTotal: "+{count} weitere (im Gesamtwert)",
     chartShares: "Als Anteile je Stapel dargestellt.",
+    chartZoom: "Zoom-Fenster",
+    chartZoomWindow: "Kategorien {from} bis {to} von {count}",
     chartHidden: "{name} ausgeblendet",
     chartShown: "{name} eingeblendet",
     categories: "Kategorien",

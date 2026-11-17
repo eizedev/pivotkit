@@ -8,13 +8,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Upgrading from 0.7
 
-- The chart type menu's Display settings are in levels, as the field and Options menus: Value
-  labels and Legend first, then Title, Axis, Tooltip, Series and Layout as rows that open levels
-  ([#106](https://github.com/eizedev/pivotkit/issues/106)). Tests open the level first; a choice is a menu item with `aria-checked`.
-- A chart of bars, lines or areas whose axis cannot name every category gets a zoom slider. A
-  click on the legend changes the view, so Undo takes it back. Display → Zoom slider → Off draws
-  every category as before
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-7)).
+- The chart type menu lists the types, then a row per Display topic that opens a level: Value
+  labels, Legend, Title, Axis, Tooltip, Series and Layout ([#106](https://github.com/eizedev/pivotkit/issues/106)). Tests open the
+  level first; a choice is a menu item with `aria-checked`.
+- Bars, lines and areas with more than 20 categories get a zoom slider. Display › Axis › Zoom slider
+  › Off draws every category as before. A click on the legend changes the view, so Undo takes it
+  back ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-7)).
 - Without `export-data`, the default, the drill-down panel has no Export menu: no copy and no
   download of its rows. Set `drill-down-export` to keep it
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
@@ -24,8 +23,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
-- The chart's zoom slider, the legend that hides and shows series in the view, and 100 % stacked
-  bars and areas ([#36](https://github.com/eizedev/pivotkit/issues/36)).
+- The chart's zoom slider, by mouse, touch and keyboard, the legend that hides and shows series in
+  the view, and 100 % stacked bars and areas ([#36](https://github.com/eizedev/pivotkit/issues/36)), ([#575](https://github.com/eizedev/pivotkit/issues/575)).
 - `drill-down-export` (boolean attribute) and the `drillDownExport` property: the drill-down panel's
   copy and download while `export-data` is off. As pivotkit-react's `drillDownExport`.
 
