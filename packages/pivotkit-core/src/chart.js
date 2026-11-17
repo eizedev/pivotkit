@@ -4,6 +4,7 @@
  * its own ECharts instance. Only a drawn chart needs this module: pivotkit-react loads it with ECharts.
  */
 
+import { colorLookup } from "./chart-colors.js";
 import { referenceLines } from "./chart-lines.js";
 import { lineLabelText } from "./chart-measure.js";
 import { autoChartType, toSeries } from "./chart-series.js";
@@ -142,6 +143,8 @@ function groupAxisOf(s, rowFields, chart, { separator, axisLine, theme }) {
  * @param {number} [options.maxCategories]  plots the first categories only, see toSeries
  * @param {ReturnType<typeof toSeries>} [options.series]  toSeries() of the same result and options, when
  *   the caller has it already (it is not computed twice)
+ * @param {Record<string, string>} [options.colorMap]  a fixed colour per series or slice name (hex,
+ *   rgb(), hsl() or a CSS name); the view's chart.colors win over it
  */
 export function toEChartsOption(result, options) {
     options = optionsOf(options, "toEChartsOption");
@@ -169,6 +172,10 @@ export function toEChartsOption(result, options) {
         ...(theme.colors && theme.colors.length ? { color: theme.colors } : {})
     };
     const valueFormatter = (v) => (typeof v === "number" ? fmt(v) : "");
+    // a share as the locale writes it ("12.5%", "12,5 %"): the tooltip's (not ECharts' own key)
+    const shareFormatter = formatterFor("percent100:1", locale);
+    // a fixed colour per series or slice by name: the view's, then the host's
+    const colorOf = colorLookup(chart.colors, options.colorMap, theme.colors);
     // a pie's or heatmap's one series is named by the value it draws (the tooltip's title): with a field
     // on Columns the first series is the first column's, but a slice adds every column, a cell names its own
     const vi = first ? first.valueIndex : 0;
@@ -186,9 +193,13 @@ export function toEChartsOption(result, options) {
     if (SLICE_CHART_TYPES.includes(chart.type)) {
         const data = s.categories
             .map((name, i) => ({ name, value: s.totals[vi] ? s.totals[vi][i] : null }))
-            .filter((d) => typeof d.value === "number" && d.value > 0);
+            .filter((d) => typeof d.value === "number" && d.value > 0)
+            .map((d, i) => {
+                const color = colorOf(d.name, i);
+                return color ? { ...d, itemStyle: { color } } : d;
+            });
         // the share as the locale writes it: "12.5%" in English, "12,5 %" in German
-        const percent = (p) => formatterFor("percent100:1", locale)(p.percent);
+        const percent = (p) => shareFormatter(p.percent);
         const inside = chart.labelPosition === "inside";
         // outside: the slice's name with what is chosen, on a line to the slice; inside: only the
         // number on the slice (the legend names the slices), the share when nothing is chosen
@@ -205,7 +216,7 @@ export function toEChartsOption(result, options) {
         return {
             ...base,
             ...title,
-            tooltip: { trigger: "item", valueFormatter },
+            tooltip: { trigger: "item", valueFormatter, shareFormatter },
             ...legendPart,
             series: [
                 {
@@ -280,7 +291,6 @@ export function toEChartsOption(result, options) {
     // stacked to 100 %: each part as its share of the stack, the axis from 0 to 100 % (chart.stackPercent)
     const percent = stacksToPercent(chart);
     const shares = percent ? percentShares(s.series, new Set(chart.hidden)) : null;
-    const shareFormatter = formatterFor("percent100:1", locale);
     if (shares) {
         const whole = formatterFor("percent100:0", locale);
         Object.assign(valueAxis, { max: 100, min: shares.negative ? -100 : 0, axisLabel: { ...valueAxis.axisLabel, formatter: (v) => whole(v) } });
@@ -306,24 +316,29 @@ export function toEChartsOption(result, options) {
         // the tooltip covers the category under the pointer; a UI's formatter narrows it to the element
         // under the pointer (chart.tooltip). The category lights up no bar: only the one under the
         // pointer does (decorateOption: a bar's focus is "self")
-        // shareFormatter (not ECharts'): a share as the locale writes it, for the tooltip of 100 % stacks
-        tooltip: { trigger: "axis", valueFormatter, ...(percent ? { shareFormatter } : {}) },
+        // shareFormatter (not ECharts'): a share as the locale writes it, for the tooltip (chart.tooltipShare, a 100 % stack)
+        tooltip: { trigger: "axis", valueFormatter, shareFormatter },
         ...(type === "bar" ? { axisPointer: { triggerEmphasis: false } } : {}),
         // room for the title and the legend; ECharts keeps its own defaults for the label margins
         grid: { top: GRID_TOP + titleRoom + room.top + marks.room, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
         xAxis: chart.horizontal ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
         yAxis: chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
-        series: s.series.map((x, i) => ({
-            type,
-            name: x.name,
-            // a 100 % stack's parts are { value: share, raw: value }
-            data: shares ? shares.data[i] : x.data,
-            ...(stacked ? { stack: "total" } : {}),
-            ...(chart.type === "area" ? { areaStyle: {} } : {}),
-            ...(type === "line" ? { connectNulls: false, smooth: Boolean(chart.smooth) } : {}),
-            ...valueLabel,
-            ...(marks.bySeries[i] ? { markLine: { silent: true, symbol: ["none", "none"], data: marks.bySeries[i] } } : {})
-        }))
+        series: s.series.map((x, i) => {
+            // a fixed colour (chart.colors, colorMap) for the bars, or the line and its fill
+            const color = colorOf(x.name, i);
+            return {
+                type,
+                name: x.name,
+                // a 100 % stack's parts are { value: share, raw: value }
+                data: shares ? shares.data[i] : x.data,
+                ...(stacked ? { stack: "total" } : {}),
+                ...(color ? { itemStyle: { color }, ...(type === "line" ? { lineStyle: { color } } : {}) } : {}),
+                ...(chart.type === "area" ? { areaStyle: color ? { color } : {} } : {}),
+                ...(type === "line" ? { connectNulls: false, smooth: Boolean(chart.smooth) } : {}),
+                ...valueLabel,
+                ...(marks.bySeries[i] ? { markLine: { silent: true, symbol: ["none", "none"], data: marks.bySeries[i] } } : {})
+            };
+        })
     };
 }
 

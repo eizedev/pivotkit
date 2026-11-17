@@ -45,10 +45,12 @@ test("bars: every topic a row with what is set that opens a level: Value labels,
     assert.equal(byId(topics, "axis").groups.some((g) => g.title === labels.groupLabels), false);
 });
 
-test("a pie: its value labels with percent, the label position under Layout, no Axis or Tooltip; slices in Series", () => {
+test("a pie: its value labels with percent, the label position under Layout, no Axis; the share in Tooltip; slices in Series", () => {
     const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "pie" } });
     const topics = chartTopics({ view, drawn: "pie", labels, names: ["North", "South"], act: { display: () => {} } });
-    assert.deepEqual(ids(topics), ["valueLabels", "legend", "title", "series", "layout"]);
+    assert.deepEqual(ids(topics), ["valueLabels", "legend", "title", "tooltip", "series", "layout"]);
+    // a pie's tooltip has the share only (#54)
+    assert.deepEqual(choices(byId(topics, "tooltip")).map((c) => c.id), ["chart-tooltip-share"]);
     assert.ok(choices(byId(topics, "valueLabels")).some((c) => c.id === "labels-percent"));
     assert.deepEqual(choices(byId(topics, "layout")).map((c) => c.id), ["label-position-outside", "label-position-inside"]);
     // one name for the topic: Series, its rows the slices
@@ -62,7 +64,9 @@ test("averages: no 100 % stack; lines: smooth lines; a heatmap has no Series; tw
     const line = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", smooth: true } });
     const lt = chartTopics({ view: line, drawn: "line", labels, names: ["Sum of Revenue"], act: { display: () => {} } });
     assert.deepEqual(choices(byId(lt, "layout")).map((c) => [c.id, c.checked]), [["chart-smooth", true]]);
-    assert.equal(byId(lt, "series"), undefined, "one series: nothing to hide");
+    // one series: Series has its colour; its switch says it is always shown (#54 review)
+    const only = choices(byId(lt, "series"));
+    assert.deepEqual(only.map((c) => [c.text, c.checked, c.disabled, c.reason, c.color.label]), [["Sum of Revenue", true, true, "The only series is always shown", "Colour of Sum of Revenue"]]);
     const heat = norm({ rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "heatmap" } });
     assert.deepEqual(ids(chartTopics({ view: heat, drawn: "heatmap", labels, names: [], act: { display: () => {} } })), ["valueLabels", "legend", "title"]);
     const two = norm({ rows: ["Region", "Country"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" } });
@@ -75,6 +79,34 @@ test("Series lists every series, however many: the level scrolls, none is left o
     const series = choices(byId(chartTopics({ view, drawn: "bar", labels, names, act: { display: () => {} } }), "series"));
     assert.equal(series.length, 120);
     assert.equal(series.at(-1).text, "Series 120");
+});
+
+test("Tooltip has the share as a switch; Series has a colour beside each series, Default for a view's own, Remove for a name not shown (#54)", () => {
+    const patches = [];
+    const view = norm({ rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar", tooltipShare: true, colors: [{ name: "services", color: "#123456" }, { name: "Gone", color: "#abcdef" }] } });
+    const drawnColors = new Map([["Hardware", "#2a78d6"], ["Services", "#123456"]]);
+    const topics = chartTopics({ view, drawn: "bar", labels, names: ["Hardware", "Services"], act: { display: (p) => patches.push(p) }, drawnColors });
+    const tooltip = byId(topics, "tooltip");
+    assert.equal(tooltip.state, "Automatic, Share in the tooltip");
+    const share = choices(tooltip).find((c) => c.id === "chart-tooltip-share");
+    assert.deepEqual([share.checkbox, share.checked], [true, true]);
+    const series = byId(topics, "series");
+    const [hardware, services] = series.groups[0].choices;
+    // the colour field starts from the view's colour, else the one drawn
+    assert.deepEqual([hardware.color.value, services.color.value], ["#2a78d6", "#123456"]);
+    assert.equal(hardware.color.label, "Colour of Hardware");
+    assert.equal(hardware.actions, undefined);
+    assert.deepEqual(services.actions.map((a) => a.label), ["Default: Services"]);
+    hardware.color.pick("#00aa00");
+    services.actions[0].run();
+    assert.deepEqual(patches.splice(0), [{ colors: [{ name: "services", color: "#123456" }, { name: "Gone", color: "#abcdef" }, { name: "Hardware", color: "#00aa00" }] }, { colors: [{ name: "Gone", color: "#abcdef" }] }]);
+    // a view's colour for a name not shown: its own group, with Remove
+    const stale = series.groups[1];
+    assert.equal(stale.title, "Colours of names not shown");
+    assert.deepEqual(stale.choices.map((c) => [c.text, c.label]), [["Gone", "Remove: Gone"]]);
+    stale.choices[0].run();
+    assert.deepEqual(patches, [{ colors: [{ name: "services", color: "#123456" }] }]);
+    assert.equal(series.changed, true);
 });
 
 test("Reference lines: a level after Tooltip on bars, lines and areas: Average and Trend switches, a Target row that opens its form, the reasons (#48)", () => {

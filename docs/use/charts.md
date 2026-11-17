@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, the tooltip of the element under the pointer and the chart image.
+description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, the tooltip of the element under the pointer, fixed colours, the share in the tooltip and the chart image.
 ---
 
 # Charts
@@ -62,7 +62,7 @@ is left out: a pie has no Axis, a heatmap no Series.
 
 A choice applies at once, and the menu stays open, so the chart behind it shows the change. The
 settings stay with the report: in saved views, links and the chart image. They also stay when the
-chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Stacked to 100 % and the
+chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Series, Stacked to 100 % and the
 labels of a pie.
 
 ![The chart type menu: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
@@ -77,7 +77,8 @@ labels of a pie.
 | Group labels | Display › Axis | Automatic, On, Off. With two or more fields in Rows. | Automatic: shown while the chart has room for them |
 | Zoom slider | Display › Axis | Automatic, On, Off | Automatic: more than 20 categories, or an axis that would leave out 3 names or more between two |
 | Tooltip | Display › Tooltip | Automatic, All series | Automatic: the element under the pointer |
-| Series | Display › Series | A switch per series, or per slice of a pie or a donut | all shown |
+| Share in the tooltip | Display › Tooltip | on, off. Not for a heatmap. | off |
+| Series | Display › Series | A switch per series, or per slice of a pie or a donut, with its colour beside it. One series is listed for its colour. | all shown, in the palette or the colours your app sets |
 | Stacked to 100 % | Display › Layout | on, off. Stacked bars and areas of sums and counts. | off |
 | Reference lines | Display › Reference lines | Average, Trend, Target. Bars, lines and areas. See [below](#reference-lines). | none |
 | Smooth lines | Display › Layout | on, off. Lines and areas. | off |
@@ -298,6 +299,26 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-light.png#only-light)
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-dark.png#only-dark)
 
+??? info "The share in the tooltip"
+    Display › Tooltip › Share in the tooltip adds each value's share after it, such as
+    "Software 30 50.0%". On a 100 % stack the tooltip shows the share anyway.
+
+    - With several series, it is the share of the category's total. A category with only one value
+      left, the others empty or hidden, shows no share.
+    - With one series, it is the share of the categories drawn.
+    - A pie or a donut shows the slice's share of the slices shown.
+    - Only sums and counts get a share, on a pie too, and only when no part is below zero.
+
+??? info "Fixed colours"
+    In Display › Series, the swatch beside each series or slice shows the colour the chart draws.
+    Pick another colour there. A chart of one series lists it too, for its colour. The series keeps
+    the colour in every chart of the view, whatever else the chart shows. **Default** gives back the
+    colour it had. A colour for a name the chart no longer shows is listed at the end with
+    **Remove**.
+
+    A colour you pick is one colour for the light and the dark theme. Your app may set colours for
+    names too, one per theme if it likes. A colour you pick wins over those.
+
 ??? info "Every series in the tooltip"
     Display › Tooltip › All series lists every series at the pointer's category,
     wherever the pointer is. The series under the pointer comes first, its name in bold. Stacked bars
@@ -305,7 +326,8 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 
 ## Save the chart as a picture
 
-**Export**, **Chart image (.png)** saves the chart as it is drawn, at twice the screen's resolution,
+**Export**, **Copy chart image** puts the chart as a picture on the clipboard, to paste into a slide
+or a message. **Export**, **Chart image (.png)** saves the chart as it is drawn, at twice the screen's resolution,
 on the report's background colour. The picture has the chart's title, legend, value labels and group
 labels. While the table is shown, the entry is greyed out and says "Switch to Chart first." See
 [export](export.md).
@@ -315,4 +337,6 @@ labels. While the table is shown, the entry is greyed out and says "Switch to Ch
 
     - the view's `chart` settings
     - what "auto" stands for (`autoChartType`)
+    - `colorMap`: a fixed colour per series or slice name for every view, one per theme if you like
+      ([fixed colours](../concepts/charts.md#fixed-colours))
     - `chartOptions`: plain JSON merged over the ECharts option, for what the menus do not offer.

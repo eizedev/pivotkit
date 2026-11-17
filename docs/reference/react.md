@@ -59,6 +59,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `sources` | `{ id, name? }[]` |  | The other data the host can show: a view made for one of them offers "Switch to “name” and load" (with `onSourceSwitch`). |
 | `onSourceSwitch` | `({ source, view, name }) => void` |  | The user chose to switch to the data a loaded view was made for: show that data and `view` (as the file has it, not normalized) as its start view. [More](#prop-onsourceswitch) |
 | `chartOptions` | `object` |  | Plain JSON merged over the ECharts option the report builds (objects key by key, a list entry by entry, an object given for a list into every entry); it wins over the view's chart settings. [More](#prop-chartoptions) |
+| `colorMap` | `object` |  | A fixed colour per series or slice name across charts, one colour or one per theme. [More](#prop-colormap) |
 | `shareLink` | `boolean` or `string` | off | "Copy link" in the Views menu, and opening a shared link: `true` links to the page's own address without its query string (origin, path, fragment), a string is the base URL as it is. [More](#prop-sharelink) |
 | `persistView` | `"session"` |  | `"session"`: the view is kept in `sessionStorage` (`pivotkit:view:<storageKey>`) for this tab and shown again after a reload; read after the first render; a link wins. [More](#prop-persistview) |
 | `loading` | `boolean` | `false` | The host is loading the data: before the report has had data it shows its skeleton (toolbar, zones and table rows in the theme, `role="status"` with "Loading the report…", announced once). [More](#prop-loading) |
@@ -313,7 +314,8 @@ file or the text, to upload it, say.
   `"data-csv"` and `"data-json"` for Source data. `"json"` for the [view file](view-file.md) of
   "Download view" in Views, named `<name>.pivotkit.json`. `fileName` is the name with its
   extension, and `blob` is the file.
-- Copies from Export: `"copy-table"`, `"copy-json"`.
+- Copies from Export: `"copy-table"`, `"copy-json"`, and `"copy-chart"` with the chart's PNG before it
+  goes on the clipboard.
 - From the drill-down panel: `"drill-copy"`, `"drill-json"`, `"drill-csv"`, `"drill-xlsx"`.
 - `"print"`: the [HTML report](report.md) before the print dialog opens (`pivot.html`). Returning
   `false` prints nothing, so the host can print it its own way, such as a PDF of its server.
@@ -486,6 +488,26 @@ When it draws the chart, the report leaves out the following, with a console war
   the tooltip's element
 
 The report compares it by value. See [Charts](../concepts/charts.md#chartoptions-for-developers).
+
+### `colorMap` { #prop-colormap }
+
+Type: `object`.
+
+A fixed colour per series or slice name, so a category has the same colour in every chart:
+
+```jsx
+<PivotReport colorMap={{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }} />
+```
+
+- A value is one colour, or a list of two: the first for the light theme, the second for the dark.
+- A colour is hex of 3, 4, 6 or 8 digits, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a CSS name the
+  browser reads. Any other value is left out.
+- Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
+- A name the chart does not have does nothing. Other series keep the palette's colours.
+- The view's own colours win: Display › Series, the colour beside each series (`chart.colors`).
+- The chart image, the SVG and the HTML report take the light colours.
+
+The report compares it by value. See [Charts](../concepts/charts.md#fixed-colours).
 
 ### `shareLink` { #prop-sharelink }
 

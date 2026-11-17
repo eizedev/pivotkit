@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks, hidden series and reference lines in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks, hidden series, reference lines, the tooltip's share and fixed colours per name in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -57,6 +57,8 @@ them, and they stay when the chart type changes:
 | `chart.stackPercent` | `true`, `false` |
 | `chart.hidden` | a list of legend entries by name, at most `limits.items` |
 | `chart.referenceLines` | `{ average: boolean, trend: boolean, target: number \| null }` |
+| `chart.tooltipShare` | `true`, `false` |
+| `chart.colors` | a list of `{ name, color }`, the colour `#rgb` or `#rrggbb`, at most `limits.items` |
 
 A view without these keys gets the defaults. An unknown value falls back to its default, and
 `normalize()` reports it ([Views](views.md)). "Percent" and "Value and percent" apply to a pie and a
@@ -100,6 +102,44 @@ A pie, a donut and a heatmap always show the slice or cell under the pointer.
 of a pie or a donut. A click on the legend adds or removes a name. A name no entry has is kept and
 does nothing. Names are the labels the chart shows, so they follow the data and its labels. A
 hidden series does not count in a 100 % stack.
+`chart.tooltipShare` adds each value's share of the total to the tooltip:
+
+- With two or more series in the chart, a share of the category's total: the sum of the series shown
+  there. A category with one part left, the others empty or hidden, has no share.
+- With one series, a share of the series' total over the categories drawn.
+- A pie or a donut: the slice's share of the slices shown.
+- Only values that add up get one, on a pie too, and only without a part below zero. A heatmap gets
+  none.
+
+## Fixed colours { #fixed-colours }
+
+The palette colours series and slices in turn, so a category's colour depends on what else the chart
+shows. A fixed colour per name keeps it the same in every chart.
+
+- The view's `chart.colors` lists `{ name, color }` entries. People set them in Display › Series, with
+  the colour beside each series.
+- The host's `colorMap` prop (`colorMap` property of the web component) sets them for every view:
+  `{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }`. A list of two is one colour for the light
+  theme and one for the dark.
+- The view's colour wins over the host's. A name in neither keeps the palette's colour.
+- Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
+  A heatmap has no series to colour.
+- A view's colour is one colour for both themes. A host's pair `[light, dark]` follows the theme
+  the report shows.
+- A view's colour is `#rgb` or `#rrggbb`. The host's is hex of 3, 4, 6 or 8 digits, `rgb()`,
+  `rgba()`, `hsl()`, `hsla()` or a CSS name. In a browser the name must be one it reads. Other values
+  are left out.
+- The chart image, the SVG, the HTML report and a print show the colours. Files take the host's
+  light colours. pivotkit-report's `render` takes them as its `colorMap` option, a pair too, of
+  which it draws the light one.
+
+```jsx
+<PivotReport colorMap={{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }} />
+```
+
+```js
+document.querySelector("pivot-report").colorMap = { Failed: "#e3000f", Success: "#287233" };
+```
 
 ### Reference lines
 

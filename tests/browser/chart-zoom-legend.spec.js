@@ -372,6 +372,9 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
         await expect.poll(() => lastView(page).then((c) => c?.hidden)).toEqual(["Hardware"]);
         await expect(hardware).toBeFocused();
         await expect(hardware).toHaveAttribute("aria-checked", "false");
+        // down past Hardware's colour (#54) to Services
+        await page.keyboard.press("ArrowDown");
+        await expect(report.getByRole("menuitem", { name: "Colour of Hardware" })).toBeFocused();
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("Enter");
         await expect.poll(() => lastView(page).then((c) => c?.hidden)).toEqual(["Hardware", "Services"]);

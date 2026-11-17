@@ -35,16 +35,17 @@ export function loadECharts() {
  *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
  *   onLines?: (checks: { average: boolean, trend: boolean, target: boolean, notes: string[], format?: string } | null) => void,
  *   onLegend?: (change: { name: string, shown: boolean }) => void,
- *   valueNames: string[], chartOptions?: Record<string, unknown> | null,
+ *   valueNames: string[], chartOptions?: Record<string, unknown> | null, colorMap?: unknown,
  *   plan?: { name: string, chart: { type: string, stacked: boolean, horizontal: boolean } } }} props
  *   `series`: pivotkit-core's toSeries with MAX_CATEGORIES, null when there is nothing to draw;
  *   `chartOptions`: the host's plain JSON (chart-options.js, checked), merged over everything else;
+ *   `colorMap`: the host's colour per series or slice name, one or one per theme (chart-colors.js);
  *   `plan`: what to draw (chart-types.js chartPlan), the view's type resolved when it is "auto";
  *   `onLines`: which reference lines the drawn chart can draw (pivotkit-core's referenceLineChecks,
  *   with the first series' format), null when none is drawn;
  *   `onLegend`: a legend entry was clicked, and is shown or hidden now
  */
-export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, onLines, onLegend, valueNames, chartOptions, plan }) {
+export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, onLines, onLegend, valueNames, chartOptions, colorMap, plan }) {
     const el = useRef(/** @type {HTMLDivElement | null} */ (null));
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
@@ -207,7 +208,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         // the tokens with the lengths the chart reads in px resolved (the title's size, the marks' corners)
         const style = lib.current.chartStyle(root.current);
         // the series of the summary and the hints, not computed a second time
-        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}) });
+        const colors = lib.current.colorMapFor(colorMap, themeName);
+        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}), ...(colors ? { colorMap: colors } : {}) });
         // a new option draws new marks: the element under the pointer is reported again when it moves
         hover.current = null;
         tapped.current = null;
@@ -218,7 +220,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         const lines = series ? lib.current.chartLines(result, { series, chart: drawAs, labels, locale }) : null;
         setLinesText(lines?.text ?? "");
         latest.current.onLines?.(lines?.checks ?? null);
-        const tooltip = { mode: result.view.chart.tooltip, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values, lines: lines?.lines ?? [] };
+        const tooltip = { mode: result.view.chart.tooltip, share: result.view.chart.tooltipShare, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values, lines: lines?.lines ?? [] };
         const doc = root.current.ownerDocument;
         setShown(series ? lib.current.shownOf(series, option, result.view.chart.hidden, SLICE_TYPES.includes(type)) : null);
         // the host's chartOptions win over the view's display settings and the report's own styles:
@@ -233,7 +235,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         keeper.current.drawn(drawn.dataZoom);
         setEvery(drawn.axisEvery);
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
-    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, drawAs, zoomed, type]);
+    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs, zoomed, type]);
 
     const empty = result.view.values.length === 0;
     const summary = series && !empty ? chartSummary(shown?.series ?? series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale, shares: shown?.shares, linesText }) : labels.noChartData;

@@ -16,8 +16,8 @@ The Excel file keeps every number with all its decimals, and the formats. The CS
 and the copy hold the numbers as the table shows them. Where the application offers it,
 **Source data** downloads all the rows behind the report instead of the table.
 
-![The Export menu: Excel workbook, Table as CSV, HTML report and the chart images under Download; Print or save as PDF under Print; Copy table and Copy data as JSON under Copy; All rows as CSV and as JSON under Source data](../assets/screenshots/export-menu-light.png#only-light)
-![The Export menu: Excel workbook, Table as CSV, HTML report and the chart images under Download; Print or save as PDF under Print; Copy table and Copy data as JSON under Copy; All rows as CSV and as JSON under Source data](../assets/screenshots/export-menu-dark.png#only-dark)
+![The Export menu: Excel workbook, Table as CSV, HTML report and the chart images under Download; Print or save as PDF under Print; Copy table, Copy data as JSON and Copy chart image under Copy; All rows as CSV and as JSON under Source data](../assets/screenshots/export-menu-light.png#only-light)
+![The Export menu: Excel workbook, Table as CSV, HTML report and the chart images under Download; Print or save as PDF under Print; Copy table, Copy data as JSON and Copy chart image under Copy; All rows as CSV and as JSON under Source data](../assets/screenshots/export-menu-dark.png#only-dark)
 
 | Entry | Gives | Best for |
 | --- | --- | --- |
@@ -29,6 +29,7 @@ and the copy hold the numbers as the table shows them. Where the application off
 | **Print or save as PDF…** | The HTML report in the browser's print dialog: print it, or pick "Save as PDF" there. | Paper, or a PDF. |
 | **Copy table** | The table as it is shown, tab-separated. | Pasting into Excel, Numbers or Google Sheets. |
 | **Copy data as JSON** | The table's data for a program. | A developer. |
+| **Copy chart image** | The chart as drawn, as a picture on the clipboard. Greyed out with "Switch to Chart first." while the table is shown. Where the page does not allow copying, the note offers **Download PNG**. | Pasting into a slide, a message or a document. |
 | **All rows as CSV (.csv)** | All the original rows behind the report, before grouping, filters and totals, with every field. | Your own analysis. Or a colleague who builds the report again with a script: give them this file and the view from **Views**, **Download view**. The [command line](../reference/cli.md) needs these two things. |
 | **All rows as JSON (.json)** | The same rows for a program: numbers as numbers, text as text, a blank as `null`. | A developer. |
 
@@ -211,7 +212,7 @@ a note says so: "This page does not allow copying. Download a file instead."
     - `fileName` names the files.
     - Every file and every copy passes `onExport` first, so the host can keep it or print it its own
       way. The kinds are `xlsx`, `csv`, `html`, `png`, `svg`, `print` with the HTML before the
-      dialog opens, `json` for a downloaded view file, `copy-table`, `copy-json`, and `data-csv` and
+      dialog opens, `json` for a downloaded view file, `copy-table`, `copy-json`, `copy-chart`, and `data-csv` and
       `data-json` for the source data. See [React props](../reference/react.md#props).
     - Source data is off unless the host sets `exportData`. See
       [React](../reference/react.md#prop-exportdata) and [web component](../reference/element.md):

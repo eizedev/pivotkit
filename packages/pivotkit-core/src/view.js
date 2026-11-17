@@ -162,14 +162,16 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
  *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string,
  *   zoom: string, stackPercent: boolean, hidden: string[],
- *   referenceLines: { average: boolean, trend: boolean, target: number | null } }} ChartSpec  the chart
+ *   referenceLines: { average: boolean, trend: boolean, target: number | null },
+ *   colors: Array<{ name: string, color: string }>, tooltipShare: boolean }} ChartSpec  the chart
  *   type and how it is drawn: value labels (CHART_VALUE_LABELS) and, on a pie or donut, where they go
  *   (CHART_LABEL_POSITIONS), legend (CHART_LEGENDS), a title over the
  *   chart, smooth lines (line, area), the category axis labels (CHART_AXIS_LABELS), and with two or more
  *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS), what the
  *   tooltip covers (CHART_TOOLTIPS), the zoom slider (CHART_ZOOMS), bars and areas stacked to 100 %
- *   (stackPercent), the legend entries hidden (series, or slices of a pie), by name, and the reference
- *   lines of bars, lines and areas (referenceLineRules)
+ *   (stackPercent), the legend entries hidden (series, or slices of a pie), by name, the reference
+ *   lines of bars, lines and areas (referenceLineRules), a fixed colour per series or slice by name
+ *   (`colors`, #rgb or #rrggbb) and the share of the total in the tooltip (`tooltipShare`)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
  * @typedef {object} View
@@ -207,7 +209,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null } },
+        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null }, colors: [], tooltipShare: false },
         formatting: { locale: null, timeZone: null, weekStart: WEEK_START }
     };
 }
@@ -315,6 +317,7 @@ export const VIEW_KEYS = Object.freeze({
     derived: Object.freeze(["name", "field", "by", "size", "origin"]),
     value: Object.freeze(["field", "agg", "format", "label", "showAs", "conditional"]),
     valueRef: Object.freeze(["field", "agg"]),
+    color: Object.freeze(["name", "color"]),
     showAs: Object.freeze(["type", "axis"]),
     conditional: Object.freeze({ colorScale: Object.freeze(["type", "colors"]), dataBar: Object.freeze(["type", "color"]) }),
     sort: Object.freeze(["field", "by", "order", "items", "value"]),
@@ -583,12 +586,27 @@ function collapsedSection(raw, view, ctx) {
     }
 }
 
-/** A list of names (legend entries) at `key`: texts up to ITEM_LENGTH characters, each once, at most `limits.items`. */
-function nameList(raw, key, ctx) {
-    const out = new Set();
-    listOf(raw, key, ctx.limits.items, ctx, (name, path) => (typeof name === "string" && name.length <= ITEM_LENGTH ? out.add(name) : ctx.issue(path, "not a name", "unknownSetting", { value: shown(name) })));
-    return [...out];
+/**
+ * A list at `key` of entries `read` takes (null: left out and reported), each once by its `id`
+ * (without regard to case for colours), at most `limits.items`: the chart's hidden legend entries
+ * (texts up to ITEM_LENGTH characters) and its colours (`{ name, color }`, the colour #rgb or #rrggbb).
+ * @param {(entry: unknown, path: string) => { id: string, value: unknown } | null} read
+ */
+function listOnce(raw, key, ctx, read) {
+    const out = new Map();
+    listOf(raw, key, ctx.limits.items, ctx, (entry, path) => {
+        const got = read(entry, path);
+        if (!got) {
+            return ctx.issue(path, "not a name, or no colour #rgb or #rrggbb", "unknownSetting", { value: shown(entry) });
+        }
+        if (!out.has(got.id)) {
+            out.set(got.id, got.value);
+        }
+    });
+    return [...out.values()];
 }
+
+const nameOf = (/** @type {unknown} */ name) => (typeof name === "string" && name.length <= ITEM_LENGTH ? name : null);
 
 function displaySection(raw, view, ctx) {
     const display = get(raw, "display");
@@ -622,8 +640,19 @@ function displaySection(raw, view, ctx) {
             tooltip: own("tooltip", CHART_TOOLTIPS, "auto"),
             zoom: own("zoom", CHART_ZOOMS, "auto"),
             stackPercent: bool(get(chart, "stackPercent"), false),
-            hidden: nameList(raw, "chart.hidden", ctx),
-            referenceLines: referenceLinesOf(get(chart, "referenceLines"), ctx)
+            hidden: listOnce(raw, "chart.hidden", ctx, (n) => (nameOf(n) === null ? null : { id: /** @type {string} */ (n), value: n })),
+            referenceLines: referenceLinesOf(get(chart, "referenceLines"), ctx),
+            colors: listOnce(raw, "chart.colors", ctx, (c, path) => {
+                const name = nameOf(get(c, "name"));
+                const color = get(c, "color");
+                if (name === null || !COLOR.test(color)) {
+                    return null;
+                }
+                // a key an entry does not have is said (unknownKey), the entry still used
+                ctx.keys(c, VIEW_KEYS.color, path);
+                return { id: name.toLowerCase(), value: { name, color } };
+            }),
+            tooltipShare: bool(get(chart, "tooltipShare"), false)
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
             ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`, "badTitle", { max: ctx.limits.name });

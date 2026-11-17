@@ -212,16 +212,17 @@ function ChoiceItem({ choice: c, onPick, start }) {
     const { explain, labels } = useContext(HelpContext);
     const text = c.info && explain && labels?.settingInfo && Object.hasOwn(labels.settingInfo, c.info) ? labels.settingInfo[c.info] : null;
     const item = (
-        <MenuItem id={c.id} testId={c.testId} text={c.text} hint={c.hint} icon={c.icon} checked={c.checked} checkbox={c.checkbox} current={c.current} disabled={c.disabled} reason={c.reason} description={text} start={start} haspopup={c.open ? "dialog" : undefined} className={c.open ? "pk-topic-row" : undefined} onSelect={() => onPick(c)}>
+        <MenuItem id={c.id} testId={c.testId} text={c.text} label={c.label} hint={c.hint} icon={c.icon} checked={c.checked} checkbox={c.checkbox} current={c.current} disabled={c.disabled} reason={c.reason} description={text} start={start} haspopup={c.open ? "dialog" : undefined} className={c.open ? "pk-topic-row" : undefined} onSelect={() => onPick(c)}>
             {c.open ? <Icon name="chevronRight" size={16} className="pk-topic-chevron" /> : null}
         </MenuItem>
     );
-    if (!text && !c.actions?.length) {
+    if (!text && !c.actions?.length && !c.color) {
         return item;
     }
     return (
         <div role="none" className="pk-setting-row">
             {item}
+            {c.color ? <ColorPick {...c.color} /> : null}
             {/* an entry's own actions (delete, publish): items of the menu, next to it */}
             {(c.actions ?? []).map((a) => (
                 <button key={a.id} type="button" role="menuitem" tabIndex={-1} className="pk-icon-btn" aria-label={a.label} title={a.label} aria-haspopup={a.open ? "dialog" : undefined} data-pk-item={a.id} data-pk-text={a.label} data-testid={a.testId ?? a.id} onClick={() => onPick(a)}>
@@ -234,6 +235,47 @@ function ChoiceItem({ choice: c, onPick, start }) {
                 </span>
             ) : null}
         </div>
+    );
+}
+
+/**
+ * A colour beside a choice (a series' colour): a menu item, named with its colour, that opens the
+ * browser's colour picker, a hidden colour field. The colour applies once it is picked (the field's
+ * "change" event), not on every step while the picker is open: one step to undo per colour. The focus
+ * comes back to the item. A new colour from outside (the chart drawn again, Undo) is set on the field.
+ * @param {{ id: string, value: string, label: string, pick: (color: string) => void }} props
+ */
+function ColorPick({ id, value, label, pick }) {
+    const field = useRef(/** @type {HTMLInputElement | null} */ (null));
+    const button = useRef(/** @type {HTMLButtonElement | null} */ (null));
+    const latest = useRef(pick);
+    useEffect(() => {
+        latest.current = pick;
+    });
+    useEffect(() => {
+        const el = field.current;
+        const picked = () => {
+            if (el) {
+                latest.current(el.value);
+                button.current?.focus({ preventScroll: true });
+            }
+        };
+        el?.addEventListener("change", picked);
+        return () => el?.removeEventListener("change", picked);
+    }, []);
+    useEffect(() => {
+        if (field.current && value && field.current.value !== value) {
+            field.current.value = value;
+        }
+    }, [value]);
+    return (
+        <>
+            <button ref={button} type="button" role="menuitem" tabIndex={-1} className="pk-icon-btn pk-color-pick" aria-label={value ? `${label}, ${value}` : label} aria-haspopup="dialog" title={label} data-pk-item={id} data-pk-text={label} data-testid={id} onClick={() => field.current?.click()}>
+                {/* a dot in the colour (as the legend's and the tooltip's markers), set through the CSSOM, which a strict Content-Security-Policy allows */}
+                <span className="pk-dot" aria-hidden="true" ref={(el) => el?.style.setProperty("background-color", value || "transparent")} />
+            </button>
+            <input ref={field} type="color" className="pk-sr" tabIndex={-1} aria-hidden="true" defaultValue={value || undefined} data-testid={`${id}-field`} />
+        </>
     );
 }
 

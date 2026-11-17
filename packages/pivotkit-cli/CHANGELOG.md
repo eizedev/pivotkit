@@ -12,7 +12,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   `--client-id` nor `PIVOTKIT_CLIENT_ID` gives one, and says so. `pivotkit-cli/rest` exports
   `SIGN_IN_CLIENT_FIELD` and `CLIENT_ID_SYNTAX` (#486).
 - The example views leave out the chart settings newer than 0.7 while they hold their default
-  (`tooltip`), so a 0.7 reader takes them without a warning ([#36](https://github.com/eizedev/pivotkit/issues/36)).
+  (`tooltip`), so a 0.7 reader takes them without a warning ([#36](https://github.com/eizedev/pivotkit/issues/36), [#54](https://github.com/eizedev/pivotkit/issues/54)).
 - `pivotkit login --url <server> --client-id <id>` signs in at the server's sign-in provider with
   the OAuth 2.0 device code flow. It keeps the refresh token in the system's keychain, else in a
   file only you read. `pivotkit token` prints a fresh access token, and `pivotkit logout` removes

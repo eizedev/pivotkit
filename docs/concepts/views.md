@@ -62,7 +62,9 @@ later.
         tooltip: "auto",                                       // or "axis": every series at the category
         zoom: "auto", stackPercent: false,                     // the zoom slider, stacks to 100 %
         hidden: [],                                            // legend entries hidden, by name
-        referenceLines: { average: false, trend: false, target: null }   // lines on bars, lines and areas
+        referenceLines: { average: false, trend: false, target: null },  // lines on bars, lines and areas
+        tooltipShare: false,                                   // the share of the total in the tooltip
+        colors: [{ name: "North", color: "#2a78d6" }]          // a fixed colour per series or slice
     },
     formatting: { locale: "de-DE", timeZone: null, weekStart: 1 }   // weekStart: 1 Monday to 7 Sunday
 }
@@ -180,9 +182,9 @@ it to the current `VIEW_VERSION` (`migrate`, which `normalize` runs first).
 Store views as they come from `onViewChange`. They always carry the current version.
 
 A view file and a link leave out the chart settings newer than pivotkit 0.7 (`tooltip`, `zoom`,
-`stackPercent`, `hidden`, `referenceLines`) while they hold their default. A 0.7 reader then takes
-the view as it is. A view that sets one, such as a hidden series, gets an `unknownKey` warning from
-a 0.7 reader, which ignores that setting.
+`stackPercent`, `hidden`, `referenceLines`, `colors`, `tooltipShare`) while they hold their
+default. A 0.7 reader then takes the view as it is. A view that sets one, such as a hidden series,
+gets an `unknownKey` warning from a 0.7 reader, which ignores that setting.
 
 From version 1 to 2, only the filters change ([Filters](filters.md)). Every version-1 view keeps what it
 kept, apart from the exception below.

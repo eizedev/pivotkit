@@ -157,3 +157,19 @@ test("a 100 % stack's value labels write each part's share in the SVG and the HT
     assert.ok(signed.includes("75.0%") && signed.includes("-25.0%") && signed.includes("-100%"), signed.join(" | "));
     assert.ok(!signed.includes("0.0%"));
 });
+
+test("fixed colours per name reach the SVG: the view's over the host's colorMap (#54)", async () => {
+    const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] };
+    const r = await render({ ...view, chart: { type: "bar", colors: [{ name: "B", color: "#123456" }] } }, SALES, { format: "svg", echarts, colorMap: { a: "#abcdef", B: "#ff0000" }, ...FIXED });
+    assert.ok(r.text.includes('fill="#123456"') && r.text.includes('fill="#abcdef"'));
+    assert.ok(!r.text.includes('fill="#ff0000"'));
+    const pie = await render({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "pie" } }, SALES, { format: "svg", echarts, colorMap: { South: "#00ff00" }, ...FIXED });
+    assert.ok(pie.text.includes('fill="#00ff00"'));
+    await assert.rejects(render(view, SALES, { format: "svg", echarts, colorMap: ["#fff"], ...FIXED }), /colorMap/);
+});
+
+test("colorMap takes a pair of colours for light and dark, as the React prop does; the report draws the light one (#54 review)", async () => {
+    const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" } };
+    const r = await render(view, SALES, { format: "svg", echarts, colorMap: { A: ["#0a0b0c", "#f0f0f0"] }, ...FIXED });
+    assert.ok(r.text.includes('fill="#0a0b0c"') && !r.text.includes('fill="#f0f0f0"'));
+});
