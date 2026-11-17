@@ -97,6 +97,7 @@ const refused = (code, message) => new SignedTokenError(code, message);
  * @property {string[] | null} scopes  null: every scope
  * @property {string | null} profile
  * @property {number} expiresAt  seconds since 1970
+ * @property {string | null} subject  the person (sub) when the token names one as a text
  */
 
 /**
@@ -170,7 +171,7 @@ export function createSignedVerifier({ keyFor, isRevoked, issuer, typ, clockTole
                 // the ID of a genuinely signed token: the log may name it
                 throw Object.assign(refused("REVOKED", "the token was revoked"), { id });
             }
-            return { id, scopes: scope === undefined ? null : scope.split(/\s+/).filter(Boolean), profile: profile ?? null, expiresAt: exp };
+            return { id, scopes: scope === undefined ? null : scope.split(/\s+/).filter(Boolean), profile: profile ?? null, expiresAt: exp, subject: typeof payload.sub === "string" ? payload.sub : null };
         }
     };
 }

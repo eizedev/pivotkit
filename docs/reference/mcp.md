@@ -732,6 +732,8 @@ no warning.
 - `auth.tokens[].expires` ends a token at a date ([expiry](rest.md#token-expires)).
 - The server can also issue tokens that expire on their own, with `pivotkit-server token issue`.
   The MCP endpoint takes them like a static token ([signed tokens](rest.md#signed-tokens)).
+- It takes tokens another system issues for its signed-in person, checked with that system's
+  public key ([tokens from another system](rest.md#external-issuers)).
 
 With `--http` and a state directory (`--state-dir`, `$PIVOTKIT_STATE_DIR`), a server that has no
 token and listens off loopback makes the token `admin` there at its first start. It does this

@@ -586,6 +586,11 @@ and the sign-in above hold for it too. What differs:
     symbolic link, or one the group or others may read, is not used. A static token is
     always compared first, so a static token that looks like a JWT keeps working.
 
+- **Tokens from another system** ([external issuers](reference/rest.md#external-issuers)): the
+  server checks them like signed tokens, with that issuer's public keys, name and type only. The server holds
+  no key that could make them. A private key in the configuration stops the start. They have no
+  deny list, so `maxMinutes` keeps them short.
+
 - **Errors** are problem documents with a stable code. A message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.
 

@@ -480,7 +480,7 @@ The modes are the [MCP server's](mcp.md#auth), from the same `auth` settings:
 | Mode | How | 401 answers with |
 | --- | --- | --- |
 | `none` | No check. Loopback only unless `auth.allowUnauthenticated` | - |
-| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, named tokens in `auth.tokens` (from a variable or a file read on every request), or a [signed token](#signed-tokens) the server issued | `WWW-Authenticate: Bearer realm="pivotkit"` |
+| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, named tokens in `auth.tokens` (from a variable or a file read on every request), a [signed token](#signed-tokens) the server issued, or a [token from another system](#external-issuers) | `WWW-Authenticate: Bearer realm="pivotkit"` |
 | `oauth` | A JWT access token of the issuer for the REST resource | `WWW-Authenticate: Bearer error="invalid_token", ..., resource_metadata="..."` |
 
 The server reads only the `Authorization` header. It refuses a token in the address
@@ -1084,6 +1084,67 @@ Every key in `keys/` verifies tokens. The newest key signs new ones. So a new ke
 `key remove` exits 1 while tokens of that key still work, and names when the last one expires.
 `--force` removes it anyway, and those tokens get 401 from the next request on. A key file is never
 printed, and `key new --for signing` refuses `--file`, `--print` and `--add`.
+
+### Tokens from another system { #external-issuers }
+
+Another system can issue short-lived tokens for the person signed in there. PowerShell Universal is
+one example. The server checks them with that system's public key. It never holds a key that could
+make such a token.
+
+```json
+{
+  "auth": {
+    "mode": "token",
+    "externalIssuers": [{
+      "issuer": "psu",
+      "typ": "psu+jwt",
+      "maxMinutes": 60,
+      "keys": [{ "kid": "psu-2026-11", "publicKey": { "file": "keys/psu.pub" } }]
+    }]
+  }
+}
+```
+
+- The key is an Ed25519 public key in PEM (`-----BEGIN PUBLIC KEY-----`), from a file or a variable.
+  A private key, another kind of key or a file the server cannot read stops the start.
+- The server reads the keys at start. A new key takes a restart.
+- One or two keys per issuer. Add the new key next to the old one, restart, and remove the old one
+  once its tokens have expired.
+- `issuer` and `typ` belong to that system alone. `pivotkit-server` and `pivotkit+jwt` are the
+  server's own, and the server refuses them.
+- `maxMinutes` caps a token's lifetime (default 60, at most 1440). A token that lives longer is
+  gets 401, even with a valid signature.
+- There is no deny list. A token works until it expires.
+- The tokens work with `auth.mode` `"token"` only, on REST and MCP alike.
+
+A token the server takes:
+
+| Part | Holds |
+| --- | --- |
+| header `alg` | `EdDSA` |
+| header `kid` | the ID of one of the issuer's keys |
+| header `typ` | the issuer's `typ` |
+| `iss` | the issuer's `issuer` |
+| `sub` | the person. A token without it gets 401 |
+| `jti` | the token's ID: letters, digits, `.`, `_` and `-`, at most 128 |
+| `iat`, `exp` | when the issuer made it and when it expires, in seconds since 1970 |
+| `nbf` | optional: not before this time |
+| `profile` | optional: a profile of `policy.profiles`. A profile not configured gets 401 |
+| `scope` | optional: scopes separated by spaces. Without it, the token holds every scope |
+
+- The log names the issuer as the client. It names the person only as `audit.subject` says, as for
+  OAuth ([logging](#logging)).
+- Each person is an identity of their own for caches and limits: the issuer and `sub` together.
+- A token without `profile` gets `auth.defaultProfile`, else the sources' own policy.
+- `check-config` lists each issuer with its type, keys and lifetime under `External token issuers`.
+  A key it cannot use is a PROBLEM.
+
+| Key | Default | What it is |
+| --- | --- | --- |
+| `auth.externalIssuers[].issuer` | - | The other system's name, as its tokens carry it in `iss` |
+| `auth.externalIssuers[].typ` | - | The type its tokens carry in their header, such as `psu+jwt` |
+| `auth.externalIssuers[].keys` | - | One or two keys: `kid` and `publicKey` (`{ "file" }` or `{ "env" }`) |
+| `auth.externalIssuers[].maxMinutes` | 60 | The longest lifetime of its tokens, in minutes (1 to 1440) |
 
 ### List, revoke and remove tokens { #token-list }
 

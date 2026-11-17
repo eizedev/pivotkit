@@ -211,7 +211,9 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - An OpenAPI 3.1 document made from the same table.
     - Errors as problem documents.
     - Sign-in with tokens or OAuth 2.1. The server can issue tokens that expire on their own
-      ([signed tokens](reference/rest.md#signed-tokens)).
+      ([signed tokens](reference/rest.md#signed-tokens)). It also takes short-lived tokens another
+      system issues for its signed-in person, such as PowerShell Universal
+      ([tokens from another system](reference/rest.md#external-issuers)).
     - Policy profiles per token, OAuth client, group or scope, and a default profile. A profile can
       allow more values, downloads, and data sent with the request as JSON or as a csv, tsv, json or
       xlsx file.
