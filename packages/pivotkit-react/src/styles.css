@@ -947,6 +947,14 @@
     background: var(--pk-surface);
 }
 
+/* the smallest phones: the panel takes the indent's room too, so a chip keeps its badges and a few
+   letters of its name */
+@container pk-main (width < 320px) {
+    .pk-zone-section .pk-zones {
+        margin-left: 0;
+    }
+}
+
 .pk-zone {
     position: relative;
     display: flex;
@@ -1312,7 +1320,7 @@
 }
 
 /* a rule between a menu's groups (popover.jsx: Group), none above the first: the groups of every menu
-   look alike (Export, Options, Views, the chart type, More, a chip menu's levels) */
+   look alike (Export, Table settings, Views, Chart settings, More, a chip menu's levels) */
 .pk-section:not(:first-child) {
     border-top: 1px solid var(--pk-rule);
     margin-top: 2px;
@@ -1570,6 +1578,13 @@
 .pk-level-sep {
     margin: 4px 0;
     border-top: 1px solid var(--pk-border);
+}
+
+/* a group right after that rule (More's first group below Help) draws no second one */
+.pk-level-sep + .pk-section {
+    border-top: 0;
+    margin-top: 0;
+    padding-top: 4px;
 }
 
 /* a topic's row: its title, what is set on the right, a chevron */
