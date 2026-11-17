@@ -253,8 +253,6 @@ test.describe("chart extras (#54)", () => {
         const report = page.locator("#color-report");
         await hover(page, chartEl, await inChart(chartEl, barMiddle, { series: 2, index: 1 }));
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30"]);
-        // a new chart: one drawn again under an element hovered before does not name it (#576)
-        chartEl = await mount(page, { type: "bar" });
         await menu(report, "view-settings");
         await report.getByTestId("topic-tooltip").click();
         await report.getByTestId("chart-tooltip-share").click();
