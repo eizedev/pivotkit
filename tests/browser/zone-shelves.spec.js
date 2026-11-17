@@ -257,14 +257,22 @@ test.describe("shelves", () => {
         expect(right).toBeLessThanOrEqual(b.rows.right);
     });
 
-    test("a phone: the title row (title, i, + Add) stays above the chips, a chip keeps the shelf's width", async ({ page }) => {
+    test("a phone: the title row stays above the chips, the title and i at its left, + Add at its right end; a chip keeps the shelf's width", async ({ page }) => {
         await open(page, { width: 390, height: 844 });
         const z = await page.locator('[data-zone="rows"]').evaluate((zone) => {
             const r = (q) => zone.querySelector(q).getBoundingClientRect();
-            return { headBottom: r(".pk-zone-head").bottom, chipTop: r(".pk-chip").top, addLeft: r('[data-testid="add-field-rows"]').left, infoRight: r('[data-testid="zone-info-rows"]').right, gap: parseFloat(getComputedStyle(zone).getPropertyValue("--pk-add-gap")) };
+            const head = r(".pk-zone-head");
+            const title = r(".pk-zone-title");
+            const add = r('[data-testid="add-field-rows"]');
+            const info = r('[data-testid="zone-info-rows"]');
+            return { headBottom: head.bottom, chipTop: r(".pk-chip").top, headLeft: head.left, headRight: head.right, titleLeft: title.left, addLeft: add.left, addRight: add.right, infoRight: info.right, gap: parseFloat(getComputedStyle(zone).getPropertyValue("--pk-add-gap")), titleMid: title.top + title.height / 2, addMid: add.top + add.height / 2 };
         });
         expect(z.chipTop).toBeGreaterThanOrEqual(z.headBottom - 1);
-        expect(Math.abs(z.addLeft - z.infoRight - z.gap)).toBeLessThanOrEqual(1);
+        // the title at the row's start, + Add at its end, on the same line, with room between
+        expect(Math.abs(z.titleLeft - z.headLeft)).toBeLessThanOrEqual(1);
+        expect(Math.abs(z.addRight - z.headRight)).toBeLessThanOrEqual(1);
+        expect(z.addLeft - z.infoRight).toBeGreaterThan(z.gap);
+        expect(Math.abs(z.titleMid - z.addMid)).toBeLessThanOrEqual(2);
         const b = await boxes(page);
         // one shelf per line
         expect(new Set(Object.values(b).map((x) => x.y)).size).toBe(4);

@@ -61,7 +61,7 @@ The report adapts to its own width, not the window's.
 | --- | --- |
 | Wide | The field list on the left, the zones as shelves side by side while they fit. |
 | Narrow: below 640 px of the report's own width | The field list is a drawer that **Fields** in the toolbar opens. Menus open as sheets from the bottom of the window. |
-| Below 400 px | Each zone's title, its **i** and **+ Add** stand in a row above its chips, so field names stay whole. |
+| Below 400 px | Each zone's title and its **i** stand in a row above its chips, so field names stay whole. **+ Add** sits at the right end of that row. |
 
 ![The report at phone width: toolbar, the zones folded under their heading, one tip, the tabs with their icon buttons, and the table below](../assets/screenshots/phone-light.png#only-light){ width="320" }
 ![The report at phone width: toolbar, the zones folded under their heading, one tip, the tabs with their icon buttons, and the table below](../assets/screenshots/phone-dark.png#only-dark){ width="320" }

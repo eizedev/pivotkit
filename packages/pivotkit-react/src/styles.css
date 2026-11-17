@@ -3536,8 +3536,8 @@
     transition: transform calc(var(--pk-duration) * 1.4) var(--pk-ease), visibility 0s;
 }
 
-/* a phone: the shelf's title row (title, "i", "+ Add") above its chips, so a chip has the shelf's
-   width for its name and its badges ("15 of 45", "Top 10") */
+/* a phone: the shelf's title row above its chips, so a chip has the shelf's width for its name and
+   its badges ("15 of 45", "Top 10"); the title and its "i" at the left, "+ Add" at the row's end */
 @container pk-main (width < 400px) {
     .pk-zone {
         flex-wrap: wrap;
@@ -3545,6 +3545,10 @@
 
     .pk-zone .pk-zone-head {
         width: 100%;
+    }
+
+    .pk-zone .pk-zone-add {
+        margin-inline-start: auto;
     }
 }
 

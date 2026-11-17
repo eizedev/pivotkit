@@ -908,7 +908,8 @@ Each zone is a shelf: its title, its "i" and "+ Add" on the left, its chips flow
 
 - Shelves sit side by side while they fit. A shelf narrower than `--pk-shelf-min` takes a line of
   its own, and so does one whose chips need more room. Its chips then wrap inside it.
-- Below 400 px of the main area, the title row stands above the chips.
+- Below 400 px of the main area, the title row stands above the chips, with "+ Add" at its right
+  end.
 - The dashed drop outline shows only while something is dragged. At rest the border is there but
   transparent, so the shelves do not move when a drag starts.
 - "+ Add" (`addField`, named by `addFieldTo`) opens the zone's menu of every field. It loads with
