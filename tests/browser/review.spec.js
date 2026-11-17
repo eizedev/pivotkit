@@ -5,7 +5,7 @@
 // without its change.
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, expectChartType, openSaveAs, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, expectChartType, openSaveAs, openZones, test, toolbar } from "./fixtures.js";
 
 /** The playground's address of a view (its link parameter). */
 const withView = (query, view) => `?${query}#pivot-playground=${encodeViewLink(toViewFile(view, {}, { link: true }))}`;
@@ -315,5 +315,43 @@ test.describe("touch", () => {
         expect(result.twoLines).toEqual([]);
         expect(result.short).toEqual([]);
         expect(result.stolen).toEqual([]);
+    });
+
+    test("on a phone the rows of a menu's levels and their Back row are at least 44 px high (#582)", async ({ page, browserName }) => {
+        test.skip(browserName === "firefox", "Firefox has no mobile emulation");
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("?data=sales&preset=1");
+        expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+        /** The visible rows and Back buttons of the open levels lower than 44 px: [text, height]. */
+        const short = (menu) => menu.locator(".pk-levels :is(.pk-option, .pk-level-back)").evaluateAll((els) =>
+            els.filter((e) => e.getClientRects().length).map((e) => [e.textContent.trim() || e.getAttribute("aria-label"), Math.round(e.getBoundingClientRect().height)]).filter(([, h]) => h < 44)
+        );
+        // the chart's Display levels, each opened and left with a tap
+        await page.getByTestId("show-chart").tap();
+        await page.getByTestId("view-settings").tap();
+        const menu = page.locator(".pk-chart-menu");
+        const topics = await menu.locator("[data-pk-level]").evaluateAll((els) => els.map((el) => el.dataset.testid.replace(/^topic-/, "")));
+        expect(topics).toContain("legend");
+        expect(await short(menu)).toEqual([]);
+        for (const topic of topics) {
+            await menu.getByTestId(`topic-${topic}`).tap();
+            // the level by its topic: "level-title" is also the test id of a level's heading
+            await expect(menu.locator(`.pk-levels[data-level="${topic}"]`)).toBeVisible();
+            await expect(menu.getByTestId("level-back")).toBeVisible();
+            expect({ topic, short: await short(menu) }).toEqual({ topic, short: [] });
+            await menu.getByTestId("level-back").tap();
+            await expect(menu.getByTestId(`topic-${topic}`)).toBeVisible();
+        }
+        // a field's menu: its first level and a level of choices
+        await page.keyboard.press("Escape");
+        await expect(menu).toHaveCount(0);
+        await openZones(page);
+        await page.getByTestId("chip-menu-Category").tap();
+        const chip = page.locator(".pk-chip-menu");
+        await expect(chip.locator(".pk-levels")).toBeVisible();
+        expect(await short(chip)).toEqual([]);
+        await chip.getByTestId("topic-top").tap();
+        await expect(chip.getByTestId("level-top")).toBeVisible();
+        expect(await short(chip)).toEqual([]);
     });
 });
