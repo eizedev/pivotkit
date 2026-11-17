@@ -155,12 +155,13 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
- *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string }} ChartSpec  the chart
+ *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string,
+ *   referenceLines: { average: boolean, trend: boolean, target: number | null } }} ChartSpec  the chart
  *   type and how it is drawn: value labels (CHART_VALUE_LABELS) and, on a pie or donut, where they go
  *   (CHART_LABEL_POSITIONS), legend (CHART_LEGENDS), a title over the
  *   chart, smooth lines (line, area), the category axis labels (CHART_AXIS_LABELS), and with two or more
- *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS), and what the
- *   tooltip covers (CHART_TOOLTIPS)
+ *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS), what the
+ *   tooltip covers (CHART_TOOLTIPS) and the reference lines of bars, lines and areas (referenceLineRules)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
  * @typedef {object} View

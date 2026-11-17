@@ -70,7 +70,19 @@ export function referenceLines(result, { chart, series, words } = {}) {
     const name = (/** @type {"average" | "trend" | "target"} */ kind) => names[kind];
     // a stack's lines are of its total: the sum of the parts at each category that has one
     const parts = (series ?? toSeries(result)).series;
-    const total = parts.length ? parts[0].data.map((_, i) => parts.reduce((sum, s) => (typeof s.data[i] === "number" ? (sum ?? 0) + s.data[i] : sum), /** @type {number | null} */ (null))) : [];
+    /** @param {number} i */
+    const totalAt = (i) => {
+        /** @type {number | null} */
+        let sum = null;
+        for (const part of parts) {
+            const v = part.data[i];
+            if (typeof v === "number") {
+                sum = (sum ?? 0) + v;
+            }
+        }
+        return sum;
+    };
+    const total = parts.length ? parts[0].data.map((_, i) => totalAt(i)) : [];
     const lists = drawn.stacked ? [{ series: null, data: total }] : parts.map((s, i) => ({ series: /** @type {number | null} */ (i), data: s.data }));
     /** @type {ReferenceLine[]} */
     const lines = [];
