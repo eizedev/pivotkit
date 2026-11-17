@@ -306,7 +306,29 @@ A report can go to a store you run. You give pivotkit an upload address or a pre
 | Amazon S3 | Documented, not tested | Through a presign service that you run |
 | Azure Blob Storage | Documented, not tested | Through a presign service that you run |
 
-The settings are in [Upload to your store](reference/delivery.md#upload).
+The settings each kind needs:
+
+=== "Presign service"
+
+    ```json
+    { "output": { "dir": "reports", "upload": { "presign": {
+        "url": "https://store.example.com/presign",
+        "headers": { "authorization": { "prefix": "Bearer ", "value": { "env": "STORE_TOKEN" } } },
+        "uploadUrl": "/uploadUrl",
+        "link": "/downloadUrl" } } } }
+    ```
+
+    Your presign service answers with the address to upload to and the link.
+
+=== "PUT address"
+
+    ```json
+    { "output": { "dir": "reports", "upload": {
+        "url": "https://store.example.com/reports/{id}/{name}.{format}",
+        "headers": { "authorization": { "prefix": "Bearer ", "value": { "file": "secrets/store-token" } } } } } }
+    ```
+
+The full list of settings is in [Upload to your store](reference/delivery.md#upload).
 
 ## Logs { #logs }
 
@@ -320,6 +342,31 @@ The services write JSON lines to stderr. CI tests the log's format.
 | journald and rsyslog, without a container | Documented, not tested | [journald and rsyslog](reference/operations.md#journald) |
 | A Kubernetes log agent, such as Fluent Bit or Vector | Documented, not tested | [Kubernetes](reference/operations.md#kubernetes) |
 | Grafana Loki | Not tested | The docs give no settings for it |
+
+The settings each Docker driver needs, in `compose.yml`:
+
+=== "Graylog (gelf)"
+
+    ```yaml
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://graylog.example.com:12201"
+        tag: "pivotkit"
+    ```
+
+=== "syslog"
+
+    ```yaml
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp+tls://logs.example.com:6514"
+        syslog-format: "rfc5424"
+        tag: "pivotkit"
+    ```
+
+Both drivers give every line the same level. Let the log server parse the JSON and use its `level`.
 
 ## Platforms { #platforms }
 
