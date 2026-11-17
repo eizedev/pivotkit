@@ -53,7 +53,7 @@ pivotkit-react's `build.js`). pivotkit does not support older browsers.
 | `fieldDefaults` |  | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count). [More](#prop-fielddefaults) |
 | `labels` |  | partial labels |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
 | `limits` |  | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits) for the page's data, as the `limits` prop of pivotkit-react. |
-| `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used. The page's language is not. |
+| `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used. The page's language is not. A locale the browser has no data for, such as `xx-XX`, is an error the report shows. |
 | `theme` | `theme` | `"auto"` or `"light"` or `"dark"` | `"auto"` | `auto` follows the nearest `data-theme="light"` or `data-theme="dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them. |
 | `height` | `height` | `number` or `string` | `640` | Pixels (`height="480"`) or a CSS length. `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). [More](#prop-height) |
 | `timeZone` | `time-zone` | `string` | `"UTC"` | The zone `data` is encoded in. See pivotkit-core. |
