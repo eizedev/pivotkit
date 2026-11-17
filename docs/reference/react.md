@@ -296,6 +296,13 @@ The start state of the zones: open, or folded to the heading row "Fields in the 
 - Without `zones`, the report's height decides, as described in [Layout](#layout).
 - With `zones`, the user can still fold or open them until the page is loaded again. The report does
   not store that.
+- `"open"` keeps the zones open even in a box too low for them. In a box of the host's height the
+  result then gets less than its least height of 240 px, and the table scrolls in what is left.
+  Measured with three fields placed: a desktop card of 600 px leaves the table 176 px (two rows),
+  123 px while a tip shows. On a phone the same card leaves it almost nothing. Without `zones`, that
+  desktop card folds the zones and leaves 323 px (six rows).
+- Use `"open"` where the report has room: a desktop box of about 760 px or more, or no fixed
+  height, so the report grows.
 - A new value from the host sets the start state again.
 - The report ignores another value, with a console warning.
 
@@ -936,8 +943,11 @@ screen.
 - The settings button reads "Table settings" (`tableSettings`) or "Chart settings"
   (`chartSettings`). Its test id is `view-settings`. Table settings holds the totals, Expand all and
   Collapse all. Chart settings holds the chart types and the Display topics.
-- In the narrow layout the settings button, Enlarge and Full screen show their icon only, with their
-  name in `aria-label` and `title`.
+- In the narrow layout the settings button reads "Settings" (`settingsShort`), Enlarge and Full
+  screen show their icon only. Each keeps its whole name in `aria-label` and `title`. Left and Right
+  do not mirror: the report has no right-to-left layout.
+- A tab changes the view's `display`, so showing the other tab is one step for Undo, as the switch
+  Table | Chart was before. The tab shown, clicked again, adds no step.
 
 The Tab order is the toolbar, the zones, the tips, the tabs, the settings button, Enlarge, Full
 screen and the result.
@@ -1061,6 +1071,24 @@ React's `useId` (`pk-x3k9q1-r1f`), so two reports on one page share no name, and
 components. Browsers fill and restore fields by name. Browsers' developer tools flag a field without a
 name or an id. The names are not stable across page loads. Do not select the fields by them. The
 `data-testid`s are for tests.
+
+## Test ids
+
+A `data-testid` is not public interface. The upgrading page lists the ones a release changes. Those of
+the layout:
+
+| Test id | What |
+| --- | --- |
+| `zone-section` | the section "Fields in the report" |
+| `layout-summary` | its fold button, with `aria-expanded` |
+| `zones-sub` | the line under the heading: what is placed, or the hint |
+| `swap` | Swap rows and columns, at the end of the heading row |
+| `show-table`, `show-chart` | the tabs, with `aria-selected` |
+| `view-settings` | Table settings or Chart settings |
+| `chart-types` | the group of chart types in Chart settings; each type is `chart-<type>` |
+| `chart-show-each`, `chart-show-only` | Chart settings › Layout: "Show each …" and "Show … only" |
+| `expand-all`, `collapse-all` | the same in Table settings |
+| `more`, `more-help` | More, and its Help entry |
 
 ## Popovers and the host page
 

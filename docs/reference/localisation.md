@@ -32,6 +32,14 @@ load does not carry the menus' texts. Its keys are the reference for every text.
 source, they live in `src/labels.js`, `src/menu-labels.js`, `src/menu-labels-de.js`,
 `src/unused-texts.js`, `src/unused-texts-de.js` and `src/import-labels.js`.
 
+The texts of the tabs and the zones' section are `table`, `chart`, `tableSettings`, `chartSettings`,
+`settingsShort` (the settings button on a phone), `zonesTitle`, `zonesHint` and `more`. The menus'
+texts include `helpAndShortcuts`, `help`, `chartShowEach`, `chartShowOnly`, `chartShowDetails`,
+`chartShowTotals`, `chartFoldEach`, `chartFoldOnly` and `chartFoldSome`. `LABELS.en` lists them all.
+
+The report ignores the keys `layout`, `showLayout`, `options` and `chartDisplay`. It says once in the
+console which key holds that text now ([upgrading](../getting-started/upgrading.md#view-tabs-0-8)).
+
 The report's `lang` attribute follows the labels, so screen readers use the right voice.
 
 The texts that only the menus show load with the menus, right after the first render:

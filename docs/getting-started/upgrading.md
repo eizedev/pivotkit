@@ -194,8 +194,8 @@ The toolbar holds what applies to the whole report. Table and Chart moved onto t
   chart types and the Display topics. Its Layout folds the groups of Rows: "Show each Country",
   "Show Region only".
 - The chart type button, **Options** and **Layout** left the toolbar.
-- **More** is always at the end of the toolbar. **Help** is its first entry: the tips' switches and
-  the keyboard shortcuts.
+- **More** is always at the end of the toolbar. Its first entry, **Help and keyboard shortcuts**,
+  opens a level with the tips' switches and the keyboard shortcuts.
 - The zones sit under the heading **Fields in the report**. The heading row folds them.
   **Swap rows and columns** moved from the Columns zone to the end of that row.
 - The new prop `zones` (`"open"` or `"folded"`, the attribute `zones`) sets the zones' start state.
@@ -203,6 +203,9 @@ The toolbar holds what applies to the whole report. Table and Chart moved onto t
 - The open zones with their heading need about 90 px more height than before. A report whose box
   was just high enough for its open zones may now start with them folded. Give the report more
   height, or set `zones="open"`.
+- `zones="open"` keeps them open in any box. In a desktop card of 600 px the table then keeps 176 px,
+  less than the result's least height of 240 px. On a phone it keeps almost nothing. Use it in a box
+  of about 760 px or more, or without a fixed height ([`zones`](../reference/react.md#prop-zones)).
 
 Label keys:
 
@@ -213,9 +216,14 @@ Label keys:
 | `options` ("Options") | `tableSettings` ("Table settings"), and `help` in More |
 | `chartDisplay` ("Display", the chart type menu's name) | `chartSettings` ("Chart settings") |
 
-New keys: `tableSettings`, `chartSettings`, `zonesTitle`, `zonesHint`. The menus' texts add
-`chartShowEach` ("Show each {field}"), `chartShowOnly` ("Show {field} only"), `chartShowDetails` and
-`chartShowTotals`. `chartTypeIs` ("Chart type: {type}") now names the group of types in Chart
+The report ignores these keys. It says once in the console which key holds that text now. Other
+keys it does not know are ignored without a word.
+
+New keys: `tableSettings`, `chartSettings`, `settingsShort`, `zonesTitle`, `zonesHint`. The menus'
+texts add `helpAndShortcuts` ("Help and keyboard shortcuts", More's first entry), `chartShowEach`
+("Show each {field}"), `chartShowOnly` ("Show {field} only"), `chartShowDetails`, `chartShowTotals`,
+and for Layout's row `chartFoldEach`, `chartFoldOnly` and `chartFoldSome`. `linesNotes.table` now
+says that the lines show once the chart is drawn. `chartTypeIs` ("Chart type: {type}") now names the group of types in Chart
 settings.
 
 Test ids:

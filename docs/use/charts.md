@@ -97,6 +97,9 @@ labels of a pie.
     - **Show Region only** keeps the groups of the first field. It is the table's **Collapse all**.
       In **Table settings**, Collapse all shows the same words beside it.
 
+    Layout's row says how the groups show now: "Each Country", "Region only" or "Some groups
+    collapsed", after its other settings.
+
     With one field in Rows both read **Show details** and **Show group totals only**. They are greyed
     out with the reason "Needs two or more fields in Rows." Either choice closes the menu and is one
     step for Undo.

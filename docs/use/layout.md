@@ -72,10 +72,11 @@ The report adapts to its own width, not the window's.
     - when a drag starts
 - **Sheets**: on a phone, **More** and every menu are a sheet at the bottom of the window. A sheet
   takes at most 82 % of the window's height and scrolls inside, so every entry is reachable.
-- **Icons**: next to the tabs, the settings button, **Enlarge** and **Full screen** show their icon
-  only. So does **Swap rows and columns**. Each keeps its name as a tooltip and for a screen reader.
-- **More** is always at the end of the toolbar. **Help** is its first entry. Toolbar buttons that do
-  not fit move into **More**, below Help.
+- **Icons**: next to the tabs, the settings button reads **Settings**. **Enlarge**, **Full screen**
+  and **Swap rows and columns** show their icon only. Each keeps its whole name as a tooltip and for
+  a screen reader.
+- **More** is always at the end of the toolbar. Its first entry, **Help and keyboard shortcuts**,
+  opens the level **Help**. Toolbar buttons that do not fit move into **More**, below it.
     - They move in a fixed order: Data first, then Start over and Views last. Start over holds New,
       and Views is where you save.
     - Only the buttons that the room left in the toolbar cannot hold move. A button that fits stays,
