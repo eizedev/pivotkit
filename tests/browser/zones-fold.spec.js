@@ -110,6 +110,23 @@ test("desktop: zones folded by a tall warning open again once the warning folds 
     }
 });
 
+test("zones folded on a medium-wide window open again when the window gets wide and they fit", async ({ page }) => {
+    // what the open zones need on a wide window, in a box just high enough for them there
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const wide = await boxThatFits(page);
+    // a medium-wide window stacks more of the zones: they need more than that box, so they fold
+    await page.setViewportSize({ width: 700, height: 900 });
+    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    expect((await settled(page)).layout).toBe("compact");
+    // wide again: the zones open, measured again for this width, and stay open
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.locator('[data-zone="rows"]')).toBeVisible();
+    const after = await settled(page);
+    expect(after.height).toBe(wide.height);
+    expect(after.layout).toBe("open");
+    expect(after.result).toBeGreaterThanOrEqual(after.least);
+});
+
 // the case the issue names: these zones need more than 820 px; already folded before the fix, kept as a guard
 test("phone: the tickets data in a box of 820 px starts with its zones folded (they need more)", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });

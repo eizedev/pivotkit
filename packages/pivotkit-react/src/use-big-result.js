@@ -57,8 +57,9 @@ export function useBigResult(root) {
 }
 
 /**
- * @typedef {{ need: number, open: number, grow: boolean, folded: { need: number, open: number } | null }} FitState
- *   `folded`: what the column and the open zones needed when the zones folded (null while open)
+ * @typedef {{ need: number, open: number, grow: boolean, folded: { need: number, open: number } | null, size?: string | null }} FitState
+ *   `folded`: what the column and the open zones needed when the zones folded (null while open);
+ *   `size`: the width class `open` was measured at
  */
 
 /**
@@ -78,7 +79,7 @@ export function useBigResult(root) {
  * @returns {React.MutableRefObject<FitState>}
  */
 export function useFitHeight(root, main, grow, onOpen) {
-    const fit = useRef(/** @type {FitState} */ ({ need: 0, open: 0, grow, folded: null }));
+    const fit = useRef(/** @type {FitState} */ ({ need: 0, open: 0, grow, folded: null, size: null }));
     const opened = useRef(onOpen);
     // the observer of the report and of the parts of its column, and the parts it watches
     const watch = useRef(/** @type {{ ro: ResizeObserver | null, parts: Set<Element> }} */ ({ ro: null, parts: new Set() }));
@@ -168,6 +169,16 @@ function measureFit(el, m, fit) {
     // column gave up since (a warning folded, a tip gone), so they open again once they fit. Only a
     // change of the rest moves it, so the folded layout's own parts (one tip at most) flip nothing.
     const f = fit.current;
+    // another width class lays the zones out anew: what they needed at the old one says nothing, so
+    // the next open layout measures it again
+    const size = el.getAttribute("data-pk-size");
+    let changed = false;
+    if (size !== f.size) {
+        changed = f.open > 0;
+        f.size = size;
+        f.folded = null;
+        f.open = 0;
+    }
     let open = f.open;
     if (el.hasAttribute("data-pk-enlarged")) {
         f.folded = null;
@@ -178,7 +189,6 @@ function measureFit(el, m, fit) {
         f.folded ??= { need, open: f.open };
         open = f.folded.open - (f.folded.need - need);
     }
-    let changed = false;
     if (Math.abs(open - f.open) > 1) {
         f.open = open;
         changed = true;

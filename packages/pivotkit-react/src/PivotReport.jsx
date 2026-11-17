@@ -866,7 +866,9 @@ function Report(props) {
         // Two observers on purpose: this one reads the report's box in its callback, so the width
         // class and the fold follow a resize in the same frame. useFitHeight's measures the column a
         // frame later (setting min-height in the callback would loop) and calls checkLow when what
-        // the open zones need changes inside a box of the same size.
+        // the open zones need changes inside a box of the same size. A box at most 1 px higher than
+        // what they need counts as too low (`<= open + 1`): measures round, and a growing report's
+        // min-height makes its box exactly as high as it needs.
         const ro = new ResizeObserver(([entry]) => {
             const width = sizeOf(entry.contentRect.width);
             setSize(width);
