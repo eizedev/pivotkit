@@ -182,7 +182,8 @@ test.describe("chart extras (#54)", () => {
         const report = page.locator("#color-report");
         await hover(page, chartEl, await inChart(chartEl, barMiddle, { series: 2, index: 1 }));
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30"]);
-        // a new chart: one drawn again under an element hovered before does not name it (an older defect)
+        // a new chart: one drawn again under an element hovered before does not name it, a defect of the
+        // tooltip's hover state that the share does not touch
         chartEl = await mount(page, { type: "bar" });
         await menu(report, "chart-type");
         // a click on the switch's words, as a hand does
