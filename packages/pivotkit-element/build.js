@@ -316,9 +316,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * 7.80, unused 5.53, report 23.70. The first load may grow in 0.8.0, its split is #546 (0.9.0):
  * initial goes to 176.4, CI's measure plus about 0.5 KiB; chart to 243.5, menus to 52, texts to 8,
  * unused to 6 and report to 24.
+ * Tabs for Table and Chart, the zones' section with its heading row and "i", the always-present More
+ * and the warning on label keys no longer shown (#580): CI's zlib measures the first load at 176.43,
+ * 0.03 over its budget; the menus 51.61 and the German texts 7.86 stay within theirs. The first
+ * load's split is still #546 (0.9.0): initial goes to 176.9, CI's measure plus about 0.5 KiB.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 176.4, chart: 243.5, export: 12.6, link: 7.5, menus: 52, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 176.9, chart: 243.5, export: 12.6, link: 7.5, menus: 52, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
