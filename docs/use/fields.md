@@ -183,9 +183,11 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
   [sort with a click on a header](filters.md#sort-with-a-click-on-a-header).
 - With one value, its name stands once over all of its columns.
 - The table is as wide as its columns and scrolls sideways when it is wider than the report.
-- Long row labels wrap between words, so on a phone numbers stay in view next to them. On a phone a
-  row label keeps at least 5.5em, so a common word is never cut. A longer word breaks at a hyphen of
-  its own. As a last resort, a word longer than the column breaks anywhere.
+- Row labels and field names stay on one line when the table fits the report.
+- Long row labels wrap between words when the table is wider than the report, so on a phone numbers
+  stay in view next to them. On a phone a row label keeps at least 5.5em, so a common word is never
+  cut. A longer word breaks at a hyphen of its own. As a last resort, a word longer than the column
+  breaks anywhere.
 - From 300 rows on, the table draws only the rows in view, so it stays fast. A row label is then cut
   to one line:
     - The status line under the table shows the whole label of the row the focus is on, or of a label

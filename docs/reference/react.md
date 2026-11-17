@@ -805,10 +805,13 @@ container query on that area decides it. This covers the narrow layout and a med
 half-width card of 650 px. "Swap rows and columns" shows its icon only when the head of the Columns
 zone is too narrow for the text. Its name stays for screen readers and as a tooltip.
 
-Only the table scrolls sideways. The row label columns share at most 40 % of the main area, and a
-value's name wraps beyond 30 %. So a long label wraps between words, and a phone still shows values
-next to two levels of row labels.
+Only the table scrolls sideways. The table measures whether it fits the report:
 
+- When it fits, every row label, field name and value name keeps its natural width, on one line.
+- When it is too wide, the labels and names wrap between words until the table fits.
+- When even that is too wide, the row label columns share the room the value columns leave. Each
+  gets at least an equal part of 40 % of the main area. A value's name wraps beyond 30 %. So a phone
+  still shows values next to two levels of row labels.
 - Each row label column is at least 5.5em wide, so a common word such as "Central" never breaks.
 - A longer word breaks at a hyphen of its own. A word longer than the column breaks as a last
   resort.

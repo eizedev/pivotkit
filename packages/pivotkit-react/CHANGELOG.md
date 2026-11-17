@@ -81,6 +81,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- Row labels, the field names above them and the value names keep their natural width, on one
+  line, when the table fits the report. Only a table that would be wider than the report wraps them,
+  between words first. Then the row labels share the room the value columns leave, not a fixed 40 %
+  of the width. A word breaks only when it alone is wider than its column ([#584](https://github.com/eizedev/pivotkit/issues/584)).
 - On a touch screen, the first tap on a bar, a point or a heatmap cell shows its tooltip. The second
   tap on it opens the rows behind it and calls `onCellClick`. The tooltip no longer stays over the
   panel, and the panel no longer closes right after it opens ([#538](https://github.com/eizedev/pivotkit/issues/538)).
