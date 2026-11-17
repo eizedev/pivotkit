@@ -145,15 +145,18 @@ const RENDER_HOST = `
     }
 `;
 
+/** How long one host may run before the test fails it: a host whose run waits for a dead worker. */
+const HOST_MS = 15_000;
+
 /** Runs RENDER_HOST with these node flags in front: as a file, as a string (`-e`) or from standard input. */
 const renderHost = (flags, how) => {
     const dir = workspace();
     if (how === "file") {
         writeFileSync(join(dir, "host.mjs"), RENDER_HOST);
-        return spawnSync(process.execPath, [...flags, join(dir, "host.mjs")], { cwd: dir, encoding: "utf8" });
+        return spawnSync(process.execPath, [...flags, join(dir, "host.mjs")], { cwd: dir, encoding: "utf8", timeout: HOST_MS });
     }
     const args = how === "string" ? [...flags, "-e", RENDER_HOST] : flags;
-    return spawnSync(process.execPath, args, { cwd: dir, encoding: "utf8", ...(how === "stdin" ? { input: RENDER_HOST } : {}) });
+    return spawnSync(process.execPath, args, { cwd: dir, encoding: "utf8", timeout: HOST_MS, ...(how === "stdin" ? { input: RENDER_HOST } : {}) });
 };
 
 test("the real workers start in a host run from a string or standard input with --input-type=module (both spellings), from a file, and with a V8 flag (#542)", FAST, () => {
