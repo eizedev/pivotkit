@@ -119,7 +119,7 @@ export const COMMANDS = Object.freeze({
             ...LAYOUT_OPTIONS,
             ...REMOTE_OPTIONS,
             "save-view": { type: "string", value: "file", complete: "file", where: "local", text: "Also write the view used as a view file (after --map; with layout flags or --suggest the view they make)." },
-            format: { type: "string", short: "f", value: "format", choices: ["html", "csv", "json", "xlsx", "svg"], text: "The output's format; default -o's extension (another one is an error), html on stdout." },
+            format: { type: "string", short: "f", value: "format", choices: ["html", "csv", "json", "xlsx", "svg"], text: "The output's format; default -o's extension (another one is an error), html on stdout. xlsx holds the table; the chart is in html or svg." },
             output: { type: "string", short: "o", value: "file", complete: "file", text: "Write to this file (replaced if it is a file) instead of stdout; the data file and the view file are refused." },
             template: { type: "string", value: "file", complete: "file", where: "local", formats: ["html"], text: "html: the print template with {{placeholders}} (default the built-in one)." },
             title: { type: "string", value: "text", formats: ["html", "xlsx"], text: "html, xlsx: the report's title (default the view file's name)." },

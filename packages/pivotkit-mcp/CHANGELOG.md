@@ -8,6 +8,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Changed
 
+- `render_view`'s description says the workbook holds the table, no chart. A chart view rendered as
+  xlsx has the finding `chartNotInXlsx`. Clients see the description after they reconnect
+  ([#360](https://github.com/eizedev/pivotkit/issues/360)).
 - `render_view` takes `locale`, `numbers` and `flatHeader`, and every tool result carries
   `requestId`, also at the end of its summary line. Inline csv and json round numbers as the view
   shows them (saved files keep full precision), inline json is on one line, and saved reports and

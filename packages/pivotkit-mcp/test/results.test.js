@@ -41,3 +41,24 @@ test("MCP render_view: inline csv rounded as the view shows it, in German with o
         await server.close();
     }
 });
+
+test("MCP render_view: an Excel workbook of a chart view holds the table, and a finding says where the chart is (#360)", async () => {
+    const dir = workspace({ "amounts.csv": AMOUNTS_CSV });
+    const server = await httpServer({ sources: { amounts: { file: "data/amounts.csv", policy: { default: "show" } } }, output: { dir: "out" }, baseDir: dir });
+    const { client, close } = await httpClient(server.url);
+    try {
+        const render = (await client.listTools()).tools.find((t) => t.name === "render_view");
+        assert.match(render.description, /xlsx \(Excel, the default; the table, no chart\)/);
+        const view = { version: 2, ...LAYOUT, display: "chart", chart: { type: "line" } };
+        const xlsx = await call(client, "render_view", { source: "amounts", view, format: "xlsx" });
+        assert.equal(xlsx.isError, false, xlsx.text);
+        assert.deepEqual(xlsx.data.findings.map((f) => [f.code, f.severity]), [["chartNotInXlsx", "warning"]]);
+        assert.match(xlsx.text, /The workbook holds the table\. The chart is in html or svg\./);
+        // the table view: no finding
+        const table = await call(client, "render_view", { source: "amounts", layout: LAYOUT, format: "xlsx" });
+        assert.deepEqual(table.data.findings, []);
+    } finally {
+        await close();
+        await server.close();
+    }
+});

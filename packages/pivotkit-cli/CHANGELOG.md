@@ -16,6 +16,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- `render --help` says the workbook holds the table and the chart is in html or svg. A chart view
+  rendered as xlsx warns `chartNotInXlsx` ([#360](https://github.com/eizedev/pivotkit/issues/360)).
 - The example views (`pivotkit example`) name the chart's `tooltip` setting, `"auto"`.
 
 - `--filter Revenue>1000`, `Country!=Germany` or `Country<>Germany` is a usage error that gives

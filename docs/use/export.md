@@ -81,6 +81,9 @@ For the rows behind ONE number, a cell's drill-down, see the [drill-down](drill-
 
     The sheet has the file's name, made valid for Excel: at most 31 characters.
 
+    The workbook holds the table, not the chart. Download the chart as a PNG or SVG image, or take
+    the HTML report, which has both.
+
     Where Excel cannot follow a format, the workbook writes:
 
     - bytes and durations as plain numbers
@@ -217,5 +220,7 @@ a note says so: "This page does not allow copying. Download a file instead."
       [pivotkit-core](../reference/core.md).
     - The HTML report and the SVG come from [pivotkit-report](../reference/report.md), the same as
       the command line's. See [pivotkit-cli](../reference/cli.md).
+    - The command line, the REST service and the MCP server render the workbook of a view that
+      shows the chart with the warning `chartNotInXlsx`: the chart is in `html` or `svg`.
     - The shape of Copy data as JSON is [pivotkit-core's `toJson`](../reference/core.md).
     - [Values](../concepts/values.md#export) describes how formats reach Excel and CSV.
