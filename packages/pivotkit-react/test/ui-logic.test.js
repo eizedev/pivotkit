@@ -9,7 +9,7 @@ import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
 import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "pivotkit-core/chart";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
-import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
+import { LABELS, errorText, fill, plural, resolveLabels, rowCount } from "../src/labels.js";
 import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, answered, createState, record, redo, reset, settle, tagFor, told, undo } from "../src/view-history.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
@@ -113,6 +113,17 @@ test("counts in words take the plural form of the language: 1 series, 1 Reihe", 
     // a form of the wrong type is ignored; a missing form falls back to "other"
     assert.equal(resolveLabels("en", { rowsCount: { one: 1 } }).rowsCount.one, "{count} row");
     assert.equal(plural({ other: "{count} things" }, 1, { lang: "en", locale: "en-US" }), "1 things");
+});
+
+test("the row count under the result: the data's rows, or the rows a filter keeps of them (#108)", () => {
+    assert.equal(rowCount(15344, 15344, en, "en-US"), "15,344 rows");
+    assert.equal(rowCount(1, 1, en, "en-US"), "1 row");
+    assert.equal(rowCount(5110, 15344, en, "en-US"), "5,110 of 15,344 rows");
+    assert.equal(rowCount(0, 1, en, "en-US"), "0 of 1 row");
+    assert.equal(rowCount(2190, 4386, LABELS.de, "de-DE"), "2.190 von 4.386 Zeilen");
+    assert.equal(rowCount(4386, 4386, LABELS.de, "de-DE"), "4.386 Zeilen");
+    // a host's text for the filtered count, one text for every count
+    assert.equal(rowCount(3, 10, resolveLabels("en", { rowsFiltered: "{shown}/{count} records" }), "en-US"), "3/10 records");
 });
 
 test("value names: plain aggregator words, show-as renames the value", () => {

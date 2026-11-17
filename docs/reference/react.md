@@ -833,6 +833,11 @@ Columns: Priority · Values: Count of Ticket"), so the table keeps its room. At 
   dropped.
 - When the report gets lower while a menu or popover is open, the fold waits until it closes. A focus
   in the zones moves to the folded line.
+- The report folds the zones too when they no longer fit its box. It checks after every render and
+  when a part of it changes size. So zones that grow in a box of the same size fold as well: longer
+  texts in another language, more fields in Rows, a font or stylesheet that loads late.
+- Folded that way, the zones open again once they fit: when a warning folds, a tip goes or the
+  report gets wider.
 
 The user's choice is state of the mounted report. It survives the host's renders. It is not part of
 the view, so a saved view does not carry it.

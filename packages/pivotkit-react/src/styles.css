@@ -2522,6 +2522,11 @@
     font-size: var(--pk-small);
 }
 
+/* "5,110 of 15,344 rows" stays one piece; the line wraps between its parts, not inside one */
+.pk-row-count {
+    white-space: nowrap;
+}
+
 /* the whole row label of the focused value in a virtual table, whose labels are cut to one line */
 .pk-row-label {
     min-width: 0;

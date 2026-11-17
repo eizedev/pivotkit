@@ -348,56 +348,119 @@ test("on a phone, a tap on a stacked segment shows that segment and the total, i
     await context.close();
 });
 
-test("under a strict Content-Security-Policy: segments, the gap, bars, lines, areas and slices, without a violation", async ({ page }) => {
-    // six charts swept by the pointer: slower than one hover
-    test.setTimeout(180_000);
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("pages/element-csp.html");
-    const el = page.locator("#strict");
-    await expect(el.locator(".pk-root")).toBeVisible();
-    const chartEl = el.getByTestId("pivot-chart");
-    // the web component bundles its ECharts, so this page has no instance to ask: the pointer sweeps
-    // across the plot and collects every tooltip it sees
-    const sweep = async (rows) => {
-        const box = await chartEl.boundingBox();
-        const seen = new Set();
-        for (const fy of rows) {
-            for (let x = box.x + 40; x < box.x + box.width - 20; x += 14) {
-                await page.mouse.move(x, box.y + box.height * fy);
-                const tip = await tooltipOf(chartEl);
-                if (tip.length) seen.add(tip.join(" | "));
-            }
+/**
+ * The strict CSP page (the web component, which bundles its own ECharts, so there is no instance to
+ * ask for positions): the pointer sweeps along lines across the plot. A MutationObserver in the page
+ * keeps every tooltip text ECharts writes, so a sweep reads the page once at the end, not after every
+ * position.
+ */
+const CSP_CASES = [
+    {
+        name: "stacked bars: a segment with its total, the gap the total only",
+        chart: { type: "bar", stacked: true },
+        rows: [0.55, 0.8],
+        check: (seen) => {
+            expect(seen).toContain("North | Total 60");
+            expect(seen.some((t) => /^North \| (Hardware 20|Services 10|Software 30) \| Total 60$/.test(t)), seen.join("\n")).toBe(true);
+            expect(seen.some((t) => t.includes("|  |") || /Hardware $/.test(t)), seen.join("\n")).toBe(false);
         }
-        return [...seen];
-    };
-    const show = async (chart, view = {}) => {
+    },
+    {
+        name: "grouped bars: a bar alone, between bars every series",
+        chart: { type: "bar" },
+        rows: [0.8],
+        check: (seen) => {
+            expect(seen).toContain("East | Services 12 | Software 40");
+            expect(seen.some((t) => /^North \| (Hardware 20|Services 10|Software 30)$/.test(t)), seen.join("\n")).toBe(true);
+        }
+    },
+    {
+        name: "lines: every series between the points",
+        chart: { type: "line" },
+        rows: [0.45, 0.85],
+        check: (seen) => expect(seen).toContain("East | Services 12 | Software 40")
+    },
+    {
+        name: "stacked area: the fill every series and the total",
+        chart: { type: "area", stacked: true },
+        rows: [0.8],
+        check: (seen) => expect(seen).toContain("North | Hardware 20 | Services 10 | Software 30 | Total 60")
+    },
+    ...["pie", "donut"].map((type) => ({
+        name: `${type}: a slice`,
+        chart: { type },
+        view: { cols: [] },
+        rows: [0.5],
+        check: (seen) => expect(seen.some((t) => /^Sum of Revenue \| (North 60|South 45|East 52)$/.test(t)), seen.join("\n")).toBe(true)
+    }))
+];
+
+for (const { name, chart, view = {}, rows, check } of CSP_CASES) {
+    test(`under a strict Content-Security-Policy, ${name}, without a violation`, async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 900 });
+        // no animation (--pk-duration 0ms): the marks stand where they end at the first frame
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.goto("pages/element-csp.html");
+        const el = page.locator("#strict");
+        await expect(el.locator(".pk-root")).toBeVisible();
         await page.evaluate(({ rows, view }) => {
             const r = document.getElementById("strict");
             r.data = rows;
             r.defaultView = view;
         }, { rows: ROWS, view: { ...VIEW, ...view, chart } });
+        const chartEl = el.getByTestId("pivot-chart");
         await expect(chartEl.locator("canvas").first()).toBeVisible();
-        await page.waitForTimeout(600);
-    };
-    await show({ type: "bar", stacked: true });
-    const bars = await sweep([0.55, 0.8]);
-    expect(bars).toContain("North | Total 60");
-    expect(bars.some((t) => /^North \| (Hardware 20|Services 10|Software 30) \| Total 60$/.test(t)), bars.join("\n")).toBe(true);
-    expect(bars.some((t) => t.includes("|  |") || /Hardware $/.test(t)), bars.join("\n")).toBe(false);
-    await show({ type: "bar" });
-    const grouped = await sweep([0.6, 0.8]);
-    expect(grouped).toContain("East | Services 12 | Software 40");
-    expect(grouped.some((t) => /^North \| (Hardware 20|Services 10|Software 30)$/.test(t)), grouped.join("\n")).toBe(true);
-    await show({ type: "line" });
-    const lines = await sweep([0.3, 0.45, 0.6, 0.75]);
-    expect(lines).toContain("East | Services 12 | Software 40");
-    await show({ type: "area", stacked: true });
-    const areas = await sweep([0.7, 0.85]);
-    expect(areas).toContain("North | Hardware 20 | Services 10 | Software 30 | Total 60");
-    for (const type of ["pie", "donut"]) {
-        await show({ type }, { cols: [] });
-        const slices = await sweep([0.4, 0.5, 0.6]);
-        expect(slices.some((t) => /^Sum of Revenue \| (North 60|South 45|East 52)$/.test(t)), `${type}: ${slices.join("\n")}`).toBe(true);
-    }
-    expect(await page.evaluate(() => window.__violations)).toEqual([]);
-});
+        // every tooltip text written into the chart, as "North | Hardware 20 | Total 60"
+        await chartEl.evaluate((node) => {
+            const seen = new Set();
+            const read = () => {
+                const tip = [...node.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
+                const box = tip?.firstElementChild;
+                if (box) {
+                    seen.add([...box.children].map((row) => [...(row.children.length ? row.children : [row])].map((c) => c.textContent.trim()).filter(Boolean).join(" ")).join(" | "));
+                }
+            };
+            new MutationObserver(read).observe(node, { childList: true, subtree: true, characterData: true });
+            window.__tooltips = seen;
+        });
+        // drawn and settled: the chart draws again when its box settles (the report lays itself out),
+        // so the sweep waits until two reads of the canvas, a few frames apart, are the same picture
+        let last = "";
+        await expect.poll(async () => {
+            const now = await chartEl.locator("canvas").first().evaluate(async (c) => {
+                await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+                // a small copy to read from (reading the chart's own canvas again and again makes
+                // Chromium warn): enough to see a mark move
+                const copy = document.createElement("canvas");
+                copy.width = 240;
+                copy.height = 120;
+                const ctx = copy.getContext("2d", { willReadFrequently: true });
+                ctx.drawImage(c, 0, 0, copy.width, copy.height);
+                const { data } = ctx.getImageData(0, 0, copy.width, copy.height);
+                let sum = 0;
+                let marks = 0;
+                for (let i = 3; i < data.length; i += 4) {
+                    sum = (sum * 31 + data[i - 3] + data[i - 2] * 7 + data[i - 1] * 13 + data[i]) % 1_000_000_007;
+                    marks += data[i] > 0 ? 1 : 0;
+                }
+                return marks ? `${c.width}x${c.height}:${sum}` : "";
+            });
+            const same = now !== "" && now === last;
+            last = now;
+            return same;
+        }, { intervals: [100, 100, 200, 200, 400] }).toBe(true);
+        const box = await chartEl.boundingBox();
+        for (const fy of rows) {
+            const y = box.y + box.height * fy;
+            // a move every 16 px, each its own event (a move with steps can reach the page as fewer
+            // events, so a slice can be passed over): narrower than a bar (48 px) and a slice
+            for (let x = box.x + 40; x < box.x + box.width - 20; x += 16) {
+                await page.mouse.move(x, y);
+            }
+        }
+        // the last position's tooltip is written: the observer has seen the sweep
+        const seen = await page.evaluate(() => [...window.__tooltips]);
+        check(seen);
+        expect(await page.evaluate(() => window.__violations)).toEqual([]);
+    });
+}

@@ -11,6 +11,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - With `exportData` off, the default, the drill-down panel has no Export menu: no copy and no
   download of its rows. Set `drillDownExport` to keep it
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
+- The row count under the result says "2,190 of 4,386 rows" when a filter leaves rows out. A host
+  whose `labels` set `rowsCount` or add a language sets the new label `rowsFiltered` too
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#rows-filtered)).
 
 ### Added
 
@@ -45,6 +48,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   rows but offers no copy and no download (#263).
 - pivotkit-core's ECharts option (`toEChartsOption`) loads with ECharts, from `pivotkit-core/chart`,
   not with the first load (#546).
+- The row count under the result says how many of the data's rows the filters keep: "2,190 of 4,386
+  rows", German "2.190 von 4.386 Zeilen". With nothing filtered it says "4,386 rows" (#108).
 
 ### Fixed
 
@@ -52,6 +57,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   height, a donut's outside labels stay whole, the value at the end of a horizontal bar is not cut,
   and a heatmap names every row that has room ([#228](https://github.com/eizedev/pivotkit/issues/228), [#229](https://github.com/eizedev/pivotkit/issues/229), [#230](https://github.com/eizedev/pivotkit/issues/230),
   [#231](https://github.com/eizedev/pivotkit/issues/231)).
+- The zones fold when they no longer fit the report's box, also when the box keeps its size. Longer
+  texts in another language, more fields in Rows, a tip or a late stylesheet made them taller without
+  a resize, and they stayed open over a squeezed result. Folded that way, they open again once they
+  fit (#93).
 
 ## [0.7.0] - 2026-11-16
 

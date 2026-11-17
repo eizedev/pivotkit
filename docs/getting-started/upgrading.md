@@ -173,6 +173,7 @@ configuration, under "New in this version", with a link to each section below.
 | [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
 | [Chart layout functions measure differently](#chart-layout-0-8) | your code calls `rowLabelInterval`, `heatmapCellLabels`, `columnLabelLayout` or `categoryLabelLayout` of `pivotkit-core/chart` | check the results you rely on. Pass `frame` to keep the old heatmap frame |
 | [The chart's tooltip names the element under the pointer](../use/charts.md#read-the-chart) | people read values from chart tooltips, or your tests or screenshots show one | nothing; Display → Tooltip → All series lists every series as before, with a total for stacked sums and counts |
+| [The row count says "2,190 of 4,386 rows"](#rows-filtered) | your `labels` set `rowsCount` or add a language, or a test reads the row count under the result | set `rowsFiltered` beside `rowsCount`; expect the new text in tests |
 
 ### Sources hidden by default can be open { #hidden-open }
 
@@ -253,6 +254,17 @@ menu. People can no longer copy the rows or download them as CSV or Excel from t
   `drill-down-export` on pivotkit-element. Its copies and files hold every column.
 - With `exportData` on, nothing changes.
 - `onCellClick` and `pivot-cell-click` still get the rows.
+
+### The row count says "2,190 of 4,386 rows" { #rows-filtered }
+
+When a filter leaves rows out, the line under the result says "2,190 of 4,386 rows" instead of
+"2,190 rows". Its text is the new label `rowsFiltered`.
+
+- English and German have it.
+- A host whose `labels` set `rowsCount` sets `rowsFiltered` too. Otherwise the line uses the
+  language's own words while a filter is on, such as "rows" beside your "records".
+- A host whose `labels` add another language adds `rowsFiltered` too. Without it, that line is in
+  English while a filter is on. See [Localisation](../reference/localisation.md).
 
 ## From 0.6 to 0.7 { #from-0-6-1 }
 
