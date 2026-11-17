@@ -67,3 +67,21 @@ test("every text of a chart is at least 14 px, and a host's --pk-chart-text-size
         assert.deepEqual(host.filter((t) => t.text !== "Units" && t.size !== 18), [], `${name}: the host's size`);
     }
 });
+
+test("reference lines (#48): an SVG and the HTML report draw them with their labels, the target in --pk-chart-reference", async () => {
+    // North 10, South 12, West 4, (blank) 6 units: average 8, a target of 15 above every bar
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", referenceLines: { average: true, trend: true, target: 15 } } };
+    const r = await render(view, SALES, { format: "svg", echarts, ...FIXED });
+    const texts = svgTexts(r.text);
+    assert.ok(texts.includes("Average 8"), texts.join(" | "));
+    assert.ok(texts.includes("Target 15"), texts.join(" | "));
+    // regions have no order of their own: no trend
+    assert.ok(!texts.includes("Trend"));
+    // the target in the light --pk-chart-reference (--pk-muted), a host's own colour when it gives one
+    assert.ok(r.text.includes('stroke="#5a6270"'), "the reference colour");
+    const own = await render(view, SALES, { format: "svg", echarts, tokens: { "--pk-chart-reference": "#b42318" }, ...FIXED });
+    assert.ok(own.text.includes('stroke="#b42318"'));
+    // the HTML report's chart, its SVG written inline
+    const html = await render({ ...view, display: "chart" }, SALES, { format: "html", chart: true, chartEmbed: "inline", echarts, ...FIXED });
+    assert.ok(svgTexts(html.text).includes("Target 15"));
+});
