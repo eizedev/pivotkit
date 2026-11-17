@@ -85,3 +85,22 @@ test("reference lines (#48): an SVG and the HTML report draw them with their lab
     const html = await render({ ...view, display: "chart" }, SALES, { format: "html", chart: true, chartEmbed: "inline", echarts, ...FIXED });
     assert.ok(svgTexts(html.text).includes("Target 15"));
 });
+
+test("reference lines (#48): the SVG draws a trend over real time on the data's own points", async () => {
+    // 10 a month, with 7 months left out after February: January 10, February 20, October 100
+    const rows = [["2026-01-15", 10], ["2026-02-15", 20], ["2026-10-15", 100]].map(([Date, Revenue]) => ({ Date, Revenue }));
+    const view = { derived: [{ name: "Month", field: "Date", by: "yearMonth" }], rows: ["Month"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", referenceLines: { average: false, trend: true, target: null } } };
+    const r = await render(view, rows, { format: "svg", echarts, ...FIXED });
+    const points = (d) => [...d.matchAll(/(-?[\d.]+)[ ,](-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    // the trend: dotted parts from category to category
+    const trend = [...r.text.matchAll(/<path d="([^"]+)"[^>]*stroke-dasharray/g)].map((m) => points(m[1]));
+    assert.equal(trend.length, 2);
+    assert.deepEqual(trend[0][1], trend[1][0], "the parts join");
+    // the line of the data, a straight line in time: the trend passes through each of its points
+    const line = [...r.text.matchAll(/<path d="(M[^"]+)"[^>]*stroke-width="2"/g)].map((m) => points(m[1])).find((p) => p.length === 3);
+    assert.ok(line, "the data's line");
+    const ends = [trend[0][0], trend[0][1], trend[1][1]];
+    ends.forEach((p, i) => {
+        assert.ok(Math.abs(p[0] - line[i][0]) < 1 && Math.abs(p[1] - line[i][1]) < 1, `point ${i}: ${p} vs ${line[i]}`);
+    });
+});

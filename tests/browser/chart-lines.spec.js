@@ -17,7 +17,7 @@ const A = 0;
 const MARCH = 2;
 
 /** Mounts a report of ROWS at the top of the host page with `chart` over VIEW's; mount again to change it. */
-async function mount(page, chart, { theme = "light", view = {}, cellClicks = false } = {}) {
+async function mount(page, chart, { theme = "light", view = {}, cellClicks = false, rows = ROWS } = {}) {
     await page.evaluate(
         async ({ rows, view, theme, cellClicks }) => {
             const React = await import("react");
@@ -36,7 +36,7 @@ async function mount(page, chart, { theme = "light", view = {}, cellClicks = fal
             const onCellClick = cellClicks ? ({ row, col }) => window.__cellClicks.push({ row, col }) : undefined;
             window.__linesRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height: 560, defaultView: view, onCellClick, onViewChange: (v) => window.__linesViews.push(v) }));
         },
-        { rows: ROWS, view: { ...VIEW, ...view, chart }, theme, cellClicks }
+        { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
     );
     const chartEl = page.locator("#lines-report").getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();
@@ -51,7 +51,9 @@ async function mount(page, chart, { theme = "light", view = {}, cellClicks = fal
 
 /**
  * The reference lines ECharts drew, from its display list (a markLine's path is an "ec-line", its label
- * the text of the line's group): each line's ends in the chart's pixels, its stroke and dash, its label.
+ * the text of the line's group): each line's ends in the chart's pixels, its stroke and dash, its label
+ * ("" where the part has none: a trend is drawn from category to category, labelled at its end) and
+ * the label's box in the chart's pixels.
  */
 const drawnLines = (chartEl) =>
     chartEl.evaluate(async (el) => {
@@ -60,8 +62,22 @@ const drawnLines = (chartEl) =>
             .getZr()
             .storage.getDisplayList(true)
             .filter((e) => e.type === "ec-line")
-            .map((e) => ({ x1: e.shape.x1, y1: e.shape.y1, x2: e.shape.x2, y2: e.shape.y2, stroke: e.style.stroke, dash: e.style.lineDash ?? null, label: e.parent?.getTextContent?.()?.style.text ?? "" }));
+            .map((e) => {
+                const text = e.parent?.getTextContent?.();
+                const shown = text && !text.ignore && !text.invisible && text.style.text;
+                let box = null;
+                if (shown) {
+                    text.updateTransform();
+                    const r = text.getBoundingRect().clone();
+                    if (text.transform) r.applyTransform(text.transform);
+                    box = { x: r.x, y: r.y, width: r.width, height: r.height };
+                }
+                return { x1: e.shape.x1, y1: e.shape.y1, x2: e.shape.x2, y2: e.shape.y2, stroke: e.style.stroke, dash: e.style.lineDash ?? null, label: shown ? text.style.text : "", box };
+            });
     });
+
+/** Whether two boxes overlap (by more than a pixel). */
+const overlap = (a, b) => a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1;
 
 /** A value's place on the value axis in the chart's pixels: y, or x on horizontal bars. */
 const valueAt = (chartEl, value, horizontal = false) =>
@@ -174,7 +190,7 @@ test.describe("reference lines", () => {
         await expect(page.locator("#lines-report").getByTestId("chart-summary")).not.toContainText("Reference lines");
         const report = page.locator("#lines-report");
         await report.getByTestId("chart-type").click();
-        await expect(report.getByTestId("lines-note")).toContainText("no total");
+        await expect(report.getByTestId("lines-note")).toHaveText("These lines need a total. Switch to Bars, not stacked, to draw them.");
         await expect(report.getByTestId("line-average")).toHaveCount(0);
         await expect(report.getByTestId("chart-target")).toHaveCount(0);
     });
@@ -193,18 +209,20 @@ test.describe("reference lines", () => {
         await expect.poll(() => page.evaluate(() => window.__cellClicks.length)).toBe(1);
     });
 
-    test("lines: a dotted trend per series from its first to its last point", async ({ page }) => {
+    test("lines: a dotted trend per series from its first to its last point, labelled at its end", async ({ page }) => {
         const chartEl = await mount(page, { type: "line", referenceLines: { average: false, trend: true, target: null } });
         const lines = await drawnLines(chartEl);
-        const ends = await chartEl.evaluate(async (el) => {
+        const at = await chartEl.evaluate(async (el) => {
             const { getInstanceByDom } = await import("echarts/core");
             const chart = getInstanceByDom(el);
-            return [chart.convertToPixel({ gridIndex: 0 }, [0, 10]), chart.convertToPixel({ gridIndex: 0 }, [3, 40])];
+            return [10, 20, 30, 40].map((v, i) => chart.convertToPixel({ gridIndex: 0 }, [i, v]));
         });
-        const a = lines.find((l) => Math.abs(l.x1 - ends[0][0]) < 1 && Math.abs(l.y1 - ends[0][1]) < 1);
-        expect(a, JSON.stringify(lines)).toBeTruthy();
-        expect([Math.abs(a.x2 - ends[1][0]) < 1, Math.abs(a.y2 - ends[1][1]) < 1, a.dash, a.label]).toEqual([true, true, "dotted", "Trend"]);
-        expect(lines).toHaveLength(2);
+        // A's trend is 10, 20, 30, 40: three parts from point to point, on A's points
+        const near = (a, b) => Math.abs(a[0] - b[0]) < 1 && Math.abs(a[1] - b[1]) < 1;
+        const a = [0, 1, 2].map((i) => lines.find((l) => near([l.x1, l.y1], at[i]) && near([l.x2, l.y2], at[i + 1])));
+        expect(a.every(Boolean), JSON.stringify(lines)).toBe(true);
+        expect(a.map((l) => [l.dash, l.label])).toEqual([["dotted", ""], ["dotted", ""], ["dotted", "Trend"]]);
+        expect(lines.filter((l) => l.label)).toHaveLength(2);
     });
 
     test("horizontal bars: the target stands on the value axis, past the longest bar", async ({ page }) => {
@@ -236,7 +254,7 @@ test.describe("reference lines", () => {
         await page.keyboard.type("80");
         await page.keyboard.press("Enter");
         await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: true, target: 80 });
-        await expect.poll(async () => (await drawnLines(chartEl)).map((l) => l.label).sort()).toEqual(["Average 25", "Average 5", "Target 80", "Trend", "Trend"]);
+        await expect.poll(async () => (await drawnLines(chartEl)).map((l) => l.label).filter(Boolean).sort()).toEqual(["Average 25", "Average 5", "Target 80", "Trend", "Trend"]);
         // a text that is no number is not applied
         await target.fill("lots");
         await expect(report.locator(".pk-inline-form", { has: page.getByTestId("chart-target") }).getByRole("button", { name: "Apply" })).toBeDisabled();
@@ -256,6 +274,56 @@ test.describe("reference lines", () => {
         await expect(report.getByTestId("line-average")).toHaveCount(1);
         await expect(report.getByTestId("line-trend")).toHaveCount(0);
         await expect(report.getByTestId("lines-note")).toContainText("A trend needs dates on Rows");
+    });
+
+    for (const width of [1440, 390]) {
+        test(`at ${width} px no label covers another, with lines close together and far apart`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 900 });
+            // A's average 25 and a target of 26, B's average 5 and both trends: five labels, two close
+            for (const chart of [{ type: "line" }, { type: "bar" }, { type: "bar", stacked: true }]) {
+                const chartEl = await mount(page, { ...chart, referenceLines: { average: true, trend: true, target: 26 } });
+                const boxes = (await drawnLines(chartEl)).filter((l) => l.box);
+                expect(boxes.length, JSON.stringify(chart)).toBeGreaterThanOrEqual(chart.stacked ? 3 : 5);
+                for (let i = 0; i < boxes.length; i++) {
+                    for (let j = i + 1; j < boxes.length; j++) {
+                        expect(overlap(boxes[i].box, boxes[j].box), `${JSON.stringify(chart)}: "${boxes[i].label}" and "${boxes[j].label}" overlap`).toBe(false);
+                    }
+                }
+                // the labels are inside the chart, and a narrow one names the lines only
+                const size = await chartEl.boundingBox();
+                for (const l of boxes) {
+                    expect(l.box.x + l.box.width, l.label).toBeLessThanOrEqual(size.width + 1);
+                    expect(l.box.x, l.label).toBeGreaterThanOrEqual(-1);
+                }
+                if (width < 480) {
+                    expect(boxes.every((l) => !/\d/.test(l.label)), boxes.map((l) => l.label).join(", ")).toBe(true);
+                } else {
+                    expect(boxes.map((l) => l.label)).toContain("Target 26");
+                }
+            }
+        });
+    }
+
+    test("a stack with a part below zero: no average or trend of its total, and the menu says why", async ({ page }) => {
+        const rows = ROWS.map((r) => (r.Product === "B" && r.Date === "2026-03-15" ? { ...r, Revenue: -5 } : r));
+        const chartEl = await mount(page, { type: "bar", stacked: true, referenceLines: { average: true, trend: true, target: 30 } }, { rows });
+        expect((await drawnLines(chartEl)).map((l) => l.label).filter(Boolean)).toEqual(["Target 30"]);
+        const report = page.locator("#lines-report");
+        await report.getByTestId("chart-type").click();
+        await expect(report.getByTestId("lines-note")).toContainText("below zero");
+        await expect(report.getByTestId("line-average")).toHaveCount(0);
+        await expect(report.getByTestId("chart-target")).toHaveCount(1);
+    });
+
+    test("a value in percent: the target field reads 25% and says so", async ({ page }) => {
+        await mount(page, { type: "bar" }, { view: { cols: [], values: [{ field: "Revenue", agg: "sum", showAs: { type: "percentOfGrandTotal" } }] } });
+        const report = page.locator("#lines-report");
+        await report.getByTestId("chart-type").click();
+        await expect(report.getByTestId("target-hint")).toHaveText("A percentage: type 25% or 0.25.");
+        await report.getByTestId("chart-target").click();
+        await page.keyboard.type("30%");
+        await page.keyboard.press("Enter");
+        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(0.3);
     });
 });
 
