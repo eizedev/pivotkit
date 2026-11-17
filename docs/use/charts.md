@@ -205,6 +205,9 @@ target you set.
 4. Type a number under **Target** and press Enter, or click **Apply**. The **×** removes it.
 5. **Back** or Escape returns to the Display settings.
 
+![The chart type menu open at Display › Reference lines: Average and Trend switched on, a target of 500,000](../assets/screenshots/chart-lines-level-light.png#only-light)
+![The chart type menu open at Display › Reference lines: Average and Trend switched on, a target of 500,000](../assets/screenshots/chart-lines-level-dark.png#only-dark)
+
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-light.png#only-light)
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-dark.png#only-dark)
 

@@ -329,6 +329,19 @@ const SHOTS = [
     // a line with its average (dashed), its trend (dotted) and a target (solid)
     { name: "chart-lines", query: "data=sales", hash: LINES, size: WIDE, chart: true },
     {
+        // Display › Reference lines open over the same chart: the switches, the target and its row's level
+        name: "chart-lines-level",
+        query: "data=sales",
+        hash: LINES,
+        size: WIDE,
+        chart: true,
+        open: async (page) => {
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await toolbar(page, "chart-type");
+            await page.getByTestId("topic-lines").click();
+        }
+    },
+    {
         // the pointer on a segment of stacked bars: the tooltip names it and adds the stack's total
         name: "chart-tooltip",
         query: "data=sales",
