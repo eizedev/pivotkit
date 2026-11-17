@@ -323,10 +323,10 @@ test.describe("reference lines", () => {
         await report.getByTestId("level-back").click();
         await expect(report.getByTestId("topic-lines")).toBeFocused();
         await expect(report.getByTestId("topic-state-lines")).toContainText("Average, Trend");
-        // a pie has no value axis: no row for lines
+        // a pie has no value axis: no row for lines; its Tooltip row holds the share (#54)
         await report.getByTestId("chart-pie").click();
         await report.getByTestId("chart-type").click();
-        await expect(report.getByTestId("topic-tooltip")).toHaveCount(0);
+        await expect(report.getByTestId("topic-tooltip")).toHaveCount(1);
         await expect(report.getByTestId("topic-lines")).toHaveCount(0);
         await page.keyboard.press("Escape");
         // regions have no order of their own: an average, no trend
