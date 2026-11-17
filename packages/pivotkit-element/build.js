@@ -324,9 +324,14 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * and the warning on label keys no longer shown (#580), together with #584: CI's zlib measures the
  * first load at 177.13; initial goes to 177.6, CI's measure plus about 0.5 KiB. The split is still
  * #546 (0.9.0).
+ * The date range in the footer and the years a grouping combines (#109): the first load gets the
+ * date context (the axis titles, one year's items, the footer's range), the menus the Group level's
+ * first line and its hints from the data. CI's zlib measures the first load at 178.9 (177.2
+ * before) and the menus at 52.6 (51.7 before): initial goes to 179.4 and menus to 53.1, CI's measure
+ * plus about 0.5 KiB. The split of the first load is still #546 (0.9.0).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 177.6, chart: 243.5, export: 12.6, link: 7.5, menus: 52, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 179.4, chart: 243.5, export: 12.6, link: 7.5, menus: 53.1, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
