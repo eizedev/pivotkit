@@ -163,16 +163,16 @@ export const COMMANDS = Object.freeze({
         examples: ["PIVOTKIT_URL=https://reports.example.com/api/v1 pivotkit sources", "pivotkit sources sales --url https://reports.example.com/api/v1 --token-file token.txt --json", "pivotkit sources vms --param customer=acme"]
     },
     login: {
-        usage: "pivotkit login --url <https://host/api/v1> --client-id <id> [--scope <scopes>] [--store auto|keychain|file]",
+        usage: "pivotkit login --url <https://host/api/v1> [--client-id <id>] [--scope <scopes>] [--store auto|keychain|file]",
         text: "Sign in to a pivotkit-server's REST service with a code in the browser (the server's sign-in provider, OAuth device code flow) and keep the refresh token.",
         args: [],
         options: {
             url: { type: "string", value: "url", env: "PIVOTKIT_URL", text: "The server's REST address, https://host/api/v1 (http only for localhost, 127.0.0.1 or [::1])." },
-            "client-id": { type: "string", value: "id", env: "PIVOTKIT_CLIENT_ID", text: "The sign-in provider's client id for the command line; the operator names it." },
+            "client-id": { type: "string", value: "id", env: "PIVOTKIT_CLIENT_ID", text: "The sign-in provider's client id for the command line (default the one the server publishes)." },
             scope: { type: "string", value: "scopes", text: "The scopes to ask for, separated by spaces (default the server's scopes and offline_access)." },
             store: { type: "string", value: "where", choices: ["auto", "keychain", "file"], text: "Where the refresh token goes: auto (the keychain, else a file only you read), keychain or file." }
         },
-        examples: ["pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli", "pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources"]
+        examples: ["pivotkit login --url https://reports.example.com/api/v1", "pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli", "pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources"]
     },
     token: {
         usage: "pivotkit token [--url <https://host/api/v1>]",

@@ -90,6 +90,7 @@ export { ConfigError } from "./options/shared.js";
  * @typedef {object} RestOptions
  * @property {string} [resource]  OAuth: the REST service's resource (default the origin of auth.resource with /api/v1)
  * @property {string[]} [audience]  OAuth: the audiences a REST token may carry (default the resource)
+ * @property {{ clientId: string }} [signIn]  OAuth: the public client pivotkit login signs in with, published in the metadata (options/issuer.js)
  * @property {string[]} [requiredScopes]  OAuth: scopes every REST call needs (default auth.requiredScopes)
  * @property {{ origins?: string[], maxAge?: number }} [cors]  browser origins allowed to call (exact origins; none by default)
  * @property {"auth" | "public" | "off"} [openapi]  /openapi.json: for authenticated callers (default), for anyone, or not served

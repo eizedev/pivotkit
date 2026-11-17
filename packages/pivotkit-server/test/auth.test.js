@@ -10,7 +10,8 @@ import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { REQUEST_LIMITS } from "../src/limits.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { BY_REGION, OTHER_TOKEN, TOKEN, call, raw, restServer, workspace } from "./helpers.js";
+import { checkConfig, validateOptions } from "pivotkit-server";
+import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace } from "./helpers.js";
 
 const MCP_RESOURCE = "https://pk.example.com/mcp";
 const REST_RESOURCE = "https://pk.example.com/api/v1";
@@ -323,4 +324,37 @@ test("limits: a refusal by the client's rate bucket logs limit clientRate, a per
     } finally {
         await server.close();
     }
+});
+
+test("rest.signIn.clientId: the REST metadata publishes the command line's public client ID; check-config shows it", async () => {
+    const dir = workspace();
+    const options = { sources: SOURCES, output: { dir: "out" }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { signIn: { clientId: "pivotkit-cli" } }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir };
+    const server = await restServer(options, { enable: ["rest", "mcp"] });
+    try {
+        await ready(server);
+        const prm = await call(`${server.url}/.well-known/oauth-protected-resource/api/v1`);
+        assert.equal(prm.status, 200);
+        assert.equal(prm.data.pivotkit_client_id, "pivotkit-cli");
+        assert.equal(prm.data.resource, REST_RESOURCE, "the RFC 9728 fields stay as they are");
+    } finally {
+        await server.close();
+    }
+    const plain = await oauthServer();
+    try {
+        await ready(plain);
+        assert.equal(Object.hasOwn((await call(`${plain.url}/.well-known/oauth-protected-resource/api/v1`)).data, "pivotkit_client_id"), false, "nothing without the setting");
+    } finally {
+        await plain.close();
+    }
+    const { text } = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server", rest: true });
+    assert.match(factsOf(text), /\n {2}sign-in client for pivotkit login: pivotkit-cli \(published; a public client without a secret\)\n/);
+});
+
+test("rest.signIn: OAuth only, a client ID of the right form, and never a secret", () => {
+    const base = { sources: SOURCES, auth: { mode: "oauth", issuer: "https://auth.example.com", resource: MCP_RESOURCE } };
+    assert.doesNotThrow(() => validateOptions({ ...base, rest: { signIn: { clientId: "pivotkit-cli" } } }));
+    assert.throws(() => validateOptions({ sources: SOURCES, auth: { mode: "token", tokens: [{ name: "a", env: "A" }] }, rest: { signIn: { clientId: "pivotkit-cli" } } }), /rest\.signIn: needs auth\.mode "oauth"/);
+    assert.throws(() => validateOptions({ ...base, rest: { signIn: { clientId: "two words" } } }), /rest\.signIn\.clientId: the public client's ID/);
+    assert.throws(() => validateOptions({ ...base, rest: { signIn: {} } }), /rest\.signIn\.clientId: the public client's ID/);
+    assert.throws(() => validateOptions({ ...base, rest: { signIn: { clientId: "pivotkit-cli", clientSecret: { env: "S" } } } }), /clientSecret/);
 });
