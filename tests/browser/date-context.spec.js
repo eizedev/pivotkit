@@ -106,8 +106,11 @@ test("single cyclic month exports observed non-Gregorian endpoints #109", async 
     const view = {rows:["Month"], derived:[{name:"Month",field:"Date",by:"month"}], values:[{field:"Mean °C",agg:"average"}], formatting:{locale}, filters:[{field:"Date",type:"compare",op:">=",value:"2025-01-01"},{field:"Date",type:"compare",op:"<=",value:"2025-01-31"}]};
     const hash = encodeViewLink(toViewFile(view, {}, {link:true}));
     await page.goto(`?data=weather&empty#pivot-playground=${hash}`);
-    const fmt = new Intl.DateTimeFormat(locale,{month:"short",year:"numeric",timeZone:"UTC"});
-    const first = fmt.format(Date.UTC(2025,0,1)), last = fmt.format(Date.UTC(2025,0,31));
+    // the browser's own ICU names the months: WebKit on macOS abbreviates them unlike Node's
+    const [first, last] = await page.evaluate((loc) => {
+        const fmt = new Intl.DateTimeFormat(loc, {month: "short", year: "numeric", timeZone: "UTC"});
+        return [fmt.format(Date.UTC(2025, 0, 1)), fmt.format(Date.UTC(2025, 0, 31))];
+    }, locale);
     await expect(page.getByTestId("pivot-table")).toContainText(`${first} – ${last}`);
     await page.getByTestId("export").click();
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
