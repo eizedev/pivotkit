@@ -520,6 +520,21 @@ const SHOTS = [
         }
     },
     {
+        // a donut on a phone with its values outside: a smaller pie, the labels whole on two lines
+        name: "donut-phone",
+        query: "data=sales&height=760",
+        hash: encodeViewLink({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "donut", valueLabels: "value", legend: "bottom" } }),
+        size: PHONE,
+        chart: true,
+        open: async (page) => {
+            await page.addStyleTag({ content: ".pk-toast-dock { visibility: hidden; }" });
+            await page.getByTestId("pivot-chart").evaluate((el) => {
+                el.style.scrollMarginTop = "12px";
+                el.scrollIntoView({ block: "start" });
+            });
+        }
+    },
+    {
         // Options: totals that change nothing say why, an "i" explains each, Help with its switches
         name: "explanations",
         query: "data=tickets",

@@ -116,7 +116,13 @@ A source with parameters takes their values as `params` with its id in a POST bo
   `POST /sources/describe`.
 - `GET /sources` lists the parameters.
 - The routes take `params` only when a configured source declares any
-  ([parameters](mcp.md#configuration)).
+  ([parameters](mcp.md#configuration)). Otherwise a request with `params` answers `INVALID_INPUT`
+  with the `detail` "this server has no source that takes params; leave params out (GET /sources
+  lists the sources)".
+- Where another source declares parameters, a source without them answers `params` with
+  `INVALID_INPUT`, for example "the source sales takes no params".
+- A parameter's pattern runs under a time limit. A value it cannot check in time, also on a busy
+  server, answers 503 `BUSY` with `retryable: true` ([the limits](mcp.md#configuration)).
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where:
 
@@ -126,7 +132,8 @@ A source with parameters takes their values as `params` with its id in a POST bo
 Where the report gets a [download link](delivery.md), the link is in `output.url`, with `expiresAt`,
 `bound` and `note`, one sentence on how to open it. A report gets a link:
 
-- always, over a source whose fields are all `show`
+- always, over an [open source](delivery.md): hidden by default with its shown fields listed, or
+  every field shown
 - over another source only with `results: true` and a bound link
 
 The file's name is `name` from the input, else `title`, else the view's name, else the source's.
@@ -167,7 +174,8 @@ Its `request` line has `saved: false`. The file route sends the file and saves n
 The server decides findings per field. A finding about a field's items carries the field in
 `field`:
 
-- An item spelt differently (`itemCase`) is named for a `show` or `values` field.
+- An item spelt differently (`itemCase`) is named for a `show` or `values` field. The item meant is
+  in `suggestion`, not in `message`.
 - An item that is none of a field's values (`itemUnknown`, with the closest one) is named where the
   field's list is complete.
 
@@ -436,7 +444,7 @@ The modes are the [MCP server's](mcp.md#auth), from the same `auth` settings:
 | Mode | How | 401 answers with |
 | --- | --- | --- |
 | `none` | No check. Loopback only unless `auth.allowUnauthenticated` | - |
-| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, or named tokens in `auth.tokens` (from a variable or a file read on every request) | `WWW-Authenticate: Bearer realm="pivotkit"` |
+| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, named tokens in `auth.tokens` (from a variable or a file read on every request), or a [signed token](#signed-tokens) the server issued | `WWW-Authenticate: Bearer realm="pivotkit"` |
 | `oauth` | A JWT access token of the issuer for the REST resource | `WWW-Authenticate: Bearer error="invalid_token", ..., resource_metadata="..."` |
 
 The server reads only the `Authorization` header. It refuses a token in the address
@@ -469,14 +477,15 @@ a `hint`.
 Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068). The server
 then refuses an ID token with the right audience.
 
-The output directory holds at most `output.maxFiles` files and `output.maxMb` megabytes that
+The output directory holds at most `output.maxFiles` files and `output.maxMb` MiB that
 pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them, so any
 token that may render can push other callers' older reports out. A link to such a report
 (`output.baseUrl`) then answers 404, and one of the server's own links answers 410 `LINK_EXPIRED`.
 
 Schedule drafts are never deleted this way. They may take at most half of `output.maxFiles` (none at
-1). A draft over that answers 409 `NO_OUTPUT`, while reports keep working. `output.maxAgeDays` does
-not delete a draft that waits for approval either. So give `draft_schedule` a scope of its own too,
+1) and half of `output.maxMb`. A draft over that answers 409 `NO_OUTPUT`, while reports keep
+working. `output.maxAgeDays` does not delete a draft that waits for approval either.
+`output.draftMaxAgeDays` does, where you set it. So give `draft_schedule` a scope of its own too,
 and remove the drafts nobody approved. A file you name with `.pivotkit-out.` yourself counts as
 pivotkit's and may be deleted.
 
@@ -496,8 +505,9 @@ make room. With `output.maxAgeDays: 0`, it stays until you remove it.
 
 The server holds at most 256 connections. It keeps 16 of them for loopback clients, such as the
 health check or a proxy on the same host. A client has 5 seconds to send its headers
-([MCP](mcp.md#http) has the details). `http.maxConnectionsPerAddress` bounds the connections of one
-address. On a network you do not trust, put a reverse proxy in front.
+([MCP](mcp.md#http) has the details). One address may hold at most 32 connections
+(`http.maxConnectionsPerAddress`). With `http.trustProxy` there is no such bound by default. On a
+network you do not trust, put a reverse proxy in front.
 
 With `auth.mode: oauth` and neither required scopes nor `auth.toolScopes`, the start warns. Any token
 of the issuer for the REST audience then gets everything its profile allows.
@@ -592,7 +602,8 @@ when, where it is known.
   code source's `SourceError`, or from an HTTP source's backend that answered 400 or 422, or 401,
   403 or 404 for a source with parameters.
 - `UPLOAD_FAILED`: as the store's failure is.
-- 503 `BUSY` for a [large body](#data) while two are read already: `true`.
+- 503 `BUSY` for a [large body](#data) while two are read already, or for a parameter's pattern that
+  could not be checked in time: `true`.
 
 Every other error carries no `retryable`. This includes a limit of a source's settings
 (`LIMIT_EXCEEDED`, `http.maxBytes` or `http.maxPages`).
@@ -630,7 +641,7 @@ Rows go by status, then by code. The answers of the download links come last.
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else. The details are only in the log, with `--log debug` |
 | 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused pivotkit's access, or the source is not set up correctly. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 502 | <a id="error-upload-failed"></a>`UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload) (`retryable` says whether trying again may help); the report stays in the output directory |
-| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, or two [large bodies](#data) read already; starting or stopping; the OAuth issuer not loaded yet |
+| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, or a parameter's pattern not checked in time; starting or stopping; the OAuth issuer not loaded yet |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 | 400, 403, 409, 410, 503 | <a id="error-link-expired"></a>`LINK_EXPIRED`, <a id="error-link-used"></a>`LINK_USED`, <a id="error-link-not-yours"></a>`LINK_NOT_YOURS`, <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED`, <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | Answers of the server's own [download links](delivery.md#answers) (`/downloads/`), not of `/api/v1` |
 
@@ -669,7 +680,12 @@ breaking change of the operations' contracts, which is a breaking change for MCP
 | `pivotkit-server healthcheck [url] [--port <port>]` | Exit 0 when `GET /healthz` answers, else 1, also for a usage error such as a url and `--port` together. Without a url it asks `http://127.0.0.1:<port>/healthz`. The port: `--port`, then `http.port` of `$PIVOTKIT_CONFIG`'s file, then `$PIVOTKIT_PORT`, then 3333 |
 | `pivotkit-server token new [--file <path>] [--config <file> --add]` | Make a static token: on stdout, or into a file with mode 0600, and with `--add` into `auth.tokens` ([tokens and keys](#credentials)) |
 | `pivotkit-server token show <name>` | Print the value of a token of `auth.tokens`, as the server reads it. Exit 1 when it is missing or cannot be used, 2 for a name that is not there |
+| `pivotkit-server token issue [--expires 1h] [--name <n>] [--profile <p>] [--scope <s>]` | Issue a [signed token](#signed-tokens) that expires |
+| `pivotkit-server token list` | List every token: ID, name, kind, profile, expiry and status, never a value ([list, revoke, remove](#token-list)) |
+| `pivotkit-server token revoke <id or name>` | Refuse a signed token from the next request on |
+| `pivotkit-server token remove <id or name>` | Take a static token out of `auth.tokens`, or revoke a signed one and take it off the list |
 | `pivotkit-server key new --for downloads\|audit [--file <path>] [--config <file> --add]` | Make a key for `output.downloads.key` or `audit.key` ([tokens and keys](#credentials)) |
+| `pivotkit-server key new --for signing`, `key remove <key id> --for signing` | Add or remove a key that signs tokens ([rotation](#signed-keys)) |
 | `pivotkit-server --version` | The version |
 
 ### Reading check-config { #check-config }
@@ -721,14 +737,9 @@ Sources (1):
 Auth: token
   token export from $PIVOTKIT_TOKEN: all scopes, profile export
 
-New in this version: data in the request (inline:; mcp.data: false switches it
-    off), download links under /downloads/, answered without a token (the link
-    is the credential; output.downloads.enabled: false switches them off),
-    reports deleted after 30 days (output.maxAgeDays: 0 keeps them), the
-    client's IP address on the log's request lines (log.address: "off" leaves
-    it out), a start error as a JSON line where stderr is no terminal
-    (log.format: "text" keeps the plain line)
-    -> https://pivotkit.eize.dev/getting-started/upgrading/
+New in this version:
+  at most 32 connections per address (http.maxConnectionsPerAddress)
+    -> https://pivotkit.eize.dev/getting-started/upgrading/#per-address
 ```
 
 Each line holds one fact. A fact under another is two spaces further in, a wrapped line four. Lines
@@ -743,8 +754,8 @@ its full path, never by its value.
 Over stdio (`pivotkit-mcp` without `--http`), there are no download links and no signed-in person.
 The `Transport:` section says which sources therefore cannot be used.
 
-"New in this version" names the changes of this release that apply to the configuration, with the
-setting that switches each off. It links to the [upgrading page](../getting-started/upgrading.md).
+"New in this version" names the changes of this release that apply to the configuration, one per
+line. Each links to its section of the [upgrading page](../getting-started/upgrading.md).
 
 The flags of `serve` are the [MCP runner's](mcp.md#configuration) without `--http`, `--allow-dir`
 and `--list-files`, plus `--enable rest,mcp`. `--enable` sets `http.enable`, what to serve. The
@@ -778,11 +789,12 @@ lets running requests finish for up to `http.graceMs` (25 seconds by default).
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
 | `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log's `address` (the proxy is then `peerAddress`) |
 | `log.level`, `log.format`, `log.address` | info, auto, on | The log's level, its format (text on a terminal, JSON otherwise) and whether lines name the client's address. Flags `--log`, `--log-format`, `--log-address`. Variables `PIVOTKIT_LOG_LEVEL`, `PIVOTKIT_LOG_FORMAT`, `PIVOTKIT_LOG_ADDRESS` ([operations](operations.md#settings)) |
-| `http.maxConnectionsPerAddress` | 0 (no bound) | Connections one address may hold (loopback excepted). Set it (for example 32) when clients reach the port directly with addresses of their own. Leave it off behind NAT, a published port or a proxy, where every client has one address |
+| `http.maxConnectionsPerAddress` | 32, none with `http.trustProxy` | Connections one address may hold (loopback excepted), counted by the socket's peer. `0` switches the bound off. Raise it where many clients share one address without a proxy, such as an office behind one NAT ([MCP](mcp.md#http) has the details) |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
 | `output.create` | true | Make a missing `output.dir` at start, with its parents and mode 0700. When `output.baseUrl` is set, the mode is 0755 narrowed by the umask. The start logs a warning when it makes the directory. `false` makes a missing directory an error. A relative `output.dir` without a configuration file is relative to the working directory. `check-config` says whether the directory exists, will be made, or cannot be made, and why: a parent the server's user may not write, a name too long, a symbolic link loop |
-| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted. They may take at most half of `output.maxFiles`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
+| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their MiB (1,048,576 bytes each) the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted to make room. They may take at most half of `output.maxFiles` and half of `output.maxMb`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
 | `output.maxAgeDays` | 30 | `0`: no age limit. Otherwise the server deletes reports (the files marked `.pivotkit-out.`) and schedule drafts no longer waiting for approval (`.pivotkit-out.report.json` whose `status` is not `"draft"`) older than this many days from the top level of the output directory, at start and every hour. It also deletes the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour). Other files and subdirectories stay. Use a directory of its own. The server refuses to start with a limit you write when the output directory is the configuration file's directory or holds a source, print template or token file. There the default does not apply (no age limit) |
+| `output.draftMaxAgeDays` | 0 (never) | Delete schedule drafts that still wait for approval (`status` `"draft"`) when they are older than this many days, at start and every hour. It works with `output.maxAgeDays: 0` too. Like `output.maxAgeDays`, the server refuses to start with it where the output directory holds the operator's own files |
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `output.upload` | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method`, `timeMs`, `maxBytes`, `keepLocal`, `bind`, `intranet` |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
@@ -858,6 +870,7 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 | `--state-dir <dir>` | `token show`: the server's [state directory](#first-start) (default `$PIVOTKIT_STATE_DIR`). With it, `token show admin` prints the token the server made at its first start, without a configuration. Before that start, it exits 1 (`NOT_CREATED`) and makes nothing. `token show token` prints `$PIVOTKIT_TOKEN` where the server uses it, or `$PIVOTKIT_MCP_TOKEN` where only that one is set (pivotkit-mcp, `pivotkit-server mcp`) |
 | `--add` | `token new`: add the token to `auth.tokens` of `--config`. `key new`: name the key as `output.downloads.key` or `audit.key`. Both need `--file`. [Below](#credentials-add) |
 | `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
+| `--expires <when>` | `token new`: when the token stops working, written as `auth.tokens[].expires`. A date (`2027-01-31` means 00:00 UTC that day), a date-time with a zone (`2027-01-31T08:00:00Z`), or a time from now (`90d`, `12h`, `30m`). [Expiry](#token-expires) |
 | `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
 | `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "config", "configured", "backup", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`. It holds the value only where it would be printed |
 
@@ -936,6 +949,135 @@ to your account, run in PowerShell:
 to you alone, so `--force` can still replace the file. `/inheritance:r` also takes away SYSTEM and
 Administrators. A server that runs as a service then needs its own grant (`/grant "<account>:R"`).
 
+#### When a static token expires { #token-expires }
+
+`auth.tokens[].expires` ends a static token at a date. Add it by hand, or with `token new --expires`.
+
+```json
+{ "name": "contractor", "file": "secrets/contractor.token", "expires": "2027-01-31" }
+```
+
+- A date alone means 00:00 UTC of that day. A date-time needs a zone (`Z` or `+01:00`).
+- From then on, a request with the token gets 401 "this token expired".
+- The start logs a warning for a token that has expired.
+- `check-config` warns a week ahead, and again once the token has expired.
+- The server reads the list of tokens at start. A new `expires` needs a restart.
+
+### Signed tokens { #signed-tokens }
+
+The server can issue tokens that expire on their own. You need no sign-in provider for them.
+
+```bash
+pivotkit-server token issue --expires 8h --name laptop --profile staff
+docker exec pivotkit pivotkit-server token issue --expires 7d --scope pivotkit:sales
+```
+
+The token is printed once, on stdout. It works on REST and MCP at once, without a restart. Only
+after you set or change `auth.signedTokens` does the server need a restart, since it reads `auth` at
+start.
+
+- It is a JWT signed with Ed25519 (`EdDSA`), of the type `pivotkit+jwt`. Clients send it like any
+  bearer token.
+- The default lifetime is one hour. `--expires` takes `15m`, `8h`, `7d` or a date.
+- `auth.signedTokens.maxDays` caps the lifetime (default 30, at most 365). The server refuses a token
+  that lives longer, even with a valid signature.
+- `--profile` and `--scope` work as for static tokens. Without `--scope`, it holds every scope.
+- A token whose profile is no longer in `policy.profiles` gets 401.
+- The log names the token by its ID, never by its value or its name. Rate limits count per token.
+- Clocks may differ by `auth.clockTolerance` seconds (default 30), at both ends of the lifetime.
+- Signed tokens work with `auth.mode` `"token"` only. A static token is still needed, as for
+  `token new`. With a state directory and no `auth.mode` written, the server makes `admin`
+  ([first start](#first-start)).
+- `--scope` takes one word per scope, without spaces. A token over 2048 characters is refused at
+  issue, since the server would not take it: give fewer or shorter scopes.
+
+The files live in `auth.signedTokens.dir`. With a [state directory](#first-start), the default is
+`<state>/secrets/signed`. Without either, `token issue` says what to set. The first `token issue`
+makes the directory:
+
+| What | Where |
+| --- | --- |
+| The signing keys, one line each, mode 0600 | `keys/<key id>.key` |
+| One record per token: ID, name, key, profile, scopes, issued and expiry. No value | `issued/<id>.json` |
+| The deny list, one entry per revoked token | `revoked/<id>.json` |
+
+Keep this directory on a volume, like the other secrets. Never copy it to another server. Every
+server signs with the same issuer and no audience, so servers with the same keys take each other's
+tokens. Run `pivotkit-server key new --for signing` on each server instead.
+
+The server uses a key file only when it is a file of its own, has mode 0600 and belongs to the user
+the server runs as. A planted key therefore never signs. On Windows, mode and owner are not checked.
+
+!!! warning "A key file with a wider mode is skipped"
+
+    A restore with another umask, or some bind mounts, can leave a key file with mode 0640 or 0644.
+    The server then skips the key, and every token it signed gets 401. The log and `check-config`
+    name the file and the fix: `chmod 600 <file>`. `token list` shows its tokens as `key unusable`.
+    A key that should not be there goes with `pivotkit-server key remove <key id> --for signing`.
+
+ `token issue` removes records and entries of
+tokens that expired, at most once an hour. `check-config` prints the keys and counts the active and revoked tokens under
+`Signed tokens`, once the directory is there.
+
+| Key | Default | What it is |
+| --- | --- | --- |
+| `auth.signedTokens.dir` | `<state>/secrets/signed` | Where the keys, records and the deny list live. Not inside `output.dir` |
+| `auth.signedTokens.maxDays` | 30 | The longest lifetime of a signed token, in days (1 to 365) |
+
+#### Rotating the signing key { #signed-keys }
+
+Every key in `keys/` verifies tokens. The newest key signs new ones. So a new key breaks no client:
+
+1. Run `pivotkit-server key new --for signing`. It prints the new key's ID, never the key.
+2. New tokens are signed with it. Tokens of the older key keep working.
+3. Once those have expired, run `pivotkit-server key remove <old key id> --for signing`.
+
+`token list` shows a token of a removed key as `key removed`, and one of a skipped key file as
+`key unusable`. Both get 401.
+
+`key remove` exits 1 while tokens of that key still work, and names when the last one expires.
+`--force` removes it anyway, and those tokens get 401 from the next request on. A key file is never
+printed, and `key new --for signing` refuses `--file`, `--print` and `--add`.
+
+### List, revoke and remove tokens { #token-list }
+
+```bash
+pivotkit-server token list
+pivotkit-server token revoke laptop
+pivotkit-server token remove contractor
+```
+
+!!! warning "After a leak: `token remove` alone does not stop a static token"
+
+    The running server reads `auth.tokens` at start. After `token remove`, it still accepts the
+    static token until it restarts. The command says so in its first line. Restart the server now,
+    or delete the token's file. A signed token is refused from the next request on.
+
+`token list` shows every token. It never shows a value.
+
+```text
+ID                NAME     KIND    PROFILE  EXPIRES               STATUS
+admin             admin    static  -        never                 active
+3f2a1b0c9d8e7f60  laptop   signed  staff    2026-11-17 06:00 UTC  active
+```
+
+- A static token's ID is its name. A signed token's ID is the one the log shows.
+- The commands take an ID or a name. A name that two tokens share is refused with both IDs.
+- `token revoke` puts a signed token on the deny list. The server refuses it from the next request
+  on. It also takes an ID that is not in the list, for example one from the log.
+- `token remove` takes a static token out of `auth.tokens` of the configuration file. It keeps the
+  old file as a backup first, as `--add` does.
+    - The token's file is deleted where the server made it (`"create": true`, or in the state
+      directory). The token is then refused from the next request on.
+    - Otherwise the file stays, and the token works until the next restart (see the warning above).
+    - It refuses the last token of `auth.tokens`, and `admin`. Give `admin` a new value with
+      `token new --file <its file> --force`.
+- `token remove` on a signed token revokes it and takes it off the list.
+- `token revoke` on a static token is refused. Use `token remove`.
+
+They read the configuration as `token show` does: `--config` or `$PIVOTKIT_CONFIG`, and
+`--state-dir` or `$PIVOTKIT_STATE_DIR`. In the container image, they need no flag.
+
 ### Made at the first start { #first-start }
 
 You set the state directory with `--state-dir <dir>` or `$PIVOTKIT_STATE_DIR`. The
@@ -946,9 +1088,10 @@ that survive a restart:
 | What | Where | When |
 | --- | --- | --- |
 | `auth.mode` `"token"` | | `auth.mode` is not set, the address is not loopback and `auth.allowUnauthenticated` is not set (such a start is refused without a state directory) |
-| The token `admin` (every scope, no profile) | `<dir>/secrets/admin.token` | `auth.mode` is `"token"`, `auth.tokens` is empty and `$PIVOTKIT_TOKEN` (pivotkit-mcp: `$PIVOTKIT_MCP_TOKEN`) is not set |
+| The token `admin` (every scope, no profile) | `<dir>/secrets/admin.token` | `auth.mode` is not written, so the row above sets `"token"`, `auth.tokens` is empty and `$PIVOTKIT_TOKEN` (pivotkit-mcp: `$PIVOTKIT_MCP_TOKEN`) is not set. A written `auth.mode` `"token"` without a token is refused (below) |
 | The key of the [download links](delivery.md) | `<dir>/secrets/downloads.key` | Links are on and `output.downloads.key` is not set |
 | The [audit](mcp.md#logging) key | `<dir>/secrets/audit.key` | `audit.subject` is `"hash"` and `audit.key` is not set |
+| The [signed tokens'](#signed-tokens) directory | `<dir>/secrets/signed/` | The first `token issue`, not the start |
 
 - The server never makes the state directory itself. It makes only these in it:
     - `secrets/` (mode 0700), for the files above

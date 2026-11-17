@@ -382,19 +382,21 @@ gets at each level, and how to set them per client.
     - Reports are new files that never replace one. Their names are cleaned to letters, digits,
       spaces, dots, underscores, dashes and parentheses.
     - In a directory a web server serves, names start with 22 random characters. Protect that server
-      as you would the data. Note that a report gets an address there only when it is over a source
-      whose fields are all `show`.
-    - The directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's
+      as you would the data. Note that a report gets an address there only when it is over an open
+      source ([download links](reference/delivery.md)): hidden by default with its shown fields
+      listed, or every field shown.
+    - The directory holds at most `output.maxFiles` files and `output.maxMb` MiB of pivotkit's
       files. pivotkit's reports and drafts carry `.pivotkit-out.` in their names. Other files are
       neither counted nor deleted. A file named with `.pivotkit-out.` by hand counts as pivotkit's.
     - When the directory is full, a new report deletes the oldest reports, so one caller cannot stop
       rendering for everyone. But any token that may render can push other callers' reports out. A
       link to such a report then answers 404, or 410 for the server's own links.
-    - This never deletes drafts awaiting approval. Drafts may take at most half of `maxFiles`. A
-      draft over that is refused.
+    - This never deletes drafts awaiting approval. Drafts may take at most half of `maxFiles` and
+      half of `maxMb`. A draft over that is refused.
     - Set `maxFiles` high. Give `render_view` and `draft_schedule` scopes of their own. Keep
-      `output.maxAgeDays` on, 30 days by default. It never deletes drafts that wait. Keep the
-      rate limits ([REST](reference/rest.md#auth)).
+      `output.maxAgeDays` on, 30 days by default. It never deletes drafts that wait.
+      `output.draftMaxAgeDays` does, where you set it. Keep the rate limits
+      ([REST](reference/rest.md#auth)).
 - **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) belongs to the
   model, not the operator:
     - No exposure policy applies to it.
@@ -412,8 +414,9 @@ gets at each level, and how to set them per client.
   a link that expires, by default after 60 minutes.
     - The link is an HMAC-signed token with 128 random bits. The server checks it in constant time.
       A forged and an unknown link get the same 404. The link names no file.
-    - A source can have a field that is not `show` for someone. A report over that source gets a link
-      only where the link is bound in one of two ways:
+    - A source can be closed: a field at `values` or `summary`, a field hidden under the default
+      `show`, or a field shown to some callers only. A report over such a source gets a link only
+      where the link is bound in one of two ways:
         - to the person's sign-in: OpenID Connect code flow with PKCE, `state` and `nonce`. Only a
           sign-in with the issuer and subject that asked gets the file. The token holds them as an
           HMAC.
@@ -449,7 +452,7 @@ gets at each level, and how to set them per client.
     - at most 256 at once
     - 16 of them kept for loopback clients, for the health check
     - 5 seconds for the headers
-    - `http.maxConnectionsPerAddress` bounds one address where clients reach the port directly.
+    - 32 per address where clients reach the port directly (`http.maxConnectionsPerAddress`).
 
     Behind a proxy, the proxy must guard the connections, and only the proxy may reach the port.
 
@@ -568,6 +571,17 @@ and the sign-in above hold for it too. What differs:
     nobody can guess. Make every token with `pivotkit-server token new`: 32 random bytes. The server
     refuses a static token with fewer than 32 characters or 8 different characters, or one that
     repeats one piece.
+
+- **Signed tokens** ([signed tokens](reference/rest.md#signed-tokens)) are JWTs signed with the
+  server's Ed25519 keys. The server checks:
+    - the signature, with `EdDSA` only, and the type `pivotkit+jwt`
+    - the expiry and the lifetime, with `auth.clockTolerance` for the clocks
+    - the deny list, on every request
+
+    A token it cannot check is refused: an unknown key, a scope or profile of the wrong form, or a
+    deny list it cannot read. The keys have mode 0600 and are never printed. A key file behind a
+    symbolic link, or one the group or others may read, is not used. A static token is
+    always compared first, so a static token that looks like a JWT keeps working.
 
 - **Errors** are problem documents with a stable code. A message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.

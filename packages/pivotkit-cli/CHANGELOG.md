@@ -6,9 +6,25 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- `--filter Field=Item` keeps the rows of one item: `--filter Country=Germany`. Given again for
+  the same field, it keeps each item. JSON and `@file.json` work as before (#508).
+- With layout flags and local data, an item of a text field that is none of its values is a
+  warning `itemUnknown` with the item meant. Number fields and server mode get only
+  `noRowsKept` (#508).
+
 ### Changed
 
 - The example views (`pivotkit example`) name the chart's `tooltip` setting, `"auto"`.
+
+- `--filter Revenue>1000`, `Country!=Germany` or `Country<>Germany` is a usage error that gives
+  the JSON filter it means. A value in neither form gets an example of each (#508).
+- `--values avg:Revenue` asks "did you mean average?", as do `mean`, `cnt`, `total`, `distinct`
+  and `stddev` (#508).
+- `itemCase` says "did you mean" once: pivotkit-core's message no longer names the item meant (#508).
+- pivotkit-core's internal limit helper words a file over its limit. The text stays the same
+  ([#509](https://github.com/eizedev/pivotkit/issues/509)).
 
 ## [0.3.0] - 2026-11-16
 

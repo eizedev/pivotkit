@@ -27,18 +27,20 @@ for (const theme of ["light", "dark"]) for (const width of [1280, 390]) test(`ou
     });
     // Legend texts are separate: a default outside label adds a second name per slice.
     await expect.poll(async () => (await texts()).filter((t) => t === "Berlin").length).toBe(2);
-    for (const [mode, label] of [["value", "Berlin: 15.00"], ["percent", "Berlin: 42.9%"], ["both", "Berlin: 15.00 (42.9%)"]]) {
+    for (const [mode, label, munich] of [["value", "Berlin: 15.00", "Munich: 20.00"], ["percent", "Berlin: 42.9%", "Munich: 57.1%"], ["both", "Berlin: 15.00 (42.9%)", "Munich: 20.00 (57.1%)"]]) {
         await page.evaluate((mode) => window.__donutLabels(mode), mode);
         // until the new view is drawn, the chart can still hold the one before (no formatter for the
-        // default labels): null, and the poll asks again, instead of a TypeError that ends it
+        // default labels): null, and the poll asks again, instead of a TypeError that ends it. On a
+        // phone the label breaks into lines at its spaces (#229): the same words.
         await expect.poll(() => chart.evaluate(async (el) => {
             const { getInstanceByDom } = await import("echarts/core");
             const formatter = getInstanceByDom(el)?.getOption().series?.[0]?.label?.formatter;
-            return typeof formatter === "function" ? formatter({ name: "Berlin", value: 15, percent: 100 * 15 / 35 }) : null;
+            return typeof formatter === "function" ? formatter({ name: "Berlin", value: 15, percent: 100 * 15 / 35 }).replace(/\n/g, " ") : null;
         })).toBe(label);
-        if (width > 390) await expect.poll(texts).toContain(label);
-        // On phones ECharts truncates the names, but still draws both slice labels.
-        await expect.poll(async () => (await texts()).length).toBe(5);
+        // both slice labels are drawn whole, on lines on a phone
+        await expect.poll(async () => (await texts()).join(" ")).toContain(label);
+        await expect.poll(async () => (await texts()).join(" ")).toContain(munich);
+        if (width > 390) await expect.poll(async () => (await texts()).length).toBe(5);
     }
     await chart.screenshot({ path: testInfo.outputPath(`donut-${theme}-${width}.png`) });
     await page.evaluate(() => window.__donutLabels("off"));

@@ -49,6 +49,10 @@
       "types": "./types/templates.d.ts",
       "default": "./src/templates.js"
     },
+    "./internal": {
+      "types": "./types/internal.d.ts",
+      "default": "./src/internal.js"
+    },
     "./schema/view-file-1.json": "./schema/view-file-1.json",
     "./schema/view-2.json": "./schema/view-2.json",
     "./schema/view-file-2.json": "./schema/view-file-2.json",

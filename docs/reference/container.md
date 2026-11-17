@@ -83,6 +83,34 @@ and [docker/pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/main
 are this setup for Docker Compose. There you show the token with
 `docker compose exec pivotkit pivotkit-server token show admin`.
 
+### Connections per address { #per-address }
+
+The server bounds the connections one address may hold: 32 by default. This keeps one client from
+taking every connection. It counts the address the container sees, and that depends on how Docker
+forwards the published port on that host:
+
+- Often the container sees each client's own address. Then the default fits.
+- Sometimes every connection comes from the Docker network's gateway, such as `172.17.0.1`. Then
+  all clients share the 32.
+
+`check-config` prints the bound under `HTTP:`. The log line for refused connections names the
+address (`perAddress`). If it names the gateway, or an office's one NAT address, raise the bound.
+Behind a proxy with `http.trustProxy` there is no bound by default ([below](#oauth)).
+
+These settings live only in the configuration file. There is no flag or variable for them. Add
+them to the `pivotkit.json` you mount at `/config/pivotkit.json` ([above](#run)). A file with only
+these keys has no sources, since the built-in example applies only when `/config` is empty. `0`
+switches the bound off:
+
+```json
+{
+  "sources": { "sales": { "file": "/data/sales.csv", "title": "Sales" } },
+  "http": { "maxConnectionsPerAddress": 128 }
+}
+```
+
+Behind a proxy that writes `X-Forwarded-For`, set `"http": { "trustProxy": true }` instead.
+
 ### The state directory { #state-dir }
 
 `/var/lib/pivotkit` is the state directory:
@@ -153,6 +181,13 @@ With Node, run `npx -y pivotkit-server token new --file secrets/pivotkit_token`.
 `token new --file` writes mode 0600 for your own user ([tokens and keys](rest.md#credentials)).
 Output you save with `>` instead gets the mode your umask gives, often 0644, which everyone can
 read. Run `umask 077` first if you do that.
+
+For a token that expires on its own, issue a [signed token](rest.md#signed-tokens) in the running
+container. It needs no change to the configuration:
+
+```bash
+docker exec pivotkit pivotkit-server token issue --expires 8h --name laptop
+```
 
 `token new --add` writes the token into `auth.tokens` of the configuration file. It needs that file
 writable. With the configuration mounted `:ro`, run it where you edit the file, or add the entry by
@@ -227,7 +262,8 @@ Behind a proxy:
   ([the nginx example](rest.md#running)). The limit on refused tokens then counts per client.
 - In this setup, the proxy guards the connections (timeouts, limits per client). The
   container's port should be reachable from the proxy only.
-- Leave `http.maxConnectionsPerAddress` off behind a proxy: every client has the proxy's address.
+- With `http.trustProxy`, the server sets no bound on connections per address by default. Every
+  client has the proxy's address, so the proxy limits its clients.
 
 With OAuth, the MCP endpoint and the REST service are two resources with their own audiences:
 

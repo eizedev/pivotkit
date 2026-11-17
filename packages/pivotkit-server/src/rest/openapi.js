@@ -117,7 +117,7 @@ export function openApiDocument(options = {}) {
     /** @type {Record<string, any>} */
     const securitySchemes = {};
     if (mode === "token") {
-        securitySchemes.bearer = { type: "http", scheme: "bearer", description: "A static token the operator gives you: Authorization: Bearer <token>." };
+        securitySchemes.bearer = { type: "http", scheme: "bearer", description: "A token the operator gives you, static or signed: Authorization: Bearer <token>." };
     } else if (mode === "oauth") {
         const issuer = options.issuer;
         const scopes = Object.fromEntries([...new Set([...required, ...Object.values(auth.toolScopes ?? {}).flat(), ...(auth.scopesSupported ?? [])])].map((s) => [s, `the scope ${s}`]));
@@ -142,7 +142,7 @@ export function openApiDocument(options = {}) {
                 detail: { type: "string", description: "What went wrong and what to do; never file content." },
                 findings: { type: "array", items: { type: "object" }, description: "The view's findings (422 of the file route)." },
                 requestId: { type: "string", description: "The request's id: give it to the operator, who finds the request's log lines by it." },
-                retryable: { type: "boolean", description: "For an error of a source (SOURCE_UNAVAILABLE; NOT_ALLOWED, INVALID_INPUT or DATA_NOT_AVAILABLE from a source), of an upload (UPLOAD_FAILED) and for BUSY of a large body: whether the same request may work when tried again (Retry-After says when, where known)." }
+                retryable: { type: "boolean", description: "For an error of a source (SOURCE_UNAVAILABLE; NOT_ALLOWED, INVALID_INPUT or DATA_NOT_AVAILABLE from a source), of an upload (UPLOAD_FAILED) and for BUSY (a large body, or a parameter's pattern not checked in time): whether the same request may work when tried again (Retry-After says when, where known)." }
             }
         },
         ...viewComponents()

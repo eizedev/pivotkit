@@ -12,6 +12,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   **Tooltip**, **All series** lists every series at the category
   ([#376](https://github.com/eizedev/pivotkit/issues/376), [#106](https://github.com/eizedev/pivotkit/issues/106)).
 
+### Fixed
+
+- The element bundles pivotkit-core's chart labels at small sizes: slanted category names leave the
+  plot its height, a donut's outside labels stay whole, the value at the end of a horizontal bar is
+  not cut, and a heatmap names every row that has room ([#228](https://github.com/eizedev/pivotkit/issues/228), [#229](https://github.com/eizedev/pivotkit/issues/229),
+  [#230](https://github.com/eizedev/pivotkit/issues/230), [#231](https://github.com/eizedev/pivotkit/issues/231)).
+
 ## [0.7.0] - 2026-11-16
 
 ### Upgrading from 0.6

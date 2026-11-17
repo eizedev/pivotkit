@@ -68,6 +68,9 @@ export const DEFAULT_TOKEN_NAME = "admin";
 /** The directories pivotkit makes inside the state directory: the secrets (0700) and the built-in configuration's reports. */
 export const STATE_PARTS = Object.freeze({ secrets: "secrets", out: "out" });
 
+/** The directory in secrets/ of the signed tokens the server issues (signed-tokens.js). */
+export const SIGNED_STATE_DIR = "signed";
+
 /** The default files in secrets/, by what they are for. */
 const STATE_FILES = Object.freeze({ token: `${DEFAULT_TOKEN_NAME}.token`, downloads: "downloads.key", audit: "audit.key" });
 
@@ -193,6 +196,11 @@ export function planState(options, { env, host, tokenEnv, stateDir }) {
             auth.tokens = [{ name: DEFAULT_TOKEN_NAME, file: join(secretsDir, STATE_FILES.token), create: true }];
             next.auth = auth;
         }
+        // signed tokens: their keys, register and deny list beside the other secrets
+        if (auth.mode === "token" && !auth.signedTokens?.dir) {
+            auth.signedTokens = { ...auth.signedTokens, dir: join(secretsDir, SIGNED_STATE_DIR) };
+            next.auth = auth;
+        }
         const downloads = { ...output.downloads };
         if (settingsOf(next).enabled && !downloads.key) {
             downloads.key = { file: join(secretsDir, STATE_FILES.downloads), create: true };
@@ -267,8 +275,11 @@ export async function onContainerLayer(dir, env) {
     return on === "/";
 }
 
-/** Single quotes for a shell: a path as one word. */
-const quoted = (text) => (/^[\w./-]+$/.test(text) ? text : `'${text.replace(/'/g, "'\\''")}'`);
+/** Single quotes for a POSIX shell (bash, zsh): a path as one word, a quote inside it too. */
+export const shellQuoted = (text) => `'${text.replace(/'/g, "'\\''")}'`;
+
+/** A path as one shell word: bare where it holds only letters, digits, "_", ".", "/" and "-". */
+const shellWord = (text) => (/^[\w./-]+$/.test(text) ? text : shellQuoted(text));
 
 /**
  * The command that prints a token of the state directory, for where the server runs: kubectl with the
@@ -289,7 +300,7 @@ export async function tokenShowHint(name, { env, stateDir }) {
     if (container) {
         return `${container} exec <container> ${command} (replace <container> with the container's name or ID)`;
     }
-    return env[STATE_ENV] || !stateDir ? command : `${command} --state-dir ${quoted(stateDir)}`;
+    return env[STATE_ENV] || !stateDir ? command : `${command} --state-dir ${shellWord(stateDir)}`;
 }
 
 /**

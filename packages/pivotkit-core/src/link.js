@@ -18,7 +18,7 @@
 
 import { deflateSync, strFromU8, strToU8 } from "fflate";
 import { inflateCapped } from "./inflate.js";
-import { PivotkitError, expect } from "./errors.js";
+import { PivotkitError, expect, limitText } from "./errors.js";
 import { linkFragment } from "./link-fragment.js";
 import { resolveLimits } from "./limits.js";
 import { isPlainObject } from "./util.js";
@@ -70,7 +70,7 @@ function fromBase64Url(text) {
 export function encodeViewLink(view) {
     expect(isPlainObject(view), "encodeViewLink(view): view must be an object");
     const json = JSON.stringify(view);
-    const tooLong = (value, max, what) => new PivotkitError("LIMIT_EXCEEDED", `${value.toLocaleString("en-US")} ${what} exceed the limit of ${max.toLocaleString("en-US")} (LINK_LIMITS)`, { limit: "link", value, max });
+    const tooLong = (value, max, what) => new PivotkitError("LIMIT_EXCEEDED", limitText(value, max, what, "LINK_LIMITS"), { limit: "link", value, max });
     if (json.length > LINK_LIMITS.json) {
         throw tooLong(json.length, LINK_LIMITS.json, "characters of the view");
     }
