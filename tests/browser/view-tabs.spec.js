@@ -106,7 +106,7 @@ test("one field in Rows: both fold choices are off with the reason, in the chart
     await page.goto("?data=sales&lang=en");
     await page.locator('[data-testid="pivot-table"]').waitFor();
     await page.getByTestId("chip-menu-Country").click();
-    await page.getByTestId("remove-field").click();
+    await page.getByTestId("menu-remove").click();
     await toolbar(page, "chart-settings");
     const menu = page.locator(".pk-popover");
     await menu.getByTestId("topic-layout").click();

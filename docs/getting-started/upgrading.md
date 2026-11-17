@@ -200,6 +200,9 @@ The toolbar holds what applies to the whole report. Table and Chart moved onto t
   **Swap rows and columns** moved from the Columns zone to the end of that row.
 - The new prop `zones` (`"open"` or `"folded"`, the attribute `zones`) sets the zones' start state.
   Without it, the report's height decides, as before.
+- The open zones with their heading need about 90 px more height than before. A report whose box
+  was just high enough for its open zones may now start with them folded. Give the report more
+  height, or set `zones="open"`.
 
 Label keys:
 
