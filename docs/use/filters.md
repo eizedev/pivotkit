@@ -174,9 +174,10 @@ the grouping:
   "last 2 years (2025; 2026 has no data)", "this quarter (Q4 2026)",
   "last 3 months, current period excluded (Aug 2026–Oct 2026)". A rolling range, Before, and a range
   counted from the first record or a date show their dates.
-- Days from today on are never named as having no data. They cannot have data yet. On data up to
-  yesterday, "last 4 weeks" says "last 4 weeks (Oct 26, 2026–Nov 22, 2026)". Days before today
-  without rows are still named.
+- While the data end by today, the days from today on are not named as having no data. They
+  cannot have data yet. On data up to yesterday, "last 4 weeks" says "last 4 weeks (Oct 26,
+  2026–Nov 22, 2026)". Days before today without rows are still named. A range with no data at all
+  says so while it holds a day before today.
 - **Counted back from** offers:
     - **today**, the default: "last 12 months" means the same next month
     - **the latest record**, for data that end, such as an archive or a closed year

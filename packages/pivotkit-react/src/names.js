@@ -209,8 +209,9 @@ export function rangeText(f, locale, timeZone, now, latest) {
  * @param {string} unit
  * @param {{ min: number, max: number }} span  the data's first and last date (wall-clock ms)
  * @param {string} locale
- * @param {string} [today]  today in the data's time zone (ISO day). Days from today on have no data
- *   yet, so they are not named: null when only they lack data, `none` only when a day before today does
+ * @param {string} [today]  today in the data's time zone (ISO day). While the data end by today, days
+ *   from today on have no data yet and are not named: null when only they lack data, `none` only when
+ *   the range holds a day before today
  * @returns {{ none: true } | { none: false, data: string, missing: string[], count: number } | null}  `count`: how many
  *   periods have no data, for the words ("2026 has no data", "2021–2022 have no data")
  */
@@ -219,8 +220,10 @@ export function rangeShare(range, unit, span, locale, today) {
     // is measured in months, a week in days
     const grain = unit === "quarter" ? "month" : unit === "week" ? "day" : unit;
     range = { from: dayPart(range.from), to: dayPart(range.to) };
-    // the last day a missing part is named to: yesterday, or the range's end
-    const until = today !== undefined && dayMs(today) <= dayMs(range.to) ? dayAfter(today, -1) : range.to;
+    // the last day a missing part is named to: yesterday while the data end by today (days to come
+    // cannot have data yet), else the range's end (dates ahead, such as end-of-life dates, can)
+    const ended = today !== undefined && dayMs(isoDay(span.max)) <= dayMs(today);
+    const until = ended && dayMs(today) <= dayMs(range.to) ? dayAfter(today, -1) : range.to;
     const [first, last] = [periodStart(isoDay(span.min), grain), periodEnd(isoDay(span.max), grain)];
     if (dayMs(first) <= dayMs(range.from) && dayMs(last) >= dayMs(until)) {
         return null;
@@ -283,7 +286,8 @@ function periodEnd(iso, unit) {
 /**
  * A relative date range in short, with the days it keeps: "last 5 years (2022–2026)", "this year
  * (2026)". With the data's span, the data's share of them: "last 2 years (2025; 2026 has no data)",
- * "this year (2026 has no data)". Days from today on have no data yet and are not named (#586).
+ * "this year (2026 has no data)". While the data end by today, the days from today on are not named:
+ * they cannot have data yet (#586).
  * Anchored at the data's latest date: "last 12 months to Dec 2025",
  * its days only when the data do not cover them all.
  * @param {{ unit: string, count?: number, anchor?: string, direction?: string, calendar?: boolean, includeCurrent?: boolean }} f  a `relative` filter

@@ -247,6 +247,8 @@ test("the data's share of a range names no day from today on: they have no data 
     const late = new Date("2026-11-17T04:00:00Z");
     assert.equal(relativeText(weeks, L, "en-US", "America/New_York", late, until("2026-11-15")), "last 4 weeks (Oct 26, 2026–Nov 22, 2026)");
     assert.equal(relativeText(weeks, L, "en-US", "UTC", late, until("2026-11-15")), "last 4 weeks (Oct 26, 2026–Nov 15, 2026; Nov 16, 2026 has no data)");
+    // data with dates ahead (end-of-life dates), a range ahead as Next keeps: the years after their last date are named
+    assert.deepEqual(rangeShare({ from: "2027-01-01", to: "2036-12-31" }, "year", until("2031-06-30"), "en-US", now), { none: false, data: "2027–2031", missing: ["2032–2036"], count: 5 });
     // the share alone: without today every missing day is named, with it none from today on
     const range = { from: "2026-10-26", to: "2026-11-22" };
     assert.equal(rangeShare(range, "week", until("2026-11-16"), "en-US").missing.join(), "Nov 17, 2026–Nov 22, 2026");

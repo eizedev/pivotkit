@@ -944,8 +944,8 @@ count relative to one of these:
   their own (the filter's `anchor`)
 
 The level offers This only for the units whose current period has data. It says the data's share of
-a range ("2025; 2026 has no data"). It leaves out the days from today on, read in `encode`'s
-`timeZone`: they cannot have data yet.
+a range ("2025; 2026 has no data"). While the data end by today, it leaves out the days from today
+on, read in `encode`'s `timeZone`. Those days cannot have data yet.
 
 The rules write pivotkit-core's `relative`, `compare`, `value` and `text` filters
 ([Filters](../concepts/filters.md#filters-in-the-ui)). A rule's result line and the summary compute

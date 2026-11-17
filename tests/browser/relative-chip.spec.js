@@ -2,12 +2,15 @@
 // "last 4 weeks" on the weather data, which end on Wednesday, Dec 31, 2025. The browser's clock is
 // fixed, so the current week is not finished: the days from today on have no data yet and are not
 // named. Days before today without rows still are, in the chip, its tooltip and the Filter level.
+// Data with dates ahead (the end-of-life data, up to 2040) still name the days after their last date.
 import { readFileSync } from "node:fs";
 import { encodeViewLink } from "pivotkit-core/link";
 import { chipMenu, expect, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
-const weather = unpack(JSON.parse(readFileSync(new URL("../../examples/playground/data/weather.json", import.meta.url), "utf8")));
+const load = (name) => unpack(JSON.parse(readFileSync(new URL(`../../examples/playground/data/${name}.json`, import.meta.url), "utf8")));
+const weather = load("weather");
+const eol = load("endoflife");
 const LAST_DAY = weather.map((r) => r.Date).sort().at(-1);
 const view = { rows: ["City"], values: [{ agg: "count" }], filters: [{ field: "Date", type: "relative", unit: "week", count: 4 }] };
 const chip = (page) => page.locator('[data-zone="filters"] .pk-chip[data-chip="Date"]');
@@ -41,4 +44,19 @@ test("days before today without rows still warn", async ({ page }) => {
     await expect(chip(page).getByTestId("rule-badge")).toHaveText(words);
     await chipMenu(page, "Date", "filter");
     await expect(page.locator(".pk-chip-menu .pk-filter-summary")).toContainText(words);
+});
+
+test("data with dates ahead: Next names the years after the data's last date", async ({ page }) => {
+    expect(eol.map((r) => r["EOL date"]).filter(Boolean).sort().at(-1)).toBe("2040-01-01");
+    const EOL = "EOL date by month";
+    await page.clock.setFixedTime(new Date("2026-11-17T12:00:00Z"));
+    await page.goto(`?data=endoflife&empty#pivot-playground=${encodeViewLink({ derived: [{ name: EOL, field: "EOL date", by: "yearMonth" }], rows: [EOL], values: [{ agg: "count" }] })}`);
+    await expect(page.locator('[data-testid="pivot-table"]')).toBeVisible();
+    await chipMenu(page, EOL, "filter");
+    const menu = page.locator(".pk-chip-menu");
+    await menu.getByTestId("quick-more").click();
+    await menu.getByTestId("quick-next").click();
+    await menu.getByTestId("quick-next-unit").selectOption("year");
+    await menu.getByTestId("quick-next-count").fill("20");
+    await expect(menu.getByTestId("quick-next")).toHaveAccessibleDescription(/^2026–2040 \(2041–2045 have no data\)/);
 });
