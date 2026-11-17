@@ -278,23 +278,42 @@ test("401: one line that says whether a token went and from where, kind remote w
     }
 });
 
-test("403 NOT_ALLOWED on render: the profile has no results: true; nothing is written", async () => {
-    const server = await fakeServer((req, res) => (req.url.endsWith("/views/validate") ? json(res, { valid: true, findings: [] }) : problem(res, req, 403, "NOT_ALLOWED")));
-    try {
-        const cwd = workdir();
-        writeFileSync(join(cwd, "out.xlsx"), "old");
-        const r = await remote(server, ["render", "view.json", "--source", "sales", "-o", "out.xlsx", "--json"], { cwd });
-        assert.equal(r.code, 2);
-        const { error } = jsonOf(r);
-        assert.equal(error.code, "NOT_ALLOWED");
-        assert.equal(error.status, 403);
-        assert.match(error.message, /; this token's profile has no results: true; validate, describe and sources still work with this token$/);
-        assert.equal(readFileSync(join(cwd, "out.xlsx"), "utf8"), "old");
-        assertClean(r, server.url);
-    } finally {
-        await server.close();
-    }
-});
+// The server's own words for each kind of refusal (pivotkit-server's present.js, sources/inline.js,
+// sources/params.js and a source's SourceError): only a refusal about results gets the results hint.
+const REFUSALS = [
+    { kind: "results", detail: "your token may not download files; ask the operator for a token whose profile has results: true", hint: true },
+    { kind: "data", detail: "your token may not send data (the operator allows it per profile: data: true)", hint: false },
+    { kind: "source claim", detail: "your sign-in has no team claim, which the source tickets needs; ask the operator", hint: false },
+    { kind: "source's own", detail: "You may not see this team's tickets.", hint: false },
+    { kind: "token echoed", detail: undefined, hint: false }
+];
+
+for (const { kind, detail, hint } of REFUSALS) {
+    test(`403 NOT_ALLOWED on render, ${kind} refusal: the results hint ${hint ? "follows" : "does not follow"} the server's words; nothing is written`, async () => {
+        const server = await fakeServer((req, res) => (req.url.endsWith("/views/validate") ? json(res, { valid: true, findings: [] }) : problem(res, req, 403, "NOT_ALLOWED", { detail })));
+        try {
+            const cwd = workdir();
+            writeFileSync(join(cwd, "out.xlsx"), "old");
+            const r = await remote(server, ["render", "view.json", "--source", "sales", "-o", "out.xlsx", "--json"], { cwd });
+            assert.equal(r.code, 2);
+            const { error } = jsonOf(r);
+            assert.deepEqual([error.code, error.status], ["NOT_ALLOWED", 403]);
+            assert.ok(error.message.startsWith("the server answered 403 NOT_ALLOWED: "), error.message);
+            if (detail) {
+                assert.ok(error.message.includes(detail), error.message);
+            }
+            if (hint) {
+                assert.match(error.message, /results: true\. validate, describe and sources still work with this token\.$/);
+            } else {
+                assert.doesNotMatch(error.message, /results: true|still work/);
+            }
+            assert.equal(readFileSync(join(cwd, "out.xlsx"), "utf8"), "old");
+            assertClean(r, server.url);
+        } finally {
+            await server.close();
+        }
+    });
+}
 
 test("404: an unknown source by its code; an unknown route says the address should end in /api/v1", async () => {
     const server = await fakeServer((req, res) => (req.url.startsWith(PATH_MARK) ? problem(res, req, 404, "SOURCE_NOT_FOUND", { detail: "no source sales" }) : problem(res, req, 404, "NOT_FOUND", { detail: "no such route" })));

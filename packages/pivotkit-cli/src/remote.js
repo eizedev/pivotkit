@@ -346,11 +346,12 @@ export function createClient({ server, values, ctx, userAgent }) {
             }
         }
         if (code === "NOT_ALLOWED" && detail.includes("results: true")) {
+            // a refusal about results: the server's words say what to ask for. Any other refusal (data
+            // sent with the request, a source's own) gets no hint: the commands may not work either.
             // "with this token" only when one went: a server without sign-in got none
             return new RemoteError(code, `the server answered ${status} ${code}: ${detail}. validate, describe and sources still work${lastToken ? " with this token" : ""}.`, { status, retryAfter });
         }
         const hints = {
-            NOT_ALLOWED: "this token's profile has no results: true; validate, describe and sources still work with this token",
             NOT_FOUND: server.apiPath ? "" : `the address should end in ${REST_BASE}`
         };
         const wait = retryAfter !== null ? `retry in ${retryAfter} s` : "";
