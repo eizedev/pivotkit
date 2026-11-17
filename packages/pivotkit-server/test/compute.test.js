@@ -4,15 +4,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createComputer } from "../src/compute.js";
+import { createComputer, workerEnv, workerExecArgv } from "../src/compute.js";
 import { tempDir, workspace } from "./helpers.js";
 
 const PROBE = new URL("./fixtures/probe-worker.js", import.meta.url);
 
 /** The pool's module, for a script that runs outside the package (in a temporary directory). */
 const COMPUTE = new URL("../src/compute.js", import.meta.url).href;
+
+/** The package's entry, for such a script. */
+const SERVER = new URL("../src/index.js", import.meta.url).href;
 
 /** The thread id of the worker that answers the next run. */
 const threadOf = async (computer) => (await computer.run("echo", null, {})).outcome.threadId;
@@ -116,4 +119,119 @@ test("a host's script that waits on the pool runs to its end: a worker that dies
     const result = spawnSync(process.execPath, [join(dir, "host.mjs")], { cwd: dir, encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout.trim()), ["INTERNAL", "number"]);
+});
+
+test("workerExecArgv: drops --input-type in both spellings and keeps every other flag; nothing to drop is undefined (#542)", () => {
+    const script = "console.log(1)";
+    assert.deepEqual(workerExecArgv(["--input-type=module", "-e", script]), ["-e", script]);
+    assert.deepEqual(workerExecArgv(["--input-type", "commonjs", "--eval", script]), ["--eval", script]);
+    assert.deepEqual(workerExecArgv(["--conditions=dev", "--input-type=module", "-p", script, "--max-old-space-size=4096"]), ["--conditions=dev", "-p", script, "--max-old-space-size=4096"]);
+    // without --input-type the worker inherits as before: no list of our own
+    assert.equal(workerExecArgv(["--max-old-space-size=4096", "-e", script]), undefined);
+    assert.equal(workerExecArgv([]), undefined);
+});
+
+test("workerEnv: NODE_OPTIONS without --input-type in both spellings, every other variable and flag kept; nothing to drop is undefined (#542)", () => {
+    assert.deepEqual(workerEnv({ NODE_OPTIONS: "--input-type=module", PATH: "/bin" }), { NODE_OPTIONS: "", PATH: "/bin" });
+    assert.deepEqual(workerEnv({ NODE_OPTIONS: "--conditions=dev --input-type module --max-old-space-size=4096", LANG: "C" }), { NODE_OPTIONS: "--conditions=dev --max-old-space-size=4096", LANG: "C" });
+    assert.equal(workerEnv({ NODE_OPTIONS: "--max-old-space-size=4096", PATH: "/bin" }), undefined);
+    assert.equal(workerEnv({ PATH: "/bin" }), undefined);
+});
+
+test("workerEnv reads NODE_OPTIONS as Node does: double quotes hold spaces, a backslash in them escapes; what it writes back reads the same (#542)", () => {
+    const cleaned = (options) => workerEnv({ NODE_OPTIONS: options })?.NODE_OPTIONS;
+    assert.equal(cleaned('--title="my host" --input-type=module --conditions=x'), '"--title=my host" --conditions=x');
+    const quoted = cleaned('--input-type module --title="a \\"q\\" \\\\ b"');
+    assert.equal(quoted, '"--title=a \\"q\\" \\\\ b"');
+    // Node reads what it writes back as the same title
+    const title = spawnSync(process.execPath, ["-e", "process.stdout.write(process.title)"], { encoding: "utf8", timeout: HOST_MS, env: { ...process.env, NODE_OPTIONS: quoted } });
+    assert.equal(title.stdout, 'a "q" \\ b', title.stderr);
+    // a quote inside a token, and a backslash outside quotes, which is a plain character
+    assert.equal(cleaned('--title=a"b c"d --input-type=module --conditions=a\\b'), '"--title=ab cd" "--conditions=a\\\\b"');
+    // "--input-type" as a quoted value is no flag of its own
+    assert.equal(cleaned('--title="x --input-type=module"'), undefined);
+    // Node does not start with an unterminated quote, so there is nothing to clean
+    assert.equal(cleaned('--title="abc --input-type=module'), undefined);
+});
+
+/** A preload that notes each thread it runs in: the host's main thread is 0, a worker another number. */
+const PRELOAD = `require("node:fs").appendFileSync(process.env.PIVOTKIT_TEST_PRELOAD_LOG, require("node:worker_threads").threadId + "\\n");`;
+
+/** A host that renders one report from a code source and prints its CSV. */
+const RENDER_HOST = `
+    import { callerOf, createContext, present } from ${JSON.stringify(SERVER)};
+    const rows = [{ Region: "North", Sales: 10 }, { Region: "South", Sales: 20 }];
+    const context = await createContext({ policy: { default: "show" }, sources: { t: { load: async () => rows } } }, { stderr: { write() {} } });
+    try {
+        const view = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
+        const rendered = await present(context, "render_view", { source: "t", view, format: "csv" }, callerOf("none", undefined));
+        console.log(JSON.stringify(rendered.result.content ?? rendered.result));
+    } finally {
+        await context.close();
+    }
+`;
+
+/** How long one host may run before the test fails it: a host whose run waits for a dead worker. */
+const HOST_MS = 15_000;
+
+/**
+ * Runs RENDER_HOST with these node flags in front: as a file, as a string (`-e`) or from standard
+ * input. `nodeOptions` is the host's NODE_OPTIONS; without it the host has none.
+ */
+const renderHost = (flags, how, nodeOptions = undefined, extraEnv = {}) => {
+    const dir = workspace();
+    const env = { ...process.env, ...extraEnv };
+    delete env.NODE_OPTIONS;
+    if (nodeOptions !== undefined) {
+        env.NODE_OPTIONS = nodeOptions;
+    }
+    const run = { cwd: dir, encoding: /** @type {const} */ ("utf8"), timeout: HOST_MS, env };
+    if (how === "file") {
+        writeFileSync(join(dir, "host.mjs"), RENDER_HOST);
+        return spawnSync(process.execPath, [...flags, join(dir, "host.mjs")], run);
+    }
+    const args = how === "string" ? [...flags, "-e", RENDER_HOST] : flags;
+    return spawnSync(process.execPath, args, { ...run, ...(how === "stdin" ? { input: RENDER_HOST } : {}) });
+};
+
+test("a host's preload and conditions reach the workers beside a V8 flag Node refuses in a worker, whether --input-type comes as a flag or in NODE_OPTIONS (#542)", FAST, () => {
+    const cases = [
+        [["--max-old-space-size=300", "--input-type=module"], undefined],
+        [["--max-old-space-size=300"], "--input-type=module"],
+        [["--stack-size=900", "--input-type=module"], '--title="pivotkit host"']
+    ];
+    for (const [v8, nodeOptions] of cases) {
+        const dir = tempDir();
+        const preload = join(dir, "preload.cjs");
+        const log = join(dir, "threads.txt");
+        writeFileSync(preload, PRELOAD);
+        writeFileSync(log, "");
+        const result = renderHost(["--require", preload, "--conditions=pivotkit-test", ...v8], "string", nodeOptions, { PIVOTKIT_TEST_PRELOAD_LOG: log });
+        const name = `${v8.join(" ")}${nodeOptions ? `, NODE_OPTIONS=${nodeOptions}` : ""}`;
+        assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+        assert.match(result.stdout, /North.*10.*South.*20/s, `${name}: the report, not INTERNAL`);
+        const threads = readFileSync(log, "utf8").trim().split("\n").map(Number);
+        assert.ok(threads.includes(0), `${name}: the host loaded the preload`);
+        assert.ok(threads.some((t) => t > 0), `${name}: a worker loaded the preload too, not a worker without the host's flags: ${threads}`);
+    }
+});
+
+test("the real workers start in a host run from a string or standard input with --input-type=module (both spellings), from a file, and with a V8 flag (#542)", FAST, () => {
+    const cases = [
+        [["--input-type=module"], "string"],
+        [["--input-type", "module"], "string"],
+        [["--input-type=module"], "stdin"],
+        [[], "file"],
+        [["--max-old-space-size=4096"], "file"],
+        [["--max-old-space-size=4096", "--input-type=module"], "string"],
+        // the flag from NODE_OPTIONS, alone and beside another one
+        [[], "string", "--input-type=module"],
+        [[], "string", "--conditions=development --input-type module"]
+    ];
+    for (const [flags, how, nodeOptions] of cases) {
+        const result = renderHost(flags, how, nodeOptions);
+        const name = `${flags.join(" ") || "no flags"}${nodeOptions ? `, NODE_OPTIONS=${nodeOptions}` : ""} (${how})`;
+        assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+        assert.match(result.stdout, /North.*10.*South.*20/s, `${name}: the report, not INTERNAL`);
+    }
 });

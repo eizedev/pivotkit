@@ -21,6 +21,143 @@ import { isOwnError, sourceFailure } from "./sources/run.js";
 export const COMPUTE_HOOKS = Symbol("pivotkit.computeHooks");
 
 /**
+ * The flags without `--input-type`, in both spellings, or undefined when they hold none. A worker
+ * that loads a file refuses that flag at once (ERR_INPUT_TYPE_NOT_ALLOWED), so a host run with
+ * `node --input-type=module -e` got no worker. `-e` and `-p` stay: a worker that loads a file
+ * ignores them.
+ * @param {readonly string[]} args
+ * @returns {string[] | undefined}
+ */
+function withoutInputType(args) {
+    /** @type {string[]} */
+    const kept = [];
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === "--input-type") {
+            i++; // its value
+        } else if (!args[i].startsWith("--input-type=")) {
+            kept.push(args[i]);
+        }
+    }
+    return kept.length === args.length ? undefined : kept;
+}
+
+/**
+ * The host's node flags without `--input-type` (withoutInputType), or undefined when there is none
+ * to drop: the worker then inherits the flags as Node does.
+ * @param {readonly string[]} [execArgv]
+ * @returns {string[] | undefined}
+ */
+export function workerExecArgv(execArgv = process.execArgv) {
+    return withoutInputType(execArgv);
+}
+
+/**
+ * NODE_OPTIONS split as Node splits it: a space ends an argument outside double quotes, a double
+ * quote opens or closes a quoted part anywhere, and inside one a backslash takes the next character
+ * as it is. Outside quotes a backslash is a plain character, and so is a single quote. Null for
+ * text Node refuses (an unterminated quote or a backslash at the end): such a host does not start.
+ * @param {string} text
+ * @returns {string[] | null}
+ */
+function nodeOptionsArgs(text) {
+    /** @type {string[]} */
+    const args = [];
+    let current = null;
+    let quoted = false;
+    for (let i = 0; i < text.length; i++) {
+        let c = text[i];
+        if (c === "\\" && quoted) {
+            if (i + 1 === text.length) {
+                return null;
+            }
+            c = text[++i];
+        } else if (c === " " && !quoted) {
+            if (current !== null) {
+                args.push(current);
+                current = null;
+            }
+            continue;
+        } else if (c === '"') {
+            quoted = !quoted;
+            current ??= "";
+            continue;
+        }
+        current = (current ?? "") + c;
+    }
+    if (quoted) {
+        return null;
+    }
+    if (current !== null) {
+        args.push(current);
+    }
+    return args;
+}
+
+/** NODE_OPTIONS text that nodeOptionsArgs reads as these arguments: one with a space, a quote or a backslash is quoted. */
+const nodeOptionsText = (args) => args.map((a) => (/[ "\\]/.test(a) ? `"${a.replace(/["\\]/g, "\\$&")}"` : a)).join(" ");
+
+/**
+ * The host's environment with `--input-type` taken out of NODE_OPTIONS, or undefined when there is
+ * none. A worker reads NODE_OPTIONS too and fails as with the flag on the command line. Every other
+ * variable and every other argument of NODE_OPTIONS stays, written back so Node reads it the same.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {NodeJS.ProcessEnv | undefined}
+ */
+export function workerEnv(env = process.env) {
+    const args = typeof env.NODE_OPTIONS === "string" ? nodeOptionsArgs(env.NODE_OPTIONS) : null;
+    const kept = args && withoutInputType(args);
+    return kept ? { ...env, NODE_OPTIONS: nodeOptionsText(kept) } : undefined;
+}
+
+/** How Node starts its message for ERR_WORKER_INVALID_EXEC_ARGV; the refused flags follow, joined by ", ". */
+const REFUSED_PREFIX = "Initiated Worker with invalid execArgv flags: ";
+
+/**
+ * The flags of `execArgv` that Node named in its ERR_WORKER_INVALID_EXEC_ARGV, or null for another
+ * error. Node names each refused flag as it was given, so a flag counts when it stands in that list
+ * whole. Node's docs say a worker takes no V8 options and no options of the whole process.
+ * @param {unknown} error
+ * @param {readonly string[]} execArgv
+ * @returns {Set<string> | null}
+ */
+function refusedFlags(error, execArgv) {
+    const { code, message } = /** @type {{ code?: unknown, message?: unknown }} */ (error ?? {});
+    if (code !== "ERR_WORKER_INVALID_EXEC_ARGV" || typeof message !== "string" || !message.startsWith(REFUSED_PREFIX)) {
+        return null;
+    }
+    const list = message.slice(REFUSED_PREFIX.length);
+    return new Set(execArgv.filter((a) => list === a || list.startsWith(`${a}, `) || list.endsWith(`, ${a}`) || list.includes(`, ${a}, `)));
+}
+
+/**
+ * A worker for `file`, with the host's flags and NODE_OPTIONS cleaned (workerExecArgv, workerEnv).
+ * A cleaned NODE_OPTIONS needs an explicit flag list too: a worker that inherits its flags keeps the
+ * host's `--input-type` from NODE_OPTIONS. Node refuses an explicit list that holds a V8 flag or a
+ * flag of the whole process, such as --max-old-space-size or --stack-size, though it ignores them
+ * when inherited. Then the flags Node names are dropped and every other one stays: preloads,
+ * conditions and the like. The worker's memory limit comes from resourceLimits anyway.
+ * @param {URL} file
+ * @param {import("node:worker_threads").WorkerOptions} options
+ */
+function startWorker(file, options) {
+    const env = workerEnv();
+    const execArgv = workerExecArgv() ?? (env ? [...process.execArgv] : undefined);
+    if (execArgv === undefined) {
+        return new Worker(file, options);
+    }
+    const cleaned = { ...options, ...(env ? { env } : {}) };
+    try {
+        return new Worker(file, { ...cleaned, execArgv });
+    } catch (e) {
+        const refused = refusedFlags(e, execArgv);
+        if (!refused?.size) {
+            throw e;
+        }
+        return new Worker(file, { ...cleaned, execArgv: execArgv.filter((a) => !refused.has(a)) });
+    }
+}
+
+/**
  * @param {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [options]
  * @param {{ worker?: URL, cacheBytes?: number, hooks?: boolean }} [internal]  worker: another worker script (tests that need a worker which misbehaves); cacheBytes: the workers' bound on kept data sets instead of a quarter of memoryMb (tests that need a bound below what a run needs, independent of the run's own memory); hooks: the tests' look into the workers (heapSnapshots, keptDataSets; test/memory.test.js), absent otherwise
  */
@@ -37,7 +174,7 @@ export function createComputer(options = {}, internal = {}) {
 
     const spawn = () => {
         // the data sets a worker keeps take at most a quarter of its memory
-        const worker = new Worker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: internal.cacheBytes ?? Math.floor((memoryMb * 1_048_576) / 4), hooks: internal.hooks === true } });
+        const worker = startWorker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: internal.cacheBytes ?? Math.floor((memoryMb * 1_048_576) / 4), hooks: internal.hooks === true } });
         worker.unref();
         /** @type {string[]} the table keys it said it kept, oldest first (its cache may have pushed them out since) */
         const keys = [];
