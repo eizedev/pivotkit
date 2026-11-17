@@ -6,8 +6,9 @@
  * nothing is trusted to the renderer's escaping alone.
  */
 
-import { PivotkitError, chartPlan, chartThemeFrom, computePivot, swapAxes, toEChartsOption, toSeries } from "pivotkit-core";
-import { decorateOption } from "pivotkit-core/chart";
+import { PivotkitError, chartPlan, chartThemeFrom, computePivot, swapAxes, toSeries } from "pivotkit-core";
+// the option from the chart's entry point: a bundle with pivotkit-report keeps it off its first load
+import { decorateOption, toEChartsOption } from "pivotkit-core/chart";
 import { BIDI_CONTROLS } from "./texts.js";
 import { LIGHT_TOKENS } from "./tokens.js";
 

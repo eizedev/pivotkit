@@ -40,6 +40,27 @@ const shadowStyles = {
     }
 };
 
+/**
+ * pivotkit-core's index.js without its re-export of toEChartsOption. esbuild puts a module into the
+ * first load when the first load's imports reach it, even through index.js, which only re-exports it.
+ * The chart loads the option from pivotkit-core/chart instead (pivotkit-react's echarts.js,
+ * pivotkit-report's svg.js), so the option's code goes to the chart group. A bundled import of
+ * toEChartsOption from "pivotkit-core" then fails the build; so does a change of the line below.
+ */
+const BARREL_CHART_LINE = 'export { toEChartsOption } from "./chart.js";\n';
+const chartOffBarrel = {
+    name: "chart-off-barrel",
+    setup(build) {
+        build.onLoad({ filter: /pivotkit-core[\\/]src[\\/]index\.js$/ }, async (args) => {
+            const code = await readFile(args.path, "utf8");
+            if (!code.includes(BARREL_CHART_LINE)) {
+                throw new Error(`pivotkit-element build: pivotkit-core's index.js has no line ${JSON.stringify(BARREL_CHART_LINE.trim())}`);
+            }
+            return { contents: code.replace(BARREL_CHART_LINE, ""), loader: "js" };
+        });
+    }
+};
+
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
     absWorkingDir: here,
@@ -56,7 +77,7 @@ export const options = {
     // the license texts go into one file (licenses() below), not into comments of the bundle
     legalComments: "none",
     metafile: true,
-    plugins: [shadowStyles],
+    plugins: [shadowStyles, chartOffBarrel],
     logLevel: "warning"
 };
 
@@ -333,6 +354,22 @@ async function sizes(metafile) {
     return out;
 }
 
+/**
+ * The zlib that measures the gzip sizes, and a warning when it is not Node's own. CI runs the size
+ * check on an official Node build, which compresses with the zlib bundled in Node. A Node built
+ * against the system's zlib (Homebrew's, for one) compresses the same bytes differently: on a Mac,
+ * Homebrew's Node 26 measured the first load 0.6 KiB smaller than CI. Only an official Node build
+ * gives CI's numbers.
+ * @returns {string[]}
+ */
+export function zlibNote() {
+    const line = `gzip level 9 with zlib ${process.versions.zlib} (Node ${process.version})`;
+    if (!process.config.variables.node_shared_zlib) {
+        return [line];
+    }
+    return [line, "This Node uses the system's zlib, not the one bundled in Node: CI measures other sizes. Use an official Node build (nodejs.org) to get CI's numbers."];
+}
+
 if (isMain(import.meta.url)) {
     await esbuild.build(reactOptions);
     await rm(join(here, "dist"), { recursive: true, force: true });
@@ -341,6 +378,7 @@ if (isMain(import.meta.url)) {
     await writeFile(join(here, "dist", "THIRD_PARTY_LICENSES.txt"), await licenses(result.metafile));
     if (process.argv.includes("--size")) {
         const kb = (n) => `${(n / 1024).toFixed(1)} KiB`;
+        zlibNote().forEach((line) => console.log(line));
         let over = false;
         for (const { group, files, raw, gzip } of await sizes(result.metafile)) {
             const budget = SIZE_BUDGET_KIB[group];

@@ -168,14 +168,25 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
         assert.ok(text(groups.menus).includes(words), `"${words}" is not in the menus`);
         assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
     }
-    // pivotkit-core/chart (the chart's marks and label layout) loads with the chart, never first
-    for (const name of ["pivotkit-core/src/chart-style.js", "pivotkit-core/src/chart-layout.js"]) {
+    // pivotkit-core/chart (the chart's marks and label layout) and the ECharts option (chart.js, which
+    // pivotkit-core's index.js re-exports too: build.js's chartOffBarrel) load with the chart, never first
+    for (const name of ["pivotkit-core/src/chart-style.js", "pivotkit-core/src/chart-layout.js", "pivotkit-core/src/chart.js"]) {
         assert.ok(inputsOf(groups.chart).some((i) => i.includes(name)), `${name} is not in the chart group`);
         assert.ok(!inputsOf(groups.initial).some((i) => i.includes(name)), `${name} is in the first load`);
     }
+    // the chart data stays first: the chart's text alternative and the tips read it (chart-series.js)
+    assert.ok(inputsOf(groups.initial).some((i) => i.includes("pivotkit-core/src/chart-series.js")), "chart-series.js is not in the first load");
     // what stays first: the header sort's texts and its aria-sort (table.jsx renders it)
     assert.ok(text(groups.initial).includes("Sort by {value}: largest first"));
     assert.ok(text(groups.initial).includes('"aria-sort"'));
+});
+
+test("a bundled import of toEChartsOption from pivotkit-core's index.js fails the build: the chart takes it from pivotkit-core/chart", async () => {
+    // the element's options with one module in place of the entries
+    const bundle = (contents) => esbuild.build({ ...options, entryPoints: undefined, splitting: false, outdir: undefined, stdin: { contents, resolveDir: new URL(".", pkgDir).pathname }, write: false, logLevel: "silent" });
+    await assert.rejects(bundle('import { toEChartsOption } from "pivotkit-core"; console.log(toEChartsOption);'), /toEChartsOption/);
+    const ok = await bundle('import { toEChartsOption } from "pivotkit-core/chart"; console.log(toEChartsOption);');
+    assert.equal(ok.errors.length, 0);
 });
 
 test("the HTML report, the SVG and printing load on first use: pivotkit-report is no part of the first load or the menus", () => {
