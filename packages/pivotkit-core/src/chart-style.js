@@ -14,6 +14,7 @@ import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame } fro
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
+export { referenceLines } from "./chart-lines.js";
 
 /** A copy of an object without the given keys. */
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
