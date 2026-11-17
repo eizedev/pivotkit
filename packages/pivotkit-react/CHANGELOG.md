@@ -103,8 +103,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   "Add a field first." while no field is placed, else "The data has no rows yet." ([#585](https://github.com/eizedev/pivotkit/issues/585)).
 - A relative date filter on data that end by today no longer says that days from today on have no
   data. Data up to yesterday give "last 4 weeks (Oct 26, 2026–Nov 22, 2026)", not a second part for
-  the rest of the week. Days before today without rows are still named, and so is a range with no
-  data at all. The chip, its tooltip, the summary, the menu's first level and the Filter level's
+  the rest of the week. Days before today without rows are still named, also in a range with no data
+  at all: "last 1 week (Nov 16, 2026 has no data)". The chip, its tooltip, the summary, the menu's first level and the Filter level's
   choices say the same ([#586](https://github.com/eizedev/pivotkit/issues/586)).
 - "Table as CSV" in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
   `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:

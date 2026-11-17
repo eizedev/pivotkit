@@ -211,8 +211,8 @@ export function rangeText(f, locale, timeZone, now, latest) {
  * @param {string} locale
  * @param {string} [today]  today in the data's time zone (ISO day). While the data end by today, days
  *   from today on have no data yet and are not named: null when only they lack data, `none` only when
- *   the range holds a day before today
- * @returns {{ none: true } | { none: false, data: string, missing: string[], count: number } | null}  `count`: how many
+ *   the range holds a day before today, with `to` the last day to name when that is before the range's end
+ * @returns {{ none: true, to?: string } | { none: false, data: string, missing: string[], count: number } | null}  `count`: how many
  *   periods have no data, for the words ("2026 has no data", "2021–2022 have no data")
  */
 export function rangeShare(range, unit, span, locale, today) {
@@ -231,7 +231,7 @@ export function rangeShare(range, unit, span, locale, today) {
     const from = dayMs(range.from) > dayMs(first) ? range.from : first;
     const to = dayMs(range.to) < dayMs(last) ? range.to : last;
     if (dayMs(from) > dayMs(to)) {
-        return dayMs(range.from) <= dayMs(until) ? { none: true } : null;
+        return dayMs(range.from) > dayMs(until) ? null : until === range.to ? { none: true } : { none: true, to: until };
     }
     const missing = [];
     let count = 0;
@@ -330,7 +330,7 @@ export function relativeText(f, labels, locale, timeZone, now, span, weekStart) 
     }
     const lang = { lang: labels.lang, locale };
     if (share.none) {
-        return fill(labels.withRange, { text, range: fill(plural(labels.noData, 1, lang), { range: periodText(range, f.unit, locale) }) });
+        return fill(labels.withRange, { text, range: fill(plural(labels.noData, 1, lang), { range: periodText({ from: range.from, to: share.to ?? range.to }, f.unit, locale) }) });
     }
     return fill(labels.withShare, { text, range: share.data, missing: fill(plural(labels.noData, share.count, lang), { range: share.missing.join(", ") }) });
 }

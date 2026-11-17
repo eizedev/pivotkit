@@ -359,7 +359,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
             const share = rangeShare(range, shownUnit, span, locale, todayIso);
             if (share?.none) {
                 period = "";
-                missing = fill(plural(labels.noData, 1, lang), { range: periodText(range, shownUnit, locale) });
+                missing = fill(plural(labels.noData, 1, lang), { range: periodText({ from: range.from, to: share.to ?? range.to }, shownUnit, locale) });
             } else {
                 period = share ? `${share.data} ` : periodText(range, shownUnit, locale);
                 missing = share ? fill(plural(labels.noData, share.count, lang), { range: share.missing.join(", ") }) : null;
