@@ -128,6 +128,11 @@ export const CHART_GROUP_LABELS = Object.freeze(["auto", "on", "off"]);
  * donut and heatmap always show the slice or cell under the pointer.
  */
 export const CHART_TOOLTIPS = Object.freeze(["auto", "axis"]);
+/**
+ * The zoom slider under the category axis of bars, lines and areas: "auto" while the axis cannot write
+ * every label (the UI measures it), "on" always, "off" never. A file (SVG, HTML report) draws every category.
+ */
+export const CHART_ZOOMS = Object.freeze(["auto", "on", "off"]);
 
 /** A colour of a conditional format: #rgb or #rrggbb. */
 export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -156,13 +161,15 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
  *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string,
- *   colors: Array<{ name: string, color: string }>, tooltipShare: boolean }} ChartSpec  the chart
+ *   zoom: string, stackPercent: boolean, hidden: string[], colors: Array<{ name: string, color: string }>, tooltipShare: boolean }} ChartSpec  the chart
  *   type and how it is drawn: value labels (CHART_VALUE_LABELS) and, on a pie or donut, where they go
  *   (CHART_LABEL_POSITIONS), legend (CHART_LEGENDS), a title over the
  *   chart, smooth lines (line, area), the category axis labels (CHART_AXIS_LABELS), and with two or more
  *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS), and what the
- *   tooltip covers (CHART_TOOLTIPS), a fixed colour per series or slice by name (`colors`, #rgb or
- *   #rrggbb) and the share of the total in the tooltip (`tooltipShare`)
+ *   tooltip covers (CHART_TOOLTIPS), the zoom slider (CHART_ZOOMS), bars and areas stacked to 100 %
+ *   (stackPercent), the legend entries hidden (series, or slices of a pie), by name, a fixed colour
+ *   per series or slice by name (`colors`, #rgb or #rrggbb) and the share of the total in the
+ *   tooltip (`tooltipShare`)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
  * @typedef {object} View
@@ -200,7 +207,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", colors: [], tooltipShare: false },
+        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], colors: [], tooltipShare: false },
         formatting: { locale: null, timeZone: null, weekStart: WEEK_START }
     };
 }
@@ -576,38 +583,26 @@ function collapsedSection(raw, view, ctx) {
 }
 
 /**
- * A colour per name (series or slices of a chart): `{ name, color }` entries, the name a text up to
- * ITEM_LENGTH characters, the colour #rgb or #rrggbb (COLOR). Each name once, without regard to case
- * (the first one wins), at most `limits.items`. Anything else is left out and reported.
+ * A list at `key` of entries `read` takes (null: left out and reported), each once by its `id`
+ * (without regard to case for colours), at most `limits.items`: the chart's hidden legend entries
+ * (texts up to ITEM_LENGTH characters) and its colours (`{ name, color }`, the colour #rgb or #rrggbb).
+ * @param {(entry: unknown) => { id: string, value: unknown } | null} read
  */
-function colorList(value, path, ctx) {
-    if (value === undefined || value === null) {
-        return [];
-    }
-    if (!Array.isArray(value)) {
-        ctx.issue(path, "not a list of { name, color }", "unknownSetting", { value: shown(value) });
-        return [];
-    }
-    if (value.length > ctx.limits.items) {
-        ctx.issue(path, `more than ${ctx.limits.items} items`, "tooManyItems", { max: ctx.limits.items });
-    }
-    const seen = new Set();
-    const out = [];
-    for (const entry of value.slice(0, ctx.limits.items)) {
-        const name = get(entry, "name");
-        const color = get(entry, "color");
-        if (!isPlainObject(entry) || typeof name !== "string" || name.length > ITEM_LENGTH || typeof color !== "string" || !COLOR.test(color)) {
-            ctx.issue(path, `not a name with a colour #rgb or #rrggbb: ${JSON.stringify(shown(entry))}`, "unknownSetting", { value: shown(entry) });
-            continue;
+function listOnce(raw, key, ctx, read) {
+    const out = new Map();
+    listOf(raw, key, ctx.limits.items, ctx, (entry, path) => {
+        const got = read(entry);
+        if (!got) {
+            return ctx.issue(path, "not a name, or no colour #rgb or #rrggbb", "unknownSetting", { value: shown(entry) });
         }
-        ctx.keys(entry, ["name", "color"], path);
-        if (!seen.has(name.toLowerCase())) {
-            seen.add(name.toLowerCase());
-            out.push({ name, color });
+        if (!out.has(got.id)) {
+            out.set(got.id, got.value);
         }
-    }
-    return out;
+    });
+    return [...out.values()];
 }
+
+const nameOf = (/** @type {unknown} */ name) => (typeof name === "string" && name.length <= ITEM_LENGTH ? name : null);
 
 function displaySection(raw, view, ctx) {
     const display = get(raw, "display");
@@ -639,7 +634,14 @@ function displaySection(raw, view, ctx) {
             groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto"),
             labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside"),
             tooltip: own("tooltip", CHART_TOOLTIPS, "auto"),
-            colors: colorList(get(chart, "colors"), "chart.colors", ctx),
+            zoom: own("zoom", CHART_ZOOMS, "auto"),
+            stackPercent: bool(get(chart, "stackPercent"), false),
+            hidden: listOnce(raw, "chart.hidden", ctx, (n) => (nameOf(n) === null ? null : { id: /** @type {string} */ (n), value: n })),
+            colors: listOnce(raw, "chart.colors", ctx, (c) => {
+                const name = nameOf(get(c, "name"));
+                const color = get(c, "color");
+                return name !== null && COLOR.test(color) ? { id: name.toLowerCase(), value: { name, color } } : null;
+            }),
             tooltipShare: bool(get(chart, "tooltipShare"), false)
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {

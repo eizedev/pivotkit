@@ -7,7 +7,9 @@
  * tooltipFormatter() builds the nodes in the chart's document.
  */
 
-import { CATALOG } from "pivotkit-core";
+import { valueAddsUp } from "./adds-up.js";
+
+export { valueAddsUp };
 
 /**
  * @typedef {object} TooltipLine
@@ -15,7 +17,7 @@ import { CATALOG } from "pivotkit-core";
  * @property {string} name
  * @property {string} value
  * @property {boolean} [hovered]  the element under the pointer, among other lines
- * @property {string} [share]  its share of the total (chart.tooltipShare)
+ * @property {string} [share]  its share: of the total (chart.tooltipShare), or of its 100 % stack
  */
 
 /**
@@ -38,22 +40,13 @@ import { CATALOG } from "pivotkit-core";
  * @property {string} [moreInTotalLabel]  the same line when a total is shown: the cut ones are in it
  */
 
-/**
- * Whether a value's results add up across a category's series, so a stack of them has a total: an
- * additive aggregator (sum, count), shown as itself or as a show-as type that adds up
- * (CATALOG.additiveShowAs; one that walks an axis only along the rows, the chart's categories).
- * @param {{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined} value  the view's value
- */
-export function valueAddsUp(value) {
-    if (!value || !CATALOG.additiveAggregators.includes(/** @type {string} */ (value.agg))) {
-        return false;
-    }
-    const showAs = value.showAs;
-    return !showAs || (CATALOG.additiveShowAs.includes(showAs.type) && (!CATALOG.showAsAlongAxis.includes(showAs.type) || showAs.axis === "rows"));
-}
-
 /** A number to show: ECharts hands null (or "-") for a series without a value at the category. */
 const hasValue = (v) => typeof v === "number" && Number.isFinite(v);
+
+/** Whether a part is a 100 % stack's: it draws its share and keeps its value as `raw` (pivotkit-core). */
+const isShare = (p) => p.data !== null && typeof p.data === "object" && typeof p.data.raw === "number";
+/** A part's own value. */
+const rawOf = (p) => (isShare(p) ? p.data.raw : p.value);
 
 /**
  * The share of each item, in percent, by item; empty where a share means nothing: a value that does
@@ -65,15 +58,16 @@ const hasValue = (v) => typeof v === "number" && Number.isFinite(v);
  * @returns {Map<any, number>}
  */
 function sharesOf(items, { series = [], seriesTotals = [] }) {
+    // each part's own value: a 100 % stack draws its share and keeps the value (rawOf)
     const parts = items.filter((p) => hasValue(p.value));
-    if (!parts.length || parts.some((p) => p.value < 0 || series[p.seriesIndex]?.additive !== true)) {
+    if (!parts.length || parts.some((p) => rawOf(p) < 0 || series[p.seriesIndex]?.additive !== true)) {
         return new Map();
     }
     if (series.length > 1 && parts.length < 2) {
         return new Map();
     }
-    const total = series.length > 1 ? parts.reduce((sum, p) => sum + p.value, 0) : seriesTotals[parts[0].seriesIndex];
-    return typeof total === "number" && total > 0 ? new Map(parts.map((p) => [p, (p.value / total) * 100])) : new Map();
+    const total = series.length > 1 ? parts.reduce((sum, p) => sum + rawOf(p), 0) : seriesTotals[parts[0].seriesIndex];
+    return typeof total === "number" && total > 0 ? new Map(parts.map((p) => [p, (rawOf(p) / total) * 100])) : new Map();
 }
 
 /**
@@ -100,7 +94,7 @@ function axisItems(params, { valueFormatter, mode, series, hover, totalLabel }) 
     const lines = shown.filter((p) => hasValue(p.value));
     return {
         lines: lines.map((p) => ({ p, hovered: p === hit && lines.length > 1 })),
-        total: counted.length ? { name: totalLabel, value: valueFormatter(counted.reduce((sum, p) => sum + p.value, 0)) } : null
+        total: counted.length ? { name: totalLabel, value: valueFormatter(counted.reduce((sum, p) => sum + rawOf(p), 0)) } : null
     };
 }
 
@@ -123,7 +117,11 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
         const kept = cut ? lines.slice(0, lines.length - cut) : lines;
         return {
             title: first ? text(categoryNames[first.dataIndex] ?? first.axisValueLabel ?? first.name) : "",
-            lines: kept.map(({ p, hovered }) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(p.value), ...(shares.has(p) ? { share: /** @type {(v: number) => string} */ (shareFormatter)(/** @type {number} */ (shares.get(p))) } : {}), ...(hovered ? { hovered } : {}) })),
+            // a share of the total (chart.tooltipShare), else a 100 % stack's part its share of the stack as drawn
+            lines: kept.map(({ p, hovered }) => {
+                const part = shares.get(p) ?? (shareFormatter && isShare(p) ? p.value : undefined);
+                return { color: color(p), name: text(p.seriesName), value: valueFormatter(rawOf(p)), ...(part !== undefined && shareFormatter ? { share: shareFormatter(part) } : {}), ...(hovered ? { hovered } : {}) };
+            }),
             ...(cut ? { more: (total ? moreInTotalLabel : moreLabel).replace("{count}", String(cut)) } : {}),
             ...(total ? { total } : {})
         };
@@ -182,7 +180,7 @@ export function tooltipFormatter(doc, { hoverOf, ...options }) {
         value.style.marginLeft = "12px";
         el.append(marker, name, value);
         if (line.share) {
-            // the share of the total after the value, in the muted colour
+            // its share after the value, in the muted colour
             const share = doc.createElement("span");
             share.textContent = line.share;
             share.style.color = "var(--pk-muted)";

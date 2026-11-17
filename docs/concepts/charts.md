@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip and its share, fixed colours per name in the view and the host's colorMap, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks and hidden series, the tooltip's share and fixed colours per name in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -53,6 +53,9 @@ them, and they stay when the chart type changes:
 | `chart.axisLabels` | `"auto"`, `"all"`, `"nth"` |
 | `chart.groupLabels` | `"auto"`, `"on"`, `"off"` |
 | `chart.tooltip` | `"auto"`, `"axis"` |
+| `chart.zoom` | `"auto"`, `"on"`, `"off"` |
+| `chart.stackPercent` | `true`, `false` |
+| `chart.hidden` | a list of legend entries by name, at most `limits.items` |
 | `chart.tooltipShare` | `true`, `false` |
 | `chart.colors` | a list of `{ name, color }`, the colour `#rgb` or `#rrggbb`, at most `limits.items` |
 
@@ -71,6 +74,33 @@ difference or a running total along the rows. A rank or a percent difference get
 
 A pie, a donut and a heatmap always show the slice or cell under the pointer.
 
+`chart.zoom` puts a slider under the category axis of bars, lines and areas:
+
+- `"auto"` adds it for more than 20 categories, or when the axis would leave out 3 labels or more
+  between two it writes.
+- The first window holds as many categories as the axis can name: the latest over dates on Rows,
+  else the first ones. Its ends widen it up to every category, and the labels are laid out again.
+- `"on"` always adds it. `"off"` never does.
+- An SVG, an HTML report and a print draw every category. The PNG image leaves the slider out.
+- pivotkit-react lays a keyboard control over the slider: an element with `role="slider"` that
+  moves and resizes the window with the arrow, Page and Home and End keys, and says which
+  categories it shows (`aria-valuetext`). The canvas itself takes no focus.
+
+`chart.stackPercent` stacks bars and areas to 100 %:
+
+- It applies to stacked bars and to areas. An area is stacked by it. Lines and bars side by side
+  stay as they are.
+- It needs values that add up. The Display setting is offered only for them.
+- Each part is its share of the category's stack. The stack is the sum of its parts' sizes, so a
+  part below zero takes its share below the axis, and the stack does not fill the axis.
+- A category whose parts add up to nothing gets no bar.
+- Value labels write each part's share.
+- The tooltip shows each part's value and share. The total adds the values.
+
+`chart.hidden` names the legend entries that are hidden: series of bars, lines and areas, or slices
+of a pie or a donut. A click on the legend adds or removes a name. A name no entry has is kept and
+does nothing. Names are the labels the chart shows, so they follow the data and its labels. A
+hidden series does not count in a 100 % stack.
 `chart.tooltipShare` adds each value's share of the total to the tooltip:
 
 - With two or more series in the chart, a share of the category's total: the sum of the series shown
@@ -84,7 +114,8 @@ A pie, a donut and a heatmap always show the slice or cell under the pointer.
 The palette colours series and slices in turn, so a category's colour depends on what else the chart
 shows. A fixed colour per name keeps it the same in every chart.
 
-- The view's `chart.colors` lists `{ name, color }` entries. People set them with Display → Colours.
+- The view's `chart.colors` lists `{ name, color }` entries. People set them in Display › Series, with
+  the colour beside each series.
 - The host's `colorMap` prop (`colorMap` property of the web component) sets them for every view:
   `{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }`. A list of two is one colour for the light
   theme and one for the dark.

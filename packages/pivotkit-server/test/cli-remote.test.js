@@ -134,3 +134,18 @@ test("pivotkit --param against the service: a text, a whole number and a true/fa
         await server.close();
     }
 });
+
+test("pivotkit --url without a token: render's refusal names the server's policy and no token", async () => {
+    const dir = workspace();
+    writeFileSync(join(dir, "view.json"), VIEW);
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
+    try {
+        const refused = await pivotkit(["render", "view.json", "--url", server.api, "--source", "sales", "-o", "out.csv", "--json"], { cwd: dir, token: undefined });
+        assert.equal(refused.code, 2);
+        const { error } = JSON.parse(refused.stdout);
+        assert.deepEqual([error.code, error.status], ["NOT_ALLOWED", 403]);
+        assert.equal(error.message, "the server answered 403 NOT_ALLOWED: this server gives no files for this source; the operator allows them with results: true in the server's or the source's policy. validate, describe and sources still work.");
+    } finally {
+        await server.close();
+    }
+});

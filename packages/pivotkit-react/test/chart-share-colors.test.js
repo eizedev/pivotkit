@@ -73,3 +73,14 @@ test("the share's basis follows the chart's series: several share the category's
     // a chart of one series: its own total
     assert.equal(tooltipContent([NORTH[0]], { ...options, series: [additive[0]], seriesTotals: [80] }).lines[0].share, "25.0%");
 });
+
+test("on a 100 % stack the share is computed from each part's value, once; without the setting the stack's own share shows (#36, #54)", () => {
+    // ECharts' parameters of a 100 % stack: the share drawn as the value, the part's value as raw
+    const parts = [20, 10, 30].map((raw, seriesIndex) => ({ seriesIndex, dataIndex: 0, seriesName: ["Hardware", "Services", "Software"][seriesIndex], name: "North", axisValueLabel: "North", value: (raw / 60) * 100, data: { value: (raw / 60) * 100, raw }, color: "#123456" }));
+    const options = { valueFormatter: fmt, shareFormatter: share, series: additive.map((x) => ({ ...x, stack: "total" })), mode: "axis" };
+    const on = tooltipContent(parts, { ...options, share: true });
+    assert.deepEqual(on.lines.map((l) => [l.value, l.share]), [["20", "33.3%"], ["10", "16.7%"], ["30", "50.0%"]]);
+    assert.deepEqual(on.total, { name: "Total", value: "60" });
+    const off = tooltipContent(parts, options);
+    assert.deepEqual(off.lines.map((l) => [l.value, l.share]), [["20", "33.3%"], ["10", "16.7%"], ["30", "50.0%"]]);
+});

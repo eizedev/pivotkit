@@ -8,6 +8,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Added
 
+- The SVG and the HTML report draw 100 % stacks (`chart.stackPercent`) and leave out hidden
+  series (`chart.hidden`). They draw every category, without a zoom slider ([#36](https://github.com/eizedev/pivotkit/issues/36)).
 - `render` takes `colorMap`, a fixed colour per series or slice name for the chart. The SVG and the
   HTML report draw the view's `chart.colors` over it ([#54](https://github.com/eizedev/pivotkit/issues/54)).
 - `render` of a view that shows the chart as `xlsx` adds the warning `chartNotInXlsx`: the

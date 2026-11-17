@@ -89,7 +89,7 @@ data, so a view does not apply to it.
 | `pivotkit describe <data> --suggest [-o <file>]` | A [draft view](#a-view-from-the-datas-fields) of the data as a view file: on stdout, or into `-o`. |
 | `pivotkit render <view> --url <address> --source <id> [-o <file>]` | The same on a server's source. `validate` and `describe` work there too ([With a server](#with-a-server)). |
 | `pivotkit sources [id] --url <address>` | A server's sources, or one source's fields, types and counts. |
-| `pivotkit login --url <address> --client-id <id>` | Signs in to a server's sign-in provider with a code in the browser and keeps the refresh token ([Sign in](#sign-in)). |
+| `pivotkit login --url <address> [--client-id <id>]` | Signs in to a server's sign-in provider with a code in the browser and keeps the refresh token ([Sign in](#sign-in)). |
 | `pivotkit token [--url <address>]` | Prints a fresh access token of a server you signed in to. |
 | `pivotkit logout [--url <address>]` | Removes the kept sign-in of a server. |
 | `pivotkit example [name] [--list]` | Writes an example's data and views (or, `templates`, two print templates) into the current directory (default `sales`), never over a file, and says what to run next. `--list` names the examples ([Try it](#try-it)). |
@@ -141,7 +141,7 @@ read as JSON text, so give a file whose name starts with `{` as `./{name}.json`.
 | `--param name=value` | render, validate, describe, sources `<id>` | A value of the source's parameter; repeatable. `pivotkit sources` says which a source needs. |
 | `--token-file <file>` | render, validate, describe, sources | Read the server's token from this file instead of `PIVOTKIT_TOKEN`. |
 | `--timeout <s>` | render, validate, describe, sources | Seconds to wait for the server's answer, 1 to 3600 (default 30). |
-| `--client-id <id>` | login | The sign-in provider's client ID for the command line. The operator names it. Environment `PIVOTKIT_CLIENT_ID`. |
+| `--client-id <id>` | login | The sign-in provider's client ID for the command line. Default: the one the server publishes. Environment `PIVOTKIT_CLIENT_ID`. |
 | `--scope <scopes>` | login | The scopes to ask for, separated by spaces. Default: the server's scopes and `offline_access`. |
 | `--store auto\|keychain\|file` | login | Where the refresh token goes. Default `auto`: the keychain, else a file only you read. |
 
@@ -477,8 +477,9 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
   `params`. `pivotkit sources` lists such a source with `(needs: customer)`. Give the values with
   `--param customer=acme`, once per parameter. They go with the source as `params`, as typed. The
   server reads a number or `true`/`false` from the text where the parameter is one.
-- **Render** needs a token whose [policy profile](rest.md#profiles) has `results: true`. Without
-  it, the server answers 403 `NOT_ALLOWED` and the CLI says so (exit 2). Validate, describe and
+- **Render** needs a token whose [policy profile](rest.md#profiles) has `results: true`, or, on a
+  server without sign-in, `results: true` in the server's or the source's policy. Without it, the
+  server answers 403 `NOT_ALLOWED` and the CLI says so (exit 2). Validate, describe and
   sources work with any token.
     - The file goes only to `-o` or stdout, never to a name from the answer. An XLSX file is not
       written to a terminal.
@@ -499,7 +500,7 @@ A server with a sign-in provider (`auth.mode: oauth`) takes the provider's acces
 once, then let `pivotkit token` give you a fresh token:
 
 ```bash
-pivotkit login --url https://reports.example.com/api/v1 --client-id pivotkit-cli
+pivotkit login --url https://reports.example.com/api/v1
 PIVOTKIT_TOKEN="$(pivotkit token)" pivotkit sources --url https://reports.example.com/api/v1
 pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources
 ```
@@ -512,7 +513,9 @@ machine can read it while curl runs.
 - It names the issuer's host first. It warns when the code page's host is neither the issuer's host
   nor a parent or subdomain of it. The warning is a hint, not a guarantee: check the page yourself.
   Then it prints an address and a code on stderr. Open the address, enter the code and sign in.
-- The operator gives you the client ID. Pass it with `--client-id` or `PIVOTKIT_CLIENT_ID`.
+- `login` takes the client ID the server publishes (`rest.signIn.clientId`) and says so. Where the
+  server publishes none, the operator gives you the client ID. Pass it with `--client-id` or
+  `PIVOTKIT_CLIENT_ID`. Either pins the ID: `login` then never takes the published one.
 - `login` waits as long as the provider allows, at most 30 minutes. It polls at the provider's
   interval, at most every five minutes, and says so when the provider asks for longer. It asks again
   after a network error, a timeout, a 429 or a 5xx, three times in a row at most.

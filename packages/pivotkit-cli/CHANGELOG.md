@@ -8,7 +8,11 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Added
 
-- The example views name the chart's `colors` and `tooltipShare` settings ([#54](https://github.com/eizedev/pivotkit/issues/54)).
+- `pivotkit login` takes the client ID the server publishes (`rest.signIn.clientId`) when neither
+  `--client-id` nor `PIVOTKIT_CLIENT_ID` gives one, and says so. `pivotkit-cli/rest` exports
+  `SIGN_IN_CLIENT_FIELD` and `CLIENT_ID_SYNTAX` (#486).
+- The example views leave out the chart settings newer than 0.7 while they hold their default
+  (`tooltip`), so a 0.7 reader takes them without a warning ([#36](https://github.com/eizedev/pivotkit/issues/36), [#54](https://github.com/eizedev/pivotkit/issues/54)).
 - `pivotkit login --url <server> --client-id <id>` signs in at the server's sign-in provider with
   the OAuth 2.0 device code flow. It keeps the refresh token in the system's keychain, else in a
   file only you read. `pivotkit token` prints a fresh access token, and `pivotkit logout` removes
@@ -40,6 +44,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 - `--locale` that the runtime has no data for, such as `xx-XX`, is a usage error. Before, the
   report took the machine's locale for it ([#552](https://github.com/eizedev/pivotkit/issues/552)).
+- `render --url` against a server without sign-in no longer says "with this token" when the
+  server refuses the file ([#512](https://github.com/eizedev/pivotkit/issues/512)).
 - `--format csv` in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
   `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:
   `9.6`, not `9٫6`, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).

@@ -246,7 +246,8 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
     try {
         if (kind === "png" || kind === "copy-chart") {
             const surface = root.current ? getComputedStyle(root.current).getPropertyValue("--pk-surface").trim() : "";
-            const url = chartRef.current?.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: surface || undefined });
+            // the picture of what is drawn, without the zoom slider (a control, not part of the chart)
+            const url = chartRef.current?.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: surface || undefined, excludeComponents: ["dataZoom"] });
             const file = `${base}.png`;
             if (kind === "copy-chart") {
                 if (!url) {

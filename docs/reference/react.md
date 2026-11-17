@@ -74,7 +74,8 @@ Exports: `PivotReport` and these types:
 - `PivotReportProps`, `CellClick`, `ExportFile`
 - `Template`, `TemplateScope`, `TemplateSource`: the data a view is saved or published from
 - `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `DataLoad`, `View`
-- `ViewInput`: a view as a host passes it
+- `ViewInput`: a view as a host passes it. pivotkit-element's `PivotView` has the same role
+  ([types](element.md#types)).
 - `UiLabels` and `PartialLabels`
 
 The stylesheet is `pivotkit-react/styles.css`. It ships its own type declaration, so a strict
@@ -500,7 +501,7 @@ A fixed colour per series or slice name, so a category has the same colour in ev
   browser reads. Any other value is left out.
 - Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
 - A name the chart does not have does nothing. Other series keep the palette's colours.
-- The view's own colours win: Display → Colours (`chart.colors`).
+- The view's own colours win: Display › Series, the colour beside each series (`chart.colors`).
 - The chart image, the SVG and the HTML report take the light colours.
 
 The report compares it by value. See [Charts](../concepts/charts.md#fixed-colours).
@@ -975,8 +976,9 @@ A menu keeps the mouse wheel to itself. The menu stops a wheel turn that nothing
 scroll further, so the table or the page behind never scrolls. `overscroll-behavior: contain` does
 the same for touch. A menu is at most as high as the window, and scrolls inside.
 
-No menu folds. The chart type menu and the Export menus are flat lists in titled groups
-(`role="group"` with its title).
+No menu folds. The Export menus are flat lists in titled groups (`role="group"` with its title).
+The chart type menu has its types first, then a row per Display topic that opens a level, like the
+field and Options menus.
 
 An "i" next to a setting explains it on hover, focus or tap. Settings with an "i": the totals, Show
 as, Excel and CSV in the export menu, and Labels and Group labels of the chart.

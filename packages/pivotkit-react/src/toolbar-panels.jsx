@@ -18,7 +18,7 @@ import { Section, SettingInfo } from "./section.jsx";
 import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tips.js";
 import { LevelMenu } from "./levels.jsx";
-import { afterDelete, entryIds, optionTopics } from "./menu-topics.js";
+import { afterDelete, chartTopics, entryIds, optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
 import { hexColor } from "./export-run.js";
 import { storeViews } from "./view-store.js";
@@ -43,137 +43,17 @@ function ChartTypeOptions({ view, plan, labels, onChart, close }) {
     ));
 }
 
-/** The value labels a chart type offers: a share in percent is a pie's and a donut's. */
-const VALUE_LABELS = { slices: ["auto", "off", "value", "percent", "both"], other: ["auto", "off", "value"] };
-const LABEL_POSITIONS = ["outside", "inside"];
-const LEGENDS = ["auto", "bottom", "right", "off"];
-const AXIS_LABELS = ["auto", "all", "nth"];
-const GROUP_LABELS = ["auto", "on", "off"];
-const TOOLTIPS = ["auto", "axis"];
-/** The most series (or slices) the Display settings list; the legend has every one. */
-const MAX_LISTED = 50;
-
 /**
- * The legend's entries of the chart drawn, in the order the palette colours them: a pie's and a
- * donut's slices (those with a value above zero), the series of bars, lines and areas; a heatmap has none.
+ * The legend's entries of the chart drawn: a pie's and a donut's slices, the series of bars, lines
+ * and areas; a heatmap has none.
  * @param {string} drawn  the picker entry drawn
- * @param {{ categories: string[], series: Array<{ name: string, valueIndex: number }>, totals: Array<Array<number | null>> } | null | undefined} series  toSeries'
+ * @param {{ categories: string[], series: Array<{ name: string }> } | null | undefined} series  toSeries'
  */
 function legendNames(drawn, series) {
     if (!series || drawn === "heatmap") {
         return [];
     }
-    if (SLICE_TYPES.includes(drawn)) {
-        const totals = series.totals[series.series[0]?.valueIndex ?? 0] ?? [];
-        return series.categories.filter((_, i) => typeof totals[i] === "number" && /** @type {number} */ (totals[i]) > 0);
-    }
-    return series.series.map((s) => s.name);
-}
-
-/**
- * A colour field that applies its colour once it is picked (the "change" event), not on every step
- * while the picker is open (React's onChange is the "input" event): one step to undo per colour. A new
- * colour from outside (the chart drawn again, Undo) is set on the same field, so it keeps the focus.
- */
-function ColorField({ value, onPick, label }) {
-    const field = useRef(/** @type {HTMLInputElement | null} */ (null));
-    const latest = useRef(onPick);
-    useEffect(() => {
-        latest.current = onPick;
-    });
-    useEffect(() => {
-        const el = field.current;
-        const picked = () => el && latest.current(el.value);
-        el?.addEventListener("change", picked);
-        return () => el?.removeEventListener("change", picked);
-    }, []);
-    useEffect(() => {
-        if (field.current && value && field.current.value !== value) {
-            field.current.value = value;
-        }
-    }, [value]);
-    return <input ref={field} type="color" defaultValue={value} aria-label={label} />;
-}
-
-/**
- * The colour each series or slice is drawn with, by name, from the chart's ECharts option: its own
- * colour where it has one (a fixed one), else the palette's of its place, as ECharts gives it.
- * @param {any} instance  the chart's ECharts instance, or null
- * @returns {Map<string, string>}
- */
-function drawnColors(instance) {
-    const out = new Map();
-    const option = instance?.getOption?.();
-    const palette = Array.isArray(option?.color) ? option.color : [];
-    const of = (/** @type {any} */ item, /** @type {number} */ i) => item?.itemStyle?.color ?? palette[i % Math.max(1, palette.length)];
-    for (const [i, s] of (option?.series ?? []).entries()) {
-        if (s.type === "pie") {
-            (s.data ?? []).forEach((/** @type {any} */ d, /** @type {number} */ j) => out.set(String(d.name), of(d, j)));
-        } else {
-            out.set(String(s.name), of(s, i));
-        }
-    }
-    return out;
-}
-
-/**
- * A colour per legend entry, as the chart draws it, changed with a colour field; Default gives a
- * view's colour back (chart.colors). A view's colour for a name the chart does not show is listed
- * after them, with Remove.
- * @param {{ names: string[], view: any, colors?: { map?: unknown, theme?: string, chart?: { current: any } }, onDisplay: (patch: object) => void, labels: any }} props
- */
-function EntryColors({ names, view, colors, onDisplay, labels }) {
-    const box = useRef(/** @type {HTMLDivElement | null} */ (null));
-    // the colours drawn, as #rrggbb (a canvas reads any colour the browser draws), read again after each draw
-    const [drawn, setDrawn] = useState(/** @type {Map<string, string>} */ (new Map()));
-    useEffect(() => {
-        const el = box.current;
-        const instance = colors?.chart?.current;
-        if (!el || !instance) {
-            return undefined;
-        }
-        const ctx = el.ownerDocument.createElement("canvas").getContext("2d");
-        const read = () => setDrawn(new Map([...drawnColors(instance)].map(([name, c]) => [name, hexColor(String(c), ctx) ?? ""])));
-        read();
-        instance.on("finished", read);
-        return () => instance.off("finished", read);
-    }, [colors?.chart]);
-    const own = view.chart.colors ?? [];
-    const same = (/** @type {string} */ a, /** @type {string} */ b) => a.toLowerCase() === b.toLowerCase();
-    const set = (/** @type {string} */ name, /** @type {string | null} */ color) => onDisplay({ colors: [...own.filter((c) => !same(c.name, name)), ...(color ? [{ name, color }] : [])] });
-    const long = (/** @type {string} */ c) => (c.length === 4 ? `#${[...c.slice(1)].map((x) => x + x).join("")}` : c);
-    const stale = own.filter((c) => !names.some((n) => same(n, c.name)));
-    return (
-        <div ref={box} className="pk-series-list" data-testid="chart-colors">
-            {names.slice(0, MAX_LISTED).map((name) => {
-                const mine = own.find((c) => same(c.name, name));
-                return (
-                    <div key={name} className="pk-color-row">
-                        <ColorField value={long(mine?.color ?? drawn.get(name) ?? "")} onPick={(color) => set(name, color)} label={fill(labels.colorOf, { name })} />
-                        <span className="pk-color-name" title={name}>
-                            {name}
-                        </span>
-                        {mine ? (
-                            <button type="button" className="pk-link pk-color-action" onClick={() => set(name, null)} aria-label={`${labels.colorDefault}: ${name}`}>
-                                {labels.colorDefault}
-                            </button>
-                        ) : null}
-                    </div>
-                );
-            })}
-            {stale.map((c) => (
-                <div key={`stale:${c.name}`} className="pk-color-row pk-color-stale">
-                    <span className="pk-color-swatch" aria-hidden="true" ref={(el) => el?.style.setProperty("background-color", c.color)} />
-                    <span className="pk-color-name" title={c.name}>
-                        {c.name}
-                    </span>
-                    <button type="button" className="pk-link pk-color-action" onClick={() => set(c.name, null)} aria-label={`${labels.colorRemove}: ${c.name}`}>
-                        {labels.colorRemove}
-                    </button>
-                </div>
-            ))}
-        </div>
-    );
+    return [...new Set(SLICE_TYPES.includes(drawn) ? series.categories : series.series.map((s) => s.name))];
 }
 
 /** The chart's title: applied with Enter or Apply; the × removes it at once. */
@@ -212,142 +92,67 @@ function ChartTitle({ title, labels, onDisplay }) {
 }
 
 /**
- * One group of the chart's Display (Value labels, Legend, ...): its title, with an "i" where it needs
- * explaining, and its choices; a dashed rule between the groups (styles.css: .pk-subsection).
- * @param {{ title?: string, info?: string, children: React.ReactNode }} props
+ * The colour each series or slice is drawn with, by name, from the chart's ECharts option: its own
+ * colour where it has one (a fixed one, chart.colors or the host's colorMap), else the palette's of its
+ * place, as ECharts gives it.
+ * @param {any} instance  the chart's ECharts instance
+ * @returns {Map<string, string>}
  */
-function Sub({ title, info, children }) {
-    const titleId = useId();
-    return (
-        <div className="pk-subsection" role={title ? "group" : undefined} aria-labelledby={title ? titleId : undefined}>
-            {title ? (
-                <div className={`pk-subtitle${info ? " pk-setting-row" : ""}`}>
-                    <span id={titleId}>{title}</span>
-                    {info ? <SettingInfo id={info} name={title} /> : null}
-                </div>
-            ) : null}
-            {children}
-        </div>
-    );
+function colorsDrawn(instance) {
+    const out = new Map();
+    const option = instance.getOption?.();
+    const palette = Array.isArray(option?.color) ? option.color : [];
+    const of = (/** @type {any} */ item, /** @type {number} */ i) => item?.itemStyle?.color ?? palette[i % Math.max(1, palette.length)];
+    for (const [i, s] of (option?.series ?? []).entries()) {
+        if (s.type === "pie") {
+            (s.data ?? []).forEach((/** @type {any} */ d, /** @type {number} */ j) => out.set(String(d.name), of(d, j)));
+        } else {
+            out.set(String(s.name), of(s, i));
+        }
+    }
+    return out;
 }
 
 /**
- * How the chart is drawn: value labels, legend, title, axis and group labels, the tooltip (bars, lines
- * and areas), the share in the tooltip, a colour per series or slice, smooth lines (line and area). Each choice applies at once and the panel stays open, so
- * the chart behind it shows the change.
+ * The chart type menu: the types (a pick closes it), then how the chart is drawn, in levels as the
+ * other menus (levels.jsx, menu-topics.js chartTopics): a row per topic with what is set, each
+ * opening its level (Value labels, Legend, Title, Axis, Tooltip, Series, Layout). Each choice applies at once and the menu stays
+ * open, so the chart behind it shows the change.
  */
-function ChartDisplay({ view, plan, labels, onDisplay, series, colors }) {
-    const chart = view.chart;
-    // the type drawn: an automatic chart's is the one the data chose
-    const drawn = plan ? plan.name : chartTypeOf(chart);
-    const pie = SLICE_TYPES.includes(drawn);
-    // bars, lines and areas have a category axis
-    const axis = CHART_TYPES[drawn].axis;
-    const choices = pie ? VALUE_LABELS.slices : VALUE_LABELS.other;
-    // a pie's "percent" on another type draws the value: it shows as "Value" there
-    const valueLabels = !pie && (chart.valueLabels === "percent" || chart.valueLabels === "both") ? "value" : chart.valueLabels;
+export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, series, colors }) {
+    const drawn = plan ? plan.name : chartTypeOf(view.chart);
     const names = legendNames(drawn, series);
-    return (
-        <Section title={labels.chartDisplay}>
-            <Sub title={labels.valueLabels}>
-                <div className="pk-choice-grid">
-                    {choices.map((v) => (
-                        <Option key={v} checked={valueLabels === v} onSelect={() => onDisplay({ valueLabels: v })} testId={`labels-${v}`}>
-                            {labels.valueLabelNames[v]}
-                        </Option>
-                    ))}
-                </div>
-            </Sub>
-            {pie ? (
-                <Sub title={labels.labelPosition} info="labelPosition">
-                    <div className="pk-choice-grid">
-                        {LABEL_POSITIONS.map((v) => (
-                            <Option key={v} checked={(chart.labelPosition ?? "outside") === v} disabled={chart.valueLabels === "off"} onSelect={() => onDisplay({ labelPosition: v })} testId={`label-position-${v}`}>
-                                {labels.labelPositionNames[v]}
-                            </Option>
-                        ))}
-                    </div>
-                </Sub>
-            ) : null}
-            <Sub title={labels.legend}>
-                <div className="pk-choice-grid">
-                    {LEGENDS.map((v) => (
-                        <Option key={v} checked={chart.legend === v} onSelect={() => onDisplay({ legend: v })} testId={`legend-${v}`}>
-                            {labels.legendNames[v]}
-                        </Option>
-                    ))}
-                </div>
-            </Sub>
-            <Sub title={labels.chartTitle}>
-                <ChartTitle title={chart.title} labels={labels} onDisplay={onDisplay} />
-            </Sub>
-            {axis ? (
-                <Sub title={labels.axisLabels}>
-                    <div className="pk-choice-grid">
-                        {AXIS_LABELS.map((v) => (
-                            <Option key={v} checked={chart.axisLabels === v} onSelect={() => onDisplay({ axisLabels: v })} testId={`axis-${v}`}>
-                                {labels.axisLabelNames[v]}
-                            </Option>
-                        ))}
-                    </div>
-                </Sub>
-            ) : null}
-            {axis && view.rows.length >= 2 ? (
-                <Sub title={labels.groupLabels} info="groupLabels">
-                    <div className="pk-choice-grid">
-                        {GROUP_LABELS.map((v) => (
-                            <Option key={v} checked={chart.groupLabels === v} onSelect={() => onDisplay({ groupLabels: v })} testId={`groups-${v}`}>
-                                {labels.groupLabelNames[v]}
-                            </Option>
-                        ))}
-                    </div>
-                </Sub>
-            ) : null}
-            {axis ? (
-                <Sub title={labels.tooltip} info="tooltip">
-                    <div className="pk-choice-grid">
-                        {TOOLTIPS.map((v) => (
-                            <Option key={v} checked={(chart.tooltip ?? "auto") === v} onSelect={() => onDisplay({ tooltip: v })} testId={`tooltip-${v}`}>
-                                {labels.tooltipNames[v]}
-                            </Option>
-                        ))}
-                    </div>
-                </Sub>
-            ) : null}
-            {drawn !== "heatmap" ? (
-                <Sub>
-                    <Switch checked={Boolean(chart.tooltipShare)} onChange={(on) => onDisplay({ tooltipShare: on })} testId="chart-tooltip-share">
-                        {labels.tooltipShare}
-                    </Switch>
-                </Sub>
-            ) : null}
-            {names.length ? (
-                <Sub title={labels.chartColors} info="chartColors">
-                    <EntryColors names={names} view={view} colors={colors} onDisplay={onDisplay} labels={labels} />
-                </Sub>
-            ) : null}
-            {drawn === "line" || drawn === "area" ? (
-                <Sub>
-                    <Switch checked={chart.smooth} onChange={(on) => onDisplay({ smooth: on })} testId="chart-smooth">
-                        {labels.smoothLines}
-                    </Switch>
-                </Sub>
-            ) : null}
+    // the colour each series or slice is drawn with, as #rrggbb, read again after each draw of the chart
+    const [drawnColors, setDrawnColors] = useState(/** @type {Map<string, string>} */ (new Map()));
+    useEffect(() => {
+        const instance = colors?.chart?.current;
+        if (!instance) {
+            return undefined;
+        }
+        const ctx = instance.getDom?.()?.ownerDocument?.createElement("canvas").getContext("2d") ?? null;
+        const read = () => setDrawnColors(new Map([...colorsDrawn(instance)].map(([name, c]) => [name, hexColor(String(c), ctx) ?? ""])));
+        read();
+        instance.on("finished", read);
+        return () => instance.off("finished", read);
+    }, [colors?.chart]);
+    const topics = chartTopics({ view, drawn, labels, names, act: { display: onDisplay }, drawnColors });
+    const head = (
+        <Section title={labels.chartType}>
+            <div className="pk-choice-grid">
+                <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
+            </div>
         </Section>
     );
-}
-
-/** The chart type menu: the types (a pick closes it) and how the chart is drawn. */
-export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close, series, colors }) {
     return (
-        <>
-            <Section title={labels.chartType}>
-                <div className="pk-choice-grid">
-                    <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
-                </div>
-            </Section>
-            <ChartDisplay view={view} plan={plan} labels={labels} onDisplay={onDisplay} series={series} colors={colors} />
-        </>
+        <LevelMenu
+            name={labels.chartDisplay}
+            labels={labels}
+            topics={topics}
+            close={close}
+            onPick={runChoice(close)}
+            head={head}
+            panel={(id) => (id === "title" ? <ChartTitle title={view.chart.title} labels={labels} onDisplay={onDisplay} /> : null)}
+        />
     );
 }
 
@@ -373,20 +178,6 @@ function Shortcuts({ labels, mod }) {
     );
 }
 
-/**
- * A switch: a checkbox drawn as a track, on one line (the chart's smooth lines).
- * @param {{ checked: boolean, onChange: (on: boolean) => void, testId?: string, children: React.ReactNode }} props
- */
-function Switch({ checked, onChange, testId, children }) {
-    const name = useFormName();
-    return (
-        <label className="pk-switch">
-            <input type="checkbox" name={name} checked={checked} onChange={(e) => onChange(e.target.checked)} data-testid={testId} />
-            <span className="pk-switch-track" aria-hidden="true" />
-            <span className="pk-switch-text">{children}</span>
-        </label>
-    );
-}
 
 /**
  * The Options menu (topics in menu-topics.js): the totals, Expand all and Collapse all, help with the

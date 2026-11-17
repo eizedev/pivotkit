@@ -25,7 +25,7 @@ test("the view keeps a colour per name and whether the tooltip shows the share, 
     assert.equal(v.chart.tooltipShare, true);
     // a colour is #rgb or #rrggbb; anything else is left out and reported
     const bad = validate({ chart: { colors: [{ name: "North", color: "red; background: url(x)" }, { name: 3, color: "#fff" }, "North"] } }, SALES);
-    assert.deepEqual(bad.errors.map((e) => e.path), ["chart.colors", "chart.colors", "chart.colors"]);
+    assert.deepEqual(bad.errors.map((e) => e.path), ["chart.colors[0]", "chart.colors[1]", "chart.colors[2]"]);
     assert.deepEqual(norm({ chart: { colors: { North: "#fff" } } }).chart.colors, []);
     assert.deepEqual(norm({ chart: JSON.parse('{"colors":[{"name":"__proto__","color":"#abc"}]}') }).chart.colors, [{ name: "__proto__", color: "#abc" }]);
     assert.deepEqual(norm({ chart: { colors: [{ name: "a", color: "#111" }, { name: "b", color: "#222" }, { name: "c", color: "#333" }] } }, { limits: { items: 2 } }).chart.colors.length, 2);
@@ -84,4 +84,16 @@ test("a host's colour: hex of 3, 4, 6 or 8 digits, rgb(), hsl() or a colour name
     } finally {
         globalThis.CSS = real;
     }
+});
+
+test("a view file leaves out colors and tooltipShare at their defaults and keeps them when set; reading puts them back", async () => {
+    const { toViewFile, fromViewFile } = await import("../src/index.js");
+    const plain = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }] });
+    const file = toViewFile(plain, { name: "Revenue" });
+    assert.equal("colors" in file.view.chart, false);
+    assert.equal("tooltipShare" in file.view.chart, false);
+    assert.deepEqual(fromViewFile(file).view.chart.colors, []);
+    const set = norm({ ...plain, chart: { colors: [{ name: "North", color: "#e3000f" }], tooltipShare: true } });
+    const written = toViewFile(set, { name: "Revenue" }).view.chart;
+    assert.deepEqual([written.colors, written.tooltipShare], [[{ name: "North", color: "#e3000f" }], true]);
 });

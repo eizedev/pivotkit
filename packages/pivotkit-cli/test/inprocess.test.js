@@ -50,7 +50,7 @@ test("the package exports main(), the file helpers of pivotkit-cli/files and the
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     assert.deepEqual(Object.keys(pkg.exports), [".", "./files", "./rest", "./package.json"]);
     const rest = await import("pivotkit-cli/rest");
-    assert.deepEqual(Object.keys(rest).sort(), ["PROBLEM_CODES", "REST_BASE", "REST_ERRORS", "SOURCE_ID", "TOKEN_SYNTAX", "TOKEN_SYNTAX_TEXT", "isLoopback", "resourceMetadataUrlOf"]);
+    assert.deepEqual(Object.keys(rest).sort(), ["CLIENT_ID_SYNTAX", "PROBLEM_CODES", "REST_BASE", "REST_ERRORS", "SIGN_IN_CLIENT_FIELD", "SOURCE_ID", "TOKEN_SYNTAX", "TOKEN_SYNTAX_TEXT", "isLoopback", "resourceMetadataUrlOf"]);
     assert.equal(rest.resourceMetadataUrlOf("https://reports.example/api/v1/"), "https://reports.example/.well-known/oauth-protected-resource/api/v1");
     // literal loopback addresses only, as a URL's hostname writes them too
     for (const host of ["localhost", "127.0.0.1", "127.1.2.3", "::1", "[::1]", "LOCALHOST"]) assert.equal(rest.isLoopback(host), true, host);

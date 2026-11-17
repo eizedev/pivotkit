@@ -61,6 +61,7 @@ others as the rules below say.
 | `fileError(reason, file, message, params)` | A `PivotkitError` `INVALID_FILE` that names the file. |
 | `checkFileLimit(limit, value, max, file, what)`, `limitError(...)` | A `LIMIT_EXCEEDED` that names the file and the limit. |
 | `dateToIso(date)` | A `Date` whose UTC fields are the wall clock as ISO text, to the second when it is within 2 ms of one. |
+| `cleanText(text)` | The text without control and direction characters, line breaks and tabs as one space, without spaces at either end. For a name the file gives, such as a sheet's. |
 
 ## The rules
 

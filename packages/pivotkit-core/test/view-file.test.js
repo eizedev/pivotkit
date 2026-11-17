@@ -39,7 +39,9 @@ test("a view file has its keys in the canonical order and lists the fields the v
         ]
     });
     assert.deepEqual(file.extensions, {});
-    assert.equal(file.view, view);
+    // the view, without the chart keys newer than 0.7 at their defaults (NEWER_CHART_KEYS); reading puts them back
+    assert.deepEqual(file.view, { ...view, chart: Object.fromEntries(Object.entries(view.chart).filter(([key]) => !["tooltip", "zoom", "stackPercent", "hidden", "colors", "tooltipShare"].includes(key))) });
+    assert.deepEqual(fromViewFile(file).view, view);
 });
 
 test("without a description, a time or data the keys are left out, and the text is the same bytes every time", () => {

@@ -55,6 +55,8 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.output.object.upload = { object: { url: "string", headers, link: "string", expiresAt: "string", presign: { object: { url: "string", headers, uploadUrl: "string", uploadHeaders: "string", link: "string", expiresAt: "string", allowOrigins: "strings" } }, linkOrigins: "strings", method: { enum: ["PUT", "POST"] }, timeMs: "integer", maxBytes: "integer", keepLocal: "boolean", bind: { enum: ["none", "once", "signIn"] }, intranet: "boolean" } };
     // the issuer's requests (options/issuer.js): an issuer on a loopback or private address
     expected.auth.object.intranet = "boolean";
+    // the public client pivotkit login signs in with (options/issuer.js): rest.signIn, after the base's rest keys and inline's data
+    expected.rest.object.signIn = { object: { clientId: "string" } };
     // a token's file pivotkit makes where it is missing (state.js): create, after file
     const token = expected.auth.object.tokens.list.object;
     expected.auth.object.tokens.list.object = Object.fromEntries(Object.entries(token).flatMap(([k, v]) => (k === "file" ? [[k, v], ["create", "boolean"]] : [[k, v]])));

@@ -28,13 +28,15 @@ function counts(s, labels, locale) {
 
 /**
  * "Bars: Sum of Revenue by Region. 4 categories, 3 series. Highest 1,234 at North / A; lowest ..."
+ * `s`: the series shown (chart-legend.js shownOf leaves hidden ones out); `shares`: a 100 % stack, said so.
  * @param {ReturnType<typeof import("pivotkit-core").toSeries>} s
- * @param {{ type: string, rows: string[], valueNames: string[], labels: import("./labels.js").UiLabels, locale: string }} options
+ * @param {{ type: string, rows: string[], valueNames: string[], labels: import("./labels.js").UiLabels, locale: string, shares?: boolean }} options
  */
-export function chartSummary(s, { type, rows, valueNames, labels, locale }) {
+export function chartSummary(s, { type, rows, valueNames, labels, locale, shares = false }) {
     const parts = [
         fill(labels.chartSummary, { type: labels.chartTypes[type] ?? type, values: valueNames.join(", "), categories: rows.length ? rows.join(" / ") : labels.categories }),
-        counts(s, labels, locale)
+        counts(s, labels, locale),
+        ...(shares ? [labels.chartShares] : [])
     ];
     /** @type {{ v: number, si: number, ci: number } | null} */
     let max = null;

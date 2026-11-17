@@ -9,7 +9,7 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { fieldLabel } from "pivotkit-core";
 import { chartSummary } from "./chart-summary.js";
-import { MAX_CATEGORIES, chartTypeOf } from "./chart-types.js";
+import { MAX_CATEGORIES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
 import { fill } from "./labels.js";
 import { chartThemeFrom } from "./theme.js";
 
@@ -32,14 +32,16 @@ export function loadECharts() {
  *   labels: import("./labels.js").UiLabels, locale: string,
  *   themeName: string, root: React.RefObject<HTMLElement>, onInstance: (chart: any) => void,
  *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
+ *   onLegend?: (change: { name: string, shown: boolean }) => void,
  *   valueNames: string[], chartOptions?: Record<string, unknown> | null, colorMap?: unknown,
  *   plan?: { name: string, chart: { type: string, stacked: boolean, horizontal: boolean } } }} props
  *   `series`: pivotkit-core's toSeries with MAX_CATEGORIES, null when there is nothing to draw;
  *   `chartOptions`: the host's plain JSON (chart-options.js, checked), merged over everything else;
  *   `colorMap`: the host's colour per series or slice name, one or one per theme (chart-colors.js);
- *   `plan`: what to draw (chart-types.js chartPlan), the view's type resolved when it is "auto"
+ *   `plan`: what to draw (chart-types.js chartPlan), the view's type resolved when it is "auto";
+ *   `onLegend`: a legend entry was clicked, and is shown or hidden now
  */
-export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, valueNames, chartOptions, colorMap, plan }) {
+export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, onLegend, valueNames, chartOptions, colorMap, plan }) {
     const el = useRef(/** @type {HTMLDivElement | null} */ (null));
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
@@ -52,7 +54,14 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const summaryId = useId();
     const type = plan ? plan.name : chartTypeOf(result.view.chart);
     const drawAs = plan ? plan.chart : null;
-    const latest = useRef({ series, onPoint, onInstance, type });
+    const latest = useRef({ series, onPoint, onInstance, onLegend, type });
+    // the legend and the zoom slider between draws (chart-legend.js); a new window size draws again
+    const keeper = useRef(/** @type {any} */ (null));
+    const [zoomed, setZoomed] = useState(0);
+    // the zoom slider's window and place, for its keyboard control (chart-legend.js zoomKeyProps)
+    const [zoomKeys, setZoomKeys] = useState(/** @type {any} */ (null));
+    // what the text alternative says: the series shown, and whether they are a 100 % stack's shares
+    const [shown, setShown] = useState(/** @type {{ series: any, shares: boolean } | null} */ (null));
     // the ECharts module (echarts.js), with the report's marks (decorate) and the check and merge of the host's chartOptions
     const lib = useRef(/** @type {any} */ (null));
     // the chartOptions whose problems were said: once per value, not on every redraw
@@ -65,7 +74,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     // so the click itself does not say
     const touched = useRef(false);
     useEffect(() => {
-        latest.current = { series, onPoint, onInstance, type };
+        latest.current = { series, onPoint, onInstance, onLegend, type };
     });
 
     useEffect(() => {
@@ -107,8 +116,11 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                     tapped.current = null;
                     // the panel covers the chart: the tooltip would stay over it
                     instance.dispatchAction({ type: "hideTip" });
-                    cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value: kind === "heatmap" ? p.value[2] : p.value });
+                    // a 100 % stack's part draws its share: the rows go with its value
+                    const value = kind === "heatmap" ? p.value[2] : typeof p.data?.raw === "number" ? p.data.raw : p.value;
+                    cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value });
                 });
+                keeper.current = echarts.chartKeeper(instance, { categories: () => latest.current.series?.categories, onLegend: (/** @type {any} */ change) => latest.current.onLegend?.(change), redraw: () => setZoomed((n) => n + 1), onWindow: (/** @type {any} */ control) => setZoomKeys(control ? { ...control, props: echarts.zoomKeyProps } : null) });
                 // ECharts draws the tooltip before it reports the element under the pointer: the
                 // element is kept, and the tooltip drawn again at the pointer. hideTip first: at the
                 // same category ECharts keeps what it drew and would not call the formatter again.
@@ -168,6 +180,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         );
         return () => {
             disposed = true;
+            keeper.current?.dispose();
             ro?.disconnect();
             if (onPress) {
                 doc?.removeEventListener("pointerdown", onPress, true);
@@ -196,8 +209,11 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         // each series' value: a stack's total only where the values add up (chart-tooltip.js valueAddsUp)
         const values = (series?.series ?? []).map((x) => result.view.values[x.valueIndex]);
         const tooltip = { mode: result.view.chart.tooltip, share: Boolean(result.view.chart.tooltipShare), hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values };
-        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, tooltip, parseColor: lib.current.color.parse });
+        const doc = root.current.ownerDocument;
+        const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), doc, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, ...keeper.current.zoomOf(result, series?.categories ?? [], doc), tooltip, parseColor: lib.current.color.parse });
+        keeper.current.drawn(drawn.dataZoom);
         setEvery(axisEvery);
+        setShown(series ? lib.current.shownOf(series, option, result.view.chart.hidden, SLICE_TYPES.includes(type)) : null);
         // the host's chartOptions win over the view's display settings and the report's own styles:
         // plain JSON only; what is dropped is a developer's mistake, said in the console
         const clean = chartOptions ? lib.current.cleanChartOptions(chartOptions) : null;
@@ -207,10 +223,10 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         }
         chart.current.setOption(clean?.options ? lib.current.mergeChartOptions(drawn, clean.options) : drawn, { notMerge: true });
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
-    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs]);
+    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs, zoomed, type]);
 
     const empty = result.view.values.length === 0;
-    const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale }) : labels.noChartData;
+    const summary = series && !empty ? chartSummary(shown?.series ?? series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale, shares: shown?.shares }) : labels.noChartData;
     return (
         <div className="pk-chart-wrap">
             <div className="pk-chart-box">
@@ -218,6 +234,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 <p id={summaryId} className="pk-sr" data-testid="chart-summary">
                     {summary}
                 </p>
+                {zoomKeys ? <div {...zoomKeys.props(zoomKeys, labels, fill, locale)} /> : null}
                 {!ready && !failed ? <div className="pk-chart-note">{labels.loadingChart}</div> : null}
                 {failed ? <div className="pk-chart-note pk-error">{failed}</div> : null}
                 {ready && empty ? <div className="pk-chart-note">{labels.noChartData}</div> : null}

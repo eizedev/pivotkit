@@ -47,7 +47,7 @@ import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
 import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import {
-    addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
+    addField, filterZoneFields, groupField, hiddenAfter, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
 } from "./view-ops.js";
 import { Zones, zoneEntries } from "./zones.jsx";
 
@@ -510,15 +510,11 @@ function Report(props) {
     const viewName = loadedView?.name ?? null;
     const unsaved = Boolean(loadedView) && savedKeys[savedKeyOf(loadedView)] !== history.viewKey;
 
-    // the host's chartOptions, compared by value (a function or another value JSON cannot hold counts
-    // as its kind); the chart checks them (chart-options.js, loaded with ECharts) before it draws
-    const chartOptionsKey = optionsKey(chartOptions);
+    // the host's chartOptions and colorMap, compared by value (a function or another value JSON cannot
+    // hold counts as its kind); the chart checks them (chart-options.js, loaded with ECharts) before it draws
+    const chartHostKey = optionsKey([chartOptions, colorMap]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const stableChartOptions = useMemo(() => chartOptions, [chartOptionsKey]);
-    // the host's colorMap, compared by value the same way
-    const colorMapKey = optionsKey(colorMap);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const stableColorMap = useMemo(() => colorMap, [colorMapKey]);
+    const [stableChartOptions, stableColorMap] = useMemo(() => [chartOptions, colorMap], [chartHostKey]);
 
     const stepText = useCallback(
         (note) => {
@@ -1481,7 +1477,7 @@ function Report(props) {
                                 view={view}
                                 chartPlan={plan}
                                 chartSeries={series}
-                                chartColors={{ map: stableColorMap, theme: themeName, chart: chartRef }}
+                                chartColors={{ chart: chartRef }}
                                 labels={labels}
                                 size={size}
                                 canUndo={history.canUndo || dataSteps.past.length > 0}
@@ -1621,6 +1617,11 @@ function Report(props) {
                                         valueNames={view.values.map((v) => valueLabel(v, labels))}
                                         chartOptions={stableChartOptions}
                                         colorMap={stableColorMap}
+                                        // a legend entry hidden or shown: kept in the view, said to a screen reader
+                                        onLegend={({ name, shown }) => {
+                                            commit(setChartDisplay(view, { hidden: hiddenAfter(view.chart.hidden, name, shown) }), { step: "chartDisplay" });
+                                            announce(fill(shown ? labels.chartShown : labels.chartHidden, { name }));
+                                        }}
                                         onInstance={(c) => {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));

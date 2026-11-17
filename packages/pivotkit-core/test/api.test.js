@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as core from "pivotkit-core";
@@ -32,6 +32,14 @@ test("the package exports its documented entry points and nothing else", () => {
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     // "./internal" is for this repository's packages only (AGENTS.md): no public API, no docs page
     assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./chart", "./import", "./link", "./templates", "./internal", "./schema/view-file-1.json", "./schema/view-2.json", "./schema/view-file-2.json", "./package.json"]);
+});
+
+test("every export of every public entry point is named on a reference page of the docs", () => {
+    const reference = new URL("../../../docs/reference/", import.meta.url);
+    const text = readdirSync(reference).filter((f) => f.endsWith(".md")).map((f) => readFileSync(new URL(f, reference), "utf8")).join("\n");
+    const entries = { "pivotkit-core": core, "pivotkit-core/export": exporters, "pivotkit-core/chart": charts, "pivotkit-core/import": importer, "pivotkit-core/link": links, "pivotkit-core/templates": templates };
+    const missing = Object.entries(entries).flatMap(([entry, mod]) => Object.keys(mod).filter((name) => !new RegExp(`\`${name}[\`(.,]`).test(text)).map((name) => `${entry}: ${name}`));
+    assert.deepEqual(missing, [], "name each export in code font on its reference page");
 });
 
 /** Every module the file imports, transitively, as paths relative to src/, and the bare imports. */
@@ -85,7 +93,7 @@ test("the catalog lists exactly what normalize accepts", () => {
     for (const type of CATALOG.chartTypes) {
         assert.equal(validate({ chart: { type } }, data).valid, true, type);
     }
-    for (const [key, list] of [["valueLabels", CATALOG.chartValueLabels], ["legend", CATALOG.chartLegends], ["axisLabels", CATALOG.chartAxisLabels], ["groupLabels", CATALOG.chartGroupLabels], ["labelPosition", CATALOG.chartLabelPositions], ["tooltip", CATALOG.chartTooltips]]) {
+    for (const [key, list] of [["valueLabels", CATALOG.chartValueLabels], ["legend", CATALOG.chartLegends], ["axisLabels", CATALOG.chartAxisLabels], ["groupLabels", CATALOG.chartGroupLabels], ["labelPosition", CATALOG.chartLabelPositions], ["tooltip", CATALOG.chartTooltips], ["zoom", CATALOG.chartZooms]]) {
         for (const value of list) {
             assert.equal(validate({ chart: { [key]: value } }, data).valid, true, `${key} ${value}`);
         }

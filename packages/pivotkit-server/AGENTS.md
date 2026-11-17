@@ -101,6 +101,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 ## Scopes
 
 - `offeredScopes` lists the scopes in the metadata. It never offers a `scopeProfiles` scope.
+- `rest.signIn.clientId` adds `SIGN_IN_CLIENT_FIELD` (pivotkit-cli/rest) to the REST metadata. A public client only.
 - The 401 challenge names the required scopes only.
 
 ## Policy and privacy

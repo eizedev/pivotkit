@@ -282,15 +282,25 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * The HTML report's row count in plural forms and the rows its filters keep, with ROW_COUNT_TEXTS
  * and pluralForm shared with pivotkit-core (#547): report 23.0 with Homebrew's zlib (22.8 before);
  * with #478's writer 23.3, at that budget: report goes to 23.5.
- * Fixed colours, the share in the tooltip and the chart image on the clipboard (#54): Display's
- * colour list, its colour fields and the share switch, with the host's colorMap per theme (a module the
- * menus share with the chart) take menus to 48.8 with Homebrew's zlib (47.6 before) and the German
- * menu texts to 7.1 (7.0): menus goes to 49.5, texts to 7.5. The colours and the share in the chart's
- * option take chart to 222.3 (221.5): chart goes to 223. The first load grows 0.4 (the view keys and
- * the colorMap prop), within its budget.
+ * The zoom slider, the legend toggle and 100 % stacks (#36): ECharts' slider component (dataZoom)
+ * takes the chart group to 231.1 with Homebrew's zlib (221.5 before), and the slider's keyboard
+ * control (#575, chart-legend.js zoomKeyProps) to 231.7. CI's zlib measured 232.5 on the merged
+ * head (about 0.7 more than a Mac): chart goes to 233. It is a lazy group, loaded with the first chart. The
+ * Display settings in levels (#106: chartTopics, the Axis, Tooltip, Series and Layout levels) with
+ * the zoom slider, 100 % switch and series list take menus to 48.5 (47.6 before) and the German menu
+ * texts to 7.3 (7.0): menus goes to 49, texts to 7.5. The first load grows 0.6 to 174.36 (the view
+ * keys, a view file's newer keys, the legend's announcement); the zoom and legend logic stays in the
+ * chart group (chart-legend.js).
+ * Fixed colours, the share in the tooltip and the chart image on the clipboard (#54), with
+ * Homebrew's zlib: the colours and the share in the chart's option take chart to 232.6 (231.8 before;
+ * CI measures about 0.7 more): chart goes to 234. The colour beside each series in Display › Series,
+ * the share switch and Copy chart image take menus to 49.7 (48.4) and the German menu texts to 7.4
+ * (7.2): menus goes to 50.5, texts to 8. Two words for unused parts take unused to 5.5: it goes to 6.
+ * The first load grows 0.19 to 174.55 (the view's colours through the same list check as the hidden
+ * series, one memo for chartOptions and colorMap); CI measured 174.9 for 174.36, so about 175.09.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 223, export: 12.6, link: 7.5, menus: 49.5, texts: 7.5, unused: 5.5, import: 22, report: 23.5, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 234, export: 12.6, link: 7.5, menus: 50.5, texts: 8, unused: 6, import: 22, report: 23.5, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

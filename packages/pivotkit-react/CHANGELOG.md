@@ -8,6 +8,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Upgrading from 0.7
 
+- The chart type menu lists the types, then a row per Display topic that opens a level: Value
+  labels, Legend, Title, Axis, Tooltip, Series and Layout ([#106](https://github.com/eizedev/pivotkit/issues/106)). Tests open the
+  level first; a choice is a menu item with `aria-checked`.
+- Bars, lines and areas with more than 20 categories get a zoom slider. Display › Axis › Zoom slider
+  › Off draws every category as before. A click on the legend changes the view, so Undo takes it
+  back ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-7)).
 - With `exportData` off, the default, the drill-down panel has no Export menu: no copy and no
   download of its rows. Set `drillDownExport` to keep it
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
@@ -15,15 +21,28 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   whose `labels` set `rowsCount` or add a language sets the new label `rowsFiltered` too
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#rows-filtered)).
 
+### Deprecated
+
+- The theme token `--pk-knob` is unused: the chart's Display settings have no switch any more. It
+  goes in 0.9.0 ([#106](https://github.com/eizedev/pivotkit/issues/106)).
+
 ### Added
 
-- Export → **Copy chart image**: the chart as a PNG on the clipboard. `onExport` sees it first as
+- A zoom slider under a long category axis, Display › Axis › Zoom slider (Automatic, On, Off). It
+  works by mouse, touch and keyboard, and keeps its place when the chart is drawn again. The PNG
+  image leaves it out ([#36](https://github.com/eizedev/pivotkit/issues/36)), ([#575](https://github.com/eizedev/pivotkit/issues/575)).
+- A click on the legend hides or shows a series, or a slice. The view keeps it, a screen reader
+  hears it, and Undo takes it back. Display › Series does the same by keyboard ([#36](https://github.com/eizedev/pivotkit/issues/36)).
+- Display › Layout › Stacked to 100 % for stacked bars and areas of sums and counts. The tooltip
+  shows each part's value and share, and the total of the values ([#36](https://github.com/eizedev/pivotkit/issues/36)).
+- Export › **Copy chart image**: the chart as a PNG on the clipboard. `onExport` sees it first as
   `"copy-chart"` ([#54](https://github.com/eizedev/pivotkit/issues/54)).
 - The `colorMap` prop: a fixed colour per series or slice name across charts, one colour or one per
-  theme. Display → **Colours** sets a view's own colour per series or slice ([#54](https://github.com/eizedev/pivotkit/issues/54)).
-- Display → **Share in the tooltip**: each value's share of the category's total, of a single series'
-  total, or of a pie ([#54](https://github.com/eizedev/pivotkit/issues/54)).
-- Display → **Tooltip** in the chart type menu, for bars, lines and areas: **Automatic** or **All
+  theme. Display › Series has a colour beside each series or slice, a view's own colour
+  ([#54](https://github.com/eizedev/pivotkit/issues/54)).
+- Display › Tooltip › Share in the tooltip: each value's share of the category's total, of a single
+  series' total, or of a pie ([#54](https://github.com/eizedev/pivotkit/issues/54)).
+- Display › **Tooltip** in the chart type menu, for bars, lines and areas: **Automatic** or **All
   series** (`chart.tooltip`, [#106](https://github.com/eizedev/pivotkit/issues/106)). All series lists
   every series at the pointer's category, the hovered one first, its name in the strong weight.
 - `labels.chartTotal`, the tooltip's "Total" line (German "Gesamt"), and `labels.chartMore`, the

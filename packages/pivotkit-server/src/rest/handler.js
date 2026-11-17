@@ -18,6 +18,7 @@
 
 import { OperationError, checkInput } from "pivotkit-report/operations";
 import { RENDER_FORMATS } from "pivotkit-report";
+import { SIGN_IN_CLIENT_FIELD } from "pivotkit-cli/rest";
 import { REST_BASE, restResourceOf } from "../config.js";
 import { AuthRefusal, bearerOf, groupRefusal, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
@@ -354,7 +355,8 @@ export async function createRestHandler(context, runtime = {}) {
                 return problem("AUTH_NOT_READY", "", { headers: { "retry-after": "10" } });
             }
             const offered = offeredScopes(options, "rest");
-            return json({ resource: resource.href, authorization_servers: [metadata.issuer], ...(offered ? { scopes_supported: offered } : {}), resource_name: "pivotkit REST", resource_documentation: "https://pivotkit.eize.dev/reference/rest/" }, 200, { "cache-control": "max-age=300" });
+            const signInClient = rest.signIn?.clientId;
+            return json({ resource: resource.href, authorization_servers: [metadata.issuer], ...(offered ? { scopes_supported: offered } : {}), resource_name: "pivotkit REST", resource_documentation: "https://pivotkit.eize.dev/reference/rest/", ...(signInClient ? { [SIGN_IN_CLIENT_FIELD]: signInClient } : {}) }, 200, { "cache-control": "max-age=300" });
         }
         if (path === "/openapi.json") {
             if ((rest.openapi ?? "auth") === "off" || request.method !== "GET") {

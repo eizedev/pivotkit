@@ -21,6 +21,7 @@ import { runResolved } from "./sources/index.js";
 import { INLINE_SOURCE_TEXT, extraInputs, listExtras } from "./sources/input.js";
 import { inlineHow } from "./sources/inline.js";
 import { requestId } from "./request-id.js";
+import { identityBasisOf } from "./auth.js";
 
 export { OUTPUT_MARK, draftCap, prune } from "./output.js";
 
@@ -564,7 +565,9 @@ export async function renderFile(context, input, caller, how = {}) {
     checkDepth(input);
     const resolved = await resolveFor(context, input, caller, { files: false, surface: "rest", ...(how.upload ? { upload: how.upload } : {}) });
     if (!resolved.policy.results) {
-        throw new OperationError("NOT_ALLOWED", "your token may not download files; ask the operator for a token whose profile has results: true");
+        // a caller of a server without sign-in sent no token: the remedy is the operator's policy
+        const local = identityBasisOf(caller)?.[0] === "local";
+        throw new OperationError("NOT_ALLOWED", local ? "this server gives no files for this source; the operator allows them with results: true in the server's or the source's policy" : "your token may not download files; ask the operator for a token whose profile has results: true");
     }
     const format = input.format ?? "xlsx";
     const ran = await compute(context, "render_view", renderInput(input, format), resolved, caller, how.signal);

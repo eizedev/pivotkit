@@ -158,20 +158,28 @@ test.describe("chart extras (#54)", () => {
         expect((await inChart(chartEl, drawnColors)).North).toBe("#123456");
     });
 
-    test("Display, Colours: a colour picked for a series stays in the view and wins over the host's; Default gives it back", async ({ page }) => {
+    test("Display › Series: the colour beside a series, picked, stays in the view and wins over the host's; Default gives it back", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar" }, { colorMap: { Hardware: "#e3000f" } });
         const report = page.locator("#color-report");
         await menu(report, "chart-type");
-        const colors = report.getByTestId("chart-colors");
-        const hardware = colors.getByLabel("Colour of Hardware");
-        // the field shows the colour the chart draws
-        await expect(hardware).toHaveValue("#e3000f");
-        await hardware.fill("#00aa00");
+        await report.getByTestId("topic-series").click();
+        const level = report.getByTestId("level-series");
+        // each series: its switch, then its colour, as items of the menu
+        const swatch = level.getByRole("menuitem", { name: "Colour of Hardware" });
+        await level.getByRole("menuitemcheckbox", { name: "Hardware" }).focus();
+        await page.keyboard.press("ArrowDown");
+        await expect(swatch).toBeFocused();
+        // the colour field starts from the colour the chart draws
+        const field = report.getByTestId("series-0-color-field");
+        await expect(field).toHaveValue("#e3000f");
+        await field.fill("#00aa00");
         await expect.poll(() => lastChart(page).then((c) => c?.colors)).toEqual([{ name: "Hardware", color: "#00aa00" }]);
         await settled(chartEl);
         expect((await inChart(chartEl, drawnColors)).Hardware).toBe("#00aa00");
+        // the level stays, the focus back on the colour
+        await expect(swatch).toBeFocused();
         // Default: the host's colour again
-        await colors.getByRole("button", { name: "Default: Hardware" }).click();
+        await level.getByRole("menuitem", { name: "Default: Hardware" }).click();
         await expect.poll(() => lastChart(page).then((c) => c?.colors)).toEqual([]);
         await settled(chartEl);
         expect((await inChart(chartEl, drawnColors)).Hardware).toBe("#e3000f");
@@ -195,29 +203,23 @@ test.describe("chart extras (#54)", () => {
         expect(await page.evaluate(() => window.__exports.map((e) => e.kind))).toEqual(["copy-chart", "png"]);
     });
 
-    test("Display, Colours: each field shows the colour drawn and keeps the focus after a pick; a view's colour for a name not shown can be removed", async ({ page }) => {
+    test("Display › Series: each colour starts as the chart draws it; a view's colour for a name not shown can be removed", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar", colors: [{ name: "Gone", color: "#123456" }] });
         const report = page.locator("#color-report");
         await menu(report, "chart-type");
-        const colors = report.getByTestId("chart-colors");
-        // the fields show the palette's colours as the chart draws them
+        await expect(report.getByTestId("topic-state-series")).toContainText("3 of 3 shown");
+        await report.getByTestId("topic-series").click();
+        const level = report.getByTestId("level-series");
+        // the palette's colours as the chart draws them
         const drawn = await inChart(chartEl, drawnColors);
-        await expect(colors.getByLabel("Colour of Services")).toHaveValue(drawn.Services.toLowerCase());
-        // a long name has its whole text as a title
-        await expect(colors.locator(".pk-color-name", { hasText: "Services" })).toHaveAttribute("title", "Services");
-        const services = colors.getByLabel("Colour of Services");
-        await services.focus();
-        await services.fill("#aa5500");
-        await expect.poll(() => lastChart(page).then((c) => c?.colors)).toEqual([{ name: "Gone", color: "#123456" }, { name: "Services", color: "#aa5500" }]);
-        await settled(chartEl);
-        // the same field, still focused
-        await expect(services).toBeFocused();
-        // the name no series has: listed with Remove
-        await colors.getByRole("button", { name: "Remove: Gone" }).click();
-        await expect.poll(() => lastChart(page).then((c) => c?.colors)).toEqual([{ name: "Services", color: "#aa5500" }]);
+        await expect(report.getByTestId("series-1-color-field")).toHaveValue(drawn.Services.toLowerCase());
+        // the name no series has: under its own title, with Remove
+        await expect(level).toContainText("Colours of names not shown");
+        await level.getByRole("menuitem", { name: "Remove: Gone" }).click();
+        await expect.poll(() => lastChart(page).then((c) => c?.colors)).toEqual([]);
     });
 
-    test("Display, Share in the tooltip: a bar's share of its category, a slice's share of the pie", async ({ page }) => {
+    test("Display › Tooltip › Share in the tooltip: a bar's share of its category, a slice's share of the pie", async ({ page }) => {
         let chartEl = await mount(page, { type: "bar" });
         const report = page.locator("#color-report");
         await hover(page, chartEl, await inChart(chartEl, barMiddle, { series: 2, index: 1 }));
@@ -225,9 +227,13 @@ test.describe("chart extras (#54)", () => {
         // a new chart: one drawn again under an element hovered before does not name it (#576)
         chartEl = await mount(page, { type: "bar" });
         await menu(report, "chart-type");
-        // a click on the switch's words, as a hand does
-        await report.locator(".pk-switch").filter({ hasText: "Share in the tooltip" }).click();
+        await report.getByTestId("topic-tooltip").click();
+        await report.getByTestId("chart-tooltip-share").click();
         await expect.poll(() => lastChart(page).then((c) => c?.tooltipShare)).toBe(true);
+        // a switch keeps its level; Escape goes back, then closes
+        await expect(report.getByTestId("chart-tooltip-share")).toHaveAttribute("aria-checked", "true");
+        await page.keyboard.press("Escape");
+        await expect(report.getByTestId("topic-state-tooltip")).toContainText("Share in the tooltip");
         await page.keyboard.press("Escape");
         await settled(chartEl);
         await page.mouse.move(5, 5);

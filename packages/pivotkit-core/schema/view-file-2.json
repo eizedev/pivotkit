@@ -806,6 +806,24 @@
                 "axis"
               ]
             },
+            "zoom": {
+              "enum": [
+                "auto",
+                "on",
+                "off"
+              ]
+            },
+            "stackPercent": {
+              "type": "boolean"
+            },
+            "hidden": {
+              "type": "array",
+              "maxItems": 100000,
+              "items": {
+                "type": "string",
+                "maxLength": 10000
+              }
+            },
             "colors": {
               "type": "array",
               "maxItems": 100000,

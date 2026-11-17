@@ -48,7 +48,7 @@ async function fakeIssuer(plan = {}) {
                     res.end(JSON.stringify({ code: "NOT_FOUND", status: 404, detail: "no such route" }));
                     return;
                 }
-                return send(res, 200, { resource: plan.resource ?? `${origin}/api/v1`, authorization_servers: [`${origin}/issuer`], scopes_supported: ["pivotkit.read"], resource_name: "pivotkit REST" });
+                return send(res, 200, { resource: plan.resource ?? `${origin}/api/v1`, authorization_servers: [`${origin}/issuer`], scopes_supported: ["pivotkit.read"], resource_name: "pivotkit REST", ...(plan.published ? { pivotkit_client_id: plan.published } : {}) });
             }
             if (req.url === "/.well-known/oauth-authorization-server/issuer" && plan.firstAddress) {
                 // a provider with OpenID Connect discovery only: the first address answers otherwise
@@ -284,14 +284,15 @@ test("login without a refresh token from the issuer says to ask for offline_acce
     }
 });
 
-test("login needs a client id: --client-id, else PIVOTKIT_CLIENT_ID; without one a usage error before any request", async () => {
+test("login needs a client id: --client-id, else PIVOTKIT_CLIENT_ID, else the server's; without one a usage error after the server's metadata only", async () => {
     const fake = await fakeIssuer();
     const dir = tempDir();
     try {
         const r = await run(["login", "--url", fake.url, "--store", "file"], { env: envOf(dir) });
         assert.equal(r.code, 2);
         assert.match(r.stderr, /the issuer's client id is needed: --client-id <id>, or PIVOTKIT_CLIENT_ID/);
-        assert.equal(fake.requests.length, 0);
+        // the server's metadata is read to see whether it publishes a client; the issuer is not asked
+        assert.deepEqual(fake.requests.map((q) => q.url), ["/.well-known/oauth-protected-resource/api/v1"]);
         const byEnv = await run(["login", "--store", "file"], { env: envOf(dir, { PIVOTKIT_CLIENT_ID: CLIENT, PIVOTKIT_URL: fake.url }) });
         assert.equal(byEnv.code, 0, byEnv.stderr);
     } finally {
@@ -935,6 +936,75 @@ test("a 429 while polling is asked again like a 5xx; an interval over five minut
             assert.deepEqual(waits, [300_000, 300_000]);
         } finally {
             await slow.close();
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The client ID the server publishes (rest.signIn.clientId)
+
+test("login takes the client ID the server publishes when neither --client-id nor PIVOTKIT_CLIENT_ID is given, and names it and the issuer", async () => {
+    await withWaits(async () => {
+        const fake = await fakeIssuer({ published: "reports-cli" });
+        try {
+            const r = await inProcess(["login", "--url", fake.url, "--store", "file"], tempDir());
+            assert.equal(r.code, 0, r.stderr);
+            assert.match(r.stderr, /^Using the client ID reports-cli that the server publishes, at 127\.0\.0\.1:\d+\.\n/);
+            assert.equal(fake.requests.find((q) => q.url === "/device").body.client_id, "reports-cli");
+        } finally {
+            await fake.close();
+        }
+        const none = await fakeIssuer();
+        try {
+            const r = await inProcess(["login", "--url", none.url, "--store", "file"], tempDir());
+            assert.equal(r.code, 2);
+            assert.match(r.stderr, /the issuer's client id is needed: --client-id <id>, or PIVOTKIT_CLIENT_ID; the server publishes none/);
+        } finally {
+            await none.close();
+        }
+    });
+});
+
+test("--client-id pins the client ID: the published one is not used and not named", async () => {
+    await withWaits(async () => {
+        const fake = await fakeIssuer({ published: "reports-cli" });
+        try {
+            const r = await inProcess(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], tempDir());
+            assert.equal(r.code, 0, r.stderr);
+            assert.doesNotMatch(r.stderr, /that the server publishes/);
+            assert.equal(fake.requests.find((q) => q.url === "/device").body.client_id, CLIENT);
+        } finally {
+            await fake.close();
+        }
+    });
+});
+
+for (const [name, published] of [["a number", 1], ["null", null], ["an empty text", ""], ["an object", {}], ["a text with a space", "has space"]]) {
+    test(`a published client ID that is ${name} is refused before the issuer is asked`, async () => {
+        const fake = await fakeIssuer({ hook: ({ req, res, origin, send }) => req.url === "/.well-known/oauth-protected-resource/api/v1" && (send(res, 200, { resource: `${origin}/api/v1`, authorization_servers: [`${origin}/issuer`], pivotkit_client_id: published }), true) });
+        try {
+            const r = await inProcess(["login", "--url", fake.url, "--store", "file"], tempDir());
+            assert.equal(r.code, 2);
+            assert.match(r.stderr, /the client ID the server publishes is not usable; give one with --client-id/);
+            assert.deepEqual(fake.requests.map((q) => q.url), ["/.well-known/oauth-protected-resource/api/v1"]);
+        } finally {
+            await fake.close();
+        }
+    });
+}
+
+test("PIVOTKIT_CLIENT_ID wins over the published client ID", async () => {
+    await withWaits(async () => {
+        const fake = await fakeIssuer({ published: "reports-cli" });
+        const dir = tempDir();
+        try {
+            const out = [];
+            const err = [];
+            const code = await main(["login", "--url", fake.url, "--store", "file"], { stdin: (async function* () {})(), stdout: { write: (c) => out.push(String(c)) }, stderr: { write: (c) => err.push(String(c)) }, env: { ...envOf(dir), PIVOTKIT_CLIENT_ID: "from-env" }, cwd: dir });
+            assert.equal(code, 0, err.join(""));
+            assert.equal(fake.requests.find((q) => q.url === "/device").body.client_id, "from-env");
+        } finally {
+            await fake.close();
         }
     });
 });

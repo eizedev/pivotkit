@@ -24,9 +24,9 @@ const TOOLTIP_OTHER_LINES = 3;
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, share?: boolean, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined> } }} [extra]
+ * @param {{ categoryNames?: string[], axisLabels?: string, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, share?: boolean, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined> } }} [extra]
  *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
- *   chart.axisLabels; tooltip: the view's chart.tooltip and chart.tooltipShare, the chart's hover state (chart.jsx writes the
+ *   chart.axisLabels and chart.zoom (the slider, pivotkit-core's chart-zoom.js); tooltip: the view's chart.tooltip and chart.tooltipShare, the chart's hover state (chart.jsx writes the
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
  *   the lines that say how many series were cut, and each series' value (whether it adds up);
  *   parseColor: ECharts' colour parser, for a heatmap's colours (screenColor)
@@ -97,10 +97,10 @@ export function screenColor(doc, parse) {
 
 /**
  * The tokens the chart reads as lengths in px (chartThemeFrom, decorateOption): the title's and the
- * other text's size, the marks' corners. A computed custom property keeps the calc(), max() and em it
+ * other text's size, the marks' corners, the zoom slider's thickness (a control's, a finger's). A computed custom property keeps the calc(), max() and em it
  * was written with, so the report resolves them first.
  */
-export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-radius-chart"]);
+export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-radius-chart", "--pk-target", "--pk-target-touch"]);
 
 /**
  * Tokens that are lengths, in px as the report resolves them (em of its font): a probe inside the root

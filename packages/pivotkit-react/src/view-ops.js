@@ -634,15 +634,27 @@ export function setChart(view, name) {
 }
 
 /**
- * Changes how the chart is drawn: { valueLabels, legend, title, smooth } (pivotkit-core's chart
+ * Changes how the chart is drawn: { valueLabels, legend, title, smooth, ... } (pivotkit-core's chart
  * settings); the chart type stays.
  * @param {any} view
- * @param {{ valueLabels?: string, legend?: string, title?: string | null, smooth?: boolean }} patch
+ * @param {Partial<import("pivotkit-core").View["chart"]>} patch
  */
 export function setChartDisplay(view, patch) {
     const next = clone(view);
     next.chart = { ...next.chart, ...patch };
     return next;
+}
+
+/**
+ * The chart's hidden legend entries (chart.hidden) after `name` is shown or hidden: a click on the
+ * legend, or a checkbox of the Display settings.
+ * @param {readonly string[] | undefined} hidden
+ * @param {string} name
+ * @param {boolean} shown
+ */
+export function hiddenAfter(hidden, name, shown) {
+    const rest = (hidden ?? []).filter((n) => n !== name);
+    return shown ? rest : [...rest, name];
 }
 
 /** Rows and Columns swapped (pivotkit-core's swapAxes): the chart's swap, the zones' Swap button. */

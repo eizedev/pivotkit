@@ -3,6 +3,7 @@
 // end of horizontal bars (#230) and a heatmap with many rows (#231). Each test reads what ECharts drew:
 // the text's boxes inside the chart, whole (no "…"), not on top of each other.
 import { test, expect } from "./fixtures.js";
+import { ZOOM_SLIDER } from "../../packages/pivotkit-core/src/chart-zoom.js";
 
 /** Countries with long names and their population (2024, rounded), as the countries example has them. */
 const COUNTRIES = [
@@ -138,6 +139,8 @@ async function drawn(chart) {
                 yInterval: option.yAxis?.[0]?.axisLabel?.interval ?? null,
                 // the names the category axis along the bottom writes, whole
                 categoryLabels: category?.type === "category" ? category.getViewLabels().map((l) => l.formattedLabel) : null,
+                // the zoom slider's thickness, when the chart has one (more than 20 categories)
+                slider: option.dataZoom?.[0]?.height ?? option.dataZoom?.[0]?.width ?? null,
                 splitNumber: option.xAxis?.[0]?.splitNumber ?? null
             };
         });
@@ -194,7 +197,10 @@ for (const theme of ["light", "dark"]) {
                     await locator.screenshot({ path: testInfo.outputPath(`228-${name}-${theme}-${width}.png`) });
                     // a category name and a group's name may end in "…" (the tooltip has them whole)
                     expectReadable(d, name, () => false);
-                    expect(d.plot.height / d.height, `${name}: the plot's share of the chart's ${d.height} px`).toBeGreaterThanOrEqual(0.4);
+                    // the zoom slider (21 countries: more than 20 categories) and its gap are neither plot
+                    // nor labels: the plot's share counts the height without them
+                    const room = d.height - (d.slider ? d.slider + ZOOM_SLIDER.gap : 0);
+                    expect(d.plot.height / room, `${name}: the plot's share of the chart's ${room} px besides the zoom slider`).toBeGreaterThanOrEqual(0.4);
                     // the value axis writes its top tick, above the largest bar
                     const top = Math.max(...d.valueAxis.labels.map((l) => l.value));
                     expect(top, `${name}: the top tick`).toBe(d.valueAxis.max);

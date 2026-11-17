@@ -534,6 +534,12 @@ So `document.createElement("pivot-report")` is a `PivotReportElement`.
 the document.
 
 The view type is a structural `PivotView`. The full one is pivotkit-core's `View`.
+pivotkit-react's `ViewInput` has the same role: a view as a host passes it. The two differ in how
+much they check:
+
+- `PivotView` types `rows`, `cols` and `values`, and lets any other key through.
+- `ViewInput` types every key of a view, each part optional.
+
 `pivotkit-element/jsx`, types only, adds the element to React's JSX ([above](#react-on-the-page)).
 
 ## Bundle size
@@ -545,17 +551,17 @@ They are approximate and change with every dependency update.
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 175.1 KiB, about 1.7 KiB more than CI measures.
+- The first load's budget is 175.1 KiB. CI measures 174.9 KiB, so a few hundred bytes are left.
 - The budgets of the groups loaded later are 1 to 7 per cent more than CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 529 KiB | 173 KiB |
-| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, pivotkit-core's ECharts option, fixed colours and the layout of the chart's labels) | 3 | 646 KiB | 222 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 10 | 534 KiB | 175 KiB |
+| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title and the zoom slider among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 3 | 675 KiB | 233 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 28 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
-| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 3 | 149 KiB | 49 KiB |
+| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 3 | 148 KiB | 48 KiB |
 | With the menus, for a German report only (the menus' German texts) | 1 | 20 KiB | 7 KiB |
 | When a view has unused parts (their plain words: English, and German for a German report) | 2 | 16 KiB | 5 KiB |
 | With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 54 KiB | 22 KiB |
