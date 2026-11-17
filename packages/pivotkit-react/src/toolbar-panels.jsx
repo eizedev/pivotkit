@@ -21,6 +21,7 @@ import { LevelMenu } from "./levels.jsx";
 import { afterDelete, entryIds, optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
 import { hiddenAfter } from "./view-ops.js";
+import { valueAddsUp } from "./adds-up.js";
 import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
@@ -139,7 +140,7 @@ function Sub({ title, info, children }) {
 
 /**
  * How the chart is drawn: value labels, legend, title, axis and group labels, the tooltip and the zoom
- * slider (bars, lines and areas), 100 % stacks (stacked bars, areas), the series or slices shown,
+ * slider (bars, lines and areas), 100 % stacks (stacked bars and areas of values that add up), the series or slices shown,
  * smooth lines (line and area). Each choice applies at once and the panel stays open, so
  * the chart behind it shows the change.
  */
@@ -232,11 +233,14 @@ function ChartDisplay({ view, plan, labels, onDisplay, series }) {
                     </div>
                 </Sub>
             ) : null}
-            {drawn === "stacked" || drawn === "area" ? (
+            {(drawn === "stacked" || drawn === "area") && view.values.length > 0 && view.values.every(valueAddsUp) ? (
                 <Sub>
-                    <Switch checked={Boolean(chart.stackPercent)} onChange={(on) => onDisplay({ stackPercent: on })} testId="chart-stack-percent">
-                        {labels.stackPercent}
-                    </Switch>
+                    <div className="pk-setting-row">
+                        <Switch checked={Boolean(chart.stackPercent)} onChange={(on) => onDisplay({ stackPercent: on })} testId="chart-stack-percent">
+                            {labels.stackPercent}
+                        </Switch>
+                        <SettingInfo id="stackPercent" name={labels.stackPercent} />
+                    </div>
                 </Sub>
             ) : null}
             {names.length > 1 ? (

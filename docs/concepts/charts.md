@@ -74,8 +74,10 @@ A pie, a donut and a heatmap always show the slice or cell under the pointer.
 
 `chart.zoom` puts a slider under the category axis of bars, lines and areas:
 
-- `"auto"` adds it when the axis cannot write every label. The slider then shows as many categories
-  as the axis can name.
+- `"auto"` adds it for more than 20 categories (`ZOOM_AUTO.categories`), or when the axis would
+  leave out 3 labels or more between two it writes (`ZOOM_AUTO.skipped`).
+- The first window holds as many categories as the axis can name: the latest over dates on Rows,
+  else the first ones. Its ends widen it up to every category, and the labels are laid out again.
 - `"on"` always adds it. `"off"` never does.
 - An SVG, an HTML report and a print draw every category. The PNG image leaves the slider out.
 
@@ -83,8 +85,11 @@ A pie, a donut and a heatmap always show the slice or cell under the pointer.
 
 - It applies to stacked bars and to areas. An area is stacked by it. Lines and bars side by side
   stay as they are.
+- It needs values that add up. The Display setting is offered only for them.
 - Each part is its share of the category's stack. The stack is the sum of its parts' sizes, so a
-  part below zero takes its share below the axis.
+  part below zero takes its share below the axis, and the stack does not fill the axis.
+- A category whose parts add up to nothing gets no bar.
+- Value labels write each part's share.
 - The tooltip shows each part's value and share. The total adds the values.
 
 `chart.hidden` names the legend entries that are hidden: series of bars, lines and areas, or slices

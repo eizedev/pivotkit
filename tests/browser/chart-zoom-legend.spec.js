@@ -100,6 +100,16 @@ const sliderOf = (chart) => {
     return { start, end, filler: [x, y], width: r.width };
 };
 
+/** The middle of the slider's end handle (`which` 0: start, 1: end), and the slider's thickness. */
+const sliderHandle = (chart, which) => {
+    const zoom = chart.getModel().getComponent("dataZoom");
+    const view = chart.getViewOfComponentModel(zoom);
+    const handle = view._displayables.handles[which];
+    const r = handle.getBoundingRect();
+    const [x, y] = handle.transformCoordToGlobal(r.x + r.width / 2, r.y + r.height / 2);
+    return { at: [x, y], size: zoom.option.height };
+};
+
 /** The tooltip shown, one entry per line ([] when none shows). */
 const tooltipOf = (chartEl) =>
     chartEl.evaluate((el) => {
@@ -253,4 +263,57 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await settled(chartEl);
         await expect.poll(async () => (await inChart(chartEl, sliderOf)).start).toBe(moved.start);
     });
+
+    test("an end of the slider widens the window to every category; the axis lays its names out again", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        const chartEl = await mount(page, { type: "bar" }, { view: COUNTRY_VIEW, rows: COUNTRIES });
+        const report = page.locator("#zoom-report");
+        const first = await inChart(chartEl, sliderOf);
+        expect(first.end).toBeLessThan(39);
+        await expect(report.getByTestId("axis-note")).toHaveCount(0);
+        // drag the end handle to the slider's far end
+        const { at } = await inChart(chartEl, sliderHandle, 1);
+        const from = await inPage(chartEl, at);
+        const box = await chartEl.boundingBox();
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width - 2, from.y, { steps: 10 });
+        await page.mouse.up();
+        await expect.poll(async () => (await inChart(chartEl, sliderOf)).end).toBe(39);
+        // all 40 names do not fit: drawn again, the axis writes every n-th and says so
+        await expect(report.getByTestId("axis-note")).toBeVisible();
+        expect((await inChart(chartEl, sliderOf)).start).toBe(first.start);
+    });
+
+    test("Stacked to 100 % is offered for sums and counts only", async ({ page }) => {
+        await mount(page, { type: "bar", stacked: true }, { view: { ...VIEW, values: [{ field: "Revenue", agg: "average" }] } });
+        const report = page.locator("#zoom-report");
+        await chartMenu(report);
+        await expect(report.getByTestId("zoom-auto")).toBeVisible();
+        await expect(report.getByTestId("chart-stack-percent")).toHaveCount(0);
+    });
 });
+
+// A finger on a phone: the slider is as thick as --pk-target-touch and moves with a touch drag. Chromium
+// only: it alone sends touch events by its protocol (CDP), the input a finger gives
+test.describe("the zoom slider on a touch screen (#36)", () => {
+    test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+    test("a touch drag moves the window; the slider takes the touch target size", async ({ page, browserName }) => {
+        test.skip(browserName !== "chromium", "touch input by CDP is Chromium's");
+        await page.goto("pages/host.html");
+        const chartEl = await mount(page, { type: "bar" }, { view: COUNTRY_VIEW, rows: COUNTRIES });
+        const token = await page.locator("#zoom-report .pk-root").evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue("--pk-target-touch")));
+        expect(token).toBeGreaterThan(24);
+        const first = await inChart(chartEl, sliderOf);
+        expect((await inChart(chartEl, sliderHandle, 0)).size).toBe(token);
+        const from = await inPage(chartEl, first.filler);
+        const cdp = await page.context().newCDPSession(page);
+        const touch = (type, x) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y: from.y }] });
+        await touch("touchStart", from.x);
+        for (let i = 1; i <= 8; i++) await touch("touchMove", from.x + i * 10);
+        await touch("touchEnd");
+        await expect.poll(async () => (await inChart(chartEl, sliderOf)).start).toBeGreaterThan(0);
+    });
+});
+

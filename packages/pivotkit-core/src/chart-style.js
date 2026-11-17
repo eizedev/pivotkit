@@ -11,7 +11,7 @@ import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 import { barExtent, pieLabelFit, pieLabelTexts, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
 import { AXIS_LABEL_MARGIN, groupLabelLine, groupLabelOffset, heatmapFrame } from "./chart-measure.js";
-import { ZOOM_SLIDER, longestNames, zoomSlider, zoomWindow } from "./chart-zoom.js";
+import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./chart-zoom.js";
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
@@ -40,16 +40,18 @@ function heatmapColors(colors, readColor) {
  *   style, or a map of tokens wrapped (pivotkit-report)
  * @param {{ height?: number, width?: number, categoryNames?: string[], axisLabels?: string,
  *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, shareFormatter?: (v: number) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown,
- *   readColor?: (color: string) => string | null, zoom?: string }} [size]
+ *   readColor?: (color: string) => string | null, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean }} [size]
  *   height and width: the chart's size in px (the room around a pie, a heatmap's column names, the
  *   category axis); categoryNames: the categories' whole names (the tooltip's title when the axis
  *   writes them shorter); axisLabels: the view's chart.axisLabels; tooltipFormatter: builds the
  *   tooltip's formatter (pivotkit-react's DOM tooltip), left out for a chart without one (an SVG);
  *   readColor: a heatmap colour as one ECharts can mix, or null (see heatmapColors); zoom: the view's
- *   chart.zoom, for a chart on a screen (chart-zoom.js); without it every category is drawn
+ *   chart.zoom, for a chart on a screen (chart-zoom.js); without it every category is drawn; zoomAt:
+ *   the slider's window from before; timeline: the categories run along a time line (the first window
+ *   shows the latest); touch: a finger points (the slider takes --pk-target-touch)
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
-export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter, readColor, zoom } = {}) {
+export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter, readColor, zoom, zoomAt, timeline = false, touch = false } = {}) {
     const extra = { categoryNames, axisLabels };
     const first = (a) => (Array.isArray(a) ? a[0] : a);
     const v = (name) => style.getPropertyValue(name).trim();
@@ -157,10 +159,14 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         let layout = categoryLabelLayout(names, box);
         // a zoom slider shows a window of the categories: their labels are laid out for the window
         const shown = zoomWindow(zoom, names.length, layout.every);
-        if (shown) {
+        // the slider's thickness: a control's least size, a finger's on a touch screen (the tokens)
+        const sliderSize = pxOf(v(touch ? "--pk-target-touch" : "--pk-target")) ?? ZOOM_SLIDER.size;
+        const range = shown ? zoomRange(names.length, shown, zoomAt, timeline) : null;
+        if (range) {
             // the slider takes its room from the height the labels may take
-            const room = { ...box, reserved: reserved + (along === "yAxis" ? 0 : ZOOM_SLIDER.size + ZOOM_SLIDER.gap) };
-            layout = categoryLabelLayout(shown < names.length ? longestNames(names, shown) : names, room);
+            const room = { ...box, reserved: reserved + (along === "yAxis" ? 0 : sliderSize + ZOOM_SLIDER.gap) };
+            const count = range.end - range.start + 1;
+            layout = categoryLabelLayout(count < names.length ? longestNames(names, count) : names, room);
         }
         axisEvery = layout.every;
         const longest = Math.min(layout.width, categoryLabelWidth(names, fontSize));
@@ -171,13 +177,13 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         const groupWidth = along === "yAxis" ? CATEGORY_LABEL_WIDTH : Math.max(24, Math.round(slot * (list[1]?.groupSize ?? 1)) - 8);
         const rest = list.slice(1).map((a) => (a.groups ? { ...a, offset, axisTick: { ...a.axisTick, length: offset }, axisLabel: { ...a.axisLabel, width: groupWidth, overflow: "truncate" } } : a));
         axes = { ...axes, [along]: rest.length ? [main, ...rest] : main };
-        if (shown && grid) {
+        if (range && grid) {
             const beside = along === "yAxis";
             // beyond a legend on that side; the plot gives the slider its room
             const offset = beside ? (rightLegend && !legendDown && typeof option.grid?.right === "number" ? option.grid.right - 4 : 4) : option.legend && option.legend.bottom === 0 ? BOTTOM_LEGEND_ROOM : 4;
             const color = (name) => (readColor ? (readColor(v(name)) ?? undefined) : v(name) || undefined);
-            slider = zoomSlider({ beside, axes: 1 + rest.length, shown, offset, fontSize, colors: { line: color("--pk-border"), fill: color("--pk-accent-soft"), handle: color("--pk-accent"), text: color("--pk-muted") } });
-            grid[beside ? "right" : "bottom"] += ZOOM_SLIDER.size + ZOOM_SLIDER.gap;
+            slider = zoomSlider({ beside, axes: 1 + rest.length, range, offset, size: sliderSize, fontSize, colors: { line: color("--pk-border"), fill: color("--pk-accent-soft"), handle: color("--pk-accent"), text: color("--pk-muted") } });
+            grid[beside ? "right" : "bottom"] += sliderSize + ZOOM_SLIDER.gap;
         }
         // horizontal bars: fewer ticks where the value axis's labels would run into each other
         const value = along === "yAxis" && !Array.isArray(axes.xAxis) && axes.xAxis?.type === "value" ? axes.xAxis : null;

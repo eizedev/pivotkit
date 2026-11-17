@@ -18,7 +18,7 @@
  */
 
 import { LIMITS, resolveLimits } from "./limits.js";
-import { VIEW_VERSION } from "./view.js";
+import { VIEW_VERSION, emptyView } from "./view.js";
 import { PivotkitError } from "./errors.js";
 import { isPlainObject } from "./util.js";
 
@@ -256,10 +256,38 @@ function fieldsOf(data) {
  * @param {{ link?: boolean }} [options]
  * @returns {Record<string, unknown>}
  */
+/**
+ * The chart keys newer than the view files of pivotkit 0.7. A file leaves each one out while it holds
+ * its default, so a reader of 0.7 takes the file without an `unknownKey` warning unless the view sets
+ * one. The keys 0.7 knows are written as they are.
+ */
+export const NEWER_CHART_KEYS = Object.freeze(["tooltip", "zoom", "stackPercent", "hidden"]);
+
+/** A view without the newer chart keys that hold their default (NEWER_CHART_KEYS); the view given stays as it is. */
+function withoutNewDefaults(view) {
+    if (!isPlainObject(view.chart)) {
+        return view;
+    }
+    const defaults = /** @type {Record<string, unknown>} */ (emptyView().chart);
+    const chart = Object.fromEntries(Object.entries(view.chart).filter(([key, value]) => !(NEWER_CHART_KEYS.includes(key) && JSON.stringify(value) === JSON.stringify(defaults[key]))));
+    return { ...view, chart };
+}
+
+/** A file's view with the newer chart keys it leaves out (NEWER_CHART_KEYS) at their defaults again. */
+function withNewDefaults(view) {
+    const chart = view.chart;
+    if (!isPlainObject(chart) || NEWER_CHART_KEYS.every((key) => Object.hasOwn(chart, key))) {
+        return view;
+    }
+    const defaults = /** @type {Record<string, unknown>} */ (emptyView().chart);
+    return { ...view, chart: { ...chart, ...Object.fromEntries(NEWER_CHART_KEYS.filter((key) => !Object.hasOwn(chart, key)).map((key) => [key, defaults[key]])) } };
+}
+
 export function toViewFile(view, meta = {}, options = {}) {
     if (!isPlainObject(view)) {
         throw new TypeError("toViewFile(view): view must be an object");
     }
+    view = withoutNewDefaults(view);
     const name = plainText(meta.name, VIEW_FILE_LIMITS.name);
     const sourceId = plainText(meta.source?.id, VIEW_FILE_LIMITS.name);
     const params = sourceId ? paramsOf(meta.source?.params, LIMITS, () => {}) : null;
@@ -402,7 +430,8 @@ export function fromViewFile(input, options = {}) {
     if (typeof viewVersion === "number" && viewVersion > VIEW_VERSION) {
         return fail("newerView", `view version ${viewVersion} is newer than ${VIEW_VERSION}`);
     }
-    read.view = /** @type {Record<string, unknown>} */ (view);
+    // a view file leaves the newer chart keys out at their defaults: its view gets them back; a bare view stays as given
+    read.view = /** @type {Record<string, unknown>} */ (read.envelope ? withNewDefaults(view) : view);
     if (options.data) {
         read.compatible = compatibility(read, options.data, options.sourceId);
     }

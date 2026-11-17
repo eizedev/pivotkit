@@ -61,7 +61,7 @@ The chart type menu has its **Display** settings under the chart types, in one f
 - Each choice applies at once, and the menu stays open, so the chart behind it shows the change.
 - The settings stay with the report: in saved views, links and the chart image. They also stay when
   the chart type changes.
-- An **i** next to Labels, Group labels, Tooltip and Zoom slider explains them.
+- An **i** next to Labels, Group labels, Tooltip, Zoom slider and Stacked to 100 % explains them.
 
 ![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-light.png#only-light)
 ![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-dark.png#only-dark)
@@ -76,8 +76,8 @@ The chart type menu has its **Display** settings under the chart types, in one f
 | Axis labels | Automatic, All (slanted), Every n-th. Bars, lines and areas only. | Automatic |
 | Group labels under the axis | Automatic, On, Off. Only with two or more fields in Rows. | Automatic: shown while the chart has room for them |
 | Tooltip | Automatic, All series. Bars, lines and areas only. | Automatic: the element under the pointer |
-| Zoom slider | Automatic, On, Off. Bars, lines and areas only. | Automatic: when the axis cannot name every category |
-| Stacked to 100 % | on, off. Stacked bars and area only. | off |
+| Zoom slider | Automatic, On, Off. Bars, lines and areas only. | Automatic: more than 20 categories, or an axis that would leave out 3 names or more between two |
+| Stacked to 100 % | on, off. Stacked bars and area of sums and counts only. | off |
 | Series shown, Slices shown | A checkbox per series, or per slice of a pie or a donut. Up to 50 are listed. | all shown |
 
 ??? info "Pie and donut labels"
@@ -153,11 +153,19 @@ The chart type menu has its **Display** settings under the chart types, in one f
 
 ## Zoom and series { #zoom-and-series }
 
-A chart with many categories, such as 40 countries on a phone, gets a **zoom slider** under the axis.
+A chart with many categories, such as 40 countries, gets a **zoom slider** under the axis.
 
-- The slider shows as many categories as the axis can name. Drag it to move along the axis. Drag
-  its ends to show fewer, down to two.
+- **Automatic** shows it for more than 20 categories. With fewer, it shows it only when the axis
+  would leave out 3 names or more between two it writes.
+- The slider first shows as many categories as the axis can name. Over dates, these are the latest
+  ones. Otherwise they are the first ones.
+- Drag the slider to move along the axis. Drag its ends to show more or fewer categories, up to all
+  of them. The axis then names its categories again for the new width.
+- On a touch screen the slider is as thick as a finger needs.
 - The chart keeps the slider's place when it is drawn again, for example in a narrower window.
+- The slider cannot be moved by keyboard yet
+  ([#575](https://github.com/eizedev/pivotkit/issues/575)). With the keyboard, choose **Display**,
+  **Zoom slider**, **Off**, or read every value in the table.
 - **Display**, **Zoom slider**, **Off** draws every category instead. Then the axis may name only
   every n-th one. **On** always shows the slider.
 - Horizontal bars get the slider on the right.
@@ -176,7 +184,11 @@ Click a series in the legend to hide it. Click it again to show it.
 **Display**, **Stacked to 100 %** makes each stack as high as the axis. Each part shows its share.
 
 - It applies to stacked bars and to areas. An area is stacked by it.
-- The axis runs from 0 % to 100 %. With parts below zero, it runs from -100 %.
+- It is offered only for sums and counts, the values that add up.
+- The axis runs from 0 % to 100 %. With parts below zero, it runs from -100 %. Such a stack does not
+  fill the axis: its parts above and below zero share the 100 %.
+- A category whose parts add up to nothing gets no bar.
+- Value labels show each part's share, not its value.
 - The tooltip shows a part's value and its share, such as "Hardware 20 33.3%". The **Total** adds the
   values, not the shares.
 - A hidden series does not count. The other parts share the stack.

@@ -26,7 +26,8 @@ export const de = {
         drillJson: "Die Zeilen als JSON-Objekte, mit den Feldnamen und Rohwerten der Daten, für ein Programm.",
         groupLabels: "Mit zwei oder mehr Feldern in Zeilen: die Einträge des äußeren Felds einmal unter der Achse, unter ihren Kategorien.",
         tooltip: "Automatisch: Ein Balken, Segment oder Punkt zeigt nur seinen Wert. Dazwischen erscheinen alle Reihen. Gestapelte Summen und Anzahlen zeigen auch den Gesamtwert. Alle Reihen: immer alle Reihen dieser Kategorie.",
-        zoom: "Ein Schieber unter der Achse zeigt einen Teil der Kategorien. Automatisch: wenn die Achse nicht jede Kategorie benennen kann. Dateien und Drucke zeigen alle Kategorien.",
+        stackPercent: "Jeder Stapel füllt die Achse; jeder Teil zeigt seinen Anteil. Auch die Wertbeschriftungen zeigen den Anteil. Nur für Summen und Anzahlen. Ein Stapel mit Teilen unter null füllt die Achse nicht, einer mit der Summe null fehlt.",
+        zoom: "Ein Schieber unter der Achse zeigt einen Teil der Kategorien. Automatisch: bei mehr als 20 Kategorien, oder wenn die Achse 3 Namen oder mehr zwischen zweien auslassen müsste. Per Tastatur lässt er sich noch nicht bewegen: Aus zeigt alle Kategorien. Dateien und Drucke zeigen alle Kategorien.",
         labelPosition: "Außen: Name und Zahl jedes Segments daneben. Innen: die Zahl auf dem Segment, die Namen in der Legende; außen, wenn der Ring eines Donuts dafür zu schmal ist.",
         sharedView: "Nur Admins können gemeinsame Ansichten ändern.",
         valuesFilter: "Werte werden hier nicht gefiltert: Ein Feld in Zeilen oder Spalten über sein Menü filtern oder ein Feld in Filter ziehen."

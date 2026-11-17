@@ -175,6 +175,8 @@ export const en = {
     chartMore: "+{count} more",
     chartMoreInTotal: "+{count} more (in the total)",
     // said when a click on the legend hides or shows a series (or a slice)
+    // the chart's text alternative of a 100 % stack
+    chartShares: "Shown as shares of each stack.",
     chartHidden: "{name} hidden",
     chartShown: "{name} shown",
     categories: "categories",
@@ -491,6 +493,7 @@ export const de = {
     chartTotal: "Gesamt",
     chartMore: "+{count} weitere",
     chartMoreInTotal: "+{count} weitere (im Gesamtwert)",
+    chartShares: "Als Anteile je Stapel dargestellt.",
     chartHidden: "{name} ausgeblendet",
     chartShown: "{name} eingeblendet",
     categories: "Kategorien",

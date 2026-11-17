@@ -1,7 +1,8 @@
 /*
- * The zoom slider's window on a redraw: the window the slider was moved to stays while the categories
- * do. A redraw replaces the whole ECharts option (notMerge), so what ECharts held itself is passed
- * again. Only a drawn chart needs it: it loads with ECharts (echarts.js).
+ * The chart's legend and zoom slider between draws: a click on a legend entry is reported (the view
+ * keeps it, chart.hidden), and the slider's window is kept while the categories stay. A redraw replaces
+ * the whole ECharts option (notMerge), so what ECharts held itself is passed again. Only a drawn chart
+ * needs it: it loads with ECharts (echarts.js), so the first load does not carry it.
  */
 
 /**
@@ -10,20 +11,31 @@
  */
 
 /**
- * The option's dataZoom with the window kept from the last draw: the same categories in the same
- * order keep its start, and its end within the span the slider allows now (a smaller chart writes
- * fewer names); other categories start where decorateOption starts them.
- * @param {any[] | undefined} dataZoom  decorateOption's
+ * The window kept from the last draw, for pivotkit-core's decorateOption (`zoomAt`): only while the
+ * same categories are drawn in the same order; other categories start where decorateOption starts them.
  * @param {ZoomWindow | null} kept
  * @param {readonly string[]} names  the categories drawn now
+ * @returns {{ start: number, end: number } | undefined}
  */
-export function keptZoom(dataZoom, kept, names) {
-    if (!dataZoom || !kept || kept.names.length !== names.length || kept.names.some((n, i) => n !== names[i])) {
-        return dataZoom;
+export function keptWindow(kept, names) {
+    if (!kept || kept.names.length !== names.length || kept.names.some((n, i) => n !== names[i])) {
+        return undefined;
     }
-    return dataZoom.map((z) => {
-        const span = typeof z.maxValueSpan === "number" ? z.maxValueSpan : kept.end - kept.start;
-        const start = Math.min(kept.start, Math.max(0, names.length - 1 - span));
-        return { ...z, startValue: start, endValue: Math.min(kept.end, start + span) };
+    return { start: kept.start, end: kept.end };
+}
+
+/**
+ * Follows a click on the legend and the zoom slider of an ECharts instance.
+ * @param {any} instance
+ * @param {{ onLegend: (change: { name: string, shown: boolean }) => void, onZoom: (start: number, end: number) => void }} on
+ *   onLegend: an entry is shown or hidden now; onZoom: the slider's window, first and last category by index
+ */
+export function followChart(instance, { onLegend, onZoom }) {
+    instance.on("legendselectchanged", (/** @type {any} */ e) => onLegend({ name: e.name, shown: Boolean(e.selected?.[e.name]) }));
+    instance.on("datazoom", () => {
+        const z = instance.getOption().dataZoom?.[0];
+        if (z && typeof z.startValue === "number" && typeof z.endValue === "number") {
+            onZoom(z.startValue, z.endValue);
+        }
     });
 }

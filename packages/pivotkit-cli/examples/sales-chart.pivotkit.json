@@ -70,11 +70,7 @@
       "smooth": false,
       "axisLabels": "auto",
       "groupLabels": "auto",
-      "labelPosition": "outside",
-      "tooltip": "auto",
-      "zoom": "auto",
-      "stackPercent": false,
-      "hidden": []
+      "labelPosition": "outside"
     },
     "formatting": {
       "locale": null,

@@ -22,4 +22,4 @@ export { color, init };
 export { toEChartsOption } from "pivotkit-core/chart";
 export { cleanChartOptions, mergeChartOptions } from "./chart-options.js";
 export { LENGTH_TOKENS, chartStyle, decorate, screenColor, tokenLengths } from "./chart-decorate.js";
-export { keptZoom } from "./chart-legend.js";
+export { followChart, keptWindow } from "./chart-legend.js";

@@ -2,10 +2,10 @@
 // total of the values; the legend entries a view hides; the zoom window kept across redraws.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode } from "pivotkit-core";
+import { computePivot, encode, toSeries } from "pivotkit-core";
 import { toEChartsOption } from "pivotkit-core/chart";
 import { tooltipContent } from "../src/chart-tooltip.js";
-import { keptZoom } from "../src/chart-legend.js";
+import { keptWindow } from "../src/chart-legend.js";
 import { hiddenAfter } from "../src/view-ops.js";
 
 const SALES = encode([
@@ -52,16 +52,46 @@ test("a legend click hides or shows an entry: the view's list after it", () => {
     assert.deepEqual(hiddenAfter(["North"], "North", false), ["North"]);
 });
 
-test("the zoom window stays across redraws of the same categories, and starts again for others", () => {
+test("the zoom window is kept for the same categories only", () => {
     const names = ["a", "b", "c", "d"];
-    const kept = { names, start: 1, end: 2 };
-    const slider = { type: "slider", startValue: 0, endValue: 1 };
-    assert.deepEqual(keptZoom([slider], kept, names), [{ ...slider, startValue: 1, endValue: 2 }]);
-    // a smaller chart writes fewer names: the window keeps its start within the span it allows
-    assert.deepEqual(keptZoom([{ ...slider, maxValueSpan: 1 }], { names, start: 1, end: 3 }, names), [{ ...slider, maxValueSpan: 1, startValue: 1, endValue: 2 }]);
-    assert.deepEqual(keptZoom([{ ...slider, maxValueSpan: 1 }], { names, start: 3, end: 3 }, names), [{ ...slider, maxValueSpan: 1, startValue: 2, endValue: 3 }]);
-    // other categories, or no slider: as drawn
-    assert.deepEqual(keptZoom([slider], kept, ["a", "b"]), [slider]);
-    assert.equal(keptZoom(undefined, kept, names), undefined);
-    assert.deepEqual(keptZoom([slider], null, names), [slider]);
+    assert.deepEqual(keptWindow({ names, start: 1, end: 3 }, names), { start: 1, end: 3 });
+    assert.equal(keptWindow({ names, start: 1, end: 3 }, ["a", "b"]), undefined);
+    assert.equal(keptWindow({ names, start: 1, end: 3 }, ["a", "b", "c", "x"]), undefined);
+    assert.equal(keptWindow(null, names), undefined);
+});
+
+test("the chart's text alternative counts the series and slices shown; a 100 % stack says it shows shares", async () => {
+    const { chartSummary } = await import("../src/chart-summary.js");
+    const { en } = await import("../src/labels.js");
+    const s = toSeries(computePivot(SALES, VIEW));
+    const all = chartSummary(s, { type: "stacked", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US" });
+    assert.match(all, /2 categories, 3 series\. Highest 30 at North \/ Software/);
+    // Software hidden: two series, its 30 no longer the highest
+    const shown = chartSummary(s, { type: "stacked", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US", hidden: ["Software"] });
+    assert.match(shown, /2 categories, 2 series\. Highest 20 at North \/ Hardware/);
+    // a pie's hidden slice leaves its category out
+    const pie = chartSummary(s, { type: "pie", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US", hidden: ["North"], slices: true });
+    assert.match(pie, /1 category, 3 series\./);
+    assert.doesNotMatch(pie, /North/);
+    const shares = chartSummary(s, { type: "stacked", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US", shares: true });
+    assert.match(shares, /3 series\. Shown as shares of each stack\. Highest/);
+});
+
+test("a 100 % stack's tooltip with a part below zero and a category that adds up to nothing", () => {
+    const data = encode([
+        { Region: "North", Category: "A", Revenue: 30 },
+        { Region: "North", Category: "B", Revenue: -10 },
+        { Region: "South", Category: "A", Revenue: 0 },
+        { Region: "South", Category: "B", Revenue: 0 }
+    ]);
+    const option = toEChartsOption(computePivot(data, { ...VIEW, chart: { type: "bar", stacked: true, stackPercent: true } }));
+    const { valueFormatter, shareFormatter } = option.tooltip;
+    const series = option.series.map((s) => ({ type: s.type, stack: s.stack, additive: true }));
+    // North: 30 is 75 % of the parts' sizes, -10 is -25 %; the total adds the values: 20
+    const north = tooltipContent(paramsAt(option, 0), { valueFormatter, shareFormatter, series, mode: "axis" });
+    assert.deepEqual(north.lines.map((l) => [l.name, l.value, l.share]), [["A", "30", "75.0%"], ["B", "-10", "-25.0%"]]);
+    assert.deepEqual(north.total, { name: "Total", value: "20" });
+    // South adds up to nothing: no bar, no line
+    const south = tooltipContent(paramsAt(option, 1), { valueFormatter, shareFormatter, series, mode: "axis" });
+    assert.deepEqual(south.lines, []);
 });

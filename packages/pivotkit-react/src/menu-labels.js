@@ -31,7 +31,8 @@ export const en = {
         drillJson: "The rows as JSON objects, with the data's field names and raw values, for a program.",
         groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
         tooltip: "Automatic: a bar, segment or point shows only itself. Between them, every series shows. Stacked sums and counts also show the total. All series: always every series of that category.",
-        zoom: "A slider under the axis shows a part of the categories. Automatic: when the axis cannot name every category. Files and prints show every category.",
+        stackPercent: "Each stack fills the axis; each part shows its share. Value labels show the share too. Only for sums and counts. A stack with parts below zero does not fill the axis, and one that adds up to nothing is left out.",
+        zoom: "A slider under the axis shows a part of the categories. Automatic: with more than 20 categories, or when the axis would leave out 3 names or more between two. It cannot be moved by keyboard yet: Off shows every category. Files and prints show every category.",
         labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend; outside when a donut's ring is too thin for it.",
         sharedView: "Only admins can change shared views.",
         valuesFilter: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters."

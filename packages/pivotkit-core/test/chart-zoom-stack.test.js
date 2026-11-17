@@ -128,8 +128,8 @@ test("zoom: a slider under a long axis it cannot label, labels laid out for the 
     assert.equal(slider.type, "slider");
     assert.deepEqual(slider.xAxisIndex, [0]);
     assert.equal(slider.startValue, 0);
-    // the window never grows past what the axis can name; the slider is a control's least size, its names the chart's text size
-    assert.equal(slider.maxValueSpan, slider.endValue);
+    // the slider can widen to every category; it is a control's least size, its names the chart's text size
+    assert.equal(slider.maxValueSpan, undefined);
     assert.equal(slider.height, 24);
     assert.equal(slider.textStyle.fontSize, 14);
     // the window shows fewer categories, each one named
@@ -137,8 +137,9 @@ test("zoom: a slider under a long axis it cannot label, labels laid out for the 
     assert.equal(auto.axisEvery, 1);
     // the slider takes its room under the plot
     assert.ok(auto.grid.bottom >= file.grid.bottom + slider.height);
-    // wide enough for every label: no slider while "auto", one with "on"; never with "off"
-    assert.equal(decorateOption(option, NO_TOKENS, { width: 4000, height: 480, zoom: "auto" }).dataZoom, undefined);
+    // more than 20 categories: "auto" adds the slider even where every name fits, its window all of them
+    const wide = decorateOption(option, NO_TOKENS, { width: 4000, height: 480, zoom: "auto" });
+    assert.deepEqual([wide.dataZoom[0].startValue, wide.dataZoom[0].endValue], [0, 39]);
     assert.equal(decorateOption(option, NO_TOKENS, { width: 4000, height: 480, zoom: "on" }).dataZoom[0].endValue, 39);
     assert.equal(decorateOption(option, NO_TOKENS, { width: 390, height: 360, zoom: "off" }).dataZoom, undefined);
     // horizontal bars: a slider beside the category axis, on the right
@@ -147,6 +148,35 @@ test("zoom: a slider under a long axis it cannot label, labels laid out for the 
     assert.equal(across.dataZoom[0].orient, "vertical");
     // a pie has no axis
     assert.equal(decorateOption(toEChartsOption(computePivot(COUNTRIES, { ...LONG_AXIS, chart: { type: "pie" } })), NO_TOKENS, { width: 390, height: 360, zoom: "on" }).dataZoom, undefined);
+});
+
+test("zoom \"auto\" is conservative: 20 categories or fewer only when the axis would leave out 3 labels or more", () => {
+    const some = (n) => toEChartsOption(computePivot(encode(Array.from({ length: n }, (_, i) => ({ Country: `Country number ${String(i + 1).padStart(2, "0")}`, Units: i + 1 }))), { ...LONG_AXIS, chart: { type: "bar" } }));
+    // 16 long names in a small chart: every 3rd label (2 left out between) is no reason; a slider only with "on"
+    assert.equal(decorateOption(some(16), NO_TOKENS, { width: 200, height: 200 }).axisEvery, 3);
+    assert.equal(decorateOption(some(16), NO_TOKENS, { width: 200, height: 200, zoom: "auto" }).dataZoom, undefined);
+    assert.equal(decorateOption(some(16), NO_TOKENS, { width: 200, height: 200, zoom: "on" }).dataZoom.length, 1);
+    // 20 of them: every 4th label (3 left out between) gets a slider, every 2nd does not
+    assert.equal(decorateOption(some(20), NO_TOKENS, { width: 200, height: 200 }).axisEvery, 4);
+    assert.equal(decorateOption(some(20), NO_TOKENS, { width: 200, height: 200, zoom: "auto" }).dataZoom.length, 1);
+    assert.equal(decorateOption(some(20), NO_TOKENS, { width: 390, height: 360, zoom: "auto" }).dataZoom, undefined);
+});
+
+test("zoom: the latest categories first on a time line; a kept window, its labels laid out for its size; a finger's slider", () => {
+    const option = toEChartsOption(computePivot(COUNTRIES, { ...LONG_AXIS, chart: { type: "bar" } }));
+    const first = decorateOption(option, NO_TOKENS, { width: 390, height: 360, zoom: "auto" }).dataZoom[0];
+    const latest = decorateOption(option, NO_TOKENS, { width: 390, height: 360, zoom: "auto", timeline: true }).dataZoom[0];
+    assert.deepEqual([latest.startValue, latest.endValue], [39 - first.endValue, 39]);
+    // a window widened to every category: the labels are laid out for all 40 again
+    const all = decorateOption(option, NO_TOKENS, { width: 390, height: 360, zoom: "auto", zoomAt: { start: 0, end: 39 } });
+    assert.deepEqual([all.dataZoom[0].startValue, all.dataZoom[0].endValue], [0, 39]);
+    assert.ok(all.axisEvery > 1);
+    // a window that does not fit the categories is not kept
+    assert.equal(decorateOption(option, NO_TOKENS, { width: 390, height: 360, zoom: "auto", zoomAt: { start: 30, end: 80 } }).dataZoom[0].startValue, 0);
+    // on a touch screen the slider is as thick as a finger's target, --pk-target-touch
+    const tokens = { getPropertyValue: (name) => ({ "--pk-target": "24px", "--pk-target-touch": "44px" })[name] ?? "" };
+    assert.equal(decorateOption(option, tokens, { width: 390, height: 360, zoom: "auto", touch: true }).dataZoom[0].height, 44);
+    assert.equal(decorateOption(option, tokens, { width: 390, height: 360, zoom: "auto" }).dataZoom[0].height, 24);
 });
 
 test("zoom with group labels drives both category axes", () => {
@@ -159,4 +189,20 @@ test("zoom with group labels drives both category axes", () => {
     const o = toEChartsOption(computePivot(encode(rows), { rows: ["Region", "Country"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", groupLabels: "on" } }));
     const drawn = decorateOption(o, NO_TOKENS, { width: 800, height: 480, zoom: "on" });
     assert.deepEqual(drawn.dataZoom[0].xAxisIndex, [0, 1]);
+});
+
+test("a view file leaves out the chart keys newer than 0.7 at their defaults, so 0.7 readers take it without a warning", async () => {
+    const { toViewFile, fromViewFile } = await import("../src/index.js");
+    const view = normalize({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" } }, SALES).view;
+    const file = toViewFile(view, { name: "Revenue" });
+    assert.deepEqual(Object.keys(file.view.chart), ["type", "stacked", "horizontal", "valueLabels", "legend", "title", "smooth", "axisLabels", "groupLabels", "labelPosition"]);
+    // the link carries the same
+    assert.equal("zoom" in toViewFile(view, {}, { link: true }).view.chart, false);
+    // a key set to something else is written; read back, the view is the same
+    const set = normalize({ ...view, chart: { ...view.chart, zoom: "off", hidden: ["North"], tooltip: "axis" } }, SALES).view;
+    const written = toViewFile(set, { name: "Revenue" }).view.chart;
+    assert.deepEqual([written.zoom, written.hidden, written.tooltip, "stackPercent" in written], ["off", ["North"], "axis", false]);
+    assert.deepEqual(normalize(fromViewFile(toViewFile(set, { name: "Revenue" })).view, SALES).view.chart, set.chart);
+    // the view handed in is not changed
+    assert.equal(view.chart.zoom, "auto");
 });

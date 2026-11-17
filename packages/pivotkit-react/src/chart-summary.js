@@ -27,14 +27,41 @@ function counts(s, labels, locale) {
 }
 
 /**
- * "Bars: Sum of Revenue by Region. 4 categories, 3 series. Highest 1,234 at North / A; lowest ..."
+ * The chart data as it is shown: without the legend entries hidden (chart.hidden), series or, for a
+ * pie and a donut, categories.
  * @param {ReturnType<typeof import("pivotkit-core").toSeries>} s
- * @param {{ type: string, rows: string[], valueNames: string[], labels: import("./labels.js").UiLabels, locale: string }} options
+ * @param {readonly string[]} hidden
+ * @param {boolean} slices
  */
-export function chartSummary(s, { type, rows, valueNames, labels, locale }) {
+function shownOnly(s, hidden, slices) {
+    const out = new Set(hidden);
+    if (!out.size) {
+        return s;
+    }
+    if (!slices) {
+        return { ...s, series: s.series.filter((x) => !out.has(x.name)) };
+    }
+    const keep = s.categories.map((name, i) => (out.has(name) ? -1 : i)).filter((i) => i >= 0);
+    return {
+        ...s,
+        categories: keep.map((i) => s.categories[i]),
+        categoryCount: (s.categoryCount ?? s.categories.length) - (s.categories.length - keep.length),
+        series: s.series.map((x) => ({ ...x, data: keep.map((i) => x.data[i]) }))
+    };
+}
+
+/**
+ * "Bars: Sum of Revenue by Region. 4 categories, 3 series. Highest 1,234 at North / A; lowest ..."
+ * Of the series and slices shown (`hidden` left out); `shares`: a 100 % stack, said so.
+ * @param {ReturnType<typeof import("pivotkit-core").toSeries>} s
+ * @param {{ type: string, rows: string[], valueNames: string[], labels: import("./labels.js").UiLabels, locale: string, hidden?: readonly string[], slices?: boolean, shares?: boolean }} options
+ */
+export function chartSummary(s, { type, rows, valueNames, labels, locale, hidden = [], slices = false, shares = false }) {
+    s = shownOnly(s, hidden, slices);
     const parts = [
         fill(labels.chartSummary, { type: labels.chartTypes[type] ?? type, values: valueNames.join(", "), categories: rows.length ? rows.join(" / ") : labels.categories }),
-        counts(s, labels, locale)
+        counts(s, labels, locale),
+        ...(shares ? [labels.chartShares] : [])
     ];
     /** @type {{ v: number, si: number, ci: number } | null} */
     let max = null;
