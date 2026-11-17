@@ -56,6 +56,8 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - They run in Chromium, Firefox and WebKit, on React 18 and 19. CI has one job per engine and React.
 - A test fails on any console error or warning (`tests/browser/fixtures.js`).
 - A test that measures layout waits until the layout has settled.
+- A test waits for a file chooser with `nextFileChooser(page)` from `import-helpers.js`, not `page.waitForEvent`.
+  It keeps Firefox from opening the native picker on the second pick.
 
 ## Browser test pages
 
@@ -85,3 +87,5 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `tests/deprecations.test.js` checks that every `PK-DEP-NNNN` in `packages/*/src` is in the register.
 - `tests/llms-sections.test.js` checks that every docs page is in one `llmstxt` section.
 - `tests/docs-lists.test.js` checks that every list in the docs starts after a blank line.
+- `tests/compatibility.test.js` checks the lowest versions in `docs/compatibility.md` against `package.json`,
+  `docs/browser-support.md` and the CI matrix.

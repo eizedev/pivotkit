@@ -115,7 +115,8 @@ of life. Or [load your own](use/load-data.md). Every task has its page under
 | A PowerShell Universal app | [PowerShell Universal](getting-started/react.md#powershell-universal): `New-UDPivotReport` |
 
 [Embed pivotkit](embed/index.md) says which package fits and what a host switches on, and has the
-recipes.
+recipes. [What works with pivotkit](compatibility.md) lists the hosts, sign-in providers, MCP clients
+and platforms, and how each one was tested.
 
 </div>
 

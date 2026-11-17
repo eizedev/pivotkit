@@ -54,6 +54,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- On a touch screen, the first tap on a bar, a point or a heatmap cell shows its tooltip. The second
+  tap on it opens the rows behind it and calls `onCellClick`. The tooltip no longer stays over the
+  panel, and the panel no longer closes right after it opens ([#538](https://github.com/eizedev/pivotkit/issues/538)).
+- A heatmap whose `--pk-heat-low` or `--pk-heat-high` is in a form ECharts cannot mix, such as
+  `oklch()` or `rgb()` with spaces, shows the host's colours instead of black cells. So do the HTML
+  report and the SVG of the Export menu, whose table also takes an `oklch()` colour scale ([#386](https://github.com/eizedev/pivotkit/issues/386)).
+- With a field on Columns, a pie's, a donut's and a heatmap's tooltip is titled by the value, not by
+  the first column, from pivotkit-core ([#537](https://github.com/eizedev/pivotkit/issues/537)).
 - "Table as CSV" in a locale whose own decimal mark is `٫` (`ar-EG`, `ar-SA`, `fa-IR`, `ur-IN`,
   `ps-AF` and others) writes the decimal mark the locale uses with Latin digits, from pivotkit-core:
   `9.6`, not `9٫6`, which parsers misread ([#478](https://github.com/eizedev/pivotkit/issues/478)).

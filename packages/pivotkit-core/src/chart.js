@@ -8,6 +8,8 @@ import { autoChartType, toSeries } from "./chart-series.js";
 import { DEFAULT_THEME, GRID_TOP, HEATMAP_GRID_BOTTOM } from "./defaults.js";
 import { expect } from "./errors.js";
 import { formatterFor } from "./format.js";
+import { valueName } from "./grid.js";
+import { DEFAULT_LABELS } from "./labels.js";
 import { isPivotResult } from "./pivot.js";
 import { resolveLocale, optionsOf } from "./util.js";
 import { SLICE_CHART_TYPES } from "./view.js";
@@ -163,6 +165,10 @@ export function toEChartsOption(result, options) {
         ...(theme.colors && theme.colors.length ? { color: theme.colors } : {})
     };
     const valueFormatter = (v) => (typeof v === "number" ? fmt(v) : "");
+    // a pie's or heatmap's one series is named by the value it draws (the tooltip's title): with a field
+    // on Columns the first series is the first column's, but a slice adds every column, a cell names its own
+    const vi = first ? first.valueIndex : 0;
+    const valueTitle = result.view.values[vi] ? valueName(result.view.values[vi], { ...DEFAULT_LABELS, ...(options.labels || {}) }) : "";
     // the title over the chart, and the legend where the view puts it, with the room they take
     const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: theme.titleSize ?? DEFAULT_THEME.titleSize, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight } } } : {};
     const titleRoom = title.title ? roomOfTitle(theme.titleSize ?? DEFAULT_THEME.titleSize) : 0;
@@ -172,7 +178,6 @@ export function toEChartsOption(result, options) {
     const labels = chart.valueLabels === "off" || chart.valueLabels === "value" || chart.valueLabels === "percent" || chart.valueLabels === "both" ? chart.valueLabels : "auto";
 
     if (SLICE_CHART_TYPES.includes(chart.type)) {
-        const vi = first ? first.valueIndex : 0;
         const data = s.categories
             .map((name, i) => ({ name, value: s.totals[vi] ? s.totals[vi][i] : null }))
             .filter((d) => typeof d.value === "number" && d.value > 0);
@@ -199,7 +204,7 @@ export function toEChartsOption(result, options) {
             series: [
                 {
                     type: "pie",
-                    name: first ? first.name : "",
+                    name: valueTitle,
                     radius: [...radius],
                     top: titleRoom + room.top,
                     ...(room.bottom ? { bottom: room.bottom } : {}),
@@ -215,7 +220,7 @@ export function toEChartsOption(result, options) {
     }
 
     if (chart.type === "heatmap") {
-        const columns = s.series.filter((x) => x.valueIndex === (first ? first.valueIndex : 0));
+        const columns = s.series.filter((x) => x.valueIndex === vi);
         const data = [];
         let min = Infinity;
         let max = -Infinity;
@@ -251,7 +256,7 @@ export function toEChartsOption(result, options) {
                 ...(theme.heatmapColors ? { inRange: { color: theme.heatmapColors } } : {})
             },
             // the numbers in the cells: by default while there are few enough cells
-            series: [{ type: "heatmap", name: first ? first.name : "", data, label: { show: labels === "auto" ? data.length <= 200 : labels !== "off", formatter: (p) => fmt(p.value[2]) } }]
+            series: [{ type: "heatmap", name: valueTitle, data, label: { show: labels === "auto" ? data.length <= 200 : labels !== "off", formatter: (p) => fmt(p.value[2]) } }]
         };
     }
 

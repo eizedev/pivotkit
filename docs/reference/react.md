@@ -256,7 +256,8 @@ The report calls it on a click (or Enter) on a value or a chart point. It gets:
 - the value
 - the number of source rows, and the first `drillDownLimit` of them
 
-A blank cell with no rows behind it is not clickable and does not call it.
+A blank cell with no rows behind it is not clickable and does not call it. On a touch screen, the
+first tap on a chart point shows its tooltip. The second tap on it calls `onCellClick`.
 
 ### `height` { #prop-height }
 

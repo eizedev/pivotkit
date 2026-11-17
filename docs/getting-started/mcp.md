@@ -183,6 +183,7 @@ configuration either way.
 For sign-in with your identity provider, see [OAuth](../reference/mcp.md#oauth). That works with
 Authentik, Keycloak, Microsoft Entra ID and any OAuth 2.1 / OpenID Connect provider. Scopes then
 decide who sees which source and who may use which tool.
+[What works with pivotkit](../compatibility.md#sign-in) says how each provider was tested.
 
 Some providers, Authentik for example, have no dynamic client registration. There you create a
 client yourself and give it to Claude Code with `--client-id` and `--callback-port`. See
