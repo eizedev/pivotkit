@@ -17,11 +17,19 @@ no link. Its csv or json result comes back [inline only](mcp.md#inline-only).
 
 Which report gets which link depends on the source:
 
-- A source is **open** when its policy has `"default": "show"` and no field below `show`. This must
-  hold for the server's policy, the source's and every profile. Listing every column as `show` is
-  not enough, since a column the data gains later would take the default.
-- A source with a field at `values`, `summary` or `hide` for anyone, or whose default is not `show`,
-  is **closed**, since its report may hold what the model was not shown.
+- A source is **open** only where nothing new can become visible, the same for every caller. This
+  must hold for the server's policy, the source's and every profile. Two policies are open:
+    - `"default": "hide"`, with every field it names at `show` or `hide`. The server drops a hidden
+      field when it reads the data, and a column the data gains later is hidden too.
+    - `"default": "show"` with no field below `show`: every field shown, nothing hidden.
+- Any other policy makes a source **closed**:
+    - a field or the default at `values` or `summary` for anyone, since its report may hold what the
+      model was not shown, and the automatic `values` rule
+    - `"default": "show"` with a field at `hide` ("show everything except the personal column"). A
+      column the data gains later would be shown. For plain links, set the default to `hide` and
+      list the fields to show.
+    - a field shown to some callers and hidden for others. One caller's report would hold what
+      another caller may not see.
 - Data that belongs to one person counts as closed too, whatever its fields' levels. That is data
   sent in the request (`inline:`), a source bound to a person (a
   [parameter bound to a claim](sources.md#http-claims) or a backend's
@@ -436,14 +444,15 @@ Reports stay in the output directory after their link expired, until `output.max
 `output.maxMb` or `output.maxAgeDays` remove them. `output.maxAgeDays` is 30 by default: the server
 deletes reports older than 30 days at start and every hour. `output.maxAgeDays: 0` keeps them with
 no age limit. A schedule draft that waits for approval (`status` `"draft"`) stays until the host
-or you remove it. The default does not apply where the output directory holds the configuration or
+or you remove it, or until `output.draftMaxAgeDays` days, where you set it. The default does not apply where the output directory holds the configuration or
 a source, template or token file. `check-config` warns under `Retention:` when you set 0 while
 closed sources or data sent in requests are on.
 
-Waiting drafts never expire. They count against the drafts cap (half of `output.maxFiles`, 500 by
-default) and against `output.maxMb`, and the server never deletes them to make room. Once the
-directory is full of them, the server refuses new drafts, and renders too when only drafts are
-left, until a person approves or removes drafts. So approve or reject drafts by changing their
+Waiting drafts do not expire unless you set `output.draftMaxAgeDays`. They count against the drafts
+cap: half of `output.maxFiles` (500 by default) and half of `output.maxMb` (512 MiB by default). The
+server never deletes them to make room. Once they reach the cap, the server refuses new drafts until
+a person approves or removes drafts. Renders keep working, unless drafts written under larger
+limits fill the directory alone. So approve or reject drafts by changing their
 `status`, or remove them. A host may also delete or move a draft instead of rewriting its `status`.
 A draft file that cannot be read or parsed, is over 1 MiB, or has no `status` that is a string
 counts as waiting.

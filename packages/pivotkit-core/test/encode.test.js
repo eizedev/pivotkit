@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PivotkitError, encode } from "../src/index.js";
 import { toWallMs, wallClock } from "../src/time.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const utc = wallClock("UTC");
 
@@ -95,9 +96,9 @@ test("numeric text stays text unless inferNumbers is on; the detected type says 
 test("numeric text is recognised in linear time, and very long text is no number", () => {
     // the pattern used to backtrack quadratically on digits followed by something else
     const digits = "1".repeat(100_000);
-    const t0 = performance.now();
+    const cpu = cpuClock();
     const d = encode([{ v: `${digits}x` }, { v: "2" }]);
-    assert.ok(performance.now() - t0 < 200, `${Math.round(performance.now() - t0)} ms`);
+    assert.ok(cpu() < 200, `${Math.round(cpu())} ms of CPU`);
     assert.equal(d.schema.fields[0].detected, "string");
     // longer than 100 characters: text, even when it is all digits
     assert.equal(encode([{ v: "1".repeat(101) }], { inferNumbers: true }).column("v").type, "string");

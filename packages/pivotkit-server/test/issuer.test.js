@@ -105,7 +105,7 @@ async function withLookup(answers, body) {
 async function oauthServer(issuer, auth = {}, waitMs = 3000) {
     const server = await restServer({ sources: SOURCES, auth: { mode: "oauth", issuer, resource: REST_RESOURCE, requiredScopes: ["pivotkit"], ...auth }, baseDir: workspace() });
     const until = Date.now() + waitMs;
-    while (Date.now() < until && (await call(`${server.url}/readyz`)).status !== 200) {
+    while (Date.now() < until && (await call(`${server.url}/readyz`)).status !== 200) { // wall time: a polling deadline
         await new Promise((resolve) => setTimeout(resolve, 30));
     }
     return server;
@@ -281,7 +281,8 @@ test("check-config: the issuer's rules, and a PROBLEM for an issuer on a private
     assert.match(refused.text, /\nIssuer requests:\n {2}https only, no redirects, metadata up to 256 KiB, keys up to 256 KiB\n {2}loopback and private addresses: refused \(set auth\.intranet: true for an issuer in your LAN or cluster\)\n/);
     // the server starts and keeps trying: callers get 503 meanwhile
     assert.match(refused.text, /PROBLEM: auth\.issuer: localhost resolves to (127\.0\.0\.1|::1), a loopback or private address, which the server refuses without auth\.intranet: true -> the server starts; callers get 503 until the issuer can be reached/);
-    assert.match(refused.text, /\nNew in this version: [^\n]*issuer requests under the outbound rules \(a LAN issuer needs auth\.intranet: true\)/, "the upgrade note");
+    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
+    assert.doesNotMatch(refused.text, /issuer requests under the outbound rules/);
     assert.ok(refused.problems >= 1);
     assert.equal(refused.stops, 0);
     const allowed = await checkConfig(options({ intranet: true }));

@@ -160,9 +160,87 @@ Then restart Claude Code.
 
 ## From 0.7 to 0.8 { #from-0-7 }
 
+This applies to pivotkit-server and pivotkit-mcp 0.2.0 too, which move to 0.3.0 with pivotkit 0.8.
+Run `check-config` of the new release before you start it. It says what applies to your
+configuration, under "New in this version", with a link to each section below.
+
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | **Breaking:** [the drill-down's copy and download follow `exportData`](#drill-export) | you embed the report with `exportData` off, the default, and people copy or download a drill-down's rows | set `drillDownExport` (`drill-down-export`) to keep that |
+| [Sources hidden by default can be open](#hidden-open) | a source is hidden by default (`"default": "hide"`) and names only fields at `show` or `hide` | nothing; for plain links over a "show everything except" source, set its default to `hide` and list the fields to show |
+| [A byte quota and an age limit for drafts](#draft-quota) | callers make schedule drafts (`draft_schedule`, `POST /schedules/draft`) | nothing; run `check-config`; set `output.draftMaxAgeDays` if waiting drafts should expire |
+| [32 connections per address](#per-address) | the server serves HTTP without `http.trustProxy` and without `http.maxConnectionsPerAddress` | nothing, or raise `http.maxConnectionsPerAddress` where many clients share one address |
+| [Chart layout functions measure differently](#chart-layout-0-8) | your code calls `rowLabelInterval`, `heatmapCellLabels`, `columnLabelLayout` or `categoryLabelLayout` of `pivotkit-core/chart` | check the results you rely on. Pass `frame` to keep the old heatmap frame |
+
+### Sources hidden by default can be open { #hidden-open }
+
+A source is open for plain links only where nothing new can become visible, for every caller alike
+([delivery](../reference/delivery.md)). A source hidden by default (`"default": "hide"`) whose
+named fields are all `show` or `hide` is open now. Before, it was closed. Its reports:
+
+- get plain download links
+- carry an address under `output.baseUrl`
+- go to an upload store under its plain links
+
+A source with every field shown and nothing hidden stays open, as before. These stay closed:
+
+- "Show everything except the personal column" (`"default": "show"` with a field at `hide`). A
+  column the data gains later would be shown. For plain links, set the default to `hide` and list
+  the fields to show.
+- A field or the default at `values` or `summary` for anyone, or the automatic values rule.
+- A field shown to some callers and hidden for others.
+
+`check-config` lists under `Delivery:` which sources are open, and what closes each of the others.
+
+### A byte quota and an age limit for drafts { #draft-quota }
+
+Schedule drafts may take at most half of `output.maxMb`, as they take at most half of
+`output.maxFiles`. `output.maxMb` counts MiB (1,048,576 bytes). With the default 1024, drafts may
+take 512 MiB. A draft over it answers 409 `NO_OUTPUT`.
+Renders keep working, and no draft is deleted to make room.
+
+A directory may already hold more drafts than that, for example from a host that never changes a
+draft's `status`. `check-config` warns of it under `Output`. New drafts are refused until a person
+approves or removes some, or you raise `output.maxMb`.
+
+`output.draftMaxAgeDays` is new and off by default. Set it to delete drafts that still wait for
+approval after that many days. The server sweeps at start and every hour, also with
+`output.maxAgeDays: 0`. `check-config` counts the drafts the next start deletes.
+
+A host that approves or rejects a draft changes its `status` in the file. Such a draft no longer
+counts against the drafts' caps. It follows only `output.maxAgeDays`, like a report.
+
+### 32 connections per address { #per-address }
+
+One address on the network may hold at most 32 connections at once. Before, there was no such
+bound. The server counts the socket's peer. Loopback clients are not counted per address.
+
+The default depends on `http.trustProxy`:
+
+- Without `http.trustProxy`, the default is 32.
+- With `http.trustProxy`, there is no bound by default. Every client has the proxy's address, and
+  the proxy limits its clients.
+- `http.maxConnectionsPerAddress` overrides both. `0` switches the bound off.
+
+Many clients can share one address without a proxy, for example an office behind one NAT. A
+published container port can also hand every connection over from Docker's gateway
+([container](../reference/container.md#per-address)). Raise the bound there. `check-config` prints
+it under `HTTP:`, and refused connections get a log line with `perAddress`.
+
+### Chart layout functions measure differently { #chart-layout-0-8 }
+
+The same arguments can give other results than in 0.7:
+
+- `rowLabelInterval` and `heatmapCellLabels` measure the heatmap's frame from its grid and column
+  names: 102 px for straight names at 14 px, where 0.7 took 120 px. So more row names and cell
+  numbers fit.
+- `rowLabelInterval` writes a row name where the row is a px higher than the text. 0.7 asked for
+  4/3 of the text's height.
+- Every function that measures text weighs a Chinese, Japanese or Korean (CJK) or fullwidth
+  character a whole em and a capital 0.7 em. The layout slants or cuts such names sooner.
+- `categoryLabelLayout` cuts slanted names shorter in a low chart.
+
+To keep 0.7's heatmap frame, pass `{ x: 80, y: 120 }` as the last argument `frame`.
 
 ### The drill-down's copy and download follow `exportData` { #drill-export }
 

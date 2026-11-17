@@ -1,9 +1,13 @@
 import { test } from "node:test";
+import { randomBytes } from "node:crypto";
 import assert from "node:assert/strict";
 import { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, PivotkitError, validate, computePivot, encode, normalize, outsideLimits, toEChartsOption, toGrid, toSeries } from "../src/index.js";
+import { encodeViewLink } from "../src/link.js";
+import { limitText } from "../src/internal.js";
 import { toCsv, toXlsx } from "../src/export.js";
 import { derivedColumn } from "../src/derive.js";
 import { ITEM_LENGTH } from "../src/limits.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const isError = (code, limit) => (e) => e instanceof PivotkitError && e.code === code && (limit === undefined || e.details.limit === limit);
 
@@ -12,15 +16,24 @@ function square(n) {
     return encode(Array.from({ length: n }, (_, i) => ({ A: `a${i}`, W: `w${i}`, v: i })));
 }
 
+test("limitText: one wording of a limit for every package, numbers in en-US whatever the runtime's locale", () => {
+    assert.equal(limitText(1001, 1000, "rows", "limits.rows"), "1,001 rows exceed the limit of 1,000 (limits.rows)");
+    assert.equal(limitText(2_500_000, 2_000_000, "grid cells", "limits.cells"), "2,500,000 grid cells exceed the limit of 2,000,000 (limits.cells)");
+    // the view link says it alike
+    // names that do not compress: the deflated link runs over LINK_LIMITS.text
+    const long = { rows: Array.from({ length: 1000 }, () => randomBytes(32).toString("base64")) };
+    assert.throws(() => encodeViewLink(long), (e) => e instanceof PivotkitError && /^[\d,]+ characters of the (view|link) exceed the limit of [\d,]+ \(LINK_LIMITS\)$/.test(e.message));
+});
+
 test("a 5k x 5k pivot is refused before the dense grid is allocated", () => {
     const result = computePivot(square(5000), { rows: ["A"], cols: ["W"], values: [{ agg: "count" }] });
     const before = process.memoryUsage().heapUsed;
-    const t0 = performance.now();
+    const cpu = cpuClock();
     assert.throws(() => toGrid(result), isError("LIMIT_EXCEEDED", "cells"));
     assert.throws(() => toSeries(result), isError("LIMIT_EXCEEDED", "cells"));
     assert.throws(() => toEChartsOption(result), isError("LIMIT_EXCEEDED", "cells"));
     // nothing of the 25 million cells was built
-    assert.ok(performance.now() - t0 < 1000);
+    assert.ok(cpu() < 1000);
     assert.ok(process.memoryUsage().heapUsed - before < 200e6);
 });
 
@@ -49,10 +62,10 @@ test("a hostile view of many high-cardinality fields is refused quickly, with bo
     const view = { rows: fields.slice(0, 8), cols: fields.slice(8), values: [{ agg: "count" }] };
     globalThis.gc?.();
     const before = process.memoryUsage().heapUsed;
-    const t0 = performance.now();
+    const cpu = cpuClock();
     // without the limits this builds 800,000 nodes and 4 million cells (gigabytes) and returns
     assert.throws(() => computePivot(data, view), isError("LIMIT_EXCEEDED", "groups"));
-    assert.ok(performance.now() - t0 < 3000, `${Math.round(performance.now() - t0)} ms`);
+    assert.ok(cpu() < 3000, `${Math.round(cpu())} ms of CPU`);
     // up to the 500,000 nodes the limit allows (about 200 MB of trees) plus what the build leaves to
     // the garbage collector, which runs when it likes (about 260 MB in Node 26, 350 MB measured in CI
     // with coverage before the trees shared one child map)
@@ -108,9 +121,9 @@ test("many low-cardinality fields with many medians are refused before any work"
     const fields = Array.from({ length: 16 }, (_, j) => `f${j}`);
     const view = { rows: fields.slice(0, 8), cols: fields.slice(8), values: Array.from({ length: 16 }, (_, j) => ({ field: `v${j}`, agg: "median" })) };
     const before = process.memoryUsage().heapUsed;
-    const t0 = performance.now();
+    const cpu = cpuClock();
     assert.throws(() => computePivot(data, view), isError("LIMIT_EXCEEDED", "work"));
-    assert.ok(performance.now() - t0 < 500, `${Math.round(performance.now() - t0)} ms`);
+    assert.ok(cpu() < 500, `${Math.round(cpu())} ms of CPU`);
     assert.ok(process.memoryUsage().heapUsed - before < 50e6, `${Math.round((process.memoryUsage().heapUsed - before) / 1e6)} MB`);
 });
 

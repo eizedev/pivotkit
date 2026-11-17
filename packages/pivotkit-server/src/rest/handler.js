@@ -26,6 +26,7 @@ import { BODY_BYTES, SIGNED_IN, isLoopback, peekSignIn, takeSignIn } from "../li
 import { INPUT_DEPTH, jsonDepth, present, presentedInput, renderFile, saveLogFields } from "../present.js";
 import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, isRestPost, limitKeyOf, restBodyBytesAt, restBodyBytesFor, restBodyCeilingOf } from "../limits.js";
 import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData, restDataOffered } from "../sources/inline.js";
+import { checkParamsOffered } from "../sources/input.js";
 import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
 import { SAFE_HEADERS, hostProblem, json, problem, problemOf, withRequestIdMember } from "./problem.js";
@@ -305,6 +306,7 @@ export async function createRestHandler(context, runtime = {}) {
             if (input.source === INLINE_ID && maySendData(options, caller, "rest")) {
                 checkTableSize(input.data, { limits: context.registry.limits });
             }
+            checkParamsOffered(route.operation, input, context.offers?.rest);
             checkInput(presentedInput(route.operation, { files: false, offers: context.offers?.rest, fileRoute: route.answer === "file" }), input);
         }
         if (route.answer === "file") {

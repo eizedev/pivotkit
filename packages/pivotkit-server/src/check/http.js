@@ -31,7 +31,7 @@ import { callerOf } from "../auth.js";
 import { serverLimitsOf } from "../config.js";
 import { backendAuthOf, httpSettingsOf } from "../options/http.js";
 import { addressRefusal } from "../sources/fetch.js";
-import { bytesText } from "../sources/inline.js";
+import { bytesText } from "../text.js";
 import { paramsList } from "../sources/params.js";
 import { personBound } from "../sources/auth.js";
 import { secretFileWarning } from "../secrets.js";

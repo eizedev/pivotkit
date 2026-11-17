@@ -14,6 +14,7 @@ import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, answered, createState, record, redo, reset, settle, tagFor, told, undo } from "../src/view-history.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { en as menuEn } from "../src/menu-labels.js";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 /** The menus' texts of both languages (German is a chunk of its own in the package). */
 const MENU_LABELS = { en: menuEn, de: menuDe };
@@ -130,10 +131,10 @@ test("file names: no path, no reserved characters or names", () => {
     assert.equal(safeFileName("report"), "report");
     assert.equal(safeFileName(" .report. . "), "report");
     // trailing dots and spaces are trimmed in linear time (a regex for them backtracked quadratically)
-    const t0 = performance.now();
+    const cpu = cpuClock();
     assert.equal(safeFileName(`a${". ".repeat(200_000)}x`), `a${". ".repeat(200_000)}x`.slice(0, 120).replace(/[\s.]+$/, ""));
     assert.equal(safeFileName(`a${". ".repeat(200_000)}`), "a");
-    assert.ok(performance.now() - t0 < 200, `${Math.round(performance.now() - t0)} ms`);
+    assert.ok(cpu() < 200, `${Math.round(cpu())} ms of CPU`);
     assert.equal(safeFileName("../../etc/passwd"), "etc-passwd");
     assert.equal(safeFileName("C:\\\\temp\\\\x"), "C-temp-x");
     assert.equal(safeFileName('a<b>c:"d|e?*'), "a-b-c-d-e-");
@@ -316,9 +317,9 @@ test("chart tooltips are nodes with texts and CSSOM styles, never markup", () =>
 
 test("heatmap column names: straight when they fit, slanted and cut when they would overlap", () => {
     const names = ["App", "Database", "Device", "Framework", "Language", "Operating system", "Server app", "Service", "Standard"];
-    // "Operating system" at 14 px takes about 123 px: straight from a chart of about 1200 px; the chart
-    // of a report 1440 px wide (about 1100 px) slants them, at 12 px it would not
-    assert.deepEqual(columnLabelLayout(names, 1200), { rotate: 0 });
+    // "Operating system" at 14 px takes about 125 px (its capital a little wider): straight from a chart
+    // of about 1250 px; the chart of a report 1440 px wide (about 1100 px) slants them, at 12 px it would not
+    assert.deepEqual(columnLabelLayout(names, 1250), { rotate: 0 });
     assert.deepEqual(columnLabelLayout(names, 1100), { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" });
     assert.deepEqual(columnLabelLayout(names, 1100, 12), { rotate: 0 });
     assert.deepEqual(columnLabelLayout(names, 390), { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" });
@@ -344,13 +345,14 @@ test("heatmap cells show their numbers only when the formatted numbers fit", () 
 });
 
 test("heatmap row names: every one when a line fits each row, else every n-th", () => {
-    // a line of 14 px text takes 19 px: 15 rows in 440 px, 21 px each, hold every name
+    // a row needs a px more than 14 px text; the cells get the height less 102 px of frame (straight
+    // column names): 15 rows in 440 px, 22 px each, hold every name
     assert.equal(rowLabelInterval(15, 440), 0);
-    // 15 rows in 300 px: 12 px each, every second name
+    // 15 rows in 300 px: 13 px each, every second name
     assert.equal(rowLabelInterval(15, 300), 1);
-    // 45 rows in 300 px: 4 px each, every fifth (every fourth at 12 px, a line of 16 px)
-    assert.equal(rowLabelInterval(45, 300), 4);
-    assert.equal(rowLabelInterval(45, 300, 12), 3);
+    // 45 rows in 300 px: 4.4 px each, every fourth (every third at 12 px, rows of 13 px)
+    assert.equal(rowLabelInterval(45, 300), 3);
+    assert.equal(rowLabelInterval(45, 300, 12), 2);
     assert.equal(rowLabelInterval(0, 300), 0);
 });
 

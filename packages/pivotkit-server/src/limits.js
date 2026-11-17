@@ -17,7 +17,8 @@ import { identityKey } from "./auth.js";
 import { REST_BASE } from "./config.js";
 import { BODY_BYTES, peekSignIn } from "./listen.js";
 import { REST_ROUTES } from "./rest/routes.js";
-import { bytesText, maySendData, restDataBytesOf, restDataOffered } from "./sources/inline.js";
+import { maySendData, restDataBytesOf, restDataOffered } from "./sources/inline.js";
+import { bytesText } from "./text.js";
 
 /** A request's path as the REST routes match it: without a trailing slash. */
 const routePath = (pathname) => (pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname);

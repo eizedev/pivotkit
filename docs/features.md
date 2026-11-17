@@ -210,7 +210,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       validate, describe and render views, links, and schedule drafts.
     - An OpenAPI 3.1 document made from the same table.
     - Errors as problem documents.
-    - Sign-in with tokens or OAuth 2.1.
+    - Sign-in with tokens or OAuth 2.1. The server can issue tokens that expire on their own
+      ([signed tokens](reference/rest.md#signed-tokens)).
     - Policy profiles per token, OAuth client, group or scope, and a default profile. A profile can
       allow more values, downloads, and data sent with the request as JSON or as a csv, tsv, json or
       xlsx file.
@@ -220,6 +221,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       profile.
     - `token new` and `key new` make tokens and keys into files only their owner can read. `--add`
       puts a token into the configuration.
+    - `token list`, `token revoke` and `token remove` manage tokens without showing a value
+      ([list, revoke, remove](reference/rest.md#token-list)).
 - Sources for both services ([data sources](reference/sources.md)):
     - data files
     - an operator's API as an HTTP source

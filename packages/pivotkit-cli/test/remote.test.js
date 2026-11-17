@@ -416,7 +416,7 @@ test("a timeout: a server that never answers is given up after --timeout", async
         const r = await remote(server, ["sources", "--timeout", "1", "--json"]);
         assert.equal(r.code, 2);
         assert.equal(jsonOf(r).error.code, "TIMEOUT");
-        assert.ok(Date.now() - started < 10_000);
+        assert.ok(Date.now() - started < 10_000); // wall time: event latency (a child process)
         assertClean(r, server.url);
     } finally {
         await server.close();

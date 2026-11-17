@@ -13,7 +13,8 @@
  */
 
 import { BODY_BYTES, MAX_BODY_BYTES } from "../listen.js";
-import { MCP_DATA_CAP, bytesText } from "../sources/inline.js";
+import { MCP_DATA_CAP } from "../sources/inline.js";
+import { bytesText } from "../text.js";
 import { ConfigError } from "./shared.js";
 
 export const NAME = "inline";

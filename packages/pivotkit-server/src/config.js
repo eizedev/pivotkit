@@ -13,6 +13,7 @@ import { OPERATION_NAMES } from "pivotkit-report/operations";
 import { REST_BASE, SOURCE_ID } from "pivotkit-cli/rest";
 import { POLICY_LEVELS } from "./policy.js";
 import { STATS_DISTINCT } from "./stats.js";
+import { expiryOf } from "./signed-tokens.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
 import { CREATE_NEEDS_FILE, ConfigError } from "./options/shared.js";
 
@@ -66,7 +67,7 @@ export { ConfigError } from "./options/shared.js";
  * @typedef {object} ServerOptions
  * @property {Record<string, SourceOptions>} [sources]
  * @property {{ allowDirs?: string[], list?: boolean, hardLinks?: boolean, scopes?: string[], policy?: PolicyOptions }} [files]
- * @property {{ dir?: string, create?: boolean, baseUrl?: string, maxFiles?: number, maxMb?: number, maxAgeDays?: number, downloads?: import("./options/downloads.js").DownloadOptions, upload?: import("./options/upload.js").UploadOptions }} [output]  create: make a missing dir at start (default true); downloads: the server's own download links; upload: the operator's store
+ * @property {{ dir?: string, create?: boolean, baseUrl?: string, maxFiles?: number, maxMb?: number, maxAgeDays?: number, draftMaxAgeDays?: number, downloads?: import("./options/downloads.js").DownloadOptions, upload?: import("./options/upload.js").UploadOptions }} [output]  create: make a missing dir at start (default true); draftMaxAgeDays: delete schedule drafts that still wait for approval after that many days (0: never, the default); downloads: the server's own download links; upload: the operator's store
  * @property {PolicyOptions} [policy]
  * @property {Partial<import("pivotkit-core").Limits>} [limits]
  * @property {string} [locale]
@@ -102,7 +103,8 @@ export { ConfigError } from "./options/shared.js";
  * @typedef {object} AuthOptions
  * @property {"none" | "token" | "oauth"} [mode]
  * @property {boolean} [allowUnauthenticated]  "none" on an address other than loopback
- * @property {Array<{ name: string, env?: string, file?: string, create?: boolean, scopes?: string[], profile?: string }>} [tokens]  create: make a missing file at start (state.js)
+ * @property {Array<{ name: string, env?: string, file?: string, create?: boolean, scopes?: string[], profile?: string, expires?: string }>} [tokens]  create: make a missing file at start (state.js); expires: a date or date-time with a zone, refused from then on
+ * @property {{ dir?: string, maxDays?: number }} [signedTokens]  the signed tokens the server issues itself (options/signed.js)
  * @property {string} [issuer]
  * @property {string} [resource]
  * @property {string[]} [audience]
@@ -140,13 +142,14 @@ export const serverLimitsOf = (options) => ({ ...SERVER_LIMITS, ...(options.limi
 /** The defaults of the compute pool. */
 export const COMPUTE_DEFAULTS = Object.freeze({ workers: 2, timeMs: 30_000, memoryMb: 1024, queueMs: 10_000 });
 
-/** How many reports and drafts the output directory holds, and how many megabytes, before its oldest go. */
+/** How many reports and drafts the output directory holds, and how many MiB (output.maxMb), before its oldest go. */
 /**
- * The output directory's defaults: at most 1000 files and 1024 MB of pivotkit's, and reports older
- * than 30 days deleted (maxAgeDays; 0: no age limit; a schedule draft waits for approval and stays). The age limit applies by default
+ * The output directory's defaults: at most 1000 files and 1024 MiB of pivotkit's, and reports older
+ * than 30 days deleted (maxAgeDays; 0: no age limit; a schedule draft waits for approval and stays,
+ * unless the operator sets draftMaxAgeDays). The age limit applies by default
  * only to a directory of the reports' own (context.js), never where the operator's files lie.
  */
-export const OUTPUT_DEFAULTS = Object.freeze({ maxFiles: 1000, maxMb: 1024, maxAgeDays: 30 });
+export const OUTPUT_DEFAULTS = Object.freeze({ maxFiles: 1000, maxMb: 1024, maxAgeDays: 30, draftMaxAgeDays: 0 });
 
 /** The JWT signature algorithms accepted by default: asymmetric only. */
 export const DEFAULT_ALGORITHMS = Object.freeze(["RS256", "PS256", "ES256", "EdDSA"]);
@@ -178,7 +181,7 @@ const BASE_SLOTS = {
     auth: {
         mode: { enum: ["none", "token", "oauth"] },
         allowUnauthenticated: "boolean",
-        tokens: { list: { object: { name: "string", env: "string", file: "string", create: "boolean", scopes: "strings", profile: "string" } } },
+        tokens: { list: { object: { name: "string", env: "string", file: "string", create: "boolean", scopes: "strings", profile: "string", expires: "string" } } },
         issuer: "string",
         resource: "string",
         audience: "strings",
@@ -197,7 +200,7 @@ const BASE_SLOTS = {
     },
     mcp: { rateLimit: RATE_LIMIT, concurrency: "integer" },
     rest: { resource: "string", audience: "strings", requiredScopes: "strings", cors: { object: { origins: "strings", maxAge: "integer" } }, openapi: { enum: ["auth", "public", "off"] }, inline: "boolean", rateLimit: RATE_LIMIT, concurrency: "integer" },
-    output: { dir: "string", create: "boolean", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer" }
+    output: { dir: "string", create: "boolean", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer", draftMaxAgeDays: "integer" }
 };
 
 const SLOTS = composeSlots(/** @type {any} */ (BASE_SLOTS), FRAGMENTS);
@@ -328,6 +331,9 @@ export function validateOptions(options) {
         if (token.create !== undefined && token.env) {
             throw new ConfigError(`auth.tokens[${i}].create: ${CREATE_NEEDS_FILE}`);
         }
+        if (token.expires !== undefined && expiryOf(token.expires, { durations: false }) === null) {
+            throw new ConfigError(`auth.tokens[${i}].expires: a date (2027-01-31, from 00:00 UTC) or a date-time with a zone (2027-01-31T08:00:00Z), not ${JSON.stringify(token.expires.slice(0, 40))}`);
+        }
     }
     if (options.auth?.mode === "oauth") {
         for (const key of ["issuer", "resource"]) {
@@ -392,7 +398,7 @@ export function validateOptions(options) {
         urlOf(options.output.baseUrl, "output.baseUrl");
     }
     if (options.http?.maxConnectionsPerAddress !== undefined && options.http.maxConnectionsPerAddress > 256) {
-        throw new ConfigError("http.maxConnectionsPerAddress: 0 (no bound, the default) to 256");
+        throw new ConfigError("http.maxConnectionsPerAddress: 0 (no bound) to 256");
     }
     if (options.compute?.workers !== undefined && options.compute.workers > 16) {
         throw new ConfigError("compute.workers: at most 16");

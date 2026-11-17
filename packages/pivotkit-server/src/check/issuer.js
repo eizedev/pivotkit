@@ -141,13 +141,11 @@ export async function section(options, _registry, runtime) {
     const auth = options.auth ?? {};
     /** @type {import("./format.js").Item[]} */
     const items = [];
-    /** @type {string[]} */
-    const upgrade = [];
     if (auth.mode !== "oauth") {
         if (auth.intranet !== undefined) {
             items.push(heading('Issuer requests: none (auth.mode is not "oauth")', "Auth"), warning("auth.intranet has no effect without an OAuth issuer; leave it out"));
         }
-        return { items, upgrade };
+        return { items, upgrade: [] };
     }
     const rules = issuerRulesOf(options);
     const signIn = downloadSettingsOf(options).signIn;
@@ -174,6 +172,5 @@ export async function section(options, _registry, runtime) {
     if (!items.some((i) => i.kind === "problem" && i.text.startsWith("auth.issuer:"))) {
         items.push(...(await reachItems(options, runtime)));
     }
-    upgrade.push("issuer requests under the outbound rules (a LAN issuer needs auth.intranet: true)");
-    return { items, upgrade };
+    return { items, upgrade: [] };
 }

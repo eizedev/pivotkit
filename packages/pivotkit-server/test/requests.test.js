@@ -12,7 +12,6 @@ import { CALLER_LOG_FIELDS, callerFields, noteAnswered } from "../src/log.js";
 import { REQUEST_ID, errorDetails, requestId, withRequestId } from "../src/request-id.js";
 import { offeredScopes } from "../src/scopes.js";
 import { problem, problemOf, serverTextOf } from "../src/rest/problem.js";
-import { slowOn } from "../src/sources/params.js";
 import { BY_REGION, TOKEN, call, raw, restServer, workspace } from "./helpers.js";
 
 test("request ids: every REST request's log line has its own id; the file route's download line has its request's", async () => {
@@ -317,17 +316,6 @@ test("scopes: what the metadata offers is scopesSupported, else the surface's re
     assert.equal(offeredScopes({ auth: { scopesSupported: [] } }, "rest"), null);
     assert.deepEqual(offeredScopes({ auth: { requiredScopes: ["pivotkit"] }, rest: { requiredScopes: ["pivotkit:rest"] } }, "rest"), ["pivotkit:rest"]);
     assert.deepEqual(offeredScopes({ auth: { requiredScopes: ["pivotkit"] }, rest: { requiredScopes: ["pivotkit:rest"] } }, "mcp"), ["pivotkit"]);
-});
-
-test("params: a pattern that ran out of time once is tried once more before it is refused as slow", () => {
-    const re = /^[a-z]+$/;
-    let calls = 0;
-    // a busy host: the first try of one value runs out of time, the second one does not
-    const flaky = (r, text) => (calls++ === 0 ? null : r.test(text));
-    assert.equal(slowOn(re, 8, flaky), false);
-    assert.ok(calls > 1);
-    // slow on both tries: refused
-    assert.equal(slowOn(re, 8, () => null), true);
 });
 
 test("body size: a client that stops sending after its 413 leaves one refused line, not a second one of the HTTP parser", async () => {

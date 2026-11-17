@@ -242,9 +242,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * on a Mac (11.7 before), budget 12.3; "Data as of" in the HTML report's details, its placeholder and
  * the check that the time exists took the report group to 22.7 on a Mac (22.3 before), budget 23
  * (both within the rule's 3 %).
+ * The chart's grid margins (pivotkit-core's GRID_TOP and HEATMAP_GRID_BOTTOM, defined once and shared
+ * by the first load's toEChartsOption and the chart's label layout) add 40 bytes to the first load:
+ * a chunk cannot inline a constant another chunk imports. 174.38 to 174.41 on a Mac; CI measured
+ * main at 175.0, so initial goes to 175.1.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 175.1, chart: 222.5, export: 12.3, link: 7.5, menus: 48, texts: 7, unused: 5.5, import: 22, report: 23, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
