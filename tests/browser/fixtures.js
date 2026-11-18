@@ -44,12 +44,28 @@ const liveTexts = (page) => page.locator('[id^="DndLiveRegion-"]').allTextConten
  * of target needs a wait of its own.
  * A chip moved inside its own zone is named with that zone from the start, so there the wait shows
  * little.
+ * A release beside the zone's chips (at its end) waits for the zone's own mark: the live region names
+ * the zone as soon as the pointer passes over one of its chips, so a release then put the field
+ * before that chip instead of at the end.
  * @param {string[]} before the live regions' texts before the drag
+ * @param {{ x: number, y: number }} end where the pointer is released
  */
-async function dropShown(page, to, before) {
-    const target = await to.evaluate((el) => (el.matches(".pk-panel") ? { panel: true } : { zone: el.closest("[data-zone]")?.getAttribute("aria-label") ?? null }));
+async function dropShown(page, to, before, end) {
+    const target = await to.evaluate((el, at) => {
+        if (el.matches(".pk-panel")) {
+            return { panel: true };
+        }
+        const zone = el.closest("[data-zone]");
+        const onChip = [...(zone?.querySelectorAll(".pk-chip") ?? [])].some((chip) => {
+            const r = chip.getBoundingClientRect();
+            return at.x >= r.left && at.x <= r.right && at.y >= r.top && at.y <= r.bottom;
+        });
+        return { zone: zone?.getAttribute("aria-label") ?? null, id: zone?.getAttribute("data-zone"), onChip };
+    }, end);
     if (target.panel) {
         await expect(to, "the field list shows it takes the chip").toHaveClass(/\bpk-over\b/);
+    } else if (target.zone && !target.onChip) {
+        await expect(page.locator(`[data-zone="${target.id}"]`), `${target.zone} shows it takes the drop at its end`).toHaveClass(/\bpk-over\b/);
     } else if (target.zone) {
         // a new text: the last drop of an earlier drag may name the same zone
         await expect.poll(() => liveTexts(page).then((texts) => texts.some((text) => text.includes(target.zone) && !before.includes(text))), `the drag is over ${target.zone}`).toBe(true);
@@ -70,7 +86,7 @@ export async function drag(page, from, to, { toPosition } = {}) {
     await page.mouse.move(start.x + 12, start.y + 12, { steps: 4 });
     await page.mouse.move(end.x, end.y, { steps: 16 });
     await page.mouse.move(end.x + 1, end.y + 1, { steps: 2 });
-    await dropShown(page, to, before);
+    await dropShown(page, to, before, { x: end.x + 1, y: end.y + 1 });
     await page.mouse.up();
     // dnd-kit swallows clicks for 50 ms after a drag ends (so a drop is no click); a person is slower
     await page.waitForTimeout(100);
