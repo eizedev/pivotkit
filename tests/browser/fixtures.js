@@ -33,17 +33,39 @@ export async function chips(page, zone) {
     return page.locator(`[data-zone="${zone}"] .pk-chip`).evaluateAll((els) => els.map((e) => e.getAttribute("data-chip")));
 }
 
+/** What the drag's live regions say now. */
+const liveTexts = (page) => page.locator('[id^="DndLiveRegion-"]').allTextContents();
+
+/**
+ * Waits until a drag's target shows that it takes the drop, as a person waits for it before the
+ * release: dnd-kit drops on the target of its last render, and a busy WebKit can take the release
+ * before it has drawn the last moves, so the drop lands nowhere (#416). A zone (or a chip in it) is
+ * named by the drag's live region; the field list marks itself. Other targets are not waited for.
+ * @param {string[]} before the live regions' texts before the drag
+ */
+async function dropShown(page, to, before) {
+    const target = await to.evaluate((el) => (el.matches(".pk-panel") ? { panel: true } : { zone: el.closest("[data-zone]")?.getAttribute("aria-label") ?? null }));
+    if (target.panel) {
+        await expect(to, "the field list shows it takes the chip").toHaveClass(/\bpk-over\b/);
+    } else if (target.zone) {
+        // a new text: the last drop of an earlier drag may name the same zone
+        await expect.poll(() => liveTexts(page).then((texts) => texts.some((text) => text.includes(target.zone) && !before.includes(text))), `the drag is over ${target.zone}`).toBe(true);
+    }
+}
+
 /** A mouse drag from one element to another with intermediate moves, as dnd-kit needs them. */
 export async function drag(page, from, to, { toPosition } = {}) {
     const a = await from.boundingBox();
     const b = await to.boundingBox();
     const start = { x: a.x + Math.min(40, a.width / 2), y: a.y + a.height / 2 };
     const end = toPosition ? { x: b.x + toPosition.x, y: b.y + toPosition.y } : { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    const before = await liveTexts(page);
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await page.mouse.move(start.x + 12, start.y + 12, { steps: 4 });
     await page.mouse.move(end.x, end.y, { steps: 16 });
     await page.mouse.move(end.x + 1, end.y + 1, { steps: 2 });
+    await dropShown(page, to, before);
     await page.mouse.up();
     // dnd-kit swallows clicks for 50 ms after a drag ends (so a drop is no click); a person is slower
     await page.waitForTimeout(100);
