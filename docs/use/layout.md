@@ -115,6 +115,8 @@ A report is low below 600 px of height, a narrow one below 820 px. Then it start
 folded. The heading **Fields in the report** stays, and next to it, in the same line, what is
 placed: "Rows: Team · Columns: Priority · Values: Count of Ticket". At most one tip shows.
 
+- When the zones need more room than the report has, they fold after you leave the area, not while
+  you work in it. Adding, moving or removing fields never folds them under your hand.
 - A click on the heading or on what is placed folds or opens the zones. The chevron on its left
   turns.
 - The **i** next to the heading says what the section is for.

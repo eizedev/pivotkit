@@ -890,12 +890,69 @@ function Report(props) {
         // low: below the size class's height, or too low for what the open zones need (then the
         // report would grow past its box; folded, it fits)
         const low = (/** @type {"narrow" | "medium" | "wide"} */ width, /** @type {number} */ height) => compactAt(width, height) || (fit.current.open > 0 && height <= fit.current.open + 1);
+        // what the open zones need changed inside a box of the same size (an edit of the fields, a
+        // language, a font): while the user works in the zones' section (a drag, the focus or the
+        // pointer in it, or a menu open, such as one of its "+ Add") the check waits, and runs once
+        // they have left it, so the area never folds under their hand. A resize of the box and the
+        // load decide at once (below).
+        let waiting = false;
+        // where the user last pressed or put the focus: in the section or a menu (the layer), a pick
+        // that closed its menu leaves the focus nowhere for a moment before it reaches the new chip
+        let lastInArea = false;
+        const inArea = (/** @type {EventTarget | null} */ t) => t instanceof Node && Boolean(el.querySelector(".pk-zone-section")?.contains(t) || el.querySelector(".pk-layer")?.contains(t));
+        const note = (/** @type {Event} */ e) => {
+            lastInArea = inArea(e.composedPath()[0] ?? e.target);
+        };
+        el.addEventListener("pointerdown", note, true);
+        el.addEventListener("focusin", note, true);
+        const busy = () => {
+            const section = el.querySelector(".pk-zone-section");
+            if (!section) {
+                return false;
+            }
+            const active = /** @type {Document | ShadowRoot} */ (el.getRootNode()).activeElement;
+            const focusGone = !active || active === el.ownerDocument.body;
+            return Boolean(layerOpen(el.querySelector(".pk-layer")) || section.matches(":hover") || section.matches(":focus-within") || section.querySelector(".pk-dropping") || (lastInArea && focusGone));
+        };
+        const doc = el.ownerDocument;
+        let again = 0;
+        const retry = () => {
+            clearTimeout(again);
+            // after the focus or the pointer has moved on
+            again = window.setTimeout(() => waiting && checkLow.current(), 0);
+        };
+        const watch = (on) => {
+            const how = on ? "addEventListener" : "removeEventListener";
+            el[how]("pointerout", retry);
+            el[how]("focusout", retry);
+            doc[how]("pointerup", retry);
+        };
         checkLow.current = () => {
+            if (busy()) {
+                if (!waiting) {
+                    waiting = true;
+                    watch(true);
+                }
+                return;
+            }
+            if (waiting) {
+                waiting = false;
+                watch(false);
+            }
             const now = el.getBoundingClientRect();
             setMeasuredShort(low(sizeOf(now.width), now.height));
         };
+        const release = () => {
+            el.removeEventListener("pointerdown", note, true);
+            el.removeEventListener("focusin", note, true);
+            clearTimeout(again);
+            if (waiting) {
+                waiting = false;
+                watch(false);
+            }
+        };
         if (typeof ResizeObserver !== "function") {
-            return undefined;
+            return release;
         }
         // Two observers on purpose: this one reads the report's box in its callback, so the width
         // class and the fold follow a resize in the same frame. useFitHeight's measures the column a
@@ -911,6 +968,7 @@ function Report(props) {
         ro.observe(el);
         return () => {
             checkLow.current = () => {};
+            release();
             ro.disconnect();
         };
     }, []);

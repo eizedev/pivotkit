@@ -73,6 +73,31 @@ test("desktop: zones that grow with more fields fold, though the box keeps its h
     expect(after.result).toBeGreaterThanOrEqual(after.least);
 });
 
+test("desktop: fields added and removed while the user works in the zones: the area stays open, and folds once they leave it", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const fits = await boxThatFits(page, DESKTOP);
+    const fold = page.getByTestId("layout-summary");
+    // four fields added to Rows with its + Add: the pointer on the section or its menus, the focus on
+    // each new chip in the section; then one removed by its x
+    for (const field of ["Type", "Operating system", "Asset", "Inventory number"]) {
+        await page.getByTestId("add-field-rows").click();
+        await page.locator(".pk-add-menu").getByTestId(`add-pick-${field}`).click();
+        await expect(page.getByTestId(`chip-menu-${field}`)).toBeFocused();
+    }
+    await page.getByRole("button", { name: "Remove Asset" }).click();
+    // the zones need more than the box now, but the user is still in them: they stay open
+    await page.waitForTimeout(600);
+    await expect(fold).toHaveAttribute("aria-expanded", "true");
+    expect((await state(page)).height).toBe(fits.height);
+    // the user leaves the area (the pointer away, the focus on the tabs): it folds, as it does not fit
+    await page.mouse.move(5, 5);
+    await page.getByTestId("show-table").focus();
+    await expect(fold).toHaveAttribute("aria-expanded", "false");
+    const after = await settled(page);
+    expect(after.height).toBe(fits.height);
+    expect(after.layout).toBe("compact");
+});
+
 test("phone: zones that no longer fit after a change of language fold, though the box keeps its height", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const fits = await boxThatFits(page);

@@ -927,6 +927,9 @@ In the compact layout, the zones start folded, so the table keeps its room. At m
 - The folded line only shows what is placed. To change a chip, open the zones first.
 - A drag from the field list or the table opens the zones while it lasts, so a field can still be
   dropped.
+- When what the open zones need grows inside a box of the same size (fields added, a language, a
+  font), the fold waits while the user works in the section: a drag, the focus or the pointer in it,
+  or a menu open. It is checked once they leave. The load and a resize of the box decide at once.
 - When the report gets lower while a menu or popover is open, the fold waits until it closes. A focus
   in the zones moves to the fold button.
 - The report folds the zones too when they no longer fit its box. It checks after every render and
