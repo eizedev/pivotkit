@@ -139,7 +139,7 @@ project's own docs name.
 
 ## What pivotkit does not do
 
-- The report does not fetch data and makes no network request. The host passes the rows. Or a
+- The report does not fetch data. It loads only its own code. The host passes the rows. Or a
   person loads a file of their own in the browser, where the host allows it (`allowImport`, off by
   default). See the [FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it).
 - The command line reads local files, or asks a REST service. An operator runs the REST service and

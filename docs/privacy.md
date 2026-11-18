@@ -220,6 +220,9 @@ What reaches other services, in short:
       until it is cleaned up.
 - **The model's provider** receives what the model sees (see [the AI client](#ai-client)).
 
+Nothing goes to the pivotkit project. [Network requests](security.md#network) lists every request
+pivotkit can make.
+
 ## Memory { #memory }
 
 The server keeps in its memory, never on disk:

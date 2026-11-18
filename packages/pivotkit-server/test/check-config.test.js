@@ -231,3 +231,18 @@ test("check-config over stdio: no download links and no signed-in person, with t
     assert.match(text, /\nTransport: stdio \(with --http: 127\.0\.0\.1:3333\)\n {2}no download links: a report is a file in output\.dir\n {2}no signed-in person: mine cannot be used \(they need one\)\n/);
     assert.doesNotMatch(text, /Delivery:/);
 });
+
+test("check-config: the REST section names the service's and the OpenAPI document's full address, the document at the server's root", async () => {
+    const dir = workspace();
+    const options = { sources: { sales }, output: { dir: "out" }, auth: { mode: "token" }, baseDir: dir };
+    const lines = async (extra) => factsOf((await checkConfig({ ...options, ...extra }, { http: true, env: { PIVOTKIT_TOKEN: TOKEN }, name: "pivotkit-server", rest: true })).text).split("\n");
+    const named = await lines({ http: { publicUrl: "https://reports.example.com/" } });
+    assert.ok(named.includes("REST: https://reports.example.com/api/v1"), named.join("\n"));
+    assert.ok(named.includes("  OpenAPI document: https://reports.example.com/openapi.json; needs auth"), named.join("\n"));
+    const unnamed = await lines({ rest: { openapi: "public" } });
+    assert.ok(unnamed.includes("REST: /api/v1"), unnamed.join("\n"));
+    assert.ok(unnamed.includes("  OpenAPI document: /openapi.json, at the server's root; public"), unnamed.join("\n"));
+    const off = await lines({ rest: { openapi: "off" }, http: { publicUrl: "https://reports.example.com" } });
+    assert.ok(off.includes("  OpenAPI document: off"), off.join("\n"));
+    assert.ok(!named.concat(unnamed, off).some((l) => l.includes("/api/v1/openapi.json")));
+});

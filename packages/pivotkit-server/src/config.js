@@ -461,6 +461,38 @@ export async function loadConfig(file) {
 /** The REST service's path (pivotkit-cli/rest's, the CLI's remote mode names it). */
 export { REST_BASE } from "pivotkit-cli/rest";
 
+/** The OpenAPI document's path. It sits at the server's root, not under REST_BASE. */
+export const OPENAPI_PATH = "/openapi.json";
+
+/**
+ * Where people find the REST service and its OpenAPI document, for messages: full addresses under
+ * http.publicUrl (its origin and path; a user name, password, query or fragment is never shown),
+ * else the paths. Readers took a bare "/openapi.json" next to "/api/v1" as relative to it, so
+ * without a public URL the document's place is said in words. openapi is null where rest.openapi
+ * "off" serves no document. (http.publicUrl is checked as an http(s) address at start.)
+ * @param {ServerOptions} options
+ * @returns {{ rest: string, openapi: string | null }}
+ */
+export function restAddressesOf(options) {
+    const url = options.http?.publicUrl ? new URL(options.http.publicUrl) : null;
+    const base = url ? `${url.origin}${url.pathname.replace(/\/+$/, "")}` : null;
+    if ((options.rest?.openapi ?? "auth") === "off") {
+        return { rest: `${base ?? ""}${REST_BASE}`, openapi: null };
+    }
+    const openapi = base ? `${base}${OPENAPI_PATH}` : `${OPENAPI_PATH}, at the server's root`;
+    return { rest: `${base ?? ""}${REST_BASE}`, openapi };
+}
+
+/**
+ * The detail of a 404 for a path nobody serves: where the REST service and its OpenAPI document are.
+ * @param {ServerOptions} options
+ */
+export function noRouteDetail(options) {
+    const where = restAddressesOf(options);
+    const rest = `no such route; the REST service is at ${where.rest}`;
+    return where.openapi ? `${rest}, its OpenAPI document at ${where.openapi} (not under ${REST_BASE})` : rest;
+}
+
 /**
  * The REST service's OAuth resource: rest.resource, else the origin of auth.resource with /api/v1
  * (an audience of its own, so a token for the MCP endpoint does not reach REST).

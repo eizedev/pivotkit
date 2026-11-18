@@ -128,7 +128,7 @@ and platforms, and how each one was tested.
 
 !!! note "What pivotkit does not do"
 
-    - The report in the browser fetches no data and makes no network request. The application
+    - The report in the browser fetches no data. It loads only its own code. The application
       passes the rows, or a person loads a file. Only the REST service and the MCP server answer
       requests and fetch data. You run them yourself, and they fetch the files and HTTP APIs
       you configure, or run your code. See the
