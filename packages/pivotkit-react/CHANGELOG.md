@@ -6,6 +6,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- The arrow keys in a long table no longer leave the focus one cell behind. When the table scrolled
+  between two key presses, the focus could stay on the cell before the one the keys moved to, and
+  the status line named that row ([#416](https://github.com/eizedev/pivotkit/issues/416)).
+
 ## [0.8.1] - 2026-11-18
 
 ### Added

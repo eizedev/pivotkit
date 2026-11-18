@@ -233,7 +233,10 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const [font, setFont] = useState("");
     const fitted = useRef(/** @type {unknown[]} */ ([]));
     const fixedWidths = virtual && labelsWide?.grid === grid ? labelsWide.widths : null;
-    const focusNext = useRef(false);
+    // the cell the arrow keys moved to, until a render with it as the active cell has focused it: the
+    // effect runs after every render, also one that commits before the move's (a scroll), whose
+    // active cell is still the one before
+    const focusNext = useRef(/** @type {{ r: number, c: number } | null} */ (null));
     // what a screen reader hears after a header sorted the rows
     const [sortNote, setSortNote] = useState("");
     const focusToggle = useRef(/** @type {string | null} */ (null));
@@ -408,7 +411,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         if (!valueAt(r, c)) {
             return;
         }
-        focusNext.current = true;
+        focusNext.current = { r, c };
         setActive({ r, c });
         const el = wrap.current;
         if (virtual && el) {
@@ -426,8 +429,9 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
             const button = [...table.current.querySelectorAll("button[data-pk-toggle]")].find((b) => b.getAttribute("data-pk-toggle") === key);
             /** @type {HTMLElement | undefined} */ (button)?.focus({ preventScroll: true });
         }
-        if (focusNext.current && current) {
-            focusNext.current = false;
+        const next = focusNext.current;
+        if (next && current && current.r === next.r && current.c === next.c) {
+            focusNext.current = null;
             const td = table.current?.querySelector(`td[data-r="${current.r}"][data-c="${current.c}"]`);
             /** @type {HTMLElement | null} */ (td)?.focus({ preventScroll: false });
         }
