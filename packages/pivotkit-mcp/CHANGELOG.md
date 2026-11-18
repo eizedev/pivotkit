@@ -6,6 +6,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-18
+
+### Changed
+
+- Depends on `pivotkit-server` `^0.3.1`. Install pivotkit-server and pivotkit-mcp 0.3.1 in one command
+  ([update](https://pivotkit.eize.dev/getting-started/upgrading/#update-global)).
+
 ## [0.3.0] - 2026-11-18
 
 ### Changed
@@ -268,7 +275,8 @@ First release.
   two `Authorization` headers are refused, also when node:http would keep only the first; an input
   nested deeper than 64 levels is `INVALID_INPUT` before it reaches a worker.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.1...HEAD
+[0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.0...pivotkit-mcp@0.3.1
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.2.0...pivotkit-mcp@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.1...pivotkit-mcp@0.2.0
 [0.1.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.0...pivotkit-mcp@0.1.1

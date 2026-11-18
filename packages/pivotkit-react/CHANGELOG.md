@@ -6,6 +6,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-18
+
 ### Added
 
 - Theme tokens for the tabs, icon buttons, button frames and primary buttons, so a host themes them
@@ -1279,7 +1281,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.1...HEAD
+[0.8.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.0...pivotkit-react@0.8.1
 [0.8.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.7.0...pivotkit-react@0.8.0
 [0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.1...pivotkit-react@0.7.0
 [0.6.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.0...pivotkit-react@0.6.1
