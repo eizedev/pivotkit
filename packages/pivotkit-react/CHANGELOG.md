@@ -6,6 +6,15 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- Theme tokens for the tabs, icon buttons, button frames and primary buttons, so a host themes them
+  without changing the general tokens: `--pk-tab-bg`, `--pk-tab-text`, `--pk-tab-selected-bg`,
+  `--pk-tab-selected-text`, `--pk-icon-button-text`, `--pk-icon-button-hover-bg`,
+  `--pk-button-border`, `--pk-button-border-hover`, `--pk-primary-bg`, `--pk-primary-text` and
+  `--pk-primary-hover-bg`. Their defaults are today's colours
+  ([#604](https://github.com/eizedev/pivotkit/issues/604)).
+
 ### Changed
 
 - The four zones form an even grid. From 640 px of the main area, Filters and Columns sit on top

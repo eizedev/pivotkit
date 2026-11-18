@@ -360,3 +360,128 @@ test.describe("the HTML report carries the host's dark colours too (#385)", () =
         });
     }
 });
+
+test.describe("a host's tokens for the tabs, icon buttons, button frames and primary buttons (#604)", () => {
+    /** Every token of #604 with a colour of its own, so each one shows where it lands. */
+    const PART_TOKENS = {
+        "--pk-tab-bg": "rgb(1, 2, 3)",
+        "--pk-tab-text": "rgb(10, 20, 30)",
+        "--pk-tab-selected-bg": "rgb(40, 50, 60)",
+        "--pk-tab-selected-text": "rgb(70, 80, 90)",
+        "--pk-icon-button-text": "rgb(100, 110, 120)",
+        "--pk-icon-button-hover-bg": "rgb(130, 140, 150)",
+        "--pk-button-border": "rgb(160, 170, 180)",
+        "--pk-button-border-hover": "rgb(190, 200, 210)",
+        "--pk-primary-bg": "rgb(200, 16, 46)",
+        "--pk-primary-text": "rgb(255, 255, 254)",
+        "--pk-primary-hover-bg": "rgb(150, 10, 30)"
+    };
+    const rule = (selector) => `${selector} { --pk-duration: 0ms; ${Object.entries(PART_TOKENS).map(([k, v]) => `${k}: ${v};`).join(" ")} }`;
+
+    /** A part's colours as the browser draws them. */
+    const colours = (locator) => locator.evaluate((el) => ({ bg: getComputedStyle(el).backgroundColor, text: getComputedStyle(el).color, border: getComputedStyle(el).borderTopColor }));
+
+    /** What a CSS colour expression resolves to inside the report (its tokens, its theme). */
+    const resolve = (page, expr) =>
+        page.locator(".pk-root").first().evaluate((root, value) => {
+            const probe = document.createElement("i");
+            probe.style.backgroundColor = value;
+            root.append(probe);
+            const out = getComputedStyle(probe).backgroundColor;
+            probe.remove();
+            return out;
+        }, expr);
+
+    /** The selected and the other tab, an icon button with hover, a framed button with hover, a primary button with hover. */
+    async function parts(page, scope) {
+        await scope.getByTestId("show-table").waitFor();
+        // a dark report starts light for a frame: its colours are read once that transition has ended
+        await page.waitForFunction(() => document.getAnimations().length === 0 && [...document.querySelectorAll("pivot-report")].every((el) => el.shadowRoot?.getAnimations().length === 0));
+        const out = { selected: await colours(scope.getByTestId("show-table")), tab: await colours(scope.getByTestId("show-chart")) };
+        const icon = scope.getByTestId("collapse-fields");
+        out.icon = await colours(icon);
+        await icon.hover();
+        out.iconHover = await colours(icon);
+        const button = scope.getByTestId("export");
+        out.button = await colours(button);
+        await button.hover();
+        out.buttonHover = await colours(button);
+        await page.mouse.move(1, 1);
+        return out;
+    }
+
+    async function primary(page) {
+        await toolbar(page, "views");
+        await page.getByTestId("load-view").click();
+        await page.getByTestId("load-view-text").fill("{}");
+        const apply = page.getByTestId("load-view-apply");
+        await expect(apply).toBeEnabled();
+        const rest = await colours(apply);
+        await apply.hover();
+        return { rest, hover: await colours(apply) };
+    }
+
+    for (const theme of ["light", "dark"]) {
+        test(`${theme}: the defaults are today's colours, from the general tokens`, async ({ page }) => {
+            await page.goto(`?data=sales&lang=en&theme=${theme}`);
+            await page.addStyleTag({ content: ".pk-root { --pk-duration: 0ms; }" });
+            const p = await parts(page, page);
+            const v = async (expr) => resolve(page, expr);
+            expect(p.selected.bg).toBe(await v("var(--pk-surface)"));
+            expect(p.selected.text).toBe(await v("var(--pk-accent)"));
+            expect(p.tab.bg).toBe("rgba(0, 0, 0, 0)");
+            expect(p.tab.text).toBe(await v("var(--pk-muted)"));
+            expect(p.icon.text).toBe(await v("var(--pk-muted)"));
+            expect(p.iconHover.bg).toBe(await v("var(--pk-surface-3)"));
+            expect(p.button.border).toBe(await v("var(--pk-border)"));
+            expect(p.buttonHover.border).toBe(await v("var(--pk-border-strong)"));
+            const main = await primary(page);
+            expect(main.rest.bg).toBe(await v("var(--pk-accent)"));
+            expect(main.rest.border).toBe(await v("var(--pk-accent)"));
+            expect(main.rest.text).toBe(await v("var(--pk-accent-text)"));
+            expect(main.hover.bg).toBe(await v("color-mix(in srgb, var(--pk-accent) 88%, var(--pk-text))"));
+        });
+    }
+
+    test("React: each token takes effect on its part, at rest and on hover", async ({ page }) => {
+        await page.goto("?data=sales&lang=en&theme=light");
+        await page.addStyleTag({ content: rule(".pk-root") });
+        const p = await parts(page, page);
+        expect(p.selected).toMatchObject({ bg: PART_TOKENS["--pk-tab-selected-bg"], text: PART_TOKENS["--pk-tab-selected-text"] });
+        expect(p.tab).toMatchObject({ bg: PART_TOKENS["--pk-tab-bg"], text: PART_TOKENS["--pk-tab-text"] });
+        expect(p.icon.text).toBe(PART_TOKENS["--pk-icon-button-text"]);
+        expect(p.iconHover.bg).toBe(PART_TOKENS["--pk-icon-button-hover-bg"]);
+        expect(p.button.border).toBe(PART_TOKENS["--pk-button-border"]);
+        expect(p.buttonHover.border).toBe(PART_TOKENS["--pk-button-border-hover"]);
+        const main = await primary(page);
+        expect(main.rest).toEqual({ bg: PART_TOKENS["--pk-primary-bg"], text: PART_TOKENS["--pk-primary-text"], border: PART_TOKENS["--pk-primary-bg"] });
+        expect(main.hover.bg).toBe(PART_TOKENS["--pk-primary-hover-bg"]);
+    });
+
+    test("pivotkit-element: the tokens set on the element reach the parts inside its shadow root", async ({ page }) => {
+        await page.goto("pages/element-two.html");
+        await page.addStyleTag({ content: rule("pivot-report") });
+        const p = await parts(page, page.locator("#sales"));
+        expect(p.selected).toMatchObject({ bg: PART_TOKENS["--pk-tab-selected-bg"], text: PART_TOKENS["--pk-tab-selected-text"] });
+        expect(p.tab).toMatchObject({ bg: PART_TOKENS["--pk-tab-bg"], text: PART_TOKENS["--pk-tab-text"] });
+        expect(p.icon.text).toBe(PART_TOKENS["--pk-icon-button-text"]);
+        expect(p.iconHover.bg).toBe(PART_TOKENS["--pk-icon-button-hover-bg"]);
+        expect(p.button.border).toBe(PART_TOKENS["--pk-button-border"]);
+        expect(p.buttonHover.border).toBe(PART_TOKENS["--pk-button-border-hover"]);
+        // the dark report takes them too: the element's own value wins over its dark defaults
+        const dark = await parts(page, page.locator("#tickets"));
+        expect(dark.selected).toMatchObject({ bg: PART_TOKENS["--pk-tab-selected-bg"], text: PART_TOKENS["--pk-tab-selected-text"] });
+        expect(dark.button.border).toBe(PART_TOKENS["--pk-button-border"]);
+    });
+
+    test("forced colours: a host's tokens leave the system's frames in place", async ({ page, browserName }) => {
+        test.skip(browserName !== "chromium", "forced colours are emulated in Chromium only");
+        await page.emulateMedia({ forcedColors: "active" });
+        await page.goto("?data=sales&lang=en&theme=light");
+        await page.addStyleTag({ content: rule(".pk-root") });
+        await page.getByTestId("show-table").waitFor();
+        const frame = (testId) => page.getByTestId(testId).evaluate((el) => ({ width: getComputedStyle(el).borderTopWidth, style: getComputedStyle(el).borderTopStyle }));
+        expect(await frame("show-table")).toEqual({ width: "2px", style: "solid" });
+        expect(await frame("export")).toEqual({ width: "1px", style: "solid" });
+    });
+});

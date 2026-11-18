@@ -112,6 +112,11 @@ size through the element.
 | `--pk-chip-gap`<br>`--pk-chip-h` | The room between chips and between a shelf's title and its chips; a chip's height, also the least height of a shelf's title row | `6px`<br>`2.2em` | as light |
 | `--pk-add-gap`<br>`--pk-add-hover` | "+ Add" in each zone: its distance from the zone's title and "i"; its background on hover and while its menu is open (its text is `--pk-accent`) | `12px`<br>`var(--pk-accent-soft)` | as light |
 | `--pk-tab-mark` | The line in `--pk-accent` on top of the tab shown (Table, Chart) | `3px` | as light |
+| `--pk-tab-bg`<br>`--pk-tab-text` | A tab not shown (Table, Chart): its background and its text. On hover the text is `--pk-text` | `transparent`<br>`var(--pk-muted)` | as light |
+| `--pk-tab-selected-bg`<br>`--pk-tab-selected-text` | The tab shown: its background and its text | `var(--pk-surface)`<br>`var(--pk-accent)` | as light |
+| `--pk-icon-button-text`<br>`--pk-icon-button-hover-bg` | A button that shows only its icon: a field's menu, Close, the field list's fold. Its icon's colour; its background on hover and while its menu is open (its icon is `--pk-text` then) | `var(--pk-muted)`<br>`var(--pk-surface-3)` | as light |
+| `--pk-button-border`<br>`--pk-button-border-hover` | The frame of a button: the toolbar's, Table settings, Enlarge, Full screen. At rest; on hover | `var(--pk-border)`<br>`var(--pk-border-strong)` | as light |
+| `--pk-primary-bg`<br>`--pk-primary-text`<br>`--pk-primary-hover-bg` | The main action of a dialog (Apply, Save, Load): its fill and frame; its text; its fill on hover | `var(--pk-accent)`<br>`var(--pk-accent-text)`<br>`color-mix(in srgb, var(--pk-accent) 88%, var(--pk-text))` | as light |
 | `--pk-tooltip-name-w` | Widest series name in the chart's tooltip; a longer one ends in "…" | `12em` | as light |
 | `--pk-duration`<br>`--pk-ease` | Animations; `0ms` with `prefers-reduced-motion: reduce` | `180ms`<br>`cubic-bezier(0.2, 0.8, 0.2, 1)` | as light |
 | `--pk-type-string`<br>`--pk-type-number`<br>`--pk-type-date`<br>`--pk-type-boolean` | Field type icons | `#6250d6`<br>`#1a7f5a`<br>`#b5560b`<br>`#a3367a` | `#a99dff`<br>`#5fd3a3`<br>`#f2a65a`<br>`#f08cc6` |
