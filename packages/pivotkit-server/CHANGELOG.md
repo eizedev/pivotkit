@@ -6,6 +6,20 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `check-config` warns about a token exchange without `scope`. Some providers, Authentik among
+  them, then issue a token without scopes
+  ([check-config and check-source](https://pivotkit.eize.dev/reference/sources/#check-source), #603).
+- The docs describe Authentik's token exchange for an HTTP source
+  ([what the provider must allow](https://pivotkit.eize.dev/reference/sources/#http-auth-provider)).
+  The REST sign-in says that a caller with another application's token needs that client ID in
+  `rest.audience`, and that `auth.resource` is needed with OAuth also for REST alone
+  ([REST sign-in](https://pivotkit.eize.dev/reference/rest/#auth)).
+- The Kubernetes page and its example manifest show `NODE_EXTRA_CA_CERTS` for an internal
+  certificate authority, from a ConfigMap
+  ([Kubernetes](https://pivotkit.eize.dev/getting-started/kubernetes/#internal-ca), #603).
+
 ## [0.3.0] - 2026-11-18
 
 ### Added

@@ -495,8 +495,17 @@ With OAuth, the REST service is a protected resource of its own:
   `/.well-known/oauth-protected-resource/api/v1`.
 - A token must carry its audience. REST refuses a token issued for the MCP endpoint, and the MCP
   endpoint refuses one issued for REST.
+- `auth.audience` applies to `/mcp` only. REST checks `rest.audience`.
+- A REST caller may hold a token issued to another application. Providers such as Authentik put
+  that application's client ID into `aud`. List that client ID in `rest.audience`, as for the
+  [command line's](#sign-in-cli-operator) client ID.
+- `rest.audience` replaces the default. Keep `rest.resource` in the list if tokens issued for it
+  should still work:
+  `"rest": { "audience": ["https://reports.example.com/api/v1", "<other client id>"] }`.
 - The issuer's settings are the MCP endpoint's ([OAuth 2.1](mcp.md#oauth)), including
   `auth.intranet` for an issuer on a private address.
+- `auth.mode: "oauth"` needs `auth.resource`, also when only REST is on. `rest.resource` takes its
+  default from it.
 
 A token without the required scopes gets 403 `INSUFFICIENT_SCOPE` with
 `WWW-Authenticate: Bearer error="insufficient_scope", scope="..."` naming them.
@@ -635,7 +644,8 @@ provider lists it or lists no scopes. `--scope` replaces both.
       ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
     - Add the `offline_access` scope mapping to the provider. Without it, there is no refresh
       token ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
-    - Authentik puts the client ID into `aud`. Add the command line's client ID to `rest.audience`
+    - Authentik puts the client ID into `aud`. List the command line's client ID in `rest.audience`.
+      Keep `rest.resource` in the list if tokens issued for it should still work
       ([Sign-in with Authentik](../getting-started/kubernetes.md#oauth)).
 
 === "Keycloak"

@@ -114,6 +114,10 @@ async function secretItems(auth, options, env, users) {
             items.push(warning(`${auth.at}.tokenUrl: the person's token goes to ${url.host}, not to the issuer's ${new URL(auth.issuer).host}; check that this is the provider's token endpoint`));
         }
     }
+    // RFC 8693 leaves scope optional; Authentik then issues a token with no scopes at all
+    if (auth.kind === "tokenExchange" && auth.scope === null) {
+        items.push(warning(`${auth.at}: no scope; some providers, Authentik among them, then issue a token without scopes. Set scope to the narrowest the backend needs`));
+    }
     return items;
 }
 

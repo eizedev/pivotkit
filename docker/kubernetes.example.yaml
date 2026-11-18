@@ -15,6 +15,8 @@
 # Tokens of your own as Secrets instead: docs/getting-started/kubernetes.md#managed-secrets.
 # The CronJob sends the header in the optional Secret pivotkit-source (key "header", e.g.
 # "Authorization: Bearer ...") when the data's host needs one.
+# An internal certificate authority: the commented pivotkit-ca lines of the Deployment
+# (docs/getting-started/kubernetes.md#internal-ca).
 # The --8<-- lines mark the parts the docs page shows.
 # --8<-- [start:namespace]
 apiVersion: v1
@@ -119,6 +121,10 @@ spec:
           env:
             - name: PIVOTKIT_PORT
               value: "3333"
+            # a backend, token endpoint or issuer with an internal CA's certificate: its PEM file,
+            # read at start (the ConfigMap pivotkit-ca, mounted below)
+            # - name: NODE_EXTRA_CA_CERTS
+            #   value: /etc/pivotkit/ca/ca.pem
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
@@ -171,6 +177,9 @@ spec:
               mountPath: /var/lib/pivotkit
             - name: tmp
               mountPath: /tmp
+            # - name: ca
+            #   mountPath: /etc/pivotkit/ca
+            #   readOnly: true
       volumes:
         - name: config
           configMap:
@@ -185,6 +194,9 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 64Mi
+        # - name: ca
+        #   configMap:
+        #     name: pivotkit-ca
 # --8<-- [end:deployment]
 ---
 # --8<-- [start:service]

@@ -939,6 +939,22 @@ test("review: check-config warns of a token endpoint off the issuer's origin and
     assert.match(out.text, /check httpSources\.backends\.platform\.auth\.clientCredentials\.clientId and clientSecret/);
 });
 
+test("check-config warns of a token exchange without scope, since some providers then issue a token without scopes", async () => {
+    const exchange = { audience: "platform-api", clientId: "p", clientSecret: { env: "PIVOTKIT_TEST_API_KEY" } };
+    const options = {
+        auth: OAUTH,
+        httpSources: { backends: { platform: { url: "https://api.example.test/v1", auth: { tokenExchange: exchange } } } },
+        sources: {
+            shared: { http: { backend: "platform", path: "/vms" }, policy: POLICY },
+            own: { http: { url: "https://api.example.test/x", auth: { tokenExchange: exchange } }, policy: POLICY },
+            scoped: { http: { url: "https://api.example.test/y", auth: { tokenExchange: { ...exchange, scope: "platform:read" } } }, policy: POLICY }
+        }
+    };
+    const facts = factsOf((await checkConfig(options, { env: { PIVOTKIT_TEST_API_KEY: SECRET } })).text);
+    const unscoped = /WARNING \(HTTP sources\): ([\w.]+)\.tokenExchange: no scope; some providers, Authentik among them, then issue a token without scopes\. Set scope to the narrowest the backend needs/g;
+    assert.deepEqual([...facts.matchAll(unscoped)].map((m) => m[1]).sort(), ["httpSources.backends.platform.auth", "sources.own.http.auth"]);
+});
+
 test("review: exchangeTokenFor sends a person's token through a guardedFetch only", async () => {
     let called = false;
     const plain = async () => {
