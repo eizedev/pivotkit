@@ -41,7 +41,7 @@ For more rows, see [more than a million rows](concepts/limits.md#more-than-a-mil
 
 ## My data is on a server. Does pivotkit fetch it?
 
-The report in the browser does not. It loads only its own code chunks. It takes an array of plain
+The report in the browser does not. It loads only its own code: its chunks and its import worker. It takes an array of plain
 objects that you load yourself, for example with `fetch`, a framework's data layer or a
 `<script type="application/json">` block.
 

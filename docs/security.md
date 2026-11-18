@@ -73,7 +73,8 @@ pivotkit sends nothing home. It has none of these:
 - error reporting
 - fonts, scripts or images from another host
 
-Each part makes only the requests below. Nothing else leaves it.
+Each part makes only the requests below. Each request looks up its host name with the system's
+resolver first.
 
 The report in the browser, pivotkit-react and pivotkit-element:
 
@@ -88,22 +89,34 @@ The REST service and the MCP server request only addresses that the operator wri
 configuration or on the command line:
 
 - an [HTTP source](reference/sources.md#http) and its backend sign-in
-- the OAuth issuer's metadata, key set and token endpoint. The token endpoint also serves the token
-  exchange and the [sign-in links](reference/delivery.md#sign-in) of downloads.
+- the OAuth issuer's metadata and key set
+- the issuer's token endpoint, for a token exchange and for the
+  [sign-in links](reference/delivery.md#sign-in) of downloads
 - an [upload store](reference/delivery.md#upload)
 - the OpenAPI document that `pivotkit-server source-from-openapi` reads
-- the server's own `/healthz` on 127.0.0.1, for `pivotkit-server healthcheck`
-  ([health](reference/container.md#health))
 
-`check-config` and `check-source` make the same requests to check them.
-[HTTP sources and outbound requests](#http-sources) says how the server guards these requests.
+[HTTP sources and outbound requests](#http-sources) says how the server guards these requests. Its
+commands for the operator add these:
+
+- `check-config` asks the issuer for its metadata. It looks up the host names of the issuer and the
+  upload store, without a request to the store.
+- `check-source` loads one HTTP source with its backend sign-in. For a token exchange it asks only
+  the token endpoint.
+- `pivotkit-server healthcheck` asks `/healthz` on 127.0.0.1 by default. Given an address, it asks
+  that address ([health](reference/container.md#health)).
 
 The command line, `pivotkit`:
 
 - the server named with `--url` or `PIVOTKIT_URL`, for its REST service
   ([with a server](reference/cli.md#with-a-server))
-- for `pivotkit login`, `token` and `logout`: the server's sign-in metadata, then its issuer's
-  metadata, device code, token and revocation endpoints ([sign in](reference/cli.md#sign-in))
+- `pivotkit login`: the server's sign-in metadata, then its issuer's metadata, device code and token
+  endpoints ([sign in](reference/cli.md#sign-in))
+- `pivotkit token`: the issuer's token endpoint
+- `pivotkit logout`: the issuer's revocation endpoint, where the issuer offers one
+
+A request to a loopback address never goes through a proxy. Other requests of the command line use
+`HTTP_PROXY` and `HTTPS_PROXY` only where Node is told to, with `NODE_USE_ENV_PROXY=1` or
+`--use-env-proxy`. The server uses no proxy.
 
 Without a server, the command line reads and writes local files only.
 
@@ -122,7 +135,7 @@ The `User-Agent` header of each request:
 | the command line's sign-in, to a loopback address | none |
 | the server's request for the issuer's key set | the jose library's, `jose/v<version>` |
 | `pivotkit-server healthcheck` | Node's default, `node` |
-| every other request of the server | none |
+| every other request of the server | none, unless the operator sets the header for a source |
 | the report in the browser | the browser's own |
 
 ## Views are untrusted input
@@ -694,12 +707,8 @@ Each release's image is signed with cosign (keyless) and has provenance and SBOM
 ## HTTP sources and outbound requests { #http-sources }
 
 The REST service and the MCP server make requests to other servers only where the operator's
-configuration names the address:
-
-- an [HTTP source](reference/sources.md#http) and its backend sign-in
-- the OAuth issuer's metadata, key set and token endpoint ([OAuth](reference/mcp.md#oauth))
-- an [upload to a store](reference/delivery.md#upload)
-- an OpenAPI document by URL for `pivotkit-server source-from-openapi`
+configuration names the address. [Network requests](#network) lists them. The issuer's are in
+[OAuth](reference/mcp.md#oauth).
 
 Every one goes through the same guarded request, `guardedFetch` in pivotkit-server. So a caller or a
 model cannot point the server at an address:
