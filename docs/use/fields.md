@@ -38,6 +38,10 @@ All four give the same result. Details:
   "Revenue is already in Values". So a second click or Enter never adds it twice.
 - For a field that is in Values already, the menu entry reads **Add to Values again**. It adds a
   second value of the field, for example a second "Sum of Revenue" to show it as a share.
+    - The second is named "Sum of Revenue (2)" on its chip, in the table's header, in the exports
+      and in the chart's legend.
+    - A sort, a top N or a condition by a value names the field and its aggregation. It cannot
+      tell the two apart, so give one of them a name of its own in its menu.
 - The report counts a number field that is an identifier instead of summing it. A field is an
   identifier when it holds whole numbers and its name ends in the word ID, Nr, No, Number, Key or
   "#". Examples: "ID", "CustomerId", "customer_id", "Order No", "Serial #", "userID2",

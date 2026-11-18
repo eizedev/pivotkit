@@ -341,6 +341,22 @@ test("an i closed while the pointer rests on it stays closed until the pointer l
     await expect(pop).toBeVisible();
 });
 
+test("an i opened and closed by the keyboard, the mouse elsewhere: a hover still shows it", async ({ page }) => {
+    await open(page);
+    const info = page.getByTestId("zone-info-values");
+    const pop = page.locator(".pk-info-pop");
+    await page.mouse.move(5, 5);
+    await info.focus();
+    await page.keyboard.press("Enter");
+    await expect(info).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Enter");
+    await expect(info).toHaveAttribute("aria-expanded", "false");
+    await info.blur();
+    await expect(pop).toHaveCount(0);
+    await info.hover();
+    await expect(pop).toBeVisible();
+});
+
 test.describe("shelves", () => {
     test("wide, typical: Filters and Columns share a line, so do Rows and Values; at rest no dashed outline", async ({ page }) => {
         await open(page);

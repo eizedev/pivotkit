@@ -109,12 +109,24 @@ export function defaultFormat(result, vi) {
  * @returns {string[]}
  */
 export function numberRepeats(names) {
-    const seen = new Map();
+    // every name taken so far, the given ones and the numbered ones: a number is bumped until the
+    // name is free ("X", "X (2)" given, then "X" again is "X (3)")
+    const taken = new Set(names.map((n) => n.toLowerCase()));
+    const used = new Set();
+    const next = new Map();
     return names.map((name) => {
         const key = name.toLowerCase();
-        const n = (seen.get(key) ?? 0) + 1;
-        seen.set(key, n);
-        return n > 1 ? `${name} (${n})` : name;
+        if (!used.has(key)) {
+            used.add(key);
+            return name;
+        }
+        let n = next.get(key) ?? 2;
+        while (taken.has(`${key} (${n})`) || used.has(`${key} (${n})`)) {
+            n += 1;
+        }
+        next.set(key, n + 1);
+        used.add(`${key} (${n})`);
+        return `${name} (${n})`;
     });
 }
 

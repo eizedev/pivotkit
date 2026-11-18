@@ -212,6 +212,9 @@ The toolbar holds what applies to the whole report. Table and Chart moved onto t
 - A value that is in the view twice is told apart: the second is "Sum of Revenue (2)", on its chip,
   in the table's header, in the exports and in the chart's legend. A host or script that reads those
   headers sees the new name.
+- The chart keeps a series hidden or coloured by its name (`chart.hidden`, `chart.colors`). In a
+  saved view with a value twice, the second series is named "Sum of Revenue (2)" now. A hide or a
+  colour saved for "Sum of Revenue" applies to the first one only. Hide or colour the second again.
 - `zones="open"` keeps them open in any box. In a desktop card of 600 px with a few fields, the
   result keeps about 300 px. On a phone it keeps almost nothing. With many fields, use it in a box of
   about 700 px or more, or without a fixed height ([`zones`](../reference/react.md#prop-zones)).

@@ -123,3 +123,10 @@ test("the same value twice: the second is numbered in the table, its header and 
 test("numberRepeats numbers a name that comes again, case-insensitively", () => {
     assert.deepEqual(numberRepeats(["Sum of A", "Count", "sum of a", "Sum of A"]), ["Sum of A", "Count", "sum of a (2)", "Sum of A (3)"]);
 });
+
+test("numberRepeats skips a number another name has already", () => {
+    assert.deepEqual(numberRepeats(["X", "X", "X (2)"]), ["X", "X (3)", "X (2)"]);
+    assert.deepEqual(numberRepeats(["X (2)", "X", "X"]), ["X (2)", "X", "X (3)"]);
+    const names = numberRepeats(["A", "A", "A (2)", "A (3)", "A"]);
+    assert.equal(new Set(names.map((n) => n.toLowerCase())).size, names.length);
+});

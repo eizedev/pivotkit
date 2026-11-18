@@ -64,6 +64,10 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
     // closed (Escape, a second click) while the pointer rests on the button: a move there does not
     // show it again until the pointer has left the button
     const muted = useRef(false);
+    /** Closed by the user: mute the hover while the pointer rests on the button (not when it is elsewhere). */
+    const muteIfHovered = () => {
+        muted.current = Boolean(ref.current?.matches(":hover"));
+    };
     const stay = () => {
         if (leaving.current) {
             clearTimeout(leaving.current);
@@ -124,7 +128,7 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
     }, [mode]);
     const close = useCallback(() => {
         quiet.current = true;
-        muted.current = Boolean(ref.current?.matches(":hover"));
+        muteIfHovered();
         setMode(null);
         requestAnimationFrame(() => {
             quiet.current = false;
@@ -174,7 +178,7 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
                 onClick={() => {
                     stay();
                     if (mode === "open") {
-                        muted.current = true;
+                        muteIfHovered();
                     }
                     setMode(mode === "open" ? null : "open");
                 }}
