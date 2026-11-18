@@ -36,9 +36,15 @@ async function row(page, label) {
     return rows.find((r) => r.includes(label));
 }
 
+/**
+ * Opens the playground on `query` and waits until the data set is loaded: a real data set's snapshot
+ * is a chunk of its own, and until it arrives the report is only its skeleton (a .pk-root too). A
+ * test that read the table then, or opened the next page, saw no table or aborted the chunk's import.
+ */
 async function open(page, query) {
     await page.goto(`?${query}`);
     await expect(page.locator(".pk-root")).toBeVisible();
+    await expect(page.getByTestId("skeleton")).toHaveCount(0);
 }
 
 test.describe("weather", () => {
