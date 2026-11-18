@@ -41,6 +41,8 @@ const liveTexts = (page) => page.locator('[id^="DndLiveRegion-"]').allTextConten
  * release: dnd-kit drops on the target of its last render, and a busy WebKit can take the release
  * before it has drawn the last moves, so the drop lands nowhere (#416). A zone (or a chip in it) is
  * named by the drag's live region; the field list marks itself. Other targets are not waited for.
+ * A chip moved inside its own zone is named with that zone from the start, so there the wait shows
+ * little.
  * @param {string[]} before the live regions' texts before the drag
  */
 async function dropShown(page, to, before) {

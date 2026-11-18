@@ -58,6 +58,8 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - A test that measures layout waits until the layout has settled.
 - A test waits for a file chooser with `nextFileChooser(page)` from `import-helpers.js`, not `page.waitForEvent`.
   It keeps Firefox from opening the native picker on the second pick.
+- A mouse drag waits until its target shows it takes the drop, then releases. `drag()` in `fixtures.js` does this.
+  A busy WebKit can take the release before it has drawn the last moves, and the drop is lost.
 
 ## Browser test pages
 
