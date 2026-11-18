@@ -364,8 +364,13 @@ test.describe("shelves", () => {
         expect(b.filters.y).toBe(b.cols.y);
         expect(b.rows.y).toBe(b.values.y);
         expect(b.rows.y).toBeGreaterThan(b.filters.y);
-        // one line each: a shelf is as high as a chip and its padding, not a box of two lines
-        expect(b.rows.h).toBeLessThan(56);
+        // one line each where the chips fit: a shelf is as high as a chip and its padding, not a box of
+        // two lines. Rows with Region and Country needs a little more than its half next to the field
+        // list (#605): its chips wrap inside it, and Values beside it keeps the same height
+        expect(b.filters.h).toBeLessThan(56);
+        expect(b.cols.h).toBeLessThan(56);
+        expect(b.rows.w).toBe(b.values.w);
+        expect(b.rows.h).toBe(b.values.h);
         // the title, its i and + Add at the left, the chips beside them on the same line
         const side = await page.locator('[data-zone="rows"]').evaluate((zone) => {
             const head = zone.querySelector(".pk-zone-head").getBoundingClientRect();
@@ -377,7 +382,9 @@ test.describe("shelves", () => {
         // at rest: a solid frame (--pk-zone-border), no dashed outline; a drag only changes its
         // style and colour, so nothing moves (#605)
         const rest = await page.locator('[data-zone="filters"]').evaluate((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor, width: getComputedStyle(el).borderTopWidth }));
-        expect(rest).toEqual({ style: "solid", color: "rgb(195, 201, 210)", width: "1.5px" });
+        // 1.5px, which Chromium and Firefox draw as 1px at a device pixel ratio of 1
+        expect(rest).toMatchObject({ style: "solid", color: "rgb(195, 201, 210)" });
+        expect(parseFloat(rest.width)).toBeGreaterThanOrEqual(1);
         // an empty shelf still says what it is for
         await expect(page.locator('[data-zone="filters"] .pk-zone-hint')).toBeVisible();
         // the section's hint mentions Add

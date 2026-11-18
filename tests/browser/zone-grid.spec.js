@@ -90,6 +90,19 @@ test.describe("the zones' grid follows the report's width", () => {
     });
 });
 
+test("1440: the field list folded to its rail widens the halves, so Rows with two fields fits in one line", async ({ page }) => {
+    await open(page, { width: 1440, height: 900 });
+    const before = await cells(page);
+    expect(before.zones.rows.h).toBeGreaterThan(56);
+    await page.getByTestId("collapse-fields").click();
+    await expect(page.getByTestId("field-rail")).toBeVisible();
+    await expect.poll(async () => Math.round((await cells(page)).zones.rows.h)).toBeLessThan(56);
+    const after = await cells(page);
+    expectGrid(after);
+    expect(after.zones.rows.w).toBeGreaterThan(before.zones.rows.w + 100);
+    expect(Math.abs(after.zones.rows.h - after.zones.filters.h)).toBeLessThan(0.5);
+});
+
 test.describe("the cells stay where they are", () => {
     for (const [width, height] of [
         [1024, 768],
