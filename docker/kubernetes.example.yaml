@@ -2,7 +2,7 @@
 # service and the MCP server of the container image in the namespace pivotkit, one replica, the data
 # on a ReadWriteMany volume that a CronJob fills, the state (the token and keys the server makes at
 # its first start, and the reports) on a volume of its own, an Ingress, and NetworkPolicies. Before applying it, replace:
-#   - <version> with a release of pivotkit-server (e.g. 0.2.0), or a digest;
+#   - <version> with a release of pivotkit-server (e.g. 0.3.0), or a digest;
 #   - reports.example.com with the host name clients use;
 #   - the CronJob's SOURCE_URL with where your data comes from, and the addresses of that host and
 #     of your cluster DNS in the NetworkPolicies;

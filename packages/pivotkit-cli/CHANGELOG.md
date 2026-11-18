@@ -6,6 +6,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-18
+
 ### Added
 
 - `pivotkit login` takes the client ID the server publishes (`rest.signIn.clientId`) when neither
@@ -28,6 +30,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.8.0`, `pivotkit-report` `^0.4.0` and `pivotkit-xlsx` `^0.5.0`.
 - `render --help` says the workbook holds the table and the chart is in html or svg. A chart view
   rendered as xlsx warns `chartNotInXlsx` ([#360](https://github.com/eizedev/pivotkit/issues/360)).
 - The example views (`pivotkit example`) name the chart's `tooltip` setting, `"auto"`.
@@ -263,7 +266,8 @@ First release.
   usage error instead of HTML in a `.pdf`.
 - An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.3.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.4.0...HEAD
+[0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.3.0...pivotkit-cli@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.1...pivotkit-cli@0.3.0
 [0.2.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.0...pivotkit-cli@0.2.1
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.1.0...pivotkit-cli@0.2.0

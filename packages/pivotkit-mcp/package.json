@@ -1,6 +1,6 @@
 {
   "name": "pivotkit-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An MCP server for pivotkit: let an AI client describe data sources, draft and validate pivot views, render reports to files and make links; through pivotkit the model reads only what the policy shows. stdio and Streamable HTTP with token or OAuth.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
@@ -60,8 +60,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",
-    "pivotkit-report": "^0.3.0",
-    "pivotkit-server": "^0.2.0"
+    "pivotkit-report": "^0.4.0",
+    "pivotkit-server": "^0.3.0"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.4.0",

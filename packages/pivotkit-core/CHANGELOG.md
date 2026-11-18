@@ -6,6 +6,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-18
+
 ### Added
 
 - `numberRepeats(names)` numbers a name that comes again: "Sum of Units (2)"
@@ -586,7 +588,8 @@ First release.
   a cell, so a UI can leave a blank cell without rows unclickable.
 - `grid.showAs`: per value its "show values as" type, or null.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.7.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.8.0...HEAD
+[0.8.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.7.0...pivotkit-core@0.8.0
 [0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.6.1...pivotkit-core@0.7.0
 [0.6.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.6.0...pivotkit-core@0.6.1
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.5.0...pivotkit-core@0.6.0

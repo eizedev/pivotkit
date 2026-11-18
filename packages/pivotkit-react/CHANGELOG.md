@@ -6,6 +6,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-18
+
 ### Upgrading from 0.7
 
 - Table and Chart are tabs on top of the result, with "Table settings" or "Chart settings" beside
@@ -93,6 +95,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.8.0` (was `^0.7.0`) and `pivotkit-report` `^0.4.0` (was `^0.3.0`): a host
+  that also lists pivotkit-core updates both together, or it gets two copies.
 - The open zones are shelves: each zone's title, "i" and "+ Add" at its left, its chips beside them.
   Shelves sit side by side while they fit and take a line of their own when they need it. The dashed
   drop outline shows only while something is dragged. On a phone, "+ Add" sits at the right end of
@@ -1254,7 +1258,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.7.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.0...HEAD
+[0.8.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.7.0...pivotkit-react@0.8.0
 [0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.1...pivotkit-react@0.7.0
 [0.6.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.0...pivotkit-react@0.6.1
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.5.0...pivotkit-react@0.6.0
