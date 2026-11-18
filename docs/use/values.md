@@ -212,10 +212,11 @@ Rows, Columns or Filters. The date's **i** in the field list shows the same rang
 
 ??? note "Details of the date range and the combined years"
     - With more than one date in the report, the footer names the field before each range.
-    - **Week of year** never names years. A week's year can differ from the calendar year.
+    - With one year left, the items of **Week of year** carry no year. A week's year can differ
+      from the calendar year.
     - The name lists up to 32 years. More end in "…". Gaps stay gaps: "2019, 2021–2023".
-    - The years are for reading only. The saved view keeps the field's name, and the exported
-      column headers leave the years out. The drill-down's title shows them.
+    - The combined years are for reading only. The saved view keeps the field's name, and the
+      exported files name the field without them. The drill-down's title shows them.
     - Years before 1 AD carry their era: "5 BC".
     - In a language setting with another calendar, the items of one year name their months in that
       calendar. Combined months keep the Gregorian month names, as the grouping does.
