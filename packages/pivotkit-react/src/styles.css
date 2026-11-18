@@ -4138,6 +4138,12 @@
     overflow-wrap: anywhere;
 }
 
+/* on phones a chip's name may carry the years a grouping combines: a pixel more room for it,
+   the pointer targets and badges keep their size */
+.pk-root[data-pk-size="narrow"] .pk-chip {
+    gap: 3px;
+}
+
 /* under "Also show items with the same value as the last one": in line with its words */
 .pk-level-form > .pk-top-shown {
     padding-left: calc(1.7em + 0.6em);

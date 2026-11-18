@@ -330,9 +330,14 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * CI's measure plus about 0.5 KiB, and menus to 53. The review round adds the zone limits in "+ Add",
  * the empty report's open zones, the status line's repeat and the numbered repeated values: CI's
  * zlib measures the first load at 178.3, so initial goes to 178.8. The split is still #546 (0.9.0).
+ * The date range in the footer and the years a grouping combines (#109): the first load gets the
+ * date context (the axis titles, one year's items, the footer's range), the menus the Group level's
+ * first line and its hints from the data. On top of #581, CI's zlib measures the first load at
+ * 180.6 (178.3 before) and the menus at 53.6 (52.5 before): initial goes to 181 and menus to 54,
+ * CI's measure plus about 0.5 KiB. The split of the first load is still #546 (0.9.0).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 178.8, chart: 243.5, export: 12.6, link: 7.5, menus: 53, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 181, chart: 243.5, export: 12.6, link: 7.5, menus: 54, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

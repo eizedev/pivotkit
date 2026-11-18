@@ -223,6 +223,8 @@ const SHOTS = [
     },
     // the hero of the start page: real data (the weather of 14 cities)
     { name: "report", query: "data=weather", size: WIDE },
+    { name: "date-context", query: "data=weather&height=640", size: WIDE },
+    { name: "date-context-phone", query: "data=weather&height=430", size: PHONE },
     // a value's menu: its first level, one row per topic with what is set
     {
         name: "value-menu",
@@ -257,8 +259,8 @@ const SHOTS = [
     // the Group level of a date: one column, the example on the right, under its two headings
     {
         name: "group-level",
-        query: "data=sales&empty",
-        size: WIDE,
+        query: "data=sales&empty&height=840",
+        size: { width: WIDE.width, height: 1000 },
         open: async (page) => {
             await page.getByTestId("field-menu-Month").click();
             await page.getByRole("menuitem", { name: "Add to Rows" }).click();

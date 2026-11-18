@@ -134,13 +134,15 @@ function Badges({ state, view, labels, locale }) {
     return parts.length ? <>{parts}</> : null;
 }
 
-function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, onRemove, state, locale, defaultsOf, earlier, rangeOf, info, showInfo, encoded }) {
+function Chip({ id, zone, index, count, field, text, title, typeName, view, types, labels, commit, onRemove, state, locale, defaultsOf, earlier, rangeOf, info, showInfo, encoded }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
     const badges = state ? <Badges state={state} view={view} labels={labels} locale={locale} /> : null;
     const words = stateWords(state, view, labels, locale);
     // the chip in full, as its accessible name and, hovered anywhere, its tooltip: a badge cut to
     // "…" or a name cut by a narrow chip is whole there
-    const name = words ? `${text}, ${words}` : undefined;
+    // `title`: the name with the years a date grouping combines, for the tooltip and screen readers
+    const full = title ?? text;
+    const name = words ? `${full}, ${words}` : title;
     const remove = () => onRemove(zone, index, text);
     return (
         <li ref={setNodeRef} style={style} className={`pk-chip pk-chip-${zone}${isDragging ? " pk-dragging" : ""}`} {...itemProps} data-chip={text}>
@@ -326,7 +328,8 @@ function SectionHead({ entries, labels, id, open, onFold, onSwap, canSwap, butto
  *   commit: (view: object, note?: any) => boolean, earlier?: () => any[],
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
  *   id: string, folded: boolean, onFold: () => void, narrow?: boolean, defaultsOf?: (field: string) => import("./index.js").FieldDefaults | undefined,
- *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined, explain?: boolean, showInfo?: boolean,
+ *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined, titleOf?: (field: string) => string | undefined,
+ *   explain?: boolean, showInfo?: boolean,
  *   adding?: { fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>, nameOf: (field: string) => string,
  *     info: Map<string, import("./field-info.js").FieldInfo>, placeName: (field: string, zone: string) => string,
  *     onAdd: (field: string, zone: string) => boolean, filterDraft: (field: string) => { field: string, base: object | undefined },
@@ -335,10 +338,12 @@ function SectionHead({ entries, labels, id, open, onFold, onSwap, canSwap, butto
  *   of a field description on the chips (Options → Help)
  *   `folded`: the section folded to its heading row; `onFold`: fold or open it; `defaultsOf`: the host's settings for a source field (fieldDefaults);
  *   `infoOf`: the host's description of a field (its source field's for a grouping); `earlier`: the
- *   history's views before this one (a value's own colours for its Highlight); `adding`: what "+ Add"
+ *   history's views before this one (a value's own colours for its Highlight); `titleOf`: a
+ *   field's name with the years its date grouping combines, the chip's tooltip (the chip shows the
+ *   plain name); `adding`: what "+ Add"
  *   needs (the fields, where each is placed, how a pick is placed); without it there is no "+ Add"
  */
-export function Zones({ view, types, labels, commit, earlier, encoded, locale, onSwap, id, folded, onFold, defaultsOf, infoOf, explain = false, showInfo = true, adding }) {
+export function Zones({ view, types, labels, commit, earlier, encoded, locale, onSwap, id, folded, onFold, defaultsOf, infoOf, titleOf, explain = false, showInfo = true, adding }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
@@ -470,6 +475,7 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
                                     count={entries[zone].length}
                                     field={e.field}
                                     text={e.text}
+                                    title={e.field ? titleOf?.(e.field) : undefined}
                                     typeName={e.type}
                                     view={view}
                                     types={types}

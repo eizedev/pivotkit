@@ -106,3 +106,26 @@ test("a server render offers Enlarge but no Full screen (known in the browser on
     assert.match(html, /data-testid="enlarge"/);
     assert.doesNotMatch(html, /data-testid="full-screen"/);
 });
+
+test("multiple footer ranges visibly name their host-labelled date sources", () => {
+    const {html, errors} = render({
+        data: [{Order:"2024-01-01",Ship:"2024-02-01",Units:1}],
+        view: {rows:["Order"],filters:[{field:"Ship",type:"compare",op:">=",value:"2024-01-01"}],values:[{field:"Units",agg:"sum"}]},
+        fieldDefaults: {Order:{label:"Order Date"},Ship:{label:"Ship Date"}}
+    });
+    assert.deepEqual(errors,[]);
+    assert.match(html,/Order Date: /);
+    assert.match(html,/Ship Date: /);
+});
+
+
+test("invalid locale with date fields renders the controlled error instead of throwing", () => {
+    const {html} = render({data:[{Date:"2024-01-01",Amount:1}], locale:"invalid_locale", defaultView:{rows:["Date"],values:[{field:"Amount",agg:"sum"}]}});
+    assert.match(html, /role="alert"/);
+});
+
+test("layout limit failures retain computed date field metadata", () => {
+    const {html} = render({data:[{Date:"2024-01-01",Amount:1}], limits:{work:1}, defaultView:{rows:["Date"],values:[{field:"Amount",agg:"sum"}]}});
+    assert.match(html, /role="alert"/);
+    assert.match(html, /data-testid="field-info"/);
+});

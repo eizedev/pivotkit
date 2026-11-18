@@ -44,6 +44,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   ([#580](https://github.com/eizedev/pivotkit/issues/580)).
 - Theme tokens for the zones' section (`--pk-section-*`) and the tab shown (`--pk-tab-mark`)
   ([#580](https://github.com/eizedev/pivotkit/issues/580)).
+- The data's date range before filters ("Data before filters: …"): in the footer next to the row count, and in a date
+  field's "i". The title of a cyclic grouping such as "Month of year" in the table and the chart
+  says which years it combines: "Date by month of year · 2023–2025 combined". With one year left,
+  month and quarter items carry it ("Jan 2025"); weekday, hour and week say "· 2025 only" in the
+  title. Exports keep the plain items and names.
+  Group lists the data's range first and shows hints from the data, under "One item per period"
+  and "Same period, years combined" ([#109](https://github.com/eizedev/pivotkit/issues/109)).
 - The chart's zoom slider, by mouse, touch and keyboard, the legend that hides and shows series in
   the view, and 100 % stacked bars and areas ([#36](https://github.com/eizedev/pivotkit/issues/36)), ([#575](https://github.com/eizedev/pivotkit/issues/575)).
 - The `colorMap` property: a fixed colour per series or slice name. Export → Copy chart image, the

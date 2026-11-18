@@ -56,6 +56,8 @@ it as user input and checks it against the data. A view cannot run code.
   menu on every field.
 - Table and chart. The chart uses Apache ECharts.
 - Filters with value counts.
+- Dates grouped by year, quarter, month and more. The footer gives the data's date range, and a
+  grouping such as "Month of year" says which years it combines.
 - Drill-down to the rows behind a value.
 - Undo and redo.
 - Saved and shared views as JSON files.

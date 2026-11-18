@@ -175,14 +175,16 @@ unit:
 | longer | year |
 
 The chip names the grouping in words: "Created by month", in German "Erstellt nach Monat". The
-**Group** level of the chip's menu changes the unit. It is one column under two headings, each unit
-with an example of its labels on its right. A choice applies and closes the menu, since the chip is
-another field then.
+**Group** level of the chip's menu changes the unit. Its first line gives the data's first and last
+date before filters and the number of days: "Data before filters: Jan 1, 2023 – Dec 31, 2025
+(1,096 days)". Below is one column under two headings. Each unit shows an example from
+your data on its right, such as "Q1 2024 … Q4 2025 (8)". A choice applies and closes the menu, since
+the chip is another field then.
 
-![The Group level of a date: along the time line year to day, the same period every year, each with an example](../assets/screenshots/group-level-light.png#only-light)
-![The Group level of a date: along the time line year to day, the same period every year, each with an example](../assets/screenshots/group-level-dark.png#only-dark)
+![The Group level of a date: the data range, one item per period from year to day, the same period with the years combined, each with an example from the data](../assets/screenshots/group-level-light.png#only-light)
+![The Group level of a date: the data range, one item per period from year to day, the same period with the years combined, each with an example from the data](../assets/screenshots/group-level-dark.png#only-dark)
 
-| **Along the time line** | Label | **Same period every year** | Label |
+| **One item per period** | Label | **Same period, years combined** | Label |
 | --- | --- | --- | --- |
 | Year | 2025 | Quarter of year | Q1 |
 | Quarter | Q1 2025 | Month of year | Jan |
@@ -193,15 +195,45 @@ another field then.
 **No grouping (every date and time)** takes the grouping off. Labels follow the report's language.
 The "Q" of quarters and the "W" of weeks are the same in every language.
 
-**Along the time line**, each item is one period of one year: Q1 2024 and Q1 2025 are two rows.
+**One item per period** keeps the years apart: Q1 2024 and Q1 2025 are two rows.
 
-**Same period every year** puts the years together. Q1 is Q1 2024 and Q1 2025 in one row. Jan is
-every January of the data in one row. The cell summarizes them all: the average of both quarters,
-or the sum of all the Januaries. Use it to compare seasons, months or weekdays with one another. The
-table does not say which years it combined. So three years of data grouped by **Quarter of year**
-are four rows, not twelve.
+**Same period, years combined** puts the years together. Q1 is Q1 2024 and Q1 2025 in one row. Jan
+is every January of the data in one row. The cell summarizes them all: the average of both quarters,
+or the sum of all the Januaries. Use it to compare seasons, months or weekdays with one another.
+Three years of data grouped by **Quarter of year** are four rows, not twelve.
 
-Along the time line, the years 0–99 and dates before year 1 keep their own periods. A year before
+The field's title in the table and the chart says which years it combines: "Date by month of year ·
+2023–2025 combined". The chip keeps the plain name. Its tooltip and the Group level name the years.
+
+When filters leave one year:
+
+- The items of a month or a quarter carry it: "Jan 2025".
+- A weekday, an hour or a week keeps its items plain. The title says "Date by weekday · 2025 only".
+
+The footer gives the first and last date of the data next to the row count: "Data before filters:
+Jan 1, 2023 – Dec 31, 2025". It does so when a date is in Rows, Columns or Filters. The date's **i**
+in the field list and the Group level show the same range, with the same words.
+
+![The footer with the rows and the data's date range, the column title "Date by month of year · 2023–2025 combined"](../assets/screenshots/date-context-light.png#only-light)
+![The footer with the rows and the data's date range, the column title "Date by month of year · 2023–2025 combined"](../assets/screenshots/date-context-dark.png#only-dark)
+
+??? note "Details of the date range and the combined years"
+    - With more than one date in the report, the footer names the field before each range: "Date
+      before filters: …".
+    - The name lists up to 32 years. More end in "…". Gaps stay gaps: "2019, 2021–2023".
+    - The years are for reading only. The saved view keeps the field's name. The exported files
+      hold the plain name and the plain items, as the command line and the server write them. The
+      drill-down's title shows the years.
+    - A chart image (PNG) and the chart in an HTML report show what the screen shows, with the
+      years in the titles. An image is a picture of the report.
+    - Years before 1 AD carry their era: "5 BC".
+    - In a language setting with another calendar, the items of one year name their months in that
+      calendar. Combined months keep the Gregorian month names, as the grouping does.
+
+    ![The date context on a phone: the column title with the combined years, the range in the footer](../assets/screenshots/date-context-phone-light.png#only-light)
+    ![The date context on a phone: the column title with the combined years, the range in the footer](../assets/screenshots/date-context-phone-dark.png#only-dark)
+
+With one item per period, the years 0–99 and dates before year 1 keep their own periods. A year before
 1 AD names its era in every label: 100 BC, Q1 100 BC, Jan 100 BC, the day Jan 11, 100 BC.
 
 ??? question "Which grouping do I need?"
@@ -211,7 +243,7 @@ Along the time line, the years 0–99 and dates before year 1 keep their own per
 
     **The quarters of one year only.**
 
-    1. Group the date by **Quarter** (along the time line). You get one row per quarter, Q1 2023 to
+    1. Group the date by **Quarter** (one item per period). You get one row per quarter, Q1 2023 to
        Q4 2025.
     2. Open the chip's menu › **Filter**. Tick only the four quarters of 2025: **Select none**, then
        the four. Or add the rule "Date by quarter is from Q1 2025" under **More ways to filter**.
@@ -231,7 +263,7 @@ Along the time line, the years 0–99 and dates before year 1 keep their own per
     ![Years as rows and the quarters of the year as columns: the average temperature of 2023, 2024 and 2025 side by side](../assets/screenshots/date-years-light.png#only-light)
     ![Years as rows and the quarters of the year as columns: the average temperature of 2023, 2024 and 2025 side by side](../assets/screenshots/date-years-dark.png#only-dark)
 
-    **The same period every year, but of one year only** (Quarter of year on Columns, 2025 only).
+    **The same period of one year only** (Quarter of year on Columns, 2025 only).
 
     1. Put the date on **Rows**, for example next to City, and group it by **Year**.
     2. Open that chip's menu › **Move to** › **Move to Filters**. The chip moves to Filters as "Date
@@ -245,6 +277,8 @@ Along the time line, the years 0–99 and dates before year 1 keep their own per
 
     **Which years does the data cover?**
 
+    - The footer gives the first and the last date, "Jan 1, 2023 – Dec 31, 2025". So does the
+      date's **i** in the field list.
     - Group the date by **Year** and open the chip's menu › **Filter**. It lists the years with their
       row counts ("2023 5,110 · 2024 5,124 · 2025 5,110"). A date in Filters shows the same list.
     - Or add the date to **Values** twice. Summarize one by **Minimum** and the other by
@@ -276,3 +310,4 @@ and the menu's row says "Ranges of 100 from 0". The level opens filled in, with 
     they reach Excel and CSV. [Dates and number ranges](../concepts/dates.md) describes date units,
     ranges and time zones. `fieldDefaults` sets what a field gets when it is added. See
     [React props](../reference/react.md#props).
+

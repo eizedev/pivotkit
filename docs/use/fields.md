@@ -86,6 +86,9 @@ its chips. Point at it, or move the focus to it with Tab, and the description ap
 it to keep it open. When there is a page about the field, the description has **Learn more**.
 Escape closes it.
 
+- A date field has an **i** without a description too. It gives the first and the last date in
+  the data before filters, after the description if there is one: "Data before filters: Jan 1,
+  2023 – Dec 31, 2025".
 - On a phone a chip has no **i**. The chip's menu has it at its top, next to the field's name. The
   field's headers in the table and in the drill-down carry the same text.
 - The field search finds a field by its name, by the name the application gives it and by words of
@@ -141,7 +144,7 @@ screen reader hears ", changed" after it.
 | **Sort** | A to Z and Z to A side by side on the first level. For a date they read Oldest and Newest. While the field sorts by a value, the row says by which: "Largest Sum of Revenue first". |
 | Sort by value | With one value in the report: "Largest Sum of Revenue first" and "Smallest Sum of Revenue first" on the first level. With more values, or a custom order: a level **Sort by value**. It has a pair for each value that gives a number. When the field has a custom order, such as the seasons in the order of the year, it also has "Custom order" and "Custom order, reversed". See [sorting](filters.md#sorting). Its row names the sort in use. |
 | **Filter** | A level that starts with a summary of what shows. Then come, for a date, its quick choices, such as "Last 2 years". For a month-of-the-year grouping these are the years combined. Then the values to keep, and its rules as sentences with what each keeps: the item itself compared, its total compared, a rule on its name. See [filters](filters.md). Its row says what the filter keeps: "4 of 12", "last 2 years (2025; 2026 has no data)", "from 2022", "Sum of Revenue > 1,000". A chip in **Filters** has a menu of its own: Filter, Move to and Remove field. |
-| **Group** (dates) | A level with three kinds of choice. Along the time line: year, quarter, month, week, day. The same period every year: quarter, month, week of the year, weekday, hour. Or no grouping. See [dates](values.md#dates-and-number-ranges). |
+| **Group** (dates) | A level with the data's range on top and three kinds of choice. One item per period: year, quarter, month, week, day. Same period, years combined: quarter, month, week of the year, weekday, hour. Or no grouping. See [dates](values.md#dates-and-number-ranges). |
 | **Number ranges** (numbers) | A level with the size of the ranges and where they start. See [ranges](values.md#number-ranges). |
 | **Top items** | A level: Off, Top 3, Top 5, Top 10, or **Top N…**. **Top N…** takes a count of your own, top or bottom, by a value you choose. See [top N](filters.md#top-n). |
 | **Move to** | A level: another zone, left or right. |
@@ -224,3 +227,4 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 !!! note "For developers"
     How the layout follows the report's width, and the least heights, are in the
     [pivotkit-react reference](../reference/react.md#layout).
+
