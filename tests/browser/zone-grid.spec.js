@@ -5,6 +5,12 @@
 // frame at rest. Real layout measurements in the playground with the sales data.
 import { chips, expect, test } from "./fixtures.js";
 
+/**
+ * Arial, or Liberation Sans with Arial's widths on Linux: a test whose zones must wrap or fit at a given
+ * width measures the same chips on every platform.
+ */
+const ARIAL = '.pk-root { --pk-font: Arial, "Liberation Sans", sans-serif; }';
+
 async function open(page, { width, height = 900, lang = "en" }) {
     await page.setViewportSize({ width, height });
     await page.goto(`?data=sales&lang=${lang}`);
@@ -92,6 +98,7 @@ test.describe("the zones' grid follows the report's width", () => {
 
 test("1440: the field list folded to its rail widens the halves, so Rows with two fields fits in one line", async ({ page }) => {
     await open(page, { width: 1440, height: 900 });
+    await page.addStyleTag({ content: ARIAL });
     const before = await cells(page);
     expect(before.zones.rows.h).toBeGreaterThan(56);
     await page.getByTestId("collapse-fields").click();
@@ -167,6 +174,7 @@ test.describe("each zone's frame and hint", () => {
 
 test("1280: a chip moved by the keyboard in a Rows of two lines starts over its own place", async ({ page }) => {
     await open(page, { width: 1280, height: 1000 });
+    await page.addStyleTag({ content: ARIAL });
     const { zones: z } = await cells(page);
     // Region on the first line, Country on the second: the zone's centre lies near Region's
     expect(z.rows.h).toBeGreaterThan(56);
