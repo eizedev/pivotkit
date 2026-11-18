@@ -120,12 +120,16 @@ function observedYears(result, field) {
 }
 
 /** @param {import("pivotkit-core").PivotResult | null} result @param {import("./labels.js").UiLabels} labels
- * @returns {{result: import("pivotkit-core").PivotResult | null, labels: import("./labels.js").UiLabels, ranges: {field: string, text: string}[]}} */
+ * `titles`: a grouping's title with its years, by the grouping's name (the table's and the chart's
+ * titles take it through `labels`; a chip keeps the plain name and shows it as its tooltip)
+ * @returns {{result: import("pivotkit-core").PivotResult | null, labels: import("./labels.js").UiLabels, ranges: {field: string, text: string}[], titles: Map<string, string>}} */
 export function dateContext(result, labels) {
-    if (!result) return { result, labels, ranges: [] };
+    if (!result) return { result, labels, ranges: [], titles: new Map() };
     const { view, encoded, locale } = result;
     const fields = { ...labels.core.fields };
     const single = new Map();
+    /** @type {Map<string, string>} */
+    const titles = new Map();
     /** @type {Map<string, Map<number, {min: number, max: number}>>} */
     const observedMonths = new Map();
     const used = new Set([...view.rows, ...view.cols, ...filterZoneFields(view)]);
@@ -135,7 +139,11 @@ export function dateContext(result, labels) {
         const years = yearsOf(result, d.field);
         const observed = observedYears(result, d.field);
         /** @param {string} words */
-        const titled = (words) => Object.defineProperty(fields, d.name, {value: `${fieldLabel(d.name, labels.core)} · ${fill(words, { years: observed.text })}`, enumerable: true, configurable: true, writable: true});
+        const titled = (words) => {
+            const title = `${fieldLabel(d.name, labels.core)} · ${fill(words, { years: observed.text })}`;
+            titles.set(d.name, title);
+            Object.defineProperty(fields, d.name, {value: title, enumerable: true, configurable: true, writable: true});
+        };
         if (observed.combined) {
             if (d.by === "month") combinedMonths.add(d.name);
             titled(labels.dateYearsCombined);
@@ -176,5 +184,5 @@ export function dateContext(result, labels) {
         const text = dateRangeText(dateSpan(encoded, field), locale);
         return text ? [{ field, text }] : [];
     });
-    return { result: decorated, labels: { ...labels, core: { ...labels.core, fields } }, ranges };
+    return { result: decorated, labels: { ...labels, core: { ...labels.core, fields } }, ranges, titles };
 }

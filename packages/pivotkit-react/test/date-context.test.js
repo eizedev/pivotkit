@@ -15,6 +15,7 @@ test("date context describes all data, combines distinct filtered years and neve
     const context = dateContext(result, LABELS.en);
     assert.deepEqual(yearsOf(result, "Date"), [2024, 2025]);
     assert.equal(context.labels.core.fields.Month, "Month · 2024–2025 combined");
+    assert.equal(context.titles.get("Month"), "Month · 2024–2025 combined");
     assert.equal(context.ranges[0].text, "Jan 1, 2024 – Dec 31, 2025");
     assert.deepEqual(result.view.rows, ["Month"]);
     assert.equal(result.rowColumns[0].labeler(1, "en-US"), "Jan");
