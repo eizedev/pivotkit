@@ -6,10 +6,8 @@
  *     level info, format auto (text on a terminal, JSON otherwise)
  *     addresses on: the socket's peer (with http.trustProxy the forwarded client, the proxy as peerAddress)
  *
- * check/index.js says what a section returns. Its "New in this version" notes: the client's address
- * on a request's lines (HTTP, log.address on) and start errors as a JSON line (HTTP, any format but
- * text; a stdio client keeps the server's stderr in its own log),
- * each with the setting that switches it off; upgrading.md has the rest of the log's changes.
+ * check/index.js says what a section returns. The log has no "New in this version" note in this
+ * version; upgrading.md has the log's changes of earlier versions.
  */
 
 import { logSettingsOf } from "../log.js";
