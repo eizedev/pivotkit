@@ -85,7 +85,7 @@ size through the element.
 | `--pk-border`<br>`--pk-border-strong`<br>`--pk-grid` | Borders, table lines (`--pk-border-strong` also the line before a subtotal column) | `#dde1e7`<br>`#c3c9d2`<br>`#edf0f3` | `#2f343e`<br>`#454c58`<br>`#23272e` |
 | `--pk-input-border` | The edge of a text field, a search and a select in a menu (3:1 against the surfaces) | `#7d8592` | `#737b88` |
 | `--pk-accent`<br>`--pk-accent-text`<br>`--pk-accent-soft` | Primary buttons, selection, the text actions of the menus (Back, Reset filter, Clear, Select all, Swap rows and columns), text on the accent, soft highlight | `#2b5fd9`<br>`#ffffff`<br>`#e9effc` | `#84a3ff`<br>`#0d1426`<br>`#232d48` |
-| `--pk-drop`<br>`--pk-drop-border` | A zone while something is dragged over it; the dashed edge of a zone (3:1) | `#dfe8fd`<br>`#868e9a` | `#263a6b`<br>`#6f7785` |
+| `--pk-drop`<br>`--pk-drop-border` | A zone while something is dragged over it; the dashed edge every zone shows while something is dragged (3:1) | `#dfe8fd`<br>`#868e9a` | `#263a6b`<br>`#6f7785` |
 | `--pk-rule` | The rule between the groups of a menu (3:1 against the menu: More's groups have no titles) and the dashed one between the parts of a group (the chart's Display) | `#868e9a` | `#6f7785` |
 | `--pk-note` | Notes and hints above the result | `#eef3fd` | `#1e2638` |
 | `--pk-scale-low`<br>`--pk-scale-mid`<br>`--pk-scale-high` | A colour scale whose view names no colours: low, an optional middle, high. Low and high are the heatmap's colours (`--pk-heat-low`, `--pk-heat-high`), so a theme that sets those colours both; without `--pk-scale-mid` the scale runs straight from low to high. The Excel export writes them as the light theme resolves them ([below](#the-excel-export)) | `var(--pk-heat-low)`<br>not set<br>`var(--pk-heat-high)` | as light (the dark heat colours) |
@@ -106,6 +106,9 @@ size through the element.
 | `--pk-section-rule`<br>`--pk-section-space` | The section of the zones ("Fields in the report"): the rules above and below it; the space between a rule and the heading row, and between the row and the open zones | `var(--pk-border)`<br>`4px` | as light |
 | `--pk-section-chevron`<br>`--pk-section-title-size` | The size of the chevron that folds the zones (its colour is `--pk-muted`); the size of the heading | `16px`<br>`max(15px, 1.07em)` | as light |
 | `--pk-section-indent`<br>`--pk-section-bg`<br>`--pk-section-pad` | The open zones' panel: its indent to the heading's text, its background and its padding (its corners are `--pk-radius`). On a phone the panel takes no indent and half its side padding | `26px`<br>`var(--pk-surface-2)`<br>`6px` | as light |
+| `--pk-shelf-gap`<br>`--pk-shelf-pad`<br>`--pk-shelf-min` | The zones as shelves: the room between shelves, a shelf's padding, a shelf's least width: one that would get less takes a line of its own | `4px`<br>`4px`<br>`17em` | as light |
+| `--pk-chip-gap`<br>`--pk-chip-h` | The room between chips and between a shelf's title and its chips; a chip's height, also the least height of a shelf's title row | `6px`<br>`2.2em` | as light |
+| `--pk-add-gap`<br>`--pk-add-hover` | "+ Add" in each zone: its distance from the zone's title and "i"; its background on hover and while its menu is open (its text is `--pk-accent`) | `12px`<br>`var(--pk-accent-soft)` | as light |
 | `--pk-tab-mark` | The line in `--pk-accent` on top of the tab shown (Table, Chart) | `3px` | as light |
 | `--pk-tooltip-name-w` | Widest series name in the chart's tooltip; a longer one ends in "…" | `12em` | as light |
 | `--pk-duration`<br>`--pk-ease` | Animations; `0ms` with `prefers-reduced-motion: reduce` | `180ms`<br>`cubic-bezier(0.2, 0.8, 0.2, 1)` | as light |

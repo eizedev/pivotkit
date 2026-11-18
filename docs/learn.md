@@ -28,8 +28,9 @@ end of each section, you learn how to query the source yourself, live.
 
 ## Before you start
 
-- **Rows, Columns, Values, Filters**: drag a field from the list into a zone. Or open the field's
-  menu, the three dots, and pick "Add to Rows". [Use a report](use/index.md) explains every part.
+- **Rows, Columns, Values, Filters**: drag a field from the list into a zone. Or use **+ Add** next
+  to a zone's title. Or open the field's menu, the three dots, and pick "Add to Rows".
+  [Use a report](use/index.md) explains every part.
 - **The chip menu** is the small arrow on a field in a zone. It groups dates, sorts, filters and
   keeps the top N. For a value, it changes the aggregator, the "show values as" and the format.
 - **Undo** takes back every step. The **Start** list in the header brings back a template.

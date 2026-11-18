@@ -52,7 +52,8 @@ it as user input and checks it against the data. A view cannot run code.
 ## What it does
 
 - A searchable field list.
-- Four drop zones: Rows, Columns, Values and Filters, with drag and drop and a menu on every field.
+- Four drop zones: Rows, Columns, Values and Filters, with drag and drop, "+ Add" in each zone and a
+  menu on every field.
 - Table and chart. The chart uses Apache ECharts.
 - Filters with value counts.
 - Dates grouped by year, quarter, month and more. The footer gives the data's date range, and a

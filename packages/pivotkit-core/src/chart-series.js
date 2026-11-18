@@ -7,7 +7,7 @@
 
 import { TIMELINE_UNITS } from "./derive.js";
 import { checkLimit, expect } from "./errors.js";
-import { defaultFormat, valueName } from "./grid.js";
+import { defaultFormat, valueNames } from "./grid.js";
 import { DEFAULT_LABELS } from "./labels.js";
 import { axisLines } from "./layout.js";
 import { resolveLimits } from "./limits.js";
@@ -57,7 +57,7 @@ export function toSeries(result, options) {
     };
     const plottedValues = view.values.filter((_, vi) => result.valueTypes[vi] !== "text").length;
     checkLimit("cells", rowLines.length * Math.max(1, colLines.length * plottedValues), limits.cells, "chart data points");
-    const names = view.values.map((v) => valueName(v, labels));
+    const names = valueNames(view.values, labels);
     const numeric = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
     const series = [];
     for (const { node: colNode } of colLines) {

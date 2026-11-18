@@ -396,7 +396,10 @@ test("chart tooltips show labels from the data as text: category, series and sli
     // pie: the slices are the labels
     await toolbar(page, "chart-settings");
     await page.getByTestId("chart-pie").click();
-    const ring = Array.from({ length: 36 }, (_, i) => [0.5 + 0.18 * Math.cos((i * Math.PI) / 18), 0.55 + 0.3 * Math.sin((i * Math.PI) / 18)]);
+    // a circle inside the pie whatever the canvas's size: its radius a share of the shorter side
+    const pie = await canvas.boundingBox();
+    const r = 0.15 * Math.min(pie.width, pie.height);
+    const ring = Array.from({ length: 36 }, (_, i) => [0.5 + (r / pie.width) * Math.cos((i * Math.PI) / 18), 0.55 + (r / pie.height) * Math.sin((i * Math.PI) / 18)]);
     expect(await hoverUntil(ring, "<img src=x onerror")).toBe(true);
     await markupShown();
     // rows and columns swapped: the series are the labels

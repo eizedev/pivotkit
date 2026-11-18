@@ -1,6 +1,6 @@
 ---
 title: Fields, zones and the table
-description: Put fields into Rows, Columns, Values and Filters by drag and drop, a click or a menu; what a chip shows and its menu; field descriptions; the table with its groups, totals and the swap of rows and columns.
+description: Put fields into Rows, Columns, Values and Filters by drag and drop, a click, a menu or + Add in each zone; what a chip shows and its menu; field descriptions; the table with its groups, totals and the swap of rows and columns.
 ---
 
 # Fields, zones and the table
@@ -18,7 +18,7 @@ A field in a zone is a **chip**. Its menu changes how the report shows the field
 | Part | Where | What it does |
 | --- | --- | --- |
 | **Fields** | left | Every column of the data, with a search and an icon for its type: text, number, date or yes/no. A mark next to a field shows which zone it is in. When the application describes a field, an **i** next to it says what the field means. A long field name takes two lines and breaks between words only. A word too long for its line ends in "…", and pointing at the name shows it whole. |
-| **The zones** | below the toolbar | **Rows**, **Columns**, **Values** and **Filters**. The **i** next to a zone's title says what the zone does, with an example. More, Help, **Show explanations** switches these off and on. The zones sit under the heading **Fields in the report**, which folds them. **Swap rows and columns** is at the right end of that heading. |
+| **The zones** | below the toolbar | **Rows**, **Columns**, **Values** and **Filters**, each a shelf: its title, its **i** and **+ Add** on the left, its chips beside them. Shelves sit side by side while they fit, and a full one takes a line of its own. The **i** next to a zone's title says what the zone does, with an example. More, Help, **Show explanations** switches these off and on. The zones sit under the heading **Fields in the report**, which folds them. **Swap rows and columns** is at the right end of that heading. |
 | **The toolbar** | top | Undo, Redo, Start over (Reset, New), the name of the view you loaded, Views, Export and **More**. **More** holds **Help** first, then what does not fit. See [small screens](layout.md#small-screens). |
 | **The result** | below | The tabs **Table** and **Chart** on top, with the settings of the view shown, **Enlarge** and **Full screen** beside them. Tips stand above the tabs, a status line below the result. |
 
@@ -26,17 +26,22 @@ A field in a zone is a **chip**. Its menu changes how the report shows the field
 
 | To put a field into a zone | How |
 | --- | --- |
-| Drag | Drag the field into a zone. The lists and the page scroll while you drag, and the field you drag stays above everything. |
+| Drag | Drag the field into a zone. While you drag, each zone shows a dashed outline. The lists and the page scroll while you drag, and the field you drag stays above everything. |
 | Click | Click the field, or press Enter on it. Numbers go to Values, everything else to Rows. |
 | Menu | Open the field's menu and choose **Add to Rows**, **Columns**, **Values** or **Filters**. To open the menu, click the three dots, or the grip left of the field, which says "Drag into a zone". |
+| **+ Add** | Click **+ Add** next to a zone's title. Its menu lists every field with its type and a search. Pick a field. |
 
-All three give the same result. Details:
+All four give the same result. Details:
 
 - A click on a field in Columns or Filters moves it to Rows. A field that is in that zone already
   stays, and the status line says so, for example "Region is already in Rows" or
   "Revenue is already in Values". So a second click or Enter never adds it twice.
 - For a field that is in Values already, the menu entry reads **Add to Values again**. It adds a
   second value of the field, for example a second "Sum of Revenue" to show it as a share.
+    - The second is named "Sum of Revenue (2)" on its chip, in the table's header, in the exports
+      and in the chart's legend.
+    - A sort, a top N or a condition by a value names the field and its aggregation. It cannot
+      tell the two apart, so give one of them a name of its own in its menu.
 - The report counts a number field that is an identifier instead of summing it. A field is an
   identifier when it holds whole numbers and its name ends in the word ID, Nr, No, Number, Key or
   "#". Examples: "ID", "CustomerId", "customer_id", "Order No", "Serial #", "userID2",
@@ -49,6 +54,18 @@ All three give the same result. Details:
 - **Add to Filters** opens the field's filter first. **Apply** puts the field into Filters with what
   you chose. **Cancel** places nothing. See
   [Filters](filters.md#add-a-field-to-filters-from-the-field-list).
+- **+ Add** works on a phone too, where the field list is a drawer. Its menu:
+    - is titled for its zone, for example **Add to Rows**
+    - finds a field as the field list's search does
+    - marks a field that is placed already with its zone, for example "Columns". The line under it
+      says "Moves it from Columns.", and after the pick a screen reader hears "Category moved from
+      Columns to Rows". A field in Values stays there as well.
+    - says "Adds a second value of it." under a field that is in Values already, in Values' menu
+    - shows a field that is in this zone already as unavailable, with its reason ("Already in Rows").
+      A date counts as the grouping it would get.
+    - in Filters, opens the field's filter first. **Apply** places it, **Cancel** and **Back** return
+      to the list.
+    - puts the focus on the new chip after a pick, so its menu is one Enter away
 - An empty report shows three first steps and up to three saved views to start from.
 - The report groups a date as soon as you place it, by the span of its values:
     - up to 62 days: by day
@@ -58,6 +75,9 @@ All three give the same result. Details:
 
     The chip says so: "Created by month". See
     [dates and number ranges](values.md#dates-and-number-ranges).
+
+![+ Add of Rows open: a search, every field with its type, Category marked Columns, Region and Country unavailable as they are in Rows](../assets/screenshots/add-menu-light.png#only-light)
+![+ Add of Rows open: a search, every field with its type, Category marked Columns, Region and Country unavailable as they are in Rows](../assets/screenshots/add-menu-dark.png#only-dark)
 
 ## What a field means
 

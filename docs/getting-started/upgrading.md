@@ -200,13 +200,33 @@ The toolbar holds what applies to the whole report. Table and Chart moved onto t
   **Swap rows and columns** moved from the Columns zone to the end of that row.
 - The new prop `zones` (`"open"` or `"folded"`, the attribute `zones`) sets the zones' start state.
   Without it, the report's height decides, as before.
-- Folded, the zones' heading row and the tabs move the table down by about 13 px. Open, the zones
-  with their heading need about 60 px more height than before. A report whose box was just high
-  enough for its open zones may now start with them folded. Give the report more height, or set
-  `zones="open"`.
-- `zones="open"` keeps them open in any box. In a desktop card of 600 px the table then keeps 206 px,
-  less than the result's least height of 240 px. On a phone it keeps almost nothing. Use it in a box
-  of about 700 px or more, or without a fixed height ([`zones`](../reference/react.md#prop-zones)).
+- Folded, the zones' heading row and the tabs move the table down by about 13 px.
+- Open, each zone is a shelf: its title, its "i" and **+ Add**, its chips beside them. Shelves sit
+  side by side while they fit. Below 400 px the title row stands above the chips, with **+ Add** at
+  its right end. The dashed drop outline shows only while something is dragged.
+- How much room the open zones take depends on the size, the language and the fields. The table
+  below has measurements. A report whose box was just high enough for its open zones may now start
+  with them folded. Give the report more height, or set `zones="open"`.
+- A report with no field placed starts with its zones open, whatever its height, so **+ Add** is
+  there to start with. `zones` still wins.
+- A value that is in the view twice is told apart: the second is "Sum of Revenue (2)", on its chip,
+  in the table's header, in the exports and in the chart's legend. A host or script that reads those
+  headers sees the new name.
+- The chart keeps a series hidden or coloured by its name (`chart.hidden`, `chart.colors`). In a
+  saved view with a value twice, the second series is named "Sum of Revenue (2)" now. A hide or a
+  colour saved for "Sum of Revenue" applies to the first one only. Hide or colour the second again.
+- `zones="open"` keeps them open in any box. In a desktop card of 600 px with a few fields, the
+  result keeps about 300 px. On a phone it keeps almost nothing. With many fields, use it in a box of
+  about 700 px or more, or without a fixed height ([`zones`](../reference/react.md#prop-zones)).
+
+Where the table starts with the zones open, against the zones before this release. Measured in the
+playground with the sales data:
+
+| Window | English | German |
+| --- | --- | --- |
+| 1440 px | about 20 px higher | about 25 px lower |
+| 1024 px | about 35 px lower | about 10 px higher |
+| A phone, 390 px | about 55 px lower | about 15 px lower |
 
 Label keys:
 
@@ -220,8 +240,12 @@ Label keys:
 The report ignores these keys. It says once in the console which key holds that text now. Other
 keys it does not know are ignored without a word.
 
-New keys: `tableSettings`, `chartSettings`, `settingsShort`, `zonesTitle`, `zonesHint`. The menus'
-texts add `helpAndShortcuts` ("Help and keyboard shortcuts", More's first entry), `chartShowEach`
+New keys: `tableSettings`, `chartSettings`, `settingsShort`, `zonesTitle`, `zonesHint`, and for
+**+ Add** `addField` ("Add"), `addFieldTo` ("Add a field to {zone}") and `movedFrom` ("{field} moved
+from {from} to {zone}"). `zonesHint` reads "Drag fields into Filters, Columns, Rows and Values, or
+use Add in each one." The empty zones' `zoneHints` ("Add or drop a field to group rows") and the
+empty report's `emptySteps` name **+ Add** too. A host that sets these texts in its `labels` checks
+its wording. The menus' texts add `addAlready`, `addMoves`, `addSecond`, `helpAndShortcuts` ("Help and keyboard shortcuts", More's first entry), `chartShowEach`
 ("Show each {field}"), `chartShowOnly` ("Show {field} only"), `chartShowDetails`, `chartShowTotals`,
 and for Layout's row `chartFoldEach`, `chartFoldOnly` and `chartFoldSome`. `linesNotes.table` now
 says that the lines show once the chart is drawn. `chartTypeIs` ("Chart type: {type}") now names the group of types in Chart
@@ -234,6 +258,13 @@ Test ids:
 | `chart-type`, `more-chart-type` | `view-settings` with the tab `show-chart` shown; the types are `chart-<type>` in the group `chart-types` |
 | `options`, `more-options` | `view-settings` with the tab `show-table` shown; Help is `more-help` in `more` |
 | `layout`, `more-layout` | `layout-summary`, the fold button, with `aria-expanded` |
+
+New test ids: `add-field-<zone>` ("+ Add" of `filters`, `cols`, `rows` or `values`),
+`add-menu-<zone>`, `add-pick-<field>` with `add-pick-<field>-reason` and `add-pick-<field>-note`,
+and `zones-status`.
+
+New tokens: `--pk-shelf-gap`, `--pk-shelf-pad`, `--pk-shelf-min`, `--pk-chip-gap`, `--pk-chip-h`,
+`--pk-add-gap` and `--pk-add-hover` ([theming](../reference/theming.md)).
 
 `show-table` and `show-chart` are tabs now: they carry `aria-selected`, not `aria-pressed`. `more`
 is always there. `OVERFLOW_ORDER` is `["data", "startOver", "views"]`.

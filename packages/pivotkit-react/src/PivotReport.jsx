@@ -15,7 +15,7 @@ import { flushSync } from "react-dom";
 import { computePivot, emptyView, encode, fieldLabel, normalize, suggestDateUnit, toGrid, toSeries, viewFields } from "pivotkit-core";
 import { PivotChart, loadECharts } from "./chart.jsx";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
-import { groupingName, layoutSummary, valueLabel } from "./names.js";
+import { groupingName, layoutSummary, valueLabels } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
 import { DRILL_LIMIT, drillRows } from "./drill.js";
 import { dateContext, dateRangeText, dateDisplayLocale } from "./date-context.js";
@@ -49,7 +49,7 @@ import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
 import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import {
-    addField, dateSpan, filterZoneFields, groupField, hiddenAfter, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
+    addField, dateSpan, filterZoneFields, groupField, hiddenAfter, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneMax, zoneOverLimit
 } from "./view-ops.js";
 import { Zones, zoneEntries } from "./zones.jsx";
 
@@ -382,12 +382,13 @@ function Report(props) {
     // the host's start state (zones), else by the report's height; a new start state from the host
     // starts over from it
     const [folded, setFolded] = useState(/** @type {boolean | null} */ (zonesStart(zonesProp)));
+    // the zones are open only because nothing is placed yet (a low report): see layoutFolded
+    const foldOpenWhileEmpty = useRef(false);
     const [zonesSeen, setZonesSeen] = useState(zonesProp);
     if (zonesProp !== zonesSeen) {
         setZonesSeen(zonesProp);
         setFolded(zonesStart(zonesProp));
     }
-    const layoutFolded = folded ?? short;
     const zonesId = useId();
     const resultId = useId();
     // the prefix of the names of this report's form fields (dom.js useFormName): useId is unique in
@@ -696,24 +697,30 @@ function Report(props) {
      * screen (the chip appears); a removal offers Undo.
      */
     const commit = useCallback(
-        /** @param {object} next @param {{ step: string, removed?: boolean, field?: string, zone?: string, name?: string, display?: string, type?: string }} [note] @param {any} [tag] the saved view it is (history.tag) */
+        /** @param {object} next @param {{ step: string, removed?: boolean, field?: string, zone?: string, name?: string, display?: string, type?: string }} [note] @param {any} [tag] the saved view it is (history.tag) @returns {boolean} whether the view changed */
         (next, note = { step: "change" }, tag = undefined) => {
             // a field beyond the limit of its zone would vanish in normalize(): refuse the step and say so
             const over = note.step === "template" ? null : zoneOverLimit(next, limits);
             if (over) {
                 announce(fill(labels.zoneFull, { zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }), { tone: "error" });
-                return;
+                return false;
             }
             const changed = history.commit(next, stepText(note), tag);
+            // the user placed the first field of an empty low report: its zones stay open, as if
+            // opened by hand, so they do not fold under the user's hand (a view loaded folds them)
+            if (changed && note.step === "added" && foldOpenWhileEmpty.current) {
+                setFolded(false);
+            }
             if (changed) {
                 changesRef.current += 1;
                 setChanges(changesRef.current);
                 newStep();
             }
-            if (!changed || !note.removed) {
-                return;
+            if (changed && note.removed) {
+                announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), { action: { label: labels.undo, run: () => undoLater.current() } });
             }
-            announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), { action: { label: labels.undo, run: () => undoLater.current() } });
+            // whether the view changed: "+ Add" waits for its chip only then
+            return changed;
         },
         [history, stepText, labels, announce, limits, locale, newStep]
     );
@@ -790,6 +797,12 @@ function Report(props) {
     const chartContext = useMemo(() => chartComputed.result === computed.result ? context : dateContext(chartComputed.result, labels), [chartComputed.result, computed.result, context, labels]);
     const chartResult = chartContext.result;
     const empty = isEmptyView(view);
+    // a low report with no field placed shows its zones, so "+ Add" is there to start with (the host's
+    // `zones` and the user's click win); the first field the user places keeps them open (commit)
+    const layoutFolded = folded ?? (short && !empty);
+    useEffect(() => {
+        foldOpenWhileEmpty.current = empty && short && folded === null;
+    });
     const gridState = useMemo(() => {
         if (!result || view.display !== "table" || empty) {
             return { grid: null, error: null };
@@ -891,12 +904,69 @@ function Report(props) {
         // low: below the size class's height, or too low for what the open zones need (then the
         // report would grow past its box; folded, it fits)
         const low = (/** @type {"narrow" | "medium" | "wide"} */ width, /** @type {number} */ height) => compactAt(width, height) || (fit.current.open > 0 && height <= fit.current.open + 1);
+        // what the open zones need changed inside a box of the same size (an edit of the fields, a
+        // language, a font): while the user works in the zones' section (a drag, the focus or the
+        // pointer in it, or a menu open, such as one of its "+ Add") the check waits, and runs once
+        // they have left it, so the area never folds under their hand. A resize of the box and the
+        // load decide at once (below).
+        let waiting = false;
+        // where the user last pressed or put the focus: in the section or a menu (the layer), a pick
+        // that closed its menu leaves the focus nowhere for a moment before it reaches the new chip
+        let lastInArea = false;
+        const inArea = (/** @type {EventTarget | null} */ t) => t instanceof Node && Boolean(el.querySelector(".pk-zone-section")?.contains(t) || el.querySelector(".pk-layer")?.contains(t));
+        const note = (/** @type {Event} */ e) => {
+            lastInArea = inArea(e.composedPath()[0] ?? e.target);
+        };
+        el.addEventListener("pointerdown", note, true);
+        el.addEventListener("focusin", note, true);
+        const busy = () => {
+            const section = el.querySelector(".pk-zone-section");
+            if (!section) {
+                return false;
+            }
+            const active = /** @type {Document | ShadowRoot} */ (el.getRootNode()).activeElement;
+            const focusGone = !active || active === el.ownerDocument.body;
+            return Boolean(layerOpen(el.querySelector(".pk-layer")) || section.matches(":hover") || section.matches(":focus-within") || section.querySelector(".pk-dropping") || (lastInArea && focusGone));
+        };
+        const doc = el.ownerDocument;
+        let again = 0;
+        const retry = () => {
+            clearTimeout(again);
+            // after the focus or the pointer has moved on
+            again = window.setTimeout(() => waiting && checkLow.current(), 0);
+        };
+        const watch = (on) => {
+            const how = on ? "addEventListener" : "removeEventListener";
+            el[how]("pointerout", retry);
+            el[how]("focusout", retry);
+            doc[how]("pointerup", retry);
+        };
         checkLow.current = () => {
+            if (busy()) {
+                if (!waiting) {
+                    waiting = true;
+                    watch(true);
+                }
+                return;
+            }
+            if (waiting) {
+                waiting = false;
+                watch(false);
+            }
             const now = el.getBoundingClientRect();
             setMeasuredShort(low(sizeOf(now.width), now.height));
         };
+        const release = () => {
+            el.removeEventListener("pointerdown", note, true);
+            el.removeEventListener("focusin", note, true);
+            clearTimeout(again);
+            if (waiting) {
+                waiting = false;
+                watch(false);
+            }
+        };
         if (typeof ResizeObserver !== "function") {
-            return undefined;
+            return release;
         }
         // Two observers on purpose: this one reads the report's box in its callback, so the width
         // class and the fold follow a resize in the same frame. useFitHeight's measures the column a
@@ -912,6 +982,7 @@ function Report(props) {
         ro.observe(el);
         return () => {
             checkLow.current = () => {};
+            release();
             ro.disconnect();
         };
     }, []);
@@ -956,21 +1027,30 @@ function Report(props) {
     const addTo = useCallback(
         (field, zone, index = undefined) => {
             const options = placeOptions(field, zone, index);
-            commit(addField(view, field, zone, options), { step: "added", field: options.groupName ?? nameOf(field), zone });
+            return commit(addField(view, field, zone, options), { step: "added", field: options.groupName ?? nameOf(field), zone });
         },
         [view, placeOptions, commit, nameOf]
     );
 
+    /** What placing a field in a zone puts there: a date's grouping, else the field. */
+    const placeName = useCallback((field, zone) => placeOptions(field, zone).groupName ?? field, [placeOptions]);
     /**
-     * The field list's "Add to Filters": the field's filter on a draft that puts it into Filters (a
-     * date grouped as it would be placed, a field on Rows or Columns moved), so Apply places it with
-     * the selection and Cancel changes nothing; a field in Filters already opens its own filter.
+     * The filter of a field on its way into Filters: the name it gets there (a date grouped as it would
+     * be placed) and a draft that puts it there (a field on Rows or Columns moved), so Apply places it
+     * with the selection and Cancel changes nothing; none for a field in Filters already (its own filter).
      */
-    const filterField = useCallback(
-        (field, anchor) => {
+    const filterDraft = useCallback(
+        (field) => {
             const options = placeOptions(field, "filters");
             const name = options.groupName ?? field;
-            const draft = filterZoneFields(view).some((f) => same(f, name)) ? undefined : addField(view, field, "filters", options);
+            return { field: name, base: filterZoneFields(view).some((f) => same(f, name)) ? undefined : addField(view, field, "filters", options) };
+        },
+        [placeOptions, view]
+    );
+    /** The field list's "Add to Filters": the field's filter (filterDraft) in a popover at the field. */
+    const filterField = useCallback(
+        (field, anchor) => {
+            const draft = filterDraft(field);
             // on a narrow report the field list is a drawer: it closes, the filter anchors to its button
             const opener = size === "narrow" ? /** @type {HTMLElement | null} */ (root.current?.querySelector("[data-pk-opener='fields']") ?? null) : null;
             if (size === "narrow") {
@@ -978,11 +1058,21 @@ function Report(props) {
             }
             const target = opener ?? anchor;
             if (target) {
-                setFilterTarget({ field: name, anchor: target, base: draft });
+                setFilterTarget({ field: draft.field, anchor: target, base: draft.base });
             }
         },
-        [placeOptions, view, size]
+        [filterDraft, size]
     );
+    // what "+ Add" in each zone needs (zones.jsx, add-menu.jsx)
+    // a zone at its limit (`limits`) takes no more: its picks are off, with the reason
+    const zoneFullText = useCallback(
+        (zone, count) => {
+            const max = zoneMax(zone, limits);
+            return max !== null && count >= max ? fill(labels.zoneFull, { zone: labels.zones[zone], max: max.toLocaleString(locale) }) : null;
+        },
+        [limits, labels, locale]
+    );
+    const adding = useMemo(() => ({ fields, placed, nameOf, info, placeName, onAdd: addTo, filterDraft, fullText: zoneFullText }), [fields, placed, nameOf, info, placeName, addTo, filterDraft, zoneFullText]);
 
     const onDrop = useCallback(
         (src, target) => {
@@ -1568,6 +1658,7 @@ function Report(props) {
                                 earlier={history.earlier}
                                 explain={zoneSwitch.on}
                                 showInfo={fieldSwitch.on}
+                                adding={adding}
                             />
                             {linkCheck ? (
                                 <div className="pk-link-check" data-testid="link-check">
@@ -1651,7 +1742,7 @@ function Report(props) {
                                         locale={locale}
                                         themeName={themeName}
                                         root={root}
-                                        valueNames={view.values.map((v) => valueLabel(v, labels))}
+                                        valueNames={valueLabels(view.values, labels)}
                                         chartOptions={stableChartOptions}
                                         colorMap={stableColorMap}
                                         // a legend entry hidden or shown: kept in the view, said to a screen reader

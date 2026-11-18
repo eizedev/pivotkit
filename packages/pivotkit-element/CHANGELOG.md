@@ -30,6 +30,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- "+ Add" in each zone opens "Add to Rows" (or the zone's name): every field with its type and the
+  field list's search. A field placed elsewhere shows its zone and moves. A pick that would change
+  nothing is disabled with its reason. Values takes a field again, and Filters opens the field's
+  filter first. The focus goes to the new chip, and a status region says what happened. Test ids:
+  `add-field-<zone>`, `add-pick-<field>`, `zones-status`. New labels: `addField`, `addFieldTo`,
+  `movedFrom`; the menu adds `addAlready`, `addMoves` and `addSecond`
+  ([#581](https://github.com/eizedev/pivotkit/issues/581)).
 - The `zones` attribute (`"open"` or `"folded"`) sets whether the zones start open or folded. Without it,
   the report's height decides ([#580](https://github.com/eizedev/pivotkit/issues/580)).
 - Chart settings › Layout folds the groups of Rows in the words of the fields: "Show each Country",
@@ -56,6 +63,15 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- The open zones are shelves: each zone's title, "i" and "+ Add" at its left, its chips beside them.
+  Shelves sit side by side while they fit and take a line of their own when they need it. The dashed
+  drop outline shows only while something is dragged. On a phone, "+ Add" sits at the right end of
+  the shelf's title row. A report with no field placed starts with its zones open, whatever its
+  height, unless `zones` says otherwise. The empty report's steps and the empty zones' hints name
+  "+ Add" too. A value that is in the view twice is "Sum of Revenue (2)" on its chip and in the
+  table. New tokens: `--pk-shelf-gap`, `--pk-shelf-pad`,
+  `--pk-shelf-min`, `--pk-chip-gap`, `--pk-chip-h`, `--pk-add-gap`, `--pk-add-hover`
+  ([#581](https://github.com/eizedev/pivotkit/issues/581)).
 - The chart's tooltip names the element under the pointer, with a stack's total. Display →
   **Tooltip**, **All series** lists every series at the category
   ([#376](https://github.com/eizedev/pivotkit/issues/376), [#106](https://github.com/eizedev/pivotkit/issues/106)).

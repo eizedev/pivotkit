@@ -165,14 +165,30 @@ function resetCollapsed(view, before) {
  * @returns {{ zone: "rows" | "cols" | "values", max: number } | null}
  */
 export function zoneOverLimit(view, limits) {
-    const limit = (name) => (limits && Number.isInteger(limits[name]) && limits[name] > 0 ? limits[name] : LIMITS[name]);
-    for (const [zone, name] of /** @type {const} */ ([["rows", "axisFields"], ["cols", "axisFields"], ["values", "values"]])) {
+    for (const zone of /** @type {const} */ (["rows", "cols", "values"])) {
         const list = view && Array.isArray(view[zone]) ? view[zone] : [];
-        if (list.length > limit(name)) {
-            return { zone, max: limit(name) };
+        const max = /** @type {number} */ (zoneMax(zone, limits));
+        if (list.length > max) {
+            return { zone, max };
         }
     }
     return null;
+}
+
+/**
+ * The most entries a zone holds (pivotkit-core's `axisFields` for Rows and Columns, `values` for
+ * Values), by the host's limits over the defaults; null for Filters, which has no such limit.
+ * @param {string} zone
+ * @param {Partial<import("pivotkit-core").Limits> | undefined} limits
+ * @returns {number | null}
+ */
+export function zoneMax(zone, limits) {
+    const name = zone === "values" ? "values" : zone === "rows" || zone === "cols" ? "axisFields" : null;
+    if (!name) {
+        return null;
+    }
+    const own = limits?.[name];
+    return typeof own === "number" && Number.isInteger(own) && own > 0 ? own : LIMITS[name];
 }
 
 /**

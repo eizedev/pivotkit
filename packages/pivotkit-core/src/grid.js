@@ -103,6 +103,37 @@ export function defaultFormat(result, vi) {
 }
 
 /**
+ * Names told apart: a name that comes again gets its place among the same ones, as a repeated column
+ * name does when data is read ("Sum of Revenue", "Sum of Revenue (2)"). Case-insensitive.
+ * @param {string[]} names
+ * @returns {string[]}
+ */
+export function numberRepeats(names) {
+    // every name taken so far, the given ones and the numbered ones: a number is bumped until the
+    // name is free ("X", "X (2)" given, then "X" again is "X (3)")
+    const taken = new Set(names.map((n) => n.toLowerCase()));
+    const used = new Set();
+    const next = new Map();
+    return names.map((name) => {
+        const key = name.toLowerCase();
+        if (!used.has(key)) {
+            used.add(key);
+            return name;
+        }
+        let n = next.get(key) ?? 2;
+        while (taken.has(`${key} (${n})`) || used.has(`${key} (${n})`)) {
+            n += 1;
+        }
+        next.set(key, n + 1);
+        used.add(`${key} (${n})`);
+        return `${name} (${n})`;
+    });
+}
+
+/** The name of every value of a view, a repeated one numbered (numberRepeats). */
+export const valueNames = (values, labels = DEFAULT_LABELS) => numberRepeats(values.map((v) => valueName(v, labels)));
+
+/**
  * "Sum of Sales", or the value's own label. A value shown as a calculation says so: "% of grand
  * total of Sales" (a sum is named by its field alone), "Running total of Count of Ticket".
  */
@@ -431,7 +462,7 @@ export function toGrid(result, options) {
         width,
         formats,
         formatters: formats.map((f) => formatterFor(f, locale)),
-        names: view.values.map((v) => valueName(v, labels))
+        names: valueNames(view.values, labels)
     };
     const header = headerRows(g);
     const body = bodyRows(g, rowLines);

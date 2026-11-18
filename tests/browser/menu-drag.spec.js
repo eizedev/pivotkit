@@ -42,6 +42,20 @@ async function inZone(page, zone, at = { x: 0.5, y: 0.6 }) {
 }
 
 /**
+ * The empty part of a zone after its last chip (a shelf holds its chips at its left and is only as
+ * wide as its line gives it): a drop there lands at the zone's end.
+ */
+async function zoneEnd(page, zone) {
+    return page.locator(`[data-zone="${zone}"]`).evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const last = [...el.querySelectorAll(".pk-chip")].at(-1)?.getBoundingClientRect();
+        const left = last ? last.right : box.left;
+        const mid = last ? last.top + last.height / 2 : box.top + box.height / 2;
+        return { x: (left + box.right) / 2, y: mid };
+    });
+}
+
+/**
  * A real mouse sequence: down at `from`, moves through `points` in small steps, up. Returns how many
  * dragged chips (the drag overlay) were on the page after each move.
  */
@@ -119,6 +133,8 @@ test.describe("a press inside a chip's menu never drags the chip", () => {
     }
 
     test("Reset filter clicked with a small jitter while the pointer is over Values: only the picks go", async ({ page }) => {
+        // a window where each shelf takes a line of its own: Values lies under the menu's Reset filter
+        await page.setViewportSize({ width: 1024, height: 1000 });
         await open(page);
         const menu = await monthFilterWithPick(page);
         const reset = menu.getByTestId("filter-reset");
@@ -258,7 +274,7 @@ test.describe("dragging still works", () => {
         await monthFilterWithPick(page);
         await closeChipMenu(page);
         const handle = page.locator(`[data-zone="cols"] .pk-chip[data-chip="${MONTH}"] .pk-handle`);
-        const overlays = await press(page, await centre(handle), [{ x: (await centre(handle)).x + 12, y: (await centre(handle)).y + 12 }, await inZone(page, "rows", { x: 0.8, y: 0.5 })]);
+        const overlays = await press(page, await centre(handle), [{ x: (await centre(handle)).x + 12, y: (await centre(handle)).y + 12 }, await zoneEnd(page, "rows")]);
         expect(overlays.at(-1), "the dragged chip follows the pointer").toBe(1);
         expect(await chips(page, "rows")).toEqual(["City", MONTH]);
         expect(await chips(page, "cols")).toEqual([]);
@@ -268,7 +284,7 @@ test.describe("dragging still works", () => {
         await open(page);
         const field = page.locator('.pk-field[data-field="Season"]');
         const from = await centre(field.locator(".pk-handle"));
-        const overlays = await press(page, from, [{ x: from.x + 12, y: from.y + 12 }, await inZone(page, "rows", { x: 0.8, y: 0.5 })]);
+        const overlays = await press(page, from, [{ x: from.x + 12, y: from.y + 12 }, await zoneEnd(page, "rows")]);
         expect(overlays.at(-1), "the dragged field follows the pointer").toBe(1);
         expect(await chips(page, "rows")).toEqual(["City", "Season"]);
     });
