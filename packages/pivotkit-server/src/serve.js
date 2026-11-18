@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ConfigError } from "./config.js";
+import { ConfigError, noRouteDetail } from "./config.js";
 import { fitsRange } from "./version-range.js";
 import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 
@@ -147,6 +147,8 @@ export async function createServerHandler(options, runtime) {
         const hosts = allowedHosts(options);
         const trustProxy = options.http?.trustProxy ?? false;
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
+        // a path nobody serves names the REST service and its OpenAPI document by their full address
+        const noRoute = rest ? noRouteDetail(options) : "no such route";
 
         /** Whether /readyz last found the server ready (it starts out so): a line is written only when that changes. */
         let wasReady = true;
@@ -224,7 +226,7 @@ export async function createServerHandler(options, runtime) {
                 }
                 // a path nobody serves: on the debug log only, so a scan does not fill the log
                 context.log.refused({ status: 404, reason: refusalReason("NOT_FOUND") }, { level: "debug" });
-                return problem("NOT_FOUND", "no such route; the REST service is at /api/v1 (GET /openapi.json)");
+                return problem("NOT_FOUND", noRoute);
             }
         };
 

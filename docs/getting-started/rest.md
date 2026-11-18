@@ -12,6 +12,9 @@ In ten minutes you do the following:
 - check a view
 - render it into an Excel file and download it
 
+The REST service is at `/api/v1`. Its OpenAPI document sits at the server's root, `/openapi.json`,
+not under `/api/v1`.
+
 You need Node 22 or later. Without Node, use [Server in 5 minutes](server-in-5-minutes.md). It starts
 the container image with one command, and the server makes a token itself.
 [Container image](../reference/container.md) has the details.
@@ -32,9 +35,13 @@ makes the folder `reports` for what it writes:
 npx -y pivotkit-server serve --source sales=sales.csv --output reports
 ```
 
-The log says `started` with the address. Leave it running and open a second terminal in the same
-folder. If your shell sets `PIVOTKIT_TOKEN`, the start warns: "PIVOTKIT_TOKEN is set but auth is
-none; use --auth token (or auth.mode token)". Here that is fine. [Step 6](#policy) sets up tokens.
+The log says `started` with the address. The REST service is at `http://127.0.0.1:3333/api/v1`.
+Its OpenAPI document sits at the server's root, not under `/api/v1`:
+`http://127.0.0.1:3333/openapi.json`.
+
+Leave it running and open a second terminal in the same folder. If your shell sets
+`PIVOTKIT_TOKEN`, the start warns: "PIVOTKIT_TOKEN is set but auth is none; use --auth token (or
+auth.mode token)". Here that is fine. [Step 6](#policy) sets up tokens.
 
 For another port, use one of these and use that port in the calls below:
 
@@ -331,7 +338,9 @@ try {
 - [pivotkit-server (REST)](../reference/rest.md): every route, profiles, sign-in with OAuth, CORS, limits, errors.
 - [Sign in from the command line](../reference/rest.md#sign-in-cli): a token from your sign-in
   provider with `pivotkit login`, curl or PowerShell.
-- The OpenAPI document of your service: `GET /openapi.json` with a token.
+- The OpenAPI document of your service, at the server's root, not under `/api/v1`:
+  `GET http://127.0.0.1:3333/openapi.json`, with a token where the server needs one
+  ([The OpenAPI document](../reference/rest.md#openapi)).
 - [Container image](../reference/container.md): the same service in Docker.
 - [Kubernetes](kubernetes.md): the service with the MCP server, an Ingress and sign-in.
 - [Update an installation](upgrading.md#update): a new release of the service, the image or the CLI.

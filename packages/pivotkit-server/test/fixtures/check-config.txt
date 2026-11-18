@@ -91,7 +91,7 @@ Profile analyst:
 
 REST: /api/v1
   CORS: https://app.example.com
-  /openapi.json: needs auth
+  OpenAPI document: /openapi.json, at the server's root; needs auth
 
 Log:
   level info, format auto (text on a terminal, JSON otherwise)
