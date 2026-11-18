@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { forwarded, leftovers } from "../scripts/test-run.js";
 import { leftBehind, newNames } from "../scripts/temp-dirs.js";
 import { root, sourceFiles } from "./source-files.js";
-import { GRACE_MS, HOST, ROOT_ENV, RUN_ENV, SWEPT_LOG, tempDir, tempDirNames } from "./temp-dir.js";
+import { GRACE_MS, HOST, ROOT_ENV, RUN_ENV, SWEPT_LOG, removeOrphans, tempDir, tempDirNames } from "./temp-dir.js";
 
 const HELPER = fileURLToPath(new URL("./temp-dir.js", import.meta.url));
 const TEST_RUN = fileURLToPath(new URL("../scripts/test-run.js", import.meta.url));
@@ -341,6 +341,28 @@ test("CI's check names the pivotkit-* directories that are new after the tests, 
     const log = "pivotkit-old-p9-aaaaaa\n";
     assert.deepEqual(leftBehind({ names: before, swept: log.length }, { names: before, swept: log }), []);
     assert.deepEqual(leftBehind({ names: before, swept: log.length }, { names: before, swept: `${log}pivotkit-cli-p13-bbbbbb\n` }), ["pivotkit-cli-p13-bbbbbb (removed by a sweep: its process was killed)"]);
+});
+
+// A sweep lists the directories, then asks whether each one's process still runs. A process that
+// ends in between removes its own directories at its exit. Such a directory is no killed process's
+// leftover, and a note would fail that process's test run (#436).
+test("a sweep notes no directory that its process removed at its end, between the listing and the check", () => {
+    const root = tempDir("sweep-race");
+    const name = `pivotkit-a1-server-h${HOST}p999999-abcdef`;
+    mkdirSync(join(root, name));
+    const kill = process.kill;
+    // the process with id 999999 ends now: it has removed its directory, and it is gone
+    process.kill = /** @type {typeof process.kill} */ ((pid, signal) => {
+        if (pid !== 999999) return kill.call(process, pid, signal);
+        rmSync(join(root, name), { recursive: true });
+        throw Object.assign(new Error("kill ESRCH"), { code: "ESRCH" });
+    });
+    try {
+        removeOrphans(root);
+    } finally {
+        process.kill = kill;
+    }
+    assert.equal(existsSync(join(root, SWEPT_LOG)), false, "the sweep noted a directory its process had removed");
 });
 
 test("a test run fails when a sweep removed a directory of its own that a killed process left", () => {
