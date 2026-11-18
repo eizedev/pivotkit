@@ -1,6 +1,6 @@
 // Loading files in the browser tests: a file as the page gets it, a drop of files onto the report,
 // the Data menu and its file chooser, the field list's names. Shared by the specs that load data.
-import { expect } from "./fixtures.js";
+import { expect, twoFrames } from "./fixtures.js";
 
 /** A file for the page: its name, type and content (text, or bytes as base64). */
 export const fileOf = (name, type, content) => ({ name, type, ...(typeof content === "string" ? { text: content } : { base64: Buffer.from(content).toString("base64") }) });
@@ -33,8 +33,14 @@ export async function dropFiles(page, target, files, { drop = true, expectOverla
 /** The field names of the field list. */
 export const fieldNames = (scope) => scope.locator(".pk-field-list [data-field]").evaluateAll((els) => els.map((e) => e.getAttribute("data-field")));
 
-/** Opens the Data menu: its own button, or its entry in "More". */
+/**
+ * Opens the Data menu: its own button, or its entry in "More", looked for once the toolbar has
+ * settled (twoFrames). `scope` is the page or one report on it.
+ */
 export async function dataMenu(scope) {
+    await scope.getByRole("toolbar").first().waitFor();
+    // a Locator has page(), a Page has not
+    await twoFrames("page" in scope ? scope.page() : scope);
     const own = scope.getByTestId("data");
     if (await own.count()) {
         await own.click();
