@@ -41,9 +41,9 @@ For more rows, see [more than a million rows](concepts/limits.md#more-than-a-mil
 
 ## My data is on a server. Does pivotkit fetch it?
 
-The report in the browser does not. It loads only its own code: its chunks and its import worker. It takes an array of plain
-objects that you load yourself, for example with `fetch`, a framework's data layer or a
-`<script type="application/json">` block.
+The report in the browser does not. It loads only its own code: its chunks and its import worker.
+It takes an array of plain objects that you load yourself, for example with `fetch`, a framework's
+data layer or a `<script type="application/json">` block.
 
 To aggregate on the server instead, you have two ways:
 
@@ -56,9 +56,9 @@ To aggregate on the server instead, you have two ways:
 
 ## Does pivotkit send anything home?
 
-No. pivotkit has no telemetry, no update check and no error reporting. It loads nothing from another
-host. [Network requests](security.md#network) lists every request each part can make, for operators
-in closed networks.
+No. pivotkit has no telemetry, no update check and no error reporting. It loads nothing from a host
+other than the one that serves your app. [Network requests](security.md#network) lists every
+request each part can make, for operators in closed networks.
 
 ## My data is columnar (`{ columns, rows }`). Can I pass it?
 

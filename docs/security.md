@@ -73,8 +73,9 @@ pivotkit sends nothing home. It has none of these:
 - error reporting
 - fonts, scripts or images from another host
 
-Each part makes only the requests below. Each request looks up its host name with the system's
-resolver first.
+Each part makes only the requests below. A request to a host name looks up that name first. The
+server and the command line ask the system's resolver, the browser its own. An IP address needs no
+lookup.
 
 The report in the browser, pivotkit-react and pivotkit-element:
 
@@ -90,18 +91,19 @@ configuration or on the command line:
 
 - an [HTTP source](reference/sources.md#http) and its backend sign-in
 - the OAuth issuer's metadata and key set
-- the issuer's token endpoint, for a token exchange and for the
-  [sign-in links](reference/delivery.md#sign-in) of downloads
-- an [upload store](reference/delivery.md#upload)
+- the token endpoint of a token exchange, and that of the
+  [sign-in links](reference/delivery.md#sign-in) of downloads. Each is the issuer's, or the address
+  the operator sets with `tokenUrl`. The sign-in links can have an issuer of their own.
+- an [upload store](reference/delivery.md#upload) and its presign service
 - the OpenAPI document that `pivotkit-server source-from-openapi` reads
 
-[HTTP sources and outbound requests](#http-sources) says how the server guards these requests. Its
-commands for the operator add these:
+[HTTP sources and outbound requests](#http-sources) says how the server guards these requests.
+The server's commands for the operator add these:
 
 - `check-config` asks the issuer for its metadata. It looks up the host names of the issuer and the
   upload store, without a request to the store.
-- `check-source` loads one HTTP source with its backend sign-in. For a token exchange it asks only
-  the token endpoint.
+- `check-source` loads one HTTP source with its backend sign-in. For a token exchange it asks the
+  token endpoint only. Without `tokenUrl`, it reads the issuer's metadata first.
 - `pivotkit-server healthcheck` asks `/healthz` on 127.0.0.1 by default. Given an address, it asks
   that address ([health](reference/container.md#health)).
 
@@ -116,7 +118,7 @@ The command line, `pivotkit`:
 
 A request to a loopback address never goes through a proxy. Other requests of the command line use
 `HTTP_PROXY` and `HTTPS_PROXY` only where Node is told to, with `NODE_USE_ENV_PROXY=1` or
-`--use-env-proxy`. The server uses no proxy.
+`--use-env-proxy`. The server's requests to other servers use no proxy.
 
 Without a server, the command line reads and writes local files only.
 
@@ -707,11 +709,12 @@ Each release's image is signed with cosign (keyless) and has provenance and SBOM
 ## HTTP sources and outbound requests { #http-sources }
 
 The REST service and the MCP server make requests to other servers only where the operator's
-configuration names the address. [Network requests](#network) lists them. The issuer's are in
-[OAuth](reference/mcp.md#oauth).
+configuration names the address. [Network requests](#network) lists them.
+[OAuth](reference/mcp.md#oauth) has the issuer's rules.
 
-Every one goes through the same guarded request, `guardedFetch` in pivotkit-server. So a caller or a
-model cannot point the server at an address:
+Every request to a source, the issuer, an upload store or an OpenAPI document by URL goes through
+the same guarded request, `guardedFetch` in pivotkit-server. So a caller or a model cannot point the
+server at an address:
 
 - `https://` only, with no user name or password in the address. Plain `http://` goes only to a
   loopback address, for a test issuer the operator allows (`auth.allowInsecureIssuer`).

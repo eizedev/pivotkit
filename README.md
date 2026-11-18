@@ -70,8 +70,8 @@ there. It is MIT licensed and comes as:
 - a REST service and an MCP server
 
 The report in the browser computes on the rows the host passes. It fetches no data. The REST service
-and the MCP server fetch data from the sources you configure. pivotkit sends nothing home:
-[every network request it can make](https://pivotkit.eize.dev/security/#network).
+and the MCP server fetch data from the sources you configure. pivotkit sends nothing home.
+[Network requests](https://pivotkit.eize.dev/security/#network) lists every request it can make.
 
 The report runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4:
 [browser support](docs/browser-support.md). The engine, the reports, the CLI, the REST service and
