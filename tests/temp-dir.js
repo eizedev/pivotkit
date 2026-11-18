@@ -116,8 +116,11 @@ export function removeOrphans(dir = tempRoot()) {
     for (const name of tempDirNames(dir)) {
         const pid = Number(OWNER.exec(name)?.[1] ?? 0);
         if (pid === 0 || pid === process.pid || running(pid)) continue;
+        // gone already: its process removed it at its end, after the listing (no killed process's)
+        if (!lstatSync(join(dir, name), { throwIfNoEntry: false })) continue;
         try {
-            rmSync(join(dir, name), { recursive: true, force: true, maxRetries: 3 });
+            // without force: a directory another sweep removed since the check throws, and is not noted twice
+            rmSync(join(dir, name), { recursive: true, maxRetries: 3 });
             removed.push(name);
         } catch {
             // another process may be removing it now; the next sweep tries again

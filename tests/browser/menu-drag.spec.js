@@ -57,9 +57,11 @@ async function zoneEnd(page, zone) {
 
 /**
  * A real mouse sequence: down at `from`, moves through `points` in small steps, up. Returns how many
- * dragged chips (the drag overlay) were on the page after each move.
+ * dragged chips (the drag overlay) were on the page after each move. With `dropOn`, the release waits
+ * until that zone shows it takes the drop, as a person waits for the mark: dnd-kit drops on the target
+ * of its last render, and a busy WebKit can take the release before it has drawn the last moves (#416).
  */
-async function press(page, from, points) {
+async function press(page, from, points, { dropOn } = {}) {
     const overlays = [];
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
@@ -67,6 +69,7 @@ async function press(page, from, points) {
         await page.mouse.move(p.x, p.y, { steps: 8 });
         overlays.push(await page.locator(".pk-overlay").count());
     }
+    if (dropOn) await expect(page.locator(`[data-zone="${dropOn}"]`), `${dropOn} shows it takes the drop`).toHaveClass(/\bpk-over\b/);
     await page.mouse.up();
     // dnd-kit swallows clicks for 50 ms after a drag; a drop would be done by now
     await page.waitForTimeout(150);
@@ -274,18 +277,20 @@ test.describe("dragging still works", () => {
         await monthFilterWithPick(page);
         await closeChipMenu(page);
         const handle = page.locator(`[data-zone="cols"] .pk-chip[data-chip="${MONTH}"] .pk-handle`);
-        const overlays = await press(page, await centre(handle), [{ x: (await centre(handle)).x + 12, y: (await centre(handle)).y + 12 }, await zoneEnd(page, "rows")]);
+        const from = await centre(handle);
+        const overlays = await press(page, from, [{ x: from.x + 12, y: from.y + 12 }, await zoneEnd(page, "rows")], { dropOn: "rows" });
         expect(overlays.at(-1), "the dragged chip follows the pointer").toBe(1);
-        expect(await chips(page, "rows")).toEqual(["City", MONTH]);
-        expect(await chips(page, "cols")).toEqual([]);
+        // the drop is drawn on the next render, which a busy runner can delay
+        await expect.poll(() => chips(page, "rows")).toEqual(["City", MONTH]);
+        await expect.poll(() => chips(page, "cols")).toEqual([]);
     });
 
     test("a field from the field list onto Rows", async ({ page }) => {
         await open(page);
         const field = page.locator('.pk-field[data-field="Season"]');
         const from = await centre(field.locator(".pk-handle"));
-        const overlays = await press(page, from, [{ x: from.x + 12, y: from.y + 12 }, await zoneEnd(page, "rows")]);
+        const overlays = await press(page, from, [{ x: from.x + 12, y: from.y + 12 }, await zoneEnd(page, "rows")], { dropOn: "rows" });
         expect(overlays.at(-1), "the dragged field follows the pointer").toBe(1);
-        expect(await chips(page, "rows")).toEqual(["City", "Season"]);
+        await expect.poll(() => chips(page, "rows")).toEqual(["City", "Season"]);
     });
 });

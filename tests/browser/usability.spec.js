@@ -271,6 +271,8 @@ test("a low report (520 px) folds its zones under their heading; the heading row
     const to = await filters.boundingBox();
     await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 16 });
     await page.mouse.move(to.x + to.width / 2 + 1, to.y + to.height / 2 + 1, { steps: 2 });
+    // released once Filters shows it takes the drop, as drag() in fixtures.js does (#416)
+    await expect(filters).toHaveClass(/\bpk-over\b/);
     await page.mouse.up();
     await page.waitForTimeout(100);
     await expect(page.getByTestId("zones-sub")).toHaveText(/Filters: Channel/);
