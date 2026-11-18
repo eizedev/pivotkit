@@ -6,6 +6,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-18
+
 ### Upgrading from 0.7
 
 - Table and Chart are tabs on top of the result, with "Table settings" or "Chart settings" beside
@@ -508,7 +510,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.7.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.0...HEAD
+[0.8.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.7.0...pivotkit-element@0.8.0
 [0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.1...pivotkit-element@0.7.0
 [0.6.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.0...pivotkit-element@0.6.1
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.5.0...pivotkit-element@0.6.0

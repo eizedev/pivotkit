@@ -8,7 +8,7 @@ description: Run pivotkit-server with the REST service and the MCP server on Kub
 This page runs the [container image](../reference/container.md) on Kubernetes. One Deployment
 serves the [REST service](../reference/rest.md) at `/api/v1` and the [MCP server](../reference/mcp.md)
 at `/mcp` on port 3333, from one configuration file. The example manifest
-[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.2.0/docker/kubernetes.example.yaml)
+[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.3.0/docker/kubernetes.example.yaml)
 holds every part shown below. The sections explain each one.
 
 ## Set it up { #setup }
@@ -16,7 +16,7 @@ holds every part shown below. The sections explain each one.
 1. Download the manifest:
 
     ```bash
-    curl -fsSLO https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.2.0/docker/kubernetes.example.yaml
+    curl -fsSLO https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.3.0/docker/kubernetes.example.yaml
     ```
 
 2. Edit your copy. Always set these:
@@ -555,7 +555,7 @@ pod stops before the new one starts.
 
 ## The whole manifest { #manifest }
 
-[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.2.0/docker/kubernetes.example.yaml)
+[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.3.0/docker/kubernetes.example.yaml)
 holds, in this order:
 
 - the Namespace

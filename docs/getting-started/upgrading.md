@@ -167,6 +167,7 @@ configuration, under "New in this version", with a link to each section below.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| [Versions move together](#versions-0-8) | you also install pivotkit-core, pivotkit-report or pivotkit-xlsx yourself, or pivotkit-server and pivotkit-mcp side by side | update them to the same release |
 | **Breaking:** [the drill-down's copy and download follow `exportData`](#drill-export) | you embed the report with `exportData` off, the default, and people copy or download a drill-down's rows | set `drillDownExport` (`drill-down-export`) to keep that |
 | [Sources hidden by default can be open](#hidden-open) | a source is hidden by default (`"default": "hide"`) and names only fields at `show` or `hide` | nothing; for plain links over a "show everything except" source, set its default to `hide` and list the fields to show |
 | [A byte quota and an age limit for drafts](#draft-quota) | callers make schedule drafts (`draft_schedule`, `POST /schedules/draft`) | nothing; run `check-config`; set `output.draftMaxAgeDays` if waiting drafts should expire |
@@ -183,6 +184,14 @@ configuration, under "New in this version", with a link to each section below.
 | [Views that set a new chart setting](../concepts/views.md) | a 0.7 tool reads views or links saved with 0.8 | nothing; a view file leaves out the new chart settings while they hold their default. A view that sets one, such as a hidden series, gets an `unknownKey` warning from a 0.7 reader, which then ignores it |
 | [On a touch screen, the chart opens the rows on the second tap](../use/charts.md#read-the-chart) | your app runs on phones or tablets and uses `onCellClick` or the drill-down from the chart | nothing for people; the first tap on an element shows its tooltip, the second calls `onCellClick` and opens the rows. Your own touch tests now tap twice |
 | [A workbook of a chart view says where the chart is](#chart-not-in-xlsx) | a script or a client renders `xlsx` for a view that shows the chart, and treats any finding as a failure | let the warning `chartNotInXlsx` pass, or render `html` or `svg` for the chart. Reconnect MCP clients to see the new tool description |
+
+### Versions move together { #versions-0-8 }
+
+Each package depends on the others of the same release, and in 0.x a caret range admits one minor
+only. A host may also list pivotkit-core, pivotkit-report or pivotkit-xlsx itself. It then updates
+them to the versions released with pivotkit-react 0.8: pivotkit-core 0.8.0, pivotkit-report 0.4.0
+and pivotkit-xlsx 0.5.0. Otherwise npm installs two copies. pivotkit-server 0.3.0 and pivotkit-mcp
+0.3.0 belong together the same way: [update them in one command](#update-global).
 
 ### Table and Chart are tabs, More is always there, the zones fold under a heading { #view-tabs-0-8 }
 

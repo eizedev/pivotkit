@@ -6,8 +6,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-18
+
 ### Changed
 
+- Depends on `pivotkit-report` `^0.4.0` and `pivotkit-server` `^0.3.0`.
 - `render_view`'s description says the workbook holds the table, no chart. A chart view rendered as
   xlsx has the finding `chartNotInXlsx`. Clients see the description after they reconnect
   ([#360](https://github.com/eizedev/pivotkit/issues/360)).
@@ -265,7 +268,8 @@ First release.
   two `Authorization` headers are refused, also when node:http would keep only the first; an input
   nested deeper than 64 levels is `INVALID_INPUT` before it reaches a worker.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.2.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.0...HEAD
+[0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.2.0...pivotkit-mcp@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.1...pivotkit-mcp@0.2.0
 [0.1.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.0...pivotkit-mcp@0.1.1
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-mcp@0.1.0

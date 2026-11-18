@@ -6,6 +6,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-18
+
 ### Added
 
 - The SVG and the HTML report draw 100 % stacks (`chart.stackPercent`) and leave out hidden
@@ -27,6 +29,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.8.0` (was `^0.7.0`).
 - Behaviour change: the HTML report's row count takes the plural form of its language: "1 row",
   "1 Zeile". `REPORT_TEXTS.<lang>.rowsCount` and `rowsFiltered` are objects of plural forms, no
   longer texts, and so is their type in `ReportTexts`. The `texts` option takes a count as one text
@@ -216,7 +219,8 @@ First release.
   (`chart`, `chartEmbed`, `bom`, `strict`, `trusted`) takes only those, and `chart: true` without
   `echarts` is an error. `bom: false` writes CSV without a byte order mark.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.3.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.4.0...HEAD
+[0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.3.0...pivotkit-report@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.1...pivotkit-report@0.3.0
 [0.2.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.0...pivotkit-report@0.2.1
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.1.0...pivotkit-report@0.2.0

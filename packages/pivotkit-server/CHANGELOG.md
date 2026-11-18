@@ -6,6 +6,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-18
+
 ### Added
 
 - `rest.signIn.clientId` publishes the provider's public client for `pivotkit login` in the REST
@@ -41,6 +43,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.8.0`, `pivotkit-report` `^0.4.0`, `pivotkit-cli` `^0.4.0` and
+  `pivotkit-xlsx` `^0.5.0`.
 - Breaking for scripts that parse inline csv or json: its numbers are rounded to the decimals the
   view shows (`numbers: "full"` keeps the old form; saved files and the file route keep full
   precision), and inline json is on one line. The message says when rounding writes a value as 0
@@ -836,7 +840,8 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.2.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.0...HEAD
+[0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.2.0...pivotkit-server@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.1...pivotkit-server@0.2.0
 [0.1.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.0...pivotkit-server@0.1.1
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-server@0.1.0
