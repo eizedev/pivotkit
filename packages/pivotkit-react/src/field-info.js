@@ -126,6 +126,20 @@ export function fieldMatches(field, query, info) {
     return [field, info?.label, info?.description].some((t) => typeof t === "string" && t.toLowerCase().includes(query));
 }
 
+/**
+ * The fields a search shows: the field list's and the "+ Add" menus' search, by name, display name and
+ * description (fieldMatches), in the data's order.
+ * @template {{ name: string }} F
+ * @param {F[]} fields
+ * @param {string} query  as typed
+ * @param {Map<string, FieldInfo>} info  the host's descriptions by lower-case field name
+ * @returns {F[]}
+ */
+export function matchingFields(fields, query, info) {
+    const q = query.trim().toLowerCase();
+    return q ? fields.filter((f) => fieldMatches(f.name, q, info.get(f.name.toLowerCase()))) : fields;
+}
+
 /** Whether a field's name says it is an identifier: pivotkit-core's rule, which its suggestions share. */
 export { isIdentifierName };
 

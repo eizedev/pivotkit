@@ -440,6 +440,12 @@ test.describe("a result taller than its area scrolls inside it", () => {
             await page.goto(`?empty&height=${height}`);
             const empty = page.getByTestId("empty-state");
             await expect(empty).toBeVisible();
+            // an empty report shows its zones whatever its height; folded by hand, the start help
+            // has the room this test scrolls through
+            const fold = page.getByTestId("layout-summary");
+            if ((await fold.getAttribute("aria-expanded")) === "true" && height < 600) {
+                await fold.click();
+            }
             const last = empty.locator(".pk-empty-actions .pk-btn").last();
             await expect(last).toHaveText(/^Start with /);
             expect(await wheelTo(page, last)).toBe(true);

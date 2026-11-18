@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, findNode, toGrid, validate } from "../src/index.js";
+import { computePivot, encode, findNode, numberRepeats, toGrid, validate } from "../src/index.js";
+import { toEChartsOption } from "../src/chart.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -107,4 +108,25 @@ test("a value shown as a calculation is named after it", () => {
     assert.equal(name({ agg: "count", showAs: "runningTotal" }), "Running total of Count");
     assert.equal(name({ field: "Units", agg: "sum", showAs: "percentOfGrandTotal", label: "Share" }), "Share", "an own name wins");
     assert.equal(name({ field: "Units", agg: "sum", showAs: "percentOfRowTotal" }, { showAsName: "{showAs} von {value}", showAs: { percentOfRowTotal: "% der Zeilensumme" } }), "% der Zeilensumme von Units");
+});
+
+test("the same value twice: the second is numbered in the table, its header and the chart's series (#581)", () => {
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }, { field: "Units", agg: "sum", showAs: "percentOfGrandTotal" }, { field: "Units", agg: "sum" }] };
+    const grid = toGrid(computePivot(data, view));
+    assert.deepEqual(grid.valueNames, ["Sum of Units", "% of grand total of Units", "Sum of Units (2)"]);
+    const header = grid.rows.slice(0, grid.headerRows).flat().map((c) => c.text);
+    assert.ok(header.includes("Sum of Units (2)"), header.join(" | "));
+    const series = toEChartsOption(computePivot(data, { ...view, display: "chart", chart: { type: "bar" } })).series.map((s) => s.name);
+    assert.deepEqual(series, ["Sum of Units", "% of grand total of Units", "Sum of Units (2)"]);
+});
+
+test("numberRepeats numbers a name that comes again, case-insensitively", () => {
+    assert.deepEqual(numberRepeats(["Sum of A", "Count", "sum of a", "Sum of A"]), ["Sum of A", "Count", "sum of a (2)", "Sum of A (3)"]);
+});
+
+test("numberRepeats skips a number another name has already", () => {
+    assert.deepEqual(numberRepeats(["X", "X", "X (2)"]), ["X", "X (3)", "X (2)"]);
+    assert.deepEqual(numberRepeats(["X (2)", "X", "X"]), ["X (2)", "X", "X (3)"]);
+    const names = numberRepeats(["A", "A", "A (2)", "A (3)", "A"]);
+    assert.equal(new Set(names.map((n) => n.toLowerCase())).size, names.length);
 });

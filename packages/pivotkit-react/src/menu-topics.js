@@ -10,7 +10,7 @@
 
 import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
-import { groupingName, refLabel, relativeText, sortText, valueLabel } from "./names.js";
+import { groupingName, refLabel, relativeText, sortText, valueLabels } from "./names.js";
 import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, hiddenAfter, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
 import { valueAddsUp } from "pivotkit-core";
 import { CHART_TYPES, SLICE_TYPES } from "./chart-types.js";
@@ -28,7 +28,11 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  * @typedef {{ id: string, text: string, change?: () => { view: any, note: any } | null, run?: () => void, checked?: boolean,
  *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
  *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string,
- *   color?: { id: string, value: string, label: string, pick: (color: string) => void } }} Choice
+ *   color?: { id: string, value: string, label: string, pick: (color: string) => void },
+ *   tags?: Array<{ icon: string, text: string }>, className?: string, note?: string }} Choice
+ * `tags`: small marks after the text (the zones a field is in), hidden from assistive technology;
+ * `note`: a line under the text that says what choosing it does, read with it; `className`: the
+ * item's own class (a field's type).
  */
 
 /**
@@ -301,7 +305,7 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf, ea
     const spec = view.values[index];
     const type = spec.field ? types.get(spec.field.toLowerCase()) ?? "string" : "number";
     const defaults = spec.field ? defaultsOf?.(spec.field) : undefined;
-    const name = valueLabel(spec, labels);
+    const name = valueLabels(view.values, labels)[index];
     const set = (patch) => () => ({ view: updateValue(view, index, patch, { defaults }), note: { step: "value", field: name } });
     const aggs = spec.field ? aggregatorsFor(type) : ["count"];
     // another aggregator is another chip (its key): the menu closes

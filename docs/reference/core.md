@@ -313,7 +313,7 @@ size, and `toGrid` counts it before it allocates anything.
 | `headerRows`, `rowHeaderColumns`, `columnCount` | The layout. |
 | `merges` | `{ row, col, rowSpan, colSpan }[]`. |
 | `dataColumns`, `bodyRows` | `dataColumns`: per value column its `colPath`, `valueIndex` and `total`. `bodyRows`: per body row its `rowPath`, `total` and `collapsed`. Without values there is one column per column line (`valueIndex` -1, empty cells under the labels). With no column fields either, there are no columns. |
-| `formats`, `valueNames`, `conditional` | Per value. |
+| `formats`, `valueNames`, `conditional` | Per value. A value name that comes again is numbered: "Sum of Units", "Sum of Units (2)". |
 | `showAs` | Per value its "show values as" type, or `null`. |
 | `locale`, `timeZone` | What the texts are formatted in. The exports use them too. |
 
@@ -616,6 +616,7 @@ files contain and where Excel's number formats cannot follow the grid.
 | `REPORT_LABELS`, `reportLabels(locale)` | The same texts as a report shows them, per language. `en` has yes/no as words and the aggregators' longer names ("Distinct count"). `de` has "Gesamtergebnis" and "Summe von Units". `reportLabels` gives a locale's texts: German for `"de-DE"`, English for any other. pivotkit-react's report and pivotkit-report use them. |
 | `ROW_COUNT_TEXTS` | The row count in words, English and German, with one form per plural category: `rowsCount` ("8 rows") and `rowsFiltered` ("6 of 8 rows") for when filters leave rows out. pivotkit-react's line under the result and pivotkit-report's HTML report both use them. |
 | `pluralForm(forms, count, lang)`, `PLURAL_CATEGORIES` | The form of a count's words for `count` in the language `lang`, after `Intl.PluralRules`: `forms[category]`, else `forms.other`. `PLURAL_CATEGORIES` lists the categories a count's forms may have. pivotkit-react's labels and pivotkit-report's texts use them. |
+| `numberRepeats(names)` | The names with each one that comes again numbered, case-insensitively: `["Sum of A", "sum of a"]` gives `["Sum of A", "sum of a (2)"]`. The grid, the chart's series and pivotkit-react's chips name a value that is in the view twice this way. |
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names. The view keeps the field names. |
 | `DEFAULT_THEME` | The defaults for charts and conditional formats. Colours for colour scales and data bars are those of pivotkit-react's light theme: `colorScale` `["#eaf1fb", "#2a78d6"]`, light for low and strong for high, and `dataBar` `"#2a78d6"`. A chart's title has the font weight `strongWeight`, 600, and the size `titleSize`, 16 px. Its other text has `textSize`, 14 px. The corners of its marks are `markRadius`, 4 px, and of its tooltip `cardRadius`, 8 px. It also holds the radius of a pie and of a donut. |
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |

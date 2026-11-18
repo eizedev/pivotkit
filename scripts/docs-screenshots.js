@@ -230,6 +230,13 @@ const SHOTS = [
         size: WIDE,
         open: (page) => page.getByTestId("chip-menu-Sum of Revenue").click()
     },
+    // "+ Add" of Rows: every field with its type, a placed one with its zone, one in Rows disabled
+    {
+        name: "add-menu",
+        query: "data=sales",
+        size: WIDE,
+        open: (page) => page.getByTestId("add-field-rows").click()
+    },
     // a field's menu: its first level, sort side by side, then a row per topic
     {
         name: "field-menu",

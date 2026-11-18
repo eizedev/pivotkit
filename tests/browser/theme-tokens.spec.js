@@ -229,6 +229,9 @@ test.describe("exports from a dark report carry the host's light colours (#217)"
         await page.locator(".pk-chip-menu").getByTestId("cond-colorScale").click();
         await expect(page.locator(".pk-td.pk-has-scale").first()).toBeVisible();
         await page.keyboard.press("Escape");
+        // the pointer off the table: the menu's entry may have been over a cell, and that cell's own
+        // hover transition, when the pointer moves on, is not a run the theme reading starts
+        await page.mouse.move(0, 0);
         // the cells' colours have come in (their transition ended)
         await expect.poll(() => page.evaluate(() => document.getAnimations().length)).toBe(0);
         const root = page.locator(".pk-root");
@@ -323,6 +326,8 @@ test.describe("the HTML report carries the host's dark colours too (#385)", () =
             await page.locator(".pk-chip-menu").getByTestId("cond-colorScale").click();
             await expect(page.locator(".pk-td.pk-has-scale").first()).toBeVisible();
             await page.keyboard.press("Escape");
+            // the pointer off the table, as above: a hovered cell's own transition is not counted
+            await page.mouse.move(0, 0);
             await expect.poll(() => page.evaluate(() => document.getAnimations().length)).toBe(0);
             const root = page.locator(".pk-root");
             const shown = () => root.evaluate((el) => ({ theme: el.getAttribute("data-pk-theme"), low: getComputedStyle(el).getPropertyValue("--pk-heat-low").trim() }));

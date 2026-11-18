@@ -202,7 +202,8 @@ test.describe("names, roles and sizes", () => {
         await page.getByTestId("field-menu-Lead hours").click();
         await expect(page.getByRole("menuitem", { name: "Add to Values", exact: true })).toHaveCount(0);
         await page.getByRole("menuitem", { name: "Add to Values again" }).click();
-        await expect.poll(() => chips(page, "values")).toEqual(["Count of Ticket", "Average of Lead hours", "Average of Lead hours"]);
+        // the second one is told apart by its number
+        await expect.poll(() => chips(page, "values")).toEqual(["Count of Ticket", "Average of Lead hours", "Average of Lead hours (2)"]);
     });
 
     test("every control is at least 24 by 24 px (WCAG 2.5.8), wide and narrow", async ({ page }) => {

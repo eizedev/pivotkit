@@ -12,7 +12,7 @@ import { legendSelected, percentShares, stacksToPercent } from "./chart-stack.js
 import { DEFAULT_THEME, GRID_TOP, HEATMAP_GRID_BOTTOM } from "./defaults.js";
 import { expect } from "./errors.js";
 import { formatterFor } from "./format.js";
-import { valueName } from "./grid.js";
+import { valueNames } from "./grid.js";
 import { DEFAULT_LABELS } from "./labels.js";
 import { isPivotResult } from "./pivot.js";
 import { resolveLocale, optionsOf } from "./util.js";
@@ -179,7 +179,7 @@ export function toEChartsOption(result, options) {
     // a pie's or heatmap's one series is named by the value it draws (the tooltip's title): with a field
     // on Columns the first series is the first column's, but a slice adds every column, a cell names its own
     const vi = first ? first.valueIndex : 0;
-    const valueTitle = result.view.values[vi] ? valueName(result.view.values[vi], { ...DEFAULT_LABELS, ...(options.labels || {}) }) : "";
+    const valueTitle = result.view.values[vi] ? valueNames(result.view.values, { ...DEFAULT_LABELS, ...(options.labels || {}) })[vi] : "";
     // the title over the chart, and the legend where the view puts it, with the room they take
     const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: theme.titleSize ?? DEFAULT_THEME.titleSize, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight } } } : {};
     const titleRoom = title.title ? roomOfTitle(theme.titleSize ?? DEFAULT_THEME.titleSize) : 0;

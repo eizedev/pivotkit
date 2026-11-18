@@ -104,6 +104,9 @@ export function MenuList({ label, labelledBy, className, close, children, testId
                 e.preventDefault();
                 e.stopPropagation();
                 items[i].focus();
+                // whole in the menu's scrolling list: a focus scrolls only as far as each engine
+                // decides (Firefox on Linux left the last row cut at the list's edge)
+                items[i].scrollIntoView?.({ block: "nearest" });
             }
         };
         const seg = /** @type {HTMLElement} */ (e.target).closest("[data-pk-seg]");
@@ -153,15 +156,18 @@ export function MenuList({ label, labelledBy, className, close, children, testId
  * @param {{ id: string, text: React.ReactNode, onSelect: () => void, checked?: boolean, checkbox?: boolean,
  *   hint?: string, icon?: string, danger?: boolean, testId?: string, start?: boolean, plain?: string,
  *   label?: string, className?: string, disabled?: boolean, reason?: string, haspopup?: "menu" | "dialog", level?: string,
- *   description?: string | null, current?: boolean, children?: React.ReactNode }} props
+ *   description?: string | null, current?: boolean, note?: string, children?: React.ReactNode }} props
  *   `plain`: the text type-ahead matches; `start`: takes Tab first; `level`: the topic it opens;
+ *   `note`: a line under the text of an entry that can be chosen, read with it (what a pick does);
  *   `description`: an explanation a screen reader reads with it (the "i" next to it shows it);
  *   `current`: the entry shown now (the view loaded), with a check and aria-current
  */
-export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, danger, testId, start, plain, label, className, disabled, reason, haspopup, level, description, current, children }) {
+export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, danger, testId, start, plain, label, className, disabled, reason, haspopup, level, description, current, note, children }) {
     const role = checked === undefined ? "menuitem" : checkbox ? "menuitemcheckbox" : "menuitemradio";
     const reasonId = useId();
-    const describedBy = [disabled && reason ? reasonId : null, description ? `${reasonId}-d` : null].filter(Boolean).join(" ") || undefined;
+    // the line under the text: why it is off, or what choosing it does
+    const sub = disabled ? reason : note;
+    const describedBy = [sub ? reasonId : null, description ? `${reasonId}-d` : null].filter(Boolean).join(" ") || undefined;
     return (
         <button
             type="button"
@@ -185,9 +191,9 @@ export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, da
             <span className="pk-option-icon">{checked || current ? <Icon name="check" /> : icon ? <Icon name={/** @type {any} */ (icon)} /> : null}</span>
             <span className="pk-option-text">
                 {text}
-                {disabled && reason ? (
-                    <span id={reasonId} className="pk-option-hint" data-testid={`${testId ?? id}-reason`}>
-                        {reason}
+                {sub ? (
+                    <span id={reasonId} className="pk-option-hint" data-testid={`${testId ?? id}-${disabled ? "reason" : "note"}`}>
+                        {sub}
                     </span>
                 ) : null}
             </span>
@@ -211,8 +217,15 @@ export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, da
 function ChoiceItem({ choice: c, onPick, start }) {
     const { explain, labels } = useContext(HelpContext);
     const text = c.info && explain && labels?.settingInfo && Object.hasOwn(labels.settingInfo, c.info) ? labels.settingInfo[c.info] : null;
+    const className = [c.open ? "pk-topic-row" : null, c.className].filter(Boolean).join(" ") || undefined;
     const item = (
-        <MenuItem id={c.id} testId={c.testId} text={c.text} label={c.label} hint={c.hint} icon={c.icon} checked={c.checked} checkbox={c.checkbox} current={c.current} disabled={c.disabled} reason={c.reason} description={text} start={start} haspopup={c.open ? "dialog" : undefined} className={c.open ? "pk-topic-row" : undefined} onSelect={() => onPick(c)}>
+        <MenuItem id={c.id} testId={c.testId} text={c.text} label={c.label} hint={c.hint} icon={c.icon} checked={c.checked} checkbox={c.checkbox} current={c.current} disabled={c.disabled} reason={c.reason} description={text} note={c.note} start={start} haspopup={c.open ? "dialog" : undefined} className={className} onSelect={() => onPick(c)}>
+            {(c.tags ?? []).map((t) => (
+                <span key={t.text} className="pk-tag" aria-hidden="true">
+                    <Icon name={/** @type {any} */ (t.icon)} size={12} />
+                    {t.text}
+                </span>
+            ))}
             {c.open ? <Icon name="chevronRight" size={16} className="pk-topic-chevron" /> : null}
         </MenuItem>
     );
@@ -421,13 +434,17 @@ function SearchHits({ hits, labels, onPick, onOpen, close }) {
  * A menu in levels.
  * @param {{ name: string, labels: any, topics: import("./menu-topics.js").Topic[], close: () => void,
  *   onPick: (choice: import("./menu-topics.js").Choice) => void, panel: (id: string, back: (focus?: string) => void, hint?: string) => React.ReactNode,
- *   head?: React.ReactNode, foot?: React.ReactNode, search?: boolean, locale?: string, focusAgain?: unknown }} props
+ *   head?: React.ReactNode, foot?: React.ReactNode, search?: boolean, locale?: string, focusAgain?: unknown,
+ *   filter?: (query: string) => import("./menu-topics.js").Topic[], searchText?: string }} props
  *   `onPick`: applies a choice (the menu then goes back to its first level, unless the choice closes
  *   it); `panel`: the form of a "panel" topic, with `back` (one level back, the focus where the level
  *   was opened from, or `focus`); `foot`: items after the topics (Remove field); `focusAgain`: when it
- *   changes, the focus goes once more where the last step sent it (that element may come later)
+ *   changes, the focus goes once more where the last step sent it (that element may come later);
+ *   `filter`: the search shows the first level with the topics this gives for what is typed, instead
+ *   of the hits of every level (a menu of fields searched as the field list is); `searchText`: the
+ *   search's name and placeholder instead of "Search in the menu of …"
  */
-export function LevelMenu({ name, labels, topics, close, onPick, panel, head, foot, search = false, locale, focusAgain }) {
+export function LevelMenu({ name, labels, topics, close, onPick, panel, head, foot, search = false, locale, focusAgain, filter, searchText }) {
     // the levels open (a topic's id with the focus that goes back to where it was opened from; none:
     // the first level) and where the focus goes once it shows: "level" the level's first control,
     // "search" the search, "row:<topic>" a topic's row, "item:<choice>" a choice
@@ -510,22 +527,27 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
         }
     };
     const first = () => {
-        const hits = search && query.trim() ? searchHits(searchEntries(topics, query), query, locale) : null;
+        const typed = search && query.trim() ? query : "";
+        const shown = typed && filter ? filter(typed) : topics;
+        const hits = typed && !filter ? searchHits(searchEntries(topics, query), query, locale) : null;
+        const none = typed && filter && !shown.some((t) => !t.hidden && (t.groups ?? []).some((g) => g.choices.length));
         return (
             <>
                 {head}
                 {search ? (
                     <label className="pk-search pk-level-search">
                         <Icon name="search" />
-                        <span className="pk-sr">{fill(labels.searchMenu, { name })}</span>
+                        <span className="pk-sr">{searchText ?? fill(labels.searchMenu, { name })}</span>
                         <ClearInput
                             type="search"
                             value={query}
-                            placeholder={labels.searchMenuShort}
+                            placeholder={searchText ?? labels.searchMenuShort}
                             onChange={setQuery}
                             clearLabel={labels.clearText}
-                            aria-label={fill(labels.searchMenu, { name })}
+                            aria-label={searchText ?? fill(labels.searchMenu, { name })}
                             autoComplete="off"
+                            // a list to search (filter): the focus starts here, as in the field list
+                            data-autofocus={filter ? "" : undefined}
                             data-testid="menu-search"
                             onKeyDown={(e) => {
                                 if (e.key === "ArrowDown") {
@@ -540,11 +562,11 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                     </label>
                 ) : null}
                 <div className="pk-level-first">
-                    {hits ? (
-                        <SearchHits hits={hits} labels={labels} onPick={pick} onOpen={open} close={close} />
+                    {hits || none ? (
+                        <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} />
                     ) : (
                         <MenuList label={name} close={close} testId="level-first">
-                            {topics.map((t) => (
+                            {shown.map((t) => (
                                 <TopicFirst key={t.id} topic={t} labels={labels} onPick={pick} onOpen={() => open(t.id)} />
                             ))}
                             {foot ? (

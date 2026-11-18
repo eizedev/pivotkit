@@ -37,7 +37,8 @@ over and More work the same way.
 Notes such as "Undone: Region removed", "View “Sales” saved" or "Exported pivot.xlsx" appear at the
 bottom right of the part of the report you see. That is under the table, or at the bottom of the
 window when the report reaches below it. A screen reader hears them. Adding a field shows no note,
-because the new chip already shows it.
+because the new chip already shows it. After **+ Add**, a screen reader still hears what happened:
+"Country added to Rows" or "Category moved from Columns to Rows".
 
 | Kind | Example | Stays |
 | --- | --- | --- |
