@@ -301,3 +301,25 @@ test("date-span LRU remains bounded across unlimited host columns", async () => 
     assert.deepEqual(rescanned, second, "eviction preserves the computed span");
     assert.notStrictEqual(rescanned, second, "least recently used date was evicted and rescanned");
 });
+
+test("one year left: month and quarter items carry it; weekday, hour and week stay plain with the year in the title", () => {
+    // 2025 only: Wednesday Jan 1 at 09:00 to Wednesday Dec 31 at 17:00
+    const year = encode([{Date: "2025-01-01T09:00:00", Amount: 1}, {Date: "2025-12-31T17:00:00", Amount: 2}]);
+    const of = (by) => {
+        const result = computePivot(year, {rows: ["Part"], derived: [{name: "Part", field: "Date", by}], values: [{field: "Amount", agg: "sum"}]});
+        const context = dateContext(result, LABELS.en);
+        return { title: context.labels.core.fields.Part, grid: JSON.stringify(toGrid(context.result)) };
+    };
+    for (const by of ["month", "quarter"]) {
+        const { title, grid } = of(by);
+        assert.equal(title, undefined, by);
+        assert.match(grid, by === "month" ? /Jan 2025/ : /Q1 2025/, by);
+    }
+    for (const by of ["weekday", "hour", "week"]) {
+        const { title, grid } = of(by);
+        assert.equal(title, "Part · 2025 only", by);
+        assert.doesNotMatch(grid, /(Wed|09:00|W01) 2025/, by);
+    }
+    const de = dateContext(computePivot(year, {rows: ["Part"], derived: [{name: "Part", field: "Date", by: "weekday"}], values: [{field: "Amount", agg: "sum"}]}), LABELS.de);
+    assert.equal(de.labels.core.fields.Part, "Part · nur 2025");
+});

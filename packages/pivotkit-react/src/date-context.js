@@ -40,6 +40,8 @@ export function dateRangeText(span, locale) {
 
 // Bound retained year objects and displayed labels, independently of row count.
 const YEAR_CONTEXT_LIMIT = 32;
+// the cyclic units whose items carry the year when one year is left
+const YEAR_IN_ITEMS = ["month", "quarter"];
 
 /** Cached by immutable pivot result; shared by derived fields and table/chart decoration.
  * @type {WeakMap<import("pivotkit-core").PivotResult, Map<string, {years: number[], spans: Map<number, {min: number, max: number}>, months: Map<number, {min: number, max: number}>, truncated: boolean}>>} */
@@ -132,17 +134,22 @@ export function dateContext(result, labels) {
         if (!used.has(d.name) || !CATALOG.cyclicUnits.includes(d.by)) continue;
         const years = yearsOf(result, d.field);
         const observed = observedYears(result, d.field);
+        /** @param {string} words */
+        const titled = (words) => Object.defineProperty(fields, d.name, {value: `${fieldLabel(d.name, labels.core)} · ${fill(words, { years: observed.text })}`, enumerable: true, configurable: true, writable: true});
         if (observed.combined) {
             if (d.by === "month") combinedMonths.add(d.name);
-            const span = observed.text;
-            Object.defineProperty(fields, d.name, {value: `${fieldLabel(d.name, labels.core)} · ${fill(labels.dateYearsCombined, { years: span })}`, enumerable: true, configurable: true, writable: true});
-            // ISO week numbers can span two week-years within one calendar year.
-        } else if (years.length === 1 && d.by !== "week") {
+            titled(labels.dateYearsCombined);
+        } else if (years.length === 1 && YEAR_IN_ITEMS.includes(d.by)) {
+            // one year left: a month or a quarter names it, "Jan 2025"
             single.set(d.name, observed.text);
             if (d.by === "month") {
                 const months = yearCache.get(result)?.get(d.field)?.months;
                 if (months) observedMonths.set(d.name, months);
             }
+        } else if (years.length === 1) {
+            // weekday, hour and week items stay plain ("Mon 2025" reads as a date; an ISO week can
+            // belong to another week-year): the title says which year they are of
+            titled(labels.dateYearOnly);
         }
     }
     /** @type {import("pivotkit-core").PivotResult} */

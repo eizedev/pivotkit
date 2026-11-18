@@ -67,7 +67,7 @@ it to keep it open. When there is a page about the field, the description has **
 Escape closes it.
 
 - A date field has an **i** without a description too. It gives the first and the last date in
-  the data, after the description if there is one.
+  the data before filters, after the description if there is one.
 - On a phone a chip has no **i**. The chip's menu has it at its top, next to the field's name. The
   field's headers in the table and in the drill-down carry the same text.
 - The field search finds a field by its name, by the name the application gives it and by words of

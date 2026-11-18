@@ -201,22 +201,27 @@ is every January of the data in one row. The cell summarizes them all: the avera
 or the sum of all the Januaries. Use it to compare seasons, months or weekdays with one another.
 Three years of data grouped by **Quarter of year** are four rows, not twelve.
 
-The field's name says which years it combines: "Date by month of year · 2023–2025 combined". When
-filters leave one year, the items carry it ("Jan 2025") and the name has no years.
+The field's title in the table and the chart says which years it combines: "Date by month of year ·
+2023–2025 combined". The chip keeps the plain name. Its tooltip and the Group level name the years.
 
-The footer gives the data's first and last date next to the row count. It does so when a date is in
-Rows, Columns or Filters. The date's **i** in the field list shows the same range.
+When filters leave one year:
+
+- The items of a month or a quarter carry it: "Jan 2025".
+- A weekday, an hour or a week keeps its items plain. The title says "Date by weekday · 2025 only".
+
+The footer gives the first and last date of the data next to the row count. It does so when a date
+is in Rows, Columns or Filters. The range is the data's before filters, as its tooltip says. The
+date's **i** in the field list and the Group level show the same range.
 
 ![The footer with the rows and the data's date range, the column title "Date by month of year · 2023–2025 combined"](../assets/screenshots/date-context-light.png#only-light)
 ![The footer with the rows and the data's date range, the column title "Date by month of year · 2023–2025 combined"](../assets/screenshots/date-context-dark.png#only-dark)
 
 ??? note "Details of the date range and the combined years"
     - With more than one date in the report, the footer names the field before each range.
-    - With one year left, the items of **Week of year** carry no year. A week's year can differ
-      from the calendar year.
     - The name lists up to 32 years. More end in "…". Gaps stay gaps: "2019, 2021–2023".
-    - The combined years are for reading only. The saved view keeps the field's name, and the
-      exported files name the field without them. The drill-down's title shows them.
+    - The years are for reading only. The saved view keeps the field's name. The exported files
+      hold the plain name and the plain items, as the command line and the server write them. The
+      drill-down's title shows the years.
     - Years before 1 AD carry their era: "5 BC".
     - In a language setting with another calendar, the items of one year name their months in that
       calendar. Combined months keep the Gregorian month names, as the grouping does.

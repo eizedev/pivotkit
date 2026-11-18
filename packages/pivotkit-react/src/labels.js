@@ -22,6 +22,8 @@ export const en = {
     /** the language of the texts, for the report's lang attribute */
     lang: "en",
     dateYearsCombined: "{years} combined",
+    dateYearOnly: "{years} only",
+    dateRangeTitle: "{field}: the data's first and last date, before filters",
     /** the name of the report's region landmark */
     report: "Pivot report",
     core: /** @type {import("pivotkit-core").Labels} */ (REPORT_LABELS.en),
@@ -380,6 +382,8 @@ export const en = {
 export const de = {
     lang: "de",
     dateYearsCombined: "{years} zusammengefasst",
+    dateYearOnly: "nur {years}",
+    dateRangeTitle: "{field}: erstes und letztes Datum der Daten, vor den Filtern",
     report: "Pivot-Bericht",
     core: /** @type {import("pivotkit-core").Labels} */ (REPORT_LABELS.de),
     zones: { rows: "Zeilen", cols: "Spalten", values: "Werte", filters: "Filter" },

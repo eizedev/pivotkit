@@ -1029,7 +1029,7 @@ function Report(props) {
         [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
 
-    const { run: doExport, prepare: prepareExport } = useExport({ fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts, colorMap: stableColorMap });
+    const { run: doExport, prepare: prepareExport } = useExport({ fileName, result: computed.result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts, colorMap: stableColorMap });
 
     // loading data (allowImport): the import UI (import-host.jsx) loads on first use (the Data menu, a
     // file dragged over the report, the empty report's button) and renders the file input, the drop
@@ -1676,7 +1676,7 @@ function Report(props) {
                                 <span className="pk-row-count" data-testid="row-count">
                                     {result ? rowCount(result.rows.length, result.encoded.length, labels, locale) : ""}
                                 </span>
-                                {context.ranges.map(({ field, text }) => <span key={field} data-testid="date-range" title={field}>{context.ranges.length > 1 ? `${fieldLabel(field, labels.core)}: ` : ""}{text}</span>)}
+                                {context.ranges.map(({ field, text }) => <span key={field} data-testid="date-range" title={fill(labels.dateRangeTitle, { field: fieldLabel(field, labels.core) })}>{context.ranges.length > 1 ? `${fieldLabel(field, labels.core)}: ` : ""}{text}</span>)}
                                 {importMod ? <importMod.SourceLine api={api} /> : null}
                                 {rowLabel && showTable ? (
                                     <span className="pk-row-label" data-testid="row-label">

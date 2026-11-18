@@ -70,7 +70,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - along the time line: year, quarter, month, week, day, hour
     - as the same period every year: quarter, month or week of the year, weekday, hour of the day
     - **Years combined** for the years a cyclic grouping joins
-    - the data's date range in the footer and in the date's "i"; the name of a combined grouping
+    - the data's date range in the footer and in the date's "i"; the title of a combined grouping
       says which years it joins; the Group level starts with the range and shows examples from the
       data
 - Numbers are grouped into ranges.

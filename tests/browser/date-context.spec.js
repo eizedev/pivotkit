@@ -8,6 +8,8 @@ for (const lang of ["en", "de"]) {
         await openZones(page);
         await expect(page.getByTestId("date-range")).toContainText("2023");
         await expect(page.getByTestId("date-range")).toContainText("2025");
+        // the range is the data's, before filters: its tooltip says so
+        await expect(page.getByTestId("date-range")).toHaveAttribute("title", lang === "en" ? "Date: the data's first and last date, before filters" : "Date: erstes und letztes Datum der Daten, vor den Filtern");
         await expect(page.locator('[data-zone="cols"]')).toContainText(lang === "en" ? "2023–2025 combined" : "2023–2025 zusammengefasst");
         await page.locator('[data-zone="cols"] [data-testid^="chip-menu-"]').click();
         await page.getByTestId("topic-group").click();
@@ -38,6 +40,28 @@ test("cyclic chip IDs stay stable and downloaded headers omit display-only year 
     const text = await readFile(await download.path(), "utf8");
     expect(text).not.toContain("combined");
     expect(text).toContain("Date by month of year");
+});
+
+test("the export writes the plain items, as the command line does, while the table shows the year #109", async ({page}) => {
+    const view = {rows: ["Month"], derived: [{name: "Month", field: "Date", by: "month"}], values: [{field: "Mean °C", agg: "average"}], filters: [{field: "Date", type: "compare", op: ">=", value: "2025-01-01"}]};
+    const hash = encodeViewLink(toViewFile(view, {}, {link: true}));
+    await page.goto(`?data=weather&empty#pivot-playground=${hash}`);
+    await expect(page.getByTestId("pivot-table")).toContainText("Jan 2025");
+    await page.getByTestId("export").click();
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
+    const text = await readFile(await download.path(), "utf8");
+    expect(text).not.toContain("2025");
+    expect(text).toMatch(/^"?Jan"?,/m);
+});
+
+test("one year by weekday: plain items, the year in the title #109", async ({page}) => {
+    const view = {rows: ["Weekday"], derived: [{name: "Weekday", field: "Date", by: "weekday"}], values: [{field: "Mean °C", agg: "average"}], filters: [{field: "Date", type: "compare", op: ">=", value: "2025-01-01"}]};
+    const hash = encodeViewLink(toViewFile(view, {}, {link: true}));
+    await page.goto(`?data=weather&empty#pivot-playground=${hash}`);
+    const table = page.getByTestId("pivot-table");
+    await expect(table).toContainText("Weekday · 2025 only");
+    await expect(table).toContainText("Mon");
+    await expect(table).not.toContainText("Mon 2025");
 });
 
 test("field information and footer use the loaded view locale #109", async ({page}) => {
@@ -101,7 +125,7 @@ test("computed date info alone keeps the user explanation switch available #109"
     await expect(host.locator('.pk-field[data-field="Date"] .pk-info')).toHaveCount(0);
 });
 
-test("single cyclic month exports observed non-Gregorian endpoints #109", async ({page}) => {
+test("single cyclic month shows observed non-Gregorian endpoints; the export keeps the plain item #109", async ({page}) => {
     const locale = "en-US-u-ca-islamic-civil";
     const view = {rows:["Month"], derived:[{name:"Month",field:"Date",by:"month"}], values:[{field:"Mean °C",agg:"average"}], formatting:{locale}, filters:[{field:"Date",type:"compare",op:">=",value:"2025-01-01"},{field:"Date",type:"compare",op:"<=",value:"2025-01-31"}]};
     const hash = encodeViewLink(toViewFile(view, {}, {link:true}));
@@ -115,11 +139,13 @@ test("single cyclic month exports observed non-Gregorian endpoints #109", async 
     await page.getByTestId("export").click();
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
     const text = await readFile(await download.path(), "utf8");
-    expect(text).toContain(`${first} – ${last}`);
+    // the file holds pivotkit-core's item, as the command line and the server write it
+    expect(text).not.toContain(`${first} – ${last}`);
+    expect(text.trim().split(/\r?\n/)).toHaveLength(3);
 });
 
 
-test("combined cyclic months display Gregorian grouping keys in other calendars #109", async ({page}) => {
+test("combined cyclic months display Gregorian grouping keys in other calendars; the export keeps the plain items #109", async ({page}) => {
     const locale = "en-US-u-ca-islamic-civil";
     const view = {rows:["Month"], derived:[{name:"Month",field:"Date",by:"month"}], values:[{field:"Mean °C",agg:"average"}], formatting:{locale}, filters:[{field:"Date",type:"compare",op:">=",value:"2025-01-01"},{field:"Date",type:"compare",op:"<=",value:"2025-12-31"}]};
     const hash = encodeViewLink(toViewFile(view, {}, {link:true}));
@@ -130,8 +156,9 @@ test("combined cyclic months display Gregorian grouping keys in other calendars 
     await page.getByTestId("export").click();
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
     const text = await readFile(await download.path(), "utf8");
-    expect(text).toContain("Jan");
-    expect(text).toContain("Aug");
+    // pivotkit-core's items and the field's plain name, as the command line and the server write them
+    expect(text).not.toContain("combined");
+    expect(text.trim().split(/\r?\n/)).toHaveLength(14);
 });
 
 test("drill title retains combined cyclic field context #109", async ({page}) => {
