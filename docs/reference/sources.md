@@ -451,6 +451,42 @@ settings change, so check the current documentation of your provider's version.
       "scope": "platform:read" } }
     ```
 
+=== "Authentik: token exchange"
+
+    Authentik's page marks delegation (on-behalf-of) as available from version 2026.8 on. Check that
+    your version offers the plain token exchange too. The steps follow Authentik's documentation,
+    "[Token exchange](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/token_exchange/)":
+
+    - pivotkit exchanges as a confidential client, with `clientSecret`. The provider of the
+      [Authentik sign-in](../getting-started/kubernetes.md#oauth) is public. So create a second,
+      confidential provider for the exchange, such as `pivotkit-backend`, and bind it to an
+      application.
+    - Under **Grant Types** of `pivotkit-backend`, select **Token exchange**.
+    - Federate the providers on both sides, under **Federated OAuth2/OpenID Providers**:
+        - `pivotkit-backend` lists only the sign-in provider, which issued the person's token.
+          Authentik's page names no check of the person's token's audience.
+        - The backend's provider lists `pivotkit-backend`. It must be bound to an application too.
+    - The `audience` is the client ID of the backend's provider. Authentik then issues the token with
+      that provider's issuer, signing key and scope mappings. The person must pass the policy
+      bindings of the backend's application.
+    - Leave out `resource`. Authentik rejects a request with `resource` with `invalid_target`.
+    - Set `scope`. Without it, the issued token has no scopes. `check-config` warns about that.
+    - Without `tokenUrl`, pivotkit takes the token endpoint from the metadata of `auth.issuer`.
+      Authentik's token endpoint is a global path, `/application/o/token/`
+      ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
+
+    ```json
+    "auth": { "tokenExchange": {
+      "audience": "<the backend provider's client id>",
+      "scope": "platform:read",
+      "clientId": "pivotkit-backend",
+      "clientSecret": { "file": "secrets/pivotkit-backend-secret" } } }
+    ```
+
+    Not verified: Authentik's page shows the client secret sent in the form body. pivotkit sends it
+    as HTTP Basic credentials (`client_secret_basic`). `check-source` shows whether the token
+    endpoint takes pivotkit's client.
+
 === "Keycloak: token exchange"
 
     Keycloak's standard token exchange works like this (Keycloak documentation, "Configuring and
@@ -553,6 +589,8 @@ The sources that use it answer `SOURCE_UNAVAILABLE` until it is there.
 - a token endpoint on a loopback or private address without `intranet: true`
 - a token exchange's `tokenUrl` on another host than `auth.issuer`, since the person's token goes
   there
+- a token exchange without `scope`, since some providers, Authentik among them, then issue a token
+  without scopes
 - a backend's `auth` that no source uses, because each source has its own `http.auth`
 
 In the `Sources` and profile lines, an HTTP source's fields are known only after a load
