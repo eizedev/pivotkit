@@ -3,7 +3,7 @@
 // never three areas and one below them. The switch follows the report's width, not the window's. A
 // chip added to a zone moves no cell, so the drop targets stay where they are. Each zone has a light
 // frame at rest. Real layout measurements in the playground with the sales data.
-import { expect, test } from "./fixtures.js";
+import { chips, expect, test } from "./fixtures.js";
 
 async function open(page, { width, height = 900, lang = "en" }) {
     await page.setViewportSize({ width, height });
@@ -163,4 +163,49 @@ test.describe("each zone's frame and hint", () => {
         await open(page, { width: 1440, lang: "de" });
         await expect(page.locator('[data-zone="filters"] .pk-zone-hint')).toHaveText("Ein Feld hinzufügen oder hierher ziehen, um zu filtern");
     });
+});
+
+test("1280: a chip moved by the keyboard in a Rows of two lines starts over its own place", async ({ page }) => {
+    await open(page, { width: 1280, height: 1000 });
+    const { zones: z } = await cells(page);
+    // Region on the first line, Country on the second: the zone's centre lies near Region's
+    expect(z.rows.h).toBeGreaterThan(56);
+    const live = page.locator('[id^="DndLiveRegion"]');
+    const region = page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-handle');
+    await region.focus();
+    await page.keyboard.press("Space");
+    await expect(live).toHaveText("Region is over Rows, position 1 of 2.");
+    await page.keyboard.press("Escape");
+    await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
+    // picked up and put down at once: it stays where it was
+    await region.focus();
+    await page.keyboard.press("Space");
+    await expect(live).toHaveText("Region is over Rows, position 1 of 2.");
+    await page.keyboard.press("Space");
+    await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
+    // the first arrow key goes to the next place from its own
+    await region.focus();
+    await page.keyboard.press("Space");
+    await expect(live).toHaveText("Region is over Rows, position 1 of 2.");
+    // dnd-kit listens for the arrow keys from the next task on
+    await page.waitForTimeout(100);
+    await page.keyboard.press("ArrowRight");
+    await expect(live).toHaveText("Region is over Rows, position 2 of 2.");
+    await page.keyboard.press("Space");
+    await expect.poll(() => chips(page, "rows")).toEqual(["Country", "Region"]);
+});
+
+test("1440: the skeleton's places of the zones take the same 2×2 grid", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    // the host holds its data back for a moment: the skeleton shows meanwhile
+    await page.goto("pages/host.html?loading");
+    const places = page.locator(".pk-skel-zone");
+    await expect(places).toHaveCount(4);
+    const b = await places.evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; }));
+    expect(Math.abs(b[0].y - b[1].y)).toBeLessThan(0.5);
+    expect(Math.abs(b[2].y - b[3].y)).toBeLessThan(0.5);
+    expect(b[2].y).toBeGreaterThan(b[0].y);
+    expect(Math.abs(b[0].x - b[2].x)).toBeLessThan(0.5);
+    expect(Math.abs(b[1].x - b[3].x)).toBeLessThan(0.5);
+    for (const place of b) expect(Math.abs(place.w - b[0].w)).toBeLessThan(0.5);
 });

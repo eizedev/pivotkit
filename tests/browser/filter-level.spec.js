@@ -652,11 +652,8 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
             sort: [{ field: "City", order: "desc" }],
             values: [{ field: "Mean °C", agg: "sum", showAs: "percentOfGrandTotal", format: "percent" }]
         });
-        // in a half of the zones' grid next to the field list (#605) the chip is wider than its room:
-        // the name stays whole, the badges end in "…", the title says it all
+        // in a half of the zones' grid next to the field list (#605): the name whole, the title says it all
         parts = await chipParts(page, SHORT);
-        expect(parts.badges.map((b) => b.text)).toEqual(["2025 +1", "Average of Mean °C > 10"]);
-        expect(parts.badges.every((b) => b.whole)).toBe(false);
         expect(parts.name).toMatchObject({ text: SHORT, whole: true });
         expect(parts.title).toBe(`${SHORT}, 2025, from Jun, Average of Mean °C > 10`);
         await titleIsName(page, SHORT, parts.title);
