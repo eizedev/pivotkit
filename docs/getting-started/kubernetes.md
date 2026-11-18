@@ -448,6 +448,26 @@ Cluster addresses are private ones, so something inside the cluster needs a sett
 - A token endpoint needs `intranet: true` in its sign-in's settings.
 - An issuer needs `auth.intranet: true`. See [below](#oauth-egress).
 
+### An internal certificate authority { #internal-ca }
+
+A backend, a token endpoint or an issuer may have a certificate from an internal certificate
+authority. The server then needs that authority's certificate in `NODE_EXTRA_CA_CERTS`. That is a
+file of PEM certificates, which the server reads when it starts
+([the network](../reference/sources.md#http-network), [OAuth 2.1](../reference/mcp.md#oauth)).
+
+1. Put the file into a ConfigMap. A certificate is public, so a ConfigMap is enough. A Secret
+   works the same way, with `secret` instead of `configMap` in the volume.
+
+    ```bash
+    kubectl -n pivotkit create configmap pivotkit-ca --from-file=ca.pem=./internal-ca.pem
+    ```
+
+2. In the Deployment, remove the comment marks of three parts:
+    - the variable `NODE_EXTRA_CA_CERTS`
+    - the mount `ca`
+    - the volume `ca`, which names the ConfigMap `pivotkit-ca`
+3. Apply the manifest. After a later change of the ConfigMap, restart the Deployment.
+
 ## Sign-in with Authentik { #oauth }
 
 With OAuth, the MCP endpoint takes access tokens of your identity provider instead of static tokens.
