@@ -40,7 +40,8 @@ const liveTexts = (page) => page.locator('[id^="DndLiveRegion-"]').allTextConten
  * Waits until a drag's target shows that it takes the drop, as a person waits for it before the
  * release: dnd-kit drops on the target of its last render, and a busy WebKit can take the release
  * before it has drawn the last moves, so the drop lands nowhere (#416). A zone (or a chip in it) is
- * named by the drag's live region; the field list marks itself. Other targets are not waited for.
+ * named by the drag's live region; the field list marks itself. Any other target throws: a new kind
+ * of target needs a wait of its own.
  * A chip moved inside its own zone is named with that zone from the start, so there the wait shows
  * little.
  * @param {string[]} before the live regions' texts before the drag
@@ -52,6 +53,8 @@ async function dropShown(page, to, before) {
     } else if (target.zone) {
         // a new text: the last drop of an earlier drag may name the same zone
         await expect.poll(() => liveTexts(page).then((texts) => texts.some((text) => text.includes(target.zone) && !before.includes(text))), `the drag is over ${target.zone}`).toBe(true);
+    } else {
+        throw new Error(`drag(): no wait for a drop on ${to}; drop on a zone, a chip in one, or the field list`);
     }
 }
 
