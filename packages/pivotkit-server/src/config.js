@@ -466,16 +466,30 @@ export const OPENAPI_PATH = "/openapi.json";
 
 /**
  * Where people find the REST service and its OpenAPI document, for messages: full addresses under
- * http.publicUrl, else the paths. Readers took a bare "/openapi.json" next to "/api/v1" as relative
- * to it, so without a public URL the document's place is said in words.
+ * http.publicUrl (its origin and path; a user name, password, query or fragment is never shown),
+ * else the paths. openapi is null where rest.openapi "off" serves no document.
  * @param {ServerOptions} options
- * @returns {{ rest: string, openapi: string, openapiShort: string }}
+ * @returns {{ rest: string, openapi: string | null, base: string | null }}
  */
 export function restAddressesOf(options) {
-    const base = options.http?.publicUrl ? options.http.publicUrl.replace(/\/+$/, "") : null;
-    return base
-        ? { rest: `${base}${REST_BASE}`, openapi: `${base}${OPENAPI_PATH}`, openapiShort: `${base}${OPENAPI_PATH}` }
-        : { rest: REST_BASE, openapi: `the server's root, ${OPENAPI_PATH} (not under ${REST_BASE})`, openapiShort: `${OPENAPI_PATH}, at the server's root` };
+    const url = options.http?.publicUrl && URL.canParse(options.http.publicUrl) ? new URL(options.http.publicUrl) : null;
+    const base = url ? `${url.origin}${url.pathname.replace(/\/+$/, "")}` : null;
+    const served = (options.rest?.openapi ?? "auth") !== "off";
+    return { rest: `${base ?? ""}${REST_BASE}`, openapi: served ? `${base ?? ""}${OPENAPI_PATH}` : null, base };
+}
+
+/**
+ * The detail of a 404 for a path nobody serves. Readers took a bare "/openapi.json" next to
+ * "/api/v1" as relative to it, so without a public URL the document's place is said in words.
+ * @param {ServerOptions} options
+ */
+export function noRouteDetail(options) {
+    const where = restAddressesOf(options);
+    if (!where.openapi) {
+        return `no such route; the REST service is at ${where.rest}`;
+    }
+    const openapi = where.base ? where.openapi : `the server's root, ${where.openapi}`;
+    return `no such route; the REST service is at ${where.rest}, its OpenAPI document at ${openapi}`;
 }
 
 /**

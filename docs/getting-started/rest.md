@@ -32,9 +32,13 @@ makes the folder `reports` for what it writes:
 npx -y pivotkit-server serve --source sales=sales.csv --output reports
 ```
 
-The log says `started` with the address. Leave it running and open a second terminal in the same
-folder. If your shell sets `PIVOTKIT_TOKEN`, the start warns: "PIVOTKIT_TOKEN is set but auth is
-none; use --auth token (or auth.mode token)". Here that is fine. [Step 6](#policy) sets up tokens.
+The log says `started` with the address. The REST service is at `http://127.0.0.1:3333/api/v1`.
+Its OpenAPI document sits at the server's root, not under `/api/v1`:
+`http://127.0.0.1:3333/openapi.json`.
+
+Leave it running and open a second terminal in the same folder. If your shell sets
+`PIVOTKIT_TOKEN`, the start warns: "PIVOTKIT_TOKEN is set but auth is none; use --auth token (or
+auth.mode token)". Here that is fine. [Step 6](#policy) sets up tokens.
 
 For another port, use one of these and use that port in the calls below:
 

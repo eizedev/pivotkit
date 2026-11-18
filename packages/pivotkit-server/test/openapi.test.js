@@ -134,37 +134,28 @@ test("a 404 names the OpenAPI document's full address: under http.publicUrl, els
     const dir = workspace();
     const base = { sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir };
     const env = { env: { PIVOTKIT_TOKEN: TOKEN } };
-    const detailsOf = async (server) => [
-        (await call(`${server.url}/api/v1/openapi.json`, { token: TOKEN })).data.detail,
-        (await call(`${server.api}/nothing`, { token: TOKEN })).data.detail,
-        (await call(`${server.url}/nothing`, { token: TOKEN })).data.detail
-    ];
-    const named = await restServer({ ...base, http: { publicUrl: "https://pk.example.com/" } }, env);
-    try {
-        const [misplaced, route, elsewhere] = await detailsOf(named);
-        assert.equal(misplaced, "no such route; the OpenAPI document at https://pk.example.com/openapi.json lists the routes");
-        assert.equal(route, misplaced);
-        assert.equal(elsewhere, "no such route; the REST service is at https://pk.example.com/api/v1, its OpenAPI document at https://pk.example.com/openapi.json");
-    } finally {
-        await named.close();
-    }
-    const unnamed = await restServer(base, env);
-    try {
-        const [misplaced, , elsewhere] = await detailsOf(unnamed);
-        assert.equal(misplaced, "no such route; the OpenAPI document at the server's root, /openapi.json (not under /api/v1) lists the routes");
-        assert.equal(elsewhere, "no such route; the REST service is at /api/v1, its OpenAPI document at the server's root, /openapi.json (not under /api/v1)");
-    } finally {
-        await unnamed.close();
-    }
+    // the misplaced document, an unknown route under /api/v1 and a path nobody serves: one answer
+    const detailOf = async (extra) => {
+        const server = await restServer({ ...base, ...extra }, env);
+        try {
+            const details = new Set();
+            for (const url of [`${server.url}/api/v1/openapi.json`, `${server.api}/nothing`, `${server.url}/nothing`]) {
+                const res = await call(url, { token: TOKEN });
+                assert.equal(res.status, 404);
+                details.add(res.data.detail);
+            }
+            assert.equal(details.size, 1, [...details].join("\n"));
+            return [...details][0];
+        } finally {
+            await server.close();
+        }
+    };
+    assert.equal(await detailOf({ http: { publicUrl: "https://pk.example.com/" } }), "no such route; the REST service is at https://pk.example.com/api/v1, its OpenAPI document at https://pk.example.com/openapi.json");
+    assert.equal(await detailOf({ rest: { openapi: "public" } }), "no such route; the REST service is at /api/v1, its OpenAPI document at the server's root, /openapi.json");
     // a document that is not served is not named
-    const off = await restServer({ ...base, rest: { openapi: "off" } }, env);
-    try {
-        const [misplaced, , elsewhere] = await detailsOf(off);
-        assert.equal(misplaced, "no such route");
-        assert.equal(elsewhere, "no such route; the REST service is at /api/v1");
-    } finally {
-        await off.close();
-    }
+    assert.equal(await detailOf({ rest: { openapi: "off" } }), "no such route; the REST service is at /api/v1");
+    // a public URL's path is kept; its user name, password, query and fragment are never shown
+    assert.equal(await detailOf({ http: { publicUrl: "https://user:secret@pk.example.com/reports//?a=b#c" } }), "no such route; the REST service is at https://pk.example.com/reports/api/v1, its OpenAPI document at https://pk.example.com/reports/openapi.json");
 });
 
 test("save is an input of POST /views/render, not of the file route", () => {

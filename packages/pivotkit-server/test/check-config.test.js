@@ -242,7 +242,7 @@ test("check-config: the REST section names the service's and the OpenAPI documen
     const unnamed = await lines({ rest: { openapi: "public" } });
     assert.ok(unnamed.includes("REST: /api/v1"), unnamed.join("\n"));
     assert.ok(unnamed.includes("  OpenAPI document: /openapi.json, at the server's root; public"), unnamed.join("\n"));
-    const off = await lines({ rest: { openapi: "off" } });
+    const off = await lines({ rest: { openapi: "off" }, http: { publicUrl: "https://reports.example.com" } });
     assert.ok(off.includes("  OpenAPI document: off"), off.join("\n"));
     assert.ok(!named.concat(unnamed, off).some((l) => l.includes("/api/v1/openapi.json")));
 });

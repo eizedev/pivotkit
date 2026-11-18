@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ConfigError, restAddressesOf } from "./config.js";
+import { ConfigError, noRouteDetail } from "./config.js";
 import { fitsRange } from "./version-range.js";
 import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 
@@ -148,8 +148,7 @@ export async function createServerHandler(options, runtime) {
         const trustProxy = options.http?.trustProxy ?? false;
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
         // a path nobody serves names the REST service and its OpenAPI document by their full address
-        const where = restAddressesOf(options);
-        const noRoute = !rest ? "no such route" : (options.rest?.openapi ?? "auth") === "off" ? `no such route; the REST service is at ${where.rest}` : `no such route; the REST service is at ${where.rest}, its OpenAPI document at ${where.openapi}`;
+        const noRoute = rest ? noRouteDetail(options) : "no such route";
 
         /** Whether /readyz last found the server ready (it starts out so): a line is written only when that changes. */
         let wasReady = true;

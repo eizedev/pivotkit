@@ -1,7 +1,7 @@
 /*
  * check-config's section for the REST service (only where it is served): its path, its own OAuth
- * resource, CORS, where the OpenAPI document is and who may read it, and where they are on: inline results and file
- * downloads for every caller.
+ * resource, CORS, where the OpenAPI document is and who may read it, and where they are on: inline
+ * results and file downloads for every caller.
  *
  *   REST: https://reports.example.com/api/v1
  *     resource https://reports.example.com/api/v1
@@ -32,8 +32,12 @@ export async function section(options, _registry, runtime) {
     }
     if (r.inline) items.push(plain("inline results: on"));
     items.push(plain(`CORS: ${r.cors?.origins?.length ? r.cors.origins.join(" ") : "off"}`));
-    const openapi = r.openapi ?? "auth";
-    items.push(plain(`OpenAPI document: ${openapi === "off" ? "off" : `${where.openapiShort}; ${openapi === "auth" ? "needs auth" : "public"}`}`));
+    if (!where.openapi) {
+        items.push(plain("OpenAPI document: off"));
+    } else {
+        const who = (r.openapi ?? "auth") === "auth" ? "needs auth" : "public";
+        items.push(plain(`OpenAPI document: ${where.openapi}${where.base ? "" : ", at the server's root"}; ${who}`));
+    }
     if (options.policy?.results) items.push(plain("file downloads: allowed for every caller (policy.results)"));
     return { items, upgrade: [] };
 }

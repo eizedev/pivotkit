@@ -949,7 +949,8 @@ Rows go by status, then by code. The answers of the download links come last.
 A running server serves its OpenAPI 3.1 document at the server's root, not under `/api/v1`. For a
 server at `https://reports.example.com` the address is `https://reports.example.com/openapi.json`.
 On your machine it is `http://127.0.0.1:3333/openapi.json`. A 404 and `check-config` name this full
-address when `http.publicUrl` is set. Without it, they say that the document sits at the root.
+address when `http.publicUrl` is set. Without it, they say that the document sits at the root. A
+user name, password or query in `http.publicUrl` is never shown.
 
 The document has the server's own address (`http.publicUrl`) and sign-in: bearer for tokens, the
 issuer's OAuth endpoints, and the scopes per operation as `x-pivotkit-scopes`.
@@ -1050,9 +1051,9 @@ are wrapped at 78 columns at spaces. A path stands on a line of its own and is n
 one makes its line longer.
 
 The output prints the limits and defaults that matter with their values: the exposure limits, the
-output directory's size, CORS, where the OpenAPI document is and who may read it. A field's level says whether it comes
-from a rule or the default. A secret is named by its variable or by its file, as written and with
-its full path, never by its value.
+output directory's size, CORS, where the OpenAPI document is and who may read it. A field's level
+says whether it comes from a rule or the default. A secret is named by its variable or by its file,
+as written and with its full path, never by its value.
 
 Over stdio (`pivotkit-mcp` without `--http`), there are no download links and no signed-in person.
 The `Transport:` section says which sources therefore cannot be used.
@@ -1109,7 +1110,7 @@ example in Task Manager, ends it at once.
 | `output.draftMaxAgeDays` | 0 (never) | Delete schedule drafts that still wait for approval (`status` `"draft"`) when they are older than this many days, at start and every hour. It works with `output.maxAgeDays: 0` too. Like `output.maxAgeDays`, the server refuses to start with it where the output directory holds the operator's own files |
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `output.upload` | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method`, `timeMs`, `maxBytes`, `keepLocal`, `bind`, `intranet` |
-| `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
+| `rest.openapi` | `"auth"` | Who gets `/openapi.json`, at the server's root |
 
 Behind a reverse proxy:
 

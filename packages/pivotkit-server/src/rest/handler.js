@@ -19,7 +19,7 @@
 import { OperationError, checkInput } from "pivotkit-report/operations";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { SIGN_IN_CLIENT_FIELD } from "pivotkit-cli/rest";
-import { OPENAPI_PATH, REST_BASE, restAddressesOf, restResourceOf } from "../config.js";
+import { OPENAPI_PATH, REST_BASE, noRouteDetail, restResourceOf } from "../config.js";
 import { AuthRefusal, bearerOf, groupRefusal, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
@@ -134,8 +134,8 @@ async function readJson(request, max, detail) {
 export async function createRestHandler(context, runtime = {}) {
     const options = context.options;
     const rest = options.rest ?? {};
-    /** The 404 of a route nobody serves: it names the OpenAPI document's full address where it is served. */
-    const noRoute = (rest.openapi ?? "auth") === "off" ? "no such route" : `no such route; the OpenAPI document at ${restAddressesOf(options).openapi} lists the routes`;
+    /** The 404 of a route nobody serves: it names the service's and the document's full address. */
+    const noRoute = noRouteDetail(options);
     const hosts = allowedHosts(options);
     const origins = new Set(rest.cors?.origins ?? []);
     const authOptions = options.auth ?? {};
