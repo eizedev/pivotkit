@@ -1,6 +1,6 @@
 ---
 title: Security
-description: Why pivotkit is not access control, how it treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, what its MCP server lets a model see and its REST service lets a program fetch, and runs under a strict Content-Security-Policy.
+description: Why pivotkit is not access control, every network request it can make, how it treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, what its MCP server lets a model see and its REST service lets a program fetch, and runs under a strict Content-Security-Policy.
 ---
 
 # Security
@@ -63,6 +63,82 @@ own code, not a barrier against a person with developer tools.
 Nothing is stored or sent: the browser makes the file. Its size counts against `limits.cells`, rows
 times fields, default 2,000,000. pivotkit checks it before it builds the file. While the browser makes
 the file, it holds about twice the CSV's size. For JSON it holds a few times the file's size.
+
+## Network requests { #network }
+
+pivotkit sends nothing home. It has none of these:
+
+- telemetry or usage statistics
+- update or version checks
+- error reporting
+- fonts, scripts or images from another host
+
+Each part makes only the requests below. A request to a host name looks up that name first. The
+server and the command line ask the system's resolver, the browser its own. An IP address needs no
+lookup.
+
+The report in the browser, pivotkit-react and pivotkit-element:
+
+- its own code chunks, such as the chart and the exports, from where you serve your app or `dist/`
+- the import worker that reads a person's file: pivotkit-element's own, from the page's origin
+  ([the import worker](reference/element.md#the-import-worker)), or the one a React app starts
+  through [`importWorker`](reference/react.md#prop-importworker)
+
+It fetches no data. The host passes the rows.
+
+The REST service and the MCP server request only addresses that the operator writes in the
+configuration or on the command line:
+
+- an [HTTP source](reference/sources.md#http) and its backend sign-in
+- the OAuth issuer's metadata and key set
+- the token endpoint of a token exchange, and that of the
+  [sign-in links](reference/delivery.md#sign-in) of downloads. Each is the issuer's, or the address
+  the operator sets with `tokenUrl`. The sign-in links can have an issuer of their own.
+- an [upload store](reference/delivery.md#upload) and its presign service
+- the OpenAPI document that `pivotkit-server source-from-openapi` reads
+
+[HTTP sources and outbound requests](#http-sources) says how the server guards these requests.
+The server's commands for the operator add these:
+
+- `check-config` asks the issuer for its metadata. It looks up the host names of the issuer and the
+  upload store, without a request to the store.
+- `check-source` loads one HTTP source with its backend sign-in. For a token exchange it asks the
+  token endpoint only. Without `tokenUrl`, it reads the issuer's metadata first.
+- `pivotkit-server healthcheck` asks `/healthz` on 127.0.0.1 by default. Given an address, it asks
+  that address ([health](reference/container.md#health)).
+
+The command line, `pivotkit`:
+
+- the server named with `--url` or `PIVOTKIT_URL`, for its REST service
+  ([with a server](reference/cli.md#with-a-server))
+- `pivotkit login`: the server's sign-in metadata, then its issuer's metadata, device code and token
+  endpoints ([sign in](reference/cli.md#sign-in))
+- `pivotkit token`: the issuer's token endpoint
+- `pivotkit logout`: the issuer's revocation endpoint, where the issuer offers one
+
+A request to a loopback address never goes through a proxy. Other requests of the command line use
+`HTTP_PROXY` and `HTTPS_PROXY` only where Node is told to, with `NODE_USE_ENV_PROXY=1` or
+`--use-env-proxy`. The server's requests to other servers use no proxy.
+
+Without a server, the command line reads and writes local files only.
+
+Some addresses only appear in output. pivotkit never requests them:
+
+- `$schema` and `$id` in view files and JSON Schemas
+- the `type` of a REST error, which names its entry in the [REST reference](reference/rest.md)
+- documentation links in messages, on the MCP server's start page and in its OAuth metadata
+
+The `User-Agent` header of each request:
+
+| Request | `User-Agent` |
+| --- | --- |
+| the command line to a server's REST service | `pivotkit-cli/<version>` |
+| the command line's sign-in, to a host that is not loopback | Node's default, `node` |
+| the command line's sign-in, to a loopback address | none |
+| the server's request for the issuer's key set | the jose library's, `jose/v<version>` |
+| `pivotkit-server healthcheck` | Node's default, `node` |
+| every other request of the server | none, unless the operator sets the header for a source |
+| the report in the browser | the browser's own |
 
 ## Views are untrusted input
 
@@ -633,15 +709,12 @@ Each release's image is signed with cosign (keyless) and has provenance and SBOM
 ## HTTP sources and outbound requests { #http-sources }
 
 The REST service and the MCP server make requests to other servers only where the operator's
-configuration names the address:
+configuration names the address. [Network requests](#network) lists them.
+[OAuth](reference/mcp.md#oauth) has the issuer's rules.
 
-- an [HTTP source](reference/sources.md#http) and its backend sign-in
-- the OAuth issuer's metadata, key set and token endpoint ([OAuth](reference/mcp.md#oauth))
-- an [upload to a store](reference/delivery.md#upload)
-- an OpenAPI document by URL for `pivotkit-server source-from-openapi`
-
-Every one goes through the same guarded request, `guardedFetch` in pivotkit-server. So a caller or a
-model cannot point the server at an address:
+Every request to a source, the issuer, an upload store or an OpenAPI document by URL goes through
+the same guarded request, `guardedFetch` in pivotkit-server. So a caller or a model cannot point the
+server at an address:
 
 - `https://` only, with no user name or password in the address. Plain `http://` goes only to a
   loopback address, for a test issuer the operator allows (`auth.allowInsecureIssuer`).
@@ -765,8 +838,8 @@ version in the URL, or host `dist/` yourself.
 ## This documentation site
 
 The theme's script in the header of this site asks api.github.com for the repository's stars, forks and
-latest release, from the reader's browser. pivotkit itself, in your app, sends nothing to a third
-party. It loads only its own chunks from where you host it.
+latest release, from the reader's browser. pivotkit in your app makes no such request: see
+[Network requests](#network).
 
 ## Dependencies
 
