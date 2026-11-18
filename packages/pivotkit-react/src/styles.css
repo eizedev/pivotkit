@@ -2821,6 +2821,8 @@
     max-width: var(--pk-label-max, max(5em, 22cqi));
 }
 
+/* --pk-label-w and --pk-label-max are internal switches that fitLabels sets through data-pk-labels,
+   not theme tokens: a host that sets them turns the fit off. */
 /* a table that fits its box without the caps (table.jsx: fitLabels): "natural" keeps every label and
    name at its natural width, "share" lets them wrap between words to the box's width */
 .pk-table[data-pk-labels] {
