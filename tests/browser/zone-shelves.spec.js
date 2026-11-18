@@ -358,7 +358,7 @@ test("an i opened and closed by the keyboard, the mouse elsewhere: a hover still
 });
 
 test.describe("shelves", () => {
-    test("wide, typical: Filters and Columns share a line, so do Rows and Values; at rest no dashed outline", async ({ page }) => {
+    test("wide, typical: Filters and Columns share a line, so do Rows and Values; at rest a light frame, no dashed outline", async ({ page }) => {
         await open(page);
         const b = await boxes(page);
         expect(b.filters.y).toBe(b.cols.y);
@@ -374,9 +374,10 @@ test.describe("shelves", () => {
         });
         expect(side.chipLeft).toBeGreaterThanOrEqual(side.headRight);
         expect(Math.abs(side.headMid - side.chipMid)).toBeLessThanOrEqual(2);
-        // at rest: no dashed outline, the border is there but transparent (no jump when it shows)
+        // at rest: a light solid frame (--pk-zone-border), no dashed outline; a drag only changes its
+        // style and colour, so nothing moves (#605)
         const rest = await page.locator('[data-zone="filters"]').evaluate((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor, width: getComputedStyle(el).borderTopWidth }));
-        expect(rest.color).toBe("rgba(0, 0, 0, 0)");
+        expect(rest).toEqual({ style: "solid", color: "rgb(221, 225, 231)", width: "1.5px" });
         // an empty shelf still says what it is for
         await expect(page.locator('[data-zone="filters"] .pk-zone-hint')).toBeVisible();
         // the section's hint mentions Add
@@ -384,7 +385,7 @@ test.describe("shelves", () => {
         await expect(page.locator(".pk-info-pop")).toContainText("or use Add in each one");
     });
 
-    test("wide, many fields: a full shelf takes a line of its own and its chips wrap inside it", async ({ page }) => {
+    test("wide, many fields: a full shelf keeps its half of the grid and its chips wrap inside it", async ({ page }) => {
         await open(page);
         for (const field of ["Product", "Channel", "Category", "Month"]) {
             await (await addMenu(page, "rows")).getByTestId(`add-pick-${field}`).click();
@@ -393,13 +394,10 @@ test.describe("shelves", () => {
             await (await addMenu(page, "values")).getByTestId(`add-pick-${field}`).click();
         }
         const b = await boxes(page);
-        const panel = await page.locator(".pk-zones").evaluate((el) => {
-            const s = getComputedStyle(el);
-            return Math.round(el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight));
-        });
-        // Rows has a line of its own, the whole width, and Values is below it
-        expect(Math.abs(b.rows.w - panel)).toBeLessThanOrEqual(1);
-        expect(b.values.y).toBeGreaterThan(b.rows.y);
+        // Rows keeps its cell: as wide as Values beside it, on the same line (#605)
+        expect(Math.abs(b.rows.w - b.values.w)).toBeLessThanOrEqual(1);
+        expect(b.values.y).toBe(b.rows.y);
+        expect(b.values.x).toBeGreaterThan(b.rows.right);
         // and its chips wrap: more than one line of chips, none outside the shelf
         const tops = await page.locator('[data-zone="rows"] .pk-chip').evaluateAll((els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().top)))]);
         expect(tops.length).toBeGreaterThan(1);
@@ -432,8 +430,9 @@ test.describe("shelves", () => {
 });
 
 test("a chip removed by a click: the shelf that slides under the resting pointer opens no description", async ({ page }) => {
-    // the playground's test window: Rows and Values share a line, and without Country Values moves
-    // left, its "i" under the pointer that pressed Country's x
+    // the playground's test window: Rows and Values share a line; with flowing shelves Values moved left
+    // without Country, its "i" under the pointer that pressed Country's x. The grid keeps Values in place
+    // (#605); the test stays for a layout where a shelf moves (a phone, a host's --pk-shelf-min).
     await open(page, { width: 1280, height: 1000 });
     await page.getByRole("button", { name: "Remove Country" }).click();
     expect(await chips(page, "rows")).toEqual(["Region"]);

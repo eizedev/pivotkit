@@ -830,8 +830,8 @@ folder of assets) deploys the whole `dist/` folder.
 
 The report adapts to its own width, not the window's:
 
-- **Wide** (1024 px and more): the field list is on the left, and the zones are shelves side by side
-  while they fit.
+- **Wide** (1024 px and more): the field list is on the left, and the zones are shelves in a 2×2
+  grid.
 - **Medium**: the field list is narrower.
 - **Narrow** (below 640 px): the field list opens as a drawer from the toolbar. Menus show as bottom
   sheets: at the bottom of the window, at most 82 % of its height, scrolling inside.
@@ -906,12 +906,14 @@ then each zone's "i", its "+ Add" and its chips.
 
 Each zone is a shelf: its title, its "i" and "+ Add" on the left, its chips flowing beside them.
 
-- Shelves sit side by side while they fit. A shelf narrower than `--pk-shelf-min` takes a line of
-  its own, and so does one whose chips need more room. Its chips then wrap inside it.
-- Below 400 px of the main area, the title row stands above the chips, with "+ Add" at its right
-  end.
-- The dashed drop outline shows only while something is dragged. At rest the border is there but
-  transparent, so the shelves do not move when a drag starts.
+- From 640 px of the main area, the shelves form a 2×2 grid of equal halves: Filters and Columns
+  on top, Rows and Values below. Below 640 px they stand in one column.
+- A half is at least `--pk-shelf-min` wide. Where it would be narrower, the grid keeps one column.
+- A chip never widens its shelf. The chips wrap inside it, so the drop targets stay in place.
+- A shelf narrower than 28em puts its title row above the chips, with "+ Add" at its right end.
+  That happens on a phone and in the halves of a medium report.
+- Each shelf has a light frame (`--pk-zone-border`). While something is dragged, the frame turns
+  into the dashed drop outline. Its width stays the same, so the shelves do not move.
 - "+ Add" (`addField`, named by `addFieldTo`) opens the zone's menu of every field. It loads with
   the menus. After a pick the focus goes to the new chip, and a status region inside the section
   says what was added or moved (`steps.added`, `movedFrom`).

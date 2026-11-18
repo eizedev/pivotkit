@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- The four zones form an even 2×2 grid with equal halves, and one column on a narrow report. Each
+  zone has a light frame (`--pk-zone-border`). See pivotkit-react's changelog
+  ([#605](https://github.com/eizedev/pivotkit/issues/605)).
+
 ## [0.8.0] - 2026-11-18
 
 ### Upgrading from 0.7

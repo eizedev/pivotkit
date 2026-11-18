@@ -34,7 +34,7 @@ export const en = {
         rows: "Add or drop a field to group rows",
         cols: "Add or drop a field to group columns",
         values: "Add or drop a number to sum or count it",
-        filters: "Add or drop a field to filter the whole report"
+        filters: "Add or drop a field to filter"
     },
     fields: "Fields",
     fieldsHint: "Drag a field into Rows, Columns, Values or Filters, or open its menu.",
@@ -400,7 +400,7 @@ export const de = {
         rows: "Ein Feld hinzufügen oder hierher ziehen, um Zeilen zu gruppieren",
         cols: "Ein Feld hinzufügen oder hierher ziehen, um Spalten zu gruppieren",
         values: "Eine Zahl hinzufügen oder hierher ziehen, um sie zu summieren oder zu zählen",
-        filters: "Ein Feld hinzufügen oder hierher ziehen, um den ganzen Bericht zu filtern"
+        filters: "Ein Feld hinzufügen oder hierher ziehen, um zu filtern"
     },
     fields: "Felder",
     fieldsHint: "Ein Feld in Zeilen, Spalten, Werte oder Filter ziehen oder sein Menü öffnen.",

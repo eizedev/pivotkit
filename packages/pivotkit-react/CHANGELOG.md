@@ -6,6 +6,18 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- The four zones form an even grid. From 640 px of the main area, Filters and Columns sit on top
+  and Rows and Values below, in equal halves at every width. Below 640 px they stand in one column.
+  A chip never widens a zone, so the drop targets stay in place while fields are added
+  ([#605](https://github.com/eizedev/pivotkit/issues/605)).
+- A zone narrower than 28em puts its title row above its chips, as on a phone.
+- Each zone has a light frame, from the new token `--pk-zone-border`, and a little more height,
+  from the new token `--pk-shelf-pad-block`. `--pk-shelf-min` is now the least width of a half of
+  the grid.
+- The Filters hint is shorter: "Add or drop a field to filter".
+
 ## [0.8.0] - 2026-11-18
 
 ### Upgrading from 0.7
