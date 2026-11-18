@@ -6,6 +6,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- A 404 and `check-config` name the OpenAPI document's full address. The document sits at the
+  server's root, `/openapi.json`, not under `/api/v1`. With `http.publicUrl` set they print the
+  whole address, for example `https://reports.example.com/openapi.json`. Without it they say that
+  the document sits at the root. `check-config` prints the REST service's full address too.
+  A 404 no longer points to the document when `rest.openapi` is `"off"`
+  ([The OpenAPI document](https://pivotkit.eize.dev/reference/rest/#openapi), #609).
+
 ## [0.3.1] - 2026-11-18
 
 ### Added

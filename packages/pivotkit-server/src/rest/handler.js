@@ -19,7 +19,7 @@
 import { OperationError, checkInput } from "pivotkit-report/operations";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { SIGN_IN_CLIENT_FIELD } from "pivotkit-cli/rest";
-import { REST_BASE, restResourceOf } from "../config.js";
+import { OPENAPI_PATH, REST_BASE, restAddressesOf, restResourceOf } from "../config.js";
 import { AuthRefusal, bearerOf, groupRefusal, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
@@ -134,6 +134,8 @@ async function readJson(request, max, detail) {
 export async function createRestHandler(context, runtime = {}) {
     const options = context.options;
     const rest = options.rest ?? {};
+    /** The 404 of a route nobody serves: it names the OpenAPI document's full address where it is served. */
+    const noRoute = (rest.openapi ?? "auth") === "off" ? "no such route" : `no such route; the OpenAPI document at ${restAddressesOf(options).openapi} lists the routes`;
     const hosts = allowedHosts(options);
     const origins = new Set(rest.cors?.origins ?? []);
     const authOptions = options.auth ?? {};
@@ -248,7 +250,7 @@ export async function createRestHandler(context, runtime = {}) {
     }
 
     /** Whether a path is the REST service's. */
-    const handles = (path) => path === REST_BASE || path.startsWith(`${REST_BASE}/`) || path === "/openapi.json" || path === PRM_PATH;
+    const handles = (path) => path === REST_BASE || path.startsWith(`${REST_BASE}/`) || path === OPENAPI_PATH || path === PRM_PATH;
 
     /** Runs a route for a caller. */
     async function run(match, request, caller, entry) {
@@ -358,14 +360,14 @@ export async function createRestHandler(context, runtime = {}) {
             const signInClient = rest.signIn?.clientId;
             return json({ resource: resource.href, authorization_servers: [metadata.issuer], ...(offered ? { scopes_supported: offered } : {}), resource_name: "pivotkit REST", resource_documentation: "https://pivotkit.eize.dev/reference/rest/", ...(signInClient ? { [SIGN_IN_CLIENT_FIELD]: signInClient } : {}) }, 200, { "cache-control": "max-age=300" });
         }
-        if (path === "/openapi.json") {
+        if (path === OPENAPI_PATH) {
             if ((rest.openapi ?? "auth") === "off" || request.method !== "GET") {
                 return problem(request.method !== "GET" && rest.openapi !== "off" ? "METHOD_NOT_ALLOWED" : "NOT_FOUND", "no such route");
             }
             if ((rest.openapi ?? "auth") === "auth") {
                 const who = await authenticate(request, address);
                 if ("refused" in who) {
-                    context.log.refused({ status: who.refused.status, path: "/openapi.json", reason: who.reason, ...("client" in who ? { client: who.client } : {}) });
+                    context.log.refused({ status: who.refused.status, path: OPENAPI_PATH, reason: who.reason, ...("client" in who ? { client: who.client } : {}) });
                     return who.refused;
                 }
             }
@@ -374,7 +376,7 @@ export async function createRestHandler(context, runtime = {}) {
         const sub = path.startsWith(REST_BASE) ? path.slice(REST_BASE.length) : null;
         const candidates = sub === null ? [] : MATCHERS.map(({ route: r, pattern }) => ({ route: r, params: pattern.exec(sub)?.groups ?? (pattern.test(sub) ? {} : null) })).filter((m) => m.params !== null);
         if (!candidates.length) {
-            return problem("NOT_FOUND", "no such route; GET /openapi.json lists them");
+            return problem("NOT_FOUND", noRoute);
         }
         // HEAD is GET without the body (node:http leaves it out)
         const method = request.method === "HEAD" ? "GET" : request.method;
@@ -495,7 +497,7 @@ export async function createRestHandler(context, runtime = {}) {
      */
     function routeFamily(request) {
         const path = new URL(request.url).pathname;
-        return path.startsWith(REST_BASE) ? { path: REST_BASE } : path.startsWith("/openapi.json") ? { path: "/openapi.json" } : {};
+        return path.startsWith(REST_BASE) ? { path: REST_BASE } : path.startsWith(OPENAPI_PATH) ? { path: OPENAPI_PATH } : {};
     }
 
     /**

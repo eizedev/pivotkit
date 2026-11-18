@@ -25,6 +25,10 @@ on the same port.
 
 This page is the reference.
 
+The REST service is at `/api/v1`, for example `https://reports.example.com/api/v1`. Its
+[OpenAPI document](#openapi) sits at the server's root, not under `/api/v1`:
+`https://reports.example.com/openapi.json`.
+
 ```bash
 npm install --global pivotkit-server pivotkit-mcp
 PIVOTKIT_TOKEN=... pivotkit-server serve --config pivotkit.json --auth token   # http://127.0.0.1:3333/api/v1
@@ -942,9 +946,13 @@ Rows go by status, then by code. The answers of the download links come last.
 
 ## The OpenAPI document { #openapi }
 
-A running server serves its OpenAPI 3.1 document at `/openapi.json`. The document has the server's
-own address (`http.publicUrl`) and sign-in: bearer for tokens, the issuer's OAuth endpoints, and the
-scopes per operation as `x-pivotkit-scopes`.
+A running server serves its OpenAPI 3.1 document at the server's root, not under `/api/v1`. For a
+server at `https://reports.example.com` the address is `https://reports.example.com/openapi.json`.
+On your machine it is `http://127.0.0.1:3333/openapi.json`. A 404 and `check-config` name this full
+address when `http.publicUrl` is set. Without it, they say that the document sits at the root.
+
+The document has the server's own address (`http.publicUrl`) and sign-in: bearer for tokens, the
+issuer's OAuth endpoints, and the scopes per operation as `x-pivotkit-scopes`.
 
 - By default, only signed-in callers get it (`rest.openapi: "auth"`).
 - `"public"` serves it to anyone.
@@ -966,7 +974,7 @@ breaking change of the operations' contracts, which is a breaking change for MCP
 
 | Command | What it does |
 | --- | --- |
-| `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json`, and with pivotkit-mcp installed `/mcp` and its quick-start page. Always `/healthz` and `/readyz` |
+| `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json` at the root, and with pivotkit-mcp installed `/mcp` and its quick-start page. Always `/healthz` and `/readyz` |
 | `pivotkit-server check-config [flags]` | Whether `serve` would start and what it would expose, then exit. It shows the sources, each field's level and why, the fields the automatic values rule gives or would give `values`, delivery, auth, profiles and REST settings. Exit 1 when it finds a problem, whether or not the server would start with it ([reading it](#check-config)). A policy rule that names no column of the data is a warning (exit 0), with the name probably meant |
 | `pivotkit-server check-source <id> [--param name=value ...] [flags]` | Load an [HTTP source](sources.md#check-source) once as the server would. It shows each page's status, content type and size, the rows, the fields with their types (never a value), when the data is from, and what a caller would get when it fails. Exit 1 when it fails, 2 when the id names no HTTP source |
 | `pivotkit-server source-from-openapi <file or https URL> --operation <operationId or "GET /path"> [--id <id>] [--backend <name>]` | Propose an [HTTP source](sources.md#openapi) from one GET operation of an OpenAPI document (JSON). The block goes to stdout, what you must check and decide to stderr. The values you must fill in say `TODO`, and the server refuses them until you do. Exit 2 when the operation cannot be a source |
@@ -1042,7 +1050,7 @@ are wrapped at 78 columns at spaces. A path stands on a line of its own and is n
 one makes its line longer.
 
 The output prints the limits and defaults that matter with their values: the exposure limits, the
-output directory's size, CORS, who may read `/openapi.json`. A field's level says whether it comes
+output directory's size, CORS, where the OpenAPI document is and who may read it. A field's level says whether it comes
 from a rule or the default. A secret is named by its variable or by its file, as written and with
 its full path, never by its value.
 

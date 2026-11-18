@@ -461,6 +461,23 @@ export async function loadConfig(file) {
 /** The REST service's path (pivotkit-cli/rest's, the CLI's remote mode names it). */
 export { REST_BASE } from "pivotkit-cli/rest";
 
+/** The OpenAPI document's path. It sits at the server's root, not under REST_BASE. */
+export const OPENAPI_PATH = "/openapi.json";
+
+/**
+ * Where people find the REST service and its OpenAPI document, for messages: full addresses under
+ * http.publicUrl, else the paths. Readers took a bare "/openapi.json" next to "/api/v1" as relative
+ * to it, so without a public URL the document's place is said in words.
+ * @param {ServerOptions} options
+ * @returns {{ rest: string, openapi: string, openapiShort: string }}
+ */
+export function restAddressesOf(options) {
+    const base = options.http?.publicUrl ? options.http.publicUrl.replace(/\/+$/, "") : null;
+    return base
+        ? { rest: `${base}${REST_BASE}`, openapi: `${base}${OPENAPI_PATH}`, openapiShort: `${base}${OPENAPI_PATH}` }
+        : { rest: REST_BASE, openapi: `the server's root, ${OPENAPI_PATH} (not under ${REST_BASE})`, openapiShort: `${OPENAPI_PATH}, at the server's root` };
+}
+
 /**
  * The REST service's OAuth resource: rest.resource, else the origin of auth.resource with /api/v1
  * (an audience of its own, so a token for the MCP endpoint does not reach REST).
