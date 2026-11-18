@@ -666,7 +666,7 @@ What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started
   area scroll as well, with two scroll bars side by side ([#112](https://github.com/eizedev/pivotkit/issues/112)).
 - A virtual table's row label column (300 rows or more) keeps its width while the table scrolls:
   measured per view and data over its 50 longest labels in the table's own font (again when the font,
-  its size or a web font changes), at most 26em, a longer label cut with "…" and whole in its tooltip
+  its size or a web font changes), at most 28em, a longer label cut with "…" and whole in its tooltip
   ([#110](https://github.com/eizedev/pivotkit/issues/110), [#121](https://github.com/eizedev/pivotkit/issues/121)).
 - Tab in a bottom sheet: one Tab from a chip menu's first level closes it and moves on from its chip;
   a level with fields keeps Tab inside the sheet (Chromium let it out to the page). One definition of

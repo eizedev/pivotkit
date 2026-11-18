@@ -216,7 +216,7 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
   to one line:
     - The status line under the table shows the whole label of the row the focus is on, or of a label
       you tap. The cut label's tooltip shows it too.
-    - The row label column is as wide as its longest labels, at most 26em. It keeps that width while
+    - The row label column is as wide as its longest labels, at most 28em. It keeps that width while
       the table scrolls. The report measures it again when the font or its size changes.
     - "Longest" counts characters. A label of fewer but wider characters, such as Chinese or emoji,
       can end in "…" although it would fit. Its whole text is in the tooltip.
