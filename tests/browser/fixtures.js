@@ -95,6 +95,14 @@ export const START_OVER = ["reset", "new-report"];
 export const SETTINGS = { "table-settings": "table", "chart-settings": "chart" };
 
 /**
+ * Waits two frames of the page. The toolbar decides again which buttons stand in "More" as the report
+ * lays out (a ResizeObserver, then a render): a test that looks for a button, its own or in More,
+ * looks once that has settled.
+ * @param {import("@playwright/test").Page} page
+ */
+export const twoFrames = (page) => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+
+/**
  * Clicks a toolbar action: its own button, or its entry in "More" when the report is too narrow for
  * all buttons. `testId` is the button's ("redo", "views", "more"), an action of Start over
  * ("reset", "new-report": its menu, then the action), "help" (More, then its Help level), or a menu
@@ -105,7 +113,7 @@ export const SETTINGS = { "table-settings": "table", "chart-settings": "chart" }
 export async function toolbar(page, testId) {
     // the report has its data (a real data set loads as a chunk of its own) and its toolbar has settled
     await page.locator('[data-testid="pivot-table"], [data-testid="pivot-chart"], [data-testid="empty-state"]').first().waitFor();
-    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await twoFrames(page);
     const button = START_OVER.includes(testId) ? "start-over" : testId;
     const own = page.getByTestId(button);
     if (Object.hasOwn(SETTINGS, testId)) {
