@@ -161,9 +161,13 @@ Then restart Claude Code.
 
 ## From 0.8.0 to 0.8.1 { #from-0-8-0 }
 
+This applies to pivotkit-server and pivotkit-mcp 0.3.0 too, which move to 0.3.1.
+
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | [The zones form an even grid](#zone-grid) | your theme sets `--pk-shelf-min`, or your tests or screenshots show the open zones | check the value; update screenshots |
+| pivotkit-mcp 0.3.1 needs pivotkit-server 0.3.1 | you run pivotkit-server and pivotkit-mcp | [update both in one command](#update-global) |
+| [`check-config` warns about a token exchange without `scope`](../reference/sources.md#check-source) | an HTTP source exchanges the person's token and sets no `scope` | set `scope` to the narrowest the backend needs |
 
 ### The zones form an even grid { #zone-grid }
 

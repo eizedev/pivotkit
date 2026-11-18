@@ -43,7 +43,7 @@ published as [view-file-1.json](../schema/view-file-1.json).
   "name": "Revenue by region",
   "description": "For the monthly review",
   "createdAt": "2026-11-07T09:30:00.000Z",
-  "generator": { "name": "pivotkit-react", "version": "0.8.0" },
+  "generator": { "name": "pivotkit-react", "version": "0.8.1" },
   "source": {
     "id": "sales",
     "name": "Sales 2026",
