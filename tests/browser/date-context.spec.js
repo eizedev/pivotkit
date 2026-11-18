@@ -10,7 +10,12 @@ for (const lang of ["en", "de"]) {
         await expect(page.getByTestId("date-range")).toContainText("2025");
         // the range is the data's, before filters: its tooltip says so
         await expect(page.getByTestId("date-range")).toHaveAttribute("title", lang === "en" ? "Date: the data's first and last date, before filters" : "Date: erstes und letztes Datum der Daten, vor den Filtern");
-        await expect(page.locator('[data-zone="cols"]')).toContainText(lang === "en" ? "2023–2025 combined" : "2023–2025 zusammengefasst");
+        const years = lang === "en" ? "2023–2025 combined" : "2023–2025 zusammengefasst";
+        // the table's title names the years; the chip keeps the plain name, its tooltip has the years
+        await expect(page.getByTestId("pivot-table")).toContainText(years);
+        const chip = page.locator('[data-zone="cols"] .pk-chip');
+        await expect(chip.locator(".pk-chip-name")).not.toContainText(years);
+        await expect(chip.locator("[title]").first()).toHaveAttribute("title", new RegExp(years));
         await page.locator('[data-zone="cols"] [data-testid^="chip-menu-"]').click();
         await page.getByTestId("topic-group").click();
         const menu = page.locator(".pk-chip-menu");
